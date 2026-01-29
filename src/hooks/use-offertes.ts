@@ -1,0 +1,80 @@
+"use client";
+
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { useCurrentUser } from "./use-current-user";
+import { Id } from "../../convex/_generated/dataModel";
+
+export function useOffertes() {
+  const { user } = useCurrentUser();
+
+  const offertes = useQuery(
+    api.offertes.list,
+    user?._id ? { userId: user._id } : "skip"
+  );
+
+  const stats = useQuery(
+    api.offertes.getStats,
+    user?._id ? { userId: user._id } : "skip"
+  );
+
+  const recentOffertes = useQuery(
+    api.offertes.getRecent,
+    user?._id ? { userId: user._id, limit: 5 } : "skip"
+  );
+
+  const createOfferte = useMutation(api.offertes.create);
+  const updateOfferte = useMutation(api.offertes.update);
+  const updateRegels = useMutation(api.offertes.updateRegels);
+  const updateStatus = useMutation(api.offertes.updateStatus);
+  const deleteOfferte = useMutation(api.offertes.remove);
+  const duplicateOfferte = useMutation(api.offertes.duplicate);
+
+  const create = async (data: {
+    type: "aanleg" | "onderhoud";
+    offerteNummer: string;
+    klant: {
+      naam: string;
+      adres: string;
+      postcode: string;
+      plaats: string;
+      email?: string;
+      telefoon?: string;
+    };
+    algemeenParams: {
+      bereikbaarheid: "goed" | "beperkt" | "slecht";
+      achterstalligheid?: "laag" | "gemiddeld" | "hoog";
+    };
+    scopes?: string[];
+    scopeData?: Record<string, unknown>;
+    notities?: string;
+  }) => {
+    if (!user?._id) throw new Error("User not found");
+    return createOfferte({ userId: user._id, ...data });
+  };
+
+  return {
+    offertes,
+    stats,
+    recentOffertes,
+    isLoading: user && offertes === undefined,
+    create,
+    update: updateOfferte,
+    updateRegels,
+    updateStatus,
+    delete: deleteOfferte,
+    duplicate: duplicateOfferte,
+  };
+}
+
+export function useOfferte(id: Id<"offertes"> | null) {
+  const offerte = useQuery(
+    api.offertes.get,
+    id ? { id } : "skip"
+  );
+
+  return {
+    offerte,
+    isLoading: id && offerte === undefined,
+  };
+}
