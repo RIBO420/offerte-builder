@@ -50,6 +50,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   ArrowLeft,
   Loader2,
   Save,
@@ -58,9 +68,12 @@ import {
   Pencil,
   Shovel,
   Trees,
+  RefreshCw,
+  AlertTriangle,
 } from "lucide-react";
 import { useOfferte, useOffertes } from "@/hooks/use-offertes";
 import { useInstellingen } from "@/hooks/use-instellingen";
+import { useOfferteCalculation } from "@/hooks/use-offerte-calculation";
 import { Id } from "../../../../../../convex/_generated/dataModel";
 import { toast } from "sonner";
 
@@ -106,10 +119,13 @@ export default function OfferteEditPage({
   const { offerte, isLoading } = useOfferte(id as Id<"offertes">);
   const { update, updateRegels } = useOffertes();
   const { instellingen } = useInstellingen();
+  const { calculate, isLoading: isCalcLoading } = useOfferteCalculation();
 
   const [regels, setRegels] = useState<Regel[]>([]);
   const [notities, setNotities] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isRecalculating, setIsRecalculating] = useState(false);
+  const [showRecalculateDialog, setShowRecalculateDialog] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingRegel, setEditingRegel] = useState<Regel | null>(null);
@@ -256,6 +272,39 @@ export default function OfferteEditPage({
     }
   };
 
+  const handleRecalculate = () => {
+    if (!offerte || !offerte.scopeData) {
+      toast.error("Geen scope data beschikbaar voor herberekening");
+      return;
+    }
+
+    setIsRecalculating(true);
+    try {
+      const calculationResult = calculate({
+        type: offerte.type,
+        scopes: offerte.scopes || [],
+        scopeData: offerte.scopeData,
+        bereikbaarheid: offerte.algemeenParams.bereikbaarheid,
+        achterstalligheid: offerte.algemeenParams.achterstalligheid,
+      });
+
+      if (calculationResult && calculationResult.regels.length > 0) {
+        setRegels(calculationResult.regels);
+        toast.success(
+          `${calculationResult.regels.length} regels herberekend vanuit scope data`
+        );
+      } else {
+        toast.error("Geen regels gegenereerd uit scope data");
+      }
+    } catch (error) {
+      toast.error("Fout bij herberekenen");
+      console.error(error);
+    } finally {
+      setIsRecalculating(false);
+      setShowRecalculateDialog(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <>
@@ -379,14 +428,28 @@ export default function OfferteEditPage({
             </div>
           </div>
 
-          <Button onClick={handleSave} disabled={isSaving}>
-            {isSaving ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="mr-2 h-4 w-4" />
-            )}
-            Opslaan
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowRecalculateDialog(true)}
+              disabled={isRecalculating || !offerte.scopeData}
+            >
+              {isRecalculating ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
+              Herbereken
+            </Button>
+            <Button onClick={handleSave} disabled={isSaving}>
+              {isSaving ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
+              Opslaan
+            </Button>
+          </div>
         </div>
 
         <div className="grid gap-4 lg:grid-cols-3">
@@ -838,6 +901,44 @@ export default function OfferteEditPage({
           </div>
         </div>
       </div>
+
+      {/* Recalculate Confirmation Dialog */}
+      <AlertDialog
+        open={showRecalculateDialog}
+        onOpenChange={setShowRecalculateDialog}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Regels herberekenen
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                Dit zal alle huidige regels vervangen door nieuwe regels
+                berekend vanuit de originele scope data.
+              </p>
+              <p className="font-medium text-destructive">
+                Handmatige wijzigingen gaan verloren!
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuleren</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRecalculate}
+              className="bg-amber-600 hover:bg-amber-700"
+            >
+              {isRecalculating ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
+              Herbereken
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

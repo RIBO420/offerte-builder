@@ -11,9 +11,29 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_clerk_id", ["clerkId"]),
 
+  // Klanten
+  klanten: defineTable({
+    userId: v.id("users"),
+    naam: v.string(),
+    adres: v.string(),
+    postcode: v.string(),
+    plaats: v.string(),
+    email: v.optional(v.string()),
+    telefoon: v.optional(v.string()),
+    notities: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .searchIndex("search_klanten", {
+      searchField: "naam",
+      filterFields: ["userId"],
+    }),
+
   // Offertes
   offertes: defineTable({
     userId: v.id("users"),
+    klantId: v.optional(v.id("klanten")), // Link to klanten table
     type: v.union(v.literal("aanleg"), v.literal("onderhoud")),
     status: v.union(
       v.literal("concept"),

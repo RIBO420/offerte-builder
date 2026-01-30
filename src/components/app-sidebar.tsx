@@ -26,6 +26,7 @@ import {
   Trees,
   Moon,
   Sun,
+  Users,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,11 @@ const navigationItems = [
     title: "Offertes",
     url: "/offertes",
     icon: FileText,
+  },
+  {
+    title: "Klanten",
+    url: "/klanten",
+    icon: Users,
   },
 ];
 

@@ -11,6 +11,7 @@
 import type * as berekeningen from "../berekeningen.js";
 import type * as correctiefactoren from "../correctiefactoren.js";
 import type * as instellingen from "../instellingen.js";
+import type * as klanten from "../klanten.js";
 import type * as normuren from "../normuren.js";
 import type * as offertes from "../offertes.js";
 import type * as producten from "../producten.js";
@@ -27,6 +28,7 @@ declare const fullApi: ApiFromModules<{
   berekeningen: typeof berekeningen;
   correctiefactoren: typeof correctiefactoren;
   instellingen: typeof instellingen;
+  klanten: typeof klanten;
   normuren: typeof normuren;
   offertes: typeof offertes;
   producten: typeof producten;

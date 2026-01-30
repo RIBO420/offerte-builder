@@ -44,6 +44,7 @@ import {
   AlertTriangle,
   Loader2,
   Check,
+  Save,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
@@ -51,6 +52,7 @@ import { useOffertes } from "@/hooks/use-offertes";
 import { useInstellingen } from "@/hooks/use-instellingen";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useOfferteCalculation } from "@/hooks/use-offerte-calculation";
+import { useWizardAutosave } from "@/hooks/use-wizard-autosave";
 import {
   GrasOnderhoudForm,
   BordersOnderhoudForm,
@@ -59,6 +61,7 @@ import {
   OverigForm,
 } from "@/components/offerte/onderhoud-forms";
 import { TemplateSelector } from "@/components/offerte/template-selector";
+import { RestoreDraftDialog } from "@/components/offerte/restore-draft-dialog";
 import { Id } from "../../../../../../convex/_generated/dataModel";
 import type {
   Bereikbaarheid,
@@ -161,6 +164,47 @@ type OnderhoudScopeData = {
   overig: OverigeOnderhoudData;
 };
 
+// Type for wizard autosave data
+interface WizardData {
+  selectedTemplateId: string | null;
+  selectedScopes: OnderhoudScope[];
+  bereikbaarheid: Bereikbaarheid;
+  achterstalligheid: Achterstalligheid;
+  tuinOppervlakte: string;
+  klantData: {
+    naam: string;
+    adres: string;
+    postcode: string;
+    plaats: string;
+    email: string;
+    telefoon: string;
+  };
+  scopeData: OnderhoudScopeData;
+}
+
+const INITIAL_WIZARD_DATA: WizardData = {
+  selectedTemplateId: null,
+  selectedScopes: [],
+  bereikbaarheid: "goed",
+  achterstalligheid: "laag",
+  tuinOppervlakte: "",
+  klantData: {
+    naam: "",
+    adres: "",
+    postcode: "",
+    plaats: "",
+    email: "",
+    telefoon: "",
+  },
+  scopeData: {
+    gras: DEFAULT_GRAS_ONDERHOUD,
+    borders: DEFAULT_BORDERS_ONDERHOUD,
+    heggen: DEFAULT_HEGGEN,
+    bomen: DEFAULT_BOMEN,
+    overig: DEFAULT_OVERIG,
+  },
+};
+
 export default function NieuweOnderhoudOffertePage() {
   const router = useRouter();
   const { isLoading: isUserLoading } = useCurrentUser();
@@ -168,34 +212,64 @@ export default function NieuweOnderhoudOffertePage() {
   const { getNextNummer, isLoading: isSettingsLoading, instellingen } = useInstellingen();
   const { calculate, isLoading: isCalcLoading } = useOfferteCalculation();
 
-  // Wizard state (start at step 0 for template selection)
-  const [currentStep, setCurrentStep] = useState(0);
+  // Wizard autosave hook
+  const {
+    data: wizardData,
+    step: currentStep,
+    setData: setWizardData,
+    setStep: setCurrentStep,
+    hasDraft,
+    draftAge,
+    restoreDraft,
+    discardDraft,
+    clearDraft,
+    showRestoreDialog,
+    setShowRestoreDialog,
+  } = useWizardAutosave<WizardData>({
+    key: "onderhoud",
+    type: "onderhoud",
+    initialData: INITIAL_WIZARD_DATA,
+    initialStep: 0,
+  });
+
   const totalSteps = 4;
-  const [selectedTemplateId, setSelectedTemplateId] = useState<Id<"standaardtuinen"> | null>(null);
-
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedScopes, setSelectedScopes] = useState<OnderhoudScope[]>([]);
-  const [bereikbaarheid, setBereikbaarheid] = useState<Bereikbaarheid>("goed");
-  const [achterstalligheid, setAchterstalligheid] =
-    useState<Achterstalligheid>("laag");
-  const [tuinOppervlakte, setTuinOppervlakte] = useState<string>("");
-  const [klantData, setKlantData] = useState({
-    naam: "",
-    adres: "",
-    postcode: "",
-    plaats: "",
-    email: "",
-    telefoon: "",
-  });
 
-  // Scope-specific data
-  const [scopeData, setScopeData] = useState<OnderhoudScopeData>({
-    gras: DEFAULT_GRAS_ONDERHOUD,
-    borders: DEFAULT_BORDERS_ONDERHOUD,
-    heggen: DEFAULT_HEGGEN,
-    bomen: DEFAULT_BOMEN,
-    overig: DEFAULT_OVERIG,
-  });
+  // Extract data from wizard state for easier access
+  const { selectedTemplateId, selectedScopes, bereikbaarheid, achterstalligheid, tuinOppervlakte, klantData, scopeData } = wizardData;
+
+  // Helper functions to update wizard data
+  const setSelectedTemplateId = (id: string | null) => {
+    setWizardData({ ...wizardData, selectedTemplateId: id });
+  };
+
+  const setSelectedScopes = (scopes: OnderhoudScope[] | ((prev: OnderhoudScope[]) => OnderhoudScope[])) => {
+    if (typeof scopes === "function") {
+      setWizardData({ ...wizardData, selectedScopes: scopes(wizardData.selectedScopes) });
+    } else {
+      setWizardData({ ...wizardData, selectedScopes: scopes });
+    }
+  };
+
+  const setBereikbaarheid = (value: Bereikbaarheid) => {
+    setWizardData({ ...wizardData, bereikbaarheid: value });
+  };
+
+  const setAchterstalligheid = (value: Achterstalligheid) => {
+    setWizardData({ ...wizardData, achterstalligheid: value });
+  };
+
+  const setTuinOppervlakte = (value: string) => {
+    setWizardData({ ...wizardData, tuinOppervlakte: value });
+  };
+
+  const setKlantData = (data: typeof klantData) => {
+    setWizardData({ ...wizardData, klantData: data });
+  };
+
+  const setScopeData = (data: OnderhoudScopeData) => {
+    setWizardData({ ...wizardData, scopeData: data });
+  };
 
   const isLoading = isUserLoading || isSettingsLoading;
 
@@ -303,6 +377,9 @@ export default function NieuweOnderhoudOffertePage() {
         });
       }
 
+      // Clear the draft after successful creation
+      clearDraft();
+
       toast.success(`Offerte ${offerteNummer} aangemaakt`);
       router.push(`/offertes/${offerteId}/bewerken`);
     } catch (error) {
@@ -330,14 +407,11 @@ export default function NieuweOnderhoudOffertePage() {
     templateId: Id<"standaardtuinen"> | null,
     templateData?: { scopes: string[]; scopeData: Record<string, unknown> }
   ) => {
-    setSelectedTemplateId(templateId);
-
     if (templateId && templateData) {
       // Pre-fill scopes from template
       const validScopes = templateData.scopes.filter((s): s is OnderhoudScope =>
         SCOPES.some((scope) => scope.id === s)
       );
-      setSelectedScopes(validScopes);
 
       // Pre-fill scope data from template
       const newScopeData = { ...scopeData };
@@ -348,7 +422,16 @@ export default function NieuweOnderhoudOffertePage() {
           }
         });
       }
-      setScopeData(newScopeData as OnderhoudScopeData);
+
+      // Update all at once
+      setWizardData({
+        ...wizardData,
+        selectedTemplateId: templateId,
+        selectedScopes: validScopes,
+        scopeData: newScopeData as OnderhoudScopeData,
+      });
+    } else {
+      setSelectedTemplateId(templateId ? templateId : null);
     }
 
     // Move to step 1
@@ -390,6 +473,15 @@ export default function NieuweOnderhoudOffertePage() {
 
   return (
     <>
+      {/* Restore Draft Dialog */}
+      <RestoreDraftDialog
+        open={showRestoreDialog}
+        draftAge={draftAge}
+        type="onderhoud"
+        onRestore={restoreDraft}
+        onDiscard={discardDraft}
+      />
+
       <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
         <SidebarTrigger className="-ml-1" />
         <Separator orientation="vertical" className="mr-2 h-4" />
@@ -427,11 +519,20 @@ export default function NieuweOnderhoudOffertePage() {
                     : "Bevestigen"}
             </p>
           </div>
-          <div className="hidden md:flex items-center gap-4 w-64">
-            <Progress value={((currentStep + 1) / totalSteps) * 100} className="h-2" />
-            <span className="text-sm text-muted-foreground whitespace-nowrap">
-              {Math.round(((currentStep + 1) / totalSteps) * 100)}%
-            </span>
+          <div className="hidden md:flex items-center gap-4">
+            {/* Auto-save indicator */}
+            {currentStep > 0 && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Save className="h-3 w-3" />
+                <span>Auto-save aan</span>
+              </div>
+            )}
+            <div className="flex items-center gap-4 w-64">
+              <Progress value={((currentStep + 1) / totalSteps) * 100} className="h-2" />
+              <span className="text-sm text-muted-foreground whitespace-nowrap">
+                {Math.round(((currentStep + 1) / totalSteps) * 100)}%
+              </span>
+            </div>
           </div>
         </div>
 

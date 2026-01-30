@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -46,6 +46,7 @@ import {
   AlertTriangle,
   Loader2,
   Check,
+  Save,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
@@ -53,6 +54,7 @@ import { useOffertes } from "@/hooks/use-offertes";
 import { useInstellingen } from "@/hooks/use-instellingen";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useOfferteCalculation } from "@/hooks/use-offerte-calculation";
+import { useWizardAutosave } from "@/hooks/use-wizard-autosave";
 import {
   GrondwerkForm,
   BestratingForm,
@@ -63,6 +65,7 @@ import {
   SpecialsForm,
 } from "@/components/offerte/scope-forms";
 import { TemplateSelector } from "@/components/offerte/template-selector";
+import { RestoreDraftDialog } from "@/components/offerte/restore-draft-dialog";
 import { Id } from "../../../../../../convex/_generated/dataModel";
 import type {
   Bereikbaarheid,
@@ -190,32 +193,35 @@ type ScopeData = {
   specials: SpecialsData;
 };
 
-export default function NieuweAanlegOffertePage() {
-  const router = useRouter();
-  const { isLoading: isUserLoading } = useCurrentUser();
-  const { create, updateRegels } = useOffertes();
-  const { getNextNummer, isLoading: isSettingsLoading, instellingen } = useInstellingen();
-  const { calculate, isLoading: isCalcLoading } = useOfferteCalculation();
+// Type for wizard autosave data
+interface WizardData {
+  selectedTemplateId: string | null;
+  selectedScopes: AanlegScope[];
+  bereikbaarheid: Bereikbaarheid;
+  klantData: {
+    naam: string;
+    adres: string;
+    postcode: string;
+    plaats: string;
+    email: string;
+    telefoon: string;
+  };
+  scopeData: ScopeData;
+}
 
-  // Wizard state (start at step 0 for template selection)
-  const [currentStep, setCurrentStep] = useState(0);
-  const totalSteps = 4;
-  const [selectedTemplateId, setSelectedTemplateId] = useState<Id<"standaardtuinen"> | null>(null);
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedScopes, setSelectedScopes] = useState<AanlegScope[]>([]);
-  const [bereikbaarheid, setBereikbaarheid] = useState<Bereikbaarheid>("goed");
-  const [klantData, setKlantData] = useState({
+const INITIAL_WIZARD_DATA: WizardData = {
+  selectedTemplateId: null,
+  selectedScopes: [],
+  bereikbaarheid: "goed",
+  klantData: {
     naam: "",
     adres: "",
     postcode: "",
     plaats: "",
     email: "",
     telefoon: "",
-  });
-
-  // Scope-specific data
-  const [scopeData, setScopeData] = useState<ScopeData>({
+  },
+  scopeData: {
     grondwerk: DEFAULT_GRONDWERK,
     bestrating: DEFAULT_BESTRATING,
     borders: DEFAULT_BORDERS,
@@ -223,7 +229,66 @@ export default function NieuweAanlegOffertePage() {
     houtwerk: DEFAULT_HOUTWERK,
     water_elektra: DEFAULT_WATER_ELEKTRA,
     specials: DEFAULT_SPECIALS,
+  },
+};
+
+export default function NieuweAanlegOffertePage() {
+  const router = useRouter();
+  const { isLoading: isUserLoading } = useCurrentUser();
+  const { create, updateRegels } = useOffertes();
+  const { getNextNummer, isLoading: isSettingsLoading, instellingen } = useInstellingen();
+  const { calculate, isLoading: isCalcLoading } = useOfferteCalculation();
+
+  // Wizard autosave hook
+  const {
+    data: wizardData,
+    step: currentStep,
+    setData: setWizardData,
+    setStep: setCurrentStep,
+    hasDraft,
+    draftAge,
+    restoreDraft,
+    discardDraft,
+    clearDraft,
+    showRestoreDialog,
+    setShowRestoreDialog,
+  } = useWizardAutosave<WizardData>({
+    key: "aanleg",
+    type: "aanleg",
+    initialData: INITIAL_WIZARD_DATA,
+    initialStep: 0,
   });
+
+  const totalSteps = 4;
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Extract data from wizard state for easier access
+  const { selectedTemplateId, selectedScopes, bereikbaarheid, klantData, scopeData } = wizardData;
+
+  // Helper functions to update wizard data
+  const setSelectedTemplateId = (id: string | null) => {
+    setWizardData({ ...wizardData, selectedTemplateId: id });
+  };
+
+  const setSelectedScopes = (scopes: AanlegScope[] | ((prev: AanlegScope[]) => AanlegScope[])) => {
+    if (typeof scopes === "function") {
+      setWizardData({ ...wizardData, selectedScopes: scopes(wizardData.selectedScopes) });
+    } else {
+      setWizardData({ ...wizardData, selectedScopes: scopes });
+    }
+  };
+
+  const setBereikbaarheid = (value: Bereikbaarheid) => {
+    setWizardData({ ...wizardData, bereikbaarheid: value });
+  };
+
+  const setKlantData = (data: typeof klantData) => {
+    setWizardData({ ...wizardData, klantData: data });
+  };
+
+  const setScopeData = (data: ScopeData) => {
+    setWizardData({ ...wizardData, scopeData: data });
+  };
 
   const isLoading = isUserLoading || isSettingsLoading;
 
@@ -326,6 +391,9 @@ export default function NieuweAanlegOffertePage() {
         });
       }
 
+      // Clear the draft after successful creation
+      clearDraft();
+
       toast.success(`Offerte ${offerteNummer} aangemaakt`);
       router.push(`/offertes/${offerteId}/bewerken`);
     } catch (error) {
@@ -353,14 +421,11 @@ export default function NieuweAanlegOffertePage() {
     templateId: Id<"standaardtuinen"> | null,
     templateData?: { scopes: string[]; scopeData: Record<string, unknown> }
   ) => {
-    setSelectedTemplateId(templateId);
-
     if (templateId && templateData) {
       // Pre-fill scopes from template
       const validScopes = templateData.scopes.filter((s): s is AanlegScope =>
         SCOPES.some((scope) => scope.id === s)
       );
-      setSelectedScopes(validScopes);
 
       // Pre-fill scope data from template
       const newScopeData = { ...scopeData };
@@ -371,7 +436,16 @@ export default function NieuweAanlegOffertePage() {
           }
         });
       }
-      setScopeData(newScopeData as ScopeData);
+
+      // Update all at once
+      setWizardData({
+        ...wizardData,
+        selectedTemplateId: templateId,
+        selectedScopes: validScopes,
+        scopeData: newScopeData as ScopeData,
+      });
+    } else {
+      setSelectedTemplateId(templateId ? templateId : null);
     }
 
     // Move to step 1
@@ -413,6 +487,15 @@ export default function NieuweAanlegOffertePage() {
 
   return (
     <>
+      {/* Restore Draft Dialog */}
+      <RestoreDraftDialog
+        open={showRestoreDialog}
+        draftAge={draftAge}
+        type="aanleg"
+        onRestore={restoreDraft}
+        onDiscard={discardDraft}
+      />
+
       <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
         <SidebarTrigger className="-ml-1" />
         <Separator orientation="vertical" className="mr-2 h-4" />
@@ -450,11 +533,20 @@ export default function NieuweAanlegOffertePage() {
                     : "Bevestigen"}
             </p>
           </div>
-          <div className="hidden md:flex items-center gap-4 w-64">
-            <Progress value={((currentStep + 1) / totalSteps) * 100} className="h-2" />
-            <span className="text-sm text-muted-foreground whitespace-nowrap">
-              {Math.round(((currentStep + 1) / totalSteps) * 100)}%
-            </span>
+          <div className="hidden md:flex items-center gap-4">
+            {/* Auto-save indicator */}
+            {currentStep > 0 && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Save className="h-3 w-3" />
+                <span>Auto-save aan</span>
+              </div>
+            )}
+            <div className="flex items-center gap-4 w-64">
+              <Progress value={((currentStep + 1) / totalSteps) * 100} className="h-2" />
+              <span className="text-sm text-muted-foreground whitespace-nowrap">
+                {Math.round(((currentStep + 1) / totalSteps) * 100)}%
+              </span>
+            </div>
           </div>
         </div>
 
