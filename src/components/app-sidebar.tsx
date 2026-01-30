@@ -89,18 +89,6 @@ const nieuweOfferteItems = [
   },
 ];
 
-const beheerItems = [
-  {
-    title: "Prijsboek",
-    url: "/prijsboek",
-    icon: BookOpen,
-  },
-  {
-    title: "Instellingen",
-    url: "/instellingen",
-    icon: Settings,
-  },
-];
 
 function getInitials(name: string | null | undefined): string {
   if (!name) return "?";
@@ -247,29 +235,6 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarSeparator />
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Beheer</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {beheerItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname === item.url}
-                    tooltip={item.title}
-                  >
-                    <Link href={item.url}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
       </SidebarContent>
 
       <SidebarFooter>
@@ -316,6 +281,12 @@ export function AppSidebar() {
                     <Link href="/profiel" className="cursor-pointer">
                       <User className="mr-2 h-4 w-4" />
                       Profiel
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/prijsboek" className="cursor-pointer">
+                      <BookOpen className="mr-2 h-4 w-4" />
+                      Prijsboek
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
