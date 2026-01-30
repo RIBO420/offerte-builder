@@ -89,6 +89,14 @@ export function KlantSelector({
 
   const handleClearSelection = () => {
     setSelectedKlantId(null);
+    onChange({
+      naam: "",
+      adres: "",
+      postcode: "",
+      plaats: "",
+      email: "",
+      telefoon: "",
+    });
     onKlantSelect?.(null);
   };
 
