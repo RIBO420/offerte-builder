@@ -67,7 +67,6 @@ export async function POST(request: NextRequest) {
     });
 
     if (error) {
-      console.error("Resend error:", error);
       return NextResponse.json(
         { error: error.message, status: "mislukt" },
         { status: 500 }
@@ -80,8 +79,7 @@ export async function POST(request: NextRequest) {
       status: "verzonden",
       subject,
     });
-  } catch (error) {
-    console.error("Email API error:", error);
+  } catch {
     return NextResponse.json(
       { error: "Fout bij verzenden email", status: "mislukt" },
       { status: 500 }

@@ -82,8 +82,7 @@ type Klant = {
 export default function KlantenPage() {
   const { klanten, isLoading, create, update, remove } = useKlanten();
   const [searchTerm, setSearchTerm] = useState("");
-  const { results: searchResults, isLoading: isSearching } =
-    useKlantenSearch(searchTerm);
+  const { results: searchResults } = useKlantenSearch(searchTerm);
 
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -145,9 +144,8 @@ export default function KlantenPage() {
       toast.success("Klant toegevoegd");
       setShowAddDialog(false);
       resetForm();
-    } catch (error) {
+    } catch {
       toast.error("Fout bij toevoegen klant");
-      console.error(error);
     } finally {
       setIsSubmitting(false);
     }
@@ -186,9 +184,8 @@ export default function KlantenPage() {
       setShowEditDialog(false);
       setSelectedKlant(null);
       resetForm();
-    } catch (error) {
+    } catch {
       toast.error("Fout bij bijwerken klant");
-      console.error(error);
     } finally {
       setIsSubmitting(false);
     }
@@ -209,7 +206,6 @@ export default function KlantenPage() {
       } else {
         toast.error("Fout bij verwijderen klant");
       }
-      console.error(error);
     } finally {
       setIsSubmitting(false);
     }

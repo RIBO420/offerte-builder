@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Card,
   CardContent,
@@ -35,6 +35,8 @@ interface TemplateSelectorProps {
   onSkip: () => void;
 }
 
+// Note: onSkip is part of the public API but currently unused in this component
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function TemplateSelector({ type, onSelect, onSkip }: TemplateSelectorProps) {
   const {
     templates,
@@ -47,23 +49,23 @@ export function TemplateSelector({ type, onSelect, onSkip }: TemplateSelectorPro
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(false);
 
+  const handleInitialize = useCallback(async () => {
+    setIsInitializing(true);
+    try {
+      await initializeSystemTemplates({});
+    } catch {
+      // Template initialization failed silently - user can retry
+    } finally {
+      setIsInitializing(false);
+    }
+  }, [initializeSystemTemplates]);
+
   // Initialize system templates if none exist
   useEffect(() => {
     if (!isLoading && templates.length === 0) {
       handleInitialize();
     }
-  }, [isLoading, templates.length]);
-
-  const handleInitialize = async () => {
-    setIsInitializing(true);
-    try {
-      await initializeSystemTemplates({});
-    } catch (error) {
-      console.error("Failed to initialize templates:", error);
-    } finally {
-      setIsInitializing(false);
-    }
-  };
+  }, [isLoading, templates.length, handleInitialize]);
 
   const handleContinue = () => {
     if (selectedId) {

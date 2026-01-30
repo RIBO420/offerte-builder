@@ -65,7 +65,9 @@ export function OfferteChat({ offerteId, klantNaam, compact = false, inline = fa
   // Mark messages as read when viewing
   useEffect(() => {
     if (unreadCount && unreadCount > 0) {
-      markAsRead({ offerteId }).catch(console.error);
+      markAsRead({ offerteId }).catch(() => {
+        // Silent fail - marking as read is not critical
+      });
     }
   }, [unreadCount, offerteId, markAsRead]);
 
@@ -81,8 +83,8 @@ export function OfferteChat({ offerteId, klantNaam, compact = false, inline = fa
     try {
       await sendMessage({ offerteId, message: message.trim() });
       setMessage("");
-    } catch (error) {
-      console.error(error);
+    } catch {
+      // Message send failed - user can retry
     } finally {
       setIsSending(false);
     }
@@ -94,8 +96,8 @@ export function OfferteChat({ offerteId, klantNaam, compact = false, inline = fa
     try {
       await sendMessage({ offerteId, message: expandedMessage.trim() });
       setExpandedMessage("");
-    } catch (error) {
-      console.error(error);
+    } catch {
+      // Message send failed - user can retry
     } finally {
       setIsSending(false);
     }

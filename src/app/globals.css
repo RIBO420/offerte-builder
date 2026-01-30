@@ -3,6 +3,93 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ========================================
+   Global Smoothness & Performance Styles
+   ======================================== */
+
+/* Smooth scroll behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* Improve text rendering */
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Selection styling */
+::selection {
+  background-color: oklch(0.205 0 0 / 0.2);
+}
+
+.dark ::selection {
+  background-color: oklch(0.922 0 0 / 0.2);
+}
+
+/* Scrollbar styling - Webkit browsers */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: oklch(0.7 0 0 / 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.6 0 0 / 0.5);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: oklch(0.4 0 0 / 0.5);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.5 0 0 / 0.7);
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(0.7 0 0 / 0.3) transparent;
+}
+
+.dark * {
+  scrollbar-color: oklch(0.4 0 0 / 0.5) transparent;
+}
+
+/* Performance hints for animated elements */
+.will-animate {
+  will-change: transform, opacity;
+}
+
+/* Contain for performance - cards and complex components */
+[data-slot="card"] {
+  contain: layout style;
+}
+
+[data-slot="sidebar"] {
+  contain: layout;
+}
+
+/* Remove will-change after animation completes (for JS toggling) */
+.animation-complete {
+  will-change: auto;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -10,6 +97,16 @@
   --font-mono: var(--font-geist-mono);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
+  --color-scope-grondwerk: var(--scope-grondwerk);
+  --color-scope-bestrating: var(--scope-bestrating);
+  --color-scope-borders: var(--scope-borders);
+  --color-scope-gras: var(--scope-gras);
+  --color-scope-houtwerk: var(--scope-houtwerk);
+  --color-scope-water: var(--scope-water);
+  --color-scope-specials: var(--scope-specials);
+  --color-trend-positive: var(--trend-positive);
+  --color-trend-negative: var(--trend-negative);
+  --color-trend-neutral: var(--trend-neutral);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-accent: var(--sidebar-accent);
   --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
@@ -44,6 +141,10 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
+  --shadow-card-hover: var(--shadow-card-hover);
+  --shadow-card-elevated: var(--shadow-card-elevated);
+  --shadow-dropdown: var(--shadow-dropdown);
+  --shadow-modal: var(--shadow-modal);
 }
 
 :root {
@@ -79,6 +180,37 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* Scope kleuren - tuin thematiek */
+  --scope-grondwerk: oklch(0.55 0.12 85);      /* Aarde/bruin */
+  --scope-bestrating: oklch(0.55 0.02 250);    /* Steen/grijs */
+  --scope-borders: oklch(0.45 0.15 145);       /* Bosgroen */
+  --scope-gras: oklch(0.65 0.2 130);           /* Helder gras groen */
+  --scope-houtwerk: oklch(0.5 0.12 55);        /* Warm hout */
+  --scope-water: oklch(0.55 0.15 230);         /* Blauw water */
+  --scope-specials: oklch(0.55 0.2 300);       /* Paars specials */
+
+  /* Trend kleuren */
+  --trend-positive: oklch(0.6 0.2 145);        /* Groen */
+  --trend-negative: oklch(0.6 0.2 25);         /* Rood */
+  --trend-neutral: oklch(0.5 0 0);             /* Grijs */
+
+  /* Shadow tokens */
+  --shadow-card-hover: 0 8px 25px -5px oklch(0 0 0 / 0.1), 0 4px 10px -5px oklch(0 0 0 / 0.04);
+  --shadow-card-elevated: 0 10px 40px -10px oklch(0 0 0 / 0.15), 0 4px 15px -5px oklch(0 0 0 / 0.08);
+  --shadow-dropdown: 0 4px 20px -2px oklch(0 0 0 / 0.12), 0 2px 8px -2px oklch(0 0 0 / 0.08);
+  --shadow-modal: 0 20px 60px -15px oklch(0 0 0 / 0.25), 0 10px 30px -10px oklch(0 0 0 / 0.15);
+
+  /* Animation timing tokens */
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-slow: 400ms;
+
+  /* Easing tokens */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .dark {
@@ -113,6 +245,26 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+
+  /* Scope kleuren - tuin thematiek (lichter voor dark mode: +0.1 L) */
+  --scope-grondwerk: oklch(0.65 0.12 85);      /* Aarde/bruin */
+  --scope-bestrating: oklch(0.65 0.02 250);    /* Steen/grijs */
+  --scope-borders: oklch(0.55 0.15 145);       /* Bosgroen */
+  --scope-gras: oklch(0.75 0.2 130);           /* Helder gras groen */
+  --scope-houtwerk: oklch(0.6 0.12 55);        /* Warm hout */
+  --scope-water: oklch(0.65 0.15 230);         /* Blauw water */
+  --scope-specials: oklch(0.65 0.2 300);       /* Paars specials */
+
+  /* Trend kleuren (lichter voor dark mode: +0.1 L) */
+  --trend-positive: oklch(0.7 0.2 145);        /* Groen */
+  --trend-negative: oklch(0.7 0.2 25);         /* Rood */
+  --trend-neutral: oklch(0.6 0 0);             /* Grijs */
+
+  /* Dark mode shadows - subtler */
+  --shadow-card-hover: 0 8px 25px -5px oklch(0 0 0 / 0.3), 0 4px 10px -5px oklch(0 0 0 / 0.2);
+  --shadow-card-elevated: 0 10px 40px -10px oklch(0 0 0 / 0.4), 0 4px 15px -5px oklch(0 0 0 / 0.25);
+  --shadow-dropdown: 0 4px 20px -2px oklch(0 0 0 / 0.35), 0 2px 8px -2px oklch(0 0 0 / 0.25);
+  --shadow-modal: 0 20px 60px -15px oklch(0 0 0 / 0.5), 0 10px 30px -10px oklch(0 0 0 / 0.35);
 }
 
 @layer base {
@@ -121,5 +273,224 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+
+  /* Typografie utilities */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Prijs display - altijd tabular voor alignment */
+  .price-display {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  /* Card content line-height fix */
+  [data-slot="card-content"] {
+    line-height: 1.6;
+  }
+
+  /* Labels consistent font-weight */
+  label, [data-slot="label"] {
+    font-weight: 500;
+  }
+
+  /* Micro-interacties */
+
+  /* Card hover lift effect - alleen voor interactieve cards */
+  .card-interactive {
+    transition: transform var(--duration-normal) var(--ease-smooth),
+                box-shadow var(--duration-normal) var(--ease-smooth);
+  }
+
+  .card-interactive:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-card-hover);
+  }
+
+  /* Button press effect */
+  button:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+
+  /* Tab content fade-in */
+  [role="tabpanel"] {
+    animation: fadeIn 0.15s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Status badge pulse */
+  .status-pulse {
+    animation: status-pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes status-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+
+  /* Smooth transitions */
+  input, select, textarea {
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  /* Verbeterde focus indicators */
+  .focus-glow:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring), 0 0 12px 2px oklch(from var(--ring) l c h / 0.25);
+  }
+
+  /* Touch target minimum 44px */
+  .touch-target {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Dirty state indicator voor forms */
+  .field-dirty {
+    border-color: oklch(0.75 0.15 85) !important;
+  }
+
+  /* Invalid shake animatie */
+  .field-invalid {
+    animation: shake 0.3s ease-out;
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-4px); }
+    75% { transform: translateX(4px); }
+  }
+
+  /* Value change highlight - subtle yellow/green pulse */
+  @keyframes value-highlight {
+    0% { background-color: oklch(0.9 0.1 100); }
+    100% { background-color: transparent; }
+  }
+
+  .highlight-change {
+    animation: value-highlight 1s ease-out;
+  }
+
+  /* Pulse for updated values */
+  @keyframes value-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+  }
+
+  .value-updated {
+    animation: value-pulse 0.3s ease-out;
+  }
+
+  /* Combined animation for price updates */
+  .highlight-change.value-updated {
+    animation: value-highlight 1s ease-out, value-pulse 0.3s ease-out;
+  }
+
+  /* Reduced motion - disable all value change animations */
+  @media (prefers-reduced-motion: reduce) {
+    .highlight-change,
+    .value-updated,
+    .highlight-change.value-updated {
+      animation: none;
+    }
+  }
+
+  /* Spring animaties voor checkboxes */
+  @keyframes spring-check {
+    0% { transform: scale(0.8); }
+    40% { transform: scale(1.15); }
+    70% { transform: scale(0.95); }
+    100% { transform: scale(1); }
+  }
+
+  @keyframes spring-uncheck {
+    0% { transform: scale(1); }
+    50% { transform: scale(0.9); }
+    100% { transform: scale(1); }
+  }
+
+  .animate-spring-check {
+    animation: spring-check 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .animate-spring-uncheck {
+    animation: spring-uncheck 0.3s ease-out;
+  }
+
+  /* Checkmark draw animation */
+  @keyframes draw-check {
+    0% { stroke-dashoffset: 24; }
+    100% { stroke-dashoffset: 0; }
+  }
+
+  .animate-draw-check {
+    stroke-dasharray: 24;
+    animation: draw-check 0.3s ease-out forwards;
+  }
+
+  /* Reduced motion for spring animations */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-spring-check,
+    .animate-spring-uncheck {
+      animation: none;
+    }
+    .animate-draw-check {
+      animation: none;
+      stroke-dasharray: none;
+      stroke-dashoffset: 0;
+    }
+  }
+
+  /* Reusable animation utilities */
+  .transition-spring {
+    transition-timing-function: var(--ease-spring);
+  }
+
+  .transition-bounce {
+    transition-timing-function: var(--ease-bounce);
+  }
+
+  .transition-smooth {
+    transition-timing-function: var(--ease-smooth);
+  }
+
+  .duration-fast {
+    transition-duration: var(--duration-fast);
+  }
+
+  .duration-normal {
+    transition-duration: var(--duration-normal);
+  }
+
+  .duration-slow {
+    transition-duration: var(--duration-slow);
+  }
+
+  /* Hover lift utility */
+  .hover-lift {
+    transition: transform var(--duration-normal) var(--ease-smooth),
+                box-shadow var(--duration-normal) var(--ease-smooth);
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-card-hover);
+  }
+
+  /* Focus glow with new tokens */
+  .focus-ring-glow:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--background),
+                0 0 0 4px var(--ring),
+                0 0 15px 2px oklch(from var(--ring) l c h / 0.3);
   }
 }

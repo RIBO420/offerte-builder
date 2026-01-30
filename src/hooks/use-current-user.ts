@@ -49,11 +49,8 @@ export function useCurrentUser() {
       !hasInitialized.current
     ) {
       hasInitialized.current = true;
-      console.log("Initializing missing default data for user...");
-      initializeDefaultsMutation({}).then((result) => {
-        console.log("Default data initialized:", result);
-      }).catch((error) => {
-        console.error("Failed to initialize defaults:", error);
+      initializeDefaultsMutation({}).catch(() => {
+        // Silent failure - user can manually retry via settings
       });
     }
   }, [convexUser?._id, normuren, initializeDefaultsMutation]);

@@ -57,7 +57,6 @@ import {
   Clock,
   RotateCcw,
   Eye,
-  ChevronRight,
   Loader2,
 } from "lucide-react";
 import { useOfferte } from "@/hooks/use-offertes";
@@ -217,9 +216,8 @@ export default function OfferteHistoryPage({
       toast.success(`Teruggedraaid naar versie ${rollbackVersion.versieNummer}`);
       setRollbackVersion(null);
       router.push(`/offertes/${id}`);
-    } catch (error) {
+    } catch {
       toast.error("Fout bij terugdraaien");
-      console.error(error);
     } finally {
       setIsRollingBack(false);
     }

@@ -58,9 +58,8 @@ export function SaveAsTemplateDialog({
       onOpenChange(false);
       setNaam("");
       setOmschrijving("");
-    } catch (error) {
+    } catch {
       toast.error("Fout bij opslaan template");
-      console.error(error);
     } finally {
       setIsSaving(false);
     }

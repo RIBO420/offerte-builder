@@ -45,7 +45,7 @@ function getInitials(name: string | null | undefined): string {
 
 export default function ProfielPage() {
   const { user: clerkUser, isLoaded: isClerkLoaded } = useUser();
-  const { user, isLoading: isUserLoading } = useCurrentUser();
+  const { isLoading: isUserLoading } = useCurrentUser();
   const { instellingen, isLoading: isSettingsLoading, update } = useInstellingen();
 
   const [isSaving, setIsSaving] = useState(false);
@@ -106,9 +106,8 @@ export default function ProfielPage() {
         },
       });
       toast.success("Bedrijfsgegevens opgeslagen");
-    } catch (error) {
+    } catch {
       toast.error("Fout bij opslaan bedrijfsgegevens");
-      console.error(error);
     } finally {
       setIsSaving(false);
     }
@@ -121,9 +120,8 @@ export default function ProfielPage() {
         offerteNummerPrefix: offerteSettings.offerteNummerPrefix,
       });
       toast.success("Offerte instellingen opgeslagen");
-    } catch (error) {
+    } catch {
       toast.error("Fout bij opslaan offerte instellingen");
-      console.error(error);
     } finally {
       setIsSaving(false);
     }

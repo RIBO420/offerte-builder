@@ -5,7 +5,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { LengthInput } from "@/components/ui/number-input";
 import {
   Form,
@@ -23,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Scissors, AlertTriangle } from "lucide-react";
+import { Scissors } from "lucide-react";
 import { heggenOnderhoudSchema, type HeggenOnderhoudFormData } from "@/lib/validations/onderhoud-scopes";
 import type { HeggenOnderhoudData } from "@/types/offerte";
 

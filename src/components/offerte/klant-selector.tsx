@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,7 +17,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Check, ChevronsUpDown, User, Plus, Clock } from "lucide-react";
+import { Check, ChevronsUpDown, User, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useKlantenSearch, useKlanten } from "@/hooks/use-klanten";
 import { Id } from "../../../convex/_generated/dataModel";
@@ -62,7 +62,6 @@ export function KlantSelector({
 
   const typedRecentKlanten = recentKlanten as Klant[];
   const typedSearchResults = searchResults as Klant[];
-  const displayResults = searchTerm ? typedSearchResults : typedRecentKlanten;
 
   const handleSelectKlant = (klant: {
     _id: Id<"klanten">;

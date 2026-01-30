@@ -3,7 +3,7 @@
 import { useState, useMemo, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Breadcrumb,
@@ -18,8 +18,6 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import {
-  FileText,
-  Plus,
   Shovel,
   Trees,
   Search,
@@ -67,6 +65,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ScrollableTable } from "@/components/ui/responsive-table";
+import { NoOffertes, NoSearchResults } from "@/components/empty-states";
 import { useOffertes } from "@/hooks/use-offertes";
 import { useInstellingen } from "@/hooks/use-instellingen";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -235,22 +234,20 @@ function OffertesPageContent() {
   const handleDuplicate = async (offerteId: string) => {
     try {
       const newNummer = await getNextNummer();
-      await duplicate({ id: offerteId as any, newOfferteNummer: newNummer });
+      await duplicate({ id: offerteId as Id<"offertes">, newOfferteNummer: newNummer });
       toast.success("Offerte gedupliceerd");
-    } catch (error) {
+    } catch {
       toast.error("Fout bij dupliceren offerte");
-      console.error(error);
     }
   };
 
   const handleDelete = async (offerteId: string) => {
     if (!confirm("Weet je zeker dat je deze offerte wilt verwijderen?")) return;
     try {
-      await deleteOfferte({ id: offerteId as any });
+      await deleteOfferte({ id: offerteId as Id<"offertes"> });
       toast.success("Offerte verwijderd");
-    } catch (error) {
+    } catch {
       toast.error("Fout bij verwijderen offerte");
-      console.error(error);
     }
   };
 
@@ -288,9 +285,8 @@ function OffertesPageContent() {
       });
       toast.success(`${selectedIds.size} offerte(s) bijgewerkt naar ${status}`);
       clearSelection();
-    } catch (error) {
+    } catch {
       toast.error("Fout bij bijwerken status");
-      console.error(error);
     }
   };
 
@@ -301,9 +297,8 @@ function OffertesPageContent() {
       toast.success(`${selectedIds.size} offerte(s) verwijderd`);
       clearSelection();
       setShowBulkDeleteDialog(false);
-    } catch (error) {
+    } catch {
       toast.error("Fout bij verwijderen offertes");
-      console.error(error);
     }
   };
 
@@ -386,12 +381,12 @@ function OffertesPageContent() {
         </div>
 
         <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1 max-w-sm">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+            <div className="relative w-full sm:w-auto sm:flex-1 sm:max-w-sm">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Zoek op klantnaam of offertenummer..."
-                className="pl-8"
+                className="pl-8 w-full"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -528,7 +523,14 @@ function OffertesPageContent() {
                     {filteredOffertes.map((offerte) => (
                       <TableRow
                         key={offerte._id}
-                        className={selectedIds.has(offerte._id) ? "bg-muted/50" : ""}
+                        className={`hover:bg-muted/50 transition-colors cursor-pointer hover:translate-y-[-1px] ${selectedIds.has(offerte._id) ? "bg-muted/50" : ""}`}
+                        onClick={(e) => {
+                          // Alleen navigeren als niet op checkbox of dropdown geklikt
+                          const target = e.target as HTMLElement;
+                          if (!target.closest('button') && !target.closest('[role="checkbox"]')) {
+                            router.push(`/offertes/${offerte._id}`);
+                          }
+                        }}
                       >
                         <TableCell>
                           <Checkbox
@@ -608,36 +610,10 @@ function OffertesPageContent() {
                 </Table>
                 </ScrollableTable>
               </Card>
+            ) : searchQuery ? (
+              <NoSearchResults onAction={() => setSearchQuery("")} />
             ) : (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <FileText className="h-12 w-12 text-muted-foreground/50" />
-                  <h3 className="mt-4 text-lg font-semibold">
-                    {searchQuery ? "Geen resultaten" : "Geen offertes"}
-                  </h3>
-                  <p className="mt-2 text-sm text-muted-foreground text-center max-w-md">
-                    {searchQuery
-                      ? `Geen offertes gevonden voor "${searchQuery}"`
-                      : "Je hebt nog geen offertes aangemaakt. Maak je eerste offerte aan om te beginnen."}
-                  </p>
-                  {!searchQuery && (
-                    <div className="mt-6 flex gap-2">
-                      <Button asChild>
-                        <Link href="/offertes/nieuw/aanleg">
-                          <Plus className="mr-2 h-4 w-4" />
-                          Nieuwe Aanleg Offerte
-                        </Link>
-                      </Button>
-                      <Button asChild variant="outline">
-                        <Link href="/offertes/nieuw/onderhoud">
-                          <Plus className="mr-2 h-4 w-4" />
-                          Nieuwe Onderhoud Offerte
-                        </Link>
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              <NoOffertes onAction={() => router.push("/offertes/nieuw/aanleg")} />
             )}
           </TabsContent>
         </Tabs>

@@ -19,6 +19,7 @@ export function SkipLink({
 }: SkipLinkProps) {
   return (
     <a
+      data-slot="skip-link"
       href={href}
       className={cn(
         // Hidden by default, visible on focus

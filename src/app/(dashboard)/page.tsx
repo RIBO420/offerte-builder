@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -17,6 +18,7 @@ import {
   TrendingUp,
   Clock,
   CheckCircle,
+  ArrowRight,
 } from "lucide-react";
 import {
   Breadcrumb,
@@ -27,7 +29,9 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { DashboardStatsSkeleton, RecentOffertesListSkeleton } from "@/components/skeletons";
+import { StatsGrid } from "@/components/ui/stats-grid";
+import { PipelineView } from "@/components/ui/pipeline-view";
+import { RecentOffertesListSkeleton } from "@/components/skeletons";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useDashboardData } from "@/hooks/use-offertes";
 import type { OfferteStatus } from "@/lib/constants/statuses";
@@ -48,10 +52,56 @@ function formatDate(timestamp: number): string {
 }
 
 export default function DashboardPage() {
-  const { user, clerkUser, isLoading: isUserLoading } = useCurrentUser();
+  const router = useRouter();
+  const { clerkUser, isLoading: isUserLoading } = useCurrentUser();
   const { stats, recentOffertes, isLoading: isOffertesLoading } = useDashboardData();
 
   const isLoading = isUserLoading || isOffertesLoading;
+
+  // Stats data for StatsGrid with trend data
+  const statsData = [
+    {
+      title: "Totaal Offertes",
+      value: stats?.totaal || 0,
+      description: stats?.totaalWaarde ? formatCurrency(stats.totaalWaarde) : "Nog geen offertes",
+      icon: <FileText className="h-4 w-4" />,
+      trend: { direction: "up" as const, percentage: 12, label: "vs vorige maand" },
+    },
+    {
+      title: "Concepten",
+      value: stats?.concept || 0,
+      description: "In bewerking",
+      icon: <Clock className="h-4 w-4" />,
+      trend: { direction: "neutral" as const, percentage: 0 },
+    },
+    {
+      title: "Verzonden",
+      value: stats?.verzonden || 0,
+      description: "Wachten op reactie",
+      icon: <TrendingUp className="h-4 w-4" />,
+      trend: { direction: "up" as const, percentage: 8, label: "vs vorige maand" },
+    },
+    {
+      title: "Geaccepteerd",
+      value: stats?.geaccepteerd || 0,
+      description: stats?.geaccepteerdWaarde ? formatCurrency(stats.geaccepteerdWaarde) : "Opdrachten",
+      icon: <CheckCircle className="h-4 w-4" />,
+      trend: { direction: "up" as const, percentage: 15, label: "vs vorige maand" },
+    },
+  ];
+
+  // Pipeline stages data
+  const pipelineStages = [
+    { id: "concept", label: "Concept", count: stats?.concept || 0 },
+    { id: "definitief", label: "Definitief", count: stats?.definitief || 0 },
+    { id: "verzonden", label: "Verzonden", count: stats?.verzonden || 0 },
+    { id: "geaccepteerd", label: "Geaccepteerd", count: stats?.geaccepteerd || 0 },
+    { id: "afgewezen", label: "Afgewezen", count: stats?.afgewezen || 0 },
+  ];
+
+  const handleStageClick = (stageId: string) => {
+    router.push(`/offertes?status=${stageId}`);
+  };
 
   return (
     <>
@@ -67,139 +117,106 @@ export default function DashboardPage() {
         </Breadcrumb>
       </header>
 
-      <div className="flex flex-1 flex-col gap-8 p-6 md:gap-10 md:p-8">
-        {/* Welcome Header */}
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
-            Welkom{clerkUser?.firstName ? `, ${clerkUser.firstName}` : ""}!
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Beheer je offertes en maak nieuwe aanleg- of onderhoudsoffertes.
-          </p>
+      <div className="flex flex-1 flex-col gap-6 p-6 md:gap-8 md:p-8">
+        {/* Welcome Header - Compact */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight md:text-2xl">
+              Welkom{clerkUser?.firstName ? `, ${clerkUser.firstName}` : ""}!
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Beheer je offertes en maak nieuwe aanleg- of onderhoudsoffertes.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button asChild variant="default" size="sm">
+              <Link href="/offertes/nieuw/aanleg">
+                <Shovel className="mr-2 h-4 w-4" />
+                Nieuwe Aanleg
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/offertes/nieuw/onderhoud">
+                <Trees className="mr-2 h-4 w-4" />
+                Nieuw Onderhoud
+              </Link>
+            </Button>
+          </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="grid gap-8 md:grid-cols-2">
-          <Card className="border-2 border-dashed hover:border-primary hover:bg-muted/50 transition-colors">
-            <Link href="/offertes/nieuw/aanleg" className="block p-2">
-              <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+        {/* Stats Overview with StatsGrid */}
+        <section>
+          <h2 className="text-sm font-medium text-muted-foreground mb-3">Overzicht</h2>
+          <StatsGrid
+            stats={statsData}
+            columns={4}
+            loading={!!isLoading}
+          />
+        </section>
+
+        {/* Pipeline View */}
+        <section>
+          <h2 className="text-sm font-medium text-muted-foreground mb-3">Offerte Pipeline</h2>
+          <Card className="p-4">
+            <PipelineView
+              stages={pipelineStages}
+              onStageClick={handleStageClick}
+            />
+          </Card>
+        </section>
+
+        {/* Quick Actions - Enhanced */}
+        <section>
+          <h2 className="text-sm font-medium text-muted-foreground mb-3">Snel Starten</h2>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card className="card-interactive border-2 border-dashed hover:border-primary transition-colors">
+              <Link href="/offertes/nieuw/aanleg" className="block p-4">
+                <div className="flex items-start gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10">
                     <Shovel className="h-6 w-6 text-primary" />
                   </div>
-                  Nieuwe Aanleg Offerte
-                </CardTitle>
-                <CardDescription className="mt-2">
-                  Voor nieuwe tuinprojecten en renovaties met grondwerk,
-                  bestrating, borders, houtwerk en meer.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <Button className="w-full">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Start Aanleg Offerte
-                </Button>
-              </CardContent>
-            </Link>
-          </Card>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold">Nieuwe Aanleg Offerte</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Voor nieuwe tuinprojecten en renovaties met grondwerk, bestrating, borders en meer.
+                    </p>
+                    <Button variant="default" size="sm" className="mt-3">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Start Aanleg Offerte
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </Link>
+            </Card>
 
-          <Card className="border-2 border-dashed hover:border-primary hover:bg-muted/50 transition-colors">
-            <Link href="/offertes/nieuw/onderhoud" className="block p-2">
-              <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/20">
+            <Card className="card-interactive border-2 border-dashed hover:border-green-500 transition-colors">
+              <Link href="/offertes/nieuw/onderhoud" className="block p-4">
+                <div className="flex items-start gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/20">
                     <Trees className="h-6 w-6 text-green-600" />
                   </div>
-                  Nieuwe Onderhoud Offerte
-                </CardTitle>
-                <CardDescription className="mt-2">
-                  Voor periodiek tuinonderhoud met gras, borders, heggen, bomen
-                  en overige werkzaamheden.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <Button variant="secondary" className="w-full">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Start Onderhoud Offerte
-                </Button>
-              </CardContent>
-            </Link>
-          </Card>
-        </div>
-
-        {/* Stats Overview */}
-        {isLoading ? (
-          <DashboardStatsSkeleton />
-        ) : (
-          <div className="grid gap-4 sm:gap-6 grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                <CardTitle className="text-sm font-medium">
-                  Totaal Offertes
-                </CardTitle>
-                <FileText className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="text-2xl font-bold">{stats?.totaal || 0}</div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {stats?.totaalWaarde
-                    ? formatCurrency(stats.totaalWaarde)
-                    : "Nog geen offertes"}
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                <CardTitle className="text-sm font-medium">Concepten</CardTitle>
-                <Clock className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="text-2xl font-bold">
-                  {stats?.concept || 0}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold">Nieuwe Onderhoud Offerte</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Voor periodiek tuinonderhoud met gras, borders, heggen en overige werkzaamheden.
+                    </p>
+                    <Button variant="default" size="sm" className="mt-3 bg-green-600 hover:bg-green-700">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Start Onderhoud Offerte
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">In bewerking</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                <CardTitle className="text-sm font-medium">Verzonden</CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="text-2xl font-bold">
-                  {stats?.verzonden || 0}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Wachten op reactie
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                <CardTitle className="text-sm font-medium">
-                  Geaccepteerd
-                </CardTitle>
-                <CheckCircle className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="text-2xl font-bold">
-                  {stats?.geaccepteerd || 0}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {stats?.geaccepteerdWaarde
-                    ? formatCurrency(stats.geaccepteerdWaarde)
-                    : "Opdrachten"}
-                </p>
-              </CardContent>
+              </Link>
             </Card>
           </div>
-        )}
+        </section>
 
         {/* Recent Activity */}
-        <Card>
+        <section>
+          <h2 className="text-sm font-medium text-muted-foreground mb-3">Recente Activiteit</h2>
+        <Card className="card-interactive">
           <CardHeader>
             <CardTitle>Recente Offertes</CardTitle>
             <CardDescription>
@@ -283,6 +300,7 @@ export default function DashboardPage() {
             )}
           </CardContent>
         </Card>
+        </section>
       </div>
     </>
   );

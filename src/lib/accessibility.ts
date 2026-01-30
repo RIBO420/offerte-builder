@@ -185,6 +185,11 @@ export const ARIA_MESSAGES = {
       : count === 1
         ? '1 resultaat gevonden'
         : `${count} resultaten gevonden`,
+  // Wizard stepper messages
+  wizardStep: (current: number, total: number, label: string) =>
+    `Stap ${current} van ${total}: ${label}`,
+  wizardCompleted: (label: string) => `${label} voltooid`,
+  wizardCurrent: (label: string) => `Huidige stap: ${label}`,
 } as const;
 
 // Color contrast helpers (WCAG AA minimum ratios)

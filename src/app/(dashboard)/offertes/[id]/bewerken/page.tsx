@@ -156,7 +156,7 @@ export default function OfferteEditPage({
   const { offerte, isLoading } = useOfferte(id as Id<"offertes">);
   const { update, updateRegels } = useOffertes();
   const { instellingen } = useInstellingen();
-  const { calculate, isLoading: isCalcLoading } = useOfferteCalculation();
+  const { calculate } = useOfferteCalculation();
 
   // Messages queries and mutations
   const messages = useQuery(
@@ -197,7 +197,9 @@ export default function OfferteEditPage({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     if (messages && messages.length > 0 && id) {
-      markAsRead({ offerteId: id as Id<"offertes"> }).catch(console.error);
+      markAsRead({ offerteId: id as Id<"offertes"> }).catch(() => {
+        // Silent fail for marking messages as read
+      });
     }
   }, [messages, id, markAsRead]);
 
@@ -210,8 +212,7 @@ export default function OfferteEditPage({
         message: chatMessage.trim(),
       });
       setChatMessage("");
-    } catch (error) {
-      console.error(error);
+    } catch {
       toast.error("Fout bij verzenden bericht");
     } finally {
       setIsSendingMessage(false);
@@ -338,9 +339,8 @@ export default function OfferteEditPage({
 
       toast.success("Offerte opgeslagen");
       router.push(`/offertes/${id}`);
-    } catch (error) {
+    } catch {
       toast.error("Fout bij opslaan");
-      console.error(error);
     } finally {
       setIsSaving(false);
     }
@@ -370,9 +370,8 @@ export default function OfferteEditPage({
       } else {
         toast.error("Geen regels gegenereerd uit scope data");
       }
-    } catch (error) {
+    } catch {
       toast.error("Fout bij herberekenen");
-      console.error(error);
     } finally {
       setIsRecalculating(false);
       setShowRecalculateDialog(false);

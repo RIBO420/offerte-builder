@@ -26,6 +26,56 @@ import type {
 } from "@/types/offerte";
 import { roundToQuarter } from "@/lib/time-utils";
 
+// ==================== CONSTANTS ====================
+
+// Grondwerk diepte in meters
+const DIEPTE_METERS = {
+  licht: 0.2,
+  standaard: 0.4,
+  zwaar: 0.6,
+} as const;
+
+// Materiaal hoeveelheden per m2
+const ZAND_M3_PER_M2 = 0.05;
+const SCHORS_M3_PER_M2 = 0.05;
+const GRASZAAD_KG_PER_M2 = 0.035;
+
+// Beplantingsintensiteit: planten per m2
+const PLANTEN_PER_M2 = {
+  weinig: 3,
+  gemiddeld: 6,
+  veel: 10,
+} as const;
+
+// Houtwerk berekeningen
+const SCHUTTINGPLANKEN_PER_METER = 6;
+const PAAL_AFSTAND_METERS = 2;
+const VLONDERPLANKEN_PER_M2 = 7;
+const VLONDER_EXTRA_FUNDERING_PUNTEN = 4;
+const PERGOLA_FUNDERING_PUNTEN = 4;
+
+// Specials installatie uren
+const INSTALLATIE_UREN = {
+  jacuzzi: 8,
+  sauna: 6,
+  prefab: 4,
+  default: 4,
+} as const;
+
+// Onderhoud factoren
+const SNOEISEL_VOLUME_FACTOR = 0.3;
+const HOOGTE_TOESLAG_FACTOR = 1.3;
+const HOOGTE_DREMPEL_METERS = 2;
+
+// Verlichting berekeningen
+const SLEUF_LENGTE_PER_LICHTPUNT = 5;
+
+// Overig onderhoud uren per eenheid
+const BLADRUIMEN_UREN_DEFAULT = 2;
+const TERRAS_REINIGEN_UREN_PER_M2 = 0.05;
+const ONKRUID_BESTRATING_UREN_PER_M2 = 0.03;
+const AFWATERING_UREN_PER_PUNT = 0.25;
+
 export interface OfferteRegel {
   id: string;
   scope: string;
@@ -185,26 +235,6 @@ function createMateriaalRegel(
   };
 }
 
-// Create machine regel
-function createMachineRegel(
-  scope: string,
-  omschrijving: string,
-  uren: number,
-  prijsPerUur: number
-): OfferteRegel {
-  const roundedUren = roundToQuarter(uren);
-  return {
-    id: generateId(),
-    scope,
-    omschrijving,
-    eenheid: "uur",
-    hoeveelheid: roundedUren,
-    prijsPerEenheid: prijsPerUur,
-    totaal: Math.round(roundedUren * prijsPerUur * 100) / 100,
-    type: "machine",
-  };
-}
-
 // ==================== AANLEG SCOPE CALCULATIONS ====================
 
 function calculateGrondwerk(
@@ -231,8 +261,8 @@ function calculateGrondwerk(
 
   // Afvoer grond - use afvoerGrond boolean, estimate volume from oppervlakte and diepte
   if (data.afvoerGrond && data.oppervlakte > 0) {
-    // Estimate afvoer volume: oppervlakte * diepte in meters (licht=0.2, standaard=0.4, zwaar=0.6)
-    const diepteMeters = data.diepte === "licht" ? 0.2 : data.diepte === "zwaar" ? 0.6 : 0.4;
+    // Estimate afvoer volume: oppervlakte * diepte in meters
+    const diepteMeters = DIEPTE_METERS[data.diepte || "standaard"];
     const afvoerM3 = data.oppervlakte * diepteMeters;
 
     const normuur = findNormuur(normuren, "grondwerk", "afvoeren");
@@ -294,10 +324,10 @@ function calculateBestrating(
     regels.push(createArbeidsRegel("bestrating", "Zandbed aanbrengen", totalHours, uurtarief));
   }
 
-  // Materials - Straatzand (approx 0.05m³ per m²)
+  // Materials - Straatzand
   const straatzand = findProduct(producten, "straatzand");
   if (straatzand) {
-    const zandM3 = data.oppervlakte * 0.05;
+    const zandM3 = data.oppervlakte * ZAND_M3_PER_M2;
     regels.push(createMateriaalRegel(
       "bestrating",
       "Straatzand",
@@ -366,7 +396,7 @@ function calculateBorders(
   }
 
   // Estimate plants per m² based on intensity (weinig/gemiddeld/veel)
-  const plantsPerM2 = intensiteit === "weinig" ? 3 : intensiteit === "gemiddeld" ? 6 : 10;
+  const plantsPerM2 = PLANTEN_PER_M2[intensiteit];
   const bodembekker = findProduct(producten, "bodembedekker");
   if (bodembekker) {
     regels.push(createMateriaalRegel(
@@ -390,8 +420,7 @@ function calculateBorders(
 
     const schorsProduct = findProduct(producten, "boomschors");
     if (schorsProduct) {
-      // Approx 0.05m³ schors per m²
-      const schorsM3 = data.oppervlakte * 0.05;
+      const schorsM3 = data.oppervlakte * SCHORS_M3_PER_M2;
       regels.push(createMateriaalRegel(
         "borders",
         "Boomschors 10-40mm",
@@ -454,10 +483,9 @@ function calculateGras(
       regels.push(createArbeidsRegel("gras", "Gras zaaien", totalHours, uurtarief));
     }
 
-    // Approx 30-40g per m²
     const zaadProduct = findProduct(producten, "graszaad");
     if (zaadProduct) {
-      const zaadKg = data.oppervlakte * 0.035;
+      const zaadKg = data.oppervlakte * GRASZAAD_KG_PER_M2;
       regels.push(createMateriaalRegel(
         "gras",
         "Graszaad",
@@ -498,11 +526,10 @@ function calculateHoutwerk(
     // Materials
     const plankProduct = findProduct(producten, "schuttingplank");
     if (plankProduct) {
-      // Approx 6 planks per meter
       regels.push(createMateriaalRegel(
         "houtwerk",
         "Schuttingplank 180x15cm",
-        afmeting * 6,
+        afmeting * SCHUTTINGPLANKEN_PER_METER,
         "stuk",
         plankProduct.verkoopprijs,
         plankProduct.verliespercentage
@@ -511,8 +538,7 @@ function calculateHoutwerk(
 
     const paalProduct = findProduct(producten, "schuttingpaal");
     if (paalProduct) {
-      // 1 paal per 2 meter
-      const aantalPalen = Math.ceil(afmeting / 2) + 1;
+      const aantalPalen = Math.ceil(afmeting / PAAL_AFSTAND_METERS) + 1;
       regels.push(createMateriaalRegel(
         "houtwerk",
         "Schuttingpaal 7x7x270cm",
@@ -535,11 +561,10 @@ function calculateHoutwerk(
 
     const vlonderProduct = findProduct(producten, "vlonderdeel");
     if (vlonderProduct) {
-      // Approx 7 planks per m² (at 145mm width)
       regels.push(createMateriaalRegel(
         "houtwerk",
         "Vlonderdeel hardhout 21x145mm",
-        afmeting * 7,
+        afmeting * VLONDERPLANKEN_PER_M2,
         "m",
         vlonderProduct.verkoopprijs,
         vlonderProduct.verliespercentage
@@ -560,9 +585,9 @@ function calculateHoutwerk(
   // Fundering (based on fundering property)
   const funderingType = data.fundering || "standaard";
   // Estimate number of fundering points based on type and size
-  const funderingAantal = typeHoutwerk === "schutting" ? Math.ceil(afmeting / 2) + 1 :
-                         typeHoutwerk === "vlonder" ? Math.ceil(afmeting / 2) + 4 :
-                         typeHoutwerk === "pergola" ? 4 : 0;
+  const funderingAantal = typeHoutwerk === "schutting" ? Math.ceil(afmeting / PAAL_AFSTAND_METERS) + 1 :
+                         typeHoutwerk === "vlonder" ? Math.ceil(afmeting / PAAL_AFSTAND_METERS) + VLONDER_EXTRA_FUNDERING_PUNTEN :
+                         typeHoutwerk === "pergola" ? PERGOLA_FUNDERING_PUNTEN : 0;
 
   if (funderingAantal > 0) {
     const funderingNormuur = findNormuur(normuren, "houtwerk", `fundering ${funderingType}`);
@@ -602,8 +627,7 @@ function calculateWaterElektra(
   const aantalPunten = data.aantalPunten || 0;
   if (data.verlichting === "geen" || aantalPunten <= 0) return regels;
 
-  // Estimate sleuf length: 5m per light point average
-  const sleufLengte = data.sleuvenNodig ? aantalPunten * 5 : 0;
+  const sleufLengte = data.sleuvenNodig ? aantalPunten * SLEUF_LENGTE_PER_LICHTPUNT : 0;
 
   // Sleuven graven (if needed)
   if (sleufLengte > 0) {
@@ -696,14 +720,7 @@ function calculateSpecials(
   // Each item type has estimated hours for installation
   if (data.items && Array.isArray(data.items)) {
     for (const item of data.items) {
-      // Estimate installation hours based on type
-      let estimatedHours = 4; // default
-      switch (item.type) {
-        case "jacuzzi": estimatedHours = 8; break;
-        case "sauna": estimatedHours = 6; break;
-        case "prefab": estimatedHours = 4; break;
-      }
-
+      const estimatedHours = INSTALLATIE_UREN[item.type] ?? INSTALLATIE_UREN.default;
       const totalHours = calculateLaborHours(estimatedHours, bereikbaarheidFactor);
       const description = item.omschrijving || `${item.type} plaatsen`;
       regels.push(createArbeidsRegel("specials", description, totalHours, uurtarief));
@@ -828,9 +845,8 @@ function calculateHeggenOnderhoud(
 
   // Hoogte toeslag for height > 2m (FR-05 requirement)
   let hoogteFactor = 1.0;
-  if (data.hoogte && data.hoogte > 2) {
-    // Apply 1.3x factor for high hedges
-    hoogteFactor = 1.3;
+  if (data.hoogte && data.hoogte > HOOGTE_DREMPEL_METERS) {
+    hoogteFactor = HOOGTE_TOESLAG_FACTOR;
   }
 
   // Heg snoeien
@@ -845,8 +861,7 @@ function calculateHeggenOnderhoud(
   if (data.afvoerSnoeisel) {
     const afvoerNormuur = findNormuur(normuren, "heggen_onderhoud", "snoeisel afvoeren");
     if (afvoerNormuur) {
-      // Snoeisel volume is roughly 30% of hedge volume
-      const snoeiselVolume = volume * 0.3;
+      const snoeiselVolume = volume * SNOEISEL_VOLUME_FACTOR;
       const baseHours = snoeiselVolume * afvoerNormuur.normuurPerEenheid;
       const totalHours = calculateLaborHours(baseHours, bereikbaarheidFactor);
       regels.push(createArbeidsRegel("heggen", "Snoeisel afvoeren", totalHours, uurtarief));
@@ -878,7 +893,7 @@ function calculateBomenOnderhoud(
   if (normuur) {
     const baseHours = data.aantalBomen * normuur.normuurPerEenheid;
     // Apply height factor for "hoog" hoogteklasse
-    const hoogteFactor = data.hoogteklasse === "hoog" ? 1.3 : 1.0;
+    const hoogteFactor = data.hoogteklasse === "hoog" ? HOOGTE_TOESLAG_FACTOR : 1.0;
     const totalHours = calculateLaborHours(baseHours, bereikbaarheidFactor, hoogteFactor, achterstalligheidFactor);
     regels.push(createArbeidsRegel("bomen", `Bomen snoeien (${snoeiType})`, totalHours, uurtarief));
   }
@@ -896,30 +911,30 @@ function calculateOverigOnderhoud(
   const bereikbaarheidFactor = getCorrectionFactor(correctiefactoren, "bereikbaarheid", bereikbaarheid);
   const uurtarief = instellingen.uurtarief;
 
-  // Bladruimen - estimate 0.02 uur/m² (using total garden area if available)
+  // Bladruimen
   if (data.bladruimen) {
-    const estimatedHours = 2; // Fixed estimate
+    const estimatedHours = BLADRUIMEN_UREN_DEFAULT;
     const totalHours = calculateLaborHours(estimatedHours, bereikbaarheidFactor);
     regels.push(createArbeidsRegel("overig", "Bladruimen", totalHours, uurtarief));
   }
 
   // Terras reinigen
   if (data.terrasReinigen && data.terrasOppervlakte && data.terrasOppervlakte > 0) {
-    const baseHours = data.terrasOppervlakte * 0.05; // 0.05 uur per m²
+    const baseHours = data.terrasOppervlakte * TERRAS_REINIGEN_UREN_PER_M2;
     const totalHours = calculateLaborHours(baseHours, bereikbaarheidFactor);
     regels.push(createArbeidsRegel("overig", "Terras reinigen", totalHours, uurtarief));
   }
 
   // Onkruid bestrating
   if (data.onkruidBestrating && data.bestratingOppervlakte && data.bestratingOppervlakte > 0) {
-    const baseHours = data.bestratingOppervlakte * 0.03; // 0.03 uur per m²
+    const baseHours = data.bestratingOppervlakte * ONKRUID_BESTRATING_UREN_PER_M2;
     const totalHours = calculateLaborHours(baseHours, bereikbaarheidFactor);
     regels.push(createArbeidsRegel("overig", "Onkruid bestrating verwijderen", totalHours, uurtarief));
   }
 
   // Afwatering controleren
   if (data.afwateringControleren && data.aantalAfwateringspunten && data.aantalAfwateringspunten > 0) {
-    const baseHours = data.aantalAfwateringspunten * 0.25; // 0.25 uur per punt
+    const baseHours = data.aantalAfwateringspunten * AFWATERING_UREN_PER_PUNT;
     const totalHours = calculateLaborHours(baseHours, bereikbaarheidFactor);
     regels.push(createArbeidsRegel("overig", "Afwatering controleren", totalHours, uurtarief));
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -11,9 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -32,7 +30,6 @@ import {
 } from "@/components/ui/breadcrumb";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import {
   Shovel,
   Layers,
@@ -47,6 +44,8 @@ import {
   Loader2,
   Check,
   Save,
+  CheckCircle2,
+  Circle,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
@@ -99,6 +98,7 @@ const SCOPES = [
     naam: "Grondwerk",
     icon: Shovel,
     beschrijving: "Ontgraven, afvoer, machine-uren",
+    color: "bg-amber-500",
   },
   {
     id: "bestrating" as AanlegScope,
@@ -106,18 +106,21 @@ const SCOPES = [
     icon: Layers,
     beschrijving: "Tegels/klinkers/natuursteen + onderbouw",
     verplicht: ["onderbouw"],
+    color: "bg-slate-500",
   },
   {
     id: "borders" as AanlegScope,
     naam: "Borders & Beplanting",
     icon: Flower2,
     beschrijving: "Grondbewerking, planten, afwerking",
+    color: "bg-pink-500",
   },
   {
     id: "gras" as AanlegScope,
     naam: "Gras / Gazon",
     icon: Trees,
     beschrijving: "Zaaien of graszoden, ondergrondbewerking",
+    color: "bg-green-500",
   },
   {
     id: "houtwerk" as AanlegScope,
@@ -125,6 +128,7 @@ const SCOPES = [
     icon: Hammer,
     beschrijving: "Schutting/vlonder/pergola + fundering",
     verplicht: ["fundering"],
+    color: "bg-orange-600",
   },
   {
     id: "water_elektra" as AanlegScope,
@@ -132,12 +136,14 @@ const SCOPES = [
     icon: Zap,
     beschrijving: "Verlichting, sleuven, bekabeling",
     verplicht: ["sleuven", "herstel"],
+    color: "bg-blue-500",
   },
   {
     id: "specials" as AanlegScope,
     naam: "Specials",
     icon: Sparkles,
     beschrijving: "Jacuzzi, sauna, prefab elementen",
+    color: "bg-purple-500",
   },
 ];
 
@@ -342,6 +348,11 @@ export default function NieuweAanlegOffertePage() {
 
   const isLoading = isUserLoading || isSettingsLoading;
 
+  // Scroll naar top bij stap wisseling
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [currentStep]);
+
   const toggleScope = (scopeId: AanlegScope) => {
     setSelectedScopes((prev) =>
       prev.includes(scopeId)
@@ -533,9 +544,8 @@ export default function NieuweAanlegOffertePage() {
 
       toast.success(`Offerte ${offerteNummer} aangemaakt`);
       router.push(`/offertes/${offerteId}/bewerken`);
-    } catch (error) {
+    } catch {
       toast.error("Fout bij aanmaken offerte");
-      console.error(error);
     } finally {
       setIsSubmitting(false);
     }
@@ -724,7 +734,7 @@ export default function NieuweAanlegOffertePage() {
 
         {/* Step 0: Package/Template Selectie */}
         {currentStep === 0 && (
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-4xl mx-auto animate-in fade-in slide-in-from-right-4 duration-300">
             {showTemplates ? (
               <div className="space-y-4">
                 <Button
@@ -754,7 +764,7 @@ export default function NieuweAanlegOffertePage() {
 
         {/* Step 1: Klantgegevens & Scope Selectie */}
         {currentStep === 1 && (
-          <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
+          <div className="grid gap-4 lg:grid-cols-3 lg:gap-6 animate-in fade-in slide-in-from-right-4 duration-300">
             <div className="lg:col-span-2 space-y-4 lg:space-y-6">
               {/* Klantgegevens */}
               <Card>
@@ -819,22 +829,39 @@ export default function NieuweAanlegOffertePage() {
                       return (
                         <div
                           key={scope.id}
-                          className={`relative flex cursor-pointer items-start space-x-2 rounded-lg border p-3 transition-colors hover:bg-muted/50 active:bg-muted/70 touch-manipulation ${
+                          className={`relative flex cursor-pointer items-start gap-3 rounded-lg border-2 p-3 transition-all duration-200 hover:shadow-md active:scale-[0.98] touch-manipulation ${
                             isSelected
-                              ? "border-primary bg-primary/5"
-                              : "border-border"
+                              ? "border-primary bg-primary/5 shadow-sm"
+                              : "border-border hover:border-muted-foreground/30"
                           }`}
                           onClick={() => toggleScope(scope.id)}
+                          role="checkbox"
+                          aria-checked={isSelected}
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === " " || e.key === "Enter") {
+                              e.preventDefault();
+                              toggleScope(scope.id);
+                            }
+                          }}
                         >
-                          <Checkbox
-                            id={scope.id}
-                            checked={isSelected}
-                            onCheckedChange={() => toggleScope(scope.id)}
-                            className="mt-0.5 h-5 w-5"
-                          />
+                          {/* Custom checkbox indicator with scope color */}
+                          <div
+                            className={`relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border-2 transition-all duration-200 ${
+                              isSelected
+                                ? `${scope.color} border-transparent text-white scale-100`
+                                : "border-input bg-background scale-95"
+                            }`}
+                          >
+                            {isSelected ? (
+                              <Check className="h-5 w-5 animate-in zoom-in-50 duration-200" strokeWidth={3} />
+                            ) : (
+                              <scope.icon className="h-4 w-4 text-muted-foreground opacity-50" />
+                            )}
+                          </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5">
-                              <scope.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                              <scope.icon className={`h-4 w-4 shrink-0 transition-colors ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
                               <Label
                                 htmlFor={scope.id}
                                 className="cursor-pointer font-medium text-sm"
@@ -880,58 +907,76 @@ export default function NieuweAanlegOffertePage() {
 
             {/* Sidebar met samenvatting */}
             <div className="space-y-3">
-              <Card className="sticky top-3">
+              <Card className="sticky top-4">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base">Samenvatting</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3 pt-0">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Klant
-                    </p>
-                    <p className="text-sm">
-                      {klantData.naam || "—"}
-                      {klantData.plaats && `, ${klantData.plaats}`}
-                    </p>
-                  </div>
-
-                  <Separator />
-
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Bereikbaarheid
-                    </p>
-                    <p className="text-sm capitalize">{bereikbaarheid}</p>
-                  </div>
-
-                  <Separator />
-
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Geselecteerde scopes ({selectedScopes.length})
-                    </p>
-                    {selectedScopes.length > 0 ? (
-                      <ul className="mt-2 space-y-1">
-                        {selectedScopes.map((scopeId) => {
-                          const scope = SCOPES.find((s) => s.id === scopeId);
-                          return (
-                            <li
-                              key={scopeId}
-                              className="flex items-center gap-2 text-sm"
-                            >
-                              {scope?.icon && (
-                                <scope.icon className="h-3 w-3 text-muted-foreground" />
-                              )}
-                              {scope?.naam}
-                            </li>
-                          );
-                        })}
-                      </ul>
+                  {/* Klant sectie met status indicator */}
+                  <div className="flex items-start gap-2">
+                    {klantData.naam && klantData.adres ? (
+                      <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
                     ) : (
-                      <p className="text-sm text-muted-foreground">
-                        Geen scopes geselecteerd
-                      </p>
+                      <Circle className="h-4 w-4 text-muted-foreground/50 mt-0.5 shrink-0" />
                     )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Klant
+                      </p>
+                      <p className="text-sm truncate">
+                        {klantData.naam || "—"}
+                        {klantData.plaats && `, ${klantData.plaats}`}
+                      </p>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Bereikbaarheid sectie */}
+                  <div className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Bereikbaarheid
+                      </p>
+                      <p className="text-sm capitalize">{bereikbaarheid}</p>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Scopes sectie met status indicator */}
+                  <div className="flex items-start gap-2">
+                    {selectedScopes.length > 0 ? (
+                      <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
+                    ) : (
+                      <Circle className="h-4 w-4 text-muted-foreground/50 mt-0.5 shrink-0" />
+                    )}
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Geselecteerde scopes ({selectedScopes.length})
+                      </p>
+                      {selectedScopes.length > 0 ? (
+                        <ul className="mt-2 space-y-1.5">
+                          {selectedScopes.map((scopeId) => {
+                            const scope = SCOPES.find((s) => s.id === scopeId);
+                            return (
+                              <li
+                                key={scopeId}
+                                className="flex items-center gap-2 text-sm animate-in fade-in slide-in-from-left-2 duration-200"
+                              >
+                                <div className={`h-2 w-2 rounded-full ${scope?.color || "bg-primary"}`} />
+                                {scope?.naam}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          Geen scopes geselecteerd
+                        </p>
+                      )}
+                    </div>
                   </div>
 
                   <Separator />
@@ -961,7 +1006,7 @@ export default function NieuweAanlegOffertePage() {
 
         {/* Step 2: Scope Details */}
         {currentStep === 2 && (
-          <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
+          <div className="grid gap-4 lg:grid-cols-3 lg:gap-6 animate-in fade-in slide-in-from-right-4 duration-300">
             <div className="lg:col-span-2 space-y-4 lg:space-y-5">
               {selectedScopes.map((scopeId) => {
                 switch (scopeId) {
@@ -1050,7 +1095,7 @@ export default function NieuweAanlegOffertePage() {
 
             {/* Sidebar met voortgang */}
             <div className="space-y-3">
-              <Card className="sticky top-3">
+              <Card className="sticky top-4">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base">Scope Voortgang</CardTitle>
                   <CardDescription className="text-xs">
@@ -1100,7 +1145,7 @@ export default function NieuweAanlegOffertePage() {
 
         {/* Step 3: Bevestigen */}
         {currentStep === 3 && (
-          <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
+          <div className="grid gap-4 lg:grid-cols-3 lg:gap-6 animate-in fade-in slide-in-from-right-4 duration-300">
             <div className="lg:col-span-2 space-y-4 lg:space-y-5">
               {/* Klant samenvatting */}
               <Card>
@@ -1159,13 +1204,16 @@ export default function NieuweAanlegOffertePage() {
                     return (
                       <div
                         key={scopeId}
-                        className="rounded-lg border p-3 space-y-1"
+                        className="rounded-lg border p-3 space-y-1 transition-all hover:shadow-sm"
                       >
                         <div className="flex items-center gap-2">
-                          {scope?.icon && (
-                            <scope.icon className="h-5 w-5 text-muted-foreground" />
-                          )}
+                          <div className={`h-8 w-8 rounded-lg ${scope?.color || "bg-primary"} flex items-center justify-center`}>
+                            {scope?.icon && (
+                              <scope.icon className="h-4 w-4 text-white" />
+                            )}
+                          </div>
                           <span className="font-medium">{scope?.naam}</span>
+                          <CheckCircle2 className="h-4 w-4 text-green-600 ml-auto" />
                         </div>
                         <div className="text-sm text-muted-foreground">
                           {scopeId === "grondwerk" && (
@@ -1253,7 +1301,7 @@ export default function NieuweAanlegOffertePage() {
 
             {/* Sidebar met acties */}
             <div className="space-y-3">
-              <Card className="sticky top-3">
+              <Card className="sticky top-4">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base">Offerte Aanmaken</CardTitle>
                   <CardDescription className="text-xs">
@@ -1261,19 +1309,36 @@ export default function NieuweAanlegOffertePage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3 pt-0">
-                  <div className="rounded-lg bg-muted/50 p-4 space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Scopes</span>
-                      <span className="font-medium">{selectedScopes.length}</span>
+                  {/* Checklist voor voltooide secties */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm">
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      <span>Klantgegevens ingevuld</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Verplichte onderdelen</span>
-                      <span className="font-medium">
-                        {selectedScopes.filter((s) =>
-                          SCOPES.find((sc) => sc.id === s)?.verplicht
-                        ).length}
-                      </span>
+                    <div className="flex items-center gap-2 text-sm">
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      <span>{selectedScopes.length} scope{selectedScopes.length !== 1 ? "s" : ""} geselecteerd</span>
                     </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      <span>Scope details ingevuld</span>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Scope overzicht met kleuren */}
+                  <div className="rounded-lg bg-muted/50 p-3 space-y-1.5">
+                    <p className="text-xs font-medium text-muted-foreground mb-2">Geselecteerde scopes</p>
+                    {selectedScopes.map((scopeId) => {
+                      const scope = SCOPES.find((s) => s.id === scopeId);
+                      return (
+                        <div key={scopeId} className="flex items-center gap-2 text-sm">
+                          <div className={`h-2 w-2 rounded-full ${scope?.color || "bg-primary"}`} />
+                          <span>{scope?.naam}</span>
+                        </div>
+                      );
+                    })}
                   </div>
 
                   <Separator />
@@ -1283,6 +1348,7 @@ export default function NieuweAanlegOffertePage() {
                       className="w-full"
                       disabled={isSubmitting}
                       onClick={handleSubmit}
+                      size="lg"
                     >
                       {isSubmitting ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />

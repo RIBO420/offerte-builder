@@ -84,6 +84,10 @@ import { PDFDownloadButton } from "@/components/pdf";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { OfferteDetailSkeleton } from "@/components/skeletons";
 import { STATUS_CONFIG, type OfferteStatus } from "@/lib/constants/statuses";
+import { MargeIndicator } from "@/components/ui/marge-indicator";
+import { PriceBreakdownChart } from "@/components/ui/price-breakdown-chart";
+import { ScopeTag, type ScopeType, scopeTypes } from "@/components/ui/scope-tag";
+import { PriceDisplay } from "@/components/ui/price-display";
 import { Id } from "../../../../../convex/_generated/dataModel";
 import { toast } from "sonner";
 
@@ -143,9 +147,8 @@ export default function OfferteDetailPage({
     try {
       await updateStatus({ id: offerte._id, status: newStatus });
       toast.success(`Status gewijzigd naar ${STATUS_CONFIG[newStatus].label}`);
-    } catch (error) {
+    } catch {
       toast.error("Fout bij wijzigen status");
-      console.error(error);
     } finally {
       setIsUpdating(false);
     }
@@ -157,9 +160,8 @@ export default function OfferteDetailPage({
       const newNummer = await getNextNummer();
       await duplicate({ id: offerte._id, newOfferteNummer: newNummer });
       toast.success("Offerte gedupliceerd");
-    } catch (error) {
+    } catch {
       toast.error("Fout bij dupliceren offerte");
-      console.error(error);
     }
   };
 
@@ -169,9 +171,8 @@ export default function OfferteDetailPage({
       await deleteOfferte({ id: offerte._id });
       toast.success("Offerte verwijderd");
       router.push("/offertes");
-    } catch (error) {
+    } catch {
       toast.error("Fout bij verwijderen offerte");
-      console.error(error);
     }
   };
 
@@ -484,11 +485,21 @@ export default function OfferteDetailPage({
                 </CardHeader>
                 <CardContent>
                   <div className="flex flex-wrap gap-2">
-                    {offerte.scopes.map((scope) => (
-                      <Badge key={scope} variant="secondary">
-                        {scopeLabels[scope] || scope}
-                      </Badge>
-                    ))}
+                    {offerte.scopes.map((scope) => {
+                      // Check if scope is a valid ScopeType for ScopeTag
+                      const isScopeType = (scopeTypes as readonly string[]).includes(scope);
+                      if (isScopeType) {
+                        return (
+                          <ScopeTag key={scope} scope={scope as ScopeType} showIcon />
+                        );
+                      }
+                      // Fallback to Badge for scopes not in ScopeTag's scopeTypes
+                      return (
+                        <Badge key={scope} variant="secondary">
+                          {scopeLabels[scope] || scope}
+                        </Badge>
+                      );
+                    })}
                   </div>
                   <div className="mt-4">
                     <p className="text-sm text-muted-foreground">
@@ -597,18 +608,39 @@ export default function OfferteDetailPage({
           {/* Right column - Totals & Tijdlijn */}
           <div className="space-y-4">
             {/* Totalen Card */}
-            <Card>
+            <Card variant="elevated">
               <CardHeader className="pb-3">
                 <CardTitle>Totalen</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-4">
+                {/* Marge Indicator */}
+                <MargeIndicator
+                  percentage={offerte.totalen.margePercentage}
+                  size="md"
+                  showTarget={true}
+                />
+
+                <Separator />
+
+                {/* Price Breakdown Chart */}
+                <PriceBreakdownChart
+                  materialen={offerte.totalen.materiaalkosten}
+                  arbeid={offerte.totalen.arbeidskosten}
+                  marge={offerte.totalen.marge}
+                  btw={offerte.totalen.btw}
+                  showLabels={true}
+                  showValues={false}
+                />
+
+                <Separator />
+
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Materiaalkosten</span>
-                  <span>{formatCurrency(offerte.totalen.materiaalkosten)}</span>
+                  <PriceDisplay amount={offerte.totalen.materiaalkosten} size="sm" animated />
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Arbeidskosten</span>
-                  <span>{formatCurrency(offerte.totalen.arbeidskosten)}</span>
+                  <PriceDisplay amount={offerte.totalen.arbeidskosten} size="sm" animated />
                 </div>
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">
@@ -618,27 +650,32 @@ export default function OfferteDetailPage({
                 <Separator />
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Subtotaal</span>
-                  <span>{formatCurrency(offerte.totalen.subtotaal)}</span>
+                  <PriceDisplay amount={offerte.totalen.subtotaal} size="sm" animated />
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">
                     Marge ({offerte.totalen.margePercentage}%)
                   </span>
-                  <span>{formatCurrency(offerte.totalen.marge)}</span>
+                  <PriceDisplay amount={offerte.totalen.marge} size="sm" animated />
                 </div>
                 <Separator />
                 <div className="flex justify-between font-medium">
                   <span>Totaal excl. BTW</span>
-                  <span>{formatCurrency(offerte.totalen.totaalExBtw)}</span>
+                  <PriceDisplay amount={offerte.totalen.totaalExBtw} size="md" animated />
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">BTW (21%)</span>
-                  <span>{formatCurrency(offerte.totalen.btw)}</span>
+                  <PriceDisplay amount={offerte.totalen.btw} size="sm" variant="muted" animated />
                 </div>
                 <Separator />
-                <div className="flex justify-between text-lg font-bold text-primary">
-                  <span>Totaal incl. BTW</span>
-                  <span>{formatCurrency(offerte.totalen.totaalInclBtw)}</span>
+                <div className="flex justify-between items-center pt-2">
+                  <span className="text-lg font-bold text-primary">Totaal incl. BTW</span>
+                  <PriceDisplay
+                    amount={offerte.totalen.totaalInclBtw}
+                    size="xl"
+                    variant="success"
+                    animated
+                  />
                 </div>
               </CardContent>
             </Card>

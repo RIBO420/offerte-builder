@@ -3,7 +3,6 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useCurrentUser } from "./use-current-user";
-import { Id } from "../../convex/_generated/dataModel";
 
 export function useNormuren() {
   const { user } = useCurrentUser();

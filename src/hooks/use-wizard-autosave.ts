@@ -52,6 +52,38 @@ function isExpired(timestamp: number, expirationHours: number): boolean {
   return now - timestamp > expirationMs;
 }
 
+// Helper to check for valid draft during initialization
+function checkForDraft<T>(
+  storageKey: string,
+  type: "aanleg" | "onderhoud",
+  expirationHours: number
+): { hasDraft: boolean; draftAge: string | null } {
+  if (typeof window === "undefined") {
+    return { hasDraft: false, draftAge: null };
+  }
+
+  try {
+    const stored = localStorage.getItem(storageKey);
+    if (stored) {
+      const draft: WizardDraft<T> = JSON.parse(stored);
+      if (draft.type === type && !isExpired(draft.timestamp, expirationHours)) {
+        return {
+          hasDraft: true,
+          draftAge: formatDraftAge(draft.timestamp),
+        };
+      } else {
+        // Remove expired or wrong-type draft
+        localStorage.removeItem(storageKey);
+      }
+    }
+  } catch {
+    // Failed to parse draft, remove corrupted data
+    localStorage.removeItem(storageKey);
+  }
+
+  return { hasDraft: false, draftAge: null };
+}
+
 export function useWizardAutosave<T>({
   key,
   type,
@@ -61,39 +93,17 @@ export function useWizardAutosave<T>({
 }: UseWizardAutosaveOptions<T>): UseWizardAutosaveReturn<T> {
   const storageKey = `offerte-wizard-${key}`;
 
+  // Use lazy initialization to check for draft on mount
+  const [draftState] = useState(() =>
+    checkForDraft<T>(storageKey, type, expirationHours)
+  );
+
   const [data, setDataState] = useState<T>(initialData);
   const [step, setStepState] = useState(initialStep);
-  const [hasDraft, setHasDraft] = useState(false);
-  const [draftAge, setDraftAge] = useState<string | null>(null);
-  const [showRestoreDialog, setShowRestoreDialog] = useState(false);
-  const [initialized, setInitialized] = useState(false);
-
-  // Check for existing draft on mount
-  useEffect(() => {
-    if (initialized) return;
-
-    try {
-      const stored = localStorage.getItem(storageKey);
-      if (stored) {
-        const draft: WizardDraft<T> = JSON.parse(stored);
-
-        // Check if draft is for the same type and not expired
-        if (draft.type === type && !isExpired(draft.timestamp, expirationHours)) {
-          setHasDraft(true);
-          setDraftAge(formatDraftAge(draft.timestamp));
-          setShowRestoreDialog(true);
-        } else {
-          // Remove expired or wrong-type draft
-          localStorage.removeItem(storageKey);
-        }
-      }
-    } catch (error) {
-      console.error("Error reading draft from localStorage:", error);
-      localStorage.removeItem(storageKey);
-    }
-
-    setInitialized(true);
-  }, [storageKey, type, expirationHours, initialized]);
+  const [hasDraft, setHasDraft] = useState(draftState.hasDraft);
+  const [draftAge, setDraftAge] = useState<string | null>(draftState.draftAge);
+  const [showRestoreDialog, setShowRestoreDialog] = useState(draftState.hasDraft);
+  const [initialized] = useState(true);
 
   // Save to localStorage when data or step changes
   useEffect(() => {
@@ -115,8 +125,8 @@ export function useWizardAutosave<T>({
         type,
       };
       localStorage.setItem(storageKey, JSON.stringify(draft));
-    } catch (error) {
-      console.error("Error saving draft to localStorage:", error);
+    } catch {
+      // Silent failure - localStorage might be full or disabled
     }
   }, [data, step, storageKey, type, initialized, showRestoreDialog, initialData, initialStep]);
 
@@ -140,8 +150,8 @@ export function useWizardAutosave<T>({
         setDataState(draft.data);
         setStepState(draft.step);
       }
-    } catch (error) {
-      console.error("Error restoring draft:", error);
+    } catch {
+      // Silent failure - draft data corrupted
     }
     setShowRestoreDialog(false);
     setHasDraft(false);

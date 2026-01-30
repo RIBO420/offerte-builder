@@ -75,11 +75,13 @@ export function useRovingFocus<T extends HTMLElement>(
 
   // Use ref for items to avoid dependency issues
   const itemsRef = useRef(items);
-  itemsRef.current = items;
-
-  // Also ref for onSelect to avoid recreating callback
   const onSelectRef = useRef(onSelect);
-  onSelectRef.current = onSelect;
+
+  // Update refs in effect to avoid lint warning about ref access during render
+  useEffect(() => {
+    itemsRef.current = items;
+    onSelectRef.current = onSelect;
+  });
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent) => {
@@ -146,12 +148,15 @@ export function useRovingFocus<T extends HTMLElement>(
  * Hook for detecting reduced motion preference
  */
 export function useReducedMotion(): boolean {
-  const [reducedMotion, setReducedMotion] = useState(false);
+  // Initialize with SSR-safe default
+  const [reducedMotion, setReducedMotion] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return prefersReducedMotion();
+  });
 
   useEffect(() => {
-    setReducedMotion(prefersReducedMotion());
-
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+
     const handler = (event: MediaQueryListEvent) => {
       setReducedMotion(event.matches);
     };

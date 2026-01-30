@@ -32,6 +32,7 @@ export function AccessibleLoading({
 }: AccessibleLoadingProps) {
   return (
     <div
+      data-slot="accessible-loading"
       role="status"
       aria-live="polite"
       aria-busy="true"
@@ -58,6 +59,7 @@ export function LoadingOverlay({
 }) {
   return (
     <div
+      data-slot="loading-overlay"
       role="status"
       aria-live="assertive"
       aria-busy="true"

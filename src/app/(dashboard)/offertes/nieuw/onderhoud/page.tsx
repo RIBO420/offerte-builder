@@ -32,7 +32,6 @@ import {
 } from "@/components/ui/breadcrumb";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import {
   Trees,
   Flower2,
@@ -218,7 +217,7 @@ export default function NieuweOnderhoudOffertePage() {
   const { isLoading: isUserLoading } = useCurrentUser();
   const { create, updateRegels } = useOffertes();
   const { getNextNummer, isLoading: isSettingsLoading, instellingen } = useInstellingen();
-  const { calculate, isLoading: isCalcLoading } = useOfferteCalculation();
+  const { calculate } = useOfferteCalculation();
   const { createFromOfferte: createKlantFromOfferte } = useKlanten();
 
   // Wizard autosave hook
@@ -227,13 +226,11 @@ export default function NieuweOnderhoudOffertePage() {
     step: currentStep,
     setData: setWizardData,
     setStep: setCurrentStep,
-    hasDraft,
     draftAge,
     restoreDraft,
     discardDraft,
     clearDraft,
     showRestoreDialog,
-    setShowRestoreDialog,
   } = useWizardAutosave<WizardData>({
     key: "onderhoud",
     type: "onderhoud",
@@ -512,9 +509,8 @@ export default function NieuweOnderhoudOffertePage() {
 
       toast.success(`Offerte ${offerteNummer} aangemaakt`);
       router.push(`/offertes/${offerteId}/bewerken`);
-    } catch (error) {
+    } catch {
       toast.error("Fout bij aanmaken offerte");
-      console.error(error);
     } finally {
       setIsSubmitting(false);
     }

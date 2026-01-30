@@ -82,7 +82,7 @@ export function SendEmailDialog({
 }: SendEmailDialogProps) {
   const { user } = useCurrentUser();
   const { sendEmail, isSending } = useEmail();
-  const { logs, isLoading: logsLoading } = useEmailLogs(offerte._id);
+  const { logs } = useEmailLogs(offerte._id);
 
   const [emailType, setEmailType] = useState<EmailType>("offerte_verzonden");
   const [toEmail, setToEmail] = useState(offerte.klant.email || "");

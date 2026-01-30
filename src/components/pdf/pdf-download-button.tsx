@@ -85,8 +85,8 @@ export function PDFDownloadButton({
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Error generating PDF:", error);
+    } catch {
+      // PDF generation failed - silently handle as user can retry
     } finally {
       setIsGenerating(false);
     }

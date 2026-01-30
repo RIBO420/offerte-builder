@@ -140,7 +140,7 @@ interface Correctiefactor {
 }
 
 export default function InstellingenPage() {
-  const { user, isLoading: isUserLoading } = useCurrentUser();
+  const { isLoading: isUserLoading } = useCurrentUser();
   const { instellingen, isLoading: isSettingsLoading, update } = useInstellingen();
   const {
     normuren,
@@ -236,9 +236,8 @@ export default function InstellingenPage() {
         btwPercentage: tarieven.btwPercentage,
       });
       toast.success("Tarieven opgeslagen");
-    } catch (error) {
+    } catch {
       toast.error("Fout bij opslaan tarieven");
-      console.error(error);
     } finally {
       setIsSaving(false);
     }
@@ -287,9 +286,8 @@ export default function InstellingenPage() {
         toast.success("Normuur toegevoegd");
       }
       setShowNormuurDialog(false);
-    } catch (error) {
+    } catch {
       toast.error("Fout bij opslaan normuur");
-      console.error(error);
     } finally {
       setIsSaving(false);
     }
@@ -303,9 +301,8 @@ export default function InstellingenPage() {
       toast.success("Normuur verwijderd");
       setShowDeleteNormuurDialog(false);
       setNormuurToDelete(null);
-    } catch (error) {
+    } catch {
       toast.error("Fout bij verwijderen normuur");
-      console.error(error);
     }
   };
 
@@ -327,9 +324,8 @@ export default function InstellingenPage() {
       });
       toast.success("Factor bijgewerkt");
       setEditingFactor(null);
-    } catch (error) {
+    } catch {
       toast.error("Fout bij opslaan factor");
-      console.error(error);
     } finally {
       setIsSaving(false);
     }
@@ -339,9 +335,8 @@ export default function InstellingenPage() {
     try {
       await resetFactor(factor.type, factor.waarde);
       toast.success("Factor gereset naar standaard");
-    } catch (error) {
+    } catch {
       toast.error("Fout bij resetten factor");
-      console.error(error);
     }
   };
 

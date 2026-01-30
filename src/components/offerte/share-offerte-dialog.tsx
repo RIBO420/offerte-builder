@@ -101,9 +101,8 @@ export function ShareOfferteDialog({
         expiresInDays: parseInt(expiresInDays),
       });
       toast.success("Deellink aangemaakt");
-    } catch (error) {
+    } catch {
       toast.error("Fout bij aanmaken deellink");
-      console.error(error);
     } finally {
       setIsCreating(false);
     }
@@ -114,9 +113,8 @@ export function ShareOfferteDialog({
     try {
       await revokeShareLink({ offerteId: offerte._id });
       toast.success("Deellink ingetrokken");
-    } catch (error) {
+    } catch {
       toast.error("Fout bij intrekken deellink");
-      console.error(error);
     } finally {
       setIsRevoking(false);
     }

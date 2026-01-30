@@ -34,6 +34,7 @@ export function LiveRegion({
 
   return (
     <div
+      data-slot="live-region"
       role="status"
       aria-live={priority}
       aria-atomic="true"
@@ -52,6 +53,7 @@ export function LiveRegionProvider({ children }: { children: React.ReactNode }) 
     <>
       {children}
       <div
+        data-slot="live-region-polite"
         id="live-region-polite"
         role="status"
         aria-live="polite"
@@ -59,6 +61,7 @@ export function LiveRegionProvider({ children }: { children: React.ReactNode }) 
         className="sr-only"
       />
       <div
+        data-slot="live-region-assertive"
         id="live-region-assertive"
         role="alert"
         aria-live="assertive"
