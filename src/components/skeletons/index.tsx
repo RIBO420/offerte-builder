@@ -10,7 +10,7 @@ export function DashboardStatsSkeleton() {
       role="status"
       aria-busy="true"
       aria-label="Dashboard statistieken laden"
-      className="grid gap-4 md:grid-cols-2 lg:grid-cols-4"
+      className="grid gap-6 md:grid-cols-2 lg:grid-cols-4"
     >
       {Array.from({ length: 4 }).map((_, i) => (
         <Card key={i}>
@@ -225,7 +225,7 @@ export function AnalyticsSkeleton() {
   return (
     <div role="status" aria-busy="true" aria-label="Rapportages laden" className="space-y-6">
       {/* KPI Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <Card key={i}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

@@ -67,20 +67,19 @@ export default function DashboardPage() {
         </Breadcrumb>
       </header>
 
-      <div className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-        <div className="grid gap-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
-              Welkom{clerkUser?.firstName ? `, ${clerkUser.firstName}` : ""}!
-            </h1>
-            <p className="text-muted-foreground">
-              Beheer je offertes en maak nieuwe aanleg- of onderhoudsoffertes.
-            </p>
-          </div>
+      <div className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
+        {/* Welcome Header */}
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
+            Welkom{clerkUser?.firstName ? `, ${clerkUser.firstName}` : ""}!
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Beheer je offertes en maak nieuwe aanleg- of onderhoudsoffertes.
+          </p>
         </div>
 
         {/* Quick Actions */}
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-2">
           <Card className="border-2 border-dashed hover:border-primary hover:bg-muted/50 transition-colors">
             <Link href="/offertes/nieuw/aanleg" className="block">
               <CardHeader>
@@ -132,7 +131,7 @@ export default function DashboardPage() {
         {isLoading ? (
           <DashboardStatsSkeleton />
         ) : (
-          <div className="grid gap-4 md:grid-cols-4">
+          <div className="grid gap-6 md:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">

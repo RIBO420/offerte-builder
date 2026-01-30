@@ -359,7 +359,7 @@ function OffertesPageContent() {
         </Breadcrumb>
       </header>
 
-      <div className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+      <div className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
@@ -385,7 +385,7 @@ function OffertesPageContent() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-4">
           <div className="flex items-center gap-4">
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -405,7 +405,7 @@ function OffertesPageContent() {
           <ActiveFilters filters={filters} onChange={handleFiltersChange} />
         </div>
 
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
           <TabsList>
             <TabsTrigger value="alle">
               Alle
@@ -447,7 +447,7 @@ function OffertesPageContent() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value={activeTab} className="space-y-4">
+          <TabsContent value={activeTab} className="space-y-6">
             {/* Bulk Actions Bar */}
             {isSomeSelected && (
               <div className="flex items-center gap-4 p-3 bg-muted/50 rounded-lg border">
