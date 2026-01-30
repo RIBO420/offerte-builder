@@ -37,12 +37,14 @@ export function RestoreDraftDialog({
             <FileText className="h-5 w-5 text-primary" />
             Concept gevonden
           </AlertDialogTitle>
-          <AlertDialogDescription className="space-y-2">
-            <p>
-              Er is een onafgeronde {typeLabel} offerte gevonden van{" "}
-              <strong>{draftAge}</strong>.
-            </p>
-            <p>Wil je verder gaan waar je gebleven was?</p>
+          <AlertDialogDescription asChild>
+            <div className="text-muted-foreground text-sm space-y-2">
+              <p>
+                Er is een onafgeronde {typeLabel} offerte gevonden van{" "}
+                <strong>{draftAge}</strong>.
+              </p>
+              <p>Wil je verder gaan waar je gebleven was?</p>
+            </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

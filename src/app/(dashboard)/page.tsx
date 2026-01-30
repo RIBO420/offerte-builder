@@ -17,7 +17,6 @@ import {
   TrendingUp,
   Clock,
   CheckCircle,
-  Loader2,
 } from "lucide-react";
 import {
   Breadcrumb,
@@ -27,9 +26,11 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { DashboardStatsSkeleton, RecentOffertesListSkeleton } from "@/components/skeletons";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useDashboardData } from "@/hooks/use-offertes";
+import type { OfferteStatus } from "@/lib/constants/statuses";
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("nl-NL", {
@@ -45,14 +46,6 @@ function formatDate(timestamp: number): string {
     year: "numeric",
   }).format(new Date(timestamp));
 }
-
-const statusColors: Record<string, string> = {
-  concept: "bg-gray-100 text-gray-800",
-  definitief: "bg-blue-100 text-blue-800",
-  verzonden: "bg-yellow-100 text-yellow-800",
-  geaccepteerd: "bg-green-100 text-green-800",
-  afgewezen: "bg-red-100 text-red-800",
-};
 
 export default function DashboardPage() {
   const { user, clerkUser, isLoading: isUserLoading } = useCurrentUser();
@@ -136,95 +129,75 @@ export default function DashboardPage() {
         </div>
 
         {/* Stats Overview */}
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Totaal Offertes
-              </CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <div className="text-2xl font-bold">{stats?.totaal || 0}</div>
-                  <p className="text-xs text-muted-foreground">
-                    {stats?.totaalWaarde
-                      ? formatCurrency(stats.totaalWaarde)
-                      : "Nog geen offertes"}
-                  </p>
-                </>
-              )}
-            </CardContent>
-          </Card>
+        {isLoading ? (
+          <DashboardStatsSkeleton />
+        ) : (
+          <div className="grid gap-4 md:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Totaal Offertes
+                </CardTitle>
+                <FileText className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats?.totaal || 0}</div>
+                <p className="text-xs text-muted-foreground">
+                  {stats?.totaalWaarde
+                    ? formatCurrency(stats.totaalWaarde)
+                    : "Nog geen offertes"}
+                </p>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Concepten</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <div className="text-2xl font-bold">
-                    {stats?.concept || 0}
-                  </div>
-                  <p className="text-xs text-muted-foreground">In bewerking</p>
-                </>
-              )}
-            </CardContent>
-          </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Concepten</CardTitle>
+                <Clock className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {stats?.concept || 0}
+                </div>
+                <p className="text-xs text-muted-foreground">In bewerking</p>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Verzonden</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <div className="text-2xl font-bold">
-                    {stats?.verzonden || 0}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Wachten op reactie
-                  </p>
-                </>
-              )}
-            </CardContent>
-          </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Verzonden</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {stats?.verzonden || 0}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Wachten op reactie
+                </p>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Geaccepteerd
-              </CardTitle>
-              <CheckCircle className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <div className="text-2xl font-bold">
-                    {stats?.geaccepteerd || 0}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {stats?.geaccepteerdWaarde
-                      ? formatCurrency(stats.geaccepteerdWaarde)
-                      : "Opdrachten"}
-                  </p>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Geaccepteerd
+                </CardTitle>
+                <CheckCircle className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {stats?.geaccepteerd || 0}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {stats?.geaccepteerdWaarde
+                    ? formatCurrency(stats.geaccepteerdWaarde)
+                    : "Opdrachten"}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Recent Activity */}
         <Card>
@@ -236,9 +209,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              </div>
+              <RecentOffertesListSkeleton count={5} />
             ) : recentOffertes && recentOffertes.length > 0 ? (
               <div className="space-y-4">
                 {recentOffertes.map((offerte) => (
@@ -277,9 +248,7 @@ export default function DashboardPage() {
                           {formatDate(offerte.updatedAt)}
                         </p>
                       </div>
-                      <Badge className={statusColors[offerte.status]}>
-                        {offerte.status}
-                      </Badge>
+                      <StatusBadge status={offerte.status as OfferteStatus} size="sm" />
                     </div>
                   </Link>
                 ))}

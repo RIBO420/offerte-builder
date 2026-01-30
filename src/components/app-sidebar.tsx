@@ -17,6 +17,11 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
   FileText,
   Home,
   Plus,
@@ -27,9 +32,14 @@ import {
   Moon,
   Sun,
   Users,
+  Clock,
+  ChevronRight,
+  BarChart3,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
+import { StatusDot } from "@/components/ui/status-badge";
+import { useDashboardData } from "@/hooks/use-offertes";
 
 const navigationItems = [
   {
@@ -46,6 +56,11 @@ const navigationItems = [
     title: "Klanten",
     url: "/klanten",
     icon: Users,
+  },
+  {
+    title: "Rapportages",
+    url: "/rapportages",
+    icon: BarChart3,
   },
 ];
 
@@ -80,6 +95,7 @@ const beheerItems = [
 export function AppSidebar() {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
+  const { recentOffertes, isLoading } = useDashboardData();
 
   return (
     <Sidebar variant="inset">
@@ -127,6 +143,49 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarSeparator />
+
+        {/* Recent Offertes Section */}
+        {recentOffertes && recentOffertes.length > 0 && (
+          <>
+            <Collapsible defaultOpen className="group/collapsible">
+              <SidebarGroup>
+                <SidebarGroupLabel asChild>
+                  <CollapsibleTrigger className="flex w-full items-center justify-between">
+                    <span className="flex items-center gap-2">
+                      <Clock className="size-3" />
+                      Recent
+                    </span>
+                    <ChevronRight className="size-4 transition-transform group-data-[state=open]/collapsible:rotate-90" />
+                  </CollapsibleTrigger>
+                </SidebarGroupLabel>
+                <CollapsibleContent>
+                  <SidebarGroupContent>
+                    <SidebarMenu>
+                      {recentOffertes.slice(0, 5).map((offerte) => (
+                        <SidebarMenuItem key={offerte._id}>
+                          <SidebarMenuButton
+                            asChild
+                            isActive={pathname === `/offertes/${offerte._id}`}
+                            tooltip={`${offerte.klant.naam} - ${offerte.offerteNummer}`}
+                          >
+                            <Link href={`/offertes/${offerte._id}`}>
+                              <StatusDot status={offerte.status} />
+                              <span className="truncate">{offerte.offerteNummer}</span>
+                              <span className="ml-auto text-xs text-muted-foreground truncate max-w-[80px]">
+                                {offerte.klant.naam.split(" ")[0]}
+                              </span>
+                            </Link>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      ))}
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                </CollapsibleContent>
+              </SidebarGroup>
+            </Collapsible>
+            <SidebarSeparator />
+          </>
+        )}
 
         <SidebarGroup>
           <SidebarGroupLabel className="flex items-center gap-2">

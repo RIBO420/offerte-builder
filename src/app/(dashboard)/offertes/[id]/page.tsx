@@ -65,10 +65,18 @@ import {
   Clock,
   Copy,
   Trash2,
+  BookmarkPlus,
+  History,
 } from "lucide-react";
+import { SaveAsTemplateDialog } from "@/components/offerte/save-as-template-dialog";
+import { SendEmailDialog } from "@/components/offerte/send-email-dialog";
 import { useOfferte, useOffertes } from "@/hooks/use-offertes";
+import { useEmailLogs } from "@/hooks/use-email";
 import { useInstellingen } from "@/hooks/use-instellingen";
 import { PDFDownloadButton } from "@/components/pdf";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { OfferteDetailSkeleton } from "@/components/skeletons";
+import { STATUS_CONFIG, type OfferteStatus } from "@/lib/constants/statuses";
 import { Id } from "../../../../../convex/_generated/dataModel";
 import { toast } from "sonner";
 
@@ -86,22 +94,6 @@ function formatDate(timestamp: number): string {
     year: "numeric",
   }).format(new Date(timestamp));
 }
-
-const statusColors: Record<string, string> = {
-  concept: "bg-gray-100 text-gray-800",
-  definitief: "bg-blue-100 text-blue-800",
-  verzonden: "bg-yellow-100 text-yellow-800",
-  geaccepteerd: "bg-green-100 text-green-800",
-  afgewezen: "bg-red-100 text-red-800",
-};
-
-const statusLabels: Record<string, string> = {
-  concept: "Concept",
-  definitief: "Definitief",
-  verzonden: "Verzonden",
-  geaccepteerd: "Geaccepteerd",
-  afgewezen: "Afgewezen",
-};
 
 const scopeLabels: Record<string, string> = {
   grondwerk: "Grondwerk",
@@ -128,7 +120,11 @@ export default function OfferteDetailPage({
   const { updateStatus, delete: deleteOfferte, duplicate } = useOffertes();
   const { getNextNummer, instellingen } = useInstellingen();
 
+  const { stats: emailStats } = useEmailLogs(id as Id<"offertes">);
+
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
+  const [showEmailDialog, setShowEmailDialog] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
 
   const handleStatusChange = async (
@@ -138,7 +134,7 @@ export default function OfferteDetailPage({
     setIsUpdating(true);
     try {
       await updateStatus({ id: offerte._id, status: newStatus });
-      toast.success(`Status gewijzigd naar ${statusLabels[newStatus]}`);
+      toast.success(`Status gewijzigd naar ${STATUS_CONFIG[newStatus].label}`);
     } catch (error) {
       toast.error("Fout bij wijzigen status");
       console.error(error);
@@ -194,9 +190,8 @@ export default function OfferteDetailPage({
           </Breadcrumb>
         </header>
 
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 p-4">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          <p className="text-muted-foreground">Offerte laden...</p>
+        <div className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+          <OfferteDetailSkeleton />
         </div>
       </>
     );
@@ -300,9 +295,7 @@ export default function OfferteDetailPage({
                   <h1 className="text-2xl font-bold tracking-tight">
                     {offerte.offerteNummer}
                   </h1>
-                  <Badge className={statusColors[offerte.status]}>
-                    {statusLabels[offerte.status]}
-                  </Badge>
+                  <StatusBadge status={offerte.status as OfferteStatus} />
                 </div>
                 <p className="text-muted-foreground">
                   {offerte.type === "aanleg" ? "Aanleg" : "Onderhoud"} offerte •
@@ -364,6 +357,14 @@ export default function OfferteDetailPage({
               </Link>
             </Button>
 
+            <Button
+              variant="outline"
+              onClick={() => setShowEmailDialog(true)}
+            >
+              <Send className="mr-2 h-4 w-4" />
+              Email
+            </Button>
+
             <PDFDownloadButton
               offerte={offerte}
               bedrijfsgegevens={instellingen?.bedrijfsgegevens}
@@ -379,6 +380,16 @@ export default function OfferteDetailPage({
                 <DropdownMenuItem onClick={handleDuplicate}>
                   <Copy className="mr-2 h-4 w-4" />
                   Dupliceren
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowTemplateDialog(true)}>
+                  <BookmarkPlus className="mr-2 h-4 w-4" />
+                  Opslaan als Template
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href={`/offertes/${id}/history`}>
+                    <History className="mr-2 h-4 w-4" />
+                    Versiegeschiedenis
+                  </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
@@ -635,6 +646,18 @@ export default function OfferteDetailPage({
                     <span>{formatDate(offerte.verzondenAt)}</span>
                   </div>
                 )}
+                {emailStats && emailStats.total > 0 && (
+                  <>
+                    <Separator />
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground flex items-center gap-1">
+                        <Mail className="h-3.5 w-3.5" />
+                        Emails verzonden
+                      </span>
+                      <span>{emailStats.verzonden}</span>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -662,6 +685,33 @@ export default function OfferteDetailPage({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Save as template dialog */}
+      <SaveAsTemplateDialog
+        open={showTemplateDialog}
+        onOpenChange={setShowTemplateDialog}
+        offerte={{
+          type: offerte.type,
+          scopes: offerte.scopes,
+          scopeData: offerte.scopeData as Record<string, unknown> | undefined,
+          klant: offerte.klant,
+        }}
+      />
+
+      {/* Send email dialog */}
+      <SendEmailDialog
+        open={showEmailDialog}
+        onOpenChange={setShowEmailDialog}
+        offerte={{
+          _id: offerte._id,
+          offerteNummer: offerte.offerteNummer,
+          type: offerte.type,
+          klant: offerte.klant,
+          scopes: offerte.scopes,
+          totalen: offerte.totalen,
+        }}
+        bedrijfsgegevens={instellingen?.bedrijfsgegevens}
+      />
     </>
   );
 }

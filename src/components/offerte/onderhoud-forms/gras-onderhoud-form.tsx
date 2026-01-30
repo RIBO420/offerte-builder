@@ -1,138 +1,240 @@
 "use client";
 
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { AreaInput } from "@/components/ui/number-input";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Trees } from "lucide-react";
+import { grasOnderhoudSchema, type GrasOnderhoudFormData } from "@/lib/validations/onderhoud-scopes";
 import type { GrasOnderhoudData } from "@/types/offerte";
 
 interface GrasOnderhoudFormProps {
   data: GrasOnderhoudData;
   onChange: (data: GrasOnderhoudData) => void;
+  onValidationChange?: (isValid: boolean, errors: Record<string, string>) => void;
 }
 
-export function GrasOnderhoudForm({ data, onChange }: GrasOnderhoudFormProps) {
+export function GrasOnderhoudForm({ data, onChange, onValidationChange }: GrasOnderhoudFormProps) {
+  const form = useForm<GrasOnderhoudFormData>({
+    resolver: zodResolver(grasOnderhoudSchema),
+    defaultValues: data,
+    mode: "onBlur",
+  });
+
+  const { formState: { errors, isValid }, watch } = form;
+
+  // Watch for changes and sync with parent
+  useEffect(() => {
+    const subscription = watch((values) => {
+      if (values.grasAanwezig !== undefined) {
+        onChange({
+          grasAanwezig: values.grasAanwezig ?? false,
+          grasOppervlakte: values.grasOppervlakte ?? 0,
+          maaien: values.maaien ?? false,
+          kantenSteken: values.kantenSteken ?? false,
+          verticuteren: values.verticuteren ?? false,
+          afvoerGras: values.afvoerGras ?? false,
+        });
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [watch, onChange]);
+
+  // Notify parent of validation state changes
+  useEffect(() => {
+    if (onValidationChange) {
+      const errorMessages: Record<string, string> = {};
+      Object.entries(errors).forEach(([key, error]) => {
+        if (error?.message) {
+          errorMessages[key] = error.message;
+        }
+      });
+      onValidationChange(isValid, errorMessages);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(errors), isValid]);
+
+  const watchedValues = watch();
+
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <Trees className="h-5 w-5 text-muted-foreground" />
-          <CardTitle>Gras Onderhoud</CardTitle>
-        </div>
-        <CardDescription>
-          Maaien, kanten steken en verticuteren
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="flex items-center justify-between rounded-lg border p-4">
-          <div className="space-y-0.5">
-            <Label htmlFor="gras-aanwezig">Gras aanwezig</Label>
-            <p className="text-sm text-muted-foreground">
-              Is er gazon in de tuin?
-            </p>
-          </div>
-          <Switch
-            id="gras-aanwezig"
-            checked={data.grasAanwezig}
-            onCheckedChange={(checked: boolean) => onChange({ ...data, grasAanwezig: checked })}
-          />
-        </div>
-
-        {data.grasAanwezig && (
-          <>
-            <div className="space-y-2">
-              <Label htmlFor="gras-oppervlakte">Grasoppervlakte (m²) *</Label>
-              <Input
-                id="gras-oppervlakte"
-                type="number"
-                min="0"
-                step="0.1"
-                value={data.grasOppervlakte || ""}
-                onChange={(e) => onChange({ ...data, grasOppervlakte: parseFloat(e.target.value) || 0 })}
-                placeholder="0"
-              />
+    <Form {...form}>
+      <form>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Trees className="h-5 w-5 text-muted-foreground" />
+              <CardTitle>Gras Onderhoud</CardTitle>
             </div>
+            <CardDescription>
+              Maaien, kanten steken en verticuteren
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <FormField
+              control={form.control}
+              name="grasAanwezig"
+              render={({ field }) => (
+                <FormItem className="flex items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel>Gras aanwezig</FormLabel>
+                    <FormDescription>
+                      Is er gazon in de tuin?
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
 
-            <div className="space-y-4">
-              <Label className="text-base font-medium">Werkzaamheden</Label>
-
-              <div className="flex items-center justify-between rounded-lg border p-4">
-                <div className="space-y-0.5">
-                  <Label htmlFor="gras-maaien">Maaien</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Regelmatig gazon maaien
-                  </p>
-                </div>
-                <Switch
-                  id="gras-maaien"
-                  checked={data.maaien}
-                  onCheckedChange={(checked: boolean) => onChange({ ...data, maaien: checked })}
-                />
-              </div>
-
-              <div className="flex items-center justify-between rounded-lg border p-4">
-                <div className="space-y-0.5">
-                  <Label htmlFor="gras-kanten">Kanten steken</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Randen van het gazon bijwerken
-                  </p>
-                </div>
-                <Switch
-                  id="gras-kanten"
-                  checked={data.kantenSteken}
-                  onCheckedChange={(checked: boolean) => onChange({ ...data, kantenSteken: checked })}
-                />
-              </div>
-
-              <div className="flex items-center justify-between rounded-lg border p-4">
-                <div className="space-y-0.5">
-                  <Label htmlFor="gras-verticuteren">Verticuteren</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Mos en vilt verwijderen (optioneel, 1-2x per jaar)
-                  </p>
-                </div>
-                <Switch
-                  id="gras-verticuteren"
-                  checked={data.verticuteren}
-                  onCheckedChange={(checked: boolean) => onChange({ ...data, verticuteren: checked })}
-                />
-              </div>
-
-              <div className="flex items-center justify-between rounded-lg border p-4">
-                <div className="space-y-0.5">
-                  <Label htmlFor="gras-afvoer">Afvoer gras</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Maaisel afvoeren (anders mulchen)
-                  </p>
-                </div>
-                <Switch
-                  id="gras-afvoer"
-                  checked={data.afvoerGras}
-                  onCheckedChange={(checked: boolean) => onChange({ ...data, afvoerGras: checked })}
-                />
-              </div>
-            </div>
-
-            {data.grasOppervlakte > 0 && (
-              <div className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
-                <div className="font-medium mb-1">Indicatie per beurt:</div>
-                <ul className="list-disc list-inside space-y-1">
-                  {data.maaien && (
-                    <li>Maaien: ~{(data.grasOppervlakte * 0.02).toFixed(1)} uur</li>
+            {watchedValues.grasAanwezig && (
+              <>
+                <FormField
+                  control={form.control}
+                  name="grasOppervlakte"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel required>Grasoppervlakte</FormLabel>
+                      <FormControl>
+                        <AreaInput
+                          id="gras-oppervlakte"
+                          min={0}
+                          value={field.value || 0}
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                          showStepper={false}
+                          error={!!errors.grasOppervlakte}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
                   )}
-                  {data.kantenSteken && (
-                    <li>Kanten steken: ~{(Math.sqrt(data.grasOppervlakte) * 4 * 0.01).toFixed(1)} uur</li>
-                  )}
-                  {data.verticuteren && (
-                    <li>Verticuteren: ~{(data.grasOppervlakte * 0.03).toFixed(1)} uur</li>
-                  )}
-                </ul>
-              </div>
+                />
+
+                <div className="space-y-4">
+                  <FormLabel className="text-base font-medium">Werkzaamheden</FormLabel>
+
+                  <FormField
+                    control={form.control}
+                    name="maaien"
+                    render={({ field }) => (
+                      <FormItem className="flex items-center justify-between rounded-lg border p-4">
+                        <div className="space-y-0.5">
+                          <FormLabel>Maaien</FormLabel>
+                          <FormDescription>
+                            Regelmatig gazon maaien
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="kantenSteken"
+                    render={({ field }) => (
+                      <FormItem className="flex items-center justify-between rounded-lg border p-4">
+                        <div className="space-y-0.5">
+                          <FormLabel>Kanten steken</FormLabel>
+                          <FormDescription>
+                            Randen van het gazon bijwerken
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="verticuteren"
+                    render={({ field }) => (
+                      <FormItem className="flex items-center justify-between rounded-lg border p-4">
+                        <div className="space-y-0.5">
+                          <FormLabel>Verticuteren</FormLabel>
+                          <FormDescription>
+                            Mos en vilt verwijderen (optioneel, 1-2x per jaar)
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="afvoerGras"
+                    render={({ field }) => (
+                      <FormItem className="flex items-center justify-between rounded-lg border p-4">
+                        <div className="space-y-0.5">
+                          <FormLabel>Afvoer gras</FormLabel>
+                          <FormDescription>
+                            Maaisel afvoeren (anders mulchen)
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {watchedValues.grasOppervlakte > 0 && (
+                  <div className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
+                    <div className="font-medium mb-1">Indicatie per beurt:</div>
+                    <ul className="list-disc list-inside space-y-1">
+                      {watchedValues.maaien && (
+                        <li>Maaien: ~{(watchedValues.grasOppervlakte * 0.02).toFixed(1)} uur</li>
+                      )}
+                      {watchedValues.kantenSteken && (
+                        <li>Kanten steken: ~{(Math.sqrt(watchedValues.grasOppervlakte) * 4 * 0.01).toFixed(1)} uur</li>
+                      )}
+                      {watchedValues.verticuteren && (
+                        <li>Verticuteren: ~{(watchedValues.grasOppervlakte * 0.03).toFixed(1)} uur</li>
+                      )}
+                    </ul>
+                  </div>
+                )}
+              </>
             )}
-          </>
-        )}
-      </CardContent>
-    </Card>
+          </CardContent>
+        </Card>
+      </form>
+    </Form>
   );
 }

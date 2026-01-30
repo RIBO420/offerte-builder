@@ -8,11 +8,14 @@
  * @module
  */
 
+import type * as analytics from "../analytics.js";
 import type * as berekeningen from "../berekeningen.js";
 import type * as correctiefactoren from "../correctiefactoren.js";
+import type * as emailLogs from "../emailLogs.js";
 import type * as instellingen from "../instellingen.js";
 import type * as klanten from "../klanten.js";
 import type * as normuren from "../normuren.js";
+import type * as offerteVersions from "../offerteVersions.js";
 import type * as offertes from "../offertes.js";
 import type * as producten from "../producten.js";
 import type * as standaardtuinen from "../standaardtuinen.js";
@@ -25,11 +28,14 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  analytics: typeof analytics;
   berekeningen: typeof berekeningen;
   correctiefactoren: typeof correctiefactoren;
+  emailLogs: typeof emailLogs;
   instellingen: typeof instellingen;
   klanten: typeof klanten;
   normuren: typeof normuren;
+  offerteVersions: typeof offerteVersions;
   offertes: typeof offertes;
   producten: typeof producten;
   standaardtuinen: typeof standaardtuinen;

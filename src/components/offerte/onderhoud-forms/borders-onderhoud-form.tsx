@@ -1,167 +1,272 @@
 "use client";
 
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AreaInput } from "@/components/ui/number-input";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Flower2, AlertTriangle } from "lucide-react";
-import type { BordersOnderhoudData, Intensiteit } from "@/types/offerte";
+import { bordersOnderhoudSchema, type BordersOnderhoudFormData } from "@/lib/validations/onderhoud-scopes";
+import type { BordersOnderhoudData } from "@/types/offerte";
 
 interface BordersOnderhoudFormProps {
   data: BordersOnderhoudData;
   onChange: (data: BordersOnderhoudData) => void;
+  onValidationChange?: (isValid: boolean, errors: Record<string, string>) => void;
 }
 
-export function BordersOnderhoudForm({ data, onChange }: BordersOnderhoudFormProps) {
+export function BordersOnderhoudForm({ data, onChange, onValidationChange }: BordersOnderhoudFormProps) {
+  const form = useForm<BordersOnderhoudFormData>({
+    resolver: zodResolver(bordersOnderhoudSchema),
+    defaultValues: data,
+    mode: "onBlur",
+  });
+
+  const { formState: { errors, isValid }, watch } = form;
+
+  // Watch for changes and sync with parent
+  useEffect(() => {
+    const subscription = watch((values) => {
+      if (values.borderOppervlakte !== undefined) {
+        onChange({
+          borderOppervlakte: values.borderOppervlakte ?? 0,
+          onderhoudsintensiteit: values.onderhoudsintensiteit ?? "gemiddeld",
+          onkruidVerwijderen: values.onkruidVerwijderen ?? false,
+          snoeiInBorders: values.snoeiInBorders ?? "geen",
+          bodem: values.bodem ?? "open",
+          afvoerGroenafval: values.afvoerGroenafval ?? false,
+        });
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [watch, onChange]);
+
+  // Notify parent of validation state changes (only when errors object changes)
+  useEffect(() => {
+    if (onValidationChange) {
+      const errorMessages: Record<string, string> = {};
+      Object.entries(errors).forEach(([key, error]) => {
+        if (error?.message) {
+          errorMessages[key] = error.message;
+        }
+      });
+      onValidationChange(isValid, errorMessages);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(errors), isValid]);
+
+  const watchedValues = watch();
+
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <Flower2 className="h-5 w-5 text-muted-foreground" />
-          <CardTitle>Borders Onderhoud</CardTitle>
-        </div>
-        <CardDescription>
-          Wieden, snoei in borders en bodemonderhoud
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <Alert variant="default" className="border-orange-300 bg-orange-50/50">
-          <AlertTriangle className="h-4 w-4 text-orange-600" />
-          <AlertTitle className="text-orange-900">Verplicht veld</AlertTitle>
-          <AlertDescription className="text-orange-700">
-            Onderhoudsintensiteit is verplicht voor een correcte urenberekening.
-          </AlertDescription>
-        </Alert>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="border-oppervlakte">Borderoppervlakte (m²) *</Label>
-            <Input
-              id="border-oppervlakte"
-              type="number"
-              min="0"
-              step="0.1"
-              value={data.borderOppervlakte || ""}
-              onChange={(e) => onChange({ ...data, borderOppervlakte: parseFloat(e.target.value) || 0 })}
-              placeholder="0"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="border-intensiteit" className="flex items-center gap-2">
-              Onderhoudsintensiteit *
-              <span className="text-xs text-orange-600 font-normal">(verplicht)</span>
-            </Label>
-            <Select
-              value={data.onderhoudsintensiteit}
-              onValueChange={(v) => onChange({ ...data, onderhoudsintensiteit: v as Intensiteit })}
-            >
-              <SelectTrigger id="border-intensiteit" className="border-orange-300">
-                <SelectValue placeholder="Selecteer intensiteit" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="weinig">Weinig (lage beplantingsdichtheid)</SelectItem>
-                <SelectItem value="gemiddeld">Gemiddeld</SelectItem>
-                <SelectItem value="veel">Veel (hoge beplantingsdichtheid)</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              Bepaalt de benodigde uren voor onderhoud
-            </p>
-          </div>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="border-snoei">Snoei in borders</Label>
-            <Select
-              value={data.snoeiInBorders}
-              onValueChange={(v) => onChange({ ...data, snoeiInBorders: v as BordersOnderhoudData["snoeiInBorders"] })}
-            >
-              <SelectTrigger id="border-snoei">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="geen">Geen snoei</SelectItem>
-                <SelectItem value="licht">Licht (uitgebloeide bloemen)</SelectItem>
-                <SelectItem value="zwaar">Zwaar (vormgeven struiken)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="border-bodem">Bodem type</Label>
-            <Select
-              value={data.bodem}
-              onValueChange={(v) => onChange({ ...data, bodem: v as BordersOnderhoudData["bodem"] })}
-            >
-              <SelectTrigger id="border-bodem">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="open">Open grond (meer wieden)</SelectItem>
-                <SelectItem value="bedekt">Bedekt (schors/grind)</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              {data.bodem === "open"
-                ? "Open grond vereist meer wiedwerk"
-                : "Bodembedekking vermindert onkruid"}
-            </p>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <div className="flex items-center justify-between rounded-lg border p-4">
-            <div className="space-y-0.5">
-              <Label htmlFor="border-onkruid">Onkruid verwijderen</Label>
-              <p className="text-sm text-muted-foreground">
-                Wieden en onkruid bestrijden
-              </p>
+    <Form {...form}>
+      <form>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Flower2 className="h-5 w-5 text-muted-foreground" />
+              <CardTitle>Borders Onderhoud</CardTitle>
             </div>
-            <Switch
-              id="border-onkruid"
-              checked={data.onkruidVerwijderen}
-              onCheckedChange={(checked: boolean) => onChange({ ...data, onkruidVerwijderen: checked })}
-            />
-          </div>
+            <CardDescription>
+              Wieden, snoei in borders en bodemonderhoud
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <Alert variant="default" className="border-orange-300 bg-orange-50/50">
+              <AlertTriangle className="h-4 w-4 text-orange-600" />
+              <AlertTitle className="text-orange-900">Verplicht veld</AlertTitle>
+              <AlertDescription className="text-orange-700">
+                Onderhoudsintensiteit is verplicht voor een correcte urenberekening.
+              </AlertDescription>
+            </Alert>
 
-          <div className="flex items-center justify-between rounded-lg border p-4">
-            <div className="space-y-0.5">
-              <Label htmlFor="border-afvoer">Afvoer groenafval</Label>
-              <p className="text-sm text-muted-foreground">
-                Snoeisel en onkruid afvoeren
-              </p>
+            <div className="grid gap-4 md:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="borderOppervlakte"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel required>Borderoppervlakte</FormLabel>
+                    <FormControl>
+                      <AreaInput
+                        id="border-oppervlakte"
+                        min={0}
+                        value={field.value || 0}
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                        showStepper={false}
+                        error={!!errors.borderOppervlakte}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="onderhoudsintensiteit"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel required>
+                      Onderhoudsintensiteit
+                      <span className="text-xs text-orange-600 font-normal ml-2">(verplicht)</span>
+                    </FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger id="border-intensiteit" className="border-orange-300">
+                          <SelectValue placeholder="Selecteer intensiteit" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="weinig">Weinig (lage beplantingsdichtheid)</SelectItem>
+                        <SelectItem value="gemiddeld">Gemiddeld</SelectItem>
+                        <SelectItem value="veel">Veel (hoge beplantingsdichtheid)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      Bepaalt de benodigde uren voor onderhoud
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
-            <Switch
-              id="border-afvoer"
-              checked={data.afvoerGroenafval}
-              onCheckedChange={(checked: boolean) => onChange({ ...data, afvoerGroenafval: checked })}
-            />
-          </div>
-        </div>
 
-        {data.borderOppervlakte > 0 && data.onderhoudsintensiteit && (
-          <div className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
-            <div className="font-medium mb-1">Indicatie per beurt:</div>
-            <ul className="list-disc list-inside space-y-1">
-              <li>
-                Onderhoud: ~{(data.borderOppervlakte * (
-                  data.onderhoudsintensiteit === "weinig" ? 0.05 :
-                  data.onderhoudsintensiteit === "gemiddeld" ? 0.08 : 0.12
-                ) * (data.bodem === "open" ? 1.3 : 1.0)).toFixed(1)} uur
-              </li>
-              {data.snoeiInBorders !== "geen" && (
-                <li>
-                  Snoei: ~{(data.borderOppervlakte * (data.snoeiInBorders === "licht" ? 0.02 : 0.05)).toFixed(1)} uur
-                </li>
-              )}
-            </ul>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+            <div className="grid gap-4 md:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="snoeiInBorders"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Snoei in borders</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger id="border-snoei">
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="geen">Geen snoei</SelectItem>
+                        <SelectItem value="licht">Licht (uitgebloeide bloemen)</SelectItem>
+                        <SelectItem value="zwaar">Zwaar (vormgeven struiken)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="bodem"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Bodem type</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger id="border-bodem">
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="open">Open grond (meer wieden)</SelectItem>
+                        <SelectItem value="bedekt">Bedekt (schors/grind)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      {watchedValues.bodem === "open"
+                        ? "Open grond vereist meer wiedwerk"
+                        : "Bodembedekking vermindert onkruid"}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="space-y-4">
+              <FormField
+                control={form.control}
+                name="onkruidVerwijderen"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel>Onkruid verwijderen</FormLabel>
+                      <FormDescription>
+                        Wieden en onkruid bestrijden
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="afvoerGroenafval"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel>Afvoer groenafval</FormLabel>
+                      <FormDescription>
+                        Snoeisel en onkruid afvoeren
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {watchedValues.borderOppervlakte > 0 && watchedValues.onderhoudsintensiteit && (
+              <div className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
+                <div className="font-medium mb-1">Indicatie per beurt:</div>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>
+                    Onderhoud: ~{(watchedValues.borderOppervlakte * (
+                      watchedValues.onderhoudsintensiteit === "weinig" ? 0.05 :
+                      watchedValues.onderhoudsintensiteit === "gemiddeld" ? 0.08 : 0.12
+                    ) * (watchedValues.bodem === "open" ? 1.3 : 1.0)).toFixed(1)} uur
+                  </li>
+                  {watchedValues.snoeiInBorders !== "geen" && (
+                    <li>
+                      Snoei: ~{(watchedValues.borderOppervlakte * (watchedValues.snoeiInBorders === "licht" ? 0.02 : 0.05)).toFixed(1)} uur
+                    </li>
+                  )}
+                </ul>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </form>
+    </Form>
   );
 }

@@ -18,6 +18,8 @@ interface NumberInputProps
   showStepper?: boolean;
   prefix?: string;
   suffix?: string;
+  error?: boolean;
+  onBlur?: () => void;
 }
 
 function useDebounce<T>(value: T, delay: number): T {
@@ -51,6 +53,8 @@ const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
       prefix,
       suffix,
       disabled,
+      error,
+      onBlur: onBlurProp,
       ...props
     },
     ref
@@ -105,6 +109,7 @@ const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
         setInternalValue(rounded.toString());
         onChange(rounded);
       }
+      onBlurProp?.();
     };
 
     const handleFocus = () => {
@@ -131,13 +136,13 @@ const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
     };
 
     return (
-      <div className={cn("flex items-center gap-1", className)}>
+      <div className={cn("flex items-center gap-1.5", className)}>
         {showStepper && (
           <Button
             type="button"
             variant="outline"
             size="icon"
-            className="h-9 w-9 shrink-0"
+            className="h-10 w-10 sm:h-9 sm:w-9 shrink-0 touch-manipulation"
             onClick={() => handleStep(-1)}
             disabled={disabled || parseFloat(internalValue) <= min}
             tabIndex={-1}
@@ -161,9 +166,12 @@ const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
             onFocus={handleFocus}
             onKeyDown={handleKeyDown}
             disabled={disabled}
+            aria-invalid={error}
             className={cn(
+              "h-10 sm:h-9",
               prefix && "pl-7",
-              suffix && "pr-12"
+              suffix && "pr-12",
+              error && "border-destructive focus-visible:ring-destructive"
             )}
             {...props}
           />
@@ -178,7 +186,7 @@ const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
             type="button"
             variant="outline"
             size="icon"
-            className="h-9 w-9 shrink-0"
+            className="h-10 w-10 sm:h-9 sm:w-9 shrink-0 touch-manipulation"
             onClick={() => handleStep(1)}
             disabled={disabled || parseFloat(internalValue) >= max}
             tabIndex={-1}
@@ -194,9 +202,11 @@ const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
 NumberInput.displayName = "NumberInput";
 
 // Preset variants for common use cases
+type VariantInputProps<TOmit extends keyof NumberInputProps> = Omit<NumberInputProps, TOmit>;
+
 const CurrencyInput = React.forwardRef<
   HTMLInputElement,
-  Omit<NumberInputProps, "prefix" | "decimals">
+  VariantInputProps<"prefix" | "decimals">
 >((props, ref) => (
   <NumberInput ref={ref} prefix="€" decimals={2} step={0.01} {...props} />
 ));
@@ -205,7 +215,7 @@ CurrencyInput.displayName = "CurrencyInput";
 
 const AreaInput = React.forwardRef<
   HTMLInputElement,
-  Omit<NumberInputProps, "suffix" | "decimals">
+  VariantInputProps<"suffix" | "decimals">
 >((props, ref) => (
   <NumberInput ref={ref} suffix="m²" decimals={1} step={0.5} {...props} />
 ));
@@ -214,7 +224,7 @@ AreaInput.displayName = "AreaInput";
 
 const LengthInput = React.forwardRef<
   HTMLInputElement,
-  Omit<NumberInputProps, "suffix" | "decimals">
+  VariantInputProps<"suffix" | "decimals">
 >((props, ref) => (
   <NumberInput ref={ref} suffix="m" decimals={1} step={0.1} {...props} />
 ));
@@ -223,7 +233,7 @@ LengthInput.displayName = "LengthInput";
 
 const QuantityInput = React.forwardRef<
   HTMLInputElement,
-  Omit<NumberInputProps, "decimals" | "step">
+  VariantInputProps<"decimals" | "step">
 >((props, ref) => (
   <NumberInput ref={ref} decimals={0} step={1} {...props} />
 ));
@@ -232,7 +242,7 @@ QuantityInput.displayName = "QuantityInput";
 
 const HoursInput = React.forwardRef<
   HTMLInputElement,
-  Omit<NumberInputProps, "suffix" | "decimals" | "step">
+  VariantInputProps<"suffix" | "decimals" | "step">
 >((props, ref) => (
   <NumberInput ref={ref} suffix="uur" decimals={1} step={0.25} {...props} />
 ));

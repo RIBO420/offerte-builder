@@ -66,6 +66,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ScrollableTable } from "@/components/ui/responsive-table";
 import { useOffertes } from "@/hooks/use-offertes";
 import { useInstellingen } from "@/hooks/use-instellingen";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -76,6 +77,8 @@ import {
   defaultFilters,
   type OfferteFilters,
 } from "@/components/offerte/filters";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { OffertesTableSkeleton } from "@/components/skeletons";
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("nl-NL", {
@@ -91,14 +94,6 @@ function formatDate(timestamp: number): string {
     year: "numeric",
   }).format(new Date(timestamp));
 }
-
-const statusColors: Record<string, string> = {
-  concept: "bg-gray-100 text-gray-800",
-  definitief: "bg-blue-100 text-blue-800",
-  verzonden: "bg-yellow-100 text-yellow-800",
-  geaccepteerd: "bg-green-100 text-green-800",
-  afgewezen: "bg-red-100 text-red-800",
-};
 
 export default function OffertesPage() {
   return (
@@ -505,13 +500,10 @@ function OffertesPageContent() {
             )}
 
             {isLoading ? (
-              <Card>
-                <CardContent className="flex items-center justify-center py-12">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                </CardContent>
-              </Card>
+              <OffertesTableSkeleton rows={8} />
             ) : filteredOffertes && filteredOffertes.length > 0 ? (
-              <Card>
+              <Card className="overflow-hidden">
+                <ScrollableTable>
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -574,9 +566,7 @@ function OffertesPageContent() {
                           {formatCurrency(offerte.totalen.totaalInclBtw)}
                         </TableCell>
                         <TableCell>
-                          <Badge className={statusColors[offerte.status]}>
-                            {offerte.status}
-                          </Badge>
+                          <StatusBadge status={offerte.status} size="sm" />
                         </TableCell>
                         <TableCell className="text-muted-foreground">
                           {formatDate(offerte.updatedAt)}
@@ -616,6 +606,7 @@ function OffertesPageContent() {
                     ))}
                   </TableBody>
                 </Table>
+                </ScrollableTable>
               </Card>
             ) : (
               <Card>

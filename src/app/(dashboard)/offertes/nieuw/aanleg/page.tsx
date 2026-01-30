@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -65,10 +65,14 @@ import {
   SpecialsForm,
 } from "@/components/offerte/scope-forms";
 import { TemplateSelector } from "@/components/offerte/template-selector";
+import { PackageSelector } from "@/components/offerte/package-selector";
 import { RestoreDraftDialog } from "@/components/offerte/restore-draft-dialog";
 import { KlantSelector } from "@/components/offerte/klant-selector";
+import { WizardSteps, type WizardStep } from "@/components/offerte/wizard-steps";
+import { ValidationSummary, type ScopeValidation } from "@/components/offerte/validation-summary";
 import { useKlanten } from "@/hooks/use-klanten";
 import { Id } from "../../../../../../convex/_generated/dataModel";
+import type { OffertePackage } from "@/lib/constants/packages";
 import type {
   Bereikbaarheid,
   GrondwerkData,
@@ -266,6 +270,43 @@ export default function NieuweAanlegOffertePage() {
 
   const totalSteps = 4;
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false); // Toggle between packages and templates
+
+  // Track validation errors per scope
+  const [scopeValidationErrors, setScopeValidationErrors] = useState<Record<AanlegScope, Record<string, string>>>({
+    grondwerk: {},
+    bestrating: {},
+    borders: {},
+    gras: {},
+    houtwerk: {},
+    water_elektra: {},
+    specials: {},
+  });
+
+  // Memoized handlers for scope validation changes to prevent infinite loops
+  const scopeValidationHandlers = useMemo(() => ({
+    grondwerk: (_isValid: boolean, errors: Record<string, string>) => {
+      setScopeValidationErrors(prev => ({ ...prev, grondwerk: errors }));
+    },
+    bestrating: (_isValid: boolean, errors: Record<string, string>) => {
+      setScopeValidationErrors(prev => ({ ...prev, bestrating: errors }));
+    },
+    borders: (_isValid: boolean, errors: Record<string, string>) => {
+      setScopeValidationErrors(prev => ({ ...prev, borders: errors }));
+    },
+    gras: (_isValid: boolean, errors: Record<string, string>) => {
+      setScopeValidationErrors(prev => ({ ...prev, gras: errors }));
+    },
+    houtwerk: (_isValid: boolean, errors: Record<string, string>) => {
+      setScopeValidationErrors(prev => ({ ...prev, houtwerk: errors }));
+    },
+    water_elektra: (_isValid: boolean, errors: Record<string, string>) => {
+      setScopeValidationErrors(prev => ({ ...prev, water_elektra: errors }));
+    },
+    specials: (_isValid: boolean, errors: Record<string, string>) => {
+      setScopeValidationErrors(prev => ({ ...prev, specials: errors }));
+    },
+  }), []);
 
   // Extract data from wizard state for easier access
   const { selectedTemplateId, selectedKlantId, selectedScopes, bereikbaarheid, klantData, scopeData } = wizardData;
@@ -350,6 +391,76 @@ export default function NieuweAanlegOffertePage() {
   };
 
   const isStep2Valid = selectedScopes.every(isScopeDataValid);
+
+  // Wizard steps configuration with summaries
+  const wizardSteps: WizardStep[] = [
+    {
+      id: 0,
+      name: "Snelstart",
+      shortName: "Start",
+      summary: selectedTemplateId ? (
+        selectedTemplateId.startsWith("package:") ? (
+          <span>Pakket geselecteerd</span>
+        ) : (
+          <span>Template geselecteerd</span>
+        )
+      ) : (
+        <span>Handmatige invoer</span>
+      ),
+    },
+    {
+      id: 1,
+      name: "Klantgegevens & Scopes",
+      shortName: "Klant & Scopes",
+      isValid: !!isStep1Valid,
+      summary: (
+        <div className="space-y-1">
+          <div><strong>Klant:</strong> {klantData.naam || "—"}{klantData.plaats && `, ${klantData.plaats}`}</div>
+          <div><strong>Bereikbaarheid:</strong> <span className="capitalize">{bereikbaarheid}</span></div>
+          <div><strong>Scopes:</strong> {selectedScopes.length > 0
+            ? selectedScopes.map(s => SCOPES.find(sc => sc.id === s)?.naam).join(", ")
+            : "Geen geselecteerd"}
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: 2,
+      name: "Scope Details",
+      shortName: "Details",
+      isValid: isStep2Valid,
+      summary: (
+        <div className="space-y-1">
+          {selectedScopes.map(scopeId => {
+            const scope = SCOPES.find(s => s.id === scopeId);
+            const valid = isScopeDataValid(scopeId);
+            return (
+              <div key={scopeId} className="flex items-center gap-2">
+                {valid ? (
+                  <Check className="h-3 w-3 text-green-600" />
+                ) : (
+                  <span className="h-3 w-3 rounded-full bg-orange-400" />
+                )}
+                <span>{scope?.naam}</span>
+              </div>
+            );
+          })}
+        </div>
+      ),
+    },
+    {
+      id: 3,
+      name: "Bevestigen",
+      shortName: "Bevestigen",
+    },
+  ];
+
+  const handleStepNavigation = (stepIndex: number) => {
+    // Only allow navigation to previous steps
+    if (stepIndex < currentStep) {
+      setCurrentStep(stepIndex);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!isStep1Valid || !isStep2Valid) return;
@@ -482,6 +593,43 @@ export default function NieuweAanlegOffertePage() {
     setCurrentStep(1);
   };
 
+  // Handle package selection
+  const handlePackageSelect = (pkg: OffertePackage) => {
+    // Pre-fill scopes from package
+    const validScopes = pkg.scopes.filter((s): s is AanlegScope =>
+      SCOPES.some((scope) => scope.id === s)
+    );
+
+    // Pre-fill scope data from package
+    const newScopeData = { ...INITIAL_WIZARD_DATA.scopeData };
+    if (pkg.defaultWaarden) {
+      Object.entries(pkg.defaultWaarden).forEach(([key, value]) => {
+        if (key in newScopeData && value) {
+          (newScopeData as Record<string, unknown>)[key] = value;
+        }
+      });
+    }
+
+    // Update wizard data with package data
+    setWizardData({
+      ...wizardData,
+      selectedTemplateId: `package:${pkg.id}`,
+      selectedScopes: validScopes,
+      scopeData: newScopeData as ScopeData,
+    });
+
+    // Move to step 1
+    setCurrentStep(1);
+  };
+
+  const handleShowTemplates = () => {
+    setShowTemplates(true);
+  };
+
+  const handleShowPackages = () => {
+    setShowTemplates(false);
+  };
+
   if (isLoading) {
     return (
       <>
@@ -543,23 +691,17 @@ export default function NieuweAanlegOffertePage() {
       </header>
 
       <div className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
-              Nieuwe Aanleg Offerte
-            </h1>
-            <p className="text-muted-foreground">
-              Stap {currentStep + 1} van {totalSteps}:{" "}
-              {currentStep === 0
-                ? "Template Kiezen"
-                : currentStep === 1
-                  ? "Klantgegevens & Scopes"
-                  : currentStep === 2
-                    ? "Scope Details"
-                    : "Bevestigen"}
-            </p>
-          </div>
-          <div className="hidden md:flex items-center gap-4">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
+                Nieuwe Aanleg Offerte
+              </h1>
+              <p className="text-muted-foreground">
+                Stap {currentStep + 1} van {totalSteps}:{" "}
+                {wizardSteps[currentStep]?.name}
+              </p>
+            </div>
             {/* Auto-save indicator */}
             {currentStep > 0 && (
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -567,23 +709,46 @@ export default function NieuweAanlegOffertePage() {
                 <span>Auto-save aan</span>
               </div>
             )}
-            <div className="flex items-center gap-4 w-64">
-              <Progress value={((currentStep + 1) / totalSteps) * 100} className="h-2" />
-              <span className="text-sm text-muted-foreground whitespace-nowrap">
-                {Math.round(((currentStep + 1) / totalSteps) * 100)}%
-              </span>
-            </div>
           </div>
+
+          {/* Wizard Steps Navigation */}
+          <WizardSteps
+            steps={wizardSteps}
+            currentStep={currentStep}
+            onStepClick={handleStepNavigation}
+            allowNavigation={true}
+            showSummaries={currentStep > 0}
+            className={currentStep === 0 ? "max-w-4xl mx-auto" : ""}
+          />
         </div>
 
-        {/* Step 0: Template Selectie */}
+        {/* Step 0: Package/Template Selectie */}
         {currentStep === 0 && (
-          <div className="max-w-2xl mx-auto">
-            <TemplateSelector
-              type="aanleg"
-              onSelect={handleTemplateSelect}
-              onSkip={handleTemplateSkip}
-            />
+          <div className="max-w-4xl mx-auto">
+            {showTemplates ? (
+              <div className="space-y-4">
+                <Button
+                  variant="ghost"
+                  onClick={handleShowPackages}
+                  className="mb-2"
+                >
+                  <ChevronLeft className="mr-2 h-4 w-4" />
+                  Terug naar Snelstart Pakketten
+                </Button>
+                <TemplateSelector
+                  type="aanleg"
+                  onSelect={handleTemplateSelect}
+                  onSkip={handleTemplateSkip}
+                />
+              </div>
+            ) : (
+              <PackageSelector
+                type="aanleg"
+                onSelectPackage={handlePackageSelect}
+                onSkip={handleTemplateSkip}
+                onSelectTemplate={handleShowTemplates}
+              />
+            )}
           </div>
         )}
 
@@ -809,6 +974,7 @@ export default function NieuweAanlegOffertePage() {
                         onChange={(data) =>
                           setScopeData({ ...scopeData, grondwerk: data })
                         }
+                        onValidationChange={scopeValidationHandlers.grondwerk}
                       />
                     );
                   case "bestrating":
@@ -819,6 +985,7 @@ export default function NieuweAanlegOffertePage() {
                         onChange={(data) =>
                           setScopeData({ ...scopeData, bestrating: data })
                         }
+                        onValidationChange={scopeValidationHandlers.bestrating}
                       />
                     );
                   case "borders":
@@ -829,6 +996,7 @@ export default function NieuweAanlegOffertePage() {
                         onChange={(data) =>
                           setScopeData({ ...scopeData, borders: data })
                         }
+                        onValidationChange={scopeValidationHandlers.borders}
                       />
                     );
                   case "gras":
@@ -839,6 +1007,7 @@ export default function NieuweAanlegOffertePage() {
                         onChange={(data) =>
                           setScopeData({ ...scopeData, gras: data })
                         }
+                        onValidationChange={scopeValidationHandlers.gras}
                       />
                     );
                   case "houtwerk":
@@ -849,6 +1018,7 @@ export default function NieuweAanlegOffertePage() {
                         onChange={(data) =>
                           setScopeData({ ...scopeData, houtwerk: data })
                         }
+                        onValidationChange={scopeValidationHandlers.houtwerk}
                       />
                     );
                   case "water_elektra":
@@ -859,6 +1029,7 @@ export default function NieuweAanlegOffertePage() {
                         onChange={(data) =>
                           setScopeData({ ...scopeData, water_elektra: data })
                         }
+                        onValidationChange={scopeValidationHandlers.water_elektra}
                       />
                     );
                   case "specials":
@@ -869,6 +1040,7 @@ export default function NieuweAanlegOffertePage() {
                         onChange={(data) =>
                           setScopeData({ ...scopeData, specials: data })
                         }
+                        onValidationChange={scopeValidationHandlers.specials}
                       />
                     );
                   default:
@@ -887,32 +1059,22 @@ export default function NieuweAanlegOffertePage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    {selectedScopes.map((scopeId) => {
+                  <ValidationSummary
+                    validations={selectedScopes.map((scopeId) => {
                       const scope = SCOPES.find((s) => s.id === scopeId);
-                      const isValid = isScopeDataValid(scopeId);
-                      return (
-                        <div
-                          key={scopeId}
-                          className="flex items-center justify-between py-2"
-                        >
-                          <div className="flex items-center gap-2">
-                            {scope?.icon && (
-                              <scope.icon className="h-4 w-4 text-muted-foreground" />
-                            )}
-                            <span className="text-sm">{scope?.naam}</span>
-                          </div>
-                          {isValid ? (
-                            <Check className="h-4 w-4 text-green-600" />
-                          ) : (
-                            <span className="text-xs text-orange-600">
-                              Onvolledig
-                            </span>
-                          )}
-                        </div>
-                      );
+                      const errors = scopeValidationErrors[scopeId] || {};
+                      return {
+                        scopeId,
+                        scopeName: scope?.naam || scopeId,
+                        isValid: isScopeDataValid(scopeId) && Object.keys(errors).length === 0,
+                        errors: Object.entries(errors).map(([field, message]) => ({
+                          field,
+                          message,
+                        })),
+                        icon: scope?.icon,
+                      } as ScopeValidation;
                     })}
-                  </div>
+                  />
 
                   <Separator />
 

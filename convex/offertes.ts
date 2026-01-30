@@ -180,7 +180,7 @@ export const create = mutation({
   handler: async (ctx, args) => {
     const now = Date.now();
 
-    return await ctx.db.insert("offertes", {
+    const offerteId = await ctx.db.insert("offertes", {
       userId: args.userId,
       type: args.type,
       status: "concept",
@@ -206,6 +206,34 @@ export const create = mutation({
       createdAt: now,
       updatedAt: now,
     });
+
+    // Create initial version
+    const offerte = await ctx.db.get(offerteId);
+    if (offerte) {
+      await ctx.db.insert("offerte_versions", {
+        offerteId,
+        userId: args.userId,
+        versieNummer: 1,
+        snapshot: {
+          status: offerte.status,
+          klant: offerte.klant,
+          algemeenParams: {
+            bereikbaarheid: offerte.algemeenParams.bereikbaarheid,
+            achterstalligheid: offerte.algemeenParams.achterstalligheid,
+          },
+          scopes: offerte.scopes,
+          scopeData: offerte.scopeData,
+          totalen: offerte.totalen,
+          regels: [],
+          notities: offerte.notities,
+        },
+        actie: "aangemaakt",
+        omschrijving: `Offerte ${args.offerteNummer} aangemaakt`,
+        createdAt: now,
+      });
+    }
+
+    return offerteId;
   },
 });
 
@@ -218,10 +246,12 @@ export const update = mutation({
     scopes: v.optional(v.array(v.string())),
     scopeData: v.optional(v.any()),
     notities: v.optional(v.string()),
+    createVersion: v.optional(v.boolean()), // Optional: skip version for auto-save
   },
   handler: async (ctx, args) => {
-    const { id, ...updates } = args;
-    const filteredUpdates: Record<string, unknown> = { updatedAt: Date.now() };
+    const { id, createVersion: shouldCreateVersion = true, ...updates } = args;
+    const now = Date.now();
+    const filteredUpdates: Record<string, unknown> = { updatedAt: now };
 
     for (const [key, value] of Object.entries(updates)) {
       if (value !== undefined) {
@@ -230,6 +260,53 @@ export const update = mutation({
     }
 
     await ctx.db.patch(id, filteredUpdates);
+
+    // Create version snapshot if enabled (default: true)
+    if (shouldCreateVersion) {
+      const offerte = await ctx.db.get(id);
+      if (offerte) {
+        // Get next version number
+        const versions = await ctx.db
+          .query("offerte_versions")
+          .withIndex("by_offerte", (q) => q.eq("offerteId", id))
+          .order("desc")
+          .take(1);
+
+        const versieNummer = (versions[0]?.versieNummer ?? 0) + 1;
+
+        await ctx.db.insert("offerte_versions", {
+          offerteId: id,
+          userId: offerte.userId,
+          versieNummer,
+          snapshot: {
+            status: offerte.status,
+            klant: offerte.klant,
+            algemeenParams: {
+              bereikbaarheid: offerte.algemeenParams.bereikbaarheid,
+              achterstalligheid: offerte.algemeenParams.achterstalligheid,
+            },
+            scopes: offerte.scopes,
+            scopeData: offerte.scopeData,
+            totalen: offerte.totalen,
+            regels: offerte.regels.map((r) => ({
+              id: r.id,
+              scope: r.scope,
+              omschrijving: r.omschrijving,
+              eenheid: r.eenheid,
+              hoeveelheid: r.hoeveelheid,
+              prijsPerEenheid: r.prijsPerEenheid,
+              totaal: r.totaal,
+              type: r.type,
+            })),
+            notities: offerte.notities,
+          },
+          actie: "gewijzigd",
+          omschrijving: "Offerte gegevens gewijzigd",
+          createdAt: now,
+        });
+      }
+    }
+
     return id;
   },
 });
@@ -242,8 +319,12 @@ export const updateRegels = mutation({
     margePercentage: v.number(),
     btwPercentage: v.number(),
     uurtarief: v.number(),
+    createVersion: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    const now = Date.now();
+    const shouldCreateVersion = args.createVersion ?? true;
+
     // Calculate totals
     let materiaalkosten = 0;
     let arbeidskosten = 0;
@@ -267,21 +348,68 @@ export const updateRegels = mutation({
     const btw = totaalExBtw * (args.btwPercentage / 100);
     const totaalInclBtw = totaalExBtw + btw;
 
+    const newTotalen = {
+      materiaalkosten,
+      arbeidskosten,
+      totaalUren,
+      subtotaal,
+      marge,
+      margePercentage: args.margePercentage,
+      totaalExBtw,
+      btw,
+      totaalInclBtw,
+    };
+
     await ctx.db.patch(args.id, {
       regels: args.regels,
-      totalen: {
-        materiaalkosten,
-        arbeidskosten,
-        totaalUren,
-        subtotaal,
-        marge,
-        margePercentage: args.margePercentage,
-        totaalExBtw,
-        btw,
-        totaalInclBtw,
-      },
-      updatedAt: Date.now(),
+      totalen: newTotalen,
+      updatedAt: now,
     });
+
+    // Create version snapshot if enabled
+    if (shouldCreateVersion) {
+      const offerte = await ctx.db.get(args.id);
+      if (offerte) {
+        const versions = await ctx.db
+          .query("offerte_versions")
+          .withIndex("by_offerte", (q) => q.eq("offerteId", args.id))
+          .order("desc")
+          .take(1);
+
+        const versieNummer = (versions[0]?.versieNummer ?? 0) + 1;
+
+        await ctx.db.insert("offerte_versions", {
+          offerteId: args.id,
+          userId: offerte.userId,
+          versieNummer,
+          snapshot: {
+            status: offerte.status,
+            klant: offerte.klant,
+            algemeenParams: {
+              bereikbaarheid: offerte.algemeenParams.bereikbaarheid,
+              achterstalligheid: offerte.algemeenParams.achterstalligheid,
+            },
+            scopes: offerte.scopes,
+            scopeData: offerte.scopeData,
+            totalen: newTotalen,
+            regels: args.regels.map((r) => ({
+              id: r.id,
+              scope: r.scope,
+              omschrijving: r.omschrijving,
+              eenheid: r.eenheid,
+              hoeveelheid: r.hoeveelheid,
+              prijsPerEenheid: r.prijsPerEenheid,
+              totaal: r.totaal,
+              type: r.type,
+            })),
+            notities: offerte.notities,
+          },
+          actie: "regels_gewijzigd",
+          omschrijving: `Regels gewijzigd (${args.regels.length} regels)`,
+          createdAt: now,
+        });
+      }
+    }
 
     return args.id;
   },
@@ -300,16 +428,78 @@ export const updateStatus = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    const now = Date.now();
+
+    // Get old status for version description
+    const oldOfferte = await ctx.db.get(args.id);
+    if (!oldOfferte) {
+      throw new Error("Offerte not found");
+    }
+
+    const oldStatus = oldOfferte.status;
+
     const updates: Record<string, unknown> = {
       status: args.status,
-      updatedAt: Date.now(),
+      updatedAt: now,
     };
 
     if (args.status === "verzonden") {
-      updates.verzondenAt = Date.now();
+      updates.verzondenAt = now;
     }
 
     await ctx.db.patch(args.id, updates);
+
+    // Create version snapshot for status change
+    const offerte = await ctx.db.get(args.id);
+    if (offerte) {
+      const versions = await ctx.db
+        .query("offerte_versions")
+        .withIndex("by_offerte", (q) => q.eq("offerteId", args.id))
+        .order("desc")
+        .take(1);
+
+      const versieNummer = (versions[0]?.versieNummer ?? 0) + 1;
+
+      const statusLabels: Record<string, string> = {
+        concept: "Concept",
+        definitief: "Definitief",
+        verzonden: "Verzonden",
+        geaccepteerd: "Geaccepteerd",
+        afgewezen: "Afgewezen",
+      };
+
+      await ctx.db.insert("offerte_versions", {
+        offerteId: args.id,
+        userId: offerte.userId,
+        versieNummer,
+        snapshot: {
+          status: offerte.status,
+          klant: offerte.klant,
+          algemeenParams: {
+            bereikbaarheid: offerte.algemeenParams.bereikbaarheid,
+            achterstalligheid: offerte.algemeenParams.achterstalligheid,
+          },
+          scopes: offerte.scopes,
+          scopeData: offerte.scopeData,
+          totalen: offerte.totalen,
+          regels: offerte.regels.map((r) => ({
+            id: r.id,
+            scope: r.scope,
+            omschrijving: r.omschrijving,
+            eenheid: r.eenheid,
+            hoeveelheid: r.hoeveelheid,
+            prijsPerEenheid: r.prijsPerEenheid,
+            totaal: r.totaal,
+            type: r.type,
+          })),
+          notities: offerte.notities,
+        },
+        actie: "status_gewijzigd",
+        omschrijving: `Status gewijzigd: ${statusLabels[oldStatus]} → ${statusLabels[args.status]}`,
+        createdAt: now,
+      });
+    }
+
     return args.id;
   },
 });

@@ -185,4 +185,89 @@ export default defineSchema({
     scopes: v.array(v.string()),
     defaultWaarden: v.any(), // Pre-filled scope data
   }).index("by_user", ["userId"]),
+
+  // Email logs
+  email_logs: defineTable({
+    offerteId: v.id("offertes"),
+    userId: v.id("users"),
+    type: v.union(
+      v.literal("offerte_verzonden"),
+      v.literal("herinnering"),
+      v.literal("bedankt")
+    ),
+    to: v.string(),
+    subject: v.string(),
+    status: v.union(
+      v.literal("verzonden"),
+      v.literal("mislukt"),
+      v.literal("geopend")
+    ),
+    resendId: v.optional(v.string()), // Resend message ID for tracking
+    error: v.optional(v.string()),
+    createdAt: v.number(),
+    openedAt: v.optional(v.number()),
+  })
+    .index("by_offerte", ["offerteId"])
+    .index("by_user", ["userId"]),
+
+  // Offerte versies (versiegeschiedenis)
+  offerte_versions: defineTable({
+    offerteId: v.id("offertes"),
+    userId: v.id("users"),
+    versieNummer: v.number(),
+    // Snapshot van de offerte op dit moment
+    snapshot: v.object({
+      status: v.string(),
+      klant: v.object({
+        naam: v.string(),
+        adres: v.string(),
+        postcode: v.string(),
+        plaats: v.string(),
+        email: v.optional(v.string()),
+        telefoon: v.optional(v.string()),
+      }),
+      algemeenParams: v.object({
+        bereikbaarheid: v.string(),
+        achterstalligheid: v.optional(v.string()),
+      }),
+      scopes: v.optional(v.array(v.string())),
+      scopeData: v.optional(v.any()),
+      totalen: v.object({
+        materiaalkosten: v.number(),
+        arbeidskosten: v.number(),
+        totaalUren: v.number(),
+        subtotaal: v.number(),
+        marge: v.number(),
+        margePercentage: v.number(),
+        totaalExBtw: v.number(),
+        btw: v.number(),
+        totaalInclBtw: v.number(),
+      }),
+      regels: v.array(
+        v.object({
+          id: v.string(),
+          scope: v.string(),
+          omschrijving: v.string(),
+          eenheid: v.string(),
+          hoeveelheid: v.number(),
+          prijsPerEenheid: v.number(),
+          totaal: v.number(),
+          type: v.string(),
+        })
+      ),
+      notities: v.optional(v.string()),
+    }),
+    // Audit info
+    actie: v.union(
+      v.literal("aangemaakt"),
+      v.literal("gewijzigd"),
+      v.literal("status_gewijzigd"),
+      v.literal("regels_gewijzigd"),
+      v.literal("teruggedraaid")
+    ),
+    omschrijving: v.string(), // Human readable beschrijving
+    createdAt: v.number(),
+  })
+    .index("by_offerte", ["offerteId"])
+    .index("by_offerte_versie", ["offerteId", "versieNummer"]),
 });

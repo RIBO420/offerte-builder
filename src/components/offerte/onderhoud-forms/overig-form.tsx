@@ -1,196 +1,329 @@
 "use client";
 
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { AreaInput, QuantityInput, HoursInput } from "@/components/ui/number-input";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Leaf } from "lucide-react";
+import { overigeOnderhoudSchema, type OverigeOnderhoudFormData } from "@/lib/validations/onderhoud-scopes";
 import type { OverigeOnderhoudData } from "@/types/offerte";
 
 interface OverigFormProps {
   data: OverigeOnderhoudData;
   onChange: (data: OverigeOnderhoudData) => void;
+  onValidationChange?: (isValid: boolean, errors: Record<string, string>) => void;
 }
 
-export function OverigForm({ data, onChange }: OverigFormProps) {
+export function OverigForm({ data, onChange, onValidationChange }: OverigFormProps) {
+  const form = useForm<OverigeOnderhoudFormData>({
+    resolver: zodResolver(overigeOnderhoudSchema),
+    defaultValues: data,
+    mode: "onBlur",
+  });
+
+  const { formState: { errors, isValid }, watch } = form;
+
+  // Watch for changes and sync with parent
+  useEffect(() => {
+    const subscription = watch((values) => {
+      onChange({
+        bladruimen: values.bladruimen ?? false,
+        terrasReinigen: values.terrasReinigen ?? false,
+        terrasOppervlakte: values.terrasOppervlakte,
+        onkruidBestrating: values.onkruidBestrating ?? false,
+        bestratingOppervlakte: values.bestratingOppervlakte,
+        afwateringControleren: values.afwateringControleren ?? false,
+        aantalAfwateringspunten: values.aantalAfwateringspunten,
+        overigNotities: values.overigNotities,
+        overigUren: values.overigUren,
+      });
+    });
+    return () => subscription.unsubscribe();
+  }, [watch, onChange]);
+
+  // Notify parent of validation state changes (only when errors object changes)
+  useEffect(() => {
+    if (onValidationChange) {
+      const errorMessages: Record<string, string> = {};
+      Object.entries(errors).forEach(([key, error]) => {
+        if (error?.message) {
+          errorMessages[key] = error.message;
+        }
+      });
+      onValidationChange(isValid, errorMessages);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(errors), isValid]);
+
+  const watchedValues = watch();
+
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <Leaf className="h-5 w-5 text-muted-foreground" />
-          <CardTitle>Overige Werkzaamheden</CardTitle>
-        </div>
-        <CardDescription>
-          Bladruimen, terras reinigen en overig onderhoud
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Bladruimen */}
-        <div className="flex items-center justify-between rounded-lg border p-4">
-          <div className="space-y-0.5">
-            <Label htmlFor="overig-bladruimen">Bladruimen</Label>
-            <p className="text-sm text-muted-foreground">
-              Seizoensgebonden bladverwijdering
-            </p>
-          </div>
-          <Switch
-            id="overig-bladruimen"
-            checked={data.bladruimen}
-            onCheckedChange={(checked: boolean) => onChange({ ...data, bladruimen: checked })}
-          />
-        </div>
-
-        {/* Terras reinigen */}
-        <div className="space-y-4 rounded-lg border p-4">
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="overig-terras">Terras reinigen</Label>
-              <p className="text-sm text-muted-foreground">
-                Hogedruk reiniging van terras/bestrating
-              </p>
+    <Form {...form}>
+      <form>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Leaf className="h-5 w-5 text-muted-foreground" />
+              <CardTitle>Overige Werkzaamheden</CardTitle>
             </div>
-            <Switch
-              id="overig-terras"
-              checked={data.terrasReinigen}
-              onCheckedChange={(checked: boolean) => onChange({ ...data, terrasReinigen: checked })}
+            <CardDescription>
+              Bladruimen, terras reinigen en overig onderhoud
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Bladruimen */}
+            <FormField
+              control={form.control}
+              name="bladruimen"
+              render={({ field }) => (
+                <FormItem className="flex items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel>Bladruimen</FormLabel>
+                    <FormDescription>
+                      Seizoensgebonden bladverwijdering
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
             />
-          </div>
 
-          {data.terrasReinigen && (
-            <div className="space-y-2 pt-2">
-              <Label htmlFor="overig-terras-opp">Terras oppervlakte (m²)</Label>
-              <Input
-                id="overig-terras-opp"
-                type="number"
-                min="0"
-                step="0.1"
-                value={data.terrasOppervlakte || ""}
-                onChange={(e) => onChange({ ...data, terrasOppervlakte: parseFloat(e.target.value) || 0 })}
-                placeholder="0"
+            {/* Terras reinigen */}
+            <div className="space-y-4 rounded-lg border p-4">
+              <FormField
+                control={form.control}
+                name="terrasReinigen"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <FormLabel>Terras reinigen</FormLabel>
+                      <FormDescription>
+                        Hogedruk reiniging van terras/bestrating
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
               />
-            </div>
-          )}
-        </div>
 
-        {/* Onkruid bestrating */}
-        <div className="space-y-4 rounded-lg border p-4">
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="overig-onkruid">Onkruid tussen bestrating</Label>
-              <p className="text-sm text-muted-foreground">
-                Onkruid uit voegen verwijderen
-              </p>
+              {watchedValues.terrasReinigen && (
+                <FormField
+                  control={form.control}
+                  name="terrasOppervlakte"
+                  render={({ field }) => (
+                    <FormItem className="pt-2">
+                      <FormLabel required>Terras oppervlakte</FormLabel>
+                      <FormControl>
+                        <AreaInput
+                          id="overig-terras-opp"
+                          min={0}
+                          value={field.value || 0}
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                          showStepper={false}
+                          error={!!errors.terrasOppervlakte}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
             </div>
-            <Switch
-              id="overig-onkruid"
-              checked={data.onkruidBestrating}
-              onCheckedChange={(checked: boolean) => onChange({ ...data, onkruidBestrating: checked })}
-            />
-          </div>
 
-          {data.onkruidBestrating && (
-            <div className="space-y-2 pt-2">
-              <Label htmlFor="overig-bestrating-opp">Bestrating oppervlakte (m²)</Label>
-              <Input
-                id="overig-bestrating-opp"
-                type="number"
-                min="0"
-                step="0.1"
-                value={data.bestratingOppervlakte || ""}
-                onChange={(e) => onChange({ ...data, bestratingOppervlakte: parseFloat(e.target.value) || 0 })}
-                placeholder="0"
+            {/* Onkruid bestrating */}
+            <div className="space-y-4 rounded-lg border p-4">
+              <FormField
+                control={form.control}
+                name="onkruidBestrating"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <FormLabel>Onkruid tussen bestrating</FormLabel>
+                      <FormDescription>
+                        Onkruid uit voegen verwijderen
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
               />
-            </div>
-          )}
-        </div>
 
-        {/* Afwatering controleren */}
-        <div className="space-y-4 rounded-lg border p-4">
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="overig-afwatering">Afwatering controleren</Label>
-              <p className="text-sm text-muted-foreground">
-                Controle en reiniging afvoerpunten
-              </p>
+              {watchedValues.onkruidBestrating && (
+                <FormField
+                  control={form.control}
+                  name="bestratingOppervlakte"
+                  render={({ field }) => (
+                    <FormItem className="pt-2">
+                      <FormLabel required>Bestrating oppervlakte</FormLabel>
+                      <FormControl>
+                        <AreaInput
+                          id="overig-bestrating-opp"
+                          min={0}
+                          value={field.value || 0}
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                          showStepper={false}
+                          error={!!errors.bestratingOppervlakte}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
             </div>
-            <Switch
-              id="overig-afwatering"
-              checked={data.afwateringControleren}
-              onCheckedChange={(checked: boolean) => onChange({ ...data, afwateringControleren: checked })}
-            />
-          </div>
 
-          {data.afwateringControleren && (
-            <div className="space-y-2 pt-2">
-              <Label htmlFor="overig-afwatering-punten">Aantal afwateringspunten</Label>
-              <Input
-                id="overig-afwatering-punten"
-                type="number"
-                min="0"
-                step="1"
-                value={data.aantalAfwateringspunten || ""}
-                onChange={(e) => onChange({ ...data, aantalAfwateringspunten: parseInt(e.target.value) || 0 })}
-                placeholder="0"
+            {/* Afwatering controleren */}
+            <div className="space-y-4 rounded-lg border p-4">
+              <FormField
+                control={form.control}
+                name="afwateringControleren"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <FormLabel>Afwatering controleren</FormLabel>
+                      <FormDescription>
+                        Controle en reiniging afvoerpunten
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
               />
+
+              {watchedValues.afwateringControleren && (
+                <FormField
+                  control={form.control}
+                  name="aantalAfwateringspunten"
+                  render={({ field }) => (
+                    <FormItem className="pt-2">
+                      <FormLabel required>Aantal afwateringspunten</FormLabel>
+                      <FormControl>
+                        <QuantityInput
+                          id="overig-afwatering-punten"
+                          min={0}
+                          value={field.value || 0}
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                          showStepper={false}
+                          error={!!errors.aantalAfwateringspunten}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
             </div>
-          )}
-        </div>
 
-        {/* Overig vrij veld */}
-        <div className="space-y-4 rounded-lg border p-4">
-          <Label className="text-base font-medium">Overige werkzaamheden</Label>
-          <div className="space-y-2">
-            <Label htmlFor="overig-notities">Omschrijving</Label>
-            <Textarea
-              id="overig-notities"
-              value={data.overigNotities || ""}
-              onChange={(e) => onChange({ ...data, overigNotities: e.target.value })}
-              placeholder="Beschrijf eventuele extra werkzaamheden..."
-              rows={3}
-            />
-          </div>
+            {/* Overig vrij veld */}
+            <div className="space-y-4 rounded-lg border p-4">
+              <FormLabel className="text-base font-medium">Overige werkzaamheden</FormLabel>
 
-          {data.overigNotities && (
-            <div className="space-y-2">
-              <Label htmlFor="overig-uren">Geschatte uren</Label>
-              <Input
-                id="overig-uren"
-                type="number"
-                min="0"
-                step="0.25"
-                value={data.overigUren || ""}
-                onChange={(e) => onChange({ ...data, overigUren: parseFloat(e.target.value) || 0 })}
-                placeholder="0"
+              <FormField
+                control={form.control}
+                name="overigNotities"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Omschrijving</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        id="overig-notities"
+                        value={field.value || ""}
+                        onChange={field.onChange}
+                        placeholder="Beschrijf eventuele extra werkzaamheden..."
+                        rows={3}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-          )}
-        </div>
 
-        {/* Indicatie */}
-        {(data.bladruimen || data.terrasReinigen || data.onkruidBestrating || data.afwateringControleren) && (
-          <div className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
-            <div className="font-medium mb-1">Indicatie per beurt:</div>
-            <ul className="list-disc list-inside space-y-1">
-              {data.bladruimen && (
-                <li>Bladruimen: afhankelijk van tuingrootte en seizoen</li>
+              {watchedValues.overigNotities && (
+                <FormField
+                  control={form.control}
+                  name="overigUren"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Geschatte uren</FormLabel>
+                      <FormControl>
+                        <HoursInput
+                          id="overig-uren"
+                          min={0}
+                          value={field.value || 0}
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                          showStepper={false}
+                          error={!!errors.overigUren}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               )}
-              {data.terrasReinigen && data.terrasOppervlakte && data.terrasOppervlakte > 0 && (
-                <li>Terras reinigen: ~{(data.terrasOppervlakte * 0.05).toFixed(1)} uur</li>
-              )}
-              {data.onkruidBestrating && data.bestratingOppervlakte && data.bestratingOppervlakte > 0 && (
-                <li>Onkruid bestrating: ~{(data.bestratingOppervlakte * 0.03).toFixed(1)} uur</li>
-              )}
-              {data.afwateringControleren && data.aantalAfwateringspunten && data.aantalAfwateringspunten > 0 && (
-                <li>Afwatering: ~{(0.25 + data.aantalAfwateringspunten * 0.1).toFixed(2)} uur</li>
-              )}
-              {data.overigUren && data.overigUren > 0 && (
-                <li>Overig: {data.overigUren} uur</li>
-              )}
-            </ul>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+            </div>
+
+            {/* Indicatie */}
+            {(watchedValues.bladruimen || watchedValues.terrasReinigen || watchedValues.onkruidBestrating || watchedValues.afwateringControleren) && (
+              <div className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
+                <div className="font-medium mb-1">Indicatie per beurt:</div>
+                <ul className="list-disc list-inside space-y-1">
+                  {watchedValues.bladruimen && (
+                    <li>Bladruimen: afhankelijk van tuingrootte en seizoen</li>
+                  )}
+                  {watchedValues.terrasReinigen && watchedValues.terrasOppervlakte && watchedValues.terrasOppervlakte > 0 && (
+                    <li>Terras reinigen: ~{(watchedValues.terrasOppervlakte * 0.05).toFixed(1)} uur</li>
+                  )}
+                  {watchedValues.onkruidBestrating && watchedValues.bestratingOppervlakte && watchedValues.bestratingOppervlakte > 0 && (
+                    <li>Onkruid bestrating: ~{(watchedValues.bestratingOppervlakte * 0.03).toFixed(1)} uur</li>
+                  )}
+                  {watchedValues.afwateringControleren && watchedValues.aantalAfwateringspunten && watchedValues.aantalAfwateringspunten > 0 && (
+                    <li>Afwatering: ~{(0.25 + watchedValues.aantalAfwateringspunten * 0.1).toFixed(2)} uur</li>
+                  )}
+                  {watchedValues.overigUren && watchedValues.overigUren > 0 && (
+                    <li>Overig: {watchedValues.overigUren} uur</li>
+                  )}
+                </ul>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </form>
+    </Form>
   );
 }
