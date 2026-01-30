@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -48,6 +49,12 @@ import { useOffertes } from "@/hooks/use-offertes";
 import { useInstellingen } from "@/hooks/use-instellingen";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { toast } from "sonner";
+import {
+  OfferteFiltersComponent,
+  ActiveFilters,
+  defaultFilters,
+  type OfferteFilters,
+} from "@/components/offerte/filters";
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("nl-NL", {
@@ -73,25 +80,128 @@ const statusColors: Record<string, string> = {
 };
 
 export default function OffertesPage() {
+  return (
+    <Suspense fallback={<OffertesPageSkeleton />}>
+      <OffertesPageContent />
+    </Suspense>
+  );
+}
+
+function OffertesPageSkeleton() {
+  return (
+    <>
+      <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+        <SidebarTrigger className="-ml-1" />
+        <Separator orientation="vertical" className="mr-2 h-4" />
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>Offertes</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </header>
+      <div className="flex flex-1 items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    </>
+  );
+}
+
+function OffertesPageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { isLoading: isUserLoading } = useCurrentUser();
   const { offertes, stats, isLoading: isOffertesLoading, delete: deleteOfferte, duplicate } = useOffertes();
   const { getNextNummer } = useInstellingen();
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("alle");
+  const [activeTab, setActiveTab] = useState(searchParams.get("status") || "alle");
+
+  // Initialize filters from URL params
+  const [filters, setFilters] = useState<OfferteFilters>(() => ({
+    type: (searchParams.get("type") as OfferteFilters["type"]) || "alle",
+    dateFrom: searchParams.get("dateFrom") ? new Date(searchParams.get("dateFrom")!) : undefined,
+    dateTo: searchParams.get("dateTo") ? new Date(searchParams.get("dateTo")!) : undefined,
+    amountMin: searchParams.get("amountMin") || "",
+    amountMax: searchParams.get("amountMax") || "",
+  }));
 
   const isLoading = isUserLoading || isOffertesLoading;
 
-  const filteredOffertes = offertes?.filter((offerte) => {
-    const matchesSearch =
-      searchQuery === "" ||
-      offerte.klant.naam.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      offerte.offerteNummer.toLowerCase().includes(searchQuery.toLowerCase());
+  // Update URL when filters change
+  const updateUrlParams = (newFilters: OfferteFilters, newStatus: string) => {
+    const params = new URLSearchParams();
+    if (newStatus !== "alle") params.set("status", newStatus);
+    if (newFilters.type !== "alle") params.set("type", newFilters.type);
+    if (newFilters.dateFrom) params.set("dateFrom", newFilters.dateFrom.toISOString());
+    if (newFilters.dateTo) params.set("dateTo", newFilters.dateTo.toISOString());
+    if (newFilters.amountMin) params.set("amountMin", newFilters.amountMin);
+    if (newFilters.amountMax) params.set("amountMax", newFilters.amountMax);
 
-    const matchesStatus =
-      activeTab === "alle" || offerte.status === activeTab;
+    const queryString = params.toString();
+    router.replace(queryString ? `?${queryString}` : "/offertes", { scroll: false });
+  };
 
-    return matchesSearch && matchesStatus;
-  });
+  const handleFiltersChange = (newFilters: OfferteFilters) => {
+    setFilters(newFilters);
+    updateUrlParams(newFilters, activeTab);
+  };
+
+  const handleFiltersReset = () => {
+    setFilters(defaultFilters);
+    updateUrlParams(defaultFilters, activeTab);
+  };
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    updateUrlParams(filters, tab);
+  };
+
+  const filteredOffertes = useMemo(() => {
+    return offertes?.filter((offerte) => {
+      // Search filter
+      const matchesSearch =
+        searchQuery === "" ||
+        offerte.klant.naam.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        offerte.offerteNummer.toLowerCase().includes(searchQuery.toLowerCase());
+
+      // Status filter (from tabs)
+      const matchesStatus =
+        activeTab === "alle" || offerte.status === activeTab;
+
+      // Type filter
+      const matchesType =
+        filters.type === "alle" || offerte.type === filters.type;
+
+      // Date range filter
+      const offerteDate = new Date(offerte.updatedAt);
+      const matchesDateFrom =
+        !filters.dateFrom || offerteDate >= filters.dateFrom;
+      const matchesDateTo =
+        !filters.dateTo || offerteDate <= new Date(filters.dateTo.getTime() + 86400000); // Include end date
+
+      // Amount range filter
+      const amount = offerte.totalen.totaalInclBtw;
+      const matchesAmountMin =
+        !filters.amountMin || amount >= parseFloat(filters.amountMin);
+      const matchesAmountMax =
+        !filters.amountMax || amount <= parseFloat(filters.amountMax);
+
+      return (
+        matchesSearch &&
+        matchesStatus &&
+        matchesType &&
+        matchesDateFrom &&
+        matchesDateTo &&
+        matchesAmountMin &&
+        matchesAmountMax
+      );
+    });
+  }, [offertes, searchQuery, activeTab, filters]);
 
   const handleDuplicate = async (offerteId: string) => {
     try {
@@ -159,19 +269,27 @@ export default function OffertesPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Zoek op klantnaam of offertenummer..."
-              className="pl-8"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-4">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Zoek op klantnaam of offertenummer..."
+                className="pl-8"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <OfferteFiltersComponent
+              filters={filters}
+              onChange={handleFiltersChange}
+              onReset={handleFiltersReset}
             />
           </div>
+          <ActiveFilters filters={filters} onChange={handleFiltersChange} />
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
           <TabsList>
             <TabsTrigger value="alle">
               Alle
