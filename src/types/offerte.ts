@@ -51,6 +51,7 @@ export interface OfferteRegel {
   prijsPerEenheid: number;
   totaal: number;
   type: "materiaal" | "arbeid" | "machine";
+  margePercentage?: number; // Override marge per regel (optioneel)
 }
 
 // Totalen
@@ -224,10 +225,29 @@ export interface Bedrijfsgegevens {
   logo?: string;
 }
 
+// Scope marges - per scope een marge percentage
+export interface ScopeMarges {
+  // Aanleg scopes
+  grondwerk?: number;
+  bestrating?: number;
+  borders?: number;
+  gras?: number;
+  houtwerk?: number;
+  water_elektra?: number;
+  specials?: number;
+  // Onderhoud scopes
+  gras_onderhoud?: number;
+  borders_onderhoud?: number;
+  heggen?: number;
+  bomen?: number;
+  overig?: number;
+}
+
 // Instellingen
 export interface Instellingen {
   uurtarief: number;
   standaardMargePercentage: number;
+  scopeMarges?: ScopeMarges; // Per-scope marge percentages (optioneel)
   btwPercentage: number;
   bedrijfsgegevens: Bedrijfsgegevens;
   offerteNummerPrefix: string;

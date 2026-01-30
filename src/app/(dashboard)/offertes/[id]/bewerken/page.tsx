@@ -1,8 +1,10 @@
 "use client";
 
-import { use, useState, useEffect } from "react";
+import { use, useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../../../../../../convex/_generated/api";
 import {
   Card,
   CardContent,
@@ -15,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -70,18 +73,51 @@ import {
   Trees,
   RefreshCw,
   AlertTriangle,
+  CheckCircle,
+  XCircle,
+  MessageSquare,
+  Send,
+  Eye,
+  PenTool,
 } from "lucide-react";
 import { useOfferte, useOffertes } from "@/hooks/use-offertes";
 import { useInstellingen } from "@/hooks/use-instellingen";
 import { useOfferteCalculation } from "@/hooks/use-offerte-calculation";
 import { Id } from "../../../../../../convex/_generated/dataModel";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("nl-NL", {
     style: "currency",
     currency: "EUR",
   }).format(amount);
+}
+
+function formatDate(timestamp: number): string {
+  return new Intl.DateTimeFormat("nl-NL", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date(timestamp));
+}
+
+function formatTime(timestamp: number): string {
+  return new Intl.DateTimeFormat("nl-NL", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(timestamp));
+}
+
+function formatDateTime(timestamp: number): string {
+  const now = new Date();
+  const date = new Date(timestamp);
+  const isToday = date.toDateString() === now.toDateString();
+
+  if (isToday) {
+    return formatTime(timestamp);
+  }
+  return `${date.getDate()}/${date.getMonth() + 1} ${formatTime(timestamp)}`;
 }
 
 interface Regel {
@@ -93,6 +129,7 @@ interface Regel {
   prijsPerEenheid: number;
   totaal: number;
   type: "materiaal" | "arbeid" | "machine";
+  margePercentage?: number;
 }
 
 const scopeLabels: Record<string, string> = {
@@ -121,6 +158,14 @@ export default function OfferteEditPage({
   const { instellingen } = useInstellingen();
   const { calculate, isLoading: isCalcLoading } = useOfferteCalculation();
 
+  // Messages queries and mutations
+  const messages = useQuery(
+    api.offerteMessages.listByOfferte,
+    id ? { offerteId: id as Id<"offertes"> } : "skip"
+  );
+  const sendMessage = useMutation(api.offerteMessages.sendFromBusiness);
+  const markAsRead = useMutation(api.offerteMessages.markAsRead);
+
   const [regels, setRegels] = useState<Regel[]>([]);
   const [notities, setNotities] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -129,6 +174,9 @@ export default function OfferteEditPage({
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingRegel, setEditingRegel] = useState<Regel | null>(null);
+  const [chatMessage, setChatMessage] = useState("");
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const [newRegel, setNewRegel] = useState<Partial<Regel>>({
     scope: "overig",
     omschrijving: "",
@@ -144,6 +192,31 @@ export default function OfferteEditPage({
       setNotities(offerte.notities || "");
     }
   }, [offerte]);
+
+  // Scroll to bottom of messages and mark as read
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messages && messages.length > 0 && id) {
+      markAsRead({ offerteId: id as Id<"offertes"> }).catch(console.error);
+    }
+  }, [messages, id, markAsRead]);
+
+  const handleSendMessage = async () => {
+    if (!chatMessage.trim() || !id) return;
+    setIsSendingMessage(true);
+    try {
+      await sendMessage({
+        offerteId: id as Id<"offertes">,
+        message: chatMessage.trim(),
+      });
+      setChatMessage("");
+    } catch (error) {
+      console.error(error);
+      toast.error("Fout bij verzenden bericht");
+    } finally {
+      setIsSendingMessage(false);
+    }
+  };
 
   const calculateTotals = (regelsList: Regel[]) => {
     let materiaalkosten = 0;
@@ -250,6 +323,7 @@ export default function OfferteEditPage({
         id: offerte._id,
         regels,
         margePercentage: instellingen?.standaardMargePercentage || 15,
+        scopeMarges: instellingen?.scopeMarges,
         btwPercentage: instellingen?.btwPercentage || 21,
         uurtarief: instellingen?.uurtarief || 45,
       });
@@ -716,6 +790,31 @@ export default function OfferteEditPage({
                               }
                             />
                           </div>
+                          <div className="grid gap-2">
+                            <Label>
+                              Marge % (optioneel)
+                              <span className="ml-1 text-xs font-normal text-muted-foreground">
+                                Laat leeg voor scope/standaard marge
+                              </span>
+                            </Label>
+                            <div className="relative">
+                              <Input
+                                type="number"
+                                min="0"
+                                step="1"
+                                className="pr-7"
+                                placeholder={String(instellingen?.standaardMargePercentage || 15)}
+                                value={editingRegel.margePercentage ?? ""}
+                                onChange={(e) =>
+                                  setEditingRegel({
+                                    ...editingRegel,
+                                    margePercentage: e.target.value ? parseInt(e.target.value) : undefined,
+                                  })
+                                }
+                              />
+                              <span className="absolute right-3 top-2.5 text-muted-foreground">%</span>
+                            </div>
+                          </div>
                           <div className="rounded-lg bg-muted p-3">
                             <p className="text-sm text-muted-foreground">
                               Totaal:{" "}
@@ -724,6 +823,11 @@ export default function OfferteEditPage({
                                   editingRegel.hoeveelheid * editingRegel.prijsPerEenheid
                                 )}
                               </span>
+                              {editingRegel.margePercentage !== undefined && (
+                                <span className="ml-2 text-xs">
+                                  (+{editingRegel.margePercentage}% marge)
+                                </span>
+                              )}
                             </p>
                           </div>
                         </div>
@@ -763,9 +867,14 @@ export default function OfferteEditPage({
                           <TableCell>
                             <div>
                               <p className="font-medium">{regel.omschrijving}</p>
-                              <p className="text-sm text-muted-foreground capitalize">
-                                {regel.type}
-                              </p>
+                              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                <span className="capitalize">{regel.type}</span>
+                                {regel.margePercentage !== undefined && (
+                                  <Badge variant="secondary" className="text-[10px] px-1 py-0">
+                                    {regel.margePercentage}% marge
+                                  </Badge>
+                                )}
+                              </div>
                             </div>
                           </TableCell>
                           <TableCell>
@@ -834,13 +943,80 @@ export default function OfferteEditPage({
             </Card>
           </div>
 
-          {/* Right column - Totals */}
+          {/* Right column - Totals, Customer Response & Chat */}
           <div className="space-y-4">
+            {/* Customer Response Status */}
+            {offerte.customerResponse && (
+              <Card className={cn(
+                "border-2",
+                offerte.customerResponse.status === "geaccepteerd" && "border-green-500 bg-green-50 dark:bg-green-950/30",
+                offerte.customerResponse.status === "afgewezen" && "border-red-500 bg-red-50 dark:bg-red-950/30",
+                offerte.customerResponse.status === "bekeken" && "border-blue-500 bg-blue-50 dark:bg-blue-950/30"
+              )}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    {offerte.customerResponse.status === "geaccepteerd" && (
+                      <>
+                        <CheckCircle className="h-5 w-5 text-green-600" />
+                        <span className="text-green-700">Geaccepteerd</span>
+                      </>
+                    )}
+                    {offerte.customerResponse.status === "afgewezen" && (
+                      <>
+                        <XCircle className="h-5 w-5 text-red-600" />
+                        <span className="text-red-700">Afgewezen</span>
+                      </>
+                    )}
+                    {offerte.customerResponse.status === "bekeken" && (
+                      <>
+                        <Eye className="h-5 w-5 text-blue-600" />
+                        <span className="text-blue-700">Bekeken</span>
+                      </>
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 pt-0">
+                  {offerte.customerResponse.viewedAt && (
+                    <p className="text-xs text-muted-foreground">
+                      Bekeken op {formatDate(offerte.customerResponse.viewedAt)}
+                    </p>
+                  )}
+                  {offerte.customerResponse.signedAt && (
+                    <p className="text-xs text-muted-foreground">
+                      Ondertekend op {formatDate(offerte.customerResponse.signedAt)}
+                    </p>
+                  )}
+                  {offerte.customerResponse.comment && (
+                    <div className="rounded bg-white/50 dark:bg-black/20 p-2">
+                      <p className="text-xs font-medium text-muted-foreground mb-1">Opmerking klant:</p>
+                      <p className="text-sm">{offerte.customerResponse.comment}</p>
+                    </div>
+                  )}
+                  {offerte.customerResponse.signature && (
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                        <PenTool className="h-3 w-3" />
+                        Handtekening
+                      </p>
+                      <div className="flex items-center justify-center max-h-20 overflow-hidden">
+                        <img
+                          src={offerte.customerResponse.signature}
+                          alt="Handtekening klant"
+                          className="max-w-full max-h-20 object-contain mix-blend-multiply dark:invert dark:mix-blend-screen"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Totals */}
             <Card>
-              <CardHeader>
-                <CardTitle>Totalen (preview)</CardTitle>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Totalen (preview)</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Materiaalkosten</span>
                   <span>{formatCurrency(totals.materiaalkosten)}</span>
@@ -849,7 +1025,7 @@ export default function OfferteEditPage({
                   <span className="text-muted-foreground">Arbeidskosten</span>
                   <span>{formatCurrency(totals.arbeidskosten)}</span>
                 </div>
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">
                     ({totals.totaalUren} uur)
                   </span>
@@ -877,24 +1053,111 @@ export default function OfferteEditPage({
                   <span>{formatCurrency(totals.btw)}</span>
                 </div>
                 <Separator />
-                <div className="flex justify-between text-lg font-bold">
+                <div className="flex justify-between text-base font-bold">
                   <span>Totaal incl. BTW</span>
                   <span>{formatCurrency(totals.totaalInclBtw)}</span>
                 </div>
               </CardContent>
             </Card>
 
+            {/* Werkzaamheden */}
             <Card>
-              <CardHeader>
-                <CardTitle>Werkzaamheden</CardTitle>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Werkzaamheden</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5">
                   {(offerte.scopes || []).map((scope) => (
-                    <Badge key={scope} variant="secondary">
+                    <Badge key={scope} variant="secondary" className="text-xs">
                       {scopeLabels[scope] || scope}
                     </Badge>
                   ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Chat Section */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <MessageSquare className="h-4 w-4" />
+                  Berichten
+                  {messages && messages.filter(m => m.sender === "klant" && !m.isRead).length > 0 && (
+                    <Badge variant="destructive" className="text-xs px-1.5">
+                      {messages.filter(m => m.sender === "klant" && !m.isRead).length}
+                    </Badge>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <ScrollArea className="h-48 rounded-md border p-2">
+                  {messages && messages.length > 0 ? (
+                    <div className="space-y-2">
+                      {messages.map((msg) => (
+                        <div
+                          key={msg._id}
+                          className={cn(
+                            "flex",
+                            msg.sender === "klant" ? "justify-start" : "justify-end"
+                          )}
+                        >
+                          <div
+                            className={cn(
+                              "max-w-[85%] rounded-lg px-3 py-1.5 text-xs",
+                              msg.sender === "klant"
+                                ? "bg-muted"
+                                : "bg-primary text-primary-foreground"
+                            )}
+                          >
+                            <p>{msg.message}</p>
+                            <p
+                              className={cn(
+                                "text-[10px] mt-0.5",
+                                msg.sender === "klant"
+                                  ? "text-muted-foreground"
+                                  : "text-primary-foreground/70"
+                              )}
+                            >
+                              {formatDateTime(msg.createdAt)}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                      <div ref={messagesEndRef} />
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                      <MessageSquare className="h-6 w-6 mb-1 opacity-50" />
+                      <p className="text-xs">Nog geen berichten</p>
+                    </div>
+                  )}
+                </ScrollArea>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Typ een bericht..."
+                    value={chatMessage}
+                    onChange={(e) => setChatMessage(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage();
+                      }
+                    }}
+                    disabled={isSendingMessage}
+                    className="text-sm h-8"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleSendMessage}
+                    disabled={!chatMessage.trim() || isSendingMessage}
+                    className="h-8 px-3"
+                  >
+                    {isSendingMessage ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Send className="h-3 w-3" />
+                    )}
+                  </Button>
                 </div>
               </CardContent>
             </Card>

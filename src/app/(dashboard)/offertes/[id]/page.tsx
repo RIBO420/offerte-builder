@@ -70,7 +70,9 @@ import {
   Link2,
   Eye,
   MessageSquare,
+  PenTool,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { SaveAsTemplateDialog } from "@/components/offerte/save-as-template-dialog";
 import { SendEmailDialog } from "@/components/offerte/send-email-dialog";
 import { ShareOfferteDialog } from "@/components/offerte/share-offerte-dialog";
@@ -590,38 +592,35 @@ export default function OfferteDetailPage({
               </Card>
             )}
 
-            {/* Chat with customer */}
-            {offerte.shareToken && (
-              <OfferteChat offerteId={offerte._id} klantNaam={offerte.klant.naam} />
-            )}
           </div>
 
-          {/* Right column - Totals */}
+          {/* Right column - Totals & Tijdlijn */}
           <div className="space-y-4">
+            {/* Totalen Card */}
             <Card>
-              <CardHeader>
+              <CardHeader className="pb-3">
                 <CardTitle>Totalen</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between">
+              <CardContent className="space-y-3">
+                <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Materiaalkosten</span>
                   <span>{formatCurrency(offerte.totalen.materiaalkosten)}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Arbeidskosten</span>
                   <span>{formatCurrency(offerte.totalen.arbeidskosten)}</span>
                 </div>
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">
                     ({offerte.totalen.totaalUren} uur)
                   </span>
                 </div>
                 <Separator />
-                <div className="flex justify-between">
+                <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Subtotaal</span>
                   <span>{formatCurrency(offerte.totalen.subtotaal)}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">
                     Marge ({offerte.totalen.margePercentage}%)
                   </span>
@@ -632,77 +631,140 @@ export default function OfferteDetailPage({
                   <span>Totaal excl. BTW</span>
                   <span>{formatCurrency(offerte.totalen.totaalExBtw)}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">BTW (21%)</span>
                   <span>{formatCurrency(offerte.totalen.btw)}</span>
                 </div>
                 <Separator />
-                <div className="flex justify-between text-lg font-bold">
+                <div className="flex justify-between text-lg font-bold text-primary">
                   <span>Totaal incl. BTW</span>
                   <span>{formatCurrency(offerte.totalen.totaalInclBtw)}</span>
                 </div>
               </CardContent>
             </Card>
 
+            {/* Tijdlijn Card */}
             <Card>
-              <CardHeader>
-                <CardTitle>Tijdlijn</CardTitle>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Tijdlijn</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex justify-between text-sm">
+              <CardContent className="space-y-2 text-sm">
+                <div className="flex justify-between">
                   <span className="text-muted-foreground">Aangemaakt</span>
                   <span>{formatDate(offerte.createdAt)}</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">
-                    Laatst gewijzigd
-                  </span>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Laatst gewijzigd</span>
                   <span>{formatDate(offerte.updatedAt)}</span>
                 </div>
                 {offerte.verzondenAt && (
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between">
                     <span className="text-muted-foreground">Verzonden</span>
                     <span>{formatDate(offerte.verzondenAt)}</span>
                   </div>
                 )}
                 {emailStats && emailStats.total > 0 && (
-                  <>
-                    <Separator />
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground flex items-center gap-1">
-                        <Mail className="h-3.5 w-3.5" />
-                        Emails verzonden
-                      </span>
-                      <span>{emailStats.verzonden}</span>
-                    </div>
-                  </>
-                )}
-                {offerte.customerResponse && (
-                  <>
-                    <Separator />
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground flex items-center gap-1">
-                        <Eye className="h-3.5 w-3.5" />
-                        Klant bekeken
-                      </span>
-                      <span>
-                        {offerte.customerResponse.viewedAt
-                          ? formatDate(offerte.customerResponse.viewedAt)
-                          : "Ja"}
-                      </span>
-                    </div>
-                    {offerte.customerResponse.comment && (
-                      <div className="flex items-start gap-2 text-sm bg-muted/50 p-2 rounded mt-2">
-                        <MessageSquare className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
-                        <span className="text-muted-foreground">
-                          &quot;{offerte.customerResponse.comment}&quot;
-                        </span>
-                      </div>
-                    )}
-                  </>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <Mail className="h-3.5 w-3.5" />
+                      Emails verzonden
+                    </span>
+                    <span>{emailStats.verzonden}</span>
+                  </div>
                 )}
               </CardContent>
             </Card>
+
+            {/* Klantinteractie Card - only show if shared */}
+            {offerte.shareToken && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Klantinteractie</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Customer Response & Chat - Side by side */}
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Left: Customer Response & Signature */}
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground">Klantreactie</p>
+                      {offerte.customerResponse ? (
+                        <div className={cn(
+                          "rounded-lg p-3 h-[200px] flex flex-col",
+                          offerte.customerResponse.status === "geaccepteerd" && "bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800",
+                          offerte.customerResponse.status === "afgewezen" && "bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800",
+                          offerte.customerResponse.status === "bekeken" && "bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800"
+                        )}>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {offerte.customerResponse.status === "geaccepteerd" && (
+                              <>
+                                <CheckCircle className="h-4 w-4 text-green-600" />
+                                <span className="text-sm font-medium text-green-700 dark:text-green-400">Geaccepteerd</span>
+                              </>
+                            )}
+                            {offerte.customerResponse.status === "afgewezen" && (
+                              <>
+                                <XCircle className="h-4 w-4 text-red-600" />
+                                <span className="text-sm font-medium text-red-700 dark:text-red-400">Afgewezen</span>
+                              </>
+                            )}
+                            {offerte.customerResponse.status === "bekeken" && (
+                              <>
+                                <Eye className="h-4 w-4 text-blue-600" />
+                                <span className="text-sm font-medium text-blue-700 dark:text-blue-400">Bekeken</span>
+                              </>
+                            )}
+                          </div>
+                          {(offerte.customerResponse.signedAt || offerte.customerResponse.viewedAt) && (
+                            <p className="text-[10px] text-muted-foreground mt-1 shrink-0">
+                              {formatDate(offerte.customerResponse.signedAt || offerte.customerResponse.viewedAt!)}
+                            </p>
+                          )}
+                          {offerte.customerResponse.comment && (
+                            <p className="text-xs text-muted-foreground italic mt-2 shrink-0 line-clamp-2">
+                              &quot;{offerte.customerResponse.comment}&quot;
+                            </p>
+                          )}
+                          {offerte.customerResponse.signature ? (
+                            <div className="flex-1 flex flex-col mt-2 min-h-0">
+                              <p className="text-[10px] text-muted-foreground flex items-center gap-1 mb-1 shrink-0">
+                                <PenTool className="h-2.5 w-2.5" />
+                                Handtekening
+                              </p>
+                              <div className="flex-1 flex items-center justify-center min-h-0">
+                                <img
+                                  src={offerte.customerResponse.signature}
+                                  alt="Handtekening"
+                                  className="max-w-full max-h-full object-contain mix-blend-multiply dark:invert dark:mix-blend-screen"
+                                />
+                              </div>
+                            </div>
+                          ) : offerte.customerResponse.status !== "bekeken" ? (
+                            <div className="flex-1 flex items-center justify-center mt-2 bg-white/50 dark:bg-black/10 rounded border border-dashed">
+                              <p className="text-[10px] text-muted-foreground">Geen handtekening</p>
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <div className="rounded-lg p-3 bg-muted/50 border border-dashed h-[200px] flex items-center justify-center">
+                          <p className="text-xs text-muted-foreground">Nog geen reactie</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Right: Compact Chat */}
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                        <MessageSquare className="h-3 w-3" />
+                        Berichten
+                      </p>
+                      <div className="h-[200px]">
+                        <OfferteChat offerteId={offerte._id} klantNaam={offerte.klant.naam} compact inline />
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>

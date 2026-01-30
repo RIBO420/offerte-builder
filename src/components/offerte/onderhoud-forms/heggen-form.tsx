@@ -80,25 +80,17 @@ export function HeggenForm({ data, onChange, onValidationChange }: HeggenFormPro
     <Form {...form}>
       <form>
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
-              <Scissors className="h-5 w-5 text-muted-foreground" />
-              <CardTitle>Heggen Onderhoud</CardTitle>
+              <Scissors className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-base">Heggen Onderhoud</CardTitle>
             </div>
-            <CardDescription>
-              Snoei van heggen met volumeberekening
+            <CardDescription className="text-xs">
+              Snoei van heggen (L × H × B voor volume)
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <Alert variant="default" className="border-orange-300 bg-orange-50/50">
-              <AlertTriangle className="h-4 w-4 text-orange-600" />
-              <AlertTitle className="text-orange-900">Verplichte velden</AlertTitle>
-              <AlertDescription className="text-orange-700">
-                Lengte, hoogte en breedte zijn alle drie verplicht voor een correcte volumeberekening.
-              </AlertDescription>
-            </Alert>
-
-            <div className="grid gap-4 md:grid-cols-3">
+          <CardContent className="space-y-4 pt-0">
+            <div className="grid gap-3 md:grid-cols-3">
               <FormField
                 control={form.control}
                 name="lengte"
@@ -184,9 +176,9 @@ export function HeggenForm({ data, onChange, onValidationChange }: HeggenFormPro
             </div>
 
             {isVolumeComplete && (
-              <div className="rounded-lg bg-primary/10 p-4 text-center">
-                <p className="text-sm text-muted-foreground">Berekend volume</p>
-                <p className="text-2xl font-bold">{volume.toFixed(1)} m³</p>
+              <div className="rounded-lg bg-primary/10 p-2 text-center">
+                <p className="text-xs text-muted-foreground">Volume</p>
+                <p className="text-lg font-bold">{volume.toFixed(1)} m³</p>
               </div>
             )}
 
@@ -224,13 +216,8 @@ export function HeggenForm({ data, onChange, onValidationChange }: HeggenFormPro
               control={form.control}
               name="afvoerSnoeisel"
               render={({ field }) => (
-                <FormItem className="flex items-center justify-between rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <FormLabel>Afvoer snoeisel</FormLabel>
-                    <FormDescription>
-                      Snoeiafval afvoeren naar depot
-                    </FormDescription>
-                  </div>
+                <FormItem className="flex items-center justify-between rounded-lg border p-2.5">
+                  <FormLabel className="text-sm font-normal">Afvoer snoeisel</FormLabel>
                   <FormControl>
                     <Switch
                       checked={field.value}
@@ -242,26 +229,14 @@ export function HeggenForm({ data, onChange, onValidationChange }: HeggenFormPro
             />
 
             {isVolumeComplete && (
-              <div className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
-                <div className="font-medium mb-1">Indicatie per beurt:</div>
-                <ul className="list-disc list-inside space-y-1">
-                  <li>
-                    Snoeitijd: ~{(Math.round(volume * (
-                      watchedValues.snoei === "beide" ? 0.5 :
-                      watchedValues.snoei === "zijkanten" ? 0.35 : 0.25
-                    ) * (watchedValues.hoogte > 2 ? 1.3 : 1.0) * 4) / 4).toFixed(2)} uur
-                  </li>
-                  {watchedValues.afvoerSnoeisel && (
-                    <li>
-                      Geschat snoeiafval: ~{(volume * 0.1).toFixed(2)} m³
-                    </li>
-                  )}
-                  {watchedValues.hoogte > 2 && (
-                    <li className="text-orange-600">
-                      Hoogte toeslag: +30% (ladder/hoogwerker nodig)
-                    </li>
-                  )}
-                </ul>
+              <div className="rounded-lg bg-muted/50 p-2 text-xs text-muted-foreground">
+                <span className="font-medium">Indicatie:</span>{" "}
+                snoeitijd: ~{(Math.round(volume * (
+                  watchedValues.snoei === "beide" ? 0.5 :
+                  watchedValues.snoei === "zijkanten" ? 0.35 : 0.25
+                ) * (watchedValues.hoogte > 2 ? 1.3 : 1.0) * 4) / 4).toFixed(2)}u
+                {watchedValues.afvoerSnoeisel && `, afval: ~${(volume * 0.1).toFixed(2)} m³`}
+                {watchedValues.hoogte > 2 && <span className="text-orange-600"> (+30% hoogte)</span>}
               </div>
             )}
           </CardContent>

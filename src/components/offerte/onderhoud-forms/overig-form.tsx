@@ -73,27 +73,25 @@ export function OverigForm({ data, onChange, onValidationChange }: OverigFormPro
     <Form {...form}>
       <form>
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
-              <Leaf className="h-5 w-5 text-muted-foreground" />
-              <CardTitle>Overige Werkzaamheden</CardTitle>
+              <Leaf className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-base">Overige Werkzaamheden</CardTitle>
             </div>
-            <CardDescription>
+            <CardDescription className="text-xs">
               Bladruimen, terras reinigen en overig onderhoud
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-4 pt-0">
             {/* Bladruimen */}
             <FormField
               control={form.control}
               name="bladruimen"
               render={({ field }) => (
-                <FormItem className="flex items-center justify-between rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <FormLabel>Bladruimen</FormLabel>
-                    <FormDescription>
-                      Seizoensgebonden bladverwijdering
-                    </FormDescription>
+                <FormItem className="flex items-center justify-between rounded-lg border p-2.5">
+                  <div className="space-y-0">
+                    <FormLabel className="text-sm">Bladruimen</FormLabel>
+                    <p className="text-xs text-muted-foreground">Seizoensgebonden bladverwijdering</p>
                   </div>
                   <FormControl>
                     <Switch
@@ -106,17 +104,15 @@ export function OverigForm({ data, onChange, onValidationChange }: OverigFormPro
             />
 
             {/* Terras reinigen */}
-            <div className="space-y-4 rounded-lg border p-4">
+            <div className="space-y-3 rounded-lg border p-3">
               <FormField
                 control={form.control}
                 name="terrasReinigen"
                 render={({ field }) => (
                   <FormItem className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <FormLabel>Terras reinigen</FormLabel>
-                      <FormDescription>
-                        Hogedruk reiniging van terras/bestrating
-                      </FormDescription>
+                    <div className="space-y-0">
+                      <FormLabel className="text-sm">Terras reinigen</FormLabel>
+                      <p className="text-xs text-muted-foreground">Hogedruk reiniging terras/bestrating</p>
                     </div>
                     <FormControl>
                       <Switch
@@ -133,7 +129,7 @@ export function OverigForm({ data, onChange, onValidationChange }: OverigFormPro
                   control={form.control}
                   name="terrasOppervlakte"
                   render={({ field }) => (
-                    <FormItem className="pt-2">
+                    <FormItem>
                       <FormLabel required>Terras oppervlakte</FormLabel>
                       <FormControl>
                         <AreaInput
@@ -154,17 +150,15 @@ export function OverigForm({ data, onChange, onValidationChange }: OverigFormPro
             </div>
 
             {/* Onkruid bestrating */}
-            <div className="space-y-4 rounded-lg border p-4">
+            <div className="space-y-3 rounded-lg border p-3">
               <FormField
                 control={form.control}
                 name="onkruidBestrating"
                 render={({ field }) => (
                   <FormItem className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <FormLabel>Onkruid tussen bestrating</FormLabel>
-                      <FormDescription>
-                        Onkruid uit voegen verwijderen
-                      </FormDescription>
+                    <div className="space-y-0">
+                      <FormLabel className="text-sm">Onkruid tussen bestrating</FormLabel>
+                      <p className="text-xs text-muted-foreground">Onkruid uit voegen verwijderen</p>
                     </div>
                     <FormControl>
                       <Switch
@@ -181,7 +175,7 @@ export function OverigForm({ data, onChange, onValidationChange }: OverigFormPro
                   control={form.control}
                   name="bestratingOppervlakte"
                   render={({ field }) => (
-                    <FormItem className="pt-2">
+                    <FormItem>
                       <FormLabel required>Bestrating oppervlakte</FormLabel>
                       <FormControl>
                         <AreaInput
@@ -202,17 +196,15 @@ export function OverigForm({ data, onChange, onValidationChange }: OverigFormPro
             </div>
 
             {/* Afwatering controleren */}
-            <div className="space-y-4 rounded-lg border p-4">
+            <div className="space-y-3 rounded-lg border p-3">
               <FormField
                 control={form.control}
                 name="afwateringControleren"
                 render={({ field }) => (
                   <FormItem className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <FormLabel>Afwatering controleren</FormLabel>
-                      <FormDescription>
-                        Controle en reiniging afvoerpunten
-                      </FormDescription>
+                    <div className="space-y-0">
+                      <FormLabel className="text-sm">Afwatering controleren</FormLabel>
+                      <p className="text-xs text-muted-foreground">Controle en reiniging afvoerpunten</p>
                     </div>
                     <FormControl>
                       <Switch
@@ -229,7 +221,7 @@ export function OverigForm({ data, onChange, onValidationChange }: OverigFormPro
                   control={form.control}
                   name="aantalAfwateringspunten"
                   render={({ field }) => (
-                    <FormItem className="pt-2">
+                    <FormItem>
                       <FormLabel required>Aantal afwateringspunten</FormLabel>
                       <FormControl>
                         <QuantityInput
@@ -250,8 +242,8 @@ export function OverigForm({ data, onChange, onValidationChange }: OverigFormPro
             </div>
 
             {/* Overig vrij veld */}
-            <div className="space-y-4 rounded-lg border p-4">
-              <FormLabel className="text-base font-medium">Overige werkzaamheden</FormLabel>
+            <div className="space-y-3 rounded-lg border p-3">
+              <FormLabel className="text-sm font-medium">Overige werkzaamheden</FormLabel>
 
               <FormField
                 control={form.control}
@@ -264,8 +256,8 @@ export function OverigForm({ data, onChange, onValidationChange }: OverigFormPro
                         id="overig-notities"
                         value={field.value || ""}
                         onChange={field.onChange}
-                        placeholder="Beschrijf eventuele extra werkzaamheden..."
-                        rows={3}
+                        placeholder="Beschrijf extra werkzaamheden..."
+                        rows={2}
                       />
                     </FormControl>
                     <FormMessage />
@@ -299,26 +291,16 @@ export function OverigForm({ data, onChange, onValidationChange }: OverigFormPro
             </div>
 
             {/* Indicatie */}
-            {(watchedValues.bladruimen || watchedValues.terrasReinigen || watchedValues.onkruidBestrating || watchedValues.afwateringControleren) && (
-              <div className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
-                <div className="font-medium mb-1">Indicatie per beurt:</div>
-                <ul className="list-disc list-inside space-y-1">
-                  {watchedValues.bladruimen && (
-                    <li>Bladruimen: afhankelijk van tuingrootte en seizoen</li>
-                  )}
-                  {watchedValues.terrasReinigen && watchedValues.terrasOppervlakte && watchedValues.terrasOppervlakte > 0 && (
-                    <li>Terras reinigen: ~{(Math.round(watchedValues.terrasOppervlakte * 0.05 * 4) / 4).toFixed(2)} uur</li>
-                  )}
-                  {watchedValues.onkruidBestrating && watchedValues.bestratingOppervlakte && watchedValues.bestratingOppervlakte > 0 && (
-                    <li>Onkruid bestrating: ~{(Math.round(watchedValues.bestratingOppervlakte * 0.03 * 4) / 4).toFixed(2)} uur</li>
-                  )}
-                  {watchedValues.afwateringControleren && watchedValues.aantalAfwateringspunten && watchedValues.aantalAfwateringspunten > 0 && (
-                    <li>Afwatering: ~{(Math.round((0.25 + watchedValues.aantalAfwateringspunten * 0.1) * 4) / 4).toFixed(2)} uur</li>
-                  )}
-                  {watchedValues.overigUren && watchedValues.overigUren > 0 && (
-                    <li>Overig: {watchedValues.overigUren} uur</li>
-                  )}
-                </ul>
+            {(watchedValues.bladruimen || watchedValues.terrasReinigen || watchedValues.onkruidBestrating || watchedValues.afwateringControleren || (watchedValues.overigUren && watchedValues.overigUren > 0)) && (
+              <div className="rounded-lg bg-muted/50 p-2 text-xs text-muted-foreground">
+                <span className="font-medium">Indicatie:</span>{" "}
+                {[
+                  watchedValues.bladruimen && "bladruimen (variabel)",
+                  watchedValues.terrasReinigen && watchedValues.terrasOppervlakte && watchedValues.terrasOppervlakte > 0 && `terras: ~${(Math.round(watchedValues.terrasOppervlakte * 0.05 * 4) / 4).toFixed(2)}u`,
+                  watchedValues.onkruidBestrating && watchedValues.bestratingOppervlakte && watchedValues.bestratingOppervlakte > 0 && `onkruid: ~${(Math.round(watchedValues.bestratingOppervlakte * 0.03 * 4) / 4).toFixed(2)}u`,
+                  watchedValues.afwateringControleren && watchedValues.aantalAfwateringspunten && watchedValues.aantalAfwateringspunten > 0 && `afwatering: ~${(Math.round((0.25 + watchedValues.aantalAfwateringspunten * 0.1) * 4) / 4).toFixed(2)}u`,
+                  watchedValues.overigUren && watchedValues.overigUren > 0 && `overig: ${watchedValues.overigUren}u`,
+                ].filter(Boolean).join(", ")}
               </div>
             )}
           </CardContent>

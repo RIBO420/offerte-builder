@@ -89,16 +89,166 @@ function formatDateTime(timestamp: number): string {
 const scopeLabels: Record<string, string> = {
   grondwerk: "Grondwerk",
   bestrating: "Bestrating",
-  borders: "Borders",
+  borders: "Borders & Beplanting",
   houtwerk: "Houtwerk",
   schuttingen: "Schuttingen",
   waterpartijen: "Waterpartijen",
   verlichting: "Verlichting",
-  gras: "Gazon",
+  water_elektra: "Water / Elektra",
+  specials: "Specials",
+  gras: "Gras / Gazon",
   heggen: "Heggen",
   bomen: "Bomen",
   overig: "Overig",
 };
+
+// Customer-friendly summary with visible line items
+interface ScopeLineItem {
+  omschrijving: string;
+  hoeveelheid?: number;
+  eenheid?: string;
+}
+
+interface ScopeSummary {
+  scope: string;
+  scopeLabel: string;
+  totaal: number;
+  visibleItems: ScopeLineItem[];
+  hasHiddenItems: boolean;
+}
+
+// Units that should always be shown with quantities
+const visibleUnits = ['m²', 'm2', 'm³', 'm3', 'm', 'stuks', 'st'];
+
+// Keywords for major materials that should be shown
+const majorMaterialKeywords = [
+  'tegel', 'tegels', 'klinker', 'klinkers', 'natuursteen',
+  'schutting', 'scherm', 'vlonder', 'pergola', 'overkapping',
+  'graszoden', 'graszod', 'gazon',
+  'plant', 'planten', 'boom', 'bomen', 'heester', 'heesters', 'haag', 'heg',
+  'zand', 'grond', 'grind', 'split', 'compost', 'tuinaarde',
+  'opsluitband', 'opsluitbanden', 'kantopsluiting',
+  'vijver', 'waterpartij', 'fontein',
+  'verlichting', 'lamp', 'armatuur',
+];
+
+// Keywords for small materials that should be hidden (grouped as kleinmateriaal)
+const kleinmateriaalKeywords = [
+  'kabel', 'kabels', 'draad', 'snoer',
+  'stopcontact', 'schakelaar', 'fitting', 'dimmer',
+  'buis', 'buizen', 'pvc', 'leiding',
+  'schroef', 'schroeven', 'bout', 'bouten', 'moer', 'moeren',
+  'spijker', 'spijkers', 'nagel', 'nagels',
+  'kit', 'lijm', 'tape',
+  'koppeling', 'connector', 'aansluiting',
+  'kleinmateriaal', 'bevestiging', 'bevestigingsmateriaal',
+];
+
+interface RegelInput {
+  scope: string;
+  omschrijving: string;
+  eenheid: string;
+  hoeveelheid: number;
+  totaal: number;
+  type: string;
+}
+
+function shouldShowItem(regel: RegelInput): boolean {
+  const omschrijvingLower = regel.omschrijving.toLowerCase();
+  const eenheidLower = regel.eenheid.toLowerCase();
+
+  // Always hide labor items
+  if (regel.type === 'arbeid' || omschrijvingLower.startsWith('arbeid')) {
+    return false;
+  }
+
+  // Show items with area/volume/length units
+  if (visibleUnits.some(unit => eenheidLower.includes(unit.toLowerCase()))) {
+    return true;
+  }
+
+  // Check if it's kleinmateriaal (hide these)
+  if (kleinmateriaalKeywords.some(kw => omschrijvingLower.includes(kw))) {
+    return false;
+  }
+
+  // Check if it's a major material (show these)
+  if (majorMaterialKeywords.some(kw => omschrijvingLower.includes(kw))) {
+    return true;
+  }
+
+  // Default: hide other small items
+  return false;
+}
+
+function summarizeRegelsByScope(regels: RegelInput[]): ScopeSummary[] {
+  const scopeMap = new Map<string, ScopeSummary>();
+
+  for (const regel of regels) {
+    const existing = scopeMap.get(regel.scope);
+    const isVisible = shouldShowItem(regel);
+
+    const lineItem: ScopeLineItem | null = isVisible ? {
+      omschrijving: regel.omschrijving,
+      hoeveelheid: regel.hoeveelheid,
+      eenheid: regel.eenheid,
+    } : null;
+
+    if (existing) {
+      existing.totaal += regel.totaal;
+      if (lineItem && !existing.visibleItems.some(item =>
+        item.omschrijving === lineItem.omschrijving && item.hoeveelheid === lineItem.hoeveelheid
+      )) {
+        existing.visibleItems.push(lineItem);
+      }
+      if (!isVisible) {
+        existing.hasHiddenItems = true;
+      }
+    } else {
+      scopeMap.set(regel.scope, {
+        scope: regel.scope,
+        scopeLabel: scopeLabels[regel.scope] || regel.scope,
+        totaal: regel.totaal,
+        visibleItems: lineItem ? [lineItem] : [],
+        hasHiddenItems: !isVisible,
+      });
+    }
+  }
+
+  // Sort by scope order and return
+  const scopeOrder = ['grondwerk', 'bestrating', 'borders', 'gras', 'houtwerk', 'water_elektra', 'specials', 'heggen', 'bomen', 'overig'];
+  return Array.from(scopeMap.values()).sort((a, b) => {
+    const aIndex = scopeOrder.indexOf(a.scope);
+    const bIndex = scopeOrder.indexOf(b.scope);
+    return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex);
+  });
+}
+
+function formatLineItems(summary: ScopeSummary): string {
+  const parts: string[] = [];
+
+  // Add visible items with quantities
+  for (const item of summary.visibleItems.slice(0, 4)) {
+    if (item.hoeveelheid && item.eenheid) {
+      parts.push(`${item.hoeveelheid} ${item.eenheid} ${item.omschrijving}`);
+    } else {
+      parts.push(item.omschrijving);
+    }
+  }
+
+  if (summary.visibleItems.length > 4) {
+    parts.push('e.a.');
+  }
+
+  // Add note about hidden items
+  if (summary.hasHiddenItems && parts.length > 0) {
+    parts.push('incl. kleinmateriaal en arbeid');
+  } else if (summary.hasHiddenItems) {
+    return 'Inclusief materiaal en arbeid';
+  }
+
+  return parts.length > 0 ? parts.join(', ') : 'Inclusief materiaal en arbeid';
+}
 
 const statusLabels: Record<string, string> = {
   concept: "Concept",
@@ -301,11 +451,11 @@ export default function PublicOffertePage({
               )}
             </div>
             {offerte.customerResponse?.signature && (
-              <div className="bg-white rounded border p-2">
+              <div className="flex items-center justify-center max-h-16 overflow-hidden">
                 <img
                   src={offerte.customerResponse.signature}
                   alt="Handtekening"
-                  className="h-12 w-auto"
+                  className="max-w-full max-h-16 object-contain mix-blend-multiply dark:invert dark:mix-blend-screen"
                 />
               </div>
             )}
@@ -348,56 +498,38 @@ export default function PublicOffertePage({
             </CardContent>
           </Card>
 
-          {/* Werkzaamheden */}
-          {offerte.scopes && offerte.scopes.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Werkzaamheden</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-2">
-                  {offerte.scopes.map((scope) => (
-                    <Badge key={scope} variant="secondary">
-                      {scopeLabels[scope] || scope}
-                    </Badge>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Regels */}
+          {/* Werkzaamheden - Customer-friendly summarized view */}
           {offerte.regels.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle>Specificatie</CardTitle>
+                <CardTitle>Werkzaamheden</CardTitle>
                 <CardDescription>
-                  {offerte.regels.length} post{offerte.regels.length !== 1 ? "en" : ""}
+                  Overzicht van de geoffreerde werkzaamheden
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Omschrijving</TableHead>
-                      <TableHead className="text-right">Hoeveelheid</TableHead>
+                      <TableHead>Onderdeel</TableHead>
+                      <TableHead className="hidden sm:table-cell">Omschrijving</TableHead>
                       <TableHead className="text-right">Bedrag</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {offerte.regels.map((regel, index) => (
-                      <TableRow key={index}>
+                    {summarizeRegelsByScope(offerte.regels as RegelInput[]).map((summary) => (
+                      <TableRow key={summary.scope}>
                         <TableCell>
-                          <p className="font-medium">{regel.omschrijving}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {scopeLabels[regel.scope] || regel.scope}
+                          <p className="font-medium">{summary.scopeLabel}</p>
+                          <p className="text-xs text-muted-foreground sm:hidden">
+                            {formatLineItems(summary)}
                           </p>
                         </TableCell>
-                        <TableCell className="text-right">
-                          {regel.hoeveelheid} {regel.eenheid}
+                        <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
+                          {formatLineItems(summary)}
                         </TableCell>
                         <TableCell className="text-right font-medium">
-                          {formatCurrency(regel.totaal)}
+                          {formatCurrency(summary.totaal)}
                         </TableCell>
                       </TableRow>
                     ))}

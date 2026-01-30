@@ -76,17 +76,17 @@ export function GrasForm({ data, onChange, onValidationChange }: GrasFormProps) 
     <Form {...form}>
       <form>
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
-              <Trees className="h-5 w-5 text-muted-foreground" />
-              <CardTitle>Gras / Gazon</CardTitle>
+              <Trees className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-base">Gras / Gazon</CardTitle>
             </div>
-            <CardDescription>
+            <CardDescription className="text-xs">
               Zaaien of graszoden en ondergrondbewerking
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2">
+          <CardContent className="space-y-4 pt-0">
+            <div className="grid gap-3 md:grid-cols-2">
               <FormField
                 control={form.control}
                 name="oppervlakte"
@@ -168,11 +168,11 @@ export function GrasForm({ data, onChange, onValidationChange }: GrasFormProps) 
               control={form.control}
               name="afwateringNodig"
               render={({ field }) => (
-                <FormItem className="flex items-center justify-between rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <FormLabel>Afwatering nodig</FormLabel>
-                    <FormDescription>
-                      Drainage aanleggen voor waterafvoer
+                <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                  <div className="space-y-0">
+                    <FormLabel className="text-sm">Afwatering nodig</FormLabel>
+                    <FormDescription className="text-xs">
+                      Drainage aanleggen
                     </FormDescription>
                   </div>
                   <FormControl>
@@ -186,21 +186,13 @@ export function GrasForm({ data, onChange, onValidationChange }: GrasFormProps) 
             />
 
             {watchedValues.oppervlakte > 0 && (
-              <div className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
-                <div className="font-medium mb-1">Indicatie:</div>
-                <ul className="list-disc list-inside space-y-1">
-                  {watchedValues.type === "zaaien" ? (
-                    <li>Graszaad: ~{(watchedValues.oppervlakte * 0.035).toFixed(1)} kg</li>
-                  ) : (
-                    <li>Graszoden: ~{watchedValues.oppervlakte} m² (+ 5% snijverlies)</li>
-                  )}
-                  {watchedValues.ondergrond === "nieuw" && (
-                    <li>Zand voor egaliseren: ~{(watchedValues.oppervlakte * 0.05).toFixed(1)} m³</li>
-                  )}
-                  {watchedValues.afwateringNodig && (
-                    <li>Drainageslangen: ~{Math.ceil(watchedValues.oppervlakte / 4)} m</li>
-                  )}
-                </ul>
+              <div className="rounded-lg bg-muted/50 p-2 text-xs text-muted-foreground">
+                <span className="font-medium">Indicatie:</span>{" "}
+                {watchedValues.type === "zaaien"
+                  ? `Graszaad: ~${(watchedValues.oppervlakte * 0.035).toFixed(1)} kg`
+                  : `Graszoden: ~${watchedValues.oppervlakte} m²`}
+                {watchedValues.ondergrond === "nieuw" && `, zand: ${(watchedValues.oppervlakte * 0.05).toFixed(1)} m³`}
+                {watchedValues.afwateringNodig && `, drainage: ${Math.ceil(watchedValues.oppervlakte / 4)} m`}
               </div>
             )}
           </CardContent>

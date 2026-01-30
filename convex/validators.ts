@@ -147,6 +147,7 @@ export const overigeOnderhoudValidator = v.object({
 
 // Combined onderhoud scope data validator
 export const onderhoudScopeDataValidator = v.object({
+  tuinOppervlakte: v.optional(v.number()), // Algemeen tuinoppervlakte voor onderhoud
   gras: v.optional(grasOnderhoudValidator),
   borders: v.optional(bordersOnderhoudValidator),
   heggen: v.optional(heggenOnderhoudValidator),

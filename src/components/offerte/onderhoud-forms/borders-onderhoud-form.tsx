@@ -79,25 +79,17 @@ export function BordersOnderhoudForm({ data, onChange, onValidationChange }: Bor
     <Form {...form}>
       <form>
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
-              <Flower2 className="h-5 w-5 text-muted-foreground" />
-              <CardTitle>Borders Onderhoud</CardTitle>
+              <Flower2 className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-base">Borders Onderhoud</CardTitle>
             </div>
-            <CardDescription>
+            <CardDescription className="text-xs">
               Wieden, snoei in borders en bodemonderhoud
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <Alert variant="default" className="border-orange-300 bg-orange-50/50">
-              <AlertTriangle className="h-4 w-4 text-orange-600" />
-              <AlertTitle className="text-orange-900">Verplicht veld</AlertTitle>
-              <AlertDescription className="text-orange-700">
-                Onderhoudsintensiteit is verplicht voor een correcte urenberekening.
-              </AlertDescription>
-            </Alert>
-
-            <div className="grid gap-4 md:grid-cols-2">
+          <CardContent className="space-y-4 pt-0">
+            <div className="grid gap-3 md:grid-cols-2">
               <FormField
                 control={form.control}
                 name="borderOppervlakte"
@@ -150,7 +142,7 @@ export function BordersOnderhoudForm({ data, onChange, onValidationChange }: Bor
               />
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-2">
               <FormField
                 control={form.control}
                 name="snoeiInBorders"
@@ -202,18 +194,13 @@ export function BordersOnderhoudForm({ data, onChange, onValidationChange }: Bor
               />
             </div>
 
-            <div className="space-y-4">
+            <div className="grid gap-2 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="onkruidVerwijderen"
                 render={({ field }) => (
-                  <FormItem className="flex items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                      <FormLabel>Onkruid verwijderen</FormLabel>
-                      <FormDescription>
-                        Wieden en onkruid bestrijden
-                      </FormDescription>
-                    </div>
+                  <FormItem className="flex items-center justify-between rounded-lg border p-2.5">
+                    <FormLabel className="text-sm font-normal">Onkruid verwijderen</FormLabel>
                     <FormControl>
                       <Switch
                         checked={field.value}
@@ -223,18 +210,12 @@ export function BordersOnderhoudForm({ data, onChange, onValidationChange }: Bor
                   </FormItem>
                 )}
               />
-
               <FormField
                 control={form.control}
                 name="afvoerGroenafval"
                 render={({ field }) => (
-                  <FormItem className="flex items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                      <FormLabel>Afvoer groenafval</FormLabel>
-                      <FormDescription>
-                        Snoeisel en onkruid afvoeren
-                      </FormDescription>
-                    </div>
+                  <FormItem className="flex items-center justify-between rounded-lg border p-2.5">
+                    <FormLabel className="text-sm font-normal">Afvoer groenafval</FormLabel>
                     <FormControl>
                       <Switch
                         checked={field.value}
@@ -247,21 +228,13 @@ export function BordersOnderhoudForm({ data, onChange, onValidationChange }: Bor
             </div>
 
             {watchedValues.borderOppervlakte > 0 && watchedValues.onderhoudsintensiteit && (
-              <div className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
-                <div className="font-medium mb-1">Indicatie per beurt:</div>
-                <ul className="list-disc list-inside space-y-1">
-                  <li>
-                    Onderhoud: ~{(Math.round(watchedValues.borderOppervlakte * (
-                      watchedValues.onderhoudsintensiteit === "weinig" ? 0.05 :
-                      watchedValues.onderhoudsintensiteit === "gemiddeld" ? 0.08 : 0.12
-                    ) * (watchedValues.bodem === "open" ? 1.3 : 1.0) * 4) / 4).toFixed(2)} uur
-                  </li>
-                  {watchedValues.snoeiInBorders !== "geen" && (
-                    <li>
-                      Snoei: ~{(Math.round(watchedValues.borderOppervlakte * (watchedValues.snoeiInBorders === "licht" ? 0.02 : 0.05) * 4) / 4).toFixed(2)} uur
-                    </li>
-                  )}
-                </ul>
+              <div className="rounded-lg bg-muted/50 p-2 text-xs text-muted-foreground">
+                <span className="font-medium">Indicatie:</span>{" "}
+                onderhoud: ~{(Math.round(watchedValues.borderOppervlakte * (
+                  watchedValues.onderhoudsintensiteit === "weinig" ? 0.05 :
+                  watchedValues.onderhoudsintensiteit === "gemiddeld" ? 0.08 : 0.12
+                ) * (watchedValues.bodem === "open" ? 1.3 : 1.0) * 4) / 4).toFixed(2)}u
+                {watchedValues.snoeiInBorders !== "geen" && `, snoei: ~${(Math.round(watchedValues.borderOppervlakte * (watchedValues.snoeiInBorders === "licht" ? 0.02 : 0.05) * 4) / 4).toFixed(2)}u`}
               </div>
             )}
           </CardContent>

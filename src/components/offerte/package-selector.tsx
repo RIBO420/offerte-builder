@@ -76,16 +76,15 @@ export function PackageSelector({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="text-center space-y-2">
+      <div className="text-center space-y-1">
         <div className="flex items-center justify-center gap-2">
-          <Sparkles className="h-6 w-6 text-primary" />
-          <h2 className="text-2xl font-bold">Snelstart Pakketten</h2>
+          <Sparkles className="h-5 w-5 text-primary" />
+          <h2 className="text-xl font-bold">Snelstart Pakketten</h2>
         </div>
-        <p className="text-muted-foreground max-w-lg mx-auto">
-          Kies een voorgedefinieerd pakket om snel te starten, of begin vanaf nul.
-          Je kunt de gegevens altijd aanpassen in de volgende stappen.
+        <p className="text-sm text-muted-foreground max-w-lg mx-auto">
+          Kies een pakket om snel te starten, of begin vanaf nul.
         </p>
       </div>
 
@@ -102,8 +101,8 @@ export function PackageSelector({
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="simple" className="mt-6">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <TabsContent value="simple" className="mt-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {simplePackages.map((pkg) => (
               <PackageCard
                 key={pkg.id}
@@ -115,8 +114,8 @@ export function PackageSelector({
           </div>
         </TabsContent>
 
-        <TabsContent value="complete" className="mt-6">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <TabsContent value="complete" className="mt-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {completePackages.map((pkg) => (
               <PackageCard
                 key={pkg.id}
@@ -130,9 +129,10 @@ export function PackageSelector({
       </Tabs>
 
       {/* Action Buttons */}
-      <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4 border-t">
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-2 pt-3 border-t">
         <Button
           variant="outline"
+          size="sm"
           onClick={onSkip}
           className="w-full sm:w-auto"
         >
@@ -143,15 +143,17 @@ export function PackageSelector({
         {onSelectTemplate && (
           <Button
             variant="outline"
+            size="sm"
             onClick={onSelectTemplate}
             className="w-full sm:w-auto"
           >
             <Package className="mr-2 h-4 w-4" />
-            Kies eigen template
+            Kies template
           </Button>
         )}
 
         <Button
+          size="sm"
           onClick={handleConfirm}
           disabled={!selectedPackageId}
           className="w-full sm:w-auto"
@@ -176,51 +178,53 @@ function PackageCard({ pkg, isSelected, onSelect }: PackageCardProps) {
   return (
     <Card
       className={cn(
-        "cursor-pointer transition-all hover:shadow-md",
+        "cursor-pointer transition-all hover:shadow-md touch-manipulation",
         isSelected
           ? "ring-2 ring-primary border-primary bg-primary/5"
           : "hover:border-primary/50"
       )}
       onClick={onSelect}
     >
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
+      <CardHeader className="p-3 pb-2">
+        <div className="flex items-start justify-between gap-2">
           <div className={cn(
-            "flex h-10 w-10 items-center justify-center rounded-lg",
+            "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
             isSelected ? "bg-primary text-primary-foreground" : "bg-muted"
           )}>
-            <Icon className="h-5 w-5" />
+            <Icon className="h-4 w-4" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <CardTitle className="text-base leading-tight">{pkg.naam}</CardTitle>
+            <CardDescription className="text-xs line-clamp-2 mt-0.5">
+              {pkg.omschrijving}
+            </CardDescription>
           </div>
           {isSelected && (
-            <Badge variant="default" className="bg-primary">
-              Geselecteerd
+            <Badge variant="default" className="bg-primary text-xs shrink-0">
+              Gekozen
             </Badge>
           )}
         </div>
-        <CardTitle className="text-lg mt-3">{pkg.naam}</CardTitle>
-        <CardDescription className="text-sm">
-          {pkg.omschrijving}
-        </CardDescription>
       </CardHeader>
-      <CardContent className="pt-0">
+      <CardContent className="p-3 pt-0">
         {/* Scopes */}
-        <div className="flex flex-wrap gap-1 mb-3">
+        <div className="flex flex-wrap gap-1 mb-2">
           {pkg.scopes.map((scope) => (
-            <Badge key={scope} variant="secondary" className="text-xs">
+            <Badge key={scope} variant="secondary" className="text-[10px] px-1.5 py-0">
               {formatScopeName(scope)}
             </Badge>
           ))}
         </div>
 
         {/* Meta info */}
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+        <div className="flex items-center gap-3 text-xs text-muted-foreground">
           <div className="flex items-center gap-1">
-            <Clock className="h-3.5 w-3.5" />
+            <Clock className="h-3 w-3" />
             <span>{pkg.geschatteTijd}</span>
           </div>
           {pkg.prijsIndicatie && (
             <div className="flex items-center gap-1">
-              <Euro className="h-3.5 w-3.5" />
+              <Euro className="h-3 w-3" />
               <span>{pkg.prijsIndicatie}</span>
             </div>
           )}

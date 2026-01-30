@@ -82,17 +82,17 @@ export function BordersForm({ data, onChange, onValidationChange }: BordersFormP
     <Form {...form}>
       <form>
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
-              <Flower2 className="h-5 w-5 text-muted-foreground" />
-              <CardTitle>Borders & Beplanting</CardTitle>
+              <Flower2 className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-base">Borders & Beplanting</CardTitle>
             </div>
-            <CardDescription>
+            <CardDescription className="text-xs">
               Grondbewerking, planten en afwerking
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2">
+          <CardContent className="space-y-4 pt-0">
+            <div className="grid gap-3 md:grid-cols-2">
               <FormField
                 control={form.control}
                 name="oppervlakte"
@@ -169,11 +169,11 @@ export function BordersForm({ data, onChange, onValidationChange }: BordersFormP
               control={form.control}
               name="bodemverbetering"
               render={({ field }) => (
-                <FormItem className="flex items-center justify-between rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <FormLabel>Bodemverbetering</FormLabel>
-                    <FormDescription>
-                      Compost/turfmolm toevoegen voor betere groei
+                <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                  <div className="space-y-0">
+                    <FormLabel className="text-sm">Bodemverbetering</FormLabel>
+                    <FormDescription className="text-xs">
+                      Compost/turfmolm toevoegen
                     </FormDescription>
                   </div>
                   <FormControl>
@@ -187,21 +187,10 @@ export function BordersForm({ data, onChange, onValidationChange }: BordersFormP
             />
 
             {watchedValues.oppervlakte > 0 && (
-              <div className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
-                <div className="font-medium mb-1">Indicatie:</div>
-                <ul className="list-disc list-inside space-y-1">
-                  <li>
-                    Aantal planten: ~{plantCount} stuks
-                  </li>
-                  {watchedValues.afwerking !== "geen" && (
-                    <li>
-                      {watchedValues.afwerking === "schors" ? "Schors" : "Siergrint"}: ~{(watchedValues.oppervlakte * 0.05).toFixed(1)} m³
-                    </li>
-                  )}
-                  {watchedValues.bodemverbetering && (
-                    <li>Bodemverbeteraar: ~{(watchedValues.oppervlakte * 0.03).toFixed(1)} m³</li>
-                  )}
-                </ul>
+              <div className="rounded-lg bg-muted/50 p-2 text-xs text-muted-foreground">
+                <span className="font-medium">Indicatie:</span> ~{plantCount} planten
+                {watchedValues.afwerking !== "geen" && `, ${watchedValues.afwerking === "schors" ? "schors" : "grind"}: ${(watchedValues.oppervlakte * 0.05).toFixed(1)} m³`}
+                {watchedValues.bodemverbetering && `, bodemverbeteraar: ${(watchedValues.oppervlakte * 0.03).toFixed(1)} m³`}
               </div>
             )}
           </CardContent>

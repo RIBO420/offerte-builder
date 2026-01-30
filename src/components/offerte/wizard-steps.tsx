@@ -54,11 +54,11 @@ export function WizardSteps({
   };
 
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn("space-y-3", className)}>
       {/* Progress bar with percentage */}
-      <div className="flex items-center gap-3">
-        <Progress value={progress} className="h-2 flex-1" />
-        <span className="text-sm font-medium text-muted-foreground whitespace-nowrap min-w-[3rem] text-right">
+      <div className="flex items-center gap-2">
+        <Progress value={progress} className="h-1.5 flex-1" />
+        <span className="text-xs font-medium text-muted-foreground whitespace-nowrap min-w-[2.5rem] text-right">
           {Math.round(progress)}%
         </span>
       </div>
@@ -77,14 +77,14 @@ export function WizardSteps({
                 key={step.id}
                 className={cn(
                   "flex-1 relative",
-                  index !== steps.length - 1 && "pr-4 sm:pr-8"
+                  index !== steps.length - 1 && "pr-3 sm:pr-6"
                 )}
               >
                 {/* Connecting line */}
                 {index !== steps.length - 1 && (
                   <div
                     className={cn(
-                      "absolute top-4 left-1/2 h-0.5 w-full -translate-y-1/2",
+                      "absolute top-3.5 left-1/2 h-0.5 w-full -translate-y-1/2",
                       isCompleted ? "bg-primary" : "bg-muted"
                     )}
                     aria-hidden="true"
@@ -98,12 +98,12 @@ export function WizardSteps({
                     onClick={() => handleStepClick(index)}
                     disabled={!isClickable}
                     className={cn(
-                      "relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all",
+                      "relative z-10 flex h-7 w-7 items-center justify-center rounded-full border-2 transition-all touch-manipulation",
                       isCompleted && [
                         "border-primary bg-primary text-primary-foreground",
                         isClickable && "cursor-pointer hover:bg-primary/90",
                       ],
-                      isCurrent && "border-primary bg-background text-primary ring-4 ring-primary/20",
+                      isCurrent && "border-primary bg-background text-primary ring-2 ring-primary/20",
                       !isCompleted && !isCurrent && "border-muted bg-background text-muted-foreground",
                       isClickable && "cursor-pointer",
                       !isClickable && "cursor-default"
@@ -111,9 +111,9 @@ export function WizardSteps({
                     aria-current={isCurrent ? "step" : undefined}
                   >
                     {isCompleted ? (
-                      <Check className="h-4 w-4" />
+                      <Check className="h-3.5 w-3.5" />
                     ) : Icon ? (
-                      <Icon className="h-4 w-4" />
+                      <Icon className="h-3.5 w-3.5" />
                     ) : (
                       <span className="text-xs font-semibold">{index + 1}</span>
                     )}
@@ -122,7 +122,7 @@ export function WizardSteps({
                   {/* Step name */}
                   <span
                     className={cn(
-                      "mt-2 text-xs font-medium text-center transition-colors",
+                      "mt-1.5 text-[11px] font-medium text-center transition-colors leading-tight",
                       isCurrent && "text-primary",
                       isCompleted && "text-foreground",
                       !isCompleted && !isCurrent && "text-muted-foreground",
@@ -134,7 +134,7 @@ export function WizardSteps({
 
                   {/* Clickable indicator tooltip */}
                   {isClickable && (
-                    <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap hidden sm:block">
+                    <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[10px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap hidden sm:block">
                       Klik om terug te gaan
                     </span>
                   )}
@@ -147,7 +147,7 @@ export function WizardSteps({
 
       {/* Summaries for completed steps */}
       {showSummaries && currentStep > 0 && (
-        <div className="space-y-2 pt-2">
+        <div className="space-y-1.5 pt-1">
           {steps.slice(0, currentStep).map((step, index) => {
             if (!step.summary) return null;
             const isExpanded = expandedSummary === index;
@@ -158,22 +158,22 @@ export function WizardSteps({
                 open={isExpanded}
                 onOpenChange={(open) => setExpandedSummary(open ? index : null)}
               >
-                <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border bg-muted/30 px-3 py-2 text-sm hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center gap-2">
-                    <Check className="h-3.5 w-3.5 text-green-600" />
+                <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border bg-muted/30 px-2.5 py-1.5 text-xs hover:bg-muted/50 transition-colors touch-manipulation">
+                  <div className="flex items-center gap-1.5">
+                    <Check className="h-3 w-3 text-green-600" />
                     <span className="font-medium">{step.name}</span>
                     {step.isValid === false && (
-                      <span className="text-xs text-orange-600">(onvolledig)</span>
+                      <span className="text-[10px] text-orange-600">(onvolledig)</span>
                     )}
                   </div>
                   <ChevronDown
                     className={cn(
-                      "h-4 w-4 text-muted-foreground transition-transform",
+                      "h-3.5 w-3.5 text-muted-foreground transition-transform",
                       isExpanded && "rotate-180"
                     )}
                   />
                 </CollapsibleTrigger>
-                <CollapsibleContent className="px-3 py-2 text-sm text-muted-foreground border-x border-b rounded-b-lg bg-muted/10">
+                <CollapsibleContent className="px-2.5 py-1.5 text-xs text-muted-foreground border-x border-b rounded-b-lg bg-muted/10">
                   {step.summary}
                 </CollapsibleContent>
               </Collapsible>

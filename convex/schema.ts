@@ -106,6 +106,7 @@ export default defineSchema({
           v.literal("arbeid"),
           v.literal("machine")
         ),
+        margePercentage: v.optional(v.number()), // Override marge per regel
       })
     ),
 
@@ -184,6 +185,25 @@ export default defineSchema({
     userId: v.id("users"),
     uurtarief: v.number(),
     standaardMargePercentage: v.number(),
+    // Per-scope marge percentages (optioneel, fallback naar standaardMargePercentage)
+    scopeMarges: v.optional(
+      v.object({
+        // Aanleg scopes
+        grondwerk: v.optional(v.number()),
+        bestrating: v.optional(v.number()),
+        borders: v.optional(v.number()),
+        gras: v.optional(v.number()),
+        houtwerk: v.optional(v.number()),
+        water_elektra: v.optional(v.number()),
+        specials: v.optional(v.number()),
+        // Onderhoud scopes
+        gras_onderhoud: v.optional(v.number()),
+        borders_onderhoud: v.optional(v.number()),
+        heggen: v.optional(v.number()),
+        bomen: v.optional(v.number()),
+        overig: v.optional(v.number()),
+      })
+    ),
     btwPercentage: v.number(),
     bedrijfsgegevens: v.object({
       naam: v.string(),
@@ -293,6 +313,7 @@ export default defineSchema({
           prijsPerEenheid: v.number(),
           totaal: v.number(),
           type: v.string(),
+          margePercentage: v.optional(v.number()),
         })
       ),
       notities: v.optional(v.string()),

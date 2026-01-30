@@ -36,6 +36,22 @@ const regelValidator = v.object({
   prijsPerEenheid: v.number(),
   totaal: v.number(),
   type: v.union(v.literal("materiaal"), v.literal("arbeid"), v.literal("machine")),
+  margePercentage: v.optional(v.number()), // Override marge per regel
+});
+
+const scopeMargesValidator = v.object({
+  grondwerk: v.optional(v.number()),
+  bestrating: v.optional(v.number()),
+  borders: v.optional(v.number()),
+  gras: v.optional(v.number()),
+  houtwerk: v.optional(v.number()),
+  water_elektra: v.optional(v.number()),
+  specials: v.optional(v.number()),
+  gras_onderhoud: v.optional(v.number()),
+  borders_onderhoud: v.optional(v.number()),
+  heggen: v.optional(v.number()),
+  bomen: v.optional(v.number()),
+  overig: v.optional(v.number()),
 });
 
 const totalenValidator = v.object({
@@ -336,7 +352,8 @@ export const updateRegels = mutation({
   args: {
     id: v.id("offertes"),
     regels: v.array(regelValidator),
-    margePercentage: v.number(),
+    margePercentage: v.number(), // Standaard marge
+    scopeMarges: v.optional(scopeMargesValidator), // Per-scope marges
     btwPercentage: v.number(),
     uurtarief: v.number(),
     createVersion: v.optional(v.boolean()),
@@ -348,12 +365,32 @@ export const updateRegels = mutation({
     const now = Date.now();
     const shouldCreateVersion = args.createVersion ?? true;
 
-    // Calculate totals
+    // Helper functie om effectieve marge te bepalen per regel
+    const getEffectiveMargePercentage = (regel: typeof args.regels[0]): number => {
+      // Prioriteit: 1) regel.margePercentage, 2) scopeMarges[scope], 3) standaardMarge
+      if (regel.margePercentage !== undefined && regel.margePercentage !== null) {
+        return regel.margePercentage;
+      }
+      if (args.scopeMarges) {
+        const scopeMarge = args.scopeMarges[regel.scope as keyof typeof args.scopeMarges];
+        if (scopeMarge !== undefined && scopeMarge !== null) {
+          return scopeMarge;
+        }
+      }
+      return args.margePercentage;
+    };
+
+    // Calculate totals with per-regel margins
     let materiaalkosten = 0;
     let arbeidskosten = 0;
     let totaalUren = 0;
+    let totaleMarge = 0;
 
     for (const regel of args.regels) {
+      const effectieveMarge = getEffectiveMargePercentage(regel);
+      const regelMarge = regel.totaal * (effectieveMarge / 100);
+      totaleMarge += regelMarge;
+
       if (regel.type === "materiaal") {
         materiaalkosten += regel.totaal;
       } else if (regel.type === "arbeid") {
@@ -366,7 +403,10 @@ export const updateRegels = mutation({
     }
 
     const subtotaal = materiaalkosten + arbeidskosten;
-    const marge = subtotaal * (args.margePercentage / 100);
+    // Gebruik de berekende totale marge i.p.v. simpele percentage berekening
+    const marge = totaleMarge;
+    // Bereken effectief gemiddeld marge percentage voor weergave
+    const effectiefMargePercentage = subtotaal > 0 ? (marge / subtotaal) * 100 : args.margePercentage;
     const totaalExBtw = subtotaal + marge;
     const btw = totaalExBtw * (args.btwPercentage / 100);
     const totaalInclBtw = totaalExBtw + btw;
@@ -377,7 +417,7 @@ export const updateRegels = mutation({
       totaalUren,
       subtotaal,
       marge,
-      margePercentage: args.margePercentage,
+      margePercentage: Math.round(effectiefMargePercentage * 100) / 100, // Afgerond op 2 decimalen
       totaalExBtw,
       btw,
       totaalInclBtw,
@@ -424,6 +464,7 @@ export const updateRegels = mutation({
               prijsPerEenheid: r.prijsPerEenheid,
               totaal: r.totaal,
               type: r.type,
+              margePercentage: r.margePercentage,
             })),
             notities: offerte.notities,
           },

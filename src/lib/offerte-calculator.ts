@@ -35,6 +35,22 @@ export interface OfferteRegel {
   prijsPerEenheid: number;
   totaal: number;
   type: "materiaal" | "arbeid" | "machine";
+  margePercentage?: number; // Override marge per regel (optioneel)
+}
+
+export interface ScopeMarges {
+  grondwerk?: number;
+  bestrating?: number;
+  borders?: number;
+  gras?: number;
+  houtwerk?: number;
+  water_elektra?: number;
+  specials?: number;
+  gras_onderhoud?: number;
+  borders_onderhoud?: number;
+  heggen?: number;
+  bomen?: number;
+  overig?: number;
 }
 
 export interface Normuur {
@@ -995,17 +1011,42 @@ export function calculateOfferteRegels(
   return allRegels;
 }
 
-// Calculate totals from regels
+// Helper functie om effectieve marge te bepalen per regel
+function getEffectiveMargePercentage(
+  regel: OfferteRegel,
+  scopeMarges: ScopeMarges | undefined,
+  standaardMargePercentage: number
+): number {
+  // Prioriteit: 1) regel.margePercentage, 2) scopeMarges[scope], 3) standaardMarge
+  if (regel.margePercentage !== undefined && regel.margePercentage !== null) {
+    return regel.margePercentage;
+  }
+  if (scopeMarges) {
+    const scopeMarge = scopeMarges[regel.scope as keyof ScopeMarges];
+    if (scopeMarge !== undefined && scopeMarge !== null) {
+      return scopeMarge;
+    }
+  }
+  return standaardMargePercentage;
+}
+
+// Calculate totals from regels with per-scope and per-product margins
 export function calculateTotals(
   regels: OfferteRegel[],
   margePercentage: number,
-  btwPercentage: number
+  btwPercentage: number,
+  scopeMarges?: ScopeMarges
 ) {
   let materiaalkosten = 0;
   let arbeidskosten = 0;
   let totaalUren = 0;
+  let totaleMarge = 0;
 
   for (const regel of regels) {
+    const effectieveMarge = getEffectiveMargePercentage(regel, scopeMarges, margePercentage);
+    const regelMarge = regel.totaal * (effectieveMarge / 100);
+    totaleMarge += regelMarge;
+
     if (regel.type === "materiaal") {
       materiaalkosten += regel.totaal;
     } else if (regel.type === "arbeid") {
@@ -1017,7 +1058,10 @@ export function calculateTotals(
   }
 
   const subtotaal = materiaalkosten + arbeidskosten;
-  const marge = subtotaal * (margePercentage / 100);
+  // Gebruik de berekende totale marge i.p.v. simpele percentage berekening
+  const marge = totaleMarge;
+  // Bereken effectief gemiddeld marge percentage voor weergave
+  const effectiefMargePercentage = subtotaal > 0 ? (marge / subtotaal) * 100 : margePercentage;
   const totaalExBtw = subtotaal + marge;
   const btw = totaalExBtw * (btwPercentage / 100);
   const totaalInclBtw = totaalExBtw + btw;
@@ -1028,7 +1072,7 @@ export function calculateTotals(
     totaalUren: roundToQuarter(totaalUren),
     subtotaal: Math.round(subtotaal * 100) / 100,
     marge: Math.round(marge * 100) / 100,
-    margePercentage,
+    margePercentage: Math.round(effectiefMargePercentage * 100) / 100,
     totaalExBtw: Math.round(totaalExBtw * 100) / 100,
     btw: Math.round(btw * 100) / 100,
     totaalInclBtw: Math.round(totaalInclBtw * 100) / 100,

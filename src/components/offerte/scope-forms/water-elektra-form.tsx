@@ -87,19 +87,19 @@ export function WaterElektraForm({ data, onChange, onValidationChange }: WaterEl
 
   return (
     <Form {...form}>
-      <form className="space-y-4">
+      <form className="space-y-3">
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
-              <Zap className="h-5 w-5 text-muted-foreground" />
-              <CardTitle>Water / Elektra</CardTitle>
+              <Zap className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-base">Water / Elektra</CardTitle>
             </div>
-            <CardDescription>
+            <CardDescription className="text-xs">
               Tuinverlichting, aansluitpunten en bekabeling
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2">
+          <CardContent className="space-y-4 pt-0">
+            <div className="grid gap-3 md:grid-cols-2">
               <FormField
                 control={form.control}
                 name="verlichting"
@@ -154,8 +154,8 @@ export function WaterElektraForm({ data, onChange, onValidationChange }: WaterEl
             </div>
 
             {!heeftElektra && (
-              <div className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
-                Selecteer verlichting of voeg aansluitpunten toe om elektra-werkzaamheden toe te voegen aan de offerte.
+              <div className="rounded-lg bg-muted/50 p-2 text-xs text-muted-foreground">
+                Selecteer verlichting of voeg aansluitpunten toe.
               </div>
             )}
           </CardContent>

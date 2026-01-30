@@ -15,6 +15,23 @@ const bedrijfsgegevensValidator = v.object({
   logo: v.optional(v.string()),
 });
 
+const scopeMargesValidator = v.object({
+  // Aanleg scopes
+  grondwerk: v.optional(v.number()),
+  bestrating: v.optional(v.number()),
+  borders: v.optional(v.number()),
+  gras: v.optional(v.number()),
+  houtwerk: v.optional(v.number()),
+  water_elektra: v.optional(v.number()),
+  specials: v.optional(v.number()),
+  // Onderhoud scopes
+  gras_onderhoud: v.optional(v.number()),
+  borders_onderhoud: v.optional(v.number()),
+  heggen: v.optional(v.number()),
+  bomen: v.optional(v.number()),
+  overig: v.optional(v.number()),
+});
+
 // Get settings for authenticated user
 export const get = query({
   args: {},
@@ -65,6 +82,7 @@ export const update = mutation({
   args: {
     uurtarief: v.optional(v.number()),
     standaardMargePercentage: v.optional(v.number()),
+    scopeMarges: v.optional(scopeMargesValidator),
     btwPercentage: v.optional(v.number()),
     bedrijfsgegevens: v.optional(bedrijfsgegevensValidator),
     offerteNummerPrefix: v.optional(v.string()),
@@ -85,6 +103,8 @@ export const update = mutation({
     if (args.uurtarief !== undefined) updates.uurtarief = args.uurtarief;
     if (args.standaardMargePercentage !== undefined)
       updates.standaardMargePercentage = args.standaardMargePercentage;
+    if (args.scopeMarges !== undefined)
+      updates.scopeMarges = args.scopeMarges;
     if (args.btwPercentage !== undefined)
       updates.btwPercentage = args.btwPercentage;
     if (args.bedrijfsgegevens !== undefined)

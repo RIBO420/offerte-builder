@@ -114,16 +114,16 @@ export function SpecialsForm({ data, onChange, onValidationChange }: SpecialsFor
     <Form {...form}>
       <form>
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-muted-foreground" />
-              <CardTitle>Specials</CardTitle>
+              <Sparkles className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-base">Specials</CardTitle>
             </div>
-            <CardDescription>
-              Bijzondere elementen zoals jacuzzi, sauna of prefab constructies
+            <CardDescription className="text-xs">
+              Jacuzzi, sauna of prefab constructies
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-4 pt-0">
             {/* Bestaande items */}
             {fields.length > 0 && (
               <div className="space-y-3">
@@ -161,9 +161,9 @@ export function SpecialsForm({ data, onChange, onValidationChange }: SpecialsFor
             )}
 
             {/* Nieuw item toevoegen */}
-            <div className="space-y-4 rounded-lg border border-dashed p-4">
-              <FormLabel className="text-base font-medium">Nieuw item toevoegen</FormLabel>
-              <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-3 rounded-lg border border-dashed p-3">
+              <FormLabel className="text-sm font-medium">Nieuw item toevoegen</FormLabel>
+              <div className="grid gap-3 md:grid-cols-2">
                 <FormItem>
                   <FormLabel>Type</FormLabel>
                   <Select
@@ -215,20 +215,14 @@ export function SpecialsForm({ data, onChange, onValidationChange }: SpecialsFor
             </div>
 
             {fields.length === 0 && (
-              <div className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
-                Voeg bijzondere elementen toe die alleen plaatsing en voorbereiding vereisen.
-                De kosten voor materiaal/aanschaf worden apart gespecificeerd.
+              <div className="rounded-lg bg-muted/50 p-2 text-xs text-muted-foreground">
+                Voeg elementen toe die plaatsing en voorbereiding vereisen.
               </div>
             )}
 
             {fields.length > 0 && (
-              <div className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
-                <div className="font-medium mb-1">Inbegrepen per item:</div>
-                <ul className="list-disc list-inside space-y-1">
-                  <li>Voorbereiding ondergrond</li>
-                  <li>Plaatsingsuren</li>
-                  <li>Aansluiten (indien van toepassing)</li>
-                </ul>
+              <div className="rounded-lg bg-muted/50 p-2 text-xs text-muted-foreground">
+                <span className="font-medium">Inbegrepen:</span> ondergrondvoorbereiding, plaatsing, aansluiting
               </div>
             )}
           </CardContent>

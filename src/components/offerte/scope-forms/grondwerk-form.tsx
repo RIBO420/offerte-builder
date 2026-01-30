@@ -81,17 +81,17 @@ export function GrondwerkForm({ data, onChange, onValidationChange }: GrondwerkF
     <Form {...form}>
       <form>
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
-              <Shovel className="h-5 w-5 text-muted-foreground" />
-              <CardTitle>Grondwerk</CardTitle>
+              <Shovel className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-base">Grondwerk</CardTitle>
             </div>
-            <CardDescription>
+            <CardDescription className="text-xs">
               Ontgraven, afvoer en machine-uren
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2">
+          <CardContent className="space-y-4 pt-0">
+            <div className="grid gap-3 md:grid-cols-2">
               <FormField
                 control={form.control}
                 name="oppervlakte"
@@ -148,11 +148,11 @@ export function GrondwerkForm({ data, onChange, onValidationChange }: GrondwerkF
               control={form.control}
               name="afvoerGrond"
               render={({ field }) => (
-                <FormItem className="flex items-center justify-between rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <FormLabel>Afvoer grond</FormLabel>
-                    <FormDescription>
-                      Grond afvoeren naar depot (extra kosten)
+                <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                  <div className="space-y-0">
+                    <FormLabel className="text-sm">Afvoer grond</FormLabel>
+                    <FormDescription className="text-xs">
+                      Grond afvoeren naar depot
                     </FormDescription>
                   </div>
                   <FormControl>
@@ -166,7 +166,7 @@ export function GrondwerkForm({ data, onChange, onValidationChange }: GrondwerkF
             />
 
             {estimatedVolume !== null && (
-              <div className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
+              <div className="rounded-lg bg-muted/50 p-2 text-xs text-muted-foreground">
                 Geschatte afvoer: {estimatedVolume.toFixed(1)} m³
               </div>
             )}

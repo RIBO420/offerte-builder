@@ -669,14 +669,14 @@ export default function NieuweOnderhoudOffertePage() {
         </Breadcrumb>
       </header>
 
-      <div className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-        <div className="space-y-4">
+      <div className="flex flex-1 flex-col gap-3 p-3 md:gap-4 md:p-4 lg:gap-6 lg:p-6">
+        <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
+              <h1 className="text-xl font-bold tracking-tight md:text-2xl lg:text-3xl">
                 Nieuwe Onderhoud Offerte
               </h1>
-              <p className="text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 Stap {currentStep + 1} van {totalSteps}:{" "}
                 {wizardSteps[currentStep]?.name}
               </p>
@@ -685,7 +685,7 @@ export default function NieuweOnderhoudOffertePage() {
             {currentStep > 0 && (
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Save className="h-3 w-3" />
-                <span>Auto-save aan</span>
+                <span className="hidden sm:inline">Auto-save aan</span>
               </div>
             )}
           </div>
@@ -733,17 +733,17 @@ export default function NieuweOnderhoudOffertePage() {
 
         {/* Step 1: Klantgegevens & Scope Selectie */}
         {currentStep === 1 && (
-          <div className="grid gap-6 lg:grid-cols-3">
-            <div className="lg:col-span-2 space-y-6">
+          <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
+            <div className="lg:col-span-2 space-y-4 lg:space-y-6">
               {/* Klantgegevens */}
               <Card>
-                <CardHeader>
-                  <CardTitle>Klantgegevens</CardTitle>
-                  <CardDescription>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Klantgegevens</CardTitle>
+                  <CardDescription className="text-xs">
                     Selecteer een bestaande klant of voer nieuwe gegevens in
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-0">
                   <KlantSelector
                     value={klantData}
                     onChange={setKlantData}
@@ -754,13 +754,13 @@ export default function NieuweOnderhoudOffertePage() {
 
               {/* Algemene Parameters */}
               <Card>
-                <CardHeader>
-                  <CardTitle>Algemene Parameters</CardTitle>
-                  <CardDescription>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Algemene Parameters</CardTitle>
+                  <CardDescription className="text-xs">
                     Parameters die van toepassing zijn op alle werkzaamheden
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-3 pt-0">
                   <div className="space-y-2">
                     <Label htmlFor="tuinoppervlakte">
                       Totale tuinoppervlakte (m²)
@@ -828,21 +828,20 @@ export default function NieuweOnderhoudOffertePage() {
 
               {/* Scope Selectie */}
               <Card>
-                <CardHeader>
-                  <CardTitle>Werkzaamheden Selectie</CardTitle>
-                  <CardDescription>
-                    Selecteer de onderhoudswerkzaamheden. Let op verplichte velden
-                    per categorie.
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Werkzaamheden Selectie</CardTitle>
+                  <CardDescription className="text-xs">
+                    Selecteer de onderhoudswerkzaamheden.
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <div className="grid gap-3 md:grid-cols-2">
+                <CardContent className="pt-0">
+                  <div className="grid gap-2 md:grid-cols-2 lg:gap-3">
                     {SCOPES.map((scope) => {
                       const isSelected = selectedScopes.includes(scope.id);
                       return (
                         <div
                           key={scope.id}
-                          className={`relative flex cursor-pointer items-start space-x-3 rounded-lg border p-4 transition-colors hover:bg-muted/50 ${
+                          className={`relative flex cursor-pointer items-start space-x-2 rounded-lg border p-3 transition-colors hover:bg-muted/50 active:bg-muted/70 touch-manipulation ${
                             isSelected
                               ? "border-primary bg-primary/5"
                               : "border-border"
@@ -853,28 +852,28 @@ export default function NieuweOnderhoudOffertePage() {
                             id={scope.id}
                             checked={isSelected}
                             onCheckedChange={() => toggleScope(scope.id)}
-                            className="mt-1"
+                            className="mt-0.5 h-5 w-5"
                           />
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <scope.icon className="h-4 w-4 text-muted-foreground" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <scope.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
                               <Label
                                 htmlFor={scope.id}
-                                className="cursor-pointer font-medium"
+                                className="cursor-pointer font-medium text-sm"
                               >
                                 {scope.naam}
                               </Label>
                             </div>
-                            <p className="mt-1 text-sm text-muted-foreground">
+                            <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">
                               {scope.beschrijving}
                             </p>
                             {scope.verplicht && (
-                              <div className="mt-2 flex flex-wrap gap-1">
+                              <div className="mt-1.5 flex flex-wrap gap-1">
                                 {scope.verplicht.map((v) => (
                                   <Badge
                                     key={v}
                                     variant="outline"
-                                    className="text-xs border-amber-500 text-amber-600"
+                                    className="text-[10px] px-1.5 py-0 border-amber-500 text-amber-600"
                                   >
                                     verplicht: {v}
                                   </Badge>
@@ -905,12 +904,12 @@ export default function NieuweOnderhoudOffertePage() {
             </div>
 
             {/* Sidebar met samenvatting */}
-            <div className="space-y-4">
-              <Card className="sticky top-4">
-                <CardHeader>
-                  <CardTitle>Samenvatting</CardTitle>
+            <div className="space-y-3">
+              <Card className="sticky top-3">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Samenvatting</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-3 pt-0">
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">
                       Klant
@@ -1004,8 +1003,8 @@ export default function NieuweOnderhoudOffertePage() {
 
         {/* Step 2: Scope Details */}
         {currentStep === 2 && (
-          <div className="grid gap-6 lg:grid-cols-3">
-            <div className="lg:col-span-2 space-y-6">
+          <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
+            <div className="lg:col-span-2 space-y-4 lg:space-y-5">
               {selectedScopes.map((scopeId) => {
                 switch (scopeId) {
                   case "gras":
@@ -1070,15 +1069,15 @@ export default function NieuweOnderhoudOffertePage() {
             </div>
 
             {/* Sidebar met voortgang */}
-            <div className="space-y-4">
-              <Card className="sticky top-4">
-                <CardHeader>
-                  <CardTitle>Voortgang</CardTitle>
-                  <CardDescription>
+            <div className="space-y-3">
+              <Card className="sticky top-3">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Voortgang</CardTitle>
+                  <CardDescription className="text-xs">
                     Vul alle verplichte velden in per werkzaamheid
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-3 pt-0">
                   <ValidationSummary
                     validations={selectedScopes.map((scopeId) => {
                       const scope = SCOPES.find((s) => s.id === scopeId);
@@ -1121,14 +1120,14 @@ export default function NieuweOnderhoudOffertePage() {
 
         {/* Step 3: Bevestigen */}
         {currentStep === 3 && (
-          <div className="grid gap-6 lg:grid-cols-3">
-            <div className="lg:col-span-2 space-y-6">
+          <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
+            <div className="lg:col-span-2 space-y-4 lg:space-y-5">
               {/* Klant samenvatting */}
               <Card>
-                <CardHeader>
-                  <CardTitle>Klantgegevens</CardTitle>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Klantgegevens</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-0">
                   <dl className="grid gap-4 md:grid-cols-2">
                     <div>
                       <dt className="text-sm font-medium text-muted-foreground">
@@ -1172,19 +1171,19 @@ export default function NieuweOnderhoudOffertePage() {
 
               {/* Werkzaamheden samenvatting */}
               <Card>
-                <CardHeader>
-                  <CardTitle>Geselecteerde Werkzaamheden</CardTitle>
-                  <CardDescription>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Geselecteerde Werkzaamheden</CardTitle>
+                  <CardDescription className="text-xs">
                     Overzicht van alle onderhoudswerkzaamheden
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-3 pt-0">
                   {selectedScopes.map((scopeId) => {
                     const scope = SCOPES.find((s) => s.id === scopeId);
                     return (
                       <div
                         key={scopeId}
-                        className="rounded-lg border p-4 space-y-2"
+                        className="rounded-lg border p-3 space-y-1"
                       >
                         <div className="flex items-center gap-2">
                           {scope?.icon && (
@@ -1267,15 +1266,15 @@ export default function NieuweOnderhoudOffertePage() {
             </div>
 
             {/* Sidebar met acties */}
-            <div className="space-y-4">
-              <Card className="sticky top-4">
-                <CardHeader>
-                  <CardTitle>Offerte Aanmaken</CardTitle>
-                  <CardDescription>
+            <div className="space-y-3">
+              <Card className="sticky top-3">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Offerte Aanmaken</CardTitle>
+                  <CardDescription className="text-xs">
                     Controleer de gegevens en maak de offerte aan
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-3 pt-0">
                   <div className="rounded-lg bg-muted/50 p-4 space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Werkzaamheden</span>

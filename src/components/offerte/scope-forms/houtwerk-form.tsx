@@ -97,19 +97,19 @@ export function HoutwerkForm({ data, onChange, onValidationChange }: HoutwerkFor
 
   return (
     <Form {...form}>
-      <form className="space-y-4">
+      <form className="space-y-3">
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
-              <Hammer className="h-5 w-5 text-muted-foreground" />
-              <CardTitle>Houtwerk</CardTitle>
+              <Hammer className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-base">Houtwerk</CardTitle>
             </div>
-            <CardDescription>
+            <CardDescription className="text-xs">
               Schutting, vlonder of pergola
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2">
+          <CardContent className="space-y-4 pt-0">
+            <div className="grid gap-3 md:grid-cols-2">
               <FormField
                 control={form.control}
                 name="typeHoutwerk"
@@ -168,24 +168,16 @@ export function HoutwerkForm({ data, onChange, onValidationChange }: HoutwerkFor
 
         {/* Verplichte fundering sectie */}
         <Card className="border-orange-200 bg-orange-50/50 dark:border-orange-900 dark:bg-orange-950/20">
-          <CardHeader>
+          <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-orange-600" />
-              <CardTitle className="text-orange-900 dark:text-orange-100">Fundering (Verplicht)</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-orange-600" />
+              <CardTitle className="text-base text-orange-900 dark:text-orange-100">Fundering (Verplicht)</CardTitle>
             </div>
-            <CardDescription className="text-orange-700 dark:text-orange-300">
-              Houtwerk zonder fundering is niet toegestaan in het systeem
+            <CardDescription className="text-xs text-orange-700 dark:text-orange-300">
+              Wordt automatisch meegenomen in de offerte
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <Alert variant="default" className="border-orange-300 bg-orange-100/50">
-              <AlertTriangle className="h-4 w-4 text-orange-600" />
-              <AlertTitle className="text-orange-900">Verplicht onderdeel</AlertTitle>
-              <AlertDescription className="text-orange-700">
-                De fundering wordt automatisch meegenomen in de offerte voor stabiel en duurzaam houtwerk.
-              </AlertDescription>
-            </Alert>
-
+          <CardContent className="space-y-4 pt-0">
             <FormField
               control={form.control}
               name="fundering"
@@ -214,26 +206,13 @@ export function HoutwerkForm({ data, onChange, onValidationChange }: HoutwerkFor
             />
 
             {watchedValues.afmeting > 0 && (
-              <div className="rounded-lg bg-white p-3 text-sm text-muted-foreground dark:bg-orange-950/30">
-                <div className="font-medium mb-1">Indicatie funderingswerk:</div>
-                <ul className="list-disc list-inside space-y-1">
-                  {watchedValues.typeHoutwerk === "schutting" ? (
-                    <>
-                      <li>Aantal palen: ~{Math.ceil(watchedValues.afmeting / 1.8)} stuks</li>
-                      <li>Betonpoeren: ~{Math.ceil(watchedValues.afmeting / 1.8)} stuks</li>
-                    </>
-                  ) : watchedValues.typeHoutwerk === "vlonder" ? (
-                    <>
-                      <li>Regelwerk/balken: ~{(watchedValues.afmeting * 3).toFixed(0)} m</li>
-                      <li>Ondersteunende poeren: ~{Math.ceil(watchedValues.afmeting / 0.6)} stuks</li>
-                    </>
-                  ) : (
-                    <>
-                      <li>Staanders: ~4 stuks</li>
-                      <li>Betonpoeren: ~4 stuks</li>
-                    </>
-                  )}
-                </ul>
+              <div className="rounded-lg bg-white p-2 text-xs text-muted-foreground dark:bg-orange-950/30">
+                <span className="font-medium">Indicatie:</span>{" "}
+                {watchedValues.typeHoutwerk === "schutting"
+                  ? `~${Math.ceil(watchedValues.afmeting / 1.8)} palen/poeren`
+                  : watchedValues.typeHoutwerk === "vlonder"
+                  ? `~${(watchedValues.afmeting * 3).toFixed(0)}m regelwerk, ~${Math.ceil(watchedValues.afmeting / 0.6)} poeren`
+                  : "~4 staanders/poeren"}
               </div>
             )}
           </CardContent>

@@ -76,16 +76,16 @@ export function BomenForm({ data, onChange, onValidationChange }: BomenFormProps
     <Form {...form}>
       <form>
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
-              <TreeDeciduous className="h-5 w-5 text-muted-foreground" />
-              <CardTitle>Bomen Onderhoud</CardTitle>
+              <TreeDeciduous className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-base">Bomen Onderhoud</CardTitle>
             </div>
-            <CardDescription>
+            <CardDescription className="text-xs">
               Snoei van bomen per hoogteklasse
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-4 pt-0">
             <FormField
               control={form.control}
               name="aantalBomen"
@@ -108,7 +108,7 @@ export function BomenForm({ data, onChange, onValidationChange }: BomenFormProps
               )}
             />
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-2">
               <FormField
                 control={form.control}
                 name="snoei"
@@ -171,13 +171,8 @@ export function BomenForm({ data, onChange, onValidationChange }: BomenFormProps
               control={form.control}
               name="afvoer"
               render={({ field }) => (
-                <FormItem className="flex items-center justify-between rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <FormLabel>Afvoer snoeihout</FormLabel>
-                    <FormDescription>
-                      Takken en snoeihout afvoeren
-                    </FormDescription>
-                  </div>
+                <FormItem className="flex items-center justify-between rounded-lg border p-2.5">
+                  <FormLabel className="text-sm font-normal">Afvoer snoeihout</FormLabel>
                   <FormControl>
                     <Switch
                       checked={field.value}
@@ -189,28 +184,16 @@ export function BomenForm({ data, onChange, onValidationChange }: BomenFormProps
             />
 
             {watchedValues.aantalBomen > 0 && (
-              <div className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
-                <div className="font-medium mb-1">Indicatie per beurt:</div>
-                <ul className="list-disc list-inside space-y-1">
-                  <li>
-                    Snoeitijd: ~{(Math.round(watchedValues.aantalBomen * (
-                      watchedValues.snoei === "zwaar" ? 1.5 : 0.75
-                    ) * (
-                      watchedValues.hoogteklasse === "hoog" ? 2.0 :
-                      watchedValues.hoogteklasse === "middel" ? 1.3 : 1.0
-                    ) * 4) / 4).toFixed(2)} uur
-                  </li>
-                  {watchedValues.afvoer && (
-                    <li>
-                      Geschat snoeihout: ~{(watchedValues.aantalBomen * (watchedValues.snoei === "zwaar" ? 0.3 : 0.1)).toFixed(1)} m³
-                    </li>
-                  )}
-                  {watchedValues.hoogteklasse === "hoog" && (
-                    <li className="text-orange-600">
-                      Hoogwerker of klimuitrusting nodig
-                    </li>
-                  )}
-                </ul>
+              <div className="rounded-lg bg-muted/50 p-2 text-xs text-muted-foreground">
+                <span className="font-medium">Indicatie:</span>{" "}
+                snoeitijd: ~{(Math.round(watchedValues.aantalBomen * (
+                  watchedValues.snoei === "zwaar" ? 1.5 : 0.75
+                ) * (
+                  watchedValues.hoogteklasse === "hoog" ? 2.0 :
+                  watchedValues.hoogteklasse === "middel" ? 1.3 : 1.0
+                ) * 4) / 4).toFixed(2)}u
+                {watchedValues.afvoer && `, snoeihout: ~${(watchedValues.aantalBomen * (watchedValues.snoei === "zwaar" ? 0.3 : 0.1)).toFixed(1)} m³`}
+                {watchedValues.hoogteklasse === "hoog" && <span className="text-orange-600"> (hoogwerker nodig)</span>}
               </div>
             )}
           </CardContent>

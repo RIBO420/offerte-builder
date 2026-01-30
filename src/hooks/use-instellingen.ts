@@ -19,6 +19,20 @@ export function useInstellingen() {
   const update = async (data: {
     uurtarief?: number;
     standaardMargePercentage?: number;
+    scopeMarges?: {
+      grondwerk?: number;
+      bestrating?: number;
+      borders?: number;
+      gras?: number;
+      houtwerk?: number;
+      water_elektra?: number;
+      specials?: number;
+      gras_onderhoud?: number;
+      borders_onderhoud?: number;
+      heggen?: number;
+      bomen?: number;
+      overig?: number;
+    };
     btwPercentage?: number;
     bedrijfsgegevens?: {
       naam: string;

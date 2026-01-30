@@ -88,19 +88,19 @@ export function BestratingForm({ data, onChange, onValidationChange }: Bestratin
 
   return (
     <Form {...form}>
-      <form className="space-y-4">
+      <form className="space-y-3">
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
-              <Layers className="h-5 w-5 text-muted-foreground" />
-              <CardTitle>Bestrating</CardTitle>
+              <Layers className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-base">Bestrating</CardTitle>
             </div>
-            <CardDescription>
+            <CardDescription className="text-xs">
               Tegels, klinkers of natuursteen
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-3">
+          <CardContent className="space-y-4 pt-0">
+            <div className="grid gap-3 md:grid-cols-3">
               <FormField
                 control={form.control}
                 name="oppervlakte"
@@ -177,25 +177,17 @@ export function BestratingForm({ data, onChange, onValidationChange }: Bestratin
 
         {/* Verplichte onderbouw sectie */}
         <Card className="border-orange-200 bg-orange-50/50 dark:border-orange-900 dark:bg-orange-950/20">
-          <CardHeader>
+          <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-orange-600" />
-              <CardTitle className="text-orange-900 dark:text-orange-100">Onderbouw (Verplicht)</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-orange-600" />
+              <CardTitle className="text-base text-orange-900 dark:text-orange-100">Onderbouw (Verplicht)</CardTitle>
             </div>
-            <CardDescription className="text-orange-700 dark:text-orange-300">
-              Bestrating zonder onderbouw is niet toegestaan in het systeem
+            <CardDescription className="text-xs text-orange-700 dark:text-orange-300">
+              Wordt automatisch meegenomen in de offerte
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <Alert variant="default" className="border-orange-300 bg-orange-100/50">
-              <AlertTriangle className="h-4 w-4 text-orange-600" />
-              <AlertTitle className="text-orange-900">Verplicht onderdeel</AlertTitle>
-              <AlertDescription className="text-orange-700">
-                De onderbouw wordt automatisch meegenomen in de offerte om een professioneel resultaat te garanderen.
-              </AlertDescription>
-            </Alert>
-
-            <div className="grid gap-4 md:grid-cols-2">
+          <CardContent className="space-y-4 pt-0">
+            <div className="grid gap-3 md:grid-cols-2">
               <FormField
                 control={form.control}
                 name="onderbouw.type"
@@ -250,11 +242,11 @@ export function BestratingForm({ data, onChange, onValidationChange }: Bestratin
               control={form.control}
               name="onderbouw.opsluitbanden"
               render={({ field }) => (
-                <FormItem className="flex items-center justify-between rounded-lg border border-orange-200 bg-white p-4 dark:border-orange-800 dark:bg-orange-950/30">
-                  <div className="space-y-0.5">
-                    <FormLabel>Opsluitbanden</FormLabel>
-                    <FormDescription>
-                      Randafwerking met betonnen opsluitbanden
+                <FormItem className="flex items-center justify-between rounded-lg border border-orange-200 bg-white p-3 dark:border-orange-800 dark:bg-orange-950/30">
+                  <div className="space-y-0">
+                    <FormLabel className="text-sm">Opsluitbanden</FormLabel>
+                    <FormDescription className="text-xs">
+                      Randafwerking met beton
                     </FormDescription>
                   </div>
                   <FormControl>
@@ -268,7 +260,7 @@ export function BestratingForm({ data, onChange, onValidationChange }: Bestratin
             />
 
             {estimatedZandVolume !== null && (
-              <div className="rounded-lg bg-white p-3 text-sm text-muted-foreground dark:bg-orange-950/30">
+              <div className="rounded-lg bg-white p-2 text-xs text-muted-foreground dark:bg-orange-950/30">
                 Geschat zandvolume: {estimatedZandVolume.toFixed(2)} m³
               </div>
             )}

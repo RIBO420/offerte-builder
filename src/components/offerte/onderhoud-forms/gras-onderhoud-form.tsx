@@ -71,24 +71,24 @@ export function GrasOnderhoudForm({ data, onChange, onValidationChange }: GrasOn
     <Form {...form}>
       <form>
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
-              <Trees className="h-5 w-5 text-muted-foreground" />
-              <CardTitle>Gras Onderhoud</CardTitle>
+              <Trees className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-base">Gras Onderhoud</CardTitle>
             </div>
-            <CardDescription>
+            <CardDescription className="text-xs">
               Maaien, kanten steken en verticuteren
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-4 pt-0">
             <FormField
               control={form.control}
               name="grasAanwezig"
               render={({ field }) => (
-                <FormItem className="flex items-center justify-between rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <FormLabel>Gras aanwezig</FormLabel>
-                    <FormDescription>
+                <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                  <div className="space-y-0">
+                    <FormLabel className="text-sm">Gras aanwezig</FormLabel>
+                    <FormDescription className="text-xs">
                       Is er gazon in de tuin?
                     </FormDescription>
                   </div>
@@ -126,108 +126,80 @@ export function GrasOnderhoudForm({ data, onChange, onValidationChange }: GrasOn
                   )}
                 />
 
-                <div className="space-y-4">
-                  <FormLabel className="text-base font-medium">Werkzaamheden</FormLabel>
-
-                  <FormField
-                    control={form.control}
-                    name="maaien"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center justify-between rounded-lg border p-4">
-                        <div className="space-y-0.5">
-                          <FormLabel>Maaien</FormLabel>
-                          <FormDescription>
-                            Regelmatig gazon maaien
-                          </FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="kantenSteken"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center justify-between rounded-lg border p-4">
-                        <div className="space-y-0.5">
-                          <FormLabel>Kanten steken</FormLabel>
-                          <FormDescription>
-                            Randen van het gazon bijwerken
-                          </FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="verticuteren"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center justify-between rounded-lg border p-4">
-                        <div className="space-y-0.5">
-                          <FormLabel>Verticuteren</FormLabel>
-                          <FormDescription>
-                            Mos en vilt verwijderen (optioneel, 1-2x per jaar)
-                          </FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="afvoerGras"
-                    render={({ field }) => (
-                      <FormItem className="flex items-center justify-between rounded-lg border p-4">
-                        <div className="space-y-0.5">
-                          <FormLabel>Afvoer gras</FormLabel>
-                          <FormDescription>
-                            Maaisel afvoeren (anders mulchen)
-                          </FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
+                <div className="space-y-2">
+                  <FormLabel className="text-sm font-medium">Werkzaamheden</FormLabel>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name="maaien"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center justify-between rounded-lg border p-2.5">
+                          <FormLabel className="text-sm font-normal">Maaien</FormLabel>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="kantenSteken"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center justify-between rounded-lg border p-2.5">
+                          <FormLabel className="text-sm font-normal">Kanten steken</FormLabel>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="verticuteren"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center justify-between rounded-lg border p-2.5">
+                          <FormLabel className="text-sm font-normal">Verticuteren</FormLabel>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="afvoerGras"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center justify-between rounded-lg border p-2.5">
+                          <FormLabel className="text-sm font-normal">Afvoer gras</FormLabel>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </div>
 
                 {watchedValues.grasOppervlakte > 0 && (
-                  <div className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
-                    <div className="font-medium mb-1">Indicatie per beurt:</div>
-                    <ul className="list-disc list-inside space-y-1">
-                      {watchedValues.maaien && (
-                        <li>Maaien: ~{(Math.round(watchedValues.grasOppervlakte * 0.02 * 4) / 4).toFixed(2)} uur</li>
-                      )}
-                      {watchedValues.kantenSteken && (
-                        <li>Kanten steken: ~{(Math.round(Math.sqrt(watchedValues.grasOppervlakte) * 4 * 0.01 * 4) / 4).toFixed(2)} uur</li>
-                      )}
-                      {watchedValues.verticuteren && (
-                        <li>Verticuteren: ~{(Math.round(watchedValues.grasOppervlakte * 0.03 * 4) / 4).toFixed(2)} uur</li>
-                      )}
-                    </ul>
+                  <div className="rounded-lg bg-muted/50 p-2 text-xs text-muted-foreground">
+                    <span className="font-medium">Indicatie:</span>{" "}
+                    {[
+                      watchedValues.maaien && `maaien: ${(Math.round(watchedValues.grasOppervlakte * 0.02 * 4) / 4).toFixed(2)}u`,
+                      watchedValues.kantenSteken && `kanten: ${(Math.round(Math.sqrt(watchedValues.grasOppervlakte) * 4 * 0.01 * 4) / 4).toFixed(2)}u`,
+                      watchedValues.verticuteren && `verticuteren: ${(Math.round(watchedValues.grasOppervlakte * 0.03 * 4) / 4).toFixed(2)}u`,
+                    ].filter(Boolean).join(", ") || "geen werkzaamheden"}
                   </div>
                 )}
               </>

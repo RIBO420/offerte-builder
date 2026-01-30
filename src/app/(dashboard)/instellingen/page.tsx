@@ -187,6 +187,22 @@ export default function InstellingenPage() {
     btwPercentage: 21,
   });
 
+  // Scope marges state
+  const [scopeMarges, setScopeMarges] = useState<{
+    grondwerk?: number;
+    bestrating?: number;
+    borders?: number;
+    gras?: number;
+    houtwerk?: number;
+    water_elektra?: number;
+    specials?: number;
+    gras_onderhoud?: number;
+    borders_onderhoud?: number;
+    heggen?: number;
+    bomen?: number;
+    overig?: number;
+  }>({});
+
   // Load settings into form when data arrives
   useEffect(() => {
     if (instellingen) {
@@ -195,6 +211,9 @@ export default function InstellingenPage() {
         standaardMargePercentage: instellingen.standaardMargePercentage,
         btwPercentage: instellingen.btwPercentage,
       });
+      if (instellingen.scopeMarges) {
+        setScopeMarges(instellingen.scopeMarges);
+      }
     }
   }, [instellingen]);
 
@@ -213,6 +232,7 @@ export default function InstellingenPage() {
       await update({
         uurtarief: tarieven.uurtarief,
         standaardMargePercentage: tarieven.standaardMargePercentage,
+        scopeMarges: scopeMarges,
         btwPercentage: tarieven.btwPercentage,
       });
       toast.success("Tarieven opgeslagen");
@@ -488,6 +508,84 @@ export default function InstellingenPage() {
                     <p className="text-xs text-muted-foreground">
                       Standaard BTW tarief
                     </p>
+                  </div>
+                </div>
+
+                {/* Scope Marges Section */}
+                <div className="pt-4 border-t">
+                  <div className="mb-3">
+                    <h4 className="text-sm font-medium">Marge per scope</h4>
+                    <p className="text-xs text-muted-foreground">
+                      Optioneel: stel verschillende marges in per type werkzaamheid. Laat leeg voor standaard marge.
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="text-xs font-medium text-muted-foreground">Aanleg</div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {[
+                        { key: "grondwerk", label: "Grondwerk" },
+                        { key: "bestrating", label: "Bestrating" },
+                        { key: "borders", label: "Borders" },
+                        { key: "gras", label: "Gazon" },
+                        { key: "houtwerk", label: "Houtwerk" },
+                        { key: "water_elektra", label: "Verlichting" },
+                        { key: "specials", label: "Specials" },
+                      ].map(({ key, label }) => (
+                        <div key={key} className="space-y-1">
+                          <Label htmlFor={`marge-${key}`} className="text-xs">{label}</Label>
+                          <div className="relative">
+                            <Input
+                              id={`marge-${key}`}
+                              type="number"
+                              step="1"
+                              className="h-8 text-sm pr-6"
+                              placeholder={String(tarieven.standaardMargePercentage)}
+                              value={scopeMarges[key as keyof typeof scopeMarges] ?? ""}
+                              onChange={(e) =>
+                                setScopeMarges({
+                                  ...scopeMarges,
+                                  [key]: e.target.value ? parseInt(e.target.value) : undefined,
+                                })
+                              }
+                            />
+                            <span className="absolute right-2 top-2 text-xs text-muted-foreground">%</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="text-xs font-medium text-muted-foreground pt-2">Onderhoud</div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {[
+                        { key: "gras_onderhoud", label: "Gras" },
+                        { key: "borders_onderhoud", label: "Borders" },
+                        { key: "heggen", label: "Heggen" },
+                        { key: "bomen", label: "Bomen" },
+                        { key: "overig", label: "Overig" },
+                      ].map(({ key, label }) => (
+                        <div key={key} className="space-y-1">
+                          <Label htmlFor={`marge-${key}`} className="text-xs">{label}</Label>
+                          <div className="relative">
+                            <Input
+                              id={`marge-${key}`}
+                              type="number"
+                              step="1"
+                              className="h-8 text-sm pr-6"
+                              placeholder={String(tarieven.standaardMargePercentage)}
+                              value={scopeMarges[key as keyof typeof scopeMarges] ?? ""}
+                              onChange={(e) =>
+                                setScopeMarges({
+                                  ...scopeMarges,
+                                  [key]: e.target.value ? parseInt(e.target.value) : undefined,
+                                })
+                              }
+                            />
+                            <span className="absolute right-2 top-2 text-xs text-muted-foreground">%</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
