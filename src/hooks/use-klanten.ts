@@ -3,17 +3,27 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
+import { useCurrentUser } from "./use-current-user";
 
 export function useKlanten() {
-  const klanten = useQuery(api.klanten.list);
-  const recentKlanten = useQuery(api.klanten.getRecent);
+  const { user } = useCurrentUser();
+
+  const klanten = useQuery(
+    api.klanten.list,
+    user?._id ? { userId: user._id } : "skip"
+  );
+
+  const recentKlanten = useQuery(
+    api.klanten.getRecent,
+    user?._id ? { userId: user._id } : "skip"
+  );
 
   const createMutation = useMutation(api.klanten.create);
   const updateMutation = useMutation(api.klanten.update);
   const removeMutation = useMutation(api.klanten.remove);
   const createFromOfferteMutation = useMutation(api.klanten.createFromOfferte);
 
-  const isLoading = klanten === undefined;
+  const isLoading = user && klanten === undefined;
 
   const create = async (data: {
     naam: string;
@@ -24,7 +34,8 @@ export function useKlanten() {
     telefoon?: string;
     notities?: string;
   }) => {
-    return await createMutation(data);
+    if (!user?._id) throw new Error("User not found");
+    return await createMutation({ userId: user._id, ...data });
   };
 
   const update = async (
@@ -54,7 +65,8 @@ export function useKlanten() {
     email?: string;
     telefoon?: string;
   }) => {
-    return await createFromOfferteMutation(data);
+    if (!user?._id) throw new Error("User not found");
+    return await createFromOfferteMutation({ userId: user._id, ...data });
   };
 
   return {
@@ -93,7 +105,12 @@ export function useKlantWithOffertes(id: Id<"klanten"> | null) {
 }
 
 export function useKlantenSearch(searchTerm: string) {
-  const results = useQuery(api.klanten.search, { searchTerm });
+  const { user } = useCurrentUser();
+
+  const results = useQuery(
+    api.klanten.search,
+    user?._id ? { userId: user._id, searchTerm } : "skip"
+  );
 
   return {
     results: results ?? [],

@@ -1,23 +1,13 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
-// Get all klanten for the current user
+// Get all klanten for user
 export const list = query({
-  args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return [];
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .unique();
-
-    if (!user) return [];
-
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
     return await ctx.db
       .query("klanten")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
       .order("desc")
       .collect();
   },
@@ -25,21 +15,11 @@ export const list = query({
 
 // Get recent klanten (last 5)
 export const getRecent = query({
-  args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return [];
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .unique();
-
-    if (!user) return [];
-
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
     return await ctx.db
       .query("klanten")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
       .order("desc")
       .take(5);
   },
@@ -49,21 +29,7 @@ export const getRecent = query({
 export const get = query({
   args: { id: v.id("klanten") },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return null;
-
-    const klant = await ctx.db.get(args.id);
-    if (!klant) return null;
-
-    // Verify user owns this klant
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .unique();
-
-    if (!user || klant.userId !== user._id) return null;
-
-    return klant;
+    return await ctx.db.get(args.id);
   },
 });
 
@@ -71,24 +37,13 @@ export const get = query({
 export const getWithOffertes = query({
   args: { id: v.id("klanten") },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return null;
-
     const klant = await ctx.db.get(args.id);
     if (!klant) return null;
-
-    // Verify user owns this klant
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .unique();
-
-    if (!user || klant.userId !== user._id) return null;
 
     // Get all offertes for this klant
     const offertes = await ctx.db
       .query("offertes")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_user", (q) => q.eq("userId", klant.userId))
       .filter((q) => q.eq(q.field("klantId"), args.id))
       .order("desc")
       .collect();
@@ -102,23 +57,13 @@ export const getWithOffertes = query({
 
 // Search klanten by name
 export const search = query({
-  args: { searchTerm: v.string() },
+  args: { userId: v.id("users"), searchTerm: v.string() },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return [];
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .unique();
-
-    if (!user) return [];
-
     if (!args.searchTerm.trim()) {
       // Return recent klanten if no search term
       return await ctx.db
         .query("klanten")
-        .withIndex("by_user", (q) => q.eq("userId", user._id))
+        .withIndex("by_user", (q) => q.eq("userId", args.userId))
         .order("desc")
         .take(10);
     }
@@ -127,7 +72,7 @@ export const search = query({
     return await ctx.db
       .query("klanten")
       .withSearchIndex("search_klanten", (q) =>
-        q.search("naam", args.searchTerm).eq("userId", user._id)
+        q.search("naam", args.searchTerm).eq("userId", args.userId)
       )
       .take(10);
   },
@@ -136,6 +81,7 @@ export const search = query({
 // Create a new klant
 export const create = mutation({
   args: {
+    userId: v.id("users"),
     naam: v.string(),
     adres: v.string(),
     postcode: v.string(),
@@ -145,20 +91,10 @@ export const create = mutation({
     notities: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Niet ingelogd");
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .unique();
-
-    if (!user) throw new Error("Gebruiker niet gevonden");
-
     const now = Date.now();
 
     return await ctx.db.insert("klanten", {
-      userId: user._id,
+      userId: args.userId,
       naam: args.naam,
       adres: args.adres,
       postcode: args.postcode,
@@ -185,21 +121,8 @@ export const update = mutation({
     notities: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Niet ingelogd");
-
     const klant = await ctx.db.get(args.id);
     if (!klant) throw new Error("Klant niet gevonden");
-
-    // Verify user owns this klant
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .unique();
-
-    if (!user || klant.userId !== user._id) {
-      throw new Error("Geen toegang tot deze klant");
-    }
 
     const { id, ...updates } = args;
 
@@ -222,26 +145,13 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("klanten") },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Niet ingelogd");
-
     const klant = await ctx.db.get(args.id);
     if (!klant) throw new Error("Klant niet gevonden");
-
-    // Verify user owns this klant
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .unique();
-
-    if (!user || klant.userId !== user._id) {
-      throw new Error("Geen toegang tot deze klant");
-    }
 
     // Check if there are offertes linked to this klant
     const linkedOffertes = await ctx.db
       .query("offertes")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_user", (q) => q.eq("userId", klant.userId))
       .filter((q) => q.eq(q.field("klantId"), args.id))
       .take(1);
 
@@ -258,6 +168,7 @@ export const remove = mutation({
 // Create klant from offerte data (for auto-creating klanten from wizard)
 export const createFromOfferte = mutation({
   args: {
+    userId: v.id("users"),
     naam: v.string(),
     adres: v.string(),
     postcode: v.string(),
@@ -266,21 +177,11 @@ export const createFromOfferte = mutation({
     telefoon: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Niet ingelogd");
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .unique();
-
-    if (!user) throw new Error("Gebruiker niet gevonden");
-
     // Check if a klant with the same name and address already exists
     const existingKlanten = await ctx.db
       .query("klanten")
       .withSearchIndex("search_klanten", (q) =>
-        q.search("naam", args.naam).eq("userId", user._id)
+        q.search("naam", args.naam).eq("userId", args.userId)
       )
       .collect();
 
@@ -298,7 +199,7 @@ export const createFromOfferte = mutation({
     // Create new klant
     const now = Date.now();
     return await ctx.db.insert("klanten", {
-      userId: user._id,
+      userId: args.userId,
       naam: args.naam,
       adres: args.adres,
       postcode: args.postcode,
