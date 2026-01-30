@@ -12,6 +12,9 @@ import { AnimatedHero } from "@/components/landing/animated-hero";
 import { Navigation } from "@/components/landing/navigation";
 import { ScrollProgress } from "@/components/landing/scroll-progress";
 import { GlassCard, StatCard } from "@/components/landing/glass-card";
+import { BeforeAfterComparison } from "@/components/landing/before-after";
+import { FAQSection } from "@/components/landing/faq-section";
+import { StoryCard } from "@/components/landing/story-card";
 import {
   Shovel,
   Trees,
@@ -49,48 +52,60 @@ const staggerContainer = {
   },
 };
 
-// Features data
-const features = [
+// Features data met storytelling
+const featuresWithStories = [
   {
     icon: Shield,
     title: "Nooit meer iets vergeten",
-    description:
-      "Ons scope-gedreven systeem vraagt automatisch om alle benodigde details. Fundering, afvoer, onderbouw - alles wordt meegenomen.",
+    headline: "De enige manier om zeker te zijn dat álles in je offerte staat",
+    story: "Herinner je die keer dat je een fundering vergat bij een schutting? Of dat je geen afvoerkosten berekende bij grondwerk? Wij ook. Daarom bouwden we een systeem dat automatisch elke benodigde post toevoegt op basis van je geselecteerde scopes.",
+    benefit: "Geen verrassingen achteraf. Geen verliesgevende projecten.",
+    stat: "0 vergeten posten sinds implementatie",
     gradient: "from-emerald-500 to-teal-500",
   },
   {
     icon: Calculator,
     title: "100+ Normuren",
-    description:
-      "Bereken uren op basis van jarenlange data. Met correcties voor bereikbaarheid, complexiteit en hoogteverschil.",
+    headline: "Uren berekenen als een ervaren calculator, zonder de ervaring",
+    story: "Onze normuren database is gebaseerd op jarenlange data uit de hoveniersbranche. Van ontgraven tot bestraten: we weten precies hoeveel tijd elk klusje kost, inclusief correcties voor slechte bereikbaarheid of complex snijwerk.",
+    benefit: "Altijd accurate ureninschattingen, winstgevende prijzen.",
+    stat: "100+ normuren beschikbaar",
     gradient: "from-blue-500 to-indigo-500",
   },
   {
     icon: Zap,
     title: "4x sneller offreren",
-    description:
-      "Wat eerder uren kostte, doe je nu in minuten. Van scope-selectie naar professionele PDF in recordtijd.",
+    headline: "Wat eerder een halve dag kostte, doe je nu in 15 minuten",
+    story: "Stel je voor: je staat bij een klant, bekijkt de tuin, en binnen 15 minuten heb je een complete, professionele offerte klaar. Niet meer tot 's avonds laat werken om offertes af te krijgen.",
+    benefit: "Meer tijd voor het echte werk, of voor thuis.",
+    stat: "4x sneller dan Excel",
     gradient: "from-amber-500 to-orange-500",
   },
   {
     icon: FileText,
     title: "Professionele PDF's",
-    description:
-      "Stijlvolle offertes met je eigen huisstijl. Meerdere templates beschikbaar, direct klaar om te versturen.",
+    headline: "Offertes die vertrouwen uitstralen en vaker worden geaccepteerd",
+    story: "Je offerte is vaak het eerste wat een klant van je ziet. Een rommelige PDF met verkeerde kleuren en ontbrekende details maakt geen goede indruk. Onze templates zijn ontworpen om professionaliteit uit te stralen.",
+    benefit: "Betere eerste indruk, hogere acceptatiepercentage.",
+    stat: "30% meer geaccepteerde offertes",
     gradient: "from-violet-500 to-purple-500",
   },
   {
     icon: Clock,
     title: "Realtime inzicht",
-    description:
-      "Volg je offertes van concept tot acceptatie. Zie in één oogopslag welke offertes wachten op opvolging.",
+    headline: "Altijd overzicht, nooit meer een offerte kwijt",
+    story: "Waar was ook alweer die offerte van de familie Jansen? Hebben ze al geantwoord? Met ons dashboard zie je in één oogopslag de status van al je offertes, van concept tot acceptatie.",
+    benefit: "Beter opvolgen, meer opdrachten binnenhalen.",
+    stat: "Altijd overzicht",
     gradient: "from-cyan-500 to-blue-500",
   },
   {
     icon: TrendingUp,
     title: "Bewuste marges",
-    description:
-      "Direct zicht op kostprijs, verkoopprijs en marge per project. Geen verrassingen achteraf.",
+    headline: "Weten wat je verdient, voordat je begint",
+    story: "Geen gokjes meer over je marge. Bij elke offerte zie je direct kostprijs, verkoopprijs en marge. Zo weet je zeker dat je project winstgevend is, zonder dat je achteraf voor verrassingen komt te staan.",
+    benefit: "Altijd winstgevend werken, geen verrassingen.",
+    stat: "Volledige inzichtelijkheid",
     gradient: "from-green-500 to-emerald-500",
   },
 ];
@@ -243,7 +258,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Features Grid */}
+      {/* Story Features */}
       <section id="features" className="py-24 relative">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <motion.div
@@ -255,25 +270,29 @@ export default function LandingPage() {
           >
             <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium mb-4">
               <Zap className="h-3 w-3" />
-              Krachtige features
+              Waarom hoveniers voor ons kiezen
             </span>
             <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
-              Alles wat je nodig hebt
+              Gebouwd door hoveniers, voor hoveniers
             </h2>
             <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-              Krachtige features speciaal ontworpen voor de dagelijkse praktijk van hoveniersbedrijven
+              We kennen de struggles van het vak. Daarom bouwden we een systeem dat echt werkt.
             </p>
           </motion.div>
 
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {features.map((feature, index) => (
-              <GlassCard
-                key={feature.title}
-                icon={feature.icon}
-                title={feature.title}
-                description={feature.description}
-                gradient={feature.gradient}
+          <div className="space-y-24">
+            {featuresWithStories.map((story, index) => (
+              <StoryCard
+                key={story.title}
+                icon={story.icon}
+                title={story.title}
+                headline={story.headline}
+                story={story.story}
+                benefit={story.benefit}
+                stat={story.stat}
+                reversed={index % 2 === 1}
                 delay={index * 0.1}
+                gradient={story.gradient}
               />
             ))}
           </div>
@@ -398,6 +417,12 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* Before/After Comparison */}
+      <BeforeAfterComparison />
+
+      {/* FAQ Section */}
+      <FAQSection />
 
       {/* Core Principle Banner */}
       <section className="py-24">
