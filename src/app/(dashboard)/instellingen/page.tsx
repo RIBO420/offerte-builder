@@ -38,7 +38,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -58,9 +57,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Building2,
   Calculator,
-  FileText,
   Save,
   Loader2,
   Clock,
@@ -147,7 +144,6 @@ export default function InstellingenPage() {
   const { instellingen, isLoading: isSettingsLoading, update } = useInstellingen();
   const {
     normuren,
-    normurenByScope,
     scopes,
     isLoading: isNormurenLoading,
     create: createNormuur,
@@ -156,7 +152,6 @@ export default function InstellingenPage() {
   } = useNormuren();
   const {
     factoren,
-    factorenByType,
     types,
     isLoading: isFactorenLoading,
     upsert: upsertFactor,
@@ -185,50 +180,20 @@ export default function InstellingenPage() {
   const [editingFactor, setEditingFactor] = useState<Correctiefactor | null>(null);
   const [factorValue, setFactorValue] = useState<number>(1);
 
-  // Form state
-  const [bedrijfsgegevens, setBedrijfsgegevens] = useState({
-    naam: "",
-    adres: "",
-    postcode: "",
-    plaats: "",
-    kvk: "",
-    btw: "",
-    iban: "",
-    email: "",
-    telefoon: "",
-  });
-
+  // Tarieven state
   const [tarieven, setTarieven] = useState({
     uurtarief: 45,
     standaardMargePercentage: 15,
     btwPercentage: 21,
   });
 
-  const [offerteSettings, setOfferteSettings] = useState({
-    offerteNummerPrefix: "OFF-",
-  });
-
   // Load settings into form when data arrives
   useEffect(() => {
     if (instellingen) {
-      setBedrijfsgegevens({
-        naam: instellingen.bedrijfsgegevens.naam || "",
-        adres: instellingen.bedrijfsgegevens.adres || "",
-        postcode: instellingen.bedrijfsgegevens.postcode || "",
-        plaats: instellingen.bedrijfsgegevens.plaats || "",
-        kvk: instellingen.bedrijfsgegevens.kvk || "",
-        btw: instellingen.bedrijfsgegevens.btw || "",
-        iban: instellingen.bedrijfsgegevens.iban || "",
-        email: instellingen.bedrijfsgegevens.email || "",
-        telefoon: instellingen.bedrijfsgegevens.telefoon || "",
-      });
       setTarieven({
         uurtarief: instellingen.uurtarief,
         standaardMargePercentage: instellingen.standaardMargePercentage,
         btwPercentage: instellingen.btwPercentage,
-      });
-      setOfferteSettings({
-        offerteNummerPrefix: instellingen.offerteNummerPrefix,
       });
     }
   }, [instellingen]);
@@ -242,31 +207,6 @@ export default function InstellingenPage() {
 
   const isLoading = isUserLoading || isSettingsLoading;
 
-  const handleSaveBedrijfsgegevens = async () => {
-    setIsSaving(true);
-    try {
-      await update({
-        bedrijfsgegevens: {
-          naam: bedrijfsgegevens.naam,
-          adres: bedrijfsgegevens.adres,
-          postcode: bedrijfsgegevens.postcode,
-          plaats: bedrijfsgegevens.plaats,
-          kvk: bedrijfsgegevens.kvk || undefined,
-          btw: bedrijfsgegevens.btw || undefined,
-          iban: bedrijfsgegevens.iban || undefined,
-          email: bedrijfsgegevens.email || undefined,
-          telefoon: bedrijfsgegevens.telefoon || undefined,
-        },
-      });
-      toast.success("Bedrijfsgegevens opgeslagen");
-    } catch (error) {
-      toast.error("Fout bij opslaan bedrijfsgegevens");
-      console.error(error);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   const handleSaveTarieven = async () => {
     setIsSaving(true);
     try {
@@ -278,21 +218,6 @@ export default function InstellingenPage() {
       toast.success("Tarieven opgeslagen");
     } catch (error) {
       toast.error("Fout bij opslaan tarieven");
-      console.error(error);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleSaveOfferteSettings = async () => {
-    setIsSaving(true);
-    try {
-      await update({
-        offerteNummerPrefix: offerteSettings.offerteNummerPrefix,
-      });
-      toast.success("Offerte instellingen opgeslagen");
-    } catch (error) {
-      toast.error("Fout bij opslaan offerte instellingen");
       console.error(error);
     } finally {
       setIsSaving(false);
@@ -461,23 +386,15 @@ export default function InstellingenPage() {
             Instellingen
           </h1>
           <p className="text-muted-foreground">
-            Beheer je bedrijfsgegevens, tarieven, normuren en correctiefactoren
+            Beheer je tarieven, normuren en correctiefactoren
           </p>
         </div>
 
-        <Tabs defaultValue="bedrijf" className="space-y-4">
-          <TabsList className="flex-wrap">
-            <TabsTrigger value="bedrijf" className="flex items-center gap-2">
-              <Building2 className="h-4 w-4" />
-              Bedrijf
-            </TabsTrigger>
+        <Tabs defaultValue="tarieven" className="space-y-4">
+          <TabsList>
             <TabsTrigger value="tarieven" className="flex items-center gap-2">
               <Calculator className="h-4 w-4" />
               Tarieven
-            </TabsTrigger>
-            <TabsTrigger value="offerte" className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Offerte
             </TabsTrigger>
             <TabsTrigger value="normuren" className="flex items-center gap-2">
               <Clock className="h-4 w-4" />
@@ -488,145 +405,6 @@ export default function InstellingenPage() {
               Correctiefactoren
             </TabsTrigger>
           </TabsList>
-
-          {/* Bedrijfsgegevens Tab */}
-          <TabsContent value="bedrijf" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Bedrijfsgegevens</CardTitle>
-                <CardDescription>
-                  Deze gegevens worden gebruikt op je offertes en facturen
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="bedrijfsnaam">Bedrijfsnaam</Label>
-                    <Input
-                      id="bedrijfsnaam"
-                      placeholder="Top Tuinen B.V."
-                      value={bedrijfsgegevens.naam}
-                      onChange={(e) =>
-                        setBedrijfsgegevens({ ...bedrijfsgegevens, naam: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="kvk">KvK-nummer</Label>
-                    <Input
-                      id="kvk"
-                      placeholder="12345678"
-                      value={bedrijfsgegevens.kvk}
-                      onChange={(e) =>
-                        setBedrijfsgegevens({ ...bedrijfsgegevens, kvk: e.target.value })
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="adres">Adres</Label>
-                  <Input
-                    id="adres"
-                    placeholder="Hoofdstraat 1"
-                    value={bedrijfsgegevens.adres}
-                    onChange={(e) =>
-                      setBedrijfsgegevens({ ...bedrijfsgegevens, adres: e.target.value })
-                    }
-                  />
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="postcode">Postcode</Label>
-                    <Input
-                      id="postcode"
-                      placeholder="1234 AB"
-                      value={bedrijfsgegevens.postcode}
-                      onChange={(e) =>
-                        setBedrijfsgegevens({ ...bedrijfsgegevens, postcode: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="plaats">Plaats</Label>
-                    <Input
-                      id="plaats"
-                      placeholder="Amsterdam"
-                      value={bedrijfsgegevens.plaats}
-                      onChange={(e) =>
-                        setBedrijfsgegevens({ ...bedrijfsgegevens, plaats: e.target.value })
-                      }
-                    />
-                  </div>
-                </div>
-
-                <Separator />
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">E-mailadres</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="info@toptuinen.nl"
-                      value={bedrijfsgegevens.email}
-                      onChange={(e) =>
-                        setBedrijfsgegevens({ ...bedrijfsgegevens, email: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="telefoon">Telefoonnummer</Label>
-                    <Input
-                      id="telefoon"
-                      placeholder="020-1234567"
-                      value={bedrijfsgegevens.telefoon}
-                      onChange={(e) =>
-                        setBedrijfsgegevens({ ...bedrijfsgegevens, telefoon: e.target.value })
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="btwnummer">BTW-nummer</Label>
-                    <Input
-                      id="btwnummer"
-                      placeholder="NL123456789B01"
-                      value={bedrijfsgegevens.btw}
-                      onChange={(e) =>
-                        setBedrijfsgegevens({ ...bedrijfsgegevens, btw: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="iban">IBAN</Label>
-                    <Input
-                      id="iban"
-                      placeholder="NL12 ABCD 0123 4567 89"
-                      value={bedrijfsgegevens.iban}
-                      onChange={(e) =>
-                        setBedrijfsgegevens({ ...bedrijfsgegevens, iban: e.target.value })
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-end">
-                  <Button onClick={handleSaveBedrijfsgegevens} disabled={isSaving}>
-                    {isSaving ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Save className="mr-2 h-4 w-4" />
-                    )}
-                    Opslaan
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
 
           {/* Tarieven Tab */}
           <TabsContent value="tarieven" className="space-y-4">
@@ -715,62 +493,6 @@ export default function InstellingenPage() {
 
                 <div className="flex justify-end">
                   <Button onClick={handleSaveTarieven} disabled={isSaving}>
-                    {isSaving ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Save className="mr-2 h-4 w-4" />
-                    )}
-                    Opslaan
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Offerte Tab */}
-          <TabsContent value="offerte" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Offerte instellingen</CardTitle>
-                <CardDescription>
-                  Configureer offerte nummering en standaard teksten
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="prefix">Offertenummer prefix</Label>
-                    <Input
-                      id="prefix"
-                      placeholder="OFF-"
-                      value={offerteSettings.offerteNummerPrefix}
-                      onChange={(e) =>
-                        setOfferteSettings({
-                          ...offerteSettings,
-                          offerteNummerPrefix: e.target.value,
-                        })
-                      }
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Bijv. OFF-2026-001
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="startnummer">Volgend nummer</Label>
-                    <Input
-                      id="startnummer"
-                      type="number"
-                      value={(instellingen?.laatsteOfferteNummer || 0) + 1}
-                      disabled
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Automatisch verhoogd bij nieuwe offerte
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex justify-end">
-                  <Button onClick={handleSaveOfferteSettings} disabled={isSaving}>
                     {isSaving ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (

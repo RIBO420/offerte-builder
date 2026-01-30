@@ -313,7 +313,7 @@ export function AppSidebar() {
                   </div>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link href="/instellingen" className="cursor-pointer">
+                    <Link href="/profiel" className="cursor-pointer">
                       <User className="mr-2 h-4 w-4" />
                       Profiel
                     </Link>
