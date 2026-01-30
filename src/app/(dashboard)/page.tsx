@@ -29,7 +29,7 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { useOffertes } from "@/hooks/use-offertes";
+import { useDashboardData } from "@/hooks/use-offertes";
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("nl-NL", {
@@ -56,7 +56,7 @@ const statusColors: Record<string, string> = {
 
 export default function DashboardPage() {
   const { user, clerkUser, isLoading: isUserLoading } = useCurrentUser();
-  const { stats, recentOffertes, isLoading: isOffertesLoading } = useOffertes();
+  const { stats, recentOffertes, isLoading: isOffertesLoading } = useDashboardData();
 
   const isLoading = isUserLoading || isOffertesLoading;
 

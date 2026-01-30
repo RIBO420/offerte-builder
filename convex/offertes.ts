@@ -56,6 +56,73 @@ export const list = query({
   },
 });
 
+// List offertes with pagination
+export const listPaginated = query({
+  args: {
+    userId: v.id("users"),
+    limit: v.optional(v.number()),
+    cursor: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 25;
+
+    const result = await ctx.db
+      .query("offertes")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .order("desc")
+      .paginate({ numItems: limit, cursor: args.cursor ?? null });
+
+    return {
+      offertes: result.page,
+      nextCursor: result.continueCursor,
+      hasMore: !result.isDone,
+    };
+  },
+});
+
+// Combined dashboard query - reduces round trips
+export const getDashboardData = query({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    // Get all offertes in one query
+    const offertes = await ctx.db
+      .query("offertes")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .order("desc")
+      .collect();
+
+    // Calculate stats
+    const stats = {
+      totaal: offertes.length,
+      concept: 0,
+      definitief: 0,
+      verzonden: 0,
+      geaccepteerd: 0,
+      afgewezen: 0,
+      totaalWaarde: 0,
+      geaccepteerdWaarde: 0,
+    };
+
+    for (const offerte of offertes) {
+      stats[offerte.status as keyof typeof stats]++;
+      stats.totaalWaarde += offerte.totalen.totaalInclBtw;
+      if (offerte.status === "geaccepteerd") {
+        stats.geaccepteerdWaarde += offerte.totalen.totaalInclBtw;
+      }
+    }
+
+    // Get recent 5
+    const recent = offertes.slice(0, 5);
+
+    return {
+      stats,
+      recent,
+      // For backwards compatibility, also include a limited list
+      offertes: offertes.slice(0, 50),
+    };
+  },
+});
+
 // List offertes by status
 export const listByStatus = query({
   args: {

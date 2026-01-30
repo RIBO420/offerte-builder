@@ -78,3 +78,37 @@ export function useOfferte(id: Id<"offertes"> | null) {
     isLoading: id && offerte === undefined,
   };
 }
+
+// Optimized dashboard hook - single query for stats, recent, and limited list
+export function useDashboardData() {
+  const { user } = useCurrentUser();
+
+  const dashboardData = useQuery(
+    api.offertes.getDashboardData,
+    user?._id ? { userId: user._id } : "skip"
+  );
+
+  return {
+    stats: dashboardData?.stats,
+    recentOffertes: dashboardData?.recent ?? [],
+    offertes: dashboardData?.offertes ?? [],
+    isLoading: user && dashboardData === undefined,
+  };
+}
+
+// Paginated offertes hook
+export function useOffertesPaginated(limit: number = 25) {
+  const { user } = useCurrentUser();
+
+  const data = useQuery(
+    api.offertes.listPaginated,
+    user?._id ? { userId: user._id, limit } : "skip"
+  );
+
+  return {
+    offertes: data?.offertes ?? [],
+    nextCursor: data?.nextCursor,
+    hasMore: data?.hasMore ?? false,
+    isLoading: user && data === undefined,
+  };
+}
