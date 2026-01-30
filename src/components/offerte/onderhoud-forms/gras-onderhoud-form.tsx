@@ -219,13 +219,13 @@ export function GrasOnderhoudForm({ data, onChange, onValidationChange }: GrasOn
                     <div className="font-medium mb-1">Indicatie per beurt:</div>
                     <ul className="list-disc list-inside space-y-1">
                       {watchedValues.maaien && (
-                        <li>Maaien: ~{(watchedValues.grasOppervlakte * 0.02).toFixed(1)} uur</li>
+                        <li>Maaien: ~{(Math.round(watchedValues.grasOppervlakte * 0.02 * 4) / 4).toFixed(2)} uur</li>
                       )}
                       {watchedValues.kantenSteken && (
-                        <li>Kanten steken: ~{(Math.sqrt(watchedValues.grasOppervlakte) * 4 * 0.01).toFixed(1)} uur</li>
+                        <li>Kanten steken: ~{(Math.round(Math.sqrt(watchedValues.grasOppervlakte) * 4 * 0.01 * 4) / 4).toFixed(2)} uur</li>
                       )}
                       {watchedValues.verticuteren && (
-                        <li>Verticuteren: ~{(watchedValues.grasOppervlakte * 0.03).toFixed(1)} uur</li>
+                        <li>Verticuteren: ~{(Math.round(watchedValues.grasOppervlakte * 0.03 * 4) / 4).toFixed(2)} uur</li>
                       )}
                     </ul>
                   </div>

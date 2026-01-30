@@ -15,9 +15,11 @@ import type * as emailLogs from "../emailLogs.js";
 import type * as instellingen from "../instellingen.js";
 import type * as klanten from "../klanten.js";
 import type * as normuren from "../normuren.js";
+import type * as offerteMessages from "../offerteMessages.js";
 import type * as offerteVersions from "../offerteVersions.js";
 import type * as offertes from "../offertes.js";
 import type * as producten from "../producten.js";
+import type * as publicOffertes from "../publicOffertes.js";
 import type * as standaardtuinen from "../standaardtuinen.js";
 import type * as users from "../users.js";
 
@@ -35,9 +37,11 @@ declare const fullApi: ApiFromModules<{
   instellingen: typeof instellingen;
   klanten: typeof klanten;
   normuren: typeof normuren;
+  offerteMessages: typeof offerteMessages;
   offerteVersions: typeof offerteVersions;
   offertes: typeof offertes;
   producten: typeof producten;
+  publicOffertes: typeof publicOffertes;
   standaardtuinen: typeof standaardtuinen;
   users: typeof users;
 }>;

@@ -20,6 +20,8 @@ interface NumberInputProps
   suffix?: string;
   error?: boolean;
   onBlur?: () => void;
+  /** If true, rounds the value to the nearest step on blur */
+  roundToStep?: boolean;
 }
 
 function useDebounce<T>(value: T, delay: number): T {
@@ -55,6 +57,7 @@ const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
       disabled,
       error,
       onBlur: onBlurProp,
+      roundToStep = false,
       ...props
     },
     ref
@@ -105,9 +108,13 @@ const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
         onChange(min);
       } else {
         const clamped = Math.max(min, Math.min(max, parsed));
-        const rounded = Number(clamped.toFixed(decimals));
-        setInternalValue(rounded.toString());
-        onChange(rounded);
+        // Round to nearest step if roundToStep is enabled, otherwise round to decimals
+        const rounded = roundToStep
+          ? Math.round(clamped / step) * step
+          : Number(clamped.toFixed(decimals));
+        const finalValue = Number(rounded.toFixed(decimals));
+        setInternalValue(finalValue.toString());
+        onChange(finalValue);
       }
       onBlurProp?.();
     };
@@ -242,9 +249,9 @@ QuantityInput.displayName = "QuantityInput";
 
 const HoursInput = React.forwardRef<
   HTMLInputElement,
-  VariantInputProps<"suffix" | "decimals" | "step">
+  VariantInputProps<"suffix" | "decimals" | "step" | "roundToStep">
 >((props, ref) => (
-  <NumberInput ref={ref} suffix="uur" decimals={1} step={0.25} {...props} />
+  <NumberInput ref={ref} suffix="uur" decimals={2} step={0.25} roundToStep {...props} />
 ));
 
 HoursInput.displayName = "HoursInput";

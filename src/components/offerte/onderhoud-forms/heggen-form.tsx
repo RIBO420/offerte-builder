@@ -246,10 +246,10 @@ export function HeggenForm({ data, onChange, onValidationChange }: HeggenFormPro
                 <div className="font-medium mb-1">Indicatie per beurt:</div>
                 <ul className="list-disc list-inside space-y-1">
                   <li>
-                    Snoeitijd: ~{(volume * (
+                    Snoeitijd: ~{(Math.round(volume * (
                       watchedValues.snoei === "beide" ? 0.5 :
                       watchedValues.snoei === "zijkanten" ? 0.35 : 0.25
-                    ) * (watchedValues.hoogte > 2 ? 1.3 : 1.0)).toFixed(1)} uur
+                    ) * (watchedValues.hoogte > 2 ? 1.3 : 1.0) * 4) / 4).toFixed(2)} uur
                   </li>
                   {watchedValues.afvoerSnoeisel && (
                     <li>

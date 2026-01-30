@@ -110,10 +110,29 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
     verzondenAt: v.optional(v.number()),
+
+    // Public sharing
+    shareToken: v.optional(v.string()),
+    shareExpiresAt: v.optional(v.number()),
+    customerResponse: v.optional(
+      v.object({
+        status: v.union(
+          v.literal("bekeken"),
+          v.literal("geaccepteerd"),
+          v.literal("afgewezen")
+        ),
+        comment: v.optional(v.string()),
+        respondedAt: v.number(),
+        viewedAt: v.optional(v.number()),
+        signature: v.optional(v.string()), // Base64 signature image
+        signedAt: v.optional(v.number()),
+      })
+    ),
   })
     .index("by_user", ["userId"])
     .index("by_status", ["status"])
-    .index("by_nummer", ["offerteNummer"]),
+    .index("by_nummer", ["offerteNummer"])
+    .index("by_share_token", ["shareToken"]),
 
   // Prijsboek
   producten: defineTable({
@@ -185,6 +204,17 @@ export default defineSchema({
     scopes: v.array(v.string()),
     defaultWaarden: v.any(), // Pre-filled scope data
   }).index("by_user", ["userId"]),
+
+  // Offerte messages (chat between business and customer)
+  offerte_messages: defineTable({
+    offerteId: v.id("offertes"),
+    sender: v.union(v.literal("bedrijf"), v.literal("klant")),
+    message: v.string(),
+    isRead: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_offerte", ["offerteId"])
+    .index("by_offerte_unread", ["offerteId", "isRead"]),
 
   // Email logs
   email_logs: defineTable({

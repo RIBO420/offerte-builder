@@ -251,14 +251,14 @@ export function BordersOnderhoudForm({ data, onChange, onValidationChange }: Bor
                 <div className="font-medium mb-1">Indicatie per beurt:</div>
                 <ul className="list-disc list-inside space-y-1">
                   <li>
-                    Onderhoud: ~{(watchedValues.borderOppervlakte * (
+                    Onderhoud: ~{(Math.round(watchedValues.borderOppervlakte * (
                       watchedValues.onderhoudsintensiteit === "weinig" ? 0.05 :
                       watchedValues.onderhoudsintensiteit === "gemiddeld" ? 0.08 : 0.12
-                    ) * (watchedValues.bodem === "open" ? 1.3 : 1.0)).toFixed(1)} uur
+                    ) * (watchedValues.bodem === "open" ? 1.3 : 1.0) * 4) / 4).toFixed(2)} uur
                   </li>
                   {watchedValues.snoeiInBorders !== "geen" && (
                     <li>
-                      Snoei: ~{(watchedValues.borderOppervlakte * (watchedValues.snoeiInBorders === "licht" ? 0.02 : 0.05)).toFixed(1)} uur
+                      Snoei: ~{(Math.round(watchedValues.borderOppervlakte * (watchedValues.snoeiInBorders === "licht" ? 0.02 : 0.05) * 4) / 4).toFixed(2)} uur
                     </li>
                   )}
                 </ul>

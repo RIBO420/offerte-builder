@@ -116,6 +116,11 @@ function generateId(): string {
   return `regel_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 }
 
+// Round hours to nearest quarter (kwartier = 0.25)
+function roundToQuarter(hours: number): number {
+  return Math.round(hours * 4) / 4;
+}
+
 // Calculate labor hours and apply corrections
 function calculateLaborHours(
   baseHours: number,
@@ -133,14 +138,15 @@ function createArbeidsRegel(
   uren: number,
   uurtarief: number
 ): OfferteRegel {
+  const roundedUren = roundToQuarter(uren);
   return {
     id: generateId(),
     scope,
     omschrijving,
     eenheid: "uur",
-    hoeveelheid: Math.round(uren * 100) / 100,
+    hoeveelheid: roundedUren,
     prijsPerEenheid: uurtarief,
-    totaal: Math.round(uren * uurtarief * 100) / 100,
+    totaal: Math.round(roundedUren * uurtarief * 100) / 100,
     type: "arbeid",
   };
 }
@@ -174,14 +180,15 @@ function createMachineRegel(
   uren: number,
   prijsPerUur: number
 ): OfferteRegel {
+  const roundedUren = roundToQuarter(uren);
   return {
     id: generateId(),
     scope,
     omschrijving,
     eenheid: "uur",
-    hoeveelheid: Math.round(uren * 100) / 100,
+    hoeveelheid: roundedUren,
     prijsPerEenheid: prijsPerUur,
-    totaal: Math.round(uren * prijsPerUur * 100) / 100,
+    totaal: Math.round(roundedUren * prijsPerUur * 100) / 100,
     type: "machine",
   };
 }
@@ -1022,7 +1029,7 @@ export function calculateTotals(
   return {
     materiaalkosten: Math.round(materiaalkosten * 100) / 100,
     arbeidskosten: Math.round(arbeidskosten * 100) / 100,
-    totaalUren: Math.round(totaalUren * 100) / 100,
+    totaalUren: roundToQuarter(totaalUren),
     subtotaal: Math.round(subtotaal * 100) / 100,
     marge: Math.round(marge * 100) / 100,
     margePercentage,

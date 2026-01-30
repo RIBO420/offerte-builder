@@ -14,6 +14,11 @@ interface OfferteRegel {
   type: "materiaal" | "arbeid" | "machine";
 }
 
+// Round hours to nearest quarter (kwartier = 0.25)
+function roundToQuarter(hours: number): number {
+  return Math.round(hours * 4) / 4;
+}
+
 // Get correction factor value
 export const getCorrectie = query({
   args: {
@@ -111,29 +116,31 @@ export const berekenGrondwerk = action({
     const urenOntgraven = data.oppervlakte * normuurOntgraven * bereikbaarheidFactor * diepteFactor;
     const kostenOntgraven = urenOntgraven * uurtarief;
 
+    const roundedUrenOntgraven = roundToQuarter(urenOntgraven);
     regels.push({
       id: `grondwerk-ontgraven-${Date.now()}`,
       scope: "grondwerk",
       omschrijving: `Ontgraven (${data.diepte})`,
       eenheid: "uur",
-      hoeveelheid: Math.round(urenOntgraven * 100) / 100,
+      hoeveelheid: roundedUrenOntgraven,
       prijsPerEenheid: uurtarief,
-      totaal: Math.round(kostenOntgraven * 100) / 100,
+      totaal: Math.round(roundedUrenOntgraven * uurtarief * 100) / 100,
       type: "arbeid",
     });
 
     // Machine uren (bij grotere oppervlaktes)
     if (data.oppervlakte > 20) {
       const machineUren = data.oppervlakte * 0.05 * diepteFactor;
+      const roundedMachineUren = roundToQuarter(machineUren);
       const machineTarief = 75; // Standaard machine tarief
       regels.push({
         id: `grondwerk-machine-${Date.now()}`,
         scope: "grondwerk",
         omschrijving: "Machine-uren minigraver",
         eenheid: "uur",
-        hoeveelheid: Math.round(machineUren * 100) / 100,
+        hoeveelheid: roundedMachineUren,
         prijsPerEenheid: machineTarief,
-        totaal: Math.round(machineUren * machineTarief * 100) / 100,
+        totaal: Math.round(roundedMachineUren * machineTarief * 100) / 100,
         type: "machine",
       });
     }
@@ -151,15 +158,16 @@ export const berekenGrondwerk = action({
       });
 
       const urenAfvoer = volume * normuurAfvoer * bereikbaarheidFactor;
+      const roundedUrenAfvoer = roundToQuarter(urenAfvoer);
 
       regels.push({
         id: `grondwerk-afvoer-arbeid-${Date.now()}`,
         scope: "grondwerk",
         omschrijving: "Grond laden voor afvoer",
         eenheid: "uur",
-        hoeveelheid: Math.round(urenAfvoer * 100) / 100,
+        hoeveelheid: roundedUrenAfvoer,
         prijsPerEenheid: uurtarief,
-        totaal: Math.round(urenAfvoer * uurtarief * 100) / 100,
+        totaal: Math.round(roundedUrenAfvoer * uurtarief * 100) / 100,
         type: "arbeid",
       });
 
@@ -254,14 +262,15 @@ export const berekenBestrating = action({
     });
 
     const urenOnderbouw = data.oppervlakte * normuurZand * bereikbaarheidFactor;
+    const roundedUrenOnderbouw = roundToQuarter(urenOnderbouw);
     regels.push({
       id: `bestrating-onderbouw-arbeid-${Date.now()}`,
       scope: "bestrating",
       omschrijving: "Aanbrengen onderbouw",
       eenheid: "uur",
-      hoeveelheid: Math.round(urenOnderbouw * 100) / 100,
+      hoeveelheid: roundedUrenOnderbouw,
       prijsPerEenheid: uurtarief,
-      totaal: Math.round(urenOnderbouw * uurtarief * 100) / 100,
+      totaal: Math.round(roundedUrenOnderbouw * uurtarief * 100) / 100,
       type: "arbeid",
     });
 
@@ -288,14 +297,15 @@ export const berekenBestrating = action({
       });
 
       const urenOpsluit = omtrek * normuurOpsluit * bereikbaarheidFactor;
+      const roundedUrenOpsluit = roundToQuarter(urenOpsluit);
       regels.push({
         id: `bestrating-opsluitbanden-arbeid-${Date.now()}`,
         scope: "bestrating",
         omschrijving: "Plaatsen opsluitbanden",
         eenheid: "uur",
-        hoeveelheid: Math.round(urenOpsluit * 100) / 100,
+        hoeveelheid: roundedUrenOpsluit,
         prijsPerEenheid: uurtarief,
-        totaal: Math.round(urenOpsluit * uurtarief * 100) / 100,
+        totaal: Math.round(roundedUrenOpsluit * uurtarief * 100) / 100,
         type: "arbeid",
       });
     }
@@ -309,14 +319,15 @@ export const berekenBestrating = action({
     });
 
     const urenLeggen = data.oppervlakte * normuurLeggen * bereikbaarheidFactor * snijwerkFactor;
+    const roundedUrenLeggen = roundToQuarter(urenLeggen);
     regels.push({
       id: `bestrating-leggen-${Date.now()}`,
       scope: "bestrating",
       omschrijving: `Leggen ${data.typeBestrating} (snijwerk: ${data.snijwerk})`,
       eenheid: "uur",
-      hoeveelheid: Math.round(urenLeggen * 100) / 100,
+      hoeveelheid: roundedUrenLeggen,
       prijsPerEenheid: uurtarief,
-      totaal: Math.round(urenLeggen * uurtarief * 100) / 100,
+      totaal: Math.round(roundedUrenLeggen * uurtarief * 100) / 100,
       type: "arbeid",
     });
 
@@ -383,15 +394,16 @@ export const berekenHeggenOnderhoud = action({
     });
 
     const urenSnoeien = volume * normuurSnoeien * bereikbaarheidFactor * achterstalligFactor * snoeiFactor * hoogteFactor;
+    const roundedUrenSnoeien = roundToQuarter(urenSnoeien);
 
     regels.push({
       id: `heggen-snoeien-${Date.now()}`,
       scope: "heggen",
       omschrijving: `Heg snoeien ${data.lengte}m × ${data.hoogte}m × ${data.breedte}m (${data.snoei})`,
       eenheid: "uur",
-      hoeveelheid: Math.round(urenSnoeien * 100) / 100,
+      hoeveelheid: roundedUrenSnoeien,
       prijsPerEenheid: uurtarief,
-      totaal: Math.round(urenSnoeien * uurtarief * 100) / 100,
+      totaal: Math.round(roundedUrenSnoeien * uurtarief * 100) / 100,
       type: "arbeid",
     });
 
@@ -407,15 +419,16 @@ export const berekenHeggenOnderhoud = action({
       });
 
       const urenAfvoer = snoeiselVolume * normuurAfvoer * bereikbaarheidFactor;
+      const roundedUrenAfvoerHeggen = roundToQuarter(urenAfvoer);
 
       regels.push({
         id: `heggen-afvoer-arbeid-${Date.now()}`,
         scope: "heggen",
         omschrijving: "Snoeisel verzamelen en laden",
         eenheid: "uur",
-        hoeveelheid: Math.round(urenAfvoer * 100) / 100,
+        hoeveelheid: roundedUrenAfvoerHeggen,
         prijsPerEenheid: uurtarief,
-        totaal: Math.round(urenAfvoer * uurtarief * 100) / 100,
+        totaal: Math.round(roundedUrenAfvoerHeggen * uurtarief * 100) / 100,
         type: "arbeid",
       });
 
@@ -490,15 +503,16 @@ export const berekenBordersOnderhoud = action({
       });
 
       const urenWieden = data.borderOppervlakte * normuurWieden * bereikbaarheidFactor * achterstalligFactor * bodemFactor;
+      const roundedUrenWieden = roundToQuarter(urenWieden);
 
       regels.push({
         id: `borders-wieden-${Date.now()}`,
         scope: "borders",
         omschrijving: `Onkruid verwijderen (intensiteit: ${data.onderhoudsintensiteit})`,
         eenheid: "uur",
-        hoeveelheid: Math.round(urenWieden * 100) / 100,
+        hoeveelheid: roundedUrenWieden,
         prijsPerEenheid: uurtarief,
-        totaal: Math.round(urenWieden * uurtarief * 100) / 100,
+        totaal: Math.round(roundedUrenWieden * uurtarief * 100) / 100,
         type: "arbeid",
       });
     }
@@ -513,15 +527,16 @@ export const berekenBordersOnderhoud = action({
       });
 
       const urenSnoei = data.borderOppervlakte * normuurSnoei * bereikbaarheidFactor * intensiteitFactor;
+      const roundedUrenSnoei = roundToQuarter(urenSnoei);
 
       regels.push({
         id: `borders-snoei-${Date.now()}`,
         scope: "borders",
         omschrijving: `Snoeiwerk in borders (${data.snoeiInBorders})`,
         eenheid: "uur",
-        hoeveelheid: Math.round(urenSnoei * 100) / 100,
+        hoeveelheid: roundedUrenSnoei,
         prijsPerEenheid: uurtarief,
-        totaal: Math.round(urenSnoei * uurtarief * 100) / 100,
+        totaal: Math.round(roundedUrenSnoei * uurtarief * 100) / 100,
         type: "arbeid",
       });
     }

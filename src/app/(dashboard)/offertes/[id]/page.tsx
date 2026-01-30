@@ -67,9 +67,14 @@ import {
   Trash2,
   BookmarkPlus,
   History,
+  Link2,
+  Eye,
+  MessageSquare,
 } from "lucide-react";
 import { SaveAsTemplateDialog } from "@/components/offerte/save-as-template-dialog";
 import { SendEmailDialog } from "@/components/offerte/send-email-dialog";
+import { ShareOfferteDialog } from "@/components/offerte/share-offerte-dialog";
+import { OfferteChat } from "@/components/offerte/offerte-chat";
 import { useOfferte, useOffertes } from "@/hooks/use-offertes";
 import { useEmailLogs } from "@/hooks/use-email";
 import { useInstellingen } from "@/hooks/use-instellingen";
@@ -125,6 +130,7 @@ export default function OfferteDetailPage({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [showEmailDialog, setShowEmailDialog] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
 
   const handleStatusChange = async (
@@ -365,6 +371,14 @@ export default function OfferteDetailPage({
               Email
             </Button>
 
+            <Button
+              variant="outline"
+              onClick={() => setShowShareDialog(true)}
+            >
+              <Link2 className="mr-2 h-4 w-4" />
+              Delen
+            </Button>
+
             <PDFDownloadButton
               offerte={offerte}
               bedrijfsgegevens={instellingen?.bedrijfsgegevens}
@@ -575,6 +589,11 @@ export default function OfferteDetailPage({
                 </CardContent>
               </Card>
             )}
+
+            {/* Chat with customer */}
+            {offerte.shareToken && (
+              <OfferteChat offerteId={offerte._id} klantNaam={offerte.klant.naam} />
+            )}
           </div>
 
           {/* Right column - Totals */}
@@ -658,6 +677,30 @@ export default function OfferteDetailPage({
                     </div>
                   </>
                 )}
+                {offerte.customerResponse && (
+                  <>
+                    <Separator />
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground flex items-center gap-1">
+                        <Eye className="h-3.5 w-3.5" />
+                        Klant bekeken
+                      </span>
+                      <span>
+                        {offerte.customerResponse.viewedAt
+                          ? formatDate(offerte.customerResponse.viewedAt)
+                          : "Ja"}
+                      </span>
+                    </div>
+                    {offerte.customerResponse.comment && (
+                      <div className="flex items-start gap-2 text-sm bg-muted/50 p-2 rounded mt-2">
+                        <MessageSquare className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
+                        <span className="text-muted-foreground">
+                          &quot;{offerte.customerResponse.comment}&quot;
+                        </span>
+                      </div>
+                    )}
+                  </>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -711,6 +754,19 @@ export default function OfferteDetailPage({
           totalen: offerte.totalen,
         }}
         bedrijfsgegevens={instellingen?.bedrijfsgegevens}
+      />
+
+      {/* Share offerte dialog */}
+      <ShareOfferteDialog
+        open={showShareDialog}
+        onOpenChange={setShowShareDialog}
+        offerte={{
+          _id: offerte._id,
+          offerteNummer: offerte.offerteNummer,
+          shareToken: offerte.shareToken,
+          shareExpiresAt: offerte.shareExpiresAt,
+          customerResponse: offerte.customerResponse,
+        }}
       />
     </>
   );

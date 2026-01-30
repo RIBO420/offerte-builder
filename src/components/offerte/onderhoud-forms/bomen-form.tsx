@@ -193,12 +193,12 @@ export function BomenForm({ data, onChange, onValidationChange }: BomenFormProps
                 <div className="font-medium mb-1">Indicatie per beurt:</div>
                 <ul className="list-disc list-inside space-y-1">
                   <li>
-                    Snoeitijd: ~{(watchedValues.aantalBomen * (
+                    Snoeitijd: ~{(Math.round(watchedValues.aantalBomen * (
                       watchedValues.snoei === "zwaar" ? 1.5 : 0.75
                     ) * (
                       watchedValues.hoogteklasse === "hoog" ? 2.0 :
                       watchedValues.hoogteklasse === "middel" ? 1.3 : 1.0
-                    )).toFixed(1)} uur
+                    ) * 4) / 4).toFixed(2)} uur
                   </li>
                   {watchedValues.afvoer && (
                     <li>

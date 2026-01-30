@@ -447,6 +447,25 @@ export const updateStatus = mutation({
       updates.verzondenAt = now;
     }
 
+    // Reset customerResponse when status changes away from geaccepteerd/afgewezen
+    // This ensures the customer portal shows the correct status
+    if (
+      (oldOfferte.customerResponse?.status === "geaccepteerd" ||
+        oldOfferte.customerResponse?.status === "afgewezen") &&
+      args.status !== "geaccepteerd" &&
+      args.status !== "afgewezen"
+    ) {
+      // Keep the view history but reset the response status to "bekeken"
+      updates.customerResponse = oldOfferte.customerResponse
+        ? {
+            status: "bekeken",
+            viewedAt: oldOfferte.customerResponse.viewedAt,
+            respondedAt: now,
+            // Clear signature when resetting
+          }
+        : undefined;
+    }
+
     await ctx.db.patch(args.id, updates);
 
     // Create version snapshot for status change

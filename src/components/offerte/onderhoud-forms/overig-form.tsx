@@ -307,13 +307,13 @@ export function OverigForm({ data, onChange, onValidationChange }: OverigFormPro
                     <li>Bladruimen: afhankelijk van tuingrootte en seizoen</li>
                   )}
                   {watchedValues.terrasReinigen && watchedValues.terrasOppervlakte && watchedValues.terrasOppervlakte > 0 && (
-                    <li>Terras reinigen: ~{(watchedValues.terrasOppervlakte * 0.05).toFixed(1)} uur</li>
+                    <li>Terras reinigen: ~{(Math.round(watchedValues.terrasOppervlakte * 0.05 * 4) / 4).toFixed(2)} uur</li>
                   )}
                   {watchedValues.onkruidBestrating && watchedValues.bestratingOppervlakte && watchedValues.bestratingOppervlakte > 0 && (
-                    <li>Onkruid bestrating: ~{(watchedValues.bestratingOppervlakte * 0.03).toFixed(1)} uur</li>
+                    <li>Onkruid bestrating: ~{(Math.round(watchedValues.bestratingOppervlakte * 0.03 * 4) / 4).toFixed(2)} uur</li>
                   )}
                   {watchedValues.afwateringControleren && watchedValues.aantalAfwateringspunten && watchedValues.aantalAfwateringspunten > 0 && (
-                    <li>Afwatering: ~{(0.25 + watchedValues.aantalAfwateringspunten * 0.1).toFixed(2)} uur</li>
+                    <li>Afwatering: ~{(Math.round((0.25 + watchedValues.aantalAfwateringspunten * 0.1) * 4) / 4).toFixed(2)} uur</li>
                   )}
                   {watchedValues.overigUren && watchedValues.overigUren > 0 && (
                     <li>Overig: {watchedValues.overigUren} uur</li>
