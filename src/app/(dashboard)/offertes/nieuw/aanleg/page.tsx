@@ -270,33 +270,33 @@ export default function NieuweAanlegOffertePage() {
   // Extract data from wizard state for easier access
   const { selectedTemplateId, selectedKlantId, selectedScopes, bereikbaarheid, klantData, scopeData } = wizardData;
 
-  // Helper functions to update wizard data
+  // Helper functions to update wizard data - using functional updates to prevent stale state
   const setSelectedTemplateId = (id: string | null) => {
-    setWizardData({ ...wizardData, selectedTemplateId: id });
+    setWizardData((prev) => ({ ...prev, selectedTemplateId: id }));
   };
 
   const setSelectedKlantId = (id: string | null) => {
-    setWizardData({ ...wizardData, selectedKlantId: id });
+    setWizardData((prev) => ({ ...prev, selectedKlantId: id }));
   };
 
   const setSelectedScopes = (scopes: AanlegScope[] | ((prev: AanlegScope[]) => AanlegScope[])) => {
     if (typeof scopes === "function") {
-      setWizardData({ ...wizardData, selectedScopes: scopes(wizardData.selectedScopes) });
+      setWizardData((prev) => ({ ...prev, selectedScopes: scopes(prev.selectedScopes) }));
     } else {
-      setWizardData({ ...wizardData, selectedScopes: scopes });
+      setWizardData((prev) => ({ ...prev, selectedScopes: scopes }));
     }
   };
 
   const setBereikbaarheid = (value: Bereikbaarheid) => {
-    setWizardData({ ...wizardData, bereikbaarheid: value });
+    setWizardData((prev) => ({ ...prev, bereikbaarheid: value }));
   };
 
   const setKlantData = (data: typeof klantData) => {
-    setWizardData({ ...wizardData, klantData: data });
+    setWizardData((prev) => ({ ...prev, klantData: data }));
   };
 
   const setScopeData = (data: ScopeData) => {
-    setWizardData({ ...wizardData, scopeData: data });
+    setWizardData((prev) => ({ ...prev, scopeData: data }));
   };
 
   const isLoading = isUserLoading || isSettingsLoading;

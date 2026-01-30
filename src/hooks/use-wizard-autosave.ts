@@ -20,7 +20,7 @@ interface UseWizardAutosaveOptions<T> {
 interface UseWizardAutosaveReturn<T> {
   data: T;
   step: number;
-  setData: (data: T) => void;
+  setData: (data: T | ((prev: T) => T)) => void;
   setStep: (step: number) => void;
   hasDraft: boolean;
   draftAge: string | null;
@@ -120,8 +120,12 @@ export function useWizardAutosave<T>({
     }
   }, [data, step, storageKey, type, initialized, showRestoreDialog, initialData, initialStep]);
 
-  const setData = useCallback((newData: T) => {
-    setDataState(newData);
+  const setData = useCallback((newData: T | ((prev: T) => T)) => {
+    if (typeof newData === "function") {
+      setDataState((prev) => (newData as (prev: T) => T)(prev));
+    } else {
+      setDataState(newData);
+    }
   }, []);
 
   const setStep = useCallback((newStep: number) => {
