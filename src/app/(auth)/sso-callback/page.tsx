@@ -22,10 +22,10 @@ export default function SSOCallbackPage() {
             Je wordt ingelogd...
           </p>
           <AuthenticateWithRedirectCallback
-            signInFallbackRedirectUrl="/"
-            signUpFallbackRedirectUrl="/"
-            signInForceRedirectUrl="/"
-            signUpForceRedirectUrl="/"
+            signInFallbackRedirectUrl="/dashboard"
+            signUpFallbackRedirectUrl="/dashboard"
+            signInForceRedirectUrl="/dashboard"
+            signUpForceRedirectUrl="/dashboard"
           />
         </CardContent>
       </Card>

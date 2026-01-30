@@ -25,10 +25,10 @@ export default function SignUpPage() {
 
   const [password, setPassword] = useState("");
 
-  // Redirect to home if user is already signed in
+  // Redirect to dashboard if user is already signed in
   useEffect(() => {
     if (isSignedIn) {
-      router.replace("/");
+      router.replace("/dashboard");
     }
   }, [isSignedIn, router]);
 
@@ -89,7 +89,7 @@ export default function SignUpPage() {
 
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
-        router.push("/");
+        router.push("/dashboard");
       } else {
         setError("Verificatie niet voltooid. Probeer het opnieuw.");
       }
@@ -111,7 +111,7 @@ export default function SignUpPage() {
       await signUp.authenticateWithRedirect({
         strategy: "oauth_google",
         redirectUrl: "/sso-callback",
-        redirectUrlComplete: "/",
+        redirectUrlComplete: "/dashboard",
       });
     } catch (err: unknown) {
       const clerkError = err as { errors?: Array<{ message: string }> };

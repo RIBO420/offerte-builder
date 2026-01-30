@@ -1,9 +1,13 @@
 "use client";
 
+import { useEffect } from "react";
+import { useAuth } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { DemoCalculator } from "@/components/landing/demo-calculator";
 import {
   Shovel,
   Trees,
@@ -23,6 +27,7 @@ import {
   Building2,
   Users,
   Clock,
+  Loader2,
 } from "lucide-react";
 
 // Animation variants
@@ -169,6 +174,34 @@ const stats = [
 ];
 
 export default function LandingPage() {
+  const { isSignedIn, isLoaded } = useAuth();
+  const router = useRouter();
+
+  // Redirect authenticated users to the dashboard
+  useEffect(() => {
+    if (isLoaded && isSignedIn) {
+      router.replace("/dashboard");
+    }
+  }, [isLoaded, isSignedIn, router]);
+
+  // Show loading while checking auth
+  if (!isLoaded) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  // If signed in, show loading while redirecting
+  if (isSignedIn) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
@@ -309,6 +342,57 @@ export default function LandingPage() {
               ))}
             </motion.div>
           </div>
+        </div>
+      </section>
+
+      {/* Interactive Demo Calculator */}
+      <section id="probeer-het-zelf" className="py-20 bg-muted/30">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="text-center mb-12"
+          >
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              Zelf ervaren hoe snel het werkt
+            </h2>
+            <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
+              Geen verplichtingen. Bereken direct een indicatie voor je project.
+            </p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+          >
+            <DemoCalculator />
+          </motion.div>
+
+          {/* Trust badges onder calculator */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            className="mt-8 flex flex-wrap items-center justify-center gap-6 text-xs text-muted-foreground"
+          >
+            <div className="flex items-center gap-1.5">
+              <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
+              <span>Geen creditcard nodig</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
+              <span>14 dagen gratis proberen</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
+              <span>Altijd annuleren</span>
+            </div>
+          </motion.div>
         </div>
       </section>
 

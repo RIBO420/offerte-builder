@@ -27,10 +27,10 @@ export default function SignInPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-  // Redirect to home if user is already signed in
+  // Redirect to dashboard if user is already signed in
   useEffect(() => {
     if (isSignedIn) {
-      router.replace("/");
+      router.replace("/dashboard");
     }
   }, [isSignedIn, router]);
 
@@ -58,7 +58,7 @@ export default function SignInPage() {
 
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
-        router.push("/");
+        router.push("/dashboard");
       } else {
         setError("Er is iets misgegaan. Probeer het opnieuw.");
       }
@@ -80,7 +80,7 @@ export default function SignInPage() {
       await signIn.authenticateWithRedirect({
         strategy: "oauth_google",
         redirectUrl: "/sso-callback",
-        redirectUrlComplete: "/",
+        redirectUrlComplete: "/dashboard",
       });
     } catch (err: unknown) {
       const clerkError = err as { errors?: Array<{ message: string }> };
