@@ -6,7 +6,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 // Dashboard Stats Skeleton
 export function DashboardStatsSkeleton() {
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div
+      role="status"
+      aria-busy="true"
+      aria-label="Dashboard statistieken laden"
+      className="grid gap-4 md:grid-cols-2 lg:grid-cols-4"
+    >
       {Array.from({ length: 4 }).map((_, i) => (
         <Card key={i}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -39,7 +44,8 @@ export function TableRowSkeleton({ columns = 8 }: { columns?: number }) {
 // Offertes Table Skeleton
 export function OffertesTableSkeleton({ rows = 5 }: { rows?: number }) {
   return (
-    <Card>
+    <Card role="status" aria-busy="true" aria-label="Offertes tabel laden">
+      <span className="sr-only">Offertes worden geladen...</span>
       <div className="overflow-hidden">
         <table className="w-full">
           <thead>
@@ -95,7 +101,7 @@ export function DashboardCardSkeleton() {
 // Offerte Detail Skeleton
 export function OfferteDetailSkeleton() {
   return (
-    <div className="space-y-6">
+    <div role="status" aria-busy="true" aria-label="Offerte details laden" className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
         <Skeleton className="h-10 w-10 rounded-lg" />
@@ -217,7 +223,7 @@ export function RecentOffertesListSkeleton({ count = 5 }: { count?: number }) {
 // Analytics/Rapportages Skeleton
 export function AnalyticsSkeleton() {
   return (
-    <div className="space-y-6">
+    <div role="status" aria-busy="true" aria-label="Rapportages laden" className="space-y-6">
       {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
@@ -275,7 +281,7 @@ export function AnalyticsSkeleton() {
 // Offerte History Skeleton
 export function OfferteHistorySkeleton() {
   return (
-    <div className="space-y-6">
+    <div role="status" aria-busy="true" aria-label="Versiegeschiedenis laden" className="space-y-6">
       {/* Version Timeline */}
       <Card>
         <CardHeader>

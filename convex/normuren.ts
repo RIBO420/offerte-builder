@@ -1,45 +1,54 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { requireAuthUserId } from "./auth";
 
-// List all normuren for user
+// List all normuren for authenticated user
 export const list = query({
-  args: { userId: v.id("users") },
-  handler: async (ctx, args) => {
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireAuthUserId(ctx);
     return await ctx.db
       .query("normuren")
-      .withIndex("by_user_scope", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user_scope", (q) => q.eq("userId", userId))
       .collect();
   },
 });
 
-// List normuren by scope
+// List normuren by scope for authenticated user
 export const listByScope = query({
   args: {
-    userId: v.id("users"),
     scope: v.string(),
   },
   handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
     return await ctx.db
       .query("normuren")
       .withIndex("by_user_scope", (q) =>
-        q.eq("userId", args.userId).eq("scope", args.scope)
+        q.eq("userId", userId).eq("scope", args.scope)
       )
       .collect();
   },
 });
 
-// Get single normuur
+// Get single normuur (with ownership verification)
 export const get = query({
   args: { id: v.id("normuren") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
+    const userId = await requireAuthUserId(ctx);
+    const normuur = await ctx.db.get(args.id);
+
+    if (!normuur) return null;
+    if (normuur.userId.toString() !== userId.toString()) {
+      return null;
+    }
+
+    return normuur;
   },
 });
 
-// Create normuur
+// Create normuur for authenticated user
 export const create = mutation({
   args: {
-    userId: v.id("users"),
     activiteit: v.string(),
     scope: v.string(),
     normuurPerEenheid: v.number(),
@@ -47,8 +56,9 @@ export const create = mutation({
     omschrijving: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
     return await ctx.db.insert("normuren", {
-      userId: args.userId,
+      userId,
       activiteit: args.activiteit,
       scope: args.scope,
       normuurPerEenheid: args.normuurPerEenheid,
@@ -58,7 +68,7 @@ export const create = mutation({
   },
 });
 
-// Update normuur
+// Update normuur (with ownership verification)
 export const update = mutation({
   args: {
     id: v.id("normuren"),
@@ -69,6 +79,17 @@ export const update = mutation({
     omschrijving: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+
+    // Verify ownership
+    const normuur = await ctx.db.get(args.id);
+    if (!normuur) {
+      throw new Error("Normuur niet gevonden");
+    }
+    if (normuur.userId.toString() !== userId.toString()) {
+      throw new Error("Geen toegang tot deze normuur");
+    }
+
     const { id, ...updates } = args;
     const filteredUpdates: Record<string, unknown> = {};
 
@@ -83,19 +104,43 @@ export const update = mutation({
   },
 });
 
-// Delete normuur
+// Delete normuur (with ownership verification)
 export const remove = mutation({
   args: { id: v.id("normuren") },
   handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+
+    // Verify ownership
+    const normuur = await ctx.db.get(args.id);
+    if (!normuur) {
+      throw new Error("Normuur niet gevonden");
+    }
+    if (normuur.userId.toString() !== userId.toString()) {
+      throw new Error("Geen toegang tot deze normuur");
+    }
+
     await ctx.db.delete(args.id);
     return args.id;
   },
 });
 
-// Create default normuren for new user
+// Create default normuren for authenticated user (idempotent)
 export const createDefaults = mutation({
-  args: { userId: v.id("users") },
-  handler: async (ctx, args) => {
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireAuthUserId(ctx);
+
+    // Idempotent: check if user already has normuren
+    const existing = await ctx.db
+      .query("normuren")
+      .withIndex("by_user_scope", (q) => q.eq("userId", userId))
+      .first();
+
+    if (existing) {
+      // User already has normuren, return 0 to indicate no new records created
+      return 0;
+    }
+
     const defaultNormuren = [
       // Grondwerk
       { activiteit: "Ontgraven licht", scope: "grondwerk", normuurPerEenheid: 0.15, eenheid: "m²", omschrijving: "Licht ontgraven tot 20cm diep" },
@@ -159,7 +204,7 @@ export const createDefaults = mutation({
     const insertedIds: string[] = [];
     for (const normuur of defaultNormuren) {
       const id = await ctx.db.insert("normuren", {
-        userId: args.userId,
+        userId,
         ...normuur,
       });
       insertedIds.push(id);

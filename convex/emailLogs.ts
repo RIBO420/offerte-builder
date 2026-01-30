@@ -1,10 +1,14 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { requireAuthUserId, getOwnedOfferte } from "./auth";
 
-// List email logs for an offerte
+// List email logs for an offerte (with ownership verification)
 export const listByOfferte = query({
   args: { offerteId: v.id("offertes") },
   handler: async (ctx, args) => {
+    // Verify user owns this offerte
+    await getOwnedOfferte(ctx, args.offerteId);
+
     return await ctx.db
       .query("email_logs")
       .withIndex("by_offerte", (q) => q.eq("offerteId", args.offerteId))
@@ -13,24 +17,24 @@ export const listByOfferte = query({
   },
 });
 
-// List email logs for a user
+// List email logs for authenticated user
 export const listByUser = query({
-  args: { userId: v.id("users"), limit: v.optional(v.number()) },
+  args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
     const limit = args.limit ?? 50;
     return await ctx.db
       .query("email_logs")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .order("desc")
       .take(limit);
   },
 });
 
-// Create email log entry
+// Create email log entry (with ownership verification)
 export const create = mutation({
   args: {
     offerteId: v.id("offertes"),
-    userId: v.id("users"),
     type: v.union(
       v.literal("offerte_verzonden"),
       v.literal("herinnering"),
@@ -47,14 +51,24 @@ export const create = mutation({
     error: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // Verify user owns this offerte
+    const offerte = await getOwnedOfferte(ctx, args.offerteId);
+
     return await ctx.db.insert("email_logs", {
-      ...args,
+      offerteId: args.offerteId,
+      userId: offerte.userId,
+      type: args.type,
+      to: args.to,
+      subject: args.subject,
+      status: args.status,
+      resendId: args.resendId,
+      error: args.error,
       createdAt: Date.now(),
     });
   },
 });
 
-// Update email log status (e.g., when opened)
+// Update email log status (with ownership verification)
 export const updateStatus = mutation({
   args: {
     id: v.id("email_logs"),
@@ -66,16 +80,30 @@ export const updateStatus = mutation({
     openedAt: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+
+    // Get the log and verify ownership
+    const log = await ctx.db.get(args.id);
+    if (!log) {
+      throw new Error("Email log niet gevonden");
+    }
+    if (log.userId.toString() !== userId.toString()) {
+      throw new Error("Geen toegang tot deze email log");
+    }
+
     const { id, ...updates } = args;
     await ctx.db.patch(id, updates);
     return id;
   },
 });
 
-// Get email stats for an offerte
+// Get email stats for an offerte (with ownership verification)
 export const getOfferteEmailStats = query({
   args: { offerteId: v.id("offertes") },
   handler: async (ctx, args) => {
+    // Verify user owns this offerte
+    await getOwnedOfferte(ctx, args.offerteId);
+
     const logs = await ctx.db
       .query("email_logs")
       .withIndex("by_offerte", (q) => q.eq("offerteId", args.offerteId))

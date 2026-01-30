@@ -7,9 +7,10 @@ import { useCurrentUser } from "./use-current-user";
 export function useInstellingen() {
   const { user } = useCurrentUser();
 
+  // Query uses auth context - no userId args needed
   const instellingen = useQuery(
     api.instellingen.get,
-    user?._id ? { userId: user._id } : "skip"
+    user?._id ? {} : "skip"
   );
 
   const updateInstellingen = useMutation(api.instellingen.update);
@@ -34,12 +35,12 @@ export function useInstellingen() {
     offerteNummerPrefix?: string;
   }) => {
     if (!user?._id) throw new Error("User not found");
-    return updateInstellingen({ userId: user._id, ...data });
+    return updateInstellingen(data);
   };
 
   const getNextNummer = async () => {
     if (!user?._id) throw new Error("User not found");
-    return getNextOfferteNummer({ userId: user._id });
+    return getNextOfferteNummer({});
   };
 
   return {

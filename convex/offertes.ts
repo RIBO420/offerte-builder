@@ -1,5 +1,11 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import {
+  requireAuth,
+  requireAuthUserId,
+  getOwnedOfferte,
+  verifyOwnership,
+} from "./auth";
 
 const klantValidator = v.object({
   naam: v.string(),
@@ -44,13 +50,14 @@ const totalenValidator = v.object({
   totaalInclBtw: v.number(),
 });
 
-// List all offertes for user
+// List all offertes for authenticated user
 export const list = query({
-  args: { userId: v.id("users") },
-  handler: async (ctx, args) => {
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireAuthUserId(ctx);
     return await ctx.db
       .query("offertes")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .order("desc")
       .collect();
   },
@@ -59,16 +66,16 @@ export const list = query({
 // List offertes with pagination
 export const listPaginated = query({
   args: {
-    userId: v.id("users"),
     limit: v.optional(v.number()),
     cursor: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
     const limit = args.limit || 25;
 
     const result = await ctx.db
       .query("offertes")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .order("desc")
       .paginate({ numItems: limit, cursor: args.cursor ?? null });
 
@@ -82,12 +89,13 @@ export const listPaginated = query({
 
 // Combined dashboard query - reduces round trips
 export const getDashboardData = query({
-  args: { userId: v.id("users") },
-  handler: async (ctx, args) => {
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireAuthUserId(ctx);
     // Get all offertes in one query
     const offertes = await ctx.db
       .query("offertes")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .order("desc")
       .collect();
 
@@ -126,7 +134,6 @@ export const getDashboardData = query({
 // List offertes by status
 export const listByStatus = query({
   args: {
-    userId: v.id("users"),
     status: v.union(
       v.literal("concept"),
       v.literal("definitief"),
@@ -136,20 +143,30 @@ export const listByStatus = query({
     ),
   },
   handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
     const offertes = await ctx.db
       .query("offertes")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
 
     return offertes.filter((o) => o.status === args.status);
   },
 });
 
-// Get single offerte
+// Get single offerte (with ownership verification)
 export const get = query({
   args: { id: v.id("offertes") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
+    const offerte = await ctx.db.get(args.id);
+    if (!offerte) return null;
+
+    // Verify ownership
+    const user = await requireAuth(ctx);
+    if (offerte.userId.toString() !== user._id.toString()) {
+      return null; // Don't reveal existence to unauthorized users
+    }
+
+    return offerte;
   },
 });
 
@@ -167,7 +184,6 @@ export const getByNummer = query({
 // Create new offerte
 export const create = mutation({
   args: {
-    userId: v.id("users"),
     type: v.union(v.literal("aanleg"), v.literal("onderhoud")),
     offerteNummer: v.string(),
     klant: klantValidator,
@@ -178,10 +194,11 @@ export const create = mutation({
     klantId: v.optional(v.id("klanten")),
   },
   handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
     const now = Date.now();
 
     const offerteId = await ctx.db.insert("offertes", {
-      userId: args.userId,
+      userId,
       type: args.type,
       status: "concept",
       offerteNummer: args.offerteNummer,
@@ -212,7 +229,7 @@ export const create = mutation({
     if (offerte) {
       await ctx.db.insert("offerte_versions", {
         offerteId,
-        userId: args.userId,
+        userId,
         versieNummer: 1,
         snapshot: {
           status: offerte.status,
@@ -249,6 +266,9 @@ export const update = mutation({
     createVersion: v.optional(v.boolean()), // Optional: skip version for auto-save
   },
   handler: async (ctx, args) => {
+    // Verify ownership before updating
+    await getOwnedOfferte(ctx, args.id);
+
     const { id, createVersion: shouldCreateVersion = true, ...updates } = args;
     const now = Date.now();
     const filteredUpdates: Record<string, unknown> = { updatedAt: now };
@@ -322,6 +342,9 @@ export const updateRegels = mutation({
     createVersion: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    // Verify ownership before updating
+    await getOwnedOfferte(ctx, args.id);
+
     const now = Date.now();
     const shouldCreateVersion = args.createVersion ?? true;
 
@@ -428,14 +451,9 @@ export const updateStatus = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    // Verify ownership before updating (also retrieves the offerte)
+    const oldOfferte = await getOwnedOfferte(ctx, args.id);
     const now = Date.now();
-
-    // Get old status for version description
-    const oldOfferte = await ctx.db.get(args.id);
-    if (!oldOfferte) {
-      throw new Error("Offerte not found");
-    }
-
     const oldStatus = oldOfferte.status;
 
     const updates: Record<string, unknown> = {
@@ -527,6 +545,8 @@ export const updateStatus = mutation({
 export const remove = mutation({
   args: { id: v.id("offertes") },
   handler: async (ctx, args) => {
+    // Verify ownership before deleting
+    await getOwnedOfferte(ctx, args.id);
     await ctx.db.delete(args.id);
     return args.id;
   },
@@ -539,15 +559,13 @@ export const duplicate = mutation({
     newOfferteNummer: v.string(),
   },
   handler: async (ctx, args) => {
-    const original = await ctx.db.get(args.id);
-    if (!original) {
-      throw new Error("Offerte not found");
-    }
-
+    // Verify ownership before duplicating
+    const original = await getOwnedOfferte(ctx, args.id);
+    const userId = await requireAuthUserId(ctx);
     const now = Date.now();
 
     return await ctx.db.insert("offertes", {
-      userId: original.userId,
+      userId,
       type: original.type,
       status: "concept",
       offerteNummer: args.newOfferteNummer,
@@ -568,11 +586,12 @@ export const duplicate = mutation({
 
 // Get stats for dashboard
 export const getStats = query({
-  args: { userId: v.id("users") },
-  handler: async (ctx, args) => {
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireAuthUserId(ctx);
     const offertes = await ctx.db
       .query("offertes")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
 
     const stats = {
@@ -601,15 +620,15 @@ export const getStats = query({
 // Get recent offertes
 export const getRecent = query({
   args: {
-    userId: v.id("users"),
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
     const limit = args.limit || 5;
 
     return await ctx.db
       .query("offertes")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .order("desc")
       .take(limit);
   },
@@ -631,6 +650,9 @@ export const bulkUpdateStatus = mutation({
     const now = Date.now();
 
     for (const id of args.ids) {
+      // Verify ownership for each offerte
+      await getOwnedOfferte(ctx, id);
+
       const updates: Record<string, unknown> = {
         status: args.status,
         updatedAt: now,
@@ -654,6 +676,8 @@ export const bulkRemove = mutation({
   },
   handler: async (ctx, args) => {
     for (const id of args.ids) {
+      // Verify ownership for each offerte
+      await getOwnedOfferte(ctx, id);
       await ctx.db.delete(id);
     }
     return args.ids.length;

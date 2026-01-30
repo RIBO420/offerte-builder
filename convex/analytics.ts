@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
+import { requireAuthUserId } from "./auth";
 
 // Helper to get month key from timestamp
 function getMonthKey(timestamp: number): string {
@@ -24,18 +25,19 @@ function getMonthName(monthKey: string): string {
   return `${monthNames[parseInt(month) - 1]} ${year}`;
 }
 
-// Main analytics query
+// Main analytics query (for authenticated user)
 export const getAnalyticsData = query({
   args: {
-    userId: v.id("users"),
     startDate: v.optional(v.number()),
     endDate: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    // Get all offertes for user
+    const userId = await requireAuthUserId(ctx);
+
+    // Get all offertes for authenticated user
     let offertes = await ctx.db
       .query("offertes")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .order("desc")
       .collect();
 

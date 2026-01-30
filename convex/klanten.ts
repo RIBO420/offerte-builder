@@ -1,13 +1,15 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { requireAuth, requireAuthUserId, getOwnedKlant } from "./auth";
 
-// Get all klanten for user
+// Get all klanten for authenticated user
 export const list = query({
-  args: { userId: v.id("users") },
-  handler: async (ctx, args) => {
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireAuthUserId(ctx);
     return await ctx.db
       .query("klanten")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .order("desc")
       .collect();
   },
@@ -15,30 +17,46 @@ export const list = query({
 
 // Get recent klanten (last 5)
 export const getRecent = query({
-  args: { userId: v.id("users") },
-  handler: async (ctx, args) => {
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireAuthUserId(ctx);
     return await ctx.db
       .query("klanten")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .order("desc")
       .take(5);
   },
 });
 
-// Get a single klant by ID
+// Get a single klant by ID (with ownership verification)
 export const get = query({
   args: { id: v.id("klanten") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
+    const klant = await ctx.db.get(args.id);
+    if (!klant) return null;
+
+    // Verify ownership
+    const user = await requireAuth(ctx);
+    if (klant.userId.toString() !== user._id.toString()) {
+      return null;
+    }
+
+    return klant;
   },
 });
 
-// Get klant with their offertes
+// Get klant with their offertes (with ownership verification)
 export const getWithOffertes = query({
   args: { id: v.id("klanten") },
   handler: async (ctx, args) => {
     const klant = await ctx.db.get(args.id);
     if (!klant) return null;
+
+    // Verify ownership
+    const user = await requireAuth(ctx);
+    if (klant.userId.toString() !== user._id.toString()) {
+      return null;
+    }
 
     // Get all offertes for this klant
     const offertes = await ctx.db
@@ -57,13 +75,15 @@ export const getWithOffertes = query({
 
 // Search klanten by name
 export const search = query({
-  args: { userId: v.id("users"), searchTerm: v.string() },
+  args: { searchTerm: v.string() },
   handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+
     if (!args.searchTerm.trim()) {
       // Return recent klanten if no search term
       return await ctx.db
         .query("klanten")
-        .withIndex("by_user", (q) => q.eq("userId", args.userId))
+        .withIndex("by_user", (q) => q.eq("userId", userId))
         .order("desc")
         .take(10);
     }
@@ -72,7 +92,7 @@ export const search = query({
     return await ctx.db
       .query("klanten")
       .withSearchIndex("search_klanten", (q) =>
-        q.search("naam", args.searchTerm).eq("userId", args.userId)
+        q.search("naam", args.searchTerm).eq("userId", userId)
       )
       .take(10);
   },
@@ -81,7 +101,6 @@ export const search = query({
 // Create a new klant
 export const create = mutation({
   args: {
-    userId: v.id("users"),
     naam: v.string(),
     adres: v.string(),
     postcode: v.string(),
@@ -91,10 +110,11 @@ export const create = mutation({
     notities: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
     const now = Date.now();
 
     return await ctx.db.insert("klanten", {
-      userId: args.userId,
+      userId,
       naam: args.naam,
       adres: args.adres,
       postcode: args.postcode,
@@ -121,8 +141,8 @@ export const update = mutation({
     notities: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const klant = await ctx.db.get(args.id);
-    if (!klant) throw new Error("Klant niet gevonden");
+    // Verify ownership
+    await getOwnedKlant(ctx, args.id);
 
     const { id, ...updates } = args;
 
@@ -145,8 +165,8 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("klanten") },
   handler: async (ctx, args) => {
-    const klant = await ctx.db.get(args.id);
-    if (!klant) throw new Error("Klant niet gevonden");
+    // Verify ownership
+    const klant = await getOwnedKlant(ctx, args.id);
 
     // Check if there are offertes linked to this klant
     const linkedOffertes = await ctx.db
@@ -168,7 +188,6 @@ export const remove = mutation({
 // Create klant from offerte data (for auto-creating klanten from wizard)
 export const createFromOfferte = mutation({
   args: {
-    userId: v.id("users"),
     naam: v.string(),
     adres: v.string(),
     postcode: v.string(),
@@ -177,11 +196,13 @@ export const createFromOfferte = mutation({
     telefoon: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+
     // Check if a klant with the same name and address already exists
     const existingKlanten = await ctx.db
       .query("klanten")
       .withSearchIndex("search_klanten", (q) =>
-        q.search("naam", args.naam).eq("userId", args.userId)
+        q.search("naam", args.naam).eq("userId", userId)
       )
       .collect();
 
@@ -199,7 +220,7 @@ export const createFromOfferte = mutation({
     // Create new klant
     const now = Date.now();
     return await ctx.db.insert("klanten", {
-      userId: args.userId,
+      userId,
       naam: args.naam,
       adres: args.adres,
       postcode: args.postcode,

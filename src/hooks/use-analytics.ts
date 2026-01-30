@@ -64,7 +64,6 @@ export function useAnalytics() {
     api.analytics.getAnalyticsData,
     user?._id
       ? {
-          userId: user._id,
           startDate: dateRange.startDate,
           endDate: dateRange.endDate,
         }

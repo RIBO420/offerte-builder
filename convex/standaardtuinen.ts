@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { requireAuthUserId } from "./auth";
 
 // System default templates
 const SYSTEM_TEMPLATES = {
@@ -275,13 +276,14 @@ export const initializeSystemTemplates = mutation({
   },
 });
 
-// List all templates (system + user)
+// List all templates (system + user) for authenticated user
 export const list = query({
   args: {
-    userId: v.id("users"),
     type: v.optional(v.union(v.literal("aanleg"), v.literal("onderhoud"))),
   },
-  handler: async (ctx, { userId, type }) => {
+  handler: async (ctx, { type }) => {
+    const userId = await requireAuthUserId(ctx);
+
     // Get system templates
     let systemQuery = ctx.db
       .query("standaardtuinen")
@@ -323,7 +325,6 @@ export const get = query({
 // Create user template
 export const create = mutation({
   args: {
-    userId: v.id("users"),
     naam: v.string(),
     omschrijving: v.optional(v.string()),
     type: v.union(v.literal("aanleg"), v.literal("onderhoud")),
@@ -331,11 +332,19 @@ export const create = mutation({
     defaultWaarden: v.any(),
   },
   handler: async (ctx, args) => {
-    return await ctx.db.insert("standaardtuinen", args);
+    const userId = await requireAuthUserId(ctx);
+    return await ctx.db.insert("standaardtuinen", {
+      userId,
+      naam: args.naam,
+      omschrijving: args.omschrijving,
+      type: args.type,
+      scopes: args.scopes,
+      defaultWaarden: args.defaultWaarden,
+    });
   },
 });
 
-// Update user template
+// Update user template (with ownership verification)
 export const update = mutation({
   args: {
     id: v.id("standaardtuinen"),
@@ -345,9 +354,14 @@ export const update = mutation({
     defaultWaarden: v.optional(v.any()),
   },
   handler: async (ctx, { id, ...updates }) => {
+    const userId = await requireAuthUserId(ctx);
+
     const template = await ctx.db.get(id);
-    if (!template) throw new Error("Template not found");
-    if (!template.userId) throw new Error("Cannot edit system templates");
+    if (!template) throw new Error("Template niet gevonden");
+    if (!template.userId) throw new Error("Systeemtemplates kunnen niet worden bewerkt");
+    if (template.userId.toString() !== userId.toString()) {
+      throw new Error("Geen toegang tot dit template");
+    }
 
     const filteredUpdates: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(updates)) {
@@ -360,13 +374,18 @@ export const update = mutation({
   },
 });
 
-// Delete user template
+// Delete user template (with ownership verification)
 export const remove = mutation({
   args: { id: v.id("standaardtuinen") },
   handler: async (ctx, { id }) => {
+    const userId = await requireAuthUserId(ctx);
+
     const template = await ctx.db.get(id);
-    if (!template) throw new Error("Template not found");
-    if (!template.userId) throw new Error("Cannot delete system templates");
+    if (!template) throw new Error("Template niet gevonden");
+    if (!template.userId) throw new Error("Systeemtemplates kunnen niet worden verwijderd");
+    if (template.userId.toString() !== userId.toString()) {
+      throw new Error("Geen toegang tot dit template");
+    }
 
     return await ctx.db.delete(id);
   },
@@ -376,7 +395,6 @@ export const remove = mutation({
 export const createOfferteFromTemplate = mutation({
   args: {
     templateId: v.id("standaardtuinen"),
-    userId: v.id("users"),
     offerteNummer: v.string(),
     klant: v.object({
       naam: v.string(),
@@ -396,13 +414,15 @@ export const createOfferteFromTemplate = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+
     const template = await ctx.db.get(args.templateId);
-    if (!template) throw new Error("Template not found");
+    if (!template) throw new Error("Template niet gevonden");
 
     const now = Date.now();
 
     return await ctx.db.insert("offertes", {
-      userId: args.userId,
+      userId,
       type: template.type,
       status: "concept",
       offerteNummer: args.offerteNummer,

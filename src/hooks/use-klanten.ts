@@ -8,14 +8,15 @@ import { useCurrentUser } from "./use-current-user";
 export function useKlanten() {
   const { user } = useCurrentUser();
 
+  // Queries use auth context - no userId args needed
   const klanten = useQuery(
     api.klanten.list,
-    user?._id ? { userId: user._id } : "skip"
+    user?._id ? {} : "skip"
   );
 
   const recentKlanten = useQuery(
     api.klanten.getRecent,
-    user?._id ? { userId: user._id } : "skip"
+    user?._id ? {} : "skip"
   );
 
   const createMutation = useMutation(api.klanten.create);
@@ -35,7 +36,7 @@ export function useKlanten() {
     notities?: string;
   }) => {
     if (!user?._id) throw new Error("User not found");
-    return await createMutation({ userId: user._id, ...data });
+    return await createMutation(data);
   };
 
   const update = async (
@@ -66,7 +67,7 @@ export function useKlanten() {
     telefoon?: string;
   }) => {
     if (!user?._id) throw new Error("User not found");
-    return await createFromOfferteMutation({ userId: user._id, ...data });
+    return await createFromOfferteMutation(data);
   };
 
   return {
@@ -109,7 +110,7 @@ export function useKlantenSearch(searchTerm: string) {
 
   const results = useQuery(
     api.klanten.search,
-    user?._id ? { userId: user._id, searchTerm } : "skip"
+    user?._id ? { searchTerm } : "skip"
   );
 
   return {

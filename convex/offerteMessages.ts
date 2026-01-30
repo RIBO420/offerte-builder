@@ -1,10 +1,14 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { getOwnedOfferte, isShareTokenValid } from "./auth";
 
-// Get all messages for an offerte
+// Get all messages for an offerte (with ownership verification)
 export const listByOfferte = query({
   args: { offerteId: v.id("offertes") },
   handler: async (ctx, args) => {
+    // Verify ownership
+    await getOwnedOfferte(ctx, args.offerteId);
+
     return await ctx.db
       .query("offerte_messages")
       .withIndex("by_offerte", (q) => q.eq("offerteId", args.offerteId))
@@ -23,22 +27,26 @@ export const listByToken = query({
       .withIndex("by_share_token", (q) => q.eq("shareToken", args.token))
       .unique();
 
-    if (!offerte) {
+    // Validate token and check expiry
+    if (!isShareTokenValid(offerte, args.token)) {
       return [];
     }
 
     return await ctx.db
       .query("offerte_messages")
-      .withIndex("by_offerte", (q) => q.eq("offerteId", offerte._id))
+      .withIndex("by_offerte", (q) => q.eq("offerteId", offerte!._id))
       .order("asc")
       .collect();
   },
 });
 
-// Get unread message count for an offerte
+// Get unread message count for an offerte (with ownership verification)
 export const getUnreadCount = query({
   args: { offerteId: v.id("offertes") },
   handler: async (ctx, args) => {
+    // Verify ownership
+    await getOwnedOfferte(ctx, args.offerteId);
+
     const unread = await ctx.db
       .query("offerte_messages")
       .withIndex("by_offerte_unread", (q) =>
@@ -51,13 +59,16 @@ export const getUnreadCount = query({
   },
 });
 
-// Send message from business
+// Send message from business (with ownership verification)
 export const sendFromBusiness = mutation({
   args: {
     offerteId: v.id("offertes"),
     message: v.string(),
   },
   handler: async (ctx, args) => {
+    // Verify ownership
+    await getOwnedOfferte(ctx, args.offerteId);
+
     return await ctx.db.insert("offerte_messages", {
       offerteId: args.offerteId,
       sender: "bedrijf",
@@ -81,17 +92,13 @@ export const sendFromCustomer = mutation({
       .withIndex("by_share_token", (q) => q.eq("shareToken", args.token))
       .unique();
 
-    if (!offerte) {
-      throw new Error("Offerte not found");
-    }
-
-    // Check if link has expired
-    if (offerte.shareExpiresAt && offerte.shareExpiresAt < Date.now()) {
-      throw new Error("Share link expired");
+    // Validate token and check expiry
+    if (!isShareTokenValid(offerte, args.token)) {
+      throw new Error("Ongeldige of verlopen link");
     }
 
     return await ctx.db.insert("offerte_messages", {
-      offerteId: offerte._id,
+      offerteId: offerte!._id,
       sender: "klant",
       message: args.message,
       isRead: false,
@@ -100,10 +107,13 @@ export const sendFromCustomer = mutation({
   },
 });
 
-// Mark messages as read (for business reading customer messages)
+// Mark messages as read (for business reading customer messages, with ownership verification)
 export const markAsRead = mutation({
   args: { offerteId: v.id("offertes") },
   handler: async (ctx, args) => {
+    // Verify ownership
+    await getOwnedOfferte(ctx, args.offerteId);
+
     const unread = await ctx.db
       .query("offerte_messages")
       .withIndex("by_offerte_unread", (q) =>
@@ -120,7 +130,7 @@ export const markAsRead = mutation({
   },
 });
 
-// Mark customer messages as read (when customer views)
+// Mark customer messages as read (when customer views, via share token)
 export const markCustomerMessagesAsRead = mutation({
   args: { token: v.string() },
   handler: async (ctx, args) => {
@@ -129,14 +139,15 @@ export const markCustomerMessagesAsRead = mutation({
       .withIndex("by_share_token", (q) => q.eq("shareToken", args.token))
       .unique();
 
-    if (!offerte) {
-      throw new Error("Offerte not found");
+    // Validate token and check expiry
+    if (!isShareTokenValid(offerte, args.token)) {
+      throw new Error("Ongeldige of verlopen link");
     }
 
     const unread = await ctx.db
       .query("offerte_messages")
       .withIndex("by_offerte_unread", (q) =>
-        q.eq("offerteId", offerte._id).eq("isRead", false)
+        q.eq("offerteId", offerte!._id).eq("isRead", false)
       )
       .filter((q) => q.eq(q.field("sender"), "bedrijf"))
       .collect();

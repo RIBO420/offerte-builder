@@ -1,5 +1,6 @@
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { SkipLink } from "@/components/ui/skip-link";
 
 export default function DashboardLayout({
   children,
@@ -8,9 +9,12 @@ export default function DashboardLayout({
 }) {
   return (
     <SidebarProvider>
+      <SkipLink />
       <AppSidebar />
       <SidebarInset>
-        <main className="flex flex-1 flex-col">{children}</main>
+        <main id="main-content" className="flex flex-1 flex-col">
+          {children}
+        </main>
       </SidebarInset>
     </SidebarProvider>
   );

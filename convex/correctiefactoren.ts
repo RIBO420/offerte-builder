@@ -1,24 +1,26 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { requireAuthUserId, getAuthenticatedUser } from "./auth";
 
-// Get all correction factors for user (falls back to system defaults)
+// Get all correction factors for authenticated user (falls back to system defaults)
 export const list = query({
-  args: { userId: v.optional(v.id("users")) },
-  handler: async (ctx, args) => {
+  args: {},
+  handler: async (ctx) => {
     // First get system defaults (userId = undefined)
     const systemDefaults = await ctx.db
       .query("correctiefactoren")
       .filter((q) => q.eq(q.field("userId"), undefined))
       .collect();
 
-    if (!args.userId) {
+    const user = await getAuthenticatedUser(ctx);
+    if (!user) {
       return systemDefaults;
     }
 
     // Get user overrides
     const userOverrides = await ctx.db
       .query("correctiefactoren")
-      .withIndex("by_user_type", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user_type", (q) => q.eq("userId", user._id))
       .collect();
 
     // Merge: user overrides take precedence
@@ -38,16 +40,17 @@ export const list = query({
 // Get correction factor by type and value
 export const getByTypeAndValue = query({
   args: {
-    userId: v.optional(v.id("users")),
     type: v.string(),
     waarde: v.string(),
   },
   handler: async (ctx, args) => {
+    const user = await getAuthenticatedUser(ctx);
+
     // Try user override first
-    if (args.userId) {
+    if (user) {
       const userFactor = await ctx.db
         .query("correctiefactoren")
-        .withIndex("by_user_type", (q) => q.eq("userId", args.userId).eq("type", args.type))
+        .withIndex("by_user_type", (q) => q.eq("userId", user._id).eq("type", args.type))
         .filter((q) => q.eq(q.field("waarde"), args.waarde))
         .unique();
 
@@ -73,7 +76,6 @@ export const getByTypeAndValue = query({
 // Get all factors for a specific type
 export const getByType = query({
   args: {
-    userId: v.optional(v.id("users")),
     type: v.string(),
   },
   handler: async (ctx, args) => {
@@ -87,13 +89,14 @@ export const getByType = query({
       )
       .collect();
 
-    if (!args.userId) {
+    const user = await getAuthenticatedUser(ctx);
+    if (!user) {
       return systemFactors;
     }
 
     const userFactors = await ctx.db
       .query("correctiefactoren")
-      .withIndex("by_user_type", (q) => q.eq("userId", args.userId).eq("type", args.type))
+      .withIndex("by_user_type", (q) => q.eq("userId", user._id).eq("type", args.type))
       .collect();
 
     // Merge
@@ -105,15 +108,16 @@ export const getByType = query({
 // Update or create user override for correction factor
 export const upsert = mutation({
   args: {
-    userId: v.id("users"),
     type: v.string(),
     waarde: v.string(),
     factor: v.number(),
   },
   handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+
     const existing = await ctx.db
       .query("correctiefactoren")
-      .withIndex("by_user_type", (q) => q.eq("userId", args.userId).eq("type", args.type))
+      .withIndex("by_user_type", (q) => q.eq("userId", userId).eq("type", args.type))
       .filter((q) => q.eq(q.field("waarde"), args.waarde))
       .unique();
 
@@ -123,7 +127,7 @@ export const upsert = mutation({
     }
 
     return await ctx.db.insert("correctiefactoren", {
-      userId: args.userId,
+      userId,
       type: args.type,
       waarde: args.waarde,
       factor: args.factor,
@@ -134,14 +138,15 @@ export const upsert = mutation({
 // Reset user override to system default
 export const resetToDefault = mutation({
   args: {
-    userId: v.id("users"),
     type: v.string(),
     waarde: v.string(),
   },
   handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+
     const existing = await ctx.db
       .query("correctiefactoren")
-      .withIndex("by_user_type", (q) => q.eq("userId", args.userId).eq("type", args.type))
+      .withIndex("by_user_type", (q) => q.eq("userId", userId).eq("type", args.type))
       .filter((q) => q.eq(q.field("waarde"), args.waarde))
       .unique();
 

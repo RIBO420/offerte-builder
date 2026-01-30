@@ -19,19 +19,20 @@ export function useOfferteCalculation() {
   const { user } = useCurrentUser();
   const { instellingen } = useInstellingen();
 
+  // Queries use auth context - no userId args needed
   const normuren = useQuery(
     api.normuren.list,
-    user?._id ? { userId: user._id } : "skip"
+    user?._id ? {} : "skip"
   );
 
   const correctiefactoren = useQuery(
     api.correctiefactoren.list,
-    user?._id ? { userId: user._id } : "skip"
+    user?._id ? {} : "skip"
   );
 
   const producten = useQuery(
     api.producten.list,
-    user?._id ? { userId: user._id } : "skip"
+    user?._id ? {} : "skip"
   );
 
   const isLoading =

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
@@ -96,9 +97,15 @@ export function AppSidebar() {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const { recentOffertes, isLoading } = useDashboardData();
+  const [mounted, setMounted] = useState(false);
+
+  // Prevent hydration mismatch by only rendering Clerk components after mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
-    <Sidebar variant="inset">
+    <Sidebar variant="inset" aria-label="Hoofdnavigatie">
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -242,14 +249,18 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <div className="flex items-center justify-between px-2">
               <SidebarMenuButton size="lg" className="cursor-default flex-1">
-                <UserButton
-                  afterSignOutUrl="/sign-in"
-                  appearance={{
-                    elements: {
-                      avatarBox: "size-8",
-                    },
-                  }}
-                />
+{mounted ? (
+                  <UserButton
+                    afterSignOutUrl="/sign-in"
+                    appearance={{
+                      elements: {
+                        avatarBox: "size-8",
+                      },
+                    }}
+                  />
+                ) : (
+                  <div className="size-8 rounded-full bg-muted animate-pulse" />
+                )}
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate text-xs text-muted-foreground">
                     Ingelogd als

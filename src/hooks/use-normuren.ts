@@ -8,9 +8,10 @@ import { Id } from "../../convex/_generated/dataModel";
 export function useNormuren() {
   const { user } = useCurrentUser();
 
+  // Query uses auth context - no userId args needed
   const normuren = useQuery(
     api.normuren.list,
-    user?._id ? { userId: user._id } : "skip"
+    user?._id ? {} : "skip"
   );
 
   const createNormuur = useMutation(api.normuren.create);
@@ -25,7 +26,7 @@ export function useNormuren() {
     omschrijving?: string;
   }) => {
     if (!user?._id) throw new Error("User not found");
-    return createNormuur({ userId: user._id, ...data });
+    return createNormuur(data);
   };
 
   // Group normuren by scope
@@ -56,7 +57,7 @@ export function useNormurenByScope(scope: string) {
 
   const normuren = useQuery(
     api.normuren.listByScope,
-    user?._id && scope ? { userId: user._id, scope } : "skip"
+    user?._id && scope ? { scope } : "skip"
   );
 
   return {

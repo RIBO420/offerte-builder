@@ -5,6 +5,8 @@ import { nlNL } from "@clerk/localizations";
 import { ConvexClientProvider } from "@/components/providers/convex-client-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { LiveRegionProvider } from "@/components/ui/live-region";
+import { ErrorBoundary } from "@/components/error-boundary";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -49,8 +51,12 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             <ConvexClientProvider>
-              {children}
-              <Toaster position="top-right" richColors />
+              <ErrorBoundary>
+                <LiveRegionProvider>
+                  {children}
+                  <Toaster position="top-right" richColors />
+                </LiveRegionProvider>
+              </ErrorBoundary>
             </ConvexClientProvider>
           </ThemeProvider>
         </body>

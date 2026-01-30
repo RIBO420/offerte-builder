@@ -101,7 +101,6 @@ export function SendEmailDialog({
     try {
       await sendEmail({
         offerteId: offerte._id,
-        userId: user._id,
         type: emailType,
         to: toEmail.trim(),
         klantNaam: offerte.klant.naam,

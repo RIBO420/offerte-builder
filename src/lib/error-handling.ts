@@ -77,15 +77,18 @@ export function handleError(
     extra?: Record<string, unknown>;
   }
 ): void {
-  const { logger } = Sentry;
-
   if (error instanceof AppError) {
-    // Operational errors - expected, log with context
+    // Operational errors - expected, add breadcrumb for context
     if (error.isOperational) {
-      logger.warn(logger.fmt`Operational error: ${error.message}`, {
-        code: error.code,
-        statusCode: error.statusCode,
-        ...context,
+      Sentry.addBreadcrumb({
+        category: "operational-error",
+        message: error.message,
+        level: "warning",
+        data: {
+          code: error.code,
+          statusCode: error.statusCode,
+          ...context,
+        },
       });
     } else {
       // Programming errors - unexpected, capture in Sentry
@@ -147,13 +150,14 @@ export function getUserFriendlyMessage(error: unknown): string {
   return "Er is een onverwachte fout opgetreden. Probeer het later opnieuw.";
 }
 
-// Retry utility for transient failures
+// Retry utility for transient failures with exponential backoff and jitter
 export async function withRetry<T>(
   operation: () => Promise<T>,
   options: {
     maxRetries?: number;
     delayMs?: number;
     backoffMultiplier?: number;
+    jitterFactor?: number;
     shouldRetry?: (error: unknown) => boolean;
   } = {}
 ): Promise<T> {
@@ -161,6 +165,7 @@ export async function withRetry<T>(
     maxRetries = 3,
     delayMs = 1000,
     backoffMultiplier = 2,
+    jitterFactor = 0.3,
     shouldRetry = () => true,
   } = options;
 
@@ -178,8 +183,12 @@ export async function withRetry<T>(
         throw error;
       }
 
+      // Add jitter to prevent thundering herd
+      const jitter = Math.random() * jitterFactor * currentDelay;
+      const delayWithJitter = currentDelay + jitter;
+
       // Wait before retrying
-      await new Promise((resolve) => setTimeout(resolve, currentDelay));
+      await new Promise((resolve) => setTimeout(resolve, delayWithJitter));
       currentDelay *= backoffMultiplier;
     }
   }

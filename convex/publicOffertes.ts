@@ -1,29 +1,19 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { generateSecureToken, getOwnedOfferte, isShareTokenValid } from "./auth";
 
-// Generate a unique share token
-function generateToken(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
-  let token = "";
-  for (let i = 0; i < 24; i++) {
-    token += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return token;
-}
-
-// Create or refresh share link for an offerte
+// Create or refresh share link for an offerte (with ownership verification)
 export const createShareLink = mutation({
   args: {
     offerteId: v.id("offertes"),
     expiresInDays: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const offerte = await ctx.db.get(args.offerteId);
-    if (!offerte) {
-      throw new Error("Offerte not found");
-    }
+    // Verify ownership
+    await getOwnedOfferte(ctx, args.offerteId);
 
-    const token = generateToken();
+    // Generate cryptographically secure token (32 chars)
+    const token = generateSecureToken(32);
     const expiresInDays = args.expiresInDays ?? 30;
     const expiresAt = Date.now() + expiresInDays * 24 * 60 * 60 * 1000;
 
@@ -37,10 +27,13 @@ export const createShareLink = mutation({
   },
 });
 
-// Revoke share link
+// Revoke share link (with ownership verification)
 export const revokeShareLink = mutation({
   args: { offerteId: v.id("offertes") },
   handler: async (ctx, args) => {
+    // Verify ownership
+    await getOwnedOfferte(ctx, args.offerteId);
+
     await ctx.db.patch(args.offerteId, {
       shareToken: undefined,
       shareExpiresAt: undefined,
@@ -62,8 +55,8 @@ export const getByToken = query({
       return null;
     }
 
-    // Check if link has expired
-    if (offerte.shareExpiresAt && offerte.shareExpiresAt < Date.now()) {
+    // Validate token and check expiry using consistent helper
+    if (!isShareTokenValid(offerte, args.token)) {
       return { expired: true };
     }
 
@@ -113,16 +106,17 @@ export const markAsViewed = mutation({
       .withIndex("by_share_token", (q) => q.eq("shareToken", args.token))
       .unique();
 
-    if (!offerte) {
-      throw new Error("Offerte not found");
+    // Validate token and check expiry
+    if (!isShareTokenValid(offerte, args.token)) {
+      throw new Error("Ongeldige of verlopen link");
     }
 
     // Only update if not already responded
-    if (!offerte.customerResponse?.status || offerte.customerResponse.status === "bekeken") {
-      await ctx.db.patch(offerte._id, {
+    if (!offerte!.customerResponse?.status || offerte!.customerResponse.status === "bekeken") {
+      await ctx.db.patch(offerte!._id, {
         customerResponse: {
           status: "bekeken",
-          viewedAt: offerte.customerResponse?.viewedAt ?? Date.now(),
+          viewedAt: offerte!.customerResponse?.viewedAt ?? Date.now(),
           respondedAt: Date.now(),
         },
         updatedAt: Date.now(),
@@ -145,14 +139,15 @@ export const respond = mutation({
       .withIndex("by_share_token", (q) => q.eq("shareToken", args.token))
       .unique();
 
-    if (!offerte) {
-      throw new Error("Offerte not found");
+    // Validate token and check expiry
+    if (!isShareTokenValid(offerte, args.token)) {
+      throw new Error("Ongeldige of verlopen link");
     }
 
     // Check if already responded with accept/reject
     if (
-      offerte.customerResponse?.status === "geaccepteerd" ||
-      offerte.customerResponse?.status === "afgewezen"
+      offerte!.customerResponse?.status === "geaccepteerd" ||
+      offerte!.customerResponse?.status === "afgewezen"
     ) {
       throw new Error("Offerte is al beantwoord");
     }
@@ -165,11 +160,11 @@ export const respond = mutation({
     const now = Date.now();
 
     // Update customer response
-    await ctx.db.patch(offerte._id, {
+    await ctx.db.patch(offerte!._id, {
       customerResponse: {
         status: args.status,
         comment: args.comment,
-        viewedAt: offerte.customerResponse?.viewedAt ?? now,
+        viewedAt: offerte!.customerResponse?.viewedAt ?? now,
         respondedAt: now,
         signature: args.signature,
         signedAt: args.signature ? now : undefined,
@@ -182,27 +177,27 @@ export const respond = mutation({
     // Create a version for this status change
     const versions = await ctx.db
       .query("offerte_versions")
-      .withIndex("by_offerte", (q) => q.eq("offerteId", offerte._id))
+      .withIndex("by_offerte", (q) => q.eq("offerteId", offerte!._id))
       .order("desc")
       .take(1);
 
     const versieNummer = (versions[0]?.versieNummer ?? 0) + 1;
 
     await ctx.db.insert("offerte_versions", {
-      offerteId: offerte._id,
-      userId: offerte.userId,
+      offerteId: offerte!._id,
+      userId: offerte!.userId,
       versieNummer,
       snapshot: {
         status: args.status,
-        klant: offerte.klant,
+        klant: offerte!.klant,
         algemeenParams: {
-          bereikbaarheid: offerte.algemeenParams.bereikbaarheid,
-          achterstalligheid: offerte.algemeenParams.achterstalligheid,
+          bereikbaarheid: offerte!.algemeenParams.bereikbaarheid,
+          achterstalligheid: offerte!.algemeenParams.achterstalligheid,
         },
-        scopes: offerte.scopes,
-        scopeData: offerte.scopeData,
-        totalen: offerte.totalen,
-        regels: offerte.regels.map((r) => ({
+        scopes: offerte!.scopes,
+        scopeData: offerte!.scopeData,
+        totalen: offerte!.totalen,
+        regels: offerte!.regels.map((r) => ({
           id: r.id,
           scope: r.scope,
           omschrijving: r.omschrijving,
@@ -212,7 +207,7 @@ export const respond = mutation({
           totaal: r.totaal,
           type: r.type,
         })),
-        notities: offerte.notities,
+        notities: offerte!.notities,
       },
       actie: "status_gewijzigd",
       omschrijving: `Klant heeft offerte ${args.status === "geaccepteerd" ? "geaccepteerd" : "afgewezen"}${args.comment ? ` - "${args.comment}"` : ""}`,
@@ -235,18 +230,19 @@ export const submitQuestion = mutation({
       .withIndex("by_share_token", (q) => q.eq("shareToken", args.token))
       .unique();
 
-    if (!offerte) {
-      throw new Error("Offerte not found");
+    // Validate token and check expiry
+    if (!isShareTokenValid(offerte, args.token)) {
+      throw new Error("Ongeldige of verlopen link");
     }
 
     const now = Date.now();
 
     // Update with question but keep status as "bekeken"
-    await ctx.db.patch(offerte._id, {
+    await ctx.db.patch(offerte!._id, {
       customerResponse: {
         status: "bekeken",
         comment: args.comment,
-        viewedAt: offerte.customerResponse?.viewedAt ?? now,
+        viewedAt: offerte!.customerResponse?.viewedAt ?? now,
         respondedAt: now,
       },
       updatedAt: now,

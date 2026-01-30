@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { requireAuthUserId } from "./auth";
 
 const bedrijfsgegevensValidator = v.object({
   naam: v.string(),
@@ -14,42 +15,28 @@ const bedrijfsgegevensValidator = v.object({
   logo: v.optional(v.string()),
 });
 
-// Get settings for user
+// Get settings for authenticated user
 export const get = query({
-  args: { userId: v.id("users") },
-  handler: async (ctx, args) => {
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireAuthUserId(ctx);
     return await ctx.db
       .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .unique();
   },
 });
 
-// Get settings by Clerk ID (convenience function)
-export const getByClerkId = query({
-  args: { clerkId: v.string() },
-  handler: async (ctx, args) => {
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
-      .unique();
-
-    if (!user) return null;
-
-    return await ctx.db
-      .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
-      .unique();
-  },
-});
-
-// Create default settings for new user
+// Create default settings for authenticated user (idempotent)
 export const createDefaults = mutation({
-  args: { userId: v.id("users") },
-  handler: async (ctx, args) => {
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireAuthUserId(ctx);
+
+    // Idempotent: return existing if already created
     const existing = await ctx.db
       .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .unique();
 
     if (existing) {
@@ -57,7 +44,7 @@ export const createDefaults = mutation({
     }
 
     return await ctx.db.insert("instellingen", {
-      userId: args.userId,
+      userId,
       uurtarief: 45.0,
       standaardMargePercentage: 15,
       btwPercentage: 21,
@@ -73,10 +60,9 @@ export const createDefaults = mutation({
   },
 });
 
-// Update settings
+// Update settings for authenticated user
 export const update = mutation({
   args: {
-    userId: v.id("users"),
     uurtarief: v.optional(v.number()),
     standaardMargePercentage: v.optional(v.number()),
     btwPercentage: v.optional(v.number()),
@@ -84,13 +70,15 @@ export const update = mutation({
     offerteNummerPrefix: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+
     const settings = await ctx.db
       .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .unique();
 
     if (!settings) {
-      throw new Error("Settings not found. Create defaults first.");
+      throw new Error("Instellingen niet gevonden. Maak eerst standaardinstellingen aan.");
     }
 
     const updates: Record<string, unknown> = {};
@@ -111,15 +99,17 @@ export const update = mutation({
 
 // Get next offerte number and increment counter
 export const getNextOfferteNummer = mutation({
-  args: { userId: v.id("users") },
-  handler: async (ctx, args) => {
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireAuthUserId(ctx);
+
     const settings = await ctx.db
       .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .unique();
 
     if (!settings) {
-      throw new Error("Settings not found");
+      throw new Error("Instellingen niet gevonden");
     }
 
     const nextNumber = settings.laatsteOfferteNummer + 1;

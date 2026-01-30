@@ -10,9 +10,10 @@ type Template = Doc<"standaardtuinen"> & { isSystem: boolean };
 export function useStandaardtuinen(type?: "aanleg" | "onderhoud") {
   const { user } = useCurrentUser();
 
+  // Query uses auth context - no userId args needed
   const templates = useQuery(
     api.standaardtuinen.list,
-    user?._id ? { userId: user._id, type } : "skip"
+    user?._id ? { type } : "skip"
   );
 
   const createTemplate = useMutation(api.standaardtuinen.create);
@@ -29,7 +30,7 @@ export function useStandaardtuinen(type?: "aanleg" | "onderhoud") {
     defaultWaarden: Record<string, unknown>;
   }) => {
     if (!user?._id) throw new Error("User not found");
-    return createTemplate({ userId: user._id, ...data });
+    return createTemplate(data);
   };
 
   const update = async (
@@ -67,7 +68,6 @@ export function useStandaardtuinen(type?: "aanleg" | "onderhoud") {
     if (!user?._id) throw new Error("User not found");
     return createFromTemplate({
       templateId,
-      userId: user._id,
       ...data,
     });
   };

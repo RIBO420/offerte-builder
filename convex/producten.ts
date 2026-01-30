@@ -1,46 +1,48 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { requireAuthUserId } from "./auth";
 
-// List all products for user
+// List all products for authenticated user
 export const list = query({
-  args: { userId: v.id("users") },
-  handler: async (ctx, args) => {
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireAuthUserId(ctx);
     return await ctx.db
       .query("producten")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
   },
 });
 
-// List products by category
+// List products by category for authenticated user
 export const listByCategorie = query({
   args: {
-    userId: v.id("users"),
     categorie: v.string(),
   },
   handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
     return await ctx.db
       .query("producten")
       .withIndex("by_categorie", (q) =>
-        q.eq("userId", args.userId).eq("categorie", args.categorie)
+        q.eq("userId", userId).eq("categorie", args.categorie)
       )
       .collect();
   },
 });
 
-// Search products
+// Search products for authenticated user
 export const search = query({
   args: {
-    userId: v.id("users"),
     zoekterm: v.string(),
     categorie: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
     let searchQuery = ctx.db
       .query("producten")
       .withSearchIndex("search_producten", (q) => {
         let search = q.search("productnaam", args.zoekterm);
-        search = search.eq("userId", args.userId);
+        search = search.eq("userId", userId);
         if (args.categorie) {
           search = search.eq("categorie", args.categorie);
         }
@@ -51,18 +53,25 @@ export const search = query({
   },
 });
 
-// Get single product
+// Get single product (with ownership verification)
 export const get = query({
   args: { id: v.id("producten") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
+    const userId = await requireAuthUserId(ctx);
+    const product = await ctx.db.get(args.id);
+
+    if (!product) return null;
+    if (product.userId.toString() !== userId.toString()) {
+      return null;
+    }
+
+    return product;
   },
 });
 
-// Create product
+// Create product for authenticated user
 export const create = mutation({
   args: {
-    userId: v.id("users"),
     productnaam: v.string(),
     categorie: v.string(),
     inkoopprijs: v.number(),
@@ -72,8 +81,9 @@ export const create = mutation({
     verliespercentage: v.number(),
   },
   handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
     return await ctx.db.insert("producten", {
-      userId: args.userId,
+      userId,
       productnaam: args.productnaam,
       categorie: args.categorie,
       inkoopprijs: args.inkoopprijs,
@@ -88,7 +98,7 @@ export const create = mutation({
   },
 });
 
-// Update product
+// Update product (with ownership verification)
 export const update = mutation({
   args: {
     id: v.id("producten"),
@@ -102,6 +112,17 @@ export const update = mutation({
     isActief: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+
+    // Verify ownership
+    const product = await ctx.db.get(args.id);
+    if (!product) {
+      throw new Error("Product niet gevonden");
+    }
+    if (product.userId.toString() !== userId.toString()) {
+      throw new Error("Geen toegang tot dit product");
+    }
+
     const { id, ...updates } = args;
     const filteredUpdates: Record<string, unknown> = { updatedAt: Date.now() };
 
@@ -116,10 +137,21 @@ export const update = mutation({
   },
 });
 
-// Delete product (soft delete by setting isActief to false)
+// Delete product (soft delete, with ownership verification)
 export const remove = mutation({
   args: { id: v.id("producten") },
   handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+
+    // Verify ownership
+    const product = await ctx.db.get(args.id);
+    if (!product) {
+      throw new Error("Product niet gevonden");
+    }
+    if (product.userId.toString() !== userId.toString()) {
+      throw new Error("Geen toegang tot dit product");
+    }
+
     await ctx.db.patch(args.id, {
       isActief: false,
       updatedAt: Date.now(),
@@ -128,19 +160,29 @@ export const remove = mutation({
   },
 });
 
-// Hard delete product
+// Hard delete product (with ownership verification)
 export const hardDelete = mutation({
   args: { id: v.id("producten") },
   handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+
+    // Verify ownership
+    const product = await ctx.db.get(args.id);
+    if (!product) {
+      throw new Error("Product niet gevonden");
+    }
+    if (product.userId.toString() !== userId.toString()) {
+      throw new Error("Geen toegang tot dit product");
+    }
+
     await ctx.db.delete(args.id);
     return args.id;
   },
 });
 
-// Bulk import products (for CSV/XLS import)
+// Bulk import products for authenticated user
 export const bulkImport = mutation({
   args: {
-    userId: v.id("users"),
     producten: v.array(
       v.object({
         productnaam: v.string(),
@@ -154,12 +196,13 @@ export const bulkImport = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
     const now = Date.now();
     const insertedIds: string[] = [];
 
     for (const product of args.producten) {
       const id = await ctx.db.insert("producten", {
-        userId: args.userId,
+        userId,
         ...product,
         isActief: true,
         createdAt: now,
@@ -175,13 +218,14 @@ export const bulkImport = mutation({
   },
 });
 
-// Get categories for user
+// Get categories for authenticated user
 export const getCategories = query({
-  args: { userId: v.id("users") },
-  handler: async (ctx, args) => {
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireAuthUserId(ctx);
     const products = await ctx.db
       .query("producten")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
 
     const categories = [...new Set(products.map((p) => p.categorie))];
@@ -189,13 +233,14 @@ export const getCategories = query({
   },
 });
 
-// Count products per category
+// Count products per category for authenticated user
 export const countByCategorie = query({
-  args: { userId: v.id("users") },
-  handler: async (ctx, args) => {
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireAuthUserId(ctx);
     const products = await ctx.db
       .query("producten")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .filter((q) => q.eq(q.field("isActief"), true))
       .collect();
 
@@ -208,14 +253,16 @@ export const countByCategorie = query({
   },
 });
 
-// Create default products for new user (sample hoveniers prijsboek)
+// Create default products for authenticated user (idempotent)
 export const createDefaults = mutation({
-  args: { userId: v.id("users") },
-  handler: async (ctx, args) => {
-    // Check if user already has products
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireAuthUserId(ctx);
+
+    // Idempotent: check if user already has products
     const existing = await ctx.db
       .query("producten")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .first();
 
     if (existing) {
@@ -278,7 +325,7 @@ export const createDefaults = mutation({
 
     for (const product of defaultProducts) {
       await ctx.db.insert("producten", {
-        userId: args.userId,
+        userId,
         ...product,
         isActief: true,
         createdAt: now,

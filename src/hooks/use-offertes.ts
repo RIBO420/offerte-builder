@@ -8,19 +8,20 @@ import { Id } from "../../convex/_generated/dataModel";
 export function useOffertes() {
   const { user } = useCurrentUser();
 
+  // Queries use auth context - no userId args needed
   const offertes = useQuery(
     api.offertes.list,
-    user?._id ? { userId: user._id } : "skip"
+    user?._id ? {} : "skip"
   );
 
   const stats = useQuery(
     api.offertes.getStats,
-    user?._id ? { userId: user._id } : "skip"
+    user?._id ? {} : "skip"
   );
 
   const recentOffertes = useQuery(
     api.offertes.getRecent,
-    user?._id ? { userId: user._id, limit: 5 } : "skip"
+    user?._id ? { limit: 5 } : "skip"
   );
 
   const createOfferte = useMutation(api.offertes.create);
@@ -53,7 +54,7 @@ export function useOffertes() {
     klantId?: Id<"klanten">;
   }) => {
     if (!user?._id) throw new Error("User not found");
-    return createOfferte({ userId: user._id, ...data });
+    return createOfferte(data);
   };
 
   return {
@@ -90,7 +91,7 @@ export function useDashboardData() {
 
   const dashboardData = useQuery(
     api.offertes.getDashboardData,
-    user?._id ? { userId: user._id } : "skip"
+    user?._id ? {} : "skip"
   );
 
   return {
@@ -107,7 +108,7 @@ export function useOffertesPaginated(limit: number = 25) {
 
   const data = useQuery(
     api.offertes.listPaginated,
-    user?._id ? { userId: user._id, limit } : "skip"
+    user?._id ? { limit } : "skip"
   );
 
   return {

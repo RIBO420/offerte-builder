@@ -7,9 +7,10 @@ import { useCurrentUser } from "./use-current-user";
 export function useCorrectiefactoren() {
   const { user } = useCurrentUser();
 
+  // Query uses auth context - no userId args needed
   const factoren = useQuery(
     api.correctiefactoren.list,
-    user?._id ? { userId: user._id } : "skip"
+    user?._id ? {} : "skip"
   );
 
   const upsertFactor = useMutation(api.correctiefactoren.upsert);
@@ -22,12 +23,12 @@ export function useCorrectiefactoren() {
     factor: number;
   }) => {
     if (!user?._id) throw new Error("User not found");
-    return upsertFactor({ userId: user._id, ...data });
+    return upsertFactor(data);
   };
 
   const reset = async (type: string, waarde: string) => {
     if (!user?._id) throw new Error("User not found");
-    return resetFactor({ userId: user._id, type, waarde });
+    return resetFactor({ type, waarde });
   };
 
   // Group factoren by type
@@ -58,7 +59,7 @@ export function useCorrectiefactorenByType(type: string) {
 
   const factoren = useQuery(
     api.correctiefactoren.getByType,
-    user?._id && type ? { userId: user._id, type } : "skip"
+    user?._id && type ? { type } : "skip"
   );
 
   return {
@@ -72,7 +73,7 @@ export function useCorrectiefactor(type: string, waarde: string) {
 
   const factor = useQuery(
     api.correctiefactoren.getByTypeAndValue,
-    user?._id && type && waarde ? { userId: user._id, type, waarde } : "skip"
+    user?._id && type && waarde ? { type, waarde } : "skip"
   );
 
   return {

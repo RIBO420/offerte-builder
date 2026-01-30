@@ -14,7 +14,13 @@ interface OfferteRegel {
   type: "materiaal" | "arbeid" | "machine";
 }
 
-// Round hours to nearest quarter (kwartier = 0.25)
+/**
+ * Round hours to nearest quarter (kwartier = 0.25)
+ *
+ * NOTE: This function is intentionally duplicated from src/lib/time-utils.ts
+ * because Convex runs in an isolated environment and cannot import from src/.
+ * Keep both implementations in sync if changes are needed.
+ */
 function roundToQuarter(hours: number): number {
   return Math.round(hours * 4) / 4;
 }

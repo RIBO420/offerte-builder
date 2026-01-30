@@ -24,6 +24,7 @@ import type {
   BomenOnderhoudData,
   OverigeOnderhoudData,
 } from "@/types/offerte";
+import { roundToQuarter } from "@/lib/time-utils";
 
 export interface OfferteRegel {
   id: string;
@@ -114,11 +115,6 @@ function findProduct(
 // Generate unique ID
 function generateId(): string {
   return `regel_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-}
-
-// Round hours to nearest quarter (kwartier = 0.25)
-function roundToQuarter(hours: number): number {
-  return Math.round(hours * 4) / 4;
 }
 
 // Calculate labor hours and apply corrections

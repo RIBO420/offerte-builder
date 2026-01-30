@@ -9,7 +9,6 @@ export type EmailType = "offerte_verzonden" | "herinnering" | "bedankt";
 
 interface SendEmailParams {
   offerteId: Id<"offertes">;
-  userId: Id<"users">;
   type: EmailType;
   to: string;
   klantNaam: string;
@@ -52,10 +51,9 @@ export function useEmail() {
 
       const result = await response.json();
 
-      // Log the email
+      // Log the email (userId derived from auth context)
       await createEmailLog({
         offerteId: params.offerteId,
-        userId: params.userId,
         type: params.type,
         to: params.to,
         subject: result.subject || `Offerte ${params.offerteNummer}`,
@@ -70,10 +68,9 @@ export function useEmail() {
 
       return { success: true, resendId: result.resendId };
     } catch (error) {
-      // Log failed attempt
+      // Log failed attempt (userId derived from auth context)
       await createEmailLog({
         offerteId: params.offerteId,
-        userId: params.userId,
         type: params.type,
         to: params.to,
         subject: `Offerte ${params.offerteNummer}`,

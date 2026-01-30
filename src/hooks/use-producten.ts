@@ -8,19 +8,20 @@ import { Id } from "../../convex/_generated/dataModel";
 export function useProducten() {
   const { user } = useCurrentUser();
 
+  // Queries use auth context - no userId args needed
   const producten = useQuery(
     api.producten.list,
-    user?._id ? { userId: user._id } : "skip"
+    user?._id ? {} : "skip"
   );
 
   const categories = useQuery(
     api.producten.getCategories,
-    user?._id ? { userId: user._id } : "skip"
+    user?._id ? {} : "skip"
   );
 
   const countByCategorie = useQuery(
     api.producten.countByCategorie,
-    user?._id ? { userId: user._id } : "skip"
+    user?._id ? {} : "skip"
   );
 
   const createProduct = useMutation(api.producten.create);
@@ -38,7 +39,7 @@ export function useProducten() {
     verliespercentage: number;
   }) => {
     if (!user?._id) throw new Error("User not found");
-    return createProduct({ userId: user._id, ...data });
+    return createProduct(data);
   };
 
   const importProducts = async (
@@ -53,7 +54,7 @@ export function useProducten() {
     }>
   ) => {
     if (!user?._id) throw new Error("User not found");
-    return bulkImport({ userId: user._id, producten });
+    return bulkImport({ producten });
   };
 
   return {
@@ -84,7 +85,7 @@ export function useProductSearch(zoekterm: string, categorie?: string) {
   const results = useQuery(
     api.producten.search,
     user?._id && zoekterm.length >= 2
-      ? { userId: user._id, zoekterm, categorie }
+      ? { zoekterm, categorie }
       : "skip"
   );
 
