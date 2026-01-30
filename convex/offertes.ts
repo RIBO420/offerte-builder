@@ -175,6 +175,7 @@ export const create = mutation({
     scopes: v.optional(v.array(v.string())),
     scopeData: v.optional(v.any()),
     notities: v.optional(v.string()),
+    klantId: v.optional(v.id("klanten")),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
@@ -185,6 +186,7 @@ export const create = mutation({
       status: "concept",
       offerteNummer: args.offerteNummer,
       klant: args.klant,
+      klantId: args.klantId,
       algemeenParams: args.algemeenParams,
       scopes: args.scopes,
       scopeData: args.scopeData,

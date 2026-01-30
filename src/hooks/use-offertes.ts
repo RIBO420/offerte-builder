@@ -48,6 +48,7 @@ export function useOffertes() {
     scopes?: string[];
     scopeData?: Record<string, unknown>;
     notities?: string;
+    klantId?: Id<"klanten">;
   }) => {
     if (!user?._id) throw new Error("User not found");
     return createOfferte({ userId: user._id, ...data });

@@ -62,6 +62,8 @@ import {
 } from "@/components/offerte/onderhoud-forms";
 import { TemplateSelector } from "@/components/offerte/template-selector";
 import { RestoreDraftDialog } from "@/components/offerte/restore-draft-dialog";
+import { KlantSelector } from "@/components/offerte/klant-selector";
+import { useKlanten } from "@/hooks/use-klanten";
 import { Id } from "../../../../../../convex/_generated/dataModel";
 import type {
   Bereikbaarheid,
@@ -167,6 +169,7 @@ type OnderhoudScopeData = {
 // Type for wizard autosave data
 interface WizardData {
   selectedTemplateId: string | null;
+  selectedKlantId: string | null;
   selectedScopes: OnderhoudScope[];
   bereikbaarheid: Bereikbaarheid;
   achterstalligheid: Achterstalligheid;
@@ -184,6 +187,7 @@ interface WizardData {
 
 const INITIAL_WIZARD_DATA: WizardData = {
   selectedTemplateId: null,
+  selectedKlantId: null,
   selectedScopes: [],
   bereikbaarheid: "goed",
   achterstalligheid: "laag",
@@ -211,6 +215,7 @@ export default function NieuweOnderhoudOffertePage() {
   const { create, updateRegels } = useOffertes();
   const { getNextNummer, isLoading: isSettingsLoading, instellingen } = useInstellingen();
   const { calculate, isLoading: isCalcLoading } = useOfferteCalculation();
+  const { createFromOfferte: createKlantFromOfferte } = useKlanten();
 
   // Wizard autosave hook
   const {
@@ -236,11 +241,15 @@ export default function NieuweOnderhoudOffertePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Extract data from wizard state for easier access
-  const { selectedTemplateId, selectedScopes, bereikbaarheid, achterstalligheid, tuinOppervlakte, klantData, scopeData } = wizardData;
+  const { selectedTemplateId, selectedKlantId, selectedScopes, bereikbaarheid, achterstalligheid, tuinOppervlakte, klantData, scopeData } = wizardData;
 
   // Helper functions to update wizard data
   const setSelectedTemplateId = (id: string | null) => {
     setWizardData({ ...wizardData, selectedTemplateId: id });
+  };
+
+  const setSelectedKlantId = (id: string | null) => {
+    setWizardData({ ...wizardData, selectedKlantId: id });
   };
 
   const setSelectedScopes = (scopes: OnderhoudScope[] | ((prev: OnderhoudScope[]) => OnderhoudScope[])) => {
@@ -339,6 +348,22 @@ export default function NieuweOnderhoudOffertePage() {
         filteredScopeData[scope] = scopeData[scope];
       });
 
+      // Create or get klant ID
+      let klantId: Id<"klanten"> | undefined;
+      if (selectedKlantId) {
+        klantId = selectedKlantId as Id<"klanten">;
+      } else if (klantData.naam && klantData.adres) {
+        // Create new klant from offerte data
+        klantId = await createKlantFromOfferte({
+          naam: klantData.naam,
+          adres: klantData.adres,
+          postcode: klantData.postcode,
+          plaats: klantData.plaats,
+          email: klantData.email || undefined,
+          telefoon: klantData.telefoon || undefined,
+        });
+      }
+
       const offerteId = await create({
         type: "onderhoud",
         offerteNummer,
@@ -356,6 +381,7 @@ export default function NieuweOnderhoudOffertePage() {
         },
         scopes: selectedScopes,
         scopeData: filteredScopeData,
+        klantId,
       });
 
       // Calculate and save regels
@@ -556,84 +582,15 @@ export default function NieuweOnderhoudOffertePage() {
                 <CardHeader>
                   <CardTitle>Klantgegevens</CardTitle>
                   <CardDescription>
-                    Voer de gegevens van de klant in
+                    Selecteer een bestaande klant of voer nieuwe gegevens in
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="naam">Naam *</Label>
-                      <Input
-                        id="naam"
-                        placeholder="Jan Jansen"
-                        value={klantData.naam}
-                        onChange={(e) =>
-                          setKlantData({ ...klantData, naam: e.target.value })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="telefoon">Telefoon</Label>
-                      <Input
-                        id="telefoon"
-                        placeholder="06-12345678"
-                        value={klantData.telefoon}
-                        onChange={(e) =>
-                          setKlantData({ ...klantData, telefoon: e.target.value })
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="adres">Adres *</Label>
-                    <Input
-                      id="adres"
-                      placeholder="Hoofdstraat 1"
-                      value={klantData.adres}
-                      onChange={(e) =>
-                        setKlantData({ ...klantData, adres: e.target.value })
-                      }
-                    />
-                  </div>
-
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="postcode">Postcode *</Label>
-                      <Input
-                        id="postcode"
-                        placeholder="1234 AB"
-                        value={klantData.postcode}
-                        onChange={(e) =>
-                          setKlantData({ ...klantData, postcode: e.target.value })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="plaats">Plaats *</Label>
-                      <Input
-                        id="plaats"
-                        placeholder="Amsterdam"
-                        value={klantData.plaats}
-                        onChange={(e) =>
-                          setKlantData({ ...klantData, plaats: e.target.value })
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="email">E-mail</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="jan@voorbeeld.nl"
-                      value={klantData.email}
-                      onChange={(e) =>
-                        setKlantData({ ...klantData, email: e.target.value })
-                      }
-                    />
-                  </div>
+                <CardContent>
+                  <KlantSelector
+                    value={klantData}
+                    onChange={setKlantData}
+                    onKlantSelect={(klantId) => setSelectedKlantId(klantId as string | null)}
+                  />
                 </CardContent>
               </Card>
 
