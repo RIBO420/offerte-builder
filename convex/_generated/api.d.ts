@@ -22,6 +22,7 @@ import type * as producten from "../producten.js";
 import type * as publicOffertes from "../publicOffertes.js";
 import type * as standaardtuinen from "../standaardtuinen.js";
 import type * as users from "../users.js";
+import type * as validators from "../validators.js";
 
 import type {
   ApiFromModules,
@@ -44,6 +45,7 @@ declare const fullApi: ApiFromModules<{
   publicOffertes: typeof publicOffertes;
   standaardtuinen: typeof standaardtuinen;
   users: typeof users;
+  validators: typeof validators;
 }>;
 
 /**

@@ -1,5 +1,9 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import {
+  aanlegScopeDataValidator,
+  onderhoudScopeDataValidator,
+} from "./validators";
 
 export default defineSchema({
   // Gebruikers (via Clerk, alleen referentie)
@@ -69,8 +73,10 @@ export default defineSchema({
     // Geselecteerde scopes (voor aanleg)
     scopes: v.optional(v.array(v.string())),
 
-    // Scope data per type - flexible object voor scope-specifieke data
-    scopeData: v.optional(v.any()),
+    // Scope data per type - typed validators per offerte type
+    scopeData: v.optional(
+      v.union(aanlegScopeDataValidator, onderhoudScopeDataValidator)
+    ),
 
     // Berekende totalen
     totalen: v.object({
@@ -202,7 +208,9 @@ export default defineSchema({
     omschrijving: v.optional(v.string()),
     type: v.union(v.literal("aanleg"), v.literal("onderhoud")),
     scopes: v.array(v.string()),
-    defaultWaarden: v.any(), // Pre-filled scope data
+    defaultWaarden: v.optional(
+      v.union(aanlegScopeDataValidator, onderhoudScopeDataValidator)
+    ),
   }).index("by_user", ["userId"]),
 
   // Offerte messages (chat between business and customer)
@@ -261,7 +269,9 @@ export default defineSchema({
         achterstalligheid: v.optional(v.string()),
       }),
       scopes: v.optional(v.array(v.string())),
-      scopeData: v.optional(v.any()),
+      scopeData: v.optional(
+        v.union(aanlegScopeDataValidator, onderhoudScopeDataValidator)
+      ),
       totalen: v.object({
         materiaalkosten: v.number(),
         arbeidskosten: v.number(),
