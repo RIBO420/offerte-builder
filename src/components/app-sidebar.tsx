@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { UserButton } from "@clerk/nextjs";
+import { useUser, useClerk } from "@clerk/nextjs";
 import {
   Sidebar,
   SidebarContent,
@@ -23,6 +23,13 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   FileText,
   Home,
   Plus,
@@ -36,6 +43,8 @@ import {
   Clock,
   ChevronRight,
   BarChart3,
+  LogOut,
+  User,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -93,16 +102,35 @@ const beheerItems = [
   },
 ];
 
+function getInitials(name: string | null | undefined): string {
+  if (!name) return "?";
+  const parts = name.split(" ").filter(Boolean);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+  return parts[0]?.[0]?.toUpperCase() || "?";
+}
+
 export function AppSidebar() {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
-  const { recentOffertes, isLoading } = useDashboardData();
+  const { recentOffertes } = useDashboardData();
+  const { user, isLoaded: isUserLoaded } = useUser();
+  const { signOut } = useClerk();
   const [mounted, setMounted] = useState(false);
 
-  // Prevent hydration mismatch by only rendering Clerk components after mount
+  // Prevent hydration mismatch
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const handleSignOut = () => {
+    signOut({ redirectUrl: "/sign-in" });
+  };
+
+  const userInitials = getInitials(user?.fullName || user?.firstName);
+  const userDisplayName = user?.fullName || user?.firstName || "Gebruiker";
+  const userEmail = user?.primaryEmailAddress?.emailAddress;
 
   return (
     <Sidebar variant="inset" aria-label="Hoofdnavigatie">
@@ -248,25 +276,64 @@ export function AppSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <div className="flex items-center justify-between px-2">
-              <SidebarMenuButton size="lg" className="cursor-default flex-1">
-{mounted ? (
-                  <UserButton
-                    afterSignOutUrl="/sign-in"
-                    appearance={{
-                      elements: {
-                        avatarBox: "size-8",
-                      },
-                    }}
-                  />
-                ) : (
-                  <div className="size-8 rounded-full bg-muted animate-pulse" />
-                )}
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate text-xs text-muted-foreground">
-                    Ingelogd als
-                  </span>
-                </div>
-              </SidebarMenuButton>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <SidebarMenuButton size="lg" className="flex-1 cursor-pointer">
+                    {mounted && isUserLoaded ? (
+                      user?.imageUrl ? (
+                        <img
+                          src={user.imageUrl}
+                          alt={userDisplayName}
+                          className="size-8 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-medium">
+                          {userInitials}
+                        </div>
+                      )
+                    ) : (
+                      <div className="size-8 rounded-full bg-muted animate-pulse" />
+                    )}
+                    <div className="grid flex-1 text-left text-sm leading-tight">
+                      <span className="truncate font-medium">
+                        {mounted && isUserLoaded ? userDisplayName : "Laden..."}
+                      </span>
+                      <span className="truncate text-xs text-muted-foreground">
+                        {mounted && isUserLoaded && userEmail ? userEmail : ""}
+                      </span>
+                    </div>
+                  </SidebarMenuButton>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  <div className="px-2 py-1.5">
+                    <p className="text-sm font-medium">{userDisplayName}</p>
+                    {userEmail && (
+                      <p className="text-xs text-muted-foreground">{userEmail}</p>
+                    )}
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/instellingen" className="cursor-pointer">
+                      <User className="mr-2 h-4 w-4" />
+                      Profiel
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/instellingen" className="cursor-pointer">
+                      <Settings className="mr-2 h-4 w-4" />
+                      Instellingen
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={handleSignOut}
+                    className="cursor-pointer text-destructive focus:text-destructive"
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Uitloggen
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button
                 variant="ghost"
                 size="icon"
