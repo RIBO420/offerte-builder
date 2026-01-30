@@ -29,6 +29,8 @@ export function useOffertes() {
   const updateStatus = useMutation(api.offertes.updateStatus);
   const deleteOfferte = useMutation(api.offertes.remove);
   const duplicateOfferte = useMutation(api.offertes.duplicate);
+  const bulkUpdateStatusMutation = useMutation(api.offertes.bulkUpdateStatus);
+  const bulkRemoveMutation = useMutation(api.offertes.bulkRemove);
 
   const create = async (data: {
     type: "aanleg" | "onderhoud";
@@ -65,6 +67,8 @@ export function useOffertes() {
     updateStatus,
     delete: deleteOfferte,
     duplicate: duplicateOfferte,
+    bulkUpdateStatus: bulkUpdateStatusMutation,
+    bulkRemove: bulkRemoveMutation,
   };
 }
 

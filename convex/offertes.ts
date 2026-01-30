@@ -405,3 +405,48 @@ export const getRecent = query({
       .take(limit);
   },
 });
+
+// Bulk update status
+export const bulkUpdateStatus = mutation({
+  args: {
+    ids: v.array(v.id("offertes")),
+    status: v.union(
+      v.literal("concept"),
+      v.literal("definitief"),
+      v.literal("verzonden"),
+      v.literal("geaccepteerd"),
+      v.literal("afgewezen")
+    ),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+
+    for (const id of args.ids) {
+      const updates: Record<string, unknown> = {
+        status: args.status,
+        updatedAt: now,
+      };
+
+      if (args.status === "verzonden") {
+        updates.verzondenAt = now;
+      }
+
+      await ctx.db.patch(id, updates);
+    }
+
+    return args.ids.length;
+  },
+});
+
+// Bulk delete offertes
+export const bulkRemove = mutation({
+  args: {
+    ids: v.array(v.id("offertes")),
+  },
+  handler: async (ctx, args) => {
+    for (const id of args.ids) {
+      await ctx.db.delete(id);
+    }
+    return args.ids.length;
+  },
+});

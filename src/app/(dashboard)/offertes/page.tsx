@@ -28,8 +28,29 @@ import {
   Copy,
   Trash2,
   Eye,
+  Download,
+  X,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Id } from "../../../../convex/_generated/dataModel";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -116,10 +137,23 @@ function OffertesPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isLoading: isUserLoading } = useCurrentUser();
-  const { offertes, stats, isLoading: isOffertesLoading, delete: deleteOfferte, duplicate } = useOffertes();
+  const {
+    offertes,
+    stats,
+    isLoading: isOffertesLoading,
+    delete: deleteOfferte,
+    duplicate,
+    bulkUpdateStatus,
+    bulkRemove,
+  } = useOffertes();
   const { getNextNummer } = useInstellingen();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState(searchParams.get("status") || "alle");
+
+  // Bulk selection state
+  const [selectedIds, setSelectedIds] = useState<Set<Id<"offertes">>>(new Set());
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+  const [bulkStatusValue, setBulkStatusValue] = useState<string>("");
 
   // Initialize filters from URL params
   const [filters, setFilters] = useState<OfferteFilters>(() => ({
@@ -224,6 +258,93 @@ function OffertesPageContent() {
       console.error(error);
     }
   };
+
+  // Bulk action handlers
+  const toggleSelectAll = () => {
+    if (!filteredOffertes) return;
+    if (selectedIds.size === filteredOffertes.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredOffertes.map((o) => o._id)));
+    }
+  };
+
+  const toggleSelect = (id: Id<"offertes">) => {
+    const newSet = new Set(selectedIds);
+    if (newSet.has(id)) {
+      newSet.delete(id);
+    } else {
+      newSet.add(id);
+    }
+    setSelectedIds(newSet);
+  };
+
+  const clearSelection = () => {
+    setSelectedIds(new Set());
+    setBulkStatusValue("");
+  };
+
+  const handleBulkStatusChange = async (status: string) => {
+    if (selectedIds.size === 0) return;
+    try {
+      await bulkUpdateStatus({
+        ids: Array.from(selectedIds),
+        status: status as "concept" | "definitief" | "verzonden" | "geaccepteerd" | "afgewezen",
+      });
+      toast.success(`${selectedIds.size} offerte(s) bijgewerkt naar ${status}`);
+      clearSelection();
+    } catch (error) {
+      toast.error("Fout bij bijwerken status");
+      console.error(error);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    try {
+      await bulkRemove({ ids: Array.from(selectedIds) });
+      toast.success(`${selectedIds.size} offerte(s) verwijderd`);
+      clearSelection();
+      setShowBulkDeleteDialog(false);
+    } catch (error) {
+      toast.error("Fout bij verwijderen offertes");
+      console.error(error);
+    }
+  };
+
+  const handleExportCSV = () => {
+    if (!filteredOffertes) return;
+    const exportData = selectedIds.size > 0
+      ? filteredOffertes.filter((o) => selectedIds.has(o._id))
+      : filteredOffertes;
+
+    const headers = ["Nummer", "Type", "Klant", "Adres", "Plaats", "Status", "Bedrag (incl. BTW)", "Datum"];
+    const rows = exportData.map((o) => [
+      o.offerteNummer,
+      o.type,
+      o.klant.naam,
+      o.klant.adres,
+      o.klant.plaats,
+      o.status,
+      o.totalen.totaalInclBtw.toFixed(2),
+      new Date(o.updatedAt).toLocaleDateString("nl-NL"),
+    ]);
+
+    const csvContent = [headers, ...rows]
+      .map((row) => row.map((cell) => `"${cell}"`).join(","))
+      .join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `offertes-export-${new Date().toISOString().split("T")[0]}.csv`;
+    link.click();
+
+    toast.success(`${exportData.length} offerte(s) geexporteerd`);
+  };
+
+  const isAllSelected = filteredOffertes && filteredOffertes.length > 0 && selectedIds.size === filteredOffertes.length;
+  const isSomeSelected = selectedIds.size > 0;
 
   return (
     <>
@@ -332,6 +453,57 @@ function OffertesPageContent() {
           </TabsList>
 
           <TabsContent value={activeTab} className="space-y-4">
+            {/* Bulk Actions Bar */}
+            {isSomeSelected && (
+              <div className="flex items-center gap-4 p-3 bg-muted/50 rounded-lg border">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">
+                    {selectedIds.size} geselecteerd
+                  </span>
+                  <Button variant="ghost" size="sm" onClick={clearSelection}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                <Separator orientation="vertical" className="h-6" />
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={bulkStatusValue}
+                    onValueChange={(value) => {
+                      setBulkStatusValue(value);
+                      handleBulkStatusChange(value);
+                    }}
+                  >
+                    <SelectTrigger className="w-[180px] h-8">
+                      <SelectValue placeholder="Wijzig status..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="concept">Concept</SelectItem>
+                      <SelectItem value="definitief">Definitief</SelectItem>
+                      <SelectItem value="verzonden">Verzonden</SelectItem>
+                      <SelectItem value="geaccepteerd">Geaccepteerd</SelectItem>
+                      <SelectItem value="afgewezen">Afgewezen</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExportCSV}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Exporteer
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setShowBulkDeleteDialog(true)}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Verwijderen
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {isLoading ? (
               <Card>
                 <CardContent className="flex items-center justify-center py-12">
@@ -343,6 +515,13 @@ function OffertesPageContent() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-[50px]">
+                        <Checkbox
+                          checked={isAllSelected}
+                          onCheckedChange={toggleSelectAll}
+                          aria-label="Selecteer alle"
+                        />
+                      </TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Nummer</TableHead>
                       <TableHead>Klant</TableHead>
@@ -355,7 +534,17 @@ function OffertesPageContent() {
                   </TableHeader>
                   <TableBody>
                     {filteredOffertes.map((offerte) => (
-                      <TableRow key={offerte._id}>
+                      <TableRow
+                        key={offerte._id}
+                        className={selectedIds.has(offerte._id) ? "bg-muted/50" : ""}
+                      >
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedIds.has(offerte._id)}
+                            onCheckedChange={() => toggleSelect(offerte._id)}
+                            aria-label={`Selecteer ${offerte.offerteNummer}`}
+                          />
+                        </TableCell>
                         <TableCell>
                           <div
                             className={`flex h-8 w-8 items-center justify-center rounded-lg ${
@@ -462,6 +651,28 @@ function OffertesPageContent() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Offertes verwijderen</AlertDialogTitle>
+            <AlertDialogDescription>
+              Weet je zeker dat je {selectedIds.size} offerte(s) wilt verwijderen?
+              Deze actie kan niet ongedaan worden gemaakt.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuleren</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Verwijderen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
