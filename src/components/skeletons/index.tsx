@@ -10,7 +10,7 @@ export function DashboardStatsSkeleton() {
       role="status"
       aria-busy="true"
       aria-label="Dashboard statistieken laden"
-      className="grid gap-6 md:grid-cols-2 lg:grid-cols-4"
+      className="grid gap-4 sm:gap-6 grid-cols-2 lg:grid-cols-4"
     >
       {Array.from({ length: 4 }).map((_, i) => (
         <Card key={i}>
