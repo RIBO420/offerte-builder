@@ -24,7 +24,7 @@ export interface StatusConfig {
 export const STATUS_CONFIG: Record<OfferteStatus, StatusConfig> = {
   concept: {
     label: "Concept",
-    description: "Offerte is in bewerking en nog niet definitief",
+    description: "Offerte is in bewerking en nog niet klaar voor voorcalculatie",
     icon: Pencil,
     color: {
       bg: "bg-gray-100 dark:bg-gray-800",

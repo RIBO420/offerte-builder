@@ -150,7 +150,7 @@ offerte-builder/
   userId: Id<"users">
   klantId?: Id<"klanten">
   type: "aanleg" | "onderhoud"
-  status: "concept" | "definitief" | "verzonden" | "geaccepteerd" | "afgewezen"
+  status: "concept" | "voorcalculatie" | "verzonden" | "geaccepteerd" | "afgewezen"
   offerteNummer: string
 
   // Customer info (denormalized)
