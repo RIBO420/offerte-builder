@@ -24,8 +24,9 @@ export function SkipLink({
       className={cn(
         // Hidden by default, visible on focus
         "sr-only focus:not-sr-only",
-        // Positioning
-        "fixed left-4 top-4 z-[100]",
+        // Positioning - Dynamic Island safe area
+        "fixed left-4 z-[100]",
+        "top-[calc(1rem+env(safe-area-inset-top))]",
         // Styling when visible
         "focus:block focus:rounded-md focus:bg-primary focus:px-4 focus:py-2",
         "focus:text-primary-foreground focus:shadow-lg",

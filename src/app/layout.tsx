@@ -84,7 +84,7 @@ export default function RootLayout({
                   <main id="main-content">
                     {children}
                   </main>
-                  <Toaster position="top-right" richColors />
+                  <Toaster position="bottom-right" richColors />
                 </LiveRegionProvider>
               </ErrorBoundary>
             </ConvexClientProvider>
