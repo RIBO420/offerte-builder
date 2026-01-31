@@ -237,10 +237,9 @@ export default function DashboardPage() {
             <motion.div
               whileHover={{ scale: 1.02, y: -4 }}
               transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              className="group relative"
+              className="group"
             >
-              <div className="absolute -inset-0.5 -z-10 rounded-xl bg-gradient-to-r from-primary/25 to-primary/15 opacity-0 blur-lg transition-opacity duration-300 group-hover:opacity-100" />
-              <Card className="relative bg-white/5 backdrop-blur-sm border-white/10 dark:border-white/10 border-2 border-dashed hover:border-primary/50 transition-all duration-300 overflow-hidden">
+              <Card className="border-2 border-dashed hover:border-primary/50 transition-all duration-300">
                 <Link href="/offertes/nieuw/aanleg" className="block p-4">
                   <div className="flex items-start gap-4">
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/60 shadow-lg shadow-primary/25">
@@ -265,10 +264,9 @@ export default function DashboardPage() {
             <motion.div
               whileHover={{ scale: 1.02, y: -4 }}
               transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              className="group relative"
+              className="group"
             >
-              <div className="absolute -inset-0.5 -z-10 rounded-xl bg-gradient-to-r from-green-500/25 to-emerald-500/15 opacity-0 blur-lg transition-opacity duration-300 group-hover:opacity-100" />
-              <Card className="relative bg-white/5 backdrop-blur-sm border-white/10 dark:border-white/10 border-2 border-dashed hover:border-green-500/50 transition-all duration-300 overflow-hidden">
+              <Card className="border-2 border-dashed hover:border-green-500/50 transition-all duration-300">
                 <Link href="/offertes/nieuw/onderhoud" className="block p-4">
                   <div className="flex items-start gap-4">
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg shadow-green-500/25">
