@@ -6,6 +6,7 @@ import { ConvexClientProvider } from "@/components/providers/convex-client-provi
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { LiveRegionProvider } from "@/components/ui/live-region";
+import { SkipLink } from "@/components/ui/skip-link";
 import { ErrorBoundary } from "@/components/error-boundary";
 import "./globals.css";
 
@@ -29,8 +30,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  maximumScale: 5,
 };
 
 export default function RootLayout({
@@ -44,6 +44,7 @@ export default function RootLayout({
         <body
           className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
         >
+          <SkipLink />
           <ThemeProvider
             attribute="class"
             defaultTheme="system"
@@ -53,7 +54,9 @@ export default function RootLayout({
             <ConvexClientProvider>
               <ErrorBoundary>
                 <LiveRegionProvider>
-                  {children}
+                  <main id="main-content">
+                    {children}
+                  </main>
                   <Toaster position="top-right" richColors />
                 </LiveRegionProvider>
               </ErrorBoundary>

@@ -35,6 +35,31 @@ const shortcutCategories: ShortcutCategory[] = [
     ],
   },
   {
+    name: "Offerte Editor",
+    shortcuts: [
+      { keys: ["S"], description: "Offerte opslaan" },
+      { keys: ["N"], description: "Nieuwe regel toevoegen" },
+      { keys: ["Shift", "R"], description: "Regels herberekenen" },
+      { keys: ["P"], description: "Preview openen" },
+    ],
+  },
+  {
+    name: "Offerte Wizard",
+    shortcuts: [
+      { keys: ["→"], description: "Volgende stap" },
+      { keys: ["←"], description: "Vorige stap" },
+      { keys: ["1-7"], description: "Toggle scope (stap 1)" },
+    ],
+  },
+  {
+    name: "Offertes Overzicht",
+    shortcuts: [
+      { keys: ["A"], description: "Nieuwe aanleg offerte" },
+      { keys: ["O"], description: "Nieuwe onderhoud offerte" },
+      { keys: ["K"], description: "Zoeken" },
+    ],
+  },
+  {
     name: "Command Palette",
     shortcuts: [
       { keys: ["↑", "↓"], description: "Navigeer door resultaten" },

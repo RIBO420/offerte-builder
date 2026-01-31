@@ -52,6 +52,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { SignaturePadComponent } from "@/components/ui/signature-pad";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("nl-NL", {
@@ -292,8 +293,9 @@ export default function PublicOffertePage({
   // Mark as viewed when page loads
   useEffect(() => {
     if (data && !data.expired && data.offerte && !hasMarkedViewed) {
-      markAsViewed({ token }).catch(console.error);
-      markMessagesAsRead({ token }).catch(console.error);
+      // Non-critical operations - silent fail is acceptable
+      markAsViewed({ token }).catch(() => {});
+      markMessagesAsRead({ token }).catch(() => {});
       setHasMarkedViewed(true);
     }
   }, [data, token, markAsViewed, markMessagesAsRead, hasMarkedViewed]);
@@ -306,7 +308,8 @@ export default function PublicOffertePage({
   // Mark messages as read when new ones come in
   useEffect(() => {
     if (messages && messages.length > 0) {
-      markMessagesAsRead({ token }).catch(console.error);
+      // Non-critical operation - silent fail is acceptable
+      markMessagesAsRead({ token }).catch(() => {});
     }
   }, [messages, token, markMessagesAsRead]);
 
@@ -320,8 +323,9 @@ export default function PublicOffertePage({
       setShowAcceptDialog(false);
       setComment("");
       setSignature(null);
-    } catch (error) {
-      console.error(error);
+      toast.success("Offerte geaccepteerd");
+    } catch {
+      toast.error("Kon offerte niet accepteren. Probeer het opnieuw.");
     } finally {
       setIsSubmitting(false);
     }
@@ -333,8 +337,9 @@ export default function PublicOffertePage({
       await respond({ token, status: "afgewezen", comment: comment || undefined });
       setShowRejectDialog(false);
       setComment("");
-    } catch (error) {
-      console.error(error);
+      toast.success("Offerte afgewezen");
+    } catch {
+      toast.error("Kon offerte niet afwijzen. Probeer het opnieuw.");
     } finally {
       setIsSubmitting(false);
     }
@@ -346,8 +351,8 @@ export default function PublicOffertePage({
     try {
       await sendMessage({ token, message: chatMessage.trim() });
       setChatMessage("");
-    } catch (error) {
-      console.error(error);
+    } catch {
+      toast.error("Kon bericht niet verzenden. Probeer het opnieuw.");
     } finally {
       setIsSendingMessage(false);
     }

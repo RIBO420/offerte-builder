@@ -195,7 +195,7 @@ export function AppSidebar() {
                               <StatusDot status={offerte.status} />
                               <span className="truncate">{offerte.offerteNummer}</span>
                               <span className="ml-auto text-xs text-muted-foreground truncate max-w-[80px]">
-                                {offerte.klant.naam.split(" ")[0]}
+                                {offerte.klant?.naam?.split(" ")?.[0] || "Klant"}
                               </span>
                             </Link>
                           </SidebarMenuButton>

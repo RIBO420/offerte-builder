@@ -24,7 +24,7 @@ const RadioGroupItem = React.forwardRef<
   React.ComponentRef<typeof RadioGroupPrimitive.Item>,
   React.ComponentProps<typeof RadioGroupPrimitive.Item>
 >(({ className, ...props }, ref) => (
-  <span className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center">
+  <span className="inline-flex min-h-[44px] min-w-[44px] sm:min-h-fit sm:min-w-fit items-center justify-center">
     <RadioGroupPrimitive.Item
       ref={ref}
       data-slot="radio-group-item"

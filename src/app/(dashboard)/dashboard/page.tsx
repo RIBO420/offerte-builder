@@ -35,7 +35,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { StatsGrid } from "@/components/ui/stats-grid";
 import { PipelineView } from "@/components/ui/pipeline-view";
-import { RecentOffertesListSkeleton } from "@/components/skeletons";
+import { RecentOffertesListSkeleton, DashboardSkeleton } from "@/components/skeletons";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useDashboardData } from "@/hooks/use-offertes";
 import type { OfferteStatus } from "@/lib/constants/statuses";
@@ -77,9 +77,9 @@ export default function DashboardPage() {
     {
       title: "Totaal Offertes",
       value: stats?.totaal || 0,
-      description: stats?.totaalWaarde ? formatCurrency(stats.totaalWaarde) : "Nog geen offertes",
+      description: "Alle offertes",
       icon: <FileText className="h-4 w-4" />,
-      trend: { direction: "up" as const, percentage: 12, label: "vs vorige maand" },
+      trend: { direction: "up" as const, percentage: 12 },
     },
     {
       title: "Concepten",
@@ -91,16 +91,16 @@ export default function DashboardPage() {
     {
       title: "Verzonden",
       value: stats?.verzonden || 0,
-      description: "Wachten op reactie",
+      description: "Wachten",
       icon: <TrendingUp className="h-4 w-4" />,
-      trend: { direction: "up" as const, percentage: 8, label: "vs vorige maand" },
+      trend: { direction: "up" as const, percentage: 8 },
     },
     {
       title: "Geaccepteerd",
       value: stats?.geaccepteerd || 0,
-      description: stats?.geaccepteerdWaarde ? formatCurrency(stats.geaccepteerdWaarde) : "Opdrachten",
+      description: "Opdrachten",
       icon: <CheckCircle className="h-4 w-4" />,
-      trend: { direction: "up" as const, percentage: 15, label: "vs vorige maand" },
+      trend: { direction: "up" as const, percentage: 15 },
     },
   ];
 
@@ -116,6 +116,26 @@ export default function DashboardPage() {
   const handleStageClick = (stageId: string) => {
     router.push(`/offertes?status=${stageId}`);
   };
+
+  // Show skeleton during initial page load
+  if (isLoading) {
+    return (
+      <>
+        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+          <SidebarTrigger className="-ml-1" />
+          <Separator orientation="vertical" className="mr-2 h-4" />
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbPage>Dashboard</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+        </header>
+        <DashboardSkeleton />
+      </>
+    );
+  }
 
   return (
     <>

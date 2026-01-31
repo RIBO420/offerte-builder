@@ -73,12 +73,12 @@ export function EnhancedEmptyState({
         transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
       >
         {/* Glow effect */}
-        <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full" />
-        
+        <div className="absolute inset-0 bg-[hsl(var(--primary))]/20 blur-xl rounded-full" />
+
         {/* Icon background */}
-        <div className="relative flex items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border border-emerald-500/20 p-4">
+        <div className="relative flex items-center justify-center rounded-2xl bg-gradient-to-br from-[hsl(var(--primary))]/10 to-[hsl(var(--primary))]/5 border border-[hsl(var(--primary))]/20 p-4">
           <Icon
-            className="text-emerald-500"
+            className="text-primary"
             style={{ width: config.icon, height: config.icon }}
           />
         </div>
@@ -100,7 +100,7 @@ export function EnhancedEmptyState({
           <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
             <Button
               onClick={action.onClick}
-              className="bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700"
+              className="bg-gradient-to-r from-primary to-[hsl(var(--primary)/0.9)] hover:from-primary/90 hover:to-[hsl(var(--primary)/0.8)]"
             >
               {action.icon && <action.icon className="mr-2 h-4 w-4" />}
               {action.label}
@@ -193,7 +193,7 @@ export function EmptyStateLoading() {
   return (
     <div className="flex flex-col items-center justify-center p-12 rounded-2xl bg-white/5 border border-white/10">
       <motion.div
-        className="w-16 h-16 rounded-2xl bg-emerald-500/10 mb-4"
+        className="w-16 h-16 rounded-2xl bg-primary/10 mb-4"
         animate={{
           opacity: [0.5, 1, 0.5],
         }}

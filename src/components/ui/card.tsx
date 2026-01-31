@@ -13,21 +13,26 @@ const cardVariants = cva(
         ghost: "",
         elevated: "bg-card border-primary/20 shadow-lg",
       },
+      interactive: {
+        true: "hover:shadow-lg hover:-translate-y-0.5 transition-all cursor-pointer",
+        false: "",
+      },
     },
     defaultVariants: {
       variant: "default",
+      interactive: false,
     },
   }
 )
 
 const Card = React.forwardRef<
   HTMLDivElement,
-  React.ComponentProps<"div"> & VariantProps<typeof cardVariants> & { interactive?: boolean }
+  React.ComponentProps<"div"> & VariantProps<typeof cardVariants>
 >(({ className, variant, interactive, ...props }, ref) => (
   <div
     ref={ref}
     data-slot="card"
-    className={cn(cardVariants({ variant }), interactive && "card-interactive", className)}
+    className={cn(cardVariants({ variant, interactive }), className)}
     {...props}
   />
 ))

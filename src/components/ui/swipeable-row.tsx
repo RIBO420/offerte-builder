@@ -96,6 +96,39 @@ function SwipeableRow({
     setTranslateX(0)
   }, [])
 
+  // Keyboard handler for accessibility
+  const handleKeyDown = React.useCallback((e: React.KeyboardEvent) => {
+    // Delete or Backspace reveals right actions (typically delete)
+    if ((e.key === "Delete" || e.key === "Backspace") && rightActions.length > 0) {
+      e.preventDefault()
+      if (translateX === -rightActionsWidth) {
+        // If already revealed, trigger the first right action
+        rightActions[0].onClick()
+        setTranslateX(0)
+      } else {
+        // Reveal right actions
+        setTranslateX(-rightActionsWidth)
+      }
+    }
+    // Enter reveals left actions (typically edit/confirm)
+    else if (e.key === "Enter" && leftActions.length > 0) {
+      e.preventDefault()
+      if (translateX === leftActionsWidth) {
+        // If already revealed, trigger the first left action
+        leftActions[0].onClick()
+        setTranslateX(0)
+      } else {
+        // Reveal left actions
+        setTranslateX(leftActionsWidth)
+      }
+    }
+    // Escape closes any revealed actions
+    else if (e.key === "Escape" && translateX !== 0) {
+      e.preventDefault()
+      setTranslateX(0)
+    }
+  }, [leftActions, rightActions, translateX, leftActionsWidth, rightActionsWidth])
+
   // Close on click outside
   React.useEffect(() => {
     const handleClickOutside = (e: MouseEvent | TouchEvent) => {
@@ -186,14 +219,17 @@ function SwipeableRow({
         data-slot="swipeable-row-content"
         className={cn(
           "relative bg-background",
-          !isDragging && "transition-transform duration-300 ease-out"
+          !isDragging && "transition-transform duration-300 ease-out",
+          "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         )}
         style={{ transform: `translateX(${translateX}px)` }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onKeyDown={handleKeyDown}
+        tabIndex={0}
         role="group"
-        aria-label={`Swipeable rij${leftActions.length > 0 ? `, swipe rechts voor ${leftActions.map(a => a.label).join(", ")}` : ""}${rightActions.length > 0 ? `, swipe links voor ${rightActions.map(a => a.label).join(", ")}` : ""}`}
+        aria-label={`Swipeable rij${leftActions.length > 0 ? `, druk Enter voor ${leftActions.map(a => a.label).join(", ")}` : ""}${rightActions.length > 0 ? `, druk Delete voor ${rightActions.map(a => a.label).join(", ")}` : ""}`}
       >
         {children}
       </div>

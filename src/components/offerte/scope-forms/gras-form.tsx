@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Trees } from "lucide-react";
+import { PriceEstimateBadge } from "@/components/ui/price-estimate-badge";
 import { grasSchema, type GrasFormData } from "@/lib/validations/aanleg-scopes";
 import type { GrasData } from "@/types/offerte";
 
@@ -77,9 +78,15 @@ export function GrasForm({ data, onChange, onValidationChange }: GrasFormProps) 
       <form>
         <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center gap-2">
-              <Trees className="h-4 w-4 text-muted-foreground" />
-              <CardTitle className="text-base">Gras / Gazon</CardTitle>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Trees className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-base">Gras / Gazon</CardTitle>
+              </div>
+              <PriceEstimateBadge
+                scope="gras"
+                oppervlakte={watchedValues.oppervlakte}
+              />
             </div>
             <CardDescription className="text-xs">
               Zaaien of graszoden en ondergrondbewerking

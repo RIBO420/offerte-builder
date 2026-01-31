@@ -4,6 +4,7 @@ import { useState, useMemo, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { useReducedMotion } from "@/hooks/use-accessibility";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -105,6 +106,8 @@ export default function OffertesPage() {
 }
 
 function OffertesPageSkeleton() {
+  const reducedMotion = useReducedMotion();
+
   return (
     <>
       <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
@@ -123,9 +126,9 @@ function OffertesPageSkeleton() {
         </Breadcrumb>
       </header>
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
+        initial={reducedMotion ? false : { opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
+        transition={{ duration: reducedMotion ? 0 : 0.4, ease: "easeOut" }}
         className="flex flex-1 items-center justify-center"
       >
         <div className="relative flex flex-col items-center gap-4">
@@ -134,13 +137,13 @@ function OffertesPageSkeleton() {
 
           {/* Pulsing glow effect behind icon */}
           <motion.div
-            animate={{
+            animate={reducedMotion ? {} : {
               scale: [1, 1.2, 1],
               opacity: [0.3, 0.6, 0.3]
             }}
             transition={{
               duration: 2,
-              repeat: Infinity,
+              repeat: reducedMotion ? 0 : Infinity,
               ease: "easeInOut"
             }}
             className="absolute h-16 w-16 rounded-full bg-gradient-to-br from-emerald-400/40 to-green-400/40 dark:from-emerald-500/30 dark:to-green-500/30 blur-xl"
@@ -148,24 +151,24 @@ function OffertesPageSkeleton() {
 
           {/* Icon container with scale animation */}
           <motion.div
-            initial={{ scale: 0.8 }}
+            initial={reducedMotion ? false : { scale: 0.8 }}
             animate={{ scale: 1 }}
-            transition={{ duration: 0.3, delay: 0.1 }}
+            transition={{ duration: reducedMotion ? 0 : 0.3, delay: reducedMotion ? 0 : 0.1 }}
             className="relative flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-950/50 dark:to-green-950/50 border border-emerald-100 dark:border-emerald-800/50 shadow-lg shadow-emerald-500/10"
           >
             <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+              animate={reducedMotion ? {} : { rotate: 360 }}
+              transition={{ duration: 1.5, repeat: reducedMotion ? 0 : Infinity, ease: "linear" }}
             >
-              <Loader2 className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
+              <Loader2 className={`h-8 w-8 text-emerald-600 dark:text-emerald-400 ${reducedMotion ? "animate-spin" : ""}`} />
             </motion.div>
           </motion.div>
 
           {/* Loading text with fade */}
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
+            initial={reducedMotion ? false : { opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.2 }}
+            transition={{ duration: reducedMotion ? 0 : 0.3, delay: reducedMotion ? 0 : 0.2 }}
             className="relative text-center"
           >
             <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">Offertes laden...</p>
@@ -180,6 +183,7 @@ function OffertesPageSkeleton() {
 function OffertesPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const reducedMotion = useReducedMotion();
   const { isLoading: isUserLoading } = useCurrentUser();
   const {
     offertes,
@@ -405,15 +409,15 @@ function OffertesPageContent() {
       </header>
 
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={reducedMotion ? false : { opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
+        transition={{ duration: reducedMotion ? 0 : 0.5, ease: "easeOut" }}
         className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
       >
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
+          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.1 }}
+          transition={{ duration: reducedMotion ? 0 : 0.4, delay: reducedMotion ? 0 : 0.1 }}
           className="flex items-center justify-between"
         >
           <div>
@@ -441,9 +445,9 @@ function OffertesPageContent() {
         </motion.div>
 
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
+          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.2 }}
+          transition={{ duration: reducedMotion ? 0 : 0.4, delay: reducedMotion ? 0 : 0.2 }}
           className="flex flex-col gap-4"
         >
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
@@ -466,9 +470,9 @@ function OffertesPageContent() {
         </motion.div>
 
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
+          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.3 }}
+          transition={{ duration: reducedMotion ? 0 : 0.4, delay: reducedMotion ? 0 : 0.3 }}
         >
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
           <TabsList>
@@ -568,20 +572,20 @@ function OffertesPageContent() {
               {isLoading ? (
                 <motion.div
                   key="loading"
-                  initial={{ opacity: 0, scale: 0.98 }}
+                  initial={reducedMotion ? false : { opacity: 0, scale: 0.98 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.98 }}
-                  transition={{ duration: 0.3 }}
+                  exit={reducedMotion ? undefined : { opacity: 0, scale: 0.98 }}
+                  transition={{ duration: reducedMotion ? 0 : 0.3 }}
                 >
                   <OffertesTableSkeleton rows={8} />
                 </motion.div>
               ) : filteredOffertes && filteredOffertes.length > 0 ? (
                 <motion.div
                   key="content"
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={reducedMotion ? false : { opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.4 }}
+                  exit={reducedMotion ? undefined : { opacity: 0, y: -10 }}
+                  transition={{ duration: reducedMotion ? 0 : 0.4 }}
                 >
                   <Card className="overflow-hidden">
                     <ScrollableTable>
@@ -609,9 +613,12 @@ function OffertesPageContent() {
                         {filteredOffertes.map((offerte, index) => (
                           <motion.tr
                             key={offerte._id}
-                            initial={{ opacity: 0, x: -10 }}
+                            initial={reducedMotion ? false : { opacity: 0, x: -10 }}
                             animate={{ opacity: 1, x: 0 }}
-                            transition={{ duration: 0.3, delay: index * 0.05 }}
+                            transition={{
+                              duration: reducedMotion ? 0 : 0.3,
+                              delay: reducedMotion ? 0 : index * 0.05,
+                            }}
                             className={`border-b hover:bg-muted/50 transition-colors cursor-pointer hover:translate-y-[-1px] ${selectedIds.has(offerte._id) ? "bg-muted/50" : ""}`}
                             onClick={(e) => {
                               // Alleen navigeren als niet op checkbox of dropdown geklikt
@@ -703,20 +710,20 @@ function OffertesPageContent() {
               ) : searchQuery ? (
                 <motion.div
                   key="no-results"
-                  initial={{ opacity: 0, scale: 0.95 }}
+                  initial={reducedMotion ? false : { opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ duration: 0.3 }}
+                  exit={reducedMotion ? undefined : { opacity: 0, scale: 0.95 }}
+                  transition={{ duration: reducedMotion ? 0 : 0.3 }}
                 >
                   <NoSearchResults onAction={() => setSearchQuery("")} />
                 </motion.div>
               ) : (
                 <motion.div
                   key="empty"
-                  initial={{ opacity: 0, scale: 0.95 }}
+                  initial={reducedMotion ? false : { opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ duration: 0.3 }}
+                  exit={reducedMotion ? undefined : { opacity: 0, scale: 0.95 }}
+                  transition={{ duration: reducedMotion ? 0 : 0.3 }}
                 >
                   <NoOffertes onAction={() => router.push("/offertes/nieuw/aanleg")} />
                 </motion.div>

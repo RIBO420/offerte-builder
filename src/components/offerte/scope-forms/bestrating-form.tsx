@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Layers, AlertTriangle } from "lucide-react";
+import { PriceEstimateBadge } from "@/components/ui/price-estimate-badge";
 import { bestratingSchema, type BestratingFormData } from "@/lib/validations/aanleg-scopes";
 import type { BestratingData } from "@/types/offerte";
 
@@ -90,9 +91,15 @@ export function BestratingForm({ data, onChange, onValidationChange }: Bestratin
       <form className="space-y-3">
         <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center gap-2">
-              <Layers className="h-4 w-4 text-muted-foreground" />
-              <CardTitle className="text-base">Bestrating</CardTitle>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Layers className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-base">Bestrating</CardTitle>
+              </div>
+              <PriceEstimateBadge
+                scope="bestrating"
+                oppervlakte={watchedValues.oppervlakte}
+              />
             </div>
             <CardDescription className="text-xs">
               Tegels, klinkers of natuursteen

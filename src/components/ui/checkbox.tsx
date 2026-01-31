@@ -10,7 +10,7 @@ const Checkbox = React.forwardRef<
   React.ComponentRef<typeof CheckboxPrimitive.Root>,
   React.ComponentProps<typeof CheckboxPrimitive.Root>
 >(({ className, ...props }, ref) => (
-  <span className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center">
+  <span className="inline-flex min-h-[44px] min-w-[44px] sm:min-h-fit sm:min-w-fit items-center justify-center">
     <CheckboxPrimitive.Root
       ref={ref}
       data-slot="checkbox"

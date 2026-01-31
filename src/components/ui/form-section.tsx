@@ -69,14 +69,14 @@ const FormSection = React.forwardRef<HTMLDivElement, FormSectionProps>(
         open={isOpen}
         onOpenChange={setIsOpen}
         className={cn(
-          "bg-muted/30 rounded-lg border border-border/50",
+          "bg-muted/50 rounded-lg border border-border/80",
           className
         )}
       >
         <CollapsibleTrigger asChild>
           <button
             type="button"
-            className="w-full p-4 text-left hover:bg-muted/50 transition-colors rounded-t-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="w-full p-4 text-left hover:bg-muted/50 transition-colors rounded-t-lg focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             {headerContent}
           </button>
@@ -95,7 +95,7 @@ const FormSection = React.forwardRef<HTMLDivElement, FormSectionProps>(
         ref={ref}
         data-slot="form-section"
         className={cn(
-          "bg-muted/30 rounded-lg border border-border/50 p-4",
+          "bg-muted/50 rounded-lg border border-border/80 p-4",
           className
         )}
       >
@@ -175,7 +175,7 @@ const FormDivider = React.forwardRef<HTMLDivElement, FormDividerProps>(
             <div className="w-full border-t border-border" />
           </div>
           <div className="relative flex justify-center">
-            <span className="bg-muted/30 px-2 text-xs text-muted-foreground uppercase tracking-wider">
+            <span className="bg-muted/50 px-2 text-xs text-muted-foreground uppercase tracking-wider">
               {label}
             </span>
           </div>

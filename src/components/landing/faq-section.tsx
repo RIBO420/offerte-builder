@@ -148,7 +148,7 @@ export function FAQSection() {
               </p>
               <div className="flex gap-3">
                 <Button asChild variant="outline" size="sm">
-                  <Link href="#">Chat met ons</Link>
+                  <Link href="mailto:support@toptuinen.nl">Chat met ons</Link>
                 </Button>
                 <Button asChild size="sm" className="bg-gradient-to-r from-emerald-600 to-green-600">
                   <Link href="/sign-up">Start gratis trial</Link>

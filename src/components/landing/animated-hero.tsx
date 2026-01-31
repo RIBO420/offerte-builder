@@ -393,7 +393,7 @@ export function AnimatedHero() {
             initial={{ opacity: 0, scale: 0.8, rotateY: 30 }}
             animate={{ opacity: 1, scale: 1, rotateY: 0 }}
             transition={{ duration: 1, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
-            className="relative h-[500px] lg:h-[600px]"
+            className="relative h-[300px] sm:h-[400px] md:h-[500px] lg:h-[600px]"
           >
             <Garden3D />
           </motion.div>

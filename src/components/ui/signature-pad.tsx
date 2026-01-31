@@ -3,6 +3,8 @@
 import { useRef, useEffect, useState } from "react";
 import SignaturePad from "signature_pad";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Eraser, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +20,7 @@ export function SignaturePadComponent({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const signaturePadRef = useRef<SignaturePad | null>(null);
   const [isEmpty, setIsEmpty] = useState(true);
+  const [typedName, setTypedName] = useState("");
 
   useEffect(() => {
     if (canvasRef.current) {
@@ -50,7 +53,42 @@ export function SignaturePadComponent({
   const handleClear = () => {
     signaturePadRef.current?.clear();
     setIsEmpty(true);
+    setTypedName("");
     onSignatureChange(null);
+  };
+
+  // Generate signature image from typed name
+  const generateTypedSignature = (name: string): string => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 400;
+    canvas.height = 128;
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      ctx.fillStyle = "rgb(255, 255, 255)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "rgb(0, 0, 0)";
+      ctx.font = "italic 32px 'Brush Script MT', cursive, serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(name, canvas.width / 2, canvas.height / 2);
+    }
+    return canvas.toDataURL();
+  };
+
+  const handleTypedNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const name = e.target.value;
+    setTypedName(name);
+
+    if (name.trim()) {
+      // Clear the drawn signature when typing
+      signaturePadRef.current?.clear();
+      setIsEmpty(false);
+      const signatureDataUrl = generateTypedSignature(name);
+      onSignatureChange(signatureDataUrl);
+    } else {
+      setIsEmpty(true);
+      onSignatureChange(null);
+    }
   };
 
   return (
@@ -84,6 +122,28 @@ export function SignaturePadComponent({
             Handtekening gezet
           </span>
         )}
+      </div>
+
+      {/* Text input alternative for keyboard accessibility */}
+      <div className="space-y-1.5 pt-2 border-t border-muted-foreground/10">
+        <Label
+          htmlFor="typed-signature"
+          className="text-sm text-muted-foreground"
+        >
+          Kan je niet tekenen? Typ je naam hieronder
+        </Label>
+        <Input
+          id="typed-signature"
+          type="text"
+          value={typedName}
+          onChange={handleTypedNameChange}
+          placeholder="Typ je naam"
+          className="font-serif italic"
+          aria-describedby="typed-signature-hint"
+        />
+        <p id="typed-signature-hint" className="text-xs text-muted-foreground">
+          Je getypte naam wordt omgezet naar een handtekening
+        </p>
       </div>
     </div>
   );

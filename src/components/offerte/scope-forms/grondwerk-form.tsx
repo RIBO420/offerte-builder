@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { AreaInput } from "@/components/ui/number-input";
+import { PriceEstimateBadge } from "@/components/ui/price-estimate-badge";
 import {
   Form,
   FormControl,
@@ -82,9 +83,15 @@ export function GrondwerkForm({ data, onChange, onValidationChange }: GrondwerkF
       <form>
         <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center gap-2">
-              <Shovel className="h-4 w-4 text-muted-foreground" />
-              <CardTitle className="text-base">Grondwerk</CardTitle>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Shovel className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-base">Grondwerk</CardTitle>
+              </div>
+              <PriceEstimateBadge
+                scope="grondwerk"
+                oppervlakte={watchedValues.oppervlakte}
+              />
             </div>
             <CardDescription className="text-xs">
               Ontgraven, afvoer en machine-uren

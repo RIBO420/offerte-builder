@@ -17,11 +17,15 @@ import { Download, BarChart3, Trees } from "lucide-react";
 import { useAnalytics } from "@/hooks/use-analytics";
 import {
   KpiCards,
+  SecondaryKpiCards,
   OfferteTrendChart,
   RevenueChart,
   ScopeMarginChart,
+  ScopeProfitabilityChart,
   TopKlantenTable,
   AnalyticsDateFilter,
+  PipelineFunnelChart,
+  TrendForecastChart,
 } from "@/components/analytics";
 import { AnalyticsSkeleton } from "@/components/skeletons";
 import { exportAnalyticsReport } from "@/lib/excel-export";
@@ -32,11 +36,15 @@ export default function RapportagesPage() {
     maandelijkseTrend,
     kwartaalOmzet,
     scopeMarges,
+    totalScopeRevenue,
     topKlanten,
     exportData,
     isLoading,
     datePreset,
     setPreset,
+    pipelineFunnel,
+    conversionRates,
+    forecast,
   } = useAnalytics();
 
   const handleExport = () => {
@@ -118,13 +126,22 @@ export default function RapportagesPage() {
               transition={{ duration: 0.5 }}
               className="space-y-4"
             >
-              {/* KPI Cards with staggered animation */}
+              {/* Primary KPI Cards */}
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.1 }}
               >
                 <KpiCards kpis={kpis} />
+              </motion.div>
+
+              {/* Secondary KPI Cards - New Insights */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.15 }}
+              >
+                <SecondaryKpiCards kpis={kpis} />
               </motion.div>
 
               {/* Tabs */}
@@ -134,11 +151,12 @@ export default function RapportagesPage() {
                 transition={{ duration: 0.4, delay: 0.2 }}
               >
                 <Tabs defaultValue="overzicht" className="space-y-4">
-                  <TabsList>
+                  <TabsList className="flex-wrap h-auto gap-1">
                     <TabsTrigger value="overzicht">Overzicht</TabsTrigger>
-                    <TabsTrigger value="omzet">Omzet</TabsTrigger>
+                    <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
+                    <TabsTrigger value="omzet">Omzet & Forecast</TabsTrigger>
                     <TabsTrigger value="klanten">Klanten</TabsTrigger>
-                    <TabsTrigger value="marges">Marges</TabsTrigger>
+                    <TabsTrigger value="marges">Winstgevendheid</TabsTrigger>
                   </TabsList>
 
                   {/* Overzicht Tab */}
@@ -164,16 +182,32 @@ export default function RapportagesPage() {
                     </motion.div>
                   </TabsContent>
 
-                  {/* Omzet Tab */}
+                  {/* Pipeline Tab - NEW */}
+                  <TabsContent value="pipeline" className="space-y-4">
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="grid gap-4 lg:grid-cols-2"
+                    >
+                      <PipelineFunnelChart
+                        data={pipelineFunnel}
+                        conversionRates={conversionRates}
+                      />
+                      <TopKlantenTable klanten={topKlanten} />
+                    </motion.div>
+                  </TabsContent>
+
+                  {/* Omzet & Forecast Tab - ENHANCED */}
                   <TabsContent value="omzet" className="space-y-4">
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3 }}
                     >
-                      <RevenueChart
-                        monthlyData={maandelijkseTrend}
-                        quarterlyData={kwartaalOmzet}
+                      <TrendForecastChart
+                        data={maandelijkseTrend}
+                        forecast={forecast}
                       />
                     </motion.div>
                     <motion.div
@@ -181,7 +215,10 @@ export default function RapportagesPage() {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3, delay: 0.1 }}
                     >
-                      <OfferteTrendChart data={maandelijkseTrend} />
+                      <RevenueChart
+                        monthlyData={maandelijkseTrend}
+                        quarterlyData={kwartaalOmzet}
+                      />
                     </motion.div>
                   </TabsContent>
 
@@ -196,12 +233,22 @@ export default function RapportagesPage() {
                     </motion.div>
                   </TabsContent>
 
-                  {/* Marges Tab */}
+                  {/* Winstgevendheid Tab - ENHANCED */}
                   <TabsContent value="marges" className="space-y-4">
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3 }}
+                    >
+                      <ScopeProfitabilityChart
+                        data={scopeMarges}
+                        totalRevenue={totalScopeRevenue}
+                      />
+                    </motion.div>
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: 0.1 }}
                     >
                       <ScopeMarginChart data={scopeMarges} />
                     </motion.div>

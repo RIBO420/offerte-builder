@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
   Command,
   CommandEmpty,
@@ -17,9 +18,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Check, ChevronsUpDown, User, Plus } from "lucide-react";
+import { Check, ChevronsUpDown, User, Plus, FileText, Clock, Euro } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useKlantenSearch, useKlanten } from "@/hooks/use-klanten";
+import { useKlantenWithStats } from "@/hooks/use-smart-analytics";
 import { Id } from "../../../convex/_generated/dataModel";
 
 type Klant = {
@@ -31,6 +33,45 @@ type Klant = {
   email?: string;
   telefoon?: string;
 };
+
+type EnrichedKlant = Klant & {
+  offerteCount: number;
+  lastOfferteDate: number | null;
+  lastOfferteNummer: string | null;
+  lastOfferteStatus: string | null;
+  totalSpent: number;
+};
+
+function formatRelativeDate(timestamp: number): string {
+  const now = Date.now();
+  const diff = now - timestamp;
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+  if (days === 0) return "Vandaag";
+  if (days === 1) return "Gisteren";
+  if (days < 7) return `${days} dagen geleden`;
+  if (days < 30) return `${Math.floor(days / 7)} weken geleden`;
+  if (days < 365) return `${Math.floor(days / 30)} maanden geleden`;
+  return `${Math.floor(days / 365)} jaar geleden`;
+}
+
+function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat("nl-NL", {
+    style: "currency",
+    currency: "EUR",
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+function getStatusColor(status: string): string {
+  switch (status) {
+    case "geaccepteerd": return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
+    case "afgewezen": return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
+    case "verzonden": return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
+    case "definitief": return "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400";
+    default: return "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400";
+  }
+}
 
 interface KlantData {
   naam: string;
@@ -56,12 +97,14 @@ export function KlantSelector({
   const [searchTerm, setSearchTerm] = useState("");
   const { results: searchResults } = useKlantenSearch(searchTerm);
   const { recentKlanten } = useKlanten();
+  const { klanten: enrichedKlanten } = useKlantenWithStats(10);
   const [selectedKlantId, setSelectedKlantId] = useState<Id<"klanten"> | null>(
     null
   );
 
   const typedRecentKlanten = recentKlanten as Klant[];
   const typedSearchResults = searchResults as Klant[];
+  const typedEnrichedKlanten = enrichedKlanten as EnrichedKlant[];
 
   const handleSelectKlant = (klant: {
     _id: Id<"klanten">;
@@ -141,28 +184,65 @@ export function KlantSelector({
                     </p>
                   </div>
                 </CommandEmpty>
-                {!searchTerm && typedRecentKlanten.length > 0 && (
+                {!searchTerm && typedEnrichedKlanten.length > 0 && (
                   <CommandGroup heading="Recente klanten">
-                    {typedRecentKlanten.map((klant) => (
+                    {typedEnrichedKlanten.map((klant) => (
                       <CommandItem
                         key={klant._id}
                         value={klant.naam}
                         onSelect={() => handleSelectKlant(klant)}
+                        className="flex-col items-start py-3"
                       >
-                        <Check
-                          className={cn(
-                            "mr-2 h-4 w-4",
-                            selectedKlantId === klant._id
-                              ? "opacity-100"
-                              : "opacity-0"
-                          )}
-                        />
-                        <div className="flex flex-col">
-                          <span className="font-medium">{klant.naam}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {klant.adres}, {klant.plaats}
-                          </span>
+                        <div className="flex w-full items-center gap-2">
+                          <Check
+                            className={cn(
+                              "h-4 w-4 shrink-0",
+                              selectedKlantId === klant._id
+                                ? "opacity-100"
+                                : "opacity-0"
+                            )}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium truncate">{klant.naam}</span>
+                              {klant.offerteCount > 0 && (
+                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">
+                                  {klant.offerteCount} offerte{klant.offerteCount !== 1 ? "s" : ""}
+                                </Badge>
+                              )}
+                            </div>
+                            <span className="text-xs text-muted-foreground">
+                              {klant.adres}, {klant.plaats}
+                            </span>
+                          </div>
                         </div>
+                        {/* Smart info: last offerte details */}
+                        {klant.lastOfferteDate && (
+                          <div className="ml-6 mt-1.5 flex items-center gap-3 text-[11px] text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <FileText className="h-3 w-3" />
+                              {klant.lastOfferteNummer}
+                            </span>
+                            {klant.lastOfferteStatus && (
+                              <Badge
+                                variant="outline"
+                                className={cn("text-[10px] px-1.5 py-0 capitalize", getStatusColor(klant.lastOfferteStatus))}
+                              >
+                                {klant.lastOfferteStatus}
+                              </Badge>
+                            )}
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {formatRelativeDate(klant.lastOfferteDate)}
+                            </span>
+                            {klant.totalSpent > 0 && (
+                              <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                                <Euro className="h-3 w-3" />
+                                {formatCurrency(klant.totalSpent)}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </CommandItem>
                     ))}
                   </CommandGroup>

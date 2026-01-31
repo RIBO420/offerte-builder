@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     } = body;
 
     // Validate required fields
-    if (!to || !klantNaam || !offerteNummer || !bedrijfsnaam) {
+    if (!to?.trim() || !klantNaam?.trim() || !offerteNummer?.trim() || !bedrijfsnaam?.trim()) {
       return NextResponse.json(
         { error: "Ontbrekende verplichte velden" },
         { status: 400 }
@@ -55,10 +55,9 @@ export async function POST(request: NextRequest) {
     );
 
     // Send email via Resend
-    // Note: Using onboarding@resend.dev as "from" address for testing
-    // In production, you need to verify your own domain
+    const fromEmail = process.env.RESEND_FROM_EMAIL || "noreply@toptuinen.nl";
     const { data, error } = await resend.emails.send({
-      from: `${bedrijfsnaam} <onboarding@resend.dev>`,
+      from: `${bedrijfsnaam} <${fromEmail}>`,
       to: [to],
       subject,
       html: emailHtml,

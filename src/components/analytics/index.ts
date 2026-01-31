@@ -1,6 +1,10 @@
 export { KpiCards } from "./kpi-cards";
+export { SecondaryKpiCards } from "./secondary-kpi-cards";
 export { OfferteTrendChart } from "./offerte-trend-chart";
 export { RevenueChart } from "./revenue-chart";
 export { ScopeMarginChart } from "./scope-margin-chart";
+export { ScopeProfitabilityChart } from "./scope-profitability-chart";
 export { TopKlantenTable } from "./top-klanten-table";
 export { AnalyticsDateFilter } from "./analytics-date-filter";
+export { PipelineFunnelChart } from "./pipeline-funnel-chart";
+export { TrendForecastChart } from "./trend-forecast-chart";

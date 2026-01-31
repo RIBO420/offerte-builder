@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Flower2 } from "lucide-react";
+import { PriceEstimateBadge } from "@/components/ui/price-estimate-badge";
 import { bordersSchema, type BordersFormData } from "@/lib/validations/aanleg-scopes";
 import type { BordersData } from "@/types/offerte";
 
@@ -83,9 +84,15 @@ export function BordersForm({ data, onChange, onValidationChange }: BordersFormP
       <form>
         <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center gap-2">
-              <Flower2 className="h-4 w-4 text-muted-foreground" />
-              <CardTitle className="text-base">Borders & Beplanting</CardTitle>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Flower2 className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-base">Borders & Beplanting</CardTitle>
+              </div>
+              <PriceEstimateBadge
+                scope="borders"
+                oppervlakte={watchedValues.oppervlakte}
+              />
             </div>
             <CardDescription className="text-xs">
               Grondbewerking, planten en afwerking

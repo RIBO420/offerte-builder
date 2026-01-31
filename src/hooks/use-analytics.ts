@@ -85,10 +85,15 @@ export function useAnalytics() {
     maandelijkseTrend: analyticsData?.maandelijkseTrend ?? [],
     kwartaalOmzet: analyticsData?.kwartaalOmzet ?? [],
     scopeMarges: analyticsData?.scopeMarges ?? [],
+    totalScopeRevenue: analyticsData?.totalScopeRevenue ?? 0,
     topKlanten: analyticsData?.topKlanten ?? [],
     statusVerdeling: analyticsData?.statusVerdeling,
     typeVerdeling: analyticsData?.typeVerdeling,
     exportData: analyticsData?.exportData ?? [],
+    // NEW: Pipeline and forecasting data
+    pipelineFunnel: analyticsData?.pipelineFunnel,
+    conversionRates: analyticsData?.conversionRates,
+    forecast: analyticsData?.forecast ?? [],
 
     // State
     isLoading: user && analyticsData === undefined,

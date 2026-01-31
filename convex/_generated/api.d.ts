@@ -21,6 +21,7 @@ import type * as offerteVersions from "../offerteVersions.js";
 import type * as offertes from "../offertes.js";
 import type * as producten from "../producten.js";
 import type * as publicOffertes from "../publicOffertes.js";
+import type * as smartAnalytics from "../smartAnalytics.js";
 import type * as standaardtuinen from "../standaardtuinen.js";
 import type * as users from "../users.js";
 import type * as validators from "../validators.js";
@@ -45,6 +46,7 @@ declare const fullApi: ApiFromModules<{
   offertes: typeof offertes;
   producten: typeof producten;
   publicOffertes: typeof publicOffertes;
+  smartAnalytics: typeof smartAnalytics;
   standaardtuinen: typeof standaardtuinen;
   users: typeof users;
   validators: typeof validators;

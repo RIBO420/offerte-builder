@@ -165,7 +165,7 @@ export function AnimatedButton({
         size={size}
         className={cn(
           "relative overflow-hidden transition-all duration-200",
-          state === "success" && "bg-green-600 hover:bg-green-700",
+          state === "success" && "bg-emerald-600 hover:bg-emerald-700",
           className
         )}
       >

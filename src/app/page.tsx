@@ -669,13 +669,13 @@ export default function LandingPage() {
               © {new Date().getFullYear()} Offerte Builder. Alle rechten voorbehouden.
             </p>
             <div className="flex items-center gap-6">
-              <Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+              <Link href="/privacy" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                 Privacy
               </Link>
-              <Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+              <Link href="/voorwaarden" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                 Voorwaarden
               </Link>
-              <Link href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+              <Link href="mailto:info@toptuinen.nl" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                 Contact
               </Link>
             </div>

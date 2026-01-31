@@ -83,9 +83,11 @@ import {
 import { useOfferte, useOffertes } from "@/hooks/use-offertes";
 import { useInstellingen } from "@/hooks/use-instellingen";
 import { useOfferteCalculation } from "@/hooks/use-offerte-calculation";
+import { useOfferteEditorShortcuts } from "@/hooks/use-offerte-shortcuts";
 import { Id } from "../../../../../../convex/_generated/dataModel";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { getModifierKey } from "@/hooks/use-keyboard-shortcuts";
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("nl-NL", {
@@ -192,6 +194,37 @@ export default function OfferteEditPage({
       setNotities(offerte.notities || "");
     }
   }, [offerte]);
+
+  // Keyboard shortcuts for offerte editor
+  useOfferteEditorShortcuts({
+    onSave: () => {
+      if (!isSaving && offerte) {
+        handleSave();
+      }
+    },
+    onAddRegel: () => {
+      if (!showAddDialog) {
+        setShowAddDialog(true);
+      }
+    },
+    onRecalculate: () => {
+      if (!isRecalculating && offerte?.scopeData) {
+        setShowRecalculateDialog(true);
+      }
+    },
+    onCancel: () => {
+      if (showAddDialog) {
+        setShowAddDialog(false);
+      } else if (showEditDialog) {
+        setShowEditDialog(false);
+        setEditingRegel(null);
+      } else if (showRecalculateDialog) {
+        setShowRecalculateDialog(false);
+      }
+    },
+  });
+
+  const modKey = getModifierKey();
 
   // Scroll to bottom of messages and mark as read
   useEffect(() => {
@@ -506,6 +539,7 @@ export default function OfferteEditPage({
               variant="outline"
               onClick={() => setShowRecalculateDialog(true)}
               disabled={isRecalculating || !offerte.scopeData}
+              title={`Herbereken (${modKey}+Shift+R)`}
             >
               {isRecalculating ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -514,13 +548,16 @@ export default function OfferteEditPage({
               )}
               Herbereken
             </Button>
-            <Button onClick={handleSave} disabled={isSaving}>
+            <Button onClick={handleSave} disabled={isSaving} title={`Opslaan (${modKey}+S)`}>
               {isSaving ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <Save className="mr-2 h-4 w-4" />
               )}
               Opslaan
+              <kbd className="ml-2 px-1.5 py-0.5 bg-primary-foreground/20 rounded text-[10px] hidden sm:inline">
+                {modKey}S
+              </kbd>
             </Button>
           </div>
         </div>
@@ -539,9 +576,12 @@ export default function OfferteEditPage({
                   </div>
                   <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
                     <DialogTrigger asChild>
-                      <Button>
+                      <Button title={`Regel toevoegen (${modKey}+N)`}>
                         <Plus className="mr-2 h-4 w-4" />
                         Regel toevoegen
+                        <kbd className="ml-2 px-1.5 py-0.5 bg-primary-foreground/20 rounded text-[10px] hidden sm:inline">
+                          {modKey}N
+                        </kbd>
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="max-w-md">
