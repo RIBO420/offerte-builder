@@ -36,10 +36,8 @@ export default function SignUpPage() {
   // Don't render the sign-up form if already signed in
   if (isSignedIn) {
     return (
-      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 p-4">
-        {/* Background pattern */}
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiMyMjIiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIvPjwvZz48L2c+PC9zdmc+')] opacity-40" />
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-4">
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
       </div>
     );
   }
@@ -125,17 +123,22 @@ export default function SignUpPage() {
 
   if (pendingVerification) {
     return (
-      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 p-4">
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-4">
         {/* Background pattern */}
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiMyMjIiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIvPjwvZz48L2c+PC9zdmc+')] opacity-40" />
+        <div
+          className="absolute inset-0 opacity-20 dark:opacity-10"
+          style={{
+            backgroundImage: `radial-gradient(circle at 2px 2px, rgba(16, 185, 129, 0.15) 1px, transparent 0)`,
+            backgroundSize: "40px 40px",
+          }}
+        />
 
         {/* Floating orbs */}
-        <div className="absolute top-1/4 left-1/4 h-72 w-72 rounded-full bg-emerald-500/10 blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 h-96 w-96 rounded-full bg-green-500/10 blur-3xl" />
-        <div className="absolute top-1/2 right-1/3 h-64 w-64 rounded-full bg-teal-500/5 blur-3xl" />
+        <div className="absolute top-1/4 left-1/4 h-72 w-72 rounded-full bg-emerald-500/5 blur-3xl" />
+        <div className="absolute bottom-1/4 right-1/4 h-96 w-96 rounded-full bg-green-500/5 blur-3xl" />
 
         {/* Card glow effect */}
-        <div className="absolute h-[500px] w-[500px] rounded-full bg-emerald-500/20 blur-3xl" />
+        <div className="absolute left-1/2 top-1/2 h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-500/10 blur-[100px]" />
 
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -143,7 +146,7 @@ export default function SignUpPage() {
           transition={{ duration: 0.5, ease: "easeOut" }}
           className="relative z-10 w-full max-w-md"
         >
-          <Card className="bg-white/5 backdrop-blur-sm border border-white/10 shadow-2xl">
+          <Card className="border-border/50 bg-card/80 backdrop-blur-sm shadow-xl">
             <CardHeader className="text-center">
               <motion.div
                 initial={{ scale: 0 }}
@@ -153,8 +156,8 @@ export default function SignUpPage() {
               >
                 <Trees className="h-6 w-6" />
               </motion.div>
-              <CardTitle className="text-2xl text-white">Verifieer je e-mail</CardTitle>
-              <CardDescription className="text-slate-400">
+              <CardTitle className="text-2xl">Verifieer je e-mail</CardTitle>
+              <CardDescription>
                 We hebben een verificatiecode gestuurd naar {email}
               </CardDescription>
             </CardHeader>
@@ -164,7 +167,7 @@ export default function SignUpPage() {
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="mb-4 rounded-md bg-red-500/10 border border-red-500/20 p-3 text-sm text-red-400"
+                  className="mb-4 rounded-md bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive"
                 >
                   {error}
                 </motion.div>
@@ -172,7 +175,7 @@ export default function SignUpPage() {
 
               <form onSubmit={handleVerification} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="code" className="text-slate-300">Verificatiecode</Label>
+                  <Label htmlFor="code">Verificatiecode</Label>
                   <Input
                     id="code"
                     type="text"
@@ -181,22 +184,22 @@ export default function SignUpPage() {
                     onChange={(e) => setVerificationCode(e.target.value)}
                     required
                     disabled={isLoading}
-                    className="text-center text-lg tracking-widest bg-white/5 border-white/10 text-white placeholder:text-slate-500 focus:border-emerald-500/50 focus:ring-emerald-500/20"
+                    className="text-center text-lg tracking-widest"
                   />
                 </div>
 
                 <Button
                   type="submit"
-                  className="w-full bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white shadow-lg shadow-emerald-500/25 border-0"
+                  className="w-full bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white shadow-lg shadow-emerald-500/20"
                   disabled={isLoading || !isLoaded}
                 >
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Bezig met verifieren...
+                      Bezig met verifiëren...
                     </>
                   ) : (
-                    "Verifieren"
+                    "Verifiëren"
                   )}
                 </Button>
               </form>
@@ -207,7 +210,6 @@ export default function SignUpPage() {
                 variant="ghost"
                 onClick={() => setPendingVerification(false)}
                 disabled={isLoading}
-                className="text-slate-400 hover:text-white hover:bg-white/5"
               >
                 Terug naar registratie
               </Button>
@@ -219,17 +221,22 @@ export default function SignUpPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 p-4">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-4">
       {/* Background pattern */}
-      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiMyMjIiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIvPjwvZz48L2c+PC9zdmc+')] opacity-40" />
+      <div
+        className="absolute inset-0 opacity-20 dark:opacity-10"
+        style={{
+          backgroundImage: `radial-gradient(circle at 2px 2px, rgba(16, 185, 129, 0.15) 1px, transparent 0)`,
+          backgroundSize: "40px 40px",
+        }}
+      />
 
       {/* Floating orbs */}
-      <div className="absolute top-1/4 left-1/4 h-72 w-72 rounded-full bg-emerald-500/10 blur-3xl" />
-      <div className="absolute bottom-1/4 right-1/4 h-96 w-96 rounded-full bg-green-500/10 blur-3xl" />
-      <div className="absolute top-1/2 right-1/3 h-64 w-64 rounded-full bg-teal-500/5 blur-3xl" />
+      <div className="absolute top-1/4 left-1/4 h-72 w-72 rounded-full bg-emerald-500/5 blur-3xl" />
+      <div className="absolute bottom-1/4 right-1/4 h-96 w-96 rounded-full bg-green-500/5 blur-3xl" />
 
       {/* Card glow effect */}
-      <div className="absolute h-[500px] w-[500px] rounded-full bg-emerald-500/20 blur-3xl" />
+      <div className="absolute left-1/2 top-1/2 h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-500/10 blur-[100px]" />
 
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -237,7 +244,7 @@ export default function SignUpPage() {
         transition={{ duration: 0.5, ease: "easeOut" }}
         className="relative z-10 w-full max-w-md"
       >
-        <Card className="bg-white/5 backdrop-blur-sm border border-white/10 shadow-2xl">
+        <Card className="border-border/50 bg-card/80 backdrop-blur-sm shadow-xl">
           <CardHeader className="text-center">
             <motion.div
               initial={{ scale: 0 }}
@@ -247,8 +254,8 @@ export default function SignUpPage() {
             >
               <Trees className="h-6 w-6" />
             </motion.div>
-            <CardTitle className="text-2xl text-white">Account aanmaken</CardTitle>
-            <CardDescription className="text-slate-400">
+            <CardTitle className="text-2xl">Account aanmaken</CardTitle>
+            <CardDescription>
               Maak een account aan voor Top Tuinen Offerte Builder
             </CardDescription>
           </CardHeader>
@@ -258,7 +265,7 @@ export default function SignUpPage() {
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="rounded-md bg-red-500/10 border border-red-500/20 p-3 text-sm text-red-400"
+                className="rounded-md bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive"
               >
                 {error}
               </motion.div>
@@ -267,7 +274,7 @@ export default function SignUpPage() {
             <Button
               type="button"
               variant="outline"
-              className="w-full bg-white/5 border-white/10 text-white hover:bg-white/10 hover:text-white"
+              className="w-full"
               onClick={handleGoogleSignUp}
               disabled={isGoogleLoading || !isLoaded}
             >
@@ -298,10 +305,10 @@ export default function SignUpPage() {
 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-white/10" />
+                <span className="w-full border-t" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-transparent px-2 text-slate-500">
+                <span className="bg-card px-2 text-muted-foreground">
                   Of met e-mail
                 </span>
               </div>
@@ -310,7 +317,7 @@ export default function SignUpPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="firstName" className="text-slate-300">Voornaam</Label>
+                  <Label htmlFor="firstName">Voornaam</Label>
                   <Input
                     id="firstName"
                     type="text"
@@ -319,11 +326,10 @@ export default function SignUpPage() {
                     onChange={(e) => setFirstName(e.target.value)}
                     required
                     disabled={isLoading}
-                    className="bg-white/5 border-white/10 text-white placeholder:text-slate-500 focus:border-emerald-500/50 focus:ring-emerald-500/20"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="lastName" className="text-slate-300">Achternaam</Label>
+                  <Label htmlFor="lastName">Achternaam</Label>
                   <Input
                     id="lastName"
                     type="text"
@@ -332,13 +338,12 @@ export default function SignUpPage() {
                     onChange={(e) => setLastName(e.target.value)}
                     required
                     disabled={isLoading}
-                    className="bg-white/5 border-white/10 text-white placeholder:text-slate-500 focus:border-emerald-500/50 focus:ring-emerald-500/20"
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-slate-300">E-mailadres</Label>
+                <Label htmlFor="email">E-mailadres</Label>
                 <Input
                   id="email"
                   type="email"
@@ -347,30 +352,28 @@ export default function SignUpPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   disabled={isLoading}
-                  className="bg-white/5 border-white/10 text-white placeholder:text-slate-500 focus:border-emerald-500/50 focus:ring-emerald-500/20"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-slate-300">Wachtwoord</Label>
+                <Label htmlFor="password">Wachtwoord</Label>
                 <Input
                   id="password"
                   type="password"
-                  placeholder="********"
+                  placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   disabled={isLoading}
-                  className="bg-white/5 border-white/10 text-white placeholder:text-slate-500 focus:border-emerald-500/50 focus:ring-emerald-500/20"
                 />
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted-foreground">
                   Minimaal 8 karakters
                 </p>
               </div>
 
               <Button
                 type="submit"
-                className="w-full bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white shadow-lg shadow-emerald-500/25 border-0"
+                className="w-full bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white shadow-lg shadow-emerald-500/20"
                 disabled={isLoading || !isLoaded}
               >
                 {isLoading ? (
@@ -385,10 +388,10 @@ export default function SignUpPage() {
             </form>
           </CardContent>
 
-          <CardFooter className="flex flex-col space-y-2 text-center text-sm text-slate-400">
+          <CardFooter className="flex flex-col space-y-2 text-center text-sm text-muted-foreground">
             <p>
               Heb je al een account?{" "}
-              <Link href="/sign-in" className="text-emerald-400 hover:text-emerald-300 hover:underline">
+              <Link href="/sign-in" className="text-emerald-600 hover:text-emerald-500 hover:underline dark:text-emerald-400 dark:hover:text-emerald-300">
                 Inloggen
               </Link>
             </p>

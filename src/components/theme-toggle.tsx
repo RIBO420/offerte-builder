@@ -14,9 +14,12 @@ import {
 
 export function ThemeToggle() {
   const { setTheme, resolvedTheme } = useTheme();
+  const buttonRef = React.useRef<HTMLButtonElement>(null);
   const [ripple, setRipple] = React.useState<{
     key: number;
     targetTheme: "light" | "dark" | "system";
+    x: number;
+    y: number;
   } | null>(null);
 
   const handleThemeChange = (newTheme: "light" | "dark" | "system") => {
@@ -30,17 +33,20 @@ export function ThemeToggle() {
         : newTheme;
 
     // Only show ripple if theme is actually changing
-    if (effectiveTheme !== resolvedTheme) {
-      setRipple({ key: Date.now(), targetTheme: newTheme });
+    if (effectiveTheme !== resolvedTheme && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      const x = rect.left + rect.width / 2;
+      const y = rect.top + rect.height / 2;
+      setRipple({ key: Date.now(), targetTheme: newTheme, x, y });
     }
     setTheme(newTheme);
   };
 
   return (
-    <div className="relative">
+    <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-9 w-9">
+          <Button ref={buttonRef} variant="ghost" size="icon" className="h-9 w-9 relative">
             <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
             <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
             <span className="sr-only">Wissel thema</span>
@@ -65,56 +71,68 @@ export function ThemeToggle() {
         {ripple && (
           <motion.div
             key={ripple.key}
-            initial={{ scale: 0, opacity: 0.8 }}
-            animate={{ scale: 12, opacity: 0 }}
+            initial={{ scale: 0, opacity: 1 }}
+            animate={{ scale: 100, opacity: 0 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
             onAnimationComplete={() => setRipple(null)}
-            className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full pointer-events-none ${
+            className={`fixed pointer-events-none z-[9999] rounded-full ${
               ripple.targetTheme === "light"
-                ? "border-2 border-amber-400 bg-amber-400/10"
-                : "border-2 border-emerald-500 bg-emerald-500/10"
+                ? "bg-amber-400/20"
+                : "bg-emerald-500/20"
             }`}
-            style={{ transformOrigin: "center" }}
+            style={{
+              width: 20,
+              height: 20,
+              left: ripple.x - 10,
+              top: ripple.y - 10,
+            }}
           />
         )}
       </AnimatePresence>
-    </div>
+    </>
   );
 }
 
 export function ThemeToggleSimple() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
+  const buttonRef = React.useRef<HTMLButtonElement>(null);
   const [ripple, setRipple] = React.useState<{
     key: number;
     targetTheme: "light" | "dark";
+    x: number;
+    y: number;
   } | null>(null);
 
   React.useEffect(() => {
     setMounted(true);
   }, []);
 
-  const handleToggle = () => {
+  const handleToggle = (e: React.MouseEvent<HTMLButtonElement>) => {
     const newTheme = theme === "dark" ? "light" : "dark";
-    setRipple({ key: Date.now(), targetTheme: newTheme });
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = rect.left + rect.width / 2;
+    const y = rect.top + rect.height / 2;
+    setRipple({ key: Date.now(), targetTheme: newTheme, x, y });
     setTheme(newTheme);
   };
 
   if (!mounted) {
     return (
-      <Button variant="ghost" size="icon" className="h-9 w-9 relative overflow-visible">
+      <Button variant="ghost" size="icon" className="h-9 w-9 relative">
         <Sun className="h-4 w-4" />
       </Button>
     );
   }
 
   return (
-    <div className="relative">
+    <>
       <Button
+        ref={buttonRef}
         variant="ghost"
         size="icon"
-        className="h-9 w-9 relative overflow-visible"
+        className="h-9 w-9 relative"
         onClick={handleToggle}
       >
         {theme === "dark" ? (
@@ -128,20 +146,25 @@ export function ThemeToggleSimple() {
         {ripple && (
           <motion.div
             key={ripple.key}
-            initial={{ scale: 0, opacity: 0.8 }}
-            animate={{ scale: 12, opacity: 0 }}
+            initial={{ scale: 0, opacity: 1 }}
+            animate={{ scale: 100, opacity: 0 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
             onAnimationComplete={() => setRipple(null)}
-            className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full pointer-events-none ${
+            className={`fixed pointer-events-none z-[9999] rounded-full ${
               ripple.targetTheme === "light"
-                ? "border-2 border-amber-400 bg-amber-400/10"
-                : "border-2 border-emerald-500 bg-emerald-500/10"
+                ? "bg-amber-400/20"
+                : "bg-emerald-500/20"
             }`}
-            style={{ transformOrigin: "center" }}
+            style={{
+              width: 20,
+              height: 20,
+              left: ripple.x - 10,
+              top: ripple.y - 10,
+            }}
           />
         )}
       </AnimatePresence>
-    </div>
+    </>
   );
 }
