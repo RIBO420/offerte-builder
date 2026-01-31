@@ -3,6 +3,8 @@
 import { useState, useMemo, useCallback, Suspense, memo } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useQuery } from "convex/react";
+import { api } from "../../../../convex/_generated/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { useReducedMotion } from "@/hooks/use-accessibility";
 import { Card } from "@/components/ui/card";
@@ -20,6 +22,11 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Shovel,
   Trees,
   Search,
@@ -28,9 +35,11 @@ import {
   Copy,
   Trash2,
   Eye,
+  ExternalLink,
   Download,
   X,
   FileText,
+  FolderKanban,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -101,6 +110,13 @@ function formatDate(timestamp: number): string {
   return dateFormatter.format(new Date(timestamp));
 }
 
+// Project info type for offerte rows
+type ProjectInfo = {
+  _id: Id<"projecten">;
+  naam: string;
+  status: string;
+} | null;
+
 // Memoized table row component to prevent unnecessary re-renders
 interface OfferteRowProps {
   offerte: {
@@ -112,6 +128,7 @@ interface OfferteRowProps {
     status: string;
     updatedAt: number;
   };
+  projectInfo: ProjectInfo;
   isSelected: boolean;
   onToggleSelect: (id: Id<"offertes">) => void;
   onDuplicate: (id: string) => void;
@@ -123,6 +140,7 @@ interface OfferteRowProps {
 
 const OfferteRow = memo(function OfferteRow({
   offerte,
+  projectInfo,
   isSelected,
   onToggleSelect,
   onDuplicate,
@@ -131,6 +149,7 @@ const OfferteRow = memo(function OfferteRow({
   reducedMotion,
   index,
 }: OfferteRowProps) {
+  const hasProject = projectInfo !== null;
   const handleRowClick = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     if (!target.closest('button') && !target.closest('[role="checkbox"]')) {
@@ -198,7 +217,54 @@ const OfferteRow = memo(function OfferteRow({
         {formatCurrency(offerte.totalen.totaalInclBtw)}
       </TableCell>
       <TableCell>
-        <StatusBadge status={offerte.status} size="sm" />
+        <div className="flex items-center gap-2">
+          <StatusBadge status={offerte.status} size="sm" />
+          {/* Project indicator icon with tooltip */}
+          {hasProject && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link
+                  href={`/projecten/${projectInfo._id}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-blue-600 hover:text-blue-700"
+                >
+                  <FolderKanban className="h-4 w-4" />
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{projectInfo.naam}</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+          {/* Project button: "Bekijk Project" if exists, "Start Project" if geaccepteerd without project */}
+          {hasProject ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+              asChild
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Link href={`/projecten/${projectInfo._id}`}>
+                <ExternalLink className="h-3 w-3 mr-1" />
+                Bekijk Project
+              </Link>
+            </Button>
+          ) : offerte.status === "geaccepteerd" ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-xs text-green-600 hover:text-green-700 hover:bg-green-50"
+              asChild
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Link href={`/projecten/nieuw?offerte=${offerte._id}`}>
+                <FolderKanban className="h-3 w-3 mr-1" />
+                Start Project
+              </Link>
+            </Button>
+          ) : null}
+        </div>
       </TableCell>
       <TableCell className="text-muted-foreground">
         {formatDate(offerte.updatedAt)}
@@ -217,6 +283,21 @@ const OfferteRow = memo(function OfferteRow({
                 Bekijken
               </Link>
             </DropdownMenuItem>
+            {hasProject ? (
+              <DropdownMenuItem asChild>
+                <Link href={`/projecten/${projectInfo._id}`} className="text-blue-600">
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  Bekijk Project
+                </Link>
+              </DropdownMenuItem>
+            ) : offerte.status === "geaccepteerd" ? (
+              <DropdownMenuItem asChild>
+                <Link href={`/projecten/nieuw?offerte=${offerte._id}`} className="text-green-600">
+                  <FolderKanban className="mr-2 h-4 w-4" />
+                  Start Project
+                </Link>
+              </DropdownMenuItem>
+            ) : null}
             <DropdownMenuItem onClick={handleDuplicate}>
               <Copy className="mr-2 h-4 w-4" />
               Dupliceren
@@ -302,6 +383,17 @@ function OffertesPageContent() {
   }));
 
   const isLoading = isUserLoading || isOffertesLoading;
+
+  // Get offerte IDs for batch project lookup
+  const offerteIds = useMemo(() => {
+    return offertes?.map((o) => o._id) ?? [];
+  }, [offertes]);
+
+  // Fetch projects for all offertes in one efficient query
+  const projectsByOfferte = useQuery(
+    api.projecten.getProjectsByOfferteIds,
+    offerteIds.length > 0 ? { offerteIds } : "skip"
+  );
 
   // Update URL when filters change
   const updateUrlParams = (newFilters: OfferteFilters, newStatus: string) => {
@@ -710,6 +802,7 @@ function OffertesPageContent() {
                           <OfferteRow
                             key={offerte._id}
                             offerte={offerte}
+                            projectInfo={projectsByOfferte?.[offerte._id] ?? null}
                             isSelected={selectedIds.has(offerte._id)}
                             onToggleSelect={toggleSelect}
                             onDuplicate={handleDuplicate}

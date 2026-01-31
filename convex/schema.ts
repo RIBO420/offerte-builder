@@ -331,4 +331,119 @@ export default defineSchema({
   })
     .index("by_offerte", ["offerteId"])
     .index("by_offerte_versie", ["offerteId", "versieNummer"]),
+
+  // ============================================
+  // Calculatie, Planning & Nacalculatie Add-on
+  // ============================================
+
+  // Projecten - Links offerte to project for planning/nacalculatie
+  projecten: defineTable({
+    userId: v.id("users"),
+    offerteId: v.id("offertes"),
+    naam: v.string(),
+    status: v.union(
+      v.literal("voorcalculatie"),
+      v.literal("gepland"),
+      v.literal("in_uitvoering"),
+      v.literal("afgerond"),
+      v.literal("nacalculatie_compleet")
+    ),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_offerte", ["offerteId"]),
+
+  // Voorcalculaties - Pre-calculation data
+  voorcalculaties: defineTable({
+    projectId: v.id("projecten"),
+    teamGrootte: v.union(v.literal(2), v.literal(3), v.literal(4)),
+    teamleden: v.optional(v.array(v.string())),
+    effectieveUrenPerDag: v.number(),
+    normUrenTotaal: v.number(),
+    geschatteDagen: v.number(),
+    normUrenPerScope: v.record(v.string(), v.number()), // { "grondwerk": 16, "bestrating": 24, ... }
+    createdAt: v.number(),
+  }).index("by_project", ["projectId"]),
+
+  // PlanningTaken - Planning tasks per project
+  planningTaken: defineTable({
+    projectId: v.id("projecten"),
+    scope: v.string(),
+    taakNaam: v.string(),
+    normUren: v.number(),
+    geschatteDagen: v.number(),
+    volgorde: v.number(), // Order of execution
+    status: v.union(
+      v.literal("gepland"),
+      v.literal("gestart"),
+      v.literal("afgerond")
+    ),
+  }).index("by_project", ["projectId"]),
+
+  // Machines - Machine park
+  machines: defineTable({
+    userId: v.id("users"),
+    naam: v.string(),
+    type: v.union(v.literal("intern"), v.literal("extern")),
+    tarief: v.number(),
+    tariefType: v.union(v.literal("uur"), v.literal("dag")),
+    gekoppeldeScopes: v.array(v.string()), // Scopes that auto-trigger this machine
+    isActief: v.boolean(),
+  }).index("by_user", ["userId"]),
+
+  // UrenRegistraties - Time registrations (imported or manual)
+  urenRegistraties: defineTable({
+    projectId: v.id("projecten"),
+    datum: v.string(), // YYYY-MM-DD format
+    medewerker: v.string(),
+    uren: v.number(),
+    taakId: v.optional(v.id("planningTaken")),
+    scope: v.optional(v.string()),
+    notities: v.optional(v.string()),
+    bron: v.union(v.literal("import"), v.literal("handmatig")),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_datum", ["datum"]),
+
+  // MachineGebruik - Machine usage per project
+  machineGebruik: defineTable({
+    projectId: v.id("projecten"),
+    machineId: v.id("machines"),
+    datum: v.string(), // YYYY-MM-DD format
+    uren: v.number(),
+    kosten: v.number(),
+  }).index("by_project", ["projectId"]),
+
+  // Nacalculaties - Post-calculation results
+  nacalculaties: defineTable({
+    projectId: v.id("projecten"),
+    werkelijkeUren: v.number(),
+    werkelijkeDagen: v.number(),
+    werkelijkeMachineKosten: v.number(),
+    afwijkingUren: v.number(), // werkelijkeUren - normUrenTotaal
+    afwijkingPercentage: v.number(), // ((werkelijkeUren - normUrenTotaal) / normUrenTotaal) * 100
+    afwijkingenPerScope: v.record(v.string(), v.number()), // { "grondwerk": -2, "bestrating": 4, ... }
+    conclusies: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.optional(v.number()),
+  }).index("by_project", ["projectId"]),
+
+  // Leerfeedback Historie - Audit trail for normuur adjustments
+  leerfeedback_historie: defineTable({
+    userId: v.id("users"),
+    normuurId: v.id("normuren"),
+    scope: v.string(),
+    activiteit: v.string(),
+    oudeWaarde: v.number(),
+    nieuweWaarde: v.number(),
+    wijzigingPercentage: v.number(),
+    reden: v.string(), // "Gemiddelde afwijking over X projecten: Y%"
+    bronProjecten: v.array(v.id("projecten")), // Projects used for analysis
+    toegepastDoor: v.string(), // User name who applied
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_normuur", ["normuurId"])
+    .index("by_scope", ["scope"]),
 });

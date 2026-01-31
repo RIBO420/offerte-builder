@@ -46,6 +46,8 @@ import {
   BarChart3,
   LogOut,
   User,
+  FolderKanban,
+  Wrench,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -62,6 +64,11 @@ const navigationItems = [
     title: "Offertes",
     url: "/offertes",
     icon: FileText,
+  },
+  {
+    title: "Projecten",
+    url: "/projecten",
+    icon: FolderKanban,
   },
   {
     title: "Klanten",
@@ -297,6 +304,12 @@ export function AppSidebar() {
                     <Link href="/instellingen" className="cursor-pointer">
                       <Settings className="mr-2 h-4 w-4" />
                       Instellingen
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/instellingen/machines" className="cursor-pointer">
+                      <Wrench className="mr-2 h-4 w-4" />
+                      Machinepark
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />

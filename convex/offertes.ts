@@ -658,6 +658,56 @@ export const getStats = query({
   },
 });
 
+// Get revenue statistics for dashboard
+export const getRevenueStats = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireAuthUserId(ctx);
+    const offertes = await ctx.db
+      .query("offertes")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    let totalAcceptedValue = 0;
+    let totalAcceptedCount = 0;
+    let totalSentCount = 0; // verzonden + geaccepteerd + afgewezen
+
+    for (const offerte of offertes) {
+      if (offerte.status === "geaccepteerd") {
+        totalAcceptedValue += offerte.totalen.totaalInclBtw;
+        totalAcceptedCount++;
+      }
+      // Count all offertes that have been sent (includes accepted and rejected)
+      if (
+        offerte.status === "verzonden" ||
+        offerte.status === "geaccepteerd" ||
+        offerte.status === "afgewezen"
+      ) {
+        totalSentCount++;
+      }
+    }
+
+    // Calculate conversion rate (accepted / total sent)
+    const conversionRate =
+      totalSentCount > 0
+        ? Math.round((totalAcceptedCount / totalSentCount) * 100)
+        : 0;
+
+    // Calculate average offerte value (of accepted offertes)
+    const averageOfferteValue =
+      totalAcceptedCount > 0
+        ? Math.round(totalAcceptedValue / totalAcceptedCount)
+        : 0;
+
+    return {
+      totalAcceptedValue,
+      totalAcceptedCount,
+      conversionRate,
+      averageOfferteValue,
+    };
+  },
+});
+
 // Get recent offertes
 export const getRecent = query({
   args: {
@@ -722,5 +772,56 @@ export const bulkRemove = mutation({
       await ctx.db.delete(id);
     }
     return args.ids.length;
+  },
+});
+
+// Get accepted offertes without a project (action required)
+export const getAcceptedOffertesWithoutProject = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireAuthUserId(ctx);
+
+    // Get all accepted offertes for this user
+    const acceptedOffertes = await ctx.db
+      .query("offertes")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    // Filter to only accepted offertes
+    const geaccepteerdeOffertes = acceptedOffertes.filter(
+      (o) => o.status === "geaccepteerd"
+    );
+
+    if (geaccepteerdeOffertes.length === 0) {
+      return [];
+    }
+
+    // Get all projects for this user to check which offertes already have a project
+    const projects = await ctx.db
+      .query("projecten")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    // Create a Set of offerteIds that have a project
+    const offertesWithProject = new Set(
+      projects.map((p) => p.offerteId.toString())
+    );
+
+    // Filter offertes that don't have a project yet
+    const offertesWithoutProject = geaccepteerdeOffertes.filter(
+      (o) => !offertesWithProject.has(o._id.toString())
+    );
+
+    // Return max 5 items with required fields, sorted by createdAt desc
+    return offertesWithoutProject
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, 5)
+      .map((o) => ({
+        _id: o._id,
+        offerteNummer: o.offerteNummer,
+        klantNaam: o.klant.naam,
+        totaal: o.totalen.totaalInclBtw,
+        datum: o.createdAt,
+      }));
   },
 });
