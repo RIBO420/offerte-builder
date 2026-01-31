@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, Suspense } from "react";
+import { useState, useMemo, useCallback, Suspense, memo } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -80,34 +80,171 @@ import {
   type OfferteFilters,
 } from "@/components/offerte/filters";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { OffertesTableSkeleton } from "@/components/skeletons";
+
+// Memoized formatter instances to avoid recreation
+const currencyFormatter = new Intl.NumberFormat("nl-NL", {
+  style: "currency",
+  currency: "EUR",
+});
+
+const dateFormatter = new Intl.DateTimeFormat("nl-NL", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
 
 function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("nl-NL", {
-    style: "currency",
-    currency: "EUR",
-  }).format(amount);
+  return currencyFormatter.format(amount);
 }
 
 function formatDate(timestamp: number): string {
-  return new Intl.DateTimeFormat("nl-NL", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(timestamp));
+  return dateFormatter.format(new Date(timestamp));
 }
+
+// Memoized table row component to prevent unnecessary re-renders
+interface OfferteRowProps {
+  offerte: {
+    _id: Id<"offertes">;
+    type: "aanleg" | "onderhoud";
+    offerteNummer: string;
+    klant: { naam: string; plaats: string };
+    totalen: { totaalInclBtw: number };
+    status: string;
+    updatedAt: number;
+  };
+  isSelected: boolean;
+  onToggleSelect: (id: Id<"offertes">) => void;
+  onDuplicate: (id: string) => void;
+  onDelete: (id: string) => void;
+  onNavigate: (id: string) => void;
+  reducedMotion: boolean;
+  index: number;
+}
+
+const OfferteRow = memo(function OfferteRow({
+  offerte,
+  isSelected,
+  onToggleSelect,
+  onDuplicate,
+  onDelete,
+  onNavigate,
+  reducedMotion,
+  index,
+}: OfferteRowProps) {
+  const handleRowClick = useCallback((e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (!target.closest('button') && !target.closest('[role="checkbox"]')) {
+      onNavigate(offerte._id);
+    }
+  }, [offerte._id, onNavigate]);
+
+  const handleToggleSelect = useCallback(() => {
+    onToggleSelect(offerte._id);
+  }, [offerte._id, onToggleSelect]);
+
+  const handleDuplicate = useCallback(() => {
+    onDuplicate(offerte._id);
+  }, [offerte._id, onDuplicate]);
+
+  const handleDelete = useCallback(() => {
+    onDelete(offerte._id);
+  }, [offerte._id, onDelete]);
+
+  return (
+    <motion.tr
+      key={offerte._id}
+      initial={reducedMotion ? false : { opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{
+        duration: reducedMotion ? 0 : 0.3,
+        delay: reducedMotion ? 0 : index * 0.05,
+      }}
+      className={`border-b hover:bg-muted/50 transition-colors cursor-pointer hover:translate-y-[-1px] ${isSelected ? "bg-muted/50" : ""}`}
+      onClick={handleRowClick}
+    >
+      <TableCell>
+        <Checkbox
+          checked={isSelected}
+          onCheckedChange={handleToggleSelect}
+          aria-label={`Selecteer ${offerte.offerteNummer}`}
+        />
+      </TableCell>
+      <TableCell>
+        <div
+          className={`flex h-8 w-8 items-center justify-center rounded-lg ${
+            offerte.type === "aanleg"
+              ? "bg-primary/10"
+              : "bg-green-100"
+          }`}
+        >
+          {offerte.type === "aanleg" ? (
+            <Shovel className="h-4 w-4 text-primary" />
+          ) : (
+            <Trees className="h-4 w-4 text-green-600" />
+          )}
+        </div>
+      </TableCell>
+      <TableCell className="font-medium">
+        <Link
+          href={`/offertes/${offerte._id}`}
+          className="hover:underline"
+        >
+          {offerte.offerteNummer}
+        </Link>
+      </TableCell>
+      <TableCell>{offerte.klant.naam}</TableCell>
+      <TableCell>{offerte.klant.plaats}</TableCell>
+      <TableCell>
+        {formatCurrency(offerte.totalen.totaalInclBtw)}
+      </TableCell>
+      <TableCell>
+        <StatusBadge status={offerte.status} size="sm" />
+      </TableCell>
+      <TableCell className="text-muted-foreground">
+        {formatDate(offerte.updatedAt)}
+      </TableCell>
+      <TableCell>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem asChild>
+              <Link href={`/offertes/${offerte._id}`}>
+                <Eye className="mr-2 h-4 w-4" />
+                Bekijken
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleDuplicate}>
+              <Copy className="mr-2 h-4 w-4" />
+              Dupliceren
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={handleDelete}
+              className="text-destructive"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Verwijderen
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </TableCell>
+    </motion.tr>
+  );
+});
 
 export default function OffertesPage() {
   return (
-    <Suspense fallback={<OffertesPageSkeleton />}>
+    <Suspense fallback={<OffertesPageLoader />}>
       <OffertesPageContent />
     </Suspense>
   );
 }
 
-function OffertesPageSkeleton() {
-  const reducedMotion = useReducedMotion();
-
+function OffertesPageLoader() {
   return (
     <>
       <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
@@ -125,57 +262,9 @@ function OffertesPageSkeleton() {
           </BreadcrumbList>
         </Breadcrumb>
       </header>
-      <motion.div
-        initial={reducedMotion ? false : { opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: reducedMotion ? 0 : 0.4, ease: "easeOut" }}
-        className="flex flex-1 items-center justify-center"
-      >
-        <div className="relative flex flex-col items-center gap-4">
-          {/* Gradient background glow */}
-          <div className="absolute inset-0 -m-8 rounded-full bg-gradient-to-br from-emerald-100/60 via-green-100/40 to-teal-100/60 dark:from-emerald-900/30 dark:via-green-900/20 dark:to-teal-900/30 blur-2xl" />
-
-          {/* Pulsing glow effect behind icon */}
-          <motion.div
-            animate={reducedMotion ? {} : {
-              scale: [1, 1.2, 1],
-              opacity: [0.3, 0.6, 0.3]
-            }}
-            transition={{
-              duration: 2,
-              repeat: reducedMotion ? 0 : Infinity,
-              ease: "easeInOut"
-            }}
-            className="absolute h-16 w-16 rounded-full bg-gradient-to-br from-emerald-400/40 to-green-400/40 dark:from-emerald-500/30 dark:to-green-500/30 blur-xl"
-          />
-
-          {/* Icon container with scale animation */}
-          <motion.div
-            initial={reducedMotion ? false : { scale: 0.8 }}
-            animate={{ scale: 1 }}
-            transition={{ duration: reducedMotion ? 0 : 0.3, delay: reducedMotion ? 0 : 0.1 }}
-            className="relative flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-950/50 dark:to-green-950/50 border border-emerald-100 dark:border-emerald-800/50 shadow-lg shadow-emerald-500/10"
-          >
-            <motion.div
-              animate={reducedMotion ? {} : { rotate: 360 }}
-              transition={{ duration: 1.5, repeat: reducedMotion ? 0 : Infinity, ease: "linear" }}
-            >
-              <Loader2 className={`h-8 w-8 text-emerald-600 dark:text-emerald-400 ${reducedMotion ? "animate-spin" : ""}`} />
-            </motion.div>
-          </motion.div>
-
-          {/* Loading text with fade */}
-          <motion.div
-            initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: reducedMotion ? 0 : 0.3, delay: reducedMotion ? 0 : 0.2 }}
-            className="relative text-center"
-          >
-            <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">Offertes laden...</p>
-            <p className="text-xs text-muted-foreground mt-1">Even geduld alstublieft</p>
-          </motion.div>
-        </div>
-      </motion.div>
+      <div className="flex flex-1 items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
     </>
   );
 }
@@ -228,20 +317,20 @@ function OffertesPageContent() {
     router.replace(queryString ? `?${queryString}` : "/offertes", { scroll: false });
   };
 
-  const handleFiltersChange = (newFilters: OfferteFilters) => {
+  const handleFiltersChange = useCallback((newFilters: OfferteFilters) => {
     setFilters(newFilters);
     updateUrlParams(newFilters, activeTab);
-  };
+  }, [activeTab]);
 
-  const handleFiltersReset = () => {
+  const handleFiltersReset = useCallback(() => {
     setFilters(defaultFilters);
     updateUrlParams(defaultFilters, activeTab);
-  };
+  }, [activeTab]);
 
-  const handleTabChange = (tab: string) => {
+  const handleTabChange = useCallback((tab: string) => {
     setActiveTab(tab);
     updateUrlParams(filters, tab);
-  };
+  }, [filters]);
 
   const filteredOffertes = useMemo(() => {
     return offertes?.filter((offerte) => {
@@ -285,7 +374,7 @@ function OffertesPageContent() {
     });
   }, [offertes, searchQuery, activeTab, filters]);
 
-  const handleDuplicate = async (offerteId: string) => {
+  const handleDuplicate = useCallback(async (offerteId: string) => {
     try {
       const newNummer = await getNextNummer();
       await duplicate({ id: offerteId as Id<"offertes">, newOfferteNummer: newNummer });
@@ -293,9 +382,9 @@ function OffertesPageContent() {
     } catch {
       toast.error("Fout bij dupliceren offerte");
     }
-  };
+  }, [getNextNummer, duplicate]);
 
-  const handleDelete = async (offerteId: string) => {
+  const handleDelete = useCallback(async (offerteId: string) => {
     if (!confirm("Weet je zeker dat je deze offerte wilt verwijderen?")) return;
     try {
       await deleteOfferte({ id: offerteId as Id<"offertes"> });
@@ -303,34 +392,40 @@ function OffertesPageContent() {
     } catch {
       toast.error("Fout bij verwijderen offerte");
     }
-  };
+  }, [deleteOfferte]);
 
-  // Bulk action handlers
-  const toggleSelectAll = () => {
+  const handleNavigate = useCallback((offerteId: string) => {
+    router.push(`/offertes/${offerteId}`);
+  }, [router]);
+
+  // Bulk action handlers - memoized with useCallback
+  const toggleSelectAll = useCallback(() => {
     if (!filteredOffertes) return;
     if (selectedIds.size === filteredOffertes.length) {
       setSelectedIds(new Set());
     } else {
       setSelectedIds(new Set(filteredOffertes.map((o) => o._id)));
     }
-  };
+  }, [filteredOffertes, selectedIds.size]);
 
-  const toggleSelect = (id: Id<"offertes">) => {
-    const newSet = new Set(selectedIds);
-    if (newSet.has(id)) {
-      newSet.delete(id);
-    } else {
-      newSet.add(id);
-    }
-    setSelectedIds(newSet);
-  };
+  const toggleSelect = useCallback((id: Id<"offertes">) => {
+    setSelectedIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  }, []);
 
-  const clearSelection = () => {
+  const clearSelection = useCallback(() => {
     setSelectedIds(new Set());
     setBulkStatusValue("");
-  };
+  }, []);
 
-  const handleBulkStatusChange = async (status: string) => {
+  const handleBulkStatusChange = useCallback(async (status: string) => {
     if (selectedIds.size === 0) return;
     try {
       await bulkUpdateStatus({
@@ -342,9 +437,9 @@ function OffertesPageContent() {
     } catch {
       toast.error("Fout bij bijwerken status");
     }
-  };
+  }, [selectedIds, bulkUpdateStatus, clearSelection]);
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = useCallback(async () => {
     if (selectedIds.size === 0) return;
     try {
       await bulkRemove({ ids: Array.from(selectedIds) });
@@ -354,9 +449,9 @@ function OffertesPageContent() {
     } catch {
       toast.error("Fout bij verwijderen offertes");
     }
-  };
+  }, [selectedIds, bulkRemove, clearSelection]);
 
-  const handleExportCSV = () => {
+  const handleExportCSV = useCallback(() => {
     if (!filteredOffertes) return;
     const exportData = selectedIds.size > 0
       ? filteredOffertes.filter((o) => selectedIds.has(o._id))
@@ -385,7 +480,7 @@ function OffertesPageContent() {
     link.click();
 
     toast.success(`${exportData.length} offerte(s) geexporteerd`);
-  };
+  }, [filteredOffertes, selectedIds]);
 
   const isAllSelected = filteredOffertes && filteredOffertes.length > 0 && selectedIds.size === filteredOffertes.length;
   const isSomeSelected = selectedIds.size > 0;
@@ -572,12 +667,13 @@ function OffertesPageContent() {
               {isLoading ? (
                 <motion.div
                   key="loading"
-                  initial={reducedMotion ? false : { opacity: 0, scale: 0.98 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={reducedMotion ? undefined : { opacity: 0, scale: 0.98 }}
-                  transition={{ duration: reducedMotion ? 0 : 0.3 }}
+                  initial={reducedMotion ? false : { opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={reducedMotion ? undefined : { opacity: 0 }}
+                  transition={{ duration: reducedMotion ? 0 : 0.2 }}
+                  className="flex items-center justify-center py-20"
                 >
-                  <OffertesTableSkeleton rows={8} />
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </motion.div>
               ) : filteredOffertes && filteredOffertes.length > 0 ? (
                 <motion.div
@@ -611,96 +707,17 @@ function OffertesPageContent() {
                       </TableHeader>
                       <TableBody>
                         {filteredOffertes.map((offerte, index) => (
-                          <motion.tr
+                          <OfferteRow
                             key={offerte._id}
-                            initial={reducedMotion ? false : { opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{
-                              duration: reducedMotion ? 0 : 0.3,
-                              delay: reducedMotion ? 0 : index * 0.05,
-                            }}
-                            className={`border-b hover:bg-muted/50 transition-colors cursor-pointer hover:translate-y-[-1px] ${selectedIds.has(offerte._id) ? "bg-muted/50" : ""}`}
-                            onClick={(e) => {
-                              // Alleen navigeren als niet op checkbox of dropdown geklikt
-                              const target = e.target as HTMLElement;
-                              if (!target.closest('button') && !target.closest('[role="checkbox"]')) {
-                                router.push(`/offertes/${offerte._id}`);
-                              }
-                            }}
-                          >
-                            <TableCell>
-                              <Checkbox
-                                checked={selectedIds.has(offerte._id)}
-                                onCheckedChange={() => toggleSelect(offerte._id)}
-                                aria-label={`Selecteer ${offerte.offerteNummer}`}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <div
-                                className={`flex h-8 w-8 items-center justify-center rounded-lg ${
-                                  offerte.type === "aanleg"
-                                    ? "bg-primary/10"
-                                    : "bg-green-100"
-                                }`}
-                              >
-                                {offerte.type === "aanleg" ? (
-                                  <Shovel className="h-4 w-4 text-primary" />
-                                ) : (
-                                  <Trees className="h-4 w-4 text-green-600" />
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell className="font-medium">
-                              <Link
-                                href={`/offertes/${offerte._id}`}
-                                className="hover:underline"
-                              >
-                                {offerte.offerteNummer}
-                              </Link>
-                            </TableCell>
-                            <TableCell>{offerte.klant.naam}</TableCell>
-                            <TableCell>{offerte.klant.plaats}</TableCell>
-                            <TableCell>
-                              {formatCurrency(offerte.totalen.totaalInclBtw)}
-                            </TableCell>
-                            <TableCell>
-                              <StatusBadge status={offerte.status} size="sm" />
-                            </TableCell>
-                            <TableCell className="text-muted-foreground">
-                              {formatDate(offerte.updatedAt)}
-                            </TableCell>
-                            <TableCell>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem asChild>
-                                    <Link href={`/offertes/${offerte._id}`}>
-                                      <Eye className="mr-2 h-4 w-4" />
-                                      Bekijken
-                                    </Link>
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() => handleDuplicate(offerte._id)}
-                                  >
-                                    <Copy className="mr-2 h-4 w-4" />
-                                    Dupliceren
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    onClick={() => handleDelete(offerte._id)}
-                                    className="text-destructive"
-                                  >
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    Verwijderen
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </TableCell>
-                          </motion.tr>
+                            offerte={offerte}
+                            isSelected={selectedIds.has(offerte._id)}
+                            onToggleSelect={toggleSelect}
+                            onDuplicate={handleDuplicate}
+                            onDelete={handleDelete}
+                            onNavigate={handleNavigate}
+                            reducedMotion={reducedMotion}
+                            index={index}
+                          />
                         ))}
                       </TableBody>
                     </Table>

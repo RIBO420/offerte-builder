@@ -1,6 +1,6 @@
 "use client";
 
-import { useId } from "react";
+import { useId, memo } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -119,7 +119,7 @@ function CustomLegend() {
   );
 }
 
-export function OfferteTrendChart({ data }: OfferteTrendChartProps) {
+export const OfferteTrendChart = memo(function OfferteTrendChart({ data }: OfferteTrendChartProps) {
   const gradientId = useId();
 
   // Calculate totals for the header
@@ -264,4 +264,4 @@ export function OfferteTrendChart({ data }: OfferteTrendChartProps) {
       </Card>
     </motion.div>
   );
-}
+});

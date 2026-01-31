@@ -1,6 +1,6 @@
 "use client";
 
-import { useId } from "react";
+import { useId, memo } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -131,7 +131,7 @@ function CustomTooltip({ active, payload }: {
   );
 }
 
-export function ScopeMarginChart({ data }: ScopeMarginChartProps) {
+export const ScopeMarginChart = memo(function ScopeMarginChart({ data }: ScopeMarginChartProps) {
   const gradientId = useId();
 
   if (data.length === 0) {
@@ -265,4 +265,4 @@ export function ScopeMarginChart({ data }: ScopeMarginChartProps) {
       </Card>
     </motion.div>
   );
-}
+});

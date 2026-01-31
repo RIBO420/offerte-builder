@@ -8,6 +8,7 @@ import { CommandPalette } from "@/components/command-palette";
 import { ShortcutsHelp } from "@/components/shortcuts-help";
 import { motion } from "framer-motion";
 import { useReducedMotion } from "@/hooks/use-accessibility";
+import { usePrefetchAllCommonData } from "@/hooks/use-prefetch";
 
 export default function DashboardLayout({
   children,
@@ -15,6 +16,10 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const reducedMotion = useReducedMotion();
+
+  // Prefetch common data to warm caches for faster navigation
+  // This runs once when the dashboard layout mounts and keeps data fresh
+  usePrefetchAllCommonData();
 
   return (
     <CommandProvider>

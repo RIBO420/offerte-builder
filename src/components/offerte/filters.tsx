@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useMemo, memo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,45 +46,49 @@ export const defaultFilters: OfferteFilters = {
   amountMax: "",
 };
 
-export function OfferteFiltersComponent({
+export const OfferteFiltersComponent = memo(function OfferteFiltersComponent({
   filters,
   onChange,
   onReset,
 }: OfferteFiltersProps) {
   const [open, setOpen] = useState(false);
 
-  const activeFilterCount = [
+  const activeFilterCount = useMemo(() => [
     filters.type !== "alle",
     filters.dateFrom !== undefined,
     filters.dateTo !== undefined,
     filters.amountMin !== "",
     filters.amountMax !== "",
-  ].filter(Boolean).length;
+  ].filter(Boolean).length, [filters]);
 
-  const handleTypeChange = (value: string) => {
+  const handleTypeChange = useCallback((value: string) => {
     onChange({ ...filters, type: value as OfferteFilters["type"] });
-  };
+  }, [filters, onChange]);
 
-  const handleDateFromChange = (date: Date | undefined) => {
+  const handleDateFromChange = useCallback((date: Date | undefined) => {
     onChange({ ...filters, dateFrom: date });
-  };
+  }, [filters, onChange]);
 
-  const handleDateToChange = (date: Date | undefined) => {
+  const handleDateToChange = useCallback((date: Date | undefined) => {
     onChange({ ...filters, dateTo: date });
-  };
+  }, [filters, onChange]);
 
-  const handleAmountMinChange = (value: string) => {
+  const handleAmountMinChange = useCallback((value: string) => {
     onChange({ ...filters, amountMin: value });
-  };
+  }, [filters, onChange]);
 
-  const handleAmountMaxChange = (value: string) => {
+  const handleAmountMaxChange = useCallback((value: string) => {
     onChange({ ...filters, amountMax: value });
-  };
+  }, [filters, onChange]);
 
-  const handleReset = () => {
+  const handleReset = useCallback(() => {
     onReset();
     setOpen(false);
-  };
+  }, [onReset]);
+
+  const handleApply = useCallback(() => {
+    setOpen(false);
+  }, []);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -265,67 +269,82 @@ export function OfferteFiltersComponent({
 
           <Separator />
 
-          <Button className="w-full" onClick={() => setOpen(false)}>
+          <Button className="w-full" onClick={handleApply}>
             Toepassen
           </Button>
         </div>
       </PopoverContent>
     </Popover>
   );
-}
+});
 
 // Active filter badges component
-export function ActiveFilters({
+export const ActiveFilters = memo(function ActiveFilters({
   filters,
   onChange,
 }: {
   filters: OfferteFilters;
   onChange: (filters: OfferteFilters) => void;
 }) {
-  const badges: { label: string; onRemove: () => void }[] = [];
+  // Memoize badges array to prevent recreation on each render
+  const badges = useMemo(() => {
+    const result: { label: string; key: string; filterKey: keyof OfferteFilters }[] = [];
 
-  if (filters.type !== "alle") {
-    badges.push({
-      label: filters.type === "aanleg" ? "Aanleg" : "Onderhoud",
-      onRemove: () => onChange({ ...filters, type: "alle" }),
-    });
-  }
+    if (filters.type !== "alle") {
+      result.push({
+        label: filters.type === "aanleg" ? "Aanleg" : "Onderhoud",
+        key: "type",
+        filterKey: "type",
+      });
+    }
 
-  if (filters.dateFrom) {
-    badges.push({
-      label: `Vanaf ${format(filters.dateFrom, "d MMM yyyy", { locale: nl })}`,
-      onRemove: () => onChange({ ...filters, dateFrom: undefined }),
-    });
-  }
+    if (filters.dateFrom) {
+      result.push({
+        label: `Vanaf ${format(filters.dateFrom, "d MMM yyyy", { locale: nl })}`,
+        key: "dateFrom",
+        filterKey: "dateFrom",
+      });
+    }
 
-  if (filters.dateTo) {
-    badges.push({
-      label: `Tot ${format(filters.dateTo, "d MMM yyyy", { locale: nl })}`,
-      onRemove: () => onChange({ ...filters, dateTo: undefined }),
-    });
-  }
+    if (filters.dateTo) {
+      result.push({
+        label: `Tot ${format(filters.dateTo, "d MMM yyyy", { locale: nl })}`,
+        key: "dateTo",
+        filterKey: "dateTo",
+      });
+    }
 
-  if (filters.amountMin) {
-    badges.push({
-      label: `Min €${filters.amountMin}`,
-      onRemove: () => onChange({ ...filters, amountMin: "" }),
-    });
-  }
+    if (filters.amountMin) {
+      result.push({
+        label: `Min €${filters.amountMin}`,
+        key: "amountMin",
+        filterKey: "amountMin",
+      });
+    }
 
-  if (filters.amountMax) {
-    badges.push({
-      label: `Max €${filters.amountMax}`,
-      onRemove: () => onChange({ ...filters, amountMax: "" }),
-    });
-  }
+    if (filters.amountMax) {
+      result.push({
+        label: `Max €${filters.amountMax}`,
+        key: "amountMax",
+        filterKey: "amountMax",
+      });
+    }
+
+    return result;
+  }, [filters]);
+
+  const handleRemove = useCallback((filterKey: keyof OfferteFilters) => {
+    const defaultValue = filterKey === "type" ? "alle" : filterKey.includes("amount") ? "" : undefined;
+    onChange({ ...filters, [filterKey]: defaultValue });
+  }, [filters, onChange]);
 
   if (badges.length === 0) return null;
 
   return (
     <div className="flex flex-wrap gap-2">
-      {badges.map((badge, index) => (
+      {badges.map((badge) => (
         <Badge
-          key={index}
+          key={badge.key}
           variant="secondary"
           className="gap-1 pr-1"
         >
@@ -334,7 +353,7 @@ export function ActiveFilters({
             variant="ghost"
             size="icon"
             className="h-4 w-4 p-0 hover:bg-transparent"
-            onClick={badge.onRemove}
+            onClick={() => handleRemove(badge.filterKey)}
           >
             <X className="h-3 w-3" />
           </Button>
@@ -342,4 +361,4 @@ export function ActiveFilters({
       ))}
     </div>
   );
-}
+});

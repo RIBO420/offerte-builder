@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useCallback, memo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -35,45 +36,51 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { StatsGrid } from "@/components/ui/stats-grid";
 import { PipelineView } from "@/components/ui/pipeline-view";
-import { RecentOffertesListSkeleton, DashboardSkeleton } from "@/components/skeletons";
+import { useReducedMotion } from "@/hooks/use-accessibility";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useDashboardData } from "@/hooks/use-offertes";
 import type { OfferteStatus } from "@/lib/constants/statuses";
 
-// Section badge component for consistent styling
-function SectionBadge({ icon: Icon, children }: { icon: React.ElementType; children: React.ReactNode }) {
+// Memoized section badge component for consistent styling
+const SectionBadge = memo(function SectionBadge({ icon: Icon, children }: { icon: React.ElementType; children: React.ReactNode }) {
   return (
     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium mb-4">
       <Icon className="h-3.5 w-3.5" />
       {children}
     </div>
   );
-}
+});
+
+// Memoized formatter instances
+const currencyFormatter = new Intl.NumberFormat("nl-NL", {
+  style: "currency",
+  currency: "EUR",
+});
+
+const dateFormatter = new Intl.DateTimeFormat("nl-NL", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
 
 function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("nl-NL", {
-    style: "currency",
-    currency: "EUR",
-  }).format(amount);
+  return currencyFormatter.format(amount);
 }
 
 function formatDate(timestamp: number): string {
-  return new Intl.DateTimeFormat("nl-NL", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(timestamp));
+  return dateFormatter.format(new Date(timestamp));
 }
 
 export default function DashboardPage() {
   const router = useRouter();
+  const reducedMotion = useReducedMotion();
   const { clerkUser, isLoading: isUserLoading } = useCurrentUser();
   const { stats, recentOffertes, isLoading: isOffertesLoading } = useDashboardData();
 
   const isLoading = isUserLoading || isOffertesLoading;
 
-  // Stats data for StatsGrid with trend data
-  const statsData = [
+  // Memoized stats data for StatsGrid with trend data
+  const statsData = useMemo(() => [
     {
       title: "Totaal Offertes",
       value: stats?.totaal || 0,
@@ -102,40 +109,20 @@ export default function DashboardPage() {
       icon: <CheckCircle className="h-4 w-4" />,
       trend: { direction: "up" as const, percentage: 15 },
     },
-  ];
+  ], [stats?.totaal, stats?.concept, stats?.verzonden, stats?.geaccepteerd]);
 
-  // Pipeline stages data
-  const pipelineStages = [
+  // Memoized pipeline stages data
+  const pipelineStages = useMemo(() => [
     { id: "concept", label: "Concept", count: stats?.concept || 0 },
     { id: "definitief", label: "Definitief", count: stats?.definitief || 0 },
     { id: "verzonden", label: "Verzonden", count: stats?.verzonden || 0 },
     { id: "geaccepteerd", label: "Geaccepteerd", count: stats?.geaccepteerd || 0 },
     { id: "afgewezen", label: "Afgewezen", count: stats?.afgewezen || 0 },
-  ];
+  ], [stats?.concept, stats?.definitief, stats?.verzonden, stats?.geaccepteerd, stats?.afgewezen]);
 
-  const handleStageClick = (stageId: string) => {
+  const handleStageClick = useCallback((stageId: string) => {
     router.push(`/offertes?status=${stageId}`);
-  };
-
-  // Show skeleton during initial page load
-  if (isLoading) {
-    return (
-      <>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbPage>Dashboard</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </header>
-        <DashboardSkeleton />
-      </>
-    );
-  }
+  }, [router]);
 
   return (
     <>
@@ -326,17 +313,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <AnimatePresence mode="wait">
-                {isLoading ? (
-                  <motion.div
-                    key="skeleton"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <RecentOffertesListSkeleton count={5} />
-                  </motion.div>
-                ) : recentOffertes && recentOffertes.length > 0 ? (
+                {recentOffertes && recentOffertes.length > 0 ? (
                   <motion.div
                     key="content"
                     initial={{ opacity: 0, y: 10 }}

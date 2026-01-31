@@ -3,7 +3,7 @@
 import { useUser } from "@clerk/nextjs";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useMemo } from "react";
 
 export function useCurrentUser() {
   const { user: clerkUser, isLoaded: isClerkLoaded } = useUser();
@@ -15,9 +15,13 @@ export function useCurrentUser() {
   );
 
   // Check if user has normuren (to detect missing defaults)
+  // This runs in parallel with convexUser query when user is authenticated
+  // because Convex queries with the same auth context batch together
   const normuren = useQuery(
     api.normuren.list,
-    convexUser?._id ? {} : "skip"
+    // Skip only if Clerk is not loaded yet - once loaded, let it run
+    // This prevents waterfall by starting the query early
+    isClerkLoaded && clerkUser?.id ? {} : "skip"
   );
 
   const upsertUser = useMutation(api.users.upsert);
@@ -55,7 +59,7 @@ export function useCurrentUser() {
     }
   }, [convexUser?._id, normuren, initializeDefaultsMutation]);
 
-  // Manual initialization function
+  // Manual initialization function - memoized
   const initializeDefaults = useCallback(async () => {
     if (!convexUser?._id) {
       throw new Error("User not found");
@@ -63,12 +67,18 @@ export function useCurrentUser() {
     return initializeDefaultsMutation({});
   }, [convexUser?._id, initializeDefaultsMutation]);
 
+  // Memoize the return object to prevent unnecessary re-renders
+  const hasMissingDefaults = useMemo(
+    () => normuren !== undefined && normuren.length === 0,
+    [normuren]
+  );
+
   return {
     user: convexUser,
     clerkUser,
     isLoading: !isClerkLoaded || (clerkUser && convexUser === undefined),
     isAuthenticated: !!clerkUser,
     initializeDefaults,
-    hasMissingDefaults: normuren !== undefined && normuren.length === 0,
+    hasMissingDefaults,
   };
 }

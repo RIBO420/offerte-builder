@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowDown, TrendingUp, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -75,7 +76,7 @@ function ConversionArrow({ rate, label }: { rate: number; label: string }) {
   );
 }
 
-export function PipelineFunnelChart({ data, conversionRates }: PipelineFunnelChartProps) {
+export const PipelineFunnelChart = memo(function PipelineFunnelChart({ data, conversionRates }: PipelineFunnelChartProps) {
   if (!data || !conversionRates) {
     return (
       <Card>
@@ -203,4 +204,4 @@ export function PipelineFunnelChart({ data, conversionRates }: PipelineFunnelCha
       </CardContent>
     </Card>
   );
-}
+});

@@ -4,6 +4,8 @@ import { motion } from "framer-motion";
 import { LucideIcon, FileText, Users, Search, FolderOpen, AlertCircle } from "lucide-react";
 import { Button } from "./button";
 import { cn } from "@/lib/utils";
+import { useReducedMotion } from "@/hooks/use-accessibility";
+import { transitions } from "@/lib/motion-config";
 
 interface EmptyStateProps {
   icon?: LucideIcon;
@@ -53,12 +55,13 @@ export function EnhancedEmptyState({
   size = "md",
 }: EmptyStateProps) {
   const config = sizeConfig[size];
+  const prefersReducedMotion = useReducedMotion();
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
+      transition={prefersReducedMotion ? { duration: 0 } : transitions.entrance}
       className={cn(
         "flex flex-col items-center text-center",
         config.padding,
@@ -69,8 +72,8 @@ export function EnhancedEmptyState({
       {/* Animated Icon Container */}
       <motion.div
         className="relative mb-6"
-        animate={{ y: [0, -5, 0] }}
-        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+        animate={prefersReducedMotion ? undefined : { y: [0, -5, 0] }}
+        transition={prefersReducedMotion ? { duration: 0 } : { duration: 3, repeat: Infinity, ease: "easeInOut" }}
       >
         {/* Glow effect */}
         <div className="absolute inset-0 bg-[hsl(var(--primary))]/20 blur-xl rounded-full" />
@@ -97,7 +100,10 @@ export function EnhancedEmptyState({
       {/* Actions */}
       <div className="flex flex-col sm:flex-row gap-3">
         {action && (
-          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+          <motion.div
+            whileHover={prefersReducedMotion ? undefined : { scale: 1.02 }}
+            whileTap={prefersReducedMotion ? undefined : { scale: 0.98 }}
+          >
             <Button
               onClick={action.onClick}
               className="bg-gradient-to-r from-primary to-[hsl(var(--primary)/0.9)] hover:from-primary/90 hover:to-[hsl(var(--primary)/0.8)]"
@@ -190,14 +196,16 @@ export function EmptyStateError({
 
 // Loading empty state (shows skeleton)
 export function EmptyStateLoading() {
+  const prefersReducedMotion = useReducedMotion();
+
   return (
     <div className="flex flex-col items-center justify-center p-12 rounded-2xl bg-white/5 border border-white/10">
       <motion.div
         className="w-16 h-16 rounded-2xl bg-primary/10 mb-4"
-        animate={{
+        animate={prefersReducedMotion ? { opacity: 0.75 } : {
           opacity: [0.5, 1, 0.5],
         }}
-        transition={{ duration: 1.5, repeat: Infinity }}
+        transition={prefersReducedMotion ? { duration: 0 } : { duration: 1.5, repeat: Infinity }}
       />
       <div className="w-32 h-4 bg-white/10 rounded mb-2" />
       <div className="w-48 h-3 bg-white/5 rounded" />

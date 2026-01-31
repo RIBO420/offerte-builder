@@ -1,10 +1,12 @@
 "use client";
 
 import { motion, useScroll, useTransform } from "framer-motion";
-import { useRef } from "react";
+import { useRef, useMemo } from "react";
 import { Trees, Shovel, Leaf, Hammer, Fence, Droplets } from "lucide-react";
+import { useReducedMotion } from "@/hooks/use-accessibility";
+import { transitions } from "@/lib/motion-config";
 
-// Floating icon component with 3D effect
+// Floating icon component with 3D effect - optimized for GPU
 function FloatingIcon({
   icon: Icon,
   delay,
@@ -12,6 +14,7 @@ function FloatingIcon({
   y,
   color,
   size = 40,
+  prefersReducedMotion = false,
 }: {
   icon: React.ElementType;
   delay: number;
@@ -19,67 +22,88 @@ function FloatingIcon({
   y: string;
   color: string;
   size?: number;
+  prefersReducedMotion?: boolean;
 }) {
+  // Reduced motion: just fade in, no floating animation
+  if (prefersReducedMotion) {
+    return (
+      <motion.div
+        className="absolute"
+        style={{ left: x, top: y }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3, delay: delay * 0.5 }}
+      >
+        <div
+          className={`relative flex items-center justify-center rounded-2xl ${color} backdrop-blur-sm border border-white/20 shadow-lg`}
+          style={{ width: size, height: size }}
+        >
+          <Icon className="h-5 w-5 text-white" />
+        </div>
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div
-      className="absolute"
+      className="absolute will-change-transform"
       style={{ left: x, top: y }}
-      initial={{ opacity: 0, scale: 0, rotateY: -180 }}
+      initial={{ opacity: 0, scale: 0 }}
       animate={{
         opacity: 1,
         scale: 1,
-        rotateY: 0,
         y: [0, -20, 0],
-        rotateZ: [0, 5, -5, 0],
       }}
       transition={{
-        opacity: { duration: 0.8, delay },
-        scale: { duration: 0.8, delay, type: "spring", stiffness: 200 },
-        rotateY: { duration: 1, delay },
+        opacity: { duration: 0.5, delay },
+        scale: { duration: 0.5, delay, type: "spring", stiffness: 200 },
         y: { duration: 4, repeat: Infinity, ease: "easeInOut", delay: delay + 0.5 },
-        rotateZ: { duration: 6, repeat: Infinity, ease: "easeInOut", delay: delay + 0.5 },
       }}
     >
       <div
-        className={`relative flex items-center justify-center rounded-2xl ${color} backdrop-blur-sm border border-white/20 shadow-2xl`}
+        className={`relative flex items-center justify-center rounded-2xl ${color} backdrop-blur-sm border border-white/20 shadow-optimized-lg`}
         style={{
           width: size,
           height: size,
-          transformStyle: "preserve-3d",
-          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 30px rgba(16, 185, 129, 0.2)",
         }}
       >
         <Icon className="h-5 w-5 text-white" />
-        {/* Glow effect */}
+        {/* Simplified glow effect - less expensive than blur-xl */}
         <div
-          className="absolute inset-0 rounded-2xl opacity-50 blur-xl"
-          style={{
-            background: "inherit",
-            filter: "blur(20px)",
-          }}
+          className="absolute inset-0 rounded-2xl opacity-30 bg-emerald-500"
+          style={{ filter: "blur(12px)" }}
         />
       </div>
     </motion.div>
   );
 }
 
-// Particle effect
-function Particles() {
-  const particles = Array.from({ length: 20 }, (_, i) => ({
-    id: i,
-    x: `${Math.random() * 100}%`,
-    y: `${Math.random() * 100}%`,
-    size: Math.random() * 4 + 2,
-    duration: Math.random() * 10 + 10,
-    delay: Math.random() * 5,
-  }));
+// Particle effect - optimized with fewer particles and GPU acceleration
+function Particles({ prefersReducedMotion = false }: { prefersReducedMotion?: boolean }) {
+  // Memoize particles to prevent recreation on re-renders
+  const particles = useMemo(() => {
+    // Use fewer particles for better performance
+    const count = prefersReducedMotion ? 0 : 12;
+    return Array.from({ length: count }, (_, i) => ({
+      id: i,
+      x: `${(i * 8.33) % 100}%`, // Deterministic positions for SSR
+      y: `${(i * 12.5) % 100}%`,
+      size: (i % 3) + 2, // Deterministic sizes
+      duration: 10 + (i % 5) * 2,
+      delay: i * 0.5,
+    }));
+  }, [prefersReducedMotion]);
+
+  if (prefersReducedMotion || particles.length === 0) {
+    return null;
+  }
 
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
       {particles.map((particle) => (
         <motion.div
           key={particle.id}
-          className="absolute rounded-full bg-emerald-400/30"
+          className="absolute rounded-full bg-emerald-400/30 will-change-transform"
           style={{
             left: particle.x,
             top: particle.y,
@@ -87,9 +111,8 @@ function Particles() {
             height: particle.size,
           }}
           animate={{
-            y: [0, -100, 0],
-            opacity: [0, 1, 0],
-            scale: [1, 1.5, 0],
+            y: [0, -80, 0],
+            opacity: [0, 0.6, 0],
           }}
           transition={{
             duration: particle.duration,
@@ -104,44 +127,52 @@ function Particles() {
 }
 
 // 3D Garden visualization
-function Garden3D() {
+function Garden3D({ prefersReducedMotion = false }: { prefersReducedMotion?: boolean }) {
   const ref = useRef(null);
   const { scrollYProgress } = useScroll({
     target: ref,
     offset: ["start end", "end start"],
   });
 
-  const rotateY = useTransform(scrollYProgress, [0, 1], [-15, 15]);
-  const rotateX = useTransform(scrollYProgress, [0, 1], [10, -10]);
+  // Only apply scroll-based rotation when motion is allowed
+  const rotateY = useTransform(
+    scrollYProgress,
+    [0, 1],
+    prefersReducedMotion ? [0, 0] : [-15, 15]
+  );
+  const rotateX = useTransform(
+    scrollYProgress,
+    [0, 1],
+    prefersReducedMotion ? [0, 0] : [10, -10]
+  );
 
   return (
     <motion.div
       ref={ref}
       className="relative w-full h-full"
       style={{
-        perspective: 1000,
+        perspective: prefersReducedMotion ? "none" : 1000,
       }}
     >
       <motion.div
         className="relative w-full h-full"
         style={{
-          rotateY,
-          rotateX,
-          transformStyle: "preserve-3d",
+          rotateY: prefersReducedMotion ? 0 : rotateY,
+          rotateX: prefersReducedMotion ? 0 : rotateX,
+          transformStyle: prefersReducedMotion ? "flat" : "preserve-3d",
         }}
       >
         {/* Main garden plane */}
         <motion.div
-          className="absolute inset-0 rounded-3xl overflow-hidden"
+          className="absolute inset-0 rounded-3xl overflow-hidden contain-paint"
           style={{
             background: "linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(34, 197, 94, 0.05) 100%)",
             backdropFilter: "blur(10px)",
             border: "1px solid rgba(255, 255, 255, 0.1)",
-            transform: "translateZ(0px)",
           }}
-          initial={{ opacity: 0, scale: 0.8 }}
+          initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 1, delay: 0.2 }}
+          transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.8, delay: 0.2 }}
         >
           {/* Grid pattern */}
           <div
@@ -163,6 +194,7 @@ function Garden3D() {
             y="20%"
             color="bg-gradient-to-br from-amber-500 to-amber-600"
             size={56}
+            prefersReducedMotion={prefersReducedMotion}
           />
           <FloatingIcon
             icon={Hammer}
@@ -171,6 +203,7 @@ function Garden3D() {
             y="25%"
             color="bg-gradient-to-br from-slate-500 to-slate-600"
             size={48}
+            prefersReducedMotion={prefersReducedMotion}
           />
           <FloatingIcon
             icon={Leaf}
@@ -179,6 +212,7 @@ function Garden3D() {
             y="60%"
             color="bg-gradient-to-br from-emerald-500 to-emerald-600"
             size={52}
+            prefersReducedMotion={prefersReducedMotion}
           />
           <FloatingIcon
             icon={Fence}
@@ -187,6 +221,7 @@ function Garden3D() {
             y="65%"
             color="bg-gradient-to-br from-amber-600 to-amber-700"
             size={44}
+            prefersReducedMotion={prefersReducedMotion}
           />
           <FloatingIcon
             icon={Droplets}
@@ -195,14 +230,15 @@ function Garden3D() {
             y="45%"
             color="bg-gradient-to-br from-blue-500 to-blue-600"
             size={48}
+            prefersReducedMotion={prefersReducedMotion}
           />
 
-          {/* Center glow */}
+          {/* Center glow - reduced blur for performance */}
           <div
             className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full"
             style={{
               background: "radial-gradient(circle, rgba(16, 185, 129, 0.3) 0%, transparent 70%)",
-              filter: "blur(40px)",
+              filter: "blur(30px)",
             }}
           />
         </motion.div>
@@ -236,46 +272,67 @@ function GradientText({ children }: { children: React.ReactNode }) {
 
 // Main animated hero section
 export function AnimatedHero() {
+  const prefersReducedMotion = useReducedMotion();
+
   return (
     <section className="relative min-h-screen overflow-hidden bg-background">
-      {/* Background effects */}
+      {/* Background effects - conditionally rendered based on reduced motion */}
       <div className="absolute inset-0">
-        {/* Gradient orbs */}
-        <motion.div
-          className="absolute top-20 left-1/4 w-96 h-96 rounded-full"
-          style={{
-            background: "radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, transparent 70%)",
-            filter: "blur(60px)",
-          }}
-          animate={{
-            x: [0, 50, 0],
-            y: [0, 30, 0],
-            scale: [1, 1.2, 1],
-          }}
-          transition={{
-            duration: 10,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-        />
-        <motion.div
-          className="absolute bottom-20 right-1/4 w-96 h-96 rounded-full"
-          style={{
-            background: "radial-gradient(circle, rgba(34, 197, 94, 0.15) 0%, transparent 70%)",
-            filter: "blur(60px)",
-          }}
-          animate={{
-            x: [0, -30, 0],
-            y: [0, -50, 0],
-            scale: [1, 1.1, 1],
-          }}
-          transition={{
-            duration: 12,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-        />
-        <Particles />
+        {/* Gradient orbs - static for reduced motion */}
+        {prefersReducedMotion ? (
+          <>
+            <div
+              className="absolute top-20 left-1/4 w-96 h-96 rounded-full opacity-60"
+              style={{
+                background: "radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, transparent 70%)",
+                filter: "blur(40px)",
+              }}
+            />
+            <div
+              className="absolute bottom-20 right-1/4 w-96 h-96 rounded-full opacity-60"
+              style={{
+                background: "radial-gradient(circle, rgba(34, 197, 94, 0.15) 0%, transparent 70%)",
+                filter: "blur(40px)",
+              }}
+            />
+          </>
+        ) : (
+          <>
+            <motion.div
+              className="absolute top-20 left-1/4 w-96 h-96 rounded-full will-change-transform"
+              style={{
+                background: "radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, transparent 70%)",
+                filter: "blur(40px)",
+              }}
+              animate={{
+                x: [0, 50, 0],
+                y: [0, 30, 0],
+              }}
+              transition={{
+                duration: 10,
+                repeat: Infinity,
+                ease: "easeInOut",
+              }}
+            />
+            <motion.div
+              className="absolute bottom-20 right-1/4 w-96 h-96 rounded-full will-change-transform"
+              style={{
+                background: "radial-gradient(circle, rgba(34, 197, 94, 0.15) 0%, transparent 70%)",
+                filter: "blur(40px)",
+              }}
+              animate={{
+                x: [0, -30, 0],
+                y: [0, -50, 0],
+              }}
+              transition={{
+                duration: 12,
+                repeat: Infinity,
+                ease: "easeInOut",
+              }}
+            />
+          </>
+        )}
+        <Particles prefersReducedMotion={prefersReducedMotion} />
       </div>
 
       {/* Content */}
@@ -283,16 +340,16 @@ export function AnimatedHero() {
         <div className="grid lg:grid-cols-2 gap-12 items-center min-h-[80vh]">
           {/* Left: Text content */}
           <motion.div
-            initial={{ opacity: 0, x: -50 }}
+            initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, x: -50 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            transition={prefersReducedMotion ? { duration: 0 } : transitions.entrance}
             className="space-y-8"
           >
             {/* Badge */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
+              transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.5, delay: 0.2 }}
               className="inline-flex"
             >
               <span className="relative inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-medium">
@@ -306,9 +363,9 @@ export function AnimatedHero() {
 
             {/* Headline */}
             <motion.h1
-              initial={{ opacity: 0, y: 30 }}
+              initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
+              transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.6, delay: 0.3 }}
               className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.1]"
             >
               Offertes maken
@@ -321,9 +378,9 @@ export function AnimatedHero() {
 
             {/* Subhead */}
             <motion.p
-              initial={{ opacity: 0, y: 20 }}
+              initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.5 }}
+              transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.5, delay: 0.5 }}
               className="text-xl text-muted-foreground max-w-lg leading-relaxed"
             >
               De eerste scope-gedreven offerte tool voor hoveniers. 
@@ -332,9 +389,9 @@ export function AnimatedHero() {
 
             {/* CTAs */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.7 }}
+              transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.5, delay: 0.7 }}
               className="flex flex-col sm:flex-row gap-4"
             >
               <a
@@ -368,9 +425,9 @@ export function AnimatedHero() {
 
             {/* Trust indicators */}
             <motion.div
-              initial={{ opacity: 0 }}
+              initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ duration: 0.5, delay: 0.9 }}
+              transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.5, delay: 0.9 }}
               className="flex items-center gap-6 pt-4"
             >
               <div className="flex -space-x-2">
@@ -390,12 +447,12 @@ export function AnimatedHero() {
 
           {/* Right: 3D Visualization */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.8, rotateY: 30 }}
-            animate={{ opacity: 1, scale: 1, rotateY: 0 }}
-            transition={{ duration: 1, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.8, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
             className="relative h-[300px] sm:h-[400px] md:h-[500px] lg:h-[600px]"
           >
-            <Garden3D />
+            <Garden3D prefersReducedMotion={prefersReducedMotion} />
           </motion.div>
         </div>
       </div>

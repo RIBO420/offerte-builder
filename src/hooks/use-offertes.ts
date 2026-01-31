@@ -5,23 +5,73 @@ import { api } from "../../convex/_generated/api";
 import { useCurrentUser } from "./use-current-user";
 import { Id } from "../../convex/_generated/dataModel";
 
+// Optimized hook using combined dashboard query - reduces 3 round-trips to 1
+// Use this when you need offertes list AND stats together
 export function useOffertes() {
   const { user } = useCurrentUser();
 
-  // Queries use auth context - no userId args needed
+  // Use combined query for better performance
+  const dashboardData = useQuery(
+    api.offertes.getDashboardData,
+    user?._id ? {} : "skip"
+  );
+
+  const createOfferte = useMutation(api.offertes.create);
+  const updateOfferte = useMutation(api.offertes.update);
+  const updateRegels = useMutation(api.offertes.updateRegels);
+  const updateStatus = useMutation(api.offertes.updateStatus);
+  const deleteOfferte = useMutation(api.offertes.remove);
+  const duplicateOfferte = useMutation(api.offertes.duplicate);
+  const bulkUpdateStatusMutation = useMutation(api.offertes.bulkUpdateStatus);
+  const bulkRemoveMutation = useMutation(api.offertes.bulkRemove);
+
+  const create = async (data: {
+    type: "aanleg" | "onderhoud";
+    offerteNummer: string;
+    klant: {
+      naam: string;
+      adres: string;
+      postcode: string;
+      plaats: string;
+      email?: string;
+      telefoon?: string;
+    };
+    algemeenParams: {
+      bereikbaarheid: "goed" | "beperkt" | "slecht";
+      achterstalligheid?: "laag" | "gemiddeld" | "hoog";
+    };
+    scopes?: string[];
+    scopeData?: Record<string, unknown>;
+    notities?: string;
+    klantId?: Id<"klanten">;
+  }) => {
+    if (!user?._id) throw new Error("User not found");
+    return createOfferte(data);
+  };
+
+  return {
+    offertes: dashboardData?.offertes,
+    stats: dashboardData?.stats,
+    recentOffertes: dashboardData?.recent,
+    isLoading: user && dashboardData === undefined,
+    create,
+    update: updateOfferte,
+    updateRegels,
+    updateStatus,
+    delete: deleteOfferte,
+    duplicate: duplicateOfferte,
+    bulkUpdateStatus: bulkUpdateStatusMutation,
+    bulkRemove: bulkRemoveMutation,
+  };
+}
+
+// Use this when you only need the full list of offertes (no stats)
+export function useOffertesListOnly() {
+  const { user } = useCurrentUser();
+
   const offertes = useQuery(
     api.offertes.list,
     user?._id ? {} : "skip"
-  );
-
-  const stats = useQuery(
-    api.offertes.getStats,
-    user?._id ? {} : "skip"
-  );
-
-  const recentOffertes = useQuery(
-    api.offertes.getRecent,
-    user?._id ? { limit: 5 } : "skip"
   );
 
   const createOfferte = useMutation(api.offertes.create);
@@ -59,8 +109,6 @@ export function useOffertes() {
 
   return {
     offertes,
-    stats,
-    recentOffertes,
     isLoading: user && offertes === undefined,
     create,
     update: updateOfferte,

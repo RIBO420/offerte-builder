@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { query, action } from "./_generated/server";
 import { api } from "./_generated/api";
+import { requireAuthUserId, getAuthenticatedUser } from "./auth";
 
 // Helper type for regel
 interface OfferteRegel {
@@ -24,6 +25,60 @@ interface OfferteRegel {
 function roundToQuarter(hours: number): number {
   return Math.round(hours * 4) / 4;
 }
+
+// Combined query for all calculation data - reduces 4 round-trips to 1
+// Fetches normuren, correctiefactoren, producten, and instellingen in a single query
+export const getCalculationData = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireAuthUserId(ctx);
+
+    // Fetch all data in parallel using Promise.all
+    const [normuren, userCorrectieFactoren, systemCorrectieFactoren, producten, instellingen] = await Promise.all([
+      // Normuren
+      ctx.db
+        .query("normuren")
+        .withIndex("by_user_scope", (q) => q.eq("userId", userId))
+        .collect(),
+      // User correctiefactoren
+      ctx.db
+        .query("correctiefactoren")
+        .withIndex("by_user_type", (q) => q.eq("userId", userId))
+        .collect(),
+      // System correctiefactoren (defaults)
+      ctx.db
+        .query("correctiefactoren")
+        .filter((q) => q.eq(q.field("userId"), undefined))
+        .collect(),
+      // Producten
+      ctx.db
+        .query("producten")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .collect(),
+      // Instellingen
+      ctx.db
+        .query("instellingen")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .unique(),
+    ]);
+
+    // Merge correctiefactoren: user overrides take precedence over system defaults
+    const overrideMap = new Map(
+      userCorrectieFactoren.map((f) => [`${f.type}-${f.waarde}`, f])
+    );
+    const correctiefactoren = systemCorrectieFactoren.map((f) => {
+      const override = overrideMap.get(`${f.type}-${f.waarde}`);
+      return override || f;
+    });
+
+    return {
+      normuren,
+      correctiefactoren,
+      producten: producten.filter((p) => p.isActief),
+      instellingen,
+    };
+  },
+});
 
 // Get correction factor value
 export const getCorrectie = query({

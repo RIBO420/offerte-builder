@@ -85,8 +85,40 @@ import {
 import { useProducten } from "@/hooks/use-producten";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { toast } from "sonner";
-import Papa from "papaparse";
-import * as XLSX from "xlsx";
+
+// Dynamic imports for heavy libraries (~400KB total)
+// These are only needed when user imports a file
+const parseCSV = async (file: File): Promise<Record<string, string>[]> => {
+  const Papa = (await import("papaparse")).default;
+  return new Promise((resolve, reject) => {
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => resolve(results.data as Record<string, string>[]),
+      error: (error) => reject(error),
+    });
+  });
+};
+
+const parseExcel = async (file: File): Promise<Record<string, string>[]> => {
+  const XLSX = await import("xlsx");
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: "array" });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(firstSheet) as Record<string, string>[];
+        resolve(jsonData);
+      } catch (error) {
+        reject(error);
+      }
+    };
+    reader.onerror = () => reject(new Error("Failed to read file"));
+    reader.readAsArrayBuffer(file);
+  });
+};
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("nl-NL", {
@@ -273,36 +305,16 @@ export default function PrijsboekPage() {
 
       try {
         if (fileExtension === "csv") {
-          Papa.parse(file, {
-            header: true,
-            skipEmptyLines: true,
-            complete: (results) => {
-              processImportData(results.data as Record<string, string>[]);
-            },
-            error: (error) => {
-              setImportErrors([`CSV parse error: ${error.message}`]);
-            },
-          });
+          // Dynamic import of papaparse
+          const data = await parseCSV(file);
+          processImportData(data);
         } else if (
           fileExtension === "xlsx" ||
           fileExtension === "xls"
         ) {
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            try {
-              const data = new Uint8Array(e.target?.result as ArrayBuffer);
-              const workbook = XLSX.read(data, { type: "array" });
-              const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-              const jsonData = XLSX.utils.sheet_to_json(firstSheet) as Record<
-                string,
-                string
-              >[];
-              processImportData(jsonData);
-            } catch (error) {
-              setImportErrors([`Excel parse error: ${error}`]);
-            }
-          };
-          reader.readAsArrayBuffer(file);
+          // Dynamic import of xlsx
+          const data = await parseExcel(file);
+          processImportData(data);
         } else {
           setImportErrors(["Ongeldig bestandstype. Gebruik CSV of XLS/XLSX"]);
         }

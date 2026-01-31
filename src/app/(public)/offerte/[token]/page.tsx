@@ -50,7 +50,7 @@ import {
   PenTool,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SignaturePadComponent } from "@/components/ui/signature-pad";
+import { DynamicSignaturePad as SignaturePadComponent } from "@/components/ui/signature-pad-dynamic";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -457,10 +457,14 @@ export default function PublicOffertePage({
             </div>
             {offerte.customerResponse?.signature && (
               <div className="flex items-center justify-center max-h-16 overflow-hidden">
+                {/* Using img for base64 data URLs (signatures) - not suitable for next/image */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={offerte.customerResponse.signature}
                   alt="Handtekening"
                   className="max-w-full max-h-16 object-contain mix-blend-multiply dark:invert dark:mix-blend-screen"
+                  loading="lazy"
+                  decoding="async"
                 />
               </div>
             )}

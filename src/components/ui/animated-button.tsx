@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "./button";
+import { useReducedMotion } from "@/hooks/use-accessibility";
+import { transitions } from "@/lib/motion-config";
 
 type ButtonState = "idle" | "loading" | "success" | "error";
 
@@ -21,19 +23,21 @@ interface AnimatedButtonProps {
   loadingText?: string;
 }
 
-// Ripple effect component
-function Ripple({ x, y, onComplete }: { x: number; y: number; onComplete: () => void }) {
+// Ripple effect component - GPU accelerated with scale transform
+function Ripple({ x, y, onComplete, prefersReducedMotion }: { x: number; y: number; onComplete: () => void; prefersReducedMotion: boolean }) {
   useEffect(() => {
-    const timer = setTimeout(onComplete, 600);
+    const timer = setTimeout(onComplete, prefersReducedMotion ? 0 : 600);
     return () => clearTimeout(timer);
-  }, [onComplete]);
+  }, [onComplete, prefersReducedMotion]);
+
+  if (prefersReducedMotion) return null;
 
   return (
     <motion.span
       initial={{ scale: 0, opacity: 0.5 }}
       animate={{ scale: 4, opacity: 0 }}
       transition={{ duration: 0.6, ease: "easeOut" }}
-      className="absolute rounded-full bg-white/30 pointer-events-none"
+      className="absolute rounded-full bg-white/30 pointer-events-none will-change-transform"
       style={{
         left: x,
         top: y,
@@ -61,10 +65,11 @@ export function AnimatedButton({
   const [state, setState] = useState<ButtonState>("idle");
   const [ripples, setRipples] = useState<{ x: number; y: number; id: number }[]>([]);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const prefersReducedMotion = useReducedMotion();
 
   const handleClick = async (e: React.MouseEvent<HTMLButtonElement>) => {
-    // Add ripple
-    if (showRipple && buttonRef.current) {
+    // Add ripple - skip for reduced motion
+    if (showRipple && buttonRef.current && !prefersReducedMotion) {
       const rect = buttonRef.current.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
@@ -154,8 +159,8 @@ export function AnimatedButton({
 
   return (
     <motion.div
-      whileHover={{ scale: disabled || state === "loading" ? 1 : 1.02 }}
-      whileTap={{ scale: disabled || state === "loading" ? 1 : 0.98 }}
+      whileHover={prefersReducedMotion ? undefined : { scale: disabled || state === "loading" ? 1 : 1.02 }}
+      whileTap={prefersReducedMotion ? undefined : { scale: disabled || state === "loading" ? 1 : 0.98 }}
     >
       <Button
         ref={buttonRef}
@@ -169,13 +174,14 @@ export function AnimatedButton({
           className
         )}
       >
-        {/* Ripples */}
-        {ripples.map((ripple) => (
+        {/* Ripples - skip for reduced motion */}
+        {!prefersReducedMotion && ripples.map((ripple) => (
           <Ripple
             key={ripple.id}
             x={ripple.x}
             y={ripple.y}
             onComplete={() => removeRipple(ripple.id)}
+            prefersReducedMotion={prefersReducedMotion}
           />
         ))}
 
@@ -219,6 +225,8 @@ export function ShineButton({
   className,
   ...props
 }: React.ComponentProps<typeof Button>) {
+  const prefersReducedMotion = useReducedMotion();
+
   return (
     <Button
       className={cn(
@@ -228,16 +236,18 @@ export function ShineButton({
       {...props}
     >
       <span className="relative z-10">{children}</span>
-      <motion.span
-        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full"
-        animate={{ translateX: ["-100%", "100%"] }}
-        transition={{
-          duration: 2,
-          repeat: Infinity,
-          repeatDelay: 3,
-          ease: "linear",
-        }}
-      />
+      {!prefersReducedMotion && (
+        <motion.span
+          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent will-change-transform"
+          animate={{ translateX: ["-100%", "100%"] }}
+          transition={{
+            duration: 2,
+            repeat: Infinity,
+            repeatDelay: 3,
+            ease: "linear",
+          }}
+        />
+      )}
     </Button>
   );
 }
@@ -248,8 +258,13 @@ export function AnimatedIconButton({
   className,
   ...props
 }: React.ComponentProps<typeof Button> & { icon: React.ElementType }) {
+  const prefersReducedMotion = useReducedMotion();
+
   return (
-    <motion.div whileHover={{ rotate: 90 }} whileTap={{ scale: 0.9 }}>
+    <motion.div
+      whileHover={prefersReducedMotion ? undefined : { rotate: 90 }}
+      whileTap={prefersReducedMotion ? undefined : { scale: 0.9 }}
+    >
       <Button size="icon" className={className} {...props}>
         <Icon className="h-4 w-4" />
       </Button>

@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Trees } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "./skeleton";
+import { useReducedMotion } from "@/hooks/use-accessibility";
+import { transitions } from "@/lib/motion-config";
 
 // ============================================
 // PageLoader - Full-page centered loader
@@ -15,6 +17,8 @@ interface PageLoaderProps {
 }
 
 export function PageLoader({ text, className }: PageLoaderProps) {
+  const prefersReducedMotion = useReducedMotion();
+
   return (
     <div
       className={cn(
@@ -23,35 +27,34 @@ export function PageLoader({ text, className }: PageLoaderProps) {
       )}
     >
       <motion.div
-        initial={{ opacity: 0, scale: 0.8 }}
+        initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{
-          duration: 0.5,
-          ease: [0.16, 1, 0.3, 1],
-        }}
+        transition={prefersReducedMotion ? { duration: 0 } : transitions.entrance}
         className="relative"
       >
-        {/* Pulsing glow effect */}
-        <motion.div
-          className="absolute inset-0 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 blur-xl"
-          animate={{
-            opacity: [0.4, 0.7, 0.4],
-            scale: [1, 1.1, 1],
-          }}
-          transition={{
-            duration: 2,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-        />
+        {/* Pulsing glow effect - disabled for reduced motion */}
+        {!prefersReducedMotion && (
+          <motion.div
+            className="absolute inset-0 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600"
+            style={{ filter: "blur(16px)" }}
+            animate={{
+              opacity: [0.4, 0.7, 0.4],
+            }}
+            transition={{
+              duration: 2,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+          />
+        )}
 
         {/* Icon container */}
         <motion.div
-          className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 shadow-lg shadow-emerald-500/30"
-          animate={{
+          className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 shadow-optimized-lg"
+          animate={prefersReducedMotion ? undefined : {
             y: [0, -4, 0],
           }}
-          transition={{
+          transition={prefersReducedMotion ? { duration: 0 } : {
             duration: 2,
             repeat: Infinity,
             ease: "easeInOut",
@@ -63,9 +66,9 @@ export function PageLoader({ text, className }: PageLoaderProps) {
 
       {text && (
         <motion.p
-          initial={{ opacity: 0, y: 10 }}
+          initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{
+          transition={prefersReducedMotion ? { duration: 0 } : {
             duration: 0.5,
             delay: 0.2,
             ease: [0.16, 1, 0.3, 1],
@@ -106,19 +109,22 @@ export function SpinnerLoader({
   text,
   className,
 }: SpinnerLoaderProps) {
+  const prefersReducedMotion = useReducedMotion();
+
   return (
     <div className={cn("inline-flex items-center gap-2", className)}>
       <motion.div
         className={cn(
-          "rounded-full border-emerald-200 border-t-emerald-500",
+          "rounded-full border-emerald-200 border-t-emerald-500 will-change-transform",
           spinnerSizes[size]
         )}
-        animate={{ rotate: 360 }}
-        transition={{
+        animate={prefersReducedMotion ? undefined : { rotate: 360 }}
+        transition={prefersReducedMotion ? { duration: 0 } : {
           duration: 1,
           repeat: Infinity,
           ease: "linear",
         }}
+        style={prefersReducedMotion ? { opacity: 0.7 } : undefined}
       />
       {text && (
         <span className={cn("text-muted-foreground", textSizes[size])}>
@@ -146,6 +152,8 @@ export function ContentLoader({
   fallback,
   className,
 }: ContentLoaderProps) {
+  const prefersReducedMotion = useReducedMotion();
+
   const defaultFallback = (
     <div className="space-y-4">
       <Skeleton className="h-8 w-3/4" />
@@ -154,6 +162,15 @@ export function ContentLoader({
       <Skeleton className="h-4 w-4/6" />
     </div>
   );
+
+  // For reduced motion, use instant transitions
+  if (prefersReducedMotion) {
+    return (
+      <div className={cn("relative", className)}>
+        {isLoading ? (fallback || defaultFallback) : children}
+      </div>
+    );
+  }
 
   return (
     <div className={cn("relative", className)}>
@@ -164,7 +181,7 @@ export function ContentLoader({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={transitions.fade}
           >
             {fallback || defaultFallback}
           </motion.div>
@@ -174,7 +191,7 @@ export function ContentLoader({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={transitions.fade}
           >
             {children}
           </motion.div>

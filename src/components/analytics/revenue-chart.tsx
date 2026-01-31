@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useId } from "react";
+import { useState, useId, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -91,7 +91,7 @@ function CustomTooltip({ active, payload, label }: {
   );
 }
 
-export function RevenueChart({ monthlyData, quarterlyData }: RevenueChartProps) {
+export const RevenueChart = memo(function RevenueChart({ monthlyData, quarterlyData }: RevenueChartProps) {
   const [view, setView] = useState<"maand" | "kwartaal">("maand");
   const gradientId = useId();
 
@@ -215,4 +215,4 @@ export function RevenueChart({ monthlyData, quarterlyData }: RevenueChartProps) 
       </Card>
     </motion.div>
   );
-}
+});

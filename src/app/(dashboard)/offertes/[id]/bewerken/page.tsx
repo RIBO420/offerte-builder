@@ -1038,10 +1038,14 @@ export default function OfferteEditPage({
                         Handtekening
                       </p>
                       <div className="flex items-center justify-center max-h-20 overflow-hidden">
+                        {/* Using img for base64 data URLs (signatures) - not suitable for next/image */}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={offerte.customerResponse.signature}
                           alt="Handtekening klant"
                           className="max-w-full max-h-20 object-contain mix-blend-multiply dark:invert dark:mix-blend-screen"
+                          loading="lazy"
+                          decoding="async"
                         />
                       </div>
                     </div>

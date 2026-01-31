@@ -253,6 +253,35 @@ export const countByCategorie = query({
   },
 });
 
+// Combined query for products with categories and counts - reduces 3 round-trips to 1
+export const listWithMetadata = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireAuthUserId(ctx);
+    const products = await ctx.db
+      .query("producten")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    // Calculate categories
+    const categories = [...new Set(products.map((p) => p.categorie))].sort();
+
+    // Calculate counts for active products only
+    const countByCategorie: Record<string, number> = {};
+    for (const product of products) {
+      if (product.isActief) {
+        countByCategorie[product.categorie] = (countByCategorie[product.categorie] || 0) + 1;
+      }
+    }
+
+    return {
+      producten: products,
+      categories,
+      countByCategorie,
+    };
+  },
+});
+
 // Create default products for authenticated user (idempotent)
 export const createDefaults = mutation({
   args: {},

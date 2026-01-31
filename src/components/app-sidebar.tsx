@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useUser, useClerk } from "@clerk/nextjs";
 import {
@@ -246,10 +247,13 @@ export function AppSidebar() {
                   <SidebarMenuButton size="lg" className="flex-1 cursor-pointer">
                     {mounted && isUserLoaded ? (
                       user?.imageUrl ? (
-                        <img
+                        <Image
                           src={user.imageUrl}
                           alt={userDisplayName}
+                          width={32}
+                          height={32}
                           className="size-8 rounded-full object-cover"
+                          loading="lazy"
                         />
                       ) : (
                         <div className="flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-medium">

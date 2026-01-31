@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -90,7 +91,7 @@ function RankBadge({ rank }: { rank: number }) {
   );
 }
 
-export function TopKlantenTable({ klanten }: TopKlantenTableProps) {
+export const TopKlantenTable = memo(function TopKlantenTable({ klanten }: TopKlantenTableProps) {
   // Calculate totals for the header
   const totaalOmzet = klanten.reduce((sum, k) => sum + k.totaalOmzet, 0);
   const repeatCustomers = klanten.filter(k => k.isRepeatCustomer).length;
@@ -211,4 +212,4 @@ export function TopKlantenTable({ klanten }: TopKlantenTableProps) {
       </Card>
     </motion.div>
   );
-}
+});

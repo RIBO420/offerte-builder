@@ -4,6 +4,8 @@ import * as React from "react"
 import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { AnimatedNumber } from "@/components/ui/animated-number"
+import { useReducedMotion } from "@/hooks/use-accessibility"
+import { transitions } from "@/lib/motion-config"
 
 interface PipelineStage {
   id: string
@@ -58,6 +60,8 @@ const stageColors = [
 ]
 
 function PipelineView({ stages, onStageClick, className }: PipelineViewProps) {
+  const prefersReducedMotion = useReducedMotion()
+
   if (stages.length === 0) {
     return (
       <div className={cn("flex items-center justify-center p-4", className)}>
@@ -82,9 +86,10 @@ function PipelineView({ stages, onStageClick, className }: PipelineViewProps) {
               onClick={onStageClick}
               isFirst={index === 0}
               isLast={index === stages.length - 1}
+              prefersReducedMotion={prefersReducedMotion}
             />
             {index < stages.length - 1 && (
-              <PipelineConnector index={index} />
+              <PipelineConnector index={index} prefersReducedMotion={prefersReducedMotion} />
             )}
           </React.Fragment>
         ))}
@@ -101,9 +106,10 @@ function PipelineView({ stages, onStageClick, className }: PipelineViewProps) {
               onClick={onStageClick}
               isFirst={index === 0}
               isLast={index === stages.length - 1}
+              prefersReducedMotion={prefersReducedMotion}
             />
             {index < stages.length - 1 && (
-              <PipelineConnectorVertical index={index} />
+              <PipelineConnectorVertical index={index} prefersReducedMotion={prefersReducedMotion} />
             )}
           </React.Fragment>
         ))}
@@ -119,6 +125,7 @@ interface PipelineStageItemProps {
   onClick?: (stageId: string) => void
   isFirst: boolean
   isLast: boolean
+  prefersReducedMotion?: boolean
 }
 
 function PipelineStageItem({
@@ -128,6 +135,7 @@ function PipelineStageItem({
   onClick,
   isFirst,
   isLast,
+  prefersReducedMotion = false,
 }: PipelineStageItemProps) {
   const colors = stageColors[index % stageColors.length]
   const isClickable = !!onClick
@@ -138,11 +146,11 @@ function PipelineStageItem({
       type="button"
       onClick={() => onClick?.(stage.id)}
       disabled={!isClickable}
-      initial={{ opacity: 0, y: 20 }}
+      initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: index * 0.08, ease: [0.16, 1, 0.3, 1] }}
-      whileHover={{ y: -4, scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
+      transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.4, delay: index * 0.08, ease: [0.16, 1, 0.3, 1] }}
+      whileHover={prefersReducedMotion ? undefined : { y: -4 }}
+      whileTap={prefersReducedMotion ? undefined : { scale: 0.98 }}
       className={cn(
         "group relative flex flex-col items-center justify-center px-6 py-4 min-w-[130px] flex-1",
         "transition-all duration-300",
@@ -168,9 +176,9 @@ function PipelineStageItem({
 
       <motion.span
         className="text-3xl font-bold tabular-nums relative"
-        initial={{ scale: 0.5 }}
+        initial={prefersReducedMotion ? { scale: 1 } : { scale: 0.5 }}
         animate={{ scale: 1 }}
-        transition={{ duration: 0.5, delay: index * 0.08 + 0.2, type: "spring" }}
+        transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.5, delay: index * 0.08 + 0.2, type: "spring" }}
       >
         <AnimatedNumber
           value={stage.count}
@@ -198,6 +206,7 @@ function PipelineStageItemVertical({
   onClick,
   isFirst,
   isLast,
+  prefersReducedMotion = false,
 }: PipelineStageItemProps) {
   const colors = stageColors[index % stageColors.length]
   const isClickable = !!onClick
@@ -208,11 +217,11 @@ function PipelineStageItemVertical({
       type="button"
       onClick={() => onClick?.(stage.id)}
       disabled={!isClickable}
-      initial={{ opacity: 0, x: -20 }}
+      initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.4, delay: index * 0.08, ease: [0.16, 1, 0.3, 1] }}
-      whileHover={{ x: 4, scale: 1.01 }}
-      whileTap={{ scale: 0.99 }}
+      transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.4, delay: index * 0.08, ease: [0.16, 1, 0.3, 1] }}
+      whileHover={prefersReducedMotion ? undefined : { x: 4 }}
+      whileTap={prefersReducedMotion ? undefined : { scale: 0.99 }}
       className={cn(
         "group relative flex items-center justify-between px-4 py-4 w-full",
         "transition-all duration-300",
@@ -251,34 +260,35 @@ function PipelineStageItemVertical({
   )
 }
 
-function PipelineConnector({ index }: { index: number }) {
+function PipelineConnector({ index, prefersReducedMotion = false }: { index: number; prefersReducedMotion?: boolean }) {
   const colors = stageColors[index % stageColors.length]
-  const nextColors = stageColors[(index + 1) % stageColors.length]
 
   return (
     <motion.div
       className="flex items-center -mx-2 z-10 relative"
-      initial={{ opacity: 0, scale: 0.5 }}
+      initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, scale: 0.5 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.3, delay: index * 0.08 + 0.3 }}
+      transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.3, delay: index * 0.08 + 0.3 }}
     >
-      {/* Animated flow dots */}
-      <div className="absolute inset-0 overflow-hidden">
-        <motion.div
-          className={cn("absolute w-1.5 h-1.5 rounded-full bg-gradient-to-r", colors.accent)}
-          animate={{
-            x: [0, 16],
-            opacity: [0, 1, 0],
-          }}
-          transition={{
-            duration: 1.5,
-            repeat: Infinity,
-            ease: "linear",
-            delay: index * 0.3,
-          }}
-          style={{ top: "50%", transform: "translateY(-50%)" }}
-        />
-      </div>
+      {/* Animated flow dots - disabled for reduced motion */}
+      {!prefersReducedMotion && (
+        <div className="absolute inset-0 overflow-hidden">
+          <motion.div
+            className={cn("absolute w-1.5 h-1.5 rounded-full bg-gradient-to-r will-change-transform", colors.accent)}
+            animate={{
+              x: [0, 16],
+              opacity: [0, 1, 0],
+            }}
+            transition={{
+              duration: 1.5,
+              repeat: Infinity,
+              ease: "linear",
+              delay: index * 0.3,
+            }}
+            style={{ top: "50%", transform: "translateY(-50%)" }}
+          />
+        </div>
+      )}
 
       <svg
         width="20"
@@ -308,30 +318,32 @@ function PipelineConnector({ index }: { index: number }) {
   )
 }
 
-function PipelineConnectorVertical({ index }: { index: number }) {
+function PipelineConnectorVertical({ index, prefersReducedMotion = false }: { index: number; prefersReducedMotion?: boolean }) {
   return (
     <motion.div
       className="flex justify-center py-0 -my-px z-10 relative"
-      initial={{ opacity: 0, scale: 0.5 }}
+      initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, scale: 0.5 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.3, delay: index * 0.08 + 0.3 }}
+      transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.3, delay: index * 0.08 + 0.3 }}
     >
-      {/* Animated flow dot */}
-      <div className="absolute inset-0 flex justify-center overflow-hidden">
-        <motion.div
-          className="absolute w-1.5 h-1.5 rounded-full bg-muted-foreground/50"
-          animate={{
-            y: [0, 12],
-            opacity: [0, 1, 0],
-          }}
-          transition={{
-            duration: 1,
-            repeat: Infinity,
-            ease: "linear",
-            delay: index * 0.3,
-          }}
-        />
-      </div>
+      {/* Animated flow dot - disabled for reduced motion */}
+      {!prefersReducedMotion && (
+        <div className="absolute inset-0 flex justify-center overflow-hidden">
+          <motion.div
+            className="absolute w-1.5 h-1.5 rounded-full bg-muted-foreground/50 will-change-transform"
+            animate={{
+              y: [0, 12],
+              opacity: [0, 1, 0],
+            }}
+            transition={{
+              duration: 1,
+              repeat: Infinity,
+              ease: "linear",
+              delay: index * 0.3,
+            }}
+          />
+        </div>
+      )}
 
       <svg
         width="40"

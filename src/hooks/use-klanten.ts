@@ -8,14 +8,9 @@ import { useCurrentUser } from "./use-current-user";
 export function useKlanten() {
   const { user } = useCurrentUser();
 
-  // Queries use auth context - no userId args needed
-  const klanten = useQuery(
-    api.klanten.list,
-    user?._id ? {} : "skip"
-  );
-
-  const recentKlanten = useQuery(
-    api.klanten.getRecent,
+  // Use combined query to reduce 2 round-trips to 1
+  const data = useQuery(
+    api.klanten.listWithRecent,
     user?._id ? {} : "skip"
   );
 
@@ -24,9 +19,9 @@ export function useKlanten() {
   const removeMutation = useMutation(api.klanten.remove);
   const createFromOfferteMutation = useMutation(api.klanten.createFromOfferte);
 
-  const isLoading = user && klanten === undefined;
+  const isLoading = user && data === undefined;
 
-  const create = async (data: {
+  const create = async (klantData: {
     naam: string;
     adres: string;
     postcode: string;
@@ -36,12 +31,12 @@ export function useKlanten() {
     notities?: string;
   }) => {
     if (!user?._id) throw new Error("User not found");
-    return await createMutation(data);
+    return await createMutation(klantData);
   };
 
   const update = async (
     id: Id<"klanten">,
-    data: {
+    klantData: {
       naam?: string;
       adres?: string;
       postcode?: string;
@@ -51,14 +46,14 @@ export function useKlanten() {
       notities?: string;
     }
   ) => {
-    return await updateMutation({ id, ...data });
+    return await updateMutation({ id, ...klantData });
   };
 
   const remove = async (id: Id<"klanten">) => {
     return await removeMutation({ id });
   };
 
-  const createFromOfferte = async (data: {
+  const createFromOfferte = async (klantData: {
     naam: string;
     adres: string;
     postcode: string;
@@ -67,12 +62,12 @@ export function useKlanten() {
     telefoon?: string;
   }) => {
     if (!user?._id) throw new Error("User not found");
-    return await createFromOfferteMutation(data);
+    return await createFromOfferteMutation(klantData);
   };
 
   return {
-    klanten: klanten ?? [],
-    recentKlanten: recentKlanten ?? [],
+    klanten: data?.klanten ?? [],
+    recentKlanten: data?.recentKlanten ?? [],
     isLoading,
     create,
     update,

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { memo, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import {
   Tooltip,
@@ -37,7 +38,7 @@ const sizeClasses = {
   },
 };
 
-export function StatusBadge({
+export const StatusBadge = memo(function StatusBadge({
   status,
   showIcon = true,
   showTooltip = true,
@@ -45,7 +46,8 @@ export function StatusBadge({
   variant = "default",
   className,
 }: StatusBadgeProps) {
-  const config = getStatusConfig(status);
+  // Memoize config lookup
+  const config = useMemo(() => getStatusConfig(status), [status]);
   const Icon = config.icon;
   const sizes = sizeClasses[size];
 
@@ -90,7 +92,7 @@ export function StatusBadge({
       </Tooltip>
     </TooltipProvider>
   );
-}
+});
 
 // Simplified dot indicator for compact displays
 interface StatusDotProps {
@@ -98,8 +100,8 @@ interface StatusDotProps {
   className?: string;
 }
 
-export function StatusDot({ status, className }: StatusDotProps) {
-  const config = getStatusConfig(status);
+export const StatusDot = memo(function StatusDot({ status, className }: StatusDotProps) {
+  const config = useMemo(() => getStatusConfig(status), [status]);
 
   return (
     <TooltipProvider>
@@ -121,4 +123,4 @@ export function StatusDot({ status, className }: StatusDotProps) {
       </Tooltip>
     </TooltipProvider>
   );
-}
+});

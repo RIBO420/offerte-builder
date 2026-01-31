@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { useState, useEffect, useCallback, useMemo, memo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useReducedMotion } from "@/hooks/use-accessibility";
 import {
   Card,
   CardContent,
@@ -141,6 +142,8 @@ interface Correctiefactor {
 }
 
 export default function InstellingenPage() {
+  const reducedMotion = useReducedMotion();
+  const [activeTab, setActiveTab] = useState("tarieven");
   const { isLoading: isUserLoading } = useCurrentUser();
   const { instellingen, isLoading: isSettingsLoading, update } = useInstellingen();
   const {
@@ -227,7 +230,7 @@ export default function InstellingenPage() {
 
   const isLoading = isUserLoading || isSettingsLoading;
 
-  const handleSaveTarieven = async () => {
+  const handleSaveTarieven = useCallback(async () => {
     setIsSaving(true);
     try {
       await update({
@@ -242,10 +245,10 @@ export default function InstellingenPage() {
     } finally {
       setIsSaving(false);
     }
-  };
+  }, [tarieven, scopeMarges, update]);
 
   // Normuur handlers
-  const handleOpenNormuurDialog = (normuur?: Normuur) => {
+  const handleOpenNormuurDialog = useCallback((normuur?: Normuur) => {
     if (normuur) {
       setEditingNormuur(normuur);
       setNormuurForm({
@@ -266,9 +269,9 @@ export default function InstellingenPage() {
       });
     }
     setShowNormuurDialog(true);
-  };
+  }, [activeScope]);
 
-  const handleSaveNormuur = async () => {
+  const handleSaveNormuur = useCallback(async () => {
     if (!normuurForm.activiteit) {
       toast.error("Vul een activiteit in");
       return;
@@ -292,9 +295,9 @@ export default function InstellingenPage() {
     } finally {
       setIsSaving(false);
     }
-  };
+  }, [editingNormuur, normuurForm, updateNormuur, createNormuur]);
 
-  const handleDeleteNormuur = async () => {
+  const handleDeleteNormuur = useCallback(async () => {
     if (!normuurToDelete) return;
 
     try {
@@ -305,15 +308,15 @@ export default function InstellingenPage() {
     } catch {
       toast.error("Fout bij verwijderen normuur");
     }
-  };
+  }, [normuurToDelete, deleteNormuur]);
 
   // Factor handlers
-  const handleEditFactor = (factor: Correctiefactor) => {
+  const handleEditFactor = useCallback((factor: Correctiefactor) => {
     setEditingFactor(factor);
     setFactorValue(factor.factor);
-  };
+  }, []);
 
-  const handleSaveFactor = async () => {
+  const handleSaveFactor = useCallback(async () => {
     if (!editingFactor) return;
 
     setIsSaving(true);
@@ -330,28 +333,31 @@ export default function InstellingenPage() {
     } finally {
       setIsSaving(false);
     }
-  };
+  }, [editingFactor, factorValue, upsertFactor]);
 
-  const handleResetFactor = async (factor: Correctiefactor) => {
+  const handleResetFactor = useCallback(async (factor: Correctiefactor) => {
     try {
       await resetFactor(factor.type, factor.waarde);
       toast.success("Factor gereset naar standaard");
     } catch {
       toast.error("Fout bij resetten factor");
     }
-  };
+  }, [resetFactor]);
 
-  // Filter normuren
-  const filteredNormuren =
+  // Memoized filtered data
+  const filteredNormuren = useMemo(() =>
     activeScope === "alle"
       ? normuren
-      : normuren.filter((n) => n.scope === activeScope);
+      : normuren.filter((n) => n.scope === activeScope),
+    [normuren, activeScope]
+  );
 
-  // Filter factoren
-  const filteredFactoren =
+  const filteredFactoren = useMemo(() =>
     activeType === "alle"
       ? factoren
-      : factoren.filter((f) => f.type === activeType);
+      : factoren.filter((f) => f.type === activeType),
+    [factoren, activeType]
+  );
 
   if (isLoading) {
     return (
@@ -423,7 +429,7 @@ export default function InstellingenPage() {
           </p>
         </div>
 
-        <Tabs defaultValue="tarieven" className="space-y-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList>
             <TabsTrigger value="tarieven" className="flex items-center gap-2">
               <Calculator className="h-4 w-4" />
@@ -439,8 +445,17 @@ export default function InstellingenPage() {
             </TabsTrigger>
           </TabsList>
 
+          <AnimatePresence mode="wait">
           {/* Tarieven Tab */}
-          <TabsContent value="tarieven" className="space-y-4">
+          {activeTab === "tarieven" && (
+          <motion.div
+            key="tarieven"
+            initial={reducedMotion ? false : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reducedMotion ? undefined : { opacity: 0, y: -8 }}
+            transition={{ duration: reducedMotion ? 0 : 0.2 }}
+          >
+          <TabsContent value="tarieven" className="space-y-4" forceMount>
             <Card>
               <CardHeader>
                 <CardTitle>Tarieven</CardTitle>
@@ -615,9 +630,19 @@ export default function InstellingenPage() {
               </CardContent>
             </Card>
           </TabsContent>
+          </motion.div>
+          )}
 
           {/* Normuren Tab */}
-          <TabsContent value="normuren" className="space-y-4">
+          {activeTab === "normuren" && (
+          <motion.div
+            key="normuren"
+            initial={reducedMotion ? false : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reducedMotion ? undefined : { opacity: 0, y: -8 }}
+            transition={{ duration: reducedMotion ? 0 : 0.2 }}
+          >
+          <TabsContent value="normuren" className="space-y-4" forceMount>
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -746,9 +771,19 @@ export default function InstellingenPage() {
               </CardContent>
             </Card>
           </TabsContent>
+          </motion.div>
+          )}
 
           {/* Correctiefactoren Tab */}
-          <TabsContent value="factoren" className="space-y-4">
+          {activeTab === "factoren" && (
+          <motion.div
+            key="factoren"
+            initial={reducedMotion ? false : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reducedMotion ? undefined : { opacity: 0, y: -8 }}
+            transition={{ duration: reducedMotion ? 0 : 0.2 }}
+          >
+          <TabsContent value="factoren" className="space-y-4" forceMount>
             <Card>
               <CardHeader>
                 <CardTitle>Correctiefactoren</CardTitle>
@@ -911,6 +946,9 @@ export default function InstellingenPage() {
               </CardContent>
             </Card>
           </TabsContent>
+          </motion.div>
+          )}
+          </AnimatePresence>
         </Tabs>
       </motion.div>
 

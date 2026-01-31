@@ -1,4 +1,5 @@
-import * as XLSX from "xlsx";
+// XLSX is imported dynamically to reduce initial bundle size (~400KB)
+// This module is only loaded when user clicks export
 
 interface ExportRow {
   offerteNummer: string;
@@ -54,7 +55,10 @@ function formatCurrency(amount: number): number {
   return Math.round(amount * 100) / 100;
 }
 
-export function exportToExcel(data: ExportRow[], filename: string = "offertes-export") {
+export async function exportToExcel(data: ExportRow[], filename: string = "offertes-export") {
+  // Dynamic import of xlsx
+  const XLSX = await import("xlsx");
+
   // Transform data for Dutch Excel format
   const excelData = data.map((row) => ({
     "Offerte Nr.": row.offerteNummer,
@@ -149,13 +153,16 @@ interface ScopeMarge {
   count: number;
 }
 
-export function exportAnalyticsReport(
+export async function exportAnalyticsReport(
   kpis: KpiData,
   topKlanten: TopKlant[],
   scopeMarges: ScopeMarge[],
   offertes: ExportRow[],
   filename: string = "rapportage"
 ) {
+  // Dynamic import of xlsx
+  const XLSX = await import("xlsx");
+
   const wb = XLSX.utils.book_new();
 
   // KPI Summary sheet

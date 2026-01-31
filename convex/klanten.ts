@@ -185,6 +185,24 @@ export const remove = mutation({
   },
 });
 
+// Combined query for klanten list with recent - reduces 2 round-trips to 1
+export const listWithRecent = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireAuthUserId(ctx);
+    const klanten = await ctx.db
+      .query("klanten")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .order("desc")
+      .collect();
+
+    return {
+      klanten,
+      recentKlanten: klanten.slice(0, 5),
+    };
+  },
+});
+
 // Create klant from offerte data (for auto-creating klanten from wizard)
 export const createFromOfferte = mutation({
   args: {

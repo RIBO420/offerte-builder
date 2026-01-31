@@ -515,4 +515,131 @@ body {
                 0 0 0 4px var(--ring),
                 0 0 15px 2px oklch(from var(--ring) l c h / 0.3);
   }
+
+  /* ========================================
+     Performance: will-change utilities
+     Only apply during animation, remove after
+     ======================================== */
+  .will-change-transform {
+    will-change: transform;
+  }
+
+  .will-change-opacity {
+    will-change: opacity;
+  }
+
+  .will-change-transform-opacity {
+    will-change: transform, opacity;
+  }
+
+  /* Remove will-change after animation completes */
+  .will-change-auto {
+    will-change: auto;
+  }
+
+  /* ========================================
+     Performance: CSS Containment
+     ======================================== */
+  .contain-layout {
+    contain: layout;
+  }
+
+  .contain-style {
+    contain: style;
+  }
+
+  .contain-paint {
+    contain: paint;
+  }
+
+  .contain-strict {
+    contain: strict;
+  }
+
+  .contain-content {
+    contain: content;
+  }
+
+  /* ========================================
+     GPU-accelerated collapse animation
+     Uses CSS grid for smooth height animation
+     ======================================== */
+  .grid-collapse {
+    display: grid;
+    transition: grid-template-rows 0.3s ease-out;
+  }
+
+  .grid-collapse[data-state="closed"] {
+    grid-template-rows: 0fr;
+  }
+
+  .grid-collapse[data-state="open"] {
+    grid-template-rows: 1fr;
+  }
+
+  .grid-collapse > * {
+    overflow: hidden;
+  }
+
+  /* ========================================
+     Reduced motion: Disable all Framer Motion
+     and CSS animations when preferred
+     ======================================== */
+  @media (prefers-reduced-motion: reduce) {
+    /* Disable Framer Motion animations */
+    [data-framer-motion] {
+      transition: none !important;
+      animation: none !important;
+    }
+
+    /* Reduce blur effects for performance */
+    .blur-xl,
+    .blur-2xl,
+    .blur-3xl {
+      filter: none;
+      opacity: 0.8;
+    }
+
+    /* Disable animated gradients */
+    [style*="animation"] {
+      animation: none !important;
+    }
+
+    /* Make transitions instant */
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+
+    /* Keep opacity transitions for essential UI feedback */
+    button,
+    a,
+    input,
+    select,
+    textarea {
+      transition: opacity 0.1s ease !important;
+    }
+  }
+
+  /* ========================================
+     Optimized shadows (less expensive)
+     ======================================== */
+  .shadow-optimized {
+    box-shadow: 0 4px 12px -2px oklch(0 0 0 / 0.08);
+  }
+
+  .shadow-optimized-lg {
+    box-shadow: 0 8px 24px -4px oklch(0 0 0 / 0.12);
+  }
+
+  .dark .shadow-optimized {
+    box-shadow: 0 4px 12px -2px oklch(0 0 0 / 0.25);
+  }
+
+  .dark .shadow-optimized-lg {
+    box-shadow: 0 8px 24px -4px oklch(0 0 0 / 0.35);
+  }
 }

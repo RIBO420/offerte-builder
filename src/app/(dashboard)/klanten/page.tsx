@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, memo } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -80,6 +80,90 @@ type Klant = {
   updatedAt: number;
 };
 
+// Memoized table row component to prevent unnecessary re-renders
+interface KlantRowProps {
+  klant: Klant;
+  index: number;
+  onEdit: (klant: Klant) => void;
+  onDelete: (klant: Klant) => void;
+}
+
+const KlantRow = memo(function KlantRow({
+  klant,
+  index,
+  onEdit,
+  onDelete,
+}: KlantRowProps) {
+  const handleEdit = useCallback(() => onEdit(klant), [klant, onEdit]);
+  const handleDelete = useCallback(() => onDelete(klant), [klant, onDelete]);
+
+  return (
+    <motion.tr
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05 }}
+      whileHover={{ backgroundColor: "rgba(0, 0, 0, 0.02)" }}
+      className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
+    >
+      <TableCell>
+        <Link
+          href={`/klanten/${klant._id}`}
+          className="font-medium hover:underline"
+        >
+          {klant.naam}
+        </Link>
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          <MapPin className="h-3.5 w-3.5" />
+          <span>
+            {klant.adres}, {klant.postcode} {klant.plaats}
+          </span>
+        </div>
+      </TableCell>
+      <TableCell>
+        <div className="space-y-1">
+          {klant.telefoon && (
+            <div className="flex items-center gap-1.5 text-sm">
+              <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+              <span>{klant.telefoon}</span>
+            </div>
+          )}
+          {klant.email && (
+            <div className="flex items-center gap-1.5 text-sm">
+              <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+              <span>{klant.email}</span>
+            </div>
+          )}
+        </div>
+      </TableCell>
+      <TableCell className="text-right">
+        <div className="flex items-center justify-end gap-2">
+          <Button variant="ghost" size="sm" asChild>
+            <Link href={`/klanten/${klant._id}`}>
+              <FileText className="h-4 w-4" />
+            </Link>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleEdit}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleDelete}
+          >
+            <Trash2 className="h-4 w-4 text-destructive" />
+          </Button>
+        </div>
+      </TableCell>
+    </motion.tr>
+  );
+});
+
 export default function KlantenPage() {
   const { klanten, isLoading, create, update, remove } = useKlanten();
   const [searchTerm, setSearchTerm] = useState("");
@@ -113,7 +197,7 @@ export default function KlantenPage() {
 
   const displayedKlanten: Klant[] = (searchTerm ? searchResults : klanten) as Klant[];
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setFormData({
       naam: "",
       adres: "",
@@ -123,9 +207,9 @@ export default function KlantenPage() {
       telefoon: "",
       notities: "",
     });
-  };
+  }, []);
 
-  const handleAdd = async () => {
+  const handleAdd = useCallback(async () => {
     if (!formData.naam || !formData.adres || !formData.postcode || !formData.plaats) {
       toast.error("Vul alle verplichte velden in");
       return;
@@ -150,9 +234,9 @@ export default function KlantenPage() {
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [formData, create, resetForm]);
 
-  const handleEdit = (klant: typeof selectedKlant) => {
+  const handleEdit = useCallback((klant: Klant | null) => {
     if (!klant) return;
     setSelectedKlant(klant);
     setFormData({
@@ -165,9 +249,9 @@ export default function KlantenPage() {
       notities: klant.notities || "",
     });
     setShowEditDialog(true);
-  };
+  }, []);
 
-  const handleUpdate = async () => {
+  const handleUpdate = useCallback(async () => {
     if (!selectedKlant) return;
 
     setIsSubmitting(true);
@@ -190,9 +274,9 @@ export default function KlantenPage() {
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [selectedKlant, formData, update, resetForm]);
 
-  const handleDelete = async () => {
+  const handleDelete = useCallback(async () => {
     if (!selectedKlant) return;
 
     setIsSubmitting(true);
@@ -210,7 +294,12 @@ export default function KlantenPage() {
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [selectedKlant, remove]);
+
+  const handleDeleteClick = useCallback((klant: Klant) => {
+    setSelectedKlant(klant);
+    setShowDeleteDialog(true);
+  }, []);
 
   const KlantForm = () => (
     <div className="grid gap-4">
@@ -450,73 +539,13 @@ export default function KlantenPage() {
                 </TableHeader>
                 <TableBody>
                   {displayedKlanten.map((klant, index) => (
-                    <motion.tr
+                    <KlantRow
                       key={klant._id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      whileHover={{ backgroundColor: "rgba(0, 0, 0, 0.02)" }}
-                      className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
-                    >
-                      <TableCell>
-                        <Link
-                          href={`/klanten/${klant._id}`}
-                          className="font-medium hover:underline"
-                        >
-                          {klant.naam}
-                        </Link>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                          <MapPin className="h-3.5 w-3.5" />
-                          <span>
-                            {klant.adres}, {klant.postcode} {klant.plaats}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          {klant.telefoon && (
-                            <div className="flex items-center gap-1.5 text-sm">
-                              <Phone className="h-3.5 w-3.5 text-muted-foreground" />
-                              <span>{klant.telefoon}</span>
-                            </div>
-                          )}
-                          {klant.email && (
-                            <div className="flex items-center gap-1.5 text-sm">
-                              <Mail className="h-3.5 w-3.5 text-muted-foreground" />
-                              <span>{klant.email}</span>
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button variant="ghost" size="sm" asChild>
-                            <Link href={`/klanten/${klant._id}`}>
-                              <FileText className="h-4 w-4" />
-                            </Link>
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEdit(klant)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedKlant(klant);
-                              setShowDeleteDialog(true);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </motion.tr>
+                      klant={klant}
+                      index={index}
+                      onEdit={handleEdit}
+                      onDelete={handleDeleteClick}
+                    />
                   ))}
                 </TableBody>
               </Table>

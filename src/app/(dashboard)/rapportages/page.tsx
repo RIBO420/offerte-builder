@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
@@ -13,24 +14,38 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Download, BarChart3, Trees } from "lucide-react";
+import { Download, BarChart3, Loader2 } from "lucide-react";
+import { useReducedMotion } from "@/hooks/use-accessibility";
 import { useAnalytics } from "@/hooks/use-analytics";
 import {
-  KpiCards,
-  SecondaryKpiCards,
-  OfferteTrendChart,
-  RevenueChart,
-  ScopeMarginChart,
-  ScopeProfitabilityChart,
-  TopKlantenTable,
   AnalyticsDateFilter,
-  PipelineFunnelChart,
-  TrendForecastChart,
+  // Use dynamic imports for heavy chart components (recharts ~200KB)
+  DynamicKpiCards as KpiCards,
+  DynamicSecondaryKpiCards as SecondaryKpiCards,
+  DynamicOfferteTrendChart as OfferteTrendChart,
+  DynamicRevenueChart as RevenueChart,
+  DynamicScopeMarginChart as ScopeMarginChart,
+  DynamicScopeProfitabilityChart as ScopeProfitabilityChart,
+  DynamicTopKlantenTable as TopKlantenTable,
+  DynamicPipelineFunnelChart as PipelineFunnelChart,
+  DynamicTrendForecastChart as TrendForecastChart,
 } from "@/components/analytics";
-import { AnalyticsSkeleton } from "@/components/skeletons";
-import { exportAnalyticsReport } from "@/lib/excel-export";
+
+// Dynamic import for excel export (xlsx ~400KB)
+const exportAnalyticsReport = async (
+  kpis: Parameters<typeof import("@/lib/excel-export").exportAnalyticsReport>[0],
+  topKlanten: Parameters<typeof import("@/lib/excel-export").exportAnalyticsReport>[1],
+  scopeMarges: Parameters<typeof import("@/lib/excel-export").exportAnalyticsReport>[2],
+  exportData: Parameters<typeof import("@/lib/excel-export").exportAnalyticsReport>[3],
+  filename: string
+) => {
+  const { exportAnalyticsReport: doExport } = await import("@/lib/excel-export");
+  return doExport(kpis, topKlanten, scopeMarges, exportData, filename);
+};
 
 export default function RapportagesPage() {
+  const reducedMotion = useReducedMotion();
+  const [activeTab, setActiveTab] = useState("overzicht");
   const {
     kpis,
     maandelijkseTrend,
@@ -47,7 +62,7 @@ export default function RapportagesPage() {
     forecast,
   } = useAnalytics();
 
-  const handleExport = () => {
+  const handleExport = useCallback(() => {
     if (!kpis) return;
     exportAnalyticsReport(
       kpis,
@@ -56,7 +71,7 @@ export default function RapportagesPage() {
       exportData,
       "top-tuinen-rapportage"
     );
-  };
+  }, [kpis, topKlanten, scopeMarges, exportData]);
 
   return (
     <>
@@ -107,23 +122,24 @@ export default function RapportagesPage() {
           </div>
         </div>
 
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="popLayout">
           {isLoading ? (
             <motion.div
               key="loader"
-              initial={{ opacity: 0 }}
+              initial={reducedMotion ? false : { opacity: 0 }}
               animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
+              exit={reducedMotion ? undefined : { opacity: 0 }}
+              transition={{ duration: reducedMotion ? 0 : 0.15 }}
+              className="flex items-center justify-center py-20"
             >
-              <AnalyticsSkeleton />
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </motion.div>
           ) : kpis ? (
             <motion.div
               key="content"
-              initial={{ opacity: 0, y: 20 }}
+              initial={reducedMotion ? false : { opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
+              transition={{ duration: reducedMotion ? 0 : 0.3 }}
               className="space-y-4"
             >
               {/* Primary KPI Cards */}
@@ -150,7 +166,7 @@ export default function RapportagesPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.2 }}
               >
-                <Tabs defaultValue="overzicht" className="space-y-4">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
                   <TabsList className="flex-wrap h-auto gap-1">
                     <TabsTrigger value="overzicht">Overzicht</TabsTrigger>
                     <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
@@ -159,110 +175,116 @@ export default function RapportagesPage() {
                     <TabsTrigger value="marges">Winstgevendheid</TabsTrigger>
                   </TabsList>
 
-                  {/* Overzicht Tab */}
-                  <TabsContent value="overzicht" className="space-y-4">
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      <OfferteTrendChart data={maandelijkseTrend} />
-                    </motion.div>
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: 0.1 }}
-                      className="grid gap-4 lg:grid-cols-2"
-                    >
-                      <RevenueChart
-                        monthlyData={maandelijkseTrend}
-                        quarterlyData={kwartaalOmzet}
-                      />
-                      <ScopeMarginChart data={scopeMarges} />
-                    </motion.div>
-                  </TabsContent>
+                  <AnimatePresence mode="wait">
+                    {/* Overzicht Tab */}
+                    {activeTab === "overzicht" && (
+                      <motion.div
+                        key="overzicht"
+                        initial={reducedMotion ? false : { opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={reducedMotion ? undefined : { opacity: 0, y: -8 }}
+                        transition={{ duration: reducedMotion ? 0 : 0.2 }}
+                      >
+                        <TabsContent value="overzicht" className="space-y-4" forceMount>
+                          <OfferteTrendChart data={maandelijkseTrend} />
+                          <div className="grid gap-4 lg:grid-cols-2">
+                            <RevenueChart
+                              monthlyData={maandelijkseTrend}
+                              quarterlyData={kwartaalOmzet}
+                            />
+                            <ScopeMarginChart data={scopeMarges} />
+                          </div>
+                        </TabsContent>
+                      </motion.div>
+                    )}
 
-                  {/* Pipeline Tab - NEW */}
-                  <TabsContent value="pipeline" className="space-y-4">
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3 }}
-                      className="grid gap-4 lg:grid-cols-2"
-                    >
-                      <PipelineFunnelChart
-                        data={pipelineFunnel}
-                        conversionRates={conversionRates}
-                      />
-                      <TopKlantenTable klanten={topKlanten} />
-                    </motion.div>
-                  </TabsContent>
+                    {/* Pipeline Tab */}
+                    {activeTab === "pipeline" && (
+                      <motion.div
+                        key="pipeline"
+                        initial={reducedMotion ? false : { opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={reducedMotion ? undefined : { opacity: 0, y: -8 }}
+                        transition={{ duration: reducedMotion ? 0 : 0.2 }}
+                      >
+                        <TabsContent value="pipeline" className="space-y-4" forceMount>
+                          <div className="grid gap-4 lg:grid-cols-2">
+                            <PipelineFunnelChart
+                              data={pipelineFunnel}
+                              conversionRates={conversionRates}
+                            />
+                            <TopKlantenTable klanten={topKlanten} />
+                          </div>
+                        </TabsContent>
+                      </motion.div>
+                    )}
 
-                  {/* Omzet & Forecast Tab - ENHANCED */}
-                  <TabsContent value="omzet" className="space-y-4">
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      <TrendForecastChart
-                        data={maandelijkseTrend}
-                        forecast={forecast}
-                      />
-                    </motion.div>
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: 0.1 }}
-                    >
-                      <RevenueChart
-                        monthlyData={maandelijkseTrend}
-                        quarterlyData={kwartaalOmzet}
-                      />
-                    </motion.div>
-                  </TabsContent>
+                    {/* Omzet & Forecast Tab */}
+                    {activeTab === "omzet" && (
+                      <motion.div
+                        key="omzet"
+                        initial={reducedMotion ? false : { opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={reducedMotion ? undefined : { opacity: 0, y: -8 }}
+                        transition={{ duration: reducedMotion ? 0 : 0.2 }}
+                      >
+                        <TabsContent value="omzet" className="space-y-4" forceMount>
+                          <TrendForecastChart
+                            data={maandelijkseTrend}
+                            forecast={forecast}
+                          />
+                          <RevenueChart
+                            monthlyData={maandelijkseTrend}
+                            quarterlyData={kwartaalOmzet}
+                          />
+                        </TabsContent>
+                      </motion.div>
+                    )}
 
-                  {/* Klanten Tab */}
-                  <TabsContent value="klanten" className="space-y-4">
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      <TopKlantenTable klanten={topKlanten} />
-                    </motion.div>
-                  </TabsContent>
+                    {/* Klanten Tab */}
+                    {activeTab === "klanten" && (
+                      <motion.div
+                        key="klanten"
+                        initial={reducedMotion ? false : { opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={reducedMotion ? undefined : { opacity: 0, y: -8 }}
+                        transition={{ duration: reducedMotion ? 0 : 0.2 }}
+                      >
+                        <TabsContent value="klanten" className="space-y-4" forceMount>
+                          <TopKlantenTable klanten={topKlanten} />
+                        </TabsContent>
+                      </motion.div>
+                    )}
 
-                  {/* Winstgevendheid Tab - ENHANCED */}
-                  <TabsContent value="marges" className="space-y-4">
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      <ScopeProfitabilityChart
-                        data={scopeMarges}
-                        totalRevenue={totalScopeRevenue}
-                      />
-                    </motion.div>
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: 0.1 }}
-                    >
-                      <ScopeMarginChart data={scopeMarges} />
-                    </motion.div>
-                  </TabsContent>
+                    {/* Winstgevendheid Tab */}
+                    {activeTab === "marges" && (
+                      <motion.div
+                        key="marges"
+                        initial={reducedMotion ? false : { opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={reducedMotion ? undefined : { opacity: 0, y: -8 }}
+                        transition={{ duration: reducedMotion ? 0 : 0.2 }}
+                      >
+                        <TabsContent value="marges" className="space-y-4" forceMount>
+                          <ScopeProfitabilityChart
+                            data={scopeMarges}
+                            totalRevenue={totalScopeRevenue}
+                          />
+                          <ScopeMarginChart data={scopeMarges} />
+                        </TabsContent>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </Tabs>
               </motion.div>
             </motion.div>
           ) : (
             <motion.div
               key="empty"
-              initial={{ opacity: 0, scale: 0.95 }}
+              initial={reducedMotion ? false : { opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.4 }}
+              exit={reducedMotion ? undefined : { opacity: 0 }}
+              transition={{ duration: reducedMotion ? 0 : 0.3 }}
               className="flex flex-col items-center justify-center py-12 text-center"
             >
               <motion.div

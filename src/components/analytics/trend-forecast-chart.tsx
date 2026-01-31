@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, memo, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
@@ -59,7 +59,7 @@ const CHART_COLORS = {
   forecastArea: "rgba(245, 158, 11, 0.1)",
 };
 
-export function TrendForecastChart({ data, forecast }: TrendForecastChartProps) {
+export const TrendForecastChart = memo(function TrendForecastChart({ data, forecast }: TrendForecastChartProps) {
   const [view, setView] = useState<"aantal" | "omzet">("aantal");
   const [showMovingAvg, setShowMovingAvg] = useState(true);
   const [showForecast, setShowForecast] = useState(true);
@@ -339,4 +339,5 @@ export function TrendForecastChart({ data, forecast }: TrendForecastChartProps) 
       </CardContent>
     </Card>
   );
-}
+});
+

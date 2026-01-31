@@ -81,7 +81,7 @@ import { OfferteChat } from "@/components/offerte/offerte-chat";
 import { useOfferte, useOffertes } from "@/hooks/use-offertes";
 import { useEmailLogs } from "@/hooks/use-email";
 import { useInstellingen } from "@/hooks/use-instellingen";
-import { PDFDownloadButton } from "@/components/pdf";
+import { DynamicPDFDownloadButton as PDFDownloadButton } from "@/components/pdf";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { OfferteDetailSkeleton } from "@/components/skeletons";
 import { STATUS_CONFIG, type OfferteStatus } from "@/lib/constants/statuses";
@@ -789,10 +789,14 @@ export default function OfferteDetailPage({
                                 Handtekening
                               </p>
                               <div className="flex-1 flex items-center justify-center min-h-0">
+                                {/* Using img for base64 data URLs (signatures) - not suitable for next/image */}
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
                                   src={offerte.customerResponse.signature}
                                   alt="Handtekening"
                                   className="max-w-full max-h-full object-contain mix-blend-multiply dark:invert dark:mix-blend-screen"
+                                  loading="lazy"
+                                  decoding="async"
                                 />
                               </div>
                             </div>

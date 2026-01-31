@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AnimatedNumber } from "@/components/ui/animated-number";
@@ -59,7 +60,7 @@ function GlassKpiCard({
   );
 }
 
-export function SecondaryKpiCards({ kpis }: SecondaryKpiCardsProps) {
+export const SecondaryKpiCards = memo(function SecondaryKpiCards({ kpis }: SecondaryKpiCardsProps) {
   const cycleTime = kpis.avgCycleTime ?? 0;
   const responseTime = kpis.avgResponseTime ?? 0;
   const repeatPercentage = kpis.repeatCustomerPercentage ?? 0;
@@ -247,4 +248,4 @@ export function SecondaryKpiCards({ kpis }: SecondaryKpiCardsProps) {
       </GlassKpiCard>
     </div>
   );
-}
+});

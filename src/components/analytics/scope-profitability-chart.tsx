@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, memo, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -85,7 +85,7 @@ function getMargeColor(percentage: number): string {
   return "hsl(0, 72%, 51%)";
 }
 
-export function ScopeProfitabilityChart({ data, totalRevenue = 0 }: ScopeProfitabilityChartProps) {
+export const ScopeProfitabilityChart = memo(function ScopeProfitabilityChart({ data, totalRevenue = 0 }: ScopeProfitabilityChartProps) {
   const [view, setView] = useState<"revenue" | "margin" | "combined">("combined");
 
   if (data.length === 0) {
@@ -354,4 +354,5 @@ export function ScopeProfitabilityChart({ data, totalRevenue = 0 }: ScopeProfita
       </CardContent>
     </Card>
   );
-}
+});
+
