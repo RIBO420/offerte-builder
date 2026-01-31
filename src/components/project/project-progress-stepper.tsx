@@ -4,8 +4,8 @@ import Link from "next/link";
 import { Check, Circle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// Project statuses - voorcalculatie is now at offerte level, projects start at "gepland"
 export type ProjectStatus =
-  | "voorcalculatie"
   | "gepland"
   | "in_uitvoering"
   | "afgerond"
@@ -14,7 +14,6 @@ export type ProjectStatus =
 export interface ProjectProgressStepperProps {
   projectId: string;
   currentStatus: ProjectStatus;
-  hasVoorcalculatie?: boolean;
   hasPlanning?: boolean;
   hasUrenRegistraties?: boolean;
   hasNacalculatie?: boolean;
@@ -26,8 +25,8 @@ interface Step {
   href: string | null;
 }
 
+// New workflow: Gepland -> In Uitvoering -> Afgerond -> Nacalculatie
 const statusOrder: ProjectStatus[] = [
-  "voorcalculatie",
   "gepland",
   "in_uitvoering",
   "afgerond",
@@ -35,7 +34,6 @@ const statusOrder: ProjectStatus[] = [
 ];
 
 const statusLabels: Record<ProjectStatus, string> = {
-  voorcalculatie: "Voorcalculatie",
   gepland: "Gepland",
   in_uitvoering: "In Uitvoering",
   afgerond: "Afgerond",
@@ -43,7 +41,10 @@ const statusLabels: Record<ProjectStatus, string> = {
 };
 
 /**
- * ProjectProgressStepper - Shows the 5 project phases as a horizontal/vertical stepper
+ * ProjectProgressStepper - Shows the 4 project phases as a horizontal/vertical stepper
+ *
+ * New workflow (voorcalculatie moved to offerte level):
+ * Gepland -> In Uitvoering -> Afgerond -> Nacalculatie
  *
  * Features:
  * - Current status is highlighted (primary color, filled circle)
@@ -55,7 +56,6 @@ const statusLabels: Record<ProjectStatus, string> = {
 export function ProjectProgressStepper({
   projectId,
   currentStatus,
-  hasVoorcalculatie = false,
   hasPlanning = false,
   hasUrenRegistraties = false,
   hasNacalculatie = false,
@@ -63,12 +63,8 @@ export function ProjectProgressStepper({
   const currentIndex = statusOrder.indexOf(currentStatus);
 
   // Define steps with their navigation targets
+  // Note: Voorcalculatie is now at the offerte level, not shown in project stepper
   const steps: Step[] = [
-    {
-      id: "voorcalculatie",
-      label: statusLabels.voorcalculatie,
-      href: hasVoorcalculatie ? `/projecten/${projectId}/voorcalculatie` : null,
-    },
     {
       id: "gepland",
       label: statusLabels.gepland,

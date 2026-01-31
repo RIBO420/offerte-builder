@@ -77,7 +77,7 @@ export const getAnalyticsData = query({
     // Calculate KPIs
     const totaalOffertes = offertes.length;
     const concept = offertes.filter((o) => o.status === "concept");
-    const definitief = offertes.filter((o) => o.status === "definitief");
+    const voorcalculatie = offertes.filter((o) => o.status === "voorcalculatie");
     const verzonden = offertes.filter((o) => o.status === "verzonden");
     const geaccepteerd = offertes.filter((o) => o.status === "geaccepteerd");
     const afgewezen = offertes.filter((o) => o.status === "afgewezen");
@@ -99,8 +99,8 @@ export const getAnalyticsData = query({
     // ===== NEW: Sales Pipeline Funnel =====
     // Calculate conversion rates between stages
     const pipelineFunnel = {
-      concept: concept.length + definitief.length + verzonden.length + geaccepteerd.length + afgewezen.length,
-      definitief: definitief.length + verzonden.length + geaccepteerd.length + afgewezen.length,
+      concept: concept.length + voorcalculatie.length + verzonden.length + geaccepteerd.length + afgewezen.length,
+      voorcalculatie: voorcalculatie.length + verzonden.length + geaccepteerd.length + afgewezen.length,
       verzonden: verzonden.length + geaccepteerd.length + afgewezen.length,
       afgehandeld: geaccepteerd.length + afgewezen.length,
       geaccepteerd: geaccepteerd.length,
@@ -108,11 +108,11 @@ export const getAnalyticsData = query({
 
     // Conversion rates between stages
     const conversionRates = {
-      conceptToDefinitief: pipelineFunnel.concept > 0
-        ? Math.round((pipelineFunnel.definitief / pipelineFunnel.concept) * 100)
+      conceptToVoorcalculatie: pipelineFunnel.concept > 0
+        ? Math.round((pipelineFunnel.voorcalculatie / pipelineFunnel.concept) * 100)
         : 0,
-      definitiefToVerzonden: pipelineFunnel.definitief > 0
-        ? Math.round((pipelineFunnel.verzonden / pipelineFunnel.definitief) * 100)
+      voorcalculatieToVerzonden: pipelineFunnel.voorcalculatie > 0
+        ? Math.round((pipelineFunnel.verzonden / pipelineFunnel.voorcalculatie) * 100)
         : 0,
       verzondenToAfgehandeld: pipelineFunnel.verzonden > 0
         ? Math.round((pipelineFunnel.afgehandeld / pipelineFunnel.verzonden) * 100)
@@ -371,7 +371,7 @@ export const getAnalyticsData = query({
     // Status distribution for charts
     const statusVerdeling = {
       concept: offertes.filter((o) => o.status === "concept").length,
-      definitief: offertes.filter((o) => o.status === "definitief").length,
+      voorcalculatie: offertes.filter((o) => o.status === "voorcalculatie").length,
       verzonden: offertes.filter((o) => o.status === "verzonden").length,
       geaccepteerd: geaccepteerd.length,
       afgewezen: afgewezen.length,

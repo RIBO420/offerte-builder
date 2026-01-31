@@ -2,7 +2,8 @@
  * Projecten Functions - Calculatie, Planning & Nacalculatie Add-on
  *
  * Provides CRUD operations for projects linked to offertes.
- * Projects track the lifecycle from voorcalculatie through nacalculatie.
+ * Projects are created from accepted offertes that have voorcalculatie completed.
+ * Workflow: gepland → in_uitvoering → afgerond → nacalculatie_compleet
  */
 
 import { v } from "convex/values";
@@ -11,8 +12,8 @@ import { requireAuth, requireAuthUserId, verifyOwnership } from "./auth";
 import { Id } from "./_generated/dataModel";
 
 // Status validator for project status
+// Note: voorcalculatie is now done at offerte level before a project is created
 const projectStatusValidator = v.union(
-  v.literal("voorcalculatie"),
   v.literal("gepland"),
   v.literal("in_uitvoering"),
   v.literal("afgerond"),
@@ -33,11 +34,16 @@ async function getOwnedProject(
 /**
  * Create a new project from an offerte.
  * The offerte must be owned by the authenticated user.
+ * Prerequisites:
+ * - Offerte must have status "geaccepteerd"
+ * - Offerte must have a voorcalculatie
+ * Projects start with status "gepland".
  */
 export const create = mutation({
   args: {
     offerteId: v.id("offertes"),
     naam: v.optional(v.string()),
+    copyVoorcalculatie: v.optional(v.boolean()), // Whether to copy/link voorcalculatie from offerte to project
   },
   handler: async (ctx, args) => {
     const userId = await requireAuthUserId(ctx);
@@ -50,6 +56,27 @@ export const create = mutation({
     }
     if (offerte.userId.toString() !== userId.toString()) {
       throw new Error("Je hebt geen toegang tot deze offerte");
+    }
+
+    // Validate: Offerte must be accepted before creating a project
+    if (offerte.status !== "geaccepteerd") {
+      throw new Error(
+        `Kan geen project aanmaken: offerte heeft status "${offerte.status}". ` +
+        "De offerte moet eerst geaccepteerd zijn door de klant."
+      );
+    }
+
+    // Validate: Offerte must have a voorcalculatie
+    const offerteVoorcalculatie = await ctx.db
+      .query("voorcalculaties")
+      .withIndex("by_offerte", (q) => q.eq("offerteId", args.offerteId))
+      .unique();
+
+    if (!offerteVoorcalculatie) {
+      throw new Error(
+        "Kan geen project aanmaken: er is nog geen voorcalculatie voor deze offerte. " +
+        "Maak eerst een voorcalculatie aan bij de offerte."
+      );
     }
 
     // Check if a project already exists for this offerte
@@ -66,14 +93,30 @@ export const create = mutation({
     const projectNaam =
       args.naam || `Project ${offerte.offerteNummer} - ${offerte.klant.naam}`;
 
+    // Create the project with status "gepland" (voorcalculatie is now at offerte level)
     const projectId = await ctx.db.insert("projecten", {
       userId,
       offerteId: args.offerteId,
       naam: projectNaam,
-      status: "voorcalculatie",
+      status: "gepland",
       createdAt: now,
       updatedAt: now,
     });
+
+    // Optionally copy the voorcalculatie from offerte to project for reference
+    if (args.copyVoorcalculatie) {
+      await ctx.db.insert("voorcalculaties", {
+        projectId,
+        offerteId: args.offerteId, // Keep link to original offerte
+        teamGrootte: offerteVoorcalculatie.teamGrootte,
+        teamleden: offerteVoorcalculatie.teamleden,
+        effectieveUrenPerDag: offerteVoorcalculatie.effectieveUrenPerDag,
+        normUrenTotaal: offerteVoorcalculatie.normUrenTotaal,
+        geschatteDagen: offerteVoorcalculatie.geschatteDagen,
+        normUrenPerScope: offerteVoorcalculatie.normUrenPerScope,
+        createdAt: now,
+      });
+    }
 
     return projectId;
   },
@@ -152,7 +195,8 @@ export const list = query({
 
 /**
  * Update the status of a project.
- * Status must follow the workflow: voorcalculatie -> gepland -> in_uitvoering -> afgerond -> nacalculatie_compleet
+ * Status must follow the workflow: gepland -> in_uitvoering -> afgerond -> nacalculatie_compleet
+ * Note: voorcalculatie is now done at offerte level, so projects start at "gepland".
  * Validates that transitions only happen in the correct order with proper prerequisites.
  */
 export const updateStatus = mutation({
@@ -165,9 +209,8 @@ export const updateStatus = mutation({
     const project = await getOwnedProject(ctx, args.id);
     const now = Date.now();
 
-    // Define valid status transitions
+    // Define valid status transitions (voorcalculatie removed from workflow)
     const validTransitions: Record<string, string[]> = {
-      voorcalculatie: ["gepland"],
       gepland: ["in_uitvoering"],
       in_uitvoering: ["afgerond"],
       afgerond: ["nacalculatie_compleet"],
@@ -186,21 +229,6 @@ export const updateStatus = mutation({
     }
 
     // Validate prerequisites for specific transitions
-    if (currentStatus === "voorcalculatie" && newStatus === "gepland") {
-      // Check if voorcalculatie exists
-      const voorcalculatie = await ctx.db
-        .query("voorcalculaties")
-        .withIndex("by_project", (q) => q.eq("projectId", args.id))
-        .unique();
-
-      if (!voorcalculatie) {
-        throw new Error(
-          "Kan project niet naar 'gepland' verplaatsen: er is nog geen voorcalculatie aangemaakt. " +
-          "Maak eerst een voorcalculatie aan."
-        );
-      }
-    }
-
     if (currentStatus === "in_uitvoering" && newStatus === "afgerond") {
       // Check if there are registered hours
       const urenRegistraties = await ctx.db
@@ -347,11 +375,19 @@ export const getWithDetails = query({
     // Get related offerte
     const offerte = await ctx.db.get(project.offerteId);
 
-    // Get voorcalculatie
-    const voorcalculatie = await ctx.db
+    // Get voorcalculatie - first check project-level (copied/linked)
+    let voorcalculatie = await ctx.db
       .query("voorcalculaties")
       .withIndex("by_project", (q) => q.eq("projectId", args.id))
       .unique();
+
+    // If no project-level voorcalculatie, check offerte-level (new workflow)
+    if (!voorcalculatie) {
+      voorcalculatie = await ctx.db
+        .query("voorcalculaties")
+        .withIndex("by_offerte", (q) => q.eq("offerteId", project.offerteId))
+        .unique();
+    }
 
     // Get planning taken
     const planningTaken = await ctx.db
@@ -441,6 +477,7 @@ export const getProjectsByOfferteIds = query({
 
 /**
  * Get dashboard statistics for projects.
+ * Note: voorcalculatie status has been removed from project workflow.
  */
 export const getStats = query({
   args: {},
@@ -454,7 +491,6 @@ export const getStats = query({
 
     const stats = {
       totaal: projects.length,
-      voorcalculatie: 0,
       gepland: 0,
       in_uitvoering: 0,
       afgerond: 0,
@@ -462,7 +498,9 @@ export const getStats = query({
     };
 
     for (const project of projects) {
-      stats[project.status]++;
+      if (project.status in stats) {
+        stats[project.status as keyof typeof stats]++;
+      }
     }
 
     return stats;
@@ -502,10 +540,19 @@ export const getActiveProjectsWithProgress = query({
         const klantNaam = offerte?.klant?.naam || "Onbekende klant";
 
         // Get voorcalculatie for begrote uren
-        const voorcalculatie = await ctx.db
+        // First check project-level voorcalculatie (copied/linked)
+        let voorcalculatie = await ctx.db
           .query("voorcalculaties")
           .withIndex("by_project", (q) => q.eq("projectId", project._id))
           .unique();
+
+        // If no project-level voorcalculatie, check offerte-level (new workflow)
+        if (!voorcalculatie) {
+          voorcalculatie = await ctx.db
+            .query("voorcalculaties")
+            .withIndex("by_offerte", (q) => q.eq("offerteId", project.offerteId))
+            .unique();
+        }
         const begroteUren = voorcalculatie?.normUrenTotaal || 0;
 
         // Get uren registraties for totaal uren

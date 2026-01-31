@@ -75,15 +75,19 @@ import {
   FolderKanban,
   ExternalLink,
   AlertCircle,
+  Calculator,
+  Users,
+  CalendarDays,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SaveAsTemplateDialog } from "@/components/offerte/save-as-template-dialog";
 import { SendEmailDialog } from "@/components/offerte/send-email-dialog";
 import { ShareOfferteDialog } from "@/components/offerte/share-offerte-dialog";
 import { OfferteChat } from "@/components/offerte/offerte-chat";
-import { useQuery } from "convex/react";
+import { OfferteWorkflowStepper } from "@/components/offerte/offerte-workflow-stepper";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
-import { useOfferte, useOffertes } from "@/hooks/use-offertes";
+import { useOffertes } from "@/hooks/use-offertes";
 import { useEmailLogs } from "@/hooks/use-email";
 import { useInstellingen } from "@/hooks/use-instellingen";
 import { DynamicPDFDownloadButton as PDFDownloadButton } from "@/components/pdf";
@@ -164,7 +168,16 @@ export default function OfferteDetailPage({
 }) {
   const { id } = use(params);
   const router = useRouter();
-  const { offerte, isLoading } = useOfferte(id as Id<"offertes">);
+
+  // Use the combined query that includes voorcalculatie data
+  const offerteWithVoorcalculatie = useQuery(
+    api.offertes.getWithVoorcalculatie,
+    { id: id as Id<"offertes"> }
+  );
+  const offerte = offerteWithVoorcalculatie ? { ...offerteWithVoorcalculatie, voorcalculatie: undefined } : null;
+  const voorcalculatie = offerteWithVoorcalculatie?.voorcalculatie;
+  const isLoading = offerteWithVoorcalculatie === undefined;
+
   const { updateStatus, delete: deleteOfferte, duplicate } = useOffertes();
   const { getNextNummer, instellingen } = useInstellingen();
 
@@ -183,15 +196,16 @@ export default function OfferteDetailPage({
   const [isUpdating, setIsUpdating] = useState(false);
 
   const handleStatusChange = async (
-    newStatus: "concept" | "definitief" | "verzonden" | "geaccepteerd" | "afgewezen"
+    newStatus: "concept" | "voorcalculatie" | "verzonden" | "geaccepteerd" | "afgewezen"
   ) => {
     if (!offerte) return;
     setIsUpdating(true);
     try {
       await updateStatus({ id: offerte._id, status: newStatus });
       toast.success(`Status gewijzigd naar ${STATUS_CONFIG[newStatus].label}`);
-    } catch {
-      toast.error("Fout bij wijzigen status");
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Fout bij wijzigen status";
+      toast.error(errorMessage);
     } finally {
       setIsUpdating(false);
     }
@@ -385,18 +399,23 @@ export default function OfferteDetailPage({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => handleStatusChange("concept")}>
+                <DropdownMenuItem
+                  onClick={() => handleStatusChange("concept")}
+                  disabled={offerte?.status !== "voorcalculatie"}
+                >
                   <Clock className="mr-2 h-4 w-4" />
                   Concept
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={() => handleStatusChange("definitief")}
+                  onClick={() => handleStatusChange("voorcalculatie")}
+                  disabled={offerte?.status !== "concept" || !voorcalculatie}
                 >
-                  <FileText className="mr-2 h-4 w-4" />
-                  Definitief
+                  <Calculator className="mr-2 h-4 w-4" />
+                  Voorcalculatie
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => handleStatusChange("verzonden")}
+                  disabled={offerte?.status !== "voorcalculatie"}
                 >
                   <Send className="mr-2 h-4 w-4" />
                   Verzonden
@@ -404,12 +423,14 @@ export default function OfferteDetailPage({
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => handleStatusChange("geaccepteerd")}
+                  disabled={offerte?.status !== "verzonden"}
                 >
                   <CheckCircle className="mr-2 h-4 w-4 text-green-600" />
                   Geaccepteerd
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => handleStatusChange("afgewezen")}
+                  disabled={offerte?.status !== "verzonden"}
                 >
                   <XCircle className="mr-2 h-4 w-4 text-red-600" />
                   Afgewezen
@@ -478,6 +499,115 @@ export default function OfferteDetailPage({
             </DropdownMenu>
           </div>
         </motion.div>
+
+        {/* Workflow Stepper */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.15 }}
+        >
+          <Card className="p-4 md:p-6">
+            <OfferteWorkflowStepper
+              currentStatus={offerte.status as "concept" | "voorcalculatie" | "verzonden" | "geaccepteerd" | "afgewezen"}
+              hasVoorcalculatie={!!voorcalculatie}
+            />
+          </Card>
+        </motion.div>
+
+        {/* Voorcalculatie Card - Show when in concept status or when voorcalculatie exists */}
+        {(offerte.status === "concept" || voorcalculatie) && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.18 }}
+          >
+            <Card
+              variant="elevated"
+              className={cn(
+                "transition-all duration-300",
+                voorcalculatie
+                  ? "border-blue-300 dark:border-blue-700 bg-blue-50/50 dark:bg-blue-950/20"
+                  : "border-amber-200 dark:border-amber-800 bg-amber-50/30 dark:bg-amber-950/10"
+              )}
+            >
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Calculator className={cn(
+                    "h-4 w-4",
+                    voorcalculatie ? "text-blue-600" : "text-amber-600"
+                  )} />
+                  Voorcalculatie
+                  {voorcalculatie && (
+                    <span className="ml-auto text-xs px-2 py-0.5 rounded-full font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                      Ingevuld
+                    </span>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {voorcalculatie ? (
+                  <div className="space-y-4">
+                    {/* Summary of voorcalculatie */}
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="text-center p-3 rounded-lg bg-white/50 dark:bg-black/10">
+                        <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
+                          <Users className="h-3.5 w-3.5" />
+                          <span className="text-xs">Team</span>
+                        </div>
+                        <p className="text-2xl font-bold">{voorcalculatie.teamGrootte}</p>
+                        <p className="text-xs text-muted-foreground">personen</p>
+                      </div>
+                      <div className="text-center p-3 rounded-lg bg-white/50 dark:bg-black/10">
+                        <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
+                          <CalendarDays className="h-3.5 w-3.5" />
+                          <span className="text-xs">Duur</span>
+                        </div>
+                        <p className="text-2xl font-bold">{voorcalculatie.geschatteDagen}</p>
+                        <p className="text-xs text-muted-foreground">dagen</p>
+                      </div>
+                      <div className="text-center p-3 rounded-lg bg-white/50 dark:bg-black/10">
+                        <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
+                          <Clock className="h-3.5 w-3.5" />
+                          <span className="text-xs">Uren</span>
+                        </div>
+                        <p className="text-2xl font-bold">{voorcalculatie.normUrenTotaal}</p>
+                        <p className="text-xs text-muted-foreground">normuren</p>
+                      </div>
+                    </div>
+                    <Button
+                      asChild
+                      variant="outline"
+                      className="w-full"
+                    >
+                      <Link href={`/offertes/${id}/voorcalculatie`}>
+                        <Calculator className="mr-2 h-4 w-4" />
+                        Voorcalculatie bewerken
+                      </Link>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-100/50 dark:bg-amber-950/20">
+                      <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                      <p className="text-sm text-amber-800 dark:text-amber-200">
+                        Vul de voorcalculatie in om de offerte te kunnen verzenden naar de klant.
+                      </p>
+                    </div>
+                    <Button
+                      asChild
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      <Link href={`/offertes/${id}/voorcalculatie`}>
+                        <Calculator className="mr-2 h-4 w-4" />
+                        Voorcalculatie invullen
+                      </Link>
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
         <motion.div
           initial={{ opacity: 0, y: 10 }}

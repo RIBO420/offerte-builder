@@ -130,8 +130,9 @@ function NieuwProjectPageContent() {
         offerteId,
         naam: projectNaam || defaultNaam,
       });
-      toast.success("Project aangemaakt");
-      router.push(`/projecten/${projectId}/voorcalculatie`);
+      toast.success("Project aangemaakt - start met planning");
+      // Projects now start at "gepland" status, voorcalculatie is at offerte level
+      router.push(`/projecten/${projectId}/planning`);
     } catch (error) {
       if (error instanceof Error) {
         // Check if it's a duplicate project error (race condition)
@@ -339,6 +340,18 @@ function NieuwProjectPageContent() {
                     Laat leeg om de standaard naam te gebruiken
                   </p>
                 </div>
+
+                {offerte && (
+                  <div className="rounded-lg bg-muted/50 p-3 text-sm">
+                    <p className="font-medium text-muted-foreground mb-1">
+                      Voorcalculatie uit offerte
+                    </p>
+                    <p className="text-muted-foreground">
+                      De voorcalculatiegegevens worden overgenomen uit de offerte
+                      en zijn beschikbaar als referentie in het project.
+                    </p>
+                  </div>
+                )}
 
                 <Button
                   className="w-full"

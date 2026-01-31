@@ -48,6 +48,8 @@ import {
   Trees,
   Send,
   PenTool,
+  Calendar,
+  Users,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DynamicSignaturePad as SignaturePadComponent } from "@/components/ui/signature-pad-dynamic";
@@ -410,7 +412,7 @@ export default function PublicOffertePage({
     );
   }
 
-  const { offerte, bedrijfsgegevens } = data;
+  const { offerte, bedrijfsgegevens, voorcalculatie } = data;
 
   if (!offerte) {
     return null;
@@ -655,6 +657,49 @@ export default function PublicOffertePage({
               </div>
             </CardContent>
           </Card>
+
+          {/* Planning Info Card */}
+          {voorcalculatie && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Planning
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Geschatte projectduur</span>
+                  <span className="font-medium">{voorcalculatie.geschatteDagen} werkdagen</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Geschatte uren</span>
+                  <span className="font-medium">{Math.round(voorcalculatie.normUrenTotaal)} uur</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground flex items-center gap-1">
+                    <Users className="h-4 w-4" />
+                    Teamgrootte
+                  </span>
+                  <span className="font-medium">{voorcalculatie.teamGrootte} personen</span>
+                </div>
+                {voorcalculatie.normUrenPerScope && Object.keys(voorcalculatie.normUrenPerScope).length > 0 && (
+                  <>
+                    <Separator />
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">Uren per onderdeel</p>
+                      {Object.entries(voorcalculatie.normUrenPerScope).map(([scope, hours]) => (
+                        <div key={scope} className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">{scopeLabels[scope] || scope}</span>
+                          <span>{Math.round(hours as number)} uur</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Business Contact */}
           {bedrijfsgegevens && (

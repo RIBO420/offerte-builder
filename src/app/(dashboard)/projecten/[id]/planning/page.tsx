@@ -445,7 +445,6 @@ export default function PlanningPage({
           <ProjectProgressStepper
             projectId={id}
             currentStatus="gepland"
-            hasVoorcalculatie={!!voorcalculatie}
             hasPlanning={taken.length > 0}
             hasUrenRegistraties={false}
             hasNacalculatie={false}

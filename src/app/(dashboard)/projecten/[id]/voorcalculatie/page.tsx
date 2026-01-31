@@ -1,11 +1,9 @@
 "use client";
 
-import { use, useState, useCallback, useMemo } from "react";
+import { use } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useReducedMotion } from "@/hooks/use-accessibility";
-import { useAutoSave } from "@/hooks/use-auto-save";
 import {
   Card,
   CardContent,
@@ -14,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
   Breadcrumb,
@@ -24,40 +23,35 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { SaveIndicator } from "@/components/ui/save-indicator";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import {
   ArrowLeft,
   Loader2,
   Calculator,
-  Save,
-  ChevronRight,
   FolderKanban,
+  FileText,
+  ExternalLink,
+  Users,
+  Clock,
   Calendar,
+  Info,
 } from "lucide-react";
 import { useProjectVoorcalculatie } from "@/hooks/use-voorcalculatie";
-import { TeamSelector } from "@/components/project/team-selector";
 import { UrenOverzicht } from "@/components/project/uren-overzicht";
-import { ProjectProgressStepper } from "@/components/project/project-progress-stepper";
+import { ProjectProgressStepper, type ProjectStatus } from "@/components/project/project-progress-stepper";
 import { Id } from "../../../../../../convex/_generated/dataModel";
-import { toast } from "sonner";
 
+/**
+ * VoorcalculatiePage - Read-only reference view
+ *
+ * In the new workflow, voorcalculatie is created at the offerte level.
+ * This page shows the voorcalculatie data as a reference for the project.
+ */
 export default function VoorcalculatiePage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const router = useRouter();
   const reducedMotion = useReducedMotion();
 
   const {
@@ -66,113 +60,7 @@ export default function VoorcalculatiePage({
     voorcalculatie,
     calculation,
     isLoading,
-    hasVoorcalculatie,
-    saveVoorcalculatie,
-    moveToPlanning,
-    calculateDays,
   } = useProjectVoorcalculatie(id as Id<"projecten">);
-
-  // Form state
-  const [teamGrootte, setTeamGrootte] = useState<2 | 3 | 4>(
-    voorcalculatie?.teamGrootte ?? 2
-  );
-  const [teamleden, setTeamleden] = useState<string[]>(
-    voorcalculatie?.teamleden ?? []
-  );
-  const [effectieveUrenPerDag, setEffectieveUrenPerDag] = useState(
-    voorcalculatie?.effectieveUrenPerDag ?? 7
-  );
-  const [showMoveDialog, setShowMoveDialog] = useState(false);
-
-  // Update state when voorcalculatie loads
-  useMemo(() => {
-    if (voorcalculatie) {
-      setTeamGrootte(voorcalculatie.teamGrootte);
-      setTeamleden(voorcalculatie.teamleden ?? []);
-      setEffectieveUrenPerDag(voorcalculatie.effectieveUrenPerDag);
-    }
-  }, [voorcalculatie]);
-
-  // Calculate estimated days
-  const geschatteDagen = useMemo(() => {
-    if (!calculation) return 0;
-    return calculateDays(
-      calculation.normUrenTotaal,
-      teamGrootte,
-      effectieveUrenPerDag
-    );
-  }, [calculation, teamGrootte, effectieveUrenPerDag, calculateDays]);
-
-  // Auto-save data structure
-  const autoSaveData = useMemo(
-    () => ({
-      teamGrootte,
-      teamleden: teamleden.length > 0 ? teamleden : undefined,
-      effectieveUrenPerDag,
-    }),
-    [teamGrootte, teamleden, effectieveUrenPerDag]
-  );
-
-  // Auto-save handler
-  const handleAutoSave = useCallback(
-    async (data: typeof autoSaveData) => {
-      await saveVoorcalculatie(data);
-    },
-    [saveVoorcalculatie]
-  );
-
-  // Auto-save hook
-  const {
-    isSaving,
-    isDirty,
-    lastSaved,
-    saveNow,
-    error: saveError,
-  } = useAutoSave({
-    data: autoSaveData,
-    onSave: handleAutoSave,
-    debounceMs: 2000,
-    enabled: !!calculation, // Only enable when calculation is available
-  });
-
-  // Show error toast when save fails
-  useMemo(() => {
-    if (saveError) {
-      toast.error("Fout bij auto-opslaan voorcalculatie");
-    }
-  }, [saveError]);
-
-  // Manual save handler
-  const handleSave = useCallback(async () => {
-    try {
-      await saveNow();
-      toast.success("Voorcalculatie opgeslagen");
-    } catch (error) {
-      toast.error("Fout bij opslaan voorcalculatie");
-      console.error(error);
-    }
-  }, [saveNow]);
-
-  // Move to planning handler
-  const handleMoveToPlanning = useCallback(async () => {
-    try {
-      // Wait for any pending save to complete
-      if (isDirty || isSaving) {
-        await saveNow();
-      }
-      // First save if not already saved
-      if (!hasVoorcalculatie) {
-        await saveNow();
-      }
-      await moveToPlanning();
-      toast.success("Project verplaatst naar planning");
-      router.push(`/projecten/${id}/planning`);
-    } catch (error) {
-      toast.error("Fout bij verplaatsen naar planning");
-      console.error(error);
-    }
-    setShowMoveDialog(false);
-  }, [hasVoorcalculatie, isDirty, isSaving, saveNow, moveToPlanning, router, id]);
 
   if (isLoading) {
     return (
@@ -301,9 +189,14 @@ export default function VoorcalculatiePage({
                 <Calculator className="h-5 w-5 text-blue-700 dark:text-blue-400" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold tracking-tight">
-                  Voorcalculatie
-                </h1>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-2xl font-bold tracking-tight">
+                    Voorcalculatie
+                  </h1>
+                  <Badge variant="outline" className="text-xs">
+                    Referentie
+                  </Badge>
+                </div>
                 <p className="text-muted-foreground">
                   {project.naam} - {offerte.offerteNummer}
                 </p>
@@ -311,44 +204,46 @@ export default function VoorcalculatiePage({
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <SaveIndicator
-              isSaving={isSaving}
-              isDirty={isDirty}
-              lastSaved={lastSaved}
-            />
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={handleSave}
-                disabled={isSaving || !calculation || !isDirty}
-                title="Auto-save is actief (2 sec na wijziging)"
-              >
-                {isSaving ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="mr-2 h-4 w-4" />
-                )}
-                Opslaan
-              </Button>
-              <Button
-                onClick={() => setShowMoveDialog(true)}
-                disabled={!calculation || isSaving}
-              >
-                <Calendar className="mr-2 h-4 w-4" />
-                Naar Planning
-                <ChevronRight className="ml-1 h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+          <Button asChild variant="outline">
+            <Link href={`/offertes/${offerte._id}`}>
+              <FileText className="mr-2 h-4 w-4" />
+              Bekijk Offerte
+              <ExternalLink className="ml-2 h-3 w-3" />
+            </Link>
+          </Button>
+        </motion.div>
+
+        {/* Info Banner */}
+        <motion.div
+          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{
+            duration: reducedMotion ? 0 : 0.4,
+            delay: reducedMotion ? 0 : 0.15,
+          }}
+        >
+          <Card className="bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
+            <CardContent className="flex items-start gap-3 py-4">
+              <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
+              <div>
+                <p className="font-medium text-blue-900 dark:text-blue-100">
+                  Voorcalculatie uit offerte
+                </p>
+                <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                  De voorcalculatie wordt beheerd in de offerte. Deze pagina toont de gegevens
+                  als referentie voor het project. Wijzigingen kunnen worden aangebracht in de
+                  offerte zelf.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         </motion.div>
 
         {/* Progress Stepper */}
         <Card className="p-4 md:p-6">
           <ProjectProgressStepper
             projectId={id}
-            currentStatus="voorcalculatie"
-            hasVoorcalculatie={hasVoorcalculatie}
+            currentStatus={project.status as ProjectStatus}
             hasPlanning={false}
             hasUrenRegistraties={false}
             hasNacalculatie={false}
@@ -356,8 +251,108 @@ export default function VoorcalculatiePage({
         </Card>
 
         {/* Main Content */}
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Left Column - Team Config */}
+        {voorcalculatie ? (
+          <>
+            {/* Summary Stats */}
+            <motion.div
+              initial={reducedMotion ? false : { opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                duration: reducedMotion ? 0 : 0.4,
+                delay: reducedMotion ? 0 : 0.2,
+              }}
+              className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+            >
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-950 flex items-center justify-center">
+                      <Clock className="h-5 w-5 text-blue-700 dark:text-blue-400" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{voorcalculatie.normUrenTotaal}</p>
+                      <p className="text-sm text-muted-foreground">Normuren totaal</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-green-100 dark:bg-green-950 flex items-center justify-center">
+                      <Calendar className="h-5 w-5 text-green-700 dark:text-green-400" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{voorcalculatie.geschatteDagen.toFixed(1)}</p>
+                      <p className="text-sm text-muted-foreground">Geschatte dagen</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-purple-100 dark:bg-purple-950 flex items-center justify-center">
+                      <Users className="h-5 w-5 text-purple-700 dark:text-purple-400" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{voorcalculatie.teamGrootte}</p>
+                      <p className="text-sm text-muted-foreground">Team grootte</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-orange-100 dark:bg-orange-950 flex items-center justify-center">
+                      <Clock className="h-5 w-5 text-orange-700 dark:text-orange-400" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{voorcalculatie.effectieveUrenPerDag}</p>
+                      <p className="text-sm text-muted-foreground">Uur/dag effectief</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Uren Overzicht */}
+            <motion.div
+              initial={reducedMotion ? false : { opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                duration: reducedMotion ? 0 : 0.4,
+                delay: reducedMotion ? 0 : 0.3,
+              }}
+            >
+              {calculation ? (
+                <UrenOverzicht
+                  normUrenPerScope={calculation.normUrenPerScope}
+                  normUrenTotaal={calculation.normUrenTotaal}
+                  geschatteDagen={voorcalculatie.geschatteDagen}
+                  bereikbaarheidFactor={calculation.bereikbaarheidFactor}
+                  achterstallijkheidFactor={calculation.achterstallijkheidFactor}
+                />
+              ) : (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Uren per Scope</CardTitle>
+                    <CardDescription>Berekende normuren uit de offerte</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground">
+                      Geen gedetailleerde urenberekening beschikbaar.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </motion.div>
+          </>
+        ) : (
           <motion.div
             initial={reducedMotion ? false : { opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -366,129 +361,27 @@ export default function VoorcalculatiePage({
               delay: reducedMotion ? 0 : 0.2,
             }}
           >
-            <TeamSelector
-              teamGrootte={teamGrootte}
-              teamleden={teamleden}
-              effectieveUrenPerDag={effectieveUrenPerDag}
-              onTeamGrootteChange={setTeamGrootte}
-              onTeamledenChange={setTeamleden}
-              onEffectieveUrenChange={setEffectieveUrenPerDag}
-            />
-          </motion.div>
-
-          {/* Right Column - Uren Overzicht */}
-          <motion.div
-            initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{
-              duration: reducedMotion ? 0 : 0.4,
-              delay: reducedMotion ? 0 : 0.3,
-            }}
-            className="lg:col-span-2"
-          >
-            {calculation ? (
-              <UrenOverzicht
-                normUrenPerScope={calculation.normUrenPerScope}
-                normUrenTotaal={calculation.normUrenTotaal}
-                geschatteDagen={geschatteDagen}
-                bereikbaarheidFactor={calculation.bereikbaarheidFactor}
-                achterstallijkheidFactor={calculation.achterstallijkheidFactor}
-              />
-            ) : (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-16">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                  <p className="mt-4 text-muted-foreground">
-                    Uren worden berekend...
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </motion.div>
-        </div>
-
-        {/* Summary Card */}
-        {calculation && (
-          <motion.div
-            initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{
-              duration: reducedMotion ? 0 : 0.4,
-              delay: reducedMotion ? 0 : 0.4,
-            }}
-          >
-            <Card className="border-primary/50 bg-primary/5">
-              <CardHeader>
-                <CardTitle>Samenvatting</CardTitle>
-                <CardDescription>
-                  Geschatte projectduur op basis van team configuratie
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-6 sm:grid-cols-4">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Totaal Normuren
-                    </p>
-                    <p className="text-3xl font-bold">
-                      {calculation.normUrenTotaal}
-                    </p>
-                    <p className="text-xs text-muted-foreground">uur</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Team Capaciteit
-                    </p>
-                    <p className="text-3xl font-bold">
-                      {teamGrootte * effectieveUrenPerDag}
-                    </p>
-                    <p className="text-xs text-muted-foreground">uur/dag</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Geschatte Duur
-                    </p>
-                    <p className="text-3xl font-bold text-primary">
-                      {geschatteDagen}
-                    </p>
-                    <p className="text-xs text-muted-foreground">werkdagen</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Met Buffer (+10%)
-                    </p>
-                    <p className="text-3xl font-bold">
-                      {Math.ceil(geschatteDagen * 1.1)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">werkdagen</p>
-                  </div>
-                </div>
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-16">
+                <Calculator className="h-12 w-12 text-muted-foreground/50" />
+                <h3 className="mt-4 text-lg font-semibold">
+                  Geen voorcalculatie beschikbaar
+                </h3>
+                <p className="mt-2 text-sm text-muted-foreground text-center max-w-md">
+                  De offerte voor dit project heeft geen voorcalculatie.
+                  Ga naar de offerte om een voorcalculatie toe te voegen.
+                </p>
+                <Button asChild className="mt-4">
+                  <Link href={`/offertes/${offerte._id}`}>
+                    <FileText className="mr-2 h-4 w-4" />
+                    Naar Offerte
+                  </Link>
+                </Button>
               </CardContent>
             </Card>
           </motion.div>
         )}
       </motion.div>
-
-      {/* Move to Planning Dialog */}
-      <AlertDialog open={showMoveDialog} onOpenChange={setShowMoveDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Doorgaan naar Planning?</AlertDialogTitle>
-            <AlertDialogDescription>
-              De voorcalculatie wordt opgeslagen en het project wordt verplaatst
-              naar de planningsfase. Je kunt de voorcalculatie later nog
-              aanpassen.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Annuleren</AlertDialogCancel>
-            <AlertDialogAction onClick={handleMoveToPlanning}>
-              <Calendar className="mr-2 h-4 w-4" />
-              Naar Planning
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 }

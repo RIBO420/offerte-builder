@@ -78,11 +78,11 @@ export default function DashboardPage() {
   // Memoized pipeline stages data
   const pipelineStages = useMemo(() => [
     { id: "concept", label: "Concept", count: stats?.concept || 0 },
-    { id: "definitief", label: "Definitief", count: stats?.definitief || 0 },
+    { id: "voorcalculatie", label: "Voorcalculatie", count: stats?.voorcalculatie || 0 },
     { id: "verzonden", label: "Verzonden", count: stats?.verzonden || 0 },
     { id: "geaccepteerd", label: "Geaccepteerd", count: stats?.geaccepteerd || 0 },
     { id: "afgewezen", label: "Afgewezen", count: stats?.afgewezen || 0 },
-  ], [stats?.concept, stats?.definitief, stats?.verzonden, stats?.geaccepteerd, stats?.afgewezen]);
+  ], [stats?.concept, stats?.voorcalculatie, stats?.verzonden, stats?.geaccepteerd, stats?.afgewezen]);
 
   const handleStageClick = useCallback((stageId: string) => {
     router.push(`/offertes?status=${stageId}`);

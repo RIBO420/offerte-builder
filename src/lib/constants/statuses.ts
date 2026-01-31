@@ -1,13 +1,13 @@
 import {
   Pencil,
-  CheckCircle,
+  Calculator,
   Send,
   ThumbsUp,
   XCircle,
   type LucideIcon,
 } from "lucide-react";
 
-export type OfferteStatus = "concept" | "definitief" | "verzonden" | "geaccepteerd" | "afgewezen";
+export type OfferteStatus = "concept" | "voorcalculatie" | "verzonden" | "geaccepteerd" | "afgewezen";
 
 export interface StatusConfig {
   label: string;
@@ -33,10 +33,10 @@ export const STATUS_CONFIG: Record<OfferteStatus, StatusConfig> = {
       dot: "bg-gray-500",
     },
   },
-  definitief: {
-    label: "Definitief",
-    description: "Offerte is voltooid en klaar om te verzenden",
-    icon: CheckCircle,
+  voorcalculatie: {
+    label: "Voorcalculatie",
+    description: "Voorcalculatie is ingevuld en offerte is klaar om te verzenden",
+    icon: Calculator,
     color: {
       bg: "bg-blue-100 dark:bg-blue-900/30",
       text: "text-blue-700 dark:text-blue-300",
@@ -81,7 +81,7 @@ export const STATUS_CONFIG: Record<OfferteStatus, StatusConfig> = {
 
 export const ALL_STATUSES: OfferteStatus[] = [
   "concept",
-  "definitief",
+  "voorcalculatie",
   "verzonden",
   "geaccepteerd",
   "afgewezen",

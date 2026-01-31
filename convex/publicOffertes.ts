@@ -66,6 +66,12 @@ export const getByToken = query({
       .withIndex("by_user", (q) => q.eq("userId", offerte.userId))
       .unique();
 
+    // Get voorcalculatie if available
+    const voorcalculatie = await ctx.db
+      .query("voorcalculaties")
+      .withIndex("by_offerte", (q) => q.eq("offerteId", offerte._id))
+      .unique();
+
     // Return limited data for public view (no internal pricing details)
     return {
       expired: false,
@@ -93,6 +99,15 @@ export const getByToken = query({
         customerResponse: offerte.customerResponse,
       },
       bedrijfsgegevens: instellingen?.bedrijfsgegevens,
+      // Include voorcalculatie data for planning info (customer-friendly)
+      voorcalculatie: voorcalculatie
+        ? {
+            geschatteDagen: voorcalculatie.geschatteDagen,
+            normUrenTotaal: voorcalculatie.normUrenTotaal,
+            normUrenPerScope: voorcalculatie.normUrenPerScope,
+            teamGrootte: voorcalculatie.teamGrootte,
+          }
+        : undefined,
     };
   },
 });

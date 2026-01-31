@@ -39,9 +39,11 @@ export default defineSchema({
     userId: v.id("users"),
     klantId: v.optional(v.id("klanten")), // Link to klanten table
     type: v.union(v.literal("aanleg"), v.literal("onderhoud")),
+    // Workflow: concept → voorcalculatie → verzonden → geaccepteerd/afgewezen
+    // voorcalculatie status means internal pre-calculation is done, ready to send
     status: v.union(
       v.literal("concept"),
-      v.literal("definitief"),
+      v.literal("voorcalculatie"),
       v.literal("verzonden"),
       v.literal("geaccepteerd"),
       v.literal("afgewezen")
@@ -337,12 +339,13 @@ export default defineSchema({
   // ============================================
 
   // Projecten - Links offerte to project for planning/nacalculatie
+  // Projects are created from accepted offertes that have voorcalculatie completed
+  // Workflow: gepland → in_uitvoering → afgerond → nacalculatie_compleet
   projecten: defineTable({
     userId: v.id("users"),
     offerteId: v.id("offertes"),
     naam: v.string(),
     status: v.union(
-      v.literal("voorcalculatie"),
       v.literal("gepland"),
       v.literal("in_uitvoering"),
       v.literal("afgerond"),
@@ -355,8 +358,11 @@ export default defineSchema({
     .index("by_offerte", ["offerteId"]),
 
   // Voorcalculaties - Pre-calculation data
+  // Can be linked to either an offerte (before sending) or a project (for legacy/reference)
+  // New workflow: voorcalculatie is created at offerte level before sending to client
   voorcalculaties: defineTable({
-    projectId: v.id("projecten"),
+    offerteId: v.optional(v.id("offertes")), // Link to offerte (new workflow)
+    projectId: v.optional(v.id("projecten")), // Link to project (legacy/reference)
     teamGrootte: v.union(v.literal(2), v.literal(3), v.literal(4)),
     teamleden: v.optional(v.array(v.string())),
     effectieveUrenPerDag: v.number(),
@@ -364,7 +370,9 @@ export default defineSchema({
     geschatteDagen: v.number(),
     normUrenPerScope: v.record(v.string(), v.number()), // { "grondwerk": 16, "bestrating": 24, ... }
     createdAt: v.number(),
-  }).index("by_project", ["projectId"]),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_offerte", ["offerteId"]),
 
   // PlanningTaken - Planning tasks per project
   planningTaken: defineTable({

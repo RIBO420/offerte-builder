@@ -411,7 +411,6 @@ export default function UitvoeringPage() {
           <ProjectProgressStepper
             projectId={params.id as string}
             currentStatus="in_uitvoering"
-            hasVoorcalculatie={hasVoorcalculatie}
             hasPlanning={true}
             hasUrenRegistraties={urenTotals.totaalUren > 0}
             hasNacalculatie={false}

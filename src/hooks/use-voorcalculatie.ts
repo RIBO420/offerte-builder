@@ -94,6 +94,119 @@ export function useVoorcalculatieCalculation(
 }
 
 /**
+ * Hook for managing offerte voorcalculatie
+ * Used during the offerte workflow before sending to client
+ */
+export function useOfferteVoorcalculatie(offerteId: Id<"offertes"> | null) {
+  const { user } = useCurrentUser();
+
+  // Get offerte with voorcalculatie
+  const offerteData = useQuery(
+    api.offertes.getWithVoorcalculatie,
+    offerteId && user?._id ? { id: offerteId } : "skip"
+  );
+
+  // Get voorcalculatie calculation
+  const calculation = useQuery(
+    api.voorcalculaties.calculate,
+    offerteId && user?._id ? { offerteId } : "skip"
+  );
+
+  // Mutations
+  const createVoorcalculatie = useMutation(api.voorcalculaties.create);
+  const updateVoorcalculatie = useMutation(api.voorcalculaties.update);
+  const updateOfferteStatus = useMutation(api.offertes.updateStatus);
+
+  // Calculate project days based on team configuration
+  const calculateDays = useCallback(
+    (
+      normUrenTotaal: number,
+      teamGrootte: 2 | 3 | 4,
+      effectieveUrenPerDag: number
+    ) => {
+      const teamCapaciteitPerDag = teamGrootte * effectieveUrenPerDag;
+      return Math.ceil(normUrenTotaal / teamCapaciteitPerDag);
+    },
+    []
+  );
+
+  // Save voorcalculatie for offerte
+  const saveVoorcalculatie = useCallback(
+    async (data: {
+      teamGrootte: 2 | 3 | 4;
+      teamleden?: string[];
+      effectieveUrenPerDag: number;
+    }) => {
+      if (!offerteId || !calculation) {
+        throw new Error("Offerte or calculation not available");
+      }
+
+      const geschatteDagen = calculateDays(
+        calculation.normUrenTotaal,
+        data.teamGrootte,
+        data.effectieveUrenPerDag
+      );
+
+      const voorcalculatieData = {
+        offerteId,
+        teamGrootte: data.teamGrootte,
+        teamleden: data.teamleden,
+        effectieveUrenPerDag: data.effectieveUrenPerDag,
+        normUrenTotaal: calculation.normUrenTotaal,
+        geschatteDagen,
+        normUrenPerScope: calculation.normUrenPerScope,
+      };
+
+      // Check if voorcalculatie exists
+      if (offerteData?.voorcalculatie) {
+        return updateVoorcalculatie({
+          id: offerteData.voorcalculatie._id,
+          ...voorcalculatieData,
+        });
+      } else {
+        return createVoorcalculatie(voorcalculatieData);
+      }
+    },
+    [
+      offerteId,
+      calculation,
+      offerteData?.voorcalculatie,
+      calculateDays,
+      createVoorcalculatie,
+      updateVoorcalculatie,
+    ]
+  );
+
+  // Move offerte to voorcalculatie status
+  const moveToVoorcalculatie = useCallback(async () => {
+    if (!offerteId) {
+      throw new Error("Offerte not available");
+    }
+    return updateOfferteStatus({ id: offerteId, status: "voorcalculatie" });
+  }, [offerteId, updateOfferteStatus]);
+
+  // Memoized data
+  const hasVoorcalculatie = useMemo(
+    () => !!offerteData?.voorcalculatie,
+    [offerteData?.voorcalculatie]
+  );
+
+  return {
+    offerte: offerteData ? { ...offerteData, voorcalculatie: undefined } : null,
+    voorcalculatie: offerteData?.voorcalculatie,
+    calculation,
+    isLoading:
+      user &&
+      offerteId &&
+      (offerteData === undefined || calculation === undefined),
+    hasVoorcalculatie,
+    saveVoorcalculatie,
+    moveToVoorcalculatie,
+    calculateDays,
+  };
+}
+
+/**
  * Hook for managing project with voorcalculatie
  */
 export function useProjectVoorcalculatie(projectId: Id<"projecten"> | null) {

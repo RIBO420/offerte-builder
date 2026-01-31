@@ -313,7 +313,6 @@ export default function NacalculatiePage({
           <ProjectProgressStepper
             projectId={id}
             currentStatus="nacalculatie_compleet"
-            hasVoorcalculatie={hasVoorcalculatie}
             hasPlanning={true}
             hasUrenRegistraties={hasUrenRegistraties}
             hasNacalculatie={!!nacalculatie}

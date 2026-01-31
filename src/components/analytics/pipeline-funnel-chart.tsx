@@ -7,15 +7,15 @@ import { cn } from "@/lib/utils";
 
 interface PipelineFunnelData {
   concept: number;
-  definitief: number;
+  voorcalculatie: number;
   verzonden: number;
   afgehandeld: number;
   geaccepteerd: number;
 }
 
 interface ConversionRates {
-  conceptToDefinitief: number;
-  definitiefToVerzonden: number;
+  conceptToVoorcalculatie: number;
+  voorcalculatieToVerzonden: number;
   verzondenToAfgehandeld: number;
   afgehandeldToWon: number;
   overallConversion: number;
@@ -28,7 +28,7 @@ interface PipelineFunnelChartProps {
 
 const stageLabels = {
   concept: "Concept",
-  definitief: "Definitief",
+  voorcalculatie: "Voorcalculatie",
   verzonden: "Verzonden",
   afgehandeld: "Afgehandeld",
   geaccepteerd: "Gewonnen",
@@ -36,7 +36,7 @@ const stageLabels = {
 
 const stageColors = {
   concept: "bg-slate-100 dark:bg-slate-800",
-  definitief: "bg-blue-100 dark:bg-blue-900/50",
+  voorcalculatie: "bg-blue-100 dark:bg-blue-900/50",
   verzonden: "bg-amber-100 dark:bg-amber-900/50",
   afgehandeld: "bg-purple-100 dark:bg-purple-900/50",
   geaccepteerd: "bg-green-100 dark:bg-green-900/50",
@@ -44,7 +44,7 @@ const stageColors = {
 
 const stageTextColors = {
   concept: "text-slate-700 dark:text-slate-300",
-  definitief: "text-blue-700 dark:text-blue-300",
+  voorcalculatie: "text-blue-700 dark:text-blue-300",
   verzonden: "text-amber-700 dark:text-amber-300",
   afgehandeld: "text-purple-700 dark:text-purple-300",
   geaccepteerd: "text-green-700 dark:text-green-300",
@@ -96,7 +96,7 @@ export const PipelineFunnelChart = memo(function PipelineFunnelChart({ data, con
     );
   }
 
-  const stages: (keyof PipelineFunnelData)[] = ["concept", "definitief", "verzonden", "afgehandeld", "geaccepteerd"];
+  const stages: (keyof PipelineFunnelData)[] = ["concept", "voorcalculatie", "verzonden", "afgehandeld", "geaccepteerd"];
   const maxValue = Math.max(...Object.values(data));
 
   return (
@@ -148,12 +148,12 @@ export const PipelineFunnelChart = memo(function PipelineFunnelChart({ data, con
                 {/* Conversion arrow between stages */}
                 {index === 0 && (
                   <div className="ml-12 pl-3">
-                    <ConversionArrow rate={conversionRates.conceptToDefinitief} label="naar definitief" />
+                    <ConversionArrow rate={conversionRates.conceptToVoorcalculatie} label="naar voorcalculatie" />
                   </div>
                 )}
                 {index === 1 && (
                   <div className="ml-12 pl-3">
-                    <ConversionArrow rate={conversionRates.definitiefToVerzonden} label="naar verzonden" />
+                    <ConversionArrow rate={conversionRates.voorcalculatieToVerzonden} label="naar verzonden" />
                   </div>
                 )}
                 {index === 2 && (
@@ -175,16 +175,16 @@ export const PipelineFunnelChart = memo(function PipelineFunnelChart({ data, con
         <div className="mt-4 pt-4 border-t">
           <h4 className="text-sm font-medium mb-2">Inzichten</h4>
           <div className="grid grid-cols-2 gap-2 text-xs">
-            {conversionRates.conceptToDefinitief < 50 && (
+            {conversionRates.conceptToVoorcalculatie < 50 && (
               <div className="flex items-start gap-1 text-amber-600 dark:text-amber-400">
                 <AlertTriangle className="h-3 w-3 mt-0.5 flex-shrink-0" />
-                <span>Veel concepten worden niet afgerond</span>
+                <span>Veel concepten krijgen geen voorcalculatie</span>
               </div>
             )}
-            {conversionRates.definitiefToVerzonden < 70 && (
+            {conversionRates.voorcalculatieToVerzonden < 70 && (
               <div className="flex items-start gap-1 text-amber-600 dark:text-amber-400">
                 <AlertTriangle className="h-3 w-3 mt-0.5 flex-shrink-0" />
-                <span>Offertes blijven liggen na definitief</span>
+                <span>Offertes blijven liggen na voorcalculatie</span>
               </div>
             )}
             {conversionRates.afgehandeldToWon >= 60 && (

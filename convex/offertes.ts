@@ -119,7 +119,7 @@ export const getDashboardData = query({
     const stats = {
       totaal: offertes.length,
       concept: 0,
-      definitief: 0,
+      voorcalculatie: 0,
       verzonden: 0,
       geaccepteerd: 0,
       afgewezen: 0,
@@ -152,7 +152,7 @@ export const listByStatus = query({
   args: {
     status: v.union(
       v.literal("concept"),
-      v.literal("definitief"),
+      v.literal("voorcalculatie"),
       v.literal("verzonden"),
       v.literal("geaccepteerd"),
       v.literal("afgewezen")
@@ -183,6 +183,32 @@ export const get = query({
     }
 
     return offerte;
+  },
+});
+
+// Get single offerte with voorcalculatie data joined
+export const getWithVoorcalculatie = query({
+  args: { id: v.id("offertes") },
+  handler: async (ctx, args) => {
+    const offerte = await ctx.db.get(args.id);
+    if (!offerte) return null;
+
+    // Verify ownership
+    const user = await requireAuth(ctx);
+    if (offerte.userId.toString() !== user._id.toString()) {
+      return null; // Don't reveal existence to unauthorized users
+    }
+
+    // Get the voorcalculatie for this offerte
+    const voorcalculatie = await ctx.db
+      .query("voorcalculaties")
+      .withIndex("by_offerte", (q) => q.eq("offerteId", args.id))
+      .first();
+
+    return {
+      ...offerte,
+      voorcalculatie: voorcalculatie || null,
+    };
   },
 });
 
@@ -480,12 +506,13 @@ export const updateRegels = mutation({
 });
 
 // Update status
+// Workflow: concept → voorcalculatie → verzonden → geaccepteerd/afgewezen
 export const updateStatus = mutation({
   args: {
     id: v.id("offertes"),
     status: v.union(
       v.literal("concept"),
-      v.literal("definitief"),
+      v.literal("voorcalculatie"),
       v.literal("verzonden"),
       v.literal("geaccepteerd"),
       v.literal("afgewezen")
@@ -496,6 +523,36 @@ export const updateStatus = mutation({
     const oldOfferte = await getOwnedOfferte(ctx, args.id);
     const now = Date.now();
     const oldStatus = oldOfferte.status;
+
+    // Validate status workflow
+    // concept → voorcalculatie → verzonden → geaccepteerd/afgewezen
+    const validTransitions: Record<string, string[]> = {
+      concept: ["voorcalculatie"],
+      voorcalculatie: ["concept", "verzonden"],
+      verzonden: ["voorcalculatie", "geaccepteerd", "afgewezen"],
+      geaccepteerd: ["verzonden"],
+      afgewezen: ["verzonden"],
+    };
+
+    if (!validTransitions[oldStatus]?.includes(args.status)) {
+      throw new Error(
+        `Ongeldige statuswijziging: ${oldStatus} → ${args.status}`
+      );
+    }
+
+    // When changing to "verzonden", check that a voorcalculatie exists
+    if (args.status === "verzonden") {
+      const voorcalculatie = await ctx.db
+        .query("voorcalculaties")
+        .withIndex("by_offerte", (q) => q.eq("offerteId", args.id))
+        .first();
+
+      if (!voorcalculatie) {
+        throw new Error(
+          "Voorcalculatie moet eerst worden ingevuld voordat de offerte kan worden verzonden"
+        );
+      }
+    }
 
     const updates: Record<string, unknown> = {
       status: args.status,
@@ -540,7 +597,7 @@ export const updateStatus = mutation({
 
       const statusLabels: Record<string, string> = {
         concept: "Concept",
-        definitief: "Definitief",
+        voorcalculatie: "Voorcalculatie",
         verzonden: "Verzonden",
         geaccepteerd: "Geaccepteerd",
         afgewezen: "Afgewezen",
@@ -638,7 +695,7 @@ export const getStats = query({
     const stats = {
       totaal: offertes.length,
       concept: 0,
-      definitief: 0,
+      voorcalculatie: 0,
       verzonden: 0,
       geaccepteerd: 0,
       afgewezen: 0,
@@ -647,7 +704,7 @@ export const getStats = query({
     };
 
     for (const offerte of offertes) {
-      stats[offerte.status]++;
+      stats[offerte.status as keyof typeof stats]++;
       stats.totaalWaarde += offerte.totalen.totaalInclBtw;
       if (offerte.status === "geaccepteerd") {
         stats.geaccepteerdWaarde += offerte.totalen.totaalInclBtw;
@@ -726,12 +783,14 @@ export const getRecent = query({
 });
 
 // Bulk update status
+// Note: Bulk update skips workflow validation for admin convenience
+// but still requires voorcalculatie for verzonden status
 export const bulkUpdateStatus = mutation({
   args: {
     ids: v.array(v.id("offertes")),
     status: v.union(
       v.literal("concept"),
-      v.literal("definitief"),
+      v.literal("voorcalculatie"),
       v.literal("verzonden"),
       v.literal("geaccepteerd"),
       v.literal("afgewezen")
@@ -743,6 +802,20 @@ export const bulkUpdateStatus = mutation({
     for (const id of args.ids) {
       // Verify ownership for each offerte
       await getOwnedOfferte(ctx, id);
+
+      // When changing to "verzonden", check that a voorcalculatie exists
+      if (args.status === "verzonden") {
+        const voorcalculatie = await ctx.db
+          .query("voorcalculaties")
+          .withIndex("by_offerte", (q) => q.eq("offerteId", id))
+          .first();
+
+        if (!voorcalculatie) {
+          throw new Error(
+            "Voorcalculatie moet eerst worden ingevuld voordat de offerte kan worden verzonden"
+          );
+        }
+      }
 
       const updates: Record<string, unknown> = {
         status: args.status,

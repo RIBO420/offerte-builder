@@ -16,7 +16,7 @@ export const getScopePriceStats = query({
   handler: async (ctx) => {
     const userId = await requireAuthUserId(ctx);
 
-    // Get all accepted/definitief offertes for this user
+    // Get all accepted/voorcalculatie offertes for this user
     const offertes = await ctx.db
       .query("offertes")
       .withIndex("by_user", (q) => q.eq("userId", userId))
@@ -24,7 +24,7 @@ export const getScopePriceStats = query({
 
     // Only use completed offertes for statistics
     const validOffertes = offertes.filter(
-      (o) => o.status === "geaccepteerd" || o.status === "definitief"
+      (o) => o.status === "geaccepteerd" || o.status === "voorcalculatie"
     );
 
     if (validOffertes.length === 0) {
@@ -119,7 +119,7 @@ export const getScopePriceRange = query({
 
     const validOffertes = offertes.filter(
       (o) =>
-        (o.status === "geaccepteerd" || o.status === "definitief") &&
+        (o.status === "geaccepteerd" || o.status === "voorcalculatie") &&
         o.scopes?.includes(args.scope)
     );
 
@@ -321,7 +321,7 @@ export const checkPriceAnomaly = query({
 
     const validOffertes = offertes.filter(
       (o) =>
-        (o.status === "geaccepteerd" || o.status === "definitief") &&
+        (o.status === "geaccepteerd" || o.status === "voorcalculatie") &&
         o.scopes?.includes(args.scope)
     );
 
@@ -422,7 +422,7 @@ export const getLabourHoursComparison = query({
 
     const validOffertes = offertes.filter(
       (o) =>
-        (o.status === "geaccepteerd" || o.status === "definitief") &&
+        (o.status === "geaccepteerd" || o.status === "voorcalculatie") &&
         o.scopes?.includes(args.scope)
     );
 

@@ -1,7 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId, requireAuth } from "./auth";
-import { Id } from "./_generated/dataModel";
 
 // Get voorcalculatie by ID
 export const get = query({
@@ -12,9 +11,19 @@ export const get = query({
 
     if (!voorcalculatie) return null;
 
-    // Verify ownership through project
-    const project = await ctx.db.get(voorcalculatie.projectId);
-    if (!project || project.userId.toString() !== userId.toString()) {
+    // Verify ownership through project or offerte
+    if (voorcalculatie.projectId) {
+      const project = await ctx.db.get(voorcalculatie.projectId);
+      if (!project || project.userId.toString() !== userId.toString()) {
+        return null;
+      }
+    } else if (voorcalculatie.offerteId) {
+      const offerte = await ctx.db.get(voorcalculatie.offerteId);
+      if (!offerte || offerte.userId.toString() !== userId.toString()) {
+        return null;
+      }
+    } else {
+      // No project or offerte linked - should not happen
       return null;
     }
 
@@ -41,10 +50,30 @@ export const getByProject = query({
   },
 });
 
-// Create voorcalculatie for a project
+// Get voorcalculatie by offerte ID
+export const getByOfferte = query({
+  args: { offerteId: v.id("offertes") },
+  handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+
+    // Verify offerte ownership
+    const offerte = await ctx.db.get(args.offerteId);
+    if (!offerte || offerte.userId.toString() !== userId.toString()) {
+      return null;
+    }
+
+    return await ctx.db
+      .query("voorcalculaties")
+      .withIndex("by_offerte", (q) => q.eq("offerteId", args.offerteId))
+      .unique();
+  },
+});
+
+// Create voorcalculatie for a project or offerte
 export const create = mutation({
   args: {
-    projectId: v.id("projecten"),
+    projectId: v.optional(v.id("projecten")),
+    offerteId: v.optional(v.id("offertes")),
     teamGrootte: v.union(v.literal(2), v.literal(3), v.literal(4)),
     teamleden: v.optional(v.array(v.string())),
     effectieveUrenPerDag: v.number(),
@@ -55,24 +84,49 @@ export const create = mutation({
   handler: async (ctx, args) => {
     const userId = await requireAuthUserId(ctx);
 
-    // Verify project ownership
-    const project = await ctx.db.get(args.projectId);
-    if (!project || project.userId.toString() !== userId.toString()) {
-      throw new Error("Project niet gevonden of geen toegang");
+    // Validate that at least one of projectId or offerteId is provided
+    if (!args.projectId && !args.offerteId) {
+      throw new Error("projectId of offerteId is verplicht");
     }
 
-    // Check if voorcalculatie already exists
-    const existing = await ctx.db
-      .query("voorcalculaties")
-      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-      .unique();
+    // Verify ownership based on what's provided
+    if (args.projectId) {
+      const project = await ctx.db.get(args.projectId);
+      if (!project || project.userId.toString() !== userId.toString()) {
+        throw new Error("Project niet gevonden of geen toegang");
+      }
 
-    if (existing) {
-      throw new Error("Voorcalculatie bestaat al voor dit project");
+      // Check if voorcalculatie already exists for project
+      const existingByProject = await ctx.db
+        .query("voorcalculaties")
+        .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+        .unique();
+
+      if (existingByProject) {
+        throw new Error("Voorcalculatie bestaat al voor dit project");
+      }
+    }
+
+    if (args.offerteId) {
+      const offerte = await ctx.db.get(args.offerteId);
+      if (!offerte || offerte.userId.toString() !== userId.toString()) {
+        throw new Error("Offerte niet gevonden of geen toegang");
+      }
+
+      // Check if voorcalculatie already exists for offerte
+      const existingByOfferte = await ctx.db
+        .query("voorcalculaties")
+        .withIndex("by_offerte", (q) => q.eq("offerteId", args.offerteId))
+        .unique();
+
+      if (existingByOfferte) {
+        throw new Error("Voorcalculatie bestaat al voor deze offerte");
+      }
     }
 
     const voorcalculatieId = await ctx.db.insert("voorcalculaties", {
       projectId: args.projectId,
+      offerteId: args.offerteId,
       teamGrootte: args.teamGrootte,
       teamleden: args.teamleden,
       effectieveUrenPerDag: args.effectieveUrenPerDag,
@@ -105,9 +159,21 @@ export const update = mutation({
       throw new Error("Voorcalculatie niet gevonden");
     }
 
-    // Verify ownership through project
-    const project = await ctx.db.get(voorcalculatie.projectId);
-    if (!project || project.userId.toString() !== userId.toString()) {
+    // Verify ownership through project or offerte
+    let hasAccess = false;
+    if (voorcalculatie.projectId) {
+      const project = await ctx.db.get(voorcalculatie.projectId);
+      if (project && project.userId.toString() === userId.toString()) {
+        hasAccess = true;
+      }
+    }
+    if (!hasAccess && voorcalculatie.offerteId) {
+      const offerte = await ctx.db.get(voorcalculatie.offerteId);
+      if (offerte && offerte.userId.toString() === userId.toString()) {
+        hasAccess = true;
+      }
+    }
+    if (!hasAccess) {
       throw new Error("Geen toegang tot deze voorcalculatie");
     }
 
@@ -403,9 +469,21 @@ export const remove = mutation({
       throw new Error("Voorcalculatie niet gevonden");
     }
 
-    // Verify ownership through project
-    const project = await ctx.db.get(voorcalculatie.projectId);
-    if (!project || project.userId.toString() !== userId.toString()) {
+    // Verify ownership through project or offerte
+    let hasAccess = false;
+    if (voorcalculatie.projectId) {
+      const project = await ctx.db.get(voorcalculatie.projectId);
+      if (project && project.userId.toString() === userId.toString()) {
+        hasAccess = true;
+      }
+    }
+    if (!hasAccess && voorcalculatie.offerteId) {
+      const offerte = await ctx.db.get(voorcalculatie.offerteId);
+      if (offerte && offerte.userId.toString() === userId.toString()) {
+        hasAccess = true;
+      }
+    }
+    if (!hasAccess) {
       throw new Error("Geen toegang tot deze voorcalculatie");
     }
 

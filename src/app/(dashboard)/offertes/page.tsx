@@ -522,12 +522,13 @@ function OffertesPageContent() {
     try {
       await bulkUpdateStatus({
         ids: Array.from(selectedIds),
-        status: status as "concept" | "definitief" | "verzonden" | "geaccepteerd" | "afgewezen",
+        status: status as "concept" | "voorcalculatie" | "verzonden" | "geaccepteerd" | "afgewezen",
       });
       toast.success(`${selectedIds.size} offerte(s) bijgewerkt naar ${status}`);
       clearSelection();
-    } catch {
-      toast.error("Fout bij bijwerken status");
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Fout bij bijwerken status";
+      toast.error(errorMessage);
     }
   }, [selectedIds, bulkUpdateStatus, clearSelection]);
 
@@ -677,6 +678,14 @@ function OffertesPageContent() {
                 </Badge>
               )}
             </TabsTrigger>
+            <TabsTrigger value="voorcalculatie">
+              Voorcalculatie
+              {(stats?.voorcalculatie || 0) > 0 && (
+                <Badge variant="secondary" className="ml-2">
+                  {stats?.voorcalculatie}
+                </Badge>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="verzonden">
               Verzonden
               {(stats?.verzonden || 0) > 0 && (
@@ -735,7 +744,7 @@ function OffertesPageContent() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="concept">Concept</SelectItem>
-                      <SelectItem value="definitief">Definitief</SelectItem>
+                      <SelectItem value="voorcalculatie">Voorcalculatie</SelectItem>
                       <SelectItem value="verzonden">Verzonden</SelectItem>
                       <SelectItem value="geaccepteerd">Geaccepteerd</SelectItem>
                       <SelectItem value="afgewezen">Afgewezen</SelectItem>

@@ -170,7 +170,7 @@ export const rollback = mutation({
     await ctx.db.patch(version.offerteId, {
       status: snapshot.status as
         | "concept"
-        | "definitief"
+        | "voorcalculatie"
         | "verzonden"
         | "geaccepteerd"
         | "afgewezen",

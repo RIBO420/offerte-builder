@@ -40,16 +40,16 @@ import {
 } from "lucide-react";
 import { ProjectProgressStepper, type ProjectStatus } from "@/components/project/project-progress-stepper";
 
+// Project status colors - voorcalculatie is now at offerte level
 const statusColors: Record<string, string> = {
-  voorcalculatie: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100",
   gepland: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
   in_uitvoering: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100",
   afgerond: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
   nacalculatie_compleet: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100",
 };
 
+// Project status labels - voorcalculatie is now at offerte level
 const statusLabels: Record<string, string> = {
-  voorcalculatie: "Voorcalculatie",
   gepland: "Gepland",
   in_uitvoering: "In Uitvoering",
   afgerond: "Afgerond",
@@ -202,7 +202,6 @@ export default function ProjectDetailPage({
           <ProjectProgressStepper
             projectId={id}
             currentStatus={project.status as ProjectStatus}
-            hasVoorcalculatie={!!voorcalculatie}
             hasPlanning={planningTaken.length > 0}
             hasUrenRegistraties={projectDetails.totaalGeregistreerdeUren > 0}
             hasNacalculatie={!!nacalculatie}
@@ -213,7 +212,10 @@ export default function ProjectDetailPage({
         <div className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Voorcalculatie</CardDescription>
+              <CardDescription className="flex items-center gap-1">
+                Voorcalculatie
+                <span className="text-xs text-muted-foreground/70">(van offerte)</span>
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {voorcalculatie ? (
@@ -226,7 +228,7 @@ export default function ProjectDetailPage({
                   </p>
                 </div>
               ) : (
-                <p className="text-muted-foreground">Nog niet ingevuld</p>
+                <p className="text-muted-foreground">Niet beschikbaar</p>
               )}
             </CardContent>
           </Card>
@@ -284,16 +286,19 @@ export default function ProjectDetailPage({
         </div>
 
         {/* Module Cards */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          {/* Voorcalculatie Module */}
-          <Card className={`hover:shadow-lg transition-shadow ${project.status === 'voorcalculatie' ? 'ring-2 ring-primary' : ''}`}>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {/* Voorcalculatie Reference Card - Data comes from offerte */}
+          <Card className="hover:shadow-lg transition-shadow bg-muted/30">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Calculator className="h-5 w-5" />
                 Voorcalculatie
+                <Badge variant="outline" className="ml-auto text-xs font-normal">
+                  van offerte
+                </Badge>
               </CardTitle>
               <CardDescription>
-                Team configuratie en urenschatting
+                Uren- en dagenschatting (uit offerte)
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -315,21 +320,18 @@ export default function ProjectDetailPage({
               ) : (
                 <div className="text-center py-2">
                   <p className="text-sm text-muted-foreground">
-                    Nog niet ingevuld
+                    Geen voorcalculatie in offerte
                   </p>
-                  {project.status === 'voorcalculatie' && (
-                    <p className="text-xs text-primary mt-1 font-medium">
-                      ← Start hier
-                    </p>
-                  )}
                 </div>
               )}
-              <Button asChild className={`w-full ${project.status === 'voorcalculatie' && !voorcalculatie ? '' : 'variant-outline'}`} variant={project.status === 'voorcalculatie' && !voorcalculatie ? 'default' : 'outline'}>
-                <Link href={`/projecten/${id}/voorcalculatie`}>
-                  {voorcalculatie ? 'Bekijk Voorcalculatie' : 'Start Voorcalculatie'}
-                  <ChevronRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
+              {offerte && (
+                <Button asChild variant="outline" className="w-full">
+                  <Link href={`/offertes/${offerte._id}`}>
+                    Bekijk in Offerte
+                    <ChevronRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+              )}
             </CardContent>
           </Card>
 
@@ -358,7 +360,12 @@ export default function ProjectDetailPage({
                   {planningTaken.filter((t) => t.status === "afgerond").length} afgerond
                 </span>
               </div>
-              <Button asChild className="w-full">
+              {project.status === 'gepland' && planningTaken.length === 0 && (
+                <p className="text-xs text-primary font-medium text-center">
+                  Start hier met planning
+                </p>
+              )}
+              <Button asChild className="w-full" variant={project.status === 'gepland' ? 'default' : 'outline'}>
                 <Link href={`/projecten/${id}/planning`}>
                   Naar Planning
                   <ChevronRight className="ml-2 h-4 w-4" />

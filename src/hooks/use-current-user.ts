@@ -15,13 +15,12 @@ export function useCurrentUser() {
   );
 
   // Check if user has normuren (to detect missing defaults)
-  // This runs in parallel with convexUser query when user is authenticated
-  // because Convex queries with the same auth context batch together
+  // IMPORTANT: Must wait for convexUser to exist before running this query
+  // Otherwise new sign-ups get AuthError because the user document hasn't been created yet
   const normuren = useQuery(
     api.normuren.list,
-    // Skip only if Clerk is not loaded yet - once loaded, let it run
-    // This prevents waterfall by starting the query early
-    isClerkLoaded && clerkUser?.id ? {} : "skip"
+    // Only run when the Convex user exists - prevents race condition on new sign-ups
+    convexUser?._id ? {} : "skip"
   );
 
   const upsertUser = useMutation(api.users.upsert);

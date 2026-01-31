@@ -23,7 +23,6 @@ import {
   FolderKanban,
   Search,
   Loader2,
-  Calculator,
   Calendar,
   Play,
   CheckCircle2,
@@ -44,18 +43,14 @@ import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useCurrentUser } from "@/hooks/use-current-user";
 
-// Status configuration
+// Status configuration - voorcalculatie is now at offerte level
+// Projects start at "gepland" status
 const statusConfig = {
-  voorcalculatie: {
-    label: "Voorcalculatie",
-    icon: Calculator,
-    color: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400",
-  },
   gepland: {
     label: "Gepland",
     icon: Calendar,
     color:
-      "bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-400",
+      "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400",
   },
   in_uitvoering: {
     label: "In Uitvoering",
@@ -71,7 +66,7 @@ const statusConfig = {
   nacalculatie_compleet: {
     label: "Nacalculatie",
     icon: ClipboardCheck,
-    color: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400",
+    color: "bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-400",
   },
 };
 
@@ -275,7 +270,7 @@ function ProjectenPageContent() {
             duration: reducedMotion ? 0 : 0.4,
             delay: reducedMotion ? 0 : 0.2,
           }}
-          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5"
+          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
         >
           {Object.entries(statusConfig).map(([status, config]) => {
             const Icon = config.icon;
@@ -350,10 +345,10 @@ function ProjectenPageContent() {
                   {stats?.totaal || 0}
                 </Badge>
               </TabsTrigger>
-              <TabsTrigger value="voorcalculatie">Voorcalculatie</TabsTrigger>
               <TabsTrigger value="gepland">Gepland</TabsTrigger>
               <TabsTrigger value="in_uitvoering">In Uitvoering</TabsTrigger>
               <TabsTrigger value="afgerond">Afgerond</TabsTrigger>
+              <TabsTrigger value="nacalculatie_compleet">Nacalculatie</TabsTrigger>
             </TabsList>
 
             <TabsContent value={activeTab} className="space-y-6">
