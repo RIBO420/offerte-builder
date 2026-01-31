@@ -724,7 +724,7 @@ function OffertesPageContent() {
                       handleBulkStatusChange(value);
                     }}
                   >
-                    <SelectTrigger className="w-[180px] h-8">
+                    <SelectTrigger className="w-full sm:w-[180px] h-9 sm:h-8">
                       <SelectValue placeholder="Wijzig status..." />
                     </SelectTrigger>
                     <SelectContent>

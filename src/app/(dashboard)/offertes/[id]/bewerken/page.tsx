@@ -1146,7 +1146,7 @@ export default function OfferteEditPage({
                         >
                           <div
                             className={cn(
-                              "max-w-[85%] rounded-lg px-3 py-1.5 text-xs",
+                              "max-w-[95%] sm:max-w-[85%] rounded-lg px-3 py-1.5 text-xs",
                               msg.sender === "klant"
                                 ? "bg-muted"
                                 : "bg-primary text-primary-foreground"

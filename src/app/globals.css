@@ -642,4 +642,64 @@ body {
   .dark .shadow-optimized-lg {
     box-shadow: 0 8px 24px -4px oklch(0 0 0 / 0.35);
   }
+
+  /* ========================================
+     iOS / Mobile Safari Specific Fixes
+     ======================================== */
+
+  /* Prevent iOS input zoom on focus (font-size must be >= 16px) */
+  @supports (-webkit-touch-callout: none) {
+    input,
+    select,
+    textarea {
+      font-size: 16px;
+    }
+  }
+
+  /* iOS button and input appearance reset */
+  input,
+  textarea,
+  select {
+    -webkit-appearance: none;
+    -webkit-border-radius: 0;
+    border-radius: var(--radius);
+  }
+
+  /* Disable tap highlight on iOS */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Safe area padding utilities */
+  .safe-area-inset-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-area-inset-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .safe-area-inset-left {
+    padding-left: env(safe-area-inset-left);
+  }
+
+  .safe-area-inset-right {
+    padding-right: env(safe-area-inset-right);
+  }
+
+  /* Prevent overscroll bounce on iOS */
+  .no-overscroll {
+    overscroll-behavior: none;
+  }
+
+  /* Improve touch scrolling */
+  .touch-scroll {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Fix for iOS momentum scrolling in modals */
+  [data-radix-dialog-content],
+  [data-radix-sheet-content] {
+    -webkit-overflow-scrolling: touch;
+  }
 }

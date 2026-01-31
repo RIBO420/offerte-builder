@@ -662,7 +662,7 @@ export default function InstellingenPage() {
                 {/* Scope filter */}
                 <div className="mb-4">
                   <Select value={activeScope} onValueChange={setActiveScope}>
-                    <SelectTrigger className="w-[200px]">
+                    <SelectTrigger className="w-full sm:w-[200px]">
                       <SelectValue placeholder="Filter op scope" />
                     </SelectTrigger>
                     <SelectContent>
@@ -795,7 +795,7 @@ export default function InstellingenPage() {
                 {/* Type filter */}
                 <div className="mb-4">
                   <Select value={activeType} onValueChange={setActiveType}>
-                    <SelectTrigger className="w-[200px]">
+                    <SelectTrigger className="w-full sm:w-[200px]">
                       <SelectValue placeholder="Filter op type" />
                     </SelectTrigger>
                     <SelectContent>

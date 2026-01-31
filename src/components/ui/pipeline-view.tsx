@@ -165,12 +165,12 @@ function PipelineStageItem({
       )}
       aria-label={`${stage.label}: ${stage.count} items`}
     >
-      {/* Shine effect on hover */}
-      <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-xl" />
+      {/* Shine effect on hover - subtle on mobile, stronger on desktop hover */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-500 pointer-events-none rounded-xl" />
 
-      {/* Accent bar at top */}
+      {/* Accent bar at top - always visible on mobile, brighter on hover */}
       <div className={cn(
-        "absolute top-0 left-1/4 right-1/4 h-1 bg-gradient-to-r opacity-0 group-hover:opacity-100 transition-all duration-300 rounded-b-full",
+        "absolute top-0 left-1/4 right-1/4 h-1 bg-gradient-to-r opacity-50 group-hover:opacity-100 group-active:opacity-100 transition-all duration-300 rounded-b-full",
         colors.accent
       )} />
 
@@ -188,9 +188,9 @@ function PipelineStageItem({
       </motion.span>
       <span className="text-xs font-medium whitespace-nowrap mt-1">{stage.label}</span>
 
-      {/* Percentage badge */}
+      {/* Percentage badge - visible on mobile, brighter on hover */}
       <div className={cn(
-        "absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold text-white shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-300 bg-gradient-to-br",
+        "absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold text-white shadow-lg opacity-70 group-hover:opacity-100 group-active:opacity-100 transition-all duration-300 bg-gradient-to-br",
         colors.accent
       )}>
         {percentage}%
@@ -236,12 +236,12 @@ function PipelineStageItemVertical({
       )}
       aria-label={`${stage.label}: ${stage.count} items`}
     >
-      {/* Shine effect */}
-      <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-xl" />
+      {/* Shine effect - visible on touch/active */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-500 pointer-events-none rounded-xl" />
 
-      {/* Left accent bar */}
+      {/* Left accent bar - always visible, brighter on interaction */}
       <div className={cn(
-        "absolute left-0 top-1/4 bottom-1/4 w-1 bg-gradient-to-b opacity-0 group-hover:opacity-100 transition-all duration-300 rounded-r-full",
+        "absolute left-0 top-1/4 bottom-1/4 w-1 bg-gradient-to-b opacity-50 group-hover:opacity-100 group-active:opacity-100 transition-all duration-300 rounded-r-full",
         colors.accent
       )} />
 
