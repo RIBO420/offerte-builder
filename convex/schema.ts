@@ -223,6 +223,10 @@ export default defineSchema({
     }),
     offerteNummerPrefix: v.string(),
     laatsteOfferteNummer: v.number(),
+    // Factuur instellingen
+    factuurNummerPrefix: v.optional(v.string()),
+    laatsteFactuurNummer: v.optional(v.number()),
+    standaardBetalingstermijn: v.optional(v.number()),
   }).index("by_user", ["userId"]),
 
   // Standaardtuinen (templates)
@@ -255,7 +259,9 @@ export default defineSchema({
     type: v.union(
       v.literal("offerte_verzonden"),
       v.literal("herinnering"),
-      v.literal("bedankt")
+      v.literal("bedankt"),
+      v.literal("factuur_verzonden"),
+      v.literal("factuur_herinnering")
     ),
     to: v.string(),
     subject: v.string(),
@@ -353,7 +359,8 @@ export default defineSchema({
       v.literal("gepland"),
       v.literal("in_uitvoering"),
       v.literal("afgerond"),
-      v.literal("nacalculatie_compleet")
+      v.literal("nacalculatie_compleet"),
+      v.literal("gefactureerd")
     ),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -440,6 +447,95 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.optional(v.number()),
   }).index("by_project", ["projectId"]),
+
+  // ============================================
+  // Facturatie
+  // ============================================
+
+  // Facturen - Facturen gegenereerd vanuit projecten
+  // Een factuur bevat een snapshot van klant- en bedrijfsgegevens op moment van aanmaak
+  // Workflow: concept → definitief → verzonden → betaald/vervallen
+  // Correcties uit nacalculatie kunnen worden meegenomen als extra regels
+  facturen: defineTable({
+    projectId: v.id("projecten"),
+    userId: v.id("users"),
+    factuurnummer: v.string(),
+    status: v.union(
+      v.literal("concept"),
+      v.literal("definitief"),
+      v.literal("verzonden"),
+      v.literal("betaald"),
+      v.literal("vervallen")
+    ),
+
+    // Klantgegevens (snapshot op moment van factuur aanmaken)
+    klant: v.object({
+      naam: v.string(),
+      adres: v.string(),
+      postcode: v.string(),
+      plaats: v.string(),
+      email: v.optional(v.string()),
+      telefoon: v.optional(v.string()),
+    }),
+
+    // Bedrijfsgegevens (snapshot op moment van factuur aanmaken)
+    bedrijf: v.object({
+      naam: v.string(),
+      adres: v.string(),
+      postcode: v.string(),
+      plaats: v.string(),
+      kvk: v.optional(v.string()),
+      btw: v.optional(v.string()),
+      iban: v.optional(v.string()),
+      email: v.optional(v.string()),
+      telefoon: v.optional(v.string()),
+    }),
+
+    // Factuurregels
+    regels: v.array(
+      v.object({
+        id: v.string(),
+        omschrijving: v.string(),
+        hoeveelheid: v.number(),
+        eenheid: v.string(),
+        prijsPerEenheid: v.number(),
+        totaal: v.number(),
+      })
+    ),
+
+    // Correcties (uit nacalculatie afwijkingen)
+    correcties: v.optional(
+      v.array(
+        v.object({
+          omschrijving: v.string(),
+          bedrag: v.number(),
+        })
+      )
+    ),
+
+    // Financieel
+    subtotaal: v.number(),
+    btwPercentage: v.number(),
+    btwBedrag: v.number(),
+    totaalInclBtw: v.number(),
+
+    // Betalingstermijn
+    factuurdatum: v.number(),
+    vervaldatum: v.number(),
+    betalingstermijnDagen: v.number(),
+
+    // Tracking
+    verzondenAt: v.optional(v.number()),
+    betaaldAt: v.optional(v.number()),
+    notities: v.optional(v.string()),
+
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_user", ["userId"])
+    .index("by_factuurnummer", ["factuurnummer"])
+    .index("by_status", ["status"]),
 
   // Leerfeedback Historie - Audit trail for normuur adjustments
   leerfeedback_historie: defineTable({

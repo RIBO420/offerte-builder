@@ -13,6 +13,7 @@ import type * as auth from "../auth.js";
 import type * as berekeningen from "../berekeningen.js";
 import type * as correctiefactoren from "../correctiefactoren.js";
 import type * as emailLogs from "../emailLogs.js";
+import type * as facturen from "../facturen.js";
 import type * as instellingen from "../instellingen.js";
 import type * as klanten from "../klanten.js";
 import type * as leerfeedback from "../leerfeedback.js";
@@ -47,6 +48,7 @@ declare const fullApi: ApiFromModules<{
   berekeningen: typeof berekeningen;
   correctiefactoren: typeof correctiefactoren;
   emailLogs: typeof emailLogs;
+  facturen: typeof facturen;
   instellingen: typeof instellingen;
   klanten: typeof klanten;
   leerfeedback: typeof leerfeedback;

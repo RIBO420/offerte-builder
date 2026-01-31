@@ -11,7 +11,8 @@ export type ProjectStatus =
   | "gepland"
   | "in_uitvoering"
   | "afgerond"
-  | "nacalculatie_compleet";
+  | "nacalculatie_compleet"
+  | "gefactureerd";
 
 export interface ProjectProgressStepperProps {
   projectId: string;
@@ -19,6 +20,7 @@ export interface ProjectProgressStepperProps {
   hasPlanning?: boolean;
   hasUrenRegistraties?: boolean;
   hasNacalculatie?: boolean;
+  hasFactuur?: boolean;
 }
 
 interface Step {
@@ -27,12 +29,13 @@ interface Step {
   href: string | null;
 }
 
-// New workflow: Gepland -> In Uitvoering -> Afgerond -> Nacalculatie
+// New workflow: Gepland -> In Uitvoering -> Afgerond -> Nacalculatie -> Gefactureerd
 const statusOrder: ProjectStatus[] = [
   "gepland",
   "in_uitvoering",
   "afgerond",
   "nacalculatie_compleet",
+  "gefactureerd",
 ];
 
 const statusLabels: Record<ProjectStatus, string> = {
@@ -41,13 +44,14 @@ const statusLabels: Record<ProjectStatus, string> = {
   in_uitvoering: "In Uitvoering",
   afgerond: "Afgerond",
   nacalculatie_compleet: "Nacalculatie",
+  gefactureerd: "Gefactureerd",
 };
 
 /**
  * ProjectProgressStepper - Shows the 4 project phases as a horizontal/vertical stepper
  *
  * New workflow (voorcalculatie moved to offerte level):
- * Gepland -> In Uitvoering -> Afgerond -> Nacalculatie
+ * Gepland -> In Uitvoering -> Afgerond -> Nacalculatie -> Gefactureerd
  *
  * Features:
  * - Current status is highlighted (primary color, filled circle)
@@ -62,6 +66,7 @@ export function ProjectProgressStepper({
   hasPlanning = false,
   hasUrenRegistraties = false,
   hasNacalculatie = false,
+  hasFactuur = false,
 }: ProjectProgressStepperProps) {
   // Map legacy "voorcalculatie" status to "gepland" for display purposes
   const effectiveStatus = currentStatus === "voorcalculatie" ? "gepland" : currentStatus;
@@ -89,6 +94,11 @@ export function ProjectProgressStepper({
       id: "nacalculatie_compleet",
       label: statusLabels.nacalculatie_compleet,
       href: hasNacalculatie ? `/projecten/${projectId}/nacalculatie` : null,
+    },
+    {
+      id: "gefactureerd",
+      label: statusLabels.gefactureerd,
+      href: hasFactuur ? `/projecten/${projectId}/factuur` : null,
     },
   ];
 

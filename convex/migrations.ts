@@ -140,3 +140,101 @@ export const migrateAllStatuses = mutation({
     };
   },
 });
+
+/**
+ * Migration to add factuur settings to existing instellingen records
+ * Adds default values for factuur numbering and payment terms.
+ *
+ * Usage: npx convex run migrations:migrateInstellingenForFacturen
+ */
+export const migrateInstellingenForFacturen = mutation({
+  args: {},
+  handler: async (ctx) => {
+    // Haal alle bestaande instellingen op
+    const alleInstellingen = await ctx.db.query("instellingen").collect();
+
+    // Huidige jaar voor factuurNummerPrefix
+    const huidigJaar = new Date().getFullYear();
+    const factuurNummerPrefix = `${huidigJaar}-`;
+
+    let migratedCount = 0;
+
+    for (const instellingen of alleInstellingen) {
+      // Controleer of factuur instellingen al bestaan
+      if (
+        instellingen.factuurNummerPrefix === undefined ||
+        instellingen.laatsteFactuurNummer === undefined ||
+        instellingen.standaardBetalingstermijn === undefined
+      ) {
+        await ctx.db.patch(instellingen._id, {
+          factuurNummerPrefix:
+            instellingen.factuurNummerPrefix ?? factuurNummerPrefix,
+          laatsteFactuurNummer: instellingen.laatsteFactuurNummer ?? 0,
+          standaardBetalingstermijn:
+            instellingen.standaardBetalingstermijn ?? 14,
+        });
+        migratedCount++;
+      }
+    }
+
+    return {
+      success: true,
+      migratedCount,
+      message: `Migrated ${migratedCount} instellingen records with factuur settings (prefix: ${factuurNummerPrefix}, betalingstermijn: 14 dagen)`,
+    };
+  },
+});
+
+/**
+ * Migration to update projects with completed facturen to "gefactureerd" status
+ * Finds projects that have facturen with status definitief/verzonden/betaald
+ * and updates the project status to "gefactureerd".
+ *
+ * Note: Currently this will migrate 0 records as there are no facturen yet,
+ * but is useful for future migrations.
+ *
+ * Usage: npx convex run migrations:migrateProjectsWithFacturen
+ */
+export const migrateProjectsWithFacturen = mutation({
+  args: {},
+  handler: async (ctx) => {
+    // Haal alle facturen op met voltooide status
+    const voltooideFacturen = await ctx.db
+      .query("facturen")
+      .filter((q) =>
+        q.or(
+          q.eq(q.field("status"), "definitief"),
+          q.eq(q.field("status"), "verzonden"),
+          q.eq(q.field("status"), "betaald")
+        )
+      )
+      .collect();
+
+    // Verzamel unieke project IDs
+    const projectIdSet = new Set(
+      voltooideFacturen.map((factuur) => factuur.projectId)
+    );
+    const projectIds = Array.from(projectIdSet);
+
+    let migratedCount = 0;
+
+    for (const projectId of projectIds) {
+      const project = await ctx.db.get(projectId);
+
+      // Update alleen als project bestaat en nog niet gefactureerd is
+      if (project && "status" in project && project.status !== "gefactureerd") {
+        await ctx.db.patch(projectId, {
+          status: "gefactureerd",
+        });
+        migratedCount++;
+      }
+    }
+
+    return {
+      success: true,
+      migratedCount,
+      totalFacturenFound: voltooideFacturen.length,
+      message: `Migrated ${migratedCount} projects to 'gefactureerd' status (found ${voltooideFacturen.length} completed facturen)`,
+    };
+  },
+});
