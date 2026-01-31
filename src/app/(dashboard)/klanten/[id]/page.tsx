@@ -48,7 +48,7 @@ import { Id } from "../../../../../convex/_generated/dataModel";
 
 const statusColors: Record<string, string> = {
   concept: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100",
-  definitief: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
+  voorcalculatie: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
   verzonden: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100",
   geaccepteerd: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
   afgewezen: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
@@ -56,7 +56,7 @@ const statusColors: Record<string, string> = {
 
 const statusLabels: Record<string, string> = {
   concept: "Concept",
-  definitief: "Definitief",
+  voorcalculatie: "Voorcalculatie",
   verzonden: "Verzonden",
   geaccepteerd: "Geaccepteerd",
   afgewezen: "Afgewezen",

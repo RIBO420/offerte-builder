@@ -28,7 +28,7 @@ interface ExportRow {
 // Dutch status labels
 const statusLabels: Record<string, string> = {
   concept: "Concept",
-  definitief: "Definitief",
+  voorcalculatie: "Voorcalculatie",
   verzonden: "Verzonden",
   geaccepteerd: "Geaccepteerd",
   afgewezen: "Afgewezen",

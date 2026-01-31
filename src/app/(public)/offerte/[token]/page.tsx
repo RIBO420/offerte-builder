@@ -255,7 +255,7 @@ function formatLineItems(summary: ScopeSummary): string {
 
 const statusLabels: Record<string, string> = {
   concept: "Concept",
-  definitief: "Definitief",
+  voorcalculatie: "Voorcalculatie",
   verzonden: "Verzonden",
   geaccepteerd: "Geaccepteerd",
   afgewezen: "Afgewezen",
@@ -263,7 +263,7 @@ const statusLabels: Record<string, string> = {
 
 const statusColors: Record<string, string> = {
   concept: "bg-gray-100 text-gray-800",
-  definitief: "bg-blue-100 text-blue-800",
+  voorcalculatie: "bg-blue-100 text-blue-800",
   verzonden: "bg-purple-100 text-purple-800",
   geaccepteerd: "bg-green-100 text-green-800",
   afgewezen: "bg-red-100 text-red-800",

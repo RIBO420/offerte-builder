@@ -4,7 +4,7 @@ export type OfferteType = "aanleg" | "onderhoud";
 
 export type OfferteStatus =
   | "concept"
-  | "definitief"
+  | "voorcalculatie"
   | "verzonden"
   | "geaccepteerd"
   | "afgewezen";
