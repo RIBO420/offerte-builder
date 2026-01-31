@@ -3,6 +3,7 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import {
   Card,
   CardContent,
@@ -199,9 +200,14 @@ export default function OfferteDetailPage({
           </Breadcrumb>
         </header>
 
-        <div className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+          className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
+        >
           <OfferteDetailSkeleton />
-        </div>
+        </motion.div>
       </>
     );
   }
@@ -278,9 +284,19 @@ export default function OfferteDetailPage({
         </Breadcrumb>
       </header>
 
-      <div className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
+      >
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+          className="flex items-center justify-between"
+        >
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" asChild>
               <Link href="/offertes">
@@ -419,9 +435,14 @@ export default function OfferteDetailPage({
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        </div>
+        </motion.div>
 
-        <div className="grid gap-4 lg:grid-cols-3">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+          className="grid gap-4 lg:grid-cols-3"
+        >
           {/* Left column - Details */}
           <div className="space-y-4 lg:col-span-2">
             {/* Klantgegevens */}
@@ -803,8 +824,8 @@ export default function OfferteDetailPage({
               </Card>
             )}
           </div>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
       {/* Delete confirmation dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

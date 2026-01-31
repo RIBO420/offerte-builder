@@ -1,5 +1,6 @@
 "use client";
 
+import { motion, AnimatePresence } from "framer-motion";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
   Breadcrumb,
@@ -12,7 +13,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Download, BarChart3 } from "lucide-react";
+import { Download, BarChart3, Trees } from "lucide-react";
 import { useAnalytics } from "@/hooks/use-analytics";
 import {
   KpiCards,
@@ -98,63 +99,158 @@ export default function RapportagesPage() {
           </div>
         </div>
 
-        {isLoading ? (
-          <AnalyticsSkeleton />
-        ) : kpis ? (
-          <>
-            {/* KPI Cards */}
-            <KpiCards kpis={kpis} />
+        <AnimatePresence mode="wait">
+          {isLoading ? (
+            <motion.div
+              key="loader"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <AnalyticsSkeleton />
+            </motion.div>
+          ) : kpis ? (
+            <motion.div
+              key="content"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="space-y-4"
+            >
+              {/* KPI Cards with staggered animation */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.1 }}
+              >
+                <KpiCards kpis={kpis} />
+              </motion.div>
 
-            {/* Tabs */}
-            <Tabs defaultValue="overzicht" className="space-y-4">
-              <TabsList>
-                <TabsTrigger value="overzicht">Overzicht</TabsTrigger>
-                <TabsTrigger value="omzet">Omzet</TabsTrigger>
-                <TabsTrigger value="klanten">Klanten</TabsTrigger>
-                <TabsTrigger value="marges">Marges</TabsTrigger>
-              </TabsList>
+              {/* Tabs */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.2 }}
+              >
+                <Tabs defaultValue="overzicht" className="space-y-4">
+                  <TabsList>
+                    <TabsTrigger value="overzicht">Overzicht</TabsTrigger>
+                    <TabsTrigger value="omzet">Omzet</TabsTrigger>
+                    <TabsTrigger value="klanten">Klanten</TabsTrigger>
+                    <TabsTrigger value="marges">Marges</TabsTrigger>
+                  </TabsList>
 
-              {/* Overzicht Tab */}
-              <TabsContent value="overzicht" className="space-y-4">
-                <OfferteTrendChart data={maandelijkseTrend} />
-                <div className="grid gap-4 lg:grid-cols-2">
-                  <RevenueChart
-                    monthlyData={maandelijkseTrend}
-                    quarterlyData={kwartaalOmzet}
-                  />
-                  <ScopeMarginChart data={scopeMarges} />
-                </div>
-              </TabsContent>
+                  {/* Overzicht Tab */}
+                  <TabsContent value="overzicht" className="space-y-4">
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <OfferteTrendChart data={maandelijkseTrend} />
+                    </motion.div>
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: 0.1 }}
+                      className="grid gap-4 lg:grid-cols-2"
+                    >
+                      <RevenueChart
+                        monthlyData={maandelijkseTrend}
+                        quarterlyData={kwartaalOmzet}
+                      />
+                      <ScopeMarginChart data={scopeMarges} />
+                    </motion.div>
+                  </TabsContent>
 
-              {/* Omzet Tab */}
-              <TabsContent value="omzet" className="space-y-4">
-                <RevenueChart
-                  monthlyData={maandelijkseTrend}
-                  quarterlyData={kwartaalOmzet}
+                  {/* Omzet Tab */}
+                  <TabsContent value="omzet" className="space-y-4">
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <RevenueChart
+                        monthlyData={maandelijkseTrend}
+                        quarterlyData={kwartaalOmzet}
+                      />
+                    </motion.div>
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: 0.1 }}
+                    >
+                      <OfferteTrendChart data={maandelijkseTrend} />
+                    </motion.div>
+                  </TabsContent>
+
+                  {/* Klanten Tab */}
+                  <TabsContent value="klanten" className="space-y-4">
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <TopKlantenTable klanten={topKlanten} />
+                    </motion.div>
+                  </TabsContent>
+
+                  {/* Marges Tab */}
+                  <TabsContent value="marges" className="space-y-4">
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <ScopeMarginChart data={scopeMarges} />
+                    </motion.div>
+                  </TabsContent>
+                </Tabs>
+              </motion.div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="empty"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.4 }}
+              className="flex flex-col items-center justify-center py-12 text-center"
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{
+                  duration: 0.5,
+                  ease: [0.16, 1, 0.3, 1],
+                }}
+                className="relative"
+              >
+                {/* Subtle glow effect */}
+                <motion.div
+                  className="absolute inset-0 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-green-600/20 blur-xl"
+                  animate={{
+                    opacity: [0.3, 0.5, 0.3],
+                    scale: [1, 1.1, 1],
+                  }}
+                  transition={{
+                    duration: 3,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
                 />
-                <OfferteTrendChart data={maandelijkseTrend} />
-              </TabsContent>
-
-              {/* Klanten Tab */}
-              <TabsContent value="klanten" className="space-y-4">
-                <TopKlantenTable klanten={topKlanten} />
-              </TabsContent>
-
-              {/* Marges Tab */}
-              <TabsContent value="marges" className="space-y-4">
-                <ScopeMarginChart data={scopeMarges} />
-              </TabsContent>
-            </Tabs>
-          </>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <BarChart3 className="h-12 w-12 text-muted-foreground/50" />
-            <h3 className="mt-4 text-lg font-semibold">Geen data beschikbaar</h3>
-            <p className="mt-2 text-muted-foreground">
-              Maak eerst enkele offertes aan om je rapportages te bekijken.
-            </p>
-          </div>
-        )}
+                <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
+                  <BarChart3 className="h-8 w-8 text-muted-foreground" />
+                </div>
+              </motion.div>
+              <h3 className="mt-4 text-lg font-semibold">Geen data beschikbaar</h3>
+              <p className="mt-2 text-muted-foreground">
+                Maak eerst enkele offertes aan om je rapportages te bekijken.
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </>
   );

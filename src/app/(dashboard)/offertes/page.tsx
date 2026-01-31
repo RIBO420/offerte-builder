@@ -3,6 +3,7 @@
 import { useState, useMemo, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,6 +29,7 @@ import {
   Eye,
   Download,
   X,
+  FileText,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -120,9 +122,57 @@ function OffertesPageSkeleton() {
           </BreadcrumbList>
         </Breadcrumb>
       </header>
-      <div className="flex flex-1 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
+        className="flex flex-1 items-center justify-center"
+      >
+        <div className="relative flex flex-col items-center gap-4">
+          {/* Gradient background glow */}
+          <div className="absolute inset-0 -m-8 rounded-full bg-gradient-to-br from-emerald-100/60 via-green-100/40 to-teal-100/60 dark:from-emerald-900/30 dark:via-green-900/20 dark:to-teal-900/30 blur-2xl" />
+
+          {/* Pulsing glow effect behind icon */}
+          <motion.div
+            animate={{
+              scale: [1, 1.2, 1],
+              opacity: [0.3, 0.6, 0.3]
+            }}
+            transition={{
+              duration: 2,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+            className="absolute h-16 w-16 rounded-full bg-gradient-to-br from-emerald-400/40 to-green-400/40 dark:from-emerald-500/30 dark:to-green-500/30 blur-xl"
+          />
+
+          {/* Icon container with scale animation */}
+          <motion.div
+            initial={{ scale: 0.8 }}
+            animate={{ scale: 1 }}
+            transition={{ duration: 0.3, delay: 0.1 }}
+            className="relative flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-950/50 dark:to-green-950/50 border border-emerald-100 dark:border-emerald-800/50 shadow-lg shadow-emerald-500/10"
+          >
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+            >
+              <Loader2 className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
+            </motion.div>
+          </motion.div>
+
+          {/* Loading text with fade */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.2 }}
+            className="relative text-center"
+          >
+            <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">Offertes laden...</p>
+            <p className="text-xs text-muted-foreground mt-1">Even geduld alstublieft</p>
+          </motion.div>
+        </div>
+      </motion.div>
     </>
   );
 }
@@ -354,8 +404,18 @@ function OffertesPageContent() {
         </Breadcrumb>
       </header>
 
-      <div className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
-        <div className="flex items-center justify-between">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+          className="flex items-center justify-between"
+        >
           <div>
             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
               Offertes
@@ -378,9 +438,14 @@ function OffertesPageContent() {
               </Link>
             </Button>
           </div>
-        </div>
+        </motion.div>
 
-        <div className="flex flex-col gap-4">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+          className="flex flex-col gap-4"
+        >
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
             <div className="relative w-full sm:w-auto sm:flex-1 sm:max-w-sm">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -398,8 +463,13 @@ function OffertesPageContent() {
             />
           </div>
           <ActiveFilters filters={filters} onChange={handleFiltersChange} />
-        </div>
+        </motion.div>
 
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.3 }}
+        >
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
           <TabsList>
             <TabsTrigger value="alle">
@@ -494,130 +564,168 @@ function OffertesPageContent() {
               </div>
             )}
 
-            {isLoading ? (
-              <OffertesTableSkeleton rows={8} />
-            ) : filteredOffertes && filteredOffertes.length > 0 ? (
-              <Card className="overflow-hidden">
-                <ScrollableTable>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[50px]">
-                        <Checkbox
-                          checked={isAllSelected}
-                          onCheckedChange={toggleSelectAll}
-                          aria-label="Selecteer alle"
-                        />
-                      </TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Nummer</TableHead>
-                      <TableHead>Klant</TableHead>
-                      <TableHead>Plaats</TableHead>
-                      <TableHead>Bedrag</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Datum</TableHead>
-                      <TableHead className="w-[50px]"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredOffertes.map((offerte) => (
-                      <TableRow
-                        key={offerte._id}
-                        className={`hover:bg-muted/50 transition-colors cursor-pointer hover:translate-y-[-1px] ${selectedIds.has(offerte._id) ? "bg-muted/50" : ""}`}
-                        onClick={(e) => {
-                          // Alleen navigeren als niet op checkbox of dropdown geklikt
-                          const target = e.target as HTMLElement;
-                          if (!target.closest('button') && !target.closest('[role="checkbox"]')) {
-                            router.push(`/offertes/${offerte._id}`);
-                          }
-                        }}
-                      >
-                        <TableCell>
-                          <Checkbox
-                            checked={selectedIds.has(offerte._id)}
-                            onCheckedChange={() => toggleSelect(offerte._id)}
-                            aria-label={`Selecteer ${offerte.offerteNummer}`}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <div
-                            className={`flex h-8 w-8 items-center justify-center rounded-lg ${
-                              offerte.type === "aanleg"
-                                ? "bg-primary/10"
-                                : "bg-green-100"
-                            }`}
+            <AnimatePresence mode="wait">
+              {isLoading ? (
+                <motion.div
+                  key="loading"
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <OffertesTableSkeleton rows={8} />
+                </motion.div>
+              ) : filteredOffertes && filteredOffertes.length > 0 ? (
+                <motion.div
+                  key="content"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.4 }}
+                >
+                  <Card className="overflow-hidden">
+                    <ScrollableTable>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[50px]">
+                            <Checkbox
+                              checked={isAllSelected}
+                              onCheckedChange={toggleSelectAll}
+                              aria-label="Selecteer alle"
+                            />
+                          </TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Nummer</TableHead>
+                          <TableHead>Klant</TableHead>
+                          <TableHead>Plaats</TableHead>
+                          <TableHead>Bedrag</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Datum</TableHead>
+                          <TableHead className="w-[50px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredOffertes.map((offerte, index) => (
+                          <motion.tr
+                            key={offerte._id}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.3, delay: index * 0.05 }}
+                            className={`border-b hover:bg-muted/50 transition-colors cursor-pointer hover:translate-y-[-1px] ${selectedIds.has(offerte._id) ? "bg-muted/50" : ""}`}
+                            onClick={(e) => {
+                              // Alleen navigeren als niet op checkbox of dropdown geklikt
+                              const target = e.target as HTMLElement;
+                              if (!target.closest('button') && !target.closest('[role="checkbox"]')) {
+                                router.push(`/offertes/${offerte._id}`);
+                              }
+                            }}
                           >
-                            {offerte.type === "aanleg" ? (
-                              <Shovel className="h-4 w-4 text-primary" />
-                            ) : (
-                              <Trees className="h-4 w-4 text-green-600" />
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          <Link
-                            href={`/offertes/${offerte._id}`}
-                            className="hover:underline"
-                          >
-                            {offerte.offerteNummer}
-                          </Link>
-                        </TableCell>
-                        <TableCell>{offerte.klant.naam}</TableCell>
-                        <TableCell>{offerte.klant.plaats}</TableCell>
-                        <TableCell>
-                          {formatCurrency(offerte.totalen.totaalInclBtw)}
-                        </TableCell>
-                        <TableCell>
-                          <StatusBadge status={offerte.status} size="sm" />
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {formatDate(offerte.updatedAt)}
-                        </TableCell>
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem asChild>
-                                <Link href={`/offertes/${offerte._id}`}>
-                                  <Eye className="mr-2 h-4 w-4" />
-                                  Bekijken
-                                </Link>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => handleDuplicate(offerte._id)}
+                            <TableCell>
+                              <Checkbox
+                                checked={selectedIds.has(offerte._id)}
+                                onCheckedChange={() => toggleSelect(offerte._id)}
+                                aria-label={`Selecteer ${offerte.offerteNummer}`}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <div
+                                className={`flex h-8 w-8 items-center justify-center rounded-lg ${
+                                  offerte.type === "aanleg"
+                                    ? "bg-primary/10"
+                                    : "bg-green-100"
+                                }`}
                               >
-                                <Copy className="mr-2 h-4 w-4" />
-                                Dupliceren
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={() => handleDelete(offerte._id)}
-                                className="text-destructive"
+                                {offerte.type === "aanleg" ? (
+                                  <Shovel className="h-4 w-4 text-primary" />
+                                ) : (
+                                  <Trees className="h-4 w-4 text-green-600" />
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              <Link
+                                href={`/offertes/${offerte._id}`}
+                                className="hover:underline"
                               >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Verwijderen
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-                </ScrollableTable>
-              </Card>
-            ) : searchQuery ? (
-              <NoSearchResults onAction={() => setSearchQuery("")} />
-            ) : (
-              <NoOffertes onAction={() => router.push("/offertes/nieuw/aanleg")} />
-            )}
+                                {offerte.offerteNummer}
+                              </Link>
+                            </TableCell>
+                            <TableCell>{offerte.klant.naam}</TableCell>
+                            <TableCell>{offerte.klant.plaats}</TableCell>
+                            <TableCell>
+                              {formatCurrency(offerte.totalen.totaalInclBtw)}
+                            </TableCell>
+                            <TableCell>
+                              <StatusBadge status={offerte.status} size="sm" />
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {formatDate(offerte.updatedAt)}
+                            </TableCell>
+                            <TableCell>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem asChild>
+                                    <Link href={`/offertes/${offerte._id}`}>
+                                      <Eye className="mr-2 h-4 w-4" />
+                                      Bekijken
+                                    </Link>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => handleDuplicate(offerte._id)}
+                                  >
+                                    <Copy className="mr-2 h-4 w-4" />
+                                    Dupliceren
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={() => handleDelete(offerte._id)}
+                                    className="text-destructive"
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Verwijderen
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </motion.tr>
+                        ))}
+                      </TableBody>
+                    </Table>
+                    </ScrollableTable>
+                  </Card>
+                </motion.div>
+              ) : searchQuery ? (
+                <motion.div
+                  key="no-results"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <NoSearchResults onAction={() => setSearchQuery("")} />
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="empty"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <NoOffertes onAction={() => router.push("/offertes/nieuw/aanleg")} />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </TabsContent>
         </Tabs>
-      </div>
+        </motion.div>
+      </motion.div>
 
       {/* Bulk Delete Confirmation Dialog */}
       <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import { motion } from "framer-motion";
 import {
   Card,
   CardContent,
@@ -423,7 +424,12 @@ export default function PrijsboekPage() {
         </Breadcrumb>
       </header>
 
-      <div className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
+      >
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
@@ -687,7 +693,19 @@ export default function PrijsboekPage() {
             {isLoading ? (
               <Card>
                 <CardContent className="flex items-center justify-center py-12">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="flex flex-col items-center gap-4"
+                  >
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full" />
+                      <div className="relative flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-green-600">
+                        <Loader2 className="h-8 w-8 animate-spin text-white" />
+                      </div>
+                    </div>
+                    <p className="text-muted-foreground animate-pulse">Laden...</p>
+                  </motion.div>
                 </CardContent>
               </Card>
             ) : filteredProducts.length > 0 ? (
@@ -705,8 +723,14 @@ export default function PrijsboekPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredProducts.map((product) => (
-                      <TableRow key={product._id}>
+                    {filteredProducts.map((product, index) => (
+                      <motion.tr
+                        key={product._id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
+                      >
                         <TableCell>
                           <div>
                             <p className="font-medium">{product.productnaam}</p>
@@ -760,7 +784,7 @@ export default function PrijsboekPage() {
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
-                      </TableRow>
+                      </motion.tr>
                     ))}
                   </TableBody>
                 </Table>
@@ -797,7 +821,7 @@ export default function PrijsboekPage() {
             )}
           </TabsContent>
         </Tabs>
-      </div>
+      </motion.div>
 
       {/* Import Preview Dialog */}
       <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>

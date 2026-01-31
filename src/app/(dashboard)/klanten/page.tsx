@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import {
   Card,
   CardContent,
@@ -314,7 +315,19 @@ export default function KlantenPage() {
           </Breadcrumb>
         </header>
         <div className="flex flex-1 items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex flex-col items-center gap-4"
+          >
+            <div className="relative">
+              <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full" />
+              <div className="relative flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-green-600">
+                <Loader2 className="h-8 w-8 animate-spin text-white" />
+              </div>
+            </div>
+            <p className="text-muted-foreground animate-pulse">Laden...</p>
+          </motion.div>
         </div>
       </>
     );
@@ -338,7 +351,12 @@ export default function KlantenPage() {
         </Breadcrumb>
       </header>
 
-      <div className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
+      >
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
@@ -431,8 +449,15 @@ export default function KlantenPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {displayedKlanten.map((klant) => (
-                    <TableRow key={klant._id}>
+                  {displayedKlanten.map((klant, index) => (
+                    <motion.tr
+                      key={klant._id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      whileHover={{ backgroundColor: "rgba(0, 0, 0, 0.02)" }}
+                      className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
+                    >
                       <TableCell>
                         <Link
                           href={`/klanten/${klant._id}`}
@@ -491,14 +516,14 @@ export default function KlantenPage() {
                           </Button>
                         </div>
                       </TableCell>
-                    </TableRow>
+                    </motion.tr>
                   ))}
                 </TableBody>
               </Table>
             )}
           </CardContent>
         </Card>
-      </div>
+      </motion.div>
 
       {/* Edit Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>

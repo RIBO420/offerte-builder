@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Card,
   CardContent,
@@ -239,7 +239,7 @@ export default function DashboardPage() {
               transition={{ type: "spring", stiffness: 300, damping: 20 }}
               className="group relative"
             >
-              <div className="absolute -inset-0.5 rounded-xl bg-gradient-to-r from-primary/50 to-primary/30 opacity-0 blur-lg transition-opacity duration-300 group-hover:opacity-100" />
+              <div className="absolute -inset-0.5 -z-10 rounded-xl bg-gradient-to-r from-primary/25 to-primary/15 opacity-0 blur-lg transition-opacity duration-300 group-hover:opacity-100" />
               <Card className="relative bg-white/5 backdrop-blur-sm border-white/10 dark:border-white/10 border-2 border-dashed hover:border-primary/50 transition-all duration-300 overflow-hidden">
                 <Link href="/offertes/nieuw/aanleg" className="block p-4">
                   <div className="flex items-start gap-4">
@@ -267,7 +267,7 @@ export default function DashboardPage() {
               transition={{ type: "spring", stiffness: 300, damping: 20 }}
               className="group relative"
             >
-              <div className="absolute -inset-0.5 rounded-xl bg-gradient-to-r from-green-500/50 to-emerald-500/30 opacity-0 blur-lg transition-opacity duration-300 group-hover:opacity-100" />
+              <div className="absolute -inset-0.5 -z-10 rounded-xl bg-gradient-to-r from-green-500/25 to-emerald-500/15 opacity-0 blur-lg transition-opacity duration-300 group-hover:opacity-100" />
               <Card className="relative bg-white/5 backdrop-blur-sm border-white/10 dark:border-white/10 border-2 border-dashed hover:border-green-500/50 transition-all duration-300 overflow-hidden">
                 <Link href="/offertes/nieuw/onderhoud" className="block p-4">
                   <div className="flex items-start gap-4">
@@ -307,109 +307,133 @@ export default function DashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {isLoading ? (
-                <RecentOffertesListSkeleton count={5} />
-              ) : recentOffertes && recentOffertes.length > 0 ? (
-                <div className="space-y-3">
-                  {recentOffertes.map((offerte, index) => (
-                    <motion.div
-                      key={offerte._id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: index * 0.08 }}
-                    >
-                      <Link
-                        href={`/offertes/${offerte._id}`}
-                        className="group flex items-center justify-between rounded-lg border p-4 transition-all duration-200 hover:bg-muted/50 hover:border-emerald-500/30 hover:shadow-md hover:shadow-emerald-500/5 dark:hover:border-emerald-500/40"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div
-                            className={`flex h-10 w-10 items-center justify-center rounded-lg transition-transform duration-200 group-hover:scale-110 ${
-                              offerte.type === "aanleg"
-                                ? "bg-gradient-to-br from-primary/20 to-primary/10 dark:from-primary/30 dark:to-primary/10"
-                                : "bg-gradient-to-br from-green-100 to-green-50 dark:from-green-900/30 dark:to-green-900/10"
-                            }`}
-                          >
-                            {offerte.type === "aanleg" ? (
-                              <Shovel className="h-5 w-5 text-primary" />
-                            ) : (
-                              <Trees className="h-5 w-5 text-green-600" />
-                            )}
-                          </div>
-                          <div>
-                            <p className="font-medium group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">{offerte.klant.naam}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {offerte.offerteNummer} • {offerte.klant.plaats}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <p className="font-medium">
-                              {formatCurrency(offerte.totalen.totaalInclBtw)}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {formatDate(offerte.updatedAt)}
-                            </p>
-                          </div>
-                          <StatusBadge status={offerte.status as OfferteStatus} size="sm" />
-                          <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-1" />
-                        </div>
-                      </Link>
-                    </motion.div>
-                  ))}
+              <AnimatePresence mode="wait">
+                {isLoading ? (
                   <motion.div
+                    key="skeleton"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    transition={{ duration: 0.3, delay: recentOffertes.length * 0.08 + 0.1 }}
-                    className="flex justify-center pt-4"
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
                   >
-                    <Button variant="outline" asChild className="hover:border-emerald-500/50 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">
-                      <Link href="/offertes">
-                        Alle offertes bekijken
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </Link>
-                    </Button>
+                    <RecentOffertesListSkeleton count={5} />
                   </motion.div>
-                </div>
-              ) : (
-                <div className="relative flex flex-col items-center justify-center py-12 text-center">
-                  {/* Decorative gradient background for empty state */}
-                  <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-emerald-50/50 via-transparent to-green-50/50 dark:from-emerald-950/20 dark:to-green-950/20" />
-                  <div className="absolute top-4 right-4 h-16 w-16 rounded-full bg-gradient-to-br from-emerald-200/30 to-green-200/30 dark:from-emerald-800/10 dark:to-green-800/10 blur-xl" />
-                  <div className="absolute bottom-4 left-4 h-12 w-12 rounded-full bg-gradient-to-tr from-teal-200/30 to-emerald-200/30 dark:from-teal-800/10 dark:to-emerald-800/10 blur-xl" />
-
+                ) : recentOffertes && recentOffertes.length > 0 ? (
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
+                    key="content"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
                     transition={{ duration: 0.4 }}
-                    className="relative"
+                    className="space-y-3"
                   >
-                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-emerald-100 to-green-100 dark:from-emerald-900/50 dark:to-green-900/50 mb-4">
-                      <FileText className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
+                    {recentOffertes.map((offerte, index) => (
+                      <motion.div
+                        key={offerte._id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: index * 0.08 }}
+                      >
+                        <Link
+                          href={`/offertes/${offerte._id}`}
+                          className="group flex items-center justify-between rounded-lg border p-4 transition-all duration-200 hover:bg-muted/50 hover:border-emerald-500/30 hover:shadow-md hover:shadow-emerald-500/5 dark:hover:border-emerald-500/40"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div
+                              className={`flex h-10 w-10 items-center justify-center rounded-lg transition-transform duration-200 group-hover:scale-110 ${
+                                offerte.type === "aanleg"
+                                  ? "bg-gradient-to-br from-primary/20 to-primary/10 dark:from-primary/30 dark:to-primary/10"
+                                  : "bg-gradient-to-br from-green-100 to-green-50 dark:from-green-900/30 dark:to-green-900/10"
+                              }`}
+                            >
+                              {offerte.type === "aanleg" ? (
+                                <Shovel className="h-5 w-5 text-primary" />
+                              ) : (
+                                <Trees className="h-5 w-5 text-green-600" />
+                              )}
+                            </div>
+                            <div>
+                              <p className="font-medium group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">{offerte.klant.naam}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {offerte.offerteNummer} • {offerte.klant.plaats}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <div className="text-right">
+                              <p className="font-medium">
+                                {formatCurrency(offerte.totalen.totaalInclBtw)}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                {formatDate(offerte.updatedAt)}
+                              </p>
+                            </div>
+                            <StatusBadge status={offerte.status as OfferteStatus} size="sm" />
+                            <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-1" />
+                          </div>
+                        </Link>
+                      </motion.div>
+                    ))}
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.3, delay: recentOffertes.length * 0.08 + 0.1 }}
+                      className="flex justify-center pt-4"
+                    >
+                      <Button variant="outline" asChild className="hover:border-emerald-500/50 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">
+                        <Link href="/offertes">
+                          Alle offertes bekijken
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </Link>
+                      </Button>
+                    </motion.div>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="empty"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.4 }}
+                    className="relative flex flex-col items-center justify-center py-12 text-center"
+                  >
+                    {/* Decorative gradient background for empty state */}
+                    <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-emerald-50/50 via-transparent to-green-50/50 dark:from-emerald-950/20 dark:to-green-950/20" />
+                    <div className="absolute top-4 right-4 h-16 w-16 rounded-full bg-gradient-to-br from-emerald-200/30 to-green-200/30 dark:from-emerald-800/10 dark:to-green-800/10 blur-xl" />
+                    <div className="absolute bottom-4 left-4 h-12 w-12 rounded-full bg-gradient-to-tr from-teal-200/30 to-emerald-200/30 dark:from-teal-800/10 dark:to-emerald-800/10 blur-xl" />
+
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.4 }}
+                      className="relative"
+                    >
+                      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-emerald-100 to-green-100 dark:from-emerald-900/50 dark:to-green-900/50 mb-4">
+                        <FileText className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
+                      </div>
+                    </motion.div>
+                    <h3 className="relative mt-2 text-lg font-semibold">Geen offertes</h3>
+                    <p className="relative mt-2 text-sm text-muted-foreground max-w-xs">
+                      Je hebt nog geen offertes aangemaakt. Start met een nieuwe
+                      offerte!
+                    </p>
+                    <div className="relative mt-6 flex gap-3">
+                      <Button asChild size="sm" className="bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white shadow-md shadow-emerald-500/20">
+                        <Link href="/offertes/nieuw/aanleg">
+                          <Shovel className="mr-2 h-4 w-4" />
+                          Aanleg
+                        </Link>
+                      </Button>
+                      <Button asChild variant="outline" size="sm" className="hover:border-green-500/50 hover:text-green-600 dark:hover:text-green-400">
+                        <Link href="/offertes/nieuw/onderhoud">
+                          <Trees className="mr-2 h-4 w-4" />
+                          Onderhoud
+                        </Link>
+                      </Button>
                     </div>
                   </motion.div>
-                  <h3 className="relative mt-2 text-lg font-semibold">Geen offertes</h3>
-                  <p className="relative mt-2 text-sm text-muted-foreground max-w-xs">
-                    Je hebt nog geen offertes aangemaakt. Start met een nieuwe
-                    offerte!
-                  </p>
-                  <div className="relative mt-6 flex gap-3">
-                    <Button asChild size="sm" className="bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white shadow-md shadow-emerald-500/20">
-                      <Link href="/offertes/nieuw/aanleg">
-                        <Shovel className="mr-2 h-4 w-4" />
-                        Aanleg
-                      </Link>
-                    </Button>
-                    <Button asChild variant="outline" size="sm" className="hover:border-green-500/50 hover:text-green-600 dark:hover:text-green-400">
-                      <Link href="/offertes/nieuw/onderhoud">
-                        <Trees className="mr-2 h-4 w-4" />
-                        Onderhoud
-                      </Link>
-                    </Button>
-                  </div>
-                </div>
-              )}
+                )}
+              </AnimatePresence>
             </CardContent>
           </Card>
         </motion.section>

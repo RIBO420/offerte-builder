@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Card,
   CardContent,
@@ -29,6 +30,7 @@ import {
   Save,
   Loader2,
   User,
+  Trees,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useInstellingen } from "@/hooks/use-instellingen";
@@ -131,31 +133,6 @@ export default function ProfielPage() {
   const userEmail = clerkUser?.primaryEmailAddress?.emailAddress;
   const userInitials = getInitials(userDisplayName);
 
-  if (isLoading) {
-    return (
-      <>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage>Profiel</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </header>
-        <div className="flex flex-1 items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      </>
-    );
-  }
-
   return (
     <>
       <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
@@ -174,48 +151,127 @@ export default function ProfielPage() {
         </Breadcrumb>
       </header>
 
-      <div className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
-        {/* User Profile Header */}
-        <div className="flex items-center gap-4">
-          {clerkUser?.imageUrl ? (
-            <img
-              src={clerkUser.imageUrl}
-              alt={userDisplayName}
-              className="h-16 w-16 rounded-full object-cover"
-            />
-          ) : (
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground text-xl font-semibold">
-              {userInitials}
-            </div>
-          )}
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
-              {userDisplayName}
-            </h1>
-            {userEmail && (
-              <p className="text-muted-foreground">{userEmail}</p>
-            )}
-          </div>
-        </div>
+      <AnimatePresence mode="wait">
+        {isLoading ? (
+          <motion.div
+            key="loader"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="flex flex-1 items-center justify-center"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{
+                duration: 0.5,
+                ease: [0.16, 1, 0.3, 1],
+              }}
+              className="relative"
+            >
+              {/* Pulsing glow effect */}
+              <motion.div
+                className="absolute inset-0 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 blur-xl"
+                animate={{
+                  opacity: [0.4, 0.7, 0.4],
+                  scale: [1, 1.1, 1],
+                }}
+                transition={{
+                  duration: 2,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+              />
 
-        <Tabs defaultValue="account" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="account" className="flex items-center gap-2">
-              <User className="h-4 w-4" />
-              Account
-            </TabsTrigger>
-            <TabsTrigger value="bedrijf" className="flex items-center gap-2">
-              <Building2 className="h-4 w-4" />
-              Bedrijf
-            </TabsTrigger>
-            <TabsTrigger value="offerte" className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Offerte
-            </TabsTrigger>
-          </TabsList>
+              {/* Icon container */}
+              <motion.div
+                className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 shadow-lg shadow-emerald-500/30"
+                animate={{
+                  y: [0, -4, 0],
+                }}
+                transition={{
+                  duration: 2,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+              >
+                <User className="h-8 w-8 text-white" />
+              </motion.div>
+            </motion.div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="content"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
+          >
+            {/* User Profile Header */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.4, delay: 0.1 }}
+              className="flex items-center gap-4"
+            >
+              {clerkUser?.imageUrl ? (
+                <motion.img
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.4, delay: 0.2 }}
+                  src={clerkUser.imageUrl}
+                  alt={userDisplayName}
+                  className="h-16 w-16 rounded-full object-cover"
+                />
+              ) : (
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.4, delay: 0.2 }}
+                  className="flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground text-xl font-semibold"
+                >
+                  {userInitials}
+                </motion.div>
+              )}
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
+                  {userDisplayName}
+                </h1>
+                {userEmail && (
+                  <p className="text-muted-foreground">{userEmail}</p>
+                )}
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.2 }}
+            >
+              <Tabs defaultValue="account" className="space-y-4">
+                <TabsList>
+                  <TabsTrigger value="account" className="flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    Account
+                  </TabsTrigger>
+                  <TabsTrigger value="bedrijf" className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4" />
+                    Bedrijf
+                  </TabsTrigger>
+                  <TabsTrigger value="offerte" className="flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Offerte
+                  </TabsTrigger>
+                </TabsList>
 
           {/* Account Tab */}
           <TabsContent value="account" className="space-y-4">
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+            >
             <Card>
               <CardHeader>
                 <CardTitle>Account informatie</CardTitle>
@@ -250,10 +306,16 @@ export default function ProfielPage() {
                 </div>
               </CardContent>
             </Card>
+            </motion.div>
           </TabsContent>
 
           {/* Bedrijfsgegevens Tab */}
           <TabsContent value="bedrijf" className="space-y-4">
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+            >
             <Card>
               <CardHeader>
                 <CardTitle>Bedrijfsgegevens</CardTitle>
@@ -389,10 +451,16 @@ export default function ProfielPage() {
                 </div>
               </CardContent>
             </Card>
+            </motion.div>
           </TabsContent>
 
           {/* Offerte Tab */}
           <TabsContent value="offerte" className="space-y-4">
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+            >
             <Card>
               <CardHeader>
                 <CardTitle>Offerte instellingen</CardTitle>
@@ -445,9 +513,13 @@ export default function ProfielPage() {
                 </div>
               </CardContent>
             </Card>
+            </motion.div>
           </TabsContent>
-        </Tabs>
-      </div>
+              </Tabs>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }
