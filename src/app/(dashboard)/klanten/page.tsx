@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, memo } from "react";
+import { useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -24,13 +24,9 @@ import {
 } from "@/components/ui/breadcrumb";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  ResponsiveTable,
+  ResponsiveColumn,
+} from "@/components/ui/responsive-table";
 import {
   Dialog,
   DialogContent,
@@ -79,90 +75,6 @@ type Klant = {
   createdAt: number;
   updatedAt: number;
 };
-
-// Memoized table row component to prevent unnecessary re-renders
-interface KlantRowProps {
-  klant: Klant;
-  index: number;
-  onEdit: (klant: Klant) => void;
-  onDelete: (klant: Klant) => void;
-}
-
-const KlantRow = memo(function KlantRow({
-  klant,
-  index,
-  onEdit,
-  onDelete,
-}: KlantRowProps) {
-  const handleEdit = useCallback(() => onEdit(klant), [klant, onEdit]);
-  const handleDelete = useCallback(() => onDelete(klant), [klant, onDelete]);
-
-  return (
-    <motion.tr
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05 }}
-      whileHover={{ backgroundColor: "rgba(0, 0, 0, 0.02)" }}
-      className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
-    >
-      <TableCell>
-        <Link
-          href={`/klanten/${klant._id}`}
-          className="font-medium hover:underline"
-        >
-          {klant.naam}
-        </Link>
-      </TableCell>
-      <TableCell>
-        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <MapPin className="h-3.5 w-3.5" />
-          <span>
-            {klant.adres}, {klant.postcode} {klant.plaats}
-          </span>
-        </div>
-      </TableCell>
-      <TableCell>
-        <div className="space-y-1">
-          {klant.telefoon && (
-            <div className="flex items-center gap-1.5 text-sm">
-              <Phone className="h-3.5 w-3.5 text-muted-foreground" />
-              <span>{klant.telefoon}</span>
-            </div>
-          )}
-          {klant.email && (
-            <div className="flex items-center gap-1.5 text-sm">
-              <Mail className="h-3.5 w-3.5 text-muted-foreground" />
-              <span>{klant.email}</span>
-            </div>
-          )}
-        </div>
-      </TableCell>
-      <TableCell className="text-right">
-        <div className="flex items-center justify-end gap-2">
-          <Button variant="ghost" size="sm" asChild>
-            <Link href={`/klanten/${klant._id}`}>
-              <FileText className="h-4 w-4" />
-            </Link>
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleEdit}
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleDelete}
-          >
-            <Trash2 className="h-4 w-4 text-destructive" />
-          </Button>
-        </div>
-      </TableCell>
-    </motion.tr>
-  );
-});
 
 export default function KlantenPage() {
   const { klanten, isLoading, create, update, remove } = useKlanten();
@@ -300,6 +212,105 @@ export default function KlantenPage() {
     setSelectedKlant(klant);
     setShowDeleteDialog(true);
   }, []);
+
+  // Column configuration for ResponsiveTable
+  const columns: ResponsiveColumn<Klant>[] = useMemo(
+    () => [
+      {
+        key: "naam",
+        header: "Naam",
+        isPrimary: true,
+        render: (klant) => (
+          <Link
+            href={`/klanten/${klant._id}`}
+            className="font-medium hover:underline"
+          >
+            {klant.naam}
+          </Link>
+        ),
+      },
+      {
+        key: "adres",
+        header: "Adres",
+        isSecondary: true,
+        render: (klant) => (
+          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <MapPin className="h-3.5 w-3.5 hidden sm:inline" />
+            <span className="truncate max-w-[200px] sm:max-w-none">
+              {klant.adres}, {klant.postcode} {klant.plaats}
+            </span>
+          </div>
+        ),
+      },
+      {
+        key: "telefoon",
+        header: "Telefoon",
+        mobileLabel: "Tel",
+        showInCard: true,
+        render: (klant) =>
+          klant.telefoon ? (
+            <div className="flex items-center gap-1.5 text-sm">
+              <Phone className="h-3.5 w-3.5 text-muted-foreground hidden sm:inline" />
+              <span>{klant.telefoon}</span>
+            </div>
+          ) : (
+            <span className="text-muted-foreground">-</span>
+          ),
+      },
+      {
+        key: "email",
+        header: "E-mail",
+        mobileLabel: "Email",
+        showInCard: true,
+        render: (klant) =>
+          klant.email ? (
+            <div className="flex items-center gap-1.5 text-sm">
+              <Mail className="h-3.5 w-3.5 text-muted-foreground hidden sm:inline" />
+              <span className="truncate max-w-[150px]">{klant.email}</span>
+            </div>
+          ) : (
+            <span className="text-muted-foreground">-</span>
+          ),
+      },
+      {
+        key: "acties",
+        header: "Acties",
+        align: "right",
+        showInCard: true,
+        mobileLabel: "",
+        render: (klant) => (
+          <div className="flex items-center justify-end gap-2">
+            <Button variant="ghost" size="sm" asChild>
+              <Link href={`/klanten/${klant._id}`}>
+                <FileText className="h-4 w-4" />
+              </Link>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleEdit(klant);
+              }}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeleteClick(klant);
+              }}
+            >
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
+          </div>
+        ),
+      },
+    ],
+    [handleEdit, handleDeleteClick]
+  );
 
   const KlantForm = () => (
     <div className="grid gap-4">
@@ -528,27 +539,17 @@ export default function KlantenPage() {
                 </p>
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Naam</TableHead>
-                    <TableHead>Adres</TableHead>
-                    <TableHead>Contact</TableHead>
-                    <TableHead className="text-right">Acties</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {displayedKlanten.map((klant, index) => (
-                    <KlantRow
-                      key={klant._id}
-                      klant={klant}
-                      index={index}
-                      onEdit={handleEdit}
-                      onDelete={handleDeleteClick}
-                    />
-                  ))}
-                </TableBody>
-              </Table>
+              <ResponsiveTable
+                data={displayedKlanten}
+                columns={columns}
+                keyExtractor={(klant) => klant._id}
+                emptyMessage={
+                  searchTerm
+                    ? `Geen resultaten voor "${searchTerm}"`
+                    : "Voeg je eerste klant toe om te beginnen."
+                }
+                mobileBreakpoint="md"
+              />
             )}
           </CardContent>
         </Card>

@@ -25,6 +25,14 @@ export const metadata: Metadata = {
   description:
     "Scope-gedreven offerte systeem voor hoveniersbedrijven. Aanleg- en onderhoudsoffertes waarbij niets vergeten kan worden.",
   keywords: ["offerte", "hovenier", "tuinaanleg", "tuinonderhoud", "calculator"],
+  manifest: "/manifest.json",
+  icons: {
+    icon: "/favicon.ico",
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+      { url: "/apple-touch-icon-152.png", sizes: "152x152", type: "image/png" },
+    ],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
