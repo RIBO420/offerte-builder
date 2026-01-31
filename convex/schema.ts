@@ -41,8 +41,10 @@ export default defineSchema({
     type: v.union(v.literal("aanleg"), v.literal("onderhoud")),
     // Workflow: concept → voorcalculatie → verzonden → geaccepteerd/afgewezen
     // voorcalculatie status means internal pre-calculation is done, ready to send
+    // Note: "definitief" is deprecated but kept for backwards compatibility during migration
     status: v.union(
       v.literal("concept"),
+      v.literal("definitief"), // DEPRECATED - will be migrated to voorcalculatie
       v.literal("voorcalculatie"),
       v.literal("verzonden"),
       v.literal("geaccepteerd"),
@@ -341,11 +343,13 @@ export default defineSchema({
   // Projecten - Links offerte to project for planning/nacalculatie
   // Projects are created from accepted offertes that have voorcalculatie completed
   // Workflow: gepland → in_uitvoering → afgerond → nacalculatie_compleet
+  // Note: "voorcalculatie" is deprecated but kept for backwards compatibility during migration
   projecten: defineTable({
     userId: v.id("users"),
     offerteId: v.id("offertes"),
     naam: v.string(),
     status: v.union(
+      v.literal("voorcalculatie"), // DEPRECATED - will be migrated to gepland
       v.literal("gepland"),
       v.literal("in_uitvoering"),
       v.literal("afgerond"),
