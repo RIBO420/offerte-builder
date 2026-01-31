@@ -5,7 +5,9 @@ import { Check, Circle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Project statuses - voorcalculatie is now at offerte level, projects start at "gepland"
+// Note: "voorcalculatie" kept for backwards compatibility with existing projects
 export type ProjectStatus =
+  | "voorcalculatie"
   | "gepland"
   | "in_uitvoering"
   | "afgerond"
@@ -34,6 +36,7 @@ const statusOrder: ProjectStatus[] = [
 ];
 
 const statusLabels: Record<ProjectStatus, string> = {
+  voorcalculatie: "Voorcalculatie", // Legacy, maps to gepland
   gepland: "Gepland",
   in_uitvoering: "In Uitvoering",
   afgerond: "Afgerond",
@@ -60,7 +63,9 @@ export function ProjectProgressStepper({
   hasUrenRegistraties = false,
   hasNacalculatie = false,
 }: ProjectProgressStepperProps) {
-  const currentIndex = statusOrder.indexOf(currentStatus);
+  // Map legacy "voorcalculatie" status to "gepland" for display purposes
+  const effectiveStatus = currentStatus === "voorcalculatie" ? "gepland" : currentStatus;
+  const currentIndex = statusOrder.indexOf(effectiveStatus);
 
   // Define steps with their navigation targets
   // Note: Voorcalculatie is now at the offerte level, not shown in project stepper

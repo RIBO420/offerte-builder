@@ -27,6 +27,7 @@ import {
   Play,
   CheckCircle2,
   ClipboardCheck,
+  Calculator,
   Plus,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -45,7 +46,14 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 
 // Status configuration - voorcalculatie is now at offerte level
 // Projects start at "gepland" status
+// Note: voorcalculatie kept for backwards compatibility with existing projects
 const statusConfig = {
+  voorcalculatie: {
+    label: "Voorcalculatie",
+    icon: Calculator,
+    color:
+      "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400",
+  },
   gepland: {
     label: "Gepland",
     icon: Calendar,
@@ -81,7 +89,7 @@ function formatDate(timestamp: number): string {
 }
 
 function StatusBadge({ status }: { status: ProjectStatus }) {
-  const config = statusConfig[status];
+  const config = statusConfig[status] || statusConfig.gepland;
   const Icon = config.icon;
 
   return (
@@ -272,9 +280,11 @@ function ProjectenPageContent() {
           }}
           className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
         >
-          {Object.entries(statusConfig).map(([status, config]) => {
+          {Object.entries(statusConfig)
+            .filter(([status]) => status !== "voorcalculatie") // Skip legacy status in stats grid
+            .map(([status, config]) => {
             const Icon = config.icon;
-            const count = stats?.[status as ProjectStatus] ?? 0;
+            const count = stats?.[status as Exclude<ProjectStatus, "voorcalculatie">] ?? 0;
 
             return (
               <Card

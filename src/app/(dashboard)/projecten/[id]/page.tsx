@@ -41,7 +41,9 @@ import {
 import { ProjectProgressStepper, type ProjectStatus } from "@/components/project/project-progress-stepper";
 
 // Project status colors - voorcalculatie is now at offerte level
+// Note: voorcalculatie kept for backwards compatibility with existing projects
 const statusColors: Record<string, string> = {
+  voorcalculatie: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
   gepland: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
   in_uitvoering: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100",
   afgerond: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
@@ -49,7 +51,9 @@ const statusColors: Record<string, string> = {
 };
 
 // Project status labels - voorcalculatie is now at offerte level
+// Note: voorcalculatie kept for backwards compatibility with existing projects
 const statusLabels: Record<string, string> = {
+  voorcalculatie: "Voorcalculatie",
   gepland: "Gepland",
   in_uitvoering: "In Uitvoering",
   afgerond: "Afgerond",
