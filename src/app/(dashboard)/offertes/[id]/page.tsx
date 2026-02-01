@@ -510,6 +510,9 @@ export default function OfferteDetailPage({
             <OfferteWorkflowStepper
               currentStatus={offerte.status as "concept" | "voorcalculatie" | "verzonden" | "geaccepteerd" | "afgewezen"}
               hasVoorcalculatie={!!voorcalculatie}
+              offerteId={id}
+              showNextStepAction={true}
+              onSendOfferte={() => setShowEmailDialog(true)}
             />
           </Card>
         </motion.div>

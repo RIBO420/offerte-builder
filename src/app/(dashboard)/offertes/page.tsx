@@ -606,7 +606,7 @@ function OffertesPageContent() {
           initial={reducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: reducedMotion ? 0 : 0.4, delay: reducedMotion ? 0 : 0.1 }}
-          className="flex items-center justify-between"
+          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
         >
           <div>
             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
@@ -616,19 +616,37 @@ function OffertesPageContent() {
               Beheer al je aanleg- en onderhoudsoffertes
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button asChild variant="outline">
-              <Link href="/offertes/nieuw/onderhoud">
-                <Trees className="mr-2 h-4 w-4" />
-                Onderhoud
-              </Link>
-            </Button>
-            <Button asChild>
-              <Link href="/offertes/nieuw/aanleg">
-                <Shovel className="mr-2 h-4 w-4" />
-                Aanleg
-              </Link>
-            </Button>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button asChild variant="outline" className="flex-1 sm:flex-none">
+                  <Link href="/offertes/nieuw/onderhoud">
+                    <Trees className="mr-2 h-4 w-4" />
+                    <span className="hidden sm:inline">Onderhoud</span>
+                    <span className="sm:hidden">Onderhoud Offerte</span>
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Maak een nieuwe onderhoudsofferte</p>
+                <p className="text-xs text-muted-foreground">Voor periodiek tuinonderhoud</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button asChild className="flex-1 sm:flex-none">
+                  <Link href="/offertes/nieuw/aanleg">
+                    <Shovel className="mr-2 h-4 w-4" />
+                    <span className="hidden sm:inline">Aanleg</span>
+                    <span className="sm:hidden">Aanleg Offerte</span>
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Maak een nieuwe aanlegofferte</p>
+                <p className="text-xs text-muted-foreground">Voor tuinaanleg projecten</p>
+              </TooltipContent>
+            </Tooltip>
           </div>
         </motion.div>
 

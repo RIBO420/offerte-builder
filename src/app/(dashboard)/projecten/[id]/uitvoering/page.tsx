@@ -70,7 +70,14 @@ import {
   Calendar,
   TrendingUp,
   CheckCircle,
+  AlertTriangle,
+  ArrowRight,
+  Lightbulb,
+  Target,
+  FileText,
+  Receipt,
 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import {
@@ -84,6 +91,7 @@ import { ProjectProgressStepper } from "@/components/project/project-progress-st
 import { Id } from "../../../../../../convex/_generated/dataModel";
 import { format, parseISO } from "date-fns";
 import { nl } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 // Scope labels
 const scopeLabels: Record<string, string> = {
@@ -299,6 +307,16 @@ export default function UitvoeringPage() {
   const verschilUren = urenTotals.totaalUren - begroteUren;
   const verschilPercentage = begroteUren > 0 ? ((verschilUren / begroteUren) * 100).toFixed(1) : 0;
 
+  // Progress calculation - cap at 100% for display, but show actual if over
+  const progressPercentage = begroteUren > 0
+    ? Math.min((urenTotals.totaalUren / begroteUren) * 100, 100)
+    : 0;
+  const actualProgressPercentage = begroteUren > 0
+    ? (urenTotals.totaalUren / begroteUren) * 100
+    : 0;
+  const isOverBudget = actualProgressPercentage > 100;
+  const isNearBudget = actualProgressPercentage >= 80 && actualProgressPercentage <= 100;
+
   return (
     <>
       <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
@@ -338,97 +356,116 @@ export default function UitvoeringPage() {
           </div>
           <div className="flex gap-2">
             <UrenImport onImport={handleImport} isImporting={isImporting} />
-            <Button onClick={() => setShowUrenForm(true)}>
+            <Button onClick={() => setShowUrenForm(true)} size="lg">
               <Plus className="mr-2 h-4 w-4" />
               Uren registreren
             </Button>
-            {project?.status === "in_uitvoering" && (
-              <AlertDialog open={showFinishDialog} onOpenChange={setShowFinishDialog}>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="default"
-                    className="bg-blue-600 hover:bg-blue-700"
-                    disabled={!canFinishProject || !hasVoorcalculatie}
-                    title={
-                      !hasVoorcalculatie
-                        ? "Geen voorcalculatie beschikbaar"
-                        : urenTotals.totaalUren <= 0
-                        ? "Registreer eerst gewerkte uren"
-                        : undefined
-                    }
-                  >
-                    <CheckCircle className="mr-2 h-4 w-4" />
-                    Project Afronden
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Project afronden en naar nacalculatie?</AlertDialogTitle>
-                    <AlertDialogDescription asChild>
-                      <div className="space-y-4">
-                        <p>
-                          Je staat op het punt om dit project af te ronden. Hierna kun je
-                          de nacalculatie bekijken en vergelijken met de voorcalculatie.
-                        </p>
-                        <div className="rounded-lg border p-4 space-y-2 bg-muted/50">
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Totaal geregistreerde uren:</span>
-                            <span className="font-medium">{urenTotals.totaalUren.toFixed(1)} uur</span>
-                          </div>
-                          {hasVoorcalculatie && (
-                            <>
-                              <div className="flex justify-between">
-                                <span className="text-muted-foreground">Begroot (voorcalculatie):</span>
-                                <span className="font-medium">{begroteUren.toFixed(1)} uur</span>
-                              </div>
-                              <div className="flex justify-between border-t pt-2 mt-2">
-                                <span className="text-muted-foreground">Verschil:</span>
-                                <span className={`font-medium ${verschilUren > 0 ? "text-red-600" : verschilUren < 0 ? "text-green-600" : ""}`}>
-                                  {verschilUren > 0 ? "+" : ""}{verschilUren.toFixed(1)} uur ({verschilPercentage}%)
-                                </span>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel disabled={isFinishing}>Annuleren</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleFinishProject}
-                      disabled={isFinishing}
-                      className="bg-blue-600 hover:bg-blue-700"
-                    >
-                      {isFinishing ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Afronden...
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle className="mr-2 h-4 w-4" />
-                          Afronden & Naar Nacalculatie
-                        </>
-                      )}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
           </div>
         </div>
 
-        {/* Progress Stepper */}
+        {/* Progress Stepper - Shows actual project status from database */}
         <Card className="p-4 md:p-6">
           <ProjectProgressStepper
             projectId={params.id as string}
-            currentStatus="in_uitvoering"
+            projectStatus={(project?.status || "in_uitvoering") as "gepland" | "in_uitvoering" | "afgerond" | "nacalculatie_compleet" | "gefactureerd"}
             hasPlanning={true}
             hasUrenRegistraties={urenTotals.totaalUren > 0}
             hasNacalculatie={false}
           />
         </Card>
+
+        {/* Progress Indicator - Prominent visual feedback */}
+        {hasVoorcalculatie && (
+          <Card className={cn(
+            "border-2 transition-colors",
+            isOverBudget ? "border-red-200 bg-red-50/50 dark:border-red-900 dark:bg-red-950/20" :
+            isNearBudget ? "border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20" :
+            "border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20"
+          )}>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Target className="h-5 w-5" />
+                  Voortgang t.o.v. Begroting
+                </CardTitle>
+                <Badge
+                  variant={isOverBudget ? "destructive" : isNearBudget ? "secondary" : "default"}
+                  className={cn(
+                    !isOverBudget && !isNearBudget && "bg-green-600"
+                  )}
+                >
+                  {actualProgressPercentage.toFixed(0)}%
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Progress
+                  value={progressPercentage}
+                  className={cn(
+                    "h-3",
+                    isOverBudget ? "[&>div]:bg-red-500" :
+                    isNearBudget ? "[&>div]:bg-amber-500" :
+                    "[&>div]:bg-green-500"
+                  )}
+                />
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    {urenTotals.totaalUren.toFixed(1)} van {begroteUren.toFixed(1)} uur
+                  </span>
+                  <span className={cn(
+                    "font-medium",
+                    isOverBudget ? "text-red-600" :
+                    isNearBudget ? "text-amber-600" :
+                    "text-green-600"
+                  )}>
+                    {verschilUren >= 0 ? "+" : ""}{verschilUren.toFixed(1)} uur
+                  </span>
+                </div>
+              </div>
+
+              {/* Status message */}
+              <div className={cn(
+                "flex items-start gap-2 rounded-lg p-3",
+                isOverBudget ? "bg-red-100 dark:bg-red-950/50" :
+                isNearBudget ? "bg-amber-100 dark:bg-amber-950/50" :
+                "bg-green-100 dark:bg-green-950/50"
+              )}>
+                {isOverBudget ? (
+                  <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+                ) : isNearBudget ? (
+                  <Lightbulb className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                ) : (
+                  <CheckCircle className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
+                )}
+                <div className="text-sm">
+                  {isOverBudget ? (
+                    <>
+                      <span className="font-medium text-red-700 dark:text-red-400">Budget overschreden.</span>
+                      <span className="text-red-600 dark:text-red-300 ml-1">
+                        Let op: er zijn {Math.abs(verschilUren).toFixed(1)} uur meer gewerkt dan begroot.
+                      </span>
+                    </>
+                  ) : isNearBudget ? (
+                    <>
+                      <span className="font-medium text-amber-700 dark:text-amber-400">Bijna bij budget.</span>
+                      <span className="text-amber-600 dark:text-amber-300 ml-1">
+                        Nog {Math.abs(verschilUren).toFixed(1)} uur beschikbaar binnen begroting.
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="font-medium text-green-700 dark:text-green-400">Op schema.</span>
+                      <span className="text-green-600 dark:text-green-300 ml-1">
+                        Nog {Math.abs(verschilUren).toFixed(1)} uur beschikbaar binnen begroting.
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-4">
@@ -518,6 +555,162 @@ export default function UitvoeringPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Project Afronden Section - Clear visibility */}
+        {project?.status === "in_uitvoering" && (
+          <Card className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 dark:border-blue-900 dark:from-blue-950/30 dark:to-indigo-950/30">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
+                <CheckCircle className="h-5 w-5" />
+                Project Afronden
+              </CardTitle>
+              <CardDescription className="text-blue-600 dark:text-blue-300">
+                Klaar met werken? Rond het project af om naar de nacalculatie te gaan.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Checklist */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  {urenTotals.totaalUren > 0 ? (
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                  ) : (
+                    <div className="h-4 w-4 rounded-full border-2 border-muted-foreground" />
+                  )}
+                  <span className={urenTotals.totaalUren > 0 ? "text-green-700 dark:text-green-400" : "text-muted-foreground"}>
+                    Uren geregistreerd ({urenTotals.totaalUren.toFixed(1)} uur)
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {hasVoorcalculatie ? (
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                  ) : (
+                    <div className="h-4 w-4 rounded-full border-2 border-muted-foreground" />
+                  )}
+                  <span className={hasVoorcalculatie ? "text-green-700 dark:text-green-400" : "text-muted-foreground"}>
+                    Voorcalculatie beschikbaar
+                  </span>
+                </div>
+              </div>
+
+              {/* Tips section */}
+              <div className="rounded-lg bg-blue-100/50 dark:bg-blue-900/20 p-3 space-y-2">
+                <div className="flex items-center gap-2 text-sm font-medium text-blue-800 dark:text-blue-200">
+                  <Lightbulb className="h-4 w-4" />
+                  Na het afronden
+                </div>
+                <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1 ml-6">
+                  <li className="flex items-center gap-2">
+                    <FileText className="h-3 w-3" />
+                    Bekijk de nacalculatie en vergelijk met begroting
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Receipt className="h-3 w-3" />
+                    Maak een factuur aan voor de klant
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <TrendingUp className="h-3 w-3" />
+                    Analyseer verschillen voor toekomstige projecten
+                  </li>
+                </ul>
+              </div>
+
+              {/* Afronden button */}
+              <AlertDialog open={showFinishDialog} onOpenChange={setShowFinishDialog}>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    size="lg"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                    disabled={!canFinishProject || !hasVoorcalculatie}
+                  >
+                    {!canFinishProject ? (
+                      <>
+                        <AlertTriangle className="mr-2 h-5 w-5" />
+                        {urenTotals.totaalUren <= 0 ? "Registreer eerst uren" : "Kan nog niet afronden"}
+                      </>
+                    ) : !hasVoorcalculatie ? (
+                      <>
+                        <AlertTriangle className="mr-2 h-5 w-5" />
+                        Voorcalculatie ontbreekt
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="mr-2 h-5 w-5" />
+                        Project Afronden
+                        <ArrowRight className="ml-2 h-5 w-5" />
+                      </>
+                    )}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Project afronden en naar nacalculatie?</AlertDialogTitle>
+                    <AlertDialogDescription asChild>
+                      <div className="space-y-4">
+                        <p>
+                          Je staat op het punt om dit project af te ronden. Hierna kun je
+                          de nacalculatie bekijken en vergelijken met de voorcalculatie.
+                        </p>
+                        <div className="rounded-lg border p-4 space-y-2 bg-muted/50">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Totaal geregistreerde uren:</span>
+                            <span className="font-medium">{urenTotals.totaalUren.toFixed(1)} uur</span>
+                          </div>
+                          {hasVoorcalculatie && (
+                            <>
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Begroot (voorcalculatie):</span>
+                                <span className="font-medium">{begroteUren.toFixed(1)} uur</span>
+                              </div>
+                              <div className="flex justify-between border-t pt-2 mt-2">
+                                <span className="text-muted-foreground">Verschil:</span>
+                                <span className={`font-medium ${verschilUren > 0 ? "text-red-600" : verschilUren < 0 ? "text-green-600" : ""}`}>
+                                  {verschilUren > 0 ? "+" : ""}{verschilUren.toFixed(1)} uur ({verschilPercentage}%)
+                                </span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+
+                        {/* What happens next */}
+                        <div className="rounded-lg bg-blue-50 dark:bg-blue-950/50 p-3 space-y-2">
+                          <div className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                            Wat gebeurt er?
+                          </div>
+                          <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
+                            <li>1. Project status wordt &quot;Afgerond&quot;</li>
+                            <li>2. Je wordt doorgestuurd naar de nacalculatie</li>
+                            <li>3. Uren kunnen daarna niet meer worden aangepast</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={isFinishing}>Annuleren</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleFinishProject}
+                      disabled={isFinishing}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      {isFinishing ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Afronden...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="mr-2 h-4 w-4" />
+                          Afronden & Naar Nacalculatie
+                        </>
+                      )}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
@@ -649,21 +842,41 @@ export default function UitvoeringPage() {
                 ))}
               </div>
             ) : (
-              <Card>
+              <Card className="border-dashed">
                 <CardContent className="flex flex-col items-center justify-center py-12">
-                  <Clock className="h-12 w-12 text-muted-foreground/50" />
-                  <h3 className="mt-4 text-lg font-semibold">
-                    Geen uren geregistreerd
+                  <div className="rounded-full bg-primary/10 p-4 mb-4">
+                    <Clock className="h-10 w-10 text-primary" />
+                  </div>
+                  <h3 className="text-xl font-semibold">
+                    Begin met registreren
                   </h3>
                   <p className="mt-2 text-sm text-muted-foreground text-center max-w-md">
-                    Importeer een urenregistratie of voeg handmatig uren toe.
+                    Registreer de gewerkte uren voor dit project. Dit is nodig voor de nacalculatie.
                   </p>
-                  <div className="mt-6 flex gap-2">
-                    <UrenImport onImport={handleImport} isImporting={isImporting} />
-                    <Button onClick={() => setShowUrenForm(true)}>
-                      <Plus className="mr-2 h-4 w-4" />
+
+                  {/* Quick tips */}
+                  <div className="mt-6 w-full max-w-md space-y-3">
+                    <div className="flex items-start gap-3 rounded-lg bg-muted/50 p-3">
+                      <Lightbulb className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+                      <div className="text-sm">
+                        <p className="font-medium">Tip: Snelle invoer</p>
+                        <p className="text-muted-foreground">
+                          Gebruik de snelkeuze knoppen voor veelvoorkomende uren (4, 6, 8 uur) en datums (vandaag, gisteren).
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 flex flex-col sm:flex-row gap-3 w-full max-w-md">
+                    <Button
+                      onClick={() => setShowUrenForm(true)}
+                      className="flex-1"
+                      size="lg"
+                    >
+                      <Plus className="mr-2 h-5 w-5" />
                       Uren registreren
                     </Button>
+                    <UrenImport onImport={handleImport} isImporting={isImporting} />
                   </div>
                 </CardContent>
               </Card>

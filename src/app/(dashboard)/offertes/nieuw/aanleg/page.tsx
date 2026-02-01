@@ -47,8 +47,20 @@ import {
   Save,
   CheckCircle2,
   Circle,
+  Calculator,
+  Edit,
+  PartyPopper,
+  ArrowRight,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useOffertes } from "@/hooks/use-offertes";
 import { useInstellingen } from "@/hooks/use-instellingen";
@@ -278,6 +290,9 @@ export default function NieuweAanlegOffertePage() {
   const totalSteps = 4;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false); // Toggle between packages and templates
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [createdOfferteId, setCreatedOfferteId] = useState<string | null>(null);
+  const [createdOfferteNummer, setCreatedOfferteNummer] = useState<string | null>(null);
 
   // Track validation errors per scope
   const [scopeValidationErrors, setScopeValidationErrors] = useState<Record<AanlegScope, Record<string, string>>>({
@@ -543,8 +558,11 @@ export default function NieuweAanlegOffertePage() {
       // Clear the draft after successful creation
       clearDraft();
 
+      // Show success dialog with next steps
+      setCreatedOfferteId(offerteId);
+      setCreatedOfferteNummer(offerteNummer);
+      setShowSuccessDialog(true);
       toast.success(`Offerte ${offerteNummer} aangemaakt`);
-      router.push(`/offertes/${offerteId}/bewerken`);
     } catch {
       toast.error("Fout bij aanmaken offerte");
     } finally {
@@ -1432,6 +1450,97 @@ export default function NieuweAanlegOffertePage() {
           </div>
         )}
       </motion.div>
+
+      {/* Success Dialog with Next Steps */}
+      <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30 mb-4">
+              <PartyPopper className="h-8 w-8 text-green-600" />
+            </div>
+            <DialogTitle className="text-center text-xl">
+              Offerte {createdOfferteNummer} aangemaakt!
+            </DialogTitle>
+            <DialogDescription className="text-center">
+              Je offerte is succesvol opgeslagen. Wat wil je nu doen?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-4">
+            {/* Recommended: Voorcalculatie */}
+            <Card className="border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20 cursor-pointer hover:border-blue-300 dark:hover:border-blue-700 transition-colors"
+              onClick={() => {
+                setShowSuccessDialog(false);
+                router.push(`/offertes/${createdOfferteId}/voorcalculatie`);
+              }}
+            >
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/50">
+                    <Calculator className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">Voorcalculatie invullen</p>
+                      <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                        Aanbevolen
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      Bepaal teamgrootte en geschatte projectduur
+                    </p>
+                  </div>
+                  <ArrowRight className="h-5 w-5 text-blue-500 shrink-0 mt-2.5" />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Edit offerte */}
+            <Card className="cursor-pointer hover:border-muted-foreground/30 transition-colors"
+              onClick={() => {
+                setShowSuccessDialog(false);
+                router.push(`/offertes/${createdOfferteId}/bewerken`);
+              }}
+            >
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+                    <Edit className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium">Offerte bewerken</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      Pas regels en prijzen aan
+                    </p>
+                  </div>
+                  <ArrowRight className="h-5 w-5 text-muted-foreground shrink-0 mt-2.5" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <DialogFooter className="sm:justify-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowSuccessDialog(false);
+                router.push(`/offertes/${createdOfferteId}`);
+              }}
+            >
+              Bekijk offerte
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setShowSuccessDialog(false);
+                router.push("/offertes");
+              }}
+            >
+              Naar overzicht
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

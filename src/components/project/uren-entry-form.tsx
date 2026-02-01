@@ -26,10 +26,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { CalendarIcon, Loader2, Plus } from "lucide-react";
-import { format } from "date-fns";
+import { CalendarIcon, Loader2, Plus, Clock } from "lucide-react";
+import { format, subDays } from "date-fns";
 import { nl } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 // All available scopes
 const availableScopes = [
@@ -153,9 +154,33 @@ export function UrenEntryForm({
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
-            {/* Datum */}
+            {/* Datum met snelkeuze */}
             <div className="grid gap-2">
               <Label>Datum</Label>
+              {/* Snelkeuze knoppen */}
+              <div className="flex flex-wrap gap-2 mb-2">
+                <Badge
+                  variant={date && format(date, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd") ? "default" : "outline"}
+                  className="cursor-pointer hover:bg-primary/80 transition-colors"
+                  onClick={() => setDate(new Date())}
+                >
+                  Vandaag
+                </Badge>
+                <Badge
+                  variant={date && format(date, "yyyy-MM-dd") === format(subDays(new Date(), 1), "yyyy-MM-dd") ? "default" : "outline"}
+                  className="cursor-pointer hover:bg-primary/80 transition-colors"
+                  onClick={() => setDate(subDays(new Date(), 1))}
+                >
+                  Gisteren
+                </Badge>
+                <Badge
+                  variant={date && format(date, "yyyy-MM-dd") === format(subDays(new Date(), 2), "yyyy-MM-dd") ? "default" : "outline"}
+                  className="cursor-pointer hover:bg-primary/80 transition-colors"
+                  onClick={() => setDate(subDays(new Date(), 2))}
+                >
+                  Eergisteren
+                </Badge>
+              </div>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -241,9 +266,23 @@ export function UrenEntryForm({
               )}
             </div>
 
-            {/* Uren */}
+            {/* Uren met snelkeuze */}
             <div className="grid gap-2">
               <Label htmlFor="uren">Uren</Label>
+              {/* Snelkeuze knoppen voor veelvoorkomende uren */}
+              <div className="flex flex-wrap gap-2 mb-2">
+                {[4, 6, 7.5, 8, 9, 10].map((hours) => (
+                  <Badge
+                    key={hours}
+                    variant={uren === hours.toString() ? "default" : "outline"}
+                    className="cursor-pointer hover:bg-primary/80 transition-colors"
+                    onClick={() => setUren(hours.toString())}
+                  >
+                    <Clock className="mr-1 h-3 w-3" />
+                    {hours} uur
+                  </Badge>
+                ))}
+              </div>
               <Input
                 id="uren"
                 type="number"

@@ -1,7 +1,9 @@
 "use client";
 
 import { memo, useMemo } from "react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import {
   Pencil,
   Calculator,
@@ -9,11 +11,16 @@ import {
   ThumbsUp,
   XCircle,
   Check,
+  ChevronRight,
+  Info,
 } from "lucide-react";
 
 interface OfferteWorkflowStepperProps {
   currentStatus: "concept" | "voorcalculatie" | "verzonden" | "geaccepteerd" | "afgewezen";
   hasVoorcalculatie: boolean;
+  offerteId?: string;
+  showNextStepAction?: boolean;
+  onSendOfferte?: () => void;
 }
 
 interface Step {
@@ -60,6 +67,9 @@ const steps: Step[] = [
 export const OfferteWorkflowStepper = memo(function OfferteWorkflowStepper({
   currentStatus,
   hasVoorcalculatie,
+  offerteId,
+  showNextStepAction = false,
+  onSendOfferte,
 }: OfferteWorkflowStepperProps) {
   // Determine step states
   const stepStates = useMemo((): StepWithState[] => {
@@ -100,8 +110,125 @@ export const OfferteWorkflowStepper = memo(function OfferteWorkflowStepper({
     });
   }, [currentStatus, hasVoorcalculatie]);
 
+  // Determine what the next action should be
+  const nextStepInfo = useMemo(() => {
+    if (currentStatus === "concept" && !hasVoorcalculatie) {
+      return {
+        title: "Volgende stap: Voorcalculatie",
+        description: "Bepaal het team en bereken de benodigde uren om de offerte te kunnen verzenden.",
+        actionLabel: "Start voorcalculatie",
+        actionHref: offerteId ? `/offertes/${offerteId}/voorcalculatie` : undefined,
+        variant: "primary" as const,
+      };
+    }
+    if (currentStatus === "concept" && hasVoorcalculatie) {
+      return {
+        title: "Voorcalculatie ingevuld",
+        description: "De voorcalculatie is gereed. Je kunt de offerte nu verzenden naar de klant.",
+        actionLabel: "Verzend offerte",
+        onAction: onSendOfferte,
+        variant: "success" as const,
+      };
+    }
+    if (currentStatus === "voorcalculatie") {
+      return {
+        title: "Klaar om te verzenden",
+        description: "De voorcalculatie is afgerond. Verzend de offerte naar de klant via email of deel een link.",
+        actionLabel: "Verzend offerte",
+        onAction: onSendOfferte,
+        variant: "success" as const,
+      };
+    }
+    if (currentStatus === "verzonden") {
+      return {
+        title: "Wachten op reactie",
+        description: "De offerte is verzonden naar de klant. Je ontvangt een melding wanneer de klant reageert.",
+        variant: "info" as const,
+      };
+    }
+    if (currentStatus === "geaccepteerd") {
+      return {
+        title: "Offerte geaccepteerd!",
+        description: "De klant heeft de offerte geaccepteerd. Je kunt nu een project aanmaken.",
+        actionLabel: "Start project",
+        actionHref: offerteId ? `/projecten/nieuw?offerte=${offerteId}` : undefined,
+        variant: "success" as const,
+      };
+    }
+    return null;
+  }, [currentStatus, hasVoorcalculatie, offerteId, onSendOfferte]);
+
   return (
-    <div className="w-full">
+    <div className="w-full space-y-6">
+      {/* Next step guidance banner */}
+      {showNextStepAction && nextStepInfo && currentStatus !== "afgewezen" && (
+        <div
+          className={cn(
+            "rounded-lg p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4",
+            nextStepInfo.variant === "primary" && "bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800",
+            nextStepInfo.variant === "success" && "bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800",
+            nextStepInfo.variant === "info" && "bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800"
+          )}
+        >
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <Info
+                className={cn(
+                  "h-4 w-4 shrink-0",
+                  nextStepInfo.variant === "primary" && "text-blue-600",
+                  nextStepInfo.variant === "success" && "text-green-600",
+                  nextStepInfo.variant === "info" && "text-amber-600"
+                )}
+              />
+              <p
+                className={cn(
+                  "font-medium text-sm",
+                  nextStepInfo.variant === "primary" && "text-blue-800 dark:text-blue-200",
+                  nextStepInfo.variant === "success" && "text-green-800 dark:text-green-200",
+                  nextStepInfo.variant === "info" && "text-amber-800 dark:text-amber-200"
+                )}
+              >
+                {nextStepInfo.title}
+              </p>
+            </div>
+            <p className="text-sm text-muted-foreground pl-6">
+              {nextStepInfo.description}
+            </p>
+          </div>
+          {nextStepInfo.actionLabel && (nextStepInfo.actionHref || nextStepInfo.onAction) && (
+            <div className="shrink-0 pl-6 sm:pl-0">
+              {nextStepInfo.actionHref ? (
+                <Button
+                  asChild
+                  size="sm"
+                  className={cn(
+                    nextStepInfo.variant === "primary" && "bg-blue-600 hover:bg-blue-700",
+                    nextStepInfo.variant === "success" && "bg-green-600 hover:bg-green-700"
+                  )}
+                >
+                  <Link href={nextStepInfo.actionHref}>
+                    {nextStepInfo.actionLabel}
+                    <ChevronRight className="ml-1 h-4 w-4" />
+                  </Link>
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={nextStepInfo.onAction}
+                  className={cn(
+                    nextStepInfo.variant === "primary" && "bg-blue-600 hover:bg-blue-700",
+                    nextStepInfo.variant === "success" && "bg-green-600 hover:bg-green-700"
+                  )}
+                >
+                  {nextStepInfo.actionLabel}
+                  <ChevronRight className="ml-1 h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Mobile view - vertical stepper */}
       <div className="md:hidden space-y-4">
         {stepStates.map((step, index) => {

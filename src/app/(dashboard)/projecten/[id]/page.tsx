@@ -205,7 +205,7 @@ export default function ProjectDetailPage({
         <Card className="p-4 md:p-6">
           <ProjectProgressStepper
             projectId={id}
-            currentStatus={project.status as ProjectStatus}
+            projectStatus={project.status as ProjectStatus}
             hasPlanning={planningTaken.length > 0}
             hasUrenRegistraties={projectDetails.totaalGeregistreerdeUren > 0}
             hasNacalculatie={!!nacalculatie}
@@ -404,7 +404,11 @@ export default function ProjectDetailPage({
                   <p className="text-sm text-muted-foreground">Begroot</p>
                 </div>
               </div>
-              <Button asChild variant="outline" className="w-full">
+              <Button
+                asChild
+                className="w-full"
+                variant={project.status === 'in_uitvoering' ? 'default' : 'outline'}
+              >
                 <Link href={`/projecten/${id}/uitvoering`}>
                   Naar Uitvoering
                   <ChevronRight className="ml-2 h-4 w-4" />
@@ -448,7 +452,11 @@ export default function ProjectDetailPage({
                   Nog geen nacalculatie beschikbaar
                 </p>
               )}
-              <Button asChild variant="outline" className="w-full">
+              <Button
+                asChild
+                className="w-full"
+                variant={project.status === 'afgerond' || project.status === 'nacalculatie_compleet' ? 'default' : 'outline'}
+              >
                 <Link href={`/projecten/${id}/nacalculatie`}>
                   Naar Nacalculatie
                   <ChevronRight className="ml-2 h-4 w-4" />
@@ -456,6 +464,36 @@ export default function ProjectDetailPage({
               </Button>
             </CardContent>
           </Card>
+
+          {/* Factuur Module - Show when nacalculatie is complete */}
+          {project.status === 'nacalculatie_compleet' && (
+            <Card className="hover:shadow-lg transition-shadow ring-2 ring-green-500 border-green-200 bg-green-50/50 dark:bg-green-950/20 dark:border-green-800">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-green-600" />
+                  Factuur
+                </CardTitle>
+                <CardDescription>
+                  Genereer en verstuur de factuur
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-green-700 dark:text-green-300">
+                  De nacalculatie is afgerond. Genereer nu de factuur voor dit project.
+                </p>
+                <Button
+                  asChild
+                  className="w-full bg-green-600 hover:bg-green-700 text-white"
+                >
+                  <Link href={`/projecten/${id}/factuur`}>
+                    <FileText className="mr-2 h-4 w-4" />
+                    Naar Factuur
+                    <ChevronRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Linked Offerte */}

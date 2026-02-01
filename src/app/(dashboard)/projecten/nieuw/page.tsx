@@ -353,19 +353,32 @@ function NieuwProjectPageContent() {
                   </div>
                 )}
 
-                <Button
-                  className="w-full"
-                  onClick={handleCreate}
-                  disabled={!offerte || isCreating}
-                >
-                  {isCreating ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <FolderKanban className="mr-2 h-4 w-4" />
-                  )}
-                  Project Aanmaken
-                  <ChevronRight className="ml-1 h-4 w-4" />
-                </Button>
+                <div className="space-y-3">
+                  <Button
+                    className="w-full bg-green-600 hover:bg-green-700 text-white"
+                    onClick={handleCreate}
+                    disabled={!offerte || isCreating}
+                    size="lg"
+                  >
+                    {isCreating ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <FolderKanban className="mr-2 h-4 w-4" />
+                    )}
+                    Project Aanmaken
+                    <ChevronRight className="ml-1 h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    asChild
+                  >
+                    <Link href="/projecten">
+                      <ArrowLeft className="mr-2 h-4 w-4" />
+                      Terug naar Projecten
+                    </Link>
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </motion.div>

@@ -173,6 +173,7 @@ export const calculate = query({
 /**
  * Save nacalculatie results.
  * Creates or updates the nacalculatie record for a project.
+ * Also updates the project status to "nacalculatie_compleet" if it's currently "afgerond".
  */
 export const save = mutation({
   args: {
@@ -184,10 +185,11 @@ export const save = mutation({
     afwijkingPercentage: v.number(),
     afwijkingenPerScope: v.record(v.string(), v.number()),
     conclusies: v.optional(v.string()),
+    updateProjectStatus: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     // Verify ownership of project
-    await getOwnedProject(ctx, args.projectId);
+    const project = await getOwnedProject(ctx, args.projectId);
     const now = Date.now();
 
     // Check if nacalculatie already exists
@@ -195,6 +197,8 @@ export const save = mutation({
       .query("nacalculaties")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .unique();
+
+    let nacalculatieId: Id<"nacalculaties">;
 
     if (existing) {
       // Update existing
@@ -208,22 +212,30 @@ export const save = mutation({
         conclusies: args.conclusies,
         updatedAt: now,
       });
-      return existing._id;
+      nacalculatieId = existing._id;
+    } else {
+      // Create new
+      nacalculatieId = await ctx.db.insert("nacalculaties", {
+        projectId: args.projectId,
+        werkelijkeUren: args.werkelijkeUren,
+        werkelijkeDagen: args.werkelijkeDagen,
+        werkelijkeMachineKosten: args.werkelijkeMachineKosten,
+        afwijkingUren: args.afwijkingUren,
+        afwijkingPercentage: args.afwijkingPercentage,
+        afwijkingenPerScope: args.afwijkingenPerScope,
+        conclusies: args.conclusies,
+        createdAt: now,
+        updatedAt: now,
+      });
     }
 
-    // Create new
-    const nacalculatieId = await ctx.db.insert("nacalculaties", {
-      projectId: args.projectId,
-      werkelijkeUren: args.werkelijkeUren,
-      werkelijkeDagen: args.werkelijkeDagen,
-      werkelijkeMachineKosten: args.werkelijkeMachineKosten,
-      afwijkingUren: args.afwijkingUren,
-      afwijkingPercentage: args.afwijkingPercentage,
-      afwijkingenPerScope: args.afwijkingenPerScope,
-      conclusies: args.conclusies,
-      createdAt: now,
-      updatedAt: now,
-    });
+    // Update project status to "nacalculatie_compleet" if requested and project is "afgerond"
+    if (args.updateProjectStatus && project.status === "afgerond") {
+      await ctx.db.patch(args.projectId, {
+        status: "nacalculatie_compleet",
+        updatedAt: now,
+      });
+    }
 
     return nacalculatieId;
   },

@@ -16,7 +16,10 @@ export type ProjectStatus =
 
 export interface ProjectProgressStepperProps {
   projectId: string;
-  currentStatus: ProjectStatus;
+  /** The actual project status from the database - determines which step is current/completed */
+  projectStatus: ProjectStatus;
+  /** @deprecated Use projectStatus instead. This prop is ignored. */
+  currentStatus?: ProjectStatus;
   hasPlanning?: boolean;
   hasUrenRegistraties?: boolean;
   hasNacalculatie?: boolean;
@@ -48,63 +51,77 @@ const statusLabels: Record<ProjectStatus, string> = {
 };
 
 /**
- * ProjectProgressStepper - Shows the 4 project phases as a horizontal/vertical stepper
+ * ProjectProgressStepper - Shows the project phases as a horizontal/vertical stepper
  *
- * New workflow (voorcalculatie moved to offerte level):
- * Gepland -> In Uitvoering -> Afgerond -> Nacalculatie -> Gefactureerd
+ * Workflow: Gepland -> In Uitvoering -> Afgerond -> Nacalculatie -> Gefactureerd
  *
  * Features:
- * - Current status is highlighted (primary color, filled circle)
- * - Completed steps have a checkmark
- * - Future steps are grayed out
- * - Clickable for navigation (when available)
+ * - Shows the ACTUAL project status from database (not the current page)
+ * - Current step (based on projectStatus) is highlighted with primary color
+ * - Completed steps show a checkmark and are clickable for navigation
+ * - Future steps are grayed out but visible
  * - Responsive: horizontal on desktop, vertical on mobile
+ *
+ * @param projectStatus - The actual project status from database (e.g., project.status)
  */
 export function ProjectProgressStepper({
   projectId,
-  currentStatus,
+  projectStatus,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  currentStatus: _deprecated, // Kept for backwards compatibility, but ignored
   hasPlanning = false,
   hasUrenRegistraties = false,
   hasNacalculatie = false,
   hasFactuur = false,
 }: ProjectProgressStepperProps) {
   // Map legacy "voorcalculatie" status to "gepland" for display purposes
-  const effectiveStatus = currentStatus === "voorcalculatie" ? "gepland" : currentStatus;
-  const currentIndex = statusOrder.indexOf(effectiveStatus);
+  const effectiveStatus = projectStatus === "voorcalculatie" ? "gepland" : projectStatus;
+  const projectStatusIndex = statusOrder.indexOf(effectiveStatus);
 
   // Define steps with their navigation targets
-  // Note: Voorcalculatie is now at the offerte level, not shown in project stepper
+  // Navigation is allowed to any step that has been reached (current or completed)
   const steps: Step[] = [
     {
       id: "gepland",
       label: statusLabels.gepland,
-      href: hasPlanning ? `/projecten/${projectId}/planning` : null,
+      // Planning is always accessible
+      href: `/projecten/${projectId}/planning`,
     },
     {
       id: "in_uitvoering",
       label: statusLabels.in_uitvoering,
-      href: hasUrenRegistraties ? `/projecten/${projectId}/uitvoering` : null,
+      // Uitvoering is accessible once project is in_uitvoering or beyond
+      href: projectStatusIndex >= statusOrder.indexOf("in_uitvoering")
+        ? `/projecten/${projectId}/uitvoering`
+        : null,
     },
     {
       id: "afgerond",
       label: statusLabels.afgerond,
-      href: null, // Project overview
+      // Project overview - always accessible
+      href: `/projecten/${projectId}`,
     },
     {
       id: "nacalculatie_compleet",
       label: statusLabels.nacalculatie_compleet,
-      href: hasNacalculatie ? `/projecten/${projectId}/nacalculatie` : null,
+      // Nacalculatie is accessible once project is afgerond or beyond
+      href: projectStatusIndex >= statusOrder.indexOf("afgerond")
+        ? `/projecten/${projectId}/nacalculatie`
+        : null,
     },
     {
       id: "gefactureerd",
       label: statusLabels.gefactureerd,
-      href: hasFactuur ? `/projecten/${projectId}/factuur` : null,
+      // Factuur is accessible once nacalculatie is complete
+      href: projectStatusIndex >= statusOrder.indexOf("nacalculatie_compleet")
+        ? `/projecten/${projectId}/factuur`
+        : null,
     },
   ];
 
-  const isStepCompleted = (stepIndex: number) => stepIndex < currentIndex;
-  const isStepCurrent = (stepIndex: number) => stepIndex === currentIndex;
-  const isStepFuture = (stepIndex: number) => stepIndex > currentIndex;
+  const isStepCompleted = (stepIndex: number) => stepIndex < projectStatusIndex;
+  const isStepCurrent = (stepIndex: number) => stepIndex === projectStatusIndex;
+  const isStepFuture = (stepIndex: number) => stepIndex > projectStatusIndex;
 
   return (
     <nav aria-label="Project voortgang" className="w-full">

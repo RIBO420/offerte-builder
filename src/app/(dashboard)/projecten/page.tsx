@@ -43,6 +43,7 @@ import { ScrollableTable } from "@/components/ui/responsive-table";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { NoProjecten, NoSearchResults } from "@/components/empty-states";
 
 // Status configuration - voorcalculatie is now at offerte level
 // Projects start at "gepland" status
@@ -430,6 +431,18 @@ function ProjectenPageContent() {
                       </ScrollableTable>
                     </Card>
                   </motion.div>
+                ) : searchQuery ? (
+                  <motion.div
+                    key="no-results"
+                    initial={reducedMotion ? false : { opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={
+                      reducedMotion ? undefined : { opacity: 0, scale: 0.95 }
+                    }
+                    transition={{ duration: reducedMotion ? 0 : 0.3 }}
+                  >
+                    <NoSearchResults onAction={() => setSearchQuery("")} />
+                  </motion.div>
                 ) : (
                   <motion.div
                     key="empty"
@@ -440,26 +453,7 @@ function ProjectenPageContent() {
                     }
                     transition={{ duration: reducedMotion ? 0 : 0.3 }}
                   >
-                    <Card>
-                      <CardContent className="flex flex-col items-center justify-center py-16">
-                        <FolderKanban className="h-16 w-16 text-muted-foreground/50" />
-                        <h3 className="mt-4 text-lg font-semibold">
-                          {searchQuery
-                            ? "Geen projecten gevonden"
-                            : "Nog geen projecten"}
-                        </h3>
-                        <p className="mt-2 text-sm text-muted-foreground text-center max-w-md">
-                          {searchQuery
-                            ? "Probeer een andere zoekopdracht"
-                            : "Projecten worden aangemaakt vanuit geaccepteerde offertes. Accepteer een offerte om te beginnen."}
-                        </p>
-                        {!searchQuery && (
-                          <Button asChild className="mt-4">
-                            <Link href="/offertes">Bekijk Offertes</Link>
-                          </Button>
-                        )}
-                      </CardContent>
-                    </Card>
+                    <NoProjecten onAction={() => router.push("/offertes?status=geaccepteerd")} />
                   </motion.div>
                 )}
               </AnimatePresence>

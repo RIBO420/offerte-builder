@@ -239,11 +239,11 @@ export default function VoorcalculatiePage({
           </Card>
         </motion.div>
 
-        {/* Progress Stepper */}
+        {/* Progress Stepper - Shows actual project status from database */}
         <Card className="p-4 md:p-6">
           <ProjectProgressStepper
             projectId={id}
-            currentStatus={project.status as ProjectStatus}
+            projectStatus={project.status as ProjectStatus}
             hasPlanning={false}
             hasUrenRegistraties={false}
             hasNacalculatie={false}

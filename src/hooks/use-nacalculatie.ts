@@ -47,6 +47,7 @@ export function useNacalculatie(projectId: Id<"projecten"> | null) {
     afwijkingPercentage: number;
     afwijkingenPerScope: Record<string, number>;
     conclusies?: string;
+    updateProjectStatus?: boolean;
   }) => {
     if (!projectId) throw new Error("Project ID is required");
     return saveNacalculatie({

@@ -43,13 +43,20 @@ import {
   ChevronRight,
   FileText,
   Send,
+  CheckCircle2,
+  HelpCircle,
+  ArrowRight,
+  Edit,
 } from "lucide-react";
 import { useOfferteVoorcalculatie } from "@/hooks/use-voorcalculatie";
 import { TeamSelector } from "@/components/project/team-selector";
 import { UrenOverzicht } from "@/components/project/uren-overzicht";
 import { OfferteWorkflowStepper } from "@/components/offerte/offerte-workflow-stepper";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { Id } from "../../../../../../convex/_generated/dataModel";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 export default function OfferteVoorcalculatiePage({
   params,
@@ -82,6 +89,7 @@ export default function OfferteVoorcalculatiePage({
     voorcalculatie?.effectieveUrenPerDag ?? 7
   );
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
+  const [isCompleting, setIsCompleting] = useState(false);
 
   // Update state when voorcalculatie loads
   useMemo(() => {
@@ -141,6 +149,16 @@ export default function OfferteVoorcalculatiePage({
     }
   }, [saveError]);
 
+  // Calculate completion progress
+  const completionProgress = useMemo(() => {
+    let progress = 0;
+    if (calculation) progress += 40; // Calculation ready
+    if (teamGrootte) progress += 20; // Team size selected
+    if (effectieveUrenPerDag) progress += 20; // Hours per day set
+    if (hasVoorcalculatie || lastSaved) progress += 20; // Data saved
+    return progress;
+  }, [calculation, teamGrootte, effectieveUrenPerDag, hasVoorcalculatie, lastSaved]);
+
   // Manual save handler
   const handleSave = useCallback(async () => {
     try {
@@ -154,6 +172,7 @@ export default function OfferteVoorcalculatiePage({
 
   // Complete voorcalculatie and move to next status
   const handleComplete = useCallback(async () => {
+    setIsCompleting(true);
     try {
       // Wait for any pending save to complete
       if (isDirty || isSaving) {
@@ -169,8 +188,10 @@ export default function OfferteVoorcalculatiePage({
     } catch (error) {
       toast.error("Fout bij afronden voorcalculatie");
       console.error(error);
+    } finally {
+      setIsCompleting(false);
+      setShowCompleteDialog(false);
     }
-    setShowCompleteDialog(false);
   }, [hasVoorcalculatie, isDirty, isSaving, saveNow, moveToVoorcalculatie, router, id]);
 
   if (isLoading) {
@@ -333,6 +354,7 @@ export default function OfferteVoorcalculatiePage({
               <Button
                 onClick={() => setShowCompleteDialog(true)}
                 disabled={!calculation || isSaving}
+                className="bg-green-600 hover:bg-green-700 text-white"
               >
                 <Send className="mr-2 h-4 w-4" />
                 Afronden
@@ -342,13 +364,63 @@ export default function OfferteVoorcalculatiePage({
           </div>
         </motion.div>
 
-        {/* Workflow Stepper */}
-        <Card className="p-4 md:p-6">
-          <OfferteWorkflowStepper
-            currentStatus={offerte.status as "concept" | "voorcalculatie" | "verzonden" | "geaccepteerd" | "afgewezen"}
-            hasVoorcalculatie={hasVoorcalculatie}
-          />
-        </Card>
+        {/* Progress and Guidance Section */}
+        <motion.div
+          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{
+            duration: reducedMotion ? 0 : 0.4,
+            delay: reducedMotion ? 0 : 0.15,
+          }}
+        >
+          <Card className="overflow-hidden">
+            <div className="p-4 md:p-6 space-y-4">
+              {/* Workflow Stepper */}
+              <OfferteWorkflowStepper
+                currentStatus={offerte.status as "concept" | "voorcalculatie" | "verzonden" | "geaccepteerd" | "afgewezen"}
+                hasVoorcalculatie={hasVoorcalculatie}
+              />
+
+              {/* Progress indicator */}
+              <div className="pt-4 border-t">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">Voortgang voorcalculatie</span>
+                    {completionProgress === 100 && (
+                      <Badge variant="default" className="bg-green-600 text-xs">
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Gereed
+                      </Badge>
+                    )}
+                  </div>
+                  <span className="text-sm text-muted-foreground">{completionProgress}%</span>
+                </div>
+                <Progress value={completionProgress} className="h-2" />
+              </div>
+
+              {/* What is voorcalculatie - collapsible help */}
+              <details className="group pt-2">
+                <summary className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors">
+                  <HelpCircle className="h-4 w-4" />
+                  <span>Wat is een voorcalculatie?</span>
+                </summary>
+                <div className="mt-3 pl-6 text-sm text-muted-foreground space-y-2">
+                  <p>
+                    De voorcalculatie helpt je om de werkelijke projectduur te bepalen op basis van:
+                  </p>
+                  <ul className="list-disc pl-4 space-y-1">
+                    <li><strong>Teamgrootte:</strong> Hoeveel medewerkers werken aan dit project?</li>
+                    <li><strong>Effectieve uren:</strong> Hoeveel productieve uren per dag (exclusief pauzes, reistijd)?</li>
+                    <li><strong>Normuren:</strong> De berekende uren op basis van de offerte werkzaamheden</li>
+                  </ul>
+                  <p className="pt-2">
+                    Na het afronden van de voorcalculatie kun je de offerte verzenden naar de klant.
+                  </p>
+                </div>
+              </details>
+            </div>
+          </Card>
+        </motion.div>
 
         {/* Main Content */}
         <div className="grid gap-6 lg:grid-cols-3">
@@ -462,23 +534,174 @@ export default function OfferteVoorcalculatiePage({
             </Card>
           </motion.div>
         )}
+
+        {/* Next Steps Card */}
+        {calculation && (
+          <motion.div
+            initial={reducedMotion ? false : { opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              duration: reducedMotion ? 0 : 0.4,
+              delay: reducedMotion ? 0 : 0.5,
+            }}
+          >
+            <Card
+              className={cn(
+                "border-2 transition-all",
+                completionProgress === 100
+                  ? "border-green-300 dark:border-green-700 bg-green-50/50 dark:bg-green-950/20"
+                  : "border-blue-200 dark:border-blue-800 bg-blue-50/30 dark:bg-blue-950/10"
+              )}
+            >
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2">
+                  {completionProgress === 100 ? (
+                    <>
+                      <CheckCircle2 className="h-5 w-5 text-green-600" />
+                      <span className="text-green-700 dark:text-green-300">Voorcalculatie gereed</span>
+                    </>
+                  ) : (
+                    <>
+                      <ArrowRight className="h-5 w-5 text-blue-600" />
+                      <span>Volgende stap</span>
+                    </>
+                  )}
+                </CardTitle>
+                <CardDescription>
+                  {completionProgress === 100
+                    ? "De voorcalculatie is ingevuld. Rond af om naar de volgende stap te gaan."
+                    : "Vul de team configuratie in om de voorcalculatie af te ronden."}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* What happens next */}
+                <div className="rounded-lg bg-white/50 dark:bg-black/10 p-4 space-y-3">
+                  <p className="text-sm font-medium">Na het afronden:</p>
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    <div className="flex items-start gap-2 text-sm">
+                      <div className="h-6 w-6 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center shrink-0">
+                        <span className="text-xs font-bold text-blue-700 dark:text-blue-300">1</span>
+                      </div>
+                      <div>
+                        <p className="font-medium">Status wijzigt</p>
+                        <p className="text-xs text-muted-foreground">Offerte wordt klaar om te verzenden</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2 text-sm">
+                      <div className="h-6 w-6 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center shrink-0">
+                        <span className="text-xs font-bold text-blue-700 dark:text-blue-300">2</span>
+                      </div>
+                      <div>
+                        <p className="font-medium">Verzenden</p>
+                        <p className="text-xs text-muted-foreground">Verstuur per email of deel een link</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2 text-sm">
+                      <div className="h-6 w-6 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center shrink-0">
+                        <span className="text-xs font-bold text-blue-700 dark:text-blue-300">3</span>
+                      </div>
+                      <div>
+                        <p className="font-medium">Klant reageert</p>
+                        <p className="text-xs text-muted-foreground">Accepteren of afwijzen</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                  <Button
+                    variant="outline"
+                    asChild
+                    className="flex-1"
+                  >
+                    <Link href={`/offertes/${id}/bewerken`}>
+                      <Edit className="mr-2 h-4 w-4" />
+                      Offerte bewerken
+                    </Link>
+                  </Button>
+                  <Button
+                    onClick={() => setShowCompleteDialog(true)}
+                    disabled={!calculation || isSaving || isCompleting}
+                    className={cn(
+                      "flex-1",
+                      completionProgress === 100 && "bg-green-600 hover:bg-green-700"
+                    )}
+                  >
+                    {isCompleting ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="mr-2 h-4 w-4" />
+                    )}
+                    Voorcalculatie afronden
+                    <ChevronRight className="ml-1 h-4 w-4" />
+                  </Button>
+                </div>
+
+                {/* Note about editing */}
+                <p className="text-xs text-muted-foreground text-center pt-1">
+                  Je kunt de voorcalculatie later altijd nog aanpassen.
+                </p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
       </motion.div>
 
       {/* Complete Voorcalculatie Dialog */}
       <AlertDialog open={showCompleteDialog} onOpenChange={setShowCompleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Voorcalculatie afronden?</AlertDialogTitle>
-            <AlertDialogDescription>
-              De voorcalculatie wordt opgeslagen en de offerte wordt gemarkeerd als
-              klaar om te verzenden. Je kunt de voorcalculatie later nog aanpassen.
+            <AlertDialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-green-600" />
+              Voorcalculatie afronden?
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  De voorcalculatie wordt opgeslagen en de offerte wordt gemarkeerd als
+                  klaar om te verzenden.
+                </p>
+                <div className="rounded-lg bg-muted p-3 space-y-2">
+                  <p className="text-sm font-medium text-foreground">Samenvatting:</p>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Team:</span>{" "}
+                      <span className="font-medium text-foreground">{teamGrootte} personen</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Uren/dag:</span>{" "}
+                      <span className="font-medium text-foreground">{effectieveUrenPerDag} uur</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Normuren:</span>{" "}
+                      <span className="font-medium text-foreground">{calculation?.normUrenTotaal ?? 0} uur</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Geschatte duur:</span>{" "}
+                      <span className="font-medium text-foreground">{geschatteDagen} dagen</span>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Je kunt de voorcalculatie later nog aanpassen indien nodig.
+                </p>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuleren</AlertDialogCancel>
-            <AlertDialogAction onClick={handleComplete}>
-              <Send className="mr-2 h-4 w-4" />
-              Afronden
+            <AlertDialogCancel disabled={isCompleting}>Annuleren</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleComplete}
+              disabled={isCompleting}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {isCompleting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="mr-2 h-4 w-4" />
+              )}
+              {isCompleting ? "Bezig met afronden..." : "Afronden en doorgaan"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
