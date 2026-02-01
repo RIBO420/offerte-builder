@@ -90,10 +90,17 @@ export default function PlanningPage({
   );
 
   // Get voorcalculatie for team settings
-  const voorcalculatie = useQuery(
-    api.voorcalculaties.getByProject,
-    projectId ? { projectId } : "skip"
+  // With the new workflow, voorcalculatie is linked to the offerte, not the project
+  // First try to get by offerte, then fallback to by project for legacy data
+  const voorcalculatieByOfferte = useQuery(
+    api.voorcalculaties.getByOfferte,
+    project?.offerteId ? { offerteId: project.offerteId } : "skip"
   );
+  const voorcalculatieByProject = useQuery(
+    api.voorcalculaties.getByProject,
+    projectId && !voorcalculatieByOfferte ? { projectId } : "skip"
+  );
+  const voorcalculatie = voorcalculatieByOfferte || voorcalculatieByProject;
 
   // Planning hook
   const {
@@ -308,7 +315,7 @@ export default function PlanningPage({
               variant="outline"
               onClick={handleGenerate}
               disabled={isGenerating || !voorcalculatie}
-              title={!voorcalculatie ? "Maak eerst een voorcalculatie aan" : undefined}
+              title={!voorcalculatie ? "Geen voorcalculatie gevonden - maak deze aan bij de offerte" : undefined}
             >
               {isGenerating ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -466,15 +473,18 @@ export default function PlanningPage({
                     {!voorcalculatie ? (
                       <>
                         <p className="text-sm text-muted-foreground mt-1 max-w-md">
-                          Maak eerst een voorcalculatie aan voordat je taken kunt genereren.
+                          Er is geen voorcalculatie gevonden voor dit project.
+                          Maak een voorcalculatie aan bij de offerte.
                         </p>
-                        <div className="flex gap-2 mt-4">
-                          <Button asChild>
-                            <Link href={`/projecten/${id}/voorcalculatie`}>
-                              Naar Voorcalculatie
-                            </Link>
-                          </Button>
-                        </div>
+                        {project?.offerteId && (
+                          <div className="flex gap-2 mt-4">
+                            <Button asChild>
+                              <Link href={`/offertes/${project.offerteId}/voorcalculatie`}>
+                                Naar Offerte Voorcalculatie
+                              </Link>
+                            </Button>
+                          </div>
+                        )}
                       </>
                     ) : (
                       <>
