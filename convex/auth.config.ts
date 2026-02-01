@@ -1,7 +1,8 @@
 export default {
   providers: [
+    // Production - toptuinen.app (used by both web and mobile)
     {
-      domain: process.env.CLERK_JWT_ISSUER_DOMAIN,
+      domain: "https://clerk.toptuinen.app",
       applicationID: "convex",
     },
   ],

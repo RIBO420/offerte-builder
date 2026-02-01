@@ -1,0 +1,47 @@
+{
+  "expo": {
+    "name": "Top Tuinen",
+    "slug": "toptuinen",
+    "scheme": "toptuinen",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "nl.toptuinen.medewerkers",
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "Gebruik Face ID om snel en veilig in te loggen op Top Tuinen"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "package": "nl.toptuinen.medewerkers"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Gebruik Face ID om snel en veilig in te loggen"
+        }
+      ]
+    ]
+  }
+}

@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import {
   Card,
   CardContent,
@@ -86,6 +87,7 @@ const itemVariants = {
 };
 
 export default function MedewerkersPage() {
+  const { user } = useCurrentUser();
   const { medewerkers, isLoading, update, remove } = useMedewerkers();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState<FilterTab>("alle");
@@ -98,10 +100,11 @@ export default function MedewerkersPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Query for certificate expiry warnings
-  const certificaatWaarschuwingen = useQuery(api.medewerkers.checkVervaldataCertificaten, {
-    dagenVoorwaarschuwing: 90,
-  });
+  // Query for certificate expiry warnings (skip when not authenticated)
+  const certificaatWaarschuwingen = useQuery(
+    api.medewerkers.checkVervaldataCertificaten,
+    user?._id ? { dagenVoorwaarschuwing: 90 } : "skip"
+  );
 
   // Calculate stats
   const stats = useMemo(() => {

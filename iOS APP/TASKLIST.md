@@ -2,7 +2,8 @@
 
 **Project:** iOS/Android Employee App
 **Geschatte doorlooptijd:** 20 weken
-**Status:** Planning
+**Status:** In Development
+**Laatste Update:** 2026-02-01
 
 ---
 
@@ -21,37 +22,39 @@
 
 ---
 
-## Phase 1: Foundation (Week 1-4)
+## Phase 1: Foundation (Week 1-4) — 70% COMPLETE
 
 ### 1.1 Project Setup 🔴
 
-- [ ] **T001** Monorepo structuur opzetten met Turborepo
-  - [ ] T001.1 Root package.json en turbo.json configureren
-  - [ ] T001.2 `apps/mobile` folder aanmaken
-  - [ ] T001.3 `packages/shared-types` folder aanmaken
-  - [ ] T001.4 `packages/shared-utils` folder aanmaken
-  - [ ] T001.5 Workspace dependencies configureren
+- [x] **T001** Monorepo structuur opzetten met Turborepo
+  - [x] T001.1 Root package.json en turbo.json configureren — SKIPPED (standalone app)
+  - [x] T001.2 `apps/mobile` folder aanmaken — `mobile/` folder created
+  - [x] T001.3 `packages/shared-types` folder aanmaken — SKIPPED (using convex types)
+  - [x] T001.4 `packages/shared-utils` folder aanmaken — SKIPPED (using convex utils)
+  - [x] T001.5 Workspace dependencies configureren — SKIPPED (standalone)
 
-- [ ] **T002** Expo project initialiseren
-  - [ ] T002.1 `npx create-expo-app apps/mobile --template expo-template-blank-typescript`
-  - [ ] T002.2 Expo Router installeren en configureren
-  - [ ] T002.3 app.json configureren (name, slug, version, icons)
-  - [ ] T002.4 TypeScript strict mode activeren
+- [x] **T002** Expo project initialiseren
+  - [x] T002.1 `npx create-expo-app apps/mobile --template expo-template-blank-typescript`
+  - [x] T002.2 Expo Router installeren en configureren
+  - [x] T002.3 app.json configureren (name, slug, version, icons)
+  - [x] T002.4 TypeScript strict mode activeren
   - [ ] T002.5 ESLint + Prettier setup
 
-- [ ] **T003** Development environment
-  - [ ] T003.1 EAS CLI installeren en configureren
+- [~] **T003** Development environment
+  - [x] T003.1 EAS CLI installeren en configureren
   - [ ] T003.2 Development build maken voor iOS
   - [ ] T003.3 Development build maken voor Android
   - [ ] T003.4 eas.json configureren (development, preview, production)
 
 ### 1.2 Clerk Integratie 🔴
 
-- [ ] **T004** Clerk Expo SDK setup
-  - [ ] T004.1 `@clerk/expo` installeren
-  - [ ] T004.2 ClerkProvider in _layout.tsx configureren
-  - [ ] T004.3 SecureStore token cache implementeren
-  - [ ] T004.4 Environment variables instellen (.env)
+> **Research Afgerond:** Zie `docs/CLERK-EXPO-RESEARCH.md` voor complete documentatie
+
+- [x] **T004** Clerk Expo SDK setup
+  - [x] T004.1 `@clerk/expo` installeren — v2.19.21
+  - [x] T004.2 ClerkProvider in _layout.tsx configureren
+  - [x] T004.3 SecureStore token cache implementeren — `/lib/auth/clerk.ts`
+  - [x] T004.4 Environment variables instellen (.env.local)
 
 - [ ] **T005** Clerk Organizations configureren
   - [ ] T005.1 Organizations feature activeren in Clerk Dashboard
@@ -61,72 +64,72 @@
   - [ ] T005.5 Webhook events configureren (user.created, membership.*)
 
 - [ ] **T006** Backend auth updates
-  - [ ] T006.1 Convex schema uitbreiden (clerkOrgId, clerkUserId)
+  - [x] T006.1 Convex schema uitbreiden (clerkOrgId, clerkUserId) — Done in schema.ts
   - [ ] T006.2 Medewerkers mutations updaten voor Clerk linking
   - [ ] T006.3 `completeSignup` mutation implementeren
   - [ ] T006.4 Webhook handler implementeren (svix verificatie)
 
 ### 1.3 Convex Schema Updates 🔴
 
-- [ ] **T007** Offline sync velden toevoegen
-  - [ ] T007.1 `idempotencyKey` aan urenRegistraties
-  - [ ] T007.2 `clientTimestamp` aan urenRegistraties
-  - [ ] T007.3 `syncStatus` aan urenRegistraties
-  - [ ] T007.4 Index `by_idempotency` aanmaken
+- [x] **T007** Offline sync velden toevoegen
+  - [x] T007.1 `idempotencyKey` aan urenRegistraties
+  - [x] T007.2 `clientTimestamp` aan urenRegistraties
+  - [x] T007.3 `syncStatus` aan urenRegistraties
+  - [x] T007.4 Index `by_idempotency` aanmaken
   - [ ] T007.5 Migratie script voor bestaande data
 
-- [ ] **T008** GPS tracking tabellen
-  - [ ] T008.1 `locationSessions` tabel aanmaken
-  - [ ] T008.2 `locationData` tabel aanmaken
-  - [ ] T008.3 `jobSiteGeofences` tabel aanmaken
-  - [ ] T008.4 `geofenceEvents` tabel aanmaken
-  - [ ] T008.5 `routes` tabel aanmaken
-  - [ ] T008.6 `locationAnalytics` tabel aanmaken
-  - [ ] T008.7 `locationAuditLog` tabel aanmaken
+- [x] **T008** GPS tracking tabellen
+  - [x] T008.1 `locationSessions` tabel aanmaken
+  - [x] T008.2 `locationData` tabel aanmaken
+  - [x] T008.3 `jobSiteGeofences` tabel aanmaken
+  - [x] T008.4 `geofenceEvents` tabel aanmaken
+  - [x] T008.5 `routes` tabel aanmaken
+  - [x] T008.6 `locationAnalytics` tabel aanmaken
+  - [x] T008.7 `locationAuditLog` tabel aanmaken
 
-- [ ] **T009** Chat tabellen
-  - [ ] T009.1 `team_messages` tabel aanmaken
-  - [ ] T009.2 `direct_messages` tabel aanmaken
-  - [ ] T009.3 `notification_preferences` tabel aanmaken
-  - [ ] T009.4 `chat_attachments` tabel aanmaken
-  - [ ] T009.5 Search indexes configureren
+- [x] **T009** Chat tabellen
+  - [x] T009.1 `team_messages` tabel aanmaken
+  - [x] T009.2 `direct_messages` tabel aanmaken
+  - [x] T009.3 `notification_preferences` tabel aanmaken
+  - [x] T009.4 `chat_attachments` tabel aanmaken
+  - [x] T009.5 Search indexes configureren
 
 ### 1.4 Basic Navigation 🔴
 
-- [ ] **T010** Expo Router setup
-  - [ ] T010.1 `(auth)` route group aanmaken
-  - [ ] T010.2 `(app)` route group aanmaken
-  - [ ] T010.3 Auth guard middleware implementeren
-  - [ ] T010.4 Tab navigation configureren
-  - [ ] T010.5 Stack navigation per tab
+- [x] **T010** Expo Router setup
+  - [x] T010.1 `(auth)` route group aanmaken
+  - [x] T010.2 `(app)` route group aanmaken — `(tabs)` group
+  - [~] T010.3 Auth guard middleware implementeren — Hardcoded, needs Clerk
+  - [x] T010.4 Tab navigation configureren — 4 tabs with icons
+  - [x] T010.5 Stack navigation per tab
 
-- [ ] **T011** UI Component Library
-  - [ ] T011.1 NativeWind (Tailwind) installeren
-  - [ ] T011.2 Basis components (Button, Input, Card)
-  - [ ] T011.3 Theme configureren (colors, fonts)
+- [~] **T011** UI Component Library
+  - [ ] T011.1 NativeWind (Tailwind) installeren — REMOVED (compatibility issues)
+  - [~] T011.2 Basis components (Button, Input, Card) — Only Button done
+  - [ ] T011.3 Theme configureren (colors, fonts) — Using StyleSheet only
   - [ ] T011.4 Dark mode support
 
 ---
 
-## Phase 2: Authentication (Week 3-5)
+## Phase 2: Authentication (Week 3-5) — 40% COMPLETE
 
 ### 2.1 Login Flows 🔴
 
-- [ ] **T012** Magic Link Authentication
-  - [ ] T012.1 Login screen UI
-  - [ ] T012.2 Email input met validatie
-  - [ ] T012.3 Magic link verzenden via Clerk
+- [~] **T012** Magic Link Authentication
+  - [x] T012.1 Login screen UI
+  - [x] T012.2 Email input met validatie
+  - [ ] T012.3 Magic link verzenden via Clerk — Stubbed with TODO
   - [ ] T012.4 Deep link handler (`toptuinen://auth/callback`)
   - [ ] T012.5 Check-email screen
   - [ ] T012.6 Error handling (invalid link, expired)
 
-- [ ] **T013** Biometric Authentication
-  - [ ] T013.1 `expo-local-authentication` installeren
-  - [ ] T013.2 Biometric availability check
-  - [ ] T013.3 Biometric type detectie (Face ID vs Touch ID)
-  - [ ] T013.4 Setup flow na eerste login
-  - [ ] T013.5 Token opslag in SecureStore
-  - [ ] T013.6 Biometric login screen
+- [~] **T013** Biometric Authentication
+  - [x] T013.1 `expo-local-authentication` installeren — v17.0.8
+  - [x] T013.2 Biometric availability check — `/lib/auth/biometric.ts`
+  - [x] T013.3 Biometric type detectie (Face ID vs Touch ID)
+  - [x] T013.4 Setup flow na eerste login — UI created
+  - [x] T013.5 Token opslag in SecureStore — Implemented
+  - [~] T013.6 Biometric login screen — UI only, logic stubbed
   - [ ] T013.7 Fallback naar magic link
 
 - [ ] **T014** Session Management
@@ -153,46 +156,46 @@
 
 ---
 
-## Phase 3: Offline Sync Engine (Week 5-8)
+## Phase 3: Offline Sync Engine (Week 5-8) — 60% COMPLETE
 
 ### 3.1 Local Database 🔴
 
-- [ ] **T017** SQLite Setup
-  - [ ] T017.1 `expo-sqlite` installeren
-  - [ ] T017.2 Database initialisatie
-  - [ ] T017.3 Schema migraties systeem
-  - [ ] T017.4 `uren_registraties` tabel
-  - [ ] T017.5 `sync_queue` tabel
-  - [ ] T017.6 `location_cache` tabel
-  - [ ] T017.7 `offline_metadata` tabel
+- [x] **T017** SQLite Setup
+  - [x] T017.1 `expo-sqlite` installeren — v16.0.10
+  - [x] T017.2 Database initialisatie — `/lib/storage/database.ts`
+  - [x] T017.3 Schema migraties systeem — `/lib/storage/migrations.ts`
+  - [x] T017.4 `uren_registraties` tabel
+  - [x] T017.5 `sync_queue` tabel
+  - [x] T017.6 `location_cache` tabel
+  - [x] T017.7 `offline_metadata` tabel
 
-- [ ] **T018** Database Helpers
-  - [ ] T018.1 CRUD operaties wrapper
-  - [ ] T018.2 Query builders
-  - [ ] T018.3 Transaction support
-  - [ ] T018.4 Data type converters (JSON <-> SQLite)
+- [x] **T018** Database Helpers
+  - [x] T018.1 CRUD operaties wrapper
+  - [x] T018.2 Query builders — Via SQLite API
+  - [x] T018.3 Transaction support — execAsync
+  - [x] T018.4 Data type converters (JSON <-> SQLite)
 
 ### 3.2 Sync Engine 🔴
 
-- [ ] **T019** Core Sync Logic
-  - [ ] T019.1 SyncEngine class implementeren
-  - [ ] T019.2 addUrenRegistratie (lokaal opslaan)
-  - [ ] T019.3 syncToServer (batch sync)
-  - [ ] T019.4 Idempotency key generatie (UUID)
-  - [ ] T019.5 Retry logic (max 3 attempts)
-  - [ ] T019.6 Exponential backoff
+- [x] **T019** Core Sync Logic
+  - [x] T019.1 SyncEngine class implementeren — `/lib/storage/sync-engine.ts`
+  - [x] T019.2 addUrenRegistratie (lokaal opslaan) — addToSyncQueue
+  - [x] T019.3 syncToServer (batch sync) — processSyncQueue
+  - [x] T019.4 Idempotency key generatie (UUID v7)
+  - [x] T019.5 Retry logic (max 3 attempts)
+  - [x] T019.6 Exponential backoff
 
 - [ ] **T020** Background Sync
   - [ ] T020.1 `expo-background-fetch` installeren
   - [ ] T020.2 `expo-task-manager` installeren
   - [ ] T020.3 Background task registreren
   - [ ] T020.4 15-minuten sync interval
-  - [ ] T020.5 Network status check
+  - [ ] T020.5 Network status check — NetInfo installed
   - [ ] T020.6 Battery-aware scheduling
 
-- [ ] **T021** Conflict Resolution
-  - [ ] T021.1 Server-side conflict detection (Convex)
-  - [ ] T021.2 Client-side conflict handling
+- [~] **T021** Conflict Resolution
+  - [x] T021.1 Server-side conflict detection (Convex) — Basic logic in schema
+  - [~] T021.2 Client-side conflict handling — Partial in sync-engine
   - [ ] T021.3 Conflict resolution UI
   - [ ] T021.4 User choice: server vs local vs merge
   - [ ] T021.5 Audit logging van conflicts
@@ -206,39 +209,39 @@
 
 ---
 
-## Phase 4: Uren Registratie (Week 6-9)
+## Phase 4: Uren Registratie (Week 6-9) — 40% COMPLETE
 
 ### 4.1 Core Features 🔴
 
-- [ ] **T023** Dashboard Screen
-  - [ ] T023.1 Welkom header (naam, datum)
-  - [ ] T023.2 Huidige status card (ingeklokt/niet)
-  - [ ] T023.3 Actief project weergave
-  - [ ] T023.4 Quick actions (start/stop)
-  - [ ] T023.5 Vandaag gewerkte uren
+- [~] **T023** Dashboard Screen
+  - [x] T023.1 Welkom header (naam, datum) — UI only
+  - [x] T023.2 Huidige status card (ingeklokt/niet) — Placeholder
+  - [x] T023.3 Actief project weergave — Placeholder
+  - [x] T023.4 Quick actions (start/stop) — UI only
+  - [ ] T023.5 Vandaag gewerkte uren — Not connected to data
   - [ ] T023.6 Sync status indicator
 
-- [ ] **T024** Uren Entry Flow
-  - [ ] T024.1 Project selector (dropdown)
-  - [ ] T024.2 Start werkdag button
-  - [ ] T024.3 Timer weergave
+- [~] **T024** Uren Entry Flow
+  - [x] T024.1 Project selector (dropdown) — Placeholder UI
+  - [x] T024.2 Start werkdag button — UI only
+  - [x] T024.3 Timer weergave — Shows 0:00:00
   - [ ] T024.4 Pauze functie
-  - [ ] T024.5 Stop werkdag button
+  - [x] T024.5 Stop werkdag button — UI only
   - [ ] T024.6 Uren bevestiging modal
   - [ ] T024.7 Notities invoer
   - [ ] T024.8 Scope/taak koppeling (optioneel)
 
 ### 4.2 Overzichten 🟠
 
-- [ ] **T025** Dag Overzicht
-  - [ ] T025.1 Lijst van registraties
+- [~] **T025** Dag Overzicht
+  - [x] T025.1 Lijst van registraties — Placeholder
   - [ ] T025.2 Totaal uren vandaag
   - [ ] T025.3 Per project breakdown
   - [ ] T025.4 Inline editing
   - [ ] T025.5 Delete functie
 
-- [ ] **T026** Week Overzicht
-  - [ ] T026.1 Week selector
+- [~] **T026** Week Overzicht
+  - [x] T026.1 Week selector — Day cards visible
   - [ ] T026.2 Per dag totalen
   - [ ] T026.3 Per project totalen
   - [ ] T026.4 Grafiek visualisatie
@@ -253,7 +256,9 @@
 
 ---
 
-## Phase 5: GPS Tracking (Week 9-12)
+## Phase 5: GPS Tracking (Week 9-12) — 0% COMPLETE
+
+> **Research Afgerond:** Zie `docs/GPS-TRACKING-RESEARCH.md` voor complete documentatie
 
 ### 5.1 Permissions & Consent 🔴
 
@@ -316,7 +321,7 @@
 
 ---
 
-## Phase 6: Chat Module (Week 13-16)
+## Phase 6: Chat Module (Week 13-16) — 20% COMPLETE
 
 ### 6.1 Team Chat 🟠
 
@@ -327,12 +332,12 @@
   - [ ] T035.4 getAllUnreadCounts query
   - [ ] T035.5 searchMessages query
 
-- [ ] **T036** Team Chat UI
-  - [ ] T036.1 Chat list screen
-  - [ ] T036.2 Message list component (FlashList)
-  - [ ] T036.3 Message bubble component
-  - [ ] T036.4 Message input component
-  - [ ] T036.5 Send button
+- [~] **T036** Team Chat UI
+  - [x] T036.1 Chat list screen — Placeholder
+  - [x] T036.2 Message list component (FlashList) — Using ScrollView
+  - [x] T036.3 Message bubble component — Basic styling
+  - [x] T036.4 Message input component
+  - [x] T036.5 Send button
   - [ ] T036.6 Keyboard avoiding view
   - [ ] T036.7 Pull to refresh
   - [ ] T036.8 Load more (pagination)
@@ -394,17 +399,17 @@
 
 ---
 
-## Phase 7: Settings & Profile (Week 15-17)
+## Phase 7: Settings & Profile (Week 15-17) — 30% COMPLETE
 
 ### 7.1 Profile 🟠
 
-- [ ] **T044** Profile Screen
-  - [ ] T044.1 Avatar weergave
-  - [ ] T044.2 Naam weergave/edit
-  - [ ] T044.3 Email (read-only)
+- [~] **T044** Profile Screen
+  - [x] T044.1 Avatar weergave — Initials display
+  - [x] T044.2 Naam weergave/edit — Placeholder
+  - [x] T044.3 Email (read-only) — Placeholder
   - [ ] T044.4 Telefoon edit
-  - [ ] T044.5 Functie weergave
-  - [ ] T044.6 Logout button
+  - [x] T044.5 Functie weergave — Placeholder
+  - [~] T044.6 Logout button — Stubbed
 
 ### 7.2 Settings 🟠
 
@@ -422,16 +427,16 @@
   - [ ] T046.4 Project chat notifications
   - [ ] T046.5 Quiet hours configuratie
 
-- [ ] **T047** App Settings
-  - [ ] T047.1 Biometric toggle
-  - [ ] T047.2 Theme (light/dark/system)
-  - [ ] T047.3 Language (NL/EN)
-  - [ ] T047.4 App version info
+- [~] **T047** App Settings
+  - [~] T047.1 Biometric toggle — UI only
+  - [~] T047.2 Theme (light/dark/system) — Placeholder
+  - [~] T047.3 Language (NL/EN) — Placeholder
+  - [x] T047.4 App version info — In UI
   - [ ] T047.5 Support/help link
 
 ---
 
-## Phase 8: Testing (Week 17-18)
+## Phase 8: Testing (Week 17-18) — 0% COMPLETE
 
 ### 8.1 Unit Tests 🟠
 
@@ -475,7 +480,7 @@
 
 ---
 
-## Phase 9: Polish & Launch (Week 18-20)
+## Phase 9: Polish & Launch (Week 18-20) — 5% COMPLETE
 
 ### 9.1 Performance 🟠
 
@@ -547,6 +552,23 @@
 - [ ] **T108** Homescreen widgets
 - [ ] **T109** Integratie Exact Online
 - [ ] **T110** Integratie Twinfield
+
+---
+
+## Progress Summary
+
+| Phase | Description | Progress | Status |
+|-------|-------------|----------|--------|
+| 1 | Foundation | 70% | ✅ Mostly Complete |
+| 2 | Authentication | 40% | 🔄 In Progress |
+| 3 | Offline Sync | 60% | 🔄 Partial |
+| 4 | Uren Registratie | 40% | 🔄 UI Only |
+| 5 | GPS Tracking | 0% | ⏳ Not Started |
+| 6 | Chat Module | 20% | 🔄 UI Only |
+| 7 | Settings/Profile | 30% | 🔄 UI Only |
+| 8 | Testing | 0% | ⏳ Not Started |
+| 9 | Polish & Launch | 5% | ⏳ Not Started |
+| **OVERALL** | **Mobile App** | **31%** | **Early Development** |
 
 ---
 
@@ -631,3 +653,14 @@ graph TD
 ---
 
 *Laatste update: 2026-02-01*
+
+---
+
+## Research Documenten
+
+| Research | Status | Document |
+|----------|--------|----------|
+| Clerk Expo Integratie | Afgerond | `docs/CLERK-EXPO-RESEARCH.md` |
+| Push Notifications Setup | Afgerond | `docs/PUSH-NOTIFICATIONS-RESEARCH.md` |
+| GPS Tracking (expo-location) | Afgerond | `docs/GPS-TRACKING-RESEARCH.md` |
+| SQLite Offline Sync Patterns | Afgerond | `docs/SQLITE-SYNC-RESEARCH.md` |

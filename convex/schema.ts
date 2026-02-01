@@ -503,11 +503,28 @@ export default defineSchema({
       })
     ),
 
+    // ============================================
+    // APP INTEGRATIE VELDEN
+    // ============================================
+    clerkOrgId: v.optional(v.string()), // Clerk organization ID
+    clerkUserId: v.optional(v.string()), // Clerk user ID (na signup in app)
+    status: v.optional(
+      v.union(
+        v.literal("invited"), // Uitnodiging verstuurd
+        v.literal("active"), // Actief in app
+        v.literal("inactive") // Niet meer actief
+      )
+    ),
+    biometricEnabled: v.optional(v.boolean()), // Face ID/Touch ID actief
+    lastLoginAt: v.optional(v.number()), // Laatste login timestamp
+
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
-    .index("by_user_actief", ["userId", "isActief"]),
+    .index("by_user_actief", ["userId", "isActief"])
+    .index("by_org", ["clerkOrgId"]) // App: medewerkers per organisatie
+    .index("by_clerk_id", ["clerkUserId"]), // App: medewerker opzoeken via Clerk ID
 
   // UrenRegistraties - Time registrations (imported or manual)
   urenRegistraties: defineTable({
@@ -519,9 +536,23 @@ export default defineSchema({
     scope: v.optional(v.string()),
     notities: v.optional(v.string()),
     bron: v.union(v.literal("import"), v.literal("handmatig")),
+
+    // Offline sync velden (voor medewerkers app)
+    idempotencyKey: v.optional(v.string()), // UUID voor deduplicatie
+    clientTimestamp: v.optional(v.number()), // Client-side timestamp
+    syncStatus: v.optional(
+      v.union(
+        v.literal("synced"),
+        v.literal("pending"),
+        v.literal("conflict"),
+        v.literal("error")
+      )
+    ),
+    medewerkerClerkId: v.optional(v.string()), // Link naar Clerk user
   })
     .index("by_project", ["projectId"])
-    .index("by_datum", ["datum"]),
+    .index("by_datum", ["datum"])
+    .index("by_idempotency", ["idempotencyKey"]),
 
   // MachineGebruik - Machine usage per project
   machineGebruik: defineTable({
@@ -834,4 +865,463 @@ export default defineSchema({
   })
     .index("by_voertuig", ["voertuigId"])
     .index("by_user", ["userId"]),
+
+  // ============================================
+  // CHAT TABELLEN (Medewerkers App)
+  // ============================================
+
+  // Team messages - Team chat berichten met channelType, projectId, message, attachments
+  team_messages: defineTable({
+    senderId: v.id("users"),
+    senderName: v.string(),
+    senderClerkId: v.string(),
+    companyId: v.id("users"),
+
+    channelType: v.union(
+      v.literal("team"),
+      v.literal("project"),
+      v.literal("broadcast")
+    ),
+
+    projectId: v.optional(v.id("projecten")),
+    channelName: v.string(),
+
+    message: v.string(),
+    messageType: v.union(
+      v.literal("text"),
+      v.literal("image"),
+      v.literal("announcement")
+    ),
+
+    attachmentStorageId: v.optional(v.id("_storage")),
+    attachmentType: v.optional(v.string()),
+
+    isRead: v.boolean(),
+    readBy: v.optional(v.array(v.string())),
+
+    createdAt: v.number(),
+    editedAt: v.optional(v.number()),
+  })
+    .index("by_company", ["companyId"])
+    .index("by_channel", ["companyId", "channelType"])
+    .index("by_project", ["projectId"])
+    .index("by_team_unread", ["companyId", "channelType", "isRead"])
+    .searchIndex("search_messages", {
+      searchField: "message",
+      filterFields: ["companyId", "channelType", "projectId"],
+    }),
+
+  // Direct messages - Een-op-een berichten
+  direct_messages: defineTable({
+    fromUserId: v.id("users"),
+    fromClerkId: v.string(),
+    toUserId: v.id("users"),
+    toClerkId: v.string(),
+    companyId: v.id("users"),
+
+    message: v.string(),
+    messageType: v.union(v.literal("text"), v.literal("image")),
+
+    attachmentStorageId: v.optional(v.id("_storage")),
+    attachmentType: v.optional(v.string()),
+
+    isRead: v.boolean(),
+    readAt: v.optional(v.number()),
+
+    createdAt: v.number(),
+  })
+    .index("by_conversation", ["fromClerkId", "toClerkId"])
+    .index("by_company", ["companyId"])
+    .index("by_recipient_unread", ["toClerkId", "isRead"]),
+
+  // Notification preferences - Push notification instellingen
+  notification_preferences: defineTable({
+    userId: v.id("users"),
+    clerkUserId: v.string(),
+
+    enablePushNotifications: v.boolean(),
+    deviceToken: v.optional(v.string()),
+    devicePlatform: v.optional(
+      v.union(v.literal("ios"), v.literal("android"), v.literal("web"))
+    ),
+
+    mutedChannels: v.optional(v.array(v.string())),
+    mutedUsers: v.optional(v.array(v.string())),
+
+    // Chat notifications
+    notifyOnTeamChat: v.boolean(),
+    notifyOnDirectMessage: v.boolean(),
+    notifyOnProjectChat: v.boolean(),
+    notifyOnBroadcast: v.boolean(),
+
+    // Offerte notifications (admin alerts)
+    notifyOnOfferteAccepted: v.optional(v.boolean()), // When customer accepts
+    notifyOnOfferteRejected: v.optional(v.boolean()), // When customer rejects
+    notifyOnOfferteViewed: v.optional(v.boolean()), // When customer views (optional, can be noisy)
+    notifyOnOfferteCreated: v.optional(v.boolean()), // When new offerte is created
+
+    quietHoursStart: v.optional(v.string()),
+    quietHoursEnd: v.optional(v.string()),
+    respectQuietHours: v.boolean(),
+
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_clerk_id", ["clerkUserId"]),
+
+  // Chat attachments - Media attachments
+  chat_attachments: defineTable({
+    storageId: v.id("_storage"),
+    messageId: v.optional(v.id("team_messages")),
+    directMessageId: v.optional(v.id("direct_messages")),
+
+    userId: v.id("users"),
+    companyId: v.id("users"),
+
+    fileName: v.string(),
+    fileType: v.string(),
+    fileSize: v.number(),
+
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_company", ["companyId"]),
+
+  // ============================================
+  // GPS TRACKING TABELLEN (Medewerkers App)
+  // ============================================
+
+  // LocationSessions - Voor tracking sessies (clock in/out)
+  locationSessions: defineTable({
+    userId: v.id("users"),
+    medewerkerClerkId: v.string(),
+    medewerkerNaam: v.string(),
+    projectId: v.optional(v.id("projecten")),
+
+    status: v.union(
+      v.literal("clock_in"),
+      v.literal("tracking"),
+      v.literal("break"),
+      v.literal("clock_out")
+    ),
+
+    clockInAt: v.number(),
+    lastLocationAt: v.number(),
+    clockOutAt: v.optional(v.number()),
+    breakStartAt: v.optional(v.number()),
+    breakEndAt: v.optional(v.number()),
+
+    // Privacy
+    consentGiven: v.boolean(),
+    consentGivenAt: v.number(),
+    privacyLevel: v.union(
+      v.literal("full"),
+      v.literal("aggregated"),
+      v.literal("minimal")
+    ),
+
+    createdAt: v.number(),
+  })
+    .index("by_user_active", ["userId", "status"])
+    .index("by_project", ["projectId"])
+    .index("by_date", ["clockInAt"]),
+
+  // LocationData - GPS data punten
+  locationData: defineTable({
+    sessionId: v.id("locationSessions"),
+    userId: v.id("users"),
+    projectId: v.optional(v.id("projecten")),
+
+    latitude: v.number(),
+    longitude: v.number(),
+    accuracy: v.number(),
+    altitude: v.optional(v.number()),
+    speed: v.optional(v.number()),
+    heading: v.optional(v.number()),
+
+    source: v.union(
+      v.literal("gps"),
+      v.literal("network"),
+      v.literal("fused")
+    ),
+
+    batteryLevel: v.optional(v.number()),
+    batteryLow: v.boolean(),
+
+    recordedAt: v.number(),
+    receivedAt: v.number(),
+  })
+    .index("by_session", ["sessionId"])
+    .index("by_user", ["userId"])
+    .index("by_time", ["recordedAt"]),
+
+  // JobSiteGeofences - Geofence definities per project
+  jobSiteGeofences: defineTable({
+    userId: v.id("users"),
+    projectId: v.id("projecten"),
+    customerName: v.string(),
+    customerAddress: v.string(),
+
+    centerLatitude: v.number(),
+    centerLongitude: v.number(),
+    radiusMeters: v.number(),
+
+    polygonPoints: v.optional(
+      v.array(
+        v.object({
+          lat: v.number(),
+          lng: v.number(),
+        })
+      )
+    ),
+
+    isActive: v.boolean(),
+    autoClockIn: v.boolean(),
+    autoClockOut: v.boolean(),
+
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_user", ["userId"]),
+
+  // GeofenceEvents - Enter/exit/dwell events
+  geofenceEvents: defineTable({
+    sessionId: v.id("locationSessions"),
+    geofenceId: v.id("jobSiteGeofences"),
+
+    eventType: v.union(
+      v.literal("enter"),
+      v.literal("exit"),
+      v.literal("dwell")
+    ),
+
+    latitude: v.number(),
+    longitude: v.number(),
+    accuracy: v.number(),
+    dwellTimeSeconds: v.optional(v.number()),
+
+    createdAt: v.number(),
+  })
+    .index("by_session", ["sessionId"])
+    .index("by_geofence", ["geofenceId"]),
+
+  // Routes - Reis tracking tussen locaties
+  routes: defineTable({
+    sessionId: v.id("locationSessions"),
+    userId: v.id("users"),
+
+    startLocation: v.object({
+      latitude: v.number(),
+      longitude: v.number(),
+      address: v.optional(v.string()),
+      timestamp: v.number(),
+    }),
+
+    endLocation: v.object({
+      latitude: v.number(),
+      longitude: v.number(),
+      address: v.optional(v.string()),
+      timestamp: v.number(),
+    }),
+
+    distanceMeters: v.number(),
+    durationSeconds: v.number(),
+    averageSpeedMps: v.number(),
+    maxSpeedMps: v.number(),
+
+    isProjectTravel: v.boolean(),
+    travelType: v.union(
+      v.literal("to_site"),
+      v.literal("from_site"),
+      v.literal("between_sites"),
+      v.literal("other")
+    ),
+
+    pathPoints: v.array(
+      v.object({
+        latitude: v.number(),
+        longitude: v.number(),
+        timestamp: v.number(),
+      })
+    ),
+
+    createdAt: v.number(),
+  })
+    .index("by_session", ["sessionId"])
+    .index("by_user", ["userId"]),
+
+  // LocationAnalytics - Dagelijkse aggregaties
+  locationAnalytics: defineTable({
+    userId: v.id("users"),
+    datum: v.string(),
+
+    totalWorkSeconds: v.number(),
+    totalBreakSeconds: v.number(),
+    totalTravelSeconds: v.number(),
+    totalDistanceMeters: v.number(),
+    sitesVisited: v.number(),
+    locationDataPoints: v.number(),
+    averageAccuracyMeters: v.number(),
+
+    medewerkerNaam: v.string(),
+    projectId: v.optional(v.id("projecten")),
+
+    createdAt: v.number(),
+  })
+    .index("by_user_date", ["userId", "datum"])
+    .index("by_project", ["projectId"]),
+
+  // LocationAuditLog - GDPR audit trail
+  locationAuditLog: defineTable({
+    userId: v.id("users"),
+    employee: v.optional(v.id("medewerkers")),
+    action: v.union(
+      v.literal("tracking_started"),
+      v.literal("tracking_stopped"),
+      v.literal("data_accessed"),
+      v.literal("data_exported"),
+      v.literal("data_deleted"),
+      v.literal("consent_given"),
+      v.literal("consent_revoked")
+    ),
+
+    details: v.optional(v.string()),
+    ipAddress: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_employee", ["employee"]),
+
+  // ============================================
+  // PUSH NOTIFICATIONS
+  // ============================================
+
+  // Push tokens - Store Expo push tokens for mobile notifications
+  // Supports multiple devices per user
+  pushTokens: defineTable({
+    userId: v.id("users"),
+    clerkUserId: v.string(),
+    expoPushToken: v.string(), // Expo push token (e.g., ExponentPushToken[xxx])
+    deviceId: v.optional(v.string()), // Optional device identifier for deduplication
+    platform: v.union(v.literal("ios"), v.literal("android")),
+    isActive: v.boolean(),
+    lastUsedAt: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_clerk_id", ["clerkUserId"])
+    .index("by_token", ["expoPushToken"]),
+
+  // Push notification logs - Track sent notifications for debugging and analytics
+  pushNotificationLogs: defineTable({
+    userId: v.id("users"),
+    type: v.union(
+      v.literal("chat_team"),
+      v.literal("chat_dm"),
+      v.literal("chat_project"),
+      v.literal("chat_broadcast"),
+      v.literal("offerte_status"),
+      v.literal("project_assignment")
+    ),
+    title: v.string(),
+    body: v.string(),
+    data: v.optional(v.any()), // Additional data payload
+    status: v.union(
+      v.literal("sent"),
+      v.literal("delivered"),
+      v.literal("failed"),
+      v.literal("skipped") // Skipped due to preferences or quiet hours
+    ),
+    error: v.optional(v.string()),
+    ticketId: v.optional(v.string()), // Expo push ticket ID
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_type", ["type"])
+    .index("by_status", ["status"]),
+
+  // Notification log - Track sent notifications for batching and debugging
+  // Used to prevent notification spam by tracking recent notifications per user/channel
+  notification_log: defineTable({
+    recipientClerkId: v.string(),
+    senderClerkId: v.string(),
+    channelType: v.string(), // "team", "project", "broadcast", "direct"
+    projectId: v.optional(v.string()),
+    messageId: v.string(),
+    status: v.union(
+      v.literal("sent"),
+      v.literal("skipped"),
+      v.literal("failed")
+    ),
+    reason: v.optional(v.string()), // Reason for skipping/failure
+    createdAt: v.number(),
+  })
+    .index("by_recipient_time", ["recipientClerkId", "createdAt"])
+    .index("by_message", ["messageId"]),
+
+  // ============================================
+  // IN-APP NOTIFICATIONS (Mobile App Notification Center)
+  // ============================================
+
+  // Notifications - In-app and push notifications for users
+  // Supports: offerte updates, chat messages, project assignments, system announcements
+  notifications: defineTable({
+    userId: v.id("users"), // The user who should receive this notification
+    type: v.union(
+      // Offerte notifications
+      v.literal("offerte_geaccepteerd"),
+      v.literal("offerte_afgewezen"),
+      v.literal("offerte_aangemaakt"),
+      v.literal("offerte_verzonden"),
+      v.literal("offerte_bekeken"),
+      // Chat notifications
+      v.literal("chat_message"),
+      v.literal("chat_dm"),
+      v.literal("chat_broadcast"),
+      // Project notifications
+      v.literal("project_assignment"),
+      v.literal("project_status_update"),
+      // System notifications
+      v.literal("system_announcement"),
+      v.literal("system_reminder")
+    ),
+    title: v.string(),
+    message: v.string(),
+
+    // Link to related entities
+    offerteId: v.optional(v.id("offertes")),
+    offerteNummer: v.optional(v.string()),
+    projectId: v.optional(v.id("projecten")),
+    projectNaam: v.optional(v.string()),
+    klantNaam: v.optional(v.string()),
+
+    // Sender info (for chat messages)
+    senderName: v.optional(v.string()),
+    senderClerkId: v.optional(v.string()),
+
+    // Read/Dismissed status
+    isRead: v.boolean(),
+    isDismissed: v.boolean(),
+    readAt: v.optional(v.number()),
+    dismissedAt: v.optional(v.number()),
+
+    // Push notification tracking
+    pushSent: v.optional(v.boolean()),
+    pushSentAt: v.optional(v.number()),
+    pushError: v.optional(v.string()),
+
+    // Metadata
+    triggeredBy: v.optional(v.string()), // "klant" | "systeem" | clerkId
+    metadata: v.optional(v.any()), // Additional context data
+
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_unread", ["userId", "isRead"])
+    .index("by_user_not_dismissed", ["userId", "isDismissed"])
+    .index("by_user_type", ["userId", "type"])
+    .index("by_offerte", ["offerteId"])
+    .index("by_project", ["projectId"]),
 });

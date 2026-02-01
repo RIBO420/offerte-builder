@@ -6,6 +6,7 @@ import {
   getOwnedOfferte,
   verifyOwnership,
 } from "./auth";
+import { internal } from "./_generated/api";
 
 const klantValidator = v.object({
   naam: v.string(),
@@ -305,6 +306,12 @@ export const create = mutation({
         actie: "aangemaakt",
         omschrijving: `Offerte ${args.offerteNummer} aangemaakt`,
         createdAt: now,
+      });
+
+      // Trigger notification for new offerte creation (optional - only if enabled in preferences)
+      await ctx.scheduler.runAfter(0, internal.notifications.notifyOfferteCreated, {
+        offerteId,
+        createdByUserId: userId,
       });
     }
 
@@ -649,6 +656,15 @@ export const updateStatus = mutation({
         omschrijving: `Status gewijzigd: ${statusLabels[oldStatus]} → ${statusLabels[args.status]}`,
         createdAt: now,
       });
+
+      // Trigger notification for status change (verzonden, geaccepteerd, afgewezen)
+      if (args.status === "verzonden" || args.status === "geaccepteerd" || args.status === "afgewezen") {
+        await ctx.scheduler.runAfter(0, internal.notifications.notifyOfferteStatusChange, {
+          offerteId: args.id,
+          newStatus: args.status,
+          triggeredBy: offerte.userId.toString(),
+        });
+      }
     }
 
     return args.id;

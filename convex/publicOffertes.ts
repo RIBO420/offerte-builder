@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { generateSecureToken, getOwnedOfferte, isShareTokenValid } from "./auth";
+import { internal } from "./_generated/api";
 
 // Create or refresh share link for an offerte (with ownership verification)
 export const createShareLink = mutation({
@@ -126,7 +127,9 @@ export const markAsViewed = mutation({
       throw new Error("Ongeldige of verlopen link");
     }
 
-    // Only update if not already responded
+    // Only update and notify if first view (not already viewed or responded)
+    const isFirstView = !offerte!.customerResponse?.viewedAt;
+
     if (!offerte!.customerResponse?.status || offerte!.customerResponse.status === "bekeken") {
       await ctx.db.patch(offerte!._id, {
         customerResponse: {
@@ -136,6 +139,13 @@ export const markAsViewed = mutation({
         },
         updatedAt: Date.now(),
       });
+
+      // Notify admin that offerte was viewed (only on first view)
+      if (isFirstView) {
+        await ctx.scheduler.runAfter(0, internal.notifications.notifyOfferteViewed, {
+          offerteId: offerte!._id,
+        });
+      }
     }
   },
 });
@@ -227,6 +237,14 @@ export const respond = mutation({
       actie: "status_gewijzigd",
       omschrijving: `Klant heeft offerte ${args.status === "geaccepteerd" ? "geaccepteerd" : "afgewezen"}${args.comment ? ` - "${args.comment}"` : ""}`,
       createdAt: now,
+    });
+
+    // Notify admin about the customer's response
+    await ctx.scheduler.runAfter(0, internal.notifications.notifyOfferteStatusChange, {
+      offerteId: offerte!._id,
+      newStatus: args.status,
+      triggeredBy: "klant",
+      comment: args.comment,
     });
 
     return { success: true };
