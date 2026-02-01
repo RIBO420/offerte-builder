@@ -1306,3 +1306,42 @@ export const adminMigrateExistingUsersToAdmin = mutation({
     };
   },
 });
+
+/**
+ * CLI-only function to set a user's role by email.
+ * No authentication required - for initial setup/bootstrap only.
+ *
+ * Usage:
+ * npx convex run users:cliSetUserRole '{"email": "user@example.com", "role": "admin"}'
+ */
+export const cliSetUserRole = mutation({
+  args: {
+    email: v.string(),
+    role: v.union(v.literal("admin"), v.literal("medewerker"), v.literal("viewer")),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("email"), args.email))
+      .first();
+
+    if (!user) {
+      return {
+        success: false,
+        message: `User with email ${args.email} not found`,
+      };
+    }
+
+    const oldRole = user.role || "none";
+    await ctx.db.patch(user._id, { role: args.role });
+
+    return {
+      success: true,
+      message: `Role for ${args.email} changed from "${oldRole}" to "${args.role}"`,
+      userId: user._id,
+      email: args.email,
+      oldRole,
+      newRole: args.role,
+    };
+  },
+});

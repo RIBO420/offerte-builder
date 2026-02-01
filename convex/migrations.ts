@@ -562,3 +562,94 @@ export const runAllArchivingMigrations = mutation({
     };
   },
 });
+
+// ============================================
+// ROLE MIGRATIONS
+// ============================================
+
+/**
+ * Set a user's role by email.
+ * No authentication required - for CLI/initial setup only.
+ *
+ * Usage:
+ * npx convex run migrations:setUserRole '{"email": "user@example.com", "role": "admin"}'
+ */
+export const setUserRole = mutation({
+  args: {
+    email: v.string(),
+    role: v.union(v.literal("admin"), v.literal("medewerker"), v.literal("viewer")),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("email"), args.email))
+      .first();
+
+    if (!user) {
+      return {
+        success: false,
+        message: `User with email ${args.email} not found`,
+      };
+    }
+
+    const oldRole = user.role || "none";
+    await ctx.db.patch(user._id, { role: args.role });
+
+    return {
+      success: true,
+      message: `Role for ${args.email} changed from "${oldRole}" to "${args.role}"`,
+      userId: user._id,
+      email: args.email,
+      oldRole,
+      newRole: args.role,
+    };
+  },
+});
+
+/**
+ * Set all users without a role to admin.
+ * No authentication required - for initial bootstrap only.
+ *
+ * Usage:
+ * npx convex run migrations:setAllUsersToAdmin
+ */
+export const setAllUsersToAdmin = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const users = await ctx.db.query("users").collect();
+    let updatedCount = 0;
+
+    for (const user of users) {
+      if (!user.role) {
+        await ctx.db.patch(user._id, { role: "admin" });
+        updatedCount++;
+      }
+    }
+
+    return {
+      success: true,
+      message: `${updatedCount} users updated to admin role`,
+      updatedCount,
+    };
+  },
+});
+
+/**
+ * List all users with their roles.
+ * No authentication required - for CLI diagnostics only.
+ *
+ * Usage:
+ * npx convex run migrations:listUsersWithRoles
+ */
+export const listUsersWithRoles = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const users = await ctx.db.query("users").collect();
+    return users.map((u) => ({
+      _id: u._id,
+      email: u.email,
+      name: u.name,
+      role: u.role || "none",
+    }));
+  },
+});

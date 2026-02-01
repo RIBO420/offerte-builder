@@ -34,13 +34,13 @@ export async function getUserRole(
   ctx: QueryCtx | MutationCtx
 ): Promise<UserRole> {
   const user = await requireAuth(ctx);
-  // Default to "admin" for backwards compatibility (existing users without role)
-  return (user.role as UserRole) ?? "admin";
+  // Default to "medewerker" for security (least privilege principle)
+  return (user.role as UserRole) ?? "medewerker";
 }
 
 /**
  * Check if the authenticated user is an admin.
- * Users without a role are considered admin (backwards compatibility).
+ * Users without a role are NOT considered admin (security by default).
  */
 export async function isAdmin(ctx: QueryCtx | MutationCtx): Promise<boolean> {
   const role = await getUserRole(ctx);
