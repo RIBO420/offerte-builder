@@ -22,7 +22,7 @@ import {
 import type { Bedrijfsgegevens, Klant } from "@/types/offerte";
 
 // Factuur status types
-export type FactuurStatus = "concept" | "verzonden" | "betaald" | "vervallen";
+export type FactuurStatus = "concept" | "definitief" | "verzonden" | "betaald" | "vervallen";
 
 // Factuur regel (line item)
 export interface FactuurRegel {
