@@ -477,7 +477,7 @@ export default function FactuurPage({
     const mockFactuur = {
       _id: "mock" as Id<"facturen">,
       factuurnummer: `${new Date().getFullYear()}-001`,
-      status: "concept" as const,
+      status: "concept" as "concept" | "definitief" | "verzonden" | "betaald" | "vervallen",
       klant: offerte?.klant || { naam: "", adres: "", postcode: "", plaats: "" },
       bedrijf: { naam: "Top Tuinen", adres: "", postcode: "", plaats: "" },
       regels: offerte?.regels || [],
