@@ -1,6 +1,8 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAuthUserId, getAuthenticatedUser } from "./auth";
+import { requireAuthUserId, getAuthenticatedUser, requireAuth } from "./auth";
+import { Id, Doc } from "./_generated/dataModel";
+import { QueryCtx, MutationCtx } from "./_generated/server";
 
 // Validators voor nieuwe velden
 const specialisatieValidator = v.object({
@@ -34,64 +36,248 @@ const noodcontactValidator = v.object({
   relatie: v.string(),
 });
 
-// Haal alle medewerkers op voor de ingelogde gebruiker
-// Optionele filter op isActief status
-export const list = query({
-  args: {
-    isActief: v.optional(v.boolean()),
-  },
-  handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+// ============================================
+// ROLE-BASED ACCESS HELPERS
+// ============================================
 
-    // Als isActief filter meegegeven, gebruik de samengestelde index
-    if (args.isActief !== undefined) {
-      return await ctx.db
-        .query("medewerkers")
-        .withIndex("by_user_actief", (q) =>
-          q.eq("userId", userId).eq("isActief", args.isActief!)
-        )
-        .collect();
-    }
+/**
+ * Check if the authenticated user is an admin (company owner) for the medewerker record.
+ * An admin is a user whose _id matches the medewerker's userId field.
+ */
+async function isAdminForMedewerker(
+  ctx: QueryCtx | MutationCtx,
+  medewerker: { userId: Id<"users"> }
+): Promise<boolean> {
+  const user = await getAuthenticatedUser(ctx);
+  if (!user) return false;
+  return user._id.toString() === medewerker.userId.toString();
+}
 
-    // Anders haal alle medewerkers op
-    return await ctx.db
+/**
+ * Check if the authenticated user is the linked medewerker.
+ * A medewerker is linked when their clerkId matches medewerker.clerkUserId.
+ */
+async function isLinkedMedewerker(
+  ctx: QueryCtx | MutationCtx,
+  medewerker: { clerkUserId?: string }
+): Promise<boolean> {
+  const user = await getAuthenticatedUser(ctx);
+  if (!user || !medewerker.clerkUserId) return false;
+  return user.clerkId === medewerker.clerkUserId;
+}
+
+/**
+ * Get the user's role in relation to medewerkers.
+ * Returns: "admin" | "medewerker" | null
+ * - admin: User is a company owner with medewerkers under their account
+ * - medewerker: User is linked to a medewerker record via clerkUserId
+ * - null: User has no access
+ */
+async function getUserRole(ctx: QueryCtx | MutationCtx): Promise<{
+  role: "admin" | "medewerker" | null;
+  userId: Id<"users"> | null;
+  linkedMedewerker: Doc<"medewerkers"> | null;
+  companyUserId: Id<"users"> | null;
+}> {
+  const user = await getAuthenticatedUser(ctx);
+  if (!user) {
+    return { role: null, userId: null, linkedMedewerker: null, companyUserId: null };
+  }
+
+  // Check if user is linked to a medewerker via clerkUserId
+  const linkedMedewerker = await ctx.db
+    .query("medewerkers")
+    .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", user.clerkId))
+    .first();
+
+  if (linkedMedewerker) {
+    // User is a medewerker employee
+    return {
+      role: "medewerker",
+      userId: user._id,
+      linkedMedewerker,
+      companyUserId: linkedMedewerker.userId,
+    };
+  }
+
+  // Check if user has medewerkers under their account (is a company owner/admin)
+  const ownedMedewerkers = await ctx.db
+    .query("medewerkers")
+    .withIndex("by_user", (q) => q.eq("userId", user._id))
+    .first();
+
+  if (ownedMedewerkers) {
+    // User is an admin (company owner) with medewerkers
+    return {
+      role: "admin",
+      userId: user._id,
+      linkedMedewerker: null,
+      companyUserId: user._id,
+    };
+  }
+
+  // User is authenticated but doesn't have medewerkers - could be a new admin
+  // Allow them to create medewerkers (admin role by default for authenticated users)
+  return {
+    role: "admin",
+    userId: user._id,
+    linkedMedewerker: null,
+    companyUserId: user._id,
+  };
+}
+
+/**
+ * Require admin role. Throws error if user is not admin.
+ */
+async function requireAdmin(ctx: QueryCtx | MutationCtx): Promise<{
+  userId: Id<"users">;
+  companyUserId: Id<"users">;
+}> {
+  const { role, userId, companyUserId } = await getUserRole(ctx);
+  if (role !== "admin" || !userId || !companyUserId) {
+    throw new Error("Alleen beheerders kunnen deze actie uitvoeren");
+  }
+  return { userId, companyUserId };
+}
+
+// ============================================
+// QUERIES
+// ============================================
+
+/**
+ * Get the linked medewerker profile for the current user.
+ * This is for medewerkers to view their own profile.
+ */
+export const getMyMedewerkerProfile = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await getAuthenticatedUser(ctx);
+    if (!user) return null;
+
+    // Find medewerker linked to this user's clerkId
+    const medewerker = await ctx.db
       .query("medewerkers")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect();
-  },
-});
-
-// Haal een enkele medewerker op (met eigenaarschap verificatie)
-export const get = query({
-  args: { id: v.id("medewerkers") },
-  handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
-    const medewerker = await ctx.db.get(args.id);
-
-    if (!medewerker) return null;
-    if (medewerker.userId.toString() !== userId.toString()) {
-      return null;
-    }
+      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", user.clerkId))
+      .first();
 
     return medewerker;
   },
 });
 
-// Haal alleen actieve medewerkers op (voor dropdowns/selecties)
+/**
+ * Haal alle medewerkers op.
+ * - Admin: sees all medewerkers they own
+ * - Medewerker: sees only their own linked profile
+ */
+export const list = query({
+  args: {
+    isActief: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const { role, userId, linkedMedewerker, companyUserId } = await getUserRole(ctx);
+
+    if (!role || !companyUserId) {
+      return [];
+    }
+
+    // Medewerker role: can only see their own profile
+    if (role === "medewerker" && linkedMedewerker) {
+      // If filtering by isActief and medewerker doesn't match, return empty
+      if (args.isActief !== undefined && linkedMedewerker.isActief !== args.isActief) {
+        return [];
+      }
+      return [linkedMedewerker];
+    }
+
+    // Admin role: see all medewerkers they own
+    if (args.isActief !== undefined) {
+      return await ctx.db
+        .query("medewerkers")
+        .withIndex("by_user_actief", (q) =>
+          q.eq("userId", companyUserId).eq("isActief", args.isActief!)
+        )
+        .collect();
+    }
+
+    return await ctx.db
+      .query("medewerkers")
+      .withIndex("by_user", (q) => q.eq("userId", companyUserId))
+      .collect();
+  },
+});
+
+/**
+ * Haal een enkele medewerker op.
+ * - Admin: can get any medewerker they own
+ * - Medewerker: can only get their own linked profile
+ */
+export const get = query({
+  args: { id: v.id("medewerkers") },
+  handler: async (ctx, args) => {
+    const { role, linkedMedewerker, companyUserId } = await getUserRole(ctx);
+
+    if (!role) return null;
+
+    const medewerker = await ctx.db.get(args.id);
+    if (!medewerker) return null;
+
+    // Medewerker role: can only see their own profile
+    if (role === "medewerker") {
+      if (linkedMedewerker && linkedMedewerker._id.toString() === medewerker._id.toString()) {
+        return medewerker;
+      }
+      return null;
+    }
+
+    // Admin role: can see medewerkers they own
+    if (companyUserId && medewerker.userId.toString() === companyUserId.toString()) {
+      return medewerker;
+    }
+
+    return null;
+  },
+});
+
+/**
+ * Haal alleen actieve medewerkers op (voor dropdowns/selecties).
+ * - Admin: sees all active medewerkers they own
+ * - Medewerker: sees only their own profile if active
+ */
 export const getActive = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const { role, linkedMedewerker, companyUserId } = await getUserRole(ctx);
+
+    if (!role || !companyUserId) {
+      return [];
+    }
+
+    // Medewerker role: can only see their own profile if active
+    if (role === "medewerker" && linkedMedewerker) {
+      if (linkedMedewerker.isActief) {
+        return [linkedMedewerker];
+      }
+      return [];
+    }
+
+    // Admin role: see all active medewerkers they own
     return await ctx.db
       .query("medewerkers")
       .withIndex("by_user_actief", (q) =>
-        q.eq("userId", userId).eq("isActief", true)
+        q.eq("userId", companyUserId).eq("isActief", true)
       )
       .collect();
   },
 });
 
-// Maak een nieuwe medewerker aan
+// ============================================
+// MUTATIONS - ADMIN ONLY
+// ============================================
+
+/**
+ * Maak een nieuwe medewerker aan.
+ * Only admin can create medewerkers.
+ */
 export const create = mutation({
   args: {
     naam: v.string(),
@@ -115,11 +301,11 @@ export const create = mutation({
     noodcontact: v.optional(noodcontactValidator),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const { companyUserId } = await requireAdmin(ctx);
     const now = Date.now();
 
     return await ctx.db.insert("medewerkers", {
-      userId,
+      userId: companyUserId,
       naam: args.naam,
       email: args.email,
       telefoon: args.telefoon,
@@ -171,7 +357,11 @@ type Noodcontact = {
   relatie: string;
 };
 
-// Werk een medewerker bij (met eigenaarschap verificatie)
+/**
+ * Werk een medewerker bij.
+ * - Admin: can update all fields for medewerkers they own
+ * - Medewerker: can only update limited fields (telefoon, notities) on their own profile
+ */
 export const update = mutation({
   args: {
     id: v.id("medewerkers"),
@@ -197,18 +387,64 @@ export const update = mutation({
     noodcontact: v.optional(noodcontactValidator),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const { role, linkedMedewerker, companyUserId } = await getUserRole(ctx);
 
-    // Verifieer eigenaarschap
+    if (!role) {
+      throw new Error("Je moet ingelogd zijn om deze actie uit te voeren");
+    }
+
     const medewerker = await ctx.db.get(args.id);
     if (!medewerker) {
       throw new Error("Medewerker niet gevonden");
     }
-    if (medewerker.userId.toString() !== userId.toString()) {
+
+    // Check access based on role
+    const isOwnProfile = linkedMedewerker && linkedMedewerker._id.toString() === medewerker._id.toString();
+    const isOwner = companyUserId && medewerker.userId.toString() === companyUserId.toString();
+
+    if (role === "medewerker") {
+      // Medewerker can only update their own profile
+      if (!isOwnProfile) {
+        throw new Error("Je hebt geen toegang tot deze medewerker");
+      }
+
+      // Medewerker can only update limited fields
+      const allowedFields = ["telefoon", "notities", "noodcontact"];
+      const attemptedFields = Object.keys(args).filter(
+        (key) => key !== "id" && args[key as keyof typeof args] !== undefined
+      );
+      const disallowedFields = attemptedFields.filter((f) => !allowedFields.includes(f));
+
+      if (disallowedFields.length > 0) {
+        throw new Error(
+          `Je kunt alleen de volgende velden bijwerken: ${allowedFields.join(", ")}`
+        );
+      }
+
+      // Build update object for allowed fields only
+      const updateData: {
+        telefoon?: string;
+        notities?: string;
+        noodcontact?: Noodcontact;
+        updatedAt: number;
+      } = {
+        updatedAt: Date.now(),
+      };
+
+      if (args.telefoon !== undefined) updateData.telefoon = args.telefoon;
+      if (args.notities !== undefined) updateData.notities = args.notities;
+      if (args.noodcontact !== undefined) updateData.noodcontact = args.noodcontact;
+
+      await ctx.db.patch(args.id, updateData);
+      return args.id;
+    }
+
+    // Admin role: verify ownership
+    if (!isOwner) {
       throw new Error("Geen toegang tot deze medewerker");
     }
 
-    // Bouw update object expliciet (geen dynamic object access)
+    // Admin can update all fields
     const updateData: {
       naam?: string;
       email?: string;
@@ -248,18 +484,61 @@ export const update = mutation({
   },
 });
 
-// Soft delete: zet isActief op false (met eigenaarschap verificatie)
+/**
+ * Update alleen beperkte velden op het eigen profiel (voor medewerkers).
+ * Simplified mutation for medewerkers to update only allowed fields.
+ */
+export const updateMyProfile = mutation({
+  args: {
+    telefoon: v.optional(v.string()),
+    notities: v.optional(v.string()),
+    noodcontact: v.optional(noodcontactValidator),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireAuth(ctx);
+
+    // Find linked medewerker
+    const medewerker = await ctx.db
+      .query("medewerkers")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", user.clerkId))
+      .first();
+
+    if (!medewerker) {
+      throw new Error("Geen medewerker profiel gevonden voor dit account");
+    }
+
+    const updateData: {
+      telefoon?: string;
+      notities?: string;
+      noodcontact?: Noodcontact;
+      updatedAt: number;
+    } = {
+      updatedAt: Date.now(),
+    };
+
+    if (args.telefoon !== undefined) updateData.telefoon = args.telefoon;
+    if (args.notities !== undefined) updateData.notities = args.notities;
+    if (args.noodcontact !== undefined) updateData.noodcontact = args.noodcontact;
+
+    await ctx.db.patch(medewerker._id, updateData);
+    return medewerker._id;
+  },
+});
+
+/**
+ * Soft delete: zet isActief op false.
+ * Only admin can deactivate medewerkers.
+ */
 export const remove = mutation({
   args: { id: v.id("medewerkers") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const { companyUserId } = await requireAdmin(ctx);
 
-    // Verifieer eigenaarschap
     const medewerker = await ctx.db.get(args.id);
     if (!medewerker) {
       throw new Error("Medewerker niet gevonden");
     }
-    if (medewerker.userId.toString() !== userId.toString()) {
+    if (medewerker.userId.toString() !== companyUserId.toString()) {
       throw new Error("Geen toegang tot deze medewerker");
     }
 
@@ -272,18 +551,20 @@ export const remove = mutation({
   },
 });
 
-// Permanent verwijderen (met eigenaarschap verificatie)
+/**
+ * Permanent verwijderen.
+ * Only admin can hard delete medewerkers.
+ */
 export const hardDelete = mutation({
   args: { id: v.id("medewerkers") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const { companyUserId } = await requireAdmin(ctx);
 
-    // Verifieer eigenaarschap
     const medewerker = await ctx.db.get(args.id);
     if (!medewerker) {
       throw new Error("Medewerker niet gevonden");
     }
-    if (medewerker.userId.toString() !== userId.toString()) {
+    if (medewerker.userId.toString() !== companyUserId.toString()) {
       throw new Error("Geen toegang tot deze medewerker");
     }
 
@@ -296,15 +577,29 @@ export const hardDelete = mutation({
 // Uitgebreide queries en mutations
 // ============================================
 
-// Haal medewerker op met gewerkte uren statistieken
+/**
+ * Haal medewerker op met gewerkte uren statistieken.
+ * - Admin: can get stats for any medewerker they own
+ * - Medewerker: can only get stats for their own profile
+ */
 export const getWithStats = query({
   args: { id: v.id("medewerkers") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
-    const medewerker = await ctx.db.get(args.id);
+    const { role, linkedMedewerker, companyUserId } = await getUserRole(ctx);
 
+    if (!role) return null;
+
+    const medewerker = await ctx.db.get(args.id);
     if (!medewerker) return null;
-    if (medewerker.userId.toString() !== userId.toString()) {
+
+    // Check access
+    const isOwnProfile = linkedMedewerker && linkedMedewerker._id.toString() === medewerker._id.toString();
+    const isOwner = companyUserId && medewerker.userId.toString() === companyUserId.toString();
+
+    if (role === "medewerker" && !isOwnProfile) {
+      return null;
+    }
+    if (role === "admin" && !isOwner) {
       return null;
     }
 
@@ -355,7 +650,10 @@ export const getWithStats = query({
   },
 });
 
-// Haal medewerkers op met prestatie metrics
+/**
+ * Haal medewerkers op met prestatie metrics.
+ * Only admin can see performance metrics for all medewerkers.
+ */
 export const getMedewerkersMetPrestaties = query({
   args: {
     periode: v.optional(v.object({
@@ -364,13 +662,17 @@ export const getMedewerkersMetPrestaties = query({
     })),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const { role, companyUserId } = await getUserRole(ctx);
+
+    if (role !== "admin" || !companyUserId) {
+      return [];
+    }
 
     // Haal alle actieve medewerkers op
     const medewerkers = await ctx.db
       .query("medewerkers")
       .withIndex("by_user_actief", (q) =>
-        q.eq("userId", userId).eq("isActief", true)
+        q.eq("userId", companyUserId).eq("isActief", true)
       )
       .collect();
 
@@ -389,7 +691,7 @@ export const getMedewerkersMetPrestaties = query({
     // Haal projecten op voor efficiëntie berekening
     const projecten = await ctx.db
       .query("projecten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_user", (q) => q.eq("userId", companyUserId))
       .collect();
 
     const afgerondeProjecten = projecten.filter(
@@ -478,7 +780,11 @@ export const getMedewerkersMetPrestaties = query({
   },
 });
 
-// Zoek medewerkers op specialisatie/scope
+/**
+ * Zoek medewerkers op specialisatie/scope.
+ * - Admin: searches all medewerkers they own
+ * - Medewerker: can only see their own profile if it matches
+ */
 export const getBySpecialisatie = query({
   args: {
     scope: v.string(),
@@ -491,22 +797,10 @@ export const getBySpecialisatie = query({
     alleenActief: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const { role, linkedMedewerker, companyUserId } = await getUserRole(ctx);
 
-    // Haal medewerkers op
-    let medewerkers;
-    if (args.alleenActief !== false) {
-      medewerkers = await ctx.db
-        .query("medewerkers")
-        .withIndex("by_user_actief", (q) =>
-          q.eq("userId", userId).eq("isActief", true)
-        )
-        .collect();
-    } else {
-      medewerkers = await ctx.db
-        .query("medewerkers")
-        .withIndex("by_user", (q) => q.eq("userId", userId))
-        .collect();
+    if (!role || !companyUserId) {
+      return [];
     }
 
     // Niveau volgorde voor filtering
@@ -515,11 +809,11 @@ export const getBySpecialisatie = query({
       ? niveauVolgorde[args.minimumNiveau]
       : 0;
 
-    // Filter op specialisatie
-    const gefilterdeM = medewerkers.filter((m) => {
+    // Helper function to check if medewerker matches specialisatie criteria
+    const matchesSpecialisatie = (m: Doc<"medewerkers">) => {
       if (!m.specialisaties) return false;
 
-      const matchendeSpec = m.specialisaties.find((s) => {
+      const matchendeSpec = m.specialisaties.find((s: Specialisatie) => {
         // Check scope match
         if (s.scope.toLowerCase() !== args.scope.toLowerCase()) return false;
 
@@ -533,7 +827,45 @@ export const getBySpecialisatie = query({
       });
 
       return matchendeSpec !== undefined;
-    });
+    };
+
+    // Medewerker role: can only see their own profile if it matches
+    if (role === "medewerker" && linkedMedewerker) {
+      // Check isActief filter
+      if (args.alleenActief !== false && !linkedMedewerker.isActief) {
+        return [];
+      }
+
+      if (matchesSpecialisatie(linkedMedewerker)) {
+        const relevantSpec = linkedMedewerker.specialisaties?.find(
+          (s) => s.scope.toLowerCase() === args.scope.toLowerCase()
+        );
+        return [{
+          ...linkedMedewerker,
+          relevanteSpecialisatie: relevantSpec,
+        }];
+      }
+      return [];
+    }
+
+    // Admin role: search all medewerkers they own
+    let medewerkers;
+    if (args.alleenActief !== false) {
+      medewerkers = await ctx.db
+        .query("medewerkers")
+        .withIndex("by_user_actief", (q) =>
+          q.eq("userId", companyUserId).eq("isActief", true)
+        )
+        .collect();
+    } else {
+      medewerkers = await ctx.db
+        .query("medewerkers")
+        .withIndex("by_user", (q) => q.eq("userId", companyUserId))
+        .collect();
+    }
+
+    // Filter op specialisatie
+    const gefilterdeM = medewerkers.filter(matchesSpecialisatie);
 
     // Return met relevante specialisatie info
     return gefilterdeM.map((m) => {
@@ -548,7 +880,10 @@ export const getBySpecialisatie = query({
   },
 });
 
-// Update of voeg certificaat toe
+/**
+ * Update of voeg certificaat toe.
+ * Only admin can manage certificates.
+ */
 export const updateCertificaat = mutation({
   args: {
     medewerkerId: v.id("medewerkers"),
@@ -557,14 +892,13 @@ export const updateCertificaat = mutation({
     certificaatIndex: v.optional(v.number()), // Index voor bijwerken/verwijderen
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const { companyUserId } = await requireAdmin(ctx);
 
-    // Verifieer eigenaarschap
     const medewerker = await ctx.db.get(args.medewerkerId);
     if (!medewerker) {
       throw new Error("Medewerker niet gevonden");
     }
-    if (medewerker.userId.toString() !== userId.toString()) {
+    if (medewerker.userId.toString() !== companyUserId.toString()) {
       throw new Error("Geen toegang tot deze medewerker");
     }
 
@@ -599,32 +933,45 @@ export const updateCertificaat = mutation({
   },
 });
 
-// Check certificaten die (bijna) verlopen
+/**
+ * Check certificaten die (bijna) verlopen.
+ * - Admin: sees all expiring certificates for medewerkers they own
+ * - Medewerker: sees only their own expiring certificates
+ */
 export const checkVervaldataCertificaten = query({
   args: {
     dagenVoorwaarschuwing: v.optional(v.number()), // Default: 30 dagen
   },
   handler: async (ctx, args) => {
-    // Use getAuthenticatedUser instead of requireAuth to gracefully handle
-    // race conditions where the query fires during session expiry
-    const user = await getAuthenticatedUser(ctx);
-    if (!user) {
-      return []; // Return empty array instead of throwing during auth race conditions
+    const { role, linkedMedewerker, companyUserId } = await getUserRole(ctx);
+
+    if (!role || !companyUserId) {
+      return [];
     }
-    const userId = user._id;
+
     const waarschuwingsDagen = args.dagenVoorwaarschuwing || 30;
     const waarschuwingsDrempel = Date.now() + (waarschuwingsDagen * 24 * 60 * 60 * 1000);
 
-    // Haal alle actieve medewerkers op
-    const medewerkers = await ctx.db
-      .query("medewerkers")
-      .withIndex("by_user_actief", (q) =>
-        q.eq("userId", userId).eq("isActief", true)
-      )
-      .collect();
+    // Get medewerkers based on role
+    let medewerkers: Doc<"medewerkers">[];
+    if (role === "medewerker" && linkedMedewerker) {
+      // Medewerker can only see their own certificates
+      if (!linkedMedewerker.isActief) {
+        return [];
+      }
+      medewerkers = [linkedMedewerker];
+    } else {
+      // Admin sees all active medewerkers they own
+      medewerkers = await ctx.db
+        .query("medewerkers")
+        .withIndex("by_user_actief", (q) =>
+          q.eq("userId", companyUserId).eq("isActief", true)
+        )
+        .collect();
+    }
 
     const resultaten: {
-      medewerker: { _id: typeof medewerkers[0]["_id"]; naam: string };
+      medewerker: { _id: Id<"medewerkers">; naam: string };
       certificaat: { naam: string; vervaldatum: number };
       status: "verlopen" | "bijna_verlopen";
       dagenTotVerval: number;

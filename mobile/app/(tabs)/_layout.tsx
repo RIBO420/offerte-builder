@@ -5,6 +5,10 @@ import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useColors, useTheme } from '../../theme';
 import { useCurrentUser } from '../../hooks/use-current-user';
+import { useUserRole, type NormalizedRole } from '../../hooks/use-user-role';
+import { spacing } from '../../theme/spacing';
+import { radius } from '../../theme/radius';
+import { typography } from '../../theme/typography';
 
 // Badge component for tab bar icon
 function TabBarBadge({ count, color }: { count: number; color: string }) {
@@ -41,10 +45,38 @@ function TabBarIconWithBadge({
   );
 }
 
+// Role badge component for header
+function RoleBadge({
+  role,
+  displayName,
+  colors: roleColors,
+}: {
+  role: NormalizedRole;
+  displayName: string;
+  colors: { background: string; text: string };
+}) {
+  return (
+    <View style={[styles.roleBadge, { backgroundColor: roleColors.background }]}>
+      <Text style={[styles.roleBadgeText, { color: roleColors.text }]}>
+        {displayName}
+      </Text>
+    </View>
+  );
+}
+
 export default function TabsLayout() {
   const colors = useColors();
   const { isDark } = useTheme();
   const { user, isUserSynced } = useCurrentUser();
+  const {
+    isAdmin,
+    isMedewerker,
+    isViewer,
+    roleDisplayName,
+    normalizedRole,
+    roleBadgeColors,
+    permissions,
+  } = useUserRole();
 
   // Query unread notification count for badge (skip when not authenticated)
   const unreadCounts = useQuery(
@@ -87,6 +119,7 @@ export default function TabsLayout() {
         headerShadowVisible: false,
       }}
     >
+      {/* Dashboard - visible to all, shows role badge */}
       <Tabs.Screen
         name="index"
         options={{
@@ -95,8 +128,19 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, size }) => (
             <Feather name="home" size={size} color={color} />
           ),
+          headerRight: () => (
+            <View style={styles.headerRight}>
+              <RoleBadge
+                role={normalizedRole}
+                displayName={roleDisplayName}
+                colors={roleBadgeColors}
+              />
+            </View>
+          ),
         }}
       />
+
+      {/* Uren - visible to all */}
       <Tabs.Screen
         name="uren"
         options={{
@@ -107,21 +151,8 @@ export default function TabsLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="notifications"
-        options={{
-          title: 'Meldingen',
-          tabBarLabel: 'Meldingen',
-          tabBarIcon: ({ color, size }) => (
-            <TabBarIconWithBadge
-              iconName="bell"
-              color={color}
-              size={size}
-              badgeCount={notificationBadgeCount}
-            />
-          ),
-        }}
-      />
+
+      {/* Chat - visible to all */}
       <Tabs.Screen
         name="chat"
         options={{
@@ -137,6 +168,25 @@ export default function TabsLayout() {
           ),
         }}
       />
+
+      {/* Meldingen - visible to all */}
+      <Tabs.Screen
+        name="notifications"
+        options={{
+          title: 'Meldingen',
+          tabBarLabel: 'Meldingen',
+          tabBarIcon: ({ color, size }) => (
+            <TabBarIconWithBadge
+              iconName="bell"
+              color={color}
+              size={size}
+              badgeCount={notificationBadgeCount}
+            />
+          ),
+        }}
+      />
+
+      {/* Profiel - visible to all */}
       <Tabs.Screen
         name="profiel"
         options={{
@@ -174,5 +224,18 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 10,
     fontWeight: '700',
+  },
+  headerRight: {
+    paddingRight: 16,
+  },
+  roleBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  roleBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'capitalize',
   },
 });

@@ -163,3 +163,18 @@ export const scopeDataValidator = v.union(
   aanlegScopeDataValidator,
   onderhoudScopeDataValidator
 );
+
+// ==================== USER ROLE VALIDATORS ====================
+
+/**
+ * User roles for role-based access control (RBAC)
+ *
+ * - admin: Full access to all features, can manage users, medewerkers, and all data
+ * - medewerker: Limited access, can only see own data, linked to a medewerker profile
+ * - viewer: Read-only access to allowed features
+ */
+export const userRoleValidator = v.union(
+  v.literal("admin"),
+  v.literal("medewerker"),
+  v.literal("viewer")
+);

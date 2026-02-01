@@ -52,11 +52,13 @@ import {
   Wrench,
   Receipt,
   Truck,
+  Shield,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { StatusDot } from "@/components/ui/status-badge";
 import { useDashboardData } from "@/hooks/use-offertes";
+import { useIsAdmin } from "@/hooks/use-users";
 
 // Main workflow navigation items
 const navigationItems = [
@@ -143,6 +145,7 @@ export function AppSidebar() {
   const { user, isLoaded: isUserLoaded } = useUser();
   const { signOut } = useClerk();
   const [mounted, setMounted] = useState(false);
+  const isAdmin = useIsAdmin();
 
   // Prevent hydration mismatch
   useEffect(() => {
@@ -313,6 +316,20 @@ export function AppSidebar() {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              {isAdmin && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname === "/gebruikers" || pathname.startsWith("/gebruikers/")}
+                    tooltip="Gebruikersbeheer"
+                  >
+                    <Link href="/gebruikers">
+                      <Shield />
+                      <span>Gebruikers</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

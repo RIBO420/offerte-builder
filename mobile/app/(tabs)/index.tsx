@@ -5,6 +5,7 @@ import { Feather } from '@expo/vector-icons';
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useCurrentUser } from '../../hooks/use-current-user';
+import { useUserRole } from '../../hooks/use-user-role';
 
 // Theme system
 import { useColors, useTheme } from '../../theme';
@@ -24,6 +25,7 @@ import {
   AnimatedNumber,
   Skeleton,
   SkeletonCard,
+  Badge,
 } from '../../components/ui';
 
 // Dutch date formatting
@@ -133,6 +135,7 @@ export default function DashboardScreen() {
 function AuthenticatedDashboard() {
   const colors = useColors();
   const { isDark } = useTheme();
+  const { isAdmin, isMedewerker, roleDisplayName } = useUserRole();
   const [refreshing, setRefreshing] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
 
@@ -141,9 +144,15 @@ function AuthenticatedDashboard() {
   const projectStats = useQuery(api.projecten.getStats);
   const activeProjects = useQuery(api.projecten.getActiveProjectsWithProgress);
 
-  // Financial queries
-  const offerteStats = useQuery(api.offertes.getStats);
-  const revenueStats = useQuery(api.offertes.getRevenueStats);
+  // Financial queries - only for admins
+  const offerteStats = useQuery(
+    api.offertes.getStats,
+    isAdmin ? {} : 'skip'
+  );
+  const revenueStats = useQuery(
+    api.offertes.getRevenueStats,
+    isAdmin ? {} : 'skip'
+  );
 
   // Get user name from first active medewerker or default
   const userName = profile?.[0]?.naam || 'Medewerker';
@@ -258,9 +267,17 @@ function AuthenticatedDashboard() {
         <View style={styles.content}>
           {/* Welcome Header */}
           <View style={styles.header}>
-            <Text style={[styles.greeting, dynamicStyles.mutedText]}>
-              {getGreeting()},
-            </Text>
+            <View style={styles.headerTop}>
+              <Text style={[styles.greeting, dynamicStyles.mutedText]}>
+                {getGreeting()},
+              </Text>
+              <Badge
+                variant={isAdmin ? 'default' : 'secondary'}
+                size="sm"
+              >
+                {roleDisplayName}
+              </Badge>
+            </View>
             <Text style={[styles.userName, dynamicStyles.text]}>
               {userName}
             </Text>
@@ -523,131 +540,178 @@ function AuthenticatedDashboard() {
             </Card>
           )}
 
-          {/* Financial Overview */}
-          <Card style={styles.financialCard}>
-            <CardHeader>
-              <View style={styles.financialHeader}>
-                <CardTitle>Financieel Overzicht</CardTitle>
-                <View style={[styles.trendBadge, { backgroundColor: `${colors.chart[2]}20` }]}>
-                  <Feather name="trending-up" size={12} color={colors.chart[2]} />
-                  <Text style={[styles.trendText, { color: colors.chart[2] }]}>
-                    {revenueStats?.conversionRate || 0}% conv.
-                  </Text>
-                </View>
-              </View>
-            </CardHeader>
-            <CardContent>
-              {/* Revenue Card */}
-              {(offerteStats === undefined || revenueStats === undefined) ? (
-                <View style={styles.financialSkeletonContainer}>
-                  <Skeleton width="100%" height={80} />
-                  <View style={{ marginTop: spacing.md }}>
-                    <Skeleton width="100%" height={120} />
-                  </View>
-                </View>
-              ) : (
-                <>
-                  <View style={[styles.revenueCard, { backgroundColor: colors.muted }]}>
-                    <View style={styles.revenueIconContainer}>
-                      <View style={[styles.revenueIcon, { backgroundColor: `${colors.chart[2]}20` }]}>
-                        <Feather name="dollar-sign" size={24} color={colors.chart[2]} />
-                      </View>
-                    </View>
-                    <View style={styles.revenueContent}>
-                      <Text style={[styles.revenueLabel, dynamicStyles.mutedText]}>
-                        Totale omzet (geaccepteerd)
-                      </Text>
-                      <AnimatedNumber
-                        value={revenueStats?.totalAcceptedValue || 0}
-                        decimals={0}
-                        prefix="\u20AC "
-                        style={[styles.revenueValue, dynamicStyles.text]}
-                      />
-                      <Text style={[styles.revenueSubtext, dynamicStyles.mutedText]}>
-                        {revenueStats?.totalAcceptedCount || 0} geaccepteerde offertes
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Pipeline Summary */}
-                  <View style={styles.pipelineSection}>
-                    <Text style={[styles.pipelineSectionTitle, dynamicStyles.mutedText]}>
-                      Offerte Pipeline
+          {/* Financial Overview - Admin Only */}
+          {isAdmin && (
+            <Card style={styles.financialCard}>
+              <CardHeader>
+                <View style={styles.financialHeader}>
+                  <CardTitle>Financieel Overzicht</CardTitle>
+                  <View style={[styles.trendBadge, { backgroundColor: `${colors.chart[2]}20` }]}>
+                    <Feather name="trending-up" size={12} color={colors.chart[2]} />
+                    <Text style={[styles.trendText, { color: colors.chart[2] }]}>
+                      {revenueStats?.conversionRate || 0}% conv.
                     </Text>
-                    <View style={styles.pipelineGrid}>
-                      <View style={[styles.pipelineItem, { backgroundColor: colors.muted }]}>
-                        <View style={[styles.pipelineIconContainer, { backgroundColor: `${colors.chart[3]}20` }]}>
-                          <Feather name="edit-3" size={16} color={colors.chart[3]} />
-                        </View>
-                        <AnimatedNumber
-                          value={offerteStats?.concept || 0}
-                          decimals={0}
-                          style={[styles.pipelineValue, dynamicStyles.text]}
-                        />
-                        <Text style={[styles.pipelineLabel, dynamicStyles.mutedText]}>Concept</Text>
-                      </View>
-                      <View style={[styles.pipelineItem, { backgroundColor: colors.muted }]}>
-                        <View style={[styles.pipelineIconContainer, { backgroundColor: `${colors.chart[0]}20` }]}>
-                          <Feather name="send" size={16} color={colors.chart[0]} />
-                        </View>
-                        <AnimatedNumber
-                          value={offerteStats?.verzonden || 0}
-                          decimals={0}
-                          style={[styles.pipelineValue, dynamicStyles.text]}
-                        />
-                        <Text style={[styles.pipelineLabel, dynamicStyles.mutedText]}>Verzonden</Text>
-                      </View>
-                      <View style={[styles.pipelineItem, { backgroundColor: colors.muted }]}>
-                        <View style={[styles.pipelineIconContainer, { backgroundColor: `${colors.chart[2]}20` }]}>
-                          <Feather name="check-circle" size={16} color={colors.chart[2]} />
-                        </View>
-                        <AnimatedNumber
-                          value={offerteStats?.geaccepteerd || 0}
-                          decimals={0}
-                          style={[styles.pipelineValue, dynamicStyles.text]}
-                        />
-                        <Text style={[styles.pipelineLabel, dynamicStyles.mutedText]}>Geaccepteerd</Text>
-                      </View>
+                  </View>
+                </View>
+              </CardHeader>
+              <CardContent>
+                {/* Revenue Card */}
+                {(offerteStats === undefined || revenueStats === undefined) ? (
+                  <View style={styles.financialSkeletonContainer}>
+                    <Skeleton width="100%" height={80} />
+                    <View style={{ marginTop: spacing.md }}>
+                      <Skeleton width="100%" height={120} />
                     </View>
                   </View>
+                ) : (
+                  <>
+                    <View style={[styles.revenueCard, { backgroundColor: colors.muted }]}>
+                      <View style={styles.revenueIconContainer}>
+                        <View style={[styles.revenueIcon, { backgroundColor: `${colors.chart[2]}20` }]}>
+                          <Feather name="dollar-sign" size={24} color={colors.chart[2]} />
+                        </View>
+                      </View>
+                      <View style={styles.revenueContent}>
+                        <Text style={[styles.revenueLabel, dynamicStyles.mutedText]}>
+                          Totale omzet (geaccepteerd)
+                        </Text>
+                        <AnimatedNumber
+                          value={revenueStats?.totalAcceptedValue || 0}
+                          decimals={0}
+                          prefix="\u20AC "
+                          style={[styles.revenueValue, dynamicStyles.text]}
+                        />
+                        <Text style={[styles.revenueSubtext, dynamicStyles.mutedText]}>
+                          {revenueStats?.totalAcceptedCount || 0} geaccepteerde offertes
+                        </Text>
+                      </View>
+                    </View>
 
-                  {/* Average Value */}
-                  <View style={[styles.avgValueRow, { borderTopColor: colors.border }]}>
-                    <View style={styles.avgValueItem}>
-                      <Text style={[styles.avgValueLabel, dynamicStyles.mutedText]}>
-                        Gem. offerte waarde
+                    {/* Pipeline Summary */}
+                    <View style={styles.pipelineSection}>
+                      <Text style={[styles.pipelineSectionTitle, dynamicStyles.mutedText]}>
+                        Offerte Pipeline
                       </Text>
-                      <Text style={[styles.avgValueText, dynamicStyles.text]}>
-                        {formatCurrency(revenueStats?.averageOfferteValue || 0)}
-                      </Text>
+                      <View style={styles.pipelineGrid}>
+                        <View style={[styles.pipelineItem, { backgroundColor: colors.muted }]}>
+                          <View style={[styles.pipelineIconContainer, { backgroundColor: `${colors.chart[3]}20` }]}>
+                            <Feather name="edit-3" size={16} color={colors.chart[3]} />
+                          </View>
+                          <AnimatedNumber
+                            value={offerteStats?.concept || 0}
+                            decimals={0}
+                            style={[styles.pipelineValue, dynamicStyles.text]}
+                          />
+                          <Text style={[styles.pipelineLabel, dynamicStyles.mutedText]}>Concept</Text>
+                        </View>
+                        <View style={[styles.pipelineItem, { backgroundColor: colors.muted }]}>
+                          <View style={[styles.pipelineIconContainer, { backgroundColor: `${colors.chart[0]}20` }]}>
+                            <Feather name="send" size={16} color={colors.chart[0]} />
+                          </View>
+                          <AnimatedNumber
+                            value={offerteStats?.verzonden || 0}
+                            decimals={0}
+                            style={[styles.pipelineValue, dynamicStyles.text]}
+                          />
+                          <Text style={[styles.pipelineLabel, dynamicStyles.mutedText]}>Verzonden</Text>
+                        </View>
+                        <View style={[styles.pipelineItem, { backgroundColor: colors.muted }]}>
+                          <View style={[styles.pipelineIconContainer, { backgroundColor: `${colors.chart[2]}20` }]}>
+                            <Feather name="check-circle" size={16} color={colors.chart[2]} />
+                          </View>
+                          <AnimatedNumber
+                            value={offerteStats?.geaccepteerd || 0}
+                            decimals={0}
+                            style={[styles.pipelineValue, dynamicStyles.text]}
+                          />
+                          <Text style={[styles.pipelineLabel, dynamicStyles.mutedText]}>Geaccepteerd</Text>
+                        </View>
+                      </View>
                     </View>
-                    <View style={styles.avgValueItem}>
-                      <Text style={[styles.avgValueLabel, dynamicStyles.mutedText]}>
-                        Totale waarde
-                      </Text>
-                      <Text style={[styles.avgValueText, dynamicStyles.text]}>
-                        {formatCurrency(offerteStats?.totaalWaarde || 0)}
-                      </Text>
-                    </View>
-                  </View>
 
-                  {/* Quick Action Button */}
-                  <View style={styles.quickActionContainer}>
-                    <Button
-                      onPress={() => {
-                        // TODO: Navigate to offerte creation when available in mobile app
-                        // For now, this could open a link to the web app
-                      }}
-                      title="Nieuwe offerte"
-                      variant="outline"
-                      icon={<Feather name="plus" size={18} color={colors.primary} />}
-                      fullWidth
-                    />
+                    {/* Average Value */}
+                    <View style={[styles.avgValueRow, { borderTopColor: colors.border }]}>
+                      <View style={styles.avgValueItem}>
+                        <Text style={[styles.avgValueLabel, dynamicStyles.mutedText]}>
+                          Gem. offerte waarde
+                        </Text>
+                        <Text style={[styles.avgValueText, dynamicStyles.text]}>
+                          {formatCurrency(revenueStats?.averageOfferteValue || 0)}
+                        </Text>
+                      </View>
+                      <View style={styles.avgValueItem}>
+                        <Text style={[styles.avgValueLabel, dynamicStyles.mutedText]}>
+                          Totale waarde
+                        </Text>
+                        <Text style={[styles.avgValueText, dynamicStyles.text]}>
+                          {formatCurrency(offerteStats?.totaalWaarde || 0)}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Quick Action Button */}
+                    <View style={styles.quickActionContainer}>
+                      <Button
+                        onPress={() => {
+                          // TODO: Navigate to offerte creation when available in mobile app
+                          // For now, this could open a link to the web app
+                        }}
+                        title="Nieuwe offerte"
+                        variant="outline"
+                        icon={<Feather name="plus" size={18} color={colors.primary} />}
+                        fullWidth
+                      />
+                    </View>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Medewerker Summary Card - Only for non-admin users */}
+          {isMedewerker && (
+            <Card style={styles.financialCard}>
+              <CardHeader>
+                <View style={styles.financialHeader}>
+                  <CardTitle>Mijn Overzicht</CardTitle>
+                  <Badge variant="secondary" size="sm">
+                    {roleDisplayName}
+                  </Badge>
+                </View>
+              </CardHeader>
+              <CardContent>
+                <View style={[styles.medewerkerSummary, { backgroundColor: colors.muted }]}>
+                  <View style={styles.medewerkerSummaryRow}>
+                    <View style={[styles.medewerkerSummaryIcon, { backgroundColor: `${colors.scope.borders}20` }]}>
+                      <Feather name="calendar" size={20} color={colors.scope.borders} />
+                    </View>
+                    <View style={styles.medewerkerSummaryContent}>
+                      <Text style={[styles.medewerkerSummaryLabel, dynamicStyles.mutedText]}>
+                        Toegewezen projecten
+                      </Text>
+                      <Text style={[styles.medewerkerSummaryValue, dynamicStyles.text]}>
+                        {activeProjects?.length || 0} actief
+                      </Text>
+                    </View>
                   </View>
-                </>
-              )}
-            </CardContent>
-          </Card>
+                  <View style={[styles.medewerkerDivider, { backgroundColor: colors.border }]} />
+                  <View style={styles.medewerkerSummaryRow}>
+                    <View style={[styles.medewerkerSummaryIcon, { backgroundColor: `${colors.chart[1]}20` }]}>
+                      <Feather name="clock" size={20} color={colors.chart[1]} />
+                    </View>
+                    <View style={styles.medewerkerSummaryContent}>
+                      <Text style={[styles.medewerkerSummaryLabel, dynamicStyles.mutedText]}>
+                        Deze week gewerkt
+                      </Text>
+                      <Text style={[styles.medewerkerSummaryValue, dynamicStyles.text]}>
+                        {formatHoursMinutes(totalWeekHours)} uur
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </CardContent>
+            </Card>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -1021,5 +1085,45 @@ const styles = StyleSheet.create({
   },
   quickActionContainer: {
     marginTop: spacing.sm,
+  },
+
+  // Header Top row (greeting + role badge)
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+
+  // Medewerker Summary Card
+  medewerkerSummary: {
+    padding: spacing.md,
+    borderRadius: radius.lg,
+  },
+  medewerkerSummaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  medewerkerSummaryIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  medewerkerSummaryContent: {
+    flex: 1,
+  },
+  medewerkerSummaryLabel: {
+    fontSize: typography.fontSize.sm,
+    marginBottom: 2,
+  },
+  medewerkerSummaryValue: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.semibold,
+  },
+  medewerkerDivider: {
+    height: 1,
+    marginVertical: spacing.md,
   },
 });

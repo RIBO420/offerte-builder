@@ -41,6 +41,7 @@ import type * as projectRapportages from "../projectRapportages.js";
 import type * as projecten from "../projecten.js";
 import type * as publicOffertes from "../publicOffertes.js";
 import type * as pushNotifications from "../pushNotifications.js";
+import type * as roles from "../roles.js";
 import type * as smartAnalytics from "../smartAnalytics.js";
 import type * as standaardtuinen from "../standaardtuinen.js";
 import type * as teams from "../teams.js";
@@ -93,6 +94,7 @@ declare const fullApi: ApiFromModules<{
   projecten: typeof projecten;
   publicOffertes: typeof publicOffertes;
   pushNotifications: typeof pushNotifications;
+  roles: typeof roles;
   smartAnalytics: typeof smartAnalytics;
   standaardtuinen: typeof standaardtuinen;
   teams: typeof teams;

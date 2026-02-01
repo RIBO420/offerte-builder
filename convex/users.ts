@@ -4,6 +4,31 @@ import { getAuthenticatedUser, requireAuth } from "./auth";
 import { Id } from "./_generated/dataModel";
 import { MutationCtx } from "./_generated/server";
 
+// ============================================
+// ADMIN CONFIGURATION
+// ============================================
+//
+// Admin users are determined by:
+// 1. First user created in the system is automatically an admin
+// 2. Users with emails matching ADMIN_EMAILS list are automatically admins
+// 3. Existing users can be promoted via makeCurrentUserAdmin() (one-time bootstrap)
+//
+// To add more admin emails, add them to this list:
+const ADMIN_EMAILS: string[] = [
+  // Add admin email addresses here, e.g.:
+  // "admin@toptuinen.nl",
+  // "owner@company.com",
+];
+
+/**
+ * Check if an email should be an admin
+ */
+function isAdminEmail(email: string): boolean {
+  return ADMIN_EMAILS.some(
+    (adminEmail) => adminEmail.toLowerCase() === email.toLowerCase()
+  );
+}
+
 // Get current authenticated user
 export const current = query({
   args: {},
@@ -197,6 +222,9 @@ async function initializeSystemCorrectieFactoren(ctx: MutationCtx) {
 
 // Create or update user (called from Clerk webhook or on first login)
 // Also creates default settings, normuren, and products for new users
+// Automatically assigns admin role to:
+// 1. The first user ever created in the system
+// 2. Users with email addresses in the ADMIN_EMAILS list
 export const upsert = mutation({
   args: {
     clerkId: v.string(),
@@ -214,20 +242,39 @@ export const upsert = mutation({
       .unique();
 
     if (existing) {
-      await ctx.db.patch(existing._id, {
+      // Update existing user, but check if they should be upgraded to admin
+      const updates: Record<string, string | undefined> = {
         email: args.email,
         name: args.name,
         bedrijfsnaam: args.bedrijfsnaam,
-      });
+      };
+
+      // Upgrade to admin if email is in admin list and not already admin
+      if (isAdminEmail(args.email) && existing.role !== "admin") {
+        (updates as Record<string, string>).role = "admin";
+      }
+
+      await ctx.db.patch(existing._id, updates);
       return existing._id;
     }
 
-    // Create new user
+    // Check if this is the first user ever created
+    const existingUsers = await ctx.db.query("users").first();
+    const isFirstUser = existingUsers === null;
+
+    // Determine role for new user
+    // First user is always admin, or if email is in admin list
+    // New users get "viewer" role (read-only) by default unless they match admin criteria
+    const role: "admin" | "viewer" =
+      isFirstUser || isAdminEmail(args.email) ? "admin" : "viewer";
+
+    // Create new user with appropriate role
     const userId = await ctx.db.insert("users", {
       clerkId: args.clerkId,
       email: args.email,
       name: args.name,
       bedrijfsnaam: args.bedrijfsnaam,
+      role,
       createdAt: Date.now(),
     });
 
@@ -284,6 +331,7 @@ export const updateProfile = mutation({
 
 // Initialize missing defaults for existing users
 // Call this if a user is missing normuren or products
+// Also ensures user has a proper role set
 export const initializeDefaults = mutation({
   args: {},
   handler: async (ctx) => {
@@ -292,6 +340,21 @@ export const initializeDefaults = mutation({
 
     // Ensure system correction factors exist
     await initializeSystemCorrectieFactoren(ctx);
+
+    // Ensure user has a role set
+    // If no role is set, check if this is the only user (make admin) or set to "viewer"
+    let roleUpdated = false;
+    if (!user.role) {
+      // Count existing users to determine if this should be admin
+      const allUsers = await ctx.db.query("users").collect();
+      const isOnlyUser = allUsers.length === 1;
+      const shouldBeAdmin = isOnlyUser || isAdminEmail(user.email);
+
+      await ctx.db.patch(userId, {
+        role: shouldBeAdmin ? "admin" : "viewer",
+      });
+      roleUpdated = true;
+    }
 
     // Check if user already has normuren
     const existingNormuren = await ctx.db
@@ -427,10 +490,12 @@ export const initializeDefaults = mutation({
       normurenCreated,
       productenCreated,
       settingsCreated,
+      roleUpdated,
       migrationResults,
-      message: normurenCreated > 0 || productenCreated > 0 || settingsCreated
-        ? "Standaard gegevens aangemaakt"
-        : "Alle standaard gegevens waren al aanwezig",
+      message:
+        normurenCreated > 0 || productenCreated > 0 || settingsCreated || roleUpdated
+          ? "Standaard gegevens aangemaakt"
+          : "Alle standaard gegevens waren al aanwezig",
     };
   },
 });
@@ -893,5 +958,312 @@ export const adminRunMigrations = mutation({
       ...results,
       message: `Migratie voltooid: ${results.afgerondFixedCount} projecten status bijgewerkt, ${results.statusMigratedCount} naar gefactureerd, ${results.projectsArchivedCount} projecten gearchiveerd, ${results.offertesArchivedCount} offertes gearchiveerd`,
     };
+  },
+});
+
+// ============================================
+// ADMIN BOOTSTRAP MUTATIONS
+// ============================================
+
+/**
+ * Make the currently logged-in user an admin.
+ *
+ * USAGE:
+ * This is a one-time bootstrap mutation intended to be called when setting up the system.
+ * It allows the first/current user to claim admin privileges.
+ *
+ * Security considerations:
+ * - This mutation can only be called by an authenticated user
+ * - It is designed for initial setup when no admins exist yet
+ * - In production, you may want to disable this after initial setup
+ *   by checking if any admins already exist
+ *
+ * To call from Convex Dashboard:
+ * 1. Login to your app first (so you have a session)
+ * 2. Go to Convex Dashboard > Functions
+ * 3. Find users:makeCurrentUserAdmin
+ * 4. Click "Run" (no arguments needed)
+ *
+ * To call programmatically (from authenticated client):
+ * ```typescript
+ * import { useMutation } from "convex/react";
+ * import { api } from "../convex/_generated/api";
+ *
+ * const makeAdmin = useMutation(api.users.makeCurrentUserAdmin);
+ * await makeAdmin({ force: false });
+ * ```
+ *
+ * Arguments:
+ * - force: If true, bypasses the "no existing admin" check (use with caution)
+ */
+export const makeCurrentUserAdmin = mutation({
+  args: {
+    force: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireAuth(ctx);
+
+    // Check if user is already an admin
+    if (user.role === "admin") {
+      return {
+        success: true,
+        message: "Je bent al een admin.",
+        wasAlreadyAdmin: true,
+      };
+    }
+
+    // Safety check: Only allow if no admins exist yet (unless force is true)
+    if (!args.force) {
+      const existingAdmins = await ctx.db
+        .query("users")
+        .filter((q) => q.eq(q.field("role"), "admin"))
+        .collect();
+
+      if (existingAdmins.length > 0) {
+        return {
+          success: false,
+          message:
+            "Er bestaat al een admin. Gebruik { force: true } om dit te omzeilen, of vraag een bestaande admin om je rechten te geven.",
+          existingAdminCount: existingAdmins.length,
+        };
+      }
+    }
+
+    // Make the current user an admin
+    await ctx.db.patch(user._id, {
+      role: "admin",
+    });
+
+    return {
+      success: true,
+      message: "Je bent nu een admin!",
+      userId: user._id,
+      email: user.email,
+    };
+  },
+});
+
+/**
+ * Admin mutation to set another user's role.
+ *
+ * USAGE:
+ * Only admins can call this mutation to change other users' roles.
+ *
+ * To call from Convex Dashboard or CLI:
+ * ```
+ * npx convex run users:setUserRole '{"userEmail": "user@example.com", "role": "admin"}'
+ * ```
+ *
+ * Valid roles: "admin", "viewer", "medewerker"
+ */
+export const setUserRole = mutation({
+  args: {
+    userEmail: v.string(),
+    role: v.union(v.literal("admin"), v.literal("viewer"), v.literal("medewerker")),
+  },
+  handler: async (ctx, args) => {
+    const currentUser = await requireAuth(ctx);
+
+    // Only admins can change roles
+    if (currentUser.role !== "admin") {
+      return {
+        success: false,
+        message: "Alleen admins kunnen gebruikersrollen wijzigen.",
+      };
+    }
+
+    // Find the target user
+    const targetUser = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("email"), args.userEmail))
+      .first();
+
+    if (!targetUser) {
+      return {
+        success: false,
+        message: `Gebruiker met email ${args.userEmail} niet gevonden.`,
+      };
+    }
+
+    // Prevent removing your own admin rights
+    if (
+      targetUser._id.toString() === currentUser._id.toString() &&
+      args.role !== "admin"
+    ) {
+      return {
+        success: false,
+        message: "Je kunt je eigen admin-rechten niet verwijderen.",
+      };
+    }
+
+    const oldRole = targetUser.role || "viewer";
+
+    // Update the role
+    await ctx.db.patch(targetUser._id, {
+      role: args.role,
+    });
+
+    return {
+      success: true,
+      message: `Rol van ${args.userEmail} gewijzigd van "${oldRole}" naar "${args.role}".`,
+      userId: targetUser._id,
+      oldRole,
+      newRole: args.role,
+    };
+  },
+});
+
+/**
+ * Get current user's role (for quick role check in UI)
+ */
+export const getCurrentUserRole = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await getAuthenticatedUser(ctx);
+    if (!user) {
+      return { isAuthenticated: false, role: null };
+    }
+    return {
+      isAuthenticated: true,
+      role: user.role || "admin", // Default to "admin" for backwards compatibility
+      userId: user._id,
+      email: user.email,
+      name: user.name,
+    };
+  },
+});
+
+/**
+ * List all users with their roles and linked medewerker info - Admin only
+ * Used for the user management page
+ */
+export const listUsersWithDetails = query({
+  args: {},
+  handler: async (ctx) => {
+    const currentUser = await getAuthenticatedUser(ctx);
+    if (!currentUser) {
+      return [];
+    }
+
+    // Check if user is admin (default to admin for backwards compatibility)
+    const role = currentUser.role ?? "admin";
+    if (role !== "admin") {
+      return [];
+    }
+
+    // Get all users
+    const users = await ctx.db.query("users").collect();
+
+    // Get linked medewerkers
+    const usersWithDetails = await Promise.all(
+      users.map(async (user) => {
+        let linkedMedewerker = null;
+        if (user.linkedMedewerkerId) {
+          linkedMedewerker = await ctx.db.get(user.linkedMedewerkerId);
+        }
+        return {
+          _id: user._id,
+          clerkId: user.clerkId,
+          email: user.email,
+          name: user.name,
+          role: user.role ?? "admin", // Default to admin for backwards compatibility
+          linkedMedewerkerId: user.linkedMedewerkerId,
+          linkedMedewerkerNaam: linkedMedewerker?.naam ?? null,
+          createdAt: user.createdAt,
+        };
+      })
+    );
+
+    return usersWithDetails;
+  },
+});
+
+/**
+ * Link or unlink a user to a medewerker profile - Admin only
+ */
+export const linkUserToMedewerker = mutation({
+  args: {
+    userId: v.id("users"),
+    medewerkerId: v.optional(v.id("medewerkers")),
+  },
+  handler: async (ctx, args) => {
+    const currentUser = await requireAuth(ctx);
+
+    // Check if current user is admin
+    const role = currentUser.role ?? "admin";
+    if (role !== "admin") {
+      throw new Error("Alleen admins kunnen gebruikers koppelen aan medewerkers");
+    }
+
+    // Verify medewerker exists if provided
+    if (args.medewerkerId) {
+      const medewerker = await ctx.db.get(args.medewerkerId);
+      if (!medewerker) {
+        throw new Error("Medewerker niet gevonden");
+      }
+    }
+
+    await ctx.db.patch(args.userId, { linkedMedewerkerId: args.medewerkerId });
+    return { success: true };
+  },
+});
+
+/**
+ * Get available medewerkers for linking - Admin only
+ * Returns all medewerkers (active ones) that can be linked to users
+ */
+export const getAvailableMedewerkersForLinking = query({
+  args: {},
+  handler: async (ctx) => {
+    const currentUser = await getAuthenticatedUser(ctx);
+    if (!currentUser) {
+      return [];
+    }
+
+    const role = currentUser.role ?? "admin";
+    if (role !== "admin") {
+      return [];
+    }
+
+    // Get all active medewerkers for this user's company
+    const medewerkers = await ctx.db
+      .query("medewerkers")
+      .withIndex("by_user", (q) => q.eq("userId", currentUser._id))
+      .filter((q) => q.eq(q.field("isActief"), true))
+      .collect();
+
+    return medewerkers.map((m) => ({
+      _id: m._id,
+      naam: m.naam,
+      email: m.email ?? null,
+      functie: m.functie ?? null,
+    }));
+  },
+});
+
+/**
+ * Update user role by ID - Admin only (used by UI)
+ */
+export const updateUserRole = mutation({
+  args: {
+    userId: v.id("users"),
+    role: v.union(v.literal("admin"), v.literal("medewerker"), v.literal("viewer")),
+  },
+  handler: async (ctx, args) => {
+    const currentUser = await requireAuth(ctx);
+
+    // Check if current user is admin
+    const currentRole = currentUser.role ?? "admin";
+    if (currentRole !== "admin") {
+      throw new Error("Alleen admins kunnen gebruikersrollen wijzigen");
+    }
+
+    // Prevent removing own admin role
+    if (currentUser._id === args.userId && args.role !== "admin") {
+      throw new Error("Je kunt je eigen admin rechten niet verwijderen");
+    }
+
+    await ctx.db.patch(args.userId, { role: args.role });
+    return { success: true };
   },
 });

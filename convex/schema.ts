@@ -3,17 +3,31 @@ import { v } from "convex/values";
 import {
   aanlegScopeDataValidator,
   onderhoudScopeDataValidator,
+  userRoleValidator,
 } from "./validators";
 
 export default defineSchema({
   // Gebruikers (via Clerk, alleen referentie)
+  // Role-based access control (RBAC):
+  // - admin: Full access to all features, can manage users, medewerkers, and all data
+  // - medewerker: Limited access, can only see own data, linked to a medewerker profile
+  // - viewer: Read-only access to allowed features
   users: defineTable({
     clerkId: v.string(),
     email: v.string(),
     name: v.string(),
     bedrijfsnaam: v.optional(v.string()),
+    // Role-based access control - defaults to 'admin' for backwards compatibility
+    role: v.optional(userRoleValidator),
+    // Link to medewerkers table (for medewerker role)
+    // This allows a user to be connected to their medewerker profile
+    // enabling them to see only their own time registrations, projects, etc.
+    linkedMedewerkerId: v.optional(v.id("medewerkers")),
     createdAt: v.number(),
-  }).index("by_clerk_id", ["clerkId"]),
+  })
+    .index("by_clerk_id", ["clerkId"])
+    .index("by_role", ["role"])
+    .index("by_linked_medewerker", ["linkedMedewerkerId"]),
 
   // Klanten
   klanten: defineTable({

@@ -9,6 +9,7 @@ import { CLERK_PUBLISHABLE_KEY } from '../lib/env';
 import { ThemeProvider } from '../theme';
 import { useCurrentUser } from '../hooks/use-current-user';
 import { usePushNotifications } from '../hooks/use-push-notifications';
+import { RoleProvider } from '../contexts/RoleContext';
 
 // Convex client instantie
 const convex = getConvexClient();
@@ -47,18 +48,26 @@ function PushNotificationsInitializer({ children }: { children: React.ReactNode 
  *
  * Dit component bevat de navigatie stack en wordt gewrapped
  * door de Clerk en Convex providers.
+ *
+ * Providers (innermost to outermost):
+ * - Stack: Navigation
+ * - PushNotificationsInitializer: Push notification setup
+ * - RoleProvider: Role-based access control
+ * - UserSync: Clerk to Convex user sync
  */
 function InnerLayout() {
   return (
     <UserSync>
-      <PushNotificationsInitializer>
-        <StatusBar style="auto" />
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        </Stack>
-      </PushNotificationsInitializer>
+      <RoleProvider>
+        <PushNotificationsInitializer>
+          <StatusBar style="auto" />
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="index" />
+            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          </Stack>
+        </PushNotificationsInitializer>
+      </RoleProvider>
     </UserSync>
   );
 }

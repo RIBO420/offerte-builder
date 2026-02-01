@@ -838,3 +838,195 @@ export const updateBiometricSetting = mutation({
     return { success: true };
   },
 });
+
+// ============================================
+// ADMIN USER MANAGEMENT
+// ============================================
+
+/**
+ * Get the current user's role.
+ * Returns role info and whether user is admin.
+ */
+export const getCurrentUserRole = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await requireAuth(ctx);
+
+    return {
+      userId: user._id,
+      email: user.email,
+      name: user.name,
+      role: user.role || "admin", // Default to admin for backwards compatibility
+      isAdmin: !user.role || user.role === "admin",
+      linkedMedewerkerId: user.linkedMedewerkerId,
+    };
+  },
+});
+
+/**
+ * List all users (admin only).
+ * Returns users with their roles and linked medewerkers.
+ */
+export const adminListAllUsers = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await requireAuth(ctx);
+
+    // Check if user is admin
+    if (user.role && user.role !== "admin") {
+      throw new Error("Alleen beheerders kunnen gebruikers bekijken");
+    }
+
+    // Get all users
+    const users = await ctx.db.query("users").collect();
+
+    // Get all medewerkers for linking info
+    const medewerkers = await ctx.db.query("medewerkers").collect();
+
+    // Map users with medewerker info
+    const usersWithMedewerkers = users.map((u) => {
+      let linkedMedewerker = null;
+      if (u.linkedMedewerkerId) {
+        const med = medewerkers.find(
+          (m) => m._id.toString() === u.linkedMedewerkerId?.toString()
+        );
+        if (med) {
+          linkedMedewerker = {
+            _id: med._id,
+            naam: med.naam,
+            functie: med.functie,
+          };
+        }
+      }
+
+      return {
+        _id: u._id,
+        email: u.email,
+        name: u.name,
+        role: u.role || "admin", // Default to admin for backwards compatibility
+        linkedMedewerkerId: u.linkedMedewerkerId,
+        linkedMedewerker,
+        createdAt: u.createdAt,
+      };
+    });
+
+    return usersWithMedewerkers;
+  },
+});
+
+/**
+ * Get all medewerkers for linking (admin only).
+ * Returns medewerkers that can be linked to users.
+ */
+export const adminListMedewerkers = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await requireAuth(ctx);
+
+    // Check if user is admin
+    if (user.role && user.role !== "admin") {
+      throw new Error("Alleen beheerders kunnen medewerkers bekijken");
+    }
+
+    // Get medewerkers owned by this admin
+    const medewerkers = await ctx.db
+      .query("medewerkers")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .collect();
+
+    // Get users to check who is already linked
+    const users = await ctx.db.query("users").collect();
+    const linkedMedewerkerIds = new Set(
+      users
+        .filter((u) => u.linkedMedewerkerId)
+        .map((u) => u.linkedMedewerkerId?.toString())
+    );
+
+    return medewerkers.map((m) => ({
+      _id: m._id,
+      naam: m.naam,
+      email: m.email,
+      functie: m.functie,
+      isActief: m.isActief,
+      isLinked: linkedMedewerkerIds.has(m._id.toString()),
+    }));
+  },
+});
+
+/**
+ * Update a user's role (admin only).
+ */
+export const adminUpdateUserRole = mutation({
+  args: {
+    userId: v.id("users"),
+    role: v.union(v.literal("admin"), v.literal("medewerker"), v.literal("viewer")),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireAuth(ctx);
+
+    // Check if user is admin
+    if (user.role && user.role !== "admin") {
+      throw new Error("Alleen beheerders kunnen rollen wijzigen");
+    }
+
+    // Prevent changing own role
+    if (args.userId.toString() === user._id.toString()) {
+      throw new Error("Je kunt je eigen rol niet wijzigen");
+    }
+
+    // Update the user's role
+    await ctx.db.patch(args.userId, {
+      role: args.role,
+    });
+
+    return { success: true };
+  },
+});
+
+/**
+ * Link a user to a medewerker (admin only).
+ */
+export const adminLinkUserToMedewerker = mutation({
+  args: {
+    userId: v.id("users"),
+    medewerkerId: v.optional(v.id("medewerkers")),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireAuth(ctx);
+
+    // Check if user is admin
+    if (user.role && user.role !== "admin") {
+      throw new Error("Alleen beheerders kunnen gebruikers koppelen");
+    }
+
+    // If linking (not unlinking), verify the medewerker exists and belongs to admin
+    if (args.medewerkerId) {
+      const medewerker = await ctx.db.get(args.medewerkerId);
+      if (!medewerker) {
+        throw new Error("Medewerker niet gevonden");
+      }
+      if (medewerker.userId.toString() !== user._id.toString()) {
+        throw new Error("Je kunt alleen je eigen medewerkers koppelen");
+      }
+
+      // Check if medewerker is already linked to another user
+      const existingLink = await ctx.db
+        .query("users")
+        .withIndex("by_linked_medewerker", (q) =>
+          q.eq("linkedMedewerkerId", args.medewerkerId)
+        )
+        .first();
+
+      if (existingLink && existingLink._id.toString() !== args.userId.toString()) {
+        throw new Error("Deze medewerker is al aan een andere gebruiker gekoppeld");
+      }
+    }
+
+    // Update the user's linked medewerker
+    await ctx.db.patch(args.userId, {
+      linkedMedewerkerId: args.medewerkerId,
+    });
+
+    return { success: true };
+  },
+});

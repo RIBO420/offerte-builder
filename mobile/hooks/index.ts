@@ -22,5 +22,24 @@ export {
   type PushNotificationState,
 } from './use-push-notifications';
 
-// Current user hook
-export { useCurrentUser } from './use-current-user';
+// Current user hook (with role info)
+export {
+  useCurrentUser,
+  type UserRole as CurrentUserRole,
+  type CurrentUserResult,
+} from './use-current-user';
+
+// User role hook for RBAC
+export {
+  useUserRole,
+  normalizeRole,
+  getRoleDisplayName,
+  getRoleBadgeVariant,
+  hasAdminPrivileges,
+  getPermissionsForRole,
+  ROLE_BADGE_COLORS,
+  type UserRole,
+  type NormalizedRole,
+  type RolePermissions,
+  type UseUserRoleReturn,
+} from './use-user-role';

@@ -20,6 +20,7 @@ import Constants from 'expo-constants';
 import { api } from '../../convex/_generated/api';
 import { useTheme, useColors } from '../../theme';
 import { useCurrentUser } from '../../hooks/use-current-user';
+import { useUserRole, ROLE_BADGE_COLORS } from '../../hooks/use-user-role';
 import { Card, CardContent, Button, Badge, Switch, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui';
 import { spacing } from '../../theme/spacing';
 import { radius } from '../../theme/radius';
@@ -134,6 +135,7 @@ function AuthenticatedProfielScreen() {
   const { mode, setMode } = useTheme();
   const { user, isLoaded: userLoaded } = useUser();
   const { signOut } = useClerk();
+  const { roleDisplayName, roleBadgeVariant, roleBadgeColors, isAdmin, isMedewerker, normalizedRole } = useUserRole();
 
   // These queries will only run when this component is mounted (i.e., when authenticated)
   const profile = useQuery(api.mobile.getProfile);
@@ -554,9 +556,27 @@ function AuthenticatedProfielScreen() {
             </View>
           )}
           <Text style={dynamicStyles.userName}>{fullName}</Text>
-          <Badge variant="secondary" size="md">
-            {functie}
-          </Badge>
+          {/* Role and Function Badges */}
+          <View style={styles.badgeRow}>
+            <View
+              style={[
+                styles.roleBadge,
+                { backgroundColor: roleBadgeColors.background }
+              ]}
+            >
+              <Feather
+                name={isAdmin ? 'shield' : 'user'}
+                size={12}
+                color={roleBadgeColors.text}
+              />
+              <Text style={[styles.roleBadgeText, { color: roleBadgeColors.text }]}>
+                {roleDisplayName}
+              </Text>
+            </View>
+            <Badge variant="secondary" size="md">
+              {functie}
+            </Badge>
+          </View>
           <Text style={dynamicStyles.userEmail}>{email}</Text>
         </View>
 
@@ -762,5 +782,23 @@ const styles = StyleSheet.create({
   },
   themeOptionText: {
     fontSize: typography.fontSize.sm,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  roleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: radius.full,
+  },
+  roleBadgeText: {
+    fontSize: typography.fontSize.xs,
+    fontWeight: typography.fontWeight.semibold,
   },
 });
