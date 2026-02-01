@@ -17,7 +17,8 @@ const projectStatusValidator = v.union(
   v.literal("gepland"),
   v.literal("in_uitvoering"),
   v.literal("afgerond"),
-  v.literal("nacalculatie_compleet")
+  v.literal("nacalculatie_compleet"),
+  v.literal("gefactureerd")
 );
 
 /**
@@ -170,10 +171,12 @@ export const getByOfferte = query({
 /**
  * List all projects for the authenticated user.
  * Ordered by updatedAt descending (most recent first).
+ * By default, archived projects are excluded.
  */
 export const list = query({
   args: {
     status: v.optional(projectStatusValidator),
+    includeArchived: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const userId = await requireAuthUserId(ctx);
@@ -184,12 +187,18 @@ export const list = query({
       .order("desc")
       .collect();
 
-    // Filter by status if provided
-    if (args.status) {
-      return projects.filter((p) => p.status === args.status);
+    // Filter out archived projects unless explicitly requested
+    let filteredProjects = projects;
+    if (!args.includeArchived) {
+      filteredProjects = projects.filter((p) => p.isArchived !== true);
     }
 
-    return projects;
+    // Filter by status if provided
+    if (args.status) {
+      return filteredProjects.filter((p) => p.status === args.status);
+    }
+
+    return filteredProjects;
   },
 });
 
@@ -214,7 +223,8 @@ export const updateStatus = mutation({
       gepland: ["in_uitvoering"],
       in_uitvoering: ["afgerond"],
       afgerond: ["nacalculatie_compleet"],
-      nacalculatie_compleet: [], // Final state, no further transitions
+      nacalculatie_compleet: ["gefactureerd"],
+      gefactureerd: [], // Final state, no further transitions
     };
 
     const currentStatus = project.status;
@@ -262,6 +272,27 @@ export const updateStatus = mutation({
     await ctx.db.patch(args.id, {
       status: args.status,
       updatedAt: now,
+    });
+
+    return args.id;
+  },
+});
+
+/**
+ * Archive a project.
+ * Sets isArchived to true and records the archive timestamp.
+ */
+export const archive = mutation({
+  args: {
+    id: v.id("projecten"),
+  },
+  handler: async (ctx, args) => {
+    // Verify ownership before archiving
+    await getOwnedProject(ctx, args.id);
+
+    await ctx.db.patch(args.id, {
+      isArchived: true,
+      archivedAt: Date.now(),
     });
 
     return args.id;
@@ -535,6 +566,7 @@ export const getProjectsByOfferteIds = query({
 /**
  * Get dashboard statistics for projects.
  * Note: voorcalculatie status has been removed from project workflow.
+ * Only counts non-archived projects.
  */
 export const getStats = query({
   args: {},
@@ -546,15 +578,19 @@ export const getStats = query({
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
 
+    // Filter out archived projects
+    const activeProjects = projects.filter((p) => p.isArchived !== true);
+
     const stats = {
-      totaal: projects.length,
+      totaal: activeProjects.length,
       gepland: 0,
       in_uitvoering: 0,
       afgerond: 0,
       nacalculatie_compleet: 0,
+      gefactureerd: 0,
     };
 
-    for (const project of projects) {
+    for (const project of activeProjects) {
       if (project.status in stats) {
         stats[project.status as keyof typeof stats]++;
       }

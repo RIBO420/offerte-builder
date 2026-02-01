@@ -246,7 +246,8 @@ export const getByProject = query({
 
 /**
  * Lijst alle facturen voor de ingelogde gebruiker.
- * Optionele statusfilter.
+ * Optionele statusfilter en hideArchived parameter.
+ * Note: Paid invoices should always be visible, so hideArchived only affects non-paid invoices.
  */
 export const list = query({
   args: {
@@ -259,6 +260,7 @@ export const list = query({
         v.literal("vervallen")
       )
     ),
+    hideArchived: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const userId = await requireAuthUserId(ctx);
@@ -269,12 +271,19 @@ export const list = query({
       .order("desc")
       .collect();
 
+    let result = facturen;
+
     // Filter op status indien opgegeven
     if (args.status) {
-      return facturen.filter((f) => f.status === args.status);
+      result = result.filter((f) => f.status === args.status);
     }
 
-    return facturen;
+    // Filter archived facturen if hideArchived is true (but always show paid invoices)
+    if (args.hideArchived) {
+      result = result.filter((f) => !f.isArchived || f.status === "betaald");
+    }
+
+    return result;
   },
 });
 
@@ -430,6 +439,103 @@ export const markAsPaid = mutation({
     });
 
     return args.id;
+  },
+});
+
+/**
+ * Archive a factuur.
+ * Sets isArchived to true and archivedAt to the current timestamp.
+ */
+export const archive = mutation({
+  args: {
+    id: v.id("facturen"),
+  },
+  handler: async (ctx, args) => {
+    // Verifieer eigenaarschap
+    await getOwnedFactuur(ctx, args.id);
+    const now = Date.now();
+
+    await ctx.db.patch(args.id, {
+      isArchived: true,
+      archivedAt: now,
+      updatedAt: now,
+    });
+
+    return args.id;
+  },
+});
+
+/**
+ * Markeer factuur als betaald en archiveer het project en de offerte.
+ * This is a convenience mutation that performs multiple operations:
+ * 1. Updates the factuur status to "betaald"
+ * 2. Updates the project status to "gefactureerd" and archives it
+ * 3. Archives the linked offerte
+ */
+export const markAsPaidAndArchiveProject = mutation({
+  args: {
+    id: v.id("facturen"),
+  },
+  handler: async (ctx, args) => {
+    // Verifieer eigenaarschap van factuur
+    const factuur = await getOwnedFactuur(ctx, args.id);
+    const now = Date.now();
+
+    // Alleen verzonden facturen kunnen als betaald worden gemarkeerd
+    if (factuur.status !== "verzonden") {
+      throw new Error("Alleen verzonden facturen kunnen als betaald worden gemarkeerd");
+    }
+
+    // Update factuur status to "betaald"
+    await ctx.db.patch(args.id, {
+      status: "betaald",
+      betaaldAt: now,
+      updatedAt: now,
+    });
+
+    // Get the linked project
+    const project = await ctx.db.get(factuur.projectId);
+    if (!project) {
+      throw new Error("Project niet gevonden");
+    }
+
+    // Verify ownership of project
+    if (project.userId.toString() !== factuur.userId.toString()) {
+      throw new Error("Geen toegang tot dit project");
+    }
+
+    // Update project status to "gefactureerd" and archive it
+    await ctx.db.patch(factuur.projectId, {
+      status: "gefactureerd",
+      isArchived: true,
+      archivedAt: now,
+      updatedAt: now,
+    });
+
+    // Get the linked offerte via project.offerteId
+    const offerte = await ctx.db.get(project.offerteId);
+    if (!offerte) {
+      throw new Error("Offerte niet gevonden");
+    }
+
+    // Verify ownership of offerte
+    if (offerte.userId.toString() !== factuur.userId.toString()) {
+      throw new Error("Geen toegang tot deze offerte");
+    }
+
+    // Archive the offerte
+    await ctx.db.patch(project.offerteId, {
+      isArchived: true,
+      archivedAt: now,
+      updatedAt: now,
+    });
+
+    return {
+      success: true,
+      factuurId: args.id,
+      projectId: factuur.projectId,
+      offerteId: project.offerteId,
+    };
   },
 });
 

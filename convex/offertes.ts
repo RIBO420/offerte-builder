@@ -68,14 +68,23 @@ const totalenValidator = v.object({
 
 // List all offertes for authenticated user
 export const list = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    includeArchived: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
     const userId = await requireAuthUserId(ctx);
-    return await ctx.db
+    const offertes = await ctx.db
       .query("offertes")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .order("desc")
       .collect();
+
+    // Filter out archived offertes unless includeArchived is true
+    if (!args.includeArchived) {
+      return offertes.filter((o) => !o.isArchived);
+    }
+
+    return offertes;
   },
 });
 
@@ -646,6 +655,24 @@ export const remove = mutation({
     // Verify ownership before deleting
     await getOwnedOfferte(ctx, args.id);
     await ctx.db.delete(args.id);
+    return args.id;
+  },
+});
+
+// Archive offerte
+export const archive = mutation({
+  args: { id: v.id("offertes") },
+  handler: async (ctx, args) => {
+    // Verify ownership before archiving
+    await getOwnedOfferte(ctx, args.id);
+    const now = Date.now();
+
+    await ctx.db.patch(args.id, {
+      isArchived: true,
+      archivedAt: now,
+      updatedAt: now,
+    });
+
     return args.id;
   },
 });

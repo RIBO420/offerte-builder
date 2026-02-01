@@ -139,6 +139,10 @@ export default defineSchema({
         signedAt: v.optional(v.number()),
       })
     ),
+
+    // Archiving
+    isArchived: v.optional(v.boolean()),
+    archivedAt: v.optional(v.number()),
   })
     .index("by_user", ["userId"])
     .index("by_status", ["status"])
@@ -364,6 +368,11 @@ export default defineSchema({
     ),
     // Toegewezen voertuigen voor dit project (fleet management)
     toegewezenVoertuigen: v.optional(v.array(v.id("voertuigen"))),
+
+    // Archiving
+    isArchived: v.optional(v.boolean()),
+    archivedAt: v.optional(v.number()),
+
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -554,6 +563,10 @@ export default defineSchema({
     verzondenAt: v.optional(v.number()),
     betaaldAt: v.optional(v.number()),
     notities: v.optional(v.string()),
+
+    // Archiving
+    isArchived: v.optional(v.boolean()),
+    archivedAt: v.optional(v.number()),
 
     createdAt: v.number(),
     updatedAt: v.number(),
