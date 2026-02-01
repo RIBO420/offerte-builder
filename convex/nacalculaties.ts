@@ -423,3 +423,39 @@ export const fixProjectStatuses = mutation({
     };
   },
 });
+
+/**
+ * Fix a single project's status if it has nacalculatie but is still "afgerond".
+ * Called automatically when loading the nacalculatie page to ensure consistency.
+ * Returns true if the status was fixed, false if no fix was needed.
+ */
+export const ensureCorrectStatus = mutation({
+  args: { projectId: v.id("projecten") },
+  handler: async (ctx, args) => {
+    // Verify ownership of project
+    const project = await getOwnedProject(ctx, args.projectId);
+
+    // Only fix if status is "afgerond"
+    if (project.status !== "afgerond") {
+      return { fixed: false, currentStatus: project.status };
+    }
+
+    // Check if nacalculatie exists
+    const nacalculatie = await ctx.db
+      .query("nacalculaties")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .unique();
+
+    // If nacalculatie exists, update status to "nacalculatie_compleet"
+    if (nacalculatie) {
+      const now = Date.now();
+      await ctx.db.patch(args.projectId, {
+        status: "nacalculatie_compleet",
+        updatedAt: now,
+      });
+      return { fixed: true, currentStatus: "nacalculatie_compleet" };
+    }
+
+    return { fixed: false, currentStatus: project.status };
+  },
+});

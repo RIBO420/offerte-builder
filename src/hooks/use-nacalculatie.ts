@@ -4,7 +4,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useCurrentUser } from "./use-current-user";
 import { Id } from "../../convex/_generated/dataModel";
-import { useMemo } from "react";
+import { useMemo, useEffect, useRef } from "react";
 import {
   calculateNacalculatie,
   type NacalculatieResult,
@@ -15,6 +15,7 @@ import {
  */
 export function useNacalculatie(projectId: Id<"projecten"> | null) {
   const { user } = useCurrentUser();
+  const hasFixedStatus = useRef(false);
 
   // Get existing nacalculatie
   const nacalculatie = useQuery(
@@ -37,6 +38,22 @@ export function useNacalculatie(projectId: Id<"projecten"> | null) {
   // Mutations
   const saveNacalculatie = useMutation(api.nacalculaties.save);
   const addConclusionMutation = useMutation(api.nacalculaties.addConclusion);
+  const ensureCorrectStatusMutation = useMutation(api.nacalculaties.ensureCorrectStatus);
+
+  // Auto-fix project status if nacalculatie exists but status is still "afgerond"
+  useEffect(() => {
+    if (
+      projectId &&
+      details?.project?.status === "afgerond" &&
+      details?.nacalculatie &&
+      !hasFixedStatus.current
+    ) {
+      hasFixedStatus.current = true;
+      ensureCorrectStatusMutation({ projectId }).catch((err) => {
+        console.error("Failed to fix project status:", err);
+      });
+    }
+  }, [projectId, details?.project?.status, details?.nacalculatie, ensureCorrectStatusMutation]);
 
   // Save calculated results
   const save = async (data: {
