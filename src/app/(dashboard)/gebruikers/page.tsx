@@ -102,13 +102,7 @@ export default function GebruikersPage() {
   const [selectedMedewerkerId, setSelectedMedewerkerId] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Redirect non-admins
-  if (!isLoading && !isAdmin) {
-    router.push("/dashboard");
-    return null;
-  }
-
-  // Filter users based on search
+  // Filter users based on search - MUST be before any conditional returns
   const displayedUsers = useMemo(() => {
     if (!searchTerm.trim()) return users;
 
@@ -184,6 +178,12 @@ export default function GebruikersPage() {
       setIsSubmitting(false);
     }
   }, [selectedUser, selectedMedewerkerId, linkToMedewerker]);
+
+  // Redirect non-admins (AFTER all hooks to follow React rules)
+  if (!isLoading && !isAdmin) {
+    router.push("/dashboard");
+    return null;
+  }
 
   // Format date
   const formatDate = (timestamp: number) => {
