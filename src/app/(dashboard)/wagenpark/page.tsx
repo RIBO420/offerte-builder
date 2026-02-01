@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import Link from "next/link";
+import { useState, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   Card,
@@ -11,6 +10,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -19,24 +21,11 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { Badge } from "@/components/ui/badge";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  ResponsiveTable,
+  ResponsiveColumn,
+} from "@/components/ui/responsive-table";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,183 +36,375 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
+  Car,
   Plus,
-  MoreHorizontal,
-  Edit,
-  Trash2,
+  Search,
   Loader2,
+  Pencil,
+  Trash2,
+  CheckCircle2,
+  XCircle,
   Wrench,
-  Truck,
-  Home,
-  Sparkles,
-  Clock,
-  Euro,
-  FolderKanban,
-  ExternalLink,
+  Gauge,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useMachines, useMachinesWithUsage } from "@/hooks/use-machines";
-import { useCurrentUser } from "@/hooks/use-current-user";
-import { MachineForm, MachineFormData } from "@/components/machines/machine-form";
+import { useVoertuigen, VoertuigStatus } from "@/hooks/use-voertuigen";
+import { Id } from "../../../../convex/_generated/dataModel";
+import { KentekenPlaat } from "@/components/wagenpark/kenteken-plaat";
+import { VoertuigForm, Voertuig } from "@/components/wagenpark/voertuig-form";
 
-// Scope labels
-const scopeLabels: Record<string, string> = {
-  grondwerk: "Grondwerk",
-  bestrating: "Bestrating",
-  borders: "Borders",
-  gras: "Gazon",
-  houtwerk: "Houtwerk",
-  water_elektra: "Water/Elektra",
-  specials: "Specials",
-  gras_onderhoud: "Gras Onderhoud",
-  borders_onderhoud: "Borders Onderhoud",
-  heggen: "Heggen",
-  bomen: "Bomen",
+// Vehicle type labels
+const typeLabels: Record<string, string> = {
+  bus: "Bus",
+  bestelwagen: "Bestelwagen",
+  pickup: "Pickup",
+  aanhanger: "Aanhanger",
   overig: "Overig",
 };
 
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("nl-NL", {
-    style: "currency",
-    currency: "EUR",
-  }).format(amount);
+// Status configuration
+const statusConfig: Record<
+  VoertuigStatus,
+  { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: React.ReactNode }
+> = {
+  actief: {
+    label: "Actief",
+    variant: "default",
+    icon: <CheckCircle2 className="h-3 w-3 mr-1" />,
+  },
+  onderhoud: {
+    label: "In onderhoud",
+    variant: "secondary",
+    icon: <Wrench className="h-3 w-3 mr-1" />,
+  },
+  inactief: {
+    label: "Inactief",
+    variant: "outline",
+    icon: <XCircle className="h-3 w-3 mr-1" />,
+  },
+};
+
+type FilterTab = "alle" | VoertuigStatus;
+
+function formatKmStand(km: number | undefined): string {
+  if (km === undefined) return "-";
+  return new Intl.NumberFormat("nl-NL").format(km) + " km";
 }
 
-interface Machine {
-  _id: string;
-  naam: string;
-  type: "intern" | "extern";
-  tarief: number;
-  tariefType: "uur" | "dag";
-  gekoppeldeScopes: string[];
-  isActief: boolean;
+function formatSyncTime(timestamp: number | undefined): string {
+  if (!timestamp) return "-";
+  const date = new Date(timestamp);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffMins < 1) return "Zojuist";
+  if (diffMins < 60) return `${diffMins} min. geleden`;
+  if (diffHours < 24) return `${diffHours} uur geleden`;
+  if (diffDays < 7) return `${diffDays} dag${diffDays > 1 ? "en" : ""} geleden`;
+
+  return date.toLocaleDateString("nl-NL", {
+    day: "numeric",
+    month: "short",
+  });
 }
 
-interface MachineWithUsage extends Machine {
-  usage: {
-    totaalUren: number;
-    totaalKosten: number;
-    aantalDagen: number;
-    aantalProjecten: number;
-    projecten: Array<{
-      _id: string;
-      naam: string;
-      status: string;
-      klantNaam: string;
-    } | null>;
-  };
-}
+type VoertuigRow = {
+  _id: Id<"voertuigen">;
+  kenteken: string;
+  merk: string;
+  model: string;
+  type: string;
+  bouwjaar?: number;
+  kleur?: string;
+  kmStand?: number;
+  status: VoertuigStatus;
+  notities?: string;
+  fleetgoId?: string;
+  laatsteSyncAt?: number;
+  createdAt: number;
+  updatedAt: number;
+};
 
 export default function WagenparkPage() {
-  const { isLoading: isUserLoading } = useCurrentUser();
-  const {
-    create,
-    update,
-    delete: deleteMachine,
-    initializeDefaults,
-  } = useMachines();
-  const { machines: machinesWithUsage, isLoading: isMachinesLoading } = useMachinesWithUsage();
+  const { voertuigen, isLoading, update, hardDelete } = useVoertuigen();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [activeTab, setActiveTab] = useState<FilterTab>("alle");
 
-  const [showForm, setShowForm] = useState(false);
-  const [selectedMachine, setSelectedMachine] = useState<Machine | null>(null);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [machineToDelete, setMachineToDelete] = useState<Machine | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(false);
-  const [showProjectsDialog, setShowProjectsDialog] = useState(false);
-  const [selectedMachineProjects, setSelectedMachineProjects] = useState<MachineWithUsage | null>(null);
+  const [selectedVoertuig, setSelectedVoertuig] = useState<Voertuig | null>(null);
 
-  const isLoading = isUserLoading || isMachinesLoading;
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleOpenForm = useCallback((machine?: Machine) => {
-    if (machine) {
-      setSelectedMachine(machine);
-    } else {
-      setSelectedMachine(null);
+  // Filter voertuigen based on search and status tab
+  const displayedVoertuigen = useMemo(() => {
+    let filtered = voertuigen as VoertuigRow[];
+
+    // Filter by status tab
+    if (activeTab !== "alle") {
+      filtered = filtered.filter((v) => v.status === activeTab);
     }
-    setShowForm(true);
-  }, []);
 
-  const handleCloseForm = useCallback(() => {
-    setShowForm(false);
-    setSelectedMachine(null);
-  }, []);
-
-  const handleSubmit = useCallback(
-    async (data: MachineFormData) => {
-      setIsSaving(true);
-      try {
-        if (selectedMachine) {
-          await update({
-            id: selectedMachine._id as any,
-            ...data,
-          });
-          toast.success("Machine bijgewerkt");
-        } else {
-          await create(data);
-          toast.success("Machine toegevoegd");
-        }
-        handleCloseForm();
-      } catch (error) {
-        toast.error("Fout bij opslaan machine");
-        console.error(error);
-      } finally {
-        setIsSaving(false);
-      }
-    },
-    [selectedMachine, create, update, handleCloseForm]
-  );
-
-  const handleDelete = useCallback(async () => {
-    if (!machineToDelete) return;
-
-    try {
-      await deleteMachine({ id: machineToDelete._id as any });
-      toast.success("Machine verwijderd");
-      setShowDeleteDialog(false);
-      setMachineToDelete(null);
-    } catch (error) {
-      toast.error("Fout bij verwijderen machine");
-      console.error(error);
+    // Filter by search term
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(
+        (v) =>
+          v.kenteken.toLowerCase().includes(term) ||
+          v.merk.toLowerCase().includes(term) ||
+          v.model.toLowerCase().includes(term) ||
+          (typeLabels[v.type] || v.type).toLowerCase().includes(term)
+      );
     }
-  }, [machineToDelete, deleteMachine]);
 
-  const handleInitializeDefaults = useCallback(async () => {
-    setIsInitializing(true);
-    try {
-      const result = await initializeDefaults();
-      if (result.count > 0) {
-        toast.success(`${result.count} standaard machines toegevoegd`);
-      } else {
-        toast.info("Je hebt al machines in je wagenpark");
-      }
-    } catch (error) {
-      toast.error("Fout bij toevoegen standaard machines");
-      console.error(error);
-    } finally {
-      setIsInitializing(false);
-    }
-  }, [initializeDefaults]);
-
-  const handleShowProjects = useCallback((machine: MachineWithUsage) => {
-    setSelectedMachineProjects(machine);
-    setShowProjectsDialog(true);
-  }, []);
+    return filtered;
+  }, [voertuigen, searchTerm, activeTab]);
 
   // Stats
-  const machines = machinesWithUsage as MachineWithUsage[];
-  const interneMachines = machines.filter((m) => m.type === "intern");
-  const externeMachines = machines.filter((m) => m.type === "extern");
-  const totaalUren = machines.reduce((sum, m) => sum + m.usage.totaalUren, 0);
-  const totaalKosten = machines.reduce((sum, m) => sum + m.usage.totaalKosten, 0);
+  const totalCount = voertuigen.length;
+  const activeCount = voertuigen.filter((v) => v.status === "actief").length;
+  const maintenanceCount = voertuigen.filter((v) => v.status === "onderhoud").length;
+  const inactiveCount = voertuigen.filter((v) => v.status === "inactief").length;
+
+  const handleEdit = useCallback((voertuig: VoertuigRow) => {
+    setSelectedVoertuig(voertuig as Voertuig);
+    setShowEditDialog(true);
+  }, []);
+
+  const handleDelete = useCallback(async () => {
+    if (!selectedVoertuig) return;
+
+    setIsSubmitting(true);
+    try {
+      await hardDelete(selectedVoertuig._id);
+      toast.success("Voertuig verwijderd");
+      setShowDeleteDialog(false);
+      setSelectedVoertuig(null);
+    } catch {
+      toast.error("Fout bij verwijderen voertuig");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [selectedVoertuig, hardDelete]);
+
+  const handleDeleteClick = useCallback((voertuig: VoertuigRow) => {
+    setSelectedVoertuig(voertuig as Voertuig);
+    setShowDeleteDialog(true);
+  }, []);
+
+  const handleToggleStatus = useCallback(
+    async (voertuig: VoertuigRow, newStatus: VoertuigStatus) => {
+      try {
+        await update(voertuig._id, { status: newStatus });
+        toast.success(
+          newStatus === "actief"
+            ? "Voertuig geactiveerd"
+            : newStatus === "onderhoud"
+            ? "Voertuig op onderhoud gezet"
+            : "Voertuig op inactief gezet"
+        );
+      } catch {
+        toast.error("Fout bij wijzigen status");
+      }
+    },
+    [update]
+  );
+
+  // Column configuration for ResponsiveTable
+  const columns: ResponsiveColumn<VoertuigRow>[] = useMemo(
+    () => [
+      {
+        key: "kenteken",
+        header: "Kenteken",
+        isPrimary: true,
+        render: (voertuig) => <KentekenPlaat kenteken={voertuig.kenteken} size="sm" />,
+      },
+      {
+        key: "voertuig",
+        header: "Merk & Model",
+        isSecondary: true,
+        render: (voertuig) => (
+          <div>
+            <span className="font-medium">{voertuig.merk}</span>
+            <span className="text-muted-foreground ml-1">{voertuig.model}</span>
+            {voertuig.bouwjaar && (
+              <span className="text-muted-foreground text-xs ml-1">
+                ({voertuig.bouwjaar})
+              </span>
+            )}
+          </div>
+        ),
+      },
+      {
+        key: "type",
+        header: "Type",
+        showInCard: true,
+        mobileLabel: "Type",
+        render: (voertuig) => (
+          <Badge variant="outline">{typeLabels[voertuig.type] || voertuig.type}</Badge>
+        ),
+      },
+      {
+        key: "status",
+        header: "Status",
+        showInCard: true,
+        mobileLabel: "Status",
+        render: (voertuig) => {
+          const config = statusConfig[voertuig.status];
+          return (
+            <Badge variant={config.variant}>
+              {config.icon}
+              {config.label}
+            </Badge>
+          );
+        },
+      },
+      {
+        key: "kmStand",
+        header: "KM Stand",
+        showInCard: true,
+        mobileLabel: "KM",
+        render: (voertuig) => (
+          <div className="flex items-center gap-1.5 text-sm">
+            <Gauge className="h-3.5 w-3.5 text-muted-foreground hidden sm:inline" />
+            <span>{formatKmStand(voertuig.kmStand)}</span>
+          </div>
+        ),
+      },
+      {
+        key: "sync",
+        header: "Laatste sync",
+        showInCard: true,
+        mobileLabel: "Sync",
+        render: (voertuig) =>
+          voertuig.fleetgoId ? (
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <RefreshCw className="h-3.5 w-3.5 hidden sm:inline" />
+              <span>{formatSyncTime(voertuig.laatsteSyncAt)}</span>
+            </div>
+          ) : (
+            <span className="text-muted-foreground text-sm">-</span>
+          ),
+      },
+      {
+        key: "acties",
+        header: "Acties",
+        align: "right",
+        showInCard: true,
+        mobileLabel: "",
+        render: (voertuig) => (
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleEdit(voertuig);
+              }}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+            {voertuig.status === "actief" && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleToggleStatus(voertuig, "onderhoud");
+                }}
+                title="Op onderhoud zetten"
+              >
+                <Wrench className="h-4 w-4 text-muted-foreground" />
+              </Button>
+            )}
+            {voertuig.status === "onderhoud" && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleToggleStatus(voertuig, "actief");
+                }}
+                title="Activeren"
+              >
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+              </Button>
+            )}
+            {voertuig.status === "inactief" && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleToggleStatus(voertuig, "actief");
+                  }}
+                  title="Activeren"
+                >
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteClick(voertuig);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </>
+            )}
+          </div>
+        ),
+      },
+    ],
+    [handleEdit, handleToggleStatus, handleDeleteClick]
+  );
+
+  if (isLoading) {
+    return (
+      <>
+        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+          <SidebarTrigger className="-ml-1" />
+          <Separator orientation="vertical" className="mr-2 h-4" />
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>Wagenpark</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+        </header>
+        <div className="flex flex-1 items-center justify-center">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex flex-col items-center gap-4"
+          >
+            <div className="relative">
+              <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full" />
+              <div className="relative flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-green-600">
+                <Loader2 className="h-8 w-8 animate-spin text-white" />
+              </div>
+            </div>
+            <p className="text-muted-foreground animate-pulse">Laden...</p>
+          </motion.div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -255,401 +436,183 @@ export default function WagenparkPage() {
               Wagenpark
             </h1>
             <p className="text-muted-foreground">
-              Beheer je machines en bekijk hun inzet bij projecten
+              Beheer je voertuigen en wagenpark
             </p>
           </div>
-          <div className="flex gap-2">
-            {machines.length === 0 && (
-              <Button
-                variant="outline"
-                onClick={handleInitializeDefaults}
-                disabled={isInitializing}
-              >
-                {isInitializing ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Sparkles className="mr-2 h-4 w-4" />
+
+          <Button onClick={() => setShowAddDialog(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Voertuig toevoegen
+          </Button>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Totaal voertuigen</CardTitle>
+              <Car className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalCount}</div>
+              <p className="text-xs text-muted-foreground">in je wagenpark</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Actieve voertuigen</CardTitle>
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{activeCount}</div>
+              <p className="text-xs text-muted-foreground">beschikbaar voor gebruik</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">In onderhoud</CardTitle>
+              <Wrench className="h-4 w-4 text-amber-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{maintenanceCount}</div>
+              <p className="text-xs text-muted-foreground">tijdelijk niet beschikbaar</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Filter Tabs and Table */}
+        <Card>
+          <CardHeader>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Car className="h-5 w-5" />
+                  Voertuigenlijst
+                </CardTitle>
+                <CardDescription>
+                  {displayedVoertuigen.length} voertuig
+                  {displayedVoertuigen.length !== 1 ? "en" : ""} weergegeven
+                </CardDescription>
+              </div>
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Zoek voertuigen..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-8"
+                />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Tabs
+              value={activeTab}
+              onValueChange={(value) => setActiveTab(value as FilterTab)}
+              className="mb-4"
+            >
+              <TabsList>
+                <TabsTrigger value="alle">
+                  Alle ({totalCount})
+                </TabsTrigger>
+                <TabsTrigger value="actief">
+                  Actief ({activeCount})
+                </TabsTrigger>
+                <TabsTrigger value="onderhoud">
+                  Onderhoud ({maintenanceCount})
+                </TabsTrigger>
+                <TabsTrigger value="inactief">
+                  Inactief ({inactiveCount})
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+
+            {displayedVoertuigen.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <Car className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                <h3 className="text-lg font-medium">
+                  {searchTerm
+                    ? "Geen voertuigen gevonden"
+                    : activeTab !== "alle"
+                    ? `Geen ${activeTab === "actief" ? "actieve" : activeTab === "onderhoud" ? "voertuigen in onderhoud" : "inactieve"} voertuigen`
+                    : "Nog geen voertuigen"}
+                </h3>
+                <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+                  {searchTerm
+                    ? `Geen resultaten voor "${searchTerm}"`
+                    : activeTab !== "alle"
+                    ? "Wijzig de filter om andere voertuigen te zien."
+                    : "Voeg je eerste voertuig toe om te beginnen."}
+                </p>
+                {!searchTerm && activeTab === "alle" && (
+                  <Button
+                    className="mt-4"
+                    onClick={() => setShowAddDialog(true)}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Voertuig toevoegen
+                  </Button>
                 )}
-                Standaard machines
-              </Button>
+              </div>
+            ) : (
+              <ResponsiveTable
+                data={displayedVoertuigen}
+                columns={columns}
+                keyExtractor={(voertuig) => voertuig._id}
+                emptyMessage={
+                  searchTerm
+                    ? `Geen resultaten voor "${searchTerm}"`
+                    : "Voeg je eerste voertuig toe om te beginnen."
+                }
+                mobileBreakpoint="md"
+              />
             )}
-            <Button onClick={() => handleOpenForm()}>
-              <Plus className="mr-2 h-4 w-4" />
-              Machine toevoegen
-            </Button>
-          </div>
-        </div>
-
-        {/* Stats */}
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Totaal machines
-              </CardTitle>
-              <Wrench className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <div className="text-2xl font-bold">{machines.length}</div>
-                  <p className="text-xs text-muted-foreground">
-                    in je wagenpark
-                  </p>
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Intern / Extern
-              </CardTitle>
-              <div className="flex gap-1">
-                <Home className="h-4 w-4 text-muted-foreground" />
-                <Truck className="h-4 w-4 text-muted-foreground" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <div className="text-2xl font-bold">
-                    {interneMachines.length} / {externeMachines.length}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    eigen / huur machines
-                  </p>
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Totaal ingezet
-              </CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <div className="text-2xl font-bold">{totaalUren.toFixed(1)} uur</div>
-                  <p className="text-xs text-muted-foreground">
-                    over alle projecten
-                  </p>
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Totaal kosten
-              </CardTitle>
-              <Euro className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <div className="text-2xl font-bold">{formatCurrency(totaalKosten)}</div>
-                  <p className="text-xs text-muted-foreground">
-                    machine kosten
-                  </p>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Machines Table */}
-        {isLoading ? (
-          <Card>
-            <CardContent className="flex items-center justify-center py-12">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="flex flex-col items-center gap-4"
-              >
-                <div className="relative">
-                  <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full" />
-                  <div className="relative flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-green-600">
-                    <Loader2 className="h-8 w-8 animate-spin text-white" />
-                  </div>
-                </div>
-                <p className="text-muted-foreground animate-pulse">Laden...</p>
-              </motion.div>
-            </CardContent>
-          </Card>
-        ) : machines.length > 0 ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>Je machines</CardTitle>
-              <CardDescription>
-                Overzicht van alle machines en hun inzet bij projecten
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Machine</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead className="text-right">Tarief</TableHead>
-                    <TableHead className="text-right">Ingezet</TableHead>
-                    <TableHead className="text-right">Kosten</TableHead>
-                    <TableHead className="text-center">Projecten</TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {machines.map((machine, index) => (
-                    <motion.tr
-                      key={machine._id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
-                    >
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Wrench className="h-4 w-4 text-muted-foreground" />
-                          <div>
-                            <span className="font-medium">{machine.naam}</span>
-                            {machine.gekoppeldeScopes.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {machine.gekoppeldeScopes.slice(0, 2).map((scope) => (
-                                  <Badge
-                                    key={scope}
-                                    variant="outline"
-                                    className="text-xs"
-                                  >
-                                    {scopeLabels[scope] || scope}
-                                  </Badge>
-                                ))}
-                                {machine.gekoppeldeScopes.length > 2 && (
-                                  <Badge variant="outline" className="text-xs">
-                                    +{machine.gekoppeldeScopes.length - 2}
-                                  </Badge>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            machine.type === "intern" ? "secondary" : "outline"
-                          }
-                        >
-                          {machine.type === "intern" ? "Intern" : "Extern"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div>
-                          <span className="font-medium">
-                            {formatCurrency(machine.tarief)}
-                          </span>
-                          <span className="text-muted-foreground ml-1 text-sm">
-                            /{machine.tariefType}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {machine.usage.totaalUren > 0 ? (
-                          <span className="font-medium">
-                            {machine.usage.totaalUren.toFixed(1)} uur
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {machine.usage.totaalKosten > 0 ? (
-                          <span className="font-medium">
-                            {formatCurrency(machine.usage.totaalKosten)}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {machine.usage.aantalProjecten > 0 ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="gap-1"
-                            onClick={() => handleShowProjects(machine)}
-                          >
-                            <FolderKanban className="h-3 w-3" />
-                            {machine.usage.aantalProjecten}
-                          </Button>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() => handleOpenForm(machine)}
-                            >
-                              <Edit className="mr-2 h-4 w-4" />
-                              Bewerken
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setMachineToDelete(machine);
-                                setShowDeleteDialog(true);
-                              }}
-                              className="text-destructive"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Verwijderen
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </motion.tr>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <Wrench className="h-12 w-12 text-muted-foreground/50" />
-              <h3 className="mt-4 text-lg font-semibold">
-                Geen machines
-              </h3>
-              <p className="mt-2 text-sm text-muted-foreground text-center max-w-md">
-                Voeg machines toe aan je wagenpark om ze in projecten te
-                kunnen gebruiken voor kostenbepaling.
-              </p>
-              <div className="mt-6 flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={handleInitializeDefaults}
-                  disabled={isInitializing}
-                >
-                  {isInitializing ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Sparkles className="mr-2 h-4 w-4" />
-                  )}
-                  Standaard machines
-                </Button>
-                <Button onClick={() => handleOpenForm()}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Machine toevoegen
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+          </CardContent>
+        </Card>
       </motion.div>
 
-      {/* Machine Form Dialog */}
-      <MachineForm
-        open={showForm}
-        onOpenChange={handleCloseForm}
-        machine={selectedMachine}
-        onSubmit={handleSubmit}
-        isLoading={isSaving}
+      {/* Add Dialog */}
+      <VoertuigForm
+        open={showAddDialog}
+        onOpenChange={setShowAddDialog}
+        onSuccess={() => setShowAddDialog(false)}
       />
 
-      {/* Projects Dialog */}
-      <Dialog open={showProjectsDialog} onOpenChange={setShowProjectsDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Wrench className="h-5 w-5" />
-              {selectedMachineProjects?.naam}
-            </DialogTitle>
-            <DialogDescription>
-              Projecten waarbij deze machine is ingezet
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            {selectedMachineProjects?.usage.projecten
-              .filter(Boolean)
-              .map((project) => (
-                <div
-                  key={project!._id}
-                  className="flex items-center justify-between rounded-lg border p-3"
-                >
-                  <div>
-                    <p className="font-medium">{project!.naam}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {project!.klantNaam}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge
-                      variant={
-                        project!.status === "afgerond"
-                          ? "default"
-                          : project!.status === "in_uitvoering"
-                          ? "secondary"
-                          : "outline"
-                      }
-                    >
-                      {project!.status.replace("_", " ")}
-                    </Badge>
-                    <Button variant="ghost" size="icon" asChild>
-                      <Link href={`/projecten/${project!._id}`}>
-                        <ExternalLink className="h-4 w-4" />
-                      </Link>
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            {(!selectedMachineProjects?.usage.projecten ||
-              selectedMachineProjects.usage.projecten.filter(Boolean).length === 0) && (
-              <p className="text-center text-muted-foreground py-4">
-                Geen projecten gevonden
-              </p>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Edit Dialog */}
+      <VoertuigForm
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        initialData={selectedVoertuig}
+        onSuccess={() => {
+          setShowEditDialog(false);
+          setSelectedVoertuig(null);
+        }}
+      />
 
-      {/* Delete confirmation */}
+      {/* Delete Confirmation */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Machine verwijderen?</AlertDialogTitle>
+            <AlertDialogTitle>Voertuig Verwijderen</AlertDialogTitle>
             <AlertDialogDescription>
-              Weet je zeker dat je &quot;{machineToDelete?.naam}&quot; wilt
-              verwijderen? Dit kan niet ongedaan worden gemaakt.
+              Weet je zeker dat je het voertuig met kenteken{" "}
+              <strong>{selectedVoertuig?.kenteken}</strong> definitief wilt
+              verwijderen? Deze actie kan niet ongedaan worden gemaakt.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setMachineToDelete(null)}>
-              Annuleren
-            </AlertDialogCancel>
+            <AlertDialogCancel>Annuleren</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
+              {isSubmitting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="mr-2 h-4 w-4" />
+              )}
               Verwijderen
             </AlertDialogAction>
           </AlertDialogFooter>

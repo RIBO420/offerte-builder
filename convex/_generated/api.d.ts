@@ -35,6 +35,7 @@ import type * as standaardtuinen from "../standaardtuinen.js";
 import type * as urenRegistraties from "../urenRegistraties.js";
 import type * as users from "../users.js";
 import type * as validators from "../validators.js";
+import type * as voertuigen from "../voertuigen.js";
 import type * as voorcalculaties from "../voorcalculaties.js";
 
 import type {
@@ -71,6 +72,7 @@ declare const fullApi: ApiFromModules<{
   urenRegistraties: typeof urenRegistraties;
   users: typeof users;
   validators: typeof validators;
+  voertuigen: typeof voertuigen;
   voorcalculaties: typeof voorcalculaties;
 }>;
 

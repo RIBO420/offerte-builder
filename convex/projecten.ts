@@ -275,6 +275,7 @@ export const update = mutation({
   args: {
     id: v.id("projecten"),
     naam: v.optional(v.string()),
+    toegewezenVoertuigen: v.optional(v.array(v.id("voertuigen"))),
   },
   handler: async (ctx, args) => {
     // Verify ownership before updating
@@ -287,9 +288,65 @@ export const update = mutation({
       updates.naam = args.naam;
     }
 
+    if (args.toegewezenVoertuigen !== undefined) {
+      updates.toegewezenVoertuigen = args.toegewezenVoertuigen;
+    }
+
     await ctx.db.patch(args.id, updates);
 
     return args.id;
+  },
+});
+
+/**
+ * Update assigned vehicles for a project.
+ * Convenience mutation specifically for vehicle assignment.
+ */
+export const updateVoertuigen = mutation({
+  args: {
+    id: v.id("projecten"),
+    voertuigIds: v.array(v.id("voertuigen")),
+  },
+  handler: async (ctx, args) => {
+    // Verify ownership before updating
+    await getOwnedProject(ctx, args.id);
+    const now = Date.now();
+
+    await ctx.db.patch(args.id, {
+      toegewezenVoertuigen: args.voertuigIds,
+      updatedAt: now,
+    });
+
+    return args.id;
+  },
+});
+
+/**
+ * Get assigned vehicles for a project with full vehicle details.
+ */
+export const getVoertuigen = query({
+  args: { id: v.id("projecten") },
+  handler: async (ctx, args) => {
+    const project = await ctx.db.get(args.id);
+    if (!project) return [];
+
+    // Verify ownership
+    const user = await requireAuth(ctx);
+    if (project.userId.toString() !== user._id.toString()) {
+      return [];
+    }
+
+    if (!project.toegewezenVoertuigen || project.toegewezenVoertuigen.length === 0) {
+      return [];
+    }
+
+    // Fetch all assigned vehicles
+    const voertuigen = await Promise.all(
+      project.toegewezenVoertuigen.map((id) => ctx.db.get(id))
+    );
+
+    // Filter out any null values (deleted vehicles) and return
+    return voertuigen.filter((v) => v !== null);
   },
 });
 

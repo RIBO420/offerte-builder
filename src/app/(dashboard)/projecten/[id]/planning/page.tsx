@@ -69,6 +69,7 @@ import { TakenLijst } from "@/components/project/taken-lijst";
 import { PlanningOverzicht } from "@/components/project/planning-overzicht";
 import { ProjectDuurCard } from "@/components/project/project-duur-card";
 import { ProjectProgressStepper } from "@/components/project/project-progress-stepper";
+import { VoertuigSelector } from "@/components/project/voertuig-selector";
 import {
   getScopeDisplayName,
   takenTemplates,
@@ -529,6 +530,13 @@ export default function PlanningPage({
               effectieveUrenPerDag={effectieveUrenPerDag}
               startDatum={startDatum}
               onStartDatumChange={setStartDatum}
+            />
+
+            {/* Voertuigen Selector */}
+            <VoertuigSelector
+              projectId={projectId}
+              selectedVoertuigen={(project?.toegewezenVoertuigen as Id<"voertuigen">[]) || []}
+              autoSave={true}
             />
 
             {summary && taken.length > 0 && (

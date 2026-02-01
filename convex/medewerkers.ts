@@ -112,22 +112,31 @@ export const update = mutation({
       throw new Error("Geen toegang tot deze medewerker");
     }
 
-    const { id, ...updates } = args;
-
-    // Filter undefined waarden uit
-    const filteredUpdates: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(updates)) {
-      if (value !== undefined) {
-        filteredUpdates[key] = value;
-      }
-    }
-
-    await ctx.db.patch(id, {
-      ...filteredUpdates,
+    // Bouw update object expliciet (geen dynamic object access)
+    const updateData: {
+      naam?: string;
+      email?: string;
+      telefoon?: string;
+      functie?: string;
+      uurtarief?: number;
+      notities?: string;
+      isActief?: boolean;
+      updatedAt: number;
+    } = {
       updatedAt: Date.now(),
-    });
+    };
 
-    return id;
+    if (args.naam !== undefined) updateData.naam = args.naam;
+    if (args.email !== undefined) updateData.email = args.email;
+    if (args.telefoon !== undefined) updateData.telefoon = args.telefoon;
+    if (args.functie !== undefined) updateData.functie = args.functie;
+    if (args.uurtarief !== undefined) updateData.uurtarief = args.uurtarief;
+    if (args.notities !== undefined) updateData.notities = args.notities;
+    if (args.isActief !== undefined) updateData.isActief = args.isActief;
+
+    await ctx.db.patch(args.id, updateData);
+
+    return args.id;
   },
 });
 

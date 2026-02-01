@@ -57,6 +57,7 @@ import { Button } from "@/components/ui/button";
 import { StatusDot } from "@/components/ui/status-badge";
 import { useDashboardData } from "@/hooks/use-offertes";
 
+// Main workflow navigation items
 const navigationItems = [
   {
     title: "Dashboard",
@@ -83,6 +84,10 @@ const navigationItems = [
     url: "/klanten",
     icon: Users,
   },
+];
+
+// Beheer (Management) section items
+const beheerItems = [
   {
     title: "Medewerkers",
     url: "/medewerkers",
@@ -177,7 +182,31 @@ export function AppSidebar() {
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
-                    isActive={pathname === item.url}
+                    isActive={pathname === item.url || pathname.startsWith(item.url + "/")}
+                    tooltip={item.title}
+                  >
+                    <Link href={item.url}>
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarSeparator />
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Beheer</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {beheerItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname === item.url || pathname.startsWith(item.url + "/")}
                     tooltip={item.title}
                   >
                     <Link href={item.url}>
@@ -257,6 +286,27 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarSeparator />
+
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === "/instellingen" || pathname.startsWith("/instellingen/")}
+                  tooltip="Instellingen"
+                >
+                  <Link href="/instellingen">
+                    <Settings />
+                    <span>Instellingen</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

@@ -9,3 +9,4 @@ export { PlanningOverzicht } from "./planning-overzicht";
 export { ProjectDuurCard } from "./project-duur-card";
 export { FactuurPDF } from "./factuur-pdf";
 export type { Factuur, FactuurRegel, FactuurCorrectie, FactuurPDFProps } from "./factuur-pdf";
+export { VoertuigSelector, VoertuigBadges } from "./voertuig-selector";

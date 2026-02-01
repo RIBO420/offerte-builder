@@ -362,6 +362,8 @@ export default defineSchema({
       v.literal("nacalculatie_compleet"),
       v.literal("gefactureerd")
     ),
+    // Toegewezen voertuigen voor dit project (fleet management)
+    toegewezenVoertuigen: v.optional(v.array(v.id("voertuigen"))),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -578,4 +580,37 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_normuur", ["normuurId"])
     .index("by_scope", ["scope"]),
+
+  // ============================================
+  // Wagenpark (Fleet Management)
+  // ============================================
+
+  // Voertuigen - Vehicles in the fleet
+  // Supports integration with FleetGo for GPS tracking and data sync
+  // Types: bus, bestelwagen, aanhanger, etc.
+  voertuigen: defineTable({
+    userId: v.id("users"),
+    kenteken: v.string(), // Dutch license plate
+    merk: v.string(), // Brand: Mercedes, VW, etc.
+    model: v.string(), // Model name
+    type: v.string(), // bus, bestelwagen, aanhanger, etc.
+    bouwjaar: v.optional(v.number()), // Year built
+    kleur: v.optional(v.string()), // Color
+    fleetgoId: v.optional(v.string()), // External ID from FleetGo
+    fleetgoData: v.optional(v.any()), // Raw data from FleetGo API
+    laatsteSyncAt: v.optional(v.number()), // Last sync timestamp
+    kmStand: v.optional(v.number()), // Current mileage
+    status: v.union(
+      v.literal("actief"),
+      v.literal("inactief"),
+      v.literal("onderhoud")
+    ),
+    notities: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_status", ["userId", "status"])
+    .index("by_kenteken", ["kenteken"])
+    .index("by_fleetgo", ["fleetgoId"]),
 });
