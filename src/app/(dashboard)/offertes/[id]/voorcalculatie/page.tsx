@@ -375,9 +375,9 @@ export default function OfferteVoorcalculatiePage({
         >
           <Card className="overflow-hidden">
             <div className="p-4 md:p-6 space-y-4">
-              {/* Workflow Stepper */}
+              {/* Workflow Stepper - show voorcalculatie as current since we're on this page */}
               <OfferteWorkflowStepper
-                currentStatus={offerte.status as "concept" | "voorcalculatie" | "verzonden" | "geaccepteerd" | "afgewezen"}
+                currentStatus={offerte.status === "concept" ? "voorcalculatie" : offerte.status as "concept" | "voorcalculatie" | "verzonden" | "geaccepteerd" | "afgewezen"}
                 hasVoorcalculatie={hasVoorcalculatie}
               />
 

@@ -9,6 +9,7 @@
  */
 
 import type * as analytics from "../analytics.js";
+import type * as archief from "../archief.js";
 import type * as auth from "../auth.js";
 import type * as berekeningen from "../berekeningen.js";
 import type * as correctiefactoren from "../correctiefactoren.js";
@@ -46,6 +47,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   analytics: typeof analytics;
+  archief: typeof archief;
   auth: typeof auth;
   berekeningen: typeof berekeningen;
   correctiefactoren: typeof correctiefactoren;

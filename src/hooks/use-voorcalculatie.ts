@@ -159,9 +159,11 @@ export function useOfferteVoorcalculatie(offerteId: Id<"offertes"> | null) {
 
       // Check if voorcalculatie exists
       if (offerteData?.voorcalculatie) {
+        // Strip offerteId from update - it's not allowed in the update mutation
+        const { offerteId: _offerteId, ...updateData } = voorcalculatieData;
         return updateVoorcalculatie({
           id: offerteData.voorcalculatie._id,
-          ...voorcalculatieData,
+          ...updateData,
         });
       } else {
         return createVoorcalculatie(voorcalculatieData);
@@ -272,9 +274,11 @@ export function useProjectVoorcalculatie(projectId: Id<"projecten"> | null) {
 
       // Check if voorcalculatie exists
       if (projectData?.voorcalculatie) {
+        // Strip projectId from update - it's not allowed in the update mutation
+        const { projectId: _projectId, ...updateData } = voorcalculatieData;
         return updateVoorcalculatie({
           id: projectData.voorcalculatie._id,
-          ...voorcalculatieData,
+          ...updateData,
         });
       } else {
         return createVoorcalculatie(voorcalculatieData);

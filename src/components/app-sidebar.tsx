@@ -31,6 +31,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Archive,
   FileText,
   Home,
   Plus,
@@ -78,6 +79,11 @@ const navigationItems = [
     title: "Facturen",
     url: "/facturen",
     icon: Receipt,
+  },
+  {
+    title: "Archief",
+    url: "/archief",
+    icon: Archive,
   },
   {
     title: "Klanten",
