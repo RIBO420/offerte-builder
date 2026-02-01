@@ -84,6 +84,15 @@ export function AnimatedNumber({
 
   const mergedFormatOptions = { ...defaultFormatOptions, ...formatOptions };
 
+  // Ensure minimumFractionDigits doesn't exceed maximumFractionDigits
+  if (
+    mergedFormatOptions.maximumFractionDigits !== undefined &&
+    mergedFormatOptions.minimumFractionDigits !== undefined &&
+    mergedFormatOptions.minimumFractionDigits > mergedFormatOptions.maximumFractionDigits
+  ) {
+    mergedFormatOptions.minimumFractionDigits = mergedFormatOptions.maximumFractionDigits;
+  }
+
   useEffect(() => {
     const startValue = previousValueRef.current;
     const endValue = value;
