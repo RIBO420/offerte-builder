@@ -400,16 +400,38 @@ export default defineSchema({
     ),
   }).index("by_project", ["projectId"]),
 
-  // Machines - Machine park
+  // Machines - Machinepark / Wagenpark
+  // Beheer van intern en extern gehuurde machines en voertuigen
+  // Tarief kan per uur of per dag worden ingesteld
+  // gekoppeldeScopes bepaalt welke scopes automatisch deze machine triggeren
   machines: defineTable({
     userId: v.id("users"),
     naam: v.string(),
-    type: v.union(v.literal("intern"), v.literal("extern")),
+    type: v.union(v.literal("intern"), v.literal("extern")), // Eigen machines vs. gehuurd
     tarief: v.number(),
     tariefType: v.union(v.literal("uur"), v.literal("dag")),
-    gekoppeldeScopes: v.array(v.string()), // Scopes that auto-trigger this machine
+    gekoppeldeScopes: v.array(v.string()), // Scopes die automatisch deze machine triggeren
     isActief: v.boolean(),
   }).index("by_user", ["userId"]),
+
+  // Medewerkers - Personeelsbeheer
+  // Registratie van medewerkers voor planning en urenregistratie
+  // Elke medewerker kan een eigen uurtarief hebben (optioneel, anders standaard uurtarief)
+  // functie: bijv. "Hovenier", "Voorman", "Leerling", etc.
+  medewerkers: defineTable({
+    userId: v.id("users"),
+    naam: v.string(),
+    email: v.optional(v.string()),
+    telefoon: v.optional(v.string()),
+    functie: v.optional(v.string()), // bijv. "Hovenier", "Voorman", "Leerling"
+    uurtarief: v.optional(v.number()), // Optioneel aangepast uurtarief per medewerker
+    isActief: v.boolean(),
+    notities: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_actief", ["userId", "isActief"]),
 
   // UrenRegistraties - Time registrations (imported or manual)
   urenRegistraties: defineTable({
@@ -432,7 +454,9 @@ export default defineSchema({
     datum: v.string(), // YYYY-MM-DD format
     uren: v.number(),
     kosten: v.number(),
-  }).index("by_project", ["projectId"]),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_machine", ["machineId"]),
 
   // Nacalculaties - Post-calculation results
   nacalculaties: defineTable({

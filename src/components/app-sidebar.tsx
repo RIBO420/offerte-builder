@@ -41,6 +41,7 @@ import {
   Moon,
   Sun,
   Users,
+  UsersRound,
   Clock,
   ChevronRight,
   BarChart3,
@@ -49,6 +50,7 @@ import {
   FolderKanban,
   Wrench,
   Receipt,
+  Truck,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -80,6 +82,16 @@ const navigationItems = [
     title: "Klanten",
     url: "/klanten",
     icon: Users,
+  },
+  {
+    title: "Medewerkers",
+    url: "/medewerkers",
+    icon: UsersRound,
+  },
+  {
+    title: "Wagenpark",
+    url: "/wagenpark",
+    icon: Truck,
   },
   {
     title: "Rapportages",

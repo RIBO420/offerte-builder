@@ -79,7 +79,7 @@ import {
 } from "@/hooks/use-uren-registratie";
 import { useMachines } from "@/hooks/use-machines";
 import { UrenImport } from "@/components/project/uren-import";
-import { UrenEntryForm, UrenEntryData } from "@/components/project/uren-entry-form";
+import { UrenEntryForm, UrenEntryData, DatabaseMedewerker } from "@/components/project/uren-entry-form";
 import { ProjectProgressStepper } from "@/components/project/project-progress-stepper";
 import { Id } from "../../../../../../convex/_generated/dataModel";
 import { format, parseISO } from "date-fns";
@@ -124,6 +124,9 @@ export default function UitvoeringPage() {
   // Get project and voorcalculatie data
   const project = useQuery(api.projecten.get, { id: projectId });
   const voorcalculatie = useQuery(api.voorcalculaties.getByProject, { projectId });
+
+  // Fetch active medewerkers from database for the form dropdown
+  const medewerkers = useQuery(api.medewerkers.getActive);
 
   // Mutation for updating project status
   const updateProjectStatus = useMutation(api.projecten.updateStatus);
@@ -886,6 +889,7 @@ export default function UitvoeringPage() {
         onSubmit={handleAddUren}
         isLoading={isSaving}
         existingMedewerkers={existingMedewerkers}
+        databaseMedewerkers={medewerkers as DatabaseMedewerker[] | undefined}
       />
 
       {/* Machine Usage Form */}

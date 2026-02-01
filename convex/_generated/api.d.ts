@@ -19,6 +19,7 @@ import type * as klanten from "../klanten.js";
 import type * as leerfeedback from "../leerfeedback.js";
 import type * as machineGebruik from "../machineGebruik.js";
 import type * as machines from "../machines.js";
+import type * as medewerkers from "../medewerkers.js";
 import type * as migrations from "../migrations.js";
 import type * as nacalculaties from "../nacalculaties.js";
 import type * as normuren from "../normuren.js";
@@ -54,6 +55,7 @@ declare const fullApi: ApiFromModules<{
   leerfeedback: typeof leerfeedback;
   machineGebruik: typeof machineGebruik;
   machines: typeof machines;
+  medewerkers: typeof medewerkers;
   migrations: typeof migrations;
   nacalculaties: typeof nacalculaties;
   normuren: typeof normuren;

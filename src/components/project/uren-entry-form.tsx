@@ -55,6 +55,13 @@ export interface UrenEntryData {
   notities?: string;
 }
 
+// Type for medewerker from database
+export interface DatabaseMedewerker {
+  _id: string;
+  naam: string;
+  functie?: string;
+}
+
 interface UrenEntryFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -62,6 +69,8 @@ interface UrenEntryFormProps {
   isLoading?: boolean;
   initialData?: Partial<UrenEntryData>;
   existingMedewerkers?: string[];
+  /** Medewerkers from database to show in dropdown */
+  databaseMedewerkers?: DatabaseMedewerker[];
   projectScopes?: string[];
 }
 
@@ -72,6 +81,7 @@ export function UrenEntryForm({
   isLoading = false,
   initialData,
   existingMedewerkers = [],
+  databaseMedewerkers = [],
   projectScopes,
 }: UrenEntryFormProps) {
   const [date, setDate] = useState<Date | undefined>(
@@ -82,6 +92,15 @@ export function UrenEntryForm({
   const [scope, setScope] = useState(initialData?.scope || "");
   const [notities, setNotities] = useState(initialData?.notities || "");
   const [showNewMedewerker, setShowNewMedewerker] = useState(false);
+
+  // Combine database medewerkers with existing medewerkers, removing duplicates
+  // Database medewerkers take precedence (shown first)
+  const allMedewerkers = [
+    ...databaseMedewerkers.map((m) => ({ naam: m.naam, functie: m.functie, isFromDb: true })),
+    ...existingMedewerkers
+      .filter((name) => !databaseMedewerkers.some((m) => m.naam === name))
+      .map((naam) => ({ naam, functie: undefined, isFromDb: false })),
+  ];
 
   // Filter scopes if project has specific scopes
   const filteredScopes = projectScopes?.length
@@ -169,16 +188,21 @@ export function UrenEntryForm({
             {/* Medewerker */}
             <div className="grid gap-2">
               <Label>Medewerker</Label>
-              {existingMedewerkers.length > 0 && !showNewMedewerker ? (
+              {allMedewerkers.length > 0 && !showNewMedewerker ? (
                 <div className="flex gap-2">
                   <Select value={medewerker} onValueChange={setMedewerker}>
                     <SelectTrigger className="flex-1">
                       <SelectValue placeholder="Kies medewerker" />
                     </SelectTrigger>
                     <SelectContent position="popper" sideOffset={4}>
-                      {existingMedewerkers.map((m) => (
-                        <SelectItem key={m} value={m}>
-                          {m}
+                      {allMedewerkers.map((m) => (
+                        <SelectItem key={m.naam} value={m.naam}>
+                          {m.naam}
+                          {m.functie && (
+                            <span className="text-muted-foreground ml-1">
+                              ({m.functie})
+                            </span>
+                          )}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -191,6 +215,7 @@ export function UrenEntryForm({
                       setShowNewMedewerker(true);
                       setMedewerker("");
                     }}
+                    title="Handmatig invoeren"
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
@@ -203,7 +228,7 @@ export function UrenEntryForm({
                     placeholder="Naam medewerker"
                     required
                   />
-                  {existingMedewerkers.length > 0 && (
+                  {allMedewerkers.length > 0 && (
                     <Button
                       type="button"
                       variant="outline"

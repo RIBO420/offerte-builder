@@ -150,6 +150,64 @@ export const hardDelete = mutation({
   },
 });
 
+// Get machine usage statistics for all machines
+export const getUsageStats = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireAuthUserId(ctx);
+
+    // Get all active machines for user
+    const machines = await ctx.db
+      .query("machines")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .filter((q) => q.eq(q.field("isActief"), true))
+      .collect();
+
+    // Get usage stats per machine
+    const machineStats = await Promise.all(
+      machines.map(async (machine) => {
+        const usage = await ctx.db
+          .query("machineGebruik")
+          .withIndex("by_machine", (q) => q.eq("machineId", machine._id))
+          .collect();
+
+        // Get unique projects
+        const projectIds = [...new Set(usage.map((u) => u.projectId))];
+        const projects = await Promise.all(
+          projectIds.map(async (projectId) => {
+            const project = await ctx.db.get(projectId);
+            if (!project) return null;
+            const offerte = await ctx.db.get(project.offerteId);
+            return {
+              _id: project._id,
+              naam: project.naam,
+              status: project.status,
+              klantNaam: offerte?.klant.naam || "Onbekend",
+            };
+          })
+        );
+
+        const totaalUren = usage.reduce((sum, u) => sum + u.uren, 0);
+        const totaalKosten = usage.reduce((sum, u) => sum + u.kosten, 0);
+        const aantalDagen = usage.length;
+
+        return {
+          ...machine,
+          usage: {
+            totaalUren,
+            totaalKosten,
+            aantalDagen,
+            aantalProjecten: projectIds.length,
+            projecten: projects.filter(Boolean),
+          },
+        };
+      })
+    );
+
+    return machineStats;
+  },
+});
+
 // Create default machine templates for authenticated user (idempotent)
 export const createDefaults = mutation({
   args: {},

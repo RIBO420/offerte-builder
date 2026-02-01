@@ -64,3 +64,14 @@ export function useMachinesByScopes(scopes: string[]) {
     isLoading: user && scopes.length > 0 && machines === undefined,
   };
 }
+
+export function useMachinesWithUsage() {
+  const { user } = useCurrentUser();
+
+  const machineStats = useQuery(api.machines.getUsageStats, user?._id ? {} : "skip");
+
+  return {
+    machines: machineStats || [],
+    isLoading: user && machineStats === undefined,
+  };
+}
