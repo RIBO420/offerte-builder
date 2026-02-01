@@ -68,12 +68,15 @@ import {
   Edit,
   Trash2,
   RotateCcw,
+  Link2,
+  Truck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useInstellingen } from "@/hooks/use-instellingen";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useNormuren } from "@/hooks/use-normuren";
 import { useCorrectiefactoren } from "@/hooks/use-correctiefactoren";
+import { FleetGoSettings } from "@/components/wagenpark/fleetgo-settings";
 
 const scopeLabels: Record<string, string> = {
   grondwerk: "Grondwerk",
@@ -442,6 +445,10 @@ export default function InstellingenPage() {
             <TabsTrigger value="factoren" className="flex items-center gap-2">
               <Sliders className="h-4 w-4" />
               Correctiefactoren
+            </TabsTrigger>
+            <TabsTrigger value="koppelingen" className="flex items-center gap-2">
+              <Link2 className="h-4 w-4" />
+              Koppelingen
             </TabsTrigger>
           </TabsList>
 
@@ -945,6 +952,60 @@ export default function InstellingenPage() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+          </motion.div>
+          )}
+
+          {/* Koppelingen Tab */}
+          {activeTab === "koppelingen" && (
+          <motion.div
+            key="koppelingen"
+            initial={reducedMotion ? false : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reducedMotion ? undefined : { opacity: 0, y: -8 }}
+            transition={{ duration: reducedMotion ? 0 : 0.2 }}
+          >
+          <TabsContent value="koppelingen" className="space-y-4" forceMount>
+            <div className="space-y-6">
+              {/* FleetGo Integration */}
+              <FleetGoSettings
+                isConfigured={false}
+                onSave={async (apiKey) => {
+                  // TODO: Save API key to backend
+                  console.log("Saving FleetGo API key:", apiKey);
+                  toast.success("FleetGo instellingen opgeslagen");
+                }}
+                onTestConnection={async (apiKey) => {
+                  // TODO: Test actual connection
+                  console.log("Testing FleetGo connection with key:", apiKey);
+                  return apiKey.length > 10;
+                }}
+              />
+
+              {/* Placeholder for future integrations */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                      <Link2 className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Meer koppelingen</CardTitle>
+                      <CardDescription>
+                        Binnenkort beschikbaar: boekhoudpakketten, planning tools, en meer
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    We werken aan integraties met populaire tools zoals Exact Online,
+                    Moneybird, en andere boekhoud- en planningssoftware.
+                    Neem contact op als je een specifieke integratie nodig hebt.
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
           </motion.div>
           )}
