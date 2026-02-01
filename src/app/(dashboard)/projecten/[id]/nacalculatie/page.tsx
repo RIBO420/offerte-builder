@@ -217,6 +217,26 @@ export default function NacalculatiePage({
     [revertAanpassing]
   );
 
+  // Calculate budget status for visual indicators - must be before early returns to maintain hook order
+  const budgetStatus = useMemo(() => {
+    if (!clientCalculation) return null;
+    const percentage = clientCalculation.afwijkingPercentage;
+    const isOverBudget = percentage > 0;
+    const isUnderBudget = percentage < 0;
+    const absPercentage = Math.abs(percentage);
+
+    // Calculate progress bar value (100% = exact on budget)
+    const progressValue = Math.min(Math.max(100 + percentage, 0), 200);
+
+    return {
+      isOverBudget,
+      isUnderBudget,
+      absPercentage,
+      progressValue,
+      status: clientCalculation.status,
+    };
+  }, [clientCalculation]);
+
   // Loading state
   if (isLoading || isLoadingDetails) {
     return (
@@ -249,26 +269,6 @@ export default function NacalculatiePage({
 
   // Check if we have the necessary data
   const canCalculate = hasVoorcalculatie && hasUrenRegistraties;
-
-  // Calculate budget status for visual indicators
-  const budgetStatus = useMemo(() => {
-    if (!clientCalculation) return null;
-    const percentage = clientCalculation.afwijkingPercentage;
-    const isOverBudget = percentage > 0;
-    const isUnderBudget = percentage < 0;
-    const absPercentage = Math.abs(percentage);
-
-    // Calculate progress bar value (100% = exact on budget)
-    const progressValue = Math.min(Math.max(100 + percentage, 0), 200);
-
-    return {
-      isOverBudget,
-      isUnderBudget,
-      absPercentage,
-      progressValue,
-      status: clientCalculation.status,
-    };
-  }, [clientCalculation]);
 
   return (
     <>
