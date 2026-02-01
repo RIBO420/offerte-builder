@@ -50,11 +50,19 @@ export const calculate = query({
     // Verify ownership of project
     const project = await getOwnedProject(ctx, args.projectId);
 
-    // Get voorcalculatie
-    const voorcalculatie = await ctx.db
+    // Get voorcalculatie - first try by offerte (new workflow), then by project (legacy)
+    let voorcalculatie = await ctx.db
       .query("voorcalculaties")
-      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .withIndex("by_offerte", (q) => q.eq("offerteId", project.offerteId))
       .unique();
+
+    // Fallback to project-based lookup for legacy data
+    if (!voorcalculatie) {
+      voorcalculatie = await ctx.db
+        .query("voorcalculaties")
+        .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+        .unique();
+    }
 
     if (!voorcalculatie) {
       return {
@@ -318,14 +326,22 @@ export const getWithDetails = query({
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .unique();
 
-    // Get voorcalculatie
-    const voorcalculatie = await ctx.db
-      .query("voorcalculaties")
-      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-      .unique();
-
     // Get offerte
     const offerte = await ctx.db.get(project.offerteId);
+
+    // Get voorcalculatie - first try by offerte (new workflow), then by project (legacy)
+    let voorcalculatie = await ctx.db
+      .query("voorcalculaties")
+      .withIndex("by_offerte", (q) => q.eq("offerteId", project.offerteId))
+      .unique();
+
+    // Fallback to project-based lookup for legacy data
+    if (!voorcalculatie) {
+      voorcalculatie = await ctx.db
+        .query("voorcalculaties")
+        .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+        .unique();
+    }
 
     // Get uren registraties
     const urenRegistraties = await ctx.db
