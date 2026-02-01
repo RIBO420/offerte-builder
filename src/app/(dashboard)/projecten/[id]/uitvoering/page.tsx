@@ -121,9 +121,19 @@ export default function UitvoeringPage() {
   const router = useRouter();
   const projectId = params.id as Id<"projecten">;
 
-  // Get project and voorcalculatie data
+  // Get project data
   const project = useQuery(api.projecten.get, { id: projectId });
-  const voorcalculatie = useQuery(api.voorcalculaties.getByProject, { projectId });
+
+  // Get voorcalculatie - first try by offerte (new workflow), then by project (legacy)
+  const voorcalculatieByOfferte = useQuery(
+    api.voorcalculaties.getByOfferte,
+    project?.offerteId ? { offerteId: project.offerteId } : "skip"
+  );
+  const voorcalculatieByProject = useQuery(
+    api.voorcalculaties.getByProject,
+    projectId && !voorcalculatieByOfferte ? { projectId } : "skip"
+  );
+  const voorcalculatie = voorcalculatieByOfferte || voorcalculatieByProject;
 
   // Fetch active medewerkers from database for the form dropdown
   const medewerkers = useQuery(api.medewerkers.getActive);
