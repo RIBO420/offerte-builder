@@ -118,11 +118,14 @@ export const getDashboardData = query({
   handler: async (ctx) => {
     const userId = await requireAuthUserId(ctx);
     // Get all offertes in one query
-    const offertes = await ctx.db
+    const allOffertes = await ctx.db
       .query("offertes")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .order("desc")
       .collect();
+
+    // Filter out archived offertes
+    const offertes = allOffertes.filter((o) => !o.isArchived);
 
     // Calculate stats
     const stats = {
@@ -166,6 +169,7 @@ export const listByStatus = query({
       v.literal("geaccepteerd"),
       v.literal("afgewezen")
     ),
+    includeArchived: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const userId = await requireAuthUserId(ctx);
@@ -174,7 +178,10 @@ export const listByStatus = query({
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
 
-    return offertes.filter((o) => o.status === args.status);
+    // Filter by status and exclude archived unless specified
+    return offertes.filter((o) =>
+      o.status === args.status && (args.includeArchived || !o.isArchived)
+    );
   },
 });
 

@@ -25,11 +25,9 @@ export function useCurrentUser() {
 
   const upsertUser = useMutation(api.users.upsert);
   const initializeDefaultsMutation = useMutation(api.users.initializeDefaults);
-  const runDataMigrationsMutation = useMutation(api.users.runDataMigrations);
 
-  // Track if we've already attempted initialization and migration
+  // Track if we've already attempted initialization
   const hasInitialized = useRef(false);
-  const hasMigrated = useRef(false);
 
   // Sync Clerk user to Convex on first load
   // The upsert mutation also creates default settings for new users
@@ -44,32 +42,17 @@ export function useCurrentUser() {
     }
   }, [isClerkLoaded, clerkUser, convexUser, upsertUser]);
 
-  // Auto-initialize defaults for existing users missing data
+  // Auto-initialize defaults and run data migrations once per session
+  // This applies archiving logic, status updates, and creates missing defaults
   useEffect(() => {
-    // Only run once per session, when we have a user but they have no normuren
-    if (
-      convexUser?._id &&
-      normuren !== undefined &&
-      normuren.length === 0 &&
-      !hasInitialized.current
-    ) {
+    if (convexUser?._id && !hasInitialized.current) {
       hasInitialized.current = true;
+      // initializeDefaults now also runs data migrations
       initializeDefaultsMutation({}).catch(() => {
         // Silent failure - user can manually retry via settings
       });
     }
-  }, [convexUser?._id, normuren, initializeDefaultsMutation]);
-
-  // Auto-run data migrations once per session
-  // This applies archiving logic and status updates to existing data
-  useEffect(() => {
-    if (convexUser?._id && !hasMigrated.current) {
-      hasMigrated.current = true;
-      runDataMigrationsMutation({}).catch(() => {
-        // Silent failure - migrations are non-critical
-      });
-    }
-  }, [convexUser?._id, runDataMigrationsMutation]);
+  }, [convexUser?._id, initializeDefaultsMutation]);
 
   // Manual initialization function - memoized
   const initializeDefaults = useCallback(async () => {
