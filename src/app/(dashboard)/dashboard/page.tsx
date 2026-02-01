@@ -19,6 +19,9 @@ import {
   HardHat,
   AlertCircle,
   TrendingUp,
+  Receipt,
+  Clock,
+  CheckCircle2,
 } from "lucide-react";
 import {
   Breadcrumb,
@@ -75,6 +78,18 @@ export default function DashboardPage() {
     user?._id ? {} : "skip"
   );
 
+  // Fetch facturen stats
+  const facturenStats = useQuery(
+    api.facturen.getStats,
+    user?._id ? {} : "skip"
+  );
+
+  // Fetch recent facturen
+  const recentFacturen = useQuery(
+    api.facturen.getRecent,
+    user?._id ? { limit: 5 } : "skip"
+  );
+
   // Memoized pipeline stages data
   const pipelineStages = useMemo(() => [
     { id: "concept", label: "Concept", count: stats?.concept || 0 },
@@ -90,6 +105,7 @@ export default function DashboardPage() {
 
   const hasActionRequired = acceptedWithoutProject && acceptedWithoutProject.length > 0;
   const hasActiveProjects = activeProjects && activeProjects.length > 0;
+  const hasFacturen = facturenStats && facturenStats.totaal > 0;
 
   return (
     <>
@@ -336,6 +352,145 @@ export default function DashboardPage() {
                 </Link>
               ))}
             </div>
+          </motion.div>
+        )}
+
+        {/* Facturen Section - Only if there are facturen */}
+        {hasFacturen && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.3 }}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-medium text-sm text-muted-foreground">Facturen Overzicht</h2>
+              <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                <Link href="/facturen">
+                  Bekijk alle
+                  <ArrowRight className="ml-1 h-3 w-3" />
+                </Link>
+              </Button>
+            </div>
+
+            {/* Facturen Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              {/* Total Facturen Amount */}
+              <Card className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                    <Receipt className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <p className="text-xl font-bold">
+                      {formatCurrency(facturenStats.totaalBedrag)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Totaal gefactureerd ({facturenStats.totaal})
+                    </p>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Openstaand */}
+              <Card className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
+                    <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <div>
+                    <p className="text-xl font-bold">
+                      {formatCurrency(facturenStats.openstaandBedrag)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Openstaand ({facturenStats.verzonden})
+                    </p>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Betaald */}
+              <Card className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <div>
+                    <p className="text-xl font-bold">
+                      {formatCurrency(facturenStats.betaaldBedrag)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Betaald ({facturenStats.betaald})
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            </div>
+
+            {/* Recent Facturen List */}
+            {recentFacturen && recentFacturen.length > 0 && (
+              <Card className="p-4">
+                <h3 className="font-medium text-sm mb-3">Recente Facturen</h3>
+                <div className="space-y-2">
+                  {recentFacturen.map((factuur) => (
+                    <Link
+                      key={factuur._id}
+                      href={`/facturen/${factuur._id}`}
+                      className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-muted/50 transition-colors group"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${
+                          factuur.status === "betaald"
+                            ? "bg-emerald-100 dark:bg-emerald-900/30"
+                            : factuur.status === "verzonden"
+                            ? "bg-amber-100 dark:bg-amber-900/30"
+                            : factuur.status === "vervallen"
+                            ? "bg-red-100 dark:bg-red-900/30"
+                            : "bg-gray-100 dark:bg-gray-900/30"
+                        }`}>
+                          <Receipt className={`h-4 w-4 ${
+                            factuur.status === "betaald"
+                              ? "text-emerald-600 dark:text-emerald-400"
+                              : factuur.status === "verzonden"
+                              ? "text-amber-600 dark:text-amber-400"
+                              : factuur.status === "vervallen"
+                              ? "text-red-600 dark:text-red-400"
+                              : "text-gray-600 dark:text-gray-400"
+                          }`} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                            {factuur.factuurnummer}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {factuur.klantNaam}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0 ml-4">
+                        <p className="text-sm font-medium">
+                          {formatCurrency(factuur.totaalInclBtw)}
+                        </p>
+                        <p className={`text-xs ${
+                          factuur.status === "betaald"
+                            ? "text-emerald-600 dark:text-emerald-400"
+                            : factuur.status === "verzonden"
+                            ? "text-amber-600 dark:text-amber-400"
+                            : factuur.status === "vervallen"
+                            ? "text-red-600 dark:text-red-400"
+                            : "text-muted-foreground"
+                        }`}>
+                          {factuur.status === "concept" && "Concept"}
+                          {factuur.status === "definitief" && "Definitief"}
+                          {factuur.status === "verzonden" && "Verzonden"}
+                          {factuur.status === "betaald" && "Betaald"}
+                          {factuur.status === "vervallen" && "Vervallen"}
+                        </p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </Card>
+            )}
           </motion.div>
         )}
 

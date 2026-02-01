@@ -176,13 +176,11 @@ export default function FactuurPage({
     projectId ? { id: projectId } : "skip"
   );
 
-  // Note: facturen API doesn't exist yet - this is a placeholder
-  // Once convex/facturen.ts is created with getByProject query, uncomment below:
-  // const factuur = useQuery(
-  //   api.facturen.getByProject,
-  //   projectId ? { projectId } : "skip"
-  // );
-  const factuur = null; // Placeholder until facturen API exists
+  // Fetch factuur for this project
+  const factuur = useQuery(
+    api.facturen.getByProject,
+    projectId ? { projectId } : "skip"
+  );
 
   // Fetch nacalculatie for summary preview
   const nacalculatie = useQuery(
@@ -190,13 +188,13 @@ export default function FactuurPage({
     projectId ? { projectId } : "skip"
   );
 
-  // Mutations - these will need to be created in the facturen API
-  // const generateFactuur = useMutation(api.facturen.generate);
-  // const updateFactuurStatus = useMutation(api.facturen.updateStatus);
-  // const sendFactuur = useMutation(api.facturen.send);
+  // Mutations
+  const generateFactuur = useMutation(api.facturen.generate);
+  const updateFactuurStatus = useMutation(api.facturen.updateStatus);
+  const markAsPaid = useMutation(api.facturen.markAsPaid);
 
-  // Loading state
-  if (projectDetails === undefined) {
+  // Loading state - wait for both project details and factuur query
+  if (projectDetails === undefined || factuur === undefined) {
     return (
       <>
         <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
@@ -260,15 +258,15 @@ export default function FactuurPage({
 
   const { project, offerte, voorcalculatie } = projectDetails;
 
-  // Handler for generating factuur (placeholder - needs facturen API)
+  // Handler for generating factuur
   const handleGenerateFactuur = async () => {
     setIsGenerating(true);
     try {
-      // TODO: Call generateFactuur mutation once facturen API is created
-      // await generateFactuur({ projectId });
-      toast.info("Factuur genereren functionaliteit wordt binnenkort toegevoegd");
+      await generateFactuur({ projectId });
+      toast.success("Factuur succesvol gegenereerd");
     } catch (error) {
-      toast.error("Fout bij genereren factuur");
+      const errorMessage = error instanceof Error ? error.message : "Onbekende fout";
+      toast.error(`Fout bij genereren factuur: ${errorMessage}`);
       console.error(error);
     } finally {
       setIsGenerating(false);
@@ -277,28 +275,32 @@ export default function FactuurPage({
 
   // Handler for making factuur definitive
   const handleMakeDefinitief = async () => {
+    if (!factuur) return;
+
     setIsSaving(true);
     try {
-      // TODO: Call updateFactuurStatus mutation once facturen API is created
-      // await updateFactuurStatus({ factuurId: factuur._id, status: "definitief" });
-      toast.info("Definitief maken functionaliteit wordt binnenkort toegevoegd");
+      await updateFactuurStatus({ id: factuur._id, status: "definitief" });
+      toast.success("Factuur is nu definitief");
     } catch (error) {
-      toast.error("Fout bij definitief maken");
+      const errorMessage = error instanceof Error ? error.message : "Onbekende fout";
+      toast.error(`Fout bij definitief maken: ${errorMessage}`);
       console.error(error);
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Handler for sending factuur
+  // Handler for sending factuur (marks as verzonden)
   const handleSendFactuur = async () => {
+    if (!factuur) return;
+
     setIsSending(true);
     try {
-      // TODO: Call sendFactuur mutation once facturen API is created
-      // await sendFactuur({ factuurId: factuur._id });
-      toast.info("Verzenden functionaliteit wordt binnenkort toegevoegd");
+      await updateFactuurStatus({ id: factuur._id, status: "verzonden" });
+      toast.success("Factuur gemarkeerd als verzonden");
     } catch (error) {
-      toast.error("Fout bij verzenden factuur");
+      const errorMessage = error instanceof Error ? error.message : "Onbekende fout";
+      toast.error(`Fout bij verzenden factuur: ${errorMessage}`);
       console.error(error);
     } finally {
       setIsSending(false);
@@ -307,13 +309,15 @@ export default function FactuurPage({
 
   // Handler for marking as paid
   const handleMarkAsPaid = async () => {
+    if (!factuur) return;
+
     setIsSaving(true);
     try {
-      // TODO: Call updateFactuurStatus mutation once facturen API is created
-      // await updateFactuurStatus({ factuurId: factuur._id, status: "betaald" });
-      toast.info("Betaald markeren functionaliteit wordt binnenkort toegevoegd");
+      await markAsPaid({ id: factuur._id });
+      toast.success("Factuur gemarkeerd als betaald");
     } catch (error) {
-      toast.error("Fout bij markeren als betaald");
+      const errorMessage = error instanceof Error ? error.message : "Onbekende fout";
+      toast.error(`Fout bij markeren als betaald: ${errorMessage}`);
       console.error(error);
     } finally {
       setIsSaving(false);
@@ -324,7 +328,7 @@ export default function FactuurPage({
   const handleSendReminder = async () => {
     setIsSending(true);
     try {
-      // TODO: Call sendReminder mutation once facturen API is created
+      // TODO: Implement reminder functionality when API is available
       toast.info("Herinnering verzenden functionaliteit wordt binnenkort toegevoegd");
     } catch (error) {
       toast.error("Fout bij verzenden herinnering");
@@ -473,26 +477,9 @@ export default function FactuurPage({
 
   // Render factuur exists state with status-based actions
   const renderFactuurState = () => {
-    // Using mock data until facturen API exists
-    const mockFactuur = {
-      _id: "mock" as Id<"facturen">,
-      factuurnummer: `${new Date().getFullYear()}-001`,
-      status: "concept" as "concept" | "definitief" | "verzonden" | "betaald" | "vervallen",
-      klant: offerte?.klant || { naam: "", adres: "", postcode: "", plaats: "" },
-      bedrijf: { naam: "Top Tuinen", adres: "", postcode: "", plaats: "" },
-      regels: offerte?.regels || [],
-      subtotaal: offerte?.totalen.totaalExBtw || 0,
-      btwPercentage: 21,
-      btwBedrag: offerte?.totalen.btw || 0,
-      totaalInclBtw: offerte?.totalen.totaalInclBtw || 0,
-      factuurdatum: Date.now(),
-      vervaldatum: Date.now() + 14 * 24 * 60 * 60 * 1000,
-      betalingstermijnDagen: 14,
-    };
+    if (!factuur) return null;
 
-    // Use actual factuur if available, otherwise mock
-    const currentFactuur = factuur || mockFactuur;
-    const factuurStatus = currentFactuur.status;
+    const factuurStatus = factuur.status;
 
     // Render action buttons based on status
     const renderActionButtons = () => {
@@ -644,7 +631,7 @@ export default function FactuurPage({
               <div className="flex items-center gap-3">
                 <Receipt className="h-6 w-6 text-primary" />
                 <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
-                  Factuur {currentFactuur.factuurnummer}
+                  Factuur {factuur.factuurnummer}
                 </h1>
                 <Badge className={statusColors[factuurStatus]}>
                   {statusLabels[factuurStatus]}
@@ -669,7 +656,7 @@ export default function FactuurPage({
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold">
-                {formatCurrency(currentFactuur.totaalInclBtw)}
+                {formatCurrency(factuur.totaalInclBtw)}
               </p>
             </CardContent>
           </Card>
@@ -683,7 +670,7 @@ export default function FactuurPage({
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold">
-                {formatDateShort(currentFactuur.factuurdatum)}
+                {formatDateShort(factuur.factuurdatum)}
               </p>
             </CardContent>
           </Card>
@@ -697,10 +684,10 @@ export default function FactuurPage({
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold">
-                {formatDateShort(currentFactuur.vervaldatum)}
+                {formatDateShort(factuur.vervaldatum)}
               </p>
               <p className="text-xs text-muted-foreground">
-                {currentFactuur.betalingstermijnDagen} dagen betalingstermijn
+                {factuur.betalingstermijnDagen} dagen betalingstermijn
               </p>
             </CardContent>
           </Card>
@@ -714,10 +701,10 @@ export default function FactuurPage({
             </CardHeader>
             <CardContent>
               <p className="text-lg font-bold truncate">
-                {currentFactuur.klant.naam}
+                {factuur.klant.naam}
               </p>
               <p className="text-xs text-muted-foreground truncate">
-                {currentFactuur.klant.plaats}
+                {factuur.klant.plaats}
               </p>
             </CardContent>
           </Card>
@@ -740,10 +727,10 @@ export default function FactuurPage({
                       Factuuradres
                     </div>
                     <div>
-                      <p className="font-medium">{currentFactuur.klant.naam}</p>
-                      <p className="text-sm text-muted-foreground">{currentFactuur.klant.adres}</p>
+                      <p className="font-medium">{factuur.klant.naam}</p>
+                      <p className="text-sm text-muted-foreground">{factuur.klant.adres}</p>
                       <p className="text-sm text-muted-foreground">
-                        {currentFactuur.klant.postcode} {currentFactuur.klant.plaats}
+                        {factuur.klant.postcode} {factuur.klant.plaats}
                       </p>
                     </div>
                   </div>
@@ -753,10 +740,10 @@ export default function FactuurPage({
                       Van
                     </div>
                     <div>
-                      <p className="font-medium">{currentFactuur.bedrijf.naam}</p>
-                      <p className="text-sm text-muted-foreground">{currentFactuur.bedrijf.adres}</p>
+                      <p className="font-medium">{factuur.bedrijf.naam}</p>
+                      <p className="text-sm text-muted-foreground">{factuur.bedrijf.adres}</p>
                       <p className="text-sm text-muted-foreground">
-                        {currentFactuur.bedrijf.postcode} {currentFactuur.bedrijf.plaats}
+                        {factuur.bedrijf.postcode} {factuur.bedrijf.plaats}
                       </p>
                     </div>
                   </div>
@@ -769,7 +756,7 @@ export default function FactuurPage({
               <CardHeader>
                 <CardTitle>Factuurregels</CardTitle>
                 <CardDescription>
-                  {currentFactuur.regels.length} regel(s)
+                  {factuur.regels.length} regel(s)
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -784,7 +771,7 @@ export default function FactuurPage({
                       </tr>
                     </thead>
                     <tbody>
-                      {currentFactuur.regels.map((regel: any, index: number) => (
+                      {factuur.regels.map((regel, index) => (
                         <tr key={regel.id || index} className="border-b last:border-0">
                           <td className="p-3">{regel.omschrijving}</td>
                           <td className="p-3 text-right">
@@ -797,6 +784,23 @@ export default function FactuurPage({
                     </tbody>
                   </table>
                 </div>
+
+                {/* Correcties section */}
+                {factuur.correcties && factuur.correcties.length > 0 && (
+                  <div className="mt-4 pt-4 border-t">
+                    <h4 className="text-sm font-medium mb-2">Correcties</h4>
+                    <div className="space-y-2">
+                      {factuur.correcties.map((correctie, index) => (
+                        <div key={index} className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">{correctie.omschrijving}</span>
+                          <span className={correctie.bedrag >= 0 ? "text-green-600" : "text-red-600"}>
+                            {correctie.bedrag >= 0 ? "+" : ""}{formatCurrency(correctie.bedrag)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -810,16 +814,16 @@ export default function FactuurPage({
               <CardContent className="space-y-4">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Subtotaal</span>
-                  <span className="font-medium">{formatCurrency(currentFactuur.subtotaal)}</span>
+                  <span className="font-medium">{formatCurrency(factuur.subtotaal)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">BTW ({currentFactuur.btwPercentage}%)</span>
-                  <span className="font-medium">{formatCurrency(currentFactuur.btwBedrag)}</span>
+                  <span className="text-muted-foreground">BTW ({factuur.btwPercentage}%)</span>
+                  <span className="font-medium">{formatCurrency(factuur.btwBedrag)}</span>
                 </div>
                 <Separator />
                 <div className="flex justify-between text-lg">
                   <span className="font-semibold">Totaal incl. BTW</span>
-                  <span className="font-bold">{formatCurrency(currentFactuur.totaalInclBtw)}</span>
+                  <span className="font-bold">{formatCurrency(factuur.totaalInclBtw)}</span>
                 </div>
               </CardContent>
             </Card>
@@ -837,12 +841,12 @@ export default function FactuurPage({
                   <div>
                     <p className="font-medium">Aangemaakt</p>
                     <p className="text-sm text-muted-foreground">
-                      {formatDate(currentFactuur.factuurdatum)}
+                      {formatDate(factuur.factuurdatum)}
                     </p>
                   </div>
                 </div>
 
-                {(factuurStatus === 'verzonden' || factuurStatus === 'betaald' || factuurStatus === 'vervallen') && (
+                {(factuurStatus === 'verzonden' || factuurStatus === 'betaald' || factuurStatus === 'vervallen') && factuur.verzondenAt && (
                   <div className="flex items-start gap-3">
                     <div className={`p-2 rounded-full ${factuurStatus === 'betaald' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-muted'}`}>
                       <Mail className={`h-4 w-4 ${factuurStatus === 'betaald' ? 'text-green-600' : 'text-muted-foreground'}`} />
@@ -850,14 +854,13 @@ export default function FactuurPage({
                     <div>
                       <p className="font-medium">Verzonden</p>
                       <p className="text-sm text-muted-foreground">
-                        {/* TODO: Show actual sent date */}
-                        Naar {currentFactuur.klant.email || currentFactuur.klant.naam}
+                        {formatDate(factuur.verzondenAt)}
                       </p>
                     </div>
                   </div>
                 )}
 
-                {factuurStatus === 'betaald' && (
+                {factuurStatus === 'betaald' && factuur.betaaldAt && (
                   <div className="flex items-start gap-3">
                     <div className="p-2 rounded-full bg-green-100 dark:bg-green-900/30">
                       <CheckCircle className="h-4 w-4 text-green-600" />
@@ -865,8 +868,7 @@ export default function FactuurPage({
                     <div>
                       <p className="font-medium">Betaald</p>
                       <p className="text-sm text-muted-foreground">
-                        {/* TODO: Show actual payment date */}
-                        Betaling ontvangen
+                        {formatDate(factuur.betaaldAt)}
                       </p>
                     </div>
                   </div>
@@ -880,13 +882,27 @@ export default function FactuurPage({
                     <div>
                       <p className="font-medium">Vervallen</p>
                       <p className="text-sm text-muted-foreground">
-                        Betalingstermijn verstreken op {formatDate(currentFactuur.vervaldatum)}
+                        Betalingstermijn verstreken op {formatDate(factuur.vervaldatum)}
                       </p>
                     </div>
                   </div>
                 )}
               </CardContent>
             </Card>
+
+            {/* Notities */}
+            {factuur.notities && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Notities</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                    {factuur.notities}
+                  </p>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>
@@ -894,10 +910,7 @@ export default function FactuurPage({
   };
 
   // Check if factuur exists
-  // Note: Since facturen API doesn't exist yet, we always show "no factuur" state
-  // Once the API exists, uncomment the condition below
-  // const hasFactuur = factuur !== null && factuur !== undefined;
-  const hasFactuur = false; // Placeholder until facturen API exists
+  const hasFactuur = factuur !== null && factuur !== undefined;
 
   return (
     <>

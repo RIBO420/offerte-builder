@@ -434,6 +434,87 @@ export const markAsPaid = mutation({
 });
 
 /**
+ * Get facturen statistics for the dashboard.
+ * Returns totals, amounts, and counts per status.
+ */
+export const getStats = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireAuthUserId(ctx);
+
+    const facturen = await ctx.db
+      .query("facturen")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    // Initialize stats
+    const stats = {
+      totaal: facturen.length,
+      totaalBedrag: 0,
+      openstaandBedrag: 0,
+      betaaldBedrag: 0,
+      concept: 0,
+      definitief: 0,
+      verzonden: 0,
+      betaald: 0,
+      vervallen: 0,
+    };
+
+    for (const factuur of facturen) {
+      // Count by status
+      if (factuur.status in stats) {
+        stats[factuur.status as keyof typeof stats]++;
+      }
+
+      // Sum totals
+      stats.totaalBedrag += factuur.totaalInclBtw;
+
+      // Openstaand = verzonden (nog niet betaald of vervallen)
+      if (factuur.status === "verzonden") {
+        stats.openstaandBedrag += factuur.totaalInclBtw;
+      }
+
+      // Betaald bedrag
+      if (factuur.status === "betaald") {
+        stats.betaaldBedrag += factuur.totaalInclBtw;
+      }
+    }
+
+    return stats;
+  },
+});
+
+/**
+ * Get recent facturen for the dashboard.
+ * Returns max 5 facturen sorted by most recently created.
+ */
+export const getRecent = query({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+    const limit = args.limit ?? 5;
+
+    const facturen = await ctx.db
+      .query("facturen")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .order("desc")
+      .take(limit);
+
+    return facturen.map((factuur) => ({
+      _id: factuur._id,
+      factuurnummer: factuur.factuurnummer,
+      klantNaam: factuur.klant.naam,
+      totaalInclBtw: factuur.totaalInclBtw,
+      status: factuur.status,
+      factuurdatum: factuur.factuurdatum,
+      vervaldatum: factuur.vervaldatum,
+    }));
+  },
+});
+
+/**
  * Haal factuur op met volledige project, offerte en nacalculatie details.
  */
 export const getWithDetails = query({

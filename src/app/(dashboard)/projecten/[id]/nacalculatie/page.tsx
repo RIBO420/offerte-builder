@@ -54,6 +54,7 @@ import {
   Calculator,
   Clock,
   ArrowRight,
+  Receipt,
 } from "lucide-react";
 import { exportNacalculatieToExcel } from "./export";
 
@@ -305,6 +306,14 @@ export default function NacalculatiePage({
               )}
               Opslaan
             </Button>
+            {details?.project?.status === "nacalculatie_compleet" && (
+              <Button asChild className="bg-green-600 hover:bg-green-700">
+                <Link href={`/projecten/${id}/factuur`}>
+                  <Receipt className="h-4 w-4 mr-2" />
+                  Factuur Genereren
+                </Link>
+              </Button>
+            )}
           </div>
         </div>
 
@@ -474,6 +483,34 @@ export default function NacalculatiePage({
                     </Button>
                   </CardContent>
                 </Card>
+
+                {/* Factuur CTA Card */}
+                {details?.project?.status === "nacalculatie_compleet" && (
+                  <Card className="border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/20">
+                    <CardContent className="flex flex-col sm:flex-row items-center justify-between gap-4 py-6">
+                      <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-full bg-green-100 dark:bg-green-900/50 flex items-center justify-center">
+                          <Receipt className="h-6 w-6 text-green-600 dark:text-green-400" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-semibold">
+                            Nacalculatie Voltooid
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            Genereer nu de factuur voor dit project.
+                          </p>
+                        </div>
+                      </div>
+                      <Button asChild className="bg-green-600 hover:bg-green-700">
+                        <Link href={`/projecten/${id}/factuur`}>
+                          <Receipt className="mr-2 h-4 w-4" />
+                          Ga naar Factuur
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </Link>
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
               </>
             )}
           </TabsContent>

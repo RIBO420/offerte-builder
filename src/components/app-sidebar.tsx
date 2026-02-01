@@ -48,6 +48,7 @@ import {
   User,
   FolderKanban,
   Wrench,
+  Receipt,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -69,6 +70,11 @@ const navigationItems = [
     title: "Projecten",
     url: "/projecten",
     icon: FolderKanban,
+  },
+  {
+    title: "Facturen",
+    url: "/facturen",
+    icon: Receipt,
   },
   {
     title: "Klanten",
