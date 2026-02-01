@@ -105,6 +105,11 @@ export const create = mutation({
       )
     ),
     notities: v.optional(v.string()),
+    // Verzekering en APK gegevens
+    apkVervaldatum: v.optional(v.number()),
+    verzekeringsVervaldatum: v.optional(v.number()),
+    verzekeraar: v.optional(v.string()),
+    polisnummer: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await requireAuthUserId(ctx);
@@ -123,6 +128,10 @@ export const create = mutation({
       kmStand: args.kmStand,
       status: args.status ?? "actief",
       notities: args.notities,
+      apkVervaldatum: args.apkVervaldatum,
+      verzekeringsVervaldatum: args.verzekeringsVervaldatum,
+      verzekeraar: args.verzekeraar,
+      polisnummer: args.polisnummer,
       createdAt: now,
       updatedAt: now,
     });
@@ -150,6 +159,11 @@ export const update = mutation({
       )
     ),
     notities: v.optional(v.string()),
+    // Verzekering en APK gegevens
+    apkVervaldatum: v.optional(v.number()),
+    verzekeringsVervaldatum: v.optional(v.number()),
+    verzekeraar: v.optional(v.string()),
+    polisnummer: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await requireAuthUserId(ctx);
@@ -176,6 +190,10 @@ export const update = mutation({
       kmStand?: number;
       status?: "actief" | "inactief" | "onderhoud";
       notities?: string;
+      apkVervaldatum?: number;
+      verzekeringsVervaldatum?: number;
+      verzekeraar?: string;
+      polisnummer?: string;
       updatedAt: number;
     } = {
       updatedAt: Date.now(),
@@ -192,6 +210,10 @@ export const update = mutation({
     if (args.kmStand !== undefined) updateData.kmStand = args.kmStand;
     if (args.status !== undefined) updateData.status = args.status;
     if (args.notities !== undefined) updateData.notities = args.notities;
+    if (args.apkVervaldatum !== undefined) updateData.apkVervaldatum = args.apkVervaldatum;
+    if (args.verzekeringsVervaldatum !== undefined) updateData.verzekeringsVervaldatum = args.verzekeringsVervaldatum;
+    if (args.verzekeraar !== undefined) updateData.verzekeraar = args.verzekeraar;
+    if (args.polisnummer !== undefined) updateData.polisnummer = args.polisnummer;
 
     await ctx.db.patch(args.id, updateData);
 
@@ -297,5 +319,177 @@ export const updateKmStand = mutation({
     });
 
     return args.id;
+  },
+});
+
+// Haal een voertuig op met alle gerelateerde details
+// Inclusief onderhoud, kilometerstand historie en brandstof registraties
+export const getWithDetails = query({
+  args: { id: v.id("voertuigen") },
+  handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+    const voertuig = await ctx.db.get(args.id);
+
+    if (!voertuig) return null;
+    if (voertuig.userId.toString() !== userId.toString()) {
+      return null;
+    }
+
+    // Haal gerelateerde onderhoud records op
+    const onderhoud = await ctx.db
+      .query("voertuigOnderhoud")
+      .withIndex("by_voertuig", (q) => q.eq("voertuigId", args.id))
+      .collect();
+
+    // Haal kilometerstand historie op
+    const kilometerStanden = await ctx.db
+      .query("kilometerStanden")
+      .withIndex("by_voertuig", (q) => q.eq("voertuigId", args.id))
+      .collect();
+
+    // Haal brandstof registraties op
+    const brandstofRegistraties = await ctx.db
+      .query("brandstofRegistratie")
+      .withIndex("by_voertuig", (q) => q.eq("voertuigId", args.id))
+      .collect();
+
+    // Sorteer op datum (nieuwste eerst)
+    const sortedKilometerStanden = kilometerStanden.sort((a, b) =>
+      b.datum.localeCompare(a.datum)
+    );
+    const sortedBrandstof = brandstofRegistraties.sort((a, b) =>
+      b.datum - a.datum
+    );
+    const sortedOnderhoud = onderhoud.sort((a, b) =>
+      b.geplanteDatum - a.geplanteDatum
+    );
+
+    return {
+      ...voertuig,
+      onderhoud: sortedOnderhoud,
+      kilometerStanden: sortedKilometerStanden,
+      brandstofRegistraties: sortedBrandstof,
+    };
+  },
+});
+
+// Overzicht van alle vervaldatums (APK, verzekering, onderhoud)
+// Retourneert items die binnenkort verlopen of al verlopen zijn
+export const getVervaldataOverzicht = query({
+  args: {
+    dagenVooruit: v.optional(v.number()), // Standaard 30 dagen vooruit kijken
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+    const dagenVooruit = args.dagenVooruit ?? 30;
+    const now = Date.now();
+    const grens = now + dagenVooruit * 24 * 60 * 60 * 1000;
+
+    // Haal alle voertuigen op
+    const voertuigen = await ctx.db
+      .query("voertuigen")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    // Haal alle gepland onderhoud op
+    const onderhoud = await ctx.db
+      .query("voertuigOnderhoud")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    const vervalItems: {
+      voertuigId: string;
+      kenteken: string;
+      merk: string;
+      model: string;
+      type: "apk" | "verzekering" | "onderhoud";
+      omschrijving: string;
+      vervaldatum: number;
+      isVerlopen: boolean;
+      dagenTotVerval: number;
+    }[] = [];
+
+    // Check APK en verzekering vervaldatums per voertuig
+    for (const voertuig of voertuigen) {
+      // APK vervaldatum
+      if (voertuig.apkVervaldatum && voertuig.apkVervaldatum <= grens) {
+        const dagenTotVerval = Math.floor(
+          (voertuig.apkVervaldatum - now) / (24 * 60 * 60 * 1000)
+        );
+        vervalItems.push({
+          voertuigId: voertuig._id,
+          kenteken: voertuig.kenteken,
+          merk: voertuig.merk,
+          model: voertuig.model,
+          type: "apk",
+          omschrijving: "APK keuring",
+          vervaldatum: voertuig.apkVervaldatum,
+          isVerlopen: voertuig.apkVervaldatum < now,
+          dagenTotVerval,
+        });
+      }
+
+      // Verzekering vervaldatum
+      if (voertuig.verzekeringsVervaldatum && voertuig.verzekeringsVervaldatum <= grens) {
+        const dagenTotVerval = Math.floor(
+          (voertuig.verzekeringsVervaldatum - now) / (24 * 60 * 60 * 1000)
+        );
+        vervalItems.push({
+          voertuigId: voertuig._id,
+          kenteken: voertuig.kenteken,
+          merk: voertuig.merk,
+          model: voertuig.model,
+          type: "verzekering",
+          omschrijving: `Verzekering ${voertuig.verzekeraar ? `(${voertuig.verzekeraar})` : ""}`.trim(),
+          vervaldatum: voertuig.verzekeringsVervaldatum,
+          isVerlopen: voertuig.verzekeringsVervaldatum < now,
+          dagenTotVerval,
+        });
+      }
+    }
+
+    // Check gepland onderhoud
+    for (const item of onderhoud) {
+      if (item.status !== "voltooid" && item.geplanteDatum <= grens) {
+        const voertuig = voertuigen.find((v) => v._id === item.voertuigId);
+        if (voertuig) {
+          const dagenTotVerval = Math.floor(
+            (item.geplanteDatum - now) / (24 * 60 * 60 * 1000)
+          );
+          vervalItems.push({
+            voertuigId: voertuig._id,
+            kenteken: voertuig.kenteken,
+            merk: voertuig.merk,
+            model: voertuig.model,
+            type: "onderhoud",
+            omschrijving: item.omschrijving,
+            vervaldatum: item.geplanteDatum,
+            isVerlopen: item.geplanteDatum < now,
+            dagenTotVerval,
+          });
+        }
+      }
+    }
+
+    // Sorteer op vervaldatum (vroegste eerst)
+    vervalItems.sort((a, b) => a.vervaldatum - b.vervaldatum);
+
+    // Samenvatting statistieken
+    const verlopen = vervalItems.filter((item) => item.isVerlopen);
+    const binnenkort = vervalItems.filter((item) => !item.isVerlopen);
+
+    return {
+      items: vervalItems,
+      samenvatting: {
+        totaal: vervalItems.length,
+        verlopen: verlopen.length,
+        binnenkort: binnenkort.length,
+        perType: {
+          apk: vervalItems.filter((item) => item.type === "apk").length,
+          verzekering: vervalItems.filter((item) => item.type === "verzekering").length,
+          onderhoud: vervalItems.filter((item) => item.type === "onderhoud").length,
+        },
+      },
+    };
   },
 });

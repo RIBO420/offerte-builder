@@ -438,6 +438,71 @@ export default defineSchema({
     uurtarief: v.optional(v.number()), // Optioneel aangepast uurtarief per medewerker
     isActief: v.boolean(),
     notities: v.optional(v.string()),
+
+    // Specialisaties per scope met niveau-indicatie
+    specialisaties: v.optional(
+      v.array(
+        v.object({
+          scope: v.string(), // bijv. "grondwerk", "bestrating", "bomen"
+          niveau: v.union(
+            v.literal("junior"),
+            v.literal("midlevel"),
+            v.literal("senior")
+          ),
+          gecertificeerd: v.optional(v.boolean()),
+        })
+      )
+    ),
+
+    // Certificaten met vervaldatum tracking
+    certificaten: v.optional(
+      v.array(
+        v.object({
+          naam: v.string(), // bijv. "VCA Basis", "Boomverzorging ETW"
+          uitgifteDatum: v.number(), // timestamp
+          vervaldatum: v.optional(v.number()), // timestamp (optioneel voor permanente certificaten)
+          documentUrl: v.optional(v.string()), // link naar document/scan
+        })
+      )
+    ),
+
+    // Beschikbaarheid voor planning
+    beschikbaarheid: v.optional(
+      v.object({
+        werkdagen: v.array(v.number()), // 0=zondag, 1=maandag, ... 6=zaterdag
+        urenPerWeek: v.number(),
+        maxUrenPerDag: v.number(),
+      })
+    ),
+
+    // Contract type voor capaciteitsplanning
+    contractType: v.optional(
+      v.union(
+        v.literal("fulltime"),
+        v.literal("parttime"),
+        v.literal("zzp"),
+        v.literal("seizoen")
+      )
+    ),
+
+    // Adresgegevens
+    adres: v.optional(
+      v.object({
+        straat: v.string(),
+        postcode: v.string(),
+        plaats: v.string(),
+      })
+    ),
+
+    // Noodcontact
+    noodcontact: v.optional(
+      v.object({
+        naam: v.string(),
+        telefoon: v.string(),
+        relatie: v.string(), // bijv. "Partner", "Ouder", "Kind"
+      })
+    ),
+
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -619,6 +684,11 @@ export default defineSchema({
       v.literal("onderhoud")
     ),
     notities: v.optional(v.string()),
+    // Verzekering en APK gegevens
+    apkVervaldatum: v.optional(v.number()), // APK expiry timestamp
+    verzekeringsVervaldatum: v.optional(v.number()), // Insurance expiry timestamp
+    verzekeraar: v.optional(v.string()), // Insurance company
+    polisnummer: v.optional(v.string()), // Policy number
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -626,4 +696,142 @@ export default defineSchema({
     .index("by_user_status", ["userId", "status"])
     .index("by_kenteken", ["kenteken"])
     .index("by_fleetgo", ["fleetgoId"]),
+
+  // VoertuigOnderhoud - Vehicle maintenance records
+  // Track scheduled and completed maintenance tasks
+  voertuigOnderhoud: defineTable({
+    voertuigId: v.id("voertuigen"),
+    userId: v.id("users"),
+    type: v.union(
+      v.literal("olie"),
+      v.literal("apk"),
+      v.literal("banden"),
+      v.literal("inspectie"),
+      v.literal("reparatie"),
+      v.literal("overig")
+    ),
+    omschrijving: v.string(),
+    geplanteDatum: v.number(), // Scheduled date timestamp
+    voltooidDatum: v.optional(v.number()), // Completion date timestamp
+    kosten: v.optional(v.number()), // Cost of maintenance
+    status: v.union(
+      v.literal("gepland"),
+      v.literal("in_uitvoering"),
+      v.literal("voltooid")
+    ),
+    notities: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_voertuig", ["voertuigId"])
+    .index("by_status", ["status"])
+    .index("by_user", ["userId"]),
+
+  // KilometerStanden - Mileage tracking
+  // Log mileage readings for vehicles, optionally linked to projects
+  kilometerStanden: defineTable({
+    voertuigId: v.id("voertuigen"),
+    userId: v.id("users"),
+    datum: v.string(), // YYYY-MM-DD format
+    kilometerstand: v.number(),
+    projectId: v.optional(v.id("projecten")), // Optional link to project
+    notities: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_voertuig", ["voertuigId"])
+    .index("by_user", ["userId"]),
+
+  // BrandstofRegistratie - Fuel registration
+  // Track fuel consumption and costs
+  brandstofRegistratie: defineTable({
+    voertuigId: v.id("voertuigen"),
+    userId: v.id("users"),
+    datum: v.number(), // Timestamp
+    liters: v.number(),
+    kosten: v.number(),
+    kilometerstand: v.number(),
+    locatie: v.optional(v.string()), // Fuel station location
+    createdAt: v.number(),
+  })
+    .index("by_voertuig", ["voertuigId"])
+    .index("by_user", ["userId"]),
+
+  // ============================================
+  // Teams (Team Management)
+  // ============================================
+
+  // Teams - Groepering van medewerkers voor planning en rapportage
+  teams: defineTable({
+    userId: v.id("users"),
+    naam: v.string(),
+    beschrijving: v.optional(v.string()),
+    leden: v.array(v.id("medewerkers")), // Array van medewerker IDs
+    isActief: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_user", ["userId"]),
+
+  // VoertuigSchades - Damage reports for vehicles
+  // Track damages, repairs, and insurance claims
+  voertuigSchades: defineTable({
+    voertuigId: v.id("voertuigen"),
+    userId: v.id("users"),
+    datum: v.number(), // Timestamp when damage occurred
+    beschrijving: v.string(), // Description of the damage
+    ernst: v.union(
+      v.literal("klein"),
+      v.literal("gemiddeld"),
+      v.literal("groot")
+    ),
+    schadeType: v.union(
+      v.literal("deuk"),
+      v.literal("kras"),
+      v.literal("breuk"),
+      v.literal("mechanisch"),
+      v.literal("overig")
+    ),
+    fotoUrls: v.optional(v.array(v.string())), // Photo URLs of damage
+    gerapporteerdDoor: v.string(), // Name of person who reported
+    status: v.union(
+      v.literal("nieuw"),
+      v.literal("in_reparatie"),
+      v.literal("afgehandeld")
+    ),
+    reparatieKosten: v.optional(v.number()), // Repair costs
+    verzekeringsClaim: v.optional(v.boolean()), // Insurance claim filed
+    claimNummer: v.optional(v.string()), // Insurance claim number
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_voertuig", ["voertuigId"])
+    .index("by_status", ["status"])
+    .index("by_user", ["userId"]),
+
+  // VoertuigUitrusting - Equipment inventory per vehicle
+  // Track tools and equipment assigned to vehicles
+  voertuigUitrusting: defineTable({
+    voertuigId: v.id("voertuigen"),
+    userId: v.id("users"),
+    naam: v.string(), // Equipment name
+    categorie: v.union(
+      v.literal("motorgereedschap"),
+      v.literal("handgereedschap"),
+      v.literal("veiligheid"),
+      v.literal("overig")
+    ),
+    hoeveelheid: v.number(), // Quantity
+    serienummer: v.optional(v.string()), // Serial number
+    aanschafDatum: v.optional(v.number()), // Purchase date
+    aanschafPrijs: v.optional(v.number()), // Purchase price
+    status: v.union(
+      v.literal("aanwezig"),
+      v.literal("vermist"),
+      v.literal("defect")
+    ),
+    notities: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_voertuig", ["voertuigId"])
+    .index("by_user", ["userId"]),
 });
