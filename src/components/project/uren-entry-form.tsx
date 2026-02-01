@@ -175,7 +175,7 @@ export function UrenEntryForm({
                     <SelectTrigger className="flex-1">
                       <SelectValue placeholder="Kies medewerker" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent position="popper" sideOffset={4}>
                       {existingMedewerkers.map((m) => (
                         <SelectItem key={m} value={m}>
                           {m}
@@ -242,7 +242,7 @@ export function UrenEntryForm({
                 <SelectTrigger>
                   <SelectValue placeholder="Selecteer scope" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent position="popper" sideOffset={4}>
                   <SelectItem value="__none__">Geen scope</SelectItem>
                   {filteredScopes.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
