@@ -447,40 +447,51 @@ export const getStats = query({
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
 
-    // Initialize stats
-    const stats = {
-      totaal: facturen.length,
-      totaalBedrag: 0,
-      openstaandBedrag: 0,
-      betaaldBedrag: 0,
-      concept: 0,
-      definitief: 0,
-      verzonden: 0,
-      betaald: 0,
-      vervallen: 0,
-    };
+    // Count per status
+    let conceptCount = 0;
+    let definitiefCount = 0;
+    let verzondenCount = 0;
+    let betaaldCount = 0;
+    let vervallenCount = 0;
+    let totaalBedrag = 0;
+    let openstaandBedrag = 0;
+    let betaaldBedrag = 0;
 
     for (const factuur of facturen) {
       // Count by status
-      if (factuur.status in stats) {
-        stats[factuur.status as keyof typeof stats]++;
+      switch (factuur.status) {
+        case "concept":
+          conceptCount++;
+          break;
+        case "definitief":
+          definitiefCount++;
+          break;
+        case "verzonden":
+          verzondenCount++;
+          openstaandBedrag += factuur.totaalInclBtw;
+          break;
+        case "betaald":
+          betaaldCount++;
+          betaaldBedrag += factuur.totaalInclBtw;
+          break;
+        case "vervallen":
+          vervallenCount++;
+          break;
       }
-
-      // Sum totals
-      stats.totaalBedrag += factuur.totaalInclBtw;
-
-      // Openstaand = verzonden (nog niet betaald of vervallen)
-      if (factuur.status === "verzonden") {
-        stats.openstaandBedrag += factuur.totaalInclBtw;
-      }
-
-      // Betaald bedrag
-      if (factuur.status === "betaald") {
-        stats.betaaldBedrag += factuur.totaalInclBtw;
-      }
+      totaalBedrag += factuur.totaalInclBtw;
     }
 
-    return stats;
+    return {
+      totaal: facturen.length,
+      totaalBedrag,
+      openstaandBedrag,
+      betaaldBedrag,
+      concept: conceptCount,
+      definitief: definitiefCount,
+      verzonden: verzondenCount,
+      betaald: betaaldCount,
+      vervallen: vervallenCount,
+    };
   },
 });
 
