@@ -37,6 +37,8 @@ type Medewerker = {
   telefoon?: string;
   functie?: string;
   isActief: boolean;
+  createdAt?: number;
+  updatedAt?: number;
 };
 
 type Team = {

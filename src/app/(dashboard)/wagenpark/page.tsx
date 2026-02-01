@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Card,
@@ -49,12 +50,22 @@ import {
   Wrench,
   Gauge,
   RefreshCw,
+  ShieldCheck,
+  AlertTriangle,
+  Fuel,
+  Calendar,
+  Eye,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useVoertuigen, VoertuigStatus } from "@/hooks/use-voertuigen";
+import { useUpcomingOnderhoud } from "@/hooks/use-voertuig-details";
 import { Id } from "../../../../convex/_generated/dataModel";
 import { KentekenPlaat } from "@/components/wagenpark/kenteken-plaat";
 import { VoertuigForm, Voertuig } from "@/components/wagenpark/voertuig-form";
+import {
+  ComplianceWarningBadge,
+  getComplianceWarningCount,
+} from "@/components/wagenpark/compliance-badges";
 
 // Vehicle type labels
 const typeLabels: Record<string, string> = {
@@ -114,6 +125,13 @@ function formatSyncTime(timestamp: number | undefined): string {
   });
 }
 
+function getDaysUntilExpiry(expiryTimestamp: number | undefined): number | null {
+  if (!expiryTimestamp) return null;
+  const now = Date.now();
+  const diffMs = expiryTimestamp - now;
+  return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+}
+
 type VoertuigRow = {
   _id: Id<"voertuigen">;
   kenteken: string;
@@ -127,12 +145,16 @@ type VoertuigRow = {
   notities?: string;
   fleetgoId?: string;
   laatsteSyncAt?: number;
+  apkVervaldatum?: number;
+  verzekeringsVervaldatum?: number;
   createdAt: number;
   updatedAt: number;
 };
 
 export default function WagenparkPage() {
+  const router = useRouter();
   const { voertuigen, isLoading, update, hardDelete } = useVoertuigen();
+  const { count: upcomingOnderhoudCount } = useUpcomingOnderhoud();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState<FilterTab>("alle");
 
@@ -173,10 +195,23 @@ export default function WagenparkPage() {
   const maintenanceCount = voertuigen.filter((v) => v.status === "onderhoud").length;
   const inactiveCount = voertuigen.filter((v) => v.status === "inactief").length;
 
+  // Compliance warnings
+  const { apkWarnings, verzekeringWarnings } = useMemo(
+    () => getComplianceWarningCount(voertuigen as VoertuigRow[]),
+    [voertuigen]
+  );
+
   const handleEdit = useCallback((voertuig: VoertuigRow) => {
     setSelectedVoertuig(voertuig as Voertuig);
     setShowEditDialog(true);
   }, []);
+
+  const handleViewDetails = useCallback(
+    (voertuig: VoertuigRow) => {
+      router.push(`/wagenpark/${voertuig._id}`);
+    },
+    [router]
+  );
 
   const handleDelete = useCallback(async () => {
     if (!selectedVoertuig) return;
@@ -224,7 +259,15 @@ export default function WagenparkPage() {
         key: "kenteken",
         header: "Kenteken",
         isPrimary: true,
-        render: (voertuig) => <KentekenPlaat kenteken={voertuig.kenteken} size="sm" />,
+        render: (voertuig) => (
+          <div className="flex items-center gap-2">
+            <KentekenPlaat kenteken={voertuig.kenteken} size="sm" />
+            <ComplianceWarningBadge
+              apkDaysLeft={getDaysUntilExpiry(voertuig.apkVervaldatum)}
+              verzekeringDaysLeft={getDaysUntilExpiry(voertuig.verzekeringsVervaldatum)}
+            />
+          </div>
+        ),
       },
       {
         key: "voertuig",
@@ -300,7 +343,18 @@ export default function WagenparkPage() {
         showInCard: true,
         mobileLabel: "",
         render: (voertuig) => (
-          <div className="flex items-center justify-end gap-2">
+          <div className="flex items-center justify-end gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleViewDetails(voertuig);
+              }}
+              title="Bekijk details"
+            >
+              <Eye className="h-4 w-4" />
+            </Button>
             <Button
               variant="ghost"
               size="sm"
@@ -308,6 +362,7 @@ export default function WagenparkPage() {
                 e.stopPropagation();
                 handleEdit(voertuig);
               }}
+              title="Bewerken"
             >
               <Pencil className="h-4 w-4" />
             </Button>
@@ -357,6 +412,7 @@ export default function WagenparkPage() {
                     e.stopPropagation();
                     handleDeleteClick(voertuig);
                   }}
+                  title="Verwijderen"
                 >
                   <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
@@ -366,7 +422,7 @@ export default function WagenparkPage() {
         ),
       },
     ],
-    [handleEdit, handleToggleStatus, handleDeleteClick]
+    [handleEdit, handleViewDetails, handleToggleStatus, handleDeleteClick]
   );
 
   if (isLoading) {
@@ -430,7 +486,7 @@ export default function WagenparkPage() {
         transition={{ duration: 0.4 }}
         className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
       >
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
               Wagenpark
@@ -440,44 +496,92 @@ export default function WagenparkPage() {
             </p>
           </div>
 
-          <Button onClick={() => setShowAddDialog(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Voertuig toevoegen
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => router.push("/wagenpark?tab=onderhoud")}>
+              <Wrench className="mr-2 h-4 w-4" />
+              Onderhoud
+              {upcomingOnderhoudCount > 0 && (
+                <Badge variant="secondary" className="ml-2">
+                  {upcomingOnderhoudCount}
+                </Badge>
+              )}
+            </Button>
+            <Button variant="outline" onClick={() => {}}>
+              <Fuel className="mr-2 h-4 w-4" />
+              Brandstof
+            </Button>
+            <Button onClick={() => setShowAddDialog(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Voertuig toevoegen
+            </Button>
+          </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-3">
+        {/* Enhanced Stats Cards */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Totaal voertuigen</CardTitle>
+              <CardTitle className="text-sm font-medium">Totaal</CardTitle>
               <Car className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{totalCount}</div>
-              <p className="text-xs text-muted-foreground">in je wagenpark</p>
+              <p className="text-xs text-muted-foreground">voertuigen</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Actieve voertuigen</CardTitle>
+              <CardTitle className="text-sm font-medium">Actief</CardTitle>
               <CheckCircle2 className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{activeCount}</div>
-              <p className="text-xs text-muted-foreground">beschikbaar voor gebruik</p>
+              <div className="text-2xl font-bold text-green-600">{activeCount}</div>
+              <p className="text-xs text-muted-foreground">beschikbaar</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">In onderhoud</CardTitle>
+              <CardTitle className="text-sm font-medium">Onderhoud</CardTitle>
               <Wrench className="h-4 w-4 text-amber-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{maintenanceCount}</div>
-              <p className="text-xs text-muted-foreground">tijdelijk niet beschikbaar</p>
+              <div className="text-2xl font-bold text-amber-500">{maintenanceCount}</div>
+              <p className="text-xs text-muted-foreground">
+                {upcomingOnderhoudCount > 0 && (
+                  <span className="text-amber-600">
+                    +{upcomingOnderhoudCount} gepland
+                  </span>
+                )}
+                {upcomingOnderhoudCount === 0 && "niet beschikbaar"}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className={apkWarnings > 0 ? "border-red-200 dark:border-red-900" : ""}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">APK Bijna Verlopen</CardTitle>
+              <ShieldCheck className={`h-4 w-4 ${apkWarnings > 0 ? "text-red-500" : "text-muted-foreground"}`} />
+            </CardHeader>
+            <CardContent>
+              <div className={`text-2xl font-bold ${apkWarnings > 0 ? "text-red-500" : ""}`}>
+                {apkWarnings}
+              </div>
+              <p className="text-xs text-muted-foreground">binnen 30 dagen</p>
+            </CardContent>
+          </Card>
+
+          <Card className={verzekeringWarnings > 0 ? "border-red-200 dark:border-red-900" : ""}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Verzekering</CardTitle>
+              <AlertTriangle className={`h-4 w-4 ${verzekeringWarnings > 0 ? "text-red-500" : "text-muted-foreground"}`} />
+            </CardHeader>
+            <CardContent>
+              <div className={`text-2xl font-bold ${verzekeringWarnings > 0 ? "text-red-500" : ""}`}>
+                {verzekeringWarnings}
+              </div>
+              <p className="text-xs text-muted-foreground">binnen 30 dagen</p>
             </CardContent>
           </Card>
         </div>
@@ -561,6 +665,7 @@ export default function WagenparkPage() {
                 data={displayedVoertuigen}
                 columns={columns}
                 keyExtractor={(voertuig) => voertuig._id}
+                onRowClick={handleViewDetails}
                 emptyMessage={
                   searchTerm
                     ? `Geen resultaten voor "${searchTerm}"`

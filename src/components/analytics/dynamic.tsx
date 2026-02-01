@@ -56,6 +56,27 @@ function TableSkeleton() {
   );
 }
 
+// Loading skeleton for multi-section components
+function MultiSectionSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Card key={i}>
+            <CardContent className="p-5">
+              <Skeleton className="h-4 w-24 mb-2" />
+              <Skeleton className="h-8 w-20 mb-1" />
+              <Skeleton className="h-3 w-32" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <ChartSkeleton />
+      <TableSkeleton />
+    </div>
+  );
+}
+
 // Dynamically import chart components with loading states
 // These use recharts which is a large dependency (~200KB)
 export const DynamicOfferteTrendChart = dynamic(
@@ -128,6 +149,39 @@ export const DynamicTopKlantenTable = dynamic(
   () => import("./top-klanten-table").then((mod) => mod.TopKlantenTable),
   {
     loading: () => <TableSkeleton />,
+    ssr: false,
+  }
+);
+
+// New analytics components
+export const DynamicCalculatieVergelijking = dynamic(
+  () => import("./calculatie-vergelijking").then((mod) => mod.CalculatieVergelijking),
+  {
+    loading: () => <MultiSectionSkeleton />,
+    ssr: false,
+  }
+);
+
+export const DynamicMedewerkerProductiviteit = dynamic(
+  () => import("./medewerker-productiviteit").then((mod) => mod.MedewerkerProductiviteit),
+  {
+    loading: () => <MultiSectionSkeleton />,
+    ssr: false,
+  }
+);
+
+export const DynamicProjectPrestaties = dynamic(
+  () => import("./project-prestaties").then((mod) => mod.ProjectPrestaties),
+  {
+    loading: () => <MultiSectionSkeleton />,
+    ssr: false,
+  }
+);
+
+export const DynamicFinancieelOverzicht = dynamic(
+  () => import("./financieel-overzicht").then((mod) => mod.FinancieelOverzicht),
+  {
+    loading: () => <MultiSectionSkeleton />,
     ssr: false,
   }
 );

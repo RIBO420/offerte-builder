@@ -29,15 +29,15 @@ import {
   Award,
   AlertTriangle,
   ExternalLink,
-  FileText,
+  Pencil,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// Matches Convex schema - uses timestamps
 export interface Certificaat {
-  id: string;
   naam: string;
-  uitgifteDatum: string; // ISO date string
-  vervalDatum?: string; // ISO date string
+  uitgifteDatum: number; // timestamp
+  vervaldatum?: number; // timestamp (optional for permanent certificates)
   documentUrl?: string;
 }
 
@@ -56,7 +56,7 @@ export function CertificaatFormDialog({
 }: CertificaatFormDialogProps) {
   const [naam, setNaam] = useState("");
   const [uitgifteDatum, setUitgifteDatum] = useState<Date | undefined>();
-  const [vervalDatum, setVervalDatum] = useState<Date | undefined>();
+  const [vervaldatum, setVervaldatum] = useState<Date | undefined>();
   const [documentUrl, setDocumentUrl] = useState("");
 
   const isEditMode = !!initialData;
@@ -67,14 +67,14 @@ export function CertificaatFormDialog({
       if (initialData) {
         setNaam(initialData.naam);
         setUitgifteDatum(new Date(initialData.uitgifteDatum));
-        setVervalDatum(
-          initialData.vervalDatum ? new Date(initialData.vervalDatum) : undefined
+        setVervaldatum(
+          initialData.vervaldatum ? new Date(initialData.vervaldatum) : undefined
         );
         setDocumentUrl(initialData.documentUrl || "");
       } else {
         setNaam("");
         setUitgifteDatum(undefined);
-        setVervalDatum(undefined);
+        setVervaldatum(undefined);
         setDocumentUrl("");
       }
     }
@@ -84,18 +84,15 @@ export function CertificaatFormDialog({
     if (!naam.trim() || !uitgifteDatum) return;
 
     const certificaat: Certificaat = {
-      id: initialData?.id || crypto.randomUUID(),
       naam: naam.trim(),
-      uitgifteDatum: uitgifteDatum.toISOString().split("T")[0],
-      vervalDatum: vervalDatum
-        ? vervalDatum.toISOString().split("T")[0]
-        : undefined,
+      uitgifteDatum: uitgifteDatum.getTime(),
+      vervaldatum: vervaldatum ? vervaldatum.getTime() : undefined,
       documentUrl: documentUrl.trim() || undefined,
     };
 
     onSave(certificaat);
     onOpenChange(false);
-  }, [naam, uitgifteDatum, vervalDatum, documentUrl, initialData, onSave, onOpenChange]);
+  }, [naam, uitgifteDatum, vervaldatum, documentUrl, onSave, onOpenChange]);
 
   const isFormValid = naam.trim() && uitgifteDatum;
 
@@ -164,24 +161,24 @@ export function CertificaatFormDialog({
                   variant="outline"
                   className={cn(
                     "justify-start text-left font-normal",
-                    !vervalDatum && "text-muted-foreground"
+                    !vervaldatum && "text-muted-foreground"
                   )}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {vervalDatum
-                    ? format(vervalDatum, "d MMMM yyyy", { locale: nl })
+                  {vervaldatum
+                    ? format(vervaldatum, "d MMMM yyyy", { locale: nl })
                     : "Selecteer datum"}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
                 <Calendar
                   mode="single"
-                  selected={vervalDatum}
-                  onSelect={setVervalDatum}
+                  selected={vervaldatum}
+                  onSelect={setVervaldatum}
                   disabled={(date) =>
                     uitgifteDatum ? date < uitgifteDatum : false
                   }
-                  defaultMonth={vervalDatum || uitgifteDatum}
+                  defaultMonth={vervaldatum || uitgifteDatum}
                 />
               </PopoverContent>
             </Popover>
@@ -219,13 +216,13 @@ export function CertificaatFormDialog({
   );
 }
 
-// Helper function to get certification expiry status
-export function getCertificaatStatus(vervalDatum?: string): {
+// Helper function to get certification expiry status using timestamp
+export function getCertificaatStatus(vervaldatum?: number): {
   status: "valid" | "expiring" | "expired";
   label: string;
   className: string;
 } {
-  if (!vervalDatum) {
+  if (!vervaldatum) {
     return {
       status: "valid",
       label: "Geldig",
@@ -233,10 +230,9 @@ export function getCertificaatStatus(vervalDatum?: string): {
     };
   }
 
-  const now = new Date();
-  const expiryDate = new Date(vervalDatum);
+  const now = Date.now();
   const daysUntilExpiry = Math.ceil(
-    (expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+    (vervaldatum - now) / (1000 * 60 * 60 * 24)
   );
 
   if (daysUntilExpiry < 0) {
@@ -258,7 +254,7 @@ export function getCertificaatStatus(vervalDatum?: string): {
   if (daysUntilExpiry <= 90) {
     return {
       status: "expiring",
-      label: `Verloopt over ${Math.floor(daysUntilExpiry / 30)} maanden`,
+      label: `Verloopt over ${Math.ceil(daysUntilExpiry / 30)} maanden`,
       className: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300",
     };
   }
@@ -283,9 +279,7 @@ export function CertificatenList({
   disabled = false,
 }: CertificatenListProps) {
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [editingCertificaat, setEditingCertificaat] = useState<Certificaat | null>(
-    null
-  );
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
   const handleAdd = useCallback(
     (certificaat: Certificaat) => {
@@ -296,17 +290,20 @@ export function CertificatenList({
 
   const handleEdit = useCallback(
     (certificaat: Certificaat) => {
-      onChange(
-        certificaten.map((c) => (c.id === certificaat.id ? certificaat : c))
-      );
-      setEditingCertificaat(null);
+      if (editingIndex === null) return;
+      const updated = [...certificaten];
+      updated[editingIndex] = certificaat;
+      onChange(updated);
+      setEditingIndex(null);
     },
-    [certificaten, onChange]
+    [certificaten, onChange, editingIndex]
   );
 
   const handleRemove = useCallback(
-    (id: string) => {
-      onChange(certificaten.filter((c) => c.id !== id));
+    (index: number) => {
+      const updated = [...certificaten];
+      updated.splice(index, 1);
+      onChange(updated);
     },
     [certificaten, onChange]
   );
@@ -327,11 +324,11 @@ export function CertificatenList({
               Nog geen certificaten toegevoegd
             </motion.div>
           ) : (
-            certificaten.map((cert) => {
-              const status = getCertificaatStatus(cert.vervalDatum);
+            certificaten.map((cert, index) => {
+              const status = getCertificaatStatus(cert.vervaldatum);
               return (
                 <motion.div
-                  key={cert.id}
+                  key={`${cert.naam}-${cert.uitgifteDatum}`}
                   layout
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -343,8 +340,8 @@ export function CertificatenList({
                       <Award className="h-4 w-4 text-primary" />
                     </div>
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm truncate">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium text-sm">
                           {cert.naam}
                         </span>
                         <Badge
@@ -354,22 +351,25 @@ export function CertificatenList({
                           {status.status === "expired" && (
                             <AlertTriangle className="h-3 w-3 mr-1" />
                           )}
+                          {status.status === "expiring" && (
+                            <AlertTriangle className="h-3 w-3 mr-1" />
+                          )}
                           {status.label}
                         </Badge>
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                         <span>
                           Uitgegeven:{" "}
                           {format(new Date(cert.uitgifteDatum), "d MMM yyyy", {
                             locale: nl,
                           })}
                         </span>
-                        {cert.vervalDatum && (
+                        {cert.vervaldatum && (
                           <>
                             <span>-</span>
                             <span>
                               Vervalt:{" "}
-                              {format(new Date(cert.vervalDatum), "d MMM yyyy", {
+                              {format(new Date(cert.vervaldatum), "d MMM yyyy", {
                                 locale: nl,
                               })}
                             </span>
@@ -401,17 +401,17 @@ export function CertificatenList({
                       variant="ghost"
                       size="sm"
                       className="h-8 w-8 p-0"
-                      onClick={() => setEditingCertificaat(cert)}
+                      onClick={() => setEditingIndex(index)}
                       disabled={disabled}
                     >
-                      <FileText className="h-4 w-4" />
+                      <Pencil className="h-4 w-4" />
                     </Button>
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
                       className="h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive"
-                      onClick={() => handleRemove(cert.id)}
+                      onClick={() => handleRemove(index)}
                       disabled={disabled}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -446,9 +446,9 @@ export function CertificatenList({
 
       {/* Edit dialog */}
       <CertificaatFormDialog
-        open={!!editingCertificaat}
-        onOpenChange={(open) => !open && setEditingCertificaat(null)}
-        initialData={editingCertificaat}
+        open={editingIndex !== null}
+        onOpenChange={(open) => !open && setEditingIndex(null)}
+        initialData={editingIndex !== null ? certificaten[editingIndex] : null}
         onSave={handleEdit}
       />
     </div>
@@ -456,17 +456,17 @@ export function CertificatenList({
 }
 
 // Compact display for showing certificates with expiry warnings
-export function CertificaatBadges({ certificaten }: { certificaten: Certificaat[] }) {
-  if (certificaten.length === 0) {
+export function CertificaatBadges({ certificaten }: { certificaten?: Certificaat[] }) {
+  if (!certificaten || certificaten.length === 0) {
     return <span className="text-muted-foreground text-sm">-</span>;
   }
 
   // Check for expiring/expired certificates
   const expiredCount = certificaten.filter(
-    (c) => getCertificaatStatus(c.vervalDatum).status === "expired"
+    (c) => getCertificaatStatus(c.vervaldatum).status === "expired"
   ).length;
   const expiringCount = certificaten.filter(
-    (c) => getCertificaatStatus(c.vervalDatum).status === "expiring"
+    (c) => getCertificaatStatus(c.vervaldatum).status === "expiring"
   ).length;
 
   return (

@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { nl } from "date-fns/locale";
@@ -29,11 +28,12 @@ import {
   CheckCircle2,
   Euro,
   Star,
+  MapPin,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  Skill,
-  AVAILABLE_SKILLS,
+  Specialisatie,
+  AVAILABLE_SCOPES,
   SKILL_LEVELS,
 } from "./skills-selector";
 import {
@@ -42,7 +42,7 @@ import {
 } from "./certificaat-form";
 import { Id } from "../../../convex/_generated/dataModel";
 
-// Extended medewerker type with new fields
+// Matches Convex schema
 export interface MedewerkerExtended {
   _id: Id<"medewerkers">;
   naam: string;
@@ -54,23 +54,32 @@ export interface MedewerkerExtended {
   notities?: string;
   createdAt: number;
   updatedAt: number;
-  // New fields
-  contractType?: "fulltime" | "parttime" | "oproep" | "zzp";
+  contractType?: "fulltime" | "parttime" | "zzp" | "seizoen";
   beschikbaarheid?: {
-    werkdagen: string[]; // ["ma", "di", "wo", "do", "vr"]
-    urenPerWeek?: number;
+    werkdagen: number[]; // 0=zondag, 1=maandag, etc.
+    urenPerWeek: number;
+    maxUrenPerDag: number;
   };
-  vaardigheden?: Skill[];
+  specialisaties?: Specialisatie[];
   certificaten?: Certificaat[];
-  // Computed/linked data (for display)
-  recenteProjecten?: Array<{
-    id: string;
+  adres?: {
+    straat: string;
+    postcode: string;
+    plaats: string;
+  };
+  noodcontact?: {
     naam: string;
-    uren: number;
-    datum: string;
-  }>;
-  totaalUren?: number;
-  maandUren?: number;
+    telefoon: string;
+    relatie: string;
+  };
+  // Stats from the getWithStats query
+  stats?: {
+    totaalUren: number;
+    aantalRegistraties: number;
+    aantalProjecten: number;
+    urenPerMaand: { maand: string; uren: number }[];
+    gemiddeldeUrenPerRegistratie: number;
+  };
 }
 
 interface MedewerkerDetailDialogProps {
@@ -82,18 +91,19 @@ interface MedewerkerDetailDialogProps {
 const CONTRACT_TYPES = {
   fulltime: { label: "Fulltime", color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300" },
   parttime: { label: "Parttime", color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300" },
-  oproep: { label: "Oproepkracht", color: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300" },
   zzp: { label: "ZZP", color: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300" },
+  seizoen: { label: "Seizoen", color: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300" },
 };
 
+// Werkdagen with number keys matching schema
 const WERKDAGEN = [
-  { key: "ma", label: "Ma" },
-  { key: "di", label: "Di" },
-  { key: "wo", label: "Wo" },
-  { key: "do", label: "Do" },
-  { key: "vr", label: "Vr" },
-  { key: "za", label: "Za" },
-  { key: "zo", label: "Zo" },
+  { key: 1, label: "Ma" },
+  { key: 2, label: "Di" },
+  { key: 3, label: "Wo" },
+  { key: 4, label: "Do" },
+  { key: 5, label: "Vr" },
+  { key: 6, label: "Za" },
+  { key: 0, label: "Zo" },
 ];
 
 export function MedewerkerDetailDialog({
@@ -103,28 +113,30 @@ export function MedewerkerDetailDialog({
 }: MedewerkerDetailDialogProps) {
   if (!medewerker) return null;
 
-  const vaardigheden = medewerker.vaardigheden || [];
+  const specialisaties = medewerker.specialisaties || [];
   const certificaten = medewerker.certificaten || [];
   const beschikbaarheid = medewerker.beschikbaarheid;
-  const recenteProjecten = medewerker.recenteProjecten || [];
+  const adres = medewerker.adres;
+  const noodcontact = medewerker.noodcontact;
+  const stats = medewerker.stats;
 
   // Calculate expired/expiring certificates
   const expiredCerts = certificaten.filter(
-    (c) => getCertificaatStatus(c.vervalDatum).status === "expired"
+    (c) => getCertificaatStatus(c.vervaldatum).status === "expired"
   );
   const expiringCerts = certificaten.filter(
-    (c) => getCertificaatStatus(c.vervalDatum).status === "expiring"
+    (c) => getCertificaatStatus(c.vervaldatum).status === "expiring"
   );
 
-  const getSkillLabel = (skillId: string) => {
-    return AVAILABLE_SKILLS.find((s) => s.id === skillId)?.label || skillId;
+  const getScopeLabel = (scopeId: string) => {
+    return AVAILABLE_SCOPES.find((s) => s.id === scopeId)?.label || scopeId;
   };
 
   const getLevelProgress = (level: string) => {
     switch (level) {
       case "junior":
         return 33;
-      case "medior":
+      case "midlevel":
         return 66;
       case "senior":
         return 100;
@@ -132,6 +144,11 @@ export function MedewerkerDetailDialog({
         return 50;
     }
   };
+
+  // Get current month hours from stats
+  const currentMonthUren = stats?.urenPerMaand?.length
+    ? stats.urenPerMaand[stats.urenPerMaand.length - 1]?.uren || 0
+    : 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -143,11 +160,10 @@ export function MedewerkerDetailDialog({
               <User className="h-8 w-8 text-primary" />
             </div>
             <div className="flex-1 min-w-0">
-              <DialogTitle className="text-xl flex items-center gap-2">
+              <DialogTitle className="text-xl flex items-center gap-2 flex-wrap">
                 {medewerker.naam}
                 <Badge
                   variant={medewerker.isActief ? "default" : "secondary"}
-                  className="ml-2"
                 >
                   {medewerker.isActief ? "Actief" : "Inactief"}
                 </Badge>
@@ -159,7 +175,7 @@ export function MedewerkerDetailDialog({
                     {medewerker.functie}
                   </span>
                 )}
-                {medewerker.contractType && (
+                {medewerker.contractType && CONTRACT_TYPES[medewerker.contractType] && (
                   <Badge
                     variant="secondary"
                     className={cn(
@@ -178,11 +194,11 @@ export function MedewerkerDetailDialog({
         <Tabs defaultValue="profiel" className="flex-1 overflow-hidden">
           <TabsList className="grid w-full grid-cols-4 mb-4">
             <TabsTrigger value="profiel">Profiel</TabsTrigger>
-            <TabsTrigger value="vaardigheden">
-              Vaardigheden
-              {vaardigheden.length > 0 && (
+            <TabsTrigger value="specialisaties">
+              Specialisaties
+              {specialisaties.length > 0 && (
                 <Badge variant="secondary" className="ml-1.5 text-xs">
-                  {vaardigheden.length}
+                  {specialisaties.length}
                 </Badge>
               )}
             </TabsTrigger>
@@ -245,6 +261,16 @@ export function MedewerkerDetailDialog({
                         </span>
                       </div>
                     )}
+                    {adres && (
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                          <MapPin className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <span className="text-sm">
+                          {adres.straat}, {adres.postcode} {adres.plaats}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -272,12 +298,16 @@ export function MedewerkerDetailDialog({
                           </div>
                         ))}
                       </div>
-                      {beschikbaarheid.urenPerWeek && (
-                        <div className="flex items-center gap-2 text-sm">
+                      <div className="flex items-center gap-4 text-sm">
+                        <div className="flex items-center gap-2">
                           <Clock className="h-4 w-4 text-muted-foreground" />
-                          <span>{beschikbaarheid.urenPerWeek} uur per week</span>
+                          <span>{beschikbaarheid.urenPerWeek} uur/week</span>
                         </div>
-                      )}
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground">Max</span>
+                          <span>{beschikbaarheid.maxUrenPerDag} uur/dag</span>
+                        </div>
+                      </div>
                     </div>
                   ) : (
                     <p className="text-sm text-muted-foreground">
@@ -285,6 +315,27 @@ export function MedewerkerDetailDialog({
                     </p>
                   )}
                 </div>
+
+                {/* Noodcontact */}
+                {noodcontact && (
+                  <>
+                    <Separator />
+                    <div className="space-y-3">
+                      <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                        Noodcontact
+                      </h3>
+                      <div className="p-3 bg-muted/30 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <span className="font-medium text-sm">{noodcontact.naam}</span>
+                            <span className="text-xs text-muted-foreground ml-2">({noodcontact.relatie})</span>
+                          </div>
+                          <span className="text-sm">{noodcontact.telefoon}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 {medewerker.notities && (
                   <>
@@ -320,39 +371,46 @@ export function MedewerkerDetailDialog({
               </motion.div>
             </TabsContent>
 
-            {/* Vaardigheden Tab */}
-            <TabsContent value="vaardigheden" className="mt-0 space-y-4">
+            {/* Specialisaties Tab */}
+            <TabsContent value="specialisaties" className="mt-0 space-y-4">
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="space-y-4"
               >
-                {vaardigheden.length === 0 ? (
+                {specialisaties.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
                     <GraduationCap className="h-12 w-12 text-muted-foreground/50 mb-4" />
                     <h3 className="text-lg font-medium">
-                      Geen vaardigheden toegevoegd
+                      Geen specialisaties toegevoegd
                     </h3>
                     <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-                      Voeg vaardigheden toe bij het bewerken van deze medewerker
+                      Voeg specialisaties toe bij het bewerken van deze medewerker
                     </p>
                   </div>
                 ) : (
                   <div className="grid gap-3">
-                    {vaardigheden.map((skill) => {
+                    {specialisaties.map((spec) => {
                       const levelConfig = SKILL_LEVELS.find(
-                        (l) => l.value === skill.level
+                        (l) => l.value === spec.niveau
                       );
                       return (
                         <div
-                          key={skill.id}
+                          key={spec.scope}
                           className="flex items-center gap-4 p-3 bg-muted/30 rounded-lg"
                         >
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between mb-2">
-                              <span className="font-medium text-sm">
-                                {getSkillLabel(skill.id)}
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-sm">
+                                  {getScopeLabel(spec.scope)}
+                                </span>
+                                {spec.gecertificeerd && (
+                                  <span title="Gecertificeerd">
+                                    <Award className="h-4 w-4 text-green-600" />
+                                  </span>
+                                )}
+                              </div>
                               <Badge
                                 variant="secondary"
                                 className={cn(
@@ -364,7 +422,7 @@ export function MedewerkerDetailDialog({
                               </Badge>
                             </div>
                             <Progress
-                              value={getLevelProgress(skill.level)}
+                              value={getLevelProgress(spec.niveau)}
                               className="h-2"
                             />
                           </div>
@@ -427,18 +485,18 @@ export function MedewerkerDetailDialog({
                   </div>
                 ) : (
                   <div className="grid gap-3">
-                    {certificaten.map((cert) => {
-                      const status = getCertificaatStatus(cert.vervalDatum);
+                    {certificaten.map((cert, index) => {
+                      const status = getCertificaatStatus(cert.vervaldatum);
                       return (
                         <div
-                          key={cert.id}
+                          key={`${cert.naam}-${index}`}
                           className="flex items-center gap-4 p-3 bg-muted/30 rounded-lg"
                         >
                           <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                             <Award className="h-5 w-5 text-primary" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-medium text-sm">
                                 {cert.naam}
                               </span>
@@ -468,13 +526,13 @@ export function MedewerkerDetailDialog({
                                   { locale: nl }
                                 )}
                               </span>
-                              {cert.vervalDatum && (
+                              {cert.vervaldatum && (
                                 <>
                                   <span>-</span>
                                   <span>
                                     Vervalt:{" "}
                                     {format(
-                                      new Date(cert.vervalDatum),
+                                      new Date(cert.vervaldatum),
                                       "d MMM yyyy",
                                       { locale: nl }
                                     )}
@@ -506,7 +564,7 @@ export function MedewerkerDetailDialog({
                       Uren deze maand
                     </div>
                     <div className="text-2xl font-bold">
-                      {medewerker.maandUren || 0}
+                      {currentMonthUren}
                     </div>
                   </div>
                   <div className="p-4 bg-muted/30 rounded-lg">
@@ -515,49 +573,44 @@ export function MedewerkerDetailDialog({
                       Totaal uren
                     </div>
                     <div className="text-2xl font-bold">
-                      {medewerker.totaalUren || 0}
+                      {stats?.totaalUren || 0}
                     </div>
                   </div>
                 </div>
 
-                <Separator />
-
-                {/* Recent Projects */}
-                <div className="space-y-3">
-                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                    Recente Projecten
-                  </h3>
-                  {recenteProjecten.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-8 text-center">
-                      <Star className="h-10 w-10 text-muted-foreground/50 mb-3" />
-                      <p className="text-sm text-muted-foreground">
-                        Nog geen projecten
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {recenteProjecten.map((project) => (
-                        <div
-                          key={project.id}
-                          className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
-                        >
-                          <div>
-                            <span className="font-medium text-sm">
-                              {project.naam}
-                            </span>
-                            <span className="text-xs text-muted-foreground ml-2">
-                              {project.datum}
-                            </span>
-                          </div>
-                          <Badge variant="secondary">
-                            <Clock className="h-3 w-3 mr-1" />
-                            {project.uren} uur
-                          </Badge>
+                {stats && (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 bg-muted/30 rounded-lg">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                          <Star className="h-4 w-4" />
+                          Aantal projecten
                         </div>
-                      ))}
+                        <div className="text-2xl font-bold">
+                          {stats.aantalProjecten}
+                        </div>
+                      </div>
+                      <div className="p-4 bg-muted/30 rounded-lg">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                          <Clock className="h-4 w-4" />
+                          Gem. uren/registratie
+                        </div>
+                        <div className="text-2xl font-bold">
+                          {stats.gemiddeldeUrenPerRegistratie}
+                        </div>
+                      </div>
                     </div>
-                  )}
-                </div>
+                  </>
+                )}
+
+                {!stats && (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <Star className="h-10 w-10 text-muted-foreground/50 mb-3" />
+                    <p className="text-sm text-muted-foreground">
+                      Nog geen urenregistraties
+                    </p>
+                  </div>
+                )}
               </motion.div>
             </TabsContent>
           </ScrollArea>

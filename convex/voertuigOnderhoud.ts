@@ -255,7 +255,7 @@ export const getUpcoming = query({
     );
 
     // Haal voertuig details op voor elk item
-    const voertuigIds = [...new Set(upcoming.map((item) => item.voertuigId))];
+    const voertuigIds = Array.from(new Set(upcoming.map((item) => item.voertuigId)));
     const voertuigen = await Promise.all(
       voertuigIds.map((id) => ctx.db.get(id))
     );
@@ -300,7 +300,7 @@ export const getOverdue = query({
     );
 
     // Haal voertuig details op voor elk item
-    const voertuigIds = [...new Set(overdue.map((item) => item.voertuigId))];
+    const voertuigIds = Array.from(new Set(overdue.map((item) => item.voertuigId)));
     const voertuigen = await Promise.all(
       voertuigIds.map((id) => ctx.db.get(id))
     );

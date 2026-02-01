@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
+import { Doc } from "./_generated/dataModel";
 
 // ============================================
 // Teams CRUD Operations
@@ -354,7 +355,7 @@ export const getTeamPrestaties = query({
       .collect();
 
     // Haal alle urenregistraties op
-    const alleUrenRegistraties = [];
+    const alleUrenRegistraties: Doc<"urenRegistraties">[] = [];
     for (const project of projecten) {
       const registraties = await ctx.db
         .query("urenRegistraties")
@@ -453,7 +454,7 @@ export const getAllTeamsPrestaties = query({
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
 
-    const alleUrenRegistraties = [];
+    const alleUrenRegistraties: Doc<"urenRegistraties">[] = [];
     for (const project of projecten) {
       const registraties = await ctx.db
         .query("urenRegistraties")

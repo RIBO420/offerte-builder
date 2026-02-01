@@ -2,6 +2,8 @@
 
 import { useState, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
+import { useQuery } from "convex/react";
+import { api } from "../../../../convex/_generated/api";
 import {
   Card,
   CardContent,
@@ -11,7 +13,6 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -28,15 +29,6 @@ import {
   ResponsiveColumn,
 } from "@/components/ui/responsive-table";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -46,15 +38,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Users,
   Plus,
@@ -66,63 +50,94 @@ import {
   Trash2,
   UserCheck,
   UserX,
+  Award,
+  AlertTriangle,
+  Eye,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useMedewerkers } from "@/hooks/use-medewerkers";
-import { Id } from "../../../../convex/_generated/dataModel";
+import { MedewerkerForm, Medewerker } from "@/components/medewerkers/medewerker-form";
+import { MedewerkerDetailDialog, MedewerkerExtended } from "@/components/medewerkers/medewerker-detail-dialog";
+import { SpecialisatieBadges } from "@/components/medewerkers/skills-selector";
+import { CertificaatBadges, getCertificaatStatus } from "@/components/medewerkers/certificaat-form";
 
-type Medewerker = {
-  _id: Id<"medewerkers">;
-  naam: string;
-  email?: string;
-  telefoon?: string;
-  functie?: string;
-  uurtarief?: number;
-  isActief: boolean;
-  notities?: string;
-  createdAt: number;
-  updatedAt: number;
+type FilterTab = "alle" | "actief" | "inactief";
+
+// Animation variants
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+    },
+  },
 };
 
-const FUNCTIE_OPTIONS = [
-  "Hovenier",
-  "Voorman",
-  "Leerling",
-  "Tuinontwerper",
-  "Machinist",
-  "Administratie",
-  "Eigenaar",
-  "Overig",
-];
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.4,
+    },
+  },
+};
 
 export default function MedewerkersPage() {
-  const { medewerkers, isLoading, create, update, remove } = useMedewerkers();
+  const { medewerkers, isLoading, update, remove } = useMedewerkers();
   const [searchTerm, setSearchTerm] = useState("");
-  const [showOnlyActive, setShowOnlyActive] = useState(true);
+  const [activeTab, setActiveTab] = useState<FilterTab>("alle");
 
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showDetailDialog, setShowDetailDialog] = useState(false);
   const [selectedMedewerker, setSelectedMedewerker] = useState<Medewerker | null>(null);
-
-  const [formData, setFormData] = useState({
-    naam: "",
-    email: "",
-    telefoon: "",
-    functie: "",
-    uurtarief: "",
-    notities: "",
-  });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Filter medewerkers based on search and active status
+  // Query for certificate expiry warnings
+  const certificaatWaarschuwingen = useQuery(api.medewerkers.checkVervaldataCertificaten, {
+    dagenVoorwaarschuwing: 90,
+  });
+
+  // Calculate stats
+  const stats = useMemo(() => {
+    const all = medewerkers as Medewerker[];
+    const actief = all.filter((m) => m.isActief);
+    const inactief = all.filter((m) => !m.isActief);
+
+    // Count expired certificates
+    let verlopenCertificaten = 0;
+    for (const m of all) {
+      if (m.certificaten) {
+        for (const cert of m.certificaten) {
+          if (getCertificaatStatus(cert.vervaldatum).status === "expired") {
+            verlopenCertificaten++;
+          }
+        }
+      }
+    }
+
+    return {
+      totaal: all.length,
+      actief: actief.length,
+      inactief: inactief.length,
+      verlopenCertificaten,
+    };
+  }, [medewerkers]);
+
+  // Filter medewerkers based on search and tab
   const displayedMedewerkers = useMemo(() => {
     let filtered = medewerkers as Medewerker[];
 
-    // Filter by active status
-    if (showOnlyActive) {
+    // Filter by tab
+    if (activeTab === "actief") {
       filtered = filtered.filter((m) => m.isActief);
+    } else if (activeTab === "inactief") {
+      filtered = filtered.filter((m) => !m.isActief);
     }
 
     // Filter by search term
@@ -137,82 +152,17 @@ export default function MedewerkersPage() {
     }
 
     return filtered;
-  }, [medewerkers, searchTerm, showOnlyActive]);
+  }, [medewerkers, searchTerm, activeTab]);
 
-  const resetForm = useCallback(() => {
-    setFormData({
-      naam: "",
-      email: "",
-      telefoon: "",
-      functie: "",
-      uurtarief: "",
-      notities: "",
-    });
-  }, []);
-
-  const handleAdd = useCallback(async () => {
-    if (!formData.naam.trim()) {
-      toast.error("Vul de naam in");
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      await create({
-        naam: formData.naam,
-        email: formData.email || undefined,
-        telefoon: formData.telefoon || undefined,
-        functie: formData.functie || undefined,
-        uurtarief: formData.uurtarief ? parseFloat(formData.uurtarief) : undefined,
-        notities: formData.notities || undefined,
-      });
-      toast.success("Medewerker toegevoegd");
-      setShowAddDialog(false);
-      resetForm();
-    } catch {
-      toast.error("Fout bij toevoegen medewerker");
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [formData, create, resetForm]);
-
-  const handleEdit = useCallback((medewerker: Medewerker | null) => {
-    if (!medewerker) return;
+  const handleEdit = useCallback((medewerker: Medewerker) => {
     setSelectedMedewerker(medewerker);
-    setFormData({
-      naam: medewerker.naam,
-      email: medewerker.email || "",
-      telefoon: medewerker.telefoon || "",
-      functie: medewerker.functie || "",
-      uurtarief: medewerker.uurtarief?.toString() || "",
-      notities: medewerker.notities || "",
-    });
     setShowEditDialog(true);
   }, []);
 
-  const handleUpdate = useCallback(async () => {
-    if (!selectedMedewerker) return;
-
-    setIsSubmitting(true);
-    try {
-      await update(selectedMedewerker._id, {
-        naam: formData.naam,
-        email: formData.email || undefined,
-        telefoon: formData.telefoon || undefined,
-        functie: formData.functie || undefined,
-        uurtarief: formData.uurtarief ? parseFloat(formData.uurtarief) : undefined,
-        notities: formData.notities || undefined,
-      });
-      toast.success("Medewerker bijgewerkt");
-      setShowEditDialog(false);
-      setSelectedMedewerker(null);
-      resetForm();
-    } catch {
-      toast.error("Fout bij bijwerken medewerker");
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [selectedMedewerker, formData, update, resetForm]);
+  const handleViewDetail = useCallback((medewerker: Medewerker) => {
+    setSelectedMedewerker(medewerker);
+    setShowDetailDialog(true);
+  }, []);
 
   const handleToggleActive = useCallback(
     async (medewerker: Medewerker) => {
@@ -236,7 +186,7 @@ export default function MedewerkersPage() {
     setIsSubmitting(true);
     try {
       await remove(selectedMedewerker._id);
-      toast.success("Medewerker op inactief gezet");
+      toast.success("Medewerker verwijderd");
       setShowDeleteDialog(false);
       setSelectedMedewerker(null);
     } catch {
@@ -259,7 +209,9 @@ export default function MedewerkersPage() {
         header: "Naam",
         isPrimary: true,
         render: (medewerker) => (
-          <span className="font-medium">{medewerker.naam}</span>
+          <div className="flex items-center gap-2">
+            <span className="font-medium">{medewerker.naam}</span>
+          </div>
         ),
       },
       {
@@ -274,34 +226,47 @@ export default function MedewerkersPage() {
           ),
       },
       {
-        key: "email",
-        header: "E-mail",
-        mobileLabel: "Email",
+        key: "specialisaties",
+        header: "Specialisaties",
         showInCard: true,
-        render: (medewerker) =>
-          medewerker.email ? (
-            <div className="flex items-center gap-1.5 text-sm">
-              <Mail className="h-3.5 w-3.5 text-muted-foreground hidden sm:inline" />
-              <span className="truncate max-w-[150px]">{medewerker.email}</span>
-            </div>
-          ) : (
-            <span className="text-muted-foreground">-</span>
-          ),
+        mobileLabel: "Skills",
+        render: (medewerker) => (
+          <SpecialisatieBadges specialisaties={medewerker.specialisaties} />
+        ),
       },
       {
-        key: "telefoon",
-        header: "Telefoon",
-        mobileLabel: "Tel",
+        key: "certificaten",
+        header: "Certificaten",
         showInCard: true,
-        render: (medewerker) =>
-          medewerker.telefoon ? (
-            <div className="flex items-center gap-1.5 text-sm">
-              <Phone className="h-3.5 w-3.5 text-muted-foreground hidden sm:inline" />
-              <span>{medewerker.telefoon}</span>
-            </div>
-          ) : (
-            <span className="text-muted-foreground">-</span>
-          ),
+        mobileLabel: "Certs",
+        render: (medewerker) => (
+          <CertificaatBadges certificaten={medewerker.certificaten} />
+        ),
+      },
+      {
+        key: "contact",
+        header: "Contact",
+        showInCard: true,
+        mobileLabel: "Contact",
+        render: (medewerker) => (
+          <div className="flex flex-col gap-0.5">
+            {medewerker.email && (
+              <div className="flex items-center gap-1.5 text-sm">
+                <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="truncate max-w-[120px]">{medewerker.email}</span>
+              </div>
+            )}
+            {medewerker.telefoon && (
+              <div className="flex items-center gap-1.5 text-sm">
+                <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                <span>{medewerker.telefoon}</span>
+              </div>
+            )}
+            {!medewerker.email && !medewerker.telefoon && (
+              <span className="text-muted-foreground">-</span>
+            )}
+          </div>
+        ),
       },
       {
         key: "status",
@@ -331,7 +296,18 @@ export default function MedewerkersPage() {
         showInCard: true,
         mobileLabel: "",
         render: (medewerker) => (
-          <div className="flex items-center justify-end gap-2">
+          <div className="flex items-center justify-end gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleViewDetail(medewerker);
+              }}
+              title="Bekijken"
+            >
+              <Eye className="h-4 w-4" />
+            </Button>
             <Button
               variant="ghost"
               size="sm"
@@ -339,6 +315,7 @@ export default function MedewerkersPage() {
                 e.stopPropagation();
                 handleEdit(medewerker);
               }}
+              title="Bewerken"
             >
               <Pencil className="h-4 w-4" />
             </Button>
@@ -365,6 +342,7 @@ export default function MedewerkersPage() {
                   e.stopPropagation();
                   handleDeleteClick(medewerker);
                 }}
+                title="Verwijderen"
               >
                 <Trash2 className="h-4 w-4 text-destructive" />
               </Button>
@@ -373,102 +351,7 @@ export default function MedewerkersPage() {
         ),
       },
     ],
-    [handleEdit, handleToggleActive, handleDeleteClick]
-  );
-
-  const MedewerkerForm = () => (
-    <div className="grid gap-4">
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="naam">Naam *</Label>
-          <Input
-            id="naam"
-            placeholder="Jan Jansen"
-            value={formData.naam}
-            onChange={(e) => setFormData({ ...formData, naam: e.target.value })}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="functie">Functie</Label>
-          <Select
-            value={formData.functie}
-            onValueChange={(value) => setFormData({ ...formData, functie: value })}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Selecteer functie" />
-            </SelectTrigger>
-            <SelectContent>
-              {FUNCTIE_OPTIONS.map((functie) => (
-                <SelectItem key={functie} value={functie}>
-                  {functie}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="email">E-mail</Label>
-          <Input
-            id="email"
-            type="email"
-            placeholder="jan@voorbeeld.nl"
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="telefoon">Telefoon</Label>
-          <Input
-            id="telefoon"
-            placeholder="06-12345678"
-            value={formData.telefoon}
-            onChange={(e) =>
-              setFormData({ ...formData, telefoon: e.target.value })
-            }
-          />
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="uurtarief">Uurtarief (optioneel)</Label>
-        <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-            EUR
-          </span>
-          <Input
-            id="uurtarief"
-            type="number"
-            step="0.01"
-            min="0"
-            placeholder="45.00"
-            className="pl-12"
-            value={formData.uurtarief}
-            onChange={(e) =>
-              setFormData({ ...formData, uurtarief: e.target.value })
-            }
-          />
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Laat leeg om het standaard uurtarief te gebruiken
-        </p>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="notities">Notities</Label>
-        <Textarea
-          id="notities"
-          placeholder="Extra informatie over de medewerker..."
-          value={formData.notities}
-          onChange={(e) =>
-            setFormData({ ...formData, notities: e.target.value })
-          }
-          rows={3}
-        />
-      </div>
-    </div>
+    [handleEdit, handleViewDetail, handleToggleActive, handleDeleteClick]
   );
 
   if (isLoading) {
@@ -508,9 +391,6 @@ export default function MedewerkersPage() {
     );
   }
 
-  const totalCount = (medewerkers as Medewerker[]).length;
-  const activeCount = (medewerkers as Medewerker[]).filter((m) => m.isActief).length;
-
   return (
     <>
       <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
@@ -530,12 +410,12 @@ export default function MedewerkersPage() {
       </header>
 
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
         className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
       >
-        <div className="flex items-center justify-between">
+        <motion.div variants={itemVariants} className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
               Medewerkers
@@ -545,62 +425,77 @@ export default function MedewerkersPage() {
             </p>
           </div>
 
-          <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-            <DialogTrigger asChild>
-              <Button onClick={() => resetForm()}>
-                <Plus className="mr-2 h-4 w-4" />
-                Nieuwe Medewerker
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-lg">
-              <DialogHeader>
-                <DialogTitle>Nieuwe Medewerker</DialogTitle>
-                <DialogDescription>
-                  Voeg een nieuwe medewerker toe aan je team.
-                </DialogDescription>
-              </DialogHeader>
-              <MedewerkerForm />
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => setShowAddDialog(false)}
-                >
-                  Annuleren
-                </Button>
-                <Button onClick={handleAdd} disabled={isSubmitting}>
-                  {isSubmitting && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
-                  Toevoegen
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
+          <Button onClick={() => setShowAddDialog(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nieuwe Medewerker
+          </Button>
+        </motion.div>
 
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  Medewerkerslijst
-                </CardTitle>
-                <CardDescription>
-                  {activeCount} actief{activeCount !== 1 ? "e" : ""} medewerker
-                  {activeCount !== 1 ? "s" : ""} van {totalCount} totaal
-                </CardDescription>
-              </div>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <div className="flex items-center gap-2">
-                  <Switch
-                    id="show-active"
-                    checked={showOnlyActive}
-                    onCheckedChange={setShowOnlyActive}
-                  />
-                  <Label htmlFor="show-active" className="text-sm whitespace-nowrap">
-                    Alleen actief
-                  </Label>
+        {/* Stats Cards */}
+        <motion.div variants={itemVariants} className="grid gap-4 md:grid-cols-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Totaal</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.totaal}</div>
+              <p className="text-xs text-muted-foreground">medewerkers</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Actief</CardTitle>
+              <UserCheck className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.actief}</div>
+              <p className="text-xs text-muted-foreground">beschikbaar</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Inactief</CardTitle>
+              <UserX className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.inactief}</div>
+              <p className="text-xs text-muted-foreground">niet beschikbaar</p>
+            </CardContent>
+          </Card>
+
+          <Card className={stats.verlopenCertificaten > 0 ? "border-red-200 dark:border-red-900" : ""}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Certificaten</CardTitle>
+              {stats.verlopenCertificaten > 0 ? (
+                <AlertTriangle className="h-4 w-4 text-red-500" />
+              ) : (
+                <Award className="h-4 w-4 text-muted-foreground" />
+              )}
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.verlopenCertificaten}</div>
+              <p className="text-xs text-muted-foreground">verlopen</p>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Filter Tabs and Table */}
+        <motion.div variants={itemVariants}>
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Medewerkerslijst
+                  </CardTitle>
+                  <CardDescription>
+                    {displayedMedewerkers.length} medewerker
+                    {displayedMedewerkers.length !== 1 ? "s" : ""} weergegeven
+                  </CardDescription>
                 </div>
                 <div className="relative w-full sm:w-64">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -612,79 +507,96 @@ export default function MedewerkersPage() {
                   />
                 </div>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {displayedMedewerkers.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <Users className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                <h3 className="text-lg font-medium">
-                  {searchTerm
-                    ? "Geen medewerkers gevonden"
-                    : showOnlyActive
-                    ? "Geen actieve medewerkers"
-                    : "Nog geen medewerkers"}
-                </h3>
-                <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-                  {searchTerm
-                    ? `Geen resultaten voor "${searchTerm}"`
-                    : showOnlyActive
-                    ? "Zet 'Alleen actief' uit om alle medewerkers te zien."
-                    : "Voeg je eerste medewerker toe om te beginnen."}
-                </p>
-                {!searchTerm && !showOnlyActive && (
-                  <Button
-                    className="mt-4"
-                    onClick={() => {
-                      resetForm();
-                      setShowAddDialog(true);
-                    }}
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Medewerker toevoegen
-                  </Button>
-                )}
-              </div>
-            ) : (
-              <ResponsiveTable
-                data={displayedMedewerkers}
-                columns={columns}
-                keyExtractor={(medewerker) => medewerker._id}
-                emptyMessage={
-                  searchTerm
-                    ? `Geen resultaten voor "${searchTerm}"`
-                    : "Voeg je eerste medewerker toe om te beginnen."
-                }
-                mobileBreakpoint="md"
-              />
-            )}
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent>
+              <Tabs
+                value={activeTab}
+                onValueChange={(value) => setActiveTab(value as FilterTab)}
+                className="mb-4"
+              >
+                <TabsList>
+                  <TabsTrigger value="alle">
+                    Alle ({stats.totaal})
+                  </TabsTrigger>
+                  <TabsTrigger value="actief">
+                    Actief ({stats.actief})
+                  </TabsTrigger>
+                  <TabsTrigger value="inactief">
+                    Inactief ({stats.inactief})
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+
+              {displayedMedewerkers.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <Users className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                  <h3 className="text-lg font-medium">
+                    {searchTerm
+                      ? "Geen medewerkers gevonden"
+                      : activeTab !== "alle"
+                      ? `Geen ${activeTab === "actief" ? "actieve" : "inactieve"} medewerkers`
+                      : "Nog geen medewerkers"}
+                  </h3>
+                  <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+                    {searchTerm
+                      ? `Geen resultaten voor "${searchTerm}"`
+                      : activeTab !== "alle"
+                      ? "Wijzig de filter om andere medewerkers te zien."
+                      : "Voeg je eerste medewerker toe om te beginnen."}
+                  </p>
+                  {!searchTerm && activeTab === "alle" && (
+                    <Button
+                      className="mt-4"
+                      onClick={() => setShowAddDialog(true)}
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Medewerker toevoegen
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <ResponsiveTable
+                  data={displayedMedewerkers}
+                  columns={columns}
+                  keyExtractor={(medewerker) => medewerker._id}
+                  onRowClick={handleViewDetail}
+                  emptyMessage={
+                    searchTerm
+                      ? `Geen resultaten voor "${searchTerm}"`
+                      : "Voeg je eerste medewerker toe om te beginnen."
+                  }
+                  mobileBreakpoint="md"
+                />
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
       </motion.div>
 
+      {/* Add Dialog */}
+      <MedewerkerForm
+        open={showAddDialog}
+        onOpenChange={setShowAddDialog}
+        onSuccess={() => setShowAddDialog(false)}
+      />
+
       {/* Edit Dialog */}
-      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Medewerker Bewerken</DialogTitle>
-            <DialogDescription>
-              Pas de gegevens van {selectedMedewerker?.naam} aan.
-            </DialogDescription>
-          </DialogHeader>
-          <MedewerkerForm />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowEditDialog(false)}>
-              Annuleren
-            </Button>
-            <Button onClick={handleUpdate} disabled={isSubmitting}>
-              {isSubmitting && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              Opslaan
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <MedewerkerForm
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        initialData={selectedMedewerker}
+        onSuccess={() => {
+          setShowEditDialog(false);
+          setSelectedMedewerker(null);
+        }}
+      />
+
+      {/* Detail Dialog */}
+      <MedewerkerDetailDialog
+        open={showDetailDialog}
+        onOpenChange={setShowDetailDialog}
+        medewerker={selectedMedewerker as MedewerkerExtended}
+      />
 
       {/* Delete Confirmation */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

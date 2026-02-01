@@ -8,6 +8,7 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
+import { Doc } from "./_generated/dataModel";
 
 // Helper to get month key from timestamp
 function getMonthKey(timestamp: number): string {
@@ -696,7 +697,7 @@ export const getProjectTimeline = query({
     const userId = await requireAuthUserId(ctx);
 
     // Get project(s)
-    let projecten = [];
+    let projecten: Doc<"projecten">[] = [];
     if (args.projectId) {
       const project = await ctx.db.get(args.projectId);
       if (project && project.userId.toString() === userId.toString()) {

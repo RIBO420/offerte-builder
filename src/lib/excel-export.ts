@@ -40,6 +40,22 @@ const typeLabels: Record<string, string> = {
   onderhoud: "Onderhoud",
 };
 
+// Dutch scope labels
+const scopeLabels: Record<string, string> = {
+  grondwerk: "Grondwerk",
+  bestrating: "Bestrating",
+  borders: "Borders",
+  gras: "Gras",
+  houtwerk: "Houtwerk",
+  water_elektra: "Water & Elektra",
+  specials: "Specials",
+  gras_onderhoud: "Gras Onderhoud",
+  borders_onderhoud: "Borders Onderhoud",
+  heggen: "Heggen",
+  bomen: "Bomen",
+  overig: "Overig",
+};
+
 // Format date for Excel
 function formatDate(timestamp: number | null): string {
   if (!timestamp) return "";
@@ -50,9 +66,28 @@ function formatDate(timestamp: number | null): string {
   }).format(new Date(timestamp));
 }
 
+// Format month for Excel
+function formatMonth(timestamp: number): string {
+  return new Intl.DateTimeFormat("nl-NL", {
+    month: "long",
+    year: "numeric",
+  }).format(new Date(timestamp));
+}
+
+// Get month key from timestamp
+function getMonthKey(timestamp: number): string {
+  const date = new Date(timestamp);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
 // Format currency for Excel (without symbol for proper number sorting)
 function formatCurrency(amount: number): number {
   return Math.round(amount * 100) / 100;
+}
+
+// Format percentage
+function formatPercentage(value: number): string {
+  return `${Math.round(value * 10) / 10}%`;
 }
 
 export async function exportToExcel(data: ExportRow[], filename: string = "offertes-export") {
@@ -130,12 +165,20 @@ export async function exportToExcel(data: ExportRow[], filename: string = "offer
   XLSX.writeFile(wb, fullFilename);
 }
 
-// Export KPI summary
+// Export KPI summary - Extended types
 interface KpiData {
   winRate: number;
   gemiddeldeWaarde: number;
   totaleOmzet: number;
   totaalOffertes: number;
+  geaccepteerdCount?: number;
+  afgewezenCount?: number;
+  avgCycleTime?: number;
+  avgResponseTime?: number;
+  repeatCustomerPercentage?: number;
+  repeatCustomerCount?: number;
+  totalCustomers?: number;
+  overallConversion?: number;
 }
 
 interface TopKlant {
@@ -143,6 +186,8 @@ interface TopKlant {
   totaalOmzet: number;
   aantalOffertes: number;
   gemiddeldeWaarde: number;
+  aantalGeaccepteerd?: number;
+  isRepeatCustomer?: boolean;
 }
 
 interface ScopeMarge {
@@ -151,69 +196,253 @@ interface ScopeMarge {
   marge: number;
   margePercentage: number;
   count: number;
+  omzet?: number;
+  gemiddeldPerOfferte?: number;
 }
 
+interface MaandelijkeTrend {
+  maand: string;
+  aanleg: number;
+  onderhoud: number;
+  totaal: number;
+  omzet: number;
+  movingAvgTotal?: number;
+  movingAvgOmzet?: number;
+}
+
+// Enhanced multi-sheet export for analytics report
 export async function exportAnalyticsReport(
   kpis: KpiData,
   topKlanten: TopKlant[],
   scopeMarges: ScopeMarge[],
   offertes: ExportRow[],
-  filename: string = "rapportage"
+  filename: string = "rapportage",
+  maandelijkseTrend?: MaandelijkeTrend[]
 ) {
   // Dynamic import of xlsx
   const XLSX = await import("xlsx");
 
   const wb = XLSX.utils.book_new();
 
-  // KPI Summary sheet
+  // ============================================
+  // Sheet 1: Samenvatting (KPIs)
+  // ============================================
   const kpiData = [
-    { "KPI": "Win Rate", "Waarde": `${kpis.winRate}%` },
-    { "KPI": "Gemiddelde Offerte Waarde", "Waarde": formatCurrency(kpis.gemiddeldeWaarde) },
-    { "KPI": "Totale Omzet", "Waarde": formatCurrency(kpis.totaleOmzet) },
-    { "KPI": "Aantal Offertes", "Waarde": kpis.totaalOffertes },
+    { "Categorie": "OFFERTE PRESTATIES", "KPI": "", "Waarde": "", "Toelichting": "" },
+    { "Categorie": "", "KPI": "Totaal Offertes", "Waarde": kpis.totaalOffertes, "Toelichting": "Aantal offertes in geselecteerde periode" },
+    { "Categorie": "", "KPI": "Geaccepteerd", "Waarde": kpis.geaccepteerdCount ?? "-", "Toelichting": "Aantal geaccepteerde offertes" },
+    { "Categorie": "", "KPI": "Afgewezen", "Waarde": kpis.afgewezenCount ?? "-", "Toelichting": "Aantal afgewezen offertes" },
+    { "Categorie": "", "KPI": "Win Rate", "Waarde": formatPercentage(kpis.winRate), "Toelichting": "Percentage geaccepteerde offertes" },
+    { "Categorie": "", "KPI": "", "Waarde": "", "Toelichting": "" },
+    { "Categorie": "FINANCIEEL", "KPI": "", "Waarde": "", "Toelichting": "" },
+    { "Categorie": "", "KPI": "Totale Omzet", "Waarde": formatCurrency(kpis.totaleOmzet), "Toelichting": "Som van geaccepteerde offertes (incl. BTW)" },
+    { "Categorie": "", "KPI": "Gemiddelde Offerte Waarde", "Waarde": formatCurrency(kpis.gemiddeldeWaarde), "Toelichting": "Gemiddelde waarde per offerte" },
+    { "Categorie": "", "KPI": "", "Waarde": "", "Toelichting": "" },
+    { "Categorie": "KLANT INZICHTEN", "KPI": "", "Waarde": "", "Toelichting": "" },
+    { "Categorie": "", "KPI": "Totaal Klanten", "Waarde": kpis.totalCustomers ?? "-", "Toelichting": "Unieke klanten" },
+    { "Categorie": "", "KPI": "Terugkerende Klanten", "Waarde": kpis.repeatCustomerCount ?? "-", "Toelichting": "Klanten met 2+ geaccepteerde offertes" },
+    { "Categorie": "", "KPI": "Terugkerende Klanten %", "Waarde": kpis.repeatCustomerPercentage ? formatPercentage(kpis.repeatCustomerPercentage) : "-", "Toelichting": "Percentage terugkerende klanten" },
+    { "Categorie": "", "KPI": "", "Waarde": "", "Toelichting": "" },
+    { "Categorie": "DOORLOOPTIJDEN", "KPI": "", "Waarde": "", "Toelichting": "" },
+    { "Categorie": "", "KPI": "Gem. Doorlooptijd", "Waarde": kpis.avgCycleTime ? `${kpis.avgCycleTime} dagen` : "-", "Toelichting": "Gemiddelde tijd van aanmaak tot acceptatie" },
+    { "Categorie": "", "KPI": "Gem. Reactietijd", "Waarde": kpis.avgResponseTime ? `${kpis.avgResponseTime} dagen` : "-", "Toelichting": "Gemiddelde tijd van verzending tot reactie klant" },
   ];
+
   const wsKpi = XLSX.utils.json_to_sheet(kpiData);
-  wsKpi["!cols"] = [{ wch: 25 }, { wch: 20 }];
-  XLSX.utils.book_append_sheet(wb, wsKpi, "KPIs");
+  wsKpi["!cols"] = [{ wch: 20 }, { wch: 28 }, { wch: 18 }, { wch: 45 }];
+  XLSX.utils.book_append_sheet(wb, wsKpi, "Samenvatting");
 
-  // Top Klanten sheet
-  const klantenData = topKlanten.map((k) => ({
-    "Klant": k.klantNaam,
-    "Totaal Omzet": formatCurrency(k.totaalOmzet),
-    "Aantal Offertes": k.aantalOffertes,
-    "Gem. Waarde": formatCurrency(k.gemiddeldeWaarde),
-  }));
-  const wsKlanten = XLSX.utils.json_to_sheet(klantenData);
-  wsKlanten["!cols"] = [{ wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 15 }];
-  XLSX.utils.book_append_sheet(wb, wsKlanten, "Top Klanten");
-
-  // Scope Marges sheet
-  const scopeData = scopeMarges.map((s) => ({
-    "Scope": s.scope,
-    "Totaal": formatCurrency(s.totaal),
-    "Marge": formatCurrency(s.marge),
-    "Marge %": `${s.margePercentage}%`,
-    "Aantal": s.count,
-  }));
-  const wsScope = XLSX.utils.json_to_sheet(scopeData);
-  wsScope["!cols"] = [{ wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 10 }];
-  XLSX.utils.book_append_sheet(wb, wsScope, "Marges per Scope");
-
-  // Full offertes data
+  // ============================================
+  // Sheet 2: Offertes Detail
+  // ============================================
   const offerteData = offertes.map((row) => ({
     "Offerte Nr.": row.offerteNummer,
     "Type": typeLabels[row.type] ?? row.type,
     "Status": statusLabels[row.status] ?? row.status,
     "Klant": row.klantNaam,
-    "Totaal incl. BTW": formatCurrency(row.totaalInclBtw),
+    "Adres": row.klantAdres,
+    "Postcode": row.klantPostcode,
+    "Plaats": row.klantPlaats,
+    "E-mail": row.klantEmail,
+    "Telefoon": row.klantTelefoon,
+    "Materiaalkosten": formatCurrency(row.materiaalkosten),
+    "Arbeidskosten": formatCurrency(row.arbeidskosten),
+    "Totaal Uren": row.totaalUren,
+    "Subtotaal": formatCurrency(row.subtotaal),
+    "Marge": formatCurrency(row.marge),
     "Marge %": row.margePercentage,
+    "Totaal ex. BTW": formatCurrency(row.totaalExBtw),
+    "BTW": formatCurrency(row.btw),
+    "Totaal incl. BTW": formatCurrency(row.totaalInclBtw),
     "Aangemaakt": formatDate(row.aangemaakt),
+    "Bijgewerkt": formatDate(row.bijgewerkt),
+    "Verzonden": formatDate(row.verzonden),
   }));
+
   const wsOffertes = XLSX.utils.json_to_sheet(offerteData);
   wsOffertes["!cols"] = [
-    { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 25 }, { wch: 15 }, { wch: 10 }, { wch: 12 },
+    { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 25 }, { wch: 30 },
+    { wch: 10 }, { wch: 15 }, { wch: 25 }, { wch: 15 }, { wch: 14 },
+    { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 10 },
+    { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 12 },
+    { wch: 12 },
   ];
-  XLSX.utils.book_append_sheet(wb, wsOffertes, "Alle Offertes");
+  XLSX.utils.book_append_sheet(wb, wsOffertes, "Offertes Detail");
+
+  // ============================================
+  // Sheet 3: Per Scope Analyse
+  // ============================================
+  const totalScopeOmzet = scopeMarges.reduce((sum, s) => sum + (s.omzet ?? s.totaal + s.marge), 0);
+
+  const scopeData = scopeMarges.map((s) => {
+    const omzet = s.omzet ?? (s.totaal + s.marge);
+    const aandeel = totalScopeOmzet > 0 ? (omzet / totalScopeOmzet) * 100 : 0;
+
+    return {
+      "Scope": scopeLabels[s.scope] ?? s.scope,
+      "Aantal Offertes": s.count,
+      "Totaal Kosten": formatCurrency(s.totaal),
+      "Totaal Marge": formatCurrency(s.marge),
+      "Marge %": formatPercentage(s.margePercentage),
+      "Totaal Omzet": formatCurrency(omzet),
+      "Aandeel Omzet": formatPercentage(aandeel),
+      "Gem. per Offerte": formatCurrency(s.gemiddeldPerOfferte ?? (omzet / (s.count || 1))),
+    };
+  });
+
+  // Add totals row
+  const scopeTotals = {
+    "Scope": "TOTAAL",
+    "Aantal Offertes": scopeMarges.reduce((sum, s) => sum + s.count, 0),
+    "Totaal Kosten": formatCurrency(scopeMarges.reduce((sum, s) => sum + s.totaal, 0)),
+    "Totaal Marge": formatCurrency(scopeMarges.reduce((sum, s) => sum + s.marge, 0)),
+    "Marge %": formatPercentage(
+      scopeMarges.reduce((sum, s) => sum + s.totaal, 0) > 0
+        ? (scopeMarges.reduce((sum, s) => sum + s.marge, 0) / scopeMarges.reduce((sum, s) => sum + s.totaal, 0)) * 100
+        : 0
+    ),
+    "Totaal Omzet": formatCurrency(totalScopeOmzet),
+    "Aandeel Omzet": "100%",
+    "Gem. per Offerte": "-",
+  };
+
+  const wsScope = XLSX.utils.json_to_sheet([...scopeData, scopeTotals]);
+  wsScope["!cols"] = [
+    { wch: 18 }, { wch: 15 }, { wch: 15 }, { wch: 14 },
+    { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 16 },
+  ];
+  XLSX.utils.book_append_sheet(wb, wsScope, "Per Scope Analyse");
+
+  // ============================================
+  // Sheet 4: Per Klant
+  // ============================================
+  const klantenData = topKlanten.map((k, index) => ({
+    "#": index + 1,
+    "Klant": k.klantNaam,
+    "Totaal Omzet": formatCurrency(k.totaalOmzet),
+    "Aantal Offertes": k.aantalOffertes,
+    "Geaccepteerd": k.aantalGeaccepteerd ?? "-",
+    "Gem. Waarde": formatCurrency(k.gemiddeldeWaarde),
+    "Terugkerend": k.isRepeatCustomer ? "Ja" : "Nee",
+    "Aandeel": kpis.totaleOmzet > 0 ? formatPercentage((k.totaalOmzet / kpis.totaleOmzet) * 100) : "-",
+  }));
+
+  const wsKlanten = XLSX.utils.json_to_sheet(klantenData);
+  wsKlanten["!cols"] = [
+    { wch: 5 }, { wch: 30 }, { wch: 15 }, { wch: 15 },
+    { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 10 },
+  ];
+  XLSX.utils.book_append_sheet(wb, wsKlanten, "Per Klant");
+
+  // ============================================
+  // Sheet 5: Maandelijkse Trends
+  // ============================================
+  if (maandelijkseTrend && maandelijkseTrend.length > 0) {
+    const trendData = maandelijkseTrend.map((m) => ({
+      "Maand": m.maand,
+      "Aanleg": m.aanleg,
+      "Onderhoud": m.onderhoud,
+      "Totaal Offertes": m.totaal,
+      "Omzet": formatCurrency(m.omzet),
+      "Voortschrijdend Gem. (Offertes)": m.movingAvgTotal ?? "-",
+      "Voortschrijdend Gem. (Omzet)": m.movingAvgOmzet ? formatCurrency(m.movingAvgOmzet) : "-",
+    }));
+
+    // Calculate monthly averages
+    const avgOffertes = maandelijkseTrend.length > 0
+      ? maandelijkseTrend.reduce((sum, m) => sum + m.totaal, 0) / maandelijkseTrend.length
+      : 0;
+    const avgOmzet = maandelijkseTrend.length > 0
+      ? maandelijkseTrend.reduce((sum, m) => sum + m.omzet, 0) / maandelijkseTrend.length
+      : 0;
+
+    // Add summary row
+    const trendSummary = {
+      "Maand": "GEMIDDELDE",
+      "Aanleg": Math.round(maandelijkseTrend.reduce((sum, m) => sum + m.aanleg, 0) / maandelijkseTrend.length * 10) / 10,
+      "Onderhoud": Math.round(maandelijkseTrend.reduce((sum, m) => sum + m.onderhoud, 0) / maandelijkseTrend.length * 10) / 10,
+      "Totaal Offertes": Math.round(avgOffertes * 10) / 10,
+      "Omzet": formatCurrency(avgOmzet),
+      "Voortschrijdend Gem. (Offertes)": "-",
+      "Voortschrijdend Gem. (Omzet)": "-",
+    };
+
+    const wsTrend = XLSX.utils.json_to_sheet([...trendData, trendSummary]);
+    wsTrend["!cols"] = [
+      { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 15 },
+      { wch: 14 }, { wch: 25 }, { wch: 25 },
+    ];
+    XLSX.utils.book_append_sheet(wb, wsTrend, "Maandelijkse Trends");
+  } else {
+    // Generate monthly trends from offertes if not provided
+    const monthlyAggregation: Record<string, { maand: string; aanleg: number; onderhoud: number; totaal: number; omzet: number }> = {};
+
+    for (const offerte of offertes) {
+      const monthKey = getMonthKey(offerte.aangemaakt);
+      const monthLabel = formatMonth(offerte.aangemaakt);
+
+      if (!monthlyAggregation[monthKey]) {
+        monthlyAggregation[monthKey] = {
+          maand: monthLabel,
+          aanleg: 0,
+          onderhoud: 0,
+          totaal: 0,
+          omzet: 0,
+        };
+      }
+
+      monthlyAggregation[monthKey].totaal++;
+      if (offerte.type === "aanleg") {
+        monthlyAggregation[monthKey].aanleg++;
+      } else {
+        monthlyAggregation[monthKey].onderhoud++;
+      }
+
+      if (offerte.status === "geaccepteerd") {
+        monthlyAggregation[monthKey].omzet += offerte.totaalInclBtw;
+      }
+    }
+
+    const sortedMonths = Object.entries(monthlyAggregation)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([_, data]) => data);
+
+    if (sortedMonths.length > 0) {
+      const trendData = sortedMonths.map((m) => ({
+        "Maand": m.maand,
+        "Aanleg": m.aanleg,
+        "Onderhoud": m.onderhoud,
+        "Totaal Offertes": m.totaal,
+        "Omzet": formatCurrency(m.omzet),
+      }));
+
+      const wsTrend = XLSX.utils.json_to_sheet(trendData);
+      wsTrend["!cols"] = [
+        { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 15 }, { wch: 14 },
+      ];
+      XLSX.utils.book_append_sheet(wb, wsTrend, "Maandelijkse Trends");
+    }
+  }
 
   // Generate filename with date
   const dateStr = new Intl.DateTimeFormat("nl-NL", {
@@ -226,4 +455,15 @@ export async function exportAnalyticsReport(
 
   // Download file
   XLSX.writeFile(wb, fullFilename);
+}
+
+// Simple export for backwards compatibility
+export async function exportAnalyticsReportSimple(
+  kpis: KpiData,
+  topKlanten: TopKlant[],
+  scopeMarges: ScopeMarge[],
+  offertes: ExportRow[],
+  filename: string = "rapportage"
+) {
+  return exportAnalyticsReport(kpis, topKlanten, scopeMarges, offertes, filename);
 }

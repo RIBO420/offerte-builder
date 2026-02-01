@@ -4,6 +4,8 @@ import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -11,42 +13,44 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { X, Plus, GraduationCap } from "lucide-react";
+import { X, Plus, GraduationCap, Award } from "lucide-react";
 
-// Skills/scopes for hoveniersbedrijf
-export const AVAILABLE_SKILLS = [
+// Skills/scopes for hoveniersbedrijf matching the system scopes
+export const AVAILABLE_SCOPES = [
   { id: "grondwerk", label: "Grondwerk" },
   { id: "bestrating", label: "Bestrating" },
   { id: "borders", label: "Borders & Beplanting" },
   { id: "gras", label: "Gras & Gazon" },
   { id: "houtwerk", label: "Houtwerk & Schuttingen" },
   { id: "water_elektra", label: "Water & Elektra" },
-  { id: "vijvers", label: "Vijvers & Waterpartijen" },
-  { id: "snoeien", label: "Snoeien" },
+  { id: "specials", label: "Specials" },
+  { id: "gras_onderhoud", label: "Gras Onderhoud" },
+  { id: "borders_onderhoud", label: "Borders Onderhoud" },
   { id: "heggen", label: "Heggen & Hagen" },
   { id: "bomen", label: "Boomverzorging" },
-  { id: "machines", label: "Machines & Materieel" },
-  { id: "ontwerp", label: "Tuinontwerp" },
+  { id: "overig", label: "Overig" },
 ] as const;
 
-export type SkillId = typeof AVAILABLE_SKILLS[number]["id"];
+export type ScopeId = typeof AVAILABLE_SCOPES[number]["id"];
 
 export const SKILL_LEVELS = [
   { value: "junior", label: "Junior", color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300" },
-  { value: "medior", label: "Medior", color: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300" },
+  { value: "midlevel", label: "Midlevel", color: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300" },
   { value: "senior", label: "Senior", color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300" },
 ] as const;
 
-export type SkillLevel = typeof SKILL_LEVELS[number]["value"];
+export type SkillLevel = "junior" | "midlevel" | "senior";
 
-export interface Skill {
-  id: SkillId;
-  level: SkillLevel;
+// Matches the Convex schema
+export interface Specialisatie {
+  scope: string;
+  niveau: SkillLevel;
+  gecertificeerd?: boolean;
 }
 
 interface SkillsSelectorProps {
-  value: Skill[];
-  onChange: (skills: Skill[]) => void;
+  value: Specialisatie[];
+  onChange: (specialisaties: Specialisatie[]) => void;
   disabled?: boolean;
 }
 
@@ -55,45 +59,61 @@ export function SkillsSelector({
   onChange,
   disabled = false,
 }: SkillsSelectorProps) {
-  const [selectedSkillId, setSelectedSkillId] = useState<SkillId | "">("");
-  const [selectedLevel, setSelectedLevel] = useState<SkillLevel>("medior");
+  const [selectedScope, setSelectedScope] = useState<string>("");
+  const [selectedLevel, setSelectedLevel] = useState<SkillLevel>("midlevel");
+  const [isCertified, setIsCertified] = useState(false);
 
-  // Get available skills (not already selected)
-  const availableSkills = AVAILABLE_SKILLS.filter(
-    (skill) => !value.some((s) => s.id === skill.id)
+  // Get available scopes (not already selected)
+  const availableScopes = AVAILABLE_SCOPES.filter(
+    (scope) => !value.some((s) => s.scope === scope.id)
   );
 
   const handleAddSkill = useCallback(() => {
-    if (!selectedSkillId) return;
+    if (!selectedScope) return;
 
-    const newSkill: Skill = {
-      id: selectedSkillId,
-      level: selectedLevel,
+    const newSpec: Specialisatie = {
+      scope: selectedScope,
+      niveau: selectedLevel,
+      gecertificeerd: isCertified || undefined,
     };
 
-    onChange([...value, newSkill]);
-    setSelectedSkillId("");
-    setSelectedLevel("medior");
-  }, [selectedSkillId, selectedLevel, value, onChange]);
+    onChange([...value, newSpec]);
+    setSelectedScope("");
+    setSelectedLevel("midlevel");
+    setIsCertified(false);
+  }, [selectedScope, selectedLevel, isCertified, value, onChange]);
 
   const handleRemoveSkill = useCallback(
-    (skillId: SkillId) => {
-      onChange(value.filter((s) => s.id !== skillId));
+    (scope: string) => {
+      onChange(value.filter((s) => s.scope !== scope));
     },
     [value, onChange]
   );
 
   const handleUpdateLevel = useCallback(
-    (skillId: SkillId, newLevel: SkillLevel) => {
+    (scope: string, newLevel: SkillLevel) => {
       onChange(
-        value.map((s) => (s.id === skillId ? { ...s, level: newLevel } : s))
+        value.map((s) => (s.scope === scope ? { ...s, niveau: newLevel } : s))
       );
     },
     [value, onChange]
   );
 
-  const getSkillLabel = (skillId: SkillId) => {
-    return AVAILABLE_SKILLS.find((s) => s.id === skillId)?.label || skillId;
+  const handleToggleCertified = useCallback(
+    (scope: string) => {
+      onChange(
+        value.map((s) =>
+          s.scope === scope
+            ? { ...s, gecertificeerd: !s.gecertificeerd || undefined }
+            : s
+        )
+      );
+    },
+    [value, onChange]
+  );
+
+  const getScopeLabel = (scopeId: string) => {
+    return AVAILABLE_SCOPES.find((s) => s.id === scopeId)?.label || scopeId;
   };
 
   const getLevelConfig = (level: SkillLevel) => {
@@ -103,53 +123,69 @@ export function SkillsSelector({
   return (
     <div className="space-y-4">
       {/* Add skill controls */}
-      {availableSkills.length > 0 && (
-        <div className="flex flex-wrap gap-2 items-end">
-          <div className="flex-1 min-w-[160px]">
-            <Select
-              value={selectedSkillId}
-              onValueChange={(v) => setSelectedSkillId(v as SkillId)}
-              disabled={disabled}
+      {availableScopes.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex flex-wrap gap-2 items-end">
+            <div className="flex-1 min-w-[160px]">
+              <Select
+                value={selectedScope}
+                onValueChange={setSelectedScope}
+                disabled={disabled}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecteer specialisatie" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableScopes.map((scope) => (
+                    <SelectItem key={scope.id} value={scope.id}>
+                      {scope.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="min-w-[120px]">
+              <Select
+                value={selectedLevel}
+                onValueChange={(v) => setSelectedLevel(v as SkillLevel)}
+                disabled={disabled}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SKILL_LEVELS.map((level) => (
+                    <SelectItem key={level.value} value={level.value}>
+                      {level.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleAddSkill}
+              disabled={disabled || !selectedScope}
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecteer vaardigheid" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableSkills.map((skill) => (
-                  <SelectItem key={skill.id} value={skill.id}>
-                    {skill.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <Plus className="h-4 w-4 mr-1" />
+              Toevoegen
+            </Button>
           </div>
-          <div className="min-w-[120px]">
-            <Select
-              value={selectedLevel}
-              onValueChange={(v) => setSelectedLevel(v as SkillLevel)}
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="certified"
+              checked={isCertified}
+              onCheckedChange={(checked) => setIsCertified(checked === true)}
               disabled={disabled}
+            />
+            <Label
+              htmlFor="certified"
+              className="text-sm font-normal cursor-pointer"
             >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {SKILL_LEVELS.map((level) => (
-                  <SelectItem key={level.value} value={level.value}>
-                    {level.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              Gecertificeerd voor deze specialisatie
+            </Label>
           </div>
-          <Button
-            type="button"
-            size="sm"
-            onClick={handleAddSkill}
-            disabled={disabled || !selectedSkillId}
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            Toevoegen
-          </Button>
         </div>
       )}
 
@@ -164,14 +200,14 @@ export function SkillsSelector({
               className="flex items-center gap-2 text-sm text-muted-foreground py-2"
             >
               <GraduationCap className="h-4 w-4" />
-              Nog geen vaardigheden toegevoegd
+              Nog geen specialisaties toegevoegd
             </motion.div>
           ) : (
-            value.map((skill) => {
-              const levelConfig = getLevelConfig(skill.level);
+            value.map((spec) => {
+              const levelConfig = getLevelConfig(spec.niveau);
               return (
                 <motion.div
-                  key={skill.id}
+                  key={spec.scope}
                   layout
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -180,12 +216,12 @@ export function SkillsSelector({
                   className="flex items-center gap-1 bg-muted/50 rounded-lg px-2 py-1 border"
                 >
                   <span className="text-sm font-medium">
-                    {getSkillLabel(skill.id)}
+                    {getScopeLabel(spec.scope)}
                   </span>
                   <Select
-                    value={skill.level}
+                    value={spec.niveau}
                     onValueChange={(v) =>
-                      handleUpdateLevel(skill.id, v as SkillLevel)
+                      handleUpdateLevel(spec.scope, v as SkillLevel)
                     }
                     disabled={disabled}
                   >
@@ -214,8 +250,19 @@ export function SkillsSelector({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-6 w-6 p-0 hover:bg-destructive/10 hover:text-destructive"
-                    onClick={() => handleRemoveSkill(skill.id)}
+                    className="h-5 w-5 p-0"
+                    onClick={() => handleToggleCertified(spec.scope)}
+                    disabled={disabled}
+                    title={spec.gecertificeerd ? "Certificering verwijderen" : "Markeer als gecertificeerd"}
+                  >
+                    <Award className={`h-3.5 w-3.5 ${spec.gecertificeerd ? "text-green-600" : "text-muted-foreground/50"}`} />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-5 w-5 p-0 hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => handleRemoveSkill(spec.scope)}
                     disabled={disabled}
                   >
                     <X className="h-3 w-3" />
@@ -230,32 +277,33 @@ export function SkillsSelector({
   );
 }
 
-// Compact display component for showing skills (e.g., in table)
-export function SkillBadges({ skills }: { skills: Skill[] }) {
-  if (skills.length === 0) {
+// Compact display component for showing specialisaties in table
+export function SpecialisatieBadges({ specialisaties }: { specialisaties?: Specialisatie[] }) {
+  if (!specialisaties || specialisaties.length === 0) {
     return <span className="text-muted-foreground text-sm">-</span>;
   }
 
   return (
     <div className="flex flex-wrap gap-1">
-      {skills.slice(0, 3).map((skill) => {
-        const levelConfig = SKILL_LEVELS.find((l) => l.value === skill.level)!;
-        const skillLabel =
-          AVAILABLE_SKILLS.find((s) => s.id === skill.id)?.label || skill.id;
+      {specialisaties.slice(0, 3).map((spec) => {
+        const levelConfig = SKILL_LEVELS.find((l) => l.value === spec.niveau)!;
+        const scopeLabel =
+          AVAILABLE_SCOPES.find((s) => s.id === spec.scope)?.label || spec.scope;
         return (
           <Badge
-            key={skill.id}
+            key={spec.scope}
             variant="secondary"
             className={`${levelConfig.color} text-xs`}
-            title={`${skillLabel} (${levelConfig.label})`}
+            title={`${scopeLabel} (${levelConfig.label})${spec.gecertificeerd ? " - Gecertificeerd" : ""}`}
           >
-            {skillLabel}
+            {scopeLabel}
+            {spec.gecertificeerd && <Award className="h-2.5 w-2.5 ml-0.5" />}
           </Badge>
         );
       })}
-      {skills.length > 3 && (
+      {specialisaties.length > 3 && (
         <Badge variant="outline" className="text-xs">
-          +{skills.length - 3}
+          +{specialisaties.length - 3}
         </Badge>
       )}
     </div>

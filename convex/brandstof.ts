@@ -312,7 +312,8 @@ export const getKostenOverzicht = query({
       voertuigGroups.set(record.voertuigId, current);
     }
 
-    for (const [voertuigId, data] of voertuigGroups) {
+    for (const entry of Array.from(voertuigGroups.entries())) {
+      const [voertuigId, data] = entry;
       const voertuig = voertuigMap.get(voertuigId as typeof voertuigen[0]["_id"]);
       if (voertuig) {
         kostenPerVoertuig.push({
@@ -365,7 +366,7 @@ export const getRecenteRegistraties = query({
     const recent = sorted.slice(0, limit);
 
     // Haal voertuig details op
-    const voertuigIds = [...new Set(recent.map((r) => r.voertuigId))];
+    const voertuigIds = Array.from(new Set(recent.map((r) => r.voertuigId)));
     const voertuigen = await Promise.all(
       voertuigIds.map((id) => ctx.db.get(id))
     );

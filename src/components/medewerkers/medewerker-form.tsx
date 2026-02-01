@@ -28,12 +28,12 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Loader2, User, Clock, GraduationCap, Award, FileText } from "lucide-react";
+import { Loader2, User, Clock, GraduationCap, Award, FileText, MapPin, Phone } from "lucide-react";
 import { toast } from "sonner";
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
-import { SkillsSelector, Skill } from "./skills-selector";
+import { SkillsSelector, Specialisatie } from "./skills-selector";
 import { CertificatenList, Certificaat } from "./certificaat-form";
 
 export const FUNCTIE_OPTIONS = [
@@ -50,21 +50,22 @@ export const FUNCTIE_OPTIONS = [
 export const CONTRACT_TYPE_OPTIONS = [
   { value: "fulltime", label: "Fulltime" },
   { value: "parttime", label: "Parttime" },
-  { value: "oproep", label: "Oproepkracht" },
   { value: "zzp", label: "ZZP" },
+  { value: "seizoen", label: "Seizoenswerker" },
 ] as const;
 
-export const WERKDAGEN = [
-  { key: "ma", label: "Maandag" },
-  { key: "di", label: "Dinsdag" },
-  { key: "wo", label: "Woensdag" },
-  { key: "do", label: "Donderdag" },
-  { key: "vr", label: "Vrijdag" },
-  { key: "za", label: "Zaterdag" },
-  { key: "zo", label: "Zondag" },
-];
+export type ContractType = "fulltime" | "parttime" | "zzp" | "seizoen";
 
-export type ContractType = typeof CONTRACT_TYPE_OPTIONS[number]["value"];
+// Werkdagen as numbers (0=zondag, 1=maandag, etc.)
+export const WERKDAGEN = [
+  { key: 1, label: "Ma" },
+  { key: 2, label: "Di" },
+  { key: 3, label: "Wo" },
+  { key: 4, label: "Do" },
+  { key: 5, label: "Vr" },
+  { key: 6, label: "Za" },
+  { key: 0, label: "Zo" },
+];
 
 export interface MedewerkerFormData {
   naam: string;
@@ -74,10 +75,19 @@ export interface MedewerkerFormData {
   uurtarief: string;
   notities: string;
   contractType: ContractType | "";
-  werkdagen: string[];
+  werkdagen: number[];
   urenPerWeek: string;
-  vaardigheden: Skill[];
+  maxUrenPerDag: string;
+  specialisaties: Specialisatie[];
   certificaten: Certificaat[];
+  // Adres
+  straat: string;
+  postcode: string;
+  plaats: string;
+  // Noodcontact
+  noodcontactNaam: string;
+  noodcontactTelefoon: string;
+  noodcontactRelatie: string;
 }
 
 export interface Medewerker {
@@ -91,14 +101,24 @@ export interface Medewerker {
   notities?: string;
   createdAt: number;
   updatedAt: number;
-  // Extended fields (stored as JSON in notities or separate fields when schema is updated)
   contractType?: ContractType;
   beschikbaarheid?: {
-    werkdagen: string[];
-    urenPerWeek?: number;
+    werkdagen: number[];
+    urenPerWeek: number;
+    maxUrenPerDag: number;
   };
-  vaardigheden?: Skill[];
+  specialisaties?: Specialisatie[];
   certificaten?: Certificaat[];
+  adres?: {
+    straat: string;
+    postcode: string;
+    plaats: string;
+  };
+  noodcontact?: {
+    naam: string;
+    telefoon: string;
+    relatie: string;
+  };
 }
 
 const defaultFormData: MedewerkerFormData = {
@@ -109,10 +129,17 @@ const defaultFormData: MedewerkerFormData = {
   uurtarief: "",
   notities: "",
   contractType: "",
-  werkdagen: ["ma", "di", "wo", "do", "vr"],
+  werkdagen: [1, 2, 3, 4, 5], // Ma-Vr
   urenPerWeek: "40",
-  vaardigheden: [],
+  maxUrenPerDag: "8",
+  specialisaties: [],
   certificaten: [],
+  straat: "",
+  postcode: "",
+  plaats: "",
+  noodcontactNaam: "",
+  noodcontactTelefoon: "",
+  noodcontactRelatie: "",
 };
 
 interface MedewerkerFormProps {
@@ -120,83 +147,6 @@ interface MedewerkerFormProps {
   onOpenChange: (open: boolean) => void;
   initialData?: Medewerker | null;
   onSuccess?: () => void;
-}
-
-// Helper to serialize extended data to a JSON string
-function serializeExtendedData(data: {
-  contractType?: ContractType | "";
-  werkdagen?: string[];
-  urenPerWeek?: string;
-  vaardigheden?: Skill[];
-  certificaten?: Certificaat[];
-}): string {
-  const extended = {
-    contractType: data.contractType || undefined,
-    beschikbaarheid:
-      data.werkdagen && data.werkdagen.length > 0
-        ? {
-            werkdagen: data.werkdagen,
-            urenPerWeek: data.urenPerWeek
-              ? parseInt(data.urenPerWeek)
-              : undefined,
-          }
-        : undefined,
-    vaardigheden:
-      data.vaardigheden && data.vaardigheden.length > 0
-        ? data.vaardigheden
-        : undefined,
-    certificaten:
-      data.certificaten && data.certificaten.length > 0
-        ? data.certificaten
-        : undefined,
-  };
-
-  // Filter out undefined values
-  const filtered = Object.fromEntries(
-    Object.entries(extended).filter(([, v]) => v !== undefined)
-  );
-
-  return Object.keys(filtered).length > 0
-    ? `\n---EXTENDED_DATA---\n${JSON.stringify(filtered)}`
-    : "";
-}
-
-// Helper to parse extended data from notities
-function parseExtendedData(notities?: string): {
-  plainNotities: string;
-  contractType?: ContractType;
-  werkdagen?: string[];
-  urenPerWeek?: number;
-  vaardigheden?: Skill[];
-  certificaten?: Certificaat[];
-} {
-  if (!notities) {
-    return { plainNotities: "" };
-  }
-
-  const marker = "---EXTENDED_DATA---";
-  const markerIndex = notities.indexOf(marker);
-
-  if (markerIndex === -1) {
-    return { plainNotities: notities };
-  }
-
-  const plainNotities = notities.substring(0, markerIndex).trim();
-  const jsonPart = notities.substring(markerIndex + marker.length).trim();
-
-  try {
-    const parsed = JSON.parse(jsonPart);
-    return {
-      plainNotities,
-      contractType: parsed.contractType,
-      werkdagen: parsed.beschikbaarheid?.werkdagen,
-      urenPerWeek: parsed.beschikbaarheid?.urenPerWeek,
-      vaardigheden: parsed.vaardigheden,
-      certificaten: parsed.certificaten,
-    };
-  } catch {
-    return { plainNotities: notities };
-  }
 }
 
 export function MedewerkerForm({
@@ -217,19 +167,25 @@ export function MedewerkerForm({
   useEffect(() => {
     if (open) {
       if (initialData) {
-        const extended = parseExtendedData(initialData.notities);
         setFormData({
           naam: initialData.naam,
           email: initialData.email || "",
           telefoon: initialData.telefoon || "",
           functie: initialData.functie || "",
           uurtarief: initialData.uurtarief?.toString() || "",
-          notities: extended.plainNotities,
-          contractType: extended.contractType || "",
-          werkdagen: extended.werkdagen || ["ma", "di", "wo", "do", "vr"],
-          urenPerWeek: extended.urenPerWeek?.toString() || "40",
-          vaardigheden: extended.vaardigheden || [],
-          certificaten: extended.certificaten || [],
+          notities: initialData.notities || "",
+          contractType: initialData.contractType || "",
+          werkdagen: initialData.beschikbaarheid?.werkdagen || [1, 2, 3, 4, 5],
+          urenPerWeek: initialData.beschikbaarheid?.urenPerWeek?.toString() || "40",
+          maxUrenPerDag: initialData.beschikbaarheid?.maxUrenPerDag?.toString() || "8",
+          specialisaties: initialData.specialisaties || [],
+          certificaten: initialData.certificaten || [],
+          straat: initialData.adres?.straat || "",
+          postcode: initialData.adres?.postcode || "",
+          plaats: initialData.adres?.plaats || "",
+          noodcontactNaam: initialData.noodcontact?.naam || "",
+          noodcontactTelefoon: initialData.noodcontact?.telefoon || "",
+          noodcontactRelatie: initialData.noodcontact?.relatie || "",
         });
       } else {
         setFormData(defaultFormData);
@@ -247,15 +203,30 @@ export function MedewerkerForm({
 
     setIsLoading(true);
 
-    // Combine plain notities with extended data
-    const extendedDataStr = serializeExtendedData({
-      contractType: formData.contractType,
-      werkdagen: formData.werkdagen,
-      urenPerWeek: formData.urenPerWeek,
-      vaardigheden: formData.vaardigheden,
-      certificaten: formData.certificaten,
-    });
-    const combinedNotities = (formData.notities.trim() + extendedDataStr).trim() || undefined;
+    // Build the data object for Convex
+    const beschikbaarheid = formData.werkdagen.length > 0
+      ? {
+          werkdagen: formData.werkdagen,
+          urenPerWeek: parseInt(formData.urenPerWeek) || 40,
+          maxUrenPerDag: parseInt(formData.maxUrenPerDag) || 8,
+        }
+      : undefined;
+
+    const adres = formData.straat.trim()
+      ? {
+          straat: formData.straat.trim(),
+          postcode: formData.postcode.trim(),
+          plaats: formData.plaats.trim(),
+        }
+      : undefined;
+
+    const noodcontact = formData.noodcontactNaam.trim()
+      ? {
+          naam: formData.noodcontactNaam.trim(),
+          telefoon: formData.noodcontactTelefoon.trim(),
+          relatie: formData.noodcontactRelatie.trim(),
+        }
+      : undefined;
 
     try {
       if (isEditMode && initialData) {
@@ -265,10 +236,14 @@ export function MedewerkerForm({
           email: formData.email || undefined,
           telefoon: formData.telefoon || undefined,
           functie: formData.functie || undefined,
-          uurtarief: formData.uurtarief
-            ? parseFloat(formData.uurtarief)
-            : undefined,
-          notities: combinedNotities,
+          uurtarief: formData.uurtarief ? parseFloat(formData.uurtarief) : undefined,
+          notities: formData.notities || undefined,
+          contractType: formData.contractType as ContractType || undefined,
+          beschikbaarheid,
+          specialisaties: formData.specialisaties.length > 0 ? formData.specialisaties : undefined,
+          certificaten: formData.certificaten.length > 0 ? formData.certificaten : undefined,
+          adres,
+          noodcontact,
         });
         toast.success("Medewerker bijgewerkt");
       } else {
@@ -277,10 +252,14 @@ export function MedewerkerForm({
           email: formData.email || undefined,
           telefoon: formData.telefoon || undefined,
           functie: formData.functie || undefined,
-          uurtarief: formData.uurtarief
-            ? parseFloat(formData.uurtarief)
-            : undefined,
-          notities: combinedNotities,
+          uurtarief: formData.uurtarief ? parseFloat(formData.uurtarief) : undefined,
+          notities: formData.notities || undefined,
+          contractType: formData.contractType as ContractType || undefined,
+          beschikbaarheid,
+          specialisaties: formData.specialisaties.length > 0 ? formData.specialisaties : undefined,
+          certificaten: formData.certificaten.length > 0 ? formData.certificaten : undefined,
+          adres,
+          noodcontact,
         });
         toast.success("Medewerker toegevoegd");
       }
@@ -304,17 +283,14 @@ export function MedewerkerForm({
     setFormData(defaultFormData);
   }, [onOpenChange]);
 
-  const handleWerkdagToggle = useCallback(
-    (dag: string) => {
-      setFormData((prev) => ({
-        ...prev,
-        werkdagen: prev.werkdagen.includes(dag)
-          ? prev.werkdagen.filter((d) => d !== dag)
-          : [...prev.werkdagen, dag],
-      }));
-    },
-    []
-  );
+  const handleWerkdagToggle = useCallback((dag: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      werkdagen: prev.werkdagen.includes(dag)
+        ? prev.werkdagen.filter((d) => d !== dag)
+        : [...prev.werkdagen, dag],
+    }));
+  }, []);
 
   const isFormValid = formData.naam.trim();
 
@@ -333,9 +309,13 @@ export function MedewerkerForm({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-6 py-4">
-            {/* Basic Information */}
-            <Accordion type="multiple" defaultValue={["basis", "beschikbaarheid", "vaardigheden"]} className="space-y-4">
+          <div className="grid gap-4 py-4">
+            <Accordion
+              type="multiple"
+              defaultValue={["basis", "beschikbaarheid"]}
+              className="space-y-2"
+            >
+              {/* Basisgegevens */}
               <AccordionItem value="basis" className="border rounded-lg px-4">
                 <AccordionTrigger className="hover:no-underline">
                   <div className="flex items-center gap-2">
@@ -478,7 +458,7 @@ export function MedewerkerForm({
                     {/* Werkdagen */}
                     <div className="space-y-3">
                       <Label>Werkdagen</Label>
-                      <div className="flex flex-wrap gap-3">
+                      <div className="flex flex-wrap gap-2">
                         {WERKDAGEN.map((dag) => (
                           <div
                             key={dag.key}
@@ -500,34 +480,50 @@ export function MedewerkerForm({
                       </div>
                     </div>
 
-                    {/* Uren per week */}
-                    <div className="space-y-2 max-w-[200px]">
-                      <Label htmlFor="urenPerWeek">Uren per week</Label>
-                      <Input
-                        id="urenPerWeek"
-                        type="number"
-                        min="0"
-                        max="60"
-                        value={formData.urenPerWeek}
-                        onChange={(e) =>
-                          setFormData({ ...formData, urenPerWeek: e.target.value })
-                        }
-                        placeholder="40"
-                      />
+                    {/* Uren */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="urenPerWeek">Uren per week</Label>
+                        <Input
+                          id="urenPerWeek"
+                          type="number"
+                          min="0"
+                          max="60"
+                          value={formData.urenPerWeek}
+                          onChange={(e) =>
+                            setFormData({ ...formData, urenPerWeek: e.target.value })
+                          }
+                          placeholder="40"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="maxUrenPerDag">Max uren per dag</Label>
+                        <Input
+                          id="maxUrenPerDag"
+                          type="number"
+                          min="0"
+                          max="12"
+                          value={formData.maxUrenPerDag}
+                          onChange={(e) =>
+                            setFormData({ ...formData, maxUrenPerDag: e.target.value })
+                          }
+                          placeholder="8"
+                        />
+                      </div>
                     </div>
                   </motion.div>
                 </AccordionContent>
               </AccordionItem>
 
-              {/* Vaardigheden */}
-              <AccordionItem value="vaardigheden" className="border rounded-lg px-4">
+              {/* Specialisaties */}
+              <AccordionItem value="specialisaties" className="border rounded-lg px-4">
                 <AccordionTrigger className="hover:no-underline">
                   <div className="flex items-center gap-2">
                     <GraduationCap className="h-4 w-4" />
-                    <span className="font-medium">Vaardigheden</span>
-                    {formData.vaardigheden.length > 0 && (
+                    <span className="font-medium">Specialisaties</span>
+                    {formData.specialisaties.length > 0 && (
                       <span className="text-xs bg-muted px-2 py-0.5 rounded-full">
-                        {formData.vaardigheden.length}
+                        {formData.specialisaties.length}
                       </span>
                     )}
                   </div>
@@ -538,9 +534,9 @@ export function MedewerkerForm({
                     animate={{ opacity: 1 }}
                   >
                     <SkillsSelector
-                      value={formData.vaardigheden}
-                      onChange={(skills) =>
-                        setFormData({ ...formData, vaardigheden: skills })
+                      value={formData.specialisaties}
+                      onChange={(specs) =>
+                        setFormData({ ...formData, specialisaties: specs })
                       }
                     />
                   </motion.div>
@@ -571,6 +567,112 @@ export function MedewerkerForm({
                         setFormData({ ...formData, certificaten: certs })
                       }
                     />
+                  </motion.div>
+                </AccordionContent>
+              </AccordionItem>
+
+              {/* Adresgegevens */}
+              <AccordionItem value="adres" className="border rounded-lg px-4">
+                <AccordionTrigger className="hover:no-underline">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    <span className="font-medium">Adresgegevens</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pb-4">
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="grid gap-4"
+                  >
+                    <div className="space-y-2">
+                      <Label htmlFor="straat">Straat + huisnummer</Label>
+                      <Input
+                        id="straat"
+                        value={formData.straat}
+                        onChange={(e) =>
+                          setFormData({ ...formData, straat: e.target.value })
+                        }
+                        placeholder="Hoofdstraat 123"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="postcode">Postcode</Label>
+                        <Input
+                          id="postcode"
+                          value={formData.postcode}
+                          onChange={(e) =>
+                            setFormData({ ...formData, postcode: e.target.value })
+                          }
+                          placeholder="1234 AB"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="plaats">Plaats</Label>
+                        <Input
+                          id="plaats"
+                          value={formData.plaats}
+                          onChange={(e) =>
+                            setFormData({ ...formData, plaats: e.target.value })
+                          }
+                          placeholder="Amsterdam"
+                        />
+                      </div>
+                    </div>
+                  </motion.div>
+                </AccordionContent>
+              </AccordionItem>
+
+              {/* Noodcontact */}
+              <AccordionItem value="noodcontact" className="border rounded-lg px-4">
+                <AccordionTrigger className="hover:no-underline">
+                  <div className="flex items-center gap-2">
+                    <Phone className="h-4 w-4" />
+                    <span className="font-medium">Noodcontact</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pb-4">
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="grid gap-4"
+                  >
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="noodcontactNaam">Naam</Label>
+                        <Input
+                          id="noodcontactNaam"
+                          value={formData.noodcontactNaam}
+                          onChange={(e) =>
+                            setFormData({ ...formData, noodcontactNaam: e.target.value })
+                          }
+                          placeholder="Maria Jansen"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="noodcontactRelatie">Relatie</Label>
+                        <Input
+                          id="noodcontactRelatie"
+                          value={formData.noodcontactRelatie}
+                          onChange={(e) =>
+                            setFormData({ ...formData, noodcontactRelatie: e.target.value })
+                          }
+                          placeholder="Partner"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="noodcontactTelefoon">Telefoon</Label>
+                      <Input
+                        id="noodcontactTelefoon"
+                        value={formData.noodcontactTelefoon}
+                        onChange={(e) =>
+                          setFormData({ ...formData, noodcontactTelefoon: e.target.value })
+                        }
+                        placeholder="06-12345678"
+                      />
+                    </div>
                   </motion.div>
                 </AccordionContent>
               </AccordionItem>

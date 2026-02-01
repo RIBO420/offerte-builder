@@ -20,7 +20,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, CalendarIcon } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { nl } from "date-fns/locale";
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
@@ -65,6 +75,11 @@ export interface VoertuigFormData {
   kmStand?: number;
   status: "actief" | "inactief" | "onderhoud";
   notities?: string;
+  // Compliance fields
+  apkVervaldatum?: number;
+  verzekeringsVervaldatum?: number;
+  verzekeraar?: string;
+  polisnummer?: string;
 }
 
 export interface Voertuig extends VoertuigFormData {
@@ -88,6 +103,10 @@ const defaultFormData: VoertuigFormData = {
   kmStand: undefined,
   status: "actief",
   notities: "",
+  apkVervaldatum: undefined,
+  verzekeringsVervaldatum: undefined,
+  verzekeraar: "",
+  polisnummer: "",
 };
 
 /**
@@ -155,6 +174,10 @@ export function VoertuigForm({
           kmStand: initialData.kmStand,
           status: initialData.status,
           notities: initialData.notities || "",
+          apkVervaldatum: (initialData as { apkVervaldatum?: number }).apkVervaldatum,
+          verzekeringsVervaldatum: (initialData as { verzekeringsVervaldatum?: number }).verzekeringsVervaldatum,
+          verzekeraar: (initialData as { verzekeraar?: string }).verzekeraar || "",
+          polisnummer: (initialData as { polisnummer?: string }).polisnummer || "",
         });
       } else {
         setFormData(defaultFormData);
@@ -208,6 +231,10 @@ export function VoertuigForm({
           kmStand: formData.kmStand,
           status: formData.status,
           notities: formData.notities || undefined,
+          apkVervaldatum: formData.apkVervaldatum,
+          verzekeringsVervaldatum: formData.verzekeringsVervaldatum,
+          verzekeraar: formData.verzekeraar || undefined,
+          polisnummer: formData.polisnummer || undefined,
         });
         toast.success("Voertuig bijgewerkt");
       } else {
@@ -221,6 +248,10 @@ export function VoertuigForm({
           kmStand: formData.kmStand,
           status: formData.status,
           notities: formData.notities || undefined,
+          apkVervaldatum: formData.apkVervaldatum,
+          verzekeringsVervaldatum: formData.verzekeringsVervaldatum,
+          verzekeraar: formData.verzekeraar || undefined,
+          polisnummer: formData.polisnummer || undefined,
         });
         toast.success("Voertuig toegevoegd");
       }
@@ -428,6 +459,129 @@ export function VoertuigForm({
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Compliance Section */}
+            <Separator className="my-2" />
+            <div className="space-y-4">
+              <h4 className="text-sm font-medium text-muted-foreground">
+                APK & Verzekering
+              </h4>
+
+              {/* APK Vervaldatum */}
+              <div className="grid gap-2">
+                <Label>APK Vervaldatum</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "justify-start text-left font-normal",
+                        !formData.apkVervaldatum && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formData.apkVervaldatum ? (
+                        format(new Date(formData.apkVervaldatum), "d MMMM yyyy", {
+                          locale: nl,
+                        })
+                      ) : (
+                        <span>Selecteer APK vervaldatum</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={
+                        formData.apkVervaldatum
+                          ? new Date(formData.apkVervaldatum)
+                          : undefined
+                      }
+                      onSelect={(date) =>
+                        setFormData({
+                          ...formData,
+                          apkVervaldatum: date?.getTime(),
+                        })
+                      }
+                      locale={nl}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Verzekering Vervaldatum */}
+              <div className="grid gap-2">
+                <Label>Verzekering Vervaldatum</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "justify-start text-left font-normal",
+                        !formData.verzekeringsVervaldatum && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formData.verzekeringsVervaldatum ? (
+                        format(
+                          new Date(formData.verzekeringsVervaldatum),
+                          "d MMMM yyyy",
+                          { locale: nl }
+                        )
+                      ) : (
+                        <span>Selecteer verzekering vervaldatum</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={
+                        formData.verzekeringsVervaldatum
+                          ? new Date(formData.verzekeringsVervaldatum)
+                          : undefined
+                      }
+                      onSelect={(date) =>
+                        setFormData({
+                          ...formData,
+                          verzekeringsVervaldatum: date?.getTime(),
+                        })
+                      }
+                      locale={nl}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Verzekeraar en Polisnummer */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="verzekeraar">Verzekeraar</Label>
+                  <Input
+                    id="verzekeraar"
+                    value={formData.verzekeraar}
+                    onChange={(e) =>
+                      setFormData({ ...formData, verzekeraar: e.target.value })
+                    }
+                    placeholder="Bijv. ANWB, Centraal Beheer"
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="polisnummer">Polisnummer</Label>
+                  <Input
+                    id="polisnummer"
+                    value={formData.polisnummer}
+                    onChange={(e) =>
+                      setFormData({ ...formData, polisnummer: e.target.value })
+                    }
+                    placeholder="Bijv. 123456789"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <Separator className="my-2" />
 
             {/* Notities */}
             <div className="grid gap-2">
