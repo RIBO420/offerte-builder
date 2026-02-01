@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAuthUserId } from "./auth";
+import { requireAuthUserId, getAuthenticatedUser } from "./auth";
 
 // Validators voor nieuwe velden
 const specialisatieValidator = v.object({
@@ -605,7 +605,13 @@ export const checkVervaldataCertificaten = query({
     dagenVoorwaarschuwing: v.optional(v.number()), // Default: 30 dagen
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    // Use getAuthenticatedUser instead of requireAuth to gracefully handle
+    // race conditions where the query fires during session expiry
+    const user = await getAuthenticatedUser(ctx);
+    if (!user) {
+      return []; // Return empty array instead of throwing during auth race conditions
+    }
+    const userId = user._id;
     const waarschuwingsDagen = args.dagenVoorwaarschuwing || 30;
     const waarschuwingsDrempel = Date.now() + (waarschuwingsDagen * 24 * 60 * 60 * 1000);
 
