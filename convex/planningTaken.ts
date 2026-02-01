@@ -59,14 +59,22 @@ export const generateFromVoorcalculatie = mutation({
   handler: async (ctx, args) => {
     const { project } = await getOwnedProject(ctx, args.projectId);
 
-    // Get the voorcalculatie for this project
-    const voorcalculatie = await ctx.db
+    // Get the voorcalculatie - first try by offerte (new workflow), then by project (legacy)
+    let voorcalculatie = await ctx.db
       .query("voorcalculaties")
-      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .withIndex("by_offerte", (q) => q.eq("offerteId", project.offerteId))
       .unique();
 
+    // Fallback to project-based voorcalculatie for legacy data
     if (!voorcalculatie) {
-      throw new Error("Geen voorcalculatie gevonden voor dit project");
+      voorcalculatie = await ctx.db
+        .query("voorcalculaties")
+        .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+        .unique();
+    }
+
+    if (!voorcalculatie) {
+      throw new Error("Geen voorcalculatie gevonden. Maak eerst een voorcalculatie aan bij de offerte.");
     }
 
     // Delete existing tasks for this project (regenerate)
