@@ -173,7 +173,7 @@ export const calculate = query({
 /**
  * Save nacalculatie results.
  * Creates or updates the nacalculatie record for a project.
- * Also updates the project status to "nacalculatie_compleet" if it's currently "afgerond".
+ * Automatically updates the project status to "nacalculatie_compleet" if it's currently "afgerond".
  */
 export const save = mutation({
   args: {
@@ -185,7 +185,7 @@ export const save = mutation({
     afwijkingPercentage: v.number(),
     afwijkingenPerScope: v.record(v.string(), v.number()),
     conclusies: v.optional(v.string()),
-    updateProjectStatus: v.optional(v.boolean()),
+    updateProjectStatus: v.optional(v.boolean()), // Deprecated: status is now always updated
   },
   handler: async (ctx, args) => {
     // Verify ownership of project
@@ -229,8 +229,9 @@ export const save = mutation({
       });
     }
 
-    // Update project status to "nacalculatie_compleet" if requested and project is "afgerond"
-    if (args.updateProjectStatus && project.status === "afgerond") {
+    // Always update project status to "nacalculatie_compleet" when saving nacalculatie
+    // for a project that is "afgerond" - this ensures the workflow progresses correctly
+    if (project.status === "afgerond") {
       await ctx.db.patch(args.projectId, {
         status: "nacalculatie_compleet",
         updatedAt: now,
@@ -374,6 +375,51 @@ export const getWithDetails = query({
       nacalculatie,
       urenRegistraties,
       machineGebruik,
+    };
+  },
+});
+
+/**
+ * Fix project statuses for projects that have nacalculatie but are still "afgerond".
+ * This is a one-time migration mutation to correct any inconsistent data.
+ * Returns the number of projects that were updated.
+ */
+export const fixProjectStatuses = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireAuthUserId(ctx);
+    const now = Date.now();
+
+    // Get all "afgerond" projects for this user
+    const projects = await ctx.db
+      .query("projecten")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    const afgerondProjects = projects.filter((p) => p.status === "afgerond");
+
+    let updatedCount = 0;
+
+    // Check each "afgerond" project for existing nacalculatie
+    for (const project of afgerondProjects) {
+      const nacalculatie = await ctx.db
+        .query("nacalculaties")
+        .withIndex("by_project", (q) => q.eq("projectId", project._id))
+        .unique();
+
+      // If nacalculatie exists, update status to "nacalculatie_compleet"
+      if (nacalculatie) {
+        await ctx.db.patch(project._id, {
+          status: "nacalculatie_compleet",
+          updatedAt: now,
+        });
+        updatedCount++;
+      }
+    }
+
+    return {
+      checked: afgerondProjects.length,
+      updated: updatedCount,
     };
   },
 });
