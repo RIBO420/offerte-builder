@@ -70,10 +70,15 @@ export function useUsers() {
  * Hook to check if current user is an admin
  */
 export function useIsAdmin() {
-  const { user } = useCurrentUser();
+  const { user, isLoading } = useCurrentUser();
 
-  // Default to admin for backwards compatibility
-  return (user?.role ?? "admin") === "admin";
+  // Not admin during loading or if not authenticated
+  if (isLoading || !user) {
+    return false;
+  }
+
+  // Check actual role - default to false if not set (secure default)
+  return user.role === "admin";
 }
 
 /**
@@ -86,6 +91,6 @@ export function useCurrentUserRole(): UserRole | null {
     return null;
   }
 
-  // Default to admin for backwards compatibility
-  return (user.role ?? "admin") as UserRole;
+  // Default to medewerker for security (secure default)
+  return (user.role ?? "medewerker") as UserRole;
 }

@@ -264,9 +264,9 @@ export const upsert = mutation({
 
     // Determine role for new user
     // First user is always admin, or if email is in admin list
-    // New users get "viewer" role (read-only) by default unless they match admin criteria
-    const role: "admin" | "viewer" =
-      isFirstUser || isAdminEmail(args.email) ? "admin" : "viewer";
+    // New users get "medewerker" role by default unless they match admin criteria
+    const role: "admin" | "medewerker" =
+      isFirstUser || isAdminEmail(args.email) ? "admin" : "medewerker";
 
     // Create new user with appropriate role
     const userId = await ctx.db.insert("users", {
@@ -351,7 +351,7 @@ export const initializeDefaults = mutation({
       const shouldBeAdmin = isOnlyUser || isAdminEmail(user.email);
 
       await ctx.db.patch(userId, {
-        role: shouldBeAdmin ? "admin" : "viewer",
+        role: shouldBeAdmin ? "admin" : "medewerker",
       });
       roleUpdated = true;
     }
@@ -1125,7 +1125,7 @@ export const getCurrentUserRole = query({
     }
     return {
       isAuthenticated: true,
-      role: user.role || "admin", // Default to "admin" for backwards compatibility
+      role: user.role || "medewerker", // Default to "medewerker" for security
       userId: user._id,
       email: user.email,
       name: user.name,
@@ -1145,8 +1145,8 @@ export const listUsersWithDetails = query({
       return [];
     }
 
-    // Check if user is admin (default to admin for backwards compatibility)
-    const role = currentUser.role ?? "admin";
+    // Check if user is admin (default to medewerker for security)
+    const role = currentUser.role ?? "medewerker";
     if (role !== "admin") {
       return [];
     }
@@ -1166,7 +1166,7 @@ export const listUsersWithDetails = query({
           clerkId: user.clerkId,
           email: user.email,
           name: user.name,
-          role: user.role ?? "admin", // Default to admin for backwards compatibility
+          role: user.role ?? "medewerker", // Default to medewerker for security
           linkedMedewerkerId: user.linkedMedewerkerId,
           linkedMedewerkerNaam: linkedMedewerker?.naam ?? null,
           createdAt: user.createdAt,
@@ -1189,8 +1189,8 @@ export const linkUserToMedewerker = mutation({
   handler: async (ctx, args) => {
     const currentUser = await requireAuth(ctx);
 
-    // Check if current user is admin
-    const role = currentUser.role ?? "admin";
+    // Check if current user is admin (default to medewerker for security)
+    const role = currentUser.role ?? "medewerker";
     if (role !== "admin") {
       throw new Error("Alleen admins kunnen gebruikers koppelen aan medewerkers");
     }
@@ -1220,7 +1220,8 @@ export const getAvailableMedewerkersForLinking = query({
       return [];
     }
 
-    const role = currentUser.role ?? "admin";
+    // Check if user is admin (default to medewerker for security)
+    const role = currentUser.role ?? "medewerker";
     if (role !== "admin") {
       return [];
     }
@@ -1252,8 +1253,8 @@ export const updateUserRole = mutation({
   handler: async (ctx, args) => {
     const currentUser = await requireAuth(ctx);
 
-    // Check if current user is admin
-    const currentRole = currentUser.role ?? "admin";
+    // Check if current user is admin (default to medewerker for security)
+    const currentRole = currentUser.role ?? "medewerker";
     if (currentRole !== "admin") {
       throw new Error("Alleen admins kunnen gebruikersrollen wijzigen");
     }
@@ -1265,5 +1266,43 @@ export const updateUserRole = mutation({
 
     await ctx.db.patch(args.userId, { role: args.role });
     return { success: true };
+  },
+});
+
+/**
+ * Admin migration to set all existing users without a role to "admin" role.
+ *
+ * USAGE:
+ * This is a one-time migration mutation to upgrade existing users who don't have
+ * a role field set (from before the role system was implemented).
+ *
+ * To run from CLI:
+ * ```
+ * npx convex run users:adminMigrateExistingUsersToAdmin
+ * ```
+ *
+ * To run from Convex Dashboard:
+ * 1. Go to Convex Dashboard > Functions
+ * 2. Find users:adminMigrateExistingUsersToAdmin
+ * 3. Click "Run" (no arguments needed)
+ */
+export const adminMigrateExistingUsersToAdmin = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const users = await ctx.db.query("users").collect();
+    let updatedCount = 0;
+
+    for (const user of users) {
+      if (!user.role) {
+        await ctx.db.patch(user._id, { role: "admin" });
+        updatedCount++;
+      }
+    }
+
+    return {
+      success: true,
+      message: `${updatedCount} users updated to admin role`,
+      updatedCount,
+    };
   },
 });
