@@ -519,3 +519,103 @@ export const adminSeedUserDefaults = mutation({
     };
   },
 });
+
+/**
+ * Run data migrations for the authenticated user.
+ * This applies the archiving logic to existing data:
+ * - Fixes project statuses (afgerond -> nacalculatie_compleet if nacalculatie exists)
+ * - Updates projects with facturen to "gefactureerd" status
+ * - Archives projects and offertes for paid facturen
+ */
+export const runDataMigrations = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const user = await requireAuth(ctx);
+    const userId = user._id;
+    const now = Date.now();
+
+    const results = {
+      afgerondFixedCount: 0,
+      statusMigratedCount: 0,
+      projectsArchivedCount: 0,
+      offertesArchivedCount: 0,
+    };
+
+    // 1. Fix afgerond projects that have nacalculatie
+    const userProjects = await ctx.db
+      .query("projecten")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    const afgerondProjects = userProjects.filter((p) => p.status === "afgerond");
+
+    for (const project of afgerondProjects) {
+      const nacalculatie = await ctx.db
+        .query("nacalculaties")
+        .withIndex("by_project", (q) => q.eq("projectId", project._id))
+        .unique();
+
+      if (nacalculatie) {
+        await ctx.db.patch(project._id, {
+          status: "nacalculatie_compleet",
+          updatedAt: now,
+        });
+        results.afgerondFixedCount++;
+      }
+    }
+
+    // 2. Get all facturen for user's projects
+    const projectIds = userProjects.map((p) => p._id);
+    const allFacturen = await ctx.db.query("facturen").collect();
+    const userFacturen = allFacturen.filter((f) =>
+      projectIds.includes(f.projectId)
+    );
+
+    // 3. Update projects with facturen to gefactureerd and archive paid ones
+    for (const factuur of userFacturen) {
+      const project = userProjects.find((p) => p._id === factuur.projectId);
+      if (!project) continue;
+
+      // Update to gefactureerd if has definitief/verzonden/betaald factuur
+      if (
+        ["definitief", "verzonden", "betaald"].includes(factuur.status) &&
+        project.status !== "gefactureerd"
+      ) {
+        await ctx.db.patch(project._id, {
+          status: "gefactureerd",
+          updatedAt: now,
+        });
+        results.statusMigratedCount++;
+      }
+
+      // Archive if factuur is betaald
+      if (factuur.status === "betaald") {
+        if (!project.isArchived) {
+          await ctx.db.patch(project._id, {
+            isArchived: true,
+            archivedAt: now,
+          });
+          results.projectsArchivedCount++;
+        }
+
+        // Archive offerte too
+        if (project.offerteId) {
+          const offerte = await ctx.db.get(project.offerteId);
+          if (offerte && !offerte.isArchived) {
+            await ctx.db.patch(offerte._id, {
+              isArchived: true,
+              archivedAt: now,
+            });
+            results.offertesArchivedCount++;
+          }
+        }
+      }
+    }
+
+    return {
+      success: true,
+      ...results,
+      message: `Migratie voltooid: ${results.afgerondFixedCount} projecten status bijgewerkt, ${results.statusMigratedCount} naar gefactureerd, ${results.projectsArchivedCount} projecten gearchiveerd, ${results.offertesArchivedCount} offertes gearchiveerd`,
+    };
+  },
+});

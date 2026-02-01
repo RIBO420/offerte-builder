@@ -25,9 +25,11 @@ export function useCurrentUser() {
 
   const upsertUser = useMutation(api.users.upsert);
   const initializeDefaultsMutation = useMutation(api.users.initializeDefaults);
+  const runDataMigrationsMutation = useMutation(api.users.runDataMigrations);
 
-  // Track if we've already attempted initialization
+  // Track if we've already attempted initialization and migration
   const hasInitialized = useRef(false);
+  const hasMigrated = useRef(false);
 
   // Sync Clerk user to Convex on first load
   // The upsert mutation also creates default settings for new users
@@ -57,6 +59,17 @@ export function useCurrentUser() {
       });
     }
   }, [convexUser?._id, normuren, initializeDefaultsMutation]);
+
+  // Auto-run data migrations once per session
+  // This applies archiving logic and status updates to existing data
+  useEffect(() => {
+    if (convexUser?._id && !hasMigrated.current) {
+      hasMigrated.current = true;
+      runDataMigrationsMutation({}).catch(() => {
+        // Silent failure - migrations are non-critical
+      });
+    }
+  }, [convexUser?._id, runDataMigrationsMutation]);
 
   // Manual initialization function - memoized
   const initializeDefaults = useCallback(async () => {
