@@ -645,7 +645,7 @@ export default function FactuurPage({
   // Mutations
   const generateFactuur = useMutation(api.facturen.generate);
   const updateFactuurStatus = useMutation(api.facturen.updateStatus);
-  const markAsPaid = useMutation(api.facturen.markAsPaid);
+  const markAsPaidAndArchive = useMutation(api.facturen.markAsPaidAndArchiveProject);
 
   // Loading state - wait for both project details and factuur query
   if (projectDetails === undefined || factuur === undefined) {
@@ -762,15 +762,15 @@ export default function FactuurPage({
     }
   };
 
-  // Handler for marking as paid
+  // Handler for marking as paid - also archives project and offerte
   const handleMarkAsPaid = async () => {
     if (!factuur) return;
 
     setIsSaving(true);
     try {
-      await markAsPaid({ id: factuur._id });
+      await markAsPaidAndArchive({ id: factuur._id });
       setShowCelebration(true);
-      toast.success("Project voltooid! Factuur is betaald.");
+      toast.success("Project voltooid! Factuur is betaald en project is gearchiveerd.");
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Onbekende fout";
       toast.error(`Fout bij markeren als betaald: ${errorMessage}`);
@@ -1056,9 +1056,16 @@ export default function FactuurPage({
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Factuur als betaald markeren?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Hiermee bevestig je dat de betaling is ontvangen. De factuurstatus wordt
-                      gewijzigd naar &apos;Betaald&apos;.
+                    <AlertDialogDescription asChild>
+                      <div className="space-y-2">
+                        <p>Hiermee bevestig je dat de betaling is ontvangen.</p>
+                        <p className="text-sm">Dit zal automatisch:</p>
+                        <ul className="list-disc list-inside text-sm space-y-1">
+                          <li>De factuur markeren als &apos;Betaald&apos;</li>
+                          <li>Het project markeren als &apos;Gefactureerd&apos;</li>
+                          <li>Het project en de offerte archiveren</li>
+                        </ul>
+                      </div>
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
