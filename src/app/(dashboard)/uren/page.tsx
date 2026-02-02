@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
+import { Loader2 } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -51,7 +52,6 @@ import {
   Calendar,
   CalendarDays,
   Search,
-  Loader2,
   FolderKanban,
   User,
   ExternalLink,
@@ -120,7 +120,34 @@ function getDaysAgoStr(days: number): string {
 
 type DateRangePreset = "week" | "month" | "quarter" | "year" | "all";
 
+// Loading fallback for Suspense
+function UrenPageLoading() {
+  return (
+    <div className="flex flex-1 items-center justify-center">
+      <div className="flex flex-col items-center gap-4">
+        <div className="relative">
+          <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full" />
+          <div className="relative flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-green-600">
+            <Loader2 className="h-8 w-8 animate-spin text-white" />
+          </div>
+        </div>
+        <p className="text-muted-foreground animate-pulse">Laden...</p>
+      </div>
+    </div>
+  );
+}
+
+// Main page wrapper with Suspense
 export default function UrenPage() {
+  return (
+    <Suspense fallback={<UrenPageLoading />}>
+      <UrenPageContent />
+    </Suspense>
+  );
+}
+
+// Inner component that uses useSearchParams
+function UrenPageContent() {
   const searchParams = useSearchParams();
   const reducedMotion = useReducedMotion();
   const { user, isLoading: isUserLoading } = useCurrentUser();

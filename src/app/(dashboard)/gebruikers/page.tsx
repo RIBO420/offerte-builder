@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
@@ -181,9 +181,15 @@ export default function GebruikersPage() {
     }
   }, [selectedUser, selectedMedewerkerId, linkToMedewerker]);
 
-  // Redirect non-admins (AFTER all hooks to follow React rules)
+  // Redirect non-admins using useEffect (AFTER all hooks to follow React rules)
+  useEffect(() => {
+    if (!isLoading && !isAdmin) {
+      router.push("/dashboard");
+    }
+  }, [isLoading, isAdmin, router]);
+
+  // Show loading while checking permission or redirecting
   if (!isLoading && !isAdmin) {
-    router.push("/dashboard");
     return null;
   }
 
