@@ -379,12 +379,13 @@ function AuthenticatedProfielScreen() {
   ];
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      <ScrollView
-        className="flex-1"
-        contentContainerStyle={{ paddingBottom: 32 }}
-        showsVerticalScrollIndicator={false}
-      >
+    <View className="flex-1 bg-background">
+      <SafeAreaView className="flex-1" edges={['top']}>
+        <ScrollView
+          className="flex-1"
+          contentContainerStyle={{ paddingBottom: 100 }}
+          showsVerticalScrollIndicator={false}
+        >
         {/* Profile Header */}
         <View className="items-center py-4 px-6 bg-card border-b border-border">
           {imageUrl ? (
@@ -583,7 +584,8 @@ function AuthenticatedProfielScreen() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 

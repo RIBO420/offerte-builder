@@ -623,7 +623,7 @@ function AuthenticatedChatScreen() {
 
         {/* Input field - show for team/project channels and when viewing a DM conversation */}
         {(activeTab !== 'dm' || selectedDMConversation) && (
-          <View className="flex-row items-end bg-card border-t border-border p-2 pb-2 gap-2">
+          <View className="flex-row items-end bg-card border-t border-border p-2 pb-24 gap-2">
             <TouchableOpacity
               className="w-10 h-10 rounded-full items-center justify-center bg-secondary"
             >

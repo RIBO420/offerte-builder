@@ -86,6 +86,24 @@ export const permanentlyDeleteOfferte = internalMutation({
       await ctx.db.delete(log._id);
     }
 
+    // Delete related voorcalculaties (linked via offerteId)
+    const voorcalculaties = await ctx.db
+      .query("voorcalculaties")
+      .withIndex("by_offerte", (q) => q.eq("offerteId", args.id))
+      .collect();
+    for (const voorcalculatie of voorcalculaties) {
+      await ctx.db.delete(voorcalculatie._id);
+    }
+
+    // Delete related notifications
+    const notifications = await ctx.db
+      .query("notifications")
+      .withIndex("by_offerte", (q) => q.eq("offerteId", args.id))
+      .collect();
+    for (const notification of notifications) {
+      await ctx.db.delete(notification._id);
+    }
+
     // Delete the offerte
     await ctx.db.delete(args.id);
     return args.id;
@@ -104,8 +122,8 @@ export const permanentlyDeleteProject = internalMutation({
       .query("voorcalculaties")
       .withIndex("by_project", (q) => q.eq("projectId", args.id))
       .collect();
-    for (const v of voorcalculaties) {
-      await ctx.db.delete(v._id);
+    for (const voorcalculatie of voorcalculaties) {
+      await ctx.db.delete(voorcalculatie._id);
     }
 
     // Delete related planningTaken
@@ -151,6 +169,88 @@ export const permanentlyDeleteProject = internalMutation({
       .collect();
     for (const f of facturen) {
       await ctx.db.delete(f._id);
+    }
+
+    // Delete related locationSessions and their dependent data
+    // (Routes, locationData, and geofenceEvents are all linked via sessions)
+    const locationSessions = await ctx.db
+      .query("locationSessions")
+      .withIndex("by_project", (q) => q.eq("projectId", args.id))
+      .collect();
+    for (const session of locationSessions) {
+      // Delete locationData for this session
+      const locationData = await ctx.db
+        .query("locationData")
+        .withIndex("by_session", (q) => q.eq("sessionId", session._id))
+        .collect();
+      for (const loc of locationData) {
+        await ctx.db.delete(loc._id);
+      }
+
+      // Delete geofenceEvents for this session
+      const geofenceEvents = await ctx.db
+        .query("geofenceEvents")
+        .withIndex("by_session", (q) => q.eq("sessionId", session._id))
+        .collect();
+      for (const event of geofenceEvents) {
+        await ctx.db.delete(event._id);
+      }
+
+      // Delete routes for this session
+      const sessionRoutes = await ctx.db
+        .query("routes")
+        .withIndex("by_session", (q) => q.eq("sessionId", session._id))
+        .collect();
+      for (const route of sessionRoutes) {
+        await ctx.db.delete(route._id);
+      }
+
+      // Delete the session itself
+      await ctx.db.delete(session._id);
+    }
+
+    // Delete related locationAnalytics
+    const locationAnalytics = await ctx.db
+      .query("locationAnalytics")
+      .withIndex("by_project", (q) => q.eq("projectId", args.id))
+      .collect();
+    for (const analytics of locationAnalytics) {
+      await ctx.db.delete(analytics._id);
+    }
+
+    // Delete related jobSiteGeofences
+    const geofences = await ctx.db
+      .query("jobSiteGeofences")
+      .withIndex("by_project", (q) => q.eq("projectId", args.id))
+      .collect();
+    for (const geofence of geofences) {
+      // Also delete any geofenceEvents linked to this geofence
+      const events = await ctx.db
+        .query("geofenceEvents")
+        .withIndex("by_geofence", (q) => q.eq("geofenceId", geofence._id))
+        .collect();
+      for (const event of events) {
+        await ctx.db.delete(event._id);
+      }
+      await ctx.db.delete(geofence._id);
+    }
+
+    // Delete related team_messages for this project
+    const teamMessages = await ctx.db
+      .query("team_messages")
+      .withIndex("by_project", (q) => q.eq("projectId", args.id))
+      .collect();
+    for (const message of teamMessages) {
+      await ctx.db.delete(message._id);
+    }
+
+    // Delete related notifications for this project
+    const notifications = await ctx.db
+      .query("notifications")
+      .withIndex("by_project", (q) => q.eq("projectId", args.id))
+      .collect();
+    for (const notification of notifications) {
+      await ctx.db.delete(notification._id);
     }
 
     // Delete the project
@@ -279,6 +379,294 @@ export const getDeletedItems = query({
     return {
       offertes: deletedOffertes,
       projecten: deletedProjecten.sort((a, b) => b.deletedAt - a.deletedAt),
+    };
+  },
+});
+
+// ============================================
+// SHARE TOKEN CLEANUP
+// ============================================
+
+/**
+ * Clean up expired share tokens from offertes.
+ * Share tokens older than 30 days are cleared.
+ * This helps with data hygiene and security.
+ */
+export const cleanupExpiredShareTokens = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const cutoffTime = Date.now() - SOFT_DELETE_RETENTION_MS; // 30 days
+
+    // Find offertes with expired share tokens
+    const allOffertes = await ctx.db.query("offertes").collect();
+    const offertesWithExpiredTokens = allOffertes.filter(
+      (o) =>
+        o.shareToken &&
+        o.shareExpiresAt &&
+        o.shareExpiresAt < cutoffTime
+    );
+
+    let cleanedTokens = 0;
+
+    for (const offerte of offertesWithExpiredTokens) {
+      await ctx.db.patch(offerte._id, {
+        shareToken: undefined,
+        shareExpiresAt: undefined,
+      });
+      cleanedTokens++;
+    }
+
+    return {
+      cleanedTokens,
+      timestamp: Date.now(),
+    };
+  },
+});
+
+// ============================================
+// NOTIFICATION CLEANUP
+// ============================================
+
+// 90 days in milliseconds for notification retention
+const NOTIFICATION_RETENTION_DAYS = 90;
+const NOTIFICATION_RETENTION_MS = NOTIFICATION_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+
+/**
+ * Clean up old read notifications.
+ * Deletes read notifications older than 90 days.
+ * Keeps unread notifications regardless of age.
+ */
+export const cleanupOldNotifications = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const cutoffTime = Date.now() - NOTIFICATION_RETENTION_MS; // 90 days
+
+    // Get all notifications and filter for old read ones
+    const allNotifications = await ctx.db.query("notifications").collect();
+    const oldReadNotifications = allNotifications.filter(
+      (n) => n.isRead && n.createdAt < cutoffTime
+    );
+
+    let deletedNotifications = 0;
+
+    for (const notification of oldReadNotifications) {
+      await ctx.db.delete(notification._id);
+      deletedNotifications++;
+    }
+
+    return {
+      deletedNotifications,
+      timestamp: Date.now(),
+    };
+  },
+});
+
+/**
+ * Clean up old notification logs (push notification tracking).
+ * Deletes logs older than 30 days.
+ */
+export const cleanupOldNotificationLogs = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const cutoffTime = Date.now() - SOFT_DELETE_RETENTION_MS; // 30 days
+
+    // Get all notification logs and filter for old ones
+    const allLogs = await ctx.db.query("notification_log").collect();
+    const oldLogs = allLogs.filter((l) => l.createdAt < cutoffTime);
+
+    let deletedLogs = 0;
+
+    for (const log of oldLogs) {
+      await ctx.db.delete(log._id);
+      deletedLogs++;
+    }
+
+    return {
+      deletedLogs,
+      timestamp: Date.now(),
+    };
+  },
+});
+
+/**
+ * Clean up old push notification logs.
+ * Deletes logs older than 30 days.
+ */
+export const cleanupOldPushNotificationLogs = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const cutoffTime = Date.now() - SOFT_DELETE_RETENTION_MS; // 30 days
+
+    // Get all push notification logs and filter for old ones
+    const allLogs = await ctx.db.query("pushNotificationLogs").collect();
+    const oldLogs = allLogs.filter((l) => l.createdAt < cutoffTime);
+
+    let deletedLogs = 0;
+
+    for (const log of oldLogs) {
+      await ctx.db.delete(log._id);
+      deletedLogs++;
+    }
+
+    return {
+      deletedLogs,
+      timestamp: Date.now(),
+    };
+  },
+});
+
+// ============================================
+// SCHEDULED DAILY CLEANUP
+// ============================================
+
+/**
+ * Main daily cleanup function that orchestrates all cleanup tasks.
+ * This should be called by a scheduled cron job (e.g., daily at 3:00 AM UTC).
+ *
+ * Tasks performed:
+ * 1. Clean up expired soft-deleted items (offertes and projects older than 30 days)
+ * 2. Clean up expired share tokens (older than 30 days)
+ * 3. Clean up old read notifications (older than 90 days)
+ * 4. Clean up old notification logs (older than 30 days)
+ * 5. Clean up old push notification logs (older than 30 days)
+ *
+ * See convex/crons.ts for the cron job configuration.
+ */
+export const runDailyCleanup = internalMutation({
+  args: {},
+  handler: async (ctx): Promise<{
+    softDelete: { deletedOffertes: number; deletedProjecten: number };
+    shareTokens: { cleanedTokens: number };
+    notifications: { deletedNotifications: number };
+    notificationLogs: { deletedLogs: number };
+    pushNotificationLogs: { deletedLogs: number };
+    timestamp: number;
+  }> => {
+    const softDeleteCutoff = Date.now() - SOFT_DELETE_RETENTION_MS;
+    const notificationCutoff = Date.now() - NOTIFICATION_RETENTION_MS;
+
+    // ============================================
+    // 1. Clean up expired soft-deleted items
+    // ============================================
+
+    // Get expired soft-deleted offertes
+    const allOffertes = await ctx.db.query("offertes").collect();
+    const expiredOffertes = allOffertes.filter(
+      (o) => o.deletedAt && o.deletedAt < softDeleteCutoff
+    );
+
+    // Get expired soft-deleted projecten
+    const allProjecten = await ctx.db.query("projecten").collect();
+    const expiredProjecten = allProjecten.filter(
+      (p) => p.deletedAt && p.deletedAt < softDeleteCutoff
+    );
+
+    let deletedOffertes = 0;
+    let deletedProjecten = 0;
+
+    // Permanently delete expired offertes
+    for (const offerte of expiredOffertes) {
+      await ctx.runMutation(internal.softDelete.permanentlyDeleteOfferte, {
+        id: offerte._id,
+      });
+      deletedOffertes++;
+    }
+
+    // Permanently delete expired projecten
+    for (const project of expiredProjecten) {
+      await ctx.runMutation(internal.softDelete.permanentlyDeleteProject, {
+        id: project._id,
+      });
+      deletedProjecten++;
+    }
+
+    // ============================================
+    // 2. Clean up expired share tokens
+    // ============================================
+
+    const offertesWithExpiredTokens = allOffertes.filter(
+      (o) =>
+        o.shareToken &&
+        o.shareExpiresAt &&
+        o.shareExpiresAt < softDeleteCutoff
+    );
+
+    let cleanedTokens = 0;
+
+    for (const offerte of offertesWithExpiredTokens) {
+      await ctx.db.patch(offerte._id, {
+        shareToken: undefined,
+        shareExpiresAt: undefined,
+      });
+      cleanedTokens++;
+    }
+
+    // ============================================
+    // 3. Clean up old read notifications
+    // ============================================
+
+    const allNotifications = await ctx.db.query("notifications").collect();
+    const oldReadNotifications = allNotifications.filter(
+      (n) => n.isRead && n.createdAt < notificationCutoff
+    );
+
+    let deletedNotifications = 0;
+
+    for (const notification of oldReadNotifications) {
+      await ctx.db.delete(notification._id);
+      deletedNotifications++;
+    }
+
+    // ============================================
+    // 4. Clean up old notification logs
+    // ============================================
+
+    const allNotificationLogs = await ctx.db.query("notification_log").collect();
+    const oldNotificationLogs = allNotificationLogs.filter(
+      (l) => l.createdAt < softDeleteCutoff
+    );
+
+    let deletedNotificationLogs = 0;
+
+    for (const log of oldNotificationLogs) {
+      await ctx.db.delete(log._id);
+      deletedNotificationLogs++;
+    }
+
+    // ============================================
+    // 5. Clean up old push notification logs
+    // ============================================
+
+    const allPushLogs = await ctx.db.query("pushNotificationLogs").collect();
+    const oldPushLogs = allPushLogs.filter(
+      (l) => l.createdAt < softDeleteCutoff
+    );
+
+    let deletedPushLogs = 0;
+
+    for (const log of oldPushLogs) {
+      await ctx.db.delete(log._id);
+      deletedPushLogs++;
+    }
+
+    return {
+      softDelete: {
+        deletedOffertes,
+        deletedProjecten,
+      },
+      shareTokens: {
+        cleanedTokens,
+      },
+      notifications: {
+        deletedNotifications,
+      },
+      notificationLogs: {
+        deletedLogs: deletedNotificationLogs,
+      },
+      pushNotificationLogs: {
+        deletedLogs: deletedPushLogs,
+      },
+      timestamp: Date.now(),
     };
   },
 });

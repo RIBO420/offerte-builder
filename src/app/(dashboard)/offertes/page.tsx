@@ -91,6 +91,10 @@ import {
   useFilterPresets,
   type OfferteFilterState,
 } from "@/hooks/use-filter-presets";
+import {
+  ExportDropdown,
+  offerteExportColumns,
+} from "@/components/export-dropdown";
 
 // Memoized formatter instances to avoid recreation
 const currencyFormatter = new Intl.NumberFormat("nl-NL", {
@@ -405,6 +409,9 @@ function OffertesPageContent() {
     addPreset,
     deletePreset,
   } = useFilterPresets<OfferteFilterState>("offertes");
+
+  // Export data query
+  const exportData = useQuery(api.export.exportOffertes);
 
   const isLoading = isUserLoading || isOffertesLoading;
 
@@ -769,6 +776,13 @@ function OffertesPageContent() {
               />
             </div>
             <div className="flex items-center gap-2">
+              <ExportDropdown
+                getData={() => exportData ?? []}
+                columns={offerteExportColumns}
+                filename="offertes"
+                sheetName="Offertes"
+                disabled={!exportData || exportData.length === 0}
+              />
               <FilterPresetSelector<OfferteFilterState>
                 presets={presets}
                 defaultPresets={defaultPresets}

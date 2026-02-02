@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { generateSecureToken, getOwnedOfferte, isShareTokenValid } from "./auth";
 import { internal } from "./_generated/api";
+import { checkPublicOfferteRateLimit, validateSignature } from "./security";
 
 // Create or refresh share link for an offerte (with ownership verification)
 export const createShareLink = mutation({
@@ -47,6 +48,12 @@ export const revokeShareLink = mutation({
 export const getByToken = query({
   args: { token: v.string() },
   handler: async (ctx, args) => {
+    // Rate limiting: max 30 requests per minute to prevent brute-force token guessing
+    const rateLimitResult = checkPublicOfferteRateLimit(args.token);
+    if (!rateLimitResult.allowed) {
+      throw new Error(rateLimitResult.message || "Te veel verzoeken. Probeer het later opnieuw.");
+    }
+
     const offerte = await ctx.db
       .query("offertes")
       .withIndex("by_share_token", (q) => q.eq("shareToken", args.token))
@@ -117,6 +124,12 @@ export const getByToken = query({
 export const markAsViewed = mutation({
   args: { token: v.string() },
   handler: async (ctx, args) => {
+    // Rate limiting: prevent abuse
+    const rateLimitResult = checkPublicOfferteRateLimit(args.token);
+    if (!rateLimitResult.allowed) {
+      throw new Error(rateLimitResult.message || "Te veel verzoeken. Probeer het later opnieuw.");
+    }
+
     const offerte = await ctx.db
       .query("offertes")
       .withIndex("by_share_token", (q) => q.eq("shareToken", args.token))
@@ -159,6 +172,12 @@ export const respond = mutation({
     signature: v.optional(v.string()), // Base64 signature image
   },
   handler: async (ctx, args) => {
+    // Rate limiting: prevent brute-force attempts
+    const rateLimitResult = checkPublicOfferteRateLimit(args.token);
+    if (!rateLimitResult.allowed) {
+      throw new Error(rateLimitResult.message || "Te veel verzoeken. Probeer het later opnieuw.");
+    }
+
     const offerte = await ctx.db
       .query("offertes")
       .withIndex("by_share_token", (q) => q.eq("shareToken", args.token))
@@ -180,6 +199,14 @@ export const respond = mutation({
     // Require signature for acceptance
     if (args.status === "geaccepteerd" && !args.signature) {
       throw new Error("Handtekening is verplicht bij accepteren");
+    }
+
+    // Validate signature if provided
+    if (args.signature) {
+      const signatureValidation = validateSignature(args.signature);
+      if (!signatureValidation.valid) {
+        throw new Error(signatureValidation.error || "Ongeldige handtekening");
+      }
     }
 
     const now = Date.now();
@@ -258,6 +285,12 @@ export const submitQuestion = mutation({
     comment: v.string(),
   },
   handler: async (ctx, args) => {
+    // Rate limiting: prevent abuse
+    const rateLimitResult = checkPublicOfferteRateLimit(args.token);
+    if (!rateLimitResult.allowed) {
+      throw new Error(rateLimitResult.message || "Te veel verzoeken. Probeer het later opnieuw.");
+    }
+
     const offerte = await ctx.db
       .query("offertes")
       .withIndex("by_share_token", (q) => q.eq("shareToken", args.token))

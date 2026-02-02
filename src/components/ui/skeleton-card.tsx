@@ -409,6 +409,81 @@ export function ProjectenPageSkeleton() {
   );
 }
 
+// Facturen page skeleton - matches header + stats (3 col) + search + tabs + table layout
+export function FacturenPageSkeleton() {
+  return (
+    <div className="space-y-6" role="status" aria-live="polite" aria-busy="true">
+      <span className="sr-only">Facturen laden...</span>
+      {/* Header skeleton */}
+      <div className="flex items-center justify-between">
+        <div>
+          <Skeleton className="h-8 w-36 mb-2" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+      </div>
+      {/* Stats grid - 3 columns */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="rounded-xl border bg-card p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <Skeleton className="h-8 w-16 mb-1" />
+                <Skeleton className="h-3 w-24" />
+              </div>
+              <Skeleton className="h-10 w-10 rounded-full" />
+            </div>
+          </div>
+        ))}
+      </div>
+      {/* Search skeleton */}
+      <div className="relative w-full sm:max-w-sm">
+        <Skeleton className="h-10 w-full" />
+      </div>
+      {/* Tabs skeleton */}
+      <div className="space-y-6">
+        <div className="flex gap-1 p-1 rounded-lg bg-muted/50 w-fit">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-8 w-20 rounded-md" />
+          ))}
+        </div>
+        {/* Table card skeleton */}
+        <div className="rounded-xl border bg-card overflow-hidden">
+          {/* Table header */}
+          <div className="border-b px-4 py-3">
+            <div className="flex gap-4">
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-4 w-16" />
+            </div>
+          </div>
+          {/* Table rows */}
+          <div className="divide-y">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4 px-4 py-4">
+                <div className="flex items-center gap-3 flex-1">
+                  <Skeleton className="h-8 w-8 rounded-lg" />
+                  <Skeleton className="h-4 w-24" />
+                </div>
+                <div className="flex-1">
+                  <Skeleton className="h-4 w-28 mb-1" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-6 w-20 rounded-full" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Generic loading spinner with message
 export function LoadingSpinner({ message = "Laden..." }: { message?: string }) {
   return (

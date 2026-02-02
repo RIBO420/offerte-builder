@@ -2,12 +2,13 @@
 
 import { useState, useMemo, useCallback, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useReducedMotion } from "@/hooks/use-accessibility";
 import { useDebounce } from "@/hooks/use-debounce";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Pagination } from "@/components/ui/pagination";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +43,10 @@ import {
   type ProjectenFilterState,
 } from "@/hooks/use-filter-presets";
 import { toast } from "sonner";
+import {
+  ExportDropdown,
+  projectenExportColumns,
+} from "@/components/export-dropdown";
 
 // Status configuration - voorcalculatie is now at offerte level
 // Projects start at "gepland" status
@@ -121,9 +126,54 @@ function ProjectenPageLoader() {
 
 function ProjectenPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const reducedMotion = useReducedMotion();
   const { user, isLoading: isUserLoading } = useCurrentUser();
 
+  // Pagination state from URL params
+  const [page, setPage] = useState(() => {
+    const pageParam = searchParams.get("page");
+    return pageParam ? parseInt(pageParam, 10) : 1;
+  });
+  const [limit, setLimit] = useState(() => {
+    const limitParam = searchParams.get("limit");
+    return limitParam ? parseInt(limitParam, 10) : 25;
+  });
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+  const [activeTab, setActiveTab] = useState("alle");
+
+  // Update URL when pagination changes
+  const updateUrl = useCallback((newPage: number, newLimit: number) => {
+    const params = new URLSearchParams(window.location.search);
+    params.set("page", newPage.toString());
+    params.set("limit", newLimit.toString());
+    const newUrl = `${window.location.pathname}?${params.toString()}`;
+    window.history.pushState({}, "", newUrl);
+  }, []);
+
+  const handlePageChange = useCallback((newPage: number) => {
+    setPage(newPage);
+    updateUrl(newPage, limit);
+  }, [limit, updateUrl]);
+
+  const handleLimitChange = useCallback((newLimit: number) => {
+    setLimit(newLimit);
+    setPage(1);
+    updateUrl(1, newLimit);
+  }, [updateUrl]);
+
+  // Status filter for paginated query
+  const statusFilter = activeTab !== "alle" ? activeTab as "gepland" | "in_uitvoering" | "afgerond" | "nacalculatie_compleet" | "gefactureerd" : undefined;
+
+  // Use paginated query
+  const paginatedData = useQuery(
+    api.projecten.listPaginated,
+    user?._id ? { page, limit, status: statusFilter } : "skip"
+  );
+
+  // Also fetch full list for stats and other features (non-paginated)
   const projecten = useQuery(
     api.projecten.list,
     user?._id ? {} : "skip"
@@ -134,9 +184,11 @@ function ProjectenPageContent() {
     user?._id ? { status: "geaccepteerd" } : "skip"
   );
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const debouncedSearchQuery = useDebounce(searchQuery, 300);
-  const [activeTab, setActiveTab] = useState("alle");
+  // Use server-side search for better performance and searching by offerte nummer/klant naam
+  const searchResults = useQuery(
+    api.projecten.search,
+    user?._id && debouncedSearchQuery.trim() ? { searchTerm: debouncedSearchQuery } : "skip"
+  );
 
   // Filter presets
   const {
@@ -147,7 +199,10 @@ function ProjectenPageContent() {
     deletePreset,
   } = useFilterPresets<ProjectenFilterState>("projecten");
 
-  const isLoading = isUserLoading || projecten === undefined;
+  // Export data query
+  const exportData = useQuery(api.export.exportProjecten, user?._id ? {} : "skip");
+
+  const isLoading = isUserLoading || paginatedData === undefined;
 
   // Get offertes without projects
   const offertesZonderProject = useMemo(() => {
@@ -159,21 +214,26 @@ function ProjectenPageContent() {
     );
   }, [geaccepteerdeOffertes, projecten]);
 
-  // Filter projects (use debounced search value)
-  const filteredProjecten = useMemo(() => {
-    if (!projecten) return [];
+  // Get items to display - use search results when searching, otherwise use paginated data
+  const displayedProjecten = useMemo(() => {
+    // Use search results if we have a search query (search is not paginated)
+    if (debouncedSearchQuery.trim() && searchResults) {
+      // Filter by status tab for search results
+      return searchResults.filter((project) => {
+        return activeTab === "alle" || project.status === activeTab;
+      });
+    }
 
-    return projecten.filter((project) => {
-      const matchesSearch =
-        debouncedSearchQuery === "" ||
-        project.naam.toLowerCase().includes(debouncedSearchQuery.toLowerCase());
+    // Otherwise use paginated data (already filtered by status on server)
+    return paginatedData?.items ?? [];
+  }, [paginatedData, searchResults, debouncedSearchQuery, activeTab]);
 
-      const matchesStatus =
-        activeTab === "alle" || project.status === activeTab;
-
-      return matchesSearch && matchesStatus;
-    });
-  }, [projecten, debouncedSearchQuery, activeTab]);
+  // Reset to page 1 when changing tabs (status filter changes)
+  const handleTabChange = useCallback((newTab: string) => {
+    setActiveTab(newTab);
+    setPage(1);
+    updateUrl(1, limit);
+  }, [limit, updateUrl]);
 
   const handleNavigate = useCallback(
     (projectId: string) => {
@@ -251,6 +311,13 @@ function ProjectenPageContent() {
               Calculatie, planning en nacalculatie voor je projecten
             </p>
           </div>
+          <ExportDropdown
+            getData={() => exportData ?? []}
+            columns={projectenExportColumns}
+            filename="projecten"
+            sheetName="Projecten"
+            disabled={!exportData || exportData.length === 0}
+          />
         </motion.div>
 
         {/* Accepted offertes without project */}
@@ -350,7 +417,7 @@ function ProjectenPageContent() {
             <div className="relative w-full sm:flex-1 sm:max-w-sm">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Zoek projecten..."
+                placeholder="Zoeken..."
                 className="pl-8 w-full"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -380,7 +447,7 @@ function ProjectenPageContent() {
         >
           <Tabs
             value={activeTab}
-            onValueChange={setActiveTab}
+            onValueChange={handleTabChange}
             className="space-y-6"
           >
             <TabsList>
@@ -409,7 +476,7 @@ function ProjectenPageContent() {
                   >
                     <ListSkeleton count={5} />
                   </motion.div>
-                ) : filteredProjecten.length > 0 ? (
+                ) : displayedProjecten.length > 0 ? (
                   <motion.div
                     key="content"
                     initial={reducedMotion ? false : { opacity: 0, y: 10 }}
@@ -429,7 +496,7 @@ function ProjectenPageContent() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {filteredProjecten.map((project) => (
+                            {displayedProjecten.map((project) => (
                               <TableRow
                                 key={project._id}
                                 className="cursor-pointer hover:bg-muted/50"
@@ -463,6 +530,17 @@ function ProjectenPageContent() {
                           </TableBody>
                         </Table>
                       </ScrollableTable>
+                      {/* Pagination - only show when not searching */}
+                      {!debouncedSearchQuery.trim() && paginatedData && paginatedData.totalCount > 0 && (
+                        <Pagination
+                          page={page}
+                          totalCount={paginatedData.totalCount}
+                          limit={limit}
+                          onPageChange={handlePageChange}
+                          onLimitChange={handleLimitChange}
+                          className="border-t px-4"
+                        />
+                      )}
                     </Card>
                   </motion.div>
                 ) : searchQuery ? (

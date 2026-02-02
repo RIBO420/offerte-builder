@@ -868,6 +868,152 @@ export const updateBiometricSetting = mutation({
   },
 });
 
+/**
+ * Get full project details for a medewerker (excluding prices).
+ * Medewerkers can only access projects where they are assigned as a teamlid.
+ * Returns all project data except financial fields (prices, costs, margins, etc.)
+ */
+export const getProjectDetailsForMedewerker = query({
+  args: { projectId: v.id("projecten") },
+  handler: async (ctx, args) => {
+    const user = await requireAuth(ctx);
+
+    // Get medewerker record
+    const medewerker = await ctx.db
+      .query("medewerkers")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", user.clerkId))
+      .first();
+
+    if (!medewerker) {
+      throw new Error("Medewerker profiel niet gevonden");
+    }
+
+    // Get the project
+    const project = await ctx.db.get(args.projectId);
+    if (!project) {
+      throw new Error("Project niet gevonden");
+    }
+
+    // Verify project belongs to the medewerker's company
+    if (medewerker.userId.toString() !== project.userId.toString()) {
+      throw new Error("Je hebt geen toegang tot dit project");
+    }
+
+    // Get voorcalculatie to check team membership
+    // First check project-level voorcalculatie
+    let voorcalculatie = await ctx.db
+      .query("voorcalculaties")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .first();
+
+    // If not found, check offerte-level voorcalculatie
+    if (!voorcalculatie) {
+      voorcalculatie = await ctx.db
+        .query("voorcalculaties")
+        .withIndex("by_offerte", (q) => q.eq("offerteId", project.offerteId))
+        .first();
+    }
+
+    // Check if medewerker is in the team
+    const teamleden = voorcalculatie?.teamleden ?? [];
+    const isInTeam = teamleden.includes(medewerker.naam);
+
+    if (!isInTeam) {
+      throw new Error("Je bent niet toegewezen aan dit project");
+    }
+
+    // Get offerte info (klant data only, no prices)
+    const offerte = await ctx.db.get(project.offerteId);
+    const offerteInfo = offerte
+      ? {
+          offerteNummer: offerte.offerteNummer,
+          type: offerte.type,
+          status: offerte.status,
+          klant: {
+            naam: offerte.klant.naam,
+            adres: offerte.klant.adres,
+            postcode: offerte.klant.postcode,
+            plaats: offerte.klant.plaats,
+            telefoon: offerte.klant.telefoon,
+          },
+          algemeenParams: offerte.algemeenParams,
+          scopes: offerte.scopes,
+          notities: offerte.notities,
+        }
+      : null;
+
+    // Get planning taken (tasks)
+    const planningTaken = await ctx.db
+      .query("planningTaken")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+
+    // Sort tasks by volgorde
+    const sortedTaken = planningTaken.sort((a, b) => a.volgorde - b.volgorde);
+
+    // Get uren registraties for this medewerker
+    const allUrenRegistraties = await ctx.db
+      .query("urenRegistraties")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+
+    // Filter to this medewerker's hours
+    const mijnUren = allUrenRegistraties.filter(
+      (u) =>
+        u.medewerker === medewerker.naam ||
+        u.medewerkerClerkId === user.clerkId
+    );
+
+    // Calculate total hours for this medewerker
+    const totaalUren = mijnUren.reduce((sum, u) => sum + u.uren, 0);
+
+    // Voorcalculatie info (excluding any financial data, just scope and team info)
+    const voorcalculatieInfo = voorcalculatie
+      ? {
+          teamGrootte: voorcalculatie.teamGrootte,
+          teamleden: voorcalculatie.teamleden,
+          effectieveUrenPerDag: voorcalculatie.effectieveUrenPerDag,
+          normUrenTotaal: voorcalculatie.normUrenTotaal,
+          geschatteDagen: voorcalculatie.geschatteDagen,
+          normUrenPerScope: voorcalculatie.normUrenPerScope,
+        }
+      : null;
+
+    // Return project details without financial data
+    return {
+      project: {
+        _id: project._id,
+        naam: project.naam,
+        status: project.status,
+        createdAt: project.createdAt,
+        updatedAt: project.updatedAt,
+        isArchived: project.isArchived,
+      },
+      offerte: offerteInfo,
+      voorcalculatie: voorcalculatieInfo,
+      planningTaken: sortedTaken.map((t) => ({
+        _id: t._id,
+        scope: t.scope,
+        taakNaam: t.taakNaam,
+        normUren: t.normUren,
+        geschatteDagen: t.geschatteDagen,
+        volgorde: t.volgorde,
+        status: t.status,
+      })),
+      mijnUrenRegistraties: mijnUren.map((u) => ({
+        _id: u._id,
+        datum: u.datum,
+        uren: u.uren,
+        taakId: u.taakId,
+        scope: u.scope,
+        notities: u.notities,
+        bron: u.bron,
+      })),
+      totaalUren: Math.round(totaalUren * 100) / 100,
+    };
+  },
+});
+
 // ============================================
 // ADMIN USER MANAGEMENT
 // ============================================

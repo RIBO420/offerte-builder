@@ -2,12 +2,14 @@
 
 import { useState, useMemo, useCallback } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useIsAdmin } from "@/hooks/use-users";
 import { useReducedMotion } from "@/hooks/use-accessibility";
+import { Pagination } from "@/components/ui/pagination";
 import {
   Card,
   CardContent,
@@ -62,6 +64,10 @@ import {
   type UrenFilterState,
 } from "@/hooks/use-filter-presets";
 import { toast } from "sonner";
+import {
+  ExportDropdown,
+  urenExportColumns,
+} from "@/components/export-dropdown";
 
 // Animation variants
 const containerVariants = {
@@ -115,9 +121,40 @@ function getDaysAgoStr(days: number): string {
 type DateRangePreset = "week" | "month" | "quarter" | "year" | "all";
 
 export default function UrenPage() {
+  const searchParams = useSearchParams();
   const reducedMotion = useReducedMotion();
   const { user, isLoading: isUserLoading } = useCurrentUser();
   const isAdmin = useIsAdmin();
+
+  // Pagination state
+  const [page, setPage] = useState(() => {
+    const pageParam = searchParams.get("page");
+    return pageParam ? parseInt(pageParam, 10) : 1;
+  });
+  const [limit, setLimit] = useState(() => {
+    const limitParam = searchParams.get("limit");
+    return limitParam ? parseInt(limitParam, 10) : 25;
+  });
+
+  // Update URL when pagination changes
+  const updateUrl = useCallback((newPage: number, newLimit: number) => {
+    const params = new URLSearchParams(window.location.search);
+    params.set("page", newPage.toString());
+    params.set("limit", newLimit.toString());
+    const newUrl = `${window.location.pathname}?${params.toString()}`;
+    window.history.pushState({}, "", newUrl);
+  }, []);
+
+  const handlePageChange = useCallback((newPage: number) => {
+    setPage(newPage);
+    updateUrl(newPage, limit);
+  }, [limit, updateUrl]);
+
+  const handleLimitChange = useCallback((newLimit: number) => {
+    setLimit(newLimit);
+    setPage(1);
+    updateUrl(1, newLimit);
+  }, [updateUrl]);
 
   // State
   const [searchTerm, setSearchTerm] = useState("");
@@ -171,6 +208,12 @@ export default function UrenPage() {
     user?._id ? {} : "skip"
   );
 
+  // Export query (admin only)
+  const exportData = useQuery(
+    api.export.exportUren,
+    user?._id && isAdmin ? {} : "skip"
+  );
+
   const isLoading = isUserLoading || urenData === undefined || statsData === undefined;
 
   // Get unique medewerkers and projects for filters
@@ -217,6 +260,14 @@ export default function UrenPage() {
   const sortedEntries = useMemo(() => {
     return [...filteredEntries].sort((a, b) => b.datum.localeCompare(a.datum));
   }, [filteredEntries]);
+
+  // Paginate the sorted entries
+  const totalCount = sortedEntries.length;
+  const totalPages = Math.ceil(totalCount / limit);
+  const paginatedEntries = useMemo(() => {
+    const startIndex = (page - 1) * limit;
+    return sortedEntries.slice(startIndex, startIndex + limit);
+  }, [sortedEntries, page, limit]);
 
   // Calculate filtered totals
   const filteredTotals = useMemo(() => {
@@ -350,6 +401,15 @@ export default function UrenPage() {
                 : "Bekijk je geregistreerde uren"}
             </p>
           </div>
+          {isAdmin && (
+            <ExportDropdown
+              getData={() => exportData ?? []}
+              columns={urenExportColumns}
+              filename="uren-registraties"
+              sheetName="Uren"
+              disabled={!exportData || exportData.length === 0}
+            />
+          )}
         </motion.div>
 
         {/* Stats Cards */}
@@ -624,6 +684,7 @@ export default function UrenPage() {
                   )}
                 </div>
               ) : (
+                <>
                 <ScrollableTable>
                   <Table>
                     <TableHeader>
@@ -638,7 +699,7 @@ export default function UrenPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {sortedEntries.slice(0, 100).map((entry) => (
+                      {paginatedEntries.map((entry) => (
                         <TableRow key={entry._id}>
                           <TableCell className="font-medium">
                             {formatDate(entry.datum)}
@@ -685,11 +746,18 @@ export default function UrenPage() {
                     </TableBody>
                   </Table>
                 </ScrollableTable>
-              )}
-              {sortedEntries.length > 100 && (
-                <div className="text-center text-sm text-muted-foreground mt-4">
-                  Toont de eerste 100 van {sortedEntries.length} registraties
-                </div>
+                {/* Pagination */}
+                {totalCount > 0 && (
+                  <Pagination
+                    page={page}
+                    totalCount={totalCount}
+                    limit={limit}
+                    onPageChange={handlePageChange}
+                    onLimitChange={handleLimitChange}
+                    className="border-t mt-4"
+                  />
+                )}
+                </>
               )}
             </CardContent>
           </Card>

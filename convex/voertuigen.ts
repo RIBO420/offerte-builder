@@ -2,6 +2,55 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
 
+/**
+ * Search voertuigen by kenteken, merk, model, or type.
+ */
+export const search = query({
+  args: { searchTerm: v.string() },
+  handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+    const searchTerm = args.searchTerm.toLowerCase().trim();
+
+    // Get all voertuigen for the user
+    const voertuigen = await ctx.db
+      .query("voertuigen")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    // If no search term, return recent voertuigen
+    if (!searchTerm) {
+      return voertuigen.slice(0, 10);
+    }
+
+    // Filter voertuigen by search term
+    const matchingVoertuigen = voertuigen.filter((voertuig) => {
+      // Search by kenteken
+      if (voertuig.kenteken.toLowerCase().includes(searchTerm)) {
+        return true;
+      }
+
+      // Search by merk
+      if (voertuig.merk.toLowerCase().includes(searchTerm)) {
+        return true;
+      }
+
+      // Search by model
+      if (voertuig.model.toLowerCase().includes(searchTerm)) {
+        return true;
+      }
+
+      // Search by type
+      if (voertuig.type.toLowerCase().includes(searchTerm)) {
+        return true;
+      }
+
+      return false;
+    });
+
+    return matchingVoertuigen.slice(0, 20);
+  },
+});
+
 // Haal alle voertuigen op voor de ingelogde gebruiker
 // Optionele filter op status
 export const list = query({
@@ -32,6 +81,54 @@ export const list = query({
       .query("voertuigen")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
+  },
+});
+
+/**
+ * List voertuigen with pagination.
+ * Returns paginated results with total count for pagination UI.
+ */
+export const listPaginated = query({
+  args: {
+    page: v.number(),
+    limit: v.number(),
+    status: v.optional(
+      v.union(
+        v.literal("actief"),
+        v.literal("inactief"),
+        v.literal("onderhoud")
+      )
+    ),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+
+    // Get all voertuigen
+    let allVoertuigen = await ctx.db
+      .query("voertuigen")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    // Filter by status if provided
+    if (args.status) {
+      allVoertuigen = allVoertuigen.filter((v) => v.status === args.status);
+    }
+
+    const totalCount = allVoertuigen.length;
+    const totalPages = Math.ceil(totalCount / args.limit);
+
+    // Calculate pagination slice
+    const startIndex = (args.page - 1) * args.limit;
+    const endIndex = startIndex + args.limit;
+    const items = allVoertuigen.slice(startIndex, endIndex);
+
+    return {
+      items,
+      totalCount,
+      totalPages,
+      page: args.page,
+      limit: args.limit,
+    };
   },
 });
 

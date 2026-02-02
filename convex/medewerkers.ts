@@ -145,6 +145,65 @@ async function requireAdmin(ctx: QueryCtx | MutationCtx): Promise<{
 // ============================================
 
 /**
+ * Search medewerkers by naam, email, or functie.
+ * - Admin: searches all medewerkers they own
+ * - Medewerker: can only see their own profile if it matches
+ */
+export const search = query({
+  args: { searchTerm: v.string() },
+  handler: async (ctx, args) => {
+    const { role, linkedMedewerker, companyUserId } = await getUserRole(ctx);
+
+    if (!role || !companyUserId) {
+      return [];
+    }
+
+    const searchTerm = args.searchTerm.toLowerCase().trim();
+
+    // Medewerker role: can only see their own profile if it matches
+    if (role === "medewerker" && linkedMedewerker) {
+      if (!searchTerm) {
+        return [linkedMedewerker];
+      }
+
+      const matches =
+        linkedMedewerker.naam.toLowerCase().includes(searchTerm) ||
+        linkedMedewerker.email?.toLowerCase().includes(searchTerm) ||
+        linkedMedewerker.functie?.toLowerCase().includes(searchTerm);
+
+      return matches ? [linkedMedewerker] : [];
+    }
+
+    // Admin role: search all medewerkers they own
+    const medewerkers = await ctx.db
+      .query("medewerkers")
+      .withIndex("by_user", (q) => q.eq("userId", companyUserId))
+      .collect();
+
+    // If no search term, return recent medewerkers
+    if (!searchTerm) {
+      return medewerkers.slice(0, 10);
+    }
+
+    // Filter by search term
+    const matchingMedewerkers = medewerkers.filter((m) => {
+      if (m.naam.toLowerCase().includes(searchTerm)) {
+        return true;
+      }
+      if (m.email?.toLowerCase().includes(searchTerm)) {
+        return true;
+      }
+      if (m.functie?.toLowerCase().includes(searchTerm)) {
+        return true;
+      }
+      return false;
+    });
+
+    return matchingMedewerkers.slice(0, 20);
+  },
+});
+
+/**
  * Get the linked medewerker profile for the current user.
  * This is for medewerkers to view their own profile.
  */
@@ -161,6 +220,82 @@ export const getMyMedewerkerProfile = query({
       .first();
 
     return medewerker;
+  },
+});
+
+/**
+ * Haal medewerkers op met paginering.
+ * - Admin: sees all medewerkers they own (paginated)
+ * - Medewerker: sees only their own linked profile
+ */
+export const listPaginated = query({
+  args: {
+    page: v.number(),
+    limit: v.number(),
+    isActief: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const { role, linkedMedewerker, companyUserId } = await getUserRole(ctx);
+
+    if (!role || !companyUserId) {
+      return {
+        items: [],
+        totalCount: 0,
+        totalPages: 0,
+        page: args.page,
+        limit: args.limit,
+      };
+    }
+
+    // Medewerker role: can only see their own profile
+    if (role === "medewerker" && linkedMedewerker) {
+      // If filtering by isActief and medewerker doesn't match, return empty
+      if (args.isActief !== undefined && linkedMedewerker.isActief !== args.isActief) {
+        return {
+          items: [],
+          totalCount: 0,
+          totalPages: 0,
+          page: args.page,
+          limit: args.limit,
+        };
+      }
+      return {
+        items: [linkedMedewerker],
+        totalCount: 1,
+        totalPages: 1,
+        page: 1,
+        limit: args.limit,
+      };
+    }
+
+    // Admin role: get all medewerkers they own
+    let allMedewerkers;
+    if (args.isActief !== undefined) {
+      allMedewerkers = await ctx.db
+        .query("medewerkers")
+        .withIndex("by_user_actief", (q) =>
+          q.eq("userId", companyUserId).eq("isActief", args.isActief!)
+        )
+        .collect();
+    } else {
+      allMedewerkers = await ctx.db
+        .query("medewerkers")
+        .withIndex("by_user", (q) => q.eq("userId", companyUserId))
+        .collect();
+    }
+
+    const totalCount = allMedewerkers.length;
+    const totalPages = Math.ceil(totalCount / args.limit);
+    const startIndex = (args.page - 1) * args.limit;
+    const items = allMedewerkers.slice(startIndex, startIndex + args.limit);
+
+    return {
+      items,
+      totalCount,
+      totalPages,
+      page: args.page,
+      limit: args.limit,
+    };
   },
 });
 

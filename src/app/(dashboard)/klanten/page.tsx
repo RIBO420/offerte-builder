@@ -56,6 +56,13 @@ import {
 import { toast } from "sonner";
 import { useKlanten, useKlantenSearch } from "@/hooks/use-klanten";
 import { Id } from "../../../../convex/_generated/dataModel";
+import { useQuery } from "convex/react";
+import { api } from "../../../../convex/_generated/api";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import {
+  ExportDropdown,
+  klantenExportColumns,
+} from "@/components/export-dropdown";
 
 type Klant = {
   _id: Id<"klanten">;
@@ -71,10 +78,14 @@ type Klant = {
 };
 
 function KlantenPageContent() {
+  const { user } = useCurrentUser();
   const { klanten, isLoading, create, update, remove } = useKlanten();
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const { results: searchResults } = useKlantenSearch(debouncedSearchTerm);
+
+  // Export data query
+  const exportData = useQuery(api.export.exportKlanten, user?._id ? {} : "skip");
 
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -452,13 +463,21 @@ function KlantenPageContent() {
             </p>
           </div>
 
-          <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-            <DialogTrigger asChild>
-              <Button onClick={() => resetForm()}>
-                <Plus className="mr-2 h-4 w-4" />
-                Nieuwe Klant
-              </Button>
-            </DialogTrigger>
+          <div className="flex items-center gap-2">
+            <ExportDropdown
+              getData={() => exportData ?? []}
+              columns={klantenExportColumns}
+              filename="klanten"
+              sheetName="Klanten"
+              disabled={!exportData || exportData.length === 0}
+            />
+            <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+              <DialogTrigger asChild>
+                <Button onClick={() => resetForm()}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Nieuwe Klant
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-lg">
               <DialogHeader>
                 <DialogTitle>Nieuwe Klant</DialogTitle>
@@ -482,7 +501,8 @@ function KlantenPageContent() {
                 </Button>
               </DialogFooter>
             </DialogContent>
-          </Dialog>
+            </Dialog>
+          </div>
         </div>
 
         <Card>

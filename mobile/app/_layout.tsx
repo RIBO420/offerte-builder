@@ -66,7 +66,8 @@ function InnerLayout() {
             <Stack.Screen name="index" />
             <Stack.Screen name="(auth)" options={{ headerShown: false }} />
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="admin" options={{ headerShown: false, presentation: 'modal' }} />
+            <Stack.Screen name="admin/index" options={{ headerShown: false, presentation: 'modal' }} />
+            <Stack.Screen name="project/[id]" options={{ headerShown: false }} />
           </Stack>
         </PushNotificationsInitializer>
       </RoleProvider>

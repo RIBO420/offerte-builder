@@ -1,11 +1,12 @@
 import React, { ReactNode } from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, ViewStyle } from 'react-native';
 import { cn } from '@/lib/utils';
 
 interface CardProps {
   children: ReactNode;
   className?: string;
-  variant?: 'default' | 'subtle' | 'ghost' | 'elevated';
+  variant?: 'default' | 'subtle' | 'ghost' | 'elevated' | 'glass';
+  style?: ViewStyle;
 }
 
 interface CardHeaderProps {
@@ -35,18 +36,30 @@ interface CardFooterProps {
 
 /**
  * Card - Main container component
- * Variants match web design: default, subtle, ghost, elevated
+ * Variants: default, subtle, ghost, elevated, glass (glassmorphism)
  */
-export function Card({ children, className, variant = 'default' }: CardProps) {
+export function Card({ children, className, variant = 'default', style }: CardProps) {
   const variantClasses = {
-    default: 'bg-card border border-border shadow-sm',
+    default: 'bg-card border border-border',
     subtle: 'bg-muted/30',
     ghost: 'bg-transparent',
-    elevated: 'bg-card border border-primary/20 shadow-lg',
+    elevated: 'bg-card border border-primary/20',
+    glass: 'border border-white/10',
   };
 
+  const glassStyle: ViewStyle = variant === 'glass' ? {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+  } : {};
+
   return (
-    <View className={cn('rounded-xl gap-4 py-4', variantClasses[variant], className)}>
+    <View
+      className={cn('rounded-2xl p-4', variantClasses[variant], className)}
+      style={[glassStyle, style]}
+    >
       {children}
     </View>
   );
@@ -54,11 +67,10 @@ export function Card({ children, className, variant = 'default' }: CardProps) {
 
 /**
  * CardHeader - Container for title and description
- * Provides consistent spacing at the top of the card
  */
 export function CardHeader({ children, className }: CardHeaderProps) {
   return (
-    <View className={cn('gap-2 px-4', className)}>
+    <View className={cn('gap-1 mb-3', className)}>
       {children}
     </View>
   );
@@ -66,11 +78,10 @@ export function CardHeader({ children, className }: CardHeaderProps) {
 
 /**
  * CardTitle - Main heading text for the card
- * Uses semibold font weight matching web design
  */
 export function CardTitle({ children, className }: CardTitleProps) {
   return (
-    <Text className={cn('text-lg font-semibold text-foreground', className)}>
+    <Text className={cn('text-base font-semibold text-foreground', className)}>
       {children}
     </Text>
   );
@@ -78,7 +89,6 @@ export function CardTitle({ children, className }: CardTitleProps) {
 
 /**
  * CardDescription - Secondary descriptive text
- * Muted foreground color, smaller font size
  */
 export function CardDescription({ children, className }: CardDescriptionProps) {
   return (
@@ -90,11 +100,10 @@ export function CardDescription({ children, className }: CardDescriptionProps) {
 
 /**
  * CardContent - Main content area of the card
- * Provides horizontal padding matching header/footer
  */
 export function CardContent({ children, className }: CardContentProps) {
   return (
-    <View className={cn('px-4', className)}>
+    <View className={cn('', className)}>
       {children}
     </View>
   );
@@ -102,11 +111,10 @@ export function CardContent({ children, className }: CardContentProps) {
 
 /**
  * CardFooter - Bottom section of the card
- * Flex row layout for action buttons or additional info
  */
 export function CardFooter({ children, className }: CardFooterProps) {
   return (
-    <View className={cn('flex-row items-center px-4', className)}>
+    <View className={cn('flex-row items-center mt-3', className)}>
       {children}
     </View>
   );

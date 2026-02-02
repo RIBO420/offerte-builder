@@ -2,11 +2,24 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { render } from "@react-email/components";
 import { OfferteEmail } from "@/components/email/offerte-email";
+import {
+  emailRateLimiter,
+  getRequestIdentifier,
+  createRateLimitResponse,
+} from "@/lib/rate-limiter";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting: max 10 emails per minute per user/IP
+    const identifier = getRequestIdentifier(request);
+    const rateLimitInfo = emailRateLimiter.check(identifier);
+
+    if (!rateLimitInfo.allowed) {
+      return createRateLimitResponse(emailRateLimiter, rateLimitInfo);
+    }
+
     const body = await request.json();
 
     const {
@@ -72,12 +85,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      resendId: data?.id,
-      status: "verzonden",
-      subject,
-    });
+    // Include rate limit headers in successful response
+    const rateLimitHeaders = emailRateLimiter.getHeaders(rateLimitInfo);
+    return NextResponse.json(
+      {
+        success: true,
+        resendId: data?.id,
+        status: "verzonden",
+        subject,
+      },
+      {
+        headers: rateLimitHeaders,
+      }
+    );
   } catch {
     return NextResponse.json(
       { error: "Fout bij verzenden email", status: "mislukt" },

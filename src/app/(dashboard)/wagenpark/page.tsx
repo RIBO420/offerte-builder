@@ -2,9 +2,10 @@
 
 import { useState, useCallback, useMemo, Suspense } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { useTabState } from "@/hooks/use-tab-state";
+import { Pagination } from "@/components/ui/pagination";
 import {
   Card,
   CardContent,
@@ -156,11 +157,42 @@ type VoertuigRow = {
 
 function WagenparkPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { voertuigen, isLoading, update, hardDelete } = useVoertuigen();
   const { count: upcomingOnderhoudCount } = useUpcomingOnderhoud();
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [activeTab, setActiveTab] = useTabState("alle");
+
+  // Pagination state
+  const [page, setPage] = useState(() => {
+    const pageParam = searchParams.get("page");
+    return pageParam ? parseInt(pageParam, 10) : 1;
+  });
+  const [limit, setLimit] = useState(() => {
+    const limitParam = searchParams.get("limit");
+    return limitParam ? parseInt(limitParam, 10) : 25;
+  });
+
+  // Update URL when pagination changes
+  const updateUrl = useCallback((newPage: number, newLimit: number) => {
+    const params = new URLSearchParams(window.location.search);
+    params.set("page", newPage.toString());
+    params.set("limit", newLimit.toString());
+    const newUrl = `${window.location.pathname}?${params.toString()}`;
+    window.history.pushState({}, "", newUrl);
+  }, []);
+
+  const handlePageChange = useCallback((newPage: number) => {
+    setPage(newPage);
+    updateUrl(newPage, limit);
+  }, [limit, updateUrl]);
+
+  const handleLimitChange = useCallback((newLimit: number) => {
+    setLimit(newLimit);
+    setPage(1);
+    updateUrl(1, newLimit);
+  }, [updateUrl]);
 
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -170,7 +202,7 @@ function WagenparkPageContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Filter voertuigen based on search and status tab
-  const displayedVoertuigen = useMemo(() => {
+  const filteredVoertuigen = useMemo(() => {
     let filtered = voertuigen as VoertuigRow[];
 
     // Filter by status tab
@@ -193,8 +225,23 @@ function WagenparkPageContent() {
     return filtered;
   }, [voertuigen, debouncedSearchTerm, activeTab]);
 
-  // Stats
-  const totalCount = voertuigen.length;
+  // Paginate the filtered results
+  const totalCount = filteredVoertuigen.length;
+  const totalPages = Math.ceil(totalCount / limit);
+  const displayedVoertuigen = useMemo(() => {
+    const startIndex = (page - 1) * limit;
+    return filteredVoertuigen.slice(startIndex, startIndex + limit);
+  }, [filteredVoertuigen, page, limit]);
+
+  // Reset to page 1 when filter changes
+  const handleTabChange = useCallback((newTab: string) => {
+    setActiveTab(newTab);
+    setPage(1);
+    updateUrl(1, limit);
+  }, [setActiveTab, limit, updateUrl]);
+
+  // Stats (use full list, not filtered results)
+  const totalVoertuigenCount = voertuigen.length;
   const activeCount = voertuigen.filter((v) => v.status === "actief").length;
   const maintenanceCount = voertuigen.filter((v) => v.status === "onderhoud").length;
   const inactiveCount = voertuigen.filter((v) => v.status === "inactief").length;
@@ -523,7 +570,7 @@ function WagenparkPageContent() {
               <Car className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalCount}</div>
+              <div className="text-2xl font-bold">{totalVoertuigenCount}</div>
               <p className="text-xs text-muted-foreground">voertuigen</p>
             </CardContent>
           </Card>
@@ -612,12 +659,12 @@ function WagenparkPageContent() {
           <CardContent>
             <Tabs
               value={activeTab}
-              onValueChange={setActiveTab}
+              onValueChange={handleTabChange}
               className="mb-4"
             >
               <TabsList>
                 <TabsTrigger value="alle">
-                  Alle ({totalCount})
+                  Alle ({totalVoertuigenCount})
                 </TabsTrigger>
                 <TabsTrigger value="actief">
                   Actief ({activeCount})
@@ -659,18 +706,31 @@ function WagenparkPageContent() {
                 )}
               </div>
             ) : (
-              <ResponsiveTable
-                data={displayedVoertuigen}
-                columns={columns}
-                keyExtractor={(voertuig) => voertuig._id}
-                onRowClick={handleViewDetails}
-                emptyMessage={
-                  searchTerm
-                    ? `Geen resultaten voor "${searchTerm}"`
-                    : "Voeg je eerste voertuig toe om te beginnen."
-                }
-                mobileBreakpoint="md"
-              />
+              <>
+                <ResponsiveTable
+                  data={displayedVoertuigen}
+                  columns={columns}
+                  keyExtractor={(voertuig) => voertuig._id}
+                  onRowClick={handleViewDetails}
+                  emptyMessage={
+                    searchTerm
+                      ? `Geen resultaten voor "${searchTerm}"`
+                      : "Voeg je eerste voertuig toe om te beginnen."
+                  }
+                  mobileBreakpoint="md"
+                />
+                {/* Pagination */}
+                {totalCount > 0 && (
+                  <Pagination
+                    page={page}
+                    totalCount={totalCount}
+                    limit={limit}
+                    onPageChange={handlePageChange}
+                    onLimitChange={handleLimitChange}
+                    className="border-t mt-4"
+                  />
+                )}
+              </>
             )}
           </CardContent>
         </Card>

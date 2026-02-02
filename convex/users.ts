@@ -1379,3 +1379,447 @@ export const cliSetUserRole = mutation({
     };
   },
 });
+
+// ============================================
+// GDPR COMPLIANCE (Article 15 & 17)
+// ============================================
+
+/**
+ * Export all personal data for the authenticated user (GDPR Article 15 - Right of access)
+ *
+ * This query collects ALL user data across the system:
+ * - User profile (name, email, role)
+ * - All offertes created by user
+ * - All klanten
+ * - All projecten
+ * - All facturen
+ * - All urenregistraties
+ * - All medewerkers (if admin)
+ * - Activity logs if any
+ */
+export const exportPersonalData = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await requireAuth(ctx);
+    const userId = user._id;
+
+    // 1. User profile data
+    const userProfile = {
+      id: user._id,
+      clerkId: user.clerkId,
+      email: user.email,
+      name: user.name,
+      bedrijfsnaam: user.bedrijfsnaam,
+      role: user.role,
+      linkedMedewerkerId: user.linkedMedewerkerId,
+      createdAt: user.createdAt,
+    };
+
+    // 2. Instellingen (settings)
+    const instellingen = await ctx.db
+      .query("instellingen")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique();
+
+    // 3. Klanten (customers)
+    const klanten = await ctx.db
+      .query("klanten")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    // 4. Offertes (quotes)
+    const offertes = await ctx.db
+      .query("offertes")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    // 5. Projecten (projects)
+    const projecten = await ctx.db
+      .query("projecten")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    // 6. Facturen (invoices) - linked to projects
+    const projectIds = projecten.map((p) => p._id);
+    const allFacturen = await ctx.db.query("facturen").collect();
+    const facturen = allFacturen.filter((f) => projectIds.includes(f.projectId));
+
+    // 7. UrenRegistraties (time registrations) - linked to projects
+    const allUrenRegistraties = await ctx.db.query("urenRegistraties").collect();
+    const urenRegistraties = allUrenRegistraties.filter((u) =>
+      projectIds.includes(u.projectId)
+    );
+
+    // 8. Voorcalculaties
+    const allVoorcalculaties = await ctx.db.query("voorcalculaties").collect();
+    const voorcalculaties = allVoorcalculaties.filter(
+      (v) =>
+        (v.projectId && projectIds.includes(v.projectId)) ||
+        (v.offerteId && offertes.some((o) => o._id === v.offerteId))
+    );
+
+    // 9. Nacalculaties
+    const allNacalculaties = await ctx.db.query("nacalculaties").collect();
+    const nacalculaties = allNacalculaties.filter((n) =>
+      projectIds.includes(n.projectId)
+    );
+
+    // 10. Producten (products/price book)
+    const producten = await ctx.db
+      .query("producten")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    // 11. Normuren (standard hours)
+    const normuren = await ctx.db
+      .query("normuren")
+      .withIndex("by_user_scope", (q) => q.eq("userId", userId))
+      .collect();
+
+    // 12. Machines
+    const machines = await ctx.db
+      .query("machines")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    // 13. Medewerkers (employees) - only for admin users
+    const medewerkers = user.role === "admin"
+      ? await ctx.db
+          .query("medewerkers")
+          .withIndex("by_user", (q) => q.eq("userId", userId))
+          .collect()
+      : [];
+
+    // 14. Voertuigen (vehicles)
+    const voertuigen = await ctx.db
+      .query("voertuigen")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    // 15. Email logs
+    const emailLogs = await ctx.db
+      .query("email_logs")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    // 16. Offerte versions (audit trail)
+    const offerteIds = offertes.map((o) => o._id);
+    const allOfferteVersions = await ctx.db.query("offerte_versions").collect();
+    const offerteVersions = allOfferteVersions.filter((v) =>
+      offerteIds.includes(v.offerteId)
+    );
+
+    // 17. Leerfeedback historie (learning feedback history)
+    const leerfeedbackHistorie = await ctx.db
+      .query("leerfeedback_historie")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    // 18. Teams
+    const teams = await ctx.db
+      .query("teams")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    // 19. Location data (if applicable)
+    const locationSessions = await ctx.db
+      .query("locationSessions")
+      .withIndex("by_user_active", (q) => q.eq("userId", userId))
+      .collect();
+
+    const locationAuditLog = await ctx.db
+      .query("locationAuditLog")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    // 20. Notifications
+    const notifications = await ctx.db
+      .query("notifications")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    // 21. Notification preferences
+    const notificationPreferences = await ctx.db
+      .query("notification_preferences")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .first();
+
+    // 22. Push tokens
+    const pushTokens = await ctx.db
+      .query("pushTokens")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    return {
+      exportedAt: Date.now(),
+      exportVersion: "1.0",
+      gdprArticle: "Article 15 - Right of access",
+      user: userProfile,
+      instellingen: instellingen
+        ? {
+            uurtarief: instellingen.uurtarief,
+            standaardMargePercentage: instellingen.standaardMargePercentage,
+            btwPercentage: instellingen.btwPercentage,
+            bedrijfsgegevens: instellingen.bedrijfsgegevens,
+            offerteNummerPrefix: instellingen.offerteNummerPrefix,
+            laatsteOfferteNummer: instellingen.laatsteOfferteNummer,
+          }
+        : null,
+      klanten: klanten.map((k) => ({
+        id: k._id,
+        naam: k.naam,
+        adres: k.adres,
+        postcode: k.postcode,
+        plaats: k.plaats,
+        email: k.email,
+        telefoon: k.telefoon,
+        notities: k.notities,
+        createdAt: k.createdAt,
+        updatedAt: k.updatedAt,
+      })),
+      offertes: offertes.map((o) => ({
+        id: o._id,
+        offerteNummer: o.offerteNummer,
+        type: o.type,
+        status: o.status,
+        klant: o.klant,
+        totalen: o.totalen,
+        regels: o.regels,
+        notities: o.notities,
+        createdAt: o.createdAt,
+        updatedAt: o.updatedAt,
+        verzondenAt: o.verzondenAt,
+        customerResponse: o.customerResponse,
+        isArchived: o.isArchived,
+      })),
+      projecten: projecten.map((p) => ({
+        id: p._id,
+        naam: p.naam,
+        status: p.status,
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+        isArchived: p.isArchived,
+      })),
+      facturen: facturen.map((f) => ({
+        id: f._id,
+        factuurnummer: f.factuurnummer,
+        status: f.status,
+        klant: f.klant,
+        bedrijf: f.bedrijf,
+        regels: f.regels,
+        subtotaal: f.subtotaal,
+        btwBedrag: f.btwBedrag,
+        totaalInclBtw: f.totaalInclBtw,
+        factuurdatum: f.factuurdatum,
+        vervaldatum: f.vervaldatum,
+        createdAt: f.createdAt,
+      })),
+      urenRegistraties: urenRegistraties.map((u) => ({
+        id: u._id,
+        datum: u.datum,
+        medewerker: u.medewerker,
+        uren: u.uren,
+        scope: u.scope,
+        notities: u.notities,
+        bron: u.bron,
+      })),
+      voorcalculaties: voorcalculaties.map((v) => ({
+        id: v._id,
+        teamGrootte: v.teamGrootte,
+        effectieveUrenPerDag: v.effectieveUrenPerDag,
+        normUrenTotaal: v.normUrenTotaal,
+        geschatteDagen: v.geschatteDagen,
+        createdAt: v.createdAt,
+      })),
+      nacalculaties: nacalculaties.map((n) => ({
+        id: n._id,
+        werkelijkeUren: n.werkelijkeUren,
+        werkelijkeDagen: n.werkelijkeDagen,
+        afwijkingPercentage: n.afwijkingPercentage,
+        conclusies: n.conclusies,
+        createdAt: n.createdAt,
+      })),
+      producten: producten.map((p) => ({
+        id: p._id,
+        productnaam: p.productnaam,
+        categorie: p.categorie,
+        inkoopprijs: p.inkoopprijs,
+        verkoopprijs: p.verkoopprijs,
+        eenheid: p.eenheid,
+        leverancier: p.leverancier,
+        isActief: p.isActief,
+      })),
+      normuren: normuren.map((n) => ({
+        id: n._id,
+        activiteit: n.activiteit,
+        scope: n.scope,
+        normuurPerEenheid: n.normuurPerEenheid,
+        eenheid: n.eenheid,
+      })),
+      machines: machines.map((m) => ({
+        id: m._id,
+        naam: m.naam,
+        type: m.type,
+        tarief: m.tarief,
+        tariefType: m.tariefType,
+        isActief: m.isActief,
+      })),
+      medewerkers:
+        user.role === "admin"
+          ? medewerkers.map((m) => ({
+              id: m._id,
+              naam: m.naam,
+              email: m.email,
+              telefoon: m.telefoon,
+              functie: m.functie,
+              isActief: m.isActief,
+              createdAt: m.createdAt,
+            }))
+          : [],
+      voertuigen: voertuigen.map((v) => ({
+        id: v._id,
+        kenteken: v.kenteken,
+        merk: v.merk,
+        model: v.model,
+        type: v.type,
+        status: v.status,
+      })),
+      emailLogs: emailLogs.map((e) => ({
+        id: e._id,
+        type: e.type,
+        to: e.to,
+        subject: e.subject,
+        status: e.status,
+        createdAt: e.createdAt,
+      })),
+      offerteVersions: offerteVersions.map((v) => ({
+        id: v._id,
+        versieNummer: v.versieNummer,
+        actie: v.actie,
+        omschrijving: v.omschrijving,
+        createdAt: v.createdAt,
+      })),
+      leerfeedbackHistorie: leerfeedbackHistorie.map((l) => ({
+        id: l._id,
+        scope: l.scope,
+        activiteit: l.activiteit,
+        oudeWaarde: l.oudeWaarde,
+        nieuweWaarde: l.nieuweWaarde,
+        reden: l.reden,
+        createdAt: l.createdAt,
+      })),
+      teams: teams.map((t) => ({
+        id: t._id,
+        naam: t.naam,
+        beschrijving: t.beschrijving,
+        isActief: t.isActief,
+        createdAt: t.createdAt,
+      })),
+      locationSessions: locationSessions.map((l) => ({
+        id: l._id,
+        status: l.status,
+        clockInAt: l.clockInAt,
+        clockOutAt: l.clockOutAt,
+        privacyLevel: l.privacyLevel,
+      })),
+      locationAuditLog: locationAuditLog.map((l) => ({
+        id: l._id,
+        action: l.action,
+        details: l.details,
+        createdAt: l.createdAt,
+      })),
+      notifications: notifications.map((n) => ({
+        id: n._id,
+        type: n.type,
+        title: n.title,
+        message: n.message,
+        isRead: n.isRead,
+        createdAt: n.createdAt,
+      })),
+      notificationPreferences: notificationPreferences
+        ? {
+            enablePushNotifications: notificationPreferences.enablePushNotifications,
+            notifyOnTeamChat: notificationPreferences.notifyOnTeamChat,
+            notifyOnDirectMessage: notificationPreferences.notifyOnDirectMessage,
+            respectQuietHours: notificationPreferences.respectQuietHours,
+          }
+        : null,
+      pushTokens: pushTokens.map((p) => ({
+        id: p._id,
+        platform: p.platform,
+        isActive: p.isActive,
+        createdAt: p.createdAt,
+      })),
+      _meta: {
+        totalKlanten: klanten.length,
+        totalOffertes: offertes.length,
+        totalProjecten: projecten.length,
+        totalFacturen: facturen.length,
+        totalUrenRegistraties: urenRegistraties.length,
+        totalProducten: producten.length,
+        totalMedewerkers: user.role === "admin" ? medewerkers.length : 0,
+      },
+    };
+  },
+});
+
+/**
+ * Request data deletion (GDPR Article 17 - Right to erasure)
+ *
+ * This creates a deletion request record and notifies the admin.
+ * Actual data deletion should be handled manually by an admin to ensure
+ * compliance with data retention requirements and proper data cleanup.
+ */
+export const requestDataDeletion = mutation({
+  args: {
+    reason: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireAuth(ctx);
+
+    // Get all admin users to notify
+    const adminUsers = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("role"), "admin"))
+      .collect();
+
+    // Create a notification for each admin
+    const now = Date.now();
+    for (const admin of adminUsers) {
+      await ctx.db.insert("notifications", {
+        userId: admin._id,
+        type: "system_reminder",
+        title: "GDPR Verwijderingsverzoek",
+        message: `Gebruiker ${user.name} (${user.email}) heeft een verzoek ingediend om alle persoonlijke gegevens te verwijderen.${args.reason ? ` Reden: ${args.reason}` : ""}`,
+        isRead: false,
+        isDismissed: false,
+        triggeredBy: user.clerkId,
+        metadata: {
+          gdprType: "deletion_request",
+          requestedBy: user._id,
+          requestedByEmail: user.email,
+          requestedByName: user.name,
+          reason: args.reason,
+          requestedAt: now,
+        },
+        createdAt: now,
+      });
+    }
+
+    // Log this action in the location audit log for GDPR compliance
+    await ctx.db.insert("locationAuditLog", {
+      userId: user._id,
+      action: "data_deleted",
+      details: `Data deletion requested. Reason: ${args.reason || "Not specified"}`,
+      createdAt: now,
+    });
+
+    return {
+      success: true,
+      message:
+        "Je verzoek tot verwijdering is ontvangen. De beheerder wordt op de hoogte gesteld en zal contact met je opnemen.",
+      requestedAt: now,
+      adminNotified: adminUsers.length > 0,
+    };
+  },
+});

@@ -208,6 +208,61 @@ export const generate = mutation({
 });
 
 /**
+ * Search facturen by factuurNummer, klant naam, or project naam.
+ */
+export const search = query({
+  args: { searchTerm: v.string() },
+  handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+    const searchTerm = args.searchTerm.toLowerCase().trim();
+
+    // Get all facturen for the user
+    const facturen = await ctx.db
+      .query("facturen")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .order("desc")
+      .collect();
+
+    // If no search term, return recent facturen
+    if (!searchTerm) {
+      return facturen.slice(0, 10);
+    }
+
+    // Get all projects to search by project naam
+    const projectIds = [...new Set(facturen.map((f) => f.projectId))];
+    const projects = await Promise.all(
+      projectIds.map((id) => ctx.db.get(id))
+    );
+    const projectMap = new Map(
+      projects.filter((p) => p !== null).map((p) => [p!._id.toString(), p!])
+    );
+
+    // Filter facturen by search term
+    const matchingFacturen = facturen.filter((factuur) => {
+      // Search by factuurNummer
+      if (factuur.factuurnummer.toLowerCase().includes(searchTerm)) {
+        return true;
+      }
+
+      // Search by klant naam
+      if (factuur.klant.naam.toLowerCase().includes(searchTerm)) {
+        return true;
+      }
+
+      // Search by project naam
+      const project = projectMap.get(factuur.projectId.toString());
+      if (project && project.naam.toLowerCase().includes(searchTerm)) {
+        return true;
+      }
+
+      return false;
+    });
+
+    return matchingFacturen.slice(0, 20);
+  },
+});
+
+/**
  * Haal een factuur op met eigenaarschapsverificatie.
  */
 export const get = query({
@@ -602,6 +657,57 @@ export const getStats = query({
 });
 
 /**
+ * List facturen with pagination.
+ * Returns paginated results with total count for pagination UI.
+ */
+export const listPaginated = query({
+  args: {
+    page: v.number(),
+    limit: v.number(),
+    status: v.optional(
+      v.union(
+        v.literal("concept"),
+        v.literal("definitief"),
+        v.literal("verzonden"),
+        v.literal("betaald"),
+        v.literal("vervallen")
+      )
+    ),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+
+    // Get all facturen for counting
+    let allFacturen = await ctx.db
+      .query("facturen")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .order("desc")
+      .collect();
+
+    // Filter by status if provided
+    if (args.status) {
+      allFacturen = allFacturen.filter((f) => f.status === args.status);
+    }
+
+    const totalCount = allFacturen.length;
+    const totalPages = Math.ceil(totalCount / args.limit);
+
+    // Calculate pagination slice
+    const startIndex = (args.page - 1) * args.limit;
+    const endIndex = startIndex + args.limit;
+    const items = allFacturen.slice(startIndex, endIndex);
+
+    return {
+      items,
+      totalCount,
+      totalPages,
+      page: args.page,
+      limit: args.limit,
+    };
+  },
+});
+
+/**
  * Get recent facturen for the dashboard.
  * Returns max 5 facturen sorted by most recently created.
  */
@@ -628,6 +734,58 @@ export const getRecent = query({
       factuurdatum: factuur.factuurdatum,
       vervaldatum: factuur.vervaldatum,
     }));
+  },
+});
+
+/**
+ * Bulk archive multiple facturen.
+ * Sets isArchived to true and archivedAt to the current timestamp.
+ */
+export const bulkArchive = mutation({
+  args: {
+    ids: v.array(v.id("facturen")),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+
+    for (const id of args.ids) {
+      // Verify ownership for each factuur
+      await getOwnedFactuur(ctx, id);
+
+      await ctx.db.patch(id, {
+        isArchived: true,
+        archivedAt: now,
+        updatedAt: now,
+      });
+    }
+
+    return args.ids.length;
+  },
+});
+
+/**
+ * Bulk restore archived facturen.
+ * Clears isArchived and archivedAt fields.
+ */
+export const bulkRestore = mutation({
+  args: {
+    ids: v.array(v.id("facturen")),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+
+    for (const id of args.ids) {
+      // Verify ownership for each factuur
+      await getOwnedFactuur(ctx, id);
+
+      await ctx.db.patch(id, {
+        isArchived: undefined,
+        archivedAt: undefined,
+        updatedAt: now,
+      });
+    }
+
+    return args.ids.length;
   },
 });
 

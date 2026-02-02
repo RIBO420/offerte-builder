@@ -9,6 +9,12 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { requireAuth, requireAuthUserId } from "./auth";
+import {
+  validateFile,
+  MAX_FILE_SIZE_BYTES,
+  ALLOWED_MIME_TYPES,
+  DANGEROUS_EXTENSIONS,
+} from "./security";
 
 // ============ TEAM CHAT ============
 
@@ -33,6 +39,16 @@ export const sendTeamMessage = mutation({
   },
   handler: async (ctx, args) => {
     const user = await requireAuth(ctx);
+
+    // Validate attachment type if provided
+    if (args.attachmentType) {
+      const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"];
+      if (!allowedTypes.includes(args.attachmentType.toLowerCase())) {
+        throw new Error(
+          `Bestandstype "${args.attachmentType}" is niet toegestaan. Alleen afbeeldingen (JPEG, PNG, GIF, WebP) en PDF bestanden zijn toegestaan.`
+        );
+      }
+    }
 
     // Validate project channel has projectId
     if (args.channelType === "project" && !args.projectId) {
@@ -250,6 +266,16 @@ export const sendDirectMessage = mutation({
   },
   handler: async (ctx, args) => {
     const user = await requireAuth(ctx);
+
+    // Validate attachment type if provided
+    if (args.attachmentType) {
+      const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"];
+      if (!allowedTypes.includes(args.attachmentType.toLowerCase())) {
+        throw new Error(
+          `Bestandstype "${args.attachmentType}" is niet toegestaan. Alleen afbeeldingen (JPEG, PNG, GIF, WebP) en PDF bestanden zijn toegestaan.`
+        );
+      }
+    }
 
     // Get recipient user
     const toUser = await ctx.db.get(args.toUserId);
@@ -807,5 +833,122 @@ export const editTeamMessage = mutation({
     });
 
     return { success: true };
+  },
+});
+
+// ============ FILE UPLOAD ============
+
+/**
+ * Validate a file before upload.
+ * Checks file size, MIME type, and dangerous extensions.
+ * Returns validation result without generating upload URL.
+ */
+export const validateFileUpload = mutation({
+  args: {
+    fileName: v.string(),
+    mimeType: v.string(),
+    fileSize: v.number(),
+  },
+  handler: async (ctx, args) => {
+    // Require authentication
+    await requireAuth(ctx);
+
+    // Validate the file
+    const validation = validateFile(args.fileName, args.mimeType, args.fileSize);
+
+    if (!validation.valid) {
+      throw new Error(validation.error || "Bestand validatie mislukt");
+    }
+
+    return {
+      valid: true,
+      maxFileSize: MAX_FILE_SIZE_BYTES,
+      allowedMimeTypes: ALLOWED_MIME_TYPES,
+    };
+  },
+});
+
+/**
+ * Generate an upload URL for a validated file.
+ * The file must be validated first using validateFileUpload.
+ */
+export const generateUploadUrl = mutation({
+  args: {
+    fileName: v.string(),
+    mimeType: v.string(),
+    fileSize: v.number(),
+  },
+  handler: async (ctx, args) => {
+    // Require authentication
+    const user = await requireAuth(ctx);
+
+    // Validate the file before generating URL
+    const validation = validateFile(args.fileName, args.mimeType, args.fileSize);
+
+    if (!validation.valid) {
+      throw new Error(validation.error || "Bestand validatie mislukt");
+    }
+
+    // Generate the upload URL
+    const uploadUrl = await ctx.storage.generateUploadUrl();
+
+    return { uploadUrl };
+  },
+});
+
+/**
+ * Register an uploaded file as a chat attachment.
+ * Call this after successful upload to link the storage ID to a message.
+ */
+export const registerChatAttachment = mutation({
+  args: {
+    storageId: v.id("_storage"),
+    fileName: v.string(),
+    fileType: v.string(),
+    fileSize: v.number(),
+    messageId: v.optional(v.id("team_messages")),
+    directMessageId: v.optional(v.id("direct_messages")),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireAuth(ctx);
+
+    // Re-validate file info (in case of tampering)
+    const validation = validateFile(args.fileName, args.fileType, args.fileSize);
+    if (!validation.valid) {
+      // Delete the uploaded file if validation fails
+      await ctx.storage.delete(args.storageId);
+      throw new Error(validation.error || "Bestand validatie mislukt");
+    }
+
+    // Register the attachment
+    const attachmentId = await ctx.db.insert("chat_attachments", {
+      storageId: args.storageId,
+      messageId: args.messageId,
+      directMessageId: args.directMessageId,
+      userId: user._id,
+      companyId: user._id,
+      fileName: args.fileName,
+      fileType: args.fileType,
+      fileSize: args.fileSize,
+      createdAt: Date.now(),
+    });
+
+    return { attachmentId };
+  },
+});
+
+/**
+ * Get file URL from storage.
+ * Validates that user has access to the file.
+ */
+export const getFileUrl = query({
+  args: {
+    storageId: v.id("_storage"),
+  },
+  handler: async (ctx, args) => {
+    await requireAuth(ctx);
+
+    const url = await ctx.storage.getUrl(args.storageId);
+    return url;
   },
 });

@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -25,16 +26,33 @@ import {
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   Building2,
   FileText,
   Save,
   Loader2,
   User,
   Trees,
+  Shield,
+  Download,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useInstellingen } from "@/hooks/use-instellingen";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../../../../convex/_generated/api";
 
 function getInitials(name: string | null | undefined): string {
   if (!name) return "?";
@@ -51,6 +69,14 @@ export default function ProfielPage() {
   const { instellingen, isLoading: isSettingsLoading, update } = useInstellingen();
 
   const [isSaving, setIsSaving] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isRequestingDeletion, setIsRequestingDeletion] = useState(false);
+  const [deletionReason, setDeletionReason] = useState("");
+  const [showDeletionDialog, setShowDeletionDialog] = useState(false);
+
+  // GDPR queries and mutations
+  const personalData = useQuery(api.users.exportPersonalData);
+  const requestDataDeletionMutation = useMutation(api.users.requestDataDeletion);
 
   // Form state
   const [bedrijfsgegevens, setBedrijfsgegevens] = useState({
@@ -126,6 +152,62 @@ export default function ProfielPage() {
       toast.error("Fout bij opslaan offerte instellingen");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // GDPR: Export personal data as JSON file
+  const handleExportData = async () => {
+    if (!personalData) {
+      toast.error("Gegevens worden nog geladen. Probeer het opnieuw.");
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      // Create a JSON blob with all personal data
+      const dataStr = JSON.stringify(personalData, null, 2);
+      const blob = new Blob([dataStr], { type: "application/json" });
+
+      // Create download link
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+
+      // Generate filename with date
+      const date = new Date().toISOString().split("T")[0];
+      link.download = `mijn-gegevens-export-${date}.json`;
+
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast.success("Je gegevens zijn gedownload!");
+    } catch {
+      toast.error("Fout bij exporteren van gegevens");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // GDPR: Request data deletion
+  const handleRequestDeletion = async () => {
+    setIsRequestingDeletion(true);
+    try {
+      const result = await requestDataDeletionMutation({
+        reason: deletionReason || undefined,
+      });
+
+      if (result.success) {
+        toast.success(result.message);
+        setShowDeletionDialog(false);
+        setDeletionReason("");
+      }
+    } catch {
+      toast.error("Fout bij indienen verwijderingsverzoek");
+    } finally {
+      setIsRequestingDeletion(false);
     }
   };
 
@@ -262,6 +344,10 @@ export default function ProfielPage() {
                   <TabsTrigger value="offerte" className="flex items-center gap-2">
                     <FileText className="h-4 w-4" />
                     Offerte
+                  </TabsTrigger>
+                  <TabsTrigger value="privacy" className="flex items-center gap-2">
+                    <Shield className="h-4 w-4" />
+                    Privacy
                   </TabsTrigger>
                 </TabsList>
 
@@ -510,6 +596,189 @@ export default function ProfielPage() {
                     )}
                     Opslaan
                   </Button>
+                </div>
+              </CardContent>
+            </Card>
+            </motion.div>
+          </TabsContent>
+
+          {/* Privacy Tab (GDPR) */}
+          <TabsContent value="privacy" className="space-y-4">
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-4"
+            >
+            {/* Data Export Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Download className="h-5 w-5" />
+                  Download mijn gegevens
+                </CardTitle>
+                <CardDescription>
+                  Volgens de AVG (GDPR Artikel 15) heb je het recht om een kopie van al je persoonlijke gegevens op te vragen.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="rounded-lg bg-muted/50 p-4">
+                  <h4 className="font-medium mb-2">Wat wordt er geexporteerd?</h4>
+                  <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+                    <li>Je accountgegevens (naam, e-mail, rol)</li>
+                    <li>Bedrijfsinstellingen</li>
+                    <li>Alle klanten en offertes</li>
+                    <li>Projecten, facturen en urenregistraties</li>
+                    <li>Producten en normuren</li>
+                    <li>Voertuigen en machines</li>
+                    <li>E-mail logs en notificaties</li>
+                    {personalData?._meta && (
+                      <li className="text-primary font-medium mt-2">
+                        Totaal: {personalData._meta.totalKlanten} klanten, {personalData._meta.totalOffertes} offertes, {personalData._meta.totalProjecten} projecten
+                      </li>
+                    )}
+                  </ul>
+                </div>
+
+                <div className="flex justify-end">
+                  <Button
+                    onClick={handleExportData}
+                    disabled={isExporting || !personalData}
+                  >
+                    {isExporting ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="mr-2 h-4 w-4" />
+                    )}
+                    {isExporting ? "Bezig met exporteren..." : "Download mijn gegevens"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Data Deletion Card */}
+            <Card className="border-destructive/50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-destructive">
+                  <Trash2 className="h-5 w-5" />
+                  Verzoek tot verwijdering
+                </CardTitle>
+                <CardDescription>
+                  Volgens de AVG (GDPR Artikel 17) heb je het recht om verwijdering van al je persoonlijke gegevens te verzoeken.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="rounded-lg bg-destructive/10 p-4 border border-destructive/20">
+                  <div className="flex gap-3">
+                    <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-medium text-destructive mb-1">Let op!</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Bij een verwijderingsverzoek worden <strong>alle</strong> gegevens permanent verwijderd,
+                        inclusief offertes, klanten, projecten en facturen. Dit kan niet ongedaan worden gemaakt.
+                        Een beheerder zal je verzoek beoordelen en contact met je opnemen.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <AlertDialog open={showDeletionDialog} onOpenChange={setShowDeletionDialog}>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive">
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Verzoek tot verwijdering
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Weet je het zeker?</AlertDialogTitle>
+                        <AlertDialogDescription className="space-y-4">
+                          <p>
+                            Je staat op het punt een verzoek in te dienen om al je persoonlijke gegevens te laten verwijderen.
+                            Dit omvat:
+                          </p>
+                          <ul className="list-disc list-inside text-sm space-y-1 ml-2">
+                            <li>Je accountgegevens</li>
+                            <li>Alle klanten en contactpersonen</li>
+                            <li>Alle offertes en projecten</li>
+                            <li>Alle facturen en urenregistraties</li>
+                            <li>Alle bedrijfsinstellingen</li>
+                          </ul>
+                          <div className="pt-2">
+                            <Label htmlFor="deletion-reason">Reden voor verwijdering (optioneel)</Label>
+                            <Textarea
+                              id="deletion-reason"
+                              placeholder="Geef eventueel een reden op..."
+                              value={deletionReason}
+                              onChange={(e) => setDeletionReason(e.target.value)}
+                              className="mt-2"
+                              rows={3}
+                            />
+                          </div>
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isRequestingDeletion}>
+                          Annuleren
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={handleRequestDeletion}
+                          disabled={isRequestingDeletion}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          {isRequestingDeletion ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="mr-2 h-4 w-4" />
+                          )}
+                          {isRequestingDeletion ? "Bezig..." : "Verzoek indienen"}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Privacy Info Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="h-5 w-5" />
+                  Jouw privacy rechten
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <h4 className="font-medium">Artikel 15 - Recht op inzage</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Je hebt het recht om een kopie van je persoonlijke gegevens op te vragen.
+                      Gebruik de knop hierboven om je gegevens te downloaden.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="font-medium">Artikel 16 - Recht op rectificatie</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Je hebt het recht om onjuiste gegevens te laten corrigeren.
+                      Je kunt je gegevens zelf aanpassen via de andere tabs.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="font-medium">Artikel 17 - Recht op verwijdering</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Je hebt het recht om verwijdering van je gegevens te verzoeken.
+                      Gebruik de knop hierboven om een verzoek in te dienen.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="font-medium">Artikel 20 - Recht op overdraagbaarheid</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Je hebt het recht om je gegevens in een gestructureerd formaat te ontvangen.
+                      De export functie biedt je gegevens in JSON formaat.
+                    </p>
+                  </div>
                 </div>
               </CardContent>
             </Card>

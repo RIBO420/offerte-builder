@@ -95,31 +95,25 @@ export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
+        headerShown: false,
         tabBarActiveTintColor: '#fafafa',
         tabBarInactiveTintColor: '#71717a',
         tabBarStyle: {
-          backgroundColor: colors.card,
-          borderTopWidth: 1,
-          borderTopColor: colors.border,
+          backgroundColor: 'rgba(17, 17, 17, 0.8)',
+          borderTopWidth: 0,
           paddingBottom: 8,
           paddingTop: 8,
-          height: 88,
+          height: 85,
+          position: 'absolute',
+          backdropFilter: 'blur(20px)',
         },
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: '500',
         },
-        headerStyle: {
-          backgroundColor: colors.card,
-        },
-        headerTitleStyle: {
-          color: colors.foreground,
-          fontWeight: '600',
-        },
-        headerShadowVisible: false,
       }}
     >
-      {/* Dashboard - visible to all, shows role badge */}
+      {/* Dashboard - visible to all */}
       <Tabs.Screen
         name="index"
         options={{
@@ -127,15 +121,6 @@ export default function TabsLayout() {
           tabBarLabel: 'Home',
           tabBarIcon: ({ color, size }) => (
             <Home color={color} size={size} />
-          ),
-          headerRight: () => (
-            <View style={styles.headerRight}>
-              <RoleBadge
-                role={normalizedRole}
-                displayName={roleDisplayName}
-                colors={roleBadgeColors}
-              />
-            </View>
           ),
         }}
       />

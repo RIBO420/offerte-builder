@@ -4,6 +4,92 @@ import { requireAuth, requireAuthUserId } from "./auth";
 import { getUserRole, getLinkedMedewerker, getCompanyUserId } from "./roles";
 
 /**
+ * List all time entries globally with pagination (for global Uren page).
+ * Admin sees all uren for their company.
+ * Medewerker sees only their own uren.
+ * Supports optional date range filtering.
+ */
+export const listGlobalPaginated = query({
+  args: {
+    page: v.number(),
+    limit: v.number(),
+    startDate: v.optional(v.string()),
+    endDate: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireAuth(ctx);
+    const role = await getUserRole(ctx);
+    const companyUserId = await getCompanyUserId(ctx);
+
+    // Get all projects for the company to filter uren
+    const projects = await ctx.db
+      .query("projecten")
+      .withIndex("by_user", (q) => q.eq("userId", companyUserId))
+      .collect();
+
+    // Get all uren from all projects
+    const urenPromises = projects.map((project) =>
+      ctx.db
+        .query("urenRegistraties")
+        .withIndex("by_project", (q) => q.eq("projectId", project._id))
+        .collect()
+    );
+
+    const urenArrays = await Promise.all(urenPromises);
+    let allUren = urenArrays.flat();
+
+    // Filter by date range if provided
+    if (args.startDate) {
+      allUren = allUren.filter((u) => u.datum >= args.startDate!);
+    }
+    if (args.endDate) {
+      allUren = allUren.filter((u) => u.datum <= args.endDate!);
+    }
+
+    // Filter by role
+    if (role !== "admin") {
+      const medewerker = await getLinkedMedewerker(ctx);
+      if (!medewerker) {
+        return {
+          items: [],
+          totalCount: 0,
+          totalPages: 0,
+          page: args.page,
+          limit: args.limit,
+        };
+      }
+
+      // Filter to only this medewerker's uren
+      allUren = allUren.filter((u) => u.medewerker === medewerker.naam);
+    }
+
+    // Add project info to each uren entry
+    const projectMap = new Map(projects.map((p) => [p._id.toString(), p]));
+
+    const urenWithProject = allUren.map((u) => ({
+      ...u,
+      projectNaam: projectMap.get(u.projectId.toString())?.naam ?? "Onbekend project",
+    }));
+
+    // Sort by date descending (most recent first)
+    urenWithProject.sort((a, b) => b.datum.localeCompare(a.datum));
+
+    const totalCount = urenWithProject.length;
+    const totalPages = Math.ceil(totalCount / args.limit);
+    const startIndex = (args.page - 1) * args.limit;
+    const items = urenWithProject.slice(startIndex, startIndex + args.limit);
+
+    return {
+      items,
+      totalCount,
+      totalPages,
+      page: args.page,
+      limit: args.limit,
+    };
+  },
+});
+
+/**
  * List all time entries globally (for global Uren page).
  * Admin sees all uren for their company.
  * Medewerker sees only their own uren.

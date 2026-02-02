@@ -721,7 +721,7 @@ function AuthenticatedUrenScreen() {
 
       {/* Floating Action Button for Manual Entry */}
       <TouchableOpacity
-        className="absolute right-6 bottom-6 w-14 h-14 rounded-full bg-primary justify-center items-center shadow-lg"
+        className="absolute right-5 bottom-32 w-14 h-14 rounded-full bg-primary justify-center items-center shadow-lg"
         style={{ elevation: 4 }}
         onPress={handleOpenManualEntry}
         activeOpacity={0.8}

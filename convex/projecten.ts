@@ -210,6 +210,62 @@ export const list = query({
 });
 
 /**
+ * List projects with pagination.
+ * Returns paginated results with total count for pagination UI.
+ * By default, archived and deleted projects are excluded.
+ */
+export const listPaginated = query({
+  args: {
+    page: v.number(),
+    limit: v.number(),
+    status: v.optional(projectStatusValidator),
+    includeArchived: v.optional(v.boolean()),
+    includeDeleted: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+
+    // Get all projects
+    let allProjects = await ctx.db
+      .query("projecten")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .order("desc")
+      .collect();
+
+    // Filter out deleted projects unless explicitly requested
+    if (!args.includeDeleted) {
+      allProjects = allProjects.filter((p) => !p.deletedAt);
+    }
+
+    // Filter out archived projects unless explicitly requested
+    if (!args.includeArchived) {
+      allProjects = allProjects.filter((p) => p.isArchived !== true);
+    }
+
+    // Filter by status if provided
+    if (args.status) {
+      allProjects = allProjects.filter((p) => p.status === args.status);
+    }
+
+    const totalCount = allProjects.length;
+    const totalPages = Math.ceil(totalCount / args.limit);
+
+    // Calculate pagination slice
+    const startIndex = (args.page - 1) * args.limit;
+    const endIndex = startIndex + args.limit;
+    const items = allProjects.slice(startIndex, endIndex);
+
+    return {
+      items,
+      totalCount,
+      totalPages,
+      page: args.page,
+      limit: args.limit,
+    };
+  },
+});
+
+/**
  * Update the status of a project.
  * Status must follow the workflow: gepland -> in_uitvoering -> afgerond -> nacalculatie_compleet
  * Note: voorcalculatie is now done at offerte level, so projects start at "gepland".
@@ -713,6 +769,72 @@ export const listForPlanning = query({
 });
 
 /**
+ * Search projects by name, offerte nummer, or klant naam.
+ * Performs client-side filtering since Convex doesn't support full-text search on all fields.
+ */
+export const search = query({
+  args: { searchTerm: v.string() },
+  handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+    const searchTerm = args.searchTerm.toLowerCase().trim();
+
+    // If no search term, return recent projects
+    if (!searchTerm) {
+      const projects = await ctx.db
+        .query("projecten")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .order("desc")
+        .take(10);
+
+      // Filter out deleted and archived
+      return projects.filter((p) => !p.deletedAt && p.isArchived !== true);
+    }
+
+    // Get all projects for the user
+    const projects = await ctx.db
+      .query("projecten")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .order("desc")
+      .collect();
+
+    // Filter out deleted and archived
+    const activeProjects = projects.filter((p) => !p.deletedAt && p.isArchived !== true);
+
+    // Get offertes to search by offerte nummer and klant naam
+    const offerteIds = [...new Set(activeProjects.map((p) => p.offerteId))];
+    const offertes = await Promise.all(
+      offerteIds.map((id) => ctx.db.get(id))
+    );
+    const offerteMap = new Map(
+      offertes.filter((o) => o !== null).map((o) => [o!._id.toString(), o!])
+    );
+
+    // Filter projects by search term
+    const matchingProjects = activeProjects.filter((project) => {
+      // Search by project naam
+      if (project.naam.toLowerCase().includes(searchTerm)) {
+        return true;
+      }
+
+      // Search by offerte nummer and klant naam
+      const offerte = offerteMap.get(project.offerteId.toString());
+      if (offerte) {
+        if (offerte.offerteNummer.toLowerCase().includes(searchTerm)) {
+          return true;
+        }
+        if (offerte.klant.naam.toLowerCase().includes(searchTerm)) {
+          return true;
+        }
+      }
+
+      return false;
+    });
+
+    return matchingProjects.slice(0, 20);
+  },
+});
+
+/**
  * Get dashboard statistics for projects.
  * Note: voorcalculatie status has been removed from project workflow.
  * Only counts non-archived and non-deleted projects.
@@ -746,6 +868,81 @@ export const getStats = query({
     }
 
     return stats;
+  },
+});
+
+/**
+ * Bulk update status for multiple projects.
+ * Note: Bulk update skips workflow validation for admin convenience.
+ */
+export const bulkUpdateStatus = mutation({
+  args: {
+    ids: v.array(v.id("projecten")),
+    status: projectStatusValidator,
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+
+    for (const id of args.ids) {
+      // Verify ownership for each project
+      await getOwnedProject(ctx, id);
+
+      await ctx.db.patch(id, {
+        status: args.status,
+        updatedAt: now,
+      });
+    }
+
+    return args.ids.length;
+  },
+});
+
+/**
+ * Bulk soft delete projects (sets deletedAt timestamp).
+ * Items can be restored within 30 days.
+ */
+export const bulkRemove = mutation({
+  args: {
+    ids: v.array(v.id("projecten")),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+
+    for (const id of args.ids) {
+      // Verify ownership for each project
+      await getOwnedProject(ctx, id);
+
+      await ctx.db.patch(id, {
+        deletedAt: now,
+        updatedAt: now,
+      });
+    }
+
+    return args.ids.length;
+  },
+});
+
+/**
+ * Bulk restore soft-deleted projects.
+ */
+export const bulkRestore = mutation({
+  args: {
+    ids: v.array(v.id("projecten")),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+
+    for (const id of args.ids) {
+      // Verify ownership for each project
+      await getOwnedProject(ctx, id);
+
+      await ctx.db.patch(id, {
+        deletedAt: undefined,
+        updatedAt: now,
+      });
+    }
+
+    return args.ids.length;
   },
 });
 

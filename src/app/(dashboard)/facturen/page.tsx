@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useMemo, useCallback, Suspense } from "react";
-import { useRouter } from "next/navigation";
+import { useDebounce } from "@/hooks/use-debounce";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useReducedMotion } from "@/hooks/use-accessibility";
 import { RequireAdmin } from "@/components/require-admin";
 import { Card, CardContent } from "@/components/ui/card";
+import { Pagination } from "@/components/ui/pagination";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -21,7 +23,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   FileText,
   Search,
-  Loader2,
   Pencil,
   Send,
   CheckCircle2,
@@ -44,6 +45,11 @@ import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FacturenPageSkeleton, Skeleton } from "@/components/ui/skeleton-card";
+import {
+  ExportDropdown,
+  facturenExportColumns,
+} from "@/components/export-dropdown";
 
 // Status configuration for facturen - WCAG AA compliant colors (4.5:1 contrast ratio)
 const statusConfig = {
@@ -136,8 +142,8 @@ function FacturenPageLoader() {
           </BreadcrumbList>
         </Breadcrumb>
       </header>
-      <div className="flex flex-1 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
+        <FacturenPageSkeleton />
       </div>
     </>
   );
@@ -145,15 +151,65 @@ function FacturenPageLoader() {
 
 function FacturenPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const reducedMotion = useReducedMotion();
   const { user, isLoading: isUserLoading } = useCurrentUser();
 
-  const facturen = useQuery(api.facturen.list, user?._id ? {} : "skip");
+  // Pagination state from URL params
+  const [page, setPage] = useState(() => {
+    const pageParam = searchParams.get("page");
+    return pageParam ? parseInt(pageParam, 10) : 1;
+  });
+  const [limit, setLimit] = useState(() => {
+    const limitParam = searchParams.get("limit");
+    return limitParam ? parseInt(limitParam, 10) : 25;
+  });
 
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [activeTab, setActiveTab] = useState("alle");
 
-  const isLoading = isUserLoading || facturen === undefined;
+  // Update URL when pagination changes
+  const updateUrl = useCallback((newPage: number, newLimit: number) => {
+    const params = new URLSearchParams(window.location.search);
+    params.set("page", newPage.toString());
+    params.set("limit", newLimit.toString());
+    const newUrl = `${window.location.pathname}?${params.toString()}`;
+    window.history.pushState({}, "", newUrl);
+  }, []);
+
+  const handlePageChange = useCallback((newPage: number) => {
+    setPage(newPage);
+    updateUrl(newPage, limit);
+  }, [limit, updateUrl]);
+
+  const handleLimitChange = useCallback((newLimit: number) => {
+    setLimit(newLimit);
+    setPage(1);
+    updateUrl(1, newLimit);
+  }, [updateUrl]);
+
+  // Use paginated query with status filter
+  const statusFilter = activeTab !== "alle" ? activeTab as "concept" | "definitief" | "verzonden" | "betaald" | "vervallen" : undefined;
+
+  const paginatedData = useQuery(
+    api.facturen.listPaginated,
+    user?._id ? { page, limit, status: statusFilter } : "skip"
+  );
+
+  // Use server-side search for better performance
+  const searchResults = useQuery(
+    api.facturen.search,
+    user?._id && debouncedSearchQuery.trim() ? { searchTerm: debouncedSearchQuery } : "skip"
+  );
+
+  // Also fetch stats (non-paginated for counts)
+  const facturen = useQuery(api.facturen.list, user?._id ? {} : "skip");
+
+  // Export query
+  const exportData = useQuery(api.export.exportFacturen, user?._id ? {} : "skip");
+
+  const isLoading = isUserLoading || paginatedData === undefined;
 
   // Calculate stats from facturen
   const stats = useMemo(() => {
@@ -198,22 +254,26 @@ function FacturenPageContent() {
     return counts;
   }, [facturen]);
 
-  // Filter facturen
-  const filteredFacturen = useMemo(() => {
-    if (!facturen) return [];
+  // Get items to display - use search results when searching, otherwise use paginated data
+  const displayedFacturen = useMemo(() => {
+    // Use search results if we have a search query (search is not paginated)
+    if (debouncedSearchQuery.trim() && searchResults) {
+      // Filter by status tab for search results
+      return searchResults.filter((factuur) => {
+        return activeTab === "alle" || factuur.status === activeTab;
+      });
+    }
 
-    return facturen.filter((factuur) => {
-      const matchesSearch =
-        searchQuery === "" ||
-        factuur.factuurnummer.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        factuur.klant.naam.toLowerCase().includes(searchQuery.toLowerCase());
+    // Otherwise use paginated data (already filtered by status on server)
+    return paginatedData?.items ?? [];
+  }, [paginatedData, searchResults, debouncedSearchQuery, activeTab]);
 
-      const matchesStatus =
-        activeTab === "alle" || factuur.status === activeTab;
-
-      return matchesSearch && matchesStatus;
-    });
-  }, [facturen, searchQuery, activeTab]);
+  // Reset to page 1 when changing tabs (status filter changes)
+  const handleTabChange = useCallback((newTab: string) => {
+    setActiveTab(newTab);
+    setPage(1);
+    updateUrl(1, limit);
+  }, [limit, updateUrl]);
 
   const handleNavigate = useCallback(
     (projectId: string) => {
@@ -269,6 +329,13 @@ function FacturenPageContent() {
               Overzicht van al je facturen en betalingen
             </p>
           </div>
+          <ExportDropdown
+            getData={() => exportData ?? []}
+            columns={facturenExportColumns}
+            filename="facturen"
+            sheetName="Facturen"
+            disabled={!exportData || exportData.length === 0}
+          />
         </motion.div>
 
         {/* Stats Summary */}
@@ -346,7 +413,7 @@ function FacturenPageContent() {
           <div className="relative w-full sm:max-w-sm">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Zoek facturen..."
+              placeholder="Zoeken..."
               className="pl-8 w-full"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -365,7 +432,7 @@ function FacturenPageContent() {
         >
           <Tabs
             value={activeTab}
-            onValueChange={setActiveTab}
+            onValueChange={handleTabChange}
             className="space-y-6"
           >
             <TabsList>
@@ -426,11 +493,41 @@ function FacturenPageContent() {
                     animate={{ opacity: 1 }}
                     exit={reducedMotion ? undefined : { opacity: 0 }}
                     transition={{ duration: reducedMotion ? 0 : 0.2 }}
-                    className="flex items-center justify-center py-20"
                   >
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    <Card className="overflow-hidden">
+                      {/* Table header skeleton */}
+                      <div className="border-b px-4 py-3">
+                        <div className="flex gap-4">
+                          <Skeleton className="h-4 w-28" />
+                          <Skeleton className="h-4 w-20" />
+                          <Skeleton className="h-4 w-16" />
+                          <Skeleton className="h-4 w-24" />
+                          <Skeleton className="h-4 w-24" />
+                          <Skeleton className="h-4 w-16" />
+                        </div>
+                      </div>
+                      {/* Table rows skeleton */}
+                      <div className="divide-y">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <div key={i} className="flex items-center gap-4 px-4 py-4">
+                            <div className="flex items-center gap-3 flex-1">
+                              <Skeleton className="h-8 w-8 rounded-lg" />
+                              <Skeleton className="h-4 w-24" />
+                            </div>
+                            <div className="flex-1">
+                              <Skeleton className="h-4 w-28 mb-1" />
+                              <Skeleton className="h-3 w-20" />
+                            </div>
+                            <Skeleton className="h-4 w-20" />
+                            <Skeleton className="h-4 w-20" />
+                            <Skeleton className="h-4 w-20" />
+                            <Skeleton className="h-6 w-20 rounded-full" />
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
                   </motion.div>
-                ) : filteredFacturen.length > 0 ? (
+                ) : displayedFacturen.length > 0 ? (
                   <motion.div
                     key="content"
                     initial={reducedMotion ? false : { opacity: 0, y: 10 }}
@@ -452,7 +549,7 @@ function FacturenPageContent() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {filteredFacturen.map((factuur) => (
+                            {displayedFacturen.map((factuur) => (
                               <TableRow
                                 key={factuur._id}
                                 className="cursor-pointer hover:bg-muted/50"
@@ -504,6 +601,17 @@ function FacturenPageContent() {
                           </TableBody>
                         </Table>
                       </ScrollableTable>
+                      {/* Pagination - only show when not searching */}
+                      {!debouncedSearchQuery.trim() && paginatedData && paginatedData.totalCount > 0 && (
+                        <Pagination
+                          page={page}
+                          totalCount={paginatedData.totalCount}
+                          limit={limit}
+                          onPageChange={handlePageChange}
+                          onLimitChange={handleLimitChange}
+                          className="border-t px-4"
+                        />
+                      )}
                     </Card>
                   </motion.div>
                 ) : (

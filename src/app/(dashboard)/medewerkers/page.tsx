@@ -2,12 +2,14 @@
 
 import { useState, useCallback, useMemo, Suspense } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useTabState } from "@/hooks/use-tab-state";
 import { RequireAdmin } from "@/components/require-admin";
+import { Pagination } from "@/components/ui/pagination";
 import {
   Card,
   CardContent,
@@ -91,11 +93,42 @@ const itemVariants = {
 };
 
 function MedewerkersPageContent() {
+  const searchParams = useSearchParams();
   const { user } = useCurrentUser();
   const { medewerkers, isLoading, update, remove } = useMedewerkers();
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [activeTab, setActiveTab] = useTabState("alle");
+
+  // Pagination state
+  const [page, setPage] = useState(() => {
+    const pageParam = searchParams.get("page");
+    return pageParam ? parseInt(pageParam, 10) : 1;
+  });
+  const [limit, setLimit] = useState(() => {
+    const limitParam = searchParams.get("limit");
+    return limitParam ? parseInt(limitParam, 10) : 25;
+  });
+
+  // Update URL when pagination changes
+  const updateUrl = useCallback((newPage: number, newLimit: number) => {
+    const params = new URLSearchParams(window.location.search);
+    params.set("page", newPage.toString());
+    params.set("limit", newLimit.toString());
+    const newUrl = `${window.location.pathname}?${params.toString()}`;
+    window.history.pushState({}, "", newUrl);
+  }, []);
+
+  const handlePageChange = useCallback((newPage: number) => {
+    setPage(newPage);
+    updateUrl(newPage, limit);
+  }, [limit, updateUrl]);
+
+  const handleLimitChange = useCallback((newLimit: number) => {
+    setLimit(newLimit);
+    setPage(1);
+    updateUrl(1, newLimit);
+  }, [updateUrl]);
 
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -138,7 +171,7 @@ function MedewerkersPageContent() {
   }, [medewerkers]);
 
   // Filter medewerkers based on search and tab
-  const displayedMedewerkers = useMemo(() => {
+  const filteredMedewerkers = useMemo(() => {
     let filtered = medewerkers as Medewerker[];
 
     // Filter by tab
@@ -161,6 +194,21 @@ function MedewerkersPageContent() {
 
     return filtered;
   }, [medewerkers, debouncedSearchTerm, activeTab]);
+
+  // Paginate the filtered results
+  const totalCount = filteredMedewerkers.length;
+  const totalPages = Math.ceil(totalCount / limit);
+  const displayedMedewerkers = useMemo(() => {
+    const startIndex = (page - 1) * limit;
+    return filteredMedewerkers.slice(startIndex, startIndex + limit);
+  }, [filteredMedewerkers, page, limit]);
+
+  // Reset to page 1 when filter changes
+  const handleTabChange = useCallback((newTab: string) => {
+    setActiveTab(newTab);
+    setPage(1);
+    updateUrl(1, limit);
+  }, [setActiveTab, limit, updateUrl]);
 
   const handleEdit = useCallback((medewerker: Medewerker) => {
     setSelectedMedewerker(medewerker);
@@ -511,7 +559,7 @@ function MedewerkersPageContent() {
             <CardContent>
               <Tabs
                 value={activeTab}
-                onValueChange={setActiveTab}
+                onValueChange={handleTabChange}
                 className="mb-4"
               >
                 <TabsList>
@@ -555,18 +603,31 @@ function MedewerkersPageContent() {
                   )}
                 </div>
               ) : (
-                <ResponsiveTable
-                  data={displayedMedewerkers}
-                  columns={columns}
-                  keyExtractor={(medewerker) => medewerker._id}
-                  onRowClick={handleViewDetail}
-                  emptyMessage={
-                    searchTerm
-                      ? `Geen resultaten voor "${searchTerm}"`
-                      : "Voeg je eerste medewerker toe om te beginnen."
-                  }
-                  mobileBreakpoint="md"
-                />
+                <>
+                  <ResponsiveTable
+                    data={displayedMedewerkers}
+                    columns={columns}
+                    keyExtractor={(medewerker) => medewerker._id}
+                    onRowClick={handleViewDetail}
+                    emptyMessage={
+                      searchTerm
+                        ? `Geen resultaten voor "${searchTerm}"`
+                        : "Voeg je eerste medewerker toe om te beginnen."
+                    }
+                    mobileBreakpoint="md"
+                  />
+                  {/* Pagination */}
+                  {totalCount > 0 && (
+                    <Pagination
+                      page={page}
+                      totalCount={totalCount}
+                      limit={limit}
+                      onPageChange={handlePageChange}
+                      onLimitChange={handleLimitChange}
+                      className="border-t mt-4"
+                    />
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
