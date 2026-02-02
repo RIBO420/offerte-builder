@@ -55,7 +55,7 @@ function CustomTooltip({ active, payload, label }: {
     <motion.div
       initial={{ opacity: 0, y: 10, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      className="relative overflow-hidden rounded-xl border border-white/10 bg-card/95 backdrop-blur-xl p-4 shadow-2xl shadow-black/20"
+      className="relative overflow-hidden rounded-xl border border-border bg-popover/95 text-popover-foreground backdrop-blur-xl p-4 shadow-2xl"
     >
       {/* Decorative gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 via-transparent to-orange-500/10 pointer-events-none" />
@@ -78,7 +78,7 @@ function CustomTooltip({ active, payload, label }: {
           </div>
 
           {isQuarterly && (
-            <div className="flex items-center justify-between gap-4 pt-1 border-t border-white/10">
+            <div className="flex items-center justify-between gap-4 pt-1 border-t border-border">
               <span className="text-sm text-muted-foreground">Offertes</span>
               <span className="font-medium text-foreground">
                 {(data.payload as QuarterlyData).count}

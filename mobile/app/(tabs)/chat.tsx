@@ -2,7 +2,6 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   FlatList,
   TextInput,
   KeyboardAvoidingView,
@@ -18,9 +17,7 @@ import { api } from '../../convex/_generated/api';
 import { useColors } from '../../theme';
 import { useCurrentUser } from '../../hooks/use-current-user';
 import { Tabs, TabsContent, Badge } from '../../components/ui';
-import { typography } from '../../theme/typography';
-import { spacing } from '../../theme/spacing';
-import { radius } from '../../theme/radius';
+import { cn } from '@/lib/utils';
 import type { Id } from '../../convex/_generated/dataModel';
 
 // Types
@@ -105,10 +102,10 @@ export default function ChatScreen() {
   // Show loading while auth is loading or user not synced
   if (isLoading || !isUserSynced) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+        <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={{ marginTop: spacing.md, color: colors.mutedForeground }}>Laden...</Text>
+          <Text className="mt-4 text-muted-foreground">Laden...</Text>
         </View>
       </SafeAreaView>
     );
@@ -244,47 +241,43 @@ function AuthenticatedChatScreen() {
 
       return (
         <View
-          style={[
-            styles.messageContainer,
-            isOwn ? styles.messageContainerOwn : styles.messageContainerOther,
-          ]}
+          className={cn(
+            "flex-row mb-2 items-end",
+            isOwn ? "justify-end" : "justify-start"
+          )}
         >
           {showAvatar && (
             <View
-              style={[
-                styles.avatar,
-                { backgroundColor: getAvatarColor(item.senderName) },
-              ]}
+              className="w-8 h-8 rounded-full items-center justify-center mr-3"
+              style={{ backgroundColor: getAvatarColor(item.senderName) }}
             >
-              <Text style={styles.avatarText}>{getInitials(item.senderName)}</Text>
+              <Text className="text-xs font-semibold text-white">{getInitials(item.senderName)}</Text>
             </View>
           )}
           <View
-            style={[
-              styles.messageBubble,
-              isOwn
-                ? [styles.messageBubbleOwn, { backgroundColor: colors.scope.borders }]
-                : [styles.messageBubbleOther, { backgroundColor: colors.card }],
-            ]}
+            className={cn(
+              "max-w-[75%] p-3 rounded-2xl",
+              isOwn ? "bg-accent rounded-br" : "bg-card rounded-bl"
+            )}
           >
             {!isOwn && (
-              <Text style={[styles.senderName, { color: colors.scope.borders }]}>
+              <Text className="text-xs font-semibold mb-1" style={{ color: colors.scope.borders }}>
                 {item.senderName}
               </Text>
             )}
             <Text
-              style={[
-                styles.messageText,
-                { color: isOwn ? '#FFFFFF' : colors.foreground },
-              ]}
+              className={cn(
+                "text-base leading-normal",
+                isOwn ? "text-white" : "text-foreground"
+              )}
             >
               {item.message}
             </Text>
             <Text
-              style={[
-                styles.messageTime,
-                { color: isOwn ? 'rgba(255,255,255,0.7)' : colors.mutedForeground },
-              ]}
+              className={cn(
+                "text-xs mt-1 text-right",
+                isOwn ? "text-white/70" : "text-muted-foreground"
+              )}
             >
               {formatTimestamp(item.createdAt)}
             </Text>
@@ -300,30 +293,28 @@ function AuthenticatedChatScreen() {
     ({ item }: { item: DMConversation }) => {
       return (
         <TouchableOpacity
-          style={[styles.dmItem, { backgroundColor: colors.card }]}
+          className="flex-row bg-card p-4 mb-2 rounded-lg"
           activeOpacity={0.7}
           onPress={() => handleSelectDMConversation(item)}
         >
           <View
-            style={[
-              styles.dmAvatar,
-              { backgroundColor: getAvatarColor(item.partnerName) },
-            ]}
+            className="w-12 h-12 rounded-full items-center justify-center mr-4"
+            style={{ backgroundColor: getAvatarColor(item.partnerName) }}
           >
-            <Text style={styles.dmAvatarText}>{getInitials(item.partnerName)}</Text>
+            <Text className="text-lg font-semibold text-white">{getInitials(item.partnerName)}</Text>
           </View>
-          <View style={styles.dmContent}>
-            <View style={styles.dmHeader}>
-              <Text style={[styles.dmName, { color: colors.foreground }]}>
+          <View className="flex-1 justify-center">
+            <View className="flex-row justify-between items-center mb-1">
+              <Text className="text-base font-semibold text-foreground">
                 {item.partnerName}
               </Text>
-              <Text style={[styles.dmTime, { color: colors.mutedForeground }]}>
+              <Text className="text-xs text-muted-foreground">
                 {formatTimestamp(item.lastMessageAt)}
               </Text>
             </View>
-            <View style={styles.dmPreviewRow}>
+            <View className="flex-row justify-between items-center">
               <Text
-                style={[styles.dmPreview, { color: colors.mutedForeground }]}
+                className="text-sm text-muted-foreground flex-1 mr-3"
                 numberOfLines={1}
               >
                 {item.lastMessage}
@@ -351,47 +342,43 @@ function AuthenticatedChatScreen() {
 
       return (
         <View
-          style={[
-            styles.messageContainer,
-            isOwn ? styles.messageContainerOwn : styles.messageContainerOther,
-          ]}
+          className={cn(
+            "flex-row mb-2 items-end",
+            isOwn ? "justify-end" : "justify-start"
+          )}
         >
           {showAvatar && (
             <View
-              style={[
-                styles.avatar,
-                { backgroundColor: getAvatarColor(senderName) },
-              ]}
+              className="w-8 h-8 rounded-full items-center justify-center mr-3"
+              style={{ backgroundColor: getAvatarColor(senderName) }}
             >
-              <Text style={styles.avatarText}>{getInitials(senderName)}</Text>
+              <Text className="text-xs font-semibold text-white">{getInitials(senderName)}</Text>
             </View>
           )}
           <View
-            style={[
-              styles.messageBubble,
-              isOwn
-                ? [styles.messageBubbleOwn, { backgroundColor: colors.scope.borders }]
-                : [styles.messageBubbleOther, { backgroundColor: colors.card }],
-            ]}
+            className={cn(
+              "max-w-[75%] p-3 rounded-2xl",
+              isOwn ? "bg-accent rounded-br" : "bg-card rounded-bl"
+            )}
           >
             {!isOwn && (
-              <Text style={[styles.senderName, { color: colors.scope.borders }]}>
+              <Text className="text-xs font-semibold mb-1" style={{ color: colors.scope.borders }}>
                 {senderName}
               </Text>
             )}
             <Text
-              style={[
-                styles.messageText,
-                { color: isOwn ? '#FFFFFF' : colors.foreground },
-              ]}
+              className={cn(
+                "text-base leading-normal",
+                isOwn ? "text-white" : "text-foreground"
+              )}
             >
               {item.message}
             </Text>
             <Text
-              style={[
-                styles.messageTime,
-                { color: isOwn ? 'rgba(255,255,255,0.7)' : colors.mutedForeground },
-              ]}
+              className={cn(
+                "text-xs mt-1 text-right",
+                isOwn ? "text-white/70" : "text-muted-foreground"
+              )}
             >
               {formatTimestamp(item.createdAt)}
             </Text>
@@ -419,62 +406,45 @@ function AuthenticatedChatScreen() {
     (activeTab === 'dm' && !selectedDMConversation && dmConversations === undefined) ||
     (activeTab === 'dm' && selectedDMConversation && dmMessages === undefined);
 
-  // Dynamic styles
-  const dynamicStyles = {
-    container: {
-      backgroundColor: colors.background,
-    },
-    inputContainer: {
-      backgroundColor: colors.card,
-      borderTopColor: colors.border,
-    },
-    input: {
-      backgroundColor: colors.secondary,
-      color: colors.foreground,
-    },
-  };
-
   return (
     <SafeAreaView
-      style={[styles.container, dynamicStyles.container]}
+      className="flex-1 bg-background"
       edges={['top']}
     >
       <KeyboardAvoidingView
-        style={styles.keyboardView}
+        className="flex-1"
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={90}
       >
         {/* Header with tabs */}
-        <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+        <View className="flex-row items-center justify-between px-4 py-2 bg-card border-b border-border">
           {selectedDMConversation ? (
             <>
               <TouchableOpacity
-                style={styles.backButton}
+                className="p-2 -mr-1"
                 onPress={handleBackToConversations}
               >
                 <Feather name="arrow-left" size={24} color={colors.foreground} />
               </TouchableOpacity>
-              <View style={styles.dmHeaderInfo}>
+              <View className="flex-1 flex-row items-center">
                 <View
-                  style={[
-                    styles.dmHeaderAvatar,
-                    { backgroundColor: getAvatarColor(selectedDMConversation.partnerName) },
-                  ]}
+                  className="w-8 h-8 rounded-full items-center justify-center mr-3"
+                  style={{ backgroundColor: getAvatarColor(selectedDMConversation.partnerName) }}
                 >
-                  <Text style={styles.dmHeaderAvatarText}>
+                  <Text className="text-xs font-semibold text-white">
                     {getInitials(selectedDMConversation.partnerName)}
                   </Text>
                 </View>
-                <Text style={[styles.headerTitle, { color: colors.foreground }]}>
+                <Text className="text-2xl font-bold text-foreground">
                   {selectedDMConversation.partnerName}
                 </Text>
               </View>
-              <View style={styles.headerSpacer} />
+              <View className="w-10" />
             </>
           ) : (
             <>
-              <Text style={[styles.headerTitle, { color: colors.foreground }]}>Chat</Text>
-              <TouchableOpacity style={styles.searchButton}>
+              <Text className="text-2xl font-bold text-foreground">Chat</Text>
+              <TouchableOpacity className="p-2">
                 <Feather name="search" size={20} color={colors.mutedForeground} />
               </TouchableOpacity>
             </>
@@ -483,7 +453,7 @@ function AuthenticatedChatScreen() {
 
         {/* Tabs - hide when viewing a DM conversation */}
         {!selectedDMConversation && (
-          <View style={[styles.tabsContainer, { backgroundColor: colors.card }]}>
+          <View className="py-2 bg-card">
             <Tabs
               tabs={tabs}
               activeTab={activeTab}
@@ -494,23 +464,23 @@ function AuthenticatedChatScreen() {
         )}
 
         {/* Content */}
-        <View style={styles.content}>
+        <View className="flex-1">
           {/* Team Chat */}
           <TabsContent tabKey="team" activeTab={activeTab}>
             {isLoading ? (
-              <View style={styles.loadingContainer}>
+              <View className="flex-1 justify-center items-center gap-4">
                 <ActivityIndicator size="large" color={colors.primary} />
-                <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>
+                <Text className="text-base text-muted-foreground">
                   Berichten laden...
                 </Text>
               </View>
             ) : messages.length === 0 ? (
-              <View style={styles.emptyContainer}>
+              <View className="flex-1 justify-center items-center px-8 gap-2">
                 <Feather name="message-circle" size={48} color={colors.mutedForeground} />
-                <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+                <Text className="text-lg font-semibold text-foreground mt-2">
                   Nog geen berichten
                 </Text>
-                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+                <Text className="text-base text-muted-foreground text-center">
                   Start een gesprek met je team!
                 </Text>
               </View>
@@ -521,7 +491,7 @@ function AuthenticatedChatScreen() {
                 keyExtractor={(item) => item._id}
                 renderItem={renderMessage}
                 inverted
-                contentContainerStyle={styles.messagesList}
+                contentContainerClassName="p-4 pb-2"
                 showsVerticalScrollIndicator={false}
                 refreshControl={
                   <RefreshControl
@@ -539,19 +509,19 @@ function AuthenticatedChatScreen() {
             {selectedDMConversation ? (
               // Show DM conversation thread
               isLoading ? (
-                <View style={styles.loadingContainer}>
+                <View className="flex-1 justify-center items-center gap-4">
                   <ActivityIndicator size="large" color={colors.primary} />
-                  <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>
+                  <Text className="text-base text-muted-foreground">
                     Berichten laden...
                   </Text>
                 </View>
               ) : !dmMessages || dmMessages.length === 0 ? (
-                <View style={styles.emptyContainer}>
+                <View className="flex-1 justify-center items-center px-8 gap-2">
                   <Feather name="message-circle" size={48} color={colors.mutedForeground} />
-                  <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+                  <Text className="text-lg font-semibold text-foreground mt-2">
                     Nog geen berichten
                   </Text>
-                  <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+                  <Text className="text-base text-muted-foreground text-center">
                     Stuur je eerste bericht naar {selectedDMConversation.partnerName}
                   </Text>
                 </View>
@@ -562,7 +532,7 @@ function AuthenticatedChatScreen() {
                   keyExtractor={(item) => item._id}
                   renderItem={renderDMMessage}
                   inverted
-                  contentContainerStyle={styles.messagesList}
+                  contentContainerClassName="p-4 pb-2"
                   showsVerticalScrollIndicator={false}
                   refreshControl={
                     <RefreshControl
@@ -576,19 +546,19 @@ function AuthenticatedChatScreen() {
             ) : (
               // Show conversation list
               isLoading ? (
-                <View style={styles.loadingContainer}>
+                <View className="flex-1 justify-center items-center gap-4">
                   <ActivityIndicator size="large" color={colors.primary} />
-                  <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>
+                  <Text className="text-base text-muted-foreground">
                     Gesprekken laden...
                   </Text>
                 </View>
               ) : !dmConversations || dmConversations.length === 0 ? (
-                <View style={styles.emptyContainer}>
+                <View className="flex-1 justify-center items-center px-8 gap-2">
                   <Feather name="users" size={48} color={colors.mutedForeground} />
-                  <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+                  <Text className="text-lg font-semibold text-foreground mt-2">
                     Geen directe berichten
                   </Text>
-                  <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+                  <Text className="text-base text-muted-foreground text-center">
                     Start een privegesprek met een collega
                   </Text>
                 </View>
@@ -597,7 +567,7 @@ function AuthenticatedChatScreen() {
                   data={dmConversations}
                   keyExtractor={(item) => item.partnerId}
                   renderItem={renderDMConversation}
-                  contentContainerStyle={styles.dmList}
+                  contentContainerClassName="p-4"
                   showsVerticalScrollIndicator={false}
                   refreshControl={
                     <RefreshControl
@@ -614,19 +584,19 @@ function AuthenticatedChatScreen() {
           {/* Project Chat */}
           <TabsContent tabKey="project" activeTab={activeTab}>
             {isLoading ? (
-              <View style={styles.loadingContainer}>
+              <View className="flex-1 justify-center items-center gap-4">
                 <ActivityIndicator size="large" color={colors.primary} />
-                <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>
+                <Text className="text-base text-muted-foreground">
                   Berichten laden...
                 </Text>
               </View>
             ) : messages.length === 0 ? (
-              <View style={styles.emptyContainer}>
+              <View className="flex-1 justify-center items-center px-8 gap-2">
                 <Feather name="folder" size={48} color={colors.mutedForeground} />
-                <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+                <Text className="text-lg font-semibold text-foreground mt-2">
                   Geen project berichten
                 </Text>
-                <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+                <Text className="text-base text-muted-foreground text-center">
                   Selecteer een project om berichten te zien
                 </Text>
               </View>
@@ -637,7 +607,7 @@ function AuthenticatedChatScreen() {
                 keyExtractor={(item) => item._id}
                 renderItem={renderMessage}
                 inverted
-                contentContainerStyle={styles.messagesList}
+                contentContainerClassName="p-4 pb-2"
                 showsVerticalScrollIndicator={false}
                 refreshControl={
                   <RefreshControl
@@ -653,14 +623,14 @@ function AuthenticatedChatScreen() {
 
         {/* Input field - show for team/project channels and when viewing a DM conversation */}
         {(activeTab !== 'dm' || selectedDMConversation) && (
-          <View style={[styles.inputContainer, dynamicStyles.inputContainer]}>
+          <View className="flex-row items-end bg-card border-t border-border p-2 pb-2 gap-2">
             <TouchableOpacity
-              style={[styles.attachButton, { backgroundColor: colors.secondary }]}
+              className="w-10 h-10 rounded-full items-center justify-center bg-secondary"
             >
               <Feather name="plus" size={24} color={colors.mutedForeground} />
             </TouchableOpacity>
             <TextInput
-              style={[styles.input, dynamicStyles.input]}
+              className="flex-1 min-h-[40px] max-h-[120px] px-4 py-2 rounded-full bg-secondary text-foreground text-base"
               value={message}
               onChangeText={setMessage}
               placeholder="Typ een bericht..."
@@ -669,14 +639,12 @@ function AuthenticatedChatScreen() {
               maxLength={1000}
             />
             <TouchableOpacity
-              style={[
-                styles.sendButton,
-                {
-                  backgroundColor: message.trim()
-                    ? colors.scope.borders
-                    : colors.muted,
-                },
-              ]}
+              className="w-10 h-10 rounded-full items-center justify-center"
+              style={{
+                backgroundColor: message.trim()
+                  ? colors.scope.borders
+                  : colors.muted,
+              }}
               onPress={handleSend}
               disabled={!message.trim()}
             >
@@ -692,217 +660,3 @@ function AuthenticatedChatScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-  },
-  headerTitle: {
-    fontSize: typography.fontSize['2xl'],
-    fontWeight: typography.fontWeight.bold,
-  },
-  searchButton: {
-    padding: spacing.sm,
-  },
-  backButton: {
-    padding: spacing.sm,
-    marginRight: spacing.xs,
-  },
-  dmHeaderInfo: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  dmHeaderAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.sm,
-  },
-  dmHeaderAvatarText: {
-    fontSize: typography.fontSize.xs,
-    fontWeight: typography.fontWeight.semibold,
-    color: '#FFFFFF',
-  },
-  headerSpacer: {
-    width: 40, // Match the back button width for centering
-  },
-  tabsContainer: {
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 0,
-  },
-  content: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  loadingText: {
-    fontSize: typography.fontSize.base,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing.xl,
-    gap: spacing.sm,
-  },
-  emptyTitle: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: typography.fontWeight.semibold,
-    marginTop: spacing.sm,
-  },
-  emptyText: {
-    fontSize: typography.fontSize.base,
-    textAlign: 'center',
-  },
-  messagesList: {
-    padding: spacing.md,
-    paddingBottom: spacing.sm,
-  },
-  messageContainer: {
-    flexDirection: 'row',
-    marginBottom: spacing.sm,
-    alignItems: 'flex-end',
-  },
-  messageContainerOwn: {
-    justifyContent: 'flex-end',
-  },
-  messageContainerOther: {
-    justifyContent: 'flex-start',
-  },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.sm,
-  },
-  avatarText: {
-    fontSize: typography.fontSize.xs,
-    fontWeight: typography.fontWeight.semibold,
-    color: '#FFFFFF',
-  },
-  messageBubble: {
-    maxWidth: '75%',
-    padding: spacing.sm,
-    borderRadius: radius.xl,
-  },
-  messageBubbleOwn: {
-    borderBottomRightRadius: radius.sm,
-  },
-  messageBubbleOther: {
-    borderBottomLeftRadius: radius.sm,
-  },
-  senderName: {
-    fontSize: typography.fontSize.xs,
-    fontWeight: typography.fontWeight.semibold,
-    marginBottom: spacing.xs,
-  },
-  messageText: {
-    fontSize: typography.fontSize.base,
-    lineHeight: typography.fontSize.base * typography.lineHeight.normal,
-  },
-  messageTime: {
-    fontSize: typography.fontSize.xs - 1,
-    marginTop: spacing.xs,
-    textAlign: 'right',
-  },
-  dmList: {
-    padding: spacing.md,
-  },
-  dmItem: {
-    flexDirection: 'row',
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    borderRadius: radius.lg,
-  },
-  dmAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.md,
-  },
-  dmAvatarText: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: typography.fontWeight.semibold,
-    color: '#FFFFFF',
-  },
-  dmContent: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  dmHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.xs,
-  },
-  dmName: {
-    fontSize: typography.fontSize.base,
-    fontWeight: typography.fontWeight.semibold,
-  },
-  dmTime: {
-    fontSize: typography.fontSize.xs,
-  },
-  dmPreviewRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  dmPreview: {
-    fontSize: typography.fontSize.sm,
-    flex: 1,
-    marginRight: spacing.sm,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    padding: spacing.sm,
-    paddingBottom: spacing.sm,
-    borderTopWidth: 1,
-    gap: spacing.sm,
-  },
-  attachButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  input: {
-    flex: 1,
-    minHeight: 40,
-    maxHeight: 120,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: 20,
-    fontSize: typography.fontSize.base,
-  },
-  sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});

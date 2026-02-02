@@ -183,7 +183,7 @@ export function WaterElektraForm({ data, onChange, onValidationChange }: WaterEl
               </Alert>
 
               <div className="space-y-4">
-                <div className="flex items-center justify-between rounded-lg border border-orange-200 bg-white p-4 dark:border-orange-800 dark:bg-orange-950/30">
+                <div className="flex items-center justify-between rounded-lg border border-orange-200 bg-muted/50 p-4 dark:border-orange-800 dark:bg-orange-950/30">
                   <div className="space-y-0.5">
                     <Label className="text-base">Sleuven graven</Label>
                     <p className="text-sm text-muted-foreground">
@@ -193,7 +193,7 @@ export function WaterElektraForm({ data, onChange, onValidationChange }: WaterEl
                   <span className="text-sm font-medium text-orange-600">Inbegrepen</span>
                 </div>
 
-                <div className="flex items-center justify-between rounded-lg border border-orange-200 bg-white p-4 dark:border-orange-800 dark:bg-orange-950/30">
+                <div className="flex items-center justify-between rounded-lg border border-orange-200 bg-muted/50 p-4 dark:border-orange-800 dark:bg-orange-950/30">
                   <div className="space-y-0.5">
                     <Label className="text-base">Herstelwerk</Label>
                     <p className="text-sm text-muted-foreground">
@@ -204,7 +204,7 @@ export function WaterElektraForm({ data, onChange, onValidationChange }: WaterEl
                 </div>
               </div>
 
-              <div className="rounded-lg bg-white p-3 text-sm text-muted-foreground dark:bg-orange-950/30">
+              <div className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground dark:bg-orange-950/30">
                 <div className="font-medium mb-1">Automatisch berekend:</div>
                 <ul className="list-disc list-inside space-y-1">
                   <li>

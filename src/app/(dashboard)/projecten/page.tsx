@@ -36,6 +36,12 @@ import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { NoProjecten, NoSearchResults } from "@/components/empty-states";
+import { FilterPresetSelector } from "@/components/ui/filter-preset-selector";
+import {
+  useFilterPresets,
+  type ProjectenFilterState,
+} from "@/hooks/use-filter-presets";
+import { toast } from "sonner";
 
 // Status configuration - voorcalculatie is now at offerte level
 // Projects start at "gepland" status
@@ -132,6 +138,15 @@ function ProjectenPageContent() {
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [activeTab, setActiveTab] = useState("alle");
 
+  // Filter presets
+  const {
+    presets,
+    defaultPresets,
+    userPresets,
+    addPreset,
+    deletePreset,
+  } = useFilterPresets<ProjectenFilterState>("projecten");
+
   const isLoading = isUserLoading || projecten === undefined;
 
   // Get offertes without projects
@@ -166,6 +181,47 @@ function ProjectenPageContent() {
     },
     [router]
   );
+
+  // Handle preset selection
+  const handlePresetSelect = useCallback((presetFilters: ProjectenFilterState) => {
+    if (presetFilters.status) {
+      const statuses = presetFilters.status.split(",");
+      if (statuses.length === 1) {
+        setActiveTab(statuses[0]);
+      } else {
+        // For multiple statuses, stay on "alle" but we could filter client-side
+        setActiveTab("alle");
+      }
+    } else {
+      setActiveTab("alle");
+    }
+    if (presetFilters.searchQuery) {
+      setSearchQuery(presetFilters.searchQuery);
+    }
+  }, []);
+
+  // Current filters for preset
+  const currentFiltersForPreset = useMemo((): ProjectenFilterState => ({
+    status: activeTab !== "alle" ? activeTab : undefined,
+    searchQuery: searchQuery || undefined,
+  }), [activeTab, searchQuery]);
+
+  // Check if there are active filters
+  const hasActiveFilters = useMemo(() => {
+    return activeTab !== "alle" || searchQuery !== "";
+  }, [activeTab, searchQuery]);
+
+  // Handle saving preset
+  const handleSavePreset = useCallback((name: string, presetFilters: ProjectenFilterState) => {
+    addPreset(name, presetFilters);
+    toast.success(`Preset "${name}" opgeslagen`);
+  }, [addPreset]);
+
+  // Handle deleting preset
+  const handleDeletePreset = useCallback((id: string) => {
+    deletePreset(id);
+    toast.success("Preset verwijderd");
+  }, [deletePreset]);
 
   return (
     <>
@@ -290,13 +346,25 @@ function ProjectenPageContent() {
             delay: reducedMotion ? 0 : 0.25,
           }}
         >
-          <div className="relative w-full sm:max-w-sm">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Zoek projecten..."
-              className="pl-8 w-full"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+            <div className="relative w-full sm:flex-1 sm:max-w-sm">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Zoek projecten..."
+                className="pl-8 w-full"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <FilterPresetSelector<ProjectenFilterState>
+              presets={presets}
+              defaultPresets={defaultPresets}
+              userPresets={userPresets}
+              currentFilters={currentFiltersForPreset}
+              onSelectPreset={handlePresetSelect}
+              onSavePreset={handleSavePreset}
+              onDeletePreset={handleDeletePreset}
+              hasActiveFilters={hasActiveFilters}
             />
           </div>
         </motion.div>

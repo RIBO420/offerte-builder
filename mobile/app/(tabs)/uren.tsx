@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   TouchableOpacity,
   RefreshControl,
@@ -20,10 +19,7 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useCurrentUser } from '../../hooks/use-current-user';
 import { useColors } from '../../theme';
-import { typography } from '../../theme/typography';
-import { spacing } from '../../theme/spacing';
-import { radius } from '../../theme/radius';
-import { shadows } from '../../theme/shadows';
+import { cn } from '@/lib/utils';
 import {
   Card,
   CardContent,
@@ -112,10 +108,10 @@ export default function UrenScreen() {
   // Show loading while auth is loading or user not synced
   if (isLoading || !isUserSynced) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+        <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={{ marginTop: spacing.md, color: colors.mutedForeground }}>Laden...</Text>
+          <Text className="mt-4 text-muted-foreground">Laden...</Text>
         </View>
       </SafeAreaView>
     );
@@ -359,449 +355,13 @@ function AuthenticatedUrenScreen() {
     { key: 'week', label: 'Week' },
   ];
 
-  // Dynamic styles based on theme
-  const dynamicStyles = useMemo(
-    () =>
-      StyleSheet.create({
-        container: {
-          flex: 1,
-          backgroundColor: colors.background,
-        },
-        timerCard: {
-          backgroundColor: colors.card,
-          borderRadius: radius['2xl'],
-          padding: spacing.lg,
-          alignItems: 'center',
-          marginHorizontal: spacing.md,
-          marginTop: spacing.md,
-          borderWidth: 1,
-          borderColor: colors.border,
-          ...shadows.card,
-        },
-        timerLabel: {
-          fontSize: typography.fontSize.sm,
-          color: colors.mutedForeground,
-          marginBottom: spacing.xs,
-        },
-        timerValue: {
-          fontSize: typography.fontSize['4xl'],
-          fontWeight: typography.fontWeight.bold,
-          color: colors.foreground,
-          fontVariant: ['tabular-nums'],
-        },
-        timerStatus: {
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: spacing.sm,
-          marginTop: spacing.sm,
-          marginBottom: spacing.lg,
-        },
-        statusDot: {
-          width: 10,
-          height: 10,
-          borderRadius: radius.full,
-        },
-        statusDotActive: {
-          backgroundColor: colors.trend.positive,
-        },
-        statusDotInactive: {
-          backgroundColor: colors.mutedForeground,
-        },
-        statusDotBreak: {
-          backgroundColor: '#F59E0B', // Warning/amber color
-        },
-        statusText: {
-          fontSize: typography.fontSize.sm,
-          color: colors.mutedForeground,
-        },
-        timerActions: {
-          flexDirection: 'row',
-          gap: spacing.sm,
-          width: '100%',
-        },
-        projectSelector: {
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          backgroundColor: colors.secondary,
-          borderRadius: radius.lg,
-          padding: spacing.md,
-          marginTop: spacing.md,
-          width: '100%',
-        },
-        projectSelectorText: {
-          fontSize: typography.fontSize.sm,
-          color: colors.foreground,
-          fontWeight: typography.fontWeight.medium,
-          flex: 1,
-        },
-        projectSelectorPlaceholder: {
-          color: colors.mutedForeground,
-        },
-        section: {
-          marginTop: spacing.lg,
-          paddingHorizontal: spacing.md,
-        },
-        sectionTitle: {
-          fontSize: typography.fontSize.lg,
-          fontWeight: typography.fontWeight.semibold,
-          color: colors.foreground,
-          marginBottom: spacing.md,
-        },
-        weekGrid: {
-          flexDirection: 'row',
-          gap: spacing.xs,
-        },
-        dayCard: {
-          flex: 1,
-          backgroundColor: colors.card,
-          borderRadius: radius.lg,
-          padding: spacing.sm,
-          alignItems: 'center',
-          borderWidth: 1,
-          borderColor: colors.border,
-        },
-        dayCardActive: {
-          backgroundColor: colors.primary,
-          borderColor: colors.primary,
-        },
-        dayLabel: {
-          fontSize: typography.fontSize.xs,
-          color: colors.mutedForeground,
-          marginBottom: spacing.xs / 2,
-        },
-        dayLabelActive: {
-          color: colors.primaryForeground,
-          opacity: 0.8,
-        },
-        dayHours: {
-          fontSize: typography.fontSize.sm,
-          fontWeight: typography.fontWeight.semibold,
-          color: colors.foreground,
-        },
-        dayHoursActive: {
-          color: colors.primaryForeground,
-        },
-        entryCard: {
-          backgroundColor: colors.card,
-          borderRadius: radius.lg,
-          padding: spacing.md,
-          marginBottom: spacing.sm,
-          borderWidth: 1,
-          borderColor: colors.border,
-        },
-        entryHeader: {
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: spacing.xs,
-        },
-        entryProject: {
-          fontSize: typography.fontSize.base,
-          fontWeight: typography.fontWeight.medium,
-          color: colors.foreground,
-          flex: 1,
-        },
-        entryHours: {
-          fontSize: typography.fontSize.base,
-          fontWeight: typography.fontWeight.semibold,
-          color: colors.foreground,
-        },
-        entryDetails: {
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: spacing.sm,
-        },
-        entryNotes: {
-          fontSize: typography.fontSize.sm,
-          color: colors.mutedForeground,
-          marginTop: spacing.xs,
-        },
-        emptyState: {
-          backgroundColor: colors.card,
-          borderRadius: radius.lg,
-          padding: spacing.xl,
-          alignItems: 'center',
-          gap: spacing.sm,
-          borderWidth: 1,
-          borderColor: colors.border,
-        },
-        emptyIcon: {
-          marginBottom: spacing.sm,
-        },
-        emptyText: {
-          fontSize: typography.fontSize.base,
-          color: colors.mutedForeground,
-          fontWeight: typography.fontWeight.medium,
-        },
-        emptySubtext: {
-          fontSize: typography.fontSize.sm,
-          color: colors.mutedForeground,
-          textAlign: 'center',
-        },
-        totalsCard: {
-          backgroundColor: colors.card,
-          borderRadius: radius.lg,
-          padding: spacing.md,
-          marginTop: spacing.lg,
-          marginHorizontal: spacing.md,
-          marginBottom: spacing.xl,
-          borderWidth: 1,
-          borderColor: colors.border,
-        },
-        totalRow: {
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        },
-        totalLabel: {
-          fontSize: typography.fontSize.base,
-          color: colors.mutedForeground,
-        },
-        totalValue: {
-          fontSize: typography.fontSize.lg,
-          fontWeight: typography.fontWeight.bold,
-          color: colors.foreground,
-        },
-        totalValueMuted: {
-          fontSize: typography.fontSize.lg,
-          fontWeight: typography.fontWeight.semibold,
-          color: colors.mutedForeground,
-        },
-        totalDivider: {
-          height: 1,
-          backgroundColor: colors.border,
-          marginVertical: spacing.sm,
-        },
-        // Modal styles
-        modalOverlay: {
-          flex: 1,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          justifyContent: 'flex-end',
-        },
-        modalContent: {
-          backgroundColor: colors.card,
-          borderTopLeftRadius: radius['2xl'],
-          borderTopRightRadius: radius['2xl'],
-          maxHeight: '70%',
-        },
-        modalHeader: {
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: spacing.md,
-          borderBottomWidth: 1,
-          borderBottomColor: colors.border,
-        },
-        modalTitle: {
-          fontSize: typography.fontSize.lg,
-          fontWeight: typography.fontWeight.semibold,
-          color: colors.foreground,
-        },
-        projectItem: {
-          flexDirection: 'row',
-          alignItems: 'center',
-          padding: spacing.md,
-          borderBottomWidth: 1,
-          borderBottomColor: colors.border,
-        },
-        projectItemContent: {
-          flex: 1,
-        },
-        projectItemName: {
-          fontSize: typography.fontSize.base,
-          fontWeight: typography.fontWeight.medium,
-          color: colors.foreground,
-        },
-        projectItemClient: {
-          fontSize: typography.fontSize.sm,
-          color: colors.mutedForeground,
-          marginTop: spacing.xs / 2,
-        },
-        projectItemSelected: {
-          backgroundColor: `${colors.primary}10`,
-        },
-        loadingContainer: {
-          flex: 1,
-          justifyContent: 'center',
-          alignItems: 'center',
-          padding: spacing.xl,
-        },
-        tabsContainer: {
-          backgroundColor: colors.card,
-          paddingVertical: spacing.sm,
-          borderBottomWidth: 1,
-          borderBottomColor: colors.border,
-        },
-        // FAB styles
-        fab: {
-          position: 'absolute',
-          right: spacing.lg,
-          bottom: spacing.lg,
-          width: 56,
-          height: 56,
-          borderRadius: 28,
-          backgroundColor: colors.primary,
-          justifyContent: 'center',
-          alignItems: 'center',
-          ...shadows.card,
-          elevation: 4,
-        },
-        // Manual entry modal styles
-        manualEntryModalContent: {
-          backgroundColor: colors.card,
-          borderTopLeftRadius: radius['2xl'],
-          borderTopRightRadius: radius['2xl'],
-          maxHeight: '90%',
-        },
-        manualEntryForm: {
-          padding: spacing.md,
-        },
-        formLabel: {
-          fontSize: typography.fontSize.sm,
-          fontWeight: typography.fontWeight.medium,
-          color: colors.foreground,
-          marginBottom: spacing.xs,
-          marginTop: spacing.md,
-        },
-        formLabelFirst: {
-          marginTop: 0,
-        },
-        // Date picker styles
-        datePickerContainer: {
-          flexDirection: 'row',
-          flexWrap: 'wrap',
-          gap: spacing.xs,
-        },
-        dateChip: {
-          paddingHorizontal: spacing.md,
-          paddingVertical: spacing.sm,
-          borderRadius: radius.lg,
-          backgroundColor: colors.secondary,
-          borderWidth: 1,
-          borderColor: colors.border,
-        },
-        dateChipSelected: {
-          backgroundColor: colors.primary,
-          borderColor: colors.primary,
-        },
-        dateChipText: {
-          fontSize: typography.fontSize.sm,
-          color: colors.foreground,
-        },
-        dateChipTextSelected: {
-          color: colors.primaryForeground,
-          fontWeight: typography.fontWeight.medium,
-        },
-        // Quick hours styles
-        quickHoursContainer: {
-          flexDirection: 'row',
-          gap: spacing.sm,
-          marginTop: spacing.xs,
-        },
-        quickHourButton: {
-          flex: 1,
-          paddingVertical: spacing.sm,
-          borderRadius: radius.md,
-          backgroundColor: colors.secondary,
-          alignItems: 'center',
-          borderWidth: 1,
-          borderColor: colors.border,
-        },
-        quickHourButtonSelected: {
-          backgroundColor: colors.primary,
-          borderColor: colors.primary,
-        },
-        quickHourText: {
-          fontSize: typography.fontSize.sm,
-          color: colors.foreground,
-          fontWeight: typography.fontWeight.medium,
-        },
-        quickHourTextSelected: {
-          color: colors.primaryForeground,
-        },
-        // Scope styles
-        scopeContainer: {
-          flexDirection: 'row',
-          flexWrap: 'wrap',
-          gap: spacing.xs,
-        },
-        scopeChip: {
-          paddingHorizontal: spacing.md,
-          paddingVertical: spacing.sm,
-          borderRadius: radius.lg,
-          backgroundColor: colors.secondary,
-          borderWidth: 1,
-          borderColor: colors.border,
-        },
-        scopeChipSelected: {
-          backgroundColor: colors.primary,
-          borderColor: colors.primary,
-        },
-        scopeChipText: {
-          fontSize: typography.fontSize.sm,
-          color: colors.foreground,
-        },
-        scopeChipTextSelected: {
-          color: colors.primaryForeground,
-          fontWeight: typography.fontWeight.medium,
-        },
-        // Project selector for manual entry
-        manualProjectSelector: {
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          backgroundColor: colors.secondary,
-          borderRadius: radius.md,
-          padding: spacing.md,
-          borderWidth: 1,
-          borderColor: colors.border,
-        },
-        // Submit button area
-        submitButtonArea: {
-          padding: spacing.md,
-          paddingTop: spacing.lg,
-          borderTopWidth: 1,
-          borderTopColor: colors.border,
-          marginTop: spacing.md,
-        },
-        // Hours input container
-        hoursInputContainer: {
-          marginTop: spacing.xs,
-        },
-        hoursInput: {
-          backgroundColor: colors.background,
-          borderWidth: 1,
-          borderColor: colors.border,
-          borderRadius: radius.md,
-          padding: spacing.md,
-          fontSize: typography.fontSize.lg,
-          color: colors.foreground,
-          textAlign: 'center',
-          fontWeight: typography.fontWeight.semibold,
-        },
-        notesInput: {
-          backgroundColor: colors.background,
-          borderWidth: 1,
-          borderColor: colors.border,
-          borderRadius: radius.md,
-          padding: spacing.md,
-          fontSize: typography.fontSize.base,
-          color: colors.foreground,
-          minHeight: 80,
-          textAlignVertical: 'top',
-        },
-      }),
-    [colors]
-  );
-
   // Loading state - show loading while data is loading
   if (activeSession === undefined || todayHours === undefined) {
     return (
-      <SafeAreaView style={dynamicStyles.container} edges={['top']}>
-        <View style={dynamicStyles.loadingContainer}>
+      <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+        <View className="flex-1 justify-center items-center p-6">
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[dynamicStyles.emptyText, { marginTop: spacing.md }]}>
+          <Text className="mt-4 text-base text-muted-foreground font-medium">
             Laden...
           </Text>
         </View>
@@ -810,9 +370,9 @@ function AuthenticatedUrenScreen() {
   }
 
   return (
-    <SafeAreaView style={dynamicStyles.container} edges={['top']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       {/* Tabs */}
-      <View style={dynamicStyles.tabsContainer}>
+      <View className="bg-card py-2 border-b border-border">
         <Tabs
           tabs={tabs}
           activeTab={activeTab}
@@ -822,8 +382,8 @@ function AuthenticatedUrenScreen() {
       </View>
 
       <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: spacing['2xl'] }}
+        className="flex-1"
+        contentContainerStyle={{ paddingBottom: 96 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -834,28 +394,28 @@ function AuthenticatedUrenScreen() {
         }
       >
         {/* Timer Card */}
-        <View style={dynamicStyles.timerCard}>
-          <Text style={dynamicStyles.timerLabel}>
+        <View className="bg-card rounded-2xl p-4 items-center mx-4 mt-4 border border-border shadow-sm">
+          <Text className="text-sm text-muted-foreground mb-1">
             {isClockedIn ? 'Huidige sessie' : 'Vandaag gewerkt'}
           </Text>
-          <Text style={dynamicStyles.timerValue}>
+          <Text className="text-4xl font-bold text-foreground tabular-nums">
             {isClockedIn
               ? formatTime(elapsedSeconds)
               : formatTime(Math.floor((todayHours?.totalHours || 0) * 3600))}
           </Text>
 
-          <View style={dynamicStyles.timerStatus}>
+          <View className="flex-row items-center gap-2 mt-2 mb-4">
             <View
-              style={[
-                dynamicStyles.statusDot,
+              className={cn(
+                "w-2.5 h-2.5 rounded-full",
                 isClockedIn
                   ? isOnBreak
-                    ? dynamicStyles.statusDotBreak
-                    : dynamicStyles.statusDotActive
-                  : dynamicStyles.statusDotInactive,
-              ]}
+                    ? "bg-amber-500"
+                    : "bg-green-500"
+                  : "bg-muted-foreground"
+              )}
             />
-            <Text style={dynamicStyles.statusText}>
+            <Text className="text-sm text-muted-foreground">
               {isClockedIn
                 ? isOnBreak
                   ? 'Op pauze'
@@ -866,15 +426,15 @@ function AuthenticatedUrenScreen() {
 
           {/* Project Selector */}
           <TouchableOpacity
-            style={dynamicStyles.projectSelector}
+            className="flex-row items-center justify-between bg-secondary rounded-lg p-3 mt-4 w-full border border-border"
             onPress={() => setProjectModalVisible(true)}
             disabled={isClockedIn}
           >
             <Text
-              style={[
-                dynamicStyles.projectSelectorText,
-                !selectedProject && dynamicStyles.projectSelectorPlaceholder,
-              ]}
+              className={cn(
+                "text-sm font-medium flex-1",
+                selectedProject ? "text-foreground" : "text-muted-foreground"
+              )}
               numberOfLines={1}
             >
               {selectedProject ? selectedProject.naam : 'Selecteer een project'}
@@ -887,7 +447,7 @@ function AuthenticatedUrenScreen() {
           </TouchableOpacity>
 
           {/* Action Buttons */}
-          <View style={[dynamicStyles.timerActions, { marginTop: spacing.md }]}>
+          <View className="flex-row gap-2 w-full mt-4">
             {!isClockedIn ? (
               <Button
                 title="Inklokken"
@@ -904,7 +464,7 @@ function AuthenticatedUrenScreen() {
               />
             ) : (
               <>
-                <View style={{ flex: 1 }}>
+                <View className="flex-1">
                   <Button
                     title={isOnBreak ? 'Verder' : 'Pauze'}
                     onPress={handleTogglePause}
@@ -920,7 +480,7 @@ function AuthenticatedUrenScreen() {
                     }
                   />
                 </View>
-                <View style={{ flex: 1 }}>
+                <View className="flex-1">
                   <Button
                     title="Uitklokken"
                     onPress={handleClockOut}
@@ -944,9 +504,9 @@ function AuthenticatedUrenScreen() {
         {/* Tab Content */}
         <TabsContent tabKey="dag" activeTab={activeTab}>
           {/* Week Overview Grid */}
-          <View style={dynamicStyles.section}>
-            <Text style={dynamicStyles.sectionTitle}>Week Overzicht</Text>
-            <View style={dynamicStyles.weekGrid}>
+          <View className="mt-6 px-4">
+            <Text className="text-lg font-semibold text-foreground mb-4">Week Overzicht</Text>
+            <View className="flex-row gap-1">
               {weekDays.map((day, index) => {
                 const dayData = weekHours?.dailyHours?.[index];
                 const hoursForDay = dayData?.uren || 0;
@@ -954,24 +514,24 @@ function AuthenticatedUrenScreen() {
                 return (
                   <View
                     key={day}
-                    style={[
-                      dynamicStyles.dayCard,
-                      index === currentDayIndex && dynamicStyles.dayCardActive,
-                    ]}
+                    className={cn(
+                      "flex-1 bg-card rounded-lg p-2 items-center border border-border",
+                      index === currentDayIndex && "bg-primary border-primary"
+                    )}
                   >
                     <Text
-                      style={[
-                        dynamicStyles.dayLabel,
-                        index === currentDayIndex && dynamicStyles.dayLabelActive,
-                      ]}
+                      className={cn(
+                        "text-xs text-muted-foreground mb-0.5",
+                        index === currentDayIndex && "text-primary-foreground opacity-80"
+                      )}
                     >
                       {day}
                     </Text>
                     <Text
-                      style={[
-                        dynamicStyles.dayHours,
-                        index === currentDayIndex && dynamicStyles.dayHoursActive,
-                      ]}
+                      className={cn(
+                        "text-sm font-semibold text-foreground",
+                        index === currentDayIndex && "text-primary-foreground"
+                      )}
                     >
                       {formatHoursMinutes(hoursForDay)}
                     </Text>
@@ -982,29 +542,29 @@ function AuthenticatedUrenScreen() {
           </View>
 
           {/* Today's Entries */}
-          <View style={dynamicStyles.section}>
-            <Text style={dynamicStyles.sectionTitle}>Registraties Vandaag</Text>
+          <View className="mt-6 px-4">
+            <Text className="text-lg font-semibold text-foreground mb-4">Registraties Vandaag</Text>
             {todayHours?.entries && todayHours.entries.length > 0 ? (
               todayHours.entries.map((entry, index) => {
                 const projectInfo = todayHours.projects?.find(
                   (p) => p?.projectId.toString() === entry.projectId.toString()
                 );
                 return (
-                  <View key={entry._id || index} style={dynamicStyles.entryCard}>
-                    <View style={dynamicStyles.entryHeader}>
+                  <View key={entry._id || index} className="bg-card rounded-lg p-4 mb-2 border border-border">
+                    <View className="flex-row justify-between items-center mb-1">
                       <Text
-                        style={dynamicStyles.entryProject}
+                        className="text-base font-medium text-foreground flex-1"
                         numberOfLines={1}
                       >
                         {projectInfo?.naam || 'Project'}
                       </Text>
-                      <Text style={dynamicStyles.entryHours}>
+                      <Text className="text-base font-semibold text-foreground">
                         {formatHoursMinutes(entry.uren)} uur
                       </Text>
                     </View>
                     {entry.notities && (
                       <Text
-                        style={dynamicStyles.entryNotes}
+                        className="text-sm text-muted-foreground mt-1"
                         numberOfLines={2}
                       >
                         {entry.notities}
@@ -1014,17 +574,17 @@ function AuthenticatedUrenScreen() {
                 );
               })
             ) : (
-              <View style={dynamicStyles.emptyState}>
+              <View className="bg-card rounded-lg p-6 items-center gap-2 border border-border">
                 <Feather
                   name="clock"
                   size={32}
                   color={colors.mutedForeground}
-                  style={dynamicStyles.emptyIcon}
+                  className="mb-2"
                 />
-                <Text style={dynamicStyles.emptyText}>
+                <Text className="text-base text-muted-foreground font-medium">
                   Geen registraties vandaag
                 </Text>
-                <Text style={dynamicStyles.emptySubtext}>
+                <Text className="text-sm text-muted-foreground text-center">
                   Klok in om je werkdag te starten
                 </Text>
               </View>
@@ -1034,25 +594,25 @@ function AuthenticatedUrenScreen() {
 
         <TabsContent tabKey="week" activeTab={activeTab}>
           {/* Week Summary */}
-          <View style={dynamicStyles.section}>
-            <Text style={dynamicStyles.sectionTitle}>Week Samenvatting</Text>
+          <View className="mt-6 px-4">
+            <Text className="text-lg font-semibold text-foreground mb-4">Week Samenvatting</Text>
             <Card>
               <CardContent>
-                <View style={dynamicStyles.totalRow}>
-                  <Text style={dynamicStyles.totalLabel}>Totaal uren</Text>
-                  <Text style={dynamicStyles.totalValue}>
+                <View className="flex-row justify-between items-center">
+                  <Text className="text-base text-muted-foreground">Totaal uren</Text>
+                  <Text className="text-lg font-bold text-foreground">
                     <AnimatedNumber
                       value={weekHours?.totalHours || 0}
                       decimals={1}
                       suffix=" uur"
-                      style={dynamicStyles.totalValue}
+                      style={{ fontSize: 18, fontWeight: 'bold' }}
                     />
                   </Text>
                 </View>
-                <View style={dynamicStyles.totalDivider} />
-                <View style={dynamicStyles.totalRow}>
-                  <Text style={dynamicStyles.totalLabel}>Projecten</Text>
-                  <Text style={dynamicStyles.totalValue}>
+                <View className="h-px bg-border my-2" />
+                <View className="flex-row justify-between items-center">
+                  <Text className="text-base text-muted-foreground">Projecten</Text>
+                  <Text className="text-lg font-bold text-foreground">
                     {weekHours?.projectCount || 0}
                   </Text>
                 </View>
@@ -1061,15 +621,15 @@ function AuthenticatedUrenScreen() {
           </View>
 
           {/* Daily Breakdown */}
-          <View style={dynamicStyles.section}>
-            <Text style={dynamicStyles.sectionTitle}>Per Dag</Text>
+          <View className="mt-6 px-4">
+            <Text className="text-lg font-semibold text-foreground mb-4">Per Dag</Text>
             {weekHours?.dailyHours?.map((day, index) => (
-              <View key={day.datum || index} style={dynamicStyles.entryCard}>
-                <View style={dynamicStyles.entryHeader}>
-                  <Text style={dynamicStyles.entryProject}>
+              <View key={day.datum || index} className="bg-card rounded-lg p-4 mb-2 border border-border">
+                <View className="flex-row justify-between items-center mb-1">
+                  <Text className="text-base font-medium text-foreground flex-1">
                     {day.dag} - {day.datum}
                   </Text>
-                  <Text style={dynamicStyles.entryHours}>
+                  <Text className="text-base font-semibold text-foreground">
                     {formatHoursMinutes(day.uren)} uur
                   </Text>
                 </View>
@@ -1079,20 +639,20 @@ function AuthenticatedUrenScreen() {
         </TabsContent>
 
         {/* Totals Footer */}
-        <View style={dynamicStyles.totalsCard}>
-          <View style={dynamicStyles.totalRow}>
-            <Text style={dynamicStyles.totalLabel}>Totaal deze week</Text>
+        <View className="bg-card rounded-lg p-4 mt-6 mx-4 mb-10 border border-border">
+          <View className="flex-row justify-between items-center">
+            <Text className="text-base text-muted-foreground">Totaal deze week</Text>
             <AnimatedNumber
               value={weekHours?.totalHours || 0}
               decimals={1}
               suffix=" uur"
-              style={dynamicStyles.totalValue}
+              style={{ fontSize: 18, fontWeight: 'bold' }}
             />
           </View>
-          <View style={dynamicStyles.totalDivider} />
-          <View style={dynamicStyles.totalRow}>
-            <Text style={dynamicStyles.totalLabel}>Doel deze week</Text>
-            <Text style={dynamicStyles.totalValueMuted}>40:00</Text>
+          <View className="h-px bg-border my-2" />
+          <View className="flex-row justify-between items-center">
+            <Text className="text-base text-muted-foreground">Doel deze week</Text>
+            <Text className="text-lg font-semibold text-muted-foreground">40:00</Text>
           </View>
         </View>
       </ScrollView>
@@ -1105,13 +665,13 @@ function AuthenticatedUrenScreen() {
         onRequestClose={() => setProjectModalVisible(false)}
       >
         <TouchableOpacity
-          style={dynamicStyles.modalOverlay}
+          className="flex-1 bg-black/50 justify-end"
           activeOpacity={1}
           onPress={() => setProjectModalVisible(false)}
         >
-          <View style={dynamicStyles.modalContent}>
-            <View style={dynamicStyles.modalHeader}>
-              <Text style={dynamicStyles.modalTitle}>Selecteer Project</Text>
+          <View className="bg-card rounded-t-2xl max-h-[70%]">
+            <View className="flex-row justify-between items-center p-4 border-b border-border">
+              <Text className="text-lg font-semibold text-foreground">Selecteer Project</Text>
               <TouchableOpacity onPress={() => setProjectModalVisible(false)}>
                 <Feather name="x" size={24} color={colors.foreground} />
               </TouchableOpacity>
@@ -1121,18 +681,17 @@ function AuthenticatedUrenScreen() {
               keyExtractor={(item) => item._id}
               renderItem={({ item }) => (
                 <TouchableOpacity
-                  style={[
-                    dynamicStyles.projectItem,
-                    selectedProject?._id === item._id &&
-                      dynamicStyles.projectItemSelected,
-                  ]}
+                  className={cn(
+                    "flex-row items-center p-4 border-b border-border",
+                    selectedProject?._id === item._id && "bg-primary/10"
+                  )}
                   onPress={() => handleSelectProject(item)}
                 >
-                  <View style={dynamicStyles.projectItemContent}>
-                    <Text style={dynamicStyles.projectItemName}>
+                  <View className="flex-1">
+                    <Text className="text-base font-medium text-foreground">
                       {item.naam}
                     </Text>
-                    <Text style={dynamicStyles.projectItemClient}>
+                    <Text className="text-sm text-muted-foreground mt-0.5">
                       {item.klantNaam}
                     </Text>
                   </View>
@@ -1146,11 +705,11 @@ function AuthenticatedUrenScreen() {
                 </TouchableOpacity>
               )}
               ListEmptyComponent={
-                <View style={dynamicStyles.emptyState}>
-                  <Text style={dynamicStyles.emptyText}>
+                <View className="bg-card rounded-lg p-6 items-center gap-2 border border-border">
+                  <Text className="text-base text-muted-foreground font-medium">
                     Geen projecten beschikbaar
                   </Text>
-                  <Text style={dynamicStyles.emptySubtext}>
+                  <Text className="text-sm text-muted-foreground text-center">
                     Je hebt nog geen actieve projecten toegewezen gekregen
                   </Text>
                 </View>
@@ -1162,7 +721,8 @@ function AuthenticatedUrenScreen() {
 
       {/* Floating Action Button for Manual Entry */}
       <TouchableOpacity
-        style={dynamicStyles.fab}
+        className="absolute right-6 bottom-6 w-14 h-14 rounded-full bg-primary justify-center items-center shadow-lg"
+        style={{ elevation: 4 }}
         onPress={handleOpenManualEntry}
         activeOpacity={0.8}
       >
@@ -1177,50 +737,50 @@ function AuthenticatedUrenScreen() {
         onRequestClose={handleCloseManualEntry}
       >
         <KeyboardAvoidingView
-          style={{ flex: 1 }}
+          className="flex-1"
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <TouchableOpacity
-            style={dynamicStyles.modalOverlay}
+            className="flex-1 bg-black/50 justify-end"
             activeOpacity={1}
             onPress={handleCloseManualEntry}
           >
             <TouchableOpacity
               activeOpacity={1}
               onPress={() => {}}
-              style={dynamicStyles.manualEntryModalContent}
+              className="bg-card rounded-t-2xl max-h-[90%]"
             >
-              <View style={dynamicStyles.modalHeader}>
-                <Text style={dynamicStyles.modalTitle}>Uren Toevoegen</Text>
+              <View className="flex-row justify-between items-center p-4 border-b border-border">
+                <Text className="text-lg font-semibold text-foreground">Uren Toevoegen</Text>
                 <TouchableOpacity onPress={handleCloseManualEntry}>
                   <Feather name="x" size={24} color={colors.foreground} />
                 </TouchableOpacity>
               </View>
 
               <ScrollView
-                style={dynamicStyles.manualEntryForm}
+                className="p-4"
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
               >
                 {/* Date Picker */}
-                <Text style={[dynamicStyles.formLabel, dynamicStyles.formLabelFirst]}>
+                <Text className="text-sm font-medium text-foreground mb-1">
                   Datum
                 </Text>
-                <View style={dynamicStyles.datePickerContainer}>
+                <View className="flex-row flex-wrap gap-1">
                   {dateOptions.map((option) => (
                     <TouchableOpacity
                       key={option.key}
-                      style={[
-                        dynamicStyles.dateChip,
-                        manualEntryDate === option.key && dynamicStyles.dateChipSelected,
-                      ]}
+                      className={cn(
+                        "px-4 py-2 rounded-lg bg-secondary border border-border",
+                        manualEntryDate === option.key && "bg-primary border-primary"
+                      )}
                       onPress={() => setManualEntryDate(option.key)}
                     >
                       <Text
-                        style={[
-                          dynamicStyles.dateChipText,
-                          manualEntryDate === option.key && dynamicStyles.dateChipTextSelected,
-                        ]}
+                        className={cn(
+                          "text-sm text-foreground",
+                          manualEntryDate === option.key && "text-primary-foreground font-medium"
+                        )}
                       >
                         {option.label}
                       </Text>
@@ -1229,16 +789,16 @@ function AuthenticatedUrenScreen() {
                 </View>
 
                 {/* Project Selector */}
-                <Text style={dynamicStyles.formLabel}>Project *</Text>
+                <Text className="text-sm font-medium text-foreground mb-1 mt-4">Project *</Text>
                 <TouchableOpacity
-                  style={dynamicStyles.manualProjectSelector}
+                  className="flex-row items-center justify-between bg-secondary rounded-md p-3 border border-border"
                   onPress={() => setManualEntryProjectSelectorVisible(true)}
                 >
                   <Text
-                    style={[
-                      dynamicStyles.projectSelectorText,
-                      !manualEntryProject && dynamicStyles.projectSelectorPlaceholder,
-                    ]}
+                    className={cn(
+                      "text-sm font-medium flex-1",
+                      manualEntryProject ? "text-foreground" : "text-muted-foreground"
+                    )}
                     numberOfLines={1}
                   >
                     {manualEntryProject ? manualEntryProject.naam : 'Selecteer een project'}
@@ -1251,10 +811,10 @@ function AuthenticatedUrenScreen() {
                 </TouchableOpacity>
 
                 {/* Hours Input */}
-                <Text style={dynamicStyles.formLabel}>Uren *</Text>
-                <View style={dynamicStyles.hoursInputContainer}>
+                <Text className="text-sm font-medium text-foreground mb-1 mt-4">Uren *</Text>
+                <View className="mt-1">
                   <TextInput
-                    style={dynamicStyles.hoursInput}
+                    className="bg-background border border-border rounded-md p-3 text-lg text-foreground text-center font-semibold"
                     value={manualEntryHours}
                     onChangeText={setManualEntryHours}
                     placeholder="0.0"
@@ -1263,23 +823,21 @@ function AuthenticatedUrenScreen() {
                     returnKeyType="done"
                   />
                 </View>
-                <View style={dynamicStyles.quickHoursContainer}>
+                <View className="flex-row gap-2 mt-1">
                   {QUICK_HOURS.map((hours) => (
                     <TouchableOpacity
                       key={hours}
-                      style={[
-                        dynamicStyles.quickHourButton,
-                        manualEntryHours === hours.toString() &&
-                          dynamicStyles.quickHourButtonSelected,
-                      ]}
+                      className={cn(
+                        "flex-1 py-2 rounded-md bg-secondary items-center border border-border",
+                        manualEntryHours === hours.toString() && "bg-primary border-primary"
+                      )}
                       onPress={() => setManualEntryHours(hours.toString())}
                     >
                       <Text
-                        style={[
-                          dynamicStyles.quickHourText,
-                          manualEntryHours === hours.toString() &&
-                            dynamicStyles.quickHourTextSelected,
-                        ]}
+                        className={cn(
+                          "text-sm text-foreground font-medium",
+                          manualEntryHours === hours.toString() && "text-primary-foreground"
+                        )}
                       >
                         {hours}u
                       </Text>
@@ -1288,15 +846,15 @@ function AuthenticatedUrenScreen() {
                 </View>
 
                 {/* Scope Selector */}
-                <Text style={dynamicStyles.formLabel}>Categorie</Text>
-                <View style={dynamicStyles.scopeContainer}>
+                <Text className="text-sm font-medium text-foreground mb-1 mt-4">Categorie</Text>
+                <View className="flex-row flex-wrap gap-1">
                   {SCOPE_OPTIONS.map((scope) => (
                     <TouchableOpacity
                       key={scope.key}
-                      style={[
-                        dynamicStyles.scopeChip,
-                        manualEntryScope === scope.key && dynamicStyles.scopeChipSelected,
-                      ]}
+                      className={cn(
+                        "px-4 py-2 rounded-lg bg-secondary border border-border",
+                        manualEntryScope === scope.key && "bg-primary border-primary"
+                      )}
                       onPress={() =>
                         setManualEntryScope(
                           manualEntryScope === scope.key ? '' : scope.key
@@ -1304,10 +862,10 @@ function AuthenticatedUrenScreen() {
                       }
                     >
                       <Text
-                        style={[
-                          dynamicStyles.scopeChipText,
-                          manualEntryScope === scope.key && dynamicStyles.scopeChipTextSelected,
-                        ]}
+                        className={cn(
+                          "text-sm text-foreground",
+                          manualEntryScope === scope.key && "text-primary-foreground font-medium"
+                        )}
                       >
                         {scope.label}
                       </Text>
@@ -1316,9 +874,10 @@ function AuthenticatedUrenScreen() {
                 </View>
 
                 {/* Notes Input */}
-                <Text style={dynamicStyles.formLabel}>Notities</Text>
+                <Text className="text-sm font-medium text-foreground mb-1 mt-4">Notities</Text>
                 <TextInput
-                  style={dynamicStyles.notesInput}
+                  className="bg-background border border-border rounded-md p-3 text-base text-foreground min-h-[80px]"
+                  style={{ textAlignVertical: 'top' }}
                   value={manualEntryNotes}
                   onChangeText={setManualEntryNotes}
                   placeholder="Optionele notities..."
@@ -1328,7 +887,7 @@ function AuthenticatedUrenScreen() {
                 />
 
                 {/* Submit Button */}
-                <View style={dynamicStyles.submitButtonArea}>
+                <View className="p-4 pt-6 border-t border-border mt-4">
                   <Button
                     title="Opslaan"
                     onPress={handleSubmitManualEntry}
@@ -1357,13 +916,13 @@ function AuthenticatedUrenScreen() {
         onRequestClose={() => setManualEntryProjectSelectorVisible(false)}
       >
         <TouchableOpacity
-          style={dynamicStyles.modalOverlay}
+          className="flex-1 bg-black/50 justify-end"
           activeOpacity={1}
           onPress={() => setManualEntryProjectSelectorVisible(false)}
         >
-          <View style={dynamicStyles.modalContent}>
-            <View style={dynamicStyles.modalHeader}>
-              <Text style={dynamicStyles.modalTitle}>Selecteer Project</Text>
+          <View className="bg-card rounded-t-2xl max-h-[70%]">
+            <View className="flex-row justify-between items-center p-4 border-b border-border">
+              <Text className="text-lg font-semibold text-foreground">Selecteer Project</Text>
               <TouchableOpacity onPress={() => setManualEntryProjectSelectorVisible(false)}>
                 <Feather name="x" size={24} color={colors.foreground} />
               </TouchableOpacity>
@@ -1373,18 +932,17 @@ function AuthenticatedUrenScreen() {
               keyExtractor={(item) => item._id}
               renderItem={({ item }) => (
                 <TouchableOpacity
-                  style={[
-                    dynamicStyles.projectItem,
-                    manualEntryProject?._id === item._id &&
-                      dynamicStyles.projectItemSelected,
-                  ]}
+                  className={cn(
+                    "flex-row items-center p-4 border-b border-border",
+                    manualEntryProject?._id === item._id && "bg-primary/10"
+                  )}
                   onPress={() => handleSelectManualEntryProject(item)}
                 >
-                  <View style={dynamicStyles.projectItemContent}>
-                    <Text style={dynamicStyles.projectItemName}>
+                  <View className="flex-1">
+                    <Text className="text-base font-medium text-foreground">
                       {item.naam}
                     </Text>
-                    <Text style={dynamicStyles.projectItemClient}>
+                    <Text className="text-sm text-muted-foreground mt-0.5">
                       {item.klantNaam}
                     </Text>
                   </View>
@@ -1398,11 +956,11 @@ function AuthenticatedUrenScreen() {
                 </TouchableOpacity>
               )}
               ListEmptyComponent={
-                <View style={dynamicStyles.emptyState}>
-                  <Text style={dynamicStyles.emptyText}>
+                <View className="bg-card rounded-lg p-6 items-center gap-2 border border-border">
+                  <Text className="text-base text-muted-foreground font-medium">
                     Geen projecten beschikbaar
                   </Text>
-                  <Text style={dynamicStyles.emptySubtext}>
+                  <Text className="text-sm text-muted-foreground text-center">
                     Je hebt nog geen actieve projecten toegewezen gekregen
                   </Text>
                 </View>

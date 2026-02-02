@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useMutation } from "convex/react";
+import { useMemo, useCallback } from "react";
 import { api } from "../../convex/_generated/api";
 import { useCurrentUser } from "./use-current-user";
 import { Id } from "../../convex/_generated/dataModel";
@@ -21,47 +22,60 @@ export function useOffertes() {
   const updateRegels = useMutation(api.offertes.updateRegels);
   const updateStatus = useMutation(api.offertes.updateStatus);
   const deleteOfferte = useMutation(api.offertes.remove);
+  const restoreOfferte = useMutation(api.offertes.restore);
   const duplicateOfferte = useMutation(api.offertes.duplicate);
   const bulkUpdateStatusMutation = useMutation(api.offertes.bulkUpdateStatus);
   const bulkRemoveMutation = useMutation(api.offertes.bulkRemove);
+  const bulkRestoreMutation = useMutation(api.offertes.bulkRestore);
 
-  const create = async (data: {
-    type: "aanleg" | "onderhoud";
-    offerteNummer: string;
-    klant: {
-      naam: string;
-      adres: string;
-      postcode: string;
-      plaats: string;
-      email?: string;
-      telefoon?: string;
-    };
-    algemeenParams: {
-      bereikbaarheid: "goed" | "beperkt" | "slecht";
-      achterstalligheid?: "laag" | "gemiddeld" | "hoog";
-    };
-    scopes?: string[];
-    scopeData?: Record<string, unknown>;
-    notities?: string;
-    klantId?: Id<"klanten">;
-  }) => {
-    if (!user?._id) throw new Error("User not found");
-    return createOfferte(data);
-  };
+  // Memoize data to prevent reference changes
+  const offertes = useMemo(() => dashboardData?.offertes, [dashboardData?.offertes]);
+  const stats = useMemo(() => dashboardData?.stats, [dashboardData?.stats]);
+  const recentOffertes = useMemo(() => dashboardData?.recent, [dashboardData?.recent]);
+
+  // Memoize create callback
+  const create = useCallback(
+    async (data: {
+      type: "aanleg" | "onderhoud";
+      offerteNummer: string;
+      klant: {
+        naam: string;
+        adres: string;
+        postcode: string;
+        plaats: string;
+        email?: string;
+        telefoon?: string;
+      };
+      algemeenParams: {
+        bereikbaarheid: "goed" | "beperkt" | "slecht";
+        achterstalligheid?: "laag" | "gemiddeld" | "hoog";
+      };
+      scopes?: string[];
+      scopeData?: Record<string, unknown>;
+      notities?: string;
+      klantId?: Id<"klanten">;
+    }) => {
+      if (!user?._id) throw new Error("User not found");
+      return createOfferte(data);
+    },
+    [user?._id, createOfferte]
+  );
 
   return {
-    offertes: dashboardData?.offertes,
-    stats: dashboardData?.stats,
-    recentOffertes: dashboardData?.recent,
+    offertes,
+    stats,
+    recentOffertes,
     isLoading: user && dashboardData === undefined,
     create,
     update: updateOfferte,
     updateRegels,
     updateStatus,
     delete: deleteOfferte,
+    restore: restoreOfferte,
     duplicate: duplicateOfferte,
     bulkUpdateStatus: bulkUpdateStatusMutation,
     bulkRemove: bulkRemoveMutation,
+    bulkRestore: bulkRestoreMutation,
   };
 }
 
@@ -69,7 +83,7 @@ export function useOffertes() {
 export function useOffertesListOnly() {
   const { user } = useCurrentUser();
 
-  const offertes = useQuery(
+  const offertesData = useQuery(
     api.offertes.list,
     user?._id ? {} : "skip"
   );
@@ -79,45 +93,56 @@ export function useOffertesListOnly() {
   const updateRegels = useMutation(api.offertes.updateRegels);
   const updateStatus = useMutation(api.offertes.updateStatus);
   const deleteOfferte = useMutation(api.offertes.remove);
+  const restoreOfferte = useMutation(api.offertes.restore);
   const duplicateOfferte = useMutation(api.offertes.duplicate);
   const bulkUpdateStatusMutation = useMutation(api.offertes.bulkUpdateStatus);
   const bulkRemoveMutation = useMutation(api.offertes.bulkRemove);
+  const bulkRestoreMutation = useMutation(api.offertes.bulkRestore);
 
-  const create = async (data: {
-    type: "aanleg" | "onderhoud";
-    offerteNummer: string;
-    klant: {
-      naam: string;
-      adres: string;
-      postcode: string;
-      plaats: string;
-      email?: string;
-      telefoon?: string;
-    };
-    algemeenParams: {
-      bereikbaarheid: "goed" | "beperkt" | "slecht";
-      achterstalligheid?: "laag" | "gemiddeld" | "hoog";
-    };
-    scopes?: string[];
-    scopeData?: Record<string, unknown>;
-    notities?: string;
-    klantId?: Id<"klanten">;
-  }) => {
-    if (!user?._id) throw new Error("User not found");
-    return createOfferte(data);
-  };
+  // Memoize the list to prevent reference changes
+  const offertes = useMemo(() => offertesData, [offertesData]);
+
+  // Memoize create callback
+  const create = useCallback(
+    async (data: {
+      type: "aanleg" | "onderhoud";
+      offerteNummer: string;
+      klant: {
+        naam: string;
+        adres: string;
+        postcode: string;
+        plaats: string;
+        email?: string;
+        telefoon?: string;
+      };
+      algemeenParams: {
+        bereikbaarheid: "goed" | "beperkt" | "slecht";
+        achterstalligheid?: "laag" | "gemiddeld" | "hoog";
+      };
+      scopes?: string[];
+      scopeData?: Record<string, unknown>;
+      notities?: string;
+      klantId?: Id<"klanten">;
+    }) => {
+      if (!user?._id) throw new Error("User not found");
+      return createOfferte(data);
+    },
+    [user?._id, createOfferte]
+  );
 
   return {
     offertes,
-    isLoading: user && offertes === undefined,
+    isLoading: user && offertesData === undefined,
     create,
     update: updateOfferte,
     updateRegels,
     updateStatus,
     delete: deleteOfferte,
+    restore: restoreOfferte,
     duplicate: duplicateOfferte,
     bulkUpdateStatus: bulkUpdateStatusMutation,
     bulkRemove: bulkRemoveMutation,
+    bulkRestore: bulkRestoreMutation,
   };
 }
 
@@ -142,10 +167,15 @@ export function useDashboardData() {
     user?._id ? {} : "skip"
   );
 
+  // Memoize to prevent reference changes on each render
+  const stats = useMemo(() => dashboardData?.stats, [dashboardData?.stats]);
+  const recentOffertes = useMemo(() => dashboardData?.recent ?? [], [dashboardData?.recent]);
+  const offertes = useMemo(() => dashboardData?.offertes ?? [], [dashboardData?.offertes]);
+
   return {
-    stats: dashboardData?.stats,
-    recentOffertes: dashboardData?.recent ?? [],
-    offertes: dashboardData?.offertes ?? [],
+    stats,
+    recentOffertes,
+    offertes,
     isLoading: user && dashboardData === undefined,
   };
 }
@@ -160,20 +190,30 @@ export function useFullDashboardData() {
     user?._id ? {} : "skip"
   );
 
+  // Memoize all values to prevent unnecessary re-renders
+  const offerteStats = useMemo(() => data?.offerteStats ?? null, [data?.offerteStats]);
+  const recentOffertes = useMemo(() => data?.recentOffertes ?? [], [data?.recentOffertes]);
+  const revenueStats = useMemo(() => data?.revenueStats ?? null, [data?.revenueStats]);
+  const acceptedWithoutProject = useMemo(() => data?.acceptedWithoutProject ?? [], [data?.acceptedWithoutProject]);
+  const projectStats = useMemo(() => data?.projectStats ?? null, [data?.projectStats]);
+  const activeProjects = useMemo(() => data?.activeProjects ?? [], [data?.activeProjects]);
+  const facturenStats = useMemo(() => data?.facturenStats ?? null, [data?.facturenStats]);
+  const recentFacturen = useMemo(() => data?.recentFacturen ?? [], [data?.recentFacturen]);
+
   return {
     // Offerte data
-    offerteStats: data?.offerteStats ?? null,
-    recentOffertes: data?.recentOffertes ?? [],
+    offerteStats,
+    recentOffertes,
     // Revenue stats
-    revenueStats: data?.revenueStats ?? null,
+    revenueStats,
     // Action required
-    acceptedWithoutProject: data?.acceptedWithoutProject ?? [],
+    acceptedWithoutProject,
     // Project data
-    projectStats: data?.projectStats ?? null,
-    activeProjects: data?.activeProjects ?? [],
+    projectStats,
+    activeProjects,
     // Facturen data
-    facturenStats: data?.facturenStats ?? null,
-    recentFacturen: data?.recentFacturen ?? [],
+    facturenStats,
+    recentFacturen,
     // Loading state
     isLoading: user && data === undefined,
   };
@@ -188,10 +228,15 @@ export function useOffertesPaginated(limit: number = 25) {
     user?._id ? { limit } : "skip"
   );
 
+  // Memoize list and pagination info
+  const offertes = useMemo(() => data?.offertes ?? [], [data?.offertes]);
+  const nextCursor = useMemo(() => data?.nextCursor, [data?.nextCursor]);
+  const hasMore = useMemo(() => data?.hasMore ?? false, [data?.hasMore]);
+
   return {
-    offertes: data?.offertes ?? [],
-    nextCursor: data?.nextCursor,
-    hasMore: data?.hasMore ?? false,
+    offertes,
+    nextCursor,
+    hasMore,
     isLoading: user && data === undefined,
   };
 }

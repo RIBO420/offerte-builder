@@ -275,6 +275,39 @@ export { SkipLink } from "./skip-link";
 // Progress
 export { PDFProgressModal } from "./pdf-progress-modal";
 
+// Animations & Motion
+export {
+  AnimatedList,
+  AnimatedListItem,
+  AnimatedTableRow,
+  AnimatedGrid,
+  containerVariants,
+  itemVariants,
+  slideItemVariants,
+  scaleItemVariants,
+} from "./animated-list";
+export {
+  MotionCard,
+  InteractiveCard,
+  StatCard,
+  motionCardVariants,
+} from "./motion-card";
+export {
+  MotionButton,
+  PrimaryActionButton,
+  MotionIconButton,
+  FloatingActionButton,
+} from "./motion-button";
+export {
+  AnimatedButton,
+  HoverFillButton,
+  ShineButton,
+  AnimatedIconButton,
+} from "./animated-button";
+
+// Re-export page transitions from parent components folder
+// Note: PageTransition, ContentTransition, FadeIn are in @/components/page-transition
+
 // Typography
 export {
   Heading,

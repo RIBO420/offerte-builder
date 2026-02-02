@@ -4,7 +4,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   KeyboardAvoidingView,
   Platform,
   Alert,
@@ -15,6 +14,7 @@ import { Feather } from '@expo/vector-icons';
 import { useSignIn, useAuth } from '@clerk/clerk-expo';
 import * as Linking from 'expo-linking';
 import { isAuthConfigured } from '../../lib/env';
+import { cn } from '@/lib/utils';
 
 // Email validation regex
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -234,9 +234,9 @@ export default function LoginScreen() {
   // Loading state als Clerk nog niet geladen is
   if (!isLoaded) {
     return (
-      <View style={[styles.container, styles.loadingContainer]}>
+      <View className="flex-1 bg-background items-center justify-center">
         <ActivityIndicator size="large" color="#2d5016" />
-        <Text style={styles.loadingText}>Laden...</Text>
+        <Text className="mt-3 text-sm text-muted-foreground">Laden...</Text>
       </View>
     );
   }
@@ -246,28 +246,28 @@ export default function LoginScreen() {
     return (
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.container}
+        className="flex-1 bg-background"
       >
-        <View style={styles.content}>
-          <View style={styles.header}>
-            <View style={[styles.logoContainer, styles.successContainer]}>
+        <View className="flex-1 px-6 justify-center">
+          <View className="items-center mb-12">
+            <View className="w-24 h-24 rounded-full bg-green-100 items-center justify-center mb-4">
               <Feather name="mail" size={48} color="#2d5016" />
             </View>
-            <Text style={styles.title}>Check je inbox</Text>
-            <Text style={styles.sentSubtitle}>
+            <Text className="text-3xl font-bold text-[#2d5016] mb-1">Check je inbox</Text>
+            <Text className="text-base text-muted-foreground mt-2">
               We hebben een code verstuurd naar:
             </Text>
-            <Text style={styles.emailDisplay}>{email}</Text>
+            <Text className="text-base font-semibold text-foreground mt-1">{email}</Text>
           </View>
 
-          <View style={styles.form}>
-            <Text style={styles.label}>Verificatiecode</Text>
+          <View className="gap-4">
+            <Text className="text-sm font-semibold text-foreground mb-1">Verificatiecode</Text>
             <TextInput
-              style={[
-                styles.input,
-                styles.codeInput,
-                errorMessage && styles.inputError,
-              ]}
+              className={cn(
+                "border border-border rounded-xl px-4 py-3.5 text-2xl bg-card text-center font-semibold",
+                errorMessage && "border-red-600 bg-red-50"
+              )}
+              style={{ letterSpacing: 8 }}
               value={code}
               onChangeText={(text) => {
                 setCode(text.replace(/[^0-9]/g, '').slice(0, 6));
@@ -282,33 +282,33 @@ export default function LoginScreen() {
             />
 
             {errorMessage && (
-              <View style={styles.errorContainer}>
+              <View className="flex-row items-start gap-2 bg-red-50 p-3 rounded-lg">
                 <Feather name="alert-circle" size={16} color="#dc2626" />
-                <Text style={styles.errorText}>{errorMessage}</Text>
+                <Text className="text-xs text-red-600 flex-1">{errorMessage}</Text>
               </View>
             )}
 
             <TouchableOpacity
-              style={[
-                styles.button,
-                (code.length < 6 || loginState === 'verifying') && styles.buttonDisabled,
-              ]}
+              className={cn(
+                "flex-row bg-accent rounded-xl py-4 items-center justify-center mt-2",
+                (code.length < 6 || loginState === 'verifying') && "bg-gray-300"
+              )}
               onPress={handleVerifyCode}
               disabled={code.length < 6 || loginState === 'verifying'}
             >
               {loginState === 'verifying' ? (
-                <ActivityIndicator size="small" color="#fff" style={styles.buttonIcon} />
+                <ActivityIndicator size="small" color="#fff" className="mr-2" />
               ) : (
-                <Feather name="check" size={20} color="#fff" style={styles.buttonIcon} />
+                <Feather name="check" size={20} color="#fff" className="mr-2" />
               )}
-              <Text style={styles.buttonText}>
+              <Text className="text-white text-base font-semibold">
                 {loginState === 'verifying' ? 'Verifiëren...' : 'Inloggen'}
               </Text>
             </TouchableOpacity>
 
-            <View style={styles.sentActions}>
+            <View className="gap-4 items-center mt-4">
               <TouchableOpacity
-                style={styles.resendButton}
+                className="flex-row items-center gap-2 py-3 px-5 rounded-lg bg-green-50"
                 onPress={() => {
                   setCode('');
                   setErrorMessage(null);
@@ -316,18 +316,18 @@ export default function LoginScreen() {
                 }}
               >
                 <Feather name="refresh-cw" size={16} color="#2d5016" />
-                <Text style={styles.resendButtonText}>Nieuwe code versturen</Text>
+                <Text className="text-sm font-semibold text-[#2d5016]">Nieuwe code versturen</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.changeEmailButton}
+                className="py-2"
                 onPress={() => {
                   setLoginState('idle');
                   setCode('');
                   setErrorMessage(null);
                 }}
               >
-                <Text style={styles.changeEmailText}>Ander e-mailadres</Text>
+                <Text className="text-sm text-muted-foreground">Ander e-mailadres</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -339,27 +339,26 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+      className="flex-1 bg-background"
     >
-      <View style={styles.content}>
+      <View className="flex-1 px-6 justify-center">
         {/* Logo en titel */}
-        <View style={styles.header}>
-          <View style={styles.logoContainer}>
+        <View className="items-center mb-12">
+          <View className="w-24 h-24 rounded-full bg-green-50 items-center justify-center mb-4">
             <Feather name="sun" size={48} color="#2d5016" />
           </View>
-          <Text style={styles.title}>Top Tuinen</Text>
-          <Text style={styles.subtitle}>Medewerkers App</Text>
+          <Text className="text-3xl font-bold text-[#2d5016] mb-1">Top Tuinen</Text>
+          <Text className="text-base text-muted-foreground">Medewerkers App</Text>
         </View>
 
         {/* Login formulier */}
-        <View style={styles.form}>
-          <Text style={styles.label}>E-mailadres</Text>
+        <View className="gap-4">
+          <Text className="text-sm font-semibold text-foreground mb-1">E-mailadres</Text>
           <TextInput
-            style={[
-              styles.input,
-              emailError && styles.inputError,
-              loginState === 'error' && styles.inputError,
-            ]}
+            className={cn(
+              "border border-border rounded-xl px-4 py-3.5 text-base bg-card",
+              (emailError || loginState === 'error') && "border-red-600 bg-red-50"
+            )}
             value={email}
             onChangeText={handleEmailChange}
             placeholder="je@email.nl"
@@ -373,42 +372,41 @@ export default function LoginScreen() {
 
           {/* Email validatie fout */}
           {emailError && (
-            <Text style={styles.errorText}>{emailError}</Text>
+            <Text className="text-xs text-red-600">{emailError}</Text>
           )}
 
           {/* Server error message */}
           {loginState === 'error' && errorMessage && (
-            <View style={styles.errorContainer}>
+            <View className="flex-row items-start gap-2 bg-red-50 p-3 rounded-lg">
               <Feather name="alert-circle" size={16} color="#dc2626" />
-              <Text style={styles.errorText}>{errorMessage}</Text>
+              <Text className="text-xs text-red-600 flex-1">{errorMessage}</Text>
             </View>
           )}
 
           <TouchableOpacity
-            style={[
-              styles.button,
-              (!email.trim() || !!emailError || loginState === 'sending') &&
-                styles.buttonDisabled,
-            ]}
+            className={cn(
+              "flex-row bg-accent rounded-xl py-4 items-center justify-center mt-2",
+              (!email.trim() || !!emailError || loginState === 'sending') && "bg-gray-300"
+            )}
             onPress={handleSendCode}
             disabled={!email.trim() || !!emailError || loginState === 'sending'}
           >
             {loginState === 'sending' ? (
-              <ActivityIndicator size="small" color="#fff" style={styles.buttonIcon} />
+              <ActivityIndicator size="small" color="#fff" className="mr-2" />
             ) : (
               <Feather
                 name="mail"
                 size={20}
                 color="#fff"
-                style={styles.buttonIcon}
+                className="mr-2"
               />
             )}
-            <Text style={styles.buttonText}>
+            <Text className="text-white text-base font-semibold">
               {loginState === 'sending' ? 'Verzenden...' : 'Stuur inlogcode'}
             </Text>
           </TouchableOpacity>
 
-          <Text style={styles.hint}>
+          <Text className="text-xs text-muted-foreground text-center mt-2">
             We sturen een 6-cijferige code naar je e-mailadres.
           </Text>
         </View>
@@ -417,153 +415,3 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  loadingContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#666',
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 24,
-    justifyContent: 'center',
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 48,
-  },
-  logoContainer: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: '#f0f9e8',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  successContainer: {
-    backgroundColor: '#dcfce7',
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#2d5016',
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-  },
-  sentSubtitle: {
-    fontSize: 16,
-    color: '#666',
-    marginTop: 8,
-  },
-  emailDisplay: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginTop: 4,
-  },
-  form: {
-    gap: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    backgroundColor: '#fafafa',
-  },
-  codeInput: {
-    fontSize: 24,
-    textAlign: 'center',
-    letterSpacing: 8,
-    fontWeight: '600',
-  },
-  inputError: {
-    borderColor: '#dc2626',
-    backgroundColor: '#fef2f2',
-  },
-  errorContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    backgroundColor: '#fef2f2',
-    padding: 12,
-    borderRadius: 8,
-  },
-  errorText: {
-    fontSize: 13,
-    color: '#dc2626',
-    flex: 1,
-  },
-  button: {
-    flexDirection: 'row',
-    backgroundColor: '#2d5016',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
-  },
-  buttonDisabled: {
-    backgroundColor: '#ccc',
-  },
-  buttonIcon: {
-    marginRight: 8,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  hint: {
-    fontSize: 13,
-    color: '#888',
-    textAlign: 'center',
-    marginTop: 8,
-  },
-  sentActions: {
-    gap: 16,
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  resendButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    backgroundColor: '#f0f9e8',
-  },
-  resendButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#2d5016',
-  },
-  changeEmailButton: {
-    paddingVertical: 8,
-  },
-  changeEmailText: {
-    fontSize: 14,
-    color: '#888',
-  },
-});

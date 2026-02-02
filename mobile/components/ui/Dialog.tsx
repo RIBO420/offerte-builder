@@ -2,7 +2,6 @@ import React, { ReactNode, useEffect, useRef, createContext, useContext } from '
 import {
   View,
   Text,
-  StyleSheet,
   Modal,
   Pressable,
   Animated,
@@ -13,12 +12,10 @@ import {
   Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useColors } from '../../theme/ThemeProvider';
-import { typography } from '../../theme/typography';
-import { radius } from '../../theme/radius';
 import { spacing } from '../../theme/spacing';
 import { shadows } from '../../theme/shadows';
 import { Button } from './Button';
+import { cn } from '@/lib/utils';
 
 // Dialog Context for compound components
 interface DialogContextValue {
@@ -107,21 +104,19 @@ export function Dialog({
       <DialogContext.Provider value={{ onClose }}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.keyboardAvoid}
+          className="flex-1"
         >
-          <View style={styles.container}>
+          <View className="flex-1 justify-center items-center">
             {/* Backdrop */}
             <Animated.View
-              style={[
-                styles.backdrop,
-                {
-                  backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                  opacity: fadeAnim,
-                },
-              ]}
+              style={{
+                ...{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+                opacity: fadeAnim,
+              }}
+              className="bg-black/50"
             >
               <Pressable
-                style={styles.backdropPressable}
+                className="flex-1"
                 onPress={handleBackdropPress}
                 accessibilityRole="button"
                 accessibilityLabel="Close dialog"
@@ -130,13 +125,11 @@ export function Dialog({
 
             {/* Content */}
             <Animated.View
-              style={[
-                styles.contentWrapper,
-                {
-                  opacity: fadeAnim,
-                  transform: [{ scale: scaleAnim }],
-                },
-              ]}
+              style={{
+                opacity: fadeAnim,
+                transform: [{ scale: scaleAnim }],
+              }}
+              className="w-full items-center px-4"
               pointerEvents="box-none"
             >
               {children}
@@ -163,7 +156,6 @@ interface DialogContentProps {
  * Applies card styling, shadows, and safe area padding
  */
 export function DialogContent({ children, style, maxWidth }: DialogContentProps) {
-  const colors = useColors();
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = Dimensions.get('window');
 
@@ -172,15 +164,14 @@ export function DialogContent({ children, style, maxWidth }: DialogContentProps)
   return (
     <View
       style={[
-        styles.content,
         {
-          backgroundColor: colors.card,
           maxWidth: contentMaxWidth,
           marginBottom: Math.max(insets.bottom, spacing.lg),
         },
         shadows.modal,
         style,
       ]}
+      className="w-full bg-card rounded-2xl mx-4 overflow-hidden"
       accessible
       accessibilityViewIsModal
     >
@@ -203,7 +194,7 @@ interface DialogHeaderProps {
  * Provides consistent spacing at the top of the dialog
  */
 export function DialogHeader({ children, style }: DialogHeaderProps) {
-  return <View style={[styles.header, style]}>{children}</View>;
+  return <View style={style} className="p-4 border-b border-border">{children}</View>;
 }
 
 // ============================================================================
@@ -220,15 +211,10 @@ interface DialogTitleProps {
  * Uses semibold font weight matching design system
  */
 export function DialogTitle({ children, style }: DialogTitleProps) {
-  const colors = useColors();
-
   return (
     <Text
-      style={[
-        styles.title,
-        { color: colors.cardForeground },
-        style,
-      ]}
+      style={style}
+      className="text-lg font-semibold text-foreground"
       accessibilityRole="header"
     >
       {children}
@@ -250,13 +236,28 @@ interface DialogDescriptionProps {
  * Muted foreground color, smaller font size
  */
 export function DialogDescription({ children, style }: DialogDescriptionProps) {
-  const colors = useColors();
-
   return (
-    <Text style={[styles.description, { color: colors.mutedForeground }, style]}>
+    <Text style={style} className="text-sm text-muted-foreground">
       {children}
     </Text>
   );
+}
+
+// ============================================================================
+// DialogBody
+// ============================================================================
+
+interface DialogBodyProps {
+  children: ReactNode;
+  style?: ViewStyle;
+}
+
+/**
+ * DialogBody - Main content section of the dialog
+ * Provides consistent padding for dialog content
+ */
+export function DialogBody({ children, style }: DialogBodyProps) {
+  return <View style={style} className="p-4">{children}</View>;
 }
 
 // ============================================================================
@@ -273,7 +274,7 @@ interface DialogFooterProps {
  * Flex row layout for action buttons
  */
 export function DialogFooter({ children, style }: DialogFooterProps) {
-  return <View style={[styles.footer, style]}>{children}</View>;
+  return <View style={style} className="p-4 border-t border-border flex-row gap-2">{children}</View>;
 }
 
 // ============================================================================
@@ -335,13 +336,13 @@ export function AlertDialog({
             variant="outline"
             title={cancelText}
             onPress={handleCancel}
-            style={styles.alertButton}
+            className="flex-1"
           />
           <Button
             variant={confirmVariant}
             title={confirmText}
             onPress={handleConfirm}
-            style={styles.alertButton}
+            className="flex-1"
           />
         </DialogFooter>
       </DialogContent>
@@ -349,63 +350,3 @@ export function AlertDialog({
   );
 }
 
-// ============================================================================
-// Styles
-// ============================================================================
-
-const styles = StyleSheet.create({
-  keyboardAvoid: {
-    flex: 1,
-  },
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  backdropPressable: {
-    flex: 1,
-  },
-  contentWrapper: {
-    width: '100%',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-  },
-  content: {
-    width: '100%',
-    borderRadius: radius['2xl'],
-    gap: spacing.lg,
-    paddingVertical: spacing.lg,
-    overflow: 'hidden',
-  },
-  header: {
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-  },
-  title: {
-    fontFamily: typography.fontFamily.sans,
-    fontSize: typography.fontSize.lg,
-    fontWeight: typography.fontWeight.semibold,
-    lineHeight: typography.fontSize.lg * typography.lineHeight.tight,
-    textAlign: 'center',
-  },
-  description: {
-    fontFamily: typography.fontFamily.sans,
-    fontSize: typography.fontSize.sm,
-    fontWeight: typography.fontWeight.normal,
-    lineHeight: typography.fontSize.sm * typography.lineHeight.normal,
-    textAlign: 'center',
-  },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    paddingHorizontal: spacing.lg,
-    gap: spacing.sm,
-  },
-  alertButton: {
-    flex: 1,
-  },
-});

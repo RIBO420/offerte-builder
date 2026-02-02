@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useMutation } from "convex/react";
+import { useMemo, useCallback } from "react";
 import { api } from "../../convex/_generated/api";
 import { useCurrentUser } from "./use-current-user";
 import { Id } from "../../convex/_generated/dataModel";
@@ -20,44 +21,66 @@ export function useMedewerkers(filterActief?: boolean) {
 
   const isLoading = user && medewerkers === undefined;
 
-  const create = async (medewerkerData: {
-    naam: string;
-    email?: string;
-    telefoon?: string;
-    functie?: string;
-    uurtarief?: number;
-    notities?: string;
-  }) => {
-    if (!user?._id) throw new Error("User not found");
-    return await createMutation(medewerkerData);
-  };
+  // Memoize the medewerkers list
+  const medewerkersList = useMemo(() => medewerkers ?? [], [medewerkers]);
 
-  const update = async (
-    id: Id<"medewerkers">,
-    medewerkerData: {
-      naam?: string;
+  // Memoize filtered active medewerkers to prevent recalculation on every render
+  const activeMedewerkers = useMemo(
+    () => medewerkersList.filter((m) => m.isActief),
+    [medewerkersList]
+  );
+
+  // Memoize callbacks to prevent unnecessary re-renders in child components
+  const create = useCallback(
+    async (medewerkerData: {
+      naam: string;
       email?: string;
       telefoon?: string;
       functie?: string;
       uurtarief?: number;
-      isActief?: boolean;
       notities?: string;
-    }
-  ) => {
-    return await updateMutation({ id, ...medewerkerData });
-  };
+    }) => {
+      if (!user?._id) throw new Error("User not found");
+      return await createMutation(medewerkerData);
+    },
+    [user?._id, createMutation]
+  );
 
-  const remove = async (id: Id<"medewerkers">) => {
-    return await removeMutation({ id });
-  };
+  const update = useCallback(
+    async (
+      id: Id<"medewerkers">,
+      medewerkerData: {
+        naam?: string;
+        email?: string;
+        telefoon?: string;
+        functie?: string;
+        uurtarief?: number;
+        isActief?: boolean;
+        notities?: string;
+      }
+    ) => {
+      return await updateMutation({ id, ...medewerkerData });
+    },
+    [updateMutation]
+  );
 
-  const hardDelete = async (id: Id<"medewerkers">) => {
-    return await hardDeleteMutation({ id });
-  };
+  const remove = useCallback(
+    async (id: Id<"medewerkers">) => {
+      return await removeMutation({ id });
+    },
+    [removeMutation]
+  );
+
+  const hardDelete = useCallback(
+    async (id: Id<"medewerkers">) => {
+      return await hardDeleteMutation({ id });
+    },
+    [hardDeleteMutation]
+  );
 
   return {
-    medewerkers: medewerkers ?? [],
-    activeMedewerkers: (medewerkers ?? []).filter((m) => m.isActief),
+    medewerkers: medewerkersList,
+    activeMedewerkers,
     isLoading,
     create,
     update,

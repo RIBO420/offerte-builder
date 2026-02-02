@@ -1,167 +1,98 @@
 import React from 'react';
 import {
   Text,
-  StyleSheet,
   ActivityIndicator,
-  ViewStyle,
-  TextStyle,
   Pressable,
   View,
   Animated,
 } from 'react-native';
-import { colors } from '../../theme/colors';
-import { typography } from '../../theme/typography';
-import { radius } from '../../theme/radius';
-import { spacing } from '../../theme/spacing';
+import { cva, type VariantProps } from 'class-variance-authority';
+import { cn } from '@/lib/utils';
 
-type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'destructive' | 'ghost' | 'link';
-type ButtonSize = 'sm' | 'md' | 'lg' | 'icon';
+// Button container variants
+const buttonVariants = cva(
+  'flex-row items-center justify-center min-h-11 active:opacity-80',
+  {
+    variants: {
+      variant: {
+        primary: 'bg-primary',
+        secondary: 'bg-secondary',
+        outline: 'bg-transparent border border-border',
+        destructive: 'bg-destructive',
+        ghost: 'bg-transparent',
+        link: 'bg-transparent',
+      },
+      size: {
+        sm: 'h-11 px-4 rounded-lg',
+        md: 'h-11 px-6 rounded-lg',
+        lg: 'h-[52px] px-8 rounded-xl',
+        icon: 'h-11 w-11 px-0 rounded-lg',
+      },
+    },
+    defaultVariants: {
+      variant: 'primary',
+      size: 'md',
+    },
+  }
+);
 
-interface ButtonProps {
+// Button text variants
+const buttonTextVariants = cva(
+  'font-sans font-semibold text-center',
+  {
+    variants: {
+      variant: {
+        primary: 'text-primary-foreground',
+        secondary: 'text-secondary-foreground',
+        outline: 'text-foreground',
+        destructive: 'text-destructive-foreground',
+        ghost: 'text-foreground',
+        link: 'text-primary underline',
+      },
+      size: {
+        sm: 'text-sm',
+        md: 'text-base',
+        lg: 'text-lg',
+        icon: 'text-base',
+      },
+    },
+    defaultVariants: {
+      variant: 'primary',
+      size: 'md',
+    },
+  }
+);
+
+// Loader color mapping
+const loaderColors = {
+  primary: '#FFFFFF',
+  secondary: '#18181B',
+  outline: '#18181B',
+  destructive: '#FFFFFF',
+  ghost: '#18181B',
+  link: '#000000',
+} as const;
+
+// Icon spacing mapping
+const iconSpacing = {
+  sm: 'gap-1',
+  md: 'gap-2',
+  lg: 'gap-2',
+  icon: '',
+} as const;
+
+export interface ButtonProps extends VariantProps<typeof buttonVariants> {
   onPress: () => void;
   title?: string;
-  variant?: ButtonVariant;
-  size?: ButtonSize;
   disabled?: boolean;
   loading?: boolean;
-  style?: ViewStyle;
-  textStyle?: TextStyle;
+  className?: string;
+  textClassName?: string;
   icon?: React.ReactNode;
   iconPosition?: 'left' | 'right';
   fullWidth?: boolean;
   children?: React.ReactNode;
 }
-
-// Minimum touch target size for accessibility (44x44 points)
-const MIN_TOUCH_TARGET = 44;
-
-// Variant styles configuration
-const variantStyles = {
-  primary: {
-    container: {
-      backgroundColor: colors.primary,
-    },
-    text: {
-      color: colors.primaryForeground,
-    },
-    pressed: {
-      backgroundColor: '#404040',
-    },
-    loader: colors.primaryForeground,
-  },
-  secondary: {
-    container: {
-      backgroundColor: colors.secondary,
-    },
-    text: {
-      color: colors.secondaryForeground,
-    },
-    pressed: {
-      backgroundColor: '#E5E5E5',
-    },
-    loader: colors.secondaryForeground,
-  },
-  outline: {
-    container: {
-      backgroundColor: 'transparent',
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    text: {
-      color: colors.foreground,
-    },
-    pressed: {
-      backgroundColor: colors.accent,
-    },
-    loader: colors.foreground,
-  },
-  destructive: {
-    container: {
-      backgroundColor: colors.destructive,
-    },
-    text: {
-      color: colors.destructiveForeground,
-    },
-    pressed: {
-      backgroundColor: '#B91C1C',
-    },
-    loader: colors.destructiveForeground,
-  },
-  ghost: {
-    container: {
-      backgroundColor: 'transparent',
-    },
-    text: {
-      color: colors.foreground,
-    },
-    pressed: {
-      backgroundColor: colors.accent,
-    },
-    loader: colors.foreground,
-  },
-  link: {
-    container: {
-      backgroundColor: 'transparent',
-    },
-    text: {
-      color: colors.primary,
-      textDecorationLine: 'underline' as const,
-    },
-    pressed: {
-      backgroundColor: 'transparent',
-    },
-    loader: colors.primary,
-  },
-};
-
-// Size styles configuration
-const sizeStyles = {
-  sm: {
-    container: {
-      height: MIN_TOUCH_TARGET,
-      paddingHorizontal: spacing.md,
-      borderRadius: radius.md,
-    },
-    text: {
-      fontSize: typography.fontSize.sm,
-    },
-    iconSpacing: spacing.xs,
-  },
-  md: {
-    container: {
-      height: MIN_TOUCH_TARGET,
-      paddingHorizontal: spacing.lg,
-      borderRadius: radius.md,
-    },
-    text: {
-      fontSize: typography.fontSize.base,
-    },
-    iconSpacing: spacing.sm,
-  },
-  lg: {
-    container: {
-      height: 52,
-      paddingHorizontal: spacing.xl,
-      borderRadius: radius.lg,
-    },
-    text: {
-      fontSize: typography.fontSize.lg,
-    },
-    iconSpacing: spacing.sm,
-  },
-  icon: {
-    container: {
-      height: MIN_TOUCH_TARGET,
-      width: MIN_TOUCH_TARGET,
-      paddingHorizontal: 0,
-      borderRadius: radius.md,
-    },
-    text: {
-      fontSize: typography.fontSize.base,
-    },
-    iconSpacing: 0,
-  },
-};
 
 export function Button({
   onPress,
@@ -170,17 +101,14 @@ export function Button({
   size = 'md',
   disabled = false,
   loading = false,
-  style,
-  textStyle,
+  className,
+  textClassName,
   icon,
   iconPosition = 'left',
   fullWidth = false,
   children,
 }: ButtonProps) {
   const scaleAnim = React.useRef(new Animated.Value(1)).current;
-
-  const variantStyle = variantStyles[variant];
-  const sizeStyle = sizeStyles[size];
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
@@ -207,7 +135,7 @@ export function Button({
       return (
         <ActivityIndicator
           size="small"
-          color={variantStyle.loader}
+          color={loaderColors[variant || 'primary']}
         />
       );
     }
@@ -231,30 +159,17 @@ export function Button({
 
     // Title with optional icon
     return (
-      <View style={styles.contentRow}>
-        {hasIcon && iconPosition === 'left' && (
-          <View style={{ marginRight: hasTitle ? sizeStyle.iconSpacing : 0 }}>
-            {icon}
-          </View>
-        )}
+      <View className={cn('flex-row items-center justify-center', size !== 'icon' && iconSpacing[size || 'md'])}>
+        {hasIcon && iconPosition === 'left' && icon}
         {hasTitle && (
           <Text
-            style={[
-              styles.text,
-              { fontSize: sizeStyle.text.fontSize },
-              variantStyle.text,
-              textStyle,
-            ]}
+            className={cn(buttonTextVariants({ variant, size }), textClassName)}
             numberOfLines={1}
           >
             {title}
           </Text>
         )}
-        {hasIcon && iconPosition === 'right' && (
-          <View style={{ marginLeft: hasTitle ? sizeStyle.iconSpacing : 0 }}>
-            {icon}
-          </View>
-        )}
+        {hasIcon && iconPosition === 'right' && icon}
       </View>
     );
   };
@@ -263,23 +178,20 @@ export function Button({
     <Animated.View
       style={[
         { transform: [{ scale: scaleAnim }] },
-        fullWidth && styles.fullWidth,
       ]}
+      className={cn(fullWidth && 'w-full')}
     >
       <Pressable
         onPress={onPress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         disabled={isDisabled}
-        style={({ pressed }) => [
-          styles.base,
-          sizeStyle.container,
-          variantStyle.container,
-          pressed && !isDisabled && variantStyle.pressed,
-          isDisabled && styles.disabled,
-          fullWidth && styles.fullWidth,
-          style,
-        ]}
+        className={cn(
+          buttonVariants({ variant, size }),
+          isDisabled && 'opacity-50',
+          fullWidth && 'w-full',
+          className
+        )}
         accessibilityRole="button"
         accessibilityState={{ disabled: isDisabled }}
         accessibilityLabel={title}
@@ -289,30 +201,5 @@ export function Button({
     </Animated.View>
   );
 }
-
-const styles = StyleSheet.create({
-  base: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: MIN_TOUCH_TARGET,
-  },
-  contentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  text: {
-    fontFamily: typography.fontFamily.sans,
-    fontWeight: typography.fontWeight.semibold,
-    textAlign: 'center',
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-  fullWidth: {
-    width: '100%',
-  },
-});
 
 export default Button;

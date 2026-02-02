@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useMutation } from "convex/react";
+import { useMemo, useCallback } from "react";
 import { api } from "../../convex/_generated/api";
 import { useCurrentUser } from "./use-current-user";
 import { Id } from "../../convex/_generated/dataModel";
@@ -23,56 +24,86 @@ export function useVoertuigen(filterStatus?: VoertuigStatus) {
 
   const isLoading = user && voertuigen === undefined;
 
-  const create = async (voertuigData: {
-    kenteken: string;
-    merk: string;
-    model: string;
-    type: string;
-    bouwjaar?: number;
-    kleur?: string;
-    kmStand?: number;
-    notities?: string;
-  }) => {
-    if (!user?._id) throw new Error("User not found");
-    return await createMutation(voertuigData);
-  };
+  // Memoize the voertuigen list
+  const voertuigenList = useMemo(() => voertuigen ?? [], [voertuigen]);
 
-  const update = async (
-    id: Id<"voertuigen">,
-    voertuigData: {
-      kenteken?: string;
-      merk?: string;
-      model?: string;
-      type?: string;
+  // Memoize callbacks to prevent unnecessary re-renders
+  const create = useCallback(
+    async (voertuigData: {
+      kenteken: string;
+      merk: string;
+      model: string;
+      type: string;
       bouwjaar?: number;
       kleur?: string;
       kmStand?: number;
-      status?: VoertuigStatus;
       notities?: string;
-    }
-  ) => {
-    return await updateMutation({ id, ...voertuigData });
-  };
+    }) => {
+      if (!user?._id) throw new Error("User not found");
+      return await createMutation(voertuigData);
+    },
+    [user?._id, createMutation]
+  );
 
-  const remove = async (id: Id<"voertuigen">) => {
-    return await removeMutation({ id });
-  };
+  const update = useCallback(
+    async (
+      id: Id<"voertuigen">,
+      voertuigData: {
+        kenteken?: string;
+        merk?: string;
+        model?: string;
+        type?: string;
+        bouwjaar?: number;
+        kleur?: string;
+        kmStand?: number;
+        status?: VoertuigStatus;
+        notities?: string;
+      }
+    ) => {
+      return await updateMutation({ id, ...voertuigData });
+    },
+    [updateMutation]
+  );
 
-  const hardDelete = async (id: Id<"voertuigen">) => {
-    return await hardDeleteMutation({ id });
-  };
+  const remove = useCallback(
+    async (id: Id<"voertuigen">) => {
+      return await removeMutation({ id });
+    },
+    [removeMutation]
+  );
 
-  const updateKmStand = async (id: Id<"voertuigen">, kmStand: number) => {
-    return await updateKmStandMutation({ id, kmStand });
-  };
+  const hardDelete = useCallback(
+    async (id: Id<"voertuigen">) => {
+      return await hardDeleteMutation({ id });
+    },
+    [hardDeleteMutation]
+  );
 
-  // Computed values
-  const activeVoertuigen = (voertuigen ?? []).filter((v) => v.status === "actief");
-  const inactiveVoertuigen = (voertuigen ?? []).filter((v) => v.status === "inactief");
-  const maintenanceVoertuigen = (voertuigen ?? []).filter((v) => v.status === "onderhoud");
+  const updateKmStand = useCallback(
+    async (id: Id<"voertuigen">, kmStand: number) => {
+      return await updateKmStandMutation({ id, kmStand });
+    },
+    [updateKmStandMutation]
+  );
+
+  // Memoize computed values to prevent recalculation on every render
+  const activeVoertuigen = useMemo(
+    () => voertuigenList.filter((v) => v.status === "actief"),
+    [voertuigenList]
+  );
+
+  const inactiveVoertuigen = useMemo(
+    () => voertuigenList.filter((v) => v.status === "inactief"),
+    [voertuigenList]
+  );
+
+  const maintenanceVoertuigen = useMemo(
+    () => voertuigenList.filter((v) => v.status === "onderhoud"),
+    [voertuigenList]
+  );
 
   return {
-    voertuigen: voertuigen ?? [],
+    voertuigen: voertuigenList,
     activeVoertuigen,
     inactiveVoertuigen,
     maintenanceVoertuigen,

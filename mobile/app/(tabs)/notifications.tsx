@@ -2,7 +2,6 @@ import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   FlatList,
   TouchableOpacity,
   RefreshControl,
@@ -17,10 +16,8 @@ import { useRouter } from 'expo-router';
 import { api } from '../../convex/_generated/api';
 import { useColors } from '../../theme';
 import { useCurrentUser } from '../../hooks/use-current-user';
-import { Button, Badge, Card } from '../../components/ui';
-import { typography } from '../../theme/typography';
-import { spacing } from '../../theme/spacing';
-import { radius } from '../../theme/radius';
+import { Badge } from '../../components/ui';
+import { cn } from '../../lib/utils';
 import type { Id, Doc } from '../../convex/_generated/dataModel';
 
 type Notification = Doc<'notifications'>;
@@ -142,73 +139,71 @@ function NotificationItem({
 
   return (
     <Animated.View
-      style={[
-        styles.notificationWrapper,
-        {
-          height: itemHeight,
-          opacity,
-        },
-      ]}
+      className="overflow-hidden"
+      style={{
+        height: itemHeight,
+        opacity,
+      }}
     >
       {/* Delete background */}
-      <View style={[styles.deleteBackground, { backgroundColor: colors.destructive }]}>
+      <View
+        className="absolute right-0 top-0 bottom-0 w-[120px] flex-row items-center justify-end pr-4 gap-1"
+        style={{ backgroundColor: colors.destructive }}
+      >
         <Feather name="trash-2" size={20} color="#fff" />
-        <Text style={styles.deleteText}>Verwijderen</Text>
+        <Text className="text-white text-sm font-medium">Verwijderen</Text>
       </View>
 
       {/* Notification card */}
       <Animated.View
-        style={[
-          styles.notificationItem,
-          {
-            backgroundColor: notification.isRead ? colors.background : colors.card,
-            borderColor: colors.border,
-            transform: [{ translateX }],
-          },
-        ]}
+        className={cn(
+          "px-4 py-3 border-b",
+          notification.isRead ? "bg-background" : "bg-card"
+        )}
+        style={{
+          borderColor: colors.border,
+          transform: [{ translateX }],
+        }}
         {...panResponder.panHandlers}
       >
         <TouchableOpacity
-          style={styles.notificationContent}
+          className="flex-row items-center gap-4"
           onPress={onPress}
           activeOpacity={0.7}
         >
           {/* Icon */}
           <View
-            style={[
-              styles.iconContainer,
-              { backgroundColor: `${icon.color}20` },
-            ]}
+            className="w-11 h-11 rounded-full items-center justify-center"
+            style={{ backgroundColor: `${icon.color}20` }}
           >
             <Feather name={icon.name} size={20} color={icon.color} />
           </View>
 
           {/* Content */}
-          <View style={styles.textContainer}>
-            <View style={styles.headerRow}>
+          <View className="flex-1 gap-0.5">
+            <View className="flex-row items-center gap-2">
               <Text
-                style={[
-                  styles.title,
-                  {
-                    color: colors.foreground,
-                    fontWeight: notification.isRead ? '400' : '600',
-                  },
-                ]}
+                className={cn(
+                  "flex-1 text-base text-foreground",
+                  notification.isRead ? "font-normal" : "font-semibold"
+                )}
                 numberOfLines={1}
               >
                 {notification.title}
               </Text>
               {!notification.isRead && (
-                <View style={[styles.unreadDot, { backgroundColor: colors.destructive }]} />
+                <View
+                  className="w-2 h-2 rounded-full bg-accent"
+                />
               )}
             </View>
             <Text
-              style={[styles.message, { color: colors.mutedForeground }]}
+              className="text-sm text-muted-foreground leading-tight"
               numberOfLines={2}
             >
               {notification.message}
             </Text>
-            <Text style={[styles.time, { color: colors.mutedForeground }]}>
+            <Text className="text-xs text-muted-foreground mt-0.5">
               {formatTimestamp(notification.createdAt)}
             </Text>
           </View>
@@ -229,10 +224,10 @@ export default function NotificationsScreen() {
   // Show loading while auth is loading or user not synced
   if (isLoading || !isUserSynced) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+        <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={{ marginTop: spacing.md, color: colors.mutedForeground }}>Laden...</Text>
+          <Text className="mt-4 text-muted-foreground">Laden...</Text>
         </View>
       </SafeAreaView>
     );
@@ -312,11 +307,14 @@ function AuthenticatedNotificationsScreen() {
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <View style={styles.headerLeft}>
-          <Text style={[styles.headerTitle, { color: colors.foreground }]}>Meldingen</Text>
+      <View
+        className="flex-row items-center justify-between px-4 py-3 bg-card border-b"
+        style={{ borderBottomColor: colors.border }}
+      >
+        <View className="flex-row items-center gap-2">
+          <Text className="text-2xl font-bold text-foreground">Meldingen</Text>
           {hasUnread && (
             <Badge variant="destructive" size="sm">
               {unreadCounts?.total}
@@ -324,8 +322,8 @@ function AuthenticatedNotificationsScreen() {
           )}
         </View>
         {hasUnread && (
-          <TouchableOpacity onPress={handleMarkAllAsRead} style={styles.markAllButton}>
-            <Text style={[styles.markAllText, { color: colors.primary }]}>
+          <TouchableOpacity onPress={handleMarkAllAsRead} className="px-2 py-1">
+            <Text className="text-sm font-medium" style={{ color: colors.primary }}>
               Alles gelezen
             </Text>
           </TouchableOpacity>
@@ -334,21 +332,24 @@ function AuthenticatedNotificationsScreen() {
 
       {/* Content */}
       {isLoading ? (
-        <View style={styles.loadingContainer}>
+        <View className="flex-1 justify-center items-center gap-4">
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>
+          <Text className="text-base text-muted-foreground">
             Meldingen laden...
           </Text>
         </View>
       ) : !notifications || notifications.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <View style={[styles.emptyIcon, { backgroundColor: colors.muted }]}>
+        <View className="flex-1 justify-center items-center px-6 gap-4">
+          <View
+            className="w-24 h-24 rounded-full items-center justify-center mb-4"
+            style={{ backgroundColor: colors.muted }}
+          >
             <Feather name="bell-off" size={48} color={colors.mutedForeground} />
           </View>
-          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+          <Text className="text-lg font-semibold text-foreground">
             Geen meldingen
           </Text>
-          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+          <Text className="text-base text-muted-foreground text-center leading-relaxed max-w-[280px]">
             Je hebt nog geen meldingen ontvangen. Meldingen over offertes, chat en projecten verschijnen hier.
           </Text>
         </View>
@@ -357,7 +358,7 @@ function AuthenticatedNotificationsScreen() {
           data={notifications}
           keyExtractor={(item) => item._id}
           renderItem={renderNotification}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={{ paddingVertical: 8 }}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
@@ -366,15 +367,18 @@ function AuthenticatedNotificationsScreen() {
               tintColor={colors.primary}
             />
           }
-          ItemSeparatorComponent={() => <View style={{ height: 1 }} />}
+          ItemSeparatorComponent={() => <View className="h-px" />}
         />
       )}
 
       {/* Swipe hint */}
       {notifications && notifications.length > 0 && (
-        <View style={[styles.hintContainer, { backgroundColor: colors.muted }]}>
+        <View
+          className="flex-row items-center justify-center gap-1 py-3 px-4"
+          style={{ backgroundColor: colors.muted }}
+        >
           <Feather name="arrow-left" size={14} color={colors.mutedForeground} />
-          <Text style={[styles.hintText, { color: colors.mutedForeground }]}>
+          <Text className="text-xs text-muted-foreground">
             Swipe naar links om te verwijderen
           </Text>
         </View>
@@ -383,144 +387,3 @@ function AuthenticatedNotificationsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  headerTitle: {
-    fontSize: typography.fontSize['2xl'],
-    fontWeight: typography.fontWeight.bold,
-  },
-  markAllButton: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  markAllText: {
-    fontSize: typography.fontSize.sm,
-    fontWeight: typography.fontWeight.medium,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  loadingText: {
-    fontSize: typography.fontSize.base,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing.xl,
-    gap: spacing.md,
-  },
-  emptyIcon: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
-  },
-  emptyTitle: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: typography.fontWeight.semibold,
-  },
-  emptyText: {
-    fontSize: typography.fontSize.base,
-    textAlign: 'center',
-    lineHeight: typography.fontSize.base * typography.lineHeight.relaxed,
-    maxWidth: 280,
-  },
-  listContent: {
-    paddingVertical: spacing.sm,
-  },
-  notificationWrapper: {
-    overflow: 'hidden',
-  },
-  deleteBackground: {
-    position: 'absolute',
-    right: 0,
-    top: 0,
-    bottom: 0,
-    width: 120,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    paddingRight: spacing.lg,
-    gap: spacing.xs,
-  },
-  deleteText: {
-    color: '#fff',
-    fontSize: typography.fontSize.sm,
-    fontWeight: typography.fontWeight.medium,
-  },
-  notificationItem: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-  },
-  notificationContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  iconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  textContainer: {
-    flex: 1,
-    gap: 2,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  title: {
-    fontSize: typography.fontSize.base,
-    flex: 1,
-  },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  message: {
-    fontSize: typography.fontSize.sm,
-    lineHeight: typography.fontSize.sm * typography.lineHeight.normal,
-  },
-  time: {
-    fontSize: typography.fontSize.xs,
-    marginTop: 2,
-  },
-  hintContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-  },
-  hintText: {
-    fontSize: typography.fontSize.xs,
-  },
-});

@@ -43,6 +43,7 @@ import type * as publicOffertes from "../publicOffertes.js";
 import type * as pushNotifications from "../pushNotifications.js";
 import type * as roles from "../roles.js";
 import type * as smartAnalytics from "../smartAnalytics.js";
+import type * as softDelete from "../softDelete.js";
 import type * as standaardtuinen from "../standaardtuinen.js";
 import type * as teams from "../teams.js";
 import type * as urenRegistraties from "../urenRegistraties.js";
@@ -96,6 +97,7 @@ declare const fullApi: ApiFromModules<{
   pushNotifications: typeof pushNotifications;
   roles: typeof roles;
   smartAnalytics: typeof smartAnalytics;
+  softDelete: typeof softDelete;
   standaardtuinen: typeof standaardtuinen;
   teams: typeof teams;
   urenRegistraties: typeof urenRegistraties;

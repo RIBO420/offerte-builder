@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   TouchableOpacity,
   Alert,
@@ -22,9 +21,7 @@ import { useTheme, useColors } from '../../theme';
 import { useCurrentUser } from '../../hooks/use-current-user';
 import { useUserRole, ROLE_BADGE_COLORS } from '../../hooks/use-user-role';
 import { Card, CardContent, Button, Badge, Switch, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui';
-import { spacing } from '../../theme/spacing';
-import { radius } from '../../theme/radius';
-import { typography } from '../../theme/typography';
+import { cn } from '../../lib/utils';
 import {
   isBiometricAvailable,
   getBiometricType,
@@ -76,16 +73,16 @@ function ThemeSelector({
   ];
 
   return (
-    <View style={[styles.themeSelector, { backgroundColor: colors.muted }]}>
+    <View className="flex-row bg-muted rounded-lg p-1">
       {options.map((option) => {
         const isSelected = mode === option.value;
         return (
           <Pressable
             key={option.value}
-            style={[
-              styles.themeOption,
-              isSelected && { backgroundColor: colors.background },
-            ]}
+            className={cn(
+              "flex-1 flex-row items-center justify-center gap-1.5 py-2.5 px-3 rounded-md",
+              isSelected && "bg-background"
+            )}
             onPress={() => onModeChange(option.value)}
           >
             <Feather
@@ -94,11 +91,10 @@ function ThemeSelector({
               color={isSelected ? colors.primary : colors.mutedForeground}
             />
             <Text
-              style={[
-                styles.themeOptionText,
-                { color: isSelected ? colors.foreground : colors.mutedForeground },
-                isSelected && { fontWeight: typography.fontWeight.semibold },
-              ]}
+              className={cn(
+                "text-sm",
+                isSelected ? "text-foreground font-semibold" : "text-muted-foreground"
+              )}
             >
               {option.label}
             </Text>
@@ -117,9 +113,9 @@ export default function ProfielScreen() {
   // Show loading while auth is loading or user not synced
   if (isLoading || !isUserSynced) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: colors.mutedForeground }}>Laden...</Text>
+      <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+        <View className="flex-1 justify-center items-center">
+          <Text className="text-muted-foreground">Laden...</Text>
         </View>
       </SafeAreaView>
     );
@@ -382,213 +378,51 @@ function AuthenticatedProfielScreen() {
     },
   ];
 
-  const dynamicStyles = StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    profileHeader: {
-      alignItems: 'center',
-      paddingVertical: spacing.xl,
-      paddingHorizontal: spacing.lg,
-      backgroundColor: colors.card,
-      marginBottom: spacing.lg,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    avatarLarge: {
-      width: 96,
-      height: 96,
-      borderRadius: 48,
-      backgroundColor: colors.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: spacing.md,
-    },
-    avatarImage: {
-      width: 96,
-      height: 96,
-      borderRadius: 48,
-      marginBottom: spacing.md,
-    },
-    avatarText: {
-      fontSize: typography.fontSize['3xl'],
-      fontWeight: typography.fontWeight.semibold,
-      color: colors.primaryForeground,
-    },
-    userName: {
-      fontSize: typography.fontSize['2xl'],
-      fontWeight: typography.fontWeight.bold,
-      color: colors.foreground,
-      marginBottom: spacing.xs,
-    },
-    userEmail: {
-      fontSize: typography.fontSize.sm,
-      color: colors.mutedForeground,
-      marginTop: spacing.xs,
-    },
-    sectionTitle: {
-      fontSize: typography.fontSize.xs,
-      fontWeight: typography.fontWeight.semibold,
-      color: colors.mutedForeground,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-      paddingHorizontal: spacing.lg,
-      marginBottom: spacing.sm,
-    },
-    sectionContent: {
-      backgroundColor: colors.card,
-      marginHorizontal: spacing.lg,
-      borderRadius: radius.xl,
-      overflow: 'hidden',
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    settingItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingVertical: 14,
-      paddingHorizontal: spacing.md,
-    },
-    settingItemBorder: {
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    settingLeft: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-      flex: 1,
-    },
-    settingIcon: {
-      width: 36,
-      height: 36,
-      borderRadius: radius.md,
-      backgroundColor: colors.muted,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    settingIconDanger: {
-      backgroundColor: `${colors.destructive}20`,
-    },
-    settingLabel: {
-      fontSize: typography.fontSize.base,
-      color: colors.foreground,
-    },
-    settingLabelDanger: {
-      color: colors.destructive,
-    },
-    settingLabelDisabled: {
-      color: colors.mutedForeground,
-    },
-    settingRight: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-    },
-    settingValue: {
-      fontSize: typography.fontSize.sm,
-      color: colors.mutedForeground,
-    },
-    footer: {
-      alignItems: 'center',
-      paddingVertical: spacing.xl,
-      paddingHorizontal: spacing.lg,
-    },
-    footerText: {
-      fontSize: typography.fontSize.xs,
-      color: colors.mutedForeground,
-      marginBottom: spacing.xs,
-    },
-    footerVersion: {
-      fontSize: typography.fontSize.xs,
-      color: colors.mutedForeground,
-      opacity: 0.6,
-    },
-    themeSectionContent: {
-      backgroundColor: colors.card,
-      marginHorizontal: spacing.lg,
-      borderRadius: radius.xl,
-      overflow: 'hidden',
-      borderWidth: 1,
-      borderColor: colors.border,
-      padding: spacing.md,
-    },
-    themeSectionHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-      marginBottom: spacing.md,
-    },
-    aboutDialogRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      paddingVertical: spacing.sm,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    aboutDialogLabel: {
-      fontSize: typography.fontSize.sm,
-      color: colors.mutedForeground,
-    },
-    aboutDialogValue: {
-      fontSize: typography.fontSize.sm,
-      color: colors.foreground,
-      fontWeight: typography.fontWeight.medium,
-    },
-  });
-
   return (
-    <SafeAreaView style={dynamicStyles.container} edges={['top']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.content}
+        className="flex-1"
+        contentContainerStyle={{ paddingBottom: 32 }}
         showsVerticalScrollIndicator={false}
       >
         {/* Profile Header */}
-        <View style={dynamicStyles.profileHeader}>
+        <View className="items-center py-4 px-6 bg-card border-b border-border">
           {imageUrl ? (
-            <Image source={{ uri: imageUrl }} style={dynamicStyles.avatarImage} />
+            <Image source={{ uri: imageUrl }} className="w-20 h-20 rounded-full mb-3" />
           ) : (
-            <View style={dynamicStyles.avatarLarge}>
-              <Text style={dynamicStyles.avatarText}>{initials}</Text>
+            <View className="w-20 h-20 rounded-full bg-primary items-center justify-center mb-3">
+              <Text className="text-2xl font-semibold text-primary-foreground">{initials}</Text>
             </View>
           )}
-          <Text style={dynamicStyles.userName}>{fullName}</Text>
-          {/* Role and Function Badges */}
-          <View style={styles.badgeRow}>
-            <View
-              style={[
-                styles.roleBadge,
-                { backgroundColor: roleBadgeColors.background }
-              ]}
-            >
-              <Feather
-                name={isAdmin ? 'shield' : 'user'}
-                size={12}
-                color={roleBadgeColors.text}
-              />
-              <Text style={[styles.roleBadgeText, { color: roleBadgeColors.text }]}>
-                {roleDisplayName}
-              </Text>
-            </View>
-            <Badge variant="secondary" size="md">
+          <Text className="text-xl font-bold text-foreground">{fullName}</Text>
+          {/* Role Badge */}
+          <View
+            className="flex-row items-center gap-1 px-2.5 py-1 rounded-full mt-2"
+            style={{ backgroundColor: roleBadgeColors.background }}
+          >
+            <Feather
+              name={isAdmin ? 'shield' : 'user'}
+              size={12}
+              color={roleBadgeColors.text}
+            />
+            <Text className="text-xs font-semibold" style={{ color: roleBadgeColors.text }}>
               {functie}
-            </Badge>
+            </Text>
           </View>
-          <Text style={dynamicStyles.userEmail}>{email}</Text>
+          <Text className="text-sm text-muted-foreground mt-1">{email}</Text>
         </View>
 
         {/* Theme Section - Special inline design */}
-        <View style={styles.section}>
-          <Text style={dynamicStyles.sectionTitle}>Weergave</Text>
-          <View style={dynamicStyles.themeSectionContent}>
-            <View style={dynamicStyles.themeSectionHeader}>
-              <View style={dynamicStyles.settingIcon}>
+        <View className="mb-4 mt-4">
+          <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-4 mb-2">
+            Weergave
+          </Text>
+          <View className="bg-card mx-4 rounded-xl overflow-hidden border border-border p-4">
+            <View className="flex-row items-center gap-2 mb-4">
+              <View className="w-9 h-9 rounded-md bg-muted items-center justify-center">
                 <Feather name="moon" size={18} color={colors.foreground} />
               </View>
-              <Text style={dynamicStyles.settingLabel}>Thema</Text>
+              <Text className="text-base text-foreground">Thema</Text>
             </View>
             <ThemeSelector mode={mode} onModeChange={setMode} />
           </View>
@@ -596,26 +430,28 @@ function AuthenticatedProfielScreen() {
 
         {/* Settings Sections */}
         {settingsSections.map((section, sectionIndex) => (
-          <View key={sectionIndex} style={styles.section}>
-            <Text style={dynamicStyles.sectionTitle}>{section.title}</Text>
-            <View style={dynamicStyles.sectionContent}>
+          <View key={sectionIndex} className="mb-4">
+            <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-4 mb-2">
+              {section.title}
+            </Text>
+            <View className="bg-card mx-4 rounded-xl overflow-hidden border border-border">
               {section.items.map((item, itemIndex) => (
                 <TouchableOpacity
                   key={itemIndex}
-                  style={[
-                    dynamicStyles.settingItem,
-                    itemIndex < section.items.length - 1 && dynamicStyles.settingItemBorder,
-                  ]}
+                  className={cn(
+                    "flex-row items-center justify-between py-3.5 px-4",
+                    itemIndex < section.items.length - 1 && "border-b border-border"
+                  )}
                   onPress={item.onPress}
                   disabled={(!item.onPress && !item.toggle) || item.disabled}
                   activeOpacity={item.toggle ? 1 : 0.7}
                 >
-                  <View style={dynamicStyles.settingLeft}>
+                  <View className="flex-row items-center gap-2 flex-1">
                     <View
-                      style={[
-                        dynamicStyles.settingIcon,
-                        item.danger && dynamicStyles.settingIconDanger,
-                      ]}
+                      className={cn(
+                        "w-9 h-9 rounded-md items-center justify-center",
+                        item.danger ? "bg-destructive/20" : "bg-muted"
+                      )}
                     >
                       <Feather
                         name={item.icon}
@@ -624,18 +460,18 @@ function AuthenticatedProfielScreen() {
                       />
                     </View>
                     <Text
-                      style={[
-                        dynamicStyles.settingLabel,
-                        item.danger && dynamicStyles.settingLabelDanger,
-                        item.disabled && dynamicStyles.settingLabelDisabled,
-                      ]}
+                      className={cn(
+                        "text-base",
+                        item.danger && "text-destructive",
+                        item.disabled ? "text-muted-foreground" : "text-foreground"
+                      )}
                     >
                       {item.label}
                     </Text>
                   </View>
-                  <View style={dynamicStyles.settingRight}>
+                  <View className="flex-row items-center gap-2">
                     {item.value && (
-                      <Text style={dynamicStyles.settingValue}>{item.value}</Text>
+                      <Text className="text-sm text-muted-foreground">{item.value}</Text>
                     )}
                     {item.toggle && (
                       <Switch
@@ -655,7 +491,7 @@ function AuthenticatedProfielScreen() {
         ))}
 
         {/* Logout Button */}
-        <View style={styles.logoutSection}>
+        <View className="px-4 mt-2">
           <Button
             onPress={handleSignOut}
             variant="destructive"
@@ -666,9 +502,9 @@ function AuthenticatedProfielScreen() {
         </View>
 
         {/* Footer */}
-        <View style={dynamicStyles.footer}>
-          <Text style={dynamicStyles.footerText}>Top Tuinen Medewerkers App</Text>
-          <Text style={dynamicStyles.footerVersion}>Versie {APP_VERSION} (Build {BUILD_NUMBER})</Text>
+        <View className="items-center py-6 px-4">
+          <Text className="text-xs text-muted-foreground mb-1">Top Tuinen Medewerkers App</Text>
+          <Text className="text-xs text-muted-foreground opacity-60">Versie {APP_VERSION} (Build {BUILD_NUMBER})</Text>
         </View>
       </ScrollView>
 
@@ -681,24 +517,24 @@ function AuthenticatedProfielScreen() {
               De medewerkers app voor Top Tuinen projectbeheer
             </DialogDescription>
           </DialogHeader>
-          <View style={{ paddingHorizontal: spacing.lg }}>
-            <View style={dynamicStyles.aboutDialogRow}>
-              <Text style={dynamicStyles.aboutDialogLabel}>Versie</Text>
-              <Text style={dynamicStyles.aboutDialogValue}>{APP_VERSION}</Text>
+          <View className="px-6">
+            <View className="flex-row justify-between py-2 border-b border-border">
+              <Text className="text-sm text-muted-foreground">Versie</Text>
+              <Text className="text-sm text-foreground font-medium">{APP_VERSION}</Text>
             </View>
-            <View style={dynamicStyles.aboutDialogRow}>
-              <Text style={dynamicStyles.aboutDialogLabel}>Build</Text>
-              <Text style={dynamicStyles.aboutDialogValue}>{BUILD_NUMBER}</Text>
+            <View className="flex-row justify-between py-2 border-b border-border">
+              <Text className="text-sm text-muted-foreground">Build</Text>
+              <Text className="text-sm text-foreground font-medium">{BUILD_NUMBER}</Text>
             </View>
-            <View style={dynamicStyles.aboutDialogRow}>
-              <Text style={dynamicStyles.aboutDialogLabel}>Platform</Text>
-              <Text style={dynamicStyles.aboutDialogValue}>
+            <View className="flex-row justify-between py-2 border-b border-border">
+              <Text className="text-sm text-muted-foreground">Platform</Text>
+              <Text className="text-sm text-foreground font-medium">
                 {Constants.platform?.ios ? 'iOS' : Constants.platform?.android ? 'Android' : 'Unknown'}
               </Text>
             </View>
-            <View style={[dynamicStyles.aboutDialogRow, { borderBottomWidth: 0 }]}>
-              <Text style={dynamicStyles.aboutDialogLabel}>Expo SDK</Text>
-              <Text style={dynamicStyles.aboutDialogValue}>{Constants.expoConfig?.sdkVersion || '54'}</Text>
+            <View className="flex-row justify-between py-2">
+              <Text className="text-sm text-muted-foreground">Expo SDK</Text>
+              <Text className="text-sm text-foreground font-medium">{Constants.expoConfig?.sdkVersion || '54'}</Text>
             </View>
           </View>
           <DialogFooter>
@@ -721,7 +557,7 @@ function AuthenticatedProfielScreen() {
               Hoe kunnen we je helpen?
             </DialogDescription>
           </DialogHeader>
-          <View style={{ paddingHorizontal: spacing.lg, gap: spacing.sm }}>
+          <View className="px-6 gap-2">
             <Button
               variant="outline"
               title="Stuur een e-mail"
@@ -751,54 +587,3 @@ function AuthenticatedProfielScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  scrollView: {
-    flex: 1,
-  },
-  content: {
-    paddingBottom: spacing.xl,
-  },
-  section: {
-    marginBottom: spacing.lg,
-  },
-  logoutSection: {
-    paddingHorizontal: spacing.lg,
-    marginTop: spacing.sm,
-  },
-  themeSelector: {
-    flexDirection: 'row',
-    borderRadius: radius.lg,
-    padding: 4,
-  },
-  themeOption: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: radius.md,
-  },
-  themeOptionText: {
-    fontSize: typography.fontSize.sm,
-  },
-  badgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.xs,
-  },
-  roleBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    borderRadius: radius.full,
-  },
-  roleBadgeText: {
-    fontSize: typography.fontSize.xs,
-    fontWeight: typography.fontWeight.semibold,
-  },
-});

@@ -117,10 +117,9 @@ export default function PlanningPage({
     isLoading,
     generateFromVoorcalculatie,
     updateStatus,
+    updateVolgorde,
     removeTask,
     addTask,
-    moveUp,
-    moveDown,
   } = usePlanning(projectId);
 
   // Mutation for updating project status
@@ -186,20 +185,14 @@ export default function PlanningPage({
     }
   };
 
-  // Handle move up/down
-  const handleMoveUp = async (taskId: Id<"planningTaken">) => {
+  // Handle reorder (drag and drop)
+  const handleReorder = async (
+    taskOrders: Array<{ taskId: Id<"planningTaken">; volgorde: number }>
+  ) => {
     try {
-      await moveUp(taskId);
+      await updateVolgorde(taskOrders);
     } catch {
-      toast.error("Fout bij verplaatsen taak");
-    }
-  };
-
-  const handleMoveDown = async (taskId: Id<"planningTaken">) => {
-    try {
-      await moveDown(taskId);
-    } catch {
-      toast.error("Fout bij verplaatsen taak");
+      toast.error("Fout bij herschikken taken");
     }
   };
 
@@ -702,8 +695,7 @@ export default function PlanningPage({
                 taken={taken}
                 takenPerScope={takenPerScope}
                 onUpdateStatus={handleUpdateStatus}
-                onMoveUp={handleMoveUp}
-                onMoveDown={handleMoveDown}
+                onReorder={handleReorder}
                 onDelete={handleDelete}
                 isLoading={isLoading}
               />

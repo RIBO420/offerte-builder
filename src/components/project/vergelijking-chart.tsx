@@ -80,7 +80,7 @@ const CustomTooltip = memo(function CustomTooltip({
   if (!active || !payload || !payload.length) return null;
 
   return (
-    <div className="bg-popover border rounded-lg shadow-lg p-3 text-sm">
+    <div className="bg-popover text-popover-foreground border border-border rounded-lg shadow-lg p-3 text-sm">
       <p className="font-medium mb-2">{label}</p>
       {payload.map((entry, index) => (
         <div key={index} className="flex items-center gap-2">
@@ -89,7 +89,7 @@ const CustomTooltip = memo(function CustomTooltip({
             style={{ backgroundColor: entry.color }}
           />
           <span className="text-muted-foreground">{entry.name}:</span>
-          <span className="font-medium">
+          <span className="font-medium text-foreground">
             {entry.value} {entry.dataKey.includes("Percentage") ? "%" : "uur"}
           </span>
         </div>
@@ -143,14 +143,14 @@ export const VergelijkingChart = memo(function VergelijkingChart({
           <ResponsiveContainer width="100%" height="100%">
             {showPercentage ? (
               <BarChart data={chartData} layout="vertical" margin={{ left: 20, right: 30 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis type="number" unit="%" className="text-xs" />
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} />
+                <XAxis type="number" unit="%" tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} stroke="hsl(var(--border))" />
                 <YAxis
                   dataKey="scope"
                   type="category"
                   width={100}
-                  className="text-xs"
-                  tick={{ fontSize: 12 }}
+                  tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
+                  stroke="hsl(var(--border))"
                 />
                 <Tooltip content={<CustomTooltip />} />
                 <ReferenceLine x={0} stroke="hsl(var(--muted-foreground))" />
@@ -163,30 +163,31 @@ export const VergelijkingChart = memo(function VergelijkingChart({
               </BarChart>
             ) : (
               <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} />
                 <XAxis
                   dataKey="scope"
-                  className="text-xs"
-                  tick={{ fontSize: 11 }}
+                  tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                  stroke="hsl(var(--border))"
                   interval={0}
                   angle={-45}
                   textAnchor="end"
                   height={80}
                 />
                 <YAxis
-                  className="text-xs"
-                  tick={{ fontSize: 12 }}
+                  tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
+                  stroke="hsl(var(--border))"
                   label={{
                     value: "Uren",
                     angle: -90,
                     position: "insideLeft",
-                    style: { textAnchor: "middle", fontSize: 12 },
+                    style: { textAnchor: "middle", fontSize: 12, fill: "hsl(var(--muted-foreground))" },
                   }}
                 />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend
-                  wrapperStyle={{ paddingTop: "10px" }}
+                  wrapperStyle={{ paddingTop: "10px", color: "hsl(var(--foreground))" }}
                   iconType="circle"
+                  formatter={(value) => <span style={{ color: "hsl(var(--foreground))" }}>{value}</span>}
                 />
                 <Bar
                   dataKey="gepland"
@@ -252,19 +253,20 @@ export const AfwijkingChart = memo(function AfwijkingChart({
               layout="vertical"
               margin={{ left: 10, right: 30 }}
             >
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} horizontal={false} />
               <XAxis
                 type="number"
                 unit="%"
-                className="text-xs"
+                tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
+                stroke="hsl(var(--border))"
                 domain={["auto", "auto"]}
               />
               <YAxis
                 dataKey="scope"
                 type="category"
                 width={100}
-                className="text-xs"
-                tick={{ fontSize: 11 }}
+                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                stroke="hsl(var(--border))"
               />
               <Tooltip
                 formatter={(value) => [`${value}%`, "Afwijking"]}

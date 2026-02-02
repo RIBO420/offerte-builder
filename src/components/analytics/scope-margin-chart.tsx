@@ -92,7 +92,7 @@ function CustomTooltip({ active, payload }: {
     <motion.div
       initial={{ opacity: 0, x: -10, scale: 0.95 }}
       animate={{ opacity: 1, x: 0, scale: 1 }}
-      className="relative overflow-hidden rounded-xl border border-white/10 bg-card/95 backdrop-blur-xl p-4 shadow-2xl shadow-black/20 min-w-[200px]"
+      className="relative overflow-hidden rounded-xl border border-border bg-popover/95 text-popover-foreground backdrop-blur-xl p-4 shadow-2xl min-w-[200px]"
     >
       {/* Colored top border */}
       <div
@@ -121,7 +121,7 @@ function CustomTooltip({ active, payload }: {
               {formatCurrency(item.totaal)}
             </span>
           </div>
-          <div className="flex items-center justify-between gap-4 pt-2 border-t border-white/10">
+          <div className="flex items-center justify-between gap-4 pt-2 border-t border-border">
             <span className="text-sm text-muted-foreground">Offertes</span>
             <span className="font-medium text-foreground">{item.count}</span>
           </div>

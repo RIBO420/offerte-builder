@@ -100,6 +100,7 @@ import { ScopeTag, type ScopeType, scopeTypes } from "@/components/ui/scope-tag"
 import { PriceDisplay } from "@/components/ui/price-display";
 import { Id } from "../../../../../convex/_generated/dataModel";
 import { toast } from "sonner";
+import { showDeleteToast } from "@/lib/toast-utils";
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("nl-NL", {
@@ -178,7 +179,7 @@ export default function OfferteDetailPage({
   const voorcalculatie = offerteWithVoorcalculatie?.voorcalculatie;
   const isLoading = offerteWithVoorcalculatie === undefined;
 
-  const { updateStatus, delete: deleteOfferte, duplicate } = useOffertes();
+  const { updateStatus, delete: deleteOfferte, restore: restoreOfferte, duplicate } = useOffertes();
   const { getNextNummer, instellingen } = useInstellingen();
 
   const { stats: emailStats } = useEmailLogs(id as Id<"offertes">);
@@ -225,9 +226,17 @@ export default function OfferteDetailPage({
   const handleDelete = async () => {
     if (!offerte) return;
     try {
-      await deleteOfferte({ id: offerte._id });
-      toast.success("Offerte verwijderd");
+      const offerteId = offerte._id;
+      await deleteOfferte({ id: offerteId });
       router.push("/offertes");
+      // Show undo toast with 30-second window
+      showDeleteToast(
+        "Offerte verwijderd",
+        async () => {
+          await restoreOfferte({ id: offerteId });
+          router.push(`/offertes/${offerteId}`);
+        }
+      );
     } catch {
       toast.error("Fout bij verwijderen offerte");
     }

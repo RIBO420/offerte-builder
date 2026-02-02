@@ -56,6 +56,12 @@ import {
   TrendingUp,
   Filter,
 } from "lucide-react";
+import { FilterPresetSelector } from "@/components/ui/filter-preset-selector";
+import {
+  useFilterPresets,
+  type UrenFilterState,
+} from "@/hooks/use-filter-presets";
+import { toast } from "sonner";
 
 // Animation variants
 const containerVariants = {
@@ -118,6 +124,15 @@ export default function UrenPage() {
   const [dateRange, setDateRange] = useState<DateRangePreset>("month");
   const [projectFilter, setProjectFilter] = useState<string>("all");
   const [medewerkerFilter, setMedewerkerFilter] = useState<string>("all");
+
+  // Filter presets
+  const {
+    presets,
+    defaultPresets,
+    userPresets,
+    addPreset,
+    deletePreset,
+  } = useFilterPresets<UrenFilterState>("uren");
 
   // Calculate date range based on preset
   const { startDate, endDate } = useMemo(() => {
@@ -215,6 +230,52 @@ export default function UrenPage() {
     setMedewerkerFilter("all");
     setDateRange("month");
   }, []);
+
+  // Handle preset selection
+  const handlePresetSelect = useCallback((presetFilters: UrenFilterState) => {
+    if (presetFilters.dateRange) {
+      setDateRange(presetFilters.dateRange);
+    }
+    if (presetFilters.medewerker) {
+      // "current" means filter to current user - handled by "all" for now
+      // since the current user filtering is server-side for non-admins
+      setMedewerkerFilter(presetFilters.medewerker === "current" ? "all" : presetFilters.medewerker);
+    }
+    if (presetFilters.project) {
+      setProjectFilter(presetFilters.project);
+    }
+    if (presetFilters.searchTerm) {
+      setSearchTerm(presetFilters.searchTerm);
+    }
+  }, []);
+
+  // Current filters for preset
+  const currentFiltersForPreset = useMemo((): UrenFilterState => ({
+    dateRange,
+    medewerker: medewerkerFilter,
+    project: projectFilter,
+    searchTerm: searchTerm || undefined,
+  }), [dateRange, medewerkerFilter, projectFilter, searchTerm]);
+
+  // Check if there are active filters
+  const hasActiveFilters = useMemo(() => {
+    return dateRange !== "month" ||
+      medewerkerFilter !== "all" ||
+      projectFilter !== "all" ||
+      searchTerm !== "";
+  }, [dateRange, medewerkerFilter, projectFilter, searchTerm]);
+
+  // Handle saving preset
+  const handleSavePreset = useCallback((name: string, presetFilters: UrenFilterState) => {
+    addPreset(name, presetFilters);
+    toast.success(`Preset "${name}" opgeslagen`);
+  }, [addPreset]);
+
+  // Handle deleting preset
+  const handleDeletePreset = useCallback((id: string) => {
+    deletePreset(id);
+    toast.success("Preset verwijderd");
+  }, [deletePreset]);
 
   if (isLoading) {
     return (
@@ -446,6 +507,18 @@ export default function UrenPage() {
 
                 {/* Filters */}
                 <div className="flex flex-wrap items-center gap-2">
+                  {/* Preset Selector */}
+                  <FilterPresetSelector<UrenFilterState>
+                    presets={presets}
+                    defaultPresets={defaultPresets}
+                    userPresets={userPresets}
+                    currentFilters={currentFiltersForPreset}
+                    onSelectPreset={handlePresetSelect}
+                    onSavePreset={handleSavePreset}
+                    onDeletePreset={handleDeletePreset}
+                    hasActiveFilters={hasActiveFilters}
+                  />
+
                   {/* Search */}
                   <div className="relative w-full sm:w-48">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />

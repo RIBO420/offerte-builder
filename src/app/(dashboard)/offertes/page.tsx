@@ -78,6 +78,7 @@ import { useOffertes } from "@/hooks/use-offertes";
 import { useInstellingen } from "@/hooks/use-instellingen";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { toast } from "sonner";
+import { showDeleteToast } from "@/lib/toast-utils";
 import {
   OfferteFiltersComponent,
   ActiveFilters,
@@ -85,6 +86,11 @@ import {
   type OfferteFilters,
 } from "@/components/offerte/filters";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { FilterPresetSelector } from "@/components/ui/filter-preset-selector";
+import {
+  useFilterPresets,
+  type OfferteFilterState,
+} from "@/hooks/use-filter-presets";
 
 // Memoized formatter instances to avoid recreation
 const currencyFormatter = new Intl.NumberFormat("nl-NL", {
@@ -366,9 +372,11 @@ function OffertesPageContent() {
     stats,
     isLoading: isOffertesLoading,
     delete: deleteOfferte,
+    restore: restoreOfferte,
     duplicate,
     bulkUpdateStatus,
     bulkRemove,
+    bulkRestore,
   } = useOffertes();
   const { getNextNummer } = useInstellingen();
   const [searchQuery, setSearchQuery] = useState("");
@@ -388,6 +396,15 @@ function OffertesPageContent() {
     amountMin: searchParams.get("amountMin") || "",
     amountMax: searchParams.get("amountMax") || "",
   }));
+
+  // Filter presets
+  const {
+    presets,
+    defaultPresets,
+    userPresets,
+    addPreset,
+    deletePreset,
+  } = useFilterPresets<OfferteFilterState>("offertes");
 
   const isLoading = isUserLoading || isOffertesLoading;
 
@@ -430,6 +447,63 @@ function OffertesPageContent() {
     setActiveTab(tab);
     updateUrlParams(filters, tab);
   }, [filters]);
+
+  // Handle preset selection - convert preset filters to OfferteFilters format
+  const handlePresetSelect = useCallback((presetFilters: OfferteFilterState) => {
+    // Convert preset status to tab if it matches a single status
+    if (presetFilters.status) {
+      const statuses = presetFilters.status.split(",");
+      if (statuses.length === 1 && ["concept", "voorcalculatie", "verzonden", "geaccepteerd", "afgewezen"].includes(statuses[0])) {
+        setActiveTab(statuses[0]);
+      } else {
+        // Multiple statuses - keep on "alle" tab
+        setActiveTab("alle");
+      }
+    }
+
+    // Convert preset filters to OfferteFilters format
+    const newFilters: OfferteFilters = {
+      type: presetFilters.type || "alle",
+      dateFrom: presetFilters.dateFrom ? new Date(presetFilters.dateFrom) : undefined,
+      dateTo: presetFilters.dateTo ? new Date(presetFilters.dateTo) : undefined,
+      amountMin: presetFilters.amountMin || "",
+      amountMax: presetFilters.amountMax || "",
+    };
+    setFilters(newFilters);
+    updateUrlParams(newFilters, presetFilters.status?.split(",")[0] || activeTab);
+  }, [activeTab]);
+
+  // Convert current filters to preset format for saving
+  const currentFiltersForPreset = useMemo((): OfferteFilterState => ({
+    status: activeTab !== "alle" ? activeTab : undefined,
+    type: filters.type,
+    dateFrom: filters.dateFrom?.toISOString(),
+    dateTo: filters.dateTo?.toISOString(),
+    amountMin: filters.amountMin,
+    amountMax: filters.amountMax,
+  }), [activeTab, filters]);
+
+  // Check if there are active filters
+  const hasActiveFilters = useMemo(() => {
+    return filters.type !== "alle" ||
+      filters.dateFrom !== undefined ||
+      filters.dateTo !== undefined ||
+      filters.amountMin !== "" ||
+      filters.amountMax !== "" ||
+      activeTab !== "alle";
+  }, [filters, activeTab]);
+
+  // Handle saving preset
+  const handleSavePreset = useCallback((name: string, presetFilters: OfferteFilterState) => {
+    addPreset(name, presetFilters);
+    toast.success(`Preset "${name}" opgeslagen`);
+  }, [addPreset]);
+
+  // Handle deleting preset
+  const handleDeletePreset = useCallback((id: string) => {
+    deletePreset(id);
+    toast.success("Preset verwijderd");
+  }, [deletePreset]);
 
   const filteredOffertes = useMemo(() => {
     return offertes?.filter((offerte) => {
@@ -505,14 +579,20 @@ function OffertesPageContent() {
   }, [getNextNummer, duplicate]);
 
   const handleDelete = useCallback(async (offerteId: string) => {
-    if (!confirm("Weet je zeker dat je deze offerte wilt verwijderen?")) return;
     try {
-      await deleteOfferte({ id: offerteId as Id<"offertes"> });
-      toast.success("Offerte verwijderd");
+      const id = offerteId as Id<"offertes">;
+      await deleteOfferte({ id });
+      // Show undo toast with 30-second window
+      showDeleteToast(
+        "Offerte verwijderd",
+        async () => {
+          await restoreOfferte({ id });
+        }
+      );
     } catch {
       toast.error("Fout bij verwijderen offerte");
     }
-  }, [deleteOfferte]);
+  }, [deleteOfferte, restoreOfferte]);
 
   const handleNavigate = useCallback((offerteId: string) => {
     router.push(`/offertes/${offerteId}`);
@@ -562,15 +642,23 @@ function OffertesPageContent() {
 
   const handleBulkDelete = useCallback(async () => {
     if (selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    const count = ids.length;
     try {
-      await bulkRemove({ ids: Array.from(selectedIds) });
-      toast.success(`${selectedIds.size} offerte(s) verwijderd`);
+      await bulkRemove({ ids });
       clearSelection();
       setShowBulkDeleteDialog(false);
+      // Show undo toast with 30-second window
+      showDeleteToast(
+        `${count} offerte(s) verwijderd`,
+        async () => {
+          await bulkRestore({ ids });
+        }
+      );
     } catch {
       toast.error("Fout bij verwijderen offertes");
     }
-  }, [selectedIds, bulkRemove, clearSelection]);
+  }, [selectedIds, bulkRemove, bulkRestore, clearSelection]);
 
   const handleExportCSV = useCallback(() => {
     if (sortedOffertes.length === 0) return;
@@ -680,11 +768,23 @@ function OffertesPageContent() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <OfferteFiltersComponent
-              filters={filters}
-              onChange={handleFiltersChange}
-              onReset={handleFiltersReset}
-            />
+            <div className="flex items-center gap-2">
+              <FilterPresetSelector<OfferteFilterState>
+                presets={presets}
+                defaultPresets={defaultPresets}
+                userPresets={userPresets}
+                currentFilters={currentFiltersForPreset}
+                onSelectPreset={handlePresetSelect}
+                onSavePreset={handleSavePreset}
+                onDeletePreset={handleDeletePreset}
+                hasActiveFilters={hasActiveFilters}
+              />
+              <OfferteFiltersComponent
+                filters={filters}
+                onChange={handleFiltersChange}
+                onReset={handleFiltersReset}
+              />
+            </div>
           </div>
           <ActiveFilters filters={filters} onChange={handleFiltersChange} />
         </motion.div>

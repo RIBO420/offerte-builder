@@ -20,6 +20,7 @@ interface ErrorToastOptions {
 
 interface UndoToastOptions {
   duration?: number;
+  description?: string;
 }
 
 /**
@@ -90,14 +91,45 @@ export function showUndoToast(
   undoAction: () => void,
   options?: UndoToastOptions
 ): void {
-  const { duration = 5000 } = options ?? {};
+  const { duration = 5000, description } = options ?? {};
 
   toast(message, {
+    description,
     action: {
       label: "Ongedaan maken",
       onClick: undoAction,
     },
     duration,
+  });
+}
+
+/**
+ * Show a delete toast with 30-second undo window
+ * Used for soft delete operations where user has time to undo
+ *
+ * @example
+ * showDeleteToast("Offerte verwijderd", () => restoreOfferte(id))
+ * showDeleteToast("Project verwijderd", () => restoreProject(id), "Het project wordt over 30 dagen permanent verwijderd")
+ */
+export function showDeleteToast(
+  message: string,
+  undoAction: () => void | Promise<void>,
+  description?: string
+): void {
+  toast(message, {
+    description: description ?? "Je kunt dit binnen 30 dagen herstellen",
+    action: {
+      label: "Ongedaan maken",
+      onClick: async () => {
+        try {
+          await undoAction();
+          toast.success("Herstel gelukt");
+        } catch {
+          toast.error("Herstel mislukt");
+        }
+      },
+    },
+    duration: 30000, // 30 seconds
   });
 }
 

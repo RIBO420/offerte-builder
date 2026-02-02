@@ -429,6 +429,37 @@ body {
     @apply bg-background text-foreground;
   }
 
+  /* ========================================
+     Recharts Dark Mode Styling
+     ======================================== */
+  .recharts-default-tooltip {
+    background-color: hsl(var(--popover)) !important;
+    border-color: hsl(var(--border)) !important;
+    color: hsl(var(--popover-foreground)) !important;
+    border-radius: 0.5rem !important;
+  }
+
+  .recharts-tooltip-label {
+    color: hsl(var(--foreground)) !important;
+    font-weight: 500;
+  }
+
+  .recharts-tooltip-item {
+    color: hsl(var(--muted-foreground)) !important;
+  }
+
+  .recharts-legend-item-text {
+    color: hsl(var(--foreground)) !important;
+  }
+
+  .recharts-cartesian-axis-tick-value {
+    fill: hsl(var(--muted-foreground)) !important;
+  }
+
+  .recharts-cartesian-grid line {
+    stroke: hsl(var(--border)) !important;
+  }
+
   /* Typografie utilities */
   .tabular-nums {
     font-variant-numeric: tabular-nums;

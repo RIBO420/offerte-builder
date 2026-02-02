@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 import SignaturePad from "signature_pad";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,19 @@ interface SignaturePadComponentProps {
   className?: string;
 }
 
+// Get theme-aware colors for signature pad
+function getSignatureColors() {
+  if (typeof window === "undefined") {
+    return { backgroundColor: "rgb(255, 255, 255)", penColor: "rgb(0, 0, 0)" };
+  }
+  const isDark = document.documentElement.classList.contains("dark");
+  return {
+    // Use a slightly off-white/off-black for better contrast
+    backgroundColor: isDark ? "rgb(38, 38, 38)" : "rgb(255, 255, 255)",
+    penColor: isDark ? "rgb(245, 245, 245)" : "rgb(0, 0, 0)",
+  };
+}
+
 export function SignaturePadComponent({
   onSignatureChange,
   className,
@@ -21,6 +34,21 @@ export function SignaturePadComponent({
   const signaturePadRef = useRef<SignaturePad | null>(null);
   const [isEmpty, setIsEmpty] = useState(true);
   const [typedName, setTypedName] = useState("");
+
+  // Update signature pad colors when theme changes
+  const updateColors = useCallback(() => {
+    if (signaturePadRef.current && canvasRef.current) {
+      const colors = getSignatureColors();
+      signaturePadRef.current.backgroundColor = colors.backgroundColor;
+      signaturePadRef.current.penColor = colors.penColor;
+      // Clear and redraw with new background color
+      const data = signaturePadRef.current.toData();
+      signaturePadRef.current.clear();
+      if (data.length > 0) {
+        signaturePadRef.current.fromData(data);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (canvasRef.current) {
@@ -32,9 +60,10 @@ export function SignaturePadComponent({
       canvas.height = canvas.offsetHeight * ratio;
       canvas.getContext("2d")?.scale(ratio, ratio);
 
+      const colors = getSignatureColors();
       signaturePadRef.current = new SignaturePad(canvas, {
-        backgroundColor: "rgb(255, 255, 255)",
-        penColor: "rgb(0, 0, 0)",
+        backgroundColor: colors.backgroundColor,
+        penColor: colors.penColor,
       });
 
       signaturePadRef.current.addEventListener("endStroke", () => {
@@ -43,12 +72,26 @@ export function SignaturePadComponent({
           onSignatureChange(signaturePadRef.current.toDataURL());
         }
       });
+
+      // Listen for theme changes
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          if (mutation.attributeName === "class") {
+            updateColors();
+          }
+        });
+      });
+      observer.observe(document.documentElement, { attributes: true });
+
+      return () => {
+        observer.disconnect();
+      };
     }
 
     return () => {
       signaturePadRef.current?.off();
     };
-  }, [onSignatureChange]);
+  }, [onSignatureChange, updateColors]);
 
   const handleClear = () => {
     signaturePadRef.current?.clear();
@@ -57,16 +100,17 @@ export function SignaturePadComponent({
     onSignatureChange(null);
   };
 
-  // Generate signature image from typed name
+  // Generate signature image from typed name with theme-aware colors
   const generateTypedSignature = (name: string): string => {
     const canvas = document.createElement("canvas");
     canvas.width = 400;
     canvas.height = 128;
     const ctx = canvas.getContext("2d");
     if (ctx) {
-      ctx.fillStyle = "rgb(255, 255, 255)";
+      const colors = getSignatureColors();
+      ctx.fillStyle = colors.backgroundColor;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = "rgb(0, 0, 0)";
+      ctx.fillStyle = colors.penColor;
       ctx.font = "italic 32px 'Brush Script MT', cursive, serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
@@ -93,7 +137,7 @@ export function SignaturePadComponent({
 
   return (
     <div className={cn("space-y-2", className)}>
-      <div className="relative border-2 border-dashed border-muted-foreground/25 rounded-lg bg-white">
+      <div className="relative border-2 border-dashed border-muted-foreground/25 rounded-lg bg-background dark:bg-neutral-800">
         <canvas
           ref={canvasRef}
           className="w-full h-32 rounded-lg cursor-crosshair touch-none"
@@ -117,7 +161,7 @@ export function SignaturePadComponent({
           Wissen
         </Button>
         {!isEmpty && (
-          <span className="text-sm text-green-600 flex items-center gap-1">
+          <span className="text-sm text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
             <Check className="h-4 w-4" />
             Handtekening gezet
           </span>

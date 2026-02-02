@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import {
   Mountain,
@@ -77,7 +78,11 @@ export interface ScopeTagProps
   showIcon?: boolean;
 }
 
-export function ScopeTag({
+/**
+ * ScopeTag - Pure presentational component for displaying scope badges
+ * Memoized to prevent unnecessary re-renders in lists
+ */
+export const ScopeTag = memo(function ScopeTag({
   scope,
   size,
   showIcon = false,
@@ -99,6 +104,6 @@ export function ScopeTag({
       {children ?? label}
     </span>
   );
-}
+});
 
 export { scopeTypes, scopeIcons, scopeLabels };

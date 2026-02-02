@@ -10,7 +10,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  StyleSheet,
   Alert,
   ActivityIndicator,
 } from 'react-native';
@@ -24,6 +23,7 @@ import {
   BiometricType,
 } from '../../lib/auth/biometric';
 import { isAuthConfigured } from '../../lib/env';
+import { cn } from '@/lib/utils';
 
 // Check auth configuratie buiten component (constant tijdens runtime)
 const AUTH_CONFIGURED = isAuthConfigured();
@@ -159,10 +159,10 @@ export default function BiometricLoginScreen() {
 
   if (isLoading) {
     return (
-      <View style={styles.container}>
-        <View style={styles.content}>
+      <View className="flex-1 bg-background">
+        <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color="#2d5016" />
-          <Text style={styles.loadingText}>Laden...</Text>
+          <Text className="mt-3 text-sm text-muted-foreground">Laden...</Text>
         </View>
       </View>
     );
@@ -172,112 +172,43 @@ export default function BiometricLoginScreen() {
   const biometricIcon = biometricType === 'face' ? 'eye' : 'smartphone';
 
   return (
-    <View style={styles.container}>
-      <View style={styles.content}>
+    <View className="flex-1 bg-background">
+      <View className="flex-1 px-6 justify-center items-center">
         {/* Logo en titel */}
-        <View style={styles.header}>
-          <View style={styles.logoContainer}>
+        <View className="items-center mb-12">
+          <View className="w-24 h-24 rounded-full bg-green-50 items-center justify-center mb-4">
             <Feather name="sun" size={48} color="#2d5016" />
           </View>
-          <Text style={styles.title}>Top Tuinen</Text>
-          <Text style={styles.subtitle}>Welkom terug</Text>
+          <Text className="text-3xl font-bold text-[#2d5016] mb-1">Top Tuinen</Text>
+          <Text className="text-lg text-muted-foreground">Welkom terug</Text>
         </View>
 
         {/* Biometric button */}
         <TouchableOpacity
-          style={[styles.biometricButton, isAuthenticating && styles.buttonDisabled]}
+          className={cn(
+            "w-full flex-row bg-accent rounded-xl py-4.5 items-center justify-center mb-4",
+            isAuthenticating && "bg-green-300"
+          )}
           onPress={handleBiometricLogin}
           disabled={isAuthenticating}
         >
           {isAuthenticating ? (
-            <ActivityIndicator size="small" color="#fff" style={styles.buttonIcon} />
+            <ActivityIndicator size="small" color="#fff" className="mr-2.5" />
           ) : (
-            <Feather name={biometricIcon} size={24} color="#fff" style={styles.buttonIcon} />
+            <Feather name={biometricIcon} size={24} color="#fff" className="mr-2.5" />
           )}
-          <Text style={styles.biometricButtonText}>
+          <Text className="text-white text-lg font-semibold">
             {isAuthenticating ? 'Verificatie...' : `Inloggen met ${biometricLabel}`}
           </Text>
         </TouchableOpacity>
 
         {/* Alternatieve login */}
-        <TouchableOpacity style={styles.emailButton} onPress={handleUseEmail}>
+        <TouchableOpacity className="flex-row items-center gap-2 py-3 px-4" onPress={handleUseEmail}>
           <Feather name="mail" size={18} color="#666" />
-          <Text style={styles.emailButtonText}>Gebruik magic link</Text>
+          <Text className="text-base text-muted-foreground">Gebruik magic link</Text>
         </TouchableOpacity>
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#666',
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 48,
-  },
-  logoContainer: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: '#f0f9e8',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#2d5016',
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 18,
-    color: '#666',
-  },
-  biometricButton: {
-    width: '100%',
-    flexDirection: 'row',
-    backgroundColor: '#2d5016',
-    borderRadius: 12,
-    paddingVertical: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  buttonDisabled: {
-    backgroundColor: '#93c47d',
-  },
-  buttonIcon: {
-    marginRight: 10,
-  },
-  biometricButtonText: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '600',
-  },
-  emailButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-  },
-  emailButtonText: {
-    fontSize: 15,
-    color: '#666',
-  },
-});

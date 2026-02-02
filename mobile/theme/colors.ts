@@ -65,13 +65,13 @@ export const darkColors: ColorScheme = {
   foreground: '#FAFAFA', // oklch(0.985 0 0)
   card: '#1A1A1A', // oklch(0.205 0 0) - slightly lighter than background
   cardForeground: '#FAFAFA', // oklch(0.985 0 0)
-  primary: '#E5E5E5', // oklch(0.922 0 0)
+  primary: '#FAFAFA', // oklch(0.985 0 0) - primary text
   primaryForeground: '#1A1A1A', // oklch(0.205 0 0)
-  secondary: '#4D4D4D', // oklch(0.35 0 0)
+  secondary: '#A1A1AA', // oklch(0.708 0 0) - secondary text
   secondaryForeground: '#FAFAFA', // oklch(0.985 0 0)
   muted: '#3D3D3D', // oklch(0.269 0 0)
-  mutedForeground: '#A3A3A3', // oklch(0.708 0 0) - better contrast
-  accent: '#4D4D4D', // oklch(0.35 0 0)
+  mutedForeground: '#71717A', // oklch(0.556 0 0) - tertiary text
+  accent: '#6366F1', // Indigo - Linear/Vercel style
   accentForeground: '#FAFAFA', // oklch(0.985 0 0)
   destructive: '#E57373', // oklch(0.704 0.191 22.216) - proper dark variant
   destructiveForeground: '#0A0A0A', // Match background for contrast

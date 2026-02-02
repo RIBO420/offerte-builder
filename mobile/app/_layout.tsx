@@ -1,3 +1,4 @@
+import '../global.css';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -60,11 +61,12 @@ function InnerLayout() {
     <UserSync>
       <RoleProvider>
         <PushNotificationsInitializer>
-          <StatusBar style="auto" />
+          <StatusBar style="light" />
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="index" />
             <Stack.Screen name="(auth)" options={{ headerShown: false }} />
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="admin" options={{ headerShown: false, presentation: 'modal' }} />
           </Stack>
         </PushNotificationsInitializer>
       </RoleProvider>
@@ -92,7 +94,7 @@ export default function RootLayout() {
     return (
       <SafeAreaProvider>
         <ThemeProvider>
-          <StatusBar style="auto" />
+          <StatusBar style="light" />
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="index" />
             <Stack.Screen name="(auth)" options={{ headerShown: false }} />

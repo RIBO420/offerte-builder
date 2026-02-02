@@ -3,16 +3,11 @@ import {
   View,
   TextInput,
   Text,
-  StyleSheet,
-  ViewStyle,
   TextInputProps,
   Animated,
   ActivityIndicator,
 } from 'react-native';
-import { colors } from '../../theme/colors';
-import { typography } from '../../theme/typography';
-import { radius } from '../../theme/radius';
-import { spacing } from '../../theme/spacing';
+import { cn } from '@/lib/utils';
 
 export type InputStatus = 'idle' | 'valid' | 'invalid' | 'validating';
 
@@ -23,23 +18,23 @@ export interface InputProps extends Omit<TextInputProps, 'style'> {
   status?: InputStatus;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
-  containerStyle?: ViewStyle;
-  inputStyle?: ViewStyle;
+  className?: string;
+  inputClassName?: string;
   disabled?: boolean;
 }
 
-const STATUS_COLORS: Record<InputStatus, string> = {
-  idle: colors.border,
-  valid: colors.trend.positive,
-  invalid: colors.destructive,
-  validating: colors.ring,
+const STATUS_BORDER_COLORS: Record<InputStatus, string> = {
+  idle: 'border-border',
+  valid: 'border-green-500',
+  invalid: 'border-destructive',
+  validating: 'border-ring',
 };
 
-const FOCUS_COLORS: Record<InputStatus, string> = {
-  idle: colors.ring,
-  valid: colors.trend.positive,
-  invalid: colors.destructive,
-  validating: colors.ring,
+const FOCUS_BORDER_COLORS: Record<InputStatus, string> = {
+  idle: 'border-ring',
+  valid: 'border-green-500',
+  invalid: 'border-destructive',
+  validating: 'border-ring',
 };
 
 export const Input = forwardRef<TextInput, InputProps>(
@@ -51,8 +46,8 @@ export const Input = forwardRef<TextInput, InputProps>(
       status = 'idle',
       leftIcon,
       rightIcon,
-      containerStyle,
-      inputStyle,
+      className,
+      inputClassName,
       disabled = false,
       multiline = false,
       ...props
@@ -90,47 +85,49 @@ export const Input = forwardRef<TextInput, InputProps>(
       }
     }, [status, shakeAnimation]);
 
-    const getBorderColor = () => {
-      if (disabled) return colors.border;
-      if (isFocused) return FOCUS_COLORS[status];
-      return STATUS_COLORS[status];
+    const getBorderColorClass = () => {
+      if (disabled) return 'border-border';
+      if (isFocused) return FOCUS_BORDER_COLORS[status];
+      return STATUS_BORDER_COLORS[status];
     };
 
     const displayMessage = error || hint;
-    const messageColor = error ? colors.destructive : colors.mutedForeground;
 
     return (
-      <View style={[styles.container, containerStyle]}>
+      <View className={cn('gap-1.5 mb-4', className)}>
         {label && (
-          <Text style={[styles.label, disabled && styles.labelDisabled]}>
+          <Text
+            className={cn(
+              'text-sm font-medium text-foreground',
+              disabled && 'text-muted-foreground'
+            )}
+          >
             {label}
           </Text>
         )}
 
         <Animated.View
-          style={[
-            styles.inputContainer,
-            {
-              borderColor: getBorderColor(),
-              backgroundColor: disabled ? colors.muted : colors.background,
-              transform: [{ translateX: shakeAnimation }],
-            },
-            multiline && styles.inputContainerMultiline,
-            inputStyle,
-          ]}
+          className={cn(
+            'flex-row items-center border rounded-lg px-3',
+            multiline ? 'min-h-[88px] items-start py-3' : 'min-h-[44px]',
+            disabled ? 'bg-muted' : 'bg-background',
+            getBorderColorClass()
+          )}
+          style={{ transform: [{ translateX: shakeAnimation }] }}
         >
-          {leftIcon && <View style={styles.iconLeft}>{leftIcon}</View>}
+          {leftIcon && <View className="mr-2 justify-center items-center">{leftIcon}</View>}
 
           <TextInput
             ref={ref}
-            style={[
-              styles.input,
-              leftIcon && styles.inputWithLeftIcon,
-              rightIcon && styles.inputWithRightIcon,
-              multiline && styles.inputMultiline,
-              disabled && styles.inputDisabled,
-            ]}
-            placeholderTextColor={colors.mutedForeground}
+            className={cn(
+              'flex-1 text-base text-foreground py-3 px-1',
+              leftIcon && 'pl-1',
+              rightIcon && 'pr-1',
+              multiline && 'min-h-[72px]',
+              disabled && 'text-muted-foreground',
+              inputClassName
+            )}
+            placeholderTextColor="#71717a"
             editable={!disabled}
             multiline={multiline}
             textAlignVertical={multiline ? 'top' : 'center'}
@@ -145,11 +142,16 @@ export const Input = forwardRef<TextInput, InputProps>(
             {...props}
           />
 
-          {rightIcon && <View style={styles.iconRight}>{rightIcon}</View>}
+          {rightIcon && <View className="ml-2 justify-center items-center">{rightIcon}</View>}
         </Animated.View>
 
         {displayMessage && (
-          <Text style={[styles.message, { color: messageColor }]}>
+          <Text
+            className={cn(
+              'text-xs mt-1',
+              error ? 'text-destructive' : 'text-muted-foreground'
+            )}
+          >
             {displayMessage}
           </Text>
         )}
@@ -165,22 +167,22 @@ const StatusIcon: React.FC<{ status: InputStatus }> = ({ status }) => {
   switch (status) {
     case 'valid':
       return (
-        <View style={[styles.statusIcon, styles.statusIconValid]}>
-          <Text style={styles.statusIconText}>✓</Text>
+        <View className="w-5 h-5 rounded-full bg-green-500 justify-center items-center">
+          <Text className="text-background text-xs font-bold">✓</Text>
         </View>
       );
     case 'invalid':
       return (
-        <View style={[styles.statusIcon, styles.statusIconInvalid]}>
-          <Text style={styles.statusIconText}>!</Text>
+        <View className="w-5 h-5 rounded-full bg-destructive justify-center items-center">
+          <Text className="text-background text-xs font-bold">!</Text>
         </View>
       );
     case 'validating':
       return (
         <ActivityIndicator
           size="small"
-          color={colors.ring}
-          style={styles.statusIconSpinner}
+          color="#3b82f6"
+          className="w-5 h-5"
         />
       );
     default:
@@ -198,7 +200,7 @@ export const InputWithFeedback = forwardRef<TextInput, InputWithFeedbackProps>(
 
     // Combine custom right icon with status icon
     const combinedRightIcon = (
-      <View style={styles.feedbackIconContainer}>
+      <View className="flex-row items-center gap-2">
         {rightIcon}
         {showStatusIcon && <StatusIcon status={status} />}
       </View>
@@ -212,12 +214,12 @@ export const InputWithFeedback = forwardRef<TextInput, InputWithFeedbackProps>(
     };
 
     const feedback = getFeedbackMessage();
-    const feedbackColor =
+    const feedbackColorClass =
       status === 'valid'
-        ? colors.trend.positive
+        ? 'text-green-500'
         : status === 'invalid'
-          ? colors.destructive
-          : colors.mutedForeground;
+          ? 'text-destructive'
+          : 'text-muted-foreground';
 
     return (
       <View>
@@ -228,7 +230,7 @@ export const InputWithFeedback = forwardRef<TextInput, InputWithFeedbackProps>(
           {...props}
         />
         {feedback && !props.error && !props.hint && (
-          <Text style={[styles.feedbackMessage, { color: feedbackColor }]}>
+          <Text className={cn('text-xs mt-1', feedbackColorClass)}>
             {feedback}
           </Text>
         )}
@@ -238,97 +240,3 @@ export const InputWithFeedback = forwardRef<TextInput, InputWithFeedbackProps>(
 );
 
 InputWithFeedback.displayName = 'InputWithFeedback';
-
-const styles = StyleSheet.create({
-  container: {
-    marginBottom: spacing.md,
-  },
-  label: {
-    fontSize: typography.fontSize.sm,
-    fontWeight: typography.fontWeight.medium,
-    color: colors.foreground,
-    marginBottom: spacing.xs,
-  },
-  labelDisabled: {
-    color: colors.mutedForeground,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    minHeight: 44, // Minimum touch target size
-    borderWidth: 1,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.sm,
-  },
-  inputContainerMultiline: {
-    minHeight: 88,
-    alignItems: 'flex-start',
-    paddingVertical: spacing.sm,
-  },
-  input: {
-    flex: 1,
-    fontSize: typography.fontSize.base,
-    color: colors.foreground,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.xs,
-  },
-  inputWithLeftIcon: {
-    paddingLeft: spacing.xs,
-  },
-  inputWithRightIcon: {
-    paddingRight: spacing.xs,
-  },
-  inputMultiline: {
-    minHeight: 72,
-    textAlignVertical: 'top',
-  },
-  inputDisabled: {
-    color: colors.mutedForeground,
-  },
-  iconLeft: {
-    marginRight: spacing.xs,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  iconRight: {
-    marginLeft: spacing.xs,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  message: {
-    fontSize: typography.fontSize.xs,
-    marginTop: spacing.xs,
-  },
-  // Status icon styles
-  statusIcon: {
-    width: 20,
-    height: 20,
-    borderRadius: radius.full,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  statusIconValid: {
-    backgroundColor: colors.trend.positive,
-  },
-  statusIconInvalid: {
-    backgroundColor: colors.destructive,
-  },
-  statusIconText: {
-    color: colors.background,
-    fontSize: typography.fontSize.xs,
-    fontWeight: typography.fontWeight.bold,
-  },
-  statusIconSpinner: {
-    width: 20,
-    height: 20,
-  },
-  feedbackIconContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  feedbackMessage: {
-    fontSize: typography.fontSize.xs,
-    marginTop: spacing.xs,
-  },
-});

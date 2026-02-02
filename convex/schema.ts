@@ -157,6 +157,9 @@ export default defineSchema({
     // Archiving
     isArchived: v.optional(v.boolean()),
     archivedAt: v.optional(v.number()),
+
+    // Soft delete
+    deletedAt: v.optional(v.number()),
   })
     .index("by_user", ["userId"])
     .index("by_status", ["status"])
@@ -386,6 +389,9 @@ export default defineSchema({
     // Archiving
     isArchived: v.optional(v.boolean()),
     archivedAt: v.optional(v.number()),
+
+    // Soft delete
+    deletedAt: v.optional(v.number()),
 
     createdAt: v.number(),
     updatedAt: v.number(),

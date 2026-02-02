@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { memo, useMemo } from "react"
 import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { DataCard, type TrendData } from "@/components/ui/data-card"
@@ -56,15 +57,22 @@ const cardVariants = {
   },
 }
 
-function StatsGrid({
+/**
+ * StatsGrid - Memoized grid component for displaying statistics
+ * Prevents re-renders when parent updates if stats haven't changed
+ */
+const StatsGrid = memo(function StatsGrid({
   stats,
   columns = 4,
   loading = false,
   className,
   animated = true,
 }: StatsGridProps) {
-  // When loading, show skeleton cards based on stats length or default to columns count
-  const itemCount = loading && stats.length === 0 ? columns : stats.length
+  // Memoize item count calculation
+  const itemCount = useMemo(
+    () => (loading && stats.length === 0 ? columns : stats.length),
+    [loading, stats.length, columns]
+  )
 
   const GridWrapper = animated && !loading ? motion.div : "div"
   const CardWrapper = animated && !loading ? motion.div : "div"
@@ -107,7 +115,7 @@ function StatsGrid({
           ))}
     </GridWrapper>
   )
-}
+})
 
 export { StatsGrid }
 export type { StatsGridProps, StatItem }

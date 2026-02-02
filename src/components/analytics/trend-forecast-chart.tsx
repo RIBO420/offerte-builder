@@ -50,13 +50,14 @@ function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
+// Theme-aware chart colors using CSS custom properties
 const CHART_COLORS = {
-  aanleg: "hsl(221.2, 83.2%, 53.3%)",
-  onderhoud: "hsl(142.1, 76.2%, 36.3%)",
-  totaal: "hsl(280, 65%, 60%)",
-  movingAvg: "hsl(340, 82%, 52%)",
-  forecast: "hsl(45, 93%, 47%)",
-  forecastArea: "rgba(245, 158, 11, 0.1)",
+  aanleg: "hsl(var(--chart-1))",
+  onderhoud: "hsl(var(--chart-2))",
+  totaal: "hsl(var(--chart-4))",
+  movingAvg: "hsl(var(--chart-5))",
+  forecast: "hsl(var(--chart-3))",
+  forecastArea: "hsl(var(--chart-3) / 0.15)",
 };
 
 export const TrendForecastChart = memo(function TrendForecastChart({ data, forecast }: TrendForecastChartProps) {
@@ -160,18 +161,18 @@ export const TrendForecastChart = memo(function TrendForecastChart({ data, forec
 
         <ResponsiveContainer width="100%" height={350}>
           <ComposedChart data={combinedData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} />
             <XAxis
               dataKey="maand"
-              tick={{ fontSize: 11 }}
-              className="fill-muted-foreground"
+              tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+              stroke="hsl(var(--border))"
               angle={-45}
               textAnchor="end"
               height={60}
             />
             <YAxis
-              tick={{ fontSize: 12 }}
-              className="fill-muted-foreground"
+              tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
+              stroke="hsl(var(--border))"
               tickFormatter={view === "omzet" ? (v) => `€${(v / 1000).toFixed(0)}k` : undefined}
             />
             <Tooltip
@@ -179,11 +180,11 @@ export const TrendForecastChart = memo(function TrendForecastChart({ data, forec
                 if (active && payload && payload.length > 0) {
                   const isForecast = payload[0]?.payload?.isForecast;
                   return (
-                    <div className="rounded-lg border bg-card p-3 shadow-md">
+                    <div className="rounded-lg border border-border bg-popover text-popover-foreground p-3 shadow-md">
                       <p className="font-medium mb-2">
                         {label}
                         {isForecast && (
-                          <span className="ml-2 text-xs text-amber-500 font-normal">(Forecast)</span>
+                          <span className="ml-2 text-xs text-chart-3 font-normal">(Forecast)</span>
                         )}
                       </p>
                       {payload.map((entry, index) => {
@@ -201,7 +202,10 @@ export const TrendForecastChart = memo(function TrendForecastChart({ data, forec
                 return null;
               }}
             />
-            <Legend />
+            <Legend
+              wrapperStyle={{ color: "hsl(var(--foreground))" }}
+              formatter={(value) => <span className="text-foreground">{value}</span>}
+            />
 
             {/* Reference line at forecast boundary */}
             {showForecast && lastHistoricalMonth && (

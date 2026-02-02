@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import { View, Text, StyleSheet } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Home, Clock, MessageCircle, Bell, User } from 'lucide-react-native';
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useColors, useTheme } from '../../theme';
@@ -25,19 +25,19 @@ function TabBarBadge({ count, color }: { count: number; color: string }) {
 
 // Tab bar icon with optional badge
 function TabBarIconWithBadge({
-  iconName,
+  IconComponent,
   color,
   size,
   badgeCount,
 }: {
-  iconName: keyof typeof Feather.glyphMap;
+  IconComponent: React.ComponentType<{ color: string; size: number }>;
   color: string;
   size: number;
   badgeCount?: number;
 }) {
   return (
     <View style={styles.iconContainer}>
-      <Feather name={iconName} size={size} color={color} />
+      <IconComponent color={color} size={size} />
       {badgeCount !== undefined && badgeCount > 0 && (
         <TabBarBadge count={badgeCount} color={color} />
       )}
@@ -95,8 +95,8 @@ export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: colors.scope.borders,
-        tabBarInactiveTintColor: colors.mutedForeground,
+        tabBarActiveTintColor: '#fafafa',
+        tabBarInactiveTintColor: '#71717a',
         tabBarStyle: {
           backgroundColor: colors.card,
           borderTopWidth: 1,
@@ -126,7 +126,7 @@ export default function TabsLayout() {
           title: 'Dashboard',
           tabBarLabel: 'Home',
           tabBarIcon: ({ color, size }) => (
-            <Feather name="home" size={size} color={color} />
+            <Home color={color} size={size} />
           ),
           headerRight: () => (
             <View style={styles.headerRight}>
@@ -147,7 +147,7 @@ export default function TabsLayout() {
           title: 'Urenregistratie',
           tabBarLabel: 'Uren',
           tabBarIcon: ({ color, size }) => (
-            <Feather name="clock" size={size} color={color} />
+            <Clock color={color} size={size} />
           ),
         }}
       />
@@ -160,7 +160,7 @@ export default function TabsLayout() {
           tabBarLabel: 'Chat',
           tabBarIcon: ({ color, size }) => (
             <TabBarIconWithBadge
-              iconName="message-circle"
+              IconComponent={MessageCircle}
               color={color}
               size={size}
               badgeCount={chatBadgeCount}
@@ -177,7 +177,7 @@ export default function TabsLayout() {
           tabBarLabel: 'Meldingen',
           tabBarIcon: ({ color, size }) => (
             <TabBarIconWithBadge
-              iconName="bell"
+              IconComponent={Bell}
               color={color}
               size={size}
               badgeCount={notificationBadgeCount}
@@ -193,10 +193,11 @@ export default function TabsLayout() {
           title: 'Profiel',
           tabBarLabel: 'Profiel',
           tabBarIcon: ({ color, size }) => (
-            <Feather name="user" size={size} color={color} />
+            <User color={color} size={size} />
           ),
         }}
       />
+
     </Tabs>
   );
 }

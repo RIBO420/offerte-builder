@@ -42,7 +42,11 @@ function generateSmoothPath(pts: { x: number; y: number }[]): string {
   return path
 }
 
-function Sparkline({
+/**
+ * Sparkline - Pure presentational SVG component
+ * Memoized to prevent re-renders when parent updates
+ */
+const Sparkline = React.memo(function Sparkline({
   data,
   width = 100,
   height = 32,
@@ -144,7 +148,7 @@ function Sparkline({
       )}
     </svg>
   )
-}
+})
 
 export { Sparkline }
 export type { SparklineProps }

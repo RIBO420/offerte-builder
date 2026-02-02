@@ -4,7 +4,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useCurrentUser } from "./use-current-user";
 import { Id } from "../../convex/_generated/dataModel";
-import { useMemo, useEffect, useRef } from "react";
+import { useMemo, useEffect, useRef, useCallback } from "react";
 import {
   calculateNacalculatie,
   type NacalculatieResult,
@@ -55,32 +55,38 @@ export function useNacalculatie(projectId: Id<"projecten"> | null) {
     }
   }, [projectId, details?.project?.status, details?.nacalculatie, ensureCorrectStatusMutation]);
 
-  // Save calculated results
-  const save = async (data: {
-    werkelijkeUren: number;
-    werkelijkeDagen: number;
-    werkelijkeMachineKosten: number;
-    afwijkingUren: number;
-    afwijkingPercentage: number;
-    afwijkingenPerScope: Record<string, number>;
-    conclusies?: string;
-    updateProjectStatus?: boolean;
-  }) => {
-    if (!projectId) throw new Error("Project ID is required");
-    return saveNacalculatie({
-      projectId,
-      ...data,
-    });
-  };
+  // Memoize save callback to prevent unnecessary re-renders
+  const save = useCallback(
+    async (data: {
+      werkelijkeUren: number;
+      werkelijkeDagen: number;
+      werkelijkeMachineKosten: number;
+      afwijkingUren: number;
+      afwijkingPercentage: number;
+      afwijkingenPerScope: Record<string, number>;
+      conclusies?: string;
+      updateProjectStatus?: boolean;
+    }) => {
+      if (!projectId) throw new Error("Project ID is required");
+      return saveNacalculatie({
+        projectId,
+        ...data,
+      });
+    },
+    [projectId, saveNacalculatie]
+  );
 
-  // Add or update conclusions
-  const addConclusion = async (conclusies: string) => {
-    if (!projectId) throw new Error("Project ID is required");
-    return addConclusionMutation({
-      projectId,
-      conclusies,
-    });
-  };
+  // Memoize addConclusion callback
+  const addConclusion = useCallback(
+    async (conclusies: string) => {
+      if (!projectId) throw new Error("Project ID is required");
+      return addConclusionMutation({
+        projectId,
+        conclusies,
+      });
+    },
+    [projectId, addConclusionMutation]
+  );
 
   // Client-side calculated result (for display purposes)
   const clientCalculation = useMemo((): NacalculatieResult | null => {

@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -35,8 +34,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  ChevronUp,
-  ChevronDown,
   MoreHorizontal,
   Trash2,
   Edit,
@@ -55,13 +52,21 @@ import {
 import type { PlanningTaak } from "@/hooks/use-planning";
 import { Id } from "../../../convex/_generated/dataModel";
 import { cn } from "@/lib/utils";
+import {
+  SortableList,
+  SortableItemWrapper,
+  arrayMove,
+  type SortableItemProps,
+} from "@/components/ui/sortable-list";
+import { DragHandle } from "@/components/ui/drag-handle";
 
 interface TakenLijstProps {
   taken: PlanningTaak[];
   takenPerScope: Record<string, PlanningTaak[]>;
   onUpdateStatus: (taskId: Id<"planningTaken">, status: TaakStatus) => Promise<void>;
-  onMoveUp: (taskId: Id<"planningTaken">) => Promise<void>;
-  onMoveDown: (taskId: Id<"planningTaken">) => Promise<void>;
+  onReorder: (
+    taskOrders: Array<{ taskId: Id<"planningTaken">; volgorde: number }>
+  ) => Promise<void>;
   onDelete: (taskId: Id<"planningTaken">) => Promise<void>;
   onEdit?: (task: PlanningTaak) => void;
   isLoading?: boolean;
@@ -95,17 +100,130 @@ function formatDays(days: number): string {
   return `${days.toFixed(1)} dagen`;
 }
 
+interface SortableTaakRowProps {
+  taak: PlanningTaak;
+  sortableProps: SortableItemProps;
+  index: number;
+  totalInScope: number;
+  onUpdateStatus: (taskId: Id<"planningTaken">, status: TaakStatus) => Promise<void>;
+  onEdit?: (task: PlanningTaak) => void;
+  onDelete: (taskId: Id<"planningTaken">) => void;
+  isLoading?: boolean;
+}
+
+function SortableTaakRow({
+  taak,
+  sortableProps,
+  index,
+  totalInScope,
+  onUpdateStatus,
+  onEdit,
+  onDelete,
+  isLoading,
+}: SortableTaakRowProps) {
+  const handleStatusCycle = async () => {
+    const nextStatus: Record<TaakStatus, TaakStatus> = {
+      gepland: "gestart",
+      gestart: "afgerond",
+      afgerond: "gepland",
+    };
+    await onUpdateStatus(taak._id, nextStatus[taak.status]);
+  };
+
+  return (
+    <TableRow
+      ref={sortableProps.setNodeRef}
+      style={sortableProps.style}
+      className={cn(
+        "transition-colors",
+        sortableProps.isDragging && "bg-accent/50",
+        sortableProps.isOver && "bg-accent/30"
+      )}
+    >
+      <TableCell className="w-12">
+        <DragHandle
+          listeners={sortableProps.listeners}
+          attributes={sortableProps.attributes}
+          isDragging={sortableProps.isDragging}
+          aria-label={`Versleep ${taak.taakNaam} om te herschikken`}
+        />
+      </TableCell>
+      <TableCell className="text-muted-foreground font-mono text-xs w-10">
+        {index + 1}
+      </TableCell>
+      <TableCell className="font-medium">{taak.taakNaam}</TableCell>
+      <TableCell className="text-right tabular-nums">
+        {formatHours(taak.normUren)}
+      </TableCell>
+      <TableCell className="text-right tabular-nums">
+        {formatDays(taak.geschatteDagen)}
+      </TableCell>
+      <TableCell>
+        <button
+          onClick={handleStatusCycle}
+          className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-md"
+          aria-label={`Status wijzigen van ${statusConfig[taak.status].label}`}
+        >
+          <Badge
+            className={cn(
+              statusConfig[taak.status].bgColor,
+              statusConfig[taak.status].color,
+              "cursor-pointer transition-colors hover:opacity-80"
+            )}
+          >
+            <StatusIcon status={taak.status} />
+            <span className="ml-1">{statusConfig[taak.status].label}</span>
+          </Badge>
+        </button>
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center justify-end">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 sm:h-7 sm:w-7"
+                disabled={isLoading}
+                aria-label="Meer opties"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {onEdit && (
+                <DropdownMenuItem onClick={() => onEdit(taak)}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Bewerken
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem
+                onClick={() => onDelete(taak._id)}
+                className="text-destructive"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Verwijderen
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}
+
 export function TakenLijst({
   taken,
   takenPerScope,
   onUpdateStatus,
-  onMoveUp,
-  onMoveDown,
+  onReorder,
   onDelete,
   onEdit,
   isLoading,
 }: TakenLijstProps) {
-  const [deleteTaskId, setDeleteTaskId] = useState<Id<"planningTaken"> | null>(null);
+  const [deleteTaskId, setDeleteTaskId] = useState<Id<"planningTaken"> | null>(
+    null
+  );
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDelete = async () => {
@@ -119,14 +237,18 @@ export function TakenLijst({
     }
   };
 
-  const handleStatusCycle = async (task: PlanningTaak) => {
-    const nextStatus: Record<TaakStatus, TaakStatus> = {
-      gepland: "gestart",
-      gestart: "afgerond",
-      afgerond: "gepland",
-    };
-    await onUpdateStatus(task._id, nextStatus[task.status]);
-  };
+  const handleReorder = useCallback(
+    async (scopeTaken: PlanningTaak[], newItems: Array<{ id: string | number }>) => {
+      // Map the new order to task IDs with their new volgorde
+      const taskOrders = newItems.map((item, index) => ({
+        taskId: item.id as Id<"planningTaken">,
+        volgorde: index,
+      }));
+
+      await onReorder(taskOrders);
+    },
+    [onReorder]
+  );
 
   if (taken.length === 0) {
     return (
@@ -151,8 +273,19 @@ export function TakenLijst({
       {scopes.map((scope) => {
         const scopeTaken = takenPerScope[scope];
         const totaalUren = scopeTaken.reduce((sum, t) => sum + t.normUren, 0);
-        const totaalDagen = scopeTaken.reduce((sum, t) => sum + t.geschatteDagen, 0);
-        const afgerond = scopeTaken.filter((t) => t.status === "afgerond").length;
+        const totaalDagen = scopeTaken.reduce(
+          (sum, t) => sum + t.geschatteDagen,
+          0
+        );
+        const afgerond = scopeTaken.filter(
+          (t) => t.status === "afgerond"
+        ).length;
+
+        // Convert tasks to sortable items format
+        const sortableItems = scopeTaken.map((taak) => ({
+          ...taak,
+          id: taak._id,
+        }));
 
         return (
           <Card key={scope}>
@@ -188,104 +321,37 @@ export function TakenLijst({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-10"></TableHead>
+                    <TableHead className="w-12" aria-label="Drag handle"></TableHead>
+                    <TableHead className="w-10">#</TableHead>
                     <TableHead>Taak</TableHead>
                     <TableHead className="w-24 text-right">Uren</TableHead>
                     <TableHead className="w-24 text-right">Dagen</TableHead>
                     <TableHead className="w-28">Status</TableHead>
-                    <TableHead className="w-24 text-right">Acties</TableHead>
+                    <TableHead className="w-16 text-right">Acties</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {scopeTaken.map((taak, index) => (
-                    <TableRow key={taak._id}>
-                      <TableCell className="text-muted-foreground font-mono text-xs">
-                        {index + 1}
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {taak.taakNaam}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {formatHours(taak.normUren)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {formatDays(taak.geschatteDagen)}
-                      </TableCell>
-                      <TableCell>
-                        <button
-                          onClick={() => handleStatusCycle(taak)}
-                          className="focus:outline-none"
-                        >
-                          <Badge
-                            className={cn(
-                              statusConfig[taak.status].bgColor,
-                              statusConfig[taak.status].color,
-                              "cursor-pointer transition-colors hover:opacity-80"
-                            )}
-                          >
-                            <StatusIcon status={taak.status} />
-                            <span className="ml-1">
-                              {statusConfig[taak.status].label}
-                            </span>
-                          </Badge>
-                        </button>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-9 w-9 sm:h-7 sm:w-7"
-                            onClick={() => onMoveUp(taak._id)}
-                            disabled={index === 0 || isLoading}
-                            aria-label="Omhoog verplaatsen"
-                          >
-                            <ChevronUp className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-9 w-9 sm:h-7 sm:w-7"
-                            onClick={() => onMoveDown(taak._id)}
-                            disabled={
-                              index === scopeTaken.length - 1 || isLoading
-                            }
-                            aria-label="Omlaag verplaatsen"
-                          >
-                            <ChevronDown className="h-4 w-4" />
-                          </Button>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-9 w-9 sm:h-7 sm:w-7"
-                                disabled={isLoading}
-                                aria-label="Meer opties"
-                              >
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              {onEdit && (
-                                <DropdownMenuItem onClick={() => onEdit(taak)}>
-                                  <Edit className="mr-2 h-4 w-4" />
-                                  Bewerken
-                                </DropdownMenuItem>
-                              )}
-                              <DropdownMenuItem
-                                onClick={() => setDeleteTaskId(taak._id)}
-                                className="text-destructive"
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Verwijderen
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  <SortableList
+                    items={sortableItems}
+                    onReorder={(newItems) => handleReorder(scopeTaken, newItems)}
+                    disabled={isLoading}
+                    aria-label={`Taken voor ${getScopeDisplayName(scope)}`}
+                    itemIdPrefix={`task-${scope}`}
+                    inline={true}
+                    renderItem={(item, sortableProps, index) => (
+                      <SortableTaakRow
+                        key={item._id}
+                        taak={item as PlanningTaak}
+                        sortableProps={sortableProps}
+                        index={index}
+                        totalInScope={scopeTaken.length}
+                        onUpdateStatus={onUpdateStatus}
+                        onEdit={onEdit}
+                        onDelete={setDeleteTaskId}
+                        isLoading={isLoading}
+                      />
+                    )}
+                  />
                 </TableBody>
               </Table>
             </CardContent>
@@ -294,7 +360,10 @@ export function TakenLijst({
       })}
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deleteTaskId} onOpenChange={() => setDeleteTaskId(null)}>
+      <AlertDialog
+        open={!!deleteTaskId}
+        onOpenChange={() => setDeleteTaskId(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Taak verwijderen</AlertDialogTitle>
@@ -304,7 +373,9 @@ export function TakenLijst({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Annuleren</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeleting}>
+              Annuleren
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               disabled={isDeleting}

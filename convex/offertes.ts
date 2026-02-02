@@ -71,6 +71,7 @@ const totalenValidator = v.object({
 export const list = query({
   args: {
     includeArchived: v.optional(v.boolean()),
+    includeDeleted: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const userId = await requireAuthUserId(ctx);
@@ -80,12 +81,18 @@ export const list = query({
       .order("desc")
       .collect();
 
-    // Filter out archived offertes unless includeArchived is true
-    if (!args.includeArchived) {
-      return offertes.filter((o) => !o.isArchived);
+    // Filter out deleted offertes unless includeDeleted is true
+    let filtered = offertes;
+    if (!args.includeDeleted) {
+      filtered = filtered.filter((o) => !o.deletedAt);
     }
 
-    return offertes;
+    // Filter out archived offertes unless includeArchived is true
+    if (!args.includeArchived) {
+      filtered = filtered.filter((o) => !o.isArchived);
+    }
+
+    return filtered;
   },
 });
 
@@ -125,8 +132,8 @@ export const getDashboardData = query({
       .order("desc")
       .collect();
 
-    // Filter out archived offertes
-    const offertes = allOffertes.filter((o) => !o.isArchived);
+    // Filter out archived and deleted offertes
+    const offertes = allOffertes.filter((o) => !o.isArchived && !o.deletedAt);
 
     // Calculate stats
     const stats = {
@@ -187,9 +194,9 @@ export const getFullDashboardData = query({
         .collect(),
     ]);
 
-    // Filter out archived items
-    const offertes = allOffertes.filter((o) => !o.isArchived);
-    const projects = allProjects.filter((p) => !p.isArchived);
+    // Filter out archived and deleted items
+    const offertes = allOffertes.filter((o) => !o.isArchived && !o.deletedAt);
+    const projects = allProjects.filter((p) => !p.isArchived && !p.deletedAt);
 
     // === OFFERTE STATS ===
     const offerteStats = {
@@ -423,9 +430,11 @@ export const listByStatus = query({
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
 
-    // Filter by status and exclude archived unless specified
+    // Filter by status, exclude archived unless specified, and exclude deleted
     return offertes.filter((o) =>
-      o.status === args.status && (args.includeArchived || !o.isArchived)
+      o.status === args.status &&
+      (args.includeArchived || !o.isArchived) &&
+      !o.deletedAt
     );
   },
 });
@@ -915,8 +924,49 @@ export const updateStatus = mutation({
   },
 });
 
-// Delete offerte
+// Soft delete offerte (sets deletedAt timestamp)
+// Items can be restored within 30 days, after which they are permanently deleted
 export const remove = mutation({
+  args: { id: v.id("offertes") },
+  handler: async (ctx, args) => {
+    // Verify ownership before deleting
+    await getOwnedOfferte(ctx, args.id);
+    const now = Date.now();
+
+    await ctx.db.patch(args.id, {
+      deletedAt: now,
+      updatedAt: now,
+    });
+
+    return args.id;
+  },
+});
+
+// Restore a soft-deleted offerte
+export const restore = mutation({
+  args: { id: v.id("offertes") },
+  handler: async (ctx, args) => {
+    // Verify ownership before restoring
+    const offerte = await getOwnedOfferte(ctx, args.id);
+
+    // Check if actually deleted
+    if (!offerte.deletedAt) {
+      throw new Error("Deze offerte is niet verwijderd");
+    }
+
+    const now = Date.now();
+    await ctx.db.patch(args.id, {
+      deletedAt: undefined,
+      updatedAt: now,
+    });
+
+    return args.id;
+  },
+});
+
+// Permanently delete offerte (hard delete)
+// Used by cleanup function or manual permanent deletion
+export const permanentlyDelete = mutation({
   args: { id: v.id("offertes") },
   handler: async (ctx, args) => {
     // Verify ownership before deleting
@@ -1127,16 +1177,39 @@ export const bulkUpdateStatus = mutation({
   },
 });
 
-// Bulk delete offertes
+// Bulk soft delete offertes
 export const bulkRemove = mutation({
   args: {
     ids: v.array(v.id("offertes")),
   },
   handler: async (ctx, args) => {
+    const now = Date.now();
     for (const id of args.ids) {
       // Verify ownership for each offerte
       await getOwnedOfferte(ctx, id);
-      await ctx.db.delete(id);
+      await ctx.db.patch(id, {
+        deletedAt: now,
+        updatedAt: now,
+      });
+    }
+    return args.ids.length;
+  },
+});
+
+// Bulk restore soft-deleted offertes
+export const bulkRestore = mutation({
+  args: {
+    ids: v.array(v.id("offertes")),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    for (const id of args.ids) {
+      // Verify ownership for each offerte
+      await getOwnedOfferte(ctx, id);
+      await ctx.db.patch(id, {
+        deletedAt: undefined,
+        updatedAt: now,
+      });
     }
     return args.ids.length;
   },

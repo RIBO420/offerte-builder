@@ -12,10 +12,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useQuery, useMutation } from 'convex/react';
-import { api } from '../../../convex/_generated/api';
-import { useColors } from '../../../theme';
-import { useUserRole } from '../../../hooks/use-user-role';
-import { useCurrentUser } from '../../../hooks/use-current-user';
+import { api } from '../../convex/_generated/api';
+import { useColors } from '../../theme';
+import { useUserRole } from '../../hooks/use-user-role';
+import { useCurrentUser } from '../../hooks/use-current-user';
 import {
   Card,
   CardContent,
@@ -29,11 +29,11 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from '../../../components/ui';
-import { spacing } from '../../../theme/spacing';
-import { radius } from '../../../theme/radius';
-import { typography } from '../../../theme/typography';
-import type { Id } from '../../../convex/_generated/dataModel';
+} from '../../components/ui';
+import { spacing } from '../../theme/spacing';
+import { radius } from '../../theme/radius';
+import { typography } from '../../theme/typography';
+import type { Id } from '../../convex/_generated/dataModel';
 
 type UserRole = 'admin' | 'medewerker' | 'viewer';
 

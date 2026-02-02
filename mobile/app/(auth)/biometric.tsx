@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  StyleSheet,
   Alert,
   ActivityIndicator,
 } from 'react-native';
@@ -18,6 +17,7 @@ import {
   BiometricType,
 } from '../../lib/auth/biometric';
 import { isAuthConfigured } from '../../lib/env';
+import { cn } from '@/lib/utils';
 
 // Check auth configuratie buiten component (constant tijdens runtime)
 const AUTH_CONFIGURED = isAuthConfigured();
@@ -145,10 +145,10 @@ export default function BiometricSetupScreen() {
   // Loading state
   if (isLoading) {
     return (
-      <View style={styles.container}>
-        <View style={styles.content}>
+      <View className="flex-1 bg-background">
+        <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color="#2d5016" />
-          <Text style={styles.loadingText}>Biometrie controleren...</Text>
+          <Text className="mt-3 text-sm text-muted-foreground">Biometrie controleren...</Text>
         </View>
       </View>
     );
@@ -162,10 +162,10 @@ export default function BiometricSetupScreen() {
     }, 100);
 
     return (
-      <View style={styles.container}>
-        <View style={styles.content}>
+      <View className="flex-1 bg-background">
+        <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color="#2d5016" />
-          <Text style={styles.loadingText}>Doorsturen...</Text>
+          <Text className="mt-3 text-sm text-muted-foreground">Doorsturen...</Text>
         </View>
       </View>
     );
@@ -175,64 +175,67 @@ export default function BiometricSetupScreen() {
   const biometricLabel = biometricType === 'face' ? 'Face ID' : 'Touch ID';
 
   return (
-    <View style={styles.container}>
-      <View style={styles.content}>
+    <View className="flex-1 bg-background">
+      <View className="flex-1 px-6 justify-center items-center">
         {/* Icon */}
-        <View style={styles.iconContainer}>
+        <View className="w-32 h-32 rounded-full bg-green-50 items-center justify-center mb-8">
           <Feather name={iconName} size={64} color="#2d5016" />
         </View>
 
         {/* Titel en beschrijving */}
-        <Text style={styles.title}>Sneller Inloggen?</Text>
-        <Text style={styles.description}>
+        <Text className="text-3xl font-bold text-foreground text-center mb-3">Sneller Inloggen?</Text>
+        <Text className="text-base text-muted-foreground text-center leading-6 mb-8 px-4">
           Schakel {biometricLabel} in om de volgende keer sneller en veiliger in
           te loggen op de Top Tuinen app.
         </Text>
 
         {/* Voordelen */}
-        <View style={styles.benefits}>
-          <View style={styles.benefitItem}>
+        <View className="w-full gap-4 mb-10">
+          <View className="flex-row items-center gap-3 px-4">
             <Feather name="zap" size={20} color="#2d5016" />
-            <Text style={styles.benefitText}>Direct inloggen in 1 seconde</Text>
+            <Text className="text-base text-foreground">Direct inloggen in 1 seconde</Text>
           </View>
-          <View style={styles.benefitItem}>
+          <View className="flex-row items-center gap-3 px-4">
             <Feather name="shield" size={20} color="#2d5016" />
-            <Text style={styles.benefitText}>Extra beveiligd met biometrie</Text>
+            <Text className="text-base text-foreground">Extra beveiligd met biometrie</Text>
           </View>
-          <View style={styles.benefitItem}>
+          <View className="flex-row items-center gap-3 px-4">
             <Feather name="lock" size={20} color="#2d5016" />
-            <Text style={styles.benefitText}>Geen wachtwoord onthouden</Text>
+            <Text className="text-base text-foreground">Geen wachtwoord onthouden</Text>
           </View>
         </View>
 
         {/* Knoppen */}
-        <View style={styles.buttons}>
+        <View className="w-full gap-3">
           <TouchableOpacity
-            style={[styles.enableButton, isSettingUp && styles.buttonDisabled]}
+            className={cn(
+              "flex-row bg-accent rounded-xl py-4 items-center justify-center",
+              isSettingUp && "bg-green-300"
+            )}
             onPress={handleEnableBiometric}
             disabled={isSettingUp}
           >
             {isSettingUp ? (
-              <ActivityIndicator size="small" color="#fff" style={styles.buttonIcon} />
+              <ActivityIndicator size="small" color="#fff" className="mr-2" />
             ) : (
               <Feather
                 name={biometricType === 'face' ? 'eye' : 'smartphone'}
                 size={20}
                 color="#fff"
-                style={styles.buttonIcon}
+                className="mr-2"
               />
             )}
-            <Text style={styles.enableButtonText}>
+            <Text className="text-white text-base font-semibold">
               {isSettingUp ? 'Bezig...' : `Activeer ${biometricLabel}`}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.skipButton}
+            className="py-4 items-center"
             onPress={handleSkip}
             disabled={isSettingUp}
           >
-            <Text style={styles.skipButtonText}>Later instellen</Text>
+            <Text className="text-muted-foreground text-base">Later instellen</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -240,90 +243,3 @@ export default function BiometricSetupScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#666',
-  },
-  iconContainer: {
-    width: 128,
-    height: 128,
-    borderRadius: 64,
-    backgroundColor: '#f0f9e8',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 32,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  description: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 32,
-    paddingHorizontal: 16,
-  },
-  benefits: {
-    width: '100%',
-    gap: 16,
-    marginBottom: 40,
-  },
-  benefitItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
-  },
-  benefitText: {
-    fontSize: 15,
-    color: '#333',
-  },
-  buttons: {
-    width: '100%',
-    gap: 12,
-  },
-  enableButton: {
-    flexDirection: 'row',
-    backgroundColor: '#2d5016',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonDisabled: {
-    backgroundColor: '#93c47d',
-  },
-  buttonIcon: {
-    marginRight: 8,
-  },
-  enableButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  skipButton: {
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  skipButtonText: {
-    color: '#888',
-    fontSize: 15,
-  },
-});

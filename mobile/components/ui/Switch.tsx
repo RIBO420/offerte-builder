@@ -1,11 +1,11 @@
 import React, { useEffect, useRef } from 'react';
 import {
   Pressable,
-  StyleSheet,
   Animated,
   ViewStyle,
 } from 'react-native';
-import { useColors } from '../../theme/ThemeProvider';
+import { useColorScheme } from 'nativewind';
+import { cn } from '@/lib/utils';
 
 type SwitchSize = 'sm' | 'md' | 'lg';
 
@@ -15,6 +15,7 @@ interface SwitchProps {
   disabled?: boolean;
   size?: SwitchSize;
   style?: ViewStyle;
+  className?: string;
 }
 
 // Size configuration for the switch
@@ -45,8 +46,9 @@ export function Switch({
   disabled = false,
   size = 'md',
   style,
+  className,
 }: SwitchProps) {
-  const colors = useColors();
+  const { colorScheme } = useColorScheme();
   const translateX = useRef(new Animated.Value(value ? 1 : 0)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
@@ -88,10 +90,22 @@ export function Switch({
     }).start();
   };
 
+  // Get color values for interpolation
+  const mutedColor = colorScheme === 'dark' ? '#171717' : '#F5F5F5';
+  const accentColor = colorScheme === 'dark' ? '#6366f1' : '#F5F5F5';
+  const foregroundColor = colorScheme === 'dark' ? '#FAFAFA' : '#1A1A1A';
+  const whiteColor = '#FFFFFF';
+
   // Interpolate track background color
   const trackBackgroundColor = translateX.interpolate({
     inputRange: [0, 1],
-    outputRange: [colors.muted, colors.primary],
+    outputRange: [mutedColor, accentColor],
+  });
+
+  // Interpolate thumb background color
+  const thumbBackgroundColor = translateX.interpolate({
+    inputRange: [0, 1],
+    outputRange: [foregroundColor, whiteColor],
   });
 
   // Interpolate thumb position
@@ -111,61 +125,39 @@ export function Switch({
         accessibilityState={{ checked: value, disabled }}
         accessibilityLabel={value ? 'Switch on' : 'Switch off'}
         style={style}
+        className={className}
       >
         <Animated.View
-          style={[
-            styles.track,
-            {
-              width: config.trackWidth,
-              height: config.trackHeight,
-              borderRadius: config.trackHeight / 2,
-              backgroundColor: trackBackgroundColor,
-            },
-            disabled && styles.disabled,
-          ]}
+          className={cn(
+            'justify-center p-0.5',
+            disabled && 'opacity-50'
+          )}
+          style={{
+            width: config.trackWidth,
+            height: config.trackHeight,
+            borderRadius: config.trackHeight / 2,
+            backgroundColor: trackBackgroundColor,
+          }}
         >
           <Animated.View
-            style={[
-              styles.thumb,
-              {
-                width: config.thumbSize,
-                height: config.thumbSize,
-                borderRadius: config.thumbSize / 2,
-                transform: [{ translateX: thumbTranslateX }],
-                backgroundColor: colors.background,
-              },
-              // iOS-style shadow
-              styles.thumbShadow,
-            ]}
+            className="absolute left-0.5 shadow-md"
+            style={{
+              width: config.thumbSize,
+              height: config.thumbSize,
+              borderRadius: config.thumbSize / 2,
+              transform: [{ translateX: thumbTranslateX }],
+              backgroundColor: thumbBackgroundColor,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.2,
+              shadowRadius: 2.5,
+              elevation: 4,
+            }}
           />
         </Animated.View>
       </Pressable>
     </Animated.View>
   );
 }
-
-const styles = StyleSheet.create({
-  track: {
-    justifyContent: 'center',
-    padding: 2,
-  },
-  thumb: {
-    position: 'absolute',
-    left: 2,
-  },
-  thumbShadow: {
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 2.5,
-    elevation: 4,
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-});
 
 export default Switch;

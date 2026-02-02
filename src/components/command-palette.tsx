@@ -3,10 +3,14 @@
 import * as React from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useClerk } from "@clerk/nextjs";
+import { useTheme } from "next-themes";
+import Fuse from "fuse.js";
 import {
   Home,
   FileText,
   Users,
+  UsersRound,
   BookOpen,
   Settings,
   Plus,
@@ -16,6 +20,16 @@ import {
   User,
   Search,
   Clock,
+  LogOut,
+  Moon,
+  Sun,
+  FolderKanban,
+  Calendar,
+  Truck,
+  Archive,
+  Receipt,
+  Wrench,
+  Shield,
 } from "lucide-react";
 import {
   CommandDialog,
@@ -45,8 +59,16 @@ interface CommandPaletteProps {
  */
 export function CommandPalette({ additionalItems = [] }: CommandPaletteProps) {
   const router = useRouter();
+  const { signOut } = useClerk();
+  const { theme, setTheme } = useTheme();
   const { open, setOpen, recentItems, addRecentItem } = useCommand();
   const [search, setSearch] = useState("");
+  const [mounted, setMounted] = useState(false);
+
+  // Prevent hydration mismatch for theme
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Navigate and track in recent items
   const navigateTo = useCallback(
@@ -67,8 +89,35 @@ export function CommandPalette({ additionalItems = [] }: CommandPaletteProps) {
         title: "Dashboard",
         subtitle: "Overzicht en statistieken",
         icon: <Home className="size-4" />,
-        action: () => router.push("/"),
-        keywords: ["home", "overzicht", "start"],
+        action: () => router.push("/dashboard"),
+        keywords: ["home", "overzicht", "start", "begin"],
+      },
+      {
+        id: "nav-projecten",
+        type: "navigation",
+        title: "Projecten",
+        subtitle: "Alle projecten bekijken",
+        icon: <FolderKanban className="size-4" />,
+        action: () => router.push("/projecten"),
+        keywords: ["projects", "werk", "lopend"],
+      },
+      {
+        id: "nav-planning",
+        type: "navigation",
+        title: "Planning",
+        subtitle: "Werk en afspraken plannen",
+        icon: <Calendar className="size-4" />,
+        action: () => router.push("/planning"),
+        keywords: ["schedule", "agenda", "kalender", "afspraken"],
+      },
+      {
+        id: "nav-uren",
+        type: "navigation",
+        title: "Uren",
+        subtitle: "Urenregistratie",
+        icon: <Clock className="size-4" />,
+        action: () => router.push("/uren"),
+        keywords: ["hours", "tijd", "registratie", "timetracking"],
       },
       {
         id: "nav-offertes",
@@ -77,7 +126,25 @@ export function CommandPalette({ additionalItems = [] }: CommandPaletteProps) {
         subtitle: "Alle offertes bekijken",
         icon: <FileText className="size-4" />,
         action: () => router.push("/offertes"),
-        keywords: ["quotes", "lijst", "overzicht"],
+        keywords: ["quotes", "lijst", "overzicht", "aanbiedingen"],
+      },
+      {
+        id: "nav-facturen",
+        type: "navigation",
+        title: "Facturen",
+        subtitle: "Facturen beheren",
+        icon: <Receipt className="size-4" />,
+        action: () => router.push("/facturen"),
+        keywords: ["invoices", "rekeningen", "betaling"],
+      },
+      {
+        id: "nav-archief",
+        type: "navigation",
+        title: "Archief",
+        subtitle: "Gearchiveerde items",
+        icon: <Archive className="size-4" />,
+        action: () => router.push("/archief"),
+        keywords: ["archive", "oud", "verwijderd", "history"],
       },
       {
         id: "nav-klanten",
@@ -86,7 +153,25 @@ export function CommandPalette({ additionalItems = [] }: CommandPaletteProps) {
         subtitle: "Klantenbeheer",
         icon: <Users className="size-4" />,
         action: () => router.push("/klanten"),
-        keywords: ["customers", "clients", "beheer"],
+        keywords: ["customers", "clients", "beheer", "contacten"],
+      },
+      {
+        id: "nav-medewerkers",
+        type: "navigation",
+        title: "Medewerkers",
+        subtitle: "Teamleden beheren",
+        icon: <UsersRound className="size-4" />,
+        action: () => router.push("/medewerkers"),
+        keywords: ["employees", "team", "personeel", "collega"],
+      },
+      {
+        id: "nav-wagenpark",
+        type: "navigation",
+        title: "Wagenpark",
+        subtitle: "Voertuigen beheren",
+        icon: <Truck className="size-4" />,
+        action: () => router.push("/wagenpark"),
+        keywords: ["vehicles", "auto", "bus", "fleet", "voertuig"],
       },
       {
         id: "nav-rapportages",
@@ -95,7 +180,7 @@ export function CommandPalette({ additionalItems = [] }: CommandPaletteProps) {
         subtitle: "Rapporten en analyses",
         icon: <BarChart3 className="size-4" />,
         action: () => router.push("/rapportages"),
-        keywords: ["reports", "analytics", "statistieken"],
+        keywords: ["reports", "analytics", "statistieken", "data"],
       },
       {
         id: "nav-prijsboek",
@@ -104,7 +189,7 @@ export function CommandPalette({ additionalItems = [] }: CommandPaletteProps) {
         subtitle: "Producten en prijzen beheren",
         icon: <BookOpen className="size-4" />,
         action: () => router.push("/prijsboek"),
-        keywords: ["products", "prices", "catalog", "catalogus"],
+        keywords: ["products", "prices", "catalog", "catalogus", "tarieven"],
       },
       {
         id: "nav-instellingen",
@@ -113,7 +198,25 @@ export function CommandPalette({ additionalItems = [] }: CommandPaletteProps) {
         subtitle: "App configuratie",
         icon: <Settings className="size-4" />,
         action: () => router.push("/instellingen"),
-        keywords: ["settings", "config", "preferences"],
+        keywords: ["settings", "config", "preferences", "configuratie"],
+      },
+      {
+        id: "nav-machines",
+        type: "navigation",
+        title: "Machinepark",
+        subtitle: "Machines en gereedschap",
+        icon: <Wrench className="size-4" />,
+        action: () => router.push("/instellingen/machines"),
+        keywords: ["machines", "equipment", "gereedschap", "tools"],
+      },
+      {
+        id: "nav-gebruikers",
+        type: "navigation",
+        title: "Gebruikersbeheer",
+        subtitle: "Toegang en rechten",
+        icon: <Shield className="size-4" />,
+        action: () => router.push("/gebruikers"),
+        keywords: ["users", "permissions", "rechten", "toegang", "admin"],
       },
       {
         id: "nav-profiel",
@@ -122,11 +225,21 @@ export function CommandPalette({ additionalItems = [] }: CommandPaletteProps) {
         subtitle: "Accountinstellingen",
         icon: <User className="size-4" />,
         action: () => router.push("/profiel"),
-        keywords: ["account", "profile", "user"],
+        keywords: ["account", "profile", "user", "mijn"],
       },
     ],
     [router]
   );
+
+  // Handle sign out
+  const handleSignOut = useCallback(() => {
+    signOut({ redirectUrl: "/sign-in" });
+  }, [signOut]);
+
+  // Handle theme toggle
+  const handleThemeToggle = useCallback(() => {
+    setTheme(theme === "dark" ? "light" : "dark");
+  }, [theme, setTheme]);
 
   // Default action items
   const actionItems: CommandItemType[] = useMemo(
@@ -134,32 +247,50 @@ export function CommandPalette({ additionalItems = [] }: CommandPaletteProps) {
       {
         id: "action-nieuwe-offerte-aanleg",
         type: "action",
-        title: "Nieuwe Aanleg Offerte",
+        title: "Nieuwe offerte aanleg",
         subtitle: "Start een nieuwe tuinaanleg offerte",
         icon: <Shovel className="size-4" />,
         action: () => router.push("/offertes/nieuw/aanleg"),
-        keywords: ["new", "create", "aanleg", "tuin", "nieuw"],
+        keywords: ["new", "create", "aanleg", "tuin", "nieuw", "offerte"],
       },
       {
         id: "action-nieuwe-offerte-onderhoud",
         type: "action",
-        title: "Nieuwe Onderhoud Offerte",
+        title: "Nieuwe offerte onderhoud",
         subtitle: "Start een nieuwe onderhoudsofferte",
         icon: <Trees className="size-4" />,
         action: () => router.push("/offertes/nieuw/onderhoud"),
-        keywords: ["new", "create", "onderhoud", "maintenance", "nieuw"],
+        keywords: ["new", "create", "onderhoud", "maintenance", "nieuw", "offerte"],
       },
       {
         id: "action-nieuwe-klant",
         type: "action",
-        title: "Nieuwe Klant",
+        title: "Nieuwe klant",
         subtitle: "Voeg een nieuwe klant toe",
         icon: <Plus className="size-4" />,
         action: () => router.push("/klanten?nieuw=true"),
-        keywords: ["new", "customer", "client", "toevoegen", "nieuw"],
+        keywords: ["new", "customer", "client", "toevoegen", "nieuw", "klant"],
+      },
+      {
+        id: "action-thema-wisselen",
+        type: "action",
+        title: "Thema wisselen",
+        subtitle: mounted ? `Wissel naar ${theme === "dark" ? "licht" : "donker"} thema` : "Wissel thema",
+        icon: mounted && theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />,
+        action: handleThemeToggle,
+        keywords: ["theme", "dark", "light", "donker", "licht", "mode", "nacht", "dag"],
+      },
+      {
+        id: "action-uitloggen",
+        type: "action",
+        title: "Uitloggen",
+        subtitle: "Log uit van je account",
+        icon: <LogOut className="size-4" />,
+        action: handleSignOut,
+        keywords: ["logout", "signout", "exit", "afmelden", "uit"],
       },
     ],
-    [router]
+    [router, mounted, theme, handleThemeToggle, handleSignOut]
   );
 
   // All items combined
@@ -168,19 +299,27 @@ export function CommandPalette({ additionalItems = [] }: CommandPaletteProps) {
     [navigationItems, actionItems, additionalItems]
   );
 
-  // Filter items based on search
+  // Configure Fuse.js for fuzzy search
+  const fuse = useMemo(() => {
+    return new Fuse(allItems, {
+      keys: [
+        { name: "title", weight: 2 },
+        { name: "subtitle", weight: 1 },
+        { name: "keywords", weight: 1.5 },
+      ],
+      threshold: 0.4, // Lower = stricter matching
+      includeScore: true,
+      ignoreLocation: true,
+      minMatchCharLength: 1,
+    });
+  }, [allItems]);
+
+  // Filter items based on search using fuzzy matching
   const filteredItems = useMemo(() => {
     if (!search) return allItems;
-    const searchLower = search.toLowerCase();
-    return allItems.filter((item) => {
-      const titleMatch = item.title.toLowerCase().includes(searchLower);
-      const subtitleMatch = item.subtitle?.toLowerCase().includes(searchLower);
-      const keywordsMatch = item.keywords?.some((kw) =>
-        kw.toLowerCase().includes(searchLower)
-      );
-      return titleMatch || subtitleMatch || keywordsMatch;
-    });
-  }, [allItems, search]);
+    const results = fuse.search(search);
+    return results.map((result) => result.item);
+  }, [allItems, fuse, search]);
 
   // Group items by type
   const groupedItems = useMemo(() => {
@@ -205,12 +344,19 @@ export function CommandPalette({ additionalItems = [] }: CommandPaletteProps) {
       .slice(0, 3);
   }, [recentItems, allItems, search]);
 
-  // Register keyboard shortcut - only Cmd+. for command palette (safe, no conflicts)
+  // Register keyboard shortcuts - Cmd+K (primary) and Cmd+. (alternative)
   useKeyboardShortcuts([
+    {
+      key: "k",
+      meta: true,
+      description: "Open command palette",
+      action: () => setOpen(true),
+      allowInInput: true, // Allow Cmd+K even in inputs
+    },
     {
       key: ".",
       meta: true,
-      description: "Open command palette",
+      description: "Open command palette (alternative)",
       action: () => setOpen(true),
     },
   ]);
@@ -380,15 +526,19 @@ export function CommandPalette({ additionalItems = [] }: CommandPaletteProps) {
       <div className="flex items-center justify-between border-t px-3 py-2 text-xs text-muted-foreground">
         <div className="flex items-center gap-4">
           <span className="flex items-center gap-1">
-            <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">{modKey}.</kbd>
+            <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">{modKey}K</kbd>
             <span>openen</span>
+          </span>
+          <span className="flex items-center gap-1">
+            <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">Enter</kbd>
+            <span>selecteren</span>
           </span>
           <span className="flex items-center gap-1">
             <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">Esc</kbd>
             <span>sluiten</span>
           </span>
         </div>
-        <span className="text-muted-foreground/70">Typ om te zoeken</span>
+        <span className="hidden sm:inline text-muted-foreground/70">Typ om te zoeken</span>
       </div>
     </CommandDialog>
   );

@@ -1,10 +1,8 @@
 import React, { ReactNode, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, LayoutAnimation, Platform, UIManager } from 'react-native';
+import { View, Text, TouchableOpacity, LayoutAnimation, Platform, UIManager } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { typography } from '../../theme/typography';
-import { spacing } from '../../theme/spacing';
-import { radius } from '../../theme/radius';
+import { cn } from '@/lib/utils';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -56,22 +54,22 @@ export function FormSection({
   const HeaderWrapper = collapsible ? TouchableOpacity : View;
 
   return (
-    <View style={styles.section}>
+    <View className="bg-card rounded-lg border border-border mb-4 overflow-hidden">
       <HeaderWrapper
         onPress={collapsible ? toggle : undefined}
-        style={styles.sectionHeader}
+        className="flex-row items-center justify-between py-4 px-4 bg-muted border-b border-border"
         activeOpacity={collapsible ? 0.7 : 1}
       >
-        <View style={styles.sectionTitleRow}>
+        <View className="flex-row items-center flex-1">
           {icon && (
-            <View style={styles.iconContainer}>
+            <View className="w-8 h-8 rounded-md bg-background items-center justify-center mr-3">
               <Feather name={icon} size={18} color={colors.primary} />
             </View>
           )}
-          <View style={styles.sectionTitleContainer}>
-            <Text style={styles.sectionTitle}>{title}</Text>
+          <View className="flex-1">
+            <Text className="font-sans text-base font-semibold text-foreground">{title}</Text>
             {description && (
-              <Text style={styles.sectionDescription}>{description}</Text>
+              <Text className="font-sans text-sm text-muted-foreground mt-0.5">{description}</Text>
             )}
           </View>
         </View>
@@ -83,7 +81,7 @@ export function FormSection({
           />
         )}
       </HeaderWrapper>
-      {expanded && <View style={styles.sectionContent}>{children}</View>}
+      {expanded && <View className="gap-4 px-4">{children}</View>}
     </View>
   );
 }
@@ -92,15 +90,12 @@ export function FormRow({ children, columns = 1 }: FormRowProps) {
   const childArray = React.Children.toArray(children);
 
   return (
-    <View style={styles.row}>
+    <View className="gap-3 flex-row mb-4">
       {childArray.map((child, index) => (
         <View
           key={index}
-          style={[
-            styles.rowColumn,
-            { flex: 1 / columns },
-            index < childArray.length - 1 && { marginRight: spacing.sm },
-          ]}
+          style={{ flex: 1 / columns }}
+          className={cn(index < childArray.length - 1 && 'mr-3')}
         >
           {child}
         </View>
@@ -117,18 +112,18 @@ export function FieldGroup({
   children,
 }: FieldGroupProps) {
   return (
-    <View style={styles.fieldGroup}>
-      <View style={styles.labelContainer}>
-        <Text style={styles.label}>
+    <View className="mb-4">
+      <View className="mb-2">
+        <Text className="font-sans text-sm font-medium text-foreground">
           {label}
-          {required && <Text style={styles.required}> *</Text>}
+          {required && <Text className="text-destructive"> *</Text>}
         </Text>
         {description && (
-          <Text style={styles.fieldDescription}>{description}</Text>
+          <Text className="font-sans text-xs text-muted-foreground mt-0.5">{description}</Text>
         )}
       </View>
       {children}
-      {error && <Text style={styles.error}>{error}</Text>}
+      {error && <Text className="font-sans text-xs text-destructive mt-2">{error}</Text>}
     </View>
   );
 }
@@ -136,123 +131,14 @@ export function FieldGroup({
 export function FormDivider({ label }: FormDividerProps) {
   if (label) {
     return (
-      <View style={styles.dividerWithLabel}>
-        <View style={styles.dividerLine} />
-        <Text style={styles.dividerLabel}>{label}</Text>
-        <View style={styles.dividerLine} />
+      <View className="flex-row items-center my-4">
+        <View className="flex-1 h-px bg-border" />
+        <Text className="font-sans text-xs text-muted-foreground px-3 uppercase tracking-wider">{label}</Text>
+        <View className="flex-1 h-px bg-border" />
       </View>
     );
   }
 
-  return <View style={styles.divider} />;
+  return <View className="h-px bg-border my-4" />;
 }
 
-const styles = StyleSheet.create({
-  section: {
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: spacing.md,
-    overflow: 'hidden',
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    backgroundColor: colors.muted,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  sectionTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  iconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: radius.md,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.sm,
-  },
-  sectionTitleContainer: {
-    flex: 1,
-  },
-  sectionTitle: {
-    fontFamily: typography.fontFamily.sans,
-    fontSize: typography.fontSize.base,
-    fontWeight: typography.fontWeight.semibold,
-    color: colors.foreground,
-  },
-  sectionDescription: {
-    fontFamily: typography.fontFamily.sans,
-    fontSize: typography.fontSize.sm,
-    color: colors.mutedForeground,
-    marginTop: 2,
-  },
-  sectionContent: {
-    padding: spacing.md,
-  },
-  row: {
-    flexDirection: 'row',
-    marginBottom: spacing.md,
-  },
-  rowColumn: {
-    flex: 1,
-  },
-  fieldGroup: {
-    marginBottom: spacing.md,
-  },
-  labelContainer: {
-    marginBottom: spacing.xs,
-  },
-  label: {
-    fontFamily: typography.fontFamily.sans,
-    fontSize: typography.fontSize.sm,
-    fontWeight: typography.fontWeight.medium,
-    color: colors.foreground,
-  },
-  required: {
-    color: colors.destructive,
-  },
-  fieldDescription: {
-    fontFamily: typography.fontFamily.sans,
-    fontSize: typography.fontSize.xs,
-    color: colors.mutedForeground,
-    marginTop: 2,
-  },
-  error: {
-    fontFamily: typography.fontFamily.sans,
-    fontSize: typography.fontSize.xs,
-    color: colors.destructive,
-    marginTop: spacing.xs,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginVertical: spacing.md,
-  },
-  dividerWithLabel: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: spacing.md,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: colors.border,
-  },
-  dividerLabel: {
-    fontFamily: typography.fontFamily.sans,
-    fontSize: typography.fontSize.xs,
-    color: colors.mutedForeground,
-    paddingHorizontal: spacing.sm,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-});

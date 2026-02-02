@@ -467,7 +467,7 @@ export const getWeekHours = query({
 
 /**
  * Get projects assigned to the current user (via medewerker).
- * Returns projects that are in_uitvoering (active).
+ * Returns projects that are in_uitvoering (active) and where the medewerker is in the team.
  */
 export const getAssignedProjects = query({
   args: {},
@@ -496,9 +496,38 @@ export const getAssignedProjects = query({
       (p) => p.status === "in_uitvoering" && p.isArchived !== true
     );
 
-    // Get offerte info for each project to include customer name
+    // Filter to projects where medewerker is in team (check voorcalculatie teamleden)
+    const projectsWithTeam = await Promise.all(
+      activeProjects.map(async (p) => {
+        // Check project-level voorcalculatie first
+        let voorcalc = await ctx.db
+          .query("voorcalculaties")
+          .withIndex("by_project", (q) => q.eq("projectId", p._id))
+          .first();
+
+        // If not found, check offerte-level voorcalculatie
+        if (!voorcalc) {
+          voorcalc = await ctx.db
+            .query("voorcalculaties")
+            .withIndex("by_offerte", (q) => q.eq("offerteId", p.offerteId))
+            .first();
+        }
+
+        const teamleden = voorcalc?.teamleden ?? [];
+        const isInTeam = teamleden.includes(medewerker.naam);
+
+        return { project: p, voorcalc, isInTeam };
+      })
+    );
+
+    // Only include projects where medewerker is in the team
+    const assignedProjects = projectsWithTeam
+      .filter((pt) => pt.isInTeam)
+      .map((pt) => pt.project);
+
+    // Get offerte info for each assigned project to include customer name
     const projectsWithDetails = await Promise.all(
-      activeProjects.map(async (project) => {
+      assignedProjects.map(async (project) => {
         const offerte = await ctx.db.get(project.offerteId);
         return {
           _id: project._id,

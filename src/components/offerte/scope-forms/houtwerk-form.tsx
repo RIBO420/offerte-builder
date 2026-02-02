@@ -205,7 +205,7 @@ export function HoutwerkForm({ data, onChange, onValidationChange }: HoutwerkFor
             />
 
             {watchedValues.afmeting > 0 && (
-              <div className="rounded-lg bg-white p-2 text-xs text-muted-foreground dark:bg-orange-950/30">
+              <div className="rounded-lg bg-muted/50 p-2 text-xs text-muted-foreground dark:bg-orange-950/30">
                 <span className="font-medium">Indicatie:</span>{" "}
                 {watchedValues.typeHoutwerk === "schutting"
                   ? `~${Math.ceil(watchedValues.afmeting / 1.8)} palen/poeren`

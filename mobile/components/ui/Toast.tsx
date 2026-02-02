@@ -2,21 +2,15 @@ import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   Animated,
   PanResponder,
   Dimensions,
   ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTheme } from '../../theme/ThemeProvider';
-import { typography } from '../../theme/typography';
-import { radius } from '../../theme/radius';
-import { spacing } from '../../theme/spacing';
-import { shadows } from '../../theme/shadows';
+import { cn } from '@/lib/utils';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const TOAST_WIDTH = SCREEN_WIDTH - spacing.lg * 2;
 const SWIPE_THRESHOLD = 50;
 
 export type ToastVariant = 'default' | 'success' | 'error' | 'warning';
@@ -36,39 +30,27 @@ interface ToastProps extends ToastData {
   index: number;
 }
 
-const getVariantStyles = (variant: ToastVariant, isDark: boolean) => {
-  const styles: Record<ToastVariant, { backgroundColor: string; borderColor: string; titleColor: string; descriptionColor: string; iconColor: string }> = {
+const getVariantClasses = (variant: ToastVariant) => {
+  const classes: Record<ToastVariant, { container: string; icon: string }> = {
     default: {
-      backgroundColor: isDark ? '#2D2D2D' : '#FFFFFF',
-      borderColor: isDark ? 'rgba(255,255,255,0.2)' : '#E5E5E5',
-      titleColor: isDark ? '#FAFAFA' : '#1A1A1A',
-      descriptionColor: isDark ? '#A3A3A3' : '#737373',
-      iconColor: isDark ? '#FAFAFA' : '#1A1A1A',
+      container: 'bg-card border-border',
+      icon: 'text-foreground',
     },
     success: {
-      backgroundColor: isDark ? '#14532D' : '#DCFCE7',
-      borderColor: isDark ? '#22C55E' : '#86EFAC',
-      titleColor: isDark ? '#86EFAC' : '#14532D',
-      descriptionColor: isDark ? '#4ADE80' : '#166534',
-      iconColor: isDark ? '#4ADE80' : '#22C55E',
+      container: 'bg-success/10 border-success',
+      icon: 'text-success',
     },
     error: {
-      backgroundColor: isDark ? '#450A0A' : '#FEE2E2',
-      borderColor: isDark ? '#EF4444' : '#FECACA',
-      titleColor: isDark ? '#FECACA' : '#7F1D1D',
-      descriptionColor: isDark ? '#F87171' : '#991B1B',
-      iconColor: isDark ? '#F87171' : '#EF4444',
+      container: 'bg-destructive/10 border-destructive',
+      icon: 'text-destructive',
     },
     warning: {
-      backgroundColor: isDark ? '#451A03' : '#FEF3C7',
-      borderColor: isDark ? '#F59E0B' : '#FDE68A',
-      titleColor: isDark ? '#FDE68A' : '#78350F',
-      descriptionColor: isDark ? '#FBBF24' : '#92400E',
-      iconColor: isDark ? '#FBBF24' : '#F59E0B',
+      container: 'bg-warning/10 border-warning',
+      icon: 'text-warning',
     },
   };
 
-  return styles[variant];
+  return classes[variant];
 };
 
 const getVariantIcon = (variant: ToastVariant): string => {
@@ -94,18 +76,17 @@ export function Toast({
   onDismiss,
   index,
 }: ToastProps) {
-  const { isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const translateY = useRef(new Animated.Value(position === 'top' ? -100 : 100)).current;
   const translateX = useRef(new Animated.Value(0)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.9)).current;
 
-  const variantStyles = getVariantStyles(variant, isDark);
+  const variantClasses = getVariantClasses(variant);
   const icon = getVariantIcon(variant);
 
   // Calculate stack offset
-  const stackOffset = index * (spacing.sm + 4);
+  const stackOffset = index * 12; // spacing.sm equivalent
   const stackScale = 1 - index * 0.03;
 
   useEffect(() => {
@@ -213,12 +194,12 @@ export function Toast({
 
   const containerStyle: ViewStyle = {
     position: 'absolute',
-    left: spacing.lg,
-    right: spacing.lg,
+    left: 16, // spacing.lg equivalent
+    right: 16,
     zIndex: 1000 - index,
     ...(position === 'top'
-      ? { top: insets.top + spacing.md + stackOffset }
-      : { bottom: insets.bottom + spacing.md + stackOffset }),
+      ? { top: insets.top + 12 + stackOffset } // spacing.md equivalent
+      : { bottom: insets.bottom + 12 + stackOffset }),
   };
 
   return (
@@ -237,29 +218,26 @@ export function Toast({
       {...panResponder.panHandlers}
     >
       <View
-        style={[
-          styles.toast,
-          {
-            backgroundColor: variantStyles.backgroundColor,
-            borderColor: variantStyles.borderColor,
-          },
-        ]}
+        className={cn(
+          'rounded-xl p-4 shadow-lg border flex-row items-start w-full',
+          variantClasses.container
+        )}
       >
-        <View style={styles.iconContainer}>
-          <Text style={[styles.icon, { color: variantStyles.iconColor }]}>
+        <View className="w-6 h-6 items-center justify-center mr-3">
+          <Text className={cn('text-base font-bold', variantClasses.icon)}>
             {icon}
           </Text>
         </View>
-        <View style={styles.content}>
+        <View className="flex-1 gap-1">
           <Text
-            style={[styles.title, { color: variantStyles.titleColor }]}
+            className="text-foreground font-semibold text-base leading-tight"
             numberOfLines={2}
           >
             {title}
           </Text>
           {description && (
             <Text
-              style={[styles.description, { color: variantStyles.descriptionColor }]}
+              className="text-muted-foreground text-sm leading-normal"
               numberOfLines={3}
             >
               {description}
@@ -270,45 +248,5 @@ export function Toast({
     </Animated.View>
   );
 }
-
-const styles = StyleSheet.create({
-  toast: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    padding: spacing.md,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    maxWidth: TOAST_WIDTH,
-    width: '100%',
-    ...shadows.lg,
-  },
-  iconContainer: {
-    width: 24,
-    height: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.sm,
-  },
-  icon: {
-    fontSize: 16,
-    fontWeight: typography.fontWeight.bold,
-  },
-  content: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-  title: {
-    fontFamily: typography.fontFamily.sans,
-    fontSize: typography.fontSize.base,
-    fontWeight: typography.fontWeight.semibold,
-    lineHeight: typography.fontSize.base * typography.lineHeight.tight,
-  },
-  description: {
-    fontFamily: typography.fontFamily.sans,
-    fontSize: typography.fontSize.sm,
-    fontWeight: typography.fontWeight.normal,
-    lineHeight: typography.fontSize.sm * typography.lineHeight.normal,
-  },
-});
 
 export default Toast;

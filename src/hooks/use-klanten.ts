@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useMutation } from "convex/react";
+import { useMemo, useCallback } from "react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { useCurrentUser } from "./use-current-user";
@@ -21,53 +22,70 @@ export function useKlanten() {
 
   const isLoading = user && data === undefined;
 
-  const create = async (klantData: {
-    naam: string;
-    adres: string;
-    postcode: string;
-    plaats: string;
-    email?: string;
-    telefoon?: string;
-    notities?: string;
-  }) => {
-    if (!user?._id) throw new Error("User not found");
-    return await createMutation(klantData);
-  };
+  // Memoize lists to prevent reference changes
+  const klanten = useMemo(() => data?.klanten ?? [], [data?.klanten]);
+  const recentKlanten = useMemo(() => data?.recentKlanten ?? [], [data?.recentKlanten]);
 
-  const update = async (
-    id: Id<"klanten">,
-    klantData: {
-      naam?: string;
-      adres?: string;
-      postcode?: string;
-      plaats?: string;
+  // Memoize callbacks to prevent unnecessary re-renders in child components
+  const create = useCallback(
+    async (klantData: {
+      naam: string;
+      adres: string;
+      postcode: string;
+      plaats: string;
       email?: string;
       telefoon?: string;
       notities?: string;
-    }
-  ) => {
-    return await updateMutation({ id, ...klantData });
-  };
+    }) => {
+      if (!user?._id) throw new Error("User not found");
+      return await createMutation(klantData);
+    },
+    [user?._id, createMutation]
+  );
 
-  const remove = async (id: Id<"klanten">) => {
-    return await removeMutation({ id });
-  };
+  const update = useCallback(
+    async (
+      id: Id<"klanten">,
+      klantData: {
+        naam?: string;
+        adres?: string;
+        postcode?: string;
+        plaats?: string;
+        email?: string;
+        telefoon?: string;
+        notities?: string;
+      }
+    ) => {
+      return await updateMutation({ id, ...klantData });
+    },
+    [updateMutation]
+  );
 
-  const createFromOfferte = async (klantData: {
-    naam: string;
-    adres: string;
-    postcode: string;
-    plaats: string;
-    email?: string;
-    telefoon?: string;
-  }) => {
-    if (!user?._id) throw new Error("User not found");
-    return await createFromOfferteMutation(klantData);
-  };
+  const remove = useCallback(
+    async (id: Id<"klanten">) => {
+      return await removeMutation({ id });
+    },
+    [removeMutation]
+  );
+
+  const createFromOfferte = useCallback(
+    async (klantData: {
+      naam: string;
+      adres: string;
+      postcode: string;
+      plaats: string;
+      email?: string;
+      telefoon?: string;
+    }) => {
+      if (!user?._id) throw new Error("User not found");
+      return await createFromOfferteMutation(klantData);
+    },
+    [user?._id, createFromOfferteMutation]
+  );
 
   return {
-    klanten: data?.klanten ?? [],
-    recentKlanten: data?.recentKlanten ?? [],
+    klanten,
+    recentKlanten,
     isLoading,
     create,
     update,

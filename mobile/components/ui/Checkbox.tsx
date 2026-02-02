@@ -2,15 +2,12 @@ import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   Pressable,
   Animated,
   ViewStyle,
 } from 'react-native';
-import { useColors } from '../../theme/ThemeProvider';
-import { typography } from '../../theme/typography';
-import { radius } from '../../theme/radius';
-import { spacing } from '../../theme/spacing';
+import { useColorScheme } from 'nativewind';
+import { cn } from '@/lib/utils';
 
 // Minimum touch target size for accessibility (44x44 points)
 const MIN_TOUCH_TARGET = 44;
@@ -23,6 +20,7 @@ interface CheckboxProps {
   indeterminate?: boolean;
   label?: string;
   style?: ViewStyle;
+  className?: string;
 }
 
 export function Checkbox({
@@ -32,8 +30,9 @@ export function Checkbox({
   indeterminate = false,
   label,
   style,
+  className,
 }: CheckboxProps) {
-  const colors = useColors();
+  const { colorScheme } = useColorScheme();
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const checkmarkAnim = useRef(new Animated.Value(checked ? 1 : 0)).current;
 
@@ -75,22 +74,6 @@ export function Checkbox({
 
   const isActive = checked || indeterminate;
 
-  const checkboxStyles = [
-    styles.checkbox,
-    {
-      borderColor: disabled
-        ? colors.border
-        : isActive
-          ? colors.primary
-          : colors.border,
-      backgroundColor: disabled
-        ? colors.muted
-        : isActive
-          ? colors.primary
-          : colors.background,
-    },
-  ];
-
   const checkmarkScale = checkmarkAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0, 1],
@@ -101,13 +84,17 @@ export function Checkbox({
     outputRange: [0, 0.5, 1],
   });
 
+  // Get color values for indeterminate mark and checkmark
+  const primaryForeground = colorScheme === 'dark' ? '#1A1A1A' : '#FAFAFA';
+
   return (
     <Pressable
       onPress={handlePress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       disabled={disabled}
-      style={[styles.container, style]}
+      style={style}
+      className={cn('flex-row items-center min-h-[44px]', className)}
       accessibilityRole="checkbox"
       accessibilityState={{
         checked: indeterminate ? 'mixed' : checked,
@@ -116,41 +103,45 @@ export function Checkbox({
       accessibilityLabel={label}
     >
       <Animated.View
-        style={[
-          styles.touchTarget,
-          { transform: [{ scale: scaleAnim }] },
-        ]}
+        className="w-[44px] h-[44px] justify-center items-center"
+        style={{ transform: [{ scale: scaleAnim }] }}
       >
-        <View style={checkboxStyles}>
+        <View
+          className={cn(
+            'w-5 h-5 rounded-md border-2 justify-center items-center',
+            disabled && !isActive && 'border-border bg-muted',
+            disabled && isActive && 'border-accent bg-accent',
+            !disabled && !isActive && 'border-border bg-background',
+            !disabled && isActive && 'border-accent bg-accent'
+          )}
+        >
           <Animated.View
-            style={[
-              styles.checkmarkContainer,
-              {
-                transform: [{ scale: checkmarkScale }],
-                opacity: checkmarkOpacity,
-              },
-            ]}
+            className="w-full h-full justify-center items-center"
+            style={{
+              transform: [{ scale: checkmarkScale }],
+              opacity: checkmarkOpacity,
+            }}
           >
             {indeterminate ? (
               <View
-                style={[
-                  styles.indeterminateMark,
-                  { backgroundColor: colors.primaryForeground },
-                ]}
+                className="w-2.5 h-0.5 rounded-sm"
+                style={{ backgroundColor: primaryForeground }}
               />
             ) : (
-              <View style={styles.checkmark}>
+              <View className="w-3 h-2.5 relative">
                 <View
-                  style={[
-                    styles.checkmarkShort,
-                    { backgroundColor: colors.primaryForeground },
-                  ]}
+                  className="absolute w-0.5 h-1.5 bottom-0 left-0.5 rounded-sm"
+                  style={{
+                    backgroundColor: primaryForeground,
+                    transform: [{ rotate: '-45deg' }],
+                  }}
                 />
                 <View
-                  style={[
-                    styles.checkmarkLong,
-                    { backgroundColor: colors.primaryForeground },
-                  ]}
+                  className="absolute w-0.5 h-2.5 bottom-0 left-1.5 rounded-sm"
+                  style={{
+                    backgroundColor: primaryForeground,
+                    transform: [{ rotate: '45deg' }],
+                  }}
                 />
               </View>
             )}
@@ -160,10 +151,10 @@ export function Checkbox({
 
       {label && (
         <Text
-          style={[
-            styles.label,
-            { color: disabled ? colors.mutedForeground : colors.foreground },
-          ]}
+          className={cn(
+            'text-base font-sans ml-2 flex-shrink',
+            disabled ? 'text-muted-foreground' : 'text-foreground'
+          )}
         >
           {label}
         </Text>
@@ -171,67 +162,5 @@ export function Checkbox({
     </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    minHeight: MIN_TOUCH_TARGET,
-  },
-  touchTarget: {
-    width: MIN_TOUCH_TARGET,
-    height: MIN_TOUCH_TARGET,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  checkbox: {
-    width: CHECKBOX_SIZE,
-    height: CHECKBOX_SIZE,
-    borderRadius: radius.sm,
-    borderWidth: 2,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  checkmarkContainer: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  checkmark: {
-    width: 12,
-    height: 10,
-    position: 'relative',
-  },
-  checkmarkShort: {
-    position: 'absolute',
-    width: 2,
-    height: 6,
-    bottom: 0,
-    left: 1,
-    borderRadius: 1,
-    transform: [{ rotate: '-45deg' }],
-  },
-  checkmarkLong: {
-    position: 'absolute',
-    width: 2,
-    height: 10,
-    bottom: 0,
-    left: 5,
-    borderRadius: 1,
-    transform: [{ rotate: '45deg' }],
-  },
-  indeterminateMark: {
-    width: 10,
-    height: 2,
-    borderRadius: 1,
-  },
-  label: {
-    fontSize: typography.fontSize.base,
-    fontFamily: typography.fontFamily.sans,
-    marginLeft: spacing.xs,
-    flexShrink: 1,
-  },
-});
 
 export default Checkbox;

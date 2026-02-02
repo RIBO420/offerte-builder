@@ -371,3 +371,236 @@ export const containmentClasses = {
   paint: "contain-paint",
   strict: "contain-strict",
 };
+
+// ============================================
+// Toast/Notification Animations
+// ============================================
+
+/**
+ * Toast slide-in animation (from right)
+ */
+export const toastSlideIn: Variants = {
+  initial: {
+    opacity: 0,
+    x: 100,
+    scale: 0.95,
+  },
+  animate: {
+    opacity: 1,
+    x: 0,
+    scale: 1,
+    transition: {
+      duration: 0.3,
+      ease: [0.16, 1, 0.3, 1],
+    },
+  },
+  exit: {
+    opacity: 0,
+    x: 100,
+    scale: 0.95,
+    transition: {
+      duration: 0.2,
+      ease: [0.4, 0, 1, 1],
+    },
+  },
+};
+
+/**
+ * Toast slide-in animation (from bottom)
+ */
+export const toastSlideUp: Variants = {
+  initial: {
+    opacity: 0,
+    y: 50,
+    scale: 0.95,
+  },
+  animate: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      duration: 0.3,
+      ease: [0.16, 1, 0.3, 1],
+    },
+  },
+  exit: {
+    opacity: 0,
+    y: 20,
+    scale: 0.95,
+    transition: {
+      duration: 0.2,
+      ease: [0.4, 0, 1, 1],
+    },
+  },
+};
+
+// ============================================
+// Card Hover Animations
+// ============================================
+
+/**
+ * Card lift animation preset
+ * Apply to motion.div with whileHover and whileTap
+ */
+export const cardHoverLift = {
+  rest: {
+    y: 0,
+    boxShadow: "0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)",
+  },
+  hover: {
+    y: -4,
+    boxShadow: "0 10px 40px -10px rgb(0 0 0 / 0.15), 0 4px 15px -5px rgb(0 0 0 / 0.08)",
+    transition: {
+      type: "spring",
+      stiffness: 400,
+      damping: 25,
+    },
+  },
+  tap: {
+    y: 0,
+    scale: 0.98,
+    transition: {
+      type: "spring",
+      stiffness: 500,
+      damping: 30,
+    },
+  },
+};
+
+/**
+ * Card glow animation preset
+ */
+export const cardHoverGlow = {
+  rest: {
+    boxShadow: "0 0 0 0 rgba(var(--primary), 0)",
+  },
+  hover: {
+    boxShadow: "0 0 20px 2px rgba(var(--primary), 0.15)",
+    transition: {
+      duration: 0.2,
+    },
+  },
+};
+
+// ============================================
+// Button Click Feedback
+// ============================================
+
+/**
+ * Standard button tap animation
+ * Use with whileTap on motion.button
+ */
+export const buttonTapFeedback = {
+  scale: 0.98,
+  transition: {
+    type: "spring",
+    stiffness: 500,
+    damping: 30,
+  },
+};
+
+/**
+ * Primary button animation (with hover)
+ */
+export const primaryButtonAnimation = {
+  rest: { scale: 1 },
+  hover: {
+    scale: 1.02,
+    transition: {
+      type: "spring",
+      stiffness: 400,
+      damping: 25,
+    },
+  },
+  tap: {
+    scale: 0.98,
+    transition: {
+      type: "spring",
+      stiffness: 500,
+      damping: 30,
+    },
+  },
+};
+
+// ============================================
+// Loading States
+// ============================================
+
+/**
+ * Skeleton shimmer animation (CSS keyframes alternative)
+ * Use when CSS animation is preferred over Framer Motion
+ */
+export const shimmerAnimation = {
+  animate: {
+    backgroundPosition: ["200% 0", "-200% 0"],
+  },
+  transition: {
+    duration: 1.5,
+    repeat: Infinity,
+    ease: "linear",
+  },
+};
+
+/**
+ * Pulse animation for loading indicators
+ */
+export const pulseAnimation: Variants = {
+  initial: { opacity: 0.5, scale: 0.98 },
+  animate: {
+    opacity: [0.5, 1, 0.5],
+    scale: [0.98, 1, 0.98],
+    transition: {
+      duration: 1.5,
+      repeat: Infinity,
+      ease: "easeInOut",
+    },
+  },
+};
+
+// ============================================
+// Modal/Dialog Animations
+// ============================================
+
+/**
+ * Modal backdrop animation
+ */
+export const modalBackdrop: Variants = {
+  initial: { opacity: 0 },
+  animate: {
+    opacity: 1,
+    transition: { duration: 0.2 },
+  },
+  exit: {
+    opacity: 0,
+    transition: { duration: 0.15 },
+  },
+};
+
+/**
+ * Modal content animation
+ */
+export const modalContent: Variants = {
+  initial: {
+    opacity: 0,
+    scale: 0.95,
+    y: 10,
+  },
+  animate: {
+    opacity: 1,
+    scale: 1,
+    y: 0,
+    transition: {
+      type: "spring",
+      stiffness: 300,
+      damping: 30,
+    },
+  },
+  exit: {
+    opacity: 0,
+    scale: 0.95,
+    y: 10,
+    transition: {
+      duration: 0.15,
+    },
+  },
+};

@@ -34,6 +34,8 @@ import { DashboardSkeleton } from "@/components/ui/skeleton-card";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useFullDashboardData } from "@/hooks/use-offertes";
 import { useIsAdmin } from "@/hooks/use-users";
+import { useOnboarding } from "@/hooks/use-onboarding";
+import { WelcomeModal, OnboardingChecklist } from "@/components/onboarding";
 
 // Memoized formatter
 const currencyFormatter = new Intl.NumberFormat("nl-NL", {
@@ -60,6 +62,20 @@ export default function DashboardPage() {
     activeProjects,
     isLoading,
   } = useFullDashboardData();
+
+  // Onboarding state
+  const {
+    steps: onboardingSteps,
+    completedSteps: onboardingCompletedSteps,
+    totalSteps: onboardingTotalSteps,
+    progressPercentage: onboardingProgress,
+    isComplete: onboardingComplete,
+    shouldShowWelcome,
+    shouldShowChecklist,
+    markWelcomeShown,
+    dismissOnboarding,
+    userName,
+  } = useOnboarding();
 
   const hasActionRequired = acceptedWithoutProject && acceptedWithoutProject.length > 0;
   const hasActiveProjects = activeProjects && activeProjects.length > 0;
@@ -93,6 +109,13 @@ export default function DashboardPage() {
 
   return (
     <>
+      {/* Welcome Modal for new users */}
+      <WelcomeModal
+        open={shouldShowWelcome}
+        onClose={markWelcomeShown}
+        userName={userName}
+      />
+
       <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
         <SidebarTrigger className="-ml-1" />
         <Separator orientation="vertical" className="mr-2 h-4" />
@@ -123,6 +146,24 @@ export default function DashboardPage() {
             )}
           </p>
         </motion.div>
+
+        {/* Onboarding Checklist */}
+        {shouldShowChecklist && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.05 }}
+          >
+            <OnboardingChecklist
+              steps={onboardingSteps}
+              completedSteps={onboardingCompletedSteps}
+              totalSteps={onboardingTotalSteps}
+              progressPercentage={onboardingProgress}
+              isComplete={onboardingComplete}
+              onDismiss={dismissOnboarding}
+            />
+          </motion.div>
+        )}
 
         {/* Medewerker Dashboard */}
         {!isAdmin && (

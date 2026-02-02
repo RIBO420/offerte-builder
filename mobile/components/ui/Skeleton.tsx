@@ -1,20 +1,21 @@
 import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Animated, ViewStyle } from 'react-native';
-import { colors } from '../../theme/colors';
-import { radius } from '../../theme/radius';
+import { View, Animated, ViewStyle } from 'react-native';
+import { cn } from '@/lib/utils';
 
 interface SkeletonProps {
   width?: number | string;
   height?: number;
   borderRadius?: number;
   style?: ViewStyle;
+  className?: string;
 }
 
 export function Skeleton({
   width = '100%',
   height = 20,
-  borderRadius = radius.md,
-  style
+  borderRadius,
+  style,
+  className
 }: SkeletonProps) {
   const shimmerAnim = useRef(new Animated.Value(0)).current;
 
@@ -42,8 +43,8 @@ export function Skeleton({
 
   return (
     <Animated.View
+      className={cn('bg-muted rounded-md', className)}
       style={[
-        styles.skeleton,
         { width, height, borderRadius, opacity },
         style,
       ]}
@@ -54,14 +55,14 @@ export function Skeleton({
 // SkeletonCard for card placeholders
 export function SkeletonCard({ lines = 3 }: { lines?: number }) {
   return (
-    <View style={styles.card}>
-      <Skeleton width={120} height={16} style={styles.title} />
+    <View className="bg-card border border-border rounded-xl p-4">
+      <Skeleton width={120} height={16} className="mb-3" />
       {Array.from({ length: lines }).map((_, i) => (
         <Skeleton
           key={i}
           width={i === lines - 1 ? '60%' : '100%'}
           height={14}
-          style={styles.line}
+          className="mt-2"
         />
       ))}
     </View>
@@ -72,20 +73,3 @@ export function SkeletonCard({ lines = 3 }: { lines?: number }) {
 export function SkeletonAvatar({ size = 48 }: { size?: number }) {
   return <Skeleton width={size} height={size} borderRadius={size / 2} />;
 }
-
-const styles = StyleSheet.create({
-  skeleton: {
-    backgroundColor: colors.muted,
-  },
-  card: {
-    padding: 16,
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
-  },
-  title: {
-    marginBottom: 12,
-  },
-  line: {
-    marginTop: 8,
-  },
-});

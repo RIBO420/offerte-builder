@@ -1,18 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useCurrentUser } from '../../hooks/use-current-user';
 import { useUserRole } from '../../hooks/use-user-role';
+import { cn } from '@/lib/utils';
 
 // Theme system
 import { useColors, useTheme } from '../../theme';
-import { typography } from '../../theme/typography';
-import { spacing } from '../../theme/spacing';
-import { radius } from '../../theme/radius';
-import { shadows } from '../../theme/shadows';
 
 // UI Components
 import {
@@ -69,14 +66,14 @@ function getGreeting(): string {
 // Loading skeleton components
 function DashboardSkeleton({ colors }: { colors: ReturnType<typeof useColors> }) {
   return (
-    <View style={styles.content}>
+    <View className="p-4 pb-10">
       {/* Header skeleton */}
-      <View style={styles.header}>
+      <View className="mb-6">
         <Skeleton width={120} height={18} />
-        <View style={{ marginTop: spacing.xs }}>
+        <View className="mt-1">
           <Skeleton width={180} height={28} />
         </View>
-        <View style={{ marginTop: spacing.xs }}>
+        <View className="mt-1">
           <Skeleton width={200} height={14} />
         </View>
       </View>
@@ -85,12 +82,12 @@ function DashboardSkeleton({ colors }: { colors: ReturnType<typeof useColors> })
       <SkeletonCard lines={4} />
 
       {/* Stats skeleton */}
-      <View style={{ marginTop: spacing.lg }}>
+      <View className="mt-6">
         <SkeletonCard lines={2} />
       </View>
 
       {/* Week summary skeleton */}
-      <View style={{ marginTop: spacing.lg }}>
+      <View className="mt-6">
         <SkeletonCard lines={5} />
       </View>
     </View>
@@ -115,10 +112,10 @@ export default function DashboardScreen() {
   // Show loading while auth is loading or user not synced to Convex
   if (isLoading || !isUserSynced) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+      <SafeAreaView className="flex-1 bg-background" edges={['top']}>
         <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          className="flex-1"
+          contentContainerStyle={{ flexGrow: 1 }}
           showsVerticalScrollIndicator={false}
         >
           <DashboardSkeleton colors={colors} />
@@ -143,6 +140,12 @@ function AuthenticatedDashboard() {
   const profile = useQuery(api.medewerkers.getActive);
   const projectStats = useQuery(api.projecten.getStats);
   const activeProjects = useQuery(api.projecten.getActiveProjectsWithProgress);
+
+  // Planning query - only for medewerkers
+  const planningProjects = useQuery(
+    api.projecten.listForPlanning,
+    isMedewerker ? {} : 'skip'
+  );
 
   // Financial queries - only for admins
   const offerteStats = useQuery(
@@ -219,29 +222,12 @@ function AuthenticatedDashboard() {
   const todayHours = weeklyHours[adjustedDayIndex] + (currentTime / 3600);
   const totalWeekHours = weeklyHours.reduce((sum, h) => sum + h, 0) + (isClockedIn ? currentTime / 3600 : 0);
 
-  // Dynamic styles based on theme
-  const dynamicStyles = {
-    container: {
-      backgroundColor: colors.background,
-    },
-    text: {
-      color: colors.foreground,
-    },
-    mutedText: {
-      color: colors.mutedForeground,
-    },
-    card: {
-      backgroundColor: colors.card,
-      borderColor: colors.border,
-    },
-  };
-
   if (isLoading) {
     return (
-      <SafeAreaView style={[styles.container, dynamicStyles.container]} edges={['top']}>
+      <SafeAreaView className="flex-1 bg-background" edges={['top']}>
         <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          className="flex-1"
+          contentContainerStyle={{ flexGrow: 1 }}
           showsVerticalScrollIndicator={false}
         >
           <DashboardSkeleton colors={colors} />
@@ -251,10 +237,10 @@ function AuthenticatedDashboard() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, dynamicStyles.container]} edges={['top']}>
+    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        className="flex-1"
+        contentContainerStyle={{ flexGrow: 1 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -264,11 +250,11 @@ function AuthenticatedDashboard() {
           />
         }
       >
-        <View style={styles.content}>
+        <View className="p-4 pb-10">
           {/* Welcome Header */}
-          <View style={styles.header}>
-            <View style={styles.headerTop}>
-              <Text style={[styles.greeting, dynamicStyles.mutedText]}>
+          <View className="mb-6">
+            <View className="flex-row justify-between items-center">
+              <Text className="text-base font-normal text-muted-foreground">
                 {getGreeting()},
               </Text>
               <Badge
@@ -278,18 +264,18 @@ function AuthenticatedDashboard() {
                 {roleDisplayName}
               </Badge>
             </View>
-            <Text style={[styles.userName, dynamicStyles.text]}>
+            <Text className="text-2xl font-bold mt-1 text-foreground">
               {userName}
             </Text>
-            <Text style={[styles.dateText, dynamicStyles.mutedText]}>
+            <Text className="text-sm mt-1 text-muted-foreground">
               {formatDutchDate(new Date())}
             </Text>
           </View>
 
           {/* Status Card */}
-          <Card variant="elevated" style={styles.statusCard}>
+          <Card variant="elevated" className="mb-4">
             <CardHeader>
-              <View style={styles.statusHeader}>
+              <View className="flex-row justify-between items-center">
                 <CardTitle>Werkstatus</CardTitle>
                 <StatusBadge
                   status={isClockedIn ? 'active' : 'inactive'}
@@ -301,27 +287,27 @@ function AuthenticatedDashboard() {
               {isClockedIn ? (
                 <>
                   {/* Timer display */}
-                  <View style={styles.timerContainer}>
-                    <Text style={[styles.timerLabel, dynamicStyles.mutedText]}>
+                  <View className="items-center mb-4">
+                    <Text className="text-sm mb-1 text-muted-foreground">
                       Vandaag gewerkt
                     </Text>
-                    <Text style={[styles.timerValue, dynamicStyles.text]}>
+                    <Text className="text-4xl font-bold text-foreground" style={{ fontVariant: ['tabular-nums'] }}>
                       {formatTime(currentTime)}
                     </Text>
                   </View>
 
                   {/* Current project */}
                   {currentProject && (
-                    <View style={[styles.projectInfo, { backgroundColor: colors.muted }]}>
+                    <View className="flex-row items-center gap-2 p-4 rounded-lg mb-4 bg-muted">
                       <Feather name="folder" size={18} color={colors.scope.borders} />
-                      <Text style={[styles.projectName, dynamicStyles.text]}>
+                      <Text className="text-base font-medium text-foreground">
                         {currentProject}
                       </Text>
                     </View>
                   )}
 
                   {/* Clock out button */}
-                  <View style={styles.buttonContainer}>
+                  <View className="mt-2">
                     <Button
                       onPress={handleClockOut}
                       title="Uitklokken"
@@ -334,20 +320,20 @@ function AuthenticatedDashboard() {
               ) : (
                 <>
                   {/* Not clocked in state */}
-                  <View style={styles.clockedOutContainer}>
-                    <View style={[styles.clockIcon, { backgroundColor: colors.muted }]}>
+                  <View className="items-center py-6">
+                    <View className="w-16 h-16 rounded-full items-center justify-center mb-4 bg-muted">
                       <Feather name="clock" size={32} color={colors.mutedForeground} />
                     </View>
-                    <Text style={[styles.clockedOutText, dynamicStyles.mutedText]}>
+                    <Text className="text-sm text-center mb-4 text-muted-foreground">
                       Start je werkdag om uren te registreren
                     </Text>
                   </View>
 
                   {/* Project selector placeholder */}
                   {activeProjects && activeProjects.length > 0 && (
-                    <View style={[styles.projectSelector, { borderColor: colors.border }]}>
+                    <View className="flex-row items-center gap-2 p-4 border rounded-lg mb-4 border-border">
                       <Feather name="folder" size={18} color={colors.mutedForeground} />
-                      <Text style={[styles.projectSelectorText, dynamicStyles.mutedText]}>
+                      <Text className="flex-1 text-base text-muted-foreground">
                         {activeProjects[0].naam}
                       </Text>
                       <Feather name="chevron-down" size={18} color={colors.mutedForeground} />
@@ -355,7 +341,7 @@ function AuthenticatedDashboard() {
                   )}
 
                   {/* Clock in button */}
-                  <View style={styles.buttonContainer}>
+                  <View className="mt-2">
                     <Button
                       onPress={handleClockIn}
                       title="Inklokken"
@@ -371,60 +357,58 @@ function AuthenticatedDashboard() {
           </Card>
 
           {/* Today's Stats */}
-          <Card style={styles.statsCard}>
+          <Card className="mb-4">
             <CardHeader>
               <CardTitle>Vandaag</CardTitle>
             </CardHeader>
             <CardContent>
-              <View style={styles.statsGrid}>
-                <View style={styles.statItem}>
-                  <View style={[styles.statIcon, { backgroundColor: `${colors.scope.borders}20` }]}>
+              <View className="flex-row gap-4 mb-6">
+                <View className="flex-1 flex-row items-center gap-4">
+                  <View className="w-11 h-11 rounded-lg items-center justify-center" style={{ backgroundColor: `${colors.scope.borders}20` }}>
                     <Feather name="clock" size={20} color={colors.scope.borders} />
                   </View>
-                  <View style={styles.statContent}>
-                    <Text style={[styles.statLabel, dynamicStyles.mutedText]}>Uren</Text>
+                  <View className="flex-1">
+                    <Text className="text-sm mb-0.5 text-muted-foreground">Uren</Text>
                     <AnimatedNumber
                       value={todayHours}
                       decimals={1}
                       suffix=" uur"
-                      style={[styles.statValue, dynamicStyles.text]}
+                      className="text-lg font-semibold text-foreground"
                     />
                   </View>
                 </View>
 
-                <View style={styles.statItem}>
-                  <View style={[styles.statIcon, { backgroundColor: `${colors.chart[1]}20` }]}>
+                <View className="flex-1 flex-row items-center gap-4">
+                  <View className="w-11 h-11 rounded-lg items-center justify-center" style={{ backgroundColor: `${colors.chart[1]}20` }}>
                     <Feather name="briefcase" size={20} color={colors.chart[1]} />
                   </View>
-                  <View style={styles.statContent}>
-                    <Text style={[styles.statLabel, dynamicStyles.mutedText]}>Projecten</Text>
+                  <View className="flex-1">
+                    <Text className="text-sm mb-0.5 text-muted-foreground">Projecten</Text>
                     <AnimatedNumber
                       value={projectStats?.in_uitvoering || 0}
-                      style={[styles.statValue, dynamicStyles.text]}
+                      className="text-lg font-semibold text-foreground"
                     />
                   </View>
                 </View>
               </View>
 
               {/* Progress bar */}
-              <View style={styles.progressContainer}>
-                <View style={styles.progressHeader}>
-                  <Text style={[styles.progressLabel, dynamicStyles.mutedText]}>
+              <View className="gap-2">
+                <View className="flex-row justify-between items-center">
+                  <Text className="text-sm text-muted-foreground">
                     Voortgang vandaag
                   </Text>
-                  <Text style={[styles.progressValue, dynamicStyles.mutedText]}>
+                  <Text className="text-sm font-medium text-muted-foreground">
                     {formatHoursMinutes(todayHours)} / 8:00
                   </Text>
                 </View>
-                <View style={[styles.progressBar, { backgroundColor: colors.muted }]}>
+                <View className="h-2 rounded-full overflow-hidden bg-muted">
                   <View
-                    style={[
-                      styles.progressFill,
-                      {
-                        backgroundColor: colors.scope.borders,
-                        width: `${Math.min(100, (todayHours / 8) * 100)}%`
-                      }
-                    ]}
+                    className="h-full rounded-full"
+                    style={{
+                      backgroundColor: colors.scope.borders,
+                      width: `${Math.min(100, (todayHours / 8) * 100)}%`
+                    }}
                   />
                 </View>
               </View>
@@ -432,22 +416,22 @@ function AuthenticatedDashboard() {
           </Card>
 
           {/* Week Summary */}
-          <Card style={styles.weekCard}>
+          <Card className="mb-4">
             <CardHeader>
-              <View style={styles.weekHeader}>
+              <View className="flex-row justify-between items-center">
                 <CardTitle>Deze week</CardTitle>
-                <View style={styles.weekTotal}>
+                <View className="flex-row items-baseline">
                   <AnimatedNumber
                     value={totalWeekHours}
                     decimals={1}
-                    style={[styles.weekTotalValue, dynamicStyles.text]}
+                    className="text-lg font-semibold text-foreground"
                   />
-                  <Text style={[styles.weekTotalLabel, dynamicStyles.mutedText]}> / 40 uur</Text>
+                  <Text className="text-sm text-muted-foreground"> / 40 uur</Text>
                 </View>
               </View>
             </CardHeader>
             <CardContent>
-              <View style={styles.weekGrid}>
+              <View className="flex-row gap-2">
                 {weekDays.map((day, index) => {
                   const hours = index === adjustedDayIndex
                     ? todayHours
@@ -458,30 +442,28 @@ function AuthenticatedDashboard() {
                   return (
                     <View
                       key={day}
-                      style={[
-                        styles.dayCard,
-                        { backgroundColor: isToday ? colors.primary : colors.muted },
-                      ]}
+                      className={cn(
+                        "flex-1 items-center py-4 rounded-lg",
+                        isToday ? "bg-primary" : "bg-muted"
+                      )}
                     >
                       <Text
-                        style={[
-                          styles.dayLabel,
-                          { color: isToday ? colors.primaryForeground : colors.mutedForeground },
-                        ]}
+                        className={cn(
+                          "text-xs font-medium mb-1",
+                          isToday ? "text-primary-foreground" : "text-muted-foreground"
+                        )}
                       >
                         {day}
                       </Text>
                       <Text
-                        style={[
-                          styles.dayHours,
-                          {
-                            color: isToday
-                              ? colors.primaryForeground
-                              : hasHours
-                                ? colors.foreground
-                                : colors.mutedForeground
-                          },
-                        ]}
+                        className={cn(
+                          "text-sm font-semibold",
+                          isToday
+                            ? "text-primary-foreground"
+                            : hasHours
+                              ? "text-foreground"
+                              : "text-muted-foreground"
+                        )}
                       >
                         {formatHoursMinutes(hours)}
                       </Text>
@@ -492,9 +474,76 @@ function AuthenticatedDashboard() {
             </CardContent>
           </Card>
 
+          {/* Mijn Planning - Medewerker Only */}
+          {isMedewerker && (
+            <Card className="mb-4">
+              <CardHeader>
+                <View className="flex-row items-center gap-2">
+                  <Feather name="calendar" size={20} color={colors.primary} />
+                  <CardTitle>Mijn Planning</CardTitle>
+                </View>
+              </CardHeader>
+              <CardContent>
+                {planningProjects === undefined ? (
+                  <View className="py-4">
+                    <Skeleton width="100%" height={60} />
+                  </View>
+                ) : planningProjects.length === 0 ? (
+                  <View className="items-center py-6">
+                    <View className="w-16 h-16 rounded-full items-center justify-center mb-4 bg-muted">
+                      <Feather name="calendar" size={32} color={colors.mutedForeground} />
+                    </View>
+                    <Text className="text-sm text-center text-muted-foreground">
+                      Geen projecten toegewezen
+                    </Text>
+                  </View>
+                ) : (
+                  planningProjects.slice(0, 5).map((project, index) => (
+                    <TouchableOpacity
+                      key={project._id}
+                      className={cn(
+                        "py-4",
+                        index < planningProjects.length - 1 && index < 4 && "border-b border-border"
+                      )}
+                      activeOpacity={0.7}
+                    >
+                      <View className="flex-row items-start justify-between mb-2">
+                        <View className="flex-1">
+                          <Text className="text-base font-medium text-foreground" numberOfLines={1}>
+                            {project.naam}
+                          </Text>
+                          <View className="flex-row items-center gap-2 mt-1">
+                            <StatusBadge
+                              status={project.status === "gepland" ? "warning" : project.status === "in_uitvoering" ? "active" : "default"}
+                              label={project.status === "gepland" ? "Gepland" : project.status === "in_uitvoering" ? "In uitvoering" : "Afgerond"}
+                              size="sm"
+                            />
+                            {project.geschatteDagen > 0 && (
+                              <Text className="text-xs text-muted-foreground">
+                                {project.geschatteDagen} {project.geschatteDagen === 1 ? 'dag' : 'dagen'}
+                              </Text>
+                            )}
+                          </View>
+                        </View>
+                      </View>
+                      {project.teamleden && project.teamleden.length > 0 && (
+                        <View className="flex-row items-center gap-2 mt-2">
+                          <Feather name="users" size={14} color={colors.mutedForeground} />
+                          <Text className="text-xs text-muted-foreground">
+                            {project.teamleden.join(', ')}
+                          </Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Active Projects */}
           {activeProjects && activeProjects.length > 0 && (
-            <Card style={styles.projectsCard}>
+            <Card className="mb-4">
               <CardHeader>
                 <CardTitle>Actieve Projecten</CardTitle>
               </CardHeader>
@@ -502,35 +551,33 @@ function AuthenticatedDashboard() {
                 {activeProjects.slice(0, 3).map((project) => (
                   <TouchableOpacity
                     key={project._id}
-                    style={[styles.projectRow, { borderBottomColor: colors.border }]}
+                    className="flex-row items-center justify-between py-4 border-b border-border"
                     activeOpacity={0.7}
                   >
-                    <View style={styles.projectRowContent}>
-                      <View style={[styles.projectDot, { backgroundColor: colors.scope.borders }]} />
-                      <View style={styles.projectRowInfo}>
-                        <Text style={[styles.projectRowName, dynamicStyles.text]} numberOfLines={1}>
+                    <View className="flex-1 flex-row items-center gap-4">
+                      <View className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: colors.scope.borders }} />
+                      <View className="flex-1">
+                        <Text className="text-base font-medium text-foreground" numberOfLines={1}>
                           {project.naam}
                         </Text>
-                        <Text style={[styles.projectRowMeta, dynamicStyles.mutedText]}>
+                        <Text className="text-sm mt-0.5 text-muted-foreground">
                           {project.klantNaam}
                         </Text>
                       </View>
                     </View>
-                    <View style={styles.projectRowProgress}>
-                      <Text style={[styles.projectRowHours, dynamicStyles.text]}>
+                    <View className="items-end gap-1">
+                      <Text className="text-sm font-medium text-foreground">
                         {project.totaalUren}/{project.begroteUren}u
                       </Text>
-                      <View style={[styles.miniProgressBar, { backgroundColor: colors.muted }]}>
+                      <View className="w-15 h-1 rounded-full overflow-hidden bg-muted">
                         <View
-                          style={[
-                            styles.miniProgressFill,
-                            {
-                              backgroundColor: project.voortgang > 100
-                                ? colors.destructive
-                                : colors.scope.borders,
-                              width: `${Math.min(100, project.voortgang)}%`
-                            }
-                          ]}
+                          className="h-full rounded-full"
+                          style={{
+                            backgroundColor: project.voortgang > 100
+                              ? colors.destructive
+                              : colors.scope.borders,
+                            width: `${Math.min(100, project.voortgang)}%`
+                          }}
                         />
                       </View>
                     </View>
@@ -542,13 +589,13 @@ function AuthenticatedDashboard() {
 
           {/* Financial Overview - Admin Only */}
           {isAdmin && (
-            <Card style={styles.financialCard}>
+            <Card className="mb-4">
               <CardHeader>
-                <View style={styles.financialHeader}>
+                <View className="flex-row justify-between items-center">
                   <CardTitle>Financieel Overzicht</CardTitle>
-                  <View style={[styles.trendBadge, { backgroundColor: `${colors.chart[2]}20` }]}>
+                  <View className="flex-row items-center gap-1 px-2 py-1 rounded-full" style={{ backgroundColor: `${colors.chart[2]}20` }}>
                     <Feather name="trending-up" size={12} color={colors.chart[2]} />
-                    <Text style={[styles.trendText, { color: colors.chart[2] }]}>
+                    <Text className="text-xs font-medium" style={{ color: colors.chart[2] }}>
                       {revenueStats?.conversionRate || 0}% conv.
                     </Text>
                   </View>
@@ -557,100 +604,100 @@ function AuthenticatedDashboard() {
               <CardContent>
                 {/* Revenue Card */}
                 {(offerteStats === undefined || revenueStats === undefined) ? (
-                  <View style={styles.financialSkeletonContainer}>
+                  <View className="gap-4">
                     <Skeleton width="100%" height={80} />
-                    <View style={{ marginTop: spacing.md }}>
+                    <View className="mt-4">
                       <Skeleton width="100%" height={120} />
                     </View>
                   </View>
                 ) : (
                   <>
-                    <View style={[styles.revenueCard, { backgroundColor: colors.muted }]}>
-                      <View style={styles.revenueIconContainer}>
-                        <View style={[styles.revenueIcon, { backgroundColor: `${colors.chart[2]}20` }]}>
+                    <View className="flex-row items-center gap-4 p-4 rounded-lg mb-6 bg-muted">
+                      <View className="items-center justify-center">
+                        <View className="w-12 h-12 rounded-lg items-center justify-center" style={{ backgroundColor: `${colors.chart[2]}20` }}>
                           <Feather name="dollar-sign" size={24} color={colors.chart[2]} />
                         </View>
                       </View>
-                      <View style={styles.revenueContent}>
-                        <Text style={[styles.revenueLabel, dynamicStyles.mutedText]}>
+                      <View className="flex-1">
+                        <Text className="text-sm mb-1 text-muted-foreground">
                           Totale omzet (geaccepteerd)
                         </Text>
                         <AnimatedNumber
                           value={revenueStats?.totalAcceptedValue || 0}
                           decimals={0}
                           prefix="\u20AC "
-                          style={[styles.revenueValue, dynamicStyles.text]}
+                          className="text-2xl font-bold text-foreground"
                         />
-                        <Text style={[styles.revenueSubtext, dynamicStyles.mutedText]}>
+                        <Text className="text-xs mt-1 text-muted-foreground">
                           {revenueStats?.totalAcceptedCount || 0} geaccepteerde offertes
                         </Text>
                       </View>
                     </View>
 
                     {/* Pipeline Summary */}
-                    <View style={styles.pipelineSection}>
-                      <Text style={[styles.pipelineSectionTitle, dynamicStyles.mutedText]}>
+                    <View className="mb-4">
+                      <Text className="text-sm font-medium mb-4 text-muted-foreground">
                         Offerte Pipeline
                       </Text>
-                      <View style={styles.pipelineGrid}>
-                        <View style={[styles.pipelineItem, { backgroundColor: colors.muted }]}>
-                          <View style={[styles.pipelineIconContainer, { backgroundColor: `${colors.chart[3]}20` }]}>
+                      <View className="flex-row gap-2">
+                        <View className="flex-1 items-center py-4 px-2 rounded-lg bg-muted">
+                          <View className="w-8 h-8 rounded-md items-center justify-center mb-2" style={{ backgroundColor: `${colors.chart[3]}20` }}>
                             <Feather name="edit-3" size={16} color={colors.chart[3]} />
                           </View>
                           <AnimatedNumber
                             value={offerteStats?.concept || 0}
                             decimals={0}
-                            style={[styles.pipelineValue, dynamicStyles.text]}
+                            className="text-xl font-bold mb-0.5 text-foreground"
                           />
-                          <Text style={[styles.pipelineLabel, dynamicStyles.mutedText]}>Concept</Text>
+                          <Text className="text-xs text-center text-muted-foreground">Concept</Text>
                         </View>
-                        <View style={[styles.pipelineItem, { backgroundColor: colors.muted }]}>
-                          <View style={[styles.pipelineIconContainer, { backgroundColor: `${colors.chart[0]}20` }]}>
+                        <View className="flex-1 items-center py-4 px-2 rounded-lg bg-muted">
+                          <View className="w-8 h-8 rounded-md items-center justify-center mb-2" style={{ backgroundColor: `${colors.chart[0]}20` }}>
                             <Feather name="send" size={16} color={colors.chart[0]} />
                           </View>
                           <AnimatedNumber
                             value={offerteStats?.verzonden || 0}
                             decimals={0}
-                            style={[styles.pipelineValue, dynamicStyles.text]}
+                            className="text-xl font-bold mb-0.5 text-foreground"
                           />
-                          <Text style={[styles.pipelineLabel, dynamicStyles.mutedText]}>Verzonden</Text>
+                          <Text className="text-xs text-center text-muted-foreground">Verzonden</Text>
                         </View>
-                        <View style={[styles.pipelineItem, { backgroundColor: colors.muted }]}>
-                          <View style={[styles.pipelineIconContainer, { backgroundColor: `${colors.chart[2]}20` }]}>
+                        <View className="flex-1 items-center py-4 px-2 rounded-lg bg-muted">
+                          <View className="w-8 h-8 rounded-md items-center justify-center mb-2" style={{ backgroundColor: `${colors.chart[2]}20` }}>
                             <Feather name="check-circle" size={16} color={colors.chart[2]} />
                           </View>
                           <AnimatedNumber
                             value={offerteStats?.geaccepteerd || 0}
                             decimals={0}
-                            style={[styles.pipelineValue, dynamicStyles.text]}
+                            className="text-xl font-bold mb-0.5 text-foreground"
                           />
-                          <Text style={[styles.pipelineLabel, dynamicStyles.mutedText]}>Geaccepteerd</Text>
+                          <Text className="text-xs text-center text-muted-foreground">Geaccepteerd</Text>
                         </View>
                       </View>
                     </View>
 
                     {/* Average Value */}
-                    <View style={[styles.avgValueRow, { borderTopColor: colors.border }]}>
-                      <View style={styles.avgValueItem}>
-                        <Text style={[styles.avgValueLabel, dynamicStyles.mutedText]}>
+                    <View className="flex-row justify-between pt-4 border-t mb-4 border-border">
+                      <View className="flex-1 items-center">
+                        <Text className="text-xs mb-1 text-center text-muted-foreground">
                           Gem. offerte waarde
                         </Text>
-                        <Text style={[styles.avgValueText, dynamicStyles.text]}>
+                        <Text className="text-base font-semibold text-foreground">
                           {formatCurrency(revenueStats?.averageOfferteValue || 0)}
                         </Text>
                       </View>
-                      <View style={styles.avgValueItem}>
-                        <Text style={[styles.avgValueLabel, dynamicStyles.mutedText]}>
+                      <View className="flex-1 items-center">
+                        <Text className="text-xs mb-1 text-center text-muted-foreground">
                           Totale waarde
                         </Text>
-                        <Text style={[styles.avgValueText, dynamicStyles.text]}>
+                        <Text className="text-base font-semibold text-foreground">
                           {formatCurrency(offerteStats?.totaalWaarde || 0)}
                         </Text>
                       </View>
                     </View>
 
                     {/* Quick Action Button */}
-                    <View style={styles.quickActionContainer}>
+                    <View className="mt-2">
                       <Button
                         onPress={() => {
                           // TODO: Navigate to offerte creation when available in mobile app
@@ -670,9 +717,9 @@ function AuthenticatedDashboard() {
 
           {/* Medewerker Summary Card - Only for non-admin users */}
           {isMedewerker && (
-            <Card style={styles.financialCard}>
+            <Card className="mb-4">
               <CardHeader>
-                <View style={styles.financialHeader}>
+                <View className="flex-row justify-between items-center">
                   <CardTitle>Mijn Overzicht</CardTitle>
                   <Badge variant="secondary" size="sm">
                     {roleDisplayName}
@@ -680,30 +727,30 @@ function AuthenticatedDashboard() {
                 </View>
               </CardHeader>
               <CardContent>
-                <View style={[styles.medewerkerSummary, { backgroundColor: colors.muted }]}>
-                  <View style={styles.medewerkerSummaryRow}>
-                    <View style={[styles.medewerkerSummaryIcon, { backgroundColor: `${colors.scope.borders}20` }]}>
+                <View className="p-4 rounded-lg bg-muted">
+                  <View className="flex-row items-center gap-4">
+                    <View className="w-11 h-11 rounded-lg items-center justify-center" style={{ backgroundColor: `${colors.scope.borders}20` }}>
                       <Feather name="calendar" size={20} color={colors.scope.borders} />
                     </View>
-                    <View style={styles.medewerkerSummaryContent}>
-                      <Text style={[styles.medewerkerSummaryLabel, dynamicStyles.mutedText]}>
+                    <View className="flex-1">
+                      <Text className="text-sm mb-0.5 text-muted-foreground">
                         Toegewezen projecten
                       </Text>
-                      <Text style={[styles.medewerkerSummaryValue, dynamicStyles.text]}>
+                      <Text className="text-lg font-semibold text-foreground">
                         {activeProjects?.length || 0} actief
                       </Text>
                     </View>
                   </View>
-                  <View style={[styles.medewerkerDivider, { backgroundColor: colors.border }]} />
-                  <View style={styles.medewerkerSummaryRow}>
-                    <View style={[styles.medewerkerSummaryIcon, { backgroundColor: `${colors.chart[1]}20` }]}>
+                  <View className="h-px my-4 bg-border" />
+                  <View className="flex-row items-center gap-4">
+                    <View className="w-11 h-11 rounded-lg items-center justify-center" style={{ backgroundColor: `${colors.chart[1]}20` }}>
                       <Feather name="clock" size={20} color={colors.chart[1]} />
                     </View>
-                    <View style={styles.medewerkerSummaryContent}>
-                      <Text style={[styles.medewerkerSummaryLabel, dynamicStyles.mutedText]}>
+                    <View className="flex-1">
+                      <Text className="text-sm mb-0.5 text-muted-foreground">
                         Deze week gewerkt
                       </Text>
-                      <Text style={[styles.medewerkerSummaryValue, dynamicStyles.text]}>
+                      <Text className="text-lg font-semibold text-foreground">
                         {formatHoursMinutes(totalWeekHours)} uur
                       </Text>
                     </View>
@@ -717,413 +764,3 @@ function AuthenticatedDashboard() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-  },
-  content: {
-    padding: spacing.md,
-    paddingBottom: spacing.xl,
-  },
-
-  // Header
-  header: {
-    marginBottom: spacing.lg,
-  },
-  greeting: {
-    fontSize: typography.fontSize.base,
-    fontWeight: typography.fontWeight.normal,
-  },
-  userName: {
-    fontSize: typography.fontSize['2xl'],
-    fontWeight: typography.fontWeight.bold,
-    marginTop: spacing.xs,
-  },
-  dateText: {
-    fontSize: typography.fontSize.sm,
-    marginTop: spacing.xs,
-  },
-
-  // Status Card
-  statusCard: {
-    marginBottom: spacing.md,
-  },
-  statusHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  timerContainer: {
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  timerLabel: {
-    fontSize: typography.fontSize.sm,
-    marginBottom: spacing.xs,
-  },
-  timerValue: {
-    fontSize: typography.fontSize['4xl'],
-    fontWeight: typography.fontWeight.bold,
-    fontVariant: ['tabular-nums'],
-  },
-  projectInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    marginBottom: spacing.md,
-  },
-  projectName: {
-    fontSize: typography.fontSize.base,
-    fontWeight: typography.fontWeight.medium,
-  },
-  buttonContainer: {
-    marginTop: spacing.sm,
-  },
-  clockedOutContainer: {
-    alignItems: 'center',
-    paddingVertical: spacing.lg,
-  },
-  clockIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
-  },
-  clockedOutText: {
-    fontSize: typography.fontSize.sm,
-    textAlign: 'center',
-    marginBottom: spacing.md,
-  },
-  projectSelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    marginBottom: spacing.md,
-  },
-  projectSelectorText: {
-    flex: 1,
-    fontSize: typography.fontSize.base,
-  },
-
-  // Stats Card
-  statsCard: {
-    marginBottom: spacing.md,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  statItem: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  statIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statContent: {
-    flex: 1,
-  },
-  statLabel: {
-    fontSize: typography.fontSize.sm,
-    marginBottom: 2,
-  },
-  statValue: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: typography.fontWeight.semibold,
-  },
-  progressContainer: {
-    gap: spacing.sm,
-  },
-  progressHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  progressLabel: {
-    fontSize: typography.fontSize.sm,
-  },
-  progressValue: {
-    fontSize: typography.fontSize.sm,
-    fontWeight: typography.fontWeight.medium,
-  },
-  progressBar: {
-    height: 8,
-    borderRadius: radius.full,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: radius.full,
-  },
-
-  // Week Card
-  weekCard: {
-    marginBottom: spacing.md,
-  },
-  weekHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  weekTotal: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-  },
-  weekTotalValue: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: typography.fontWeight.semibold,
-  },
-  weekTotalLabel: {
-    fontSize: typography.fontSize.sm,
-  },
-  weekGrid: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  dayCard: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    borderRadius: radius.lg,
-  },
-  dayLabel: {
-    fontSize: typography.fontSize.xs,
-    fontWeight: typography.fontWeight.medium,
-    marginBottom: spacing.xs,
-  },
-  dayHours: {
-    fontSize: typography.fontSize.sm,
-    fontWeight: typography.fontWeight.semibold,
-  },
-
-  // Projects Card
-  projectsCard: {
-    marginBottom: spacing.md,
-  },
-  projectRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-  },
-  projectRowContent: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  projectDot: {
-    width: 10,
-    height: 10,
-    borderRadius: radius.full,
-  },
-  projectRowInfo: {
-    flex: 1,
-  },
-  projectRowName: {
-    fontSize: typography.fontSize.base,
-    fontWeight: typography.fontWeight.medium,
-  },
-  projectRowMeta: {
-    fontSize: typography.fontSize.sm,
-    marginTop: 2,
-  },
-  projectRowProgress: {
-    alignItems: 'flex-end',
-    gap: spacing.xs,
-  },
-  projectRowHours: {
-    fontSize: typography.fontSize.sm,
-    fontWeight: typography.fontWeight.medium,
-  },
-  miniProgressBar: {
-    width: 60,
-    height: 4,
-    borderRadius: radius.full,
-    overflow: 'hidden',
-  },
-  miniProgressFill: {
-    height: '100%',
-    borderRadius: radius.full,
-  },
-
-  // Financial Card
-  financialCard: {
-    marginBottom: spacing.md,
-  },
-  financialHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  trendBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.full,
-  },
-  trendText: {
-    fontSize: typography.fontSize.xs,
-    fontWeight: typography.fontWeight.medium,
-  },
-  financialSkeletonContainer: {
-    gap: spacing.md,
-  },
-  revenueCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    marginBottom: spacing.lg,
-  },
-  revenueIconContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  revenueIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: radius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  revenueContent: {
-    flex: 1,
-  },
-  revenueLabel: {
-    fontSize: typography.fontSize.sm,
-    marginBottom: spacing.xs,
-  },
-  revenueValue: {
-    fontSize: typography.fontSize['2xl'],
-    fontWeight: typography.fontWeight.bold,
-  },
-  revenueSubtext: {
-    fontSize: typography.fontSize.xs,
-    marginTop: spacing.xs,
-  },
-  pipelineSection: {
-    marginBottom: spacing.md,
-  },
-  pipelineSectionTitle: {
-    fontSize: typography.fontSize.sm,
-    fontWeight: typography.fontWeight.medium,
-    marginBottom: spacing.md,
-  },
-  pipelineGrid: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  pipelineItem: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.lg,
-  },
-  pipelineIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.sm,
-  },
-  pipelineValue: {
-    fontSize: typography.fontSize.xl,
-    fontWeight: typography.fontWeight.bold,
-    marginBottom: 2,
-  },
-  pipelineLabel: {
-    fontSize: typography.fontSize.xs,
-    textAlign: 'center',
-  },
-  avgValueRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: spacing.md,
-    borderTopWidth: 1,
-    marginBottom: spacing.md,
-  },
-  avgValueItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  avgValueLabel: {
-    fontSize: typography.fontSize.xs,
-    marginBottom: spacing.xs,
-    textAlign: 'center',
-  },
-  avgValueText: {
-    fontSize: typography.fontSize.base,
-    fontWeight: typography.fontWeight.semibold,
-  },
-  quickActionContainer: {
-    marginTop: spacing.sm,
-  },
-
-  // Header Top row (greeting + role badge)
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-
-  // Medewerker Summary Card
-  medewerkerSummary: {
-    padding: spacing.md,
-    borderRadius: radius.lg,
-  },
-  medewerkerSummaryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  medewerkerSummaryIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  medewerkerSummaryContent: {
-    flex: 1,
-  },
-  medewerkerSummaryLabel: {
-    fontSize: typography.fontSize.sm,
-    marginBottom: 2,
-  },
-  medewerkerSummaryValue: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: typography.fontWeight.semibold,
-  },
-  medewerkerDivider: {
-    height: 1,
-    marginVertical: spacing.md,
-  },
-});

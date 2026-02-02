@@ -27,14 +27,15 @@ interface OfferteTrendChartProps {
   data: TrendData[];
 }
 
+// Theme-aware chart colors using CSS custom properties
 const CHART_COLORS = {
   aanleg: {
-    stroke: "rgb(59, 130, 246)",
-    fill: "rgba(59, 130, 246, 0.2)",
+    stroke: "hsl(var(--chart-1))",
+    fill: "hsl(var(--chart-1) / 0.2)",
   },
   onderhoud: {
-    stroke: "rgb(34, 197, 94)",
-    fill: "rgba(34, 197, 94, 0.2)",
+    stroke: "hsl(var(--chart-2))",
+    fill: "hsl(var(--chart-2) / 0.2)",
   },
 };
 
@@ -54,7 +55,7 @@ function CustomTooltip({ active, payload, label }: {
     <motion.div
       initial={{ opacity: 0, y: 10, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      className="relative overflow-hidden rounded-xl border border-white/10 bg-card/95 backdrop-blur-xl p-4 shadow-2xl shadow-black/20"
+      className="relative overflow-hidden rounded-xl border border-border bg-popover/95 text-popover-foreground backdrop-blur-xl p-4 shadow-2xl"
     >
       {/* Top gradient border */}
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-emerald-500 to-blue-500" />
@@ -89,7 +90,7 @@ function CustomTooltip({ active, payload, label }: {
               <span className="font-bold text-emerald-500">{onderhoud.value}</span>
             </div>
           )}
-          <div className="flex items-center gap-3 pt-2 border-t border-white/10">
+          <div className="flex items-center gap-3 pt-2 border-t border-border">
             <span className="text-sm font-medium text-muted-foreground flex-1">Totaal</span>
             <span className="font-bold text-foreground">{totaal}</span>
           </div>

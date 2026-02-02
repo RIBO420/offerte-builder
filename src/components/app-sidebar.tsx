@@ -61,6 +61,7 @@ import { Button } from "@/components/ui/button";
 import { StatusDot } from "@/components/ui/status-badge";
 import { useDashboardData } from "@/hooks/use-offertes";
 import { useIsAdmin, useCurrentUserRole } from "@/hooks/use-users";
+import { NotificationCenter } from "@/components/notification-center";
 
 // Primary navigation - always visible (most used)
 const primaryNavItems = [
@@ -421,16 +422,19 @@ export function AppSidebar() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-11 sm:size-8 shrink-0"
-                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              >
-                <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-                <span className="sr-only">Wissel thema</span>
-              </Button>
+              <div className="flex items-center gap-1">
+                <NotificationCenter />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-11 sm:size-8 shrink-0"
+                  onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                >
+                  <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                  <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                  <span className="sr-only">Wissel thema</span>
+                </Button>
+              </div>
             </div>
           </SidebarMenuItem>
         </SidebarMenu>

@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { memo, useMemo } from "react"
 import { cn } from "@/lib/utils"
 
 interface MargeIndicatorProps {
@@ -68,22 +69,39 @@ const sizeConfig = {
   },
 }
 
-function MargeIndicator({
+/**
+ * MargeIndicator - Pure presentational component
+ * Memoized to prevent re-renders when parent updates
+ */
+const MargeIndicator = memo(function MargeIndicator({
   percentage,
   target = 20,
   showTarget = false,
   size = "md",
   className,
 }: MargeIndicatorProps) {
-  const level = getMargeLevel(percentage)
-  const config = getMargeLevelConfig(level)
-  const sizes = sizeConfig[size]
+  // Memoize computed values
+  const { level, config, sizes, displayWidth, targetPosition } = useMemo(() => {
+    const margeLevel = getMargeLevel(percentage)
+    const margeConfig = getMargeLevelConfig(margeLevel)
+    const sizeStyles = sizeConfig[size]
 
-  // Clamp percentage for display (0-50% range for visual)
+    // Clamp percentage for display (0-50% range for visual)
+    const maxDisplay = 50
+    const clampedPercentage = Math.min(Math.max(percentage, 0), maxDisplay)
+    const width = (clampedPercentage / maxDisplay) * 100
+    const targetPos = (target / maxDisplay) * 100
+
+    return {
+      level: margeLevel,
+      config: margeConfig,
+      sizes: sizeStyles,
+      displayWidth: width,
+      targetPosition: targetPos,
+    }
+  }, [percentage, target, size])
+
   const maxDisplay = 50
-  const displayPercentage = Math.min(Math.max(percentage, 0), maxDisplay)
-  const displayWidth = (displayPercentage / maxDisplay) * 100
-  const targetPosition = (target / maxDisplay) * 100
 
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
@@ -153,37 +171,55 @@ function MargeIndicator({
       )}
     </div>
   )
-}
+})
 
 // Circular variant
 interface CircularMargeIndicatorProps extends Omit<MargeIndicatorProps, "showTarget"> {
   strokeWidth?: number
 }
 
-function CircularMargeIndicator({
+/**
+ * CircularMargeIndicator - Pure presentational component
+ * Memoized with useMemo for expensive SVG calculations
+ */
+const CircularMargeIndicator = memo(function CircularMargeIndicator({
   percentage,
   size = "md",
   strokeWidth,
   className,
 }: CircularMargeIndicatorProps) {
-  const level = getMargeLevel(percentage)
-  const config = getMargeLevelConfig(level)
+  // Memoize all expensive calculations
+  const { level, config, dimension, stroke, fontSize, radius, circumference, offset } = useMemo(() => {
+    const margeLevel = getMargeLevel(percentage)
+    const margeConfig = getMargeLevelConfig(margeLevel)
 
-  const sizeValues = {
-    sm: { dimension: 48, stroke: strokeWidth ?? 4, fontSize: "text-xs" },
-    md: { dimension: 64, stroke: strokeWidth ?? 5, fontSize: "text-sm" },
-    lg: { dimension: 80, stroke: strokeWidth ?? 6, fontSize: "text-base" },
-  }
+    const sizeValues = {
+      sm: { dimension: 48, stroke: strokeWidth ?? 4, fontSize: "text-xs" },
+      md: { dimension: 64, stroke: strokeWidth ?? 5, fontSize: "text-sm" },
+      lg: { dimension: 80, stroke: strokeWidth ?? 6, fontSize: "text-base" },
+    }
 
-  const { dimension, stroke, fontSize } = sizeValues[size]
-  const radius = (dimension - stroke) / 2
-  const circumference = 2 * Math.PI * radius
+    const { dimension: dim, stroke: str, fontSize: fs } = sizeValues[size]
+    const rad = (dim - str) / 2
+    const circ = 2 * Math.PI * rad
 
-  // Clamp percentage for display (0-50% range)
-  const maxDisplay = 50
-  const displayPercentage = Math.min(Math.max(percentage, 0), maxDisplay)
-  const progress = (displayPercentage / maxDisplay) * circumference
-  const offset = circumference - progress
+    // Clamp percentage for display (0-50% range)
+    const maxDisplay = 50
+    const displayPercentage = Math.min(Math.max(percentage, 0), maxDisplay)
+    const progress = (displayPercentage / maxDisplay) * circ
+    const off = circ - progress
+
+    return {
+      level: margeLevel,
+      config: margeConfig,
+      dimension: dim,
+      stroke: str,
+      fontSize: fs,
+      radius: rad,
+      circumference: circ,
+      offset: off,
+    }
+  }, [percentage, size, strokeWidth])
 
   // Color mapping for SVG stroke
   const strokeColors = {
@@ -242,7 +278,7 @@ function CircularMargeIndicator({
       </div>
     </div>
   )
-}
+})
 
 export { MargeIndicator, CircularMargeIndicator }
 export type { MargeIndicatorProps, CircularMargeIndicatorProps }

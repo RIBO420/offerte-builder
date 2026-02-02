@@ -172,12 +172,13 @@ export const getByOfferte = query({
 /**
  * List all projects for the authenticated user.
  * Ordered by updatedAt descending (most recent first).
- * By default, archived projects are excluded.
+ * By default, archived and deleted projects are excluded.
  */
 export const list = query({
   args: {
     status: v.optional(projectStatusValidator),
     includeArchived: v.optional(v.boolean()),
+    includeDeleted: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const userId = await requireAuthUserId(ctx);
@@ -188,10 +189,15 @@ export const list = query({
       .order("desc")
       .collect();
 
-    // Filter out archived projects unless explicitly requested
+    // Filter out deleted projects unless explicitly requested
     let filteredProjects = projects;
+    if (!args.includeDeleted) {
+      filteredProjects = filteredProjects.filter((p) => !p.deletedAt);
+    }
+
+    // Filter out archived projects unless explicitly requested
     if (!args.includeArchived) {
-      filteredProjects = projects.filter((p) => p.isArchived !== true);
+      filteredProjects = filteredProjects.filter((p) => p.isArchived !== true);
     }
 
     // Filter by status if provided
@@ -383,11 +389,57 @@ export const getVoertuigen = query({
 });
 
 /**
- * Delete a project and all related data.
+ * Soft delete a project (sets deletedAt timestamp).
+ * Items can be restored within 30 days, after which they are permanently deleted.
+ * Related data is preserved for restoration.
+ */
+export const remove = mutation({
+  args: { id: v.id("projecten") },
+  handler: async (ctx, args) => {
+    // Verify ownership before deleting
+    await getOwnedProject(ctx, args.id);
+    const now = Date.now();
+
+    await ctx.db.patch(args.id, {
+      deletedAt: now,
+      updatedAt: now,
+    });
+
+    return args.id;
+  },
+});
+
+/**
+ * Restore a soft-deleted project.
+ */
+export const restore = mutation({
+  args: { id: v.id("projecten") },
+  handler: async (ctx, args) => {
+    // Verify ownership before restoring
+    const project = await getOwnedProject(ctx, args.id);
+
+    // Check if actually deleted
+    if (!project.deletedAt) {
+      throw new Error("Dit project is niet verwijderd");
+    }
+
+    const now = Date.now();
+    await ctx.db.patch(args.id, {
+      deletedAt: undefined,
+      updatedAt: now,
+    });
+
+    return args.id;
+  },
+});
+
+/**
+ * Permanently delete a project and all related data (hard delete).
+ * Used by cleanup function or manual permanent deletion.
  * This will also delete voorcalculaties, planningTaken, urenRegistraties,
  * machineGebruik, and nacalculaties linked to this project.
  */
-export const remove = mutation({
+export const permanentlyDelete = mutation({
   args: { id: v.id("projecten") },
   handler: async (ctx, args) => {
     // Verify ownership before deleting
@@ -579,15 +631,15 @@ export const listForPlanning = query({
     // Get projects based on role
     let projects;
     if (role === "admin") {
-      // Admin sees all active projects (not gefactureerd, not archived)
+      // Admin sees all active projects (not gefactureerd, not archived, not deleted)
       projects = await ctx.db
         .query("projecten")
         .withIndex("by_user", (q) => q.eq("userId", user._id))
         .filter((q) => q.neq(q.field("status"), "gefactureerd"))
         .collect();
 
-      // Filter out archived projects
-      projects = projects.filter((p) => p.isArchived !== true);
+      // Filter out archived and deleted projects
+      projects = projects.filter((p) => p.isArchived !== true && !p.deletedAt);
     } else {
       // Medewerker sees assigned projects
       const medewerker = await getLinkedMedewerker(ctx);
@@ -600,8 +652,8 @@ export const listForPlanning = query({
         .filter((q) => q.neq(q.field("status"), "gefactureerd"))
         .collect();
 
-      // Filter out archived projects
-      const activeProjects = allProjects.filter((p) => p.isArchived !== true);
+      // Filter out archived and deleted projects
+      const activeProjects = allProjects.filter((p) => p.isArchived !== true && !p.deletedAt);
 
       // Filter to projects where medewerker is in team (check voorcalculatie teamleden)
       const projectsWithTeam = await Promise.all(
@@ -663,7 +715,7 @@ export const listForPlanning = query({
 /**
  * Get dashboard statistics for projects.
  * Note: voorcalculatie status has been removed from project workflow.
- * Only counts non-archived projects.
+ * Only counts non-archived and non-deleted projects.
  */
 export const getStats = query({
   args: {},
@@ -675,8 +727,8 @@ export const getStats = query({
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
 
-    // Filter out archived projects
-    const activeProjects = projects.filter((p) => p.isArchived !== true);
+    // Filter out archived and deleted projects
+    const activeProjects = projects.filter((p) => p.isArchived !== true && !p.deletedAt);
 
     const stats = {
       totaal: activeProjects.length,

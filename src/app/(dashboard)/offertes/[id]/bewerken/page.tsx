@@ -88,6 +88,7 @@ import { Id } from "../../../../../../convex/_generated/dataModel";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { getModifierKey } from "@/hooks/use-keyboard-shortcuts";
+import { SortableRegelsTable } from "@/components/offerte/sortable-regels-table";
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("nl-NL", {
@@ -888,82 +889,14 @@ export default function OfferteEditPage({
                 </div>
               </CardHeader>
               <CardContent>
-                {regels.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Omschrijving</TableHead>
-                        <TableHead>Scope</TableHead>
-                        <TableHead className="text-right">Hoeveelheid</TableHead>
-                        <TableHead className="text-right">Prijs</TableHead>
-                        <TableHead className="text-right">Totaal</TableHead>
-                        <TableHead className="w-[50px]"></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {regels.map((regel) => (
-                        <TableRow key={regel.id}>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium">{regel.omschrijving}</p>
-                              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                                <span className="capitalize">{regel.type}</span>
-                                {regel.margePercentage !== undefined && (
-                                  <Badge variant="secondary" className="text-[10px] px-1 py-0">
-                                    {regel.margePercentage}% marge
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">
-                              {scopeLabels[regel.scope] || regel.scope}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {regel.hoeveelheid} {regel.eenheid}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {formatCurrency(regel.prijsPerEenheid)}
-                          </TableCell>
-                          <TableCell className="text-right font-medium">
-                            {formatCurrency(regel.totaal)}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-1">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-9 w-9 sm:h-8 sm:w-8"
-                                onClick={() => handleEditRegel(regel)}
-                                aria-label="Bewerken"
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-9 w-9 sm:h-8 sm:w-8"
-                                onClick={() => handleDeleteRegel(regel.id)}
-                                aria-label="Verwijderen"
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-8 text-center">
-                    <p className="text-muted-foreground">
-                      Nog geen regels. Klik op &quot;Regel toevoegen&quot; om te
-                      beginnen.
-                    </p>
-                  </div>
-                )}
+                <SortableRegelsTable
+                  regels={regels}
+                  onReorder={setRegels}
+                  onEdit={handleEditRegel}
+                  onDelete={handleDeleteRegel}
+                  scopeLabels={scopeLabels}
+                  formatCurrency={formatCurrency}
+                />
               </CardContent>
             </Card>
 
