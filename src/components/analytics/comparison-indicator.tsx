@@ -4,6 +4,7 @@ import { memo } from "react";
 import { motion } from "framer-motion";
 import { TrendingUp, TrendingDown, Minus, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatCurrency, formatPercentage, formatDecimal } from "@/lib/format";
 
 interface ComparisonIndicatorProps {
   currentValue: number;
@@ -18,17 +19,12 @@ interface ComparisonIndicatorProps {
 function formatValue(value: number, format: "percentage" | "currency" | "number"): string {
   switch (format) {
     case "percentage":
-      return `${value.toFixed(1)}%`;
+      return formatPercentage(value, 1);
     case "currency":
-      return new Intl.NumberFormat("nl-NL", {
-        style: "currency",
-        currency: "EUR",
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-      }).format(value);
+      return formatCurrency(value, "nl-NL", false);
     case "number":
     default:
-      return value.toLocaleString("nl-NL", { maximumFractionDigits: 1 });
+      return formatDecimal(value, 1);
   }
 }
 

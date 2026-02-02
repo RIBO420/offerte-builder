@@ -178,3 +178,247 @@ export const userRoleValidator = v.union(
   v.literal("medewerker"),
   v.literal("viewer")
 );
+
+// ==================== COMMON FIELD VALIDATORS ====================
+// These validators mirror the frontend Zod schemas to ensure consistency
+
+/**
+ * Dutch phone number pattern: +31 or 0, followed by 1-9, then 1-8 more digits
+ * Examples: +31612345678, 0612345678, 020-1234567
+ */
+export const PHONE_PATTERN = /^(\+31|0)[1-9]\d{1,8}$/;
+
+/**
+ * Dutch postcode pattern: 4 digits, optional space, 2 letters
+ * Examples: 1234 AB, 1234AB
+ */
+export const POSTCODE_PATTERN = /^\d{4}\s?[A-Za-z]{2}$/;
+
+/**
+ * Dutch KvK (Chamber of Commerce) number: exactly 8 digits
+ */
+export const KVK_PATTERN = /^\d{8}$/;
+
+/**
+ * Dutch BTW (VAT) number: NL + 9 digits + B + 2 digits
+ * Example: NL123456789B01
+ */
+export const BTW_PATTERN = /^NL\d{9}B\d{2}$/;
+
+/**
+ * IBAN pattern: 2 letters + 2 digits + 4 alphanumeric + 7 digits + up to 16 alphanumeric
+ */
+export const IBAN_PATTERN = /^[A-Z]{2}\d{2}[A-Z0-9]{4}\d{7}([A-Z0-9]?){0,16}$/;
+
+/**
+ * Helper to validate string against a pattern.
+ * Returns true if value is undefined/null/empty OR matches pattern.
+ * This allows optional fields to pass validation when empty.
+ */
+export function validateOptionalPattern(
+  value: string | undefined | null,
+  pattern: RegExp
+): boolean {
+  if (!value || value.trim() === "") return true;
+  return pattern.test(value);
+}
+
+/**
+ * Helper to validate a required string against a pattern.
+ * Returns true only if value is non-empty AND matches pattern.
+ */
+export function validateRequiredPattern(
+  value: string | undefined | null,
+  pattern: RegExp
+): boolean {
+  if (!value || value.trim() === "") return false;
+  return pattern.test(value);
+}
+
+/**
+ * Validates email format. Returns true if undefined/empty or valid email.
+ */
+export function validateOptionalEmail(
+  value: string | undefined | null
+): boolean {
+  if (!value || value.trim() === "") return true;
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailPattern.test(value);
+}
+
+/**
+ * Validates a number is positive (> 0)
+ */
+export function validatePositiveNumber(value: number | undefined): boolean {
+  return value !== undefined && value > 0;
+}
+
+/**
+ * Validates a number is non-negative (>= 0)
+ */
+export function validateNonNegativeNumber(value: number | undefined): boolean {
+  return value !== undefined && value >= 0;
+}
+
+/**
+ * Validation error messages in Dutch (for consistent error messaging)
+ */
+export const VALIDATION_MESSAGES = {
+  email: "Ongeldig e-mailadres",
+  telefoon:
+    "Ongeldig telefoonnummer. Gebruik formaat: 0612345678 of +31612345678",
+  postcode: "Ongeldige postcode. Gebruik formaat: 1234 AB",
+  kvkNummer: "KvK-nummer moet 8 cijfers bevatten",
+  btwNummer: "Ongeldig BTW-nummer. Gebruik formaat: NL123456789B01",
+  iban: "Ongeldig IBAN-nummer",
+  positiveNumber: "Waarde moet groter zijn dan 0",
+  nonNegativeNumber: "Waarde mag niet negatief zijn",
+  required: "Dit veld is verplicht",
+};
+
+/**
+ * Sanitizes optional string fields: converts empty strings to undefined.
+ * This ensures consistent handling between frontend and backend.
+ */
+export function sanitizeOptionalString(
+  value: string | undefined | null
+): string | undefined {
+  if (!value || value.trim() === "") return undefined;
+  return value.trim();
+}
+
+/**
+ * Sanitizes and validates a phone number.
+ * Returns undefined if empty, the cleaned value if valid, or throws if invalid.
+ */
+export function sanitizePhone(value: string | undefined | null): string | undefined {
+  const sanitized = sanitizeOptionalString(value);
+  if (!sanitized) return undefined;
+
+  // Remove common formatting characters
+  const cleaned = sanitized.replace(/[\s\-\(\)]/g, "");
+
+  if (!PHONE_PATTERN.test(cleaned)) {
+    throw new Error(VALIDATION_MESSAGES.telefoon);
+  }
+  return cleaned;
+}
+
+/**
+ * Sanitizes and validates an email.
+ * Returns undefined if empty, the value if valid, or throws if invalid.
+ */
+export function sanitizeEmail(value: string | undefined | null): string | undefined {
+  const sanitized = sanitizeOptionalString(value);
+  if (!sanitized) return undefined;
+
+  if (!validateOptionalEmail(sanitized)) {
+    throw new Error(VALIDATION_MESSAGES.email);
+  }
+  return sanitized.toLowerCase();
+}
+
+/**
+ * Sanitizes and validates a Dutch postcode.
+ * Returns undefined if empty, the normalized value if valid, or throws if invalid.
+ */
+export function sanitizePostcode(value: string | undefined | null): string | undefined {
+  const sanitized = sanitizeOptionalString(value);
+  if (!sanitized) return undefined;
+
+  // Normalize: uppercase and ensure space between digits and letters
+  const normalized = sanitized.toUpperCase().replace(/^(\d{4})\s?([A-Z]{2})$/, "$1 $2");
+
+  if (!POSTCODE_PATTERN.test(normalized)) {
+    throw new Error(VALIDATION_MESSAGES.postcode);
+  }
+  return normalized;
+}
+
+/**
+ * Validates a required postcode field.
+ * Throws if empty or invalid.
+ */
+export function validateRequiredPostcode(value: string | undefined | null): string {
+  if (!value || value.trim() === "") {
+    throw new Error(VALIDATION_MESSAGES.required);
+  }
+
+  const normalized = value.toUpperCase().replace(/^(\d{4})\s?([A-Z]{2})$/, "$1 $2");
+
+  if (!POSTCODE_PATTERN.test(normalized)) {
+    throw new Error(VALIDATION_MESSAGES.postcode);
+  }
+  return normalized;
+}
+
+/**
+ * Sanitizes and validates a KvK number.
+ * Returns undefined if empty, the value if valid, or throws if invalid.
+ */
+export function sanitizeKvkNummer(value: string | undefined | null): string | undefined {
+  const sanitized = sanitizeOptionalString(value);
+  if (!sanitized) return undefined;
+
+  // Remove any spaces or dots
+  const cleaned = sanitized.replace(/[\s\.]/g, "");
+
+  if (!KVK_PATTERN.test(cleaned)) {
+    throw new Error(VALIDATION_MESSAGES.kvkNummer);
+  }
+  return cleaned;
+}
+
+/**
+ * Sanitizes and validates a BTW number.
+ * Returns undefined if empty, the value if valid, or throws if invalid.
+ */
+export function sanitizeBtwNummer(value: string | undefined | null): string | undefined {
+  const sanitized = sanitizeOptionalString(value);
+  if (!sanitized) return undefined;
+
+  const normalized = sanitized.toUpperCase().replace(/[\s\.]/g, "");
+
+  if (!BTW_PATTERN.test(normalized)) {
+    throw new Error(VALIDATION_MESSAGES.btwNummer);
+  }
+  return normalized;
+}
+
+/**
+ * Sanitizes and validates an IBAN.
+ * Returns undefined if empty, the normalized value if valid, or throws if invalid.
+ */
+export function sanitizeIban(value: string | undefined | null): string | undefined {
+  const sanitized = sanitizeOptionalString(value);
+  if (!sanitized) return undefined;
+
+  const normalized = sanitized.toUpperCase().replace(/\s/g, "");
+
+  if (!IBAN_PATTERN.test(normalized)) {
+    throw new Error(VALIDATION_MESSAGES.iban);
+  }
+  return normalized;
+}
+
+/**
+ * Validates that a number is positive (> 0).
+ * Throws if not positive.
+ */
+export function validatePositive(value: number, fieldName: string = "Waarde"): number {
+  if (value <= 0) {
+    throw new Error(`${fieldName} moet groter zijn dan 0`);
+  }
+  return value;
+}
+
+/**
+ * Validates that a number is non-negative (>= 0).
+ * Throws if negative.
+ */
+export function validateNonNegative(value: number, fieldName: string = "Waarde"): number {
+  if (value < 0) {
+    throw new Error(`${fieldName} mag niet negatief zijn`);
+  }
+  return value;
+}

@@ -163,6 +163,7 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_status", ["status"])
+    .index("by_user_status", ["userId", "status"])
     .index("by_nummer", ["offerteNummer"])
     .index("by_share_token", ["shareToken"]),
 
@@ -397,6 +398,7 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_user_status", ["userId", "status"])
     .index("by_offerte", ["offerteId"]),
 
   // Voorcalculaties - Pre-calculation data
@@ -1073,6 +1075,7 @@ export default defineSchema({
     receivedAt: v.number(),
   })
     .index("by_session", ["sessionId"])
+    .index("by_session_time", ["sessionId", "recordedAt"])
     .index("by_user", ["userId"])
     .index("by_time", ["recordedAt"]),
 
@@ -1215,6 +1218,61 @@ export default defineSchema({
     .index("by_employee", ["employee"]),
 
   // ============================================
+  // WERKLOCATIES (Jobsite Information)
+  // ============================================
+
+  // Werklocaties - Gedetailleerde locatie-informatie per project
+  // Bevat toegangsinformatie, utilities, veiligheidsnotities en foto's
+  werklocaties: defineTable({
+    userId: v.id("users"),
+    projectId: v.id("projecten"),
+    // Locatie details
+    adres: v.string(),
+    postcode: v.string(),
+    plaats: v.string(),
+    coordinates: v.optional(
+      v.object({
+        lat: v.number(),
+        lng: v.number(),
+      })
+    ),
+    // Access informatie
+    toegangInstructies: v.optional(v.string()),
+    parkeerInfo: v.optional(v.string()),
+    sleutelInfo: v.optional(v.string()),
+    contactOpLocatie: v.optional(
+      v.object({
+        naam: v.optional(v.string()),
+        telefoon: v.optional(v.string()),
+      })
+    ),
+    // Utilities
+    waterAansluiting: v.optional(v.boolean()),
+    stroomAansluiting: v.optional(v.boolean()),
+    toiletBeschikbaar: v.optional(v.boolean()),
+    // Safety
+    veiligheidsNotities: v.optional(v.string()),
+    bijzonderheden: v.optional(v.string()),
+    // Foto's (URLs naar opgeslagen bestanden)
+    fotos: v.optional(
+      v.array(
+        v.object({
+          url: v.string(),
+          beschrijving: v.optional(v.string()),
+          type: v.optional(
+            v.union(v.literal("voor"), v.literal("tijdens"), v.literal("na"))
+          ),
+          createdAt: v.number(),
+        })
+      )
+    ),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_project", ["projectId"]),
+
+  // ============================================
   // PUSH NOTIFICATIONS
   // ============================================
 
@@ -1344,4 +1402,187 @@ export default defineSchema({
     .index("by_user_type", ["userId", "type"])
     .index("by_offerte", ["offerteId"])
     .index("by_project", ["projectId"]),
+
+  // ============================================
+  // Leveranciers & Inkoopbeheer
+  // ============================================
+
+  // Leveranciers - Supplier management
+  leveranciers: defineTable({
+    userId: v.id("users"),
+    naam: v.string(),
+    contactpersoon: v.optional(v.string()),
+    email: v.optional(v.string()),
+    telefoon: v.optional(v.string()),
+    adres: v.optional(v.string()),
+    postcode: v.optional(v.string()),
+    plaats: v.optional(v.string()),
+    kvkNummer: v.optional(v.string()),
+    btwNummer: v.optional(v.string()),
+    iban: v.optional(v.string()),
+    betalingstermijn: v.optional(v.number()), // dagen
+    notities: v.optional(v.string()),
+    isActief: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .searchIndex("search_leveranciers", {
+      searchField: "naam",
+      filterFields: ["userId"],
+    }),
+
+  // Inkooporders - Purchase orders
+  inkooporders: defineTable({
+    userId: v.id("users"),
+    leverancierId: v.id("leveranciers"),
+    projectId: v.optional(v.id("projecten")),
+    orderNummer: v.string(),
+    status: v.union(
+      v.literal("concept"),
+      v.literal("besteld"),
+      v.literal("geleverd"),
+      v.literal("gefactureerd")
+    ),
+    regels: v.array(
+      v.object({
+        id: v.string(),
+        productId: v.optional(v.id("producten")),
+        omschrijving: v.string(),
+        hoeveelheid: v.number(),
+        eenheid: v.string(),
+        prijsPerEenheid: v.number(),
+        totaal: v.number(),
+      })
+    ),
+    totaal: v.number(),
+    notities: v.optional(v.string()),
+    besteldAt: v.optional(v.number()),
+    verwachteLevertijd: v.optional(v.number()),
+    geleverdAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_status", ["userId", "status"])
+    .index("by_leverancier", ["leverancierId"])
+    .index("by_project", ["projectId"]),
+
+  // ============================================
+  // VOORRAAD / STOCK MANAGEMENT
+  // ============================================
+
+  // Voorraad - Stock levels per product per user
+  // Tracks current inventory with min/max levels for reorder alerts
+  voorraad: defineTable({
+    userId: v.id("users"),
+    productId: v.id("producten"),
+    categorie: v.optional(v.string()), // Denormalized from producten for efficient category queries
+    hoeveelheid: v.number(),
+    minVoorraad: v.optional(v.number()), // reorder point
+    maxVoorraad: v.optional(v.number()),
+    locatie: v.optional(v.string()), // magazijn locatie
+    laatsteBijwerking: v.number(),
+    notities: v.optional(v.string()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_product", ["userId", "productId"])
+    .index("by_user_category", ["userId", "categorie"]),
+
+  // VoorraadMutaties - Stock movements/transactions
+  // Tracks all inventory changes: purchases, consumption, corrections, returns
+  voorraadMutaties: defineTable({
+    userId: v.id("users"),
+    voorraadId: v.id("voorraad"),
+    productId: v.id("producten"),
+    type: v.union(
+      v.literal("inkoop"),
+      v.literal("verbruik"),
+      v.literal("correctie"),
+      v.literal("retour")
+    ),
+    hoeveelheid: v.number(), // positief voor inkoop, negatief voor verbruik
+    projectId: v.optional(v.id("projecten")),
+    inkooporderId: v.optional(v.id("inkooporders")),
+    notities: v.optional(v.string()),
+    createdAt: v.number(),
+    createdBy: v.optional(v.string()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_voorraad", ["voorraadId"])
+    .index("by_product", ["productId"])
+    .index("by_project", ["projectId"]),
+
+  // ============================================
+  // Real-time Cost Tracking & Quality Control
+  // ============================================
+
+  // ProjectKosten - Real-time cost tracking per project
+  // Track material, labor, machine, and other costs during project execution
+  projectKosten: defineTable({
+    userId: v.id("users"),
+    projectId: v.id("projecten"),
+    datum: v.string(), // YYYY-MM-DD
+    type: v.union(
+      v.literal("materiaal"),
+      v.literal("arbeid"),
+      v.literal("machine"),
+      v.literal("overig")
+    ),
+    omschrijving: v.string(),
+    bedrag: v.number(),
+    scope: v.optional(v.string()),
+    medewerker: v.optional(v.string()),
+    leverancierId: v.optional(v.id("leveranciers")),
+    factuurNummer: v.optional(v.string()),
+    notities: v.optional(v.string()),
+    createdAt: v.number(),
+    createdBy: v.optional(v.string()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_project", ["projectId"])
+    .index("by_project_type", ["projectId", "type"])
+    .index("by_project_date", ["projectId", "datum"]),
+
+  // KwaliteitsControles - Quality control checklists per project/scope
+  // Track quality inspections with checklist items, photos, and approval workflow
+  kwaliteitsControles: defineTable({
+    userId: v.id("users"),
+    projectId: v.id("projecten"),
+    scope: v.string(),
+    checklistItems: v.array(
+      v.object({
+        id: v.string(),
+        omschrijving: v.string(),
+        isAfgevinkt: v.boolean(),
+        afgevinktAt: v.optional(v.number()),
+        afgevinktDoor: v.optional(v.string()),
+        notities: v.optional(v.string()),
+      })
+    ),
+    status: v.union(
+      v.literal("open"),
+      v.literal("in_uitvoering"),
+      v.literal("goedgekeurd"),
+      v.literal("afgekeurd")
+    ),
+    opmerkingen: v.optional(v.string()),
+    goedgekeurdDoor: v.optional(v.string()),
+    goedgekeurdAt: v.optional(v.number()),
+    fotos: v.optional(
+      v.array(
+        v.object({
+          url: v.string(),
+          beschrijving: v.optional(v.string()),
+          type: v.union(v.literal("voor"), v.literal("na")),
+          createdAt: v.number(),
+        })
+      )
+    ),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_project", ["projectId"])
+    .index("by_project_status", ["projectId", "status"]),
 });

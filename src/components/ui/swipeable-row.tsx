@@ -42,11 +42,47 @@ function SwipeableRow({
     startTranslateX.current = translateX
   }, [translateX])
 
+  const handleMouseDown = React.useCallback((e: React.MouseEvent) => {
+    setIsDragging(true)
+    startX.current = e.clientX
+    startTranslateX.current = translateX
+  }, [translateX])
+
   const handleTouchMove = React.useCallback(
     (e: React.TouchEvent) => {
       if (!isDragging) return
 
       const currentX = e.touches[0].clientX
+      const diff = currentX - startX.current
+      let newTranslateX = startTranslateX.current + diff
+
+      // Limit swipe distance with resistance at edges
+      if (newTranslateX > 0) {
+        // Swiping right (revealing left actions)
+        if (leftActions.length === 0) {
+          newTranslateX = newTranslateX * 0.2 // Resistance when no left actions
+        } else {
+          newTranslateX = Math.min(newTranslateX, leftActionsWidth + 20)
+        }
+      } else {
+        // Swiping left (revealing right actions)
+        if (rightActions.length === 0) {
+          newTranslateX = newTranslateX * 0.2 // Resistance when no right actions
+        } else {
+          newTranslateX = Math.max(newTranslateX, -(rightActionsWidth + 20))
+        }
+      }
+
+      setTranslateX(newTranslateX)
+    },
+    [isDragging, leftActions.length, rightActions.length, leftActionsWidth, rightActionsWidth]
+  )
+
+  const handleMouseMove = React.useCallback(
+    (e: React.MouseEvent) => {
+      if (!isDragging) return
+
+      const currentX = e.clientX
       const diff = currentX - startX.current
       let newTranslateX = startTranslateX.current + diff
 
@@ -89,6 +125,32 @@ function SwipeableRow({
       setTranslateX(0)
     }
   }, [isDragging, translateX, threshold, leftActions.length, rightActions.length, leftActionsWidth, rightActionsWidth])
+
+  const handleMouseUp = React.useCallback(() => {
+    if (!isDragging) return
+
+    setIsDragging(false)
+
+    // Determine final position based on threshold
+    if (translateX > threshold && leftActions.length > 0) {
+      // Snap to reveal left actions
+      setTranslateX(leftActionsWidth)
+    } else if (translateX < -threshold && rightActions.length > 0) {
+      // Snap to reveal right actions
+      setTranslateX(-rightActionsWidth)
+    } else {
+      // Spring back to center
+      setTranslateX(0)
+    }
+  }, [isDragging, translateX, threshold, leftActions.length, rightActions.length, leftActionsWidth, rightActionsWidth])
+
+  const handleMouseLeave = React.useCallback(() => {
+    if (isDragging) {
+      setIsDragging(false)
+      // Spring back to center on mouse leave during drag
+      setTranslateX(0)
+    }
+  }, [isDragging])
 
   const handleActionClick = React.useCallback((action: SwipeAction) => {
     action.onClick()
@@ -226,6 +288,10 @@ function SwipeableRow({
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
         onKeyDown={handleKeyDown}
         tabIndex={0}
         role="group"

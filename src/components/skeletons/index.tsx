@@ -637,3 +637,506 @@ export function OfferteHistorySkeleton() {
     </motion.div>
   );
 }
+
+// Page Loading Skeleton - Generic full-page loading skeleton
+export function PageLoadingSkeleton() {
+  return (
+    <motion.div
+      role="status"
+      aria-busy="true"
+      aria-label="Pagina laden"
+      className="flex flex-1 flex-col gap-6 p-4 md:p-6"
+      variants={staggerContainer}
+      initial="initial"
+      animate="animate"
+    >
+      <span className="sr-only">Pagina wordt geladen...</span>
+
+      {/* Header with back button and title */}
+      <motion.div className="flex items-center gap-4" variants={fadeInUp}>
+        <motion.div {...shimmer}>
+          <Skeleton className="h-9 w-9 rounded-lg" />
+        </motion.div>
+        <div className="space-y-2">
+          <motion.div {...shimmer}>
+            <Skeleton className="h-7 w-48" />
+          </motion.div>
+          <motion.div {...shimmer}>
+            <Skeleton className="h-4 w-32" />
+          </motion.div>
+        </div>
+      </motion.div>
+
+      {/* Content cards */}
+      <motion.div
+        className="grid gap-4 md:grid-cols-2 lg:grid-cols-3"
+        variants={staggerContainer}
+      >
+        {Array.from({ length: 3 }).map((_, i) => (
+          <motion.div key={i} variants={fadeInUp}>
+            <Card>
+              <CardHeader className="pb-2">
+                <motion.div {...shimmer}>
+                  <Skeleton className="h-5 w-24" />
+                </motion.div>
+              </CardHeader>
+              <CardContent>
+                <motion.div {...shimmer}>
+                  <Skeleton className="h-8 w-20 mb-1" />
+                </motion.div>
+                <motion.div {...shimmer}>
+                  <Skeleton className="h-3 w-32" />
+                </motion.div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </motion.div>
+
+      {/* Main content area */}
+      <motion.div variants={fadeInUp}>
+        <Card>
+          <CardHeader>
+            <motion.div {...shimmer}>
+              <Skeleton className="h-6 w-40" />
+            </motion.div>
+            <motion.div {...shimmer}>
+              <Skeleton className="h-4 w-64" />
+            </motion.div>
+          </CardHeader>
+          <CardContent>
+            <motion.div {...shimmer}>
+              <Skeleton className="h-[250px] w-full" />
+            </motion.div>
+          </CardContent>
+        </Card>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// Project Kosten Skeleton
+export function ProjectKostenSkeleton() {
+  return (
+    <motion.div
+      role="status"
+      aria-busy="true"
+      aria-label="Kosten laden"
+      className="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6"
+      variants={staggerContainer}
+      initial="initial"
+      animate="animate"
+    >
+      <span className="sr-only">Kosten worden geladen...</span>
+
+      {/* Header with back button */}
+      <motion.div className="flex items-center gap-4" variants={fadeInUp}>
+        <motion.div {...shimmer}>
+          <Skeleton className="h-9 w-9 rounded-lg" />
+        </motion.div>
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <motion.div {...shimmer}>
+              <Skeleton className="h-5 w-5 rounded" />
+            </motion.div>
+            <motion.div {...shimmer}>
+              <Skeleton className="h-7 w-40" />
+            </motion.div>
+          </div>
+          <motion.div {...shimmer}>
+            <Skeleton className="h-4 w-32" />
+          </motion.div>
+        </div>
+      </motion.div>
+
+      {/* Stats Cards */}
+      <motion.div
+        className="grid gap-4 md:grid-cols-2 lg:grid-cols-4"
+        variants={staggerContainer}
+      >
+        {Array.from({ length: 4 }).map((_, i) => (
+          <motion.div key={i} variants={fadeInUp}>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <motion.div {...shimmer}>
+                  <Skeleton className="h-4 w-24" />
+                </motion.div>
+                <motion.div {...shimmer}>
+                  <Skeleton className="h-4 w-4 rounded" />
+                </motion.div>
+              </CardHeader>
+              <CardContent>
+                <motion.div {...shimmer}>
+                  <Skeleton className="h-8 w-24 mb-1" />
+                </motion.div>
+                <motion.div {...shimmer}>
+                  <Skeleton className="h-3 w-32" />
+                </motion.div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </motion.div>
+
+      {/* Chart and Table */}
+      <motion.div className="grid gap-4 lg:grid-cols-2" variants={staggerContainer}>
+        <motion.div variants={fadeInUp}>
+          <Card>
+            <CardHeader>
+              <motion.div {...shimmer}>
+                <Skeleton className="h-6 w-36" />
+              </motion.div>
+              <motion.div {...shimmer}>
+                <Skeleton className="h-4 w-48" />
+              </motion.div>
+            </CardHeader>
+            <CardContent>
+              <motion.div {...shimmer}>
+                <Skeleton className="h-[200px] w-full" />
+              </motion.div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div variants={fadeInUp}>
+          <Card>
+            <CardHeader>
+              <motion.div {...shimmer}>
+                <Skeleton className="h-6 w-32" />
+              </motion.div>
+              <motion.div {...shimmer}>
+                <Skeleton className="h-4 w-56" />
+              </motion.div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-4">
+                    <motion.div {...shimmer}>
+                      <Skeleton className="h-4 w-24" />
+                    </motion.div>
+                    <motion.div {...shimmer} className="flex-1">
+                      <Skeleton className="h-4 w-full" />
+                    </motion.div>
+                    <motion.div {...shimmer}>
+                      <Skeleton className="h-4 w-20" />
+                    </motion.div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// QC Page Skeleton
+export function QCPageSkeleton() {
+  return (
+    <motion.div
+      role="status"
+      aria-busy="true"
+      aria-label="Kwaliteitscontroles laden"
+      className="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6"
+      variants={staggerContainer}
+      initial="initial"
+      animate="animate"
+    >
+      <span className="sr-only">Kwaliteitscontroles worden geladen...</span>
+
+      {/* Header with back button */}
+      <motion.div className="flex items-center gap-4" variants={fadeInUp}>
+        <motion.div {...shimmer}>
+          <Skeleton className="h-9 w-9 rounded-lg" />
+        </motion.div>
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <motion.div {...shimmer}>
+              <Skeleton className="h-5 w-5 rounded" />
+            </motion.div>
+            <motion.div {...shimmer}>
+              <Skeleton className="h-7 w-48" />
+            </motion.div>
+          </div>
+          <motion.div {...shimmer}>
+            <Skeleton className="h-4 w-32" />
+          </motion.div>
+        </div>
+      </motion.div>
+
+      {/* Status Summary Cards */}
+      <motion.div
+        className="grid gap-3 grid-cols-2 md:grid-cols-4"
+        variants={staggerContainer}
+      >
+        {Array.from({ length: 4 }).map((_, i) => (
+          <motion.div key={i} variants={fadeInUp}>
+            <Card className="p-4">
+              <div className="flex items-center justify-between">
+                <motion.div {...shimmer}>
+                  <Skeleton className="h-4 w-20" />
+                </motion.div>
+                <motion.div {...shimmer}>
+                  <Skeleton className="h-6 w-8" />
+                </motion.div>
+              </div>
+            </Card>
+          </motion.div>
+        ))}
+      </motion.div>
+
+      {/* Progress Card */}
+      <motion.div variants={fadeInUp}>
+        <Card className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <motion.div {...shimmer}>
+              <Skeleton className="h-5 w-32" />
+            </motion.div>
+            <motion.div {...shimmer}>
+              <Skeleton className="h-5 w-12" />
+            </motion.div>
+          </div>
+          <motion.div {...shimmer}>
+            <Skeleton className="h-2 w-full rounded-full" />
+          </motion.div>
+        </Card>
+      </motion.div>
+
+      {/* QC Checklist Cards */}
+      <motion.div
+        className="grid gap-4 md:grid-cols-2"
+        variants={staggerContainer}
+      >
+        {Array.from({ length: 4 }).map((_, i) => (
+          <motion.div key={i} variants={fadeInUp}>
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <motion.div {...shimmer}>
+                    <Skeleton className="h-5 w-28" />
+                  </motion.div>
+                  <motion.div {...shimmer}>
+                    <Skeleton className="h-6 w-20 rounded-full" />
+                  </motion.div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {Array.from({ length: 3 }).map((_, j) => (
+                    <div key={j} className="flex items-center gap-3">
+                      <motion.div {...shimmer}>
+                        <Skeleton className="h-4 w-4 rounded" />
+                      </motion.div>
+                      <motion.div {...shimmer} className="flex-1">
+                        <Skeleton className="h-4 w-full" />
+                      </motion.div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// Table Skeleton - Generic table loading skeleton
+export function TableSkeleton({ rows = 5, columns = 6 }: { rows?: number; columns?: number }) {
+  return (
+    <Card role="status" aria-busy="true" aria-label="Tabel laden">
+      <span className="sr-only">Tabel wordt geladen...</span>
+      <div className="overflow-hidden">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b bg-muted/50">
+              {Array.from({ length: columns }).map((_, i) => (
+                <th key={i} className="p-4">
+                  <Skeleton className="h-4 w-20" />
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <motion.tbody
+            variants={staggerContainer}
+            initial="initial"
+            animate="animate"
+          >
+            {Array.from({ length: rows }).map((_, i) => (
+              <TableRowSkeleton key={i} columns={columns} />
+            ))}
+          </motion.tbody>
+        </table>
+      </div>
+    </Card>
+  );
+}
+
+// Project Detail Skeleton
+export function ProjectDetailSkeleton() {
+  return (
+    <motion.div
+      role="status"
+      aria-busy="true"
+      aria-label="Project laden"
+      className="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6"
+      variants={staggerContainer}
+      initial="initial"
+      animate="animate"
+    >
+      <span className="sr-only">Project wordt geladen...</span>
+
+      {/* Header with back button and title */}
+      <motion.div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between" variants={fadeInUp}>
+        <div className="flex items-start gap-4">
+          <motion.div {...shimmer}>
+            <Skeleton className="h-9 w-9 rounded-lg" />
+          </motion.div>
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <motion.div {...shimmer}>
+                <Skeleton className="h-8 w-48" />
+              </motion.div>
+              <motion.div {...shimmer}>
+                <Skeleton className="h-6 w-24 rounded-full" />
+              </motion.div>
+            </div>
+            <motion.div {...shimmer}>
+              <Skeleton className="h-4 w-40" />
+            </motion.div>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <motion.div {...shimmer}>
+            <Skeleton className="h-9 w-28" />
+          </motion.div>
+          <motion.div {...shimmer}>
+            <Skeleton className="h-9 w-32" />
+          </motion.div>
+        </div>
+      </motion.div>
+
+      {/* Progress Stepper */}
+      <motion.div variants={fadeInUp}>
+        <Card className="p-4">
+          <div className="flex justify-between gap-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <motion.div key={i} className="flex-1" {...shimmer}>
+                <Skeleton className="h-12 w-full rounded-lg" />
+              </motion.div>
+            ))}
+          </div>
+        </Card>
+      </motion.div>
+
+      {/* Main Content Grid */}
+      <motion.div className="grid gap-4 lg:grid-cols-3" variants={staggerContainer}>
+        {/* Left Column - Project Info */}
+        <motion.div className="lg:col-span-2 space-y-4" variants={staggerContainer}>
+          {/* Quick Stats */}
+          <motion.div
+            className="grid gap-4 grid-cols-2 md:grid-cols-4"
+            variants={staggerContainer}
+          >
+            {Array.from({ length: 4 }).map((_, i) => (
+              <motion.div key={i} variants={fadeInUp}>
+                <Card className="p-4">
+                  <div className="flex items-center gap-3">
+                    <motion.div {...shimmer}>
+                      <Skeleton className="h-10 w-10 rounded-lg" />
+                    </motion.div>
+                    <div className="space-y-1">
+                      <motion.div {...shimmer}>
+                        <Skeleton className="h-3 w-16" />
+                      </motion.div>
+                      <motion.div {...shimmer}>
+                        <Skeleton className="h-5 w-20" />
+                      </motion.div>
+                    </div>
+                  </div>
+                </Card>
+              </motion.div>
+            ))}
+          </motion.div>
+
+          {/* Werklocatie Card */}
+          <motion.div variants={fadeInUp}>
+            <Card>
+              <CardHeader>
+                <motion.div {...shimmer}>
+                  <Skeleton className="h-6 w-32" />
+                </motion.div>
+                <motion.div {...shimmer}>
+                  <Skeleton className="h-4 w-48" />
+                </motion.div>
+              </CardHeader>
+              <CardContent>
+                <motion.div {...shimmer}>
+                  <Skeleton className="h-[200px] w-full rounded-lg" />
+                </motion.div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </motion.div>
+
+        {/* Right Column - Quick Actions */}
+        <motion.div className="space-y-4" variants={staggerContainer}>
+          <motion.div variants={fadeInUp}>
+            <Card>
+              <CardHeader>
+                <motion.div {...shimmer}>
+                  <Skeleton className="h-6 w-28" />
+                </motion.div>
+                <motion.div {...shimmer}>
+                  <Skeleton className="h-4 w-40" />
+                </motion.div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <motion.div key={i} {...shimmer}>
+                      <Skeleton className="h-12 w-full rounded-lg" />
+                    </motion.div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Recent Activity */}
+          <motion.div variants={fadeInUp}>
+            <Card>
+              <CardHeader>
+                <motion.div {...shimmer}>
+                  <Skeleton className="h-6 w-36" />
+                </motion.div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="flex items-start gap-3">
+                      <motion.div {...shimmer}>
+                        <Skeleton className="h-8 w-8 rounded-full" />
+                      </motion.div>
+                      <div className="flex-1 space-y-1">
+                        <motion.div {...shimmer}>
+                          <Skeleton className="h-4 w-full" />
+                        </motion.div>
+                        <motion.div {...shimmer}>
+                          <Skeleton className="h-3 w-24" />
+                        </motion.div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </motion.div>
+      </motion.div>
+    </motion.div>
+  );
+}

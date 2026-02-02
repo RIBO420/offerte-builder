@@ -47,6 +47,19 @@ export const metadata: Metadata = {
   other: {
     "mobile-web-app-capable": "yes",
   },
+  openGraph: {
+    title: "Offerte Builder | Top Tuinen",
+    description:
+      "Scope-gedreven offerte systeem voor hoveniersbedrijven. Aanleg- en onderhoudsoffertes waarbij niets vergeten kan worden.",
+    type: "website",
+    locale: "nl_NL",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Offerte Builder | Top Tuinen",
+    description:
+      "Scope-gedreven offerte systeem voor hoveniersbedrijven. Aanleg- en onderhoudsoffertes waarbij niets vergeten kan worden.",
+  },
 };
 
 export const viewport: Viewport = {

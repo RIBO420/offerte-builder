@@ -3,13 +3,13 @@
  *
  * This service provides integration with the FleetGo fleet management API
  * for syncing vehicle data including locations, mileage, and vehicle details.
+ *
+ * SECURITY: This client calls the local API proxy at /api/fleetgo instead of
+ * calling FleetGo directly. The API key is kept secure on the server.
  */
 
-// Environment variable for API key
-const FLEETGO_API_KEY = process.env.NEXT_PUBLIC_FLEETGO_API_KEY || process.env.FLEETGO_API_KEY;
-
-// API Configuration
-const FLEETGO_BASE_URL = process.env.FLEETGO_API_URL || 'https://api.fleetgo.com/v1';
+// API Configuration - uses local proxy for security
+const FLEETGO_PROXY_URL = '/api/fleetgo';
 
 // =============================================================================
 // Type Definitions
@@ -152,6 +152,23 @@ export interface FleetGoApiResponse<T> {
 export interface VehiclesListResponse {
   vehicles: Vehicle[];
   total: number;
+}
+
+/**
+ * Proxy response indicating mock mode
+ */
+interface ProxyMockResponse {
+  useMockData: true;
+  message: string;
+}
+
+/**
+ * Proxy error response
+ */
+interface ProxyErrorResponse {
+  error: string;
+  code?: string;
+  statusCode?: number;
 }
 
 /**
@@ -318,25 +335,42 @@ export interface FleetGoClientOptions {
 }
 
 /**
+ * Type guard for mock response
+ */
+function isProxyMockResponse(data: unknown): data is ProxyMockResponse {
+  return typeof data === 'object' && data !== null && 'useMockData' in data && (data as ProxyMockResponse).useMockData === true;
+}
+
+/**
+ * Type guard for error response
+ */
+function isProxyErrorResponse(data: unknown): data is ProxyErrorResponse {
+  return typeof data === 'object' && data !== null && 'error' in data;
+}
+
+/**
  * FleetGo API Client
+ *
+ * SECURITY: This client uses the local API proxy at /api/fleetgo
+ * instead of calling FleetGo directly. The API key is never exposed
+ * to the client/browser.
  */
 export class FleetGoClient {
-  private readonly apiKey: string;
-  private readonly baseUrl: string;
+  private readonly proxyUrl: string;
   private readonly timeout: number;
-  private readonly useMockData: boolean;
+  private useMockData: boolean;
   private mockVehicles: Vehicle[] = [];
+  private mockDataInitialized: boolean = false;
 
-  constructor(apiKey?: string, options: FleetGoClientOptions = {}) {
-    this.apiKey = apiKey || FLEETGO_API_KEY || '';
-    this.baseUrl = options.baseUrl || FLEETGO_BASE_URL;
+  constructor(options: FleetGoClientOptions = {}) {
+    this.proxyUrl = options.baseUrl || FLEETGO_PROXY_URL;
     this.timeout = options.timeout || 30000;
-    this.useMockData = options.useMockData ?? !this.apiKey;
+    this.useMockData = options.useMockData ?? false;
 
-    // Initialize mock data if using mock mode
+    // Initialize mock data if explicitly using mock mode
     if (this.useMockData) {
       this.mockVehicles = FleetGoMockDataGenerator.generateVehicles(options.mockVehicleCount || 5);
-      console.warn('[FleetGo] Running in mock mode - no API key provided');
+      this.mockDataInitialized = true;
     }
   }
 
@@ -348,60 +382,74 @@ export class FleetGoClient {
   }
 
   /**
-   * Make an API request
+   * Initialize mock data if server indicates no API key
+   */
+  private initializeMockData(count: number = 5): void {
+    if (!this.mockDataInitialized) {
+      this.mockVehicles = FleetGoMockDataGenerator.generateVehicles(count);
+      this.useMockData = true;
+      this.mockDataInitialized = true;
+      console.warn('[FleetGo] Running in mock mode - API key not configured on server');
+    }
+  }
+
+  /**
+   * Make a request through the API proxy
    */
   private async request<T>(
     endpoint: string,
     method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET',
     body?: unknown
   ): Promise<T> {
-    if (!this.apiKey) {
-      throw new FleetGoError(
-        'API key is required for FleetGo API requests',
-        'MISSING_API_KEY'
-      );
-    }
-
-    const url = `${this.baseUrl}${endpoint}`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
     try {
-      const response = await fetch(url, {
-        method,
+      const response = await fetch(this.proxyUrl, {
+        method: 'POST',
         headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
           'Content-Type': 'application/json',
-          'Accept': 'application/json',
         },
-        body: body ? JSON.stringify(body) : undefined,
+        body: JSON.stringify({
+          endpoint,
+          method,
+          body,
+        }),
         signal: controller.signal,
       });
 
       clearTimeout(timeoutId);
 
+      const data = await response.json();
+
+      // Check if server indicates mock mode should be used
+      if (isProxyMockResponse(data)) {
+        this.initializeMockData();
+        throw new FleetGoError(
+          'API key not configured - using mock data',
+          'MOCK_MODE'
+        );
+      }
+
+      // Check for error response
+      if (isProxyErrorResponse(data)) {
+        throw new FleetGoError(
+          data.error,
+          data.code || 'API_ERROR',
+          data.statusCode
+        );
+      }
+
+      // Handle non-OK responses
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
         throw new FleetGoError(
-          errorData.error?.message || `HTTP error ${response.status}`,
-          errorData.error?.code || 'HTTP_ERROR',
-          response.status,
-          errorData.error?.details
+          `HTTP error ${response.status}`,
+          'HTTP_ERROR',
+          response.status
         );
       }
 
-      const data: FleetGoApiResponse<T> = await response.json();
-
-      if (!data.success && data.error) {
-        throw new FleetGoError(
-          data.error.message,
-          data.error.code,
-          undefined,
-          data.error.details
-        );
-      }
-
-      return data.data;
+      return data as T;
     } catch (error) {
       clearTimeout(timeoutId);
 
@@ -430,8 +478,16 @@ export class FleetGoClient {
       return this.mockVehicles;
     }
 
-    const response = await this.request<VehiclesListResponse>('/vehicles');
-    return response.vehicles;
+    try {
+      const response = await this.request<FleetGoApiResponse<VehiclesListResponse>>('/vehicles');
+      return response.data.vehicles;
+    } catch (error) {
+      if (error instanceof FleetGoError && error.code === 'MOCK_MODE') {
+        // Retry with mock data
+        return this.getVehicles();
+      }
+      throw error;
+    }
   }
 
   /**
@@ -451,7 +507,15 @@ export class FleetGoClient {
       return vehicle;
     }
 
-    return this.request<Vehicle>(`/vehicles/${encodeURIComponent(id)}`);
+    try {
+      const response = await this.request<FleetGoApiResponse<Vehicle>>(`/vehicles/${encodeURIComponent(id)}`);
+      return response.data;
+    } catch (error) {
+      if (error instanceof FleetGoError && error.code === 'MOCK_MODE') {
+        return this.getVehicle(id);
+      }
+      throw error;
+    }
   }
 
   /**
@@ -476,7 +540,15 @@ export class FleetGoClient {
       return vehicle;
     }
 
-    return this.request<Vehicle>(`/vehicles/license-plate/${encodeURIComponent(normalizedPlate)}`);
+    try {
+      const response = await this.request<FleetGoApiResponse<Vehicle>>(`/vehicles/license-plate/${encodeURIComponent(normalizedPlate)}`);
+      return response.data;
+    } catch (error) {
+      if (error instanceof FleetGoError && error.code === 'MOCK_MODE') {
+        return this.getVehicleByLicensePlate(plate);
+      }
+      throw error;
+    }
   }
 
   /**
@@ -497,7 +569,15 @@ export class FleetGoClient {
       return FleetGoMockDataGenerator.generateVehicleLocation(id);
     }
 
-    return this.request<VehicleLocation>(`/vehicles/${encodeURIComponent(id)}/location`);
+    try {
+      const response = await this.request<FleetGoApiResponse<VehicleLocation>>(`/vehicles/${encodeURIComponent(id)}/location`);
+      return response.data;
+    } catch (error) {
+      if (error instanceof FleetGoError && error.code === 'MOCK_MODE') {
+        return this.getVehicleLocation(id);
+      }
+      throw error;
+    }
   }
 
   /**
@@ -518,7 +598,15 @@ export class FleetGoClient {
       return FleetGoMockDataGenerator.generateVehicleMileage(id);
     }
 
-    return this.request<VehicleMileage>(`/vehicles/${encodeURIComponent(id)}/mileage`);
+    try {
+      const response = await this.request<FleetGoApiResponse<VehicleMileage>>(`/vehicles/${encodeURIComponent(id)}/mileage`);
+      return response.data;
+    } catch (error) {
+      if (error instanceof FleetGoError && error.code === 'MOCK_MODE') {
+        return this.getVehicleMileage(id);
+      }
+      throw error;
+    }
   }
 
   /**
@@ -532,7 +620,15 @@ export class FleetGoClient {
       );
     }
 
-    return this.request<VehicleLocation[]>('/vehicles/locations');
+    try {
+      const response = await this.request<FleetGoApiResponse<VehicleLocation[]>>('/vehicles/locations');
+      return response.data;
+    } catch (error) {
+      if (error instanceof FleetGoError && error.code === 'MOCK_MODE') {
+        return this.getAllVehicleLocations();
+      }
+      throw error;
+    }
   }
 
   /**
@@ -557,7 +653,7 @@ let fleetGoClientInstance: FleetGoClient | null = null;
  */
 export function getFleetGoClient(options?: FleetGoClientOptions): FleetGoClient {
   if (!fleetGoClientInstance) {
-    fleetGoClientInstance = new FleetGoClient(FLEETGO_API_KEY, options);
+    fleetGoClientInstance = new FleetGoClient(options);
   }
   return fleetGoClientInstance;
 }

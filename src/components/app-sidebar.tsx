@@ -55,6 +55,11 @@ import {
   Truck,
   Shield,
   Calendar,
+  Building2,
+  ShoppingCart,
+  Package,
+  DollarSign,
+  CheckSquare,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -90,6 +95,19 @@ const organizationItems = [
 const nieuweOfferteItems = [
   { title: "Aanleg", url: "/offertes/nieuw/aanleg", icon: Shovel },
   { title: "Onderhoud", url: "/offertes/nieuw/onderhoud", icon: Trees },
+];
+
+// Inkoop section - admin only
+const inkoopItems = [
+  { title: "Leveranciers", url: "/leveranciers", icon: Building2 },
+  { title: "Inkooporders", url: "/inkoop", icon: ShoppingCart },
+  { title: "Voorraad", url: "/voorraad", icon: Package },
+];
+
+// Project sub-items (shown within project context)
+const projectSubItems = [
+  { title: "Kosten tracking", urlSuffix: "/kosten", icon: DollarSign },
+  { title: "Kwaliteit", urlSuffix: "/kwaliteit", icon: CheckSquare },
 ];
 
 
@@ -141,6 +159,27 @@ export function AppSidebar() {
     );
   }, [pathname, filteredOrganizationItems]);
 
+  // Check if inkoop section is active
+  const isInkoopSectionActive = useMemo(() => {
+    return inkoopItems.some(
+      (item) => pathname === item.url || pathname.startsWith(item.url + "/")
+    );
+  }, [pathname]);
+
+  // Extract current project ID from pathname if on a project page
+  const currentProjectId = useMemo(() => {
+    const match = pathname.match(/^\/projecten\/([^/]+)/);
+    return match ? match[1] : null;
+  }, [pathname]);
+
+  // Check if project sub-section is active
+  const isProjectSubSectionActive = useMemo(() => {
+    if (!currentProjectId) return false;
+    return projectSubItems.some(
+      (item) => pathname === `/projecten/${currentProjectId}${item.urlSuffix}`
+    );
+  }, [pathname, currentProjectId]);
+
   // Prevent hydration mismatch
   useEffect(() => {
     setMounted(true);
@@ -162,7 +201,7 @@ export function AppSidebar() {
             <SidebarMenuButton size="lg" asChild>
               <Link href="/dashboard">
                 <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <Trees className="size-4" />
+                  <Trees className="size-4" aria-hidden="true" />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-semibold" title="Top Tuinen">Top Tuinen</span>
@@ -208,7 +247,7 @@ export function AppSidebar() {
                 <SidebarGroupLabel asChild>
                   <CollapsibleTrigger className="flex w-full items-center justify-between">
                     <span>Offertes & Facturen</span>
-                    <ChevronRight className="size-4 transition-transform group-data-[state=open]/collapsible:rotate-90" />
+                    <ChevronRight className="size-4 transition-transform group-data-[state=open]/collapsible:rotate-90" aria-hidden="true" />
                   </CollapsibleTrigger>
                 </SidebarGroupLabel>
                 <CollapsibleContent>
@@ -240,13 +279,87 @@ export function AppSidebar() {
                               tooltip={`Nieuwe ${item.title} Offerte`}
                             >
                               <Link href={item.url}>
-                                <Plus className="size-3" />
+                                <Plus className="size-3" aria-hidden="true" />
                                 <span className="text-xs">{item.title}</span>
                               </Link>
                             </SidebarMenuButton>
                           ))}
                         </div>
                       </SidebarMenuItem>
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                </CollapsibleContent>
+              </SidebarGroup>
+            </Collapsible>
+          </>
+        )}
+
+        {/* Inkoop - Admin only, collapsible */}
+        {isAdmin && (
+          <>
+            <SidebarSeparator />
+            <Collapsible defaultOpen={isInkoopSectionActive} className="group/collapsible">
+              <SidebarGroup>
+                <SidebarGroupLabel asChild>
+                  <CollapsibleTrigger className="flex w-full items-center justify-between">
+                    <span>Inkoop</span>
+                    <ChevronRight className="size-4 transition-transform group-data-[state=open]/collapsible:rotate-90" aria-hidden="true" />
+                  </CollapsibleTrigger>
+                </SidebarGroupLabel>
+                <CollapsibleContent>
+                  <SidebarGroupContent>
+                    <SidebarMenu>
+                      {inkoopItems.map((item) => (
+                        <SidebarMenuItem key={item.title}>
+                          <SidebarMenuButton
+                            asChild
+                            isActive={pathname === item.url || pathname.startsWith(item.url + "/")}
+                            tooltip={item.title}
+                          >
+                            <Link href={item.url}>
+                              <item.icon />
+                              <span>{item.title}</span>
+                            </Link>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      ))}
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                </CollapsibleContent>
+              </SidebarGroup>
+            </Collapsible>
+          </>
+        )}
+
+        {/* Project Sub-navigation - Only visible when on a project page */}
+        {currentProjectId && (
+          <>
+            <SidebarSeparator />
+            <Collapsible defaultOpen={isProjectSubSectionActive} className="group/collapsible">
+              <SidebarGroup>
+                <SidebarGroupLabel asChild>
+                  <CollapsibleTrigger className="flex w-full items-center justify-between">
+                    <span>Project Tools</span>
+                    <ChevronRight className="size-4 transition-transform group-data-[state=open]/collapsible:rotate-90" aria-hidden="true" />
+                  </CollapsibleTrigger>
+                </SidebarGroupLabel>
+                <CollapsibleContent>
+                  <SidebarGroupContent>
+                    <SidebarMenu>
+                      {projectSubItems.map((item) => (
+                        <SidebarMenuItem key={item.title}>
+                          <SidebarMenuButton
+                            asChild
+                            isActive={pathname === `/projecten/${currentProjectId}${item.urlSuffix}`}
+                            tooltip={item.title}
+                          >
+                            <Link href={`/projecten/${currentProjectId}${item.urlSuffix}`}>
+                              <item.icon />
+                              <span>{item.title}</span>
+                            </Link>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      ))}
                     </SidebarMenu>
                   </SidebarGroupContent>
                 </CollapsibleContent>
@@ -297,10 +410,10 @@ export function AppSidebar() {
                 <SidebarGroupLabel asChild>
                   <CollapsibleTrigger className="flex w-full items-center justify-between">
                     <span className="flex items-center gap-2">
-                      <Clock className="size-3" />
+                      <Clock className="size-3" aria-hidden="true" />
                       Recent
                     </span>
-                    <ChevronRight className="size-4 transition-transform group-data-[state=open]/collapsible:rotate-90" />
+                    <ChevronRight className="size-4 transition-transform group-data-[state=open]/collapsible:rotate-90" aria-hidden="true" />
                   </CollapsibleTrigger>
                 </SidebarGroupLabel>
                 <CollapsibleContent>
@@ -378,7 +491,7 @@ export function AppSidebar() {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
                     <Link href="/profiel" className="cursor-pointer">
-                      <User className="mr-2 h-4 w-4" />
+                      <User className="mr-2 h-4 w-4" aria-hidden="true" />
                       Mijn Profiel
                     </Link>
                   </DropdownMenuItem>
@@ -387,19 +500,19 @@ export function AppSidebar() {
                     <>
                       <DropdownMenuItem asChild>
                         <Link href="/instellingen" className="cursor-pointer">
-                          <Settings className="mr-2 h-4 w-4" />
+                          <Settings className="mr-2 h-4 w-4" aria-hidden="true" />
                           Instellingen
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
                         <Link href="/gebruikers" className="cursor-pointer">
-                          <Shield className="mr-2 h-4 w-4" />
+                          <Shield className="mr-2 h-4 w-4" aria-hidden="true" />
                           Gebruikersbeheer
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
                         <Link href="/prijsboek" className="cursor-pointer">
-                          <BookOpen className="mr-2 h-4 w-4" />
+                          <BookOpen className="mr-2 h-4 w-4" aria-hidden="true" />
                           Prijsboek
                         </Link>
                       </DropdownMenuItem>
@@ -408,7 +521,7 @@ export function AppSidebar() {
                   )}
                   <DropdownMenuItem asChild>
                     <Link href="/instellingen/machines" className="cursor-pointer">
-                      <Wrench className="mr-2 h-4 w-4" />
+                      <Wrench className="mr-2 h-4 w-4" aria-hidden="true" />
                       Machinepark
                     </Link>
                   </DropdownMenuItem>
@@ -417,7 +530,7 @@ export function AppSidebar() {
                     onClick={handleSignOut}
                     className="cursor-pointer text-destructive focus:text-destructive"
                   >
-                    <LogOut className="mr-2 h-4 w-4" />
+                    <LogOut className="mr-2 h-4 w-4" aria-hidden="true" />
                     Uitloggen
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -429,10 +542,10 @@ export function AppSidebar() {
                   size="icon"
                   className="size-11 sm:size-8 shrink-0"
                   onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                  aria-label={theme === "dark" ? "Schakel naar lichte modus" : "Schakel naar donkere modus"}
                 >
-                  <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                  <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-                  <span className="sr-only">Wissel thema</span>
+                  <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" aria-hidden="true" />
+                  <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" aria-hidden="true" />
                 </Button>
               </div>
             </div>

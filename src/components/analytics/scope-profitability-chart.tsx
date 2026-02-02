@@ -18,6 +18,7 @@ import {
 } from "recharts";
 import { TrendingUp, DollarSign, Percent, Award } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatCurrency, formatCurrencyCompact } from "@/lib/format";
 
 interface ScopeProfitabilityData {
   scope: string;
@@ -50,19 +51,9 @@ const scopeLabels: Record<string, string> = {
   overig: "Overig",
 };
 
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("nl-NL", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
-
-function formatCompact(amount: number): string {
-  if (amount >= 1000000) return `€${(amount / 1000000).toFixed(1)}M`;
-  if (amount >= 1000) return `€${(amount / 1000).toFixed(0)}k`;
-  return formatCurrency(amount);
+// Helper to format currency without decimals
+function formatCurrencyNoDecimals(amount: number): string {
+  return formatCurrency(amount, "nl-NL", false);
 }
 
 // Colors for revenue bars
@@ -165,7 +156,7 @@ export const ScopeProfitabilityChart = memo(function ScopeProfitabilityChart({ d
           <div className="text-center p-3 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
             <div className="text-xs text-muted-foreground mb-1">Totale Scope Omzet</div>
             <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
-              {formatCompact(totalOmzet)}
+              {formatCurrencyCompact(totalOmzet)}
             </div>
           </div>
           <div className="text-center p-3 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
@@ -197,7 +188,7 @@ export const ScopeProfitabilityChart = memo(function ScopeProfitabilityChart({ d
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
               <XAxis
                 type="number"
-                tickFormatter={(value) => formatCompact(value)}
+                tickFormatter={(value) => formatCurrencyCompact(value)}
                 tick={{ fontSize: 11 }}
                 className="fill-muted-foreground"
               />
@@ -218,7 +209,7 @@ export const ScopeProfitabilityChart = memo(function ScopeProfitabilityChart({ d
                       <div className="space-y-1 text-sm">
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Omzet:</span>
-                          <span className="font-medium">{formatCurrency(item.omzet)}</span>
+                          <span className="font-medium">{formatCurrencyNoDecimals(item.omzet)}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Marge:</span>
@@ -228,7 +219,7 @@ export const ScopeProfitabilityChart = memo(function ScopeProfitabilityChart({ d
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Marge bedrag:</span>
-                          <span className="font-medium">{formatCurrency(item.marge)}</span>
+                          <span className="font-medium">{formatCurrencyNoDecimals(item.marge)}</span>
                         </div>
                         <div className="flex justify-between pt-1 border-t">
                           <span className="text-muted-foreground">Offertes:</span>
@@ -275,7 +266,7 @@ export const ScopeProfitabilityChart = memo(function ScopeProfitabilityChart({ d
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
               <XAxis
                 type="number"
-                tickFormatter={(value) => formatCompact(value)}
+                tickFormatter={(value) => formatCurrencyCompact(value)}
                 tick={{ fontSize: 11 }}
                 className="fill-muted-foreground"
               />
@@ -287,7 +278,7 @@ export const ScopeProfitabilityChart = memo(function ScopeProfitabilityChart({ d
                 width={75}
               />
               <Tooltip
-                formatter={(value) => [formatCurrency(value as number), "Omzet"]}
+                formatter={(value) => [formatCurrencyNoDecimals(value as number), "Omzet"]}
                 contentStyle={{
                   backgroundColor: "hsl(var(--card))",
                   borderColor: "hsl(var(--border))",

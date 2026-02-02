@@ -55,6 +55,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DynamicSignaturePad as SignaturePadComponent } from "@/components/ui/signature-pad-dynamic";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { createBackgroundErrorHandler } from "@/lib/error-handling";
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("nl-NL", {
@@ -295,9 +296,13 @@ export default function PublicOffertePage({
   // Mark as viewed when page loads
   useEffect(() => {
     if (data && !data.expired && data.offerte && !hasMarkedViewed) {
-      // Non-critical operations - silent fail is acceptable
-      markAsViewed({ token }).catch(() => {});
-      markMessagesAsRead({ token }).catch(() => {});
+      // Non-critical operations - log errors but don't block user
+      markAsViewed({ token }).catch(
+        createBackgroundErrorHandler("markAsViewed", { token })
+      );
+      markMessagesAsRead({ token }).catch(
+        createBackgroundErrorHandler("markMessagesAsRead", { token, context: "pageLoad" })
+      );
       setHasMarkedViewed(true);
     }
   }, [data, token, markAsViewed, markMessagesAsRead, hasMarkedViewed]);
@@ -310,8 +315,10 @@ export default function PublicOffertePage({
   // Mark messages as read when new ones come in
   useEffect(() => {
     if (messages && messages.length > 0) {
-      // Non-critical operation - silent fail is acceptable
-      markMessagesAsRead({ token }).catch(() => {});
+      // Non-critical operation - log errors but don't block user
+      markMessagesAsRead({ token }).catch(
+        createBackgroundErrorHandler("markMessagesAsRead", { token, context: "newMessages" })
+      );
     }
   }, [messages, token, markMessagesAsRead]);
 

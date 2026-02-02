@@ -1,6 +1,13 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuth, requireAuthUserId, getOwnedKlant } from "./auth";
+import {
+  sanitizeEmail,
+  sanitizePhone,
+  validateRequiredPostcode,
+  sanitizeOptionalString,
+  VALIDATION_MESSAGES,
+} from "./validators";
 
 // Get all klanten for authenticated user
 export const list = query({
@@ -113,15 +120,32 @@ export const create = mutation({
     const userId = await requireAuthUserId(ctx);
     const now = Date.now();
 
+    // Validate required fields
+    if (!args.naam.trim()) {
+      throw new Error("Naam is verplicht");
+    }
+    if (!args.adres.trim()) {
+      throw new Error("Adres is verplicht");
+    }
+    if (!args.plaats.trim()) {
+      throw new Error("Plaats is verplicht");
+    }
+
+    // Validate and sanitize fields
+    const postcode = validateRequiredPostcode(args.postcode);
+    const email = sanitizeEmail(args.email);
+    const telefoon = sanitizePhone(args.telefoon);
+    const notities = sanitizeOptionalString(args.notities);
+
     return await ctx.db.insert("klanten", {
       userId,
-      naam: args.naam,
-      adres: args.adres,
-      postcode: args.postcode,
-      plaats: args.plaats,
-      email: args.email,
-      telefoon: args.telefoon,
-      notities: args.notities,
+      naam: args.naam.trim(),
+      adres: args.adres.trim(),
+      postcode,
+      plaats: args.plaats.trim(),
+      email,
+      telefoon,
+      notities,
       createdAt: now,
       updatedAt: now,
     });
@@ -144,15 +168,45 @@ export const update = mutation({
     // Verify ownership
     await getOwnedKlant(ctx, args.id);
 
-    const { id, ...updates } = args;
-
-    // Filter out undefined values
     const filteredUpdates: Record<string, unknown> = {};
-    Object.entries(updates).forEach(([key, value]) => {
-      if (value !== undefined) {
-        filteredUpdates[key] = value;
+
+    // Validate and sanitize each field if provided
+    if (args.naam !== undefined) {
+      if (!args.naam.trim()) {
+        throw new Error("Naam is verplicht");
       }
-    });
+      filteredUpdates.naam = args.naam.trim();
+    }
+
+    if (args.adres !== undefined) {
+      if (!args.adres.trim()) {
+        throw new Error("Adres is verplicht");
+      }
+      filteredUpdates.adres = args.adres.trim();
+    }
+
+    if (args.postcode !== undefined) {
+      filteredUpdates.postcode = validateRequiredPostcode(args.postcode);
+    }
+
+    if (args.plaats !== undefined) {
+      if (!args.plaats.trim()) {
+        throw new Error("Plaats is verplicht");
+      }
+      filteredUpdates.plaats = args.plaats.trim();
+    }
+
+    if (args.email !== undefined) {
+      filteredUpdates.email = sanitizeEmail(args.email);
+    }
+
+    if (args.telefoon !== undefined) {
+      filteredUpdates.telefoon = sanitizePhone(args.telefoon);
+    }
+
+    if (args.notities !== undefined) {
+      filteredUpdates.notities = sanitizeOptionalString(args.notities);
+    }
 
     await ctx.db.patch(args.id, {
       ...filteredUpdates,
@@ -235,16 +289,21 @@ export const createFromOfferte = mutation({
       return exactMatch._id;
     }
 
+    // Validate and sanitize fields
+    const postcode = validateRequiredPostcode(args.postcode);
+    const email = sanitizeEmail(args.email);
+    const telefoon = sanitizePhone(args.telefoon);
+
     // Create new klant
     const now = Date.now();
     return await ctx.db.insert("klanten", {
       userId,
-      naam: args.naam,
-      adres: args.adres,
-      postcode: args.postcode,
-      plaats: args.plaats,
-      email: args.email,
-      telefoon: args.telefoon,
+      naam: args.naam.trim(),
+      adres: args.adres.trim(),
+      postcode,
+      plaats: args.plaats.trim(),
+      email,
+      telefoon,
       createdAt: now,
       updatedAt: now,
     });

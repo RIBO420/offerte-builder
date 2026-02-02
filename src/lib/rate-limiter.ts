@@ -152,6 +152,14 @@ export const strictRateLimiter = new RateLimiter(
 );
 
 /**
+ * FleetGo API rate limiter: 60 requests per minute.
+ */
+export const fleetgoRateLimiter = new RateLimiter(
+  { maxRequests: 60, windowMs: 60 * 1000 },
+  "fleetgo"
+);
+
+/**
  * Get a unique identifier from request.
  * Uses X-Forwarded-For header or falls back to a generic key.
  */

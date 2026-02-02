@@ -196,6 +196,60 @@ export async function withRetry<T>(
   throw lastError;
 }
 
+/**
+ * Handle non-critical background operation errors.
+ *
+ * Use this for operations that shouldn't block the user but should be logged
+ * for debugging and monitoring purposes. Examples:
+ * - Marking messages as read
+ * - Tracking page views
+ * - Syncing non-essential data
+ *
+ * @param error - The error that occurred
+ * @param operation - Name of the operation for logging context
+ * @param extra - Additional context to include in the log
+ */
+export function handleBackgroundError(
+  error: unknown,
+  operation: string,
+  extra?: Record<string, unknown>
+): void {
+  // Log to console for development visibility
+  console.warn(`[Background Operation Failed] ${operation}:`, error);
+
+  // Capture in Sentry at warning level (non-critical)
+  Sentry.captureException(error, {
+    tags: {
+      operation,
+      category: "background-operation",
+    },
+    level: "warning",
+    extra: {
+      ...extra,
+      isBackgroundOperation: true,
+    },
+  });
+}
+
+/**
+ * Creates a catch handler for non-critical background operations.
+ *
+ * Usage:
+ * ```typescript
+ * markAsViewed({ token }).catch(createBackgroundErrorHandler("markAsViewed", { token }));
+ * ```
+ *
+ * @param operation - Name of the operation for logging context
+ * @param extra - Additional context to include in the log
+ * @returns Error handler function
+ */
+export function createBackgroundErrorHandler(
+  operation: string,
+  extra?: Record<string, unknown>
+): (error: unknown) => void {
+  return (error: unknown) => handleBackgroundError(error, operation, extra);
+}
+
 // Toast-friendly error handler for mutations
 export function getMutationErrorMessage(error: unknown): string {
   // Convex errors often have a message property

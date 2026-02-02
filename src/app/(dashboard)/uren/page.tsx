@@ -68,6 +68,12 @@ import {
   ExportDropdown,
   urenExportColumns,
 } from "@/components/export-dropdown";
+import {
+  formatDate,
+  formatHours,
+  getTodayString,
+  getDaysAgoString,
+} from "@/lib/format";
 
 // Animation variants
 const containerVariants = {
@@ -90,33 +96,6 @@ const itemVariants = {
     },
   },
 };
-
-// Format date for display
-function formatDate(dateStr: string): string {
-  const date = new Date(dateStr);
-  return new Intl.DateTimeFormat("nl-NL", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(date);
-}
-
-// Format hours with 1 decimal
-function formatHours(hours: number): string {
-  return hours.toFixed(1).replace(".", ",");
-}
-
-// Get date string for today
-function getTodayStr(): string {
-  return new Date().toISOString().split("T")[0];
-}
-
-// Get date string for N days ago
-function getDaysAgoStr(days: number): string {
-  const date = new Date();
-  date.setDate(date.getDate() - days);
-  return date.toISOString().split("T")[0];
-}
 
 type DateRangePreset = "week" | "month" | "quarter" | "year" | "all";
 
@@ -200,21 +179,21 @@ function UrenPageContent() {
 
   // Calculate date range based on preset
   const { startDate, endDate } = useMemo(() => {
-    const end = getTodayStr();
+    const end = getTodayString();
     let start: string | undefined;
 
     switch (dateRange) {
       case "week":
-        start = getDaysAgoStr(7);
+        start = getDaysAgoString(7);
         break;
       case "month":
-        start = getDaysAgoStr(30);
+        start = getDaysAgoString(30);
         break;
       case "quarter":
-        start = getDaysAgoStr(90);
+        start = getDaysAgoString(90);
         break;
       case "year":
-        start = getDaysAgoStr(365);
+        start = getDaysAgoString(365);
         break;
       case "all":
       default:

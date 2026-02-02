@@ -25,6 +25,7 @@ import {
   formatDeviation,
   formatHoursAsDays,
 } from "@/lib/nacalculatie-calculator";
+import { formatDecimal } from "@/lib/format";
 
 interface NacalculatieSummaryProps {
   data: NacalculatieResult;
@@ -260,7 +261,7 @@ export const NacalculatieSummary = memo(function NacalculatieSummary({
                 <li>{data.geplandeDagen} werkdagen</li>
                 {data.geplandeMachineKosten > 0 && (
                   <li>
-                    EUR {data.geplandeMachineKosten.toLocaleString("nl-NL")}{" "}
+                    EUR {data.geplandeMachineKosten.toLocaleString("nl-NL", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}{" "}
                     machinekosten
                   </li>
                 )}
@@ -276,7 +277,7 @@ export const NacalculatieSummary = memo(function NacalculatieSummary({
                 <li>{data.werkelijkeDagen} werkdagen</li>
                 {data.werkelijkeMachineKosten > 0 && (
                   <li>
-                    EUR {data.werkelijkeMachineKosten.toLocaleString("nl-NL")}{" "}
+                    EUR {data.werkelijkeMachineKosten.toLocaleString("nl-NL", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}{" "}
                     machinekosten
                   </li>
                 )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useCallback, useMemo } from "react";
+import { use, useState, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
@@ -137,6 +137,10 @@ export default function PlanningPage({
     normUren: 0,
   });
 
+  // Optimistic updates state for task status changes
+  const [optimisticStatusUpdates, setOptimisticStatusUpdates] = useState<Map<string, TaakStatus>>(new Map());
+  const [optimisticDeletedIds, setOptimisticDeletedIds] = useState<Set<string>>(new Set());
+
   // Team settings from voorcalculatie
   const teamGrootte = (voorcalculatie as any)?.teamGrootte || 2;
   const effectieveUrenPerDag = (voorcalculatie as any)?.effectieveUrenPerDag || 6;
@@ -166,21 +170,59 @@ export default function PlanningPage({
     }
   }, [generateFromVoorcalculatie]);
 
-  // Handle status update
+  // Handle status update with optimistic update
   const handleUpdateStatus = async (taskId: Id<"planningTaken">, status: TaakStatus) => {
+    // 1. Apply optimistic update immediately
+    setOptimisticStatusUpdates((prev) => {
+      const newMap = new Map(prev);
+      newMap.set(taskId, status);
+      return newMap;
+    });
+
     try {
+      // 2. Make actual server call
       await updateStatus(taskId, status);
+
+      // 3. Clear optimistic update (server data will take over)
+      setOptimisticStatusUpdates((prev) => {
+        const newMap = new Map(prev);
+        newMap.delete(taskId);
+        return newMap;
+      });
     } catch {
+      // 4. Rollback on error
+      setOptimisticStatusUpdates((prev) => {
+        const newMap = new Map(prev);
+        newMap.delete(taskId);
+        return newMap;
+      });
       toast.error("Fout bij bijwerken status");
     }
   };
 
-  // Handle delete
+  // Handle delete with optimistic update
   const handleDelete = async (taskId: Id<"planningTaken">) => {
+    // 1. Apply optimistic delete immediately
+    setOptimisticDeletedIds((prev) => new Set(prev).add(taskId));
+    toast.success("Taak verwijderd");
+
     try {
+      // 2. Make actual server call
       await removeTask(taskId);
-      toast.success("Taak verwijderd");
+
+      // 3. Clear optimistic delete (server data will take over)
+      setOptimisticDeletedIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(taskId);
+        return newSet;
+      });
     } catch {
+      // 4. Rollback on error
+      setOptimisticDeletedIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(taskId);
+        return newSet;
+      });
       toast.error("Fout bij verwijderen taak");
     }
   };
@@ -239,6 +281,33 @@ export default function PlanningPage({
 
   // Check if project can transition to execution
   const canStartExecution = project?.status === "gepland";
+
+  // Apply optimistic updates to taken data
+  const takenWithOptimisticUpdates = useMemo(() => {
+    return taken
+      // Filter out optimistically deleted tasks
+      .filter((taak) => !optimisticDeletedIds.has(taak._id))
+      // Apply optimistic status updates
+      .map((taak) => {
+        const optimisticStatus = optimisticStatusUpdates.get(taak._id);
+        if (optimisticStatus) {
+          return { ...taak, status: optimisticStatus };
+        }
+        return taak;
+      });
+  }, [taken, optimisticStatusUpdates, optimisticDeletedIds]);
+
+  // Build takenPerScope with optimistic updates applied
+  const takenPerScopeWithOptimisticUpdates = useMemo(() => {
+    const scopeMap: Record<string, typeof takenWithOptimisticUpdates> = {};
+    for (const taak of takenWithOptimisticUpdates) {
+      if (!scopeMap[taak.scope]) {
+        scopeMap[taak.scope] = [];
+      }
+      scopeMap[taak.scope].push(taak);
+    }
+    return scopeMap;
+  }, [takenWithOptimisticUpdates]);
 
   // Planning checklist items
   const checklistItems = useMemo(() => {
@@ -692,8 +761,8 @@ export default function PlanningPage({
               </Card>
             ) : (
               <TakenLijst
-                taken={taken}
-                takenPerScope={takenPerScope}
+                taken={takenWithOptimisticUpdates}
+                takenPerScope={takenPerScopeWithOptimisticUpdates}
                 onUpdateStatus={handleUpdateStatus}
                 onReorder={handleReorder}
                 onDelete={handleDelete}

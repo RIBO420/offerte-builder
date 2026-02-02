@@ -4,6 +4,7 @@ import { useUser } from "@clerk/nextjs";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useEffect, useRef, useCallback, useMemo } from "react";
+import { createBackgroundErrorHandler } from "@/lib/error-handling";
 
 export function useCurrentUser() {
   const { user: clerkUser, isLoaded: isClerkLoaded } = useUser();
@@ -48,9 +49,9 @@ export function useCurrentUser() {
     if (convexUser?._id && !hasInitialized.current) {
       hasInitialized.current = true;
       // initializeDefaults now also runs data migrations
-      initializeDefaultsMutation({}).catch(() => {
-        // Silent failure - user can manually retry via settings
-      });
+      initializeDefaultsMutation({}).catch(
+        createBackgroundErrorHandler("initializeDefaults", { userId: convexUser._id })
+      );
     }
   }, [convexUser?._id, initializeDefaultsMutation]);
 

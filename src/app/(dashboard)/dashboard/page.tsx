@@ -36,6 +36,9 @@ import { useFullDashboardData } from "@/hooks/use-offertes";
 import { useIsAdmin } from "@/hooks/use-users";
 import { useOnboarding } from "@/hooks/use-onboarding";
 import { WelcomeModal, OnboardingChecklist } from "@/components/onboarding";
+import { VoorraadAlertCard } from "@/components/dashboard/voorraad-alert-card";
+import { InkoopordersCard } from "@/components/dashboard/inkooporders-card";
+import { QCStatusCard } from "@/components/dashboard/qc-status-card";
 
 // Memoized formatter
 const currencyFormatter = new Intl.NumberFormat("nl-NL", {
@@ -179,7 +182,7 @@ export default function DashboardPage() {
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
                       <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-500 text-white">
-                        <Clock className="h-6 w-6" />
+                        <Clock className="h-6 w-6" aria-hidden="true" />
                       </div>
                       <div>
                         <h2 className="font-semibold text-lg">Uren Registreren</h2>
@@ -191,7 +194,7 @@ export default function DashboardPage() {
                     <Button asChild size="lg" className="bg-orange-500 hover:bg-orange-600">
                       <Link href="/projecten">
                         Naar Projecten
-                        <ArrowRight className="ml-2 h-4 w-4" />
+                        <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
                       </Link>
                     </Button>
                   </div>
@@ -210,7 +213,7 @@ export default function DashboardPage() {
                 <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
                   <Link href="/projecten">
                     Bekijk alle
-                    <ArrowRight className="ml-1 h-3 w-3" />
+                    <ArrowRight className="ml-1 h-3 w-3" aria-hidden="true" />
                   </Link>
                 </Button>
               </div>
@@ -225,7 +228,7 @@ export default function DashboardPage() {
                       <Card className="p-4 transition-all hover:shadow-md hover:border-orange-300 dark:hover:border-orange-800">
                         <div className="flex items-center gap-3 mb-3">
                           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30">
-                            <FolderKanban className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                            <FolderKanban className="h-4 w-4 text-orange-600 dark:text-orange-400" aria-hidden="true" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-sm truncate group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors" title={project.naam}>
@@ -242,7 +245,14 @@ export default function DashboardPage() {
                           </div>
                         </div>
                         {/* Progress bar - WCAG AA compliant colors */}
-                        <div className="h-1.5 w-full bg-orange-200 dark:bg-orange-900/50 rounded-full overflow-hidden">
+                        <div
+                          className="h-1.5 w-full bg-orange-200 dark:bg-orange-900/50 rounded-full overflow-hidden"
+                          role="progressbar"
+                          aria-valuenow={project.voortgang}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-label={`Projectvoortgang: ${project.voortgang}%`}
+                        >
                           <div
                             className="h-full bg-orange-600 rounded-full transition-all duration-500"
                             style={{ width: `${project.voortgang}%` }}
@@ -258,14 +268,14 @@ export default function DashboardPage() {
               ) : (
                 <Card className="p-8">
                   <div className="flex flex-col items-center justify-center text-center">
-                    <FolderKanban className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                    <FolderKanban className="h-12 w-12 text-muted-foreground/50 mb-4" aria-hidden="true" />
                     <h3 className="text-lg font-medium mb-2">Geen actieve projecten</h3>
                     <p className="text-sm text-muted-foreground mb-4 max-w-sm">
                       Er zijn momenteel geen projecten in uitvoering. Bekijk alle projecten om te zien wat er gepland staat.
                     </p>
                     <Button asChild variant="outline">
                       <Link href="/projecten">
-                        <FolderKanban className="mr-2 h-4 w-4" />
+                        <FolderKanban className="mr-2 h-4 w-4" aria-hidden="true" />
                         Bekijk Projecten
                       </Link>
                     </Button>
@@ -286,7 +296,7 @@ export default function DashboardPage() {
                   <Card className="p-4 transition-all hover:shadow-md hover:border-blue-300 dark:hover:border-blue-800">
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                        <Truck className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                        <Truck className="h-5 w-5 text-blue-600 dark:text-blue-400" aria-hidden="true" />
                       </div>
                       <div>
                         <p className="font-medium text-sm group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
@@ -296,7 +306,7 @@ export default function DashboardPage() {
                           Beheer voertuigen en onderhoud
                         </p>
                       </div>
-                      <ArrowRight className="ml-auto h-4 w-4 text-muted-foreground group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" />
+                      <ArrowRight className="ml-auto h-4 w-4 text-muted-foreground group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" aria-hidden="true" />
                     </div>
                   </Card>
                 </Link>
@@ -305,7 +315,7 @@ export default function DashboardPage() {
                   <Card className="p-4 transition-all hover:shadow-md hover:border-green-300 dark:hover:border-green-800">
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
-                        <Wrench className="h-5 w-5 text-green-600 dark:text-green-400" />
+                        <Wrench className="h-5 w-5 text-green-600 dark:text-green-400" aria-hidden="true" />
                       </div>
                       <div>
                         <p className="font-medium text-sm group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
@@ -315,7 +325,7 @@ export default function DashboardPage() {
                           Bekijk beschikbare machines
                         </p>
                       </div>
-                      <ArrowRight className="ml-auto h-4 w-4 text-muted-foreground group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors" />
+                      <ArrowRight className="ml-auto h-4 w-4 text-muted-foreground group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors" aria-hidden="true" />
                     </div>
                   </Card>
                 </Link>
@@ -338,7 +348,7 @@ export default function DashboardPage() {
                   <CardContent className="p-5">
                     <div className="flex items-center gap-3 mb-4">
                       <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500 text-white">
-                        <AlertCircle className="h-5 w-5" />
+                        <AlertCircle className="h-5 w-5" aria-hidden="true" />
                       </div>
                       <div>
                         <h3 className="font-semibold text-amber-900 dark:text-amber-100">
@@ -365,7 +375,7 @@ export default function DashboardPage() {
                             className="shrink-0 ml-4 bg-amber-500 hover:bg-amber-600 text-white"
                           >
                             <Link href={`/projecten/nieuw?offerte=${offerte._id}`}>
-                              <Play className="mr-1.5 h-3.5 w-3.5" />
+                              <Play className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
                               Start Project
                             </Link>
                           </Button>
@@ -375,7 +385,7 @@ export default function DashboardPage() {
                         <Button asChild variant="ghost" size="sm" className="w-full text-amber-700 dark:text-amber-400 hover:text-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/30">
                           <Link href="/offertes?status=geaccepteerd">
                             Bekijk alle {acceptedWithoutProject.length} offertes
-                            <ArrowRight className="ml-1 h-3 w-3" />
+                            <ArrowRight className="ml-1 h-3 w-3" aria-hidden="true" />
                           </Link>
                         </Button>
                       )}
@@ -397,7 +407,7 @@ export default function DashboardPage() {
                   <Card className="p-6 transition-all hover:shadow-lg hover:border-emerald-300 dark:hover:border-emerald-800 hover:-translate-y-0.5">
                     <div className="flex items-center gap-4">
                       <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 dark:bg-emerald-900/30 group-hover:bg-emerald-200 dark:group-hover:bg-emerald-900/50 transition-colors">
-                        <Shovel className="h-7 w-7 text-emerald-600 dark:text-emerald-400" />
+                        <Shovel className="h-7 w-7 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
                       </div>
                       <div>
                         <p className="font-semibold text-lg group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
@@ -415,7 +425,7 @@ export default function DashboardPage() {
                   <Card className="p-6 transition-all hover:shadow-lg hover:border-green-300 dark:hover:border-green-800 hover:-translate-y-0.5">
                     <div className="flex items-center gap-4">
                       <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-green-100 dark:bg-green-900/30 group-hover:bg-green-200 dark:group-hover:bg-green-900/50 transition-colors">
-                        <Trees className="h-7 w-7 text-green-600 dark:text-green-400" />
+                        <Trees className="h-7 w-7 text-green-600 dark:text-green-400" aria-hidden="true" />
                       </div>
                       <div>
                         <p className="font-semibold text-lg group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
@@ -442,7 +452,7 @@ export default function DashboardPage() {
               <Card className="p-5">
                 <div className="flex items-center gap-4">
                   <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-900/30">
-                    <Euro className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+                    <Euro className="h-6 w-6 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
                   </div>
                   <div>
                     <p className="text-2xl font-bold">
@@ -457,7 +467,7 @@ export default function DashboardPage() {
               <Card className="p-5">
                 <div className="flex items-center gap-4">
                   <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-100 dark:bg-orange-900/30">
-                    <HardHat className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+                    <HardHat className="h-6 w-6 text-orange-600 dark:text-orange-400" aria-hidden="true" />
                   </div>
                   <div>
                     <p className="text-2xl font-bold">
@@ -472,7 +482,7 @@ export default function DashboardPage() {
               <Card className="p-5">
                 <div className="flex items-center gap-4">
                   <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/30">
-                    <FileText className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                    <FileText className="h-6 w-6 text-blue-600 dark:text-blue-400" aria-hidden="true" />
                   </div>
                   <div>
                     <p className="text-2xl font-bold">
@@ -484,19 +494,33 @@ export default function DashboardPage() {
               </Card>
             </motion.div>
 
+            {/* Inkoop & Voorraad Widgets */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: hasActionRequired ? 0.25 : 0.2 }}
+            >
+              <h2 className="font-medium text-sm text-muted-foreground mb-3">Inkoop & Kwaliteit</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <VoorraadAlertCard />
+                <InkoopordersCard />
+                <QCStatusCard />
+              </div>
+            </motion.div>
+
             {/* Active Projects - Only if there are any */}
             {hasActiveProjects && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: hasActionRequired ? 0.25 : 0.2 }}
+                transition={{ duration: 0.3, delay: hasActionRequired ? 0.3 : 0.25 }}
               >
                 <div className="flex items-center justify-between mb-3">
                   <h2 className="font-medium text-sm text-muted-foreground">Lopende Projecten</h2>
                   <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
                     <Link href="/projecten">
                       Bekijk alle
-                      <ArrowRight className="ml-1 h-3 w-3" />
+                      <ArrowRight className="ml-1 h-3 w-3" aria-hidden="true" />
                     </Link>
                   </Button>
                 </div>
@@ -510,7 +534,7 @@ export default function DashboardPage() {
                       <Card className="p-4 transition-all hover:shadow-md hover:border-orange-300 dark:hover:border-orange-800">
                         <div className="flex items-center gap-3 mb-3">
                           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30">
-                            <FolderKanban className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                            <FolderKanban className="h-4 w-4 text-orange-600 dark:text-orange-400" aria-hidden="true" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-sm truncate group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors" title={project.naam}>
@@ -527,7 +551,14 @@ export default function DashboardPage() {
                           </div>
                         </div>
                         {/* Progress bar - WCAG AA compliant colors */}
-                        <div className="h-1.5 w-full bg-orange-200 dark:bg-orange-900/50 rounded-full overflow-hidden">
+                        <div
+                          className="h-1.5 w-full bg-orange-200 dark:bg-orange-900/50 rounded-full overflow-hidden"
+                          role="progressbar"
+                          aria-valuenow={project.voortgang}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-label={`Projectvoortgang: ${project.voortgang}%`}
+                        >
                           <div
                             className="h-full bg-orange-600 rounded-full transition-all duration-500"
                             style={{ width: `${project.voortgang}%` }}
@@ -551,7 +582,7 @@ export default function DashboardPage() {
                 transition={{ duration: 0.3, delay: 0.25 }}
                 className="flex flex-col items-center justify-center py-12 text-center"
               >
-                <FolderKanban className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                <FolderKanban className="h-12 w-12 text-muted-foreground/50 mb-4" aria-hidden="true" />
                 <h3 className="text-lg font-medium mb-2">Geen actieve projecten</h3>
                 <p className="text-sm text-muted-foreground mb-4 max-w-sm">
                   Er zijn nog geen actieve projecten. Start met het aanmaken van een nieuwe offerte om aan de slag te gaan.
@@ -559,13 +590,13 @@ export default function DashboardPage() {
                 <div className="flex gap-3">
                   <Button asChild>
                     <Link href="/offertes/nieuw/aanleg">
-                      <Shovel className="mr-2 h-4 w-4" />
+                      <Shovel className="mr-2 h-4 w-4" aria-hidden="true" />
                       Nieuwe Aanleg
                     </Link>
                   </Button>
                   <Button asChild variant="outline">
                     <Link href="/offertes/nieuw/onderhoud">
-                      <Trees className="mr-2 h-4 w-4" />
+                      <Trees className="mr-2 h-4 w-4" aria-hidden="true" />
                       Nieuw Onderhoud
                     </Link>
                   </Button>

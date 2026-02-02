@@ -1,11 +1,33 @@
 // Klant validation
-export * from "./klant";
+export { klantSchema, PHONE_PATTERN, POSTCODE_PATTERN } from "./klant";
+export type { KlantFormData } from "./klant";
 
 // Aanleg scope validations
 export * from "./aanleg-scopes";
 
 // Onderhoud scope validations
 export * from "./onderhoud-scopes";
+
+// Leverancier validation - exclude duplicate pattern exports
+export {
+  leverancierSchema,
+  KVK_PATTERN,
+  BTW_PATTERN,
+  IBAN_PATTERN,
+} from "./leverancier";
+export type { LeverancierFormData } from "./leverancier";
+
+// Inkooporder validation
+export * from "./inkooporder";
+
+// Voorraad validation
+export * from "./voorraad";
+
+// Project kosten validation
+export * from "./project-kosten";
+
+// Kwaliteits controle validation
+export * from "./kwaliteits-controle";
 
 // Re-export z for convenience
 export { z } from "zod";

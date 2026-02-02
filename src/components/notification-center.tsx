@@ -106,20 +106,32 @@ function NotificationItem({ notification, onMarkAsRead, onDismiss, onClose }: No
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      handleClick();
+    }
+  };
+
   const content = (
     <div
       className={cn(
         "flex items-start gap-3 p-3 rounded-lg transition-colors group relative",
+        "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         notification.isRead
           ? "bg-background hover:bg-muted/50"
           : "bg-muted/50 hover:bg-muted",
         link && "cursor-pointer"
       )}
       onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      role="button"
+      tabIndex={0}
+      aria-label={`${notification.title}: ${notification.message}${!notification.isRead ? " (ongelezen)" : ""}`}
     >
       {/* Icon */}
       <div className={cn("flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center", bgColor)}>
-        <Icon className={cn("h-4 w-4", color)} />
+        <Icon className={cn("h-4 w-4", color)} aria-hidden="true" />
       </div>
 
       {/* Content */}
@@ -143,19 +155,18 @@ function NotificationItem({ notification, onMarkAsRead, onDismiss, onClose }: No
         </p>
       </div>
 
-      {/* Dismiss button - only show on hover */}
+      {/* Dismiss button - only show on hover or focus */}
       <Button
         variant="ghost"
         size="icon"
-        className="absolute right-1 top-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+        className="absolute right-1 top-1 h-6 w-6 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
         onClick={(e) => {
           e.stopPropagation();
           onDismiss();
         }}
-        title="Verwijderen"
+        aria-label="Verwijder melding"
       >
-        <X className="h-3 w-3" />
-        <span className="sr-only">Verwijderen</span>
+        <X className="h-3 w-3" aria-hidden="true" />
       </Button>
     </div>
   );
@@ -212,7 +223,7 @@ export function NotificationCenter() {
           className="relative size-11 sm:size-8 shrink-0"
           aria-label={hasUnread ? `${unreadCounts.total} ongelezen meldingen` : "Meldingen"}
         >
-          <Bell className="h-4 w-4" />
+          <Bell className="h-4 w-4" aria-hidden="true" />
           {hasUnread && (
             <Badge
               variant="destructive"
@@ -244,8 +255,9 @@ export function NotificationCenter() {
               size="sm"
               className="h-8 text-xs gap-1"
               onClick={handleMarkAllAsRead}
+              aria-label="Markeer alle meldingen als gelezen"
             >
-              <CheckCheck className="h-3.5 w-3.5" />
+              <CheckCheck className="h-3.5 w-3.5" aria-hidden="true" />
               Alles gelezen
             </Button>
           )}
@@ -263,7 +275,7 @@ export function NotificationCenter() {
           ) : notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
               <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                <Bell className="h-8 w-8 text-muted-foreground" />
+                <Bell className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
               </div>
               <h3 className="font-medium text-foreground mb-1">Geen meldingen</h3>
               <p className="text-sm text-muted-foreground max-w-[200px]">

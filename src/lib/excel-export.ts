@@ -1,6 +1,13 @@
 // XLSX is imported dynamically to reduce initial bundle size (~400KB)
 // This module is only loaded when user clicks export
 
+import {
+  formatDateCompact,
+  formatMonth,
+  formatCurrencyNumeric,
+  formatPercentage,
+} from "@/lib/format";
+
 interface ExportRow {
   offerteNummer: string;
   type: string;
@@ -57,21 +64,14 @@ const scopeLabels: Record<string, string> = {
 };
 
 // Format date for Excel
-function formatDate(timestamp: number | null): string {
+function formatDateExcel(timestamp: number | null): string {
   if (!timestamp) return "";
-  return new Intl.DateTimeFormat("nl-NL", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(new Date(timestamp));
+  return formatDateCompact(timestamp);
 }
 
 // Format month for Excel
-function formatMonth(timestamp: number): string {
-  return new Intl.DateTimeFormat("nl-NL", {
-    month: "long",
-    year: "numeric",
-  }).format(new Date(timestamp));
+function formatMonthExcel(timestamp: number): string {
+  return formatMonth(timestamp);
 }
 
 // Get month key from timestamp
@@ -81,13 +81,13 @@ function getMonthKey(timestamp: number): string {
 }
 
 // Format currency for Excel (without symbol for proper number sorting)
-function formatCurrency(amount: number): number {
-  return Math.round(amount * 100) / 100;
+function formatCurrencyExcel(amount: number): number {
+  return formatCurrencyNumeric(amount);
 }
 
-// Format percentage
-function formatPercentage(value: number): string {
-  return `${Math.round(value * 10) / 10}%`;
+// Format percentage for Excel
+function formatPercentageExcel(value: number): string {
+  return formatPercentage(value, 1);
 }
 
 export async function exportToExcel(data: ExportRow[], filename: string = "offertes-export") {
@@ -105,18 +105,18 @@ export async function exportToExcel(data: ExportRow[], filename: string = "offer
     "Plaats": row.klantPlaats,
     "E-mail": row.klantEmail,
     "Telefoon": row.klantTelefoon,
-    "Materiaalkosten": formatCurrency(row.materiaalkosten),
-    "Arbeidskosten": formatCurrency(row.arbeidskosten),
+    "Materiaalkosten": formatCurrencyExcel(row.materiaalkosten),
+    "Arbeidskosten": formatCurrencyExcel(row.arbeidskosten),
     "Totaal Uren": row.totaalUren,
-    "Subtotaal": formatCurrency(row.subtotaal),
-    "Marge": formatCurrency(row.marge),
+    "Subtotaal": formatCurrencyExcel(row.subtotaal),
+    "Marge": formatCurrencyExcel(row.marge),
     "Marge %": row.margePercentage,
-    "Totaal ex. BTW": formatCurrency(row.totaalExBtw),
-    "BTW": formatCurrency(row.btw),
-    "Totaal incl. BTW": formatCurrency(row.totaalInclBtw),
-    "Aangemaakt": formatDate(row.aangemaakt),
-    "Bijgewerkt": formatDate(row.bijgewerkt),
-    "Verzonden": formatDate(row.verzonden),
+    "Totaal ex. BTW": formatCurrencyExcel(row.totaalExBtw),
+    "BTW": formatCurrencyExcel(row.btw),
+    "Totaal incl. BTW": formatCurrencyExcel(row.totaalInclBtw),
+    "Aangemaakt": formatDateExcel(row.aangemaakt),
+    "Bijgewerkt": formatDateExcel(row.bijgewerkt),
+    "Verzonden": formatDateExcel(row.verzonden),
   }));
 
   // Create workbook and worksheet
@@ -232,16 +232,16 @@ export async function exportAnalyticsReport(
     { "Categorie": "", "KPI": "Totaal Offertes", "Waarde": kpis.totaalOffertes, "Toelichting": "Aantal offertes in geselecteerde periode" },
     { "Categorie": "", "KPI": "Geaccepteerd", "Waarde": kpis.geaccepteerdCount ?? "-", "Toelichting": "Aantal geaccepteerde offertes" },
     { "Categorie": "", "KPI": "Afgewezen", "Waarde": kpis.afgewezenCount ?? "-", "Toelichting": "Aantal afgewezen offertes" },
-    { "Categorie": "", "KPI": "Win Rate", "Waarde": formatPercentage(kpis.winRate), "Toelichting": "Percentage geaccepteerde offertes" },
+    { "Categorie": "", "KPI": "Win Rate", "Waarde": formatPercentageExcel(kpis.winRate), "Toelichting": "Percentage geaccepteerde offertes" },
     { "Categorie": "", "KPI": "", "Waarde": "", "Toelichting": "" },
     { "Categorie": "FINANCIEEL", "KPI": "", "Waarde": "", "Toelichting": "" },
-    { "Categorie": "", "KPI": "Totale Omzet", "Waarde": formatCurrency(kpis.totaleOmzet), "Toelichting": "Som van geaccepteerde offertes (incl. BTW)" },
-    { "Categorie": "", "KPI": "Gemiddelde Offerte Waarde", "Waarde": formatCurrency(kpis.gemiddeldeWaarde), "Toelichting": "Gemiddelde waarde per offerte" },
+    { "Categorie": "", "KPI": "Totale Omzet", "Waarde": formatCurrencyExcel(kpis.totaleOmzet), "Toelichting": "Som van geaccepteerde offertes (incl. BTW)" },
+    { "Categorie": "", "KPI": "Gemiddelde Offerte Waarde", "Waarde": formatCurrencyExcel(kpis.gemiddeldeWaarde), "Toelichting": "Gemiddelde waarde per offerte" },
     { "Categorie": "", "KPI": "", "Waarde": "", "Toelichting": "" },
     { "Categorie": "KLANT INZICHTEN", "KPI": "", "Waarde": "", "Toelichting": "" },
     { "Categorie": "", "KPI": "Totaal Klanten", "Waarde": kpis.totalCustomers ?? "-", "Toelichting": "Unieke klanten" },
     { "Categorie": "", "KPI": "Terugkerende Klanten", "Waarde": kpis.repeatCustomerCount ?? "-", "Toelichting": "Klanten met 2+ geaccepteerde offertes" },
-    { "Categorie": "", "KPI": "Terugkerende Klanten %", "Waarde": kpis.repeatCustomerPercentage ? formatPercentage(kpis.repeatCustomerPercentage) : "-", "Toelichting": "Percentage terugkerende klanten" },
+    { "Categorie": "", "KPI": "Terugkerende Klanten %", "Waarde": kpis.repeatCustomerPercentage ? formatPercentageExcel(kpis.repeatCustomerPercentage) : "-", "Toelichting": "Percentage terugkerende klanten" },
     { "Categorie": "", "KPI": "", "Waarde": "", "Toelichting": "" },
     { "Categorie": "DOORLOOPTIJDEN", "KPI": "", "Waarde": "", "Toelichting": "" },
     { "Categorie": "", "KPI": "Gem. Doorlooptijd", "Waarde": kpis.avgCycleTime ? `${kpis.avgCycleTime} dagen` : "-", "Toelichting": "Gemiddelde tijd van aanmaak tot acceptatie" },
@@ -265,18 +265,18 @@ export async function exportAnalyticsReport(
     "Plaats": row.klantPlaats,
     "E-mail": row.klantEmail,
     "Telefoon": row.klantTelefoon,
-    "Materiaalkosten": formatCurrency(row.materiaalkosten),
-    "Arbeidskosten": formatCurrency(row.arbeidskosten),
+    "Materiaalkosten": formatCurrencyExcel(row.materiaalkosten),
+    "Arbeidskosten": formatCurrencyExcel(row.arbeidskosten),
     "Totaal Uren": row.totaalUren,
-    "Subtotaal": formatCurrency(row.subtotaal),
-    "Marge": formatCurrency(row.marge),
+    "Subtotaal": formatCurrencyExcel(row.subtotaal),
+    "Marge": formatCurrencyExcel(row.marge),
     "Marge %": row.margePercentage,
-    "Totaal ex. BTW": formatCurrency(row.totaalExBtw),
-    "BTW": formatCurrency(row.btw),
-    "Totaal incl. BTW": formatCurrency(row.totaalInclBtw),
-    "Aangemaakt": formatDate(row.aangemaakt),
-    "Bijgewerkt": formatDate(row.bijgewerkt),
-    "Verzonden": formatDate(row.verzonden),
+    "Totaal ex. BTW": formatCurrencyExcel(row.totaalExBtw),
+    "BTW": formatCurrencyExcel(row.btw),
+    "Totaal incl. BTW": formatCurrencyExcel(row.totaalInclBtw),
+    "Aangemaakt": formatDateExcel(row.aangemaakt),
+    "Bijgewerkt": formatDateExcel(row.bijgewerkt),
+    "Verzonden": formatDateExcel(row.verzonden),
   }));
 
   const wsOffertes = XLSX.utils.json_to_sheet(offerteData);
@@ -301,12 +301,12 @@ export async function exportAnalyticsReport(
     return {
       "Scope": scopeLabels[s.scope] ?? s.scope,
       "Aantal Offertes": s.count,
-      "Totaal Kosten": formatCurrency(s.totaal),
-      "Totaal Marge": formatCurrency(s.marge),
-      "Marge %": formatPercentage(s.margePercentage),
-      "Totaal Omzet": formatCurrency(omzet),
-      "Aandeel Omzet": formatPercentage(aandeel),
-      "Gem. per Offerte": formatCurrency(s.gemiddeldPerOfferte ?? (omzet / (s.count || 1))),
+      "Totaal Kosten": formatCurrencyExcel(s.totaal),
+      "Totaal Marge": formatCurrencyExcel(s.marge),
+      "Marge %": formatPercentageExcel(s.margePercentage),
+      "Totaal Omzet": formatCurrencyExcel(omzet),
+      "Aandeel Omzet": formatPercentageExcel(aandeel),
+      "Gem. per Offerte": formatCurrencyExcel(s.gemiddeldPerOfferte ?? (omzet / (s.count || 1))),
     };
   });
 
@@ -314,14 +314,14 @@ export async function exportAnalyticsReport(
   const scopeTotals = {
     "Scope": "TOTAAL",
     "Aantal Offertes": scopeMarges.reduce((sum, s) => sum + s.count, 0),
-    "Totaal Kosten": formatCurrency(scopeMarges.reduce((sum, s) => sum + s.totaal, 0)),
-    "Totaal Marge": formatCurrency(scopeMarges.reduce((sum, s) => sum + s.marge, 0)),
-    "Marge %": formatPercentage(
+    "Totaal Kosten": formatCurrencyExcel(scopeMarges.reduce((sum, s) => sum + s.totaal, 0)),
+    "Totaal Marge": formatCurrencyExcel(scopeMarges.reduce((sum, s) => sum + s.marge, 0)),
+    "Marge %": formatPercentageExcel(
       scopeMarges.reduce((sum, s) => sum + s.totaal, 0) > 0
         ? (scopeMarges.reduce((sum, s) => sum + s.marge, 0) / scopeMarges.reduce((sum, s) => sum + s.totaal, 0)) * 100
         : 0
     ),
-    "Totaal Omzet": formatCurrency(totalScopeOmzet),
+    "Totaal Omzet": formatCurrencyExcel(totalScopeOmzet),
     "Aandeel Omzet": "100%",
     "Gem. per Offerte": "-",
   };
@@ -339,12 +339,12 @@ export async function exportAnalyticsReport(
   const klantenData = topKlanten.map((k, index) => ({
     "#": index + 1,
     "Klant": k.klantNaam,
-    "Totaal Omzet": formatCurrency(k.totaalOmzet),
+    "Totaal Omzet": formatCurrencyExcel(k.totaalOmzet),
     "Aantal Offertes": k.aantalOffertes,
     "Geaccepteerd": k.aantalGeaccepteerd ?? "-",
-    "Gem. Waarde": formatCurrency(k.gemiddeldeWaarde),
+    "Gem. Waarde": formatCurrencyExcel(k.gemiddeldeWaarde),
     "Terugkerend": k.isRepeatCustomer ? "Ja" : "Nee",
-    "Aandeel": kpis.totaleOmzet > 0 ? formatPercentage((k.totaalOmzet / kpis.totaleOmzet) * 100) : "-",
+    "Aandeel": kpis.totaleOmzet > 0 ? formatPercentageExcel((k.totaalOmzet / kpis.totaleOmzet) * 100) : "-",
   }));
 
   const wsKlanten = XLSX.utils.json_to_sheet(klantenData);
@@ -363,9 +363,9 @@ export async function exportAnalyticsReport(
       "Aanleg": m.aanleg,
       "Onderhoud": m.onderhoud,
       "Totaal Offertes": m.totaal,
-      "Omzet": formatCurrency(m.omzet),
+      "Omzet": formatCurrencyExcel(m.omzet),
       "Voortschrijdend Gem. (Offertes)": m.movingAvgTotal ?? "-",
-      "Voortschrijdend Gem. (Omzet)": m.movingAvgOmzet ? formatCurrency(m.movingAvgOmzet) : "-",
+      "Voortschrijdend Gem. (Omzet)": m.movingAvgOmzet ? formatCurrencyExcel(m.movingAvgOmzet) : "-",
     }));
 
     // Calculate monthly averages
@@ -382,7 +382,7 @@ export async function exportAnalyticsReport(
       "Aanleg": Math.round(maandelijkseTrend.reduce((sum, m) => sum + m.aanleg, 0) / maandelijkseTrend.length * 10) / 10,
       "Onderhoud": Math.round(maandelijkseTrend.reduce((sum, m) => sum + m.onderhoud, 0) / maandelijkseTrend.length * 10) / 10,
       "Totaal Offertes": Math.round(avgOffertes * 10) / 10,
-      "Omzet": formatCurrency(avgOmzet),
+      "Omzet": formatCurrencyExcel(avgOmzet),
       "Voortschrijdend Gem. (Offertes)": "-",
       "Voortschrijdend Gem. (Omzet)": "-",
     };
@@ -399,7 +399,7 @@ export async function exportAnalyticsReport(
 
     for (const offerte of offertes) {
       const monthKey = getMonthKey(offerte.aangemaakt);
-      const monthLabel = formatMonth(offerte.aangemaakt);
+      const monthLabel = formatMonthExcel(offerte.aangemaakt);
 
       if (!monthlyAggregation[monthKey]) {
         monthlyAggregation[monthKey] = {
@@ -433,7 +433,7 @@ export async function exportAnalyticsReport(
         "Aanleg": m.aanleg,
         "Onderhoud": m.onderhoud,
         "Totaal Offertes": m.totaal,
-        "Omzet": formatCurrency(m.omzet),
+        "Omzet": formatCurrencyExcel(m.omzet),
       }));
 
       const wsTrend = XLSX.utils.json_to_sheet(trendData);

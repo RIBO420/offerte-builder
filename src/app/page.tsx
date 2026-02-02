@@ -35,6 +35,17 @@ import {
   TrendingUp,
   Users,
   Target,
+  Truck,
+  Package,
+  BarChart3,
+  ClipboardCheck,
+  Wallet,
+  CalendarDays,
+  UserCog,
+  Warehouse,
+  ShoppingCart,
+  GraduationCap,
+  Layers,
 } from "lucide-react";
 
 // Animation variants
@@ -73,13 +84,40 @@ const featuresWithStories = [
     gradient: "from-blue-500 to-indigo-500",
   },
   {
+    icon: Wallet,
+    title: "Real-time kosten tracking",
+    headline: "Weet tijdens het project precies waar je staat",
+    story: "Geen verrassingen meer bij de nacalculatie. Volg je kosten real-time tijdens de uitvoering: arbeidsuren, materialen, machines. Krijg direct een waarschuwing als je budget dreigt te overschrijden.",
+    benefit: "Altijd grip op je projectkosten, nooit meer budgetoverschrijdingen.",
+    stat: "Live budget monitoring",
+    gradient: "from-rose-500 to-pink-500",
+  },
+  {
+    icon: ClipboardCheck,
+    title: "Kwaliteitscontroles",
+    headline: "Professionele oplevering met QC-checklists en foto's",
+    story: "Voor elke scope een checklist, voor en na foto's uploaden, goedkeuring met handtekening. Je klanten zien dat je professioneel werkt, en jij hebt bewijs van je kwaliteit.",
+    benefit: "Hogere klanttevredenheid, minder discussies achteraf.",
+    stat: "Complete QC workflow",
+    gradient: "from-teal-500 to-cyan-500",
+  },
+  {
+    icon: GraduationCap,
+    title: "Leren van elk project",
+    headline: "Je normuren worden automatisch slimmer",
+    story: "Na elk project vergelijk je de voorcalculatie met de werkelijkheid. Het systeem suggereert aanpassingen aan je normuren op basis van echte data. Zo worden je offertes steeds nauwkeuriger.",
+    benefit: "Continu verbeteren, steeds betere inschattingen.",
+    stat: "Zelflerend systeem",
+    gradient: "from-amber-500 to-orange-500",
+  },
+  {
     icon: Zap,
     title: "4x sneller offreren",
     headline: "Wat eerder een halve dag kostte, doe je nu in 15 minuten",
     story: "Stel je voor: je staat bij een klant, bekijkt de tuin, en binnen 15 minuten heb je een complete, professionele offerte klaar. Niet meer tot 's avonds laat werken om offertes af te krijgen.",
     benefit: "Meer tijd voor het echte werk, of voor thuis.",
     stat: "4x sneller dan Excel",
-    gradient: "from-amber-500 to-orange-500",
+    gradient: "from-violet-500 to-purple-500",
   },
   {
     icon: FileText,
@@ -88,16 +126,7 @@ const featuresWithStories = [
     story: "Je offerte is vaak het eerste wat een klant van je ziet. Een rommelige PDF met verkeerde kleuren en ontbrekende details maakt geen goede indruk. Onze templates zijn ontworpen om professionaliteit uit te stralen.",
     benefit: "Betere eerste indruk, hogere acceptatiepercentage.",
     stat: "30% meer geaccepteerde offertes",
-    gradient: "from-violet-500 to-purple-500",
-  },
-  {
-    icon: Clock,
-    title: "Realtime inzicht",
-    headline: "Altijd overzicht, nooit meer een offerte kwijt",
-    story: "Waar was ook alweer die offerte van de familie Jansen? Hebben ze al geantwoord? Met ons dashboard zie je in één oogopslag de status van al je offertes, van concept tot acceptatie.",
-    benefit: "Beter opvolgen, meer opdrachten binnenhalen.",
-    stat: "Altijd overzicht",
-    gradient: "from-cyan-500 to-blue-500",
+    gradient: "from-indigo-500 to-blue-500",
   },
   {
     icon: TrendingUp,
@@ -112,31 +141,47 @@ const featuresWithStories = [
 
 // Stats data
 const stats = [
-  { value: "7", suffix: "", label: "Werkscopes", description: "Van grondwerk tot onderhoud" },
+  { value: "12", suffix: "+", label: "Modules", description: "Complete bedrijfsvoering" },
   { value: "100", suffix: "+", label: "Normuren", description: "Voor accurate berekeningen" },
-  { value: "50", suffix: "+", label: "Correctiefactoren", description: "Voor elke situatie" },
-  { value: "0", suffix: "", label: "Vergeten posten", description: "Met onze scope-engine" },
+  { value: "7", suffix: "", label: "Werkscopes", description: "Van grondwerk tot onderhoud" },
+  { value: "1", suffix: "", label: "Platform", description: "Alles geintegreerd" },
+];
+
+// Additional modules for showcase
+const businessModules = [
+  { icon: FileText, label: "Offertes", color: "from-emerald-500 to-green-500", description: "Aanleg & onderhoud" },
+  { icon: Layers, label: "Projecten", color: "from-blue-500 to-indigo-500", description: "Complete lifecycle" },
+  { icon: Users, label: "Klanten", color: "from-violet-500 to-purple-500", description: "CRM & historie" },
+  { icon: Wallet, label: "Facturen", color: "from-amber-500 to-orange-500", description: "Automatisch genereren" },
+  { icon: UserCog, label: "Medewerkers", color: "from-pink-500 to-rose-500", description: "Teams & certificaten" },
+  { icon: Clock, label: "Urenregistratie", color: "from-cyan-500 to-blue-500", description: "Per project & medewerker" },
+  { icon: CalendarDays, label: "Planning", color: "from-teal-500 to-emerald-500", description: "Taken & capaciteit" },
+  { icon: Truck, label: "Wagenpark", color: "from-slate-500 to-gray-600", description: "APK, onderhoud, km" },
+  { icon: Warehouse, label: "Voorraad", color: "from-orange-500 to-red-500", description: "Stock & alerts" },
+  { icon: ShoppingCart, label: "Inkoop", color: "from-lime-500 to-green-500", description: "Orders & leveranciers" },
+  { icon: BarChart3, label: "Rapportages", color: "from-indigo-500 to-violet-500", description: "KPI's & forecasts" },
+  { icon: Package, label: "Prijsboek", color: "from-yellow-500 to-amber-500", description: "Producten & import" },
 ];
 
 // Testimonials
 const testimonials = [
   {
     quote:
-      "Eindelijk een offerte systeem dat écht begrijpt wat wij als hovenier nodig hebben. Geen vergeten posten meer!",
+      "Van offerte tot factuur, alles in één systeem. De nacalculatie functie heeft ons enorm geholpen om betere inschattingen te maken.",
     author: "Jan van Berg",
     company: "GroenRijk Hoveniers",
     role: "Eigenaar",
   },
   {
     quote:
-      "De scope-gedreven aanpak bespaart ons enorm veel tijd. Wat eerder uren kostte, doen we nu in minuten.",
+      "Het wagenpark beheer en de urenregistratie per project geven ons eindelijk inzicht in onze werkelijke kosten. Een gamechanger!",
     author: "Lisa de Vries",
     company: "TuinVisie",
     role: "Office Manager",
   },
   {
     quote:
-      "Onze offertes zien er nu veel professioneler uit. Klanten accepteren vaker omdat alles duidelijk is uitgewerkt.",
+      "De kwaliteitscontroles met foto's maken een professionele indruk op klanten. En de rapportages helpen ons data-gedreven beslissingen te nemen.",
     author: "Peter Bakker",
     company: "Bakker Tuinen",
     role: "Directeur",
@@ -299,8 +344,65 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Business Modules Showcase */}
+      <section id="modules" className="py-24 bg-gradient-to-b from-transparent via-white/[0.02] to-transparent">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="text-center mb-12"
+          >
+            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium mb-4">
+              <Layers className="h-3 w-3" />
+              Complete bedrijfsvoering
+            </span>
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              12+ modules in één platform
+            </h2>
+            <p className="mt-4 text-muted-foreground max-w-2xl mx-auto">
+              Van offerte tot factuur, van planning tot voorraad. Alles wat je hoveniersbedrijf nodig heeft.
+            </p>
+          </motion.div>
+
+          <motion.div
+            variants={staggerContainer}
+            initial="initial"
+            whileInView="animate"
+            viewport={{ once: true }}
+            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4"
+          >
+            {businessModules.map((module, index) => {
+              const Icon = module.icon;
+              return (
+                <motion.div
+                  key={module.label}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: index * 0.03 }}
+                  whileHover={{ scale: 1.05, y: -5 }}
+                  className="group"
+                >
+                  <div className="flex flex-col items-center gap-2 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 p-4 transition-all duration-300 hover:bg-white/10 hover:border-emerald-500/30 hover:shadow-lg hover:shadow-emerald-500/10 h-full">
+                    <div
+                      className={`flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br ${module.color} shadow-lg`}
+                    >
+                      <Icon className="h-6 w-6 text-white" />
+                    </div>
+                    <span className="font-medium text-sm text-center">{module.label}</span>
+                    <span className="text-xs text-muted-foreground text-center">{module.description}</span>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </motion.div>
+        </div>
+      </section>
+
       {/* Scopes Showcase */}
-      <section className="py-24 bg-gradient-to-b from-transparent via-white/[0.02] to-transparent">
+      <section className="py-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -310,7 +412,7 @@ export default function LandingPage() {
             className="text-center mb-12"
           >
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              Alle scopes onder één dak
+              Alle werkscopes onder één dak
             </h2>
             <p className="mt-4 text-muted-foreground max-w-2xl mx-auto">
               Van grondwerk tot onderhoud, ons systeem dekt alle aspecten van hovenierswerk
@@ -352,7 +454,7 @@ export default function LandingPage() {
       </section>
 
       {/* How it Works */}
-      <section id="hoe-het-werkt" className="py-24">
+      <section id="hoe-het-werkt" className="py-24 bg-gradient-to-b from-transparent via-white/[0.02] to-transparent">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -363,37 +465,47 @@ export default function LandingPage() {
           >
             <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium mb-4">
               <Clock className="h-3 w-3" />
-              Snel & eenvoudig
+              Van offerte tot factuur
             </span>
             <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
-              Zo werkt het
+              De complete projectcyclus
             </h2>
             <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-              Van start tot professionele offerte in vier simpele stappen
+              Van eerste klantcontact tot betaalde factuur, alles in één systeem
             </p>
           </motion.div>
 
-          <div className="grid gap-8 md:grid-cols-4">
+          <div className="grid gap-6 md:grid-cols-3 lg:grid-cols-6">
             {[
               {
                 step: "01",
-                title: "Kies je scopes",
-                description: "Selecteer de werkzaamheden voor je project: grondwerk, bestrating, borders, enz.",
+                title: "Offerte maken",
+                description: "Scope-gedreven offerte met automatische berekeningen",
               },
               {
                 step: "02",
-                title: "Vul de details",
-                description: "Geef oppervlaktes, volumes en keuzes op. Het systeem vraagt automatisch om benodigde details.",
+                title: "Project starten",
+                description: "Geaccepteerde offerte wordt project met planning",
               },
               {
                 step: "03",
-                title: "Review de berekening",
-                description: "Controleer de automatisch berekende uren, materialen en totalen.",
+                title: "Uitvoering",
+                description: "Uren registreren, kosten tracken, QC uitvoeren",
               },
               {
                 step: "04",
-                title: "Genereer PDF",
-                description: "Download je professionele offerte direct als PDF, klaar om te versturen.",
+                title: "Nacalculatie",
+                description: "Vergelijk planning met werkelijkheid, leer voor volgende keer",
+              },
+              {
+                step: "05",
+                title: "Factureren",
+                description: "Genereer factuur direct uit projectgegevens",
+              },
+              {
+                step: "06",
+                title: "Archiveren",
+                description: "Complete projecthistorie voor altijd beschikbaar",
               },
             ].map((item, index) => (
               <motion.div
@@ -401,16 +513,16 @@ export default function LandingPage() {
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
+                transition={{ duration: 0.5, delay: index * 0.08 }}
                 className="relative"
               >
-                <div className="text-6xl font-bold bg-gradient-to-r from-emerald-500/20 to-emerald-500/5 bg-clip-text text-transparent mb-4">
+                <div className="text-4xl font-bold bg-gradient-to-r from-emerald-500/30 to-emerald-500/5 bg-clip-text text-transparent mb-3">
                   {item.step}
                 </div>
-                <h3 className="text-lg font-semibold mb-2">{item.title}</h3>
-                <p className="text-sm text-muted-foreground">{item.description}</p>
-                {index < 3 && (
-                  <div className="hidden md:block absolute top-8 left-full w-full h-px bg-gradient-to-r from-emerald-500/30 to-transparent" />
+                <h3 className="text-base font-semibold mb-2">{item.title}</h3>
+                <p className="text-xs text-muted-foreground">{item.description}</p>
+                {index < 5 && (
+                  <div className="hidden lg:block absolute top-6 left-full w-full h-px bg-gradient-to-r from-emerald-500/30 to-transparent" />
                 )}
               </motion.div>
             ))}
@@ -580,21 +692,29 @@ export default function LandingPage() {
                       <span className="text-muted-foreground">/maand</span>
                     </div>
                     <p className="mt-4 text-sm text-muted-foreground">
-                      Alles wat je nodig hebt voor professioneel offreren
+                      Complete bedrijfsvoering voor je hoveniersbedrijf
                     </p>
                   </div>
 
-                  <ul className="mt-8 space-y-4">
+                  <ul className="mt-8 space-y-3">
                     {[
-                      "Onbeperkt offertes",
-                      "Alle 7 scopes",
-                      "PDF generatie",
-                      "Prijsboek beheer",
+                      "Onbeperkt offertes & projecten",
+                      "Alle 7 werkscopes",
+                      "PDF generatie & e-mail",
+                      "Complete projectcyclus",
+                      "Real-time kosten tracking",
+                      "Kwaliteitscontroles (QC)",
+                      "Medewerkers & teams",
+                      "Urenregistratie",
+                      "Planning & capaciteit",
+                      "Wagenpark beheer",
+                      "Voorraad & inkoop",
+                      "Rapportages & KPI's",
+                      "Prijsboek met import",
                       "Normuren & correctiefactoren",
-                      "Email support",
                     ].map((feature) => (
                       <li key={feature} className="flex items-center gap-3">
-                        <CheckCircle className="h-5 w-5 text-emerald-500 flex-shrink-0" />
+                        <CheckCircle className="h-4 w-4 text-emerald-500 flex-shrink-0" />
                         <span className="text-sm">{feature}</span>
                       </li>
                     ))}
@@ -631,10 +751,10 @@ export default function LandingPage() {
             className="text-center"
           >
             <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
-              Klaar om nooit meer iets te vergeten?
+              Klaar voor complete bedrijfsvoering?
             </h2>
             <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-              Start vandaag nog met Offerte Builder en ervaar het verschil van scope-gedreven offreren.
+              Start vandaag nog met Offerte Builder en ervaar het verschil van een volledig geintegreerd platform voor je hoveniersbedrijf.
             </p>
             <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
               <Button

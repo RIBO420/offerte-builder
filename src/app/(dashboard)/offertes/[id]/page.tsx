@@ -196,15 +196,36 @@ export default function OfferteDetailPage({
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
 
+  // Optimistic status update state
+  const [optimisticStatus, setOptimisticStatus] = useState<string | null>(null);
+
+  // Get the display status (optimistic or actual)
+  const displayStatus = optimisticStatus ?? offerte?.status ?? "concept";
+
   const handleStatusChange = async (
     newStatus: "concept" | "voorcalculatie" | "verzonden" | "geaccepteerd" | "afgewezen"
   ) => {
     if (!offerte) return;
+
+    // 1. Store previous status for rollback
+    const previousStatus = offerte.status;
+
+    // 2. Apply optimistic update immediately
+    setOptimisticStatus(newStatus);
     setIsUpdating(true);
+
+    // Show immediate feedback
+    toast.success(`Status gewijzigd naar ${STATUS_CONFIG[newStatus].label}`);
+
     try {
+      // 3. Make actual server call
       await updateStatus({ id: offerte._id, status: newStatus });
-      toast.success(`Status gewijzigd naar ${STATUS_CONFIG[newStatus].label}`);
+
+      // 4. Clear optimistic state (server data will take over)
+      setOptimisticStatus(null);
     } catch (error) {
+      // 5. Rollback on error
+      setOptimisticStatus(null);
       const errorMessage = error instanceof Error ? error.message : "Fout bij wijzigen status";
       toast.error(errorMessage);
     } finally {
@@ -385,7 +406,7 @@ export default function OfferteDetailPage({
                   <h1 className="text-2xl font-bold tracking-tight">
                     {offerte.offerteNummer}
                   </h1>
-                  <StatusBadge status={offerte.status as OfferteStatus} />
+                  <StatusBadge status={displayStatus as OfferteStatus} />
                 </div>
                 <p className="text-muted-foreground">
                   {offerte.type === "aanleg" ? "Aanleg" : "Onderhoud"} offerte •
@@ -517,7 +538,7 @@ export default function OfferteDetailPage({
         >
           <Card className="p-4 md:p-6">
             <OfferteWorkflowStepper
-              currentStatus={offerte.status as "concept" | "voorcalculatie" | "verzonden" | "geaccepteerd" | "afgewezen"}
+              currentStatus={displayStatus as "concept" | "voorcalculatie" | "verzonden" | "geaccepteerd" | "afgewezen"}
               hasVoorcalculatie={!!voorcalculatie}
               offerteId={id}
               showNextStepAction={true}

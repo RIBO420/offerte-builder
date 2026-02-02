@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, Suspense, memo } from "react";
+import { useState, useMemo, useCallback, Suspense, memo, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "convex/react";
@@ -26,7 +26,6 @@ import {
   Shovel,
   Trees,
   Search,
-  Loader2,
   MoreHorizontal,
   Copy,
   Trash2,
@@ -95,6 +94,7 @@ import {
   ExportDropdown,
   offerteExportColumns,
 } from "@/components/export-dropdown";
+import { OffertesTableSkeleton } from "@/components/skeletons";
 
 // Memoized formatter instances to avoid recreation
 const currencyFormatter = new Intl.NumberFormat("nl-NL", {
@@ -359,8 +359,8 @@ function OffertesPageLoader() {
   return (
     <>
       <PageHeader />
-      <div className="flex flex-1 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6">
+        <OffertesTableSkeleton rows={5} />
       </div>
     </>
   );
@@ -391,6 +391,11 @@ function OffertesPageContent() {
   const [selectedIds, setSelectedIds] = useState<Set<Id<"offertes">>>(new Set());
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [bulkStatusValue, setBulkStatusValue] = useState<string>("");
+
+  // Optimistic updates state
+  const [optimisticStatusUpdates, setOptimisticStatusUpdates] = useState<Map<string, string>>(new Map());
+  const [optimisticDeletedIds, setOptimisticDeletedIds] = useState<Set<string>>(new Set());
+  const previousOffertesRef = useRef<typeof offertes>(null);
 
   // Initialize filters from URL params
   const [filters, setFilters] = useState<OfferteFilters>(() => ({
@@ -512,8 +517,25 @@ function OffertesPageContent() {
     toast.success("Preset verwijderd");
   }, [deletePreset]);
 
+  // Apply optimistic updates to offertes before filtering
+  const offertesWithOptimisticUpdates = useMemo(() => {
+    if (!offertes) return [];
+
+    return offertes
+      // Filter out optimistically deleted items
+      .filter((offerte) => !optimisticDeletedIds.has(offerte._id))
+      // Apply optimistic status updates
+      .map((offerte) => {
+        const optimisticStatus = optimisticStatusUpdates.get(offerte._id);
+        if (optimisticStatus) {
+          return { ...offerte, status: optimisticStatus };
+        }
+        return offerte;
+      });
+  }, [offertes, optimisticStatusUpdates, optimisticDeletedIds]);
+
   const filteredOffertes = useMemo(() => {
-    return offertes?.filter((offerte) => {
+    return offertesWithOptimisticUpdates.filter((offerte) => {
       // Search filter (use debounced value for filtering)
       const matchesSearch =
         debouncedSearchQuery === "" ||
@@ -552,7 +574,7 @@ function OffertesPageContent() {
         matchesAmountMax
       );
     });
-  }, [offertes, debouncedSearchQuery, activeTab, filters]);
+  }, [offertesWithOptimisticUpdates, debouncedSearchQuery, activeTab, filters]);
 
   // Transform filtered offertes to sortable format
   const sortableOffertes = useMemo<SortableOfferte[]>(() => {
@@ -586,9 +608,22 @@ function OffertesPageContent() {
   }, [getNextNummer, duplicate]);
 
   const handleDelete = useCallback(async (offerteId: string) => {
+    const id = offerteId as Id<"offertes">;
+
+    // 1. Apply optimistic delete immediately
+    setOptimisticDeletedIds((prev) => new Set(prev).add(id));
+
     try {
-      const id = offerteId as Id<"offertes">;
+      // 2. Make actual server call
       await deleteOfferte({ id });
+
+      // 3. Clear optimistic delete (server data will take over)
+      setOptimisticDeletedIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(id);
+        return newSet;
+      });
+
       // Show undo toast with 30-second window
       showDeleteToast(
         "Offerte verwijderd",
@@ -597,6 +632,12 @@ function OffertesPageContent() {
         }
       );
     } catch {
+      // 4. Rollback on error
+      setOptimisticDeletedIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(id);
+        return newSet;
+      });
       toast.error("Fout bij verwijderen offerte");
     }
   }, [deleteOfferte, restoreOfferte]);
@@ -634,14 +675,41 @@ function OffertesPageContent() {
 
   const handleBulkStatusChange = useCallback(async (status: string) => {
     if (selectedIds.size === 0) return;
+
+    const ids = Array.from(selectedIds);
+    const count = ids.length;
+
+    // 1. Apply optimistic update immediately
+    setOptimisticStatusUpdates((prev) => {
+      const newMap = new Map(prev);
+      ids.forEach((id) => newMap.set(id, status));
+      return newMap;
+    });
+
+    // Show immediate feedback
+    toast.success(`${count} offerte(s) bijgewerkt naar ${status}`);
+    clearSelection();
+
     try {
+      // 2. Make actual server call
       await bulkUpdateStatus({
-        ids: Array.from(selectedIds),
+        ids,
         status: status as "concept" | "voorcalculatie" | "verzonden" | "geaccepteerd" | "afgewezen",
       });
-      toast.success(`${selectedIds.size} offerte(s) bijgewerkt naar ${status}`);
-      clearSelection();
+
+      // 3. Clear optimistic updates (server data will take over)
+      setOptimisticStatusUpdates((prev) => {
+        const newMap = new Map(prev);
+        ids.forEach((id) => newMap.delete(id));
+        return newMap;
+      });
     } catch (error) {
+      // 4. Rollback on error
+      setOptimisticStatusUpdates((prev) => {
+        const newMap = new Map(prev);
+        ids.forEach((id) => newMap.delete(id));
+        return newMap;
+      });
       const errorMessage = error instanceof Error ? error.message : "Fout bij bijwerken status";
       toast.error(errorMessage);
     }
@@ -651,10 +719,28 @@ function OffertesPageContent() {
     if (selectedIds.size === 0) return;
     const ids = Array.from(selectedIds);
     const count = ids.length;
+
+    // 1. Apply optimistic delete immediately
+    setOptimisticDeletedIds((prev) => {
+      const newSet = new Set(prev);
+      ids.forEach((id) => newSet.add(id));
+      return newSet;
+    });
+
+    clearSelection();
+    setShowBulkDeleteDialog(false);
+
     try {
+      // 2. Make actual server call
       await bulkRemove({ ids });
-      clearSelection();
-      setShowBulkDeleteDialog(false);
+
+      // 3. Clear optimistic deletes (server data will take over)
+      setOptimisticDeletedIds((prev) => {
+        const newSet = new Set(prev);
+        ids.forEach((id) => newSet.delete(id));
+        return newSet;
+      });
+
       // Show undo toast with 30-second window
       showDeleteToast(
         `${count} offerte(s) verwijderd`,
@@ -663,6 +749,12 @@ function OffertesPageContent() {
         }
       );
     } catch {
+      // 4. Rollback on error
+      setOptimisticDeletedIds((prev) => {
+        const newSet = new Set(prev);
+        ids.forEach((id) => newSet.delete(id));
+        return newSet;
+      });
       toast.error("Fout bij verwijderen offertes");
     }
   }, [selectedIds, bulkRemove, bulkRestore, clearSelection]);
@@ -928,9 +1020,8 @@ function OffertesPageContent() {
                   animate={{ opacity: 1 }}
                   exit={reducedMotion ? undefined : { opacity: 0 }}
                   transition={{ duration: reducedMotion ? 0 : 0.2 }}
-                  className="flex items-center justify-center py-20"
                 >
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  <OffertesTableSkeleton rows={5} />
                 </motion.div>
               ) : sortedOffertes.length > 0 ? (
                 <motion.div

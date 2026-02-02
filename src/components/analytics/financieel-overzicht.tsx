@@ -39,6 +39,7 @@ import {
   Percent,
   BarChart3,
 } from "lucide-react";
+import { formatCurrency, formatCurrencyCompact } from "@/lib/format";
 
 interface KostenCategorie {
   naam: string;
@@ -68,23 +69,9 @@ interface FinancieelOverzichtProps {
   previousNettoWinst?: number;
 }
 
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("nl-NL", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
-
-function formatCompactCurrency(amount: number): string {
-  if (Math.abs(amount) >= 1000000) {
-    return `€${(amount / 1000000).toFixed(1)}M`;
-  }
-  if (Math.abs(amount) >= 1000) {
-    return `€${(amount / 1000).toFixed(0)}k`;
-  }
-  return formatCurrency(amount);
+// Helper to format currency without decimals
+function formatCurrencyNoDecimals(amount: number): string {
+  return formatCurrency(amount, "nl-NL", false);
 }
 
 // Default colors for cost categories
@@ -123,7 +110,7 @@ function PieTooltip({ active, payload }: {
         <div className="space-y-1">
           <div className="flex items-center justify-between gap-4">
             <span className="text-sm text-muted-foreground">Bedrag</span>
-            <span className="font-bold text-foreground">{formatCurrency(item.bedrag)}</span>
+            <span className="font-bold text-foreground">{formatCurrencyNoDecimals(item.bedrag)}</span>
           </div>
           <div className="flex items-center justify-between gap-4">
             <span className="text-sm text-muted-foreground">Percentage</span>
@@ -156,16 +143,16 @@ function BarTooltip({ active, payload }: {
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-4">
             <span className="text-sm text-muted-foreground">Omzet</span>
-            <span className="font-medium text-emerald-500">{formatCurrency(item.omzet)}</span>
+            <span className="font-medium text-emerald-500">{formatCurrencyNoDecimals(item.omzet)}</span>
           </div>
           <div className="flex items-center justify-between gap-4">
             <span className="text-sm text-muted-foreground">Kosten</span>
-            <span className="font-medium text-red-400">{formatCurrency(item.kosten)}</span>
+            <span className="font-medium text-red-400">{formatCurrencyNoDecimals(item.kosten)}</span>
           </div>
           <div className="flex items-center justify-between gap-4 pt-2 border-t border-white/10">
             <span className="text-sm text-muted-foreground">Winst</span>
             <span className={`font-bold ${item.winst >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-              {formatCurrency(item.winst)}
+              {formatCurrencyNoDecimals(item.winst)}
             </span>
           </div>
           <div className="flex items-center justify-between gap-4">
@@ -409,7 +396,7 @@ export const FinancieelOverzicht = memo(function FinancieelOverzicht({
                   <div>
                     <CardTitle>Kosten Breakdown</CardTitle>
                     <CardDescription>
-                      Totaal: <span className="font-semibold text-foreground">{formatCurrency(totalKostenFromBreakdown)}</span>
+                      Totaal: <span className="font-semibold text-foreground">{formatCurrencyNoDecimals(totalKostenFromBreakdown)}</span>
                     </CardDescription>
                   </div>
                 </div>
@@ -457,7 +444,7 @@ export const FinancieelOverzicht = memo(function FinancieelOverzicht({
                         <span className="text-sm text-muted-foreground">{item.naam}</span>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className="text-sm font-medium">{formatCurrency(item.bedrag)}</span>
+                        <span className="text-sm font-medium">{formatCurrencyNoDecimals(item.bedrag)}</span>
                         <Badge variant="secondary" className="text-xs">
                           {item.percentage.toFixed(0)}%
                         </Badge>
@@ -521,7 +508,7 @@ export const FinancieelOverzicht = memo(function FinancieelOverzicht({
                       tickLine={false}
                     />
                     <YAxis
-                      tickFormatter={(value) => formatCompactCurrency(value)}
+                      tickFormatter={(value) => formatCurrencyCompact(value)}
                       tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
                       axisLine={false}
                       tickLine={false}
@@ -589,13 +576,13 @@ export const FinancieelOverzicht = memo(function FinancieelOverzicht({
                     >
                       <TableCell className="font-medium">{maand.maand}</TableCell>
                       <TableCell className="text-right text-emerald-500 font-medium">
-                        {formatCurrency(maand.omzet)}
+                        {formatCurrencyNoDecimals(maand.omzet)}
                       </TableCell>
                       <TableCell className="text-right text-red-400">
-                        {formatCurrency(maand.kosten)}
+                        {formatCurrencyNoDecimals(maand.kosten)}
                       </TableCell>
                       <TableCell className={`text-right font-bold ${maand.winst >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                        {formatCurrency(maand.winst)}
+                        {formatCurrencyNoDecimals(maand.winst)}
                       </TableCell>
                       <TableCell className="text-right">
                         <Badge
@@ -619,13 +606,13 @@ export const FinancieelOverzicht = memo(function FinancieelOverzicht({
                   <TableRow className="border-white/10 bg-muted/30 font-semibold">
                     <TableCell>Totaal</TableCell>
                     <TableCell className="text-right text-emerald-500">
-                      {formatCurrency(maandelijksOverzicht.reduce((sum, m) => sum + m.omzet, 0))}
+                      {formatCurrencyNoDecimals(maandelijksOverzicht.reduce((sum, m) => sum + m.omzet, 0))}
                     </TableCell>
                     <TableCell className="text-right text-red-400">
-                      {formatCurrency(maandelijksOverzicht.reduce((sum, m) => sum + m.kosten, 0))}
+                      {formatCurrencyNoDecimals(maandelijksOverzicht.reduce((sum, m) => sum + m.kosten, 0))}
                     </TableCell>
                     <TableCell className="text-right text-emerald-500">
-                      {formatCurrency(maandelijksOverzicht.reduce((sum, m) => sum + m.winst, 0))}
+                      {formatCurrencyNoDecimals(maandelijksOverzicht.reduce((sum, m) => sum + m.winst, 0))}
                     </TableCell>
                     <TableCell className="text-right">
                       <Badge variant="secondary" className="bg-blue-500/10 text-blue-500">

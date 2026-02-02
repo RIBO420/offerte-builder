@@ -14,6 +14,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { TrendingUp, Calendar } from "lucide-react";
+import { formatCurrency } from "@/lib/format";
 
 interface MonthlyData {
   maand: string;
@@ -31,13 +32,9 @@ interface RevenueChartProps {
   quarterlyData: QuarterlyData[];
 }
 
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("nl-NL", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
+// Helper to format currency without decimals
+function formatCurrencyNoDecimals(amount: number): string {
+  return formatCurrency(amount, "nl-NL", false);
 }
 
 // Premium custom tooltip component
@@ -73,7 +70,7 @@ function CustomTooltip({ active, payload, label }: {
           <div className="flex items-center justify-between gap-4">
             <span className="text-sm text-muted-foreground">Omzet</span>
             <span className="font-bold text-lg bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent">
-              {formatCurrency(data.value)}
+              {formatCurrencyNoDecimals(data.value)}
             </span>
           </div>
 
@@ -144,7 +141,7 @@ export const RevenueChart = memo(function RevenueChart({ monthlyData, quarterlyD
             <div>
               <CardTitle>Omzet</CardTitle>
               <CardDescription>
-                Totaal: <span className="font-semibold text-foreground">{formatCurrency(totalOmzet)}</span>
+                Totaal: <span className="font-semibold text-foreground">{formatCurrencyNoDecimals(totalOmzet)}</span>
               </CardDescription>
             </div>
           </div>

@@ -89,6 +89,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { getModifierKey } from "@/hooks/use-keyboard-shortcuts";
 import { SortableRegelsTable } from "@/components/offerte/sortable-regels-table";
+import { createBackgroundErrorHandler } from "@/lib/error-handling";
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("nl-NL", {
@@ -231,9 +232,9 @@ export default function OfferteEditPage({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     if (messages && messages.length > 0 && id) {
-      markAsRead({ offerteId: id as Id<"offertes"> }).catch(() => {
-        // Silent fail for marking messages as read
-      });
+      markAsRead({ offerteId: id as Id<"offertes"> }).catch(
+        createBackgroundErrorHandler("markAsRead", { offerteId: id, context: "editPage" })
+      );
     }
   }, [messages, id, markAsRead]);
 

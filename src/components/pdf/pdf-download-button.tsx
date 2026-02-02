@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { pdf } from "@react-pdf/renderer";
 import { Button } from "@/components/ui/button";
-import { Download, Loader2 } from "lucide-react";
+import { Download, Loader2, AlertCircle } from "lucide-react";
 import { OffertePDF } from "./offerte-pdf";
+import { handleError, getMutationErrorMessage } from "@/lib/error-handling";
+import { toast } from "sonner";
 import type { Bedrijfsgegevens } from "@/types/offerte";
 
 interface OfferteRegel {
@@ -69,9 +71,11 @@ export function PDFDownloadButton({
   size = "default",
 }: PDFDownloadButtonProps) {
   const [isGenerating, setIsGenerating] = useState(false);
+  const [hasError, setHasError] = useState(false);
 
   const handleDownload = async () => {
     setIsGenerating(true);
+    setHasError(false);
     try {
       const blob = await pdf(
         <OffertePDF offerte={offerte} bedrijfsgegevens={bedrijfsgegevens} />
@@ -85,8 +89,32 @@ export function PDFDownloadButton({
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-    } catch {
-      // PDF generation failed - silently handle as user can retry
+
+      toast.success("PDF gedownload", {
+        description: `${offerte.offerteNummer} is succesvol gedownload.`,
+      });
+    } catch (error) {
+      setHasError(true);
+
+      // Log to Sentry with context
+      handleError(error, {
+        operationName: "pdf-generation",
+        extra: {
+          offerteNummer: offerte.offerteNummer,
+          klantNaam: offerte.klant.naam,
+          regelsCount: offerte.regels.length,
+        },
+      });
+
+      // Show user-friendly error message
+      const errorMessage = getMutationErrorMessage(error);
+      toast.error("PDF kon niet worden gegenereerd", {
+        description: errorMessage,
+        action: {
+          label: "Opnieuw",
+          onClick: handleDownload,
+        },
+      });
     } finally {
       setIsGenerating(false);
     }
@@ -94,17 +122,19 @@ export function PDFDownloadButton({
 
   return (
     <Button
-      variant={variant}
+      variant={hasError ? "destructive" : variant}
       size={size}
       onClick={handleDownload}
       disabled={isGenerating}
     >
       {isGenerating ? (
         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+      ) : hasError ? (
+        <AlertCircle className="mr-2 h-4 w-4" />
       ) : (
         <Download className="mr-2 h-4 w-4" />
       )}
-      {isGenerating ? "Genereren..." : "PDF"}
+      {isGenerating ? "Genereren..." : hasError ? "Opnieuw proberen" : "PDF"}
     </Button>
   );
 }

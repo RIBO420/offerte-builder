@@ -87,6 +87,13 @@ export function SendEmailDialog({
   const [emailType, setEmailType] = useState<EmailType>("offerte_verzonden");
   const [toEmail, setToEmail] = useState(offerte.klant.email || "");
 
+  // Optimistic state for showing pending email in logs
+  const [optimisticPendingEmail, setOptimisticPendingEmail] = useState<{
+    type: EmailType;
+    to: string;
+    timestamp: number;
+  } | null>(null);
+
   const handleSend = async () => {
     if (!toEmail.trim()) {
       toast.error("Vul een emailadres in");
@@ -98,7 +105,22 @@ export function SendEmailDialog({
       return;
     }
 
+    // 1. Apply optimistic update - show pending email immediately
+    const pendingEmail = {
+      type: emailType,
+      to: toEmail.trim(),
+      timestamp: Date.now(),
+    };
+    setOptimisticPendingEmail(pendingEmail);
+
+    // 2. Close dialog immediately for better UX
+    onOpenChange(false);
+
+    // Show immediate feedback
+    toast.success("Email wordt verzonden...");
+
     try {
+      // 3. Make actual server call
       await sendEmail({
         offerteId: offerte._id,
         type: emailType,
@@ -113,9 +135,12 @@ export function SendEmailDialog({
         scopes: offerte.scopes,
       });
 
+      // 4. Clear optimistic state and show success
+      setOptimisticPendingEmail(null);
       toast.success("Email verzonden!");
-      onOpenChange(false);
     } catch (error) {
+      // 5. Clear optimistic state on error
+      setOptimisticPendingEmail(null);
       toast.error(
         error instanceof Error ? error.message : "Fout bij verzenden email"
       );

@@ -27,6 +27,7 @@ import { AnimatedNumber } from "@/components/ui/animated-number";
 import { Calculator, TrendingUp, TrendingDown, Target, CheckCircle2, AlertTriangle, Minus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { formatCurrency } from "@/lib/format";
 
 interface ScopeCalculatieData {
   scope: string;
@@ -62,13 +63,9 @@ const scopeLabels: Record<string, string> = {
   transport: "Transport",
 };
 
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("nl-NL", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
+// Helper to format currency without decimals
+function formatCurrencyNoDecimals(amount: number): string {
+  return formatCurrency(amount, "nl-NL", false);
 }
 
 function getVarianceColor(percentage: number): string {
@@ -116,11 +113,11 @@ function CustomTooltip({ active, payload }: {
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-4">
             <span className="text-sm text-muted-foreground">Voorcalculatie</span>
-            <span className="font-medium text-blue-500">{formatCurrency(item.voorcalculatie)}</span>
+            <span className="font-medium text-blue-500">{formatCurrencyNoDecimals(item.voorcalculatie)}</span>
           </div>
           <div className="flex items-center justify-between gap-4">
             <span className="text-sm text-muted-foreground">Nacalculatie</span>
-            <span className="font-medium text-emerald-500">{formatCurrency(item.nacalculatie)}</span>
+            <span className="font-medium text-emerald-500">{formatCurrencyNoDecimals(item.nacalculatie)}</span>
           </div>
           <div className="flex items-center justify-between gap-4 pt-2 border-t border-white/10">
             <span className="text-sm text-muted-foreground">Verschil</span>
@@ -276,7 +273,7 @@ export const CalculatieVergelijking = memo(function CalculatieVergelijking({
                   <span className={`font-semibold ${getVarianceColor(totalVariancePercentage)}`}>
                     {totalVariancePercentage > 0 ? "+" : ""}{totalVariancePercentage.toFixed(1)}%
                   </span>
-                  {" "}({formatCurrency(totalVariance)})
+                  {" "}({formatCurrencyNoDecimals(totalVariance)})
                 </CardDescription>
               </div>
             </div>
@@ -378,15 +375,15 @@ export const CalculatieVergelijking = memo(function CalculatieVergelijking({
                   >
                     <TableCell className="font-medium">{item.displayName}</TableCell>
                     <TableCell className="text-right text-blue-500">
-                      {formatCurrency(item.voorcalculatie)}
+                      {formatCurrencyNoDecimals(item.voorcalculatie)}
                     </TableCell>
                     <TableCell className="text-right text-emerald-500">
-                      {formatCurrency(item.nacalculatie)}
+                      {formatCurrencyNoDecimals(item.nacalculatie)}
                     </TableCell>
                     <TableCell className={`text-right font-semibold ${getVarianceColor(item.variancePercentage)}`}>
                       {item.variancePercentage > 0 ? "+" : ""}{item.variancePercentage.toFixed(1)}%
                       <span className="block text-xs text-muted-foreground font-normal">
-                        {formatCurrency(item.variance)}
+                        {formatCurrencyNoDecimals(item.variance)}
                       </span>
                     </TableCell>
                     <TableCell className="text-center">
@@ -398,10 +395,10 @@ export const CalculatieVergelijking = memo(function CalculatieVergelijking({
                 <TableRow className="border-white/10 bg-muted/30 font-semibold">
                   <TableCell>Totaal</TableCell>
                   <TableCell className="text-right text-blue-500">
-                    {formatCurrency(totalVoorcalculatie)}
+                    {formatCurrencyNoDecimals(totalVoorcalculatie)}
                   </TableCell>
                   <TableCell className="text-right text-emerald-500">
-                    {formatCurrency(totalNacalculatie)}
+                    {formatCurrencyNoDecimals(totalNacalculatie)}
                   </TableCell>
                   <TableCell className={`text-right ${getVarianceColor(totalVariancePercentage)}`}>
                     {totalVariancePercentage > 0 ? "+" : ""}{totalVariancePercentage.toFixed(1)}%

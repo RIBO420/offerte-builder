@@ -28,7 +28,6 @@ import {
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
   ArrowLeft,
-  Loader2,
   Calendar,
   Clock,
   Users,
@@ -37,8 +36,11 @@ import {
   FileText,
   ChevronRight,
   Calculator,
+  Euro,
 } from "lucide-react";
 import { ProjectProgressStepper, type ProjectStatus } from "@/components/project/project-progress-stepper";
+import { WerklocatieCard } from "@/components/project/werklocatie-card";
+import { ProjectDetailSkeleton } from "@/components/skeletons";
 
 // Project status colors - voorcalculatie is now at offerte level
 // Note: voorcalculatie kept for backwards compatibility with existing projects
@@ -102,14 +104,12 @@ export default function ProjectDetailPage({
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                <BreadcrumbPage>Laden...</BreadcrumbPage>
+                <BreadcrumbPage>Project</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
         </header>
-        <div className="flex flex-1 items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
+        <ProjectDetailSkeleton />
       </>
     );
   }
@@ -418,11 +418,39 @@ export default function ProjectDetailPage({
             </CardContent>
           </Card>
 
+          {/* Kosten Tracking Module */}
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Euro className="h-5 w-5" />
+                Kosten Tracking
+              </CardTitle>
+              <CardDescription>
+                Real-time kosten overzicht vs budget
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Volg materiaal-, arbeids- en machinekosten live tijdens het project.
+              </p>
+              <Button
+                asChild
+                className="w-full"
+                variant="outline"
+              >
+                <Link href={`/projecten/${id}/kosten`}>
+                  Naar Kosten
+                  <ChevronRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+
           {/* Nacalculatie Module */}
           <Card className={`hover:shadow-lg transition-shadow ${project.status === 'afgerond' || project.status === 'nacalculatie_compleet' ? 'ring-2 ring-primary' : ''}`}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <ClipboardCheck className="h-5 w-5" />
+                <Calculator className="h-5 w-5" />
                 Nacalculatie
               </CardTitle>
               <CardDescription>
@@ -496,6 +524,9 @@ export default function ProjectDetailPage({
             </Card>
           )}
         </div>
+
+        {/* Werklocatie Card */}
+        <WerklocatieCard projectId={projectId} />
 
         {/* Linked Offerte */}
         {offerte && (

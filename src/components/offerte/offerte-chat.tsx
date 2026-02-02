@@ -17,6 +17,7 @@ import {
 import { MessageSquare, Send, Loader2, Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Id } from "../../../convex/_generated/dataModel";
+import { createBackgroundErrorHandler } from "@/lib/error-handling";
 
 interface OfferteChatProps {
   offerteId: Id<"offertes">;
@@ -65,9 +66,9 @@ export function OfferteChat({ offerteId, klantNaam, compact = false, inline = fa
   // Mark messages as read when viewing
   useEffect(() => {
     if (unreadCount && unreadCount > 0) {
-      markAsRead({ offerteId }).catch(() => {
-        // Silent fail - marking as read is not critical
-      });
+      markAsRead({ offerteId }).catch(
+        createBackgroundErrorHandler("markAsRead", { offerteId, context: "chatComponent" })
+      );
     }
   }, [unreadCount, offerteId, markAsRead]);
 

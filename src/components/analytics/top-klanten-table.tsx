@@ -15,6 +15,7 @@ import {
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import { ExternalLink, Users, Trophy, Medal, Award, Repeat, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { formatCurrency } from "@/lib/format";
 
 interface TopKlant {
   klantId: string | null;
@@ -32,13 +33,9 @@ interface TopKlantenTableProps {
   klanten: TopKlant[];
 }
 
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("nl-NL", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
+// Helper to format currency without decimals
+function formatCurrencyNoDecimals(amount: number): string {
+  return formatCurrency(amount, "nl-NL", false);
 }
 
 // Medal icons for top 3
@@ -131,7 +128,7 @@ export const TopKlantenTable = memo(function TopKlantenTable({ klanten }: TopKla
             <div className="flex-1">
               <CardTitle>Top Klanten</CardTitle>
               <CardDescription>
-                Totaal: <span className="font-semibold text-foreground">{formatCurrency(totaalOmzet)}</span>
+                Totaal: <span className="font-semibold text-foreground">{formatCurrencyNoDecimals(totaalOmzet)}</span>
                 {repeatCustomers > 0 && (
                   <span className="ml-2">
                     <Badge variant="secondary" className="gap-1 text-teal-600 dark:text-teal-400 border-teal-200 dark:border-teal-800">
@@ -202,7 +199,7 @@ export const TopKlantenTable = memo(function TopKlantenTable({ klanten }: TopKla
                     </span>
                   </TableCell>
                   <TableCell className="text-right text-muted-foreground hidden md:table-cell">
-                    {formatCurrency(klant.gemiddeldeWaarde)}
+                    {formatCurrencyNoDecimals(klant.gemiddeldeWaarde)}
                   </TableCell>
                 </TableRow>
               ))}

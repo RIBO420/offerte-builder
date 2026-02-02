@@ -20,10 +20,13 @@ import type * as crons from "../crons.js";
 import type * as emailLogs from "../emailLogs.js";
 import type * as export_ from "../export.js";
 import type * as facturen from "../facturen.js";
+import type * as inkooporders from "../inkooporders.js";
 import type * as instellingen from "../instellingen.js";
 import type * as kilometerStanden from "../kilometerStanden.js";
 import type * as klanten from "../klanten.js";
+import type * as kwaliteitsControles from "../kwaliteitsControles.js";
 import type * as leerfeedback from "../leerfeedback.js";
+import type * as leveranciers from "../leveranciers.js";
 import type * as machineGebruik from "../machineGebruik.js";
 import type * as machines from "../machines.js";
 import type * as medewerkerAnalytics from "../medewerkerAnalytics.js";
@@ -39,10 +42,12 @@ import type * as offerteVersions from "../offerteVersions.js";
 import type * as offertes from "../offertes.js";
 import type * as planningTaken from "../planningTaken.js";
 import type * as producten from "../producten.js";
+import type * as projectKosten from "../projectKosten.js";
 import type * as projectRapportages from "../projectRapportages.js";
 import type * as projecten from "../projecten.js";
 import type * as publicOffertes from "../publicOffertes.js";
 import type * as pushNotifications from "../pushNotifications.js";
+import type * as realtime from "../realtime.js";
 import type * as roles from "../roles.js";
 import type * as security from "../security.js";
 import type * as smartAnalytics from "../smartAnalytics.js";
@@ -57,6 +62,8 @@ import type * as voertuigSchades from "../voertuigSchades.js";
 import type * as voertuigUitrusting from "../voertuigUitrusting.js";
 import type * as voertuigen from "../voertuigen.js";
 import type * as voorcalculaties from "../voorcalculaties.js";
+import type * as voorraad from "../voorraad.js";
+import type * as werklocaties from "../werklocaties.js";
 
 import type {
   ApiFromModules,
@@ -77,10 +84,13 @@ declare const fullApi: ApiFromModules<{
   emailLogs: typeof emailLogs;
   export: typeof export_;
   facturen: typeof facturen;
+  inkooporders: typeof inkooporders;
   instellingen: typeof instellingen;
   kilometerStanden: typeof kilometerStanden;
   klanten: typeof klanten;
+  kwaliteitsControles: typeof kwaliteitsControles;
   leerfeedback: typeof leerfeedback;
+  leveranciers: typeof leveranciers;
   machineGebruik: typeof machineGebruik;
   machines: typeof machines;
   medewerkerAnalytics: typeof medewerkerAnalytics;
@@ -96,10 +106,12 @@ declare const fullApi: ApiFromModules<{
   offertes: typeof offertes;
   planningTaken: typeof planningTaken;
   producten: typeof producten;
+  projectKosten: typeof projectKosten;
   projectRapportages: typeof projectRapportages;
   projecten: typeof projecten;
   publicOffertes: typeof publicOffertes;
   pushNotifications: typeof pushNotifications;
+  realtime: typeof realtime;
   roles: typeof roles;
   security: typeof security;
   smartAnalytics: typeof smartAnalytics;
@@ -114,6 +126,8 @@ declare const fullApi: ApiFromModules<{
   voertuigUitrusting: typeof voertuigUitrusting;
   voertuigen: typeof voertuigen;
   voorcalculaties: typeof voorcalculaties;
+  voorraad: typeof voorraad;
+  werklocaties: typeof werklocaties;
 }>;
 
 /**

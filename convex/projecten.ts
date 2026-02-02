@@ -677,6 +677,7 @@ export const getProjectsByOfferteIds = query({
  * Admin sees all active (non-gefactureerd) projects.
  * Medewerker sees only projects where they are assigned as a teamlid.
  * Returns projects with team info from voorcalculatie.
+ * OPTIMIZED: Uses batch queries instead of N+1 pattern.
  */
 export const listForPlanning = query({
   args: {},
@@ -684,87 +685,84 @@ export const listForPlanning = query({
     const user = await requireAuth(ctx);
     const role = await getUserRole(ctx);
 
-    // Get projects based on role
-    let projects;
-    if (role === "admin") {
-      // Admin sees all active projects (not gefactureerd, not archived, not deleted)
-      projects = await ctx.db
-        .query("projecten")
-        .withIndex("by_user", (q) => q.eq("userId", user._id))
-        .filter((q) => q.neq(q.field("status"), "gefactureerd"))
-        .collect();
+    // Determine the userId to query based on role
+    let queryUserId: Id<"users">;
+    let medewerkerNaam: string | null = null;
 
-      // Filter out archived and deleted projects
-      projects = projects.filter((p) => p.isArchived !== true && !p.deletedAt);
+    if (role === "admin") {
+      queryUserId = user._id;
     } else {
       // Medewerker sees assigned projects
       const medewerker = await getLinkedMedewerker(ctx);
       if (!medewerker) return [];
-
-      // Get all active projects for the medewerker's company
-      const allProjects = await ctx.db
-        .query("projecten")
-        .withIndex("by_user", (q) => q.eq("userId", medewerker.userId))
-        .filter((q) => q.neq(q.field("status"), "gefactureerd"))
-        .collect();
-
-      // Filter out archived and deleted projects
-      const activeProjects = allProjects.filter((p) => p.isArchived !== true && !p.deletedAt);
-
-      // Filter to projects where medewerker is in team (check voorcalculatie teamleden)
-      const projectsWithTeam = await Promise.all(
-        activeProjects.map(async (p) => {
-          // Check project-level voorcalculatie first
-          let voorcalc = await ctx.db
-            .query("voorcalculaties")
-            .withIndex("by_project", (q) => q.eq("projectId", p._id))
-            .first();
-
-          // If not found, check offerte-level voorcalculatie
-          if (!voorcalc) {
-            voorcalc = await ctx.db
-              .query("voorcalculaties")
-              .withIndex("by_offerte", (q) => q.eq("offerteId", p.offerteId))
-              .first();
-          }
-
-          const teamleden = voorcalc?.teamleden ?? [];
-          const isInTeam = teamleden.includes(medewerker.naam);
-
-          return { project: p, voorcalc, isInTeam };
-        })
-      );
-
-      // Only include projects where medewerker is in the team
-      projects = projectsWithTeam
-        .filter((pt) => pt.isInTeam)
-        .map((pt) => pt.project);
+      queryUserId = medewerker.userId;
+      medewerkerNaam = medewerker.naam;
     }
 
-    // For each project, get voorcalculatie for team info
-    return Promise.all(
-      projects.map(async (p) => {
-        // Check project-level voorcalculatie first
-        let voorcalc = await ctx.db
-          .query("voorcalculaties")
-          .withIndex("by_project", (q) => q.eq("projectId", p._id))
-          .first();
+    // Fetch all active projects
+    const allProjects = await ctx.db
+      .query("projecten")
+      .withIndex("by_user", (q) => q.eq("userId", queryUserId))
+      .filter((q) => q.neq(q.field("status"), "gefactureerd"))
+      .collect();
 
-        // If not found, check offerte-level voorcalculatie
-        if (!voorcalc) {
-          voorcalc = await ctx.db
+    // Filter out archived and deleted projects
+    const activeProjects = allProjects.filter((p) => p.isArchived !== true && !p.deletedAt);
+
+    if (activeProjects.length === 0) {
+      return [];
+    }
+
+    // OPTIMIZED: Batch fetch voorcalculaties for all projects in parallel
+    const projectIds = activeProjects.map((p) => p._id);
+    const offerteIds = activeProjects.map((p) => p.offerteId);
+
+    const [voorcalculatiesByProject, voorcalculatiesByOfferte] = await Promise.all([
+      // Batch 1: Fetch voorcalculaties by project IDs
+      Promise.all(
+        projectIds.map((projectId) =>
+          ctx.db
             .query("voorcalculaties")
-            .withIndex("by_offerte", (q) => q.eq("offerteId", p.offerteId))
-            .first();
-        }
+            .withIndex("by_project", (q) => q.eq("projectId", projectId))
+            .first()
+        )
+      ),
+      // Batch 2: Fetch voorcalculaties by offerte IDs (fallback)
+      Promise.all(
+        offerteIds.map((offerteId) =>
+          ctx.db
+            .query("voorcalculaties")
+            .withIndex("by_offerte", (q) => q.eq("offerteId", offerteId))
+            .first()
+        )
+      ),
+    ]);
 
-        return {
-          ...p,
-          teamleden: voorcalc?.teamleden ?? [],
-          geschatteDagen: voorcalc?.geschatteDagen ?? 0,
-        };
-      })
-    );
+    // Helper to get voorcalculatie for a project by index
+    const getVoorcalculatie = (index: number) => {
+      return voorcalculatiesByProject[index] || voorcalculatiesByOfferte[index];
+    };
+
+    // Filter projects based on role
+    let filteredProjects: { project: typeof activeProjects[0]; voorcalc: typeof voorcalculatiesByProject[0] }[];
+    if (role === "admin") {
+      filteredProjects = activeProjects.map((p, i) => ({ project: p, voorcalc: getVoorcalculatie(i) }));
+    } else {
+      // For medewerker, filter to projects where they are in the team
+      filteredProjects = activeProjects
+        .map((p, i) => ({ project: p, voorcalc: getVoorcalculatie(i) }))
+        .filter(({ voorcalc }) => {
+          const teamleden = voorcalc?.teamleden ?? [];
+          return medewerkerNaam ? teamleden.includes(medewerkerNaam) : false;
+        });
+    }
+
+    // Build result with team info using in-memory lookups
+    return filteredProjects.map(({ project, voorcalc }) => ({
+      ...project,
+      teamleden: voorcalc?.teamleden ?? [],
+      geschatteDagen: voorcalc?.geschatteDagen ?? 0,
+    }));
   },
 });
 
@@ -949,6 +947,7 @@ export const bulkRestore = mutation({
 /**
  * Get active projects (in_uitvoering) with progress data for dashboard.
  * Returns max 5 projects sorted by most recently updated.
+ * OPTIMIZED: Uses batch queries instead of N+1 pattern.
  */
 export const getActiveProjectsWithProgress = query({
   args: {},
@@ -971,53 +970,78 @@ export const getActiveProjectsWithProgress = query({
       return [];
     }
 
-    // Build result with all related data
-    const results = await Promise.all(
-      activeProjects.map(async (project) => {
-        // Get offerte for klant naam
-        const offerte = await ctx.db.get(project.offerteId);
-        const klantNaam = offerte?.klant?.naam || "Onbekende klant";
+    // OPTIMIZED: Batch fetch all related data in parallel
+    const projectIds = activeProjects.map((p) => p._id);
+    const offerteIds = activeProjects.map((p) => p.offerteId);
 
-        // Get voorcalculatie for begrote uren
-        // First check project-level voorcalculatie (copied/linked)
-        let voorcalculatie = await ctx.db
-          .query("voorcalculaties")
-          .withIndex("by_project", (q) => q.eq("projectId", project._id))
-          .unique();
-
-        // If no project-level voorcalculatie, check offerte-level (new workflow)
-        if (!voorcalculatie) {
-          voorcalculatie = await ctx.db
+    // Fetch all data in parallel batches
+    const [allOffertes, voorcalculatiesByProject, voorcalculatiesByOfferte, urenByProject] = await Promise.all([
+      // Batch 1: Fetch all offertes
+      Promise.all(offerteIds.map((id) => ctx.db.get(id))),
+      // Batch 2: Fetch voorcalculaties by project IDs
+      Promise.all(
+        projectIds.map((projectId) =>
+          ctx.db
             .query("voorcalculaties")
-            .withIndex("by_offerte", (q) => q.eq("offerteId", project.offerteId))
-            .unique();
-        }
-        const begroteUren = voorcalculatie?.normUrenTotaal || 0;
+            .withIndex("by_project", (q) => q.eq("projectId", projectId))
+            .unique()
+        )
+      ),
+      // Batch 3: Fetch voorcalculaties by offerte IDs (fallback)
+      Promise.all(
+        offerteIds.map((offerteId) =>
+          ctx.db
+            .query("voorcalculaties")
+            .withIndex("by_offerte", (q) => q.eq("offerteId", offerteId))
+            .unique()
+        )
+      ),
+      // Batch 4: Fetch urenRegistraties by project IDs
+      Promise.all(
+        projectIds.map((projectId) =>
+          ctx.db
+            .query("urenRegistraties")
+            .withIndex("by_project", (q) => q.eq("projectId", projectId))
+            .collect()
+        )
+      ),
+    ]);
 
-        // Get uren registraties for totaal uren
-        const urenRegistraties = await ctx.db
-          .query("urenRegistraties")
-          .withIndex("by_project", (q) => q.eq("projectId", project._id))
-          .collect();
-        const totaalUren = urenRegistraties.reduce((sum, u) => sum + u.uren, 0);
-
-        // Calculate voortgang percentage (0-100)
-        let voortgang = 0;
-        if (begroteUren > 0) {
-          voortgang = Math.min(100, Math.round((totaalUren / begroteUren) * 100));
-        }
-
-        return {
-          _id: project._id,
-          naam: project.naam,
-          status: project.status,
-          voortgang,
-          totaalUren: Math.round(totaalUren * 10) / 10, // Round to 1 decimal
-          begroteUren: Math.round(begroteUren * 10) / 10,
-          klantNaam,
-        };
-      })
+    // Build lookup map for offertes
+    const offerteMap = new Map(
+      allOffertes.filter((o) => o !== null).map((o) => [o!._id.toString(), o!])
     );
+
+    // Build result with in-memory lookups (no additional queries)
+    const results = activeProjects.map((project, index) => {
+      // Get offerte for klant naam
+      const offerte = offerteMap.get(project.offerteId.toString());
+      const klantNaam = offerte?.klant?.naam || "Onbekende klant";
+
+      // Get voorcalculatie (check project-level first, then offerte-level)
+      const voorcalculatie = voorcalculatiesByProject[index] || voorcalculatiesByOfferte[index];
+      const begroteUren = voorcalculatie?.normUrenTotaal || 0;
+
+      // Get uren registraties for totaal uren
+      const urenRegistraties = urenByProject[index] || [];
+      const totaalUren = urenRegistraties.reduce((sum, u) => sum + u.uren, 0);
+
+      // Calculate voortgang percentage (0-100)
+      let voortgang = 0;
+      if (begroteUren > 0) {
+        voortgang = Math.min(100, Math.round((totaalUren / begroteUren) * 100));
+      }
+
+      return {
+        _id: project._id,
+        naam: project.naam,
+        status: project.status,
+        voortgang,
+        totaalUren: Math.round(totaalUren * 10) / 10, // Round to 1 decimal
+        begroteUren: Math.round(begroteUren * 10) / 10,
+        klantNaam,
+      };
+    });
 
     return results;
   },

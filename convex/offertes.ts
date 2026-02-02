@@ -291,51 +291,76 @@ export const getFullDashboardData = query({
       .filter((p) => p.status === "in_uitvoering")
       .slice(0, 5);
 
-    // Fetch related data for active projects
-    const activeProjects = await Promise.all(
-      activeProjectsRaw.map(async (project) => {
-        // Get offerte for klant naam
-        const offerte = await ctx.db.get(project.offerteId);
-        const klantNaam = offerte?.klant?.naam || "Onbekende klant";
+    // OPTIMIZED: Batch fetch all related data using Promise.all instead of N+1 queries
+    // 1. Build lookup map from offertes we already have
+    const offerteMap = new Map(offertes.map((o) => [o._id.toString(), o]));
 
-        // Get voorcalculatie for begrote uren (check project-level first, then offerte-level)
-        let voorcalculatie = await ctx.db
-          .query("voorcalculaties")
-          .withIndex("by_project", (q) => q.eq("projectId", project._id))
-          .unique();
+    // 2. Batch fetch voorcalculaties and urenRegistraties for each project in parallel
+    // Since these tables don't have a by_user index, we fetch per-project but in parallel
+    const projectIds = activeProjectsRaw.map((p) => p._id);
+    const offerteIdsForProjects = activeProjectsRaw.map((p) => p.offerteId);
 
-        if (!voorcalculatie) {
-          voorcalculatie = await ctx.db
+    // Fetch all voorcalculaties and urenRegistraties in parallel batches
+    const [voorcalculatiesByProject, voorcalculatiesByOfferte, urenByProject] = await Promise.all([
+      // Batch 1: Fetch voorcalculaties by project IDs
+      Promise.all(
+        projectIds.map((projectId) =>
+          ctx.db
             .query("voorcalculaties")
-            .withIndex("by_offerte", (q) => q.eq("offerteId", project.offerteId))
-            .unique();
-        }
-        const begroteUren = voorcalculatie?.normUrenTotaal || 0;
+            .withIndex("by_project", (q) => q.eq("projectId", projectId))
+            .unique()
+        )
+      ),
+      // Batch 2: Fetch voorcalculaties by offerte IDs (fallback)
+      Promise.all(
+        offerteIdsForProjects.map((offerteId) =>
+          ctx.db
+            .query("voorcalculaties")
+            .withIndex("by_offerte", (q) => q.eq("offerteId", offerteId))
+            .unique()
+        )
+      ),
+      // Batch 3: Fetch urenRegistraties by project IDs
+      Promise.all(
+        projectIds.map((projectId) =>
+          ctx.db
+            .query("urenRegistraties")
+            .withIndex("by_project", (q) => q.eq("projectId", projectId))
+            .collect()
+        )
+      ),
+    ]);
 
-        // Get uren registraties for totaal uren
-        const urenRegistraties = await ctx.db
-          .query("urenRegistraties")
-          .withIndex("by_project", (q) => q.eq("projectId", project._id))
-          .collect();
-        const totaalUren = urenRegistraties.reduce((sum, u) => sum + u.uren, 0);
+    // Now process active projects with in-memory lookups (no additional queries)
+    const activeProjects = activeProjectsRaw.map((project, index) => {
+      // Get offerte for klant naam from our existing map
+      const offerte = offerteMap.get(project.offerteId.toString());
+      const klantNaam = offerte?.klant?.naam || "Onbekende klant";
 
-        // Calculate voortgang percentage (0-100)
-        let voortgang = 0;
-        if (begroteUren > 0) {
-          voortgang = Math.min(100, Math.round((totaalUren / begroteUren) * 100));
-        }
+      // Get voorcalculatie (check project-level first, then offerte-level)
+      const voorcalculatie = voorcalculatiesByProject[index] || voorcalculatiesByOfferte[index];
+      const begroteUren = voorcalculatie?.normUrenTotaal || 0;
 
-        return {
-          _id: project._id,
-          naam: project.naam,
-          status: project.status,
-          voortgang,
-          totaalUren: Math.round(totaalUren * 10) / 10,
-          begroteUren: Math.round(begroteUren * 10) / 10,
-          klantNaam,
-        };
-      })
-    );
+      // Get uren registraties for totaal uren
+      const urenRegistraties = urenByProject[index] || [];
+      const totaalUren = urenRegistraties.reduce((sum, u) => sum + u.uren, 0);
+
+      // Calculate voortgang percentage (0-100)
+      let voortgang = 0;
+      if (begroteUren > 0) {
+        voortgang = Math.min(100, Math.round((totaalUren / begroteUren) * 100));
+      }
+
+      return {
+        _id: project._id,
+        naam: project.naam,
+        status: project.status,
+        voortgang,
+        totaalUren: Math.round(totaalUren * 10) / 10,
+        begroteUren: Math.round(begroteUren * 10) / 10,
+        klantNaam,
+      };
+    });
 
     // === FACTUREN STATS ===
     let conceptCount = 0;

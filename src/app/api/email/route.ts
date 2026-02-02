@@ -8,7 +8,19 @@ import {
   createRateLimitResponse,
 } from "@/lib/rate-limiter";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Lazy initialization to avoid build-time errors when API key is not set
+let resendClient: Resend | null = null;
+
+function getResendClient(): Resend {
+  if (!resendClient) {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      throw new Error("RESEND_API_KEY is not configured");
+    }
+    resendClient = new Resend(apiKey);
+  }
+  return resendClient;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -69,6 +81,17 @@ export async function POST(request: NextRequest) {
 
     // Send email via Resend
     const fromEmail = process.env.RESEND_FROM_EMAIL || "noreply@toptuinen.nl";
+
+    let resend: Resend;
+    try {
+      resend = getResendClient();
+    } catch {
+      return NextResponse.json(
+        { error: "E-mail service niet geconfigureerd", status: "mislukt" },
+        { status: 503 }
+      );
+    }
+
     const { data, error } = await resend.emails.send({
       from: `${bedrijfsnaam} <${fromEmail}>`,
       to: [to],

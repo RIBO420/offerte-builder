@@ -113,7 +113,25 @@ function KlantenPageContent() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const filteredKlanten: Klant[] = (debouncedSearchTerm ? searchResults : klanten) as Klant[];
+  // Optimistic updates state
+  const [optimisticDeletedIds, setOptimisticDeletedIds] = useState<Set<string>>(new Set());
+  const [optimisticUpdates, setOptimisticUpdates] = useState<Map<string, Partial<Klant>>>(new Map());
+
+  // Apply optimistic updates to klanten
+  const klantenWithOptimisticUpdates = useMemo(() => {
+    if (!klanten) return [];
+    return klanten
+      .filter((klant) => !optimisticDeletedIds.has(klant._id))
+      .map((klant) => {
+        const updates = optimisticUpdates.get(klant._id);
+        if (updates) {
+          return { ...klant, ...updates };
+        }
+        return klant;
+      });
+  }, [klanten, optimisticDeletedIds, optimisticUpdates]);
+
+  const filteredKlanten: Klant[] = (debouncedSearchTerm ? searchResults : klantenWithOptimisticUpdates) as Klant[];
 
   // Apply sorting to klanten
   const { sortedData: sortedKlanten, sortConfig, toggleSort } = useTableSort<Klant>(
@@ -178,45 +196,86 @@ function KlantenPageContent() {
   const handleUpdate = useCallback(async () => {
     if (!selectedKlant) return;
 
-    setIsSubmitting(true);
+    const updatedData = {
+      naam: formData.naam,
+      adres: formData.adres,
+      postcode: formData.postcode,
+      plaats: formData.plaats,
+      email: formData.email || undefined,
+      telefoon: formData.telefoon || undefined,
+      notities: formData.notities || undefined,
+    };
+
+    // 1. Apply optimistic update immediately
+    setOptimisticUpdates((prev) => {
+      const newMap = new Map(prev);
+      newMap.set(selectedKlant._id, updatedData);
+      return newMap;
+    });
+
+    // Close dialog and show feedback immediately
+    setShowEditDialog(false);
+    toast.success("Klant bijgewerkt");
+    const klantId = selectedKlant._id;
+    setSelectedKlant(null);
+    resetForm();
+
     try {
-      await update(selectedKlant._id, {
-        naam: formData.naam,
-        adres: formData.adres,
-        postcode: formData.postcode,
-        plaats: formData.plaats,
-        email: formData.email || undefined,
-        telefoon: formData.telefoon || undefined,
-        notities: formData.notities || undefined,
+      // 2. Make actual server call
+      await update(klantId, updatedData);
+
+      // 3. Clear optimistic update (server data will take over)
+      setOptimisticUpdates((prev) => {
+        const newMap = new Map(prev);
+        newMap.delete(klantId);
+        return newMap;
       });
-      toast.success("Klant bijgewerkt");
-      setShowEditDialog(false);
-      setSelectedKlant(null);
-      resetForm();
     } catch {
+      // 4. Rollback on error
+      setOptimisticUpdates((prev) => {
+        const newMap = new Map(prev);
+        newMap.delete(klantId);
+        return newMap;
+      });
       toast.error("Fout bij bijwerken klant");
-    } finally {
-      setIsSubmitting(false);
     }
   }, [selectedKlant, formData, update, resetForm]);
 
   const handleDelete = useCallback(async () => {
     if (!selectedKlant) return;
 
-    setIsSubmitting(true);
+    const klantId = selectedKlant._id;
+
+    // 1. Apply optimistic delete immediately
+    setOptimisticDeletedIds((prev) => new Set(prev).add(klantId));
+
+    // Close dialog and show feedback immediately
+    setShowDeleteDialog(false);
+    toast.success("Klant verwijderd");
+    setSelectedKlant(null);
+
     try {
-      await remove(selectedKlant._id);
-      toast.success("Klant verwijderd");
-      setShowDeleteDialog(false);
-      setSelectedKlant(null);
+      // 2. Make actual server call
+      await remove(klantId);
+
+      // 3. Clear optimistic delete (server data will take over)
+      setOptimisticDeletedIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(klantId);
+        return newSet;
+      });
     } catch (error) {
+      // 4. Rollback on error
+      setOptimisticDeletedIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(klantId);
+        return newSet;
+      });
       if (error instanceof Error && error.message.includes("gekoppelde offertes")) {
         toast.error(error.message);
       } else {
         toast.error("Fout bij verwijderen klant");
       }
-    } finally {
-      setIsSubmitting(false);
     }
   }, [selectedKlant, remove]);
 
