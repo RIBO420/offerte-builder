@@ -53,6 +53,7 @@ import {
   Receipt,
   Truck,
   Shield,
+  Calendar,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -110,6 +111,20 @@ const beheerItems = [
     title: "Rapportages",
     url: "/rapportages",
     icon: BarChart3,
+  },
+];
+
+// Werk (Work) section items - visible to all roles
+const werkItems = [
+  {
+    title: "Planning",
+    url: "/planning",
+    icon: Calendar,
+  },
+  {
+    title: "Uren",
+    url: "/uren",
+    icon: Clock,
   },
 ];
 
@@ -233,6 +248,30 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {filteredBeheerItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname === item.url || pathname.startsWith(item.url + "/")}
+                    tooltip={item.title}
+                  >
+                    <Link href={item.url}>
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarSeparator />
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Werk</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {werkItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
@@ -418,12 +457,14 @@ export function AppSidebar() {
                       </Link>
                     </DropdownMenuItem>
                   )}
-                  <DropdownMenuItem asChild>
-                    <Link href="/instellingen" className="cursor-pointer">
-                      <Settings className="mr-2 h-4 w-4" />
-                      Instellingen
-                    </Link>
-                  </DropdownMenuItem>
+                  {isAdmin && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/instellingen" className="cursor-pointer">
+                        <Settings className="mr-2 h-4 w-4" />
+                        Instellingen
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem asChild>
                     <Link href="/instellingen/machines" className="cursor-pointer">
                       <Wrench className="mr-2 h-4 w-4" />

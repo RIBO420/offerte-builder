@@ -10,6 +10,7 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuth, requireAuthUserId, verifyOwnership } from "./auth";
 import { Id } from "./_generated/dataModel";
+import { getUserRole, getLinkedMedewerker } from "./roles";
 
 // Status validator for project status
 // Note: voorcalculatie is now done at offerte level before a project is created
@@ -560,6 +561,102 @@ export const getProjectsByOfferteIds = query({
     }
 
     return result;
+  },
+});
+
+/**
+ * List projects for planning overview.
+ * Admin sees all active (non-gefactureerd) projects.
+ * Medewerker sees only projects where they are assigned as a teamlid.
+ * Returns projects with team info from voorcalculatie.
+ */
+export const listForPlanning = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await requireAuth(ctx);
+    const role = await getUserRole(ctx);
+
+    // Get projects based on role
+    let projects;
+    if (role === "admin") {
+      // Admin sees all active projects (not gefactureerd, not archived)
+      projects = await ctx.db
+        .query("projecten")
+        .withIndex("by_user", (q) => q.eq("userId", user._id))
+        .filter((q) => q.neq(q.field("status"), "gefactureerd"))
+        .collect();
+
+      // Filter out archived projects
+      projects = projects.filter((p) => p.isArchived !== true);
+    } else {
+      // Medewerker sees assigned projects
+      const medewerker = await getLinkedMedewerker(ctx);
+      if (!medewerker) return [];
+
+      // Get all active projects for the medewerker's company
+      const allProjects = await ctx.db
+        .query("projecten")
+        .withIndex("by_user", (q) => q.eq("userId", medewerker.userId))
+        .filter((q) => q.neq(q.field("status"), "gefactureerd"))
+        .collect();
+
+      // Filter out archived projects
+      const activeProjects = allProjects.filter((p) => p.isArchived !== true);
+
+      // Filter to projects where medewerker is in team (check voorcalculatie teamleden)
+      const projectsWithTeam = await Promise.all(
+        activeProjects.map(async (p) => {
+          // Check project-level voorcalculatie first
+          let voorcalc = await ctx.db
+            .query("voorcalculaties")
+            .withIndex("by_project", (q) => q.eq("projectId", p._id))
+            .first();
+
+          // If not found, check offerte-level voorcalculatie
+          if (!voorcalc) {
+            voorcalc = await ctx.db
+              .query("voorcalculaties")
+              .withIndex("by_offerte", (q) => q.eq("offerteId", p.offerteId))
+              .first();
+          }
+
+          const teamleden = voorcalc?.teamleden ?? [];
+          const isInTeam = teamleden.includes(medewerker.naam);
+
+          return { project: p, voorcalc, isInTeam };
+        })
+      );
+
+      // Only include projects where medewerker is in the team
+      projects = projectsWithTeam
+        .filter((pt) => pt.isInTeam)
+        .map((pt) => pt.project);
+    }
+
+    // For each project, get voorcalculatie for team info
+    return Promise.all(
+      projects.map(async (p) => {
+        // Check project-level voorcalculatie first
+        let voorcalc = await ctx.db
+          .query("voorcalculaties")
+          .withIndex("by_project", (q) => q.eq("projectId", p._id))
+          .first();
+
+        // If not found, check offerte-level voorcalculatie
+        if (!voorcalc) {
+          voorcalc = await ctx.db
+            .query("voorcalculaties")
+            .withIndex("by_offerte", (q) => q.eq("offerteId", p.offerteId))
+            .first();
+        }
+
+        return {
+          ...p,
+          teamleden: voorcalc?.teamleden ?? [],
+          geschatteDagen: voorcalc?.geschatteDagen ?? 0,
+        };
+      })
+    );
   },
 });
 
