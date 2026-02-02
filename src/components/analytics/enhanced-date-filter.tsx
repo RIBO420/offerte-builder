@@ -136,7 +136,7 @@ export function EnhancedDateFilter({
           <Button variant="outline" className="gap-2 min-w-[180px] justify-between">
             <div className="flex items-center gap-2">
               <CalendarDays className="h-4 w-4 text-muted-foreground" />
-              <span className="truncate">{getDisplayLabel()}</span>
+              <span className="truncate" title={getDisplayLabel()}>{getDisplayLabel()}</span>
             </div>
             <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`} />
           </Button>

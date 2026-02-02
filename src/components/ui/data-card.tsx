@@ -54,7 +54,7 @@ function DataCard({
       <CardContent className="flex h-full flex-col gap-1">
         {/* Header row: title + icon */}
         <div className="flex items-start justify-between gap-2">
-          <span className="text-sm text-muted-foreground truncate">{title}</span>
+          <span className="text-sm text-muted-foreground truncate" title={title}>{title}</span>
           {icon && (
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
               {icon}
@@ -68,7 +68,7 @@ function DataCard({
         {/* Footer row: description/label + trend indicator - pushed to bottom */}
         <div className="mt-auto flex items-center justify-between gap-2 pt-1">
           {description && (
-            <span className="text-xs text-muted-foreground truncate max-w-[120px]">{description}</span>
+            <span className="text-xs text-muted-foreground truncate max-w-[120px]" title={description}>{description}</span>
           )}
           {!description && <span />}
           {trend && (

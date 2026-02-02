@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useCurrentUser } from "./use-current-user";
@@ -79,6 +79,14 @@ export function useAnalytics() {
     setCustomRange(range);
   };
 
+  // Refetch by toggling preset (forces a re-query)
+  const refetch = useCallback(() => {
+    const currentPreset = datePreset;
+    setDatePreset("alles");
+    // Reset to current preset after a tick to trigger re-fetch
+    setTimeout(() => setDatePreset(currentPreset), 0);
+  }, [datePreset]);
+
   return {
     // Data
     kpis: analyticsData?.kpis,
@@ -103,5 +111,6 @@ export function useAnalytics() {
     // Actions
     setPreset,
     setDateRange,
+    refetch,
   };
 }

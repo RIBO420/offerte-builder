@@ -408,7 +408,7 @@ export function FleetGoSync({
                             </span>
                             {getStatusBadge(vehicle.status)}
                           </div>
-                          <p className="text-sm text-muted-foreground truncate">
+                          <p className="text-sm text-muted-foreground truncate" title={`${vehicle.brand} ${vehicle.model}`}>
                             {vehicle.brand} {vehicle.model}
                           </p>
                           <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">

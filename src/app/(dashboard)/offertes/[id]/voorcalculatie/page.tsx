@@ -311,7 +311,7 @@ export default function OfferteVoorcalculatiePage({
           className="flex items-center justify-between"
         >
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" asChild>
+            <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" asChild aria-label="Terug naar offerte">
               <Link href={`/offertes/${id}`}>
                 <ArrowLeft className="h-4 w-4" />
               </Link>

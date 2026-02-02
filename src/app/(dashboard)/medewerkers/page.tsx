@@ -58,7 +58,7 @@ import {
   AlertTriangle,
   Eye,
 } from "lucide-react";
-import { ListSkeleton } from "@/components/ui/skeleton-card";
+import { MedewerkersPageSkeleton } from "@/components/ui/skeleton-card";
 import { toast } from "sonner";
 import { useMedewerkers } from "@/hooks/use-medewerkers";
 import { MedewerkerForm, Medewerker } from "@/components/medewerkers/medewerker-form";
@@ -261,7 +261,7 @@ function MedewerkersPageContent() {
             {medewerker.email && (
               <div className="flex items-center gap-1.5 text-sm">
                 <Mail className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="truncate max-w-[120px]">{medewerker.email}</span>
+                <span className="truncate max-w-[120px]" title={medewerker.email}>{medewerker.email}</span>
               </div>
             )}
             {medewerker.telefoon && (
@@ -307,34 +307,37 @@ function MedewerkersPageContent() {
           <div className="flex items-center justify-end gap-1">
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
+              className="h-9 w-9 sm:h-8 sm:w-8"
               onClick={(e) => {
                 e.stopPropagation();
                 handleViewDetail(medewerker);
               }}
-              title="Bekijken"
+              aria-label="Bekijken"
             >
               <Eye className="h-4 w-4" />
             </Button>
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
+              className="h-9 w-9 sm:h-8 sm:w-8"
               onClick={(e) => {
                 e.stopPropagation();
                 handleEdit(medewerker);
               }}
-              title="Bewerken"
+              aria-label="Bewerken"
             >
               <Pencil className="h-4 w-4" />
             </Button>
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
+              className="h-9 w-9 sm:h-8 sm:w-8"
               onClick={(e) => {
                 e.stopPropagation();
                 handleToggleActive(medewerker);
               }}
-              title={medewerker.isActief ? "Op inactief zetten" : "Activeren"}
+              aria-label={medewerker.isActief ? "Op inactief zetten" : "Activeren"}
             >
               {medewerker.isActief ? (
                 <UserX className="h-4 w-4 text-muted-foreground" />
@@ -345,12 +348,13 @@ function MedewerkersPageContent() {
             {!medewerker.isActief && (
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon"
+                className="h-9 w-9 sm:h-8 sm:w-8"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleDeleteClick(medewerker);
                 }}
-                title="Verwijderen"
+                aria-label="Verwijderen"
               >
                 <Trash2 className="h-4 w-4 text-destructive" />
               </Button>
@@ -381,7 +385,7 @@ function MedewerkersPageContent() {
           </Breadcrumb>
         </header>
         <div className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
-          <ListSkeleton count={5} />
+          <MedewerkersPageSkeleton />
         </div>
       </>
     );

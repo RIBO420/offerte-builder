@@ -101,7 +101,7 @@ function MobileBreadcrumb({
                 className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
               >
                 <ArrowLeft className="size-3.5" />
-                <span className="max-w-[120px] truncate">{parent.label}</span>
+                <span className="max-w-[120px] truncate" title={parent.label}>{parent.label}</span>
               </Link>
             </li>
             {/* Separator */}
@@ -119,6 +119,7 @@ function MobileBreadcrumb({
                 aria-disabled="true"
                 aria-current="page"
                 className="font-medium text-foreground max-w-[120px] truncate"
+                title={current.label}
               >
                 {current.label}
               </span>
@@ -149,6 +150,7 @@ function MobileBreadcrumb({
                 aria-disabled="true"
                 aria-current="page"
                 className="font-medium text-foreground max-w-[120px] truncate"
+                title={current.label}
               >
                 {current.label}
               </span>
@@ -162,6 +164,7 @@ function MobileBreadcrumb({
               aria-disabled="true"
               aria-current="page"
               className="font-medium text-foreground max-w-[200px] truncate"
+              title={current.label}
             >
               {current.label}
             </span>
@@ -329,14 +332,14 @@ function EllipsisDropdown({ items }: { items: BreadcrumbItem[] }) {
                 {item.icon && (
                   <span className="[&>svg]:size-4">{item.icon}</span>
                 )}
-                <span className="max-w-[200px] truncate">{item.label}</span>
+                <span className="max-w-[200px] truncate" title={item.label}>{item.label}</span>
               </Link>
             ) : (
               <span className="flex items-center gap-2">
                 {item.icon && (
                   <span className="[&>svg]:size-4">{item.icon}</span>
                 )}
-                <span className="max-w-[200px] truncate">{item.label}</span>
+                <span className="max-w-[200px] truncate" title={item.label}>{item.label}</span>
               </span>
             )}
           </DropdownMenuItem>

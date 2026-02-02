@@ -294,7 +294,7 @@ export default function VoertuigDetailPage({
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" asChild>
+            <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" asChild aria-label="Terug naar wagenpark">
               <Link href="/wagenpark">
                 <ArrowLeft className="h-4 w-4" />
               </Link>
@@ -654,7 +654,7 @@ export default function VoertuigDetailPage({
                           <TableCell className="font-medium">
                             {onderhoudTypeLabels[record.type] || record.type}
                           </TableCell>
-                          <TableCell className="max-w-[200px] truncate">
+                          <TableCell className="max-w-[200px] truncate" title={record.omschrijving}>
                             {record.omschrijving}
                           </TableCell>
                           <TableCell>
@@ -678,7 +678,8 @@ export default function VoertuigDetailPage({
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => setEditingOnderhoud(record)}
-                                className="h-8 w-8"
+                                className="h-9 w-9 sm:h-8 sm:w-8"
+                                aria-label="Bewerken"
                               >
                                 <Pencil className="h-4 w-4" />
                               </Button>
@@ -686,7 +687,8 @@ export default function VoertuigDetailPage({
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => setDeleteOnderhoudId(record._id)}
-                                className="h-8 w-8"
+                                className="h-9 w-9 sm:h-8 sm:w-8"
+                                aria-label="Verwijderen"
                               >
                                 <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>

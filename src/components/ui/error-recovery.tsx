@@ -33,8 +33,8 @@ const errorConfig = {
     icon: AlertTriangle,
     defaultTitle: "Er ging iets mis",
     variant: "default" as const,
-    iconClass: "text-yellow-600 dark:text-yellow-500",
-    containerClass: "border-yellow-200 bg-yellow-50 dark:border-yellow-900/50 dark:bg-yellow-950/20",
+    iconClass: "text-amber-600 dark:text-amber-500",
+    containerClass: "border-amber-500/50 bg-amber-50 dark:bg-amber-950/20",
   },
   fatal: {
     icon: XCircle,
@@ -48,14 +48,14 @@ const errorConfig = {
     defaultTitle: "Validatiefout",
     variant: "default" as const,
     iconClass: "text-blue-600 dark:text-blue-500",
-    containerClass: "border-blue-200 bg-blue-50 dark:border-blue-900/50 dark:bg-blue-950/20",
+    containerClass: "border-blue-500/50 bg-blue-50 dark:bg-blue-950/20",
   },
   network: {
     icon: WifiOff,
     defaultTitle: "Netwerkfout",
     variant: "default" as const,
-    iconClass: "text-orange-600 dark:text-orange-500",
-    containerClass: "border-orange-200 bg-orange-50 dark:border-orange-900/50 dark:bg-orange-950/20",
+    iconClass: "text-amber-600 dark:text-amber-500",
+    containerClass: "border-amber-500/50 bg-amber-50 dark:bg-amber-950/20",
   },
 };
 
@@ -136,7 +136,7 @@ export function ErrorRecovery({
         {type === "network" && (
           <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
             <span
-              className="inline-block h-2 w-2 rounded-full bg-orange-500 animate-pulse"
+              className="inline-block h-2 w-2 rounded-full bg-amber-500 animate-pulse"
               aria-hidden="true"
             />
             <span>Geen internetverbinding</span>
@@ -171,16 +171,15 @@ export function ErrorRecovery({
   );
 }
 
+interface InlineErrorProps {
+  message: string;
+  className?: string;
+}
+
 /**
  * Compact inline error display for form fields or small spaces
  */
-export function InlineError({
-  message,
-  className,
-}: {
-  message: string;
-  className?: string;
-}) {
+export function InlineError({ message, className }: InlineErrorProps) {
   return (
     <p
       role="alert"
@@ -195,3 +194,5 @@ export function InlineError({
     </p>
   );
 }
+
+export type { ErrorRecoveryProps, ErrorAction, InlineErrorProps };

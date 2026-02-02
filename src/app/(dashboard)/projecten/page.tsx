@@ -21,7 +21,7 @@ import {
   Calculator,
   Plus,
 } from "lucide-react";
-import { ListSkeleton } from "@/components/ui/skeleton-card";
+import { ProjectenPageSkeleton, ListSkeleton } from "@/components/ui/skeleton-card";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -40,34 +40,35 @@ import { NoProjecten, NoSearchResults } from "@/components/empty-states";
 // Status configuration - voorcalculatie is now at offerte level
 // Projects start at "gepland" status
 // Note: voorcalculatie kept for backwards compatibility with existing projects
+// WCAG AA compliant colors (4.5:1 contrast ratio)
 const statusConfig = {
   voorcalculatie: {
     label: "Voorcalculatie",
     icon: Calculator,
     color:
-      "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400",
+      "bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
   },
   gepland: {
     label: "Gepland",
     icon: Calendar,
     color:
-      "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400",
+      "bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
   },
   in_uitvoering: {
     label: "In Uitvoering",
     icon: Play,
     color:
-      "bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-400",
+      "bg-orange-200 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
   },
   afgerond: {
     label: "Afgerond",
     icon: CheckCircle2,
-    color: "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400",
+    color: "bg-green-200 text-green-800 dark:bg-green-900 dark:text-green-200",
   },
   nacalculatie_compleet: {
     label: "Nacalculatie",
     icon: ClipboardCheck,
-    color: "bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-400",
+    color: "bg-purple-200 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
   },
 };
 
@@ -106,7 +107,7 @@ function ProjectenPageLoader() {
     <>
       <PageHeader />
       <div className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
-        <ListSkeleton count={5} />
+        <ProjectenPageSkeleton />
       </div>
     </>
   );

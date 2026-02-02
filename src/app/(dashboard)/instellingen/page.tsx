@@ -557,7 +557,7 @@ export default function InstellingenPage() {
 
                   <div className="space-y-3">
                     <div className="text-xs font-medium text-muted-foreground">Aanleg</div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                       {[
                         { key: "grondwerk", label: "Grondwerk" },
                         { key: "bestrating", label: "Bestrating" },
@@ -591,7 +591,7 @@ export default function InstellingenPage() {
                     </div>
 
                     <div className="text-xs font-medium text-muted-foreground pt-2">Onderhoud</div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                       {[
                         { key: "gras_onderhoud", label: "Gras" },
                         { key: "borders_onderhoud", label: "Borders" },
@@ -732,7 +732,7 @@ export default function InstellingenPage() {
                             {normuur.normuurPerEenheid}
                           </TableCell>
                           <TableCell>{normuur.eenheid}</TableCell>
-                          <TableCell className="text-muted-foreground max-w-[200px] truncate">
+                          <TableCell className="text-muted-foreground max-w-[200px] truncate" title={normuur.omschrijving || undefined}>
                             {normuur.omschrijving || "-"}
                           </TableCell>
                           <TableCell>
@@ -740,6 +740,8 @@ export default function InstellingenPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
+                                className="h-9 w-9 sm:h-8 sm:w-8"
+                                aria-label="Bewerken"
                                 onClick={() => handleOpenNormuurDialog(normuur as any)}
                               >
                                 <Edit className="h-4 w-4" />
@@ -747,6 +749,8 @@ export default function InstellingenPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
+                                className="h-9 w-9 sm:h-8 sm:w-8"
+                                aria-label="Verwijderen"
                                 onClick={() => {
                                   setNormuurToDelete(normuur as any);
                                   setShowDeleteNormuurDialog(true);
@@ -898,6 +902,8 @@ export default function InstellingenPage() {
                                   <Button
                                     variant="ghost"
                                     size="icon"
+                                    className="h-9 w-9 sm:h-8 sm:w-8"
+                                    aria-label="Opslaan"
                                     onClick={handleSaveFactor}
                                     disabled={isSaving}
                                   >
@@ -910,6 +916,8 @@ export default function InstellingenPage() {
                                   <Button
                                     variant="ghost"
                                     size="icon"
+                                    className="h-9 w-9 sm:h-8 sm:w-8"
+                                    aria-label="Annuleren"
                                     onClick={() => setEditingFactor(null)}
                                   >
                                     <RotateCcw className="h-4 w-4" />
@@ -920,6 +928,8 @@ export default function InstellingenPage() {
                                   <Button
                                     variant="ghost"
                                     size="icon"
+                                    className="h-9 w-9 sm:h-8 sm:w-8"
+                                    aria-label="Bewerken"
                                     onClick={() => handleEditFactor(factor as any)}
                                   >
                                     <Edit className="h-4 w-4" />
@@ -928,8 +938,9 @@ export default function InstellingenPage() {
                                     <Button
                                       variant="ghost"
                                       size="icon"
+                                      className="h-9 w-9 sm:h-8 sm:w-8"
+                                      aria-label="Reset naar standaard"
                                       onClick={() => handleResetFactor(factor as any)}
-                                      title="Reset naar standaard"
                                     >
                                       <RotateCcw className="h-4 w-4 text-muted-foreground" />
                                     </Button>

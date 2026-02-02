@@ -290,3 +290,6 @@ export type { OfflineIndicatorProps } from "./offline-indicator";
 export type { BottomSheetProps } from "./bottom-sheet";
 export type { DonutSegment, DonutChartProps, DonutChartWithLegendProps, MiniDonutProps } from "./donut-chart";
 export type { HeadingProps, TextProps, CaptionProps, TextLabelProps } from "./typography";
+export type { StatusBadgeProps, StatusDotProps } from "./status-badge";
+export type { EmptyStateProps, EmptyStateAction } from "./empty-state";
+export type { ErrorRecoveryProps, ErrorAction, InlineErrorProps } from "./error-recovery";

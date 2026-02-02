@@ -69,3 +69,5 @@ export function EmptyState({
     </div>
   );
 }
+
+export type { EmptyStateProps, EmptyStateAction };

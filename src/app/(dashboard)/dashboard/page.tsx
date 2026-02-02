@@ -187,10 +187,10 @@ export default function DashboardPage() {
                             <FolderKanban className="h-4 w-4 text-orange-600 dark:text-orange-400" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm truncate group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
+                            <p className="font-medium text-sm truncate group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors" title={project.naam}>
                               {project.naam}
                             </p>
-                            <p className="text-xs text-muted-foreground truncate">
+                            <p className="text-xs text-muted-foreground truncate" title={project.klantNaam}>
                               {project.klantNaam}
                             </p>
                           </div>
@@ -200,10 +200,10 @@ export default function DashboardPage() {
                             </p>
                           </div>
                         </div>
-                        {/* Progress bar */}
-                        <div className="h-1.5 w-full bg-orange-100 dark:bg-orange-950/50 rounded-full overflow-hidden">
+                        {/* Progress bar - WCAG AA compliant colors */}
+                        <div className="h-1.5 w-full bg-orange-200 dark:bg-orange-900/50 rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-orange-500 rounded-full transition-all duration-500"
+                            className="h-full bg-orange-600 rounded-full transition-all duration-500"
                             style={{ width: `${project.voortgang}%` }}
                           />
                         </div>
@@ -216,12 +216,18 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <Card className="p-8">
-                  <div className="text-center">
-                    <FolderKanban className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-                    <h3 className="font-medium text-muted-foreground">Geen actieve projecten</h3>
-                    <p className="text-sm text-muted-foreground/80 mt-1">
-                      Er zijn momenteel geen projecten in uitvoering
+                  <div className="flex flex-col items-center justify-center text-center">
+                    <FolderKanban className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                    <h3 className="text-lg font-medium mb-2">Geen actieve projecten</h3>
+                    <p className="text-sm text-muted-foreground mb-4 max-w-sm">
+                      Er zijn momenteel geen projecten in uitvoering. Bekijk alle projecten om te zien wat er gepland staat.
                     </p>
+                    <Button asChild variant="outline">
+                      <Link href="/projecten">
+                        <FolderKanban className="mr-2 h-4 w-4" />
+                        Bekijk Projecten
+                      </Link>
+                    </Button>
                   </div>
                 </Card>
               )}
@@ -309,7 +315,7 @@ export default function DashboardPage() {
                           className="flex items-center justify-between bg-white dark:bg-white/10 rounded-xl px-4 py-3 border border-amber-200 dark:border-amber-800/50 shadow-sm"
                         >
                           <div className="min-w-0 flex-1">
-                            <p className="font-medium truncate">{offerte.klantNaam}</p>
+                            <p className="font-medium truncate" title={offerte.klantNaam}>{offerte.klantNaam}</p>
                             <p className="text-sm text-muted-foreground">{offerte.offerteNummer}</p>
                           </div>
                           <Button
@@ -466,10 +472,10 @@ export default function DashboardPage() {
                             <FolderKanban className="h-4 w-4 text-orange-600 dark:text-orange-400" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm truncate group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
+                            <p className="font-medium text-sm truncate group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors" title={project.naam}>
                               {project.naam}
                             </p>
-                            <p className="text-xs text-muted-foreground truncate">
+                            <p className="text-xs text-muted-foreground truncate" title={project.klantNaam}>
                               {project.klantNaam}
                             </p>
                           </div>
@@ -479,10 +485,10 @@ export default function DashboardPage() {
                             </p>
                           </div>
                         </div>
-                        {/* Progress bar */}
-                        <div className="h-1.5 w-full bg-orange-100 dark:bg-orange-950/50 rounded-full overflow-hidden">
+                        {/* Progress bar - WCAG AA compliant colors */}
+                        <div className="h-1.5 w-full bg-orange-200 dark:bg-orange-900/50 rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-orange-500 rounded-full transition-all duration-500"
+                            className="h-full bg-orange-600 rounded-full transition-all duration-500"
                             style={{ width: `${project.voortgang}%` }}
                           />
                         </div>
@@ -502,13 +508,27 @@ export default function DashboardPage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.3, delay: 0.25 }}
-                className="text-center py-12"
+                className="flex flex-col items-center justify-center py-12 text-center"
               >
-                <FolderKanban className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-                <h3 className="font-medium text-muted-foreground">Geen actieve projecten</h3>
-                <p className="text-sm text-muted-foreground/80 mt-1">
-                  Start een nieuwe offerte om aan de slag te gaan
+                <FolderKanban className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                <h3 className="text-lg font-medium mb-2">Geen actieve projecten</h3>
+                <p className="text-sm text-muted-foreground mb-4 max-w-sm">
+                  Er zijn nog geen actieve projecten. Start met het aanmaken van een nieuwe offerte om aan de slag te gaan.
                 </p>
+                <div className="flex gap-3">
+                  <Button asChild>
+                    <Link href="/offertes/nieuw/aanleg">
+                      <Shovel className="mr-2 h-4 w-4" />
+                      Nieuwe Aanleg
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline">
+                    <Link href="/offertes/nieuw/onderhoud">
+                      <Trees className="mr-2 h-4 w-4" />
+                      Nieuw Onderhoud
+                    </Link>
+                  </Button>
+                </div>
               </motion.div>
             )}
           </>

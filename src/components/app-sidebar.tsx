@@ -164,8 +164,8 @@ export function AppSidebar() {
                   <Trees className="size-4" />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">Top Tuinen</span>
-                  <span className="truncate text-xs text-muted-foreground">
+                  <span className="truncate font-semibold" title="Top Tuinen">Top Tuinen</span>
+                  <span className="truncate text-xs text-muted-foreground" title="Offerte Builder">
                     Offerte Builder
                   </span>
                 </div>
@@ -314,8 +314,8 @@ export function AppSidebar() {
                           >
                             <Link href={`/offertes/${offerte._id}`}>
                               <StatusDot status={offerte.status} />
-                              <span className="truncate">{offerte.offerteNummer}</span>
-                              <span className="ml-auto text-xs text-muted-foreground truncate max-w-[80px]">
+                              <span className="truncate" title={offerte.offerteNummer}>{offerte.offerteNummer}</span>
+                              <span className="ml-auto text-xs text-muted-foreground truncate max-w-[80px]" title={offerte.klant?.naam || "Klant"}>
                                 {offerte.klant?.naam?.split(" ")?.[0] || "Klant"}
                               </span>
                             </Link>
@@ -358,10 +358,10 @@ export function AppSidebar() {
                       <div className="size-8 rounded-full bg-muted animate-pulse" />
                     )}
                     <div className="grid flex-1 text-left text-sm leading-tight">
-                      <span className="truncate font-medium">
+                      <span className="truncate font-medium" title={mounted && isUserLoaded ? userDisplayName : undefined}>
                         {mounted && isUserLoaded ? userDisplayName : "Laden..."}
                       </span>
-                      <span className="truncate text-xs text-muted-foreground">
+                      <span className="truncate text-xs text-muted-foreground" title={mounted && isUserLoaded && userEmail ? userEmail : undefined}>
                         {mounted && isUserLoaded && userEmail ? userEmail : ""}
                       </span>
                     </div>

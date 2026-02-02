@@ -115,7 +115,7 @@ export function ResponsiveTable<T, SortKey = string>({
                     className={cn(
                       column.align === "right" && "text-right",
                       column.align === "center" && "text-center",
-                      isSortable && "cursor-pointer select-none hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                      isSortable && "cursor-pointer select-none hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     )}
                     onClick={isSortable ? () => onSort(column.sortKey!) : undefined}
                     onKeyDown={isSortable ? (e) => handleKeyboardActivation(e, () => onSort(column.sortKey!)) : undefined}
@@ -150,8 +150,11 @@ export function ResponsiveTable<T, SortKey = string>({
             {data.map((item) => (
               <TableRow
                 key={keyExtractor(item)}
+                role={onRowClick ? "button" : undefined}
+                tabIndex={onRowClick ? 0 : undefined}
                 onClick={() => onRowClick?.(item)}
-                className={cn(onRowClick && "cursor-pointer hover:bg-muted/50")}
+                onKeyDown={onRowClick ? (e) => handleKeyboardActivation(e, () => onRowClick(item)) : undefined}
+                className={cn(onRowClick && "cursor-pointer hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring")}
               >
                 {columns.map((column) => (
                   <TableCell
@@ -175,10 +178,13 @@ export function ResponsiveTable<T, SortKey = string>({
         {data.map((item) => (
           <div
             key={keyExtractor(item)}
+            role={onRowClick ? "button" : undefined}
+            tabIndex={onRowClick ? 0 : undefined}
             onClick={() => onRowClick?.(item)}
+            onKeyDown={onRowClick ? (e) => handleKeyboardActivation(e, () => onRowClick(item)) : undefined}
             className={cn(
               "rounded-lg border bg-card p-4 space-y-3",
-              onRowClick && "cursor-pointer hover:bg-muted/50 active:bg-muted transition-colors"
+              onRowClick && "cursor-pointer hover:bg-muted/50 active:bg-muted transition-colors focus-visible:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             )}
           >
             {/* Primary and secondary info */}

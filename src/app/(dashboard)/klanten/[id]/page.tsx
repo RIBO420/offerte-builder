@@ -194,7 +194,7 @@ export default function KlantDetailPage({
       <div className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" asChild>
+            <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" asChild aria-label="Terug naar klanten">
               <Link href="/klanten">
                 <ArrowLeft className="h-4 w-4" />
               </Link>

@@ -130,34 +130,34 @@ const scopeLabels: Record<string, string> = {
   overig: "Overig",
 };
 
-// Project status configuratie
+// Project status configuratie - WCAG AA compliant colors (4.5:1 contrast ratio)
 type ProjectStatus = "voorcalculatie" | "gepland" | "in_uitvoering" | "afgerond" | "nacalculatie_compleet";
 
 const PROJECT_STATUS_CONFIG: Record<ProjectStatus, { label: string; color: string; bgColor: string }> = {
   voorcalculatie: {
     label: "Voorcalculatie",
-    color: "text-blue-700 dark:text-blue-300",
-    bgColor: "bg-blue-100 dark:bg-blue-900/30",
+    color: "text-blue-800 dark:text-blue-200",
+    bgColor: "bg-blue-200 dark:bg-blue-900",
   },
   gepland: {
     label: "Gepland",
-    color: "text-purple-700 dark:text-purple-300",
-    bgColor: "bg-purple-100 dark:bg-purple-900/30",
+    color: "text-purple-800 dark:text-purple-200",
+    bgColor: "bg-purple-200 dark:bg-purple-900",
   },
   in_uitvoering: {
     label: "In uitvoering",
-    color: "text-amber-700 dark:text-amber-300",
-    bgColor: "bg-amber-100 dark:bg-amber-900/30",
+    color: "text-amber-800 dark:text-amber-200",
+    bgColor: "bg-amber-200 dark:bg-amber-900",
   },
   afgerond: {
     label: "Afgerond",
-    color: "text-green-700 dark:text-green-300",
-    bgColor: "bg-green-100 dark:bg-green-900/30",
+    color: "text-green-800 dark:text-green-200",
+    bgColor: "bg-green-200 dark:bg-green-900",
   },
   nacalculatie_compleet: {
     label: "Nacalculatie compleet",
-    color: "text-emerald-700 dark:text-emerald-300",
-    bgColor: "bg-emerald-100 dark:bg-emerald-900/30",
+    color: "text-emerald-800 dark:text-emerald-200",
+    bgColor: "bg-emerald-200 dark:bg-emerald-900",
   },
 };
 
@@ -354,7 +354,7 @@ export default function OfferteDetailPage({
           className="flex items-center justify-between"
         >
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" asChild>
+            <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" asChild aria-label="Terug naar offertes">
               <Link href="/offertes">
                 <ArrowLeft className="h-4 w-4" />
               </Link>
@@ -468,7 +468,7 @@ export default function OfferteDetailPage({
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon">
+                <Button variant="outline" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" aria-label="Meer opties">
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -541,7 +541,7 @@ export default function OfferteDetailPage({
                   )} />
                   Voorcalculatie
                   {voorcalculatie && (
-                    <span className="ml-auto text-xs px-2 py-0.5 rounded-full font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                    <span className="ml-auto text-xs px-2 py-0.5 rounded-full font-medium bg-blue-200 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
                       Ingevuld
                     </span>
                   )}

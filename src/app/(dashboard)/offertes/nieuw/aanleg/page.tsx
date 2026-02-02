@@ -1000,7 +1000,7 @@ export default function NieuweAanlegOffertePage() {
                       <p className="text-sm font-medium text-muted-foreground">
                         Klant
                       </p>
-                      <p className="text-sm truncate">
+                      <p className="text-sm truncate" title={klantData.naam ? `${klantData.naam}${klantData.plaats ? `, ${klantData.plaats}` : ""}` : undefined}>
                         {klantData.naam || "—"}
                         {klantData.plaats && `, ${klantData.plaats}`}
                       </p>
@@ -1482,7 +1482,7 @@ export default function NieuweAanlegOffertePage() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <p className="font-medium">Voorcalculatie invullen</p>
-                      <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                      <Badge variant="secondary" className="text-xs bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
                         Aanbevolen
                       </Badge>
                     </div>

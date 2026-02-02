@@ -107,12 +107,13 @@ const actieIcons: Record<string, typeof History> = {
   teruggedraaid: RotateCcw,
 };
 
+// WCAG AA compliant colors (4.5:1 contrast ratio)
 const actieColors: Record<string, string> = {
-  aangemaakt: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-  gewijzigd: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  status_gewijzigd: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
-  regels_gewijzigd: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-  teruggedraaid: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
+  aangemaakt: "bg-green-200 text-green-800 dark:bg-green-900 dark:text-green-200",
+  gewijzigd: "bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+  status_gewijzigd: "bg-purple-200 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+  regels_gewijzigd: "bg-amber-200 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+  teruggedraaid: "bg-orange-200 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
 };
 
 const statusLabels: Record<string, string> = {
@@ -328,7 +329,7 @@ export default function OfferteHistoryPage({
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" asChild>
+            <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" asChild aria-label="Terug naar offerte">
               <Link href={`/offertes/${id}`}>
                 <ArrowLeft className="h-4 w-4" />
               </Link>

@@ -302,7 +302,7 @@ export default function NacalculatiePage({
         {/* Page Header */}
         <div className="flex flex-col gap-4">
           <div className="flex items-start gap-3">
-            <Button variant="ghost" size="icon" asChild className="shrink-0 mt-1">
+            <Button variant="ghost" size="icon" asChild className="h-9 w-9 sm:h-8 sm:w-8 shrink-0 mt-1" aria-label="Terug naar project">
               <Link href={`/projecten/${id}`}>
                 <ArrowLeft className="h-4 w-4" />
               </Link>

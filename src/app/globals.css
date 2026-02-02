@@ -246,57 +246,57 @@ body {
   --trend-negative: oklch(0.6 0.2 25);         /* Rood */
   --trend-neutral: oklch(0.5 0 0);             /* Grijs */
 
-  /* Status kleuren - Offerte statuses */
-  --status-concept: oklch(0.95 0 0);           /* Grijs - concept/draft */
-  --status-concept-text: oklch(0.35 0 0);
-  --status-concept-border: oklch(0.8 0 0);
-  --status-concept-dot: oklch(0.55 0 0);
+  /* Status kleuren - Offerte statuses - WCAG AA compliant (4.5:1 contrast ratio) */
+  --status-concept: oklch(0.90 0 0);           /* Grijs - concept/draft - darker bg */
+  --status-concept-text: oklch(0.25 0 0);      /* Darker text for 4.5:1 ratio */
+  --status-concept-border: oklch(0.75 0 0);
+  --status-concept-dot: oklch(0.50 0 0);
 
-  --status-voorcalculatie: oklch(0.92 0.03 250);  /* Blauw - voorcalculatie */
-  --status-voorcalculatie-text: oklch(0.35 0.12 250);
-  --status-voorcalculatie-border: oklch(0.7 0.1 250);
-  --status-voorcalculatie-dot: oklch(0.55 0.15 250);
+  --status-voorcalculatie: oklch(0.88 0.06 250);  /* Blauw - voorcalculatie - darker bg */
+  --status-voorcalculatie-text: oklch(0.28 0.14 250);  /* Darker text */
+  --status-voorcalculatie-border: oklch(0.65 0.12 250);
+  --status-voorcalculatie-dot: oklch(0.50 0.18 250);
 
-  --status-verzonden: oklch(0.92 0.05 85);     /* Amber - verzonden */
-  --status-verzonden-text: oklch(0.4 0.12 85);
-  --status-verzonden-border: oklch(0.75 0.12 85);
-  --status-verzonden-dot: oklch(0.75 0.15 85);
+  --status-verzonden: oklch(0.88 0.08 85);     /* Amber - verzonden - darker bg */
+  --status-verzonden-text: oklch(0.32 0.14 85);  /* Darker text */
+  --status-verzonden-border: oklch(0.70 0.14 85);
+  --status-verzonden-dot: oklch(0.70 0.18 85);
 
-  --status-geaccepteerd: oklch(0.92 0.04 145); /* Groen - geaccepteerd */
-  --status-geaccepteerd-text: oklch(0.35 0.15 145);
-  --status-geaccepteerd-border: oklch(0.7 0.12 145);
-  --status-geaccepteerd-dot: oklch(0.65 0.18 145);
+  --status-geaccepteerd: oklch(0.88 0.08 145); /* Groen - geaccepteerd - darker bg */
+  --status-geaccepteerd-text: oklch(0.28 0.16 145);  /* Darker text */
+  --status-geaccepteerd-border: oklch(0.65 0.14 145);
+  --status-geaccepteerd-dot: oklch(0.60 0.20 145);
 
-  --status-afgewezen: oklch(0.92 0.04 25);     /* Rood - afgewezen */
-  --status-afgewezen-text: oklch(0.4 0.15 25);
-  --status-afgewezen-border: oklch(0.7 0.12 25);
-  --status-afgewezen-dot: oklch(0.65 0.18 25);
+  --status-afgewezen: oklch(0.88 0.08 25);     /* Rood - afgewezen - darker bg */
+  --status-afgewezen-text: oklch(0.32 0.16 25);  /* Darker text */
+  --status-afgewezen-border: oklch(0.65 0.14 25);
+  --status-afgewezen-dot: oklch(0.60 0.20 25);
 
-  /* Status kleuren - Project statuses */
-  --status-gepland: oklch(0.92 0.04 290);      /* Paars - gepland */
-  --status-gepland-text: oklch(0.4 0.15 290);
-  --status-gepland-border: oklch(0.7 0.1 290);
-  --status-gepland-dot: oklch(0.6 0.15 290);
+  /* Status kleuren - Project statuses - WCAG AA compliant */
+  --status-gepland: oklch(0.88 0.08 290);      /* Paars - gepland - darker bg */
+  --status-gepland-text: oklch(0.32 0.16 290);  /* Darker text */
+  --status-gepland-border: oklch(0.65 0.12 290);
+  --status-gepland-dot: oklch(0.55 0.18 290);
 
-  --status-in-uitvoering: oklch(0.9 0.04 200); /* Cyaan - in uitvoering */
-  --status-in-uitvoering-text: oklch(0.35 0.12 200);
-  --status-in-uitvoering-border: oklch(0.65 0.1 200);
-  --status-in-uitvoering-dot: oklch(0.6 0.15 200);
+  --status-in-uitvoering: oklch(0.85 0.08 200); /* Cyaan - in uitvoering - darker bg */
+  --status-in-uitvoering-text: oklch(0.28 0.14 200);  /* Darker text */
+  --status-in-uitvoering-border: oklch(0.60 0.12 200);
+  --status-in-uitvoering-dot: oklch(0.55 0.18 200);
 
-  --status-afgerond: oklch(0.92 0.04 145);     /* Groen - afgerond (zelfde als geaccepteerd) */
-  --status-afgerond-text: oklch(0.35 0.15 145);
-  --status-afgerond-border: oklch(0.7 0.12 145);
-  --status-afgerond-dot: oklch(0.6 0.18 145);
+  --status-afgerond: oklch(0.88 0.08 145);     /* Groen - afgerond - darker bg */
+  --status-afgerond-text: oklch(0.28 0.16 145);  /* Darker text */
+  --status-afgerond-border: oklch(0.65 0.14 145);
+  --status-afgerond-dot: oklch(0.55 0.20 145);
 
-  --status-nacalculatie: oklch(0.9 0.04 175);  /* Teal - nacalculatie compleet */
-  --status-nacalculatie-text: oklch(0.35 0.12 175);
-  --status-nacalculatie-border: oklch(0.65 0.1 175);
-  --status-nacalculatie-dot: oklch(0.55 0.15 175);
+  --status-nacalculatie: oklch(0.85 0.08 175);  /* Teal - nacalculatie compleet - darker bg */
+  --status-nacalculatie-text: oklch(0.28 0.14 175);  /* Darker text */
+  --status-nacalculatie-border: oklch(0.60 0.12 175);
+  --status-nacalculatie-dot: oklch(0.50 0.18 175);
 
-  --status-gefactureerd: oklch(0.9 0.05 155);  /* Emerald - gefactureerd */
-  --status-gefactureerd-text: oklch(0.3 0.15 155);
-  --status-gefactureerd-border: oklch(0.6 0.12 155);
-  --status-gefactureerd-dot: oklch(0.55 0.18 155);
+  --status-gefactureerd: oklch(0.85 0.10 155);  /* Emerald - gefactureerd - darker bg */
+  --status-gefactureerd-text: oklch(0.25 0.16 155);  /* Darker text */
+  --status-gefactureerd-border: oklch(0.55 0.14 155);
+  --status-gefactureerd-dot: oklch(0.50 0.20 155);
 
   /* Shadow tokens */
   --shadow-card-hover: 0 8px 25px -5px oklch(0 0 0 / 0.1), 0 4px 10px -5px oklch(0 0 0 / 0.04);

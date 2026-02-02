@@ -45,32 +45,32 @@ import { api } from "../../../../convex/_generated/api";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { EmptyState } from "@/components/ui/empty-state";
 
-// Status configuration for facturen
+// Status configuration for facturen - WCAG AA compliant colors (4.5:1 contrast ratio)
 const statusConfig = {
   concept: {
     label: "Concept",
     icon: Pencil,
-    color: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+    color: "bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
   },
   definitief: {
     label: "Definitief",
     icon: FileText,
-    color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+    color: "bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
   },
   verzonden: {
     label: "Verzonden",
     icon: Send,
-    color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
+    color: "bg-amber-200 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
   },
   betaald: {
     label: "Betaald",
     icon: CheckCircle2,
-    color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
+    color: "bg-green-200 text-green-800 dark:bg-green-900 dark:text-green-200",
   },
   vervallen: {
     label: "Vervallen",
     icon: AlertCircle,
-    color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
+    color: "bg-red-200 text-red-800 dark:bg-red-900 dark:text-red-200",
   },
 };
 

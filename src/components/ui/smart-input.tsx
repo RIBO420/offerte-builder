@@ -39,9 +39,9 @@ export interface SmartInputProps
 const statusBorderClasses: Record<FeedbackStatus, string> = {
   idle: "",
   valid:
-    "border-ring focus-visible:border-ring focus-visible:ring-ring/50",
+    "border-ring",
   invalid:
-    "border-destructive focus-visible:border-destructive focus-visible:ring-destructive/20",
+    "border-destructive",
   validating: "",
 };
 

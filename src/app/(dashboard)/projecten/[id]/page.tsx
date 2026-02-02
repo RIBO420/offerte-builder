@@ -42,12 +42,13 @@ import { ProjectProgressStepper, type ProjectStatus } from "@/components/project
 
 // Project status colors - voorcalculatie is now at offerte level
 // Note: voorcalculatie kept for backwards compatibility with existing projects
+// WCAG AA compliant colors (4.5:1 contrast ratio)
 const statusColors: Record<string, string> = {
-  voorcalculatie: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
-  gepland: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
-  in_uitvoering: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100",
-  afgerond: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
-  nacalculatie_compleet: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100",
+  voorcalculatie: "bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+  gepland: "bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+  in_uitvoering: "bg-amber-200 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+  afgerond: "bg-green-200 text-green-800 dark:bg-green-900 dark:text-green-200",
+  nacalculatie_compleet: "bg-purple-200 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
 };
 
 // Project status labels - voorcalculatie is now at offerte level
@@ -180,7 +181,7 @@ export default function ProjectDetailPage({
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" asChild>
+            <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" asChild aria-label="Terug naar projecten">
               <Link href="/projecten">
                 <ArrowLeft className="h-4 w-4" />
               </Link>

@@ -35,7 +35,7 @@ export function PageLoader({ text, className }: PageLoaderProps) {
         {/* Pulsing glow effect - disabled for reduced motion */}
         {!prefersReducedMotion && (
           <motion.div
-            className="absolute inset-0 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600"
+            className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary to-primary/80"
             style={{ filter: "blur(16px)" }}
             animate={{
               opacity: [0.4, 0.7, 0.4],
@@ -50,7 +50,7 @@ export function PageLoader({ text, className }: PageLoaderProps) {
 
         {/* Icon container */}
         <motion.div
-          className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 shadow-optimized-lg"
+          className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary/80 shadow-optimized-lg"
           animate={prefersReducedMotion ? undefined : {
             y: [0, -4, 0],
           }}
@@ -115,7 +115,7 @@ export function SpinnerLoader({
     <div className={cn("inline-flex items-center gap-2", className)}>
       <motion.div
         className={cn(
-          "rounded-full border-emerald-200 border-t-emerald-500 will-change-transform",
+          "rounded-full border-primary/20 border-t-primary will-change-transform",
           spinnerSizes[size]
         )}
         animate={prefersReducedMotion ? undefined : { rotate: 360 }}

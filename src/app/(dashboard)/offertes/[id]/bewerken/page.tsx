@@ -506,7 +506,7 @@ export default function OfferteEditPage({
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" asChild>
+            <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" asChild aria-label="Terug naar offerte">
               <Link href={`/offertes/${id}`}>
                 <ArrowLeft className="h-4 w-4" />
               </Link>
@@ -935,14 +935,18 @@ export default function OfferteEditPage({
                               <Button
                                 variant="ghost"
                                 size="icon"
+                                className="h-9 w-9 sm:h-8 sm:w-8"
                                 onClick={() => handleEditRegel(regel)}
+                                aria-label="Bewerken"
                               >
                                 <Pencil className="h-4 w-4" />
                               </Button>
                               <Button
                                 variant="ghost"
                                 size="icon"
+                                className="h-9 w-9 sm:h-8 sm:w-8"
                                 onClick={() => handleDeleteRegel(regel.id)}
+                                aria-label="Verwijderen"
                               >
                                 <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>

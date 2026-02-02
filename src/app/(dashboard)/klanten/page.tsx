@@ -241,7 +241,7 @@ function KlantenPageContent() {
         render: (klant) => (
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <MapPin className="h-3.5 w-3.5 hidden sm:inline" />
-            <span className="truncate max-w-[200px] sm:max-w-none">
+            <span className="truncate max-w-[200px] sm:max-w-none" title={`${klant.adres}, ${klant.postcode} ${klant.plaats}`}>
               {klant.adres}, {klant.postcode} {klant.plaats}
             </span>
           </div>
@@ -275,7 +275,7 @@ function KlantenPageContent() {
           klant.email ? (
             <div className="flex items-center gap-1.5 text-sm">
               <Mail className="h-3.5 w-3.5 text-muted-foreground hidden sm:inline" />
-              <span className="truncate max-w-[150px]">{klant.email}</span>
+              <span className="truncate max-w-[150px]" title={klant.email}>{klant.email}</span>
             </div>
           ) : (
             <span className="text-muted-foreground">-</span>
@@ -288,15 +288,17 @@ function KlantenPageContent() {
         showInCard: true,
         mobileLabel: "",
         render: (klant) => (
-          <div className="flex items-center justify-end gap-2">
-            <Button variant="ghost" size="sm" asChild>
+          <div className="flex items-center justify-end gap-1">
+            <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" asChild aria-label="Bekijk details">
               <Link href={`/klanten/${klant._id}`}>
                 <FileText className="h-4 w-4" />
               </Link>
             </Button>
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
+              className="h-9 w-9 sm:h-8 sm:w-8"
+              aria-label="Bewerken"
               onClick={(e) => {
                 e.stopPropagation();
                 handleEdit(klant);
@@ -306,7 +308,9 @@ function KlantenPageContent() {
             </Button>
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
+              className="h-9 w-9 sm:h-8 sm:w-8"
+              aria-label="Verwijderen"
               onClick={(e) => {
                 e.stopPropagation();
                 handleDeleteClick(klant);
@@ -493,7 +497,7 @@ function KlantenPageContent() {
                   {klanten.length} klant{klanten.length !== 1 ? "en" : ""} in je bestand
                 </CardDescription>
               </div>
-              <div className="relative w-64">
+              <div className="relative w-full sm:w-64">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Zoek klanten..."

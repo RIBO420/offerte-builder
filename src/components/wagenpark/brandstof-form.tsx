@@ -414,7 +414,7 @@ export function BrandstofForm({
                     <TableCell className="text-right text-muted-foreground">
                       {formatCurrency(record.kosten / record.liters)}
                     </TableCell>
-                    <TableCell className="hidden sm:table-cell max-w-[150px] truncate text-muted-foreground">
+                    <TableCell className="hidden sm:table-cell max-w-[150px] truncate text-muted-foreground" title={record.locatie || undefined}>
                       {record.locatie || "-"}
                     </TableCell>
                     <TableCell>
@@ -422,7 +422,8 @@ export function BrandstofForm({
                         variant="ghost"
                         size="icon"
                         onClick={() => setDeleteId(record._id)}
-                        className="h-8 w-8"
+                        className="h-9 w-9 sm:h-8 sm:w-8"
+                        aria-label="Verwijderen"
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>

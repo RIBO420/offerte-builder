@@ -132,7 +132,7 @@ export function UrenImport({ onImport, isImporting = false }: UrenImportProps) {
           )}
           Import CSV/Excel
         </Button>
-        <Button variant="ghost" size="icon" onClick={handleDownloadSample}>
+        <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" onClick={handleDownloadSample} aria-label="Download voorbeeld bestand">
           <Download className="h-4 w-4" />
         </Button>
       </div>
@@ -229,7 +229,7 @@ export function UrenImport({ onImport, isImporting = false }: UrenImportProps) {
                         <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
-                    <TableCell className="max-w-[200px] truncate">
+                    <TableCell className="max-w-[200px] truncate" title={entry.notities || undefined}>
                       {entry.notities || (
                         <span className="text-muted-foreground">-</span>
                       )}

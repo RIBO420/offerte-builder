@@ -391,7 +391,7 @@ export default function GebruikersPage() {
                                   handleRoleChange(user._id, value as UserRole)
                                 }
                               >
-                                <SelectTrigger className="w-[140px]">
+                                <SelectTrigger className="w-full sm:w-[140px]">
                                   <SelectValue>
                                     <div className="flex items-center gap-2">
                                       <RoleIcon className="h-4 w-4" />

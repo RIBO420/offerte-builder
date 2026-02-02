@@ -105,10 +105,11 @@ interface ArchivedProject {
   } | null;
 }
 
+// WCAG AA compliant colors (4.5:1 contrast ratio)
 function DeviationBadge({ percentage }: { percentage: number }) {
   if (percentage > 5) {
     return (
-      <Badge variant="outline" className="bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400">
+      <Badge variant="outline" className="bg-red-200 text-red-800 dark:bg-red-900 dark:text-red-200">
         <TrendingUp className="h-3 w-3 mr-1" />
         +{percentage.toFixed(1)}%
       </Badge>
@@ -116,41 +117,42 @@ function DeviationBadge({ percentage }: { percentage: number }) {
   }
   if (percentage < -5) {
     return (
-      <Badge variant="outline" className="bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400">
+      <Badge variant="outline" className="bg-green-200 text-green-800 dark:bg-green-900 dark:text-green-200">
         <TrendingDown className="h-3 w-3 mr-1" />
         {percentage.toFixed(1)}%
       </Badge>
     );
   }
   return (
-    <Badge variant="outline" className="bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400">
+    <Badge variant="outline" className="bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-gray-200">
       <Minus className="h-3 w-3 mr-1" />
       {percentage.toFixed(1)}%
     </Badge>
   );
 }
 
+// WCAG AA compliant colors (4.5:1 contrast ratio)
 function FactuurStatusBadge({ status }: { status: string }) {
   const statusConfig: Record<string, { label: string; className: string }> = {
     concept: {
       label: "Concept",
-      className: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400",
+      className: "bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
     },
     definitief: {
       label: "Definitief",
-      className: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400",
+      className: "bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
     },
     verzonden: {
       label: "Verzonden",
-      className: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400",
+      className: "bg-amber-200 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
     },
     betaald: {
       label: "Betaald",
-      className: "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400",
+      className: "bg-green-200 text-green-800 dark:bg-green-900 dark:text-green-200",
     },
     vervallen: {
       label: "Vervallen",
-      className: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400",
+      className: "bg-red-200 text-red-800 dark:bg-red-900 dark:text-red-200",
     },
   };
 
@@ -202,7 +204,7 @@ function ArchivedProjectCard({ project }: { project: ArchivedProject }) {
                     Voltooid op {project.archivedAt ? formatDate(project.archivedAt) : "onbekend"}
                   </p>
                 </div>
-                <Button variant="ghost" size="icon" className="shrink-0">
+                <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8 shrink-0" aria-label={isOpen ? "Inklappen" : "Uitklappen"}>
                   {isOpen ? (
                     <ChevronUp className="h-4 w-4" />
                   ) : (

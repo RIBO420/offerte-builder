@@ -21,7 +21,6 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
   Calendar,
-  Loader2,
   FolderKanban,
   ChevronRight,
   Clock,
@@ -31,46 +30,47 @@ import {
   CheckCircle2,
   ClipboardCheck,
 } from "lucide-react";
+import { PlanningPageSkeleton } from "@/components/ui/skeleton-card";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useIsAdmin } from "@/hooks/use-users";
 
-// Project status configuration
+// Project status configuration - WCAG AA compliant colors (4.5:1 contrast ratio)
 const statusConfig = {
   gepland: {
     label: "Gepland",
     icon: Calendar,
-    color: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400",
-    borderColor: "border-blue-200 dark:border-blue-800",
+    color: "bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+    borderColor: "border-blue-300 dark:border-blue-700",
   },
   in_uitvoering: {
     label: "In Uitvoering",
     icon: Play,
-    color: "bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-400",
-    borderColor: "border-orange-200 dark:border-orange-800",
+    color: "bg-orange-200 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
+    borderColor: "border-orange-300 dark:border-orange-700",
   },
   afgerond: {
     label: "Afgerond",
     icon: CheckCircle2,
-    color: "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400",
-    borderColor: "border-green-200 dark:border-green-800",
+    color: "bg-green-200 text-green-800 dark:bg-green-900 dark:text-green-200",
+    borderColor: "border-green-300 dark:border-green-700",
   },
   nacalculatie_compleet: {
     label: "Nacalculatie",
     icon: ClipboardCheck,
-    color: "bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-400",
-    borderColor: "border-purple-200 dark:border-purple-800",
+    color: "bg-purple-200 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+    borderColor: "border-purple-300 dark:border-purple-700",
   },
   gefactureerd: {
     label: "Gefactureerd",
     icon: CheckCircle2,
-    color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400",
-    borderColor: "border-emerald-200 dark:border-emerald-800",
+    color: "bg-emerald-200 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
+    borderColor: "border-emerald-300 dark:border-emerald-700",
   },
   voorcalculatie: {
     label: "Voorcalculatie",
     icon: Calendar,
-    color: "bg-slate-100 text-slate-700 dark:bg-slate-950 dark:text-slate-400",
-    borderColor: "border-slate-200 dark:border-slate-800",
+    color: "bg-slate-200 text-slate-800 dark:bg-slate-900 dark:text-slate-200",
+    borderColor: "border-slate-300 dark:border-slate-700",
   },
 } as const;
 
@@ -145,11 +145,11 @@ function ProjectCard({ project }: { project: ProjectVoortgang }) {
                 <FolderKanban className="h-5 w-5" />
               </div>
               <div className="min-w-0">
-                <h3 className="font-medium text-sm truncate group-hover:text-primary transition-colors">
+                <h3 className="font-medium text-sm truncate group-hover:text-primary transition-colors" title={project.projectNaam}>
                   {project.projectNaam}
                 </h3>
                 {project.klantNaam && (
-                  <p className="text-xs text-muted-foreground truncate">{project.klantNaam}</p>
+                  <p className="text-xs text-muted-foreground truncate" title={project.klantNaam}>{project.klantNaam}</p>
                 )}
               </div>
             </div>
@@ -187,7 +187,7 @@ function ProjectCard({ project }: { project: ProjectVoortgang }) {
 
           {/* Team members */}
           {project.teamleden && project.teamleden.length > 0 && (
-            <div className="mt-2 text-xs text-muted-foreground truncate">
+            <div className="mt-2 text-xs text-muted-foreground truncate" title={project.teamleden.join(", ")}>
               {project.teamleden.slice(0, 2).join(", ")}
               {project.teamleden.length > 2 && ` +${project.teamleden.length - 2}`}
             </div>
@@ -261,8 +261,8 @@ function PlanningPageLoader() {
           </BreadcrumbList>
         </Breadcrumb>
       </header>
-      <div className="flex flex-1 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
+        <PlanningPageSkeleton />
       </div>
     </>
   );
@@ -473,27 +473,47 @@ function PlanningPageContent() {
           className="space-y-6"
         >
           {isLoading ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <div
+              className="flex flex-col items-center justify-center py-20 gap-4"
+              role="status"
+              aria-live="polite"
+              aria-busy="true"
+            >
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-primary" />
+              <p className="text-sm text-muted-foreground">Projecten laden...</p>
             </div>
           ) : filteredProjects.length === 0 ? (
             <Card className="p-8">
-              <div className="text-center">
-                <FolderKanban className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-                <h3 className="font-medium text-muted-foreground">
+              <div className="flex flex-col items-center justify-center text-center">
+                <FolderKanban className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                <h3 className="text-lg font-medium mb-2">
                   {isAdmin
                     ? "Geen actieve projecten"
                     : "Geen projecten toegewezen"}
                 </h3>
-                <p className="text-sm text-muted-foreground/80 mt-1">
+                <p className="text-sm text-muted-foreground mb-4 max-w-sm">
                   {isAdmin
-                    ? "Er zijn momenteel geen projecten in de planning of uitvoering"
-                    : "Je bent nog niet toegewezen aan een project"}
+                    ? "Er zijn momenteel geen projecten in de planning of uitvoering. Start een nieuw project vanuit een geaccepteerde offerte."
+                    : "Je bent nog niet toegewezen aan een project. Neem contact op met je leidinggevende voor projecttoewijzing."}
                 </p>
-                {isAdmin && (
-                  <Button asChild className="mt-4">
-                    <Link href="/projecten">
-                      Bekijk alle projecten
+                {isAdmin ? (
+                  <div className="flex gap-3">
+                    <Button asChild>
+                      <Link href="/projecten">
+                        <FolderKanban className="mr-2 h-4 w-4" />
+                        Alle Projecten
+                      </Link>
+                    </Button>
+                    <Button asChild variant="outline">
+                      <Link href="/offertes?status=geaccepteerd">
+                        Geaccepteerde Offertes
+                      </Link>
+                    </Button>
+                  </div>
+                ) : (
+                  <Button asChild variant="outline">
+                    <Link href="/dashboard">
+                      Terug naar Dashboard
                     </Link>
                   </Button>
                 )}

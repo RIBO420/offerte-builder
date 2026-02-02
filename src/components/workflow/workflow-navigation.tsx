@@ -368,7 +368,7 @@ export const WorkflowNavigation = memo(function WorkflowNavigation({
                     {step.label}
                   </p>
                   {!compact && (
-                    <p className="text-xs text-muted-foreground truncate">
+                    <p className="text-xs text-muted-foreground truncate" title={step.description}>
                       {step.description}
                     </p>
                   )}

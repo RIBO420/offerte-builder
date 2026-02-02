@@ -15,8 +15,8 @@ interface InputWithFeedbackProps extends React.ComponentProps<"input"> {
 
 const statusBorderClasses: Record<FeedbackStatus, string> = {
   idle: "",
-  valid: "border-ring focus-visible:border-ring focus-visible:ring-ring/50",
-  invalid: "border-destructive focus-visible:border-destructive focus-visible:ring-destructive/20",
+  valid: "border-ring",
+  invalid: "border-destructive",
   validating: "",
 };
 

@@ -63,13 +63,14 @@ function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
+// WCAG AA compliant colors (4.5:1 contrast ratio)
 function getStatusColor(status: string): string {
   switch (status) {
-    case "geaccepteerd": return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
-    case "afgewezen": return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
-    case "verzonden": return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
-    case "voorcalculatie": return "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400";
-    default: return "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400";
+    case "geaccepteerd": return "bg-green-200 text-green-800 dark:bg-green-900 dark:text-green-200";
+    case "afgewezen": return "bg-red-200 text-red-800 dark:bg-red-900 dark:text-red-200";
+    case "verzonden": return "bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
+    case "voorcalculatie": return "bg-purple-200 text-purple-800 dark:bg-purple-900 dark:text-purple-200";
+    default: return "bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-gray-200";
   }
 }
 
@@ -204,7 +205,7 @@ export function KlantSelector({
                           />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              <span className="font-medium truncate">{klant.naam}</span>
+                              <span className="font-medium truncate" title={klant.naam}>{klant.naam}</span>
                               {klant.offerteCount > 0 && (
                                 <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">
                                   {klant.offerteCount} offerte{klant.offerteCount !== 1 ? "s" : ""}

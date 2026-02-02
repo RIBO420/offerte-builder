@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, Suspense } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { RequireAdmin } from "@/components/require-admin";
 import { useTabState } from "@/hooks/use-tab-state";
@@ -453,7 +454,7 @@ function RapportagesPageContent() {
               >
                 {/* Subtle glow effect */}
                 <motion.div
-                  className="absolute inset-0 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-green-600/20 blur-xl"
+                  className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 blur-xl"
                   animate={{
                     opacity: [0.3, 0.5, 0.3],
                     scale: [1, 1.1, 1],
@@ -469,9 +470,21 @@ function RapportagesPageContent() {
                 </div>
               </motion.div>
               <h3 className="mt-4 text-lg font-semibold">Geen data beschikbaar</h3>
-              <p className="mt-2 text-muted-foreground">
-                Maak eerst enkele offertes aan om je rapportages te bekijken.
+              <p className="mt-2 text-sm text-muted-foreground max-w-sm">
+                Maak eerst enkele offertes aan om je rapportages te bekijken. Start met een nieuwe offerte om te beginnen.
               </p>
+              <div className="flex gap-3 mt-4">
+                <Button asChild>
+                  <Link href="/offertes/nieuw/aanleg">
+                    Nieuwe Aanleg Offerte
+                  </Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link href="/offertes/nieuw/onderhoud">
+                    Nieuw Onderhoud
+                  </Link>
+                </Button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>

@@ -234,21 +234,23 @@ export function TakenLijst({
                         <div className="flex items-center justify-end gap-1">
                           <Button
                             variant="ghost"
-                            size="icon-xs"
+                            size="icon"
+                            className="h-9 w-9 sm:h-7 sm:w-7"
                             onClick={() => onMoveUp(taak._id)}
                             disabled={index === 0 || isLoading}
-                            title="Omhoog"
+                            aria-label="Omhoog verplaatsen"
                           >
                             <ChevronUp className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
-                            size="icon-xs"
+                            size="icon"
+                            className="h-9 w-9 sm:h-7 sm:w-7"
                             onClick={() => onMoveDown(taak._id)}
                             disabled={
                               index === scopeTaken.length - 1 || isLoading
                             }
-                            title="Omlaag"
+                            aria-label="Omlaag verplaatsen"
                           >
                             <ChevronDown className="h-4 w-4" />
                           </Button>
@@ -256,8 +258,10 @@ export function TakenLijst({
                             <DropdownMenuTrigger asChild>
                               <Button
                                 variant="ghost"
-                                size="icon-xs"
+                                size="icon"
+                                className="h-9 w-9 sm:h-7 sm:w-7"
                                 disabled={isLoading}
+                                aria-label="Meer opties"
                               >
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>

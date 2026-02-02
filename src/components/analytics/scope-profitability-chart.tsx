@@ -181,7 +181,7 @@ export const ScopeProfitabilityChart = memo(function ScopeProfitabilityChart({ d
           </div>
           <div className="text-center p-3 rounded-lg bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800">
             <div className="text-xs text-muted-foreground mb-1">Top Scope</div>
-            <div className="text-lg font-bold text-purple-600 dark:text-purple-400 truncate">
+            <div className="text-lg font-bold text-purple-600 dark:text-purple-400 truncate" title={topScope?.displayName ?? undefined}>
               {topScope?.displayName ?? "-"}
             </div>
           </div>

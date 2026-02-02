@@ -244,7 +244,7 @@ export const OfferteWorkflowStepper = memo(function OfferteWorkflowStepper({
                     "flex h-8 w-8 items-center justify-center rounded-full border-2 transition-colors",
                     step.state === "completed" && "bg-primary border-primary text-primary-foreground",
                     step.state === "current" && "border-primary bg-primary/10 text-primary",
-                    step.state === "partially-complete" && "border-blue-500 bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400",
+                    step.state === "partially-complete" && "border-blue-600 bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
                     step.state === "upcoming" && "border-muted-foreground/30 text-muted-foreground/50",
                     step.isRejected && "bg-red-500 border-red-500 text-white"
                   )}
@@ -302,7 +302,7 @@ export const OfferteWorkflowStepper = memo(function OfferteWorkflowStepper({
                     "flex h-10 w-10 items-center justify-center rounded-full border-2 transition-colors",
                     step.state === "completed" && "bg-primary border-primary text-primary-foreground",
                     step.state === "current" && "border-primary bg-primary/10 text-primary",
-                    step.state === "partially-complete" && "border-blue-500 bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400",
+                    step.state === "partially-complete" && "border-blue-600 bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
                     step.state === "upcoming" && "border-muted-foreground/30 text-muted-foreground/50",
                     step.isRejected && "bg-red-500 border-red-500 text-white"
                   )}

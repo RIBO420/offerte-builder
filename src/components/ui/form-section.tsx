@@ -76,7 +76,7 @@ const FormSection = React.forwardRef<HTMLDivElement, FormSectionProps>(
         <CollapsibleTrigger asChild>
           <button
             type="button"
-            className="w-full p-4 text-left hover:bg-muted/50 transition-colors rounded-t-lg focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="w-full p-4 text-left hover:bg-muted/50 transition-colors rounded-t-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             {headerContent}
           </button>

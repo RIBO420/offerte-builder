@@ -107,7 +107,7 @@ export const KpiCards = memo(function KpiCards({ kpis }: KpiCardsProps) {
   }), [kpis.winRate, kpis.gemiddeldeWaarde, kpis.totaleOmzet, kpis.totaalOffertes]);
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {/* Win Rate */}
       <GlassKpiCard
         delay={0}
@@ -140,7 +140,7 @@ export const KpiCards = memo(function KpiCards({ kpis }: KpiCardsProps) {
             <span className="text-xl font-bold text-green-500">%</span>
           </div>
           <div className="flex items-center justify-between gap-2">
-            <p className="text-xs text-muted-foreground truncate">
+            <p className="text-xs text-muted-foreground truncate" title={`${kpis.geaccepteerdCount}/${kpis.geaccepteerdCount + kpis.afgewezenCount} gewonnen`}>
               {kpis.geaccepteerdCount}/{kpis.geaccepteerdCount + kpis.afgewezenCount} gewonnen
             </p>
             <Sparkline
@@ -185,7 +185,7 @@ export const KpiCards = memo(function KpiCards({ kpis }: KpiCardsProps) {
             />
           </div>
           <div className="flex items-center justify-between gap-2">
-            <p className="text-xs text-muted-foreground truncate">
+            <p className="text-xs text-muted-foreground truncate" title={`${kpis.totaalOffertes} offertes`}>
               {kpis.totaalOffertes} offertes
             </p>
             <Sparkline
@@ -230,7 +230,7 @@ export const KpiCards = memo(function KpiCards({ kpis }: KpiCardsProps) {
             />
           </div>
           <div className="flex items-center justify-between gap-2">
-            <p className="text-xs text-muted-foreground truncate">
+            <p className="text-xs text-muted-foreground truncate" title="Geaccepteerd">
               Geaccepteerd
             </p>
             <Sparkline
@@ -274,7 +274,7 @@ export const KpiCards = memo(function KpiCards({ kpis }: KpiCardsProps) {
             />
           </div>
           <div className="flex items-center justify-between gap-2">
-            <p className="text-xs text-muted-foreground truncate">
+            <p className="text-xs text-muted-foreground truncate" title="Deze periode">
               Deze periode
             </p>
             <Sparkline

@@ -58,7 +58,7 @@ import {
   Calendar,
   Eye,
 } from "lucide-react";
-import { ListSkeleton } from "@/components/ui/skeleton-card";
+import { WagenparkPageSkeleton } from "@/components/ui/skeleton-card";
 import { toast } from "sonner";
 import { useVoertuigen, VoertuigStatus } from "@/hooks/use-voertuigen";
 import { useUpcomingOnderhoud } from "@/hooks/use-voertuig-details";
@@ -350,35 +350,38 @@ function WagenparkPageContent() {
           <div className="flex items-center justify-end gap-1">
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
+              className="h-9 w-9 sm:h-8 sm:w-8"
               onClick={(e) => {
                 e.stopPropagation();
                 handleViewDetails(voertuig);
               }}
-              title="Bekijk details"
+              aria-label="Bekijk details"
             >
               <Eye className="h-4 w-4" />
             </Button>
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
+              className="h-9 w-9 sm:h-8 sm:w-8"
               onClick={(e) => {
                 e.stopPropagation();
                 handleEdit(voertuig);
               }}
-              title="Bewerken"
+              aria-label="Bewerken"
             >
               <Pencil className="h-4 w-4" />
             </Button>
             {voertuig.status === "actief" && (
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon"
+                className="h-9 w-9 sm:h-8 sm:w-8"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleToggleStatus(voertuig, "onderhoud");
                 }}
-                title="Op onderhoud zetten"
+                aria-label="Op onderhoud zetten"
               >
                 <Wrench className="h-4 w-4 text-muted-foreground" />
               </Button>
@@ -386,12 +389,13 @@ function WagenparkPageContent() {
             {voertuig.status === "onderhoud" && (
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon"
+                className="h-9 w-9 sm:h-8 sm:w-8"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleToggleStatus(voertuig, "actief");
                 }}
-                title="Activeren"
+                aria-label="Activeren"
               >
                 <CheckCircle2 className="h-4 w-4 text-green-600" />
               </Button>
@@ -400,23 +404,25 @@ function WagenparkPageContent() {
               <>
                 <Button
                   variant="ghost"
-                  size="sm"
+                  size="icon"
+                  className="h-9 w-9 sm:h-8 sm:w-8"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleToggleStatus(voertuig, "actief");
                   }}
-                  title="Activeren"
+                  aria-label="Activeren"
                 >
                   <CheckCircle2 className="h-4 w-4 text-green-600" />
                 </Button>
                 <Button
                   variant="ghost"
-                  size="sm"
+                  size="icon"
+                  className="h-9 w-9 sm:h-8 sm:w-8"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleDeleteClick(voertuig);
                   }}
-                  title="Verwijderen"
+                  aria-label="Verwijderen"
                 >
                   <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
@@ -448,7 +454,7 @@ function WagenparkPageContent() {
           </Breadcrumb>
         </header>
         <div className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
-          <ListSkeleton count={5} />
+          <WagenparkPageSkeleton />
         </div>
       </>
     );

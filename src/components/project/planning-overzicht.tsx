@@ -38,10 +38,10 @@ function StatCard({
         <Icon className="h-4 w-4 text-muted-foreground" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-lg font-bold tabular-nums truncate">{value}</p>
-        <p className="text-xs text-muted-foreground truncate">{label}</p>
+        <p className="text-lg font-bold tabular-nums truncate" title={String(value)}>{value}</p>
+        <p className="text-xs text-muted-foreground truncate" title={label}>{label}</p>
         {subValue && (
-          <p className="text-xs text-muted-foreground truncate">{subValue}</p>
+          <p className="text-xs text-muted-foreground truncate" title={subValue}>{subValue}</p>
         )}
       </div>
     </div>

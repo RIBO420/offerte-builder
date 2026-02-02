@@ -369,7 +369,7 @@ export default function UrenPage() {
                     return (
                       <div key={project.projectId} className="space-y-1">
                         <div className="flex items-center justify-between text-sm">
-                          <span className="font-medium truncate max-w-[200px]">
+                          <span className="font-medium truncate max-w-[200px]" title={project.projectNaam}>
                             {project.projectNaam}
                           </span>
                           <span className="text-muted-foreground">
@@ -462,7 +462,7 @@ export default function UrenPage() {
                     value={dateRange}
                     onValueChange={(value) => setDateRange(value as DateRangePreset)}
                   >
-                    <SelectTrigger className="w-[140px]">
+                    <SelectTrigger className="w-full sm:w-[140px]">
                       <SelectValue placeholder="Periode" />
                     </SelectTrigger>
                     <SelectContent>
@@ -476,7 +476,7 @@ export default function UrenPage() {
 
                   {/* Project Filter */}
                   <Select value={projectFilter} onValueChange={setProjectFilter}>
-                    <SelectTrigger className="w-[160px]">
+                    <SelectTrigger className="w-full sm:w-[160px]">
                       <SelectValue placeholder="Project" />
                     </SelectTrigger>
                     <SelectContent>
@@ -492,7 +492,7 @@ export default function UrenPage() {
                   {/* Medewerker Filter (Admin only) */}
                   {isAdmin && uniqueMedewerkers.length > 1 && (
                     <Select value={medewerkerFilter} onValueChange={setMedewerkerFilter}>
-                      <SelectTrigger className="w-[160px]">
+                      <SelectTrigger className="w-full sm:w-[160px]">
                         <SelectValue placeholder="Medewerker" />
                       </SelectTrigger>
                       <SelectContent>
@@ -522,24 +522,32 @@ export default function UrenPage() {
             <CardContent>
               {sortedEntries.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <Clock className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                  <h3 className="text-lg font-medium">
-                    {urenData?.length === 0
-                      ? "Nog geen uren geregistreerd"
-                      : "Geen resultaten gevonden"}
-                  </h3>
-                  <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-                    {urenData?.length === 0
-                      ? "Ga naar een project om uren te registreren."
-                      : "Pas je filters aan om meer resultaten te zien."}
-                  </p>
-                  {urenData?.length === 0 && (
-                    <Button className="mt-4" asChild>
-                      <Link href="/projecten">
-                        <FolderKanban className="h-4 w-4 mr-2" />
-                        Naar Projecten
-                      </Link>
-                    </Button>
+                  {urenData?.length === 0 ? (
+                    <>
+                      <Clock className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                      <h3 className="text-lg font-medium mb-2">Nog geen uren geregistreerd</h3>
+                      <p className="text-sm text-muted-foreground mb-4 max-w-sm">
+                        Er zijn nog geen uren geregistreerd. Ga naar een project om je eerste uren te registreren.
+                      </p>
+                      <Button asChild>
+                        <Link href="/projecten">
+                          <FolderKanban className="h-4 w-4 mr-2" />
+                          Naar Projecten
+                        </Link>
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Filter className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                      <h3 className="text-lg font-medium mb-2">Geen resultaten gevonden</h3>
+                      <p className="text-sm text-muted-foreground mb-4 max-w-sm">
+                        Er zijn geen uren die voldoen aan de huidige filters. Probeer een andere periode of verwijder filters.
+                      </p>
+                      <Button variant="outline" onClick={handleClearFilters}>
+                        <Filter className="h-4 w-4 mr-2" />
+                        Filters wissen
+                      </Button>
+                    </>
                   )}
                 </div>
               ) : (
@@ -573,7 +581,7 @@ export default function UrenPage() {
                             </TableCell>
                           )}
                           <TableCell>
-                            <span className="truncate max-w-[150px] block">
+                            <span className="truncate max-w-[150px] block" title={entry.projectNaam}>
                               {entry.projectNaam}
                             </span>
                           </TableCell>
@@ -588,12 +596,12 @@ export default function UrenPage() {
                             {formatHours(entry.uren)}
                           </TableCell>
                           <TableCell>
-                            <span className="text-muted-foreground truncate max-w-[150px] block">
+                            <span className="text-muted-foreground truncate max-w-[150px] block" title={entry.notities || undefined}>
                               {entry.notities || "-"}
                             </span>
                           </TableCell>
                           <TableCell>
-                            <Button variant="ghost" size="sm" asChild>
+                            <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" asChild aria-label="Bekijk project">
                               <Link href={`/projecten/${entry.projectId}/uitvoering`}>
                                 <ExternalLink className="h-4 w-4" />
                               </Link>

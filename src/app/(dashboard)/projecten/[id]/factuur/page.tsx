@@ -66,13 +66,13 @@ import {
 import { useReducedMotion } from "@/hooks/use-accessibility";
 import { transitions, fadeInUp } from "@/lib/motion-config";
 
-// Factuur status colors
+// Factuur status colors - WCAG AA compliant (4.5:1 contrast ratio)
 const statusColors: Record<string, string> = {
-  concept: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100",
-  definitief: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
-  verzonden: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100",
-  betaald: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
-  vervallen: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
+  concept: "bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
+  definitief: "bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+  verzonden: "bg-amber-200 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+  betaald: "bg-green-200 text-green-800 dark:bg-green-900 dark:text-green-200",
+  vervallen: "bg-red-200 text-red-800 dark:bg-red-900 dark:text-red-200",
 };
 
 // Factuur status labels
@@ -812,7 +812,7 @@ export default function FactuurPage({
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild>
+          <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" asChild aria-label="Terug naar project">
             <Link href={`/projecten/${id}`}>
               <ArrowLeft className="h-4 w-4" />
             </Link>
@@ -887,7 +887,7 @@ export default function FactuurPage({
                 </div>
               </div>
               <div className="flex gap-3">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-400 text-sm font-medium">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-200 text-green-800 dark:bg-green-900 dark:text-green-200 text-sm font-medium">
                   4
                 </div>
                 <div>
@@ -914,7 +914,7 @@ export default function FactuurPage({
                 {offerte.klant.email && (
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">E-mail</span>
-                    <span className="font-medium truncate max-w-[150px]">
+                    <span className="font-medium truncate max-w-[150px]" title={offerte.klant.email}>
                       {offerte.klant.email}
                     </span>
                   </div>
@@ -1204,7 +1204,7 @@ export default function FactuurPage({
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" asChild>
+            <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" asChild aria-label="Terug naar project">
               <Link href={`/projecten/${id}`}>
                 <ArrowLeft className="h-4 w-4" />
               </Link>
@@ -1290,10 +1290,10 @@ export default function FactuurPage({
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-lg font-bold truncate">
+              <p className="text-lg font-bold truncate" title={factuur.klant.naam}>
                 {factuur.klant.naam}
               </p>
-              <p className="text-xs text-muted-foreground truncate">
+              <p className="text-xs text-muted-foreground truncate" title={factuur.klant.plaats}>
                 {factuur.klant.plaats}
               </p>
             </CardContent>

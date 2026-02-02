@@ -268,10 +268,10 @@ export function TeamForm({
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">
+                      <p className="font-medium text-sm truncate" title={medewerker.naam}>
                         {medewerker.naam}
                       </p>
-                      <p className="text-xs text-muted-foreground truncate">
+                      <p className="text-xs text-muted-foreground truncate" title={medewerker.functie || medewerker.email || undefined}>
                         {medewerker.functie || medewerker.email || "-"}
                       </p>
                     </div>

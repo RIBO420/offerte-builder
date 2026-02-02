@@ -124,3 +124,5 @@ export const StatusDot = memo(function StatusDot({ status, className }: StatusDo
     </TooltipProvider>
   );
 });
+
+export type { StatusBadgeProps, StatusDotProps };
