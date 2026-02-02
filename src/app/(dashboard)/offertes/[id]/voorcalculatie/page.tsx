@@ -47,6 +47,7 @@ import {
   HelpCircle,
   ArrowRight,
   Edit,
+  Eye,
 } from "lucide-react";
 import { useOfferteVoorcalculatie } from "@/hooks/use-voorcalculatie";
 import { TeamSelector } from "@/components/project/team-selector";
@@ -90,6 +91,9 @@ export default function OfferteVoorcalculatiePage({
   );
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
+
+  // Determine if we're in view-only mode (offerte already past voorcalculatie stage)
+  const isViewOnly = offerte?.status && !["concept", "voorcalculatie"].includes(offerte.status);
 
   // Update state when voorcalculatie loads
   useMemo(() => {
@@ -337,32 +341,59 @@ export default function OfferteVoorcalculatiePage({
               isDirty={isDirty}
               lastSaved={lastSaved}
             />
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={handleSave}
-                disabled={isSaving || !calculation || !isDirty}
-                title="Auto-save is actief (2 sec na wijziging)"
-              >
-                {isSaving ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="mr-2 h-4 w-4" />
-                )}
-                Opslaan
-              </Button>
-              <Button
-                onClick={() => setShowCompleteDialog(true)}
-                disabled={!calculation || isSaving}
-                className="bg-green-600 hover:bg-green-700 text-white"
-              >
-                <Send className="mr-2 h-4 w-4" />
-                Afronden
-                <ChevronRight className="ml-1 h-4 w-4" />
-              </Button>
-            </div>
+            {!isViewOnly && (
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handleSave}
+                  disabled={isSaving || !calculation || !isDirty}
+                  title="Auto-save is actief (2 sec na wijziging)"
+                >
+                  {isSaving ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="mr-2 h-4 w-4" />
+                  )}
+                  Opslaan
+                </Button>
+                <Button
+                  onClick={() => setShowCompleteDialog(true)}
+                  disabled={!calculation || isSaving}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  <Send className="mr-2 h-4 w-4" />
+                  Afronden
+                  <ChevronRight className="ml-1 h-4 w-4" />
+                </Button>
+              </div>
+            )}
           </div>
         </motion.div>
+
+        {/* View-only banner for accepted/rejected offertes */}
+        {isViewOnly && (
+          <motion.div
+            initial={reducedMotion ? false : { opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              duration: reducedMotion ? 0 : 0.4,
+              delay: reducedMotion ? 0 : 0.12,
+            }}
+          >
+            <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-4">
+              <div className="flex items-center gap-2">
+                <Eye className="h-4 w-4 text-blue-600" />
+                <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                  Alleen-lezen weergave
+                </span>
+              </div>
+              <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                Deze offerte is al {offerte?.status === "geaccepteerd" ? "geaccepteerd" : offerte?.status === "afgewezen" ? "afgewezen" : "verzonden"}.
+                Je bekijkt de voorcalculatie ter referentie.
+              </p>
+            </div>
+          </motion.div>
+        )}
 
         {/* Progress and Guidance Section */}
         <motion.div
@@ -535,8 +566,8 @@ export default function OfferteVoorcalculatiePage({
           </motion.div>
         )}
 
-        {/* Next Steps Card */}
-        {calculation && (
+        {/* Next Steps Card - only show when not in view-only mode */}
+        {calculation && !isViewOnly && (
           <motion.div
             initial={reducedMotion ? false : { opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
