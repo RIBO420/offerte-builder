@@ -36,7 +36,7 @@ export function BomenForm({ data, onChange, onValidationChange }: BomenFormProps
   const form = useForm<BomenOnderhoudFormData>({
     resolver: zodResolver(bomenOnderhoudSchema),
     defaultValues: data,
-    mode: "onBlur",
+    mode: "onChange",
   });
 
   const { formState: { errors, isValid }, watch } = form;

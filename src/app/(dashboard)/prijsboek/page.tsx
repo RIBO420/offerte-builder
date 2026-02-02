@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import { useDebounce } from "@/hooks/use-debounce";
 import { motion } from "framer-motion";
 import { RequireAdmin } from "@/components/require-admin";
 import {
@@ -177,6 +178,7 @@ function PrijsboekPageContent() {
   } = useProducten();
 
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [activeTab, setActiveTab] = useState("alle");
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
@@ -200,12 +202,13 @@ function PrijsboekPageContent() {
 
   const isLoading = isUserLoading || isProductenLoading;
 
+  // Filter products (use debounced search value)
   const filteredProducts = producten.filter((product) => {
     const matchesSearch =
-      searchQuery === "" ||
-      product.productnaam.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      debouncedSearchQuery === "" ||
+      product.productnaam.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
       (product.leverancier &&
-        product.leverancier.toLowerCase().includes(searchQuery.toLowerCase()));
+        product.leverancier.toLowerCase().includes(debouncedSearchQuery.toLowerCase()));
 
     const matchesTab =
       activeTab === "alle" || product.categorie === activeTab;

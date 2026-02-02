@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, Suspense } from "react";
+import { useDebounce } from "@/hooks/use-debounce";
 import { motion } from "framer-motion";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { useTabState } from "@/hooks/use-tab-state";
 import { RequireAdmin } from "@/components/require-admin";
 import {
   Card,
@@ -56,6 +58,7 @@ import {
   AlertTriangle,
   Eye,
 } from "lucide-react";
+import { ListSkeleton } from "@/components/ui/skeleton-card";
 import { toast } from "sonner";
 import { useMedewerkers } from "@/hooks/use-medewerkers";
 import { MedewerkerForm, Medewerker } from "@/components/medewerkers/medewerker-form";
@@ -91,7 +94,8 @@ function MedewerkersPageContent() {
   const { user } = useCurrentUser();
   const { medewerkers, isLoading, update, remove } = useMedewerkers();
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeTab, setActiveTab] = useState<FilterTab>("alle");
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  const [activeTab, setActiveTab] = useTabState("alle");
 
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -144,9 +148,9 @@ function MedewerkersPageContent() {
       filtered = filtered.filter((m) => !m.isActief);
     }
 
-    // Filter by search term
-    if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase();
+    // Filter by search term (use debounced value)
+    if (debouncedSearchTerm.trim()) {
+      const term = debouncedSearchTerm.toLowerCase();
       filtered = filtered.filter(
         (m) =>
           m.naam.toLowerCase().includes(term) ||
@@ -156,7 +160,7 @@ function MedewerkersPageContent() {
     }
 
     return filtered;
-  }, [medewerkers, searchTerm, activeTab]);
+  }, [medewerkers, debouncedSearchTerm, activeTab]);
 
   const handleEdit = useCallback((medewerker: Medewerker) => {
     setSelectedMedewerker(medewerker);
@@ -376,20 +380,8 @@ function MedewerkersPageContent() {
             </BreadcrumbList>
           </Breadcrumb>
         </header>
-        <div className="flex flex-1 items-center justify-center">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="flex flex-col items-center gap-4"
-          >
-            <div className="relative">
-              <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full" />
-              <div className="relative flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-green-600">
-                <Loader2 className="h-8 w-8 animate-spin text-white" />
-              </div>
-            </div>
-            <p className="text-muted-foreground animate-pulse">Laden...</p>
-          </motion.div>
+        <div className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
+          <ListSkeleton count={5} />
         </div>
       </>
     );
@@ -515,7 +507,7 @@ function MedewerkersPageContent() {
             <CardContent>
               <Tabs
                 value={activeTab}
-                onValueChange={(value) => setActiveTab(value as FilterTab)}
+                onValueChange={setActiveTab}
                 className="mb-4"
               >
                 <TabsList>
@@ -635,7 +627,9 @@ function MedewerkersPageContent() {
 export default function MedewerkersPage() {
   return (
     <RequireAdmin>
-      <MedewerkersPageContent />
+      <Suspense fallback={null}>
+        <MedewerkersPageContent />
+      </Suspense>
     </RequireAdmin>
   );
 }

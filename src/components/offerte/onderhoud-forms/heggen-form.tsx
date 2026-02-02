@@ -36,7 +36,7 @@ export function HeggenForm({ data, onChange, onValidationChange }: HeggenFormPro
   const form = useForm<HeggenOnderhoudFormData>({
     resolver: zodResolver(heggenOnderhoudSchema),
     defaultValues: data,
-    mode: "onBlur",
+    mode: "onChange",
   });
 
   const { formState: { errors, isValid }, watch } = form;

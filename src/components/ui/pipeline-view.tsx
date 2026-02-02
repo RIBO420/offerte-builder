@@ -5,6 +5,7 @@ import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { AnimatedNumber } from "@/components/ui/animated-number"
 import { useReducedMotion } from "@/hooks/use-accessibility"
+import { handleKeyboardActivation } from "@/lib/accessibility"
 import { transitions } from "@/lib/motion-config"
 
 interface PipelineStage {
@@ -406,12 +407,14 @@ function CompactPipelineView({ stages, onStageClick, className }: CompactPipelin
               className={cn(
                 "h-full transition-all duration-300",
                 bgColors[index % bgColors.length],
-                onStageClick && "cursor-pointer hover:brightness-110"
+                onStageClick && "cursor-pointer hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               )}
               style={{ width: `${percentage}%` }}
               onClick={() => onStageClick?.(stage.id)}
+              onKeyDown={(e) => onStageClick && handleKeyboardActivation(e, () => onStageClick(stage.id))}
               role={onStageClick ? "button" : "presentation"}
-              aria-label={`${stage.label}: ${stage.count}`}
+              tabIndex={onStageClick ? 0 : undefined}
+              aria-label={`${stage.label}: ${stage.count} items, ${Math.round(percentage)}% van totaal`}
             />
           )
         })}
@@ -435,10 +438,11 @@ function CompactPipelineView({ stages, onStageClick, className }: CompactPipelin
               onClick={() => onStageClick?.(stage.id)}
               disabled={!onStageClick}
               className={cn(
-                "flex items-center gap-1.5",
+                "flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded",
                 onStageClick && "cursor-pointer hover:opacity-80",
                 !onStageClick && "cursor-default"
               )}
+              aria-label={`Filter op ${stage.label}: ${stage.count} items`}
             >
               <div
                 className={cn("h-2 w-2 rounded-full", bgColors[index % bgColors.length])}

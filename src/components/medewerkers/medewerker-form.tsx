@@ -29,12 +29,15 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Loader2, User, Clock, GraduationCap, Award, FileText, MapPin, Phone } from "lucide-react";
-import { toast } from "sonner";
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
+import { showSuccessToast, showErrorToast, showWarningToast } from "@/lib/toast-utils";
+import { getMutationErrorMessage } from "@/lib/error-handling";
 import { Id } from "../../../convex/_generated/dataModel";
 import { SkillsSelector, Specialisatie } from "./skills-selector";
 import { CertificatenList, Certificaat } from "./certificaat-form";
+import { FormFieldFeedback } from "@/components/ui/form-field-feedback";
+import { inputPatterns, formatInput, validateInput } from "@/lib/input-patterns";
 
 export const FUNCTIE_OPTIONS = [
   "Hovenier",
@@ -158,6 +161,12 @@ export function MedewerkerForm({
   const [formData, setFormData] = useState<MedewerkerFormData>(defaultFormData);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Validation state for fields with input patterns
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [telefoonError, setTelefoonError] = useState<string | null>(null);
+  const [postcodeError, setPostcodeError] = useState<string | null>(null);
+  const [noodcontactTelefoonError, setNoodcontactTelefoonError] = useState<string | null>(null);
+
   const createMedewerker = useMutation(api.medewerkers.create);
   const updateMedewerker = useMutation(api.medewerkers.update);
 
@@ -190,14 +199,59 @@ export function MedewerkerForm({
       } else {
         setFormData(defaultFormData);
       }
+      // Clear validation errors when dialog opens
+      setEmailError(null);
+      setTelefoonError(null);
+      setPostcodeError(null);
+      setNoodcontactTelefoonError(null);
     }
   }, [initialData, open]);
+
+  // Real-time validation handlers
+  const handleEmailChange = useCallback((value: string) => {
+    setFormData((prev) => ({ ...prev, email: value }));
+    if (value && !validateInput("email", value)) {
+      setEmailError("Ongeldig e-mailadres");
+    } else {
+      setEmailError(null);
+    }
+  }, []);
+
+  const handleTelefoonChange = useCallback((value: string) => {
+    const formatted = formatInput("telefoon", value);
+    setFormData((prev) => ({ ...prev, telefoon: formatted }));
+    if (formatted && !validateInput("telefoon", formatted)) {
+      setTelefoonError("Ongeldig telefoonnummer (bijv. 06 12345678)");
+    } else {
+      setTelefoonError(null);
+    }
+  }, []);
+
+  const handlePostcodeChange = useCallback((value: string) => {
+    const formatted = formatInput("postcode", value);
+    setFormData((prev) => ({ ...prev, postcode: formatted }));
+    if (formatted && !validateInput("postcode", formatted)) {
+      setPostcodeError("Ongeldige postcode (bijv. 1234 AB)");
+    } else {
+      setPostcodeError(null);
+    }
+  }, []);
+
+  const handleNoodcontactTelefoonChange = useCallback((value: string) => {
+    const formatted = formatInput("telefoon", value);
+    setFormData((prev) => ({ ...prev, noodcontactTelefoon: formatted }));
+    if (formatted && !validateInput("telefoon", formatted)) {
+      setNoodcontactTelefoonError("Ongeldig telefoonnummer (bijv. 06 12345678)");
+    } else {
+      setNoodcontactTelefoonError(null);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.naam.trim()) {
-      toast.error("Vul de naam in");
+      showWarningToast("Vul de naam in");
       return;
     }
 
@@ -245,7 +299,7 @@ export function MedewerkerForm({
           adres,
           noodcontact,
         });
-        toast.success("Medewerker bijgewerkt");
+        showSuccessToast("Medewerker bijgewerkt");
       } else {
         await createMedewerker({
           naam: formData.naam,
@@ -261,17 +315,18 @@ export function MedewerkerForm({
           adres,
           noodcontact,
         });
-        toast.success("Medewerker toegevoegd");
+        showSuccessToast("Medewerker toegevoegd");
       }
 
       onOpenChange(false);
       onSuccess?.();
     } catch (error) {
       console.error("Error saving medewerker:", error);
-      toast.error(
+      showErrorToast(
         isEditMode
           ? "Fout bij bijwerken medewerker"
-          : "Fout bij toevoegen medewerker"
+          : "Fout bij toevoegen medewerker",
+        { description: getMutationErrorMessage(error) }
       );
     } finally {
       setIsLoading(false);
@@ -292,7 +347,7 @@ export function MedewerkerForm({
     }));
   }, []);
 
-  const isFormValid = formData.naam.trim();
+  const isFormValid = formData.naam.trim() && !emailError && !telefoonError && !postcodeError && !noodcontactTelefoonError;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -372,10 +427,15 @@ export function MedewerkerForm({
                           id="email"
                           type="email"
                           value={formData.email}
-                          onChange={(e) =>
-                            setFormData({ ...formData, email: e.target.value })
-                          }
-                          placeholder="jan@voorbeeld.nl"
+                          onChange={(e) => handleEmailChange(e.target.value)}
+                          placeholder={inputPatterns.email.placeholder}
+                          inputMode={inputPatterns.email.inputMode}
+                          autoComplete={inputPatterns.email.autoComplete}
+                          className={emailError ? "border-destructive" : ""}
+                        />
+                        <FormFieldFeedback
+                          status={emailError ? "invalid" : formData.email ? "valid" : "idle"}
+                          message={emailError || undefined}
                         />
                       </div>
                       <div className="space-y-2">
@@ -383,10 +443,15 @@ export function MedewerkerForm({
                         <Input
                           id="telefoon"
                           value={formData.telefoon}
-                          onChange={(e) =>
-                            setFormData({ ...formData, telefoon: e.target.value })
-                          }
-                          placeholder="06-12345678"
+                          onChange={(e) => handleTelefoonChange(e.target.value)}
+                          placeholder={inputPatterns.telefoon.placeholder}
+                          inputMode={inputPatterns.telefoon.inputMode}
+                          autoComplete={inputPatterns.telefoon.autoComplete}
+                          className={telefoonError ? "border-destructive" : ""}
+                        />
+                        <FormFieldFeedback
+                          status={telefoonError ? "invalid" : formData.telefoon ? "valid" : "idle"}
+                          message={telefoonError || undefined}
                         />
                       </div>
                     </div>
@@ -602,10 +667,16 @@ export function MedewerkerForm({
                         <Input
                           id="postcode"
                           value={formData.postcode}
-                          onChange={(e) =>
-                            setFormData({ ...formData, postcode: e.target.value })
-                          }
-                          placeholder="1234 AB"
+                          onChange={(e) => handlePostcodeChange(e.target.value)}
+                          placeholder={inputPatterns.postcode.placeholder}
+                          inputMode={inputPatterns.postcode.inputMode}
+                          autoComplete={inputPatterns.postcode.autoComplete}
+                          maxLength={inputPatterns.postcode.maxLength}
+                          className={postcodeError ? "border-destructive" : ""}
+                        />
+                        <FormFieldFeedback
+                          status={postcodeError ? "invalid" : formData.postcode ? "valid" : "idle"}
+                          message={postcodeError || undefined}
                         />
                       </div>
                       <div className="space-y-2">
@@ -667,10 +738,15 @@ export function MedewerkerForm({
                       <Input
                         id="noodcontactTelefoon"
                         value={formData.noodcontactTelefoon}
-                        onChange={(e) =>
-                          setFormData({ ...formData, noodcontactTelefoon: e.target.value })
-                        }
-                        placeholder="06-12345678"
+                        onChange={(e) => handleNoodcontactTelefoonChange(e.target.value)}
+                        placeholder={inputPatterns.telefoon.placeholder}
+                        inputMode={inputPatterns.telefoon.inputMode}
+                        autoComplete={inputPatterns.telefoon.autoComplete}
+                        className={noodcontactTelefoonError ? "border-destructive" : ""}
+                      />
+                      <FormFieldFeedback
+                        status={noodcontactTelefoonError ? "invalid" : formData.noodcontactTelefoon ? "valid" : "idle"}
+                        message={noodcontactTelefoonError || undefined}
                       />
                     </div>
                   </motion.div>

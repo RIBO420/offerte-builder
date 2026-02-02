@@ -17,6 +17,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarSeparator,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import {
   Collapsible,
@@ -155,6 +156,7 @@ function getInitials(name: string | null | undefined): string {
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const { setOpenMobile } = useSidebar();
   const { theme, setTheme } = useTheme();
   const { recentOffertes } = useDashboardData();
   const { user, isLoaded: isUserLoaded } = useUser();
@@ -162,6 +164,11 @@ export function AppSidebar() {
   const [mounted, setMounted] = useState(false);
   const isAdmin = useIsAdmin();
   const role = useCurrentUserRole();
+
+  // Close mobile sidebar when navigating to a new page
+  useEffect(() => {
+    setOpenMobile(false);
+  }, [pathname, setOpenMobile]);
 
   // Filter navigation items based on user role
   const filteredNavigationItems = useMemo(() => {
@@ -484,7 +491,7 @@ export function AppSidebar() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 shrink-0"
+                className="size-11 sm:size-8 shrink-0"
                 onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
               >
                 <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />

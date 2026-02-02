@@ -150,6 +150,35 @@ export function useDashboardData() {
   };
 }
 
+// Comprehensive dashboard hook - batches ALL dashboard data in a single round-trip
+// Use this for the main dashboard page to minimize query round-trips
+export function useFullDashboardData() {
+  const { user } = useCurrentUser();
+
+  const data = useQuery(
+    api.offertes.getFullDashboardData,
+    user?._id ? {} : "skip"
+  );
+
+  return {
+    // Offerte data
+    offerteStats: data?.offerteStats ?? null,
+    recentOffertes: data?.recentOffertes ?? [],
+    // Revenue stats
+    revenueStats: data?.revenueStats ?? null,
+    // Action required
+    acceptedWithoutProject: data?.acceptedWithoutProject ?? [],
+    // Project data
+    projectStats: data?.projectStats ?? null,
+    activeProjects: data?.activeProjects ?? [],
+    // Facturen data
+    facturenStats: data?.facturenStats ?? null,
+    recentFacturen: data?.recentFacturen ?? [],
+    // Loading state
+    isLoading: user && data === undefined,
+  };
+}
+
 // Paginated offertes hook
 export function useOffertesPaginated(limit: number = 25) {
   const { user } = useCurrentUser();

@@ -29,7 +29,7 @@ export function OverigForm({ data, onChange, onValidationChange }: OverigFormPro
   const form = useForm<OverigeOnderhoudFormData>({
     resolver: zodResolver(overigeOnderhoudSchema),
     defaultValues: data,
-    mode: "onBlur",
+    mode: "onChange",
   });
 
   const { formState: { errors, isValid }, watch } = form;

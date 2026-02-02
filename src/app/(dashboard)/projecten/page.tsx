@@ -5,24 +5,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useReducedMotion } from "@/hooks/use-accessibility";
+import { useDebounce } from "@/hooks/use-debounce";
+import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { Separator } from "@/components/ui/separator";
-import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import {
   FolderKanban,
   Search,
-  Loader2,
   Calendar,
   Play,
   CheckCircle2,
@@ -30,6 +21,7 @@ import {
   Calculator,
   Plus,
 } from "lucide-react";
+import { ListSkeleton } from "@/components/ui/skeleton-card";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -112,23 +104,9 @@ export default function ProjectenPage() {
 function ProjectenPageLoader() {
   return (
     <>
-      <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-        <SidebarTrigger className="-ml-1" />
-        <Separator orientation="vertical" className="mr-2 h-4" />
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/dashboard">Dashboard</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>Projecten</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      </header>
-      <div className="flex flex-1 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <PageHeader />
+      <div className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
+        <ListSkeleton count={5} />
       </div>
     </>
   );
@@ -150,6 +128,7 @@ function ProjectenPageContent() {
   );
 
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [activeTab, setActiveTab] = useState("alle");
 
   const isLoading = isUserLoading || projecten === undefined;
@@ -164,21 +143,21 @@ function ProjectenPageContent() {
     );
   }, [geaccepteerdeOffertes, projecten]);
 
-  // Filter projects
+  // Filter projects (use debounced search value)
   const filteredProjecten = useMemo(() => {
     if (!projecten) return [];
 
     return projecten.filter((project) => {
       const matchesSearch =
-        searchQuery === "" ||
-        project.naam.toLowerCase().includes(searchQuery.toLowerCase());
+        debouncedSearchQuery === "" ||
+        project.naam.toLowerCase().includes(debouncedSearchQuery.toLowerCase());
 
       const matchesStatus =
         activeTab === "alle" || project.status === activeTab;
 
       return matchesSearch && matchesStatus;
     });
-  }, [projecten, searchQuery, activeTab]);
+  }, [projecten, debouncedSearchQuery, activeTab]);
 
   const handleNavigate = useCallback(
     (projectId: string) => {
@@ -189,21 +168,7 @@ function ProjectenPageContent() {
 
   return (
     <>
-      <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-        <SidebarTrigger className="-ml-1" />
-        <Separator orientation="vertical" className="mr-2 h-4" />
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/dashboard">Dashboard</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>Projecten</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      </header>
+      <PageHeader />
 
       <motion.div
         initial={reducedMotion ? false : { opacity: 0, y: 20 }}
@@ -371,9 +336,9 @@ function ProjectenPageContent() {
                     animate={{ opacity: 1 }}
                     exit={reducedMotion ? undefined : { opacity: 0 }}
                     transition={{ duration: reducedMotion ? 0 : 0.2 }}
-                    className="flex items-center justify-center py-20"
+                    className="py-4"
                   >
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    <ListSkeleton count={5} />
                   </motion.div>
                 ) : filteredProjecten.length > 0 ? (
                   <motion.div

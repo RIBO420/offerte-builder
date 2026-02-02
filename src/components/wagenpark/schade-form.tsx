@@ -25,7 +25,8 @@ import { Loader2, Calendar } from "lucide-react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
-import { toast } from "sonner";
+import { showSuccessToast, showErrorToast, showWarningToast } from "@/lib/toast-utils";
+import { getMutationErrorMessage } from "@/lib/error-handling";
 import { format } from "date-fns";
 import { nl } from "date-fns/locale";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
@@ -160,17 +161,17 @@ export function SchadeForm({
     e.preventDefault();
 
     if (!formData.voertuigId) {
-      toast.error("Selecteer een voertuig");
+      showWarningToast("Selecteer een voertuig");
       return;
     }
 
     if (!formData.beschrijving.trim()) {
-      toast.error("Beschrijving is verplicht");
+      showWarningToast("Beschrijving is verplicht");
       return;
     }
 
     if (!formData.gerapporteerdDoor.trim()) {
-      toast.error("Gerapporteerd door is verplicht");
+      showWarningToast("Gerapporteerd door is verplicht");
       return;
     }
 
@@ -191,7 +192,7 @@ export function SchadeForm({
           verzekeringsClaim: formData.verzekeringsClaim,
           claimNummer: formData.claimNummer || undefined,
         });
-        toast.success("Schademelding bijgewerkt");
+        showSuccessToast("Schademelding bijgewerkt");
       } else {
         await createSchade({
           voertuigId: formData.voertuigId!,
@@ -206,17 +207,18 @@ export function SchadeForm({
           verzekeringsClaim: formData.verzekeringsClaim,
           claimNummer: formData.claimNummer || undefined,
         });
-        toast.success("Schademelding toegevoegd");
+        showSuccessToast("Schademelding toegevoegd");
       }
 
       onOpenChange(false);
       onSuccess?.();
     } catch (error) {
       console.error("Error saving schade:", error);
-      toast.error(
+      showErrorToast(
         isEditMode
           ? "Fout bij bijwerken schademelding"
-          : "Fout bij toevoegen schademelding"
+          : "Fout bij toevoegen schademelding",
+        { description: getMutationErrorMessage(error) }
       );
     } finally {
       setIsLoading(false);

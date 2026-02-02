@@ -37,7 +37,7 @@ export function GrasForm({ data, onChange, onValidationChange }: GrasFormProps) 
   const form = useForm<GrasFormData>({
     resolver: zodResolver(grasSchema),
     defaultValues: data,
-    mode: "onBlur",
+    mode: "onChange",
   });
 
   const { formState: { errors, isValid }, watch } = form;

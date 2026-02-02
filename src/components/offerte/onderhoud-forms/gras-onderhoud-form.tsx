@@ -29,7 +29,7 @@ export function GrasOnderhoudForm({ data, onChange, onValidationChange }: GrasOn
   const form = useForm<GrasOnderhoudFormData>({
     resolver: zodResolver(grasOnderhoudSchema),
     defaultValues: data,
-    mode: "onBlur",
+    mode: "onChange",
   });
 
   const { formState: { errors, isValid }, watch } = form;

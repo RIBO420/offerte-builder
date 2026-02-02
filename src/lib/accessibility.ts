@@ -190,6 +190,24 @@ export const ARIA_MESSAGES = {
     `Stap ${current} van ${total}: ${label}`,
   wizardCompleted: (label: string) => `${label} voltooid`,
   wizardCurrent: (label: string) => `Huidige stap: ${label}`,
+  // Status change messages
+  statusChanged: (from: string, to: string) => `Status gewijzigd van ${from} naar ${to}`,
+  statusUpdated: (status: string) => `Status bijgewerkt naar ${status}`,
+  // Save/action messages
+  saveSuccess: 'Wijzigingen succesvol opgeslagen',
+  saveError: 'Fout bij opslaan. Probeer het opnieuw.',
+  saveInProgress: 'Bezig met opslaan...',
+  // Table messages
+  tableCaption: (name: string, count: number) =>
+    `${name} tabel met ${count} ${count === 1 ? 'rij' : 'rijen'}`,
+  rowSelected: (index: number) => `Rij ${index} geselecteerd`,
+  rowDeselected: (index: number) => `Rij ${index} niet meer geselecteerd`,
+  // Pipeline/stage messages
+  stageSelected: (stage: string, count: number) =>
+    `${stage} geselecteerd, ${count} items`,
+  // Form field messages
+  fieldRequired: (field: string) => `${field} is verplicht`,
+  fieldInvalid: (field: string, error: string) => `${field}: ${error}`,
 } as const;
 
 // Color contrast helpers (WCAG AA minimum ratios)

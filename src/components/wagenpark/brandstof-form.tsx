@@ -31,7 +31,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Loader2, Plus, Trash2, Fuel, TrendingDown, Euro, Droplets } from "lucide-react";
-import { toast } from "sonner";
+import { showSuccessToast, showErrorToast, showWarningToast } from "@/lib/toast-utils";
+import { getMutationErrorMessage } from "@/lib/error-handling";
 import { cn } from "@/lib/utils";
 import { Id } from "../../../convex/_generated/dataModel";
 import type { BrandstofRecord, BrandstofStats } from "@/hooks/use-voertuig-details";
@@ -115,23 +116,23 @@ export function BrandstofForm({
     const kmValue = parseInt(kilometerstand);
 
     if (isNaN(litersValue) || litersValue <= 0) {
-      toast.error("Voer een geldig aantal liters in");
+      showWarningToast("Voer een geldig aantal liters in");
       return;
     }
 
     if (isNaN(kostenValue) || kostenValue <= 0) {
-      toast.error("Voer geldige kosten in");
+      showWarningToast("Voer geldige kosten in");
       return;
     }
 
     if (isNaN(kmValue) || kmValue < 0) {
-      toast.error("Voer een geldige kilometerstand in");
+      showWarningToast("Voer een geldige kilometerstand in");
       return;
     }
 
     // Validate that new reading is higher than current
     if (currentKmStand && kmValue < currentKmStand) {
-      toast.error(
+      showWarningToast(
         `Kilometerstand moet hoger zijn dan de huidige stand (${formatKm(currentKmStand)} km)`
       );
       return;
@@ -147,7 +148,7 @@ export function BrandstofForm({
         kilometerstand: kmValue,
         locatie: locatie.trim() || undefined,
       });
-      toast.success("Tankbeurt toegevoegd");
+      showSuccessToast("Tankbeurt toegevoegd");
       setLiters("");
       setKosten("");
       setKilometerstand("");
@@ -156,7 +157,9 @@ export function BrandstofForm({
       setIsAdding(false);
     } catch (error) {
       console.error("Error adding fuel:", error);
-      toast.error("Fout bij toevoegen tankbeurt");
+      showErrorToast("Fout bij toevoegen tankbeurt", {
+        description: getMutationErrorMessage(error),
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -167,11 +170,13 @@ export function BrandstofForm({
 
     try {
       await onRemove(deleteId);
-      toast.success("Tankbeurt verwijderd");
+      showSuccessToast("Tankbeurt verwijderd");
       setDeleteId(null);
     } catch (error) {
       console.error("Error deleting fuel:", error);
-      toast.error("Fout bij verwijderen");
+      showErrorToast("Fout bij verwijderen", {
+        description: getMutationErrorMessage(error),
+      });
     }
   };
 

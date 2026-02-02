@@ -37,7 +37,7 @@ export function GrondwerkForm({ data, onChange, onValidationChange }: GrondwerkF
   const form = useForm<GrondwerkFormData>({
     resolver: zodResolver(grondwerkSchema),
     defaultValues: data,
-    mode: "onBlur",
+    mode: "onChange",
   });
 
   const { formState: { errors, isValid }, watch } = form;

@@ -7,19 +7,14 @@ import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { useReducedMotion } from "@/hooks/use-accessibility";
+import { useDebounce } from "@/hooks/use-debounce";
+import { useTableSort } from "@/hooks/use-table-sort";
 import { RequireAdmin } from "@/components/require-admin";
+import { PageHeader } from "@/components/page-header";
+import { SortableTableHead } from "@/components/ui/sortable-table-head";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
-import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -117,6 +112,28 @@ type ProjectInfo = {
   naam: string;
   status: string;
 } | null;
+
+// Type for sortable offerte data
+type SortableOfferte = {
+  _id: Id<"offertes">;
+  type: "aanleg" | "onderhoud";
+  offerteNummer: string;
+  klantNaam: string;
+  klantPlaats: string;
+  bedrag: number;
+  status: string;
+  datum: number;
+  // Original offerte reference
+  original: {
+    _id: Id<"offertes">;
+    type: "aanleg" | "onderhoud";
+    offerteNummer: string;
+    klant: { naam: string; adres: string; plaats: string };
+    totalen: { totaalInclBtw: number };
+    status: string;
+    updatedAt: number;
+  };
+};
 
 // Memoized table row component to prevent unnecessary re-renders
 interface OfferteRowProps {
@@ -331,21 +348,7 @@ export default function OffertesPage() {
 function OffertesPageLoader() {
   return (
     <>
-      <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-        <SidebarTrigger className="-ml-1" />
-        <Separator orientation="vertical" className="mr-2 h-4" />
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>Offertes</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      </header>
+      <PageHeader />
       <div className="flex flex-1 items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
@@ -369,6 +372,7 @@ function OffertesPageContent() {
   } = useOffertes();
   const { getNextNummer } = useInstellingen();
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [activeTab, setActiveTab] = useState(searchParams.get("status") || "alle");
 
   // Bulk selection state
@@ -429,11 +433,11 @@ function OffertesPageContent() {
 
   const filteredOffertes = useMemo(() => {
     return offertes?.filter((offerte) => {
-      // Search filter
+      // Search filter (use debounced value for filtering)
       const matchesSearch =
-        searchQuery === "" ||
-        offerte.klant.naam.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        offerte.offerteNummer.toLowerCase().includes(searchQuery.toLowerCase());
+        debouncedSearchQuery === "" ||
+        offerte.klant.naam.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+        offerte.offerteNummer.toLowerCase().includes(debouncedSearchQuery.toLowerCase());
 
       // Status filter (from tabs)
       const matchesStatus =
@@ -467,7 +471,28 @@ function OffertesPageContent() {
         matchesAmountMax
       );
     });
-  }, [offertes, searchQuery, activeTab, filters]);
+  }, [offertes, debouncedSearchQuery, activeTab, filters]);
+
+  // Transform filtered offertes to sortable format
+  const sortableOffertes = useMemo<SortableOfferte[]>(() => {
+    return (filteredOffertes ?? []).map((offerte) => ({
+      _id: offerte._id,
+      type: offerte.type,
+      offerteNummer: offerte.offerteNummer,
+      klantNaam: offerte.klant.naam,
+      klantPlaats: offerte.klant.plaats,
+      bedrag: offerte.totalen.totaalInclBtw,
+      status: offerte.status,
+      datum: offerte.updatedAt,
+      original: offerte,
+    }));
+  }, [filteredOffertes]);
+
+  // Apply sorting to offertes
+  const { sortedData: sortedOffertes, sortConfig, toggleSort } = useTableSort<SortableOfferte>(
+    sortableOffertes,
+    "datum"
+  );
 
   const handleDuplicate = useCallback(async (offerteId: string) => {
     try {
@@ -495,13 +520,13 @@ function OffertesPageContent() {
 
   // Bulk action handlers - memoized with useCallback
   const toggleSelectAll = useCallback(() => {
-    if (!filteredOffertes) return;
-    if (selectedIds.size === filteredOffertes.length) {
+    if (sortedOffertes.length === 0) return;
+    if (selectedIds.size === sortedOffertes.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(filteredOffertes.map((o) => o._id)));
+      setSelectedIds(new Set(sortedOffertes.map((o) => o._id)));
     }
-  }, [filteredOffertes, selectedIds.size]);
+  }, [sortedOffertes, selectedIds.size]);
 
   const toggleSelect = useCallback((id: Id<"offertes">) => {
     setSelectedIds(prev => {
@@ -548,21 +573,21 @@ function OffertesPageContent() {
   }, [selectedIds, bulkRemove, clearSelection]);
 
   const handleExportCSV = useCallback(() => {
-    if (!filteredOffertes) return;
+    if (sortedOffertes.length === 0) return;
     const exportData = selectedIds.size > 0
-      ? filteredOffertes.filter((o) => selectedIds.has(o._id))
-      : filteredOffertes;
+      ? sortedOffertes.filter((o) => selectedIds.has(o._id))
+      : sortedOffertes;
 
     const headers = ["Nummer", "Type", "Klant", "Adres", "Plaats", "Status", "Bedrag (incl. BTW)", "Datum"];
     const rows = exportData.map((o) => [
       o.offerteNummer,
       o.type,
-      o.klant.naam,
-      o.klant.adres,
-      o.klant.plaats,
+      o.klantNaam,
+      o.original.klant.adres,
+      o.klantPlaats,
       o.status,
-      o.totalen.totaalInclBtw.toFixed(2),
-      new Date(o.updatedAt).toLocaleDateString("nl-NL"),
+      o.bedrag.toFixed(2),
+      new Date(o.datum).toLocaleDateString("nl-NL"),
     ]);
 
     const csvContent = [headers, ...rows]
@@ -576,28 +601,14 @@ function OffertesPageContent() {
     link.click();
 
     toast.success(`${exportData.length} offerte(s) geexporteerd`);
-  }, [filteredOffertes, selectedIds]);
+  }, [sortedOffertes, selectedIds]);
 
-  const isAllSelected = filteredOffertes && filteredOffertes.length > 0 && selectedIds.size === filteredOffertes.length;
+  const isAllSelected = sortedOffertes.length > 0 && selectedIds.size === sortedOffertes.length;
   const isSomeSelected = selectedIds.size > 0;
 
   return (
     <>
-      <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-        <SidebarTrigger className="-ml-1" />
-        <Separator orientation="vertical" className="mr-2 h-4" />
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>Offertes</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      </header>
+      <PageHeader />
 
       <motion.div
         initial={reducedMotion ? false : { opacity: 0, y: 20 }}
@@ -807,7 +818,7 @@ function OffertesPageContent() {
                 >
                   <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </motion.div>
-              ) : filteredOffertes && filteredOffertes.length > 0 ? (
+              ) : sortedOffertes.length > 0 ? (
                 <motion.div
                   key="content"
                   initial={reducedMotion ? false : { opacity: 0, y: 10 }}
@@ -827,23 +838,65 @@ function OffertesPageContent() {
                               aria-label="Selecteer alle"
                             />
                           </TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Nummer</TableHead>
-                          <TableHead>Klant</TableHead>
-                          <TableHead>Plaats</TableHead>
-                          <TableHead>Bedrag</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Datum</TableHead>
+                          <SortableTableHead<SortableOfferte>
+                            sortKey="type"
+                            sortConfig={sortConfig}
+                            onSort={toggleSort}
+                          >
+                            Type
+                          </SortableTableHead>
+                          <SortableTableHead<SortableOfferte>
+                            sortKey="offerteNummer"
+                            sortConfig={sortConfig}
+                            onSort={toggleSort}
+                          >
+                            Nummer
+                          </SortableTableHead>
+                          <SortableTableHead<SortableOfferte>
+                            sortKey="klantNaam"
+                            sortConfig={sortConfig}
+                            onSort={toggleSort}
+                          >
+                            Klant
+                          </SortableTableHead>
+                          <SortableTableHead<SortableOfferte>
+                            sortKey="klantPlaats"
+                            sortConfig={sortConfig}
+                            onSort={toggleSort}
+                          >
+                            Plaats
+                          </SortableTableHead>
+                          <SortableTableHead<SortableOfferte>
+                            sortKey="bedrag"
+                            sortConfig={sortConfig}
+                            onSort={toggleSort}
+                          >
+                            Bedrag
+                          </SortableTableHead>
+                          <SortableTableHead<SortableOfferte>
+                            sortKey="status"
+                            sortConfig={sortConfig}
+                            onSort={toggleSort}
+                          >
+                            Status
+                          </SortableTableHead>
+                          <SortableTableHead<SortableOfferte>
+                            sortKey="datum"
+                            sortConfig={sortConfig}
+                            onSort={toggleSort}
+                          >
+                            Datum
+                          </SortableTableHead>
                           <TableHead className="w-[50px]"></TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredOffertes.map((offerte, index) => (
+                        {sortedOffertes.map((sortableOfferte, index) => (
                           <OfferteRow
-                            key={offerte._id}
-                            offerte={offerte}
-                            projectInfo={projectsByOfferte?.[offerte._id] ?? null}
-                            isSelected={selectedIds.has(offerte._id)}
+                            key={sortableOfferte._id}
+                            offerte={sortableOfferte.original}
+                            projectInfo={projectsByOfferte?.[sortableOfferte._id] ?? null}
+                            isSelected={selectedIds.has(sortableOfferte._id)}
                             onToggleSelect={toggleSelect}
                             onDuplicate={handleDuplicate}
                             onDelete={handleDelete}

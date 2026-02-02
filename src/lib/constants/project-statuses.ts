@@ -33,10 +33,10 @@ export const PROJECT_STATUS_CONFIG: Record<ProjectStatus, ProjectStatusConfig> =
     description: "Legacy status - project is in voorcalculatie fase",
     icon: Calculator,
     color: {
-      bg: "bg-blue-100 dark:bg-blue-900/30",
-      text: "text-blue-700 dark:text-blue-300",
-      border: "border-blue-300 dark:border-blue-700",
-      dot: "bg-blue-500",
+      bg: "bg-status-voorcalculatie",
+      text: "text-status-voorcalculatie-text",
+      border: "border-status-voorcalculatie-border",
+      dot: "bg-status-voorcalculatie-dot",
     },
   },
   gepland: {
@@ -44,10 +44,10 @@ export const PROJECT_STATUS_CONFIG: Record<ProjectStatus, ProjectStatusConfig> =
     description: "Project is gepland en klaar voor uitvoering",
     icon: Calendar,
     color: {
-      bg: "bg-purple-100 dark:bg-purple-900/30",
-      text: "text-purple-700 dark:text-purple-300",
-      border: "border-purple-300 dark:border-purple-700",
-      dot: "bg-purple-500",
+      bg: "bg-status-gepland",
+      text: "text-status-gepland-text",
+      border: "border-status-gepland-border",
+      dot: "bg-status-gepland-dot",
     },
   },
   in_uitvoering: {
@@ -55,10 +55,10 @@ export const PROJECT_STATUS_CONFIG: Record<ProjectStatus, ProjectStatusConfig> =
     description: "Project wordt momenteel uitgevoerd",
     icon: Hammer,
     color: {
-      bg: "bg-amber-100 dark:bg-amber-900/30",
-      text: "text-amber-700 dark:text-amber-300",
-      border: "border-amber-300 dark:border-amber-700",
-      dot: "bg-amber-500",
+      bg: "bg-status-in-uitvoering",
+      text: "text-status-in-uitvoering-text",
+      border: "border-status-in-uitvoering-border",
+      dot: "bg-status-in-uitvoering-dot",
     },
   },
   afgerond: {
@@ -66,10 +66,10 @@ export const PROJECT_STATUS_CONFIG: Record<ProjectStatus, ProjectStatusConfig> =
     description: "Project is afgerond",
     icon: CheckCircle,
     color: {
-      bg: "bg-green-100 dark:bg-green-900/30",
-      text: "text-green-700 dark:text-green-300",
-      border: "border-green-300 dark:border-green-700",
-      dot: "bg-green-500",
+      bg: "bg-status-afgerond",
+      text: "text-status-afgerond-text",
+      border: "border-status-afgerond-border",
+      dot: "bg-status-afgerond-dot",
     },
   },
   nacalculatie_compleet: {
@@ -77,10 +77,10 @@ export const PROJECT_STATUS_CONFIG: Record<ProjectStatus, ProjectStatusConfig> =
     description: "Nacalculatie is voltooid",
     icon: Calculator,
     color: {
-      bg: "bg-teal-100 dark:bg-teal-900/30",
-      text: "text-teal-700 dark:text-teal-300",
-      border: "border-teal-300 dark:border-teal-700",
-      dot: "bg-teal-500",
+      bg: "bg-status-nacalculatie",
+      text: "text-status-nacalculatie-text",
+      border: "border-status-nacalculatie-border",
+      dot: "bg-status-nacalculatie-dot",
     },
   },
   gefactureerd: {
@@ -88,10 +88,10 @@ export const PROJECT_STATUS_CONFIG: Record<ProjectStatus, ProjectStatusConfig> =
     description: "Project is gefactureerd",
     icon: Receipt,
     color: {
-      bg: "bg-emerald-100 dark:bg-emerald-900/30",
-      text: "text-emerald-700 dark:text-emerald-300",
-      border: "border-emerald-300 dark:border-emerald-700",
-      dot: "bg-emerald-500",
+      bg: "bg-status-gefactureerd",
+      text: "text-status-gefactureerd-text",
+      border: "border-status-gefactureerd-border",
+      dot: "bg-status-gefactureerd-dot",
     },
   },
 };

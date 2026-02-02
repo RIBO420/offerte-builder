@@ -1,8 +1,7 @@
 "use client";
 
-import { useMemo, useCallback } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Card,
@@ -18,12 +17,10 @@ import {
   Euro,
   HardHat,
   AlertCircle,
-  TrendingUp,
-  Receipt,
   Clock,
-  CheckCircle2,
   Truck,
   Wrench,
+  Play,
 } from "lucide-react";
 import {
   Breadcrumb,
@@ -33,12 +30,10 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { PipelineView } from "@/components/ui/pipeline-view";
+import { DashboardSkeleton } from "@/components/ui/skeleton-card";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { useDashboardData } from "@/hooks/use-offertes";
-import { useIsAdmin, useCurrentUserRole } from "@/hooks/use-users";
-import { useQuery } from "convex/react";
-import { api } from "../../../../convex/_generated/api";
+import { useFullDashboardData } from "@/hooks/use-offertes";
+import { useIsAdmin } from "@/hooks/use-users";
 
 // Memoized formatter
 const currencyFormatter = new Intl.NumberFormat("nl-NL", {
@@ -53,64 +48,48 @@ function formatCurrency(amount: number): string {
 }
 
 export default function DashboardPage() {
-  const router = useRouter();
-  const { clerkUser, user } = useCurrentUser();
-  const { stats, isLoading: isOffertesLoading } = useDashboardData();
-  const role = useCurrentUserRole();
+  const { clerkUser } = useCurrentUser();
   const isAdmin = useIsAdmin();
 
-  // Fetch project stats
-  const projectStats = useQuery(
-    api.projecten.getStats,
-    user?._id ? {} : "skip"
-  );
-
-  // Fetch active projects with progress
-  const activeProjects = useQuery(
-    api.projecten.getActiveProjectsWithProgress,
-    user?._id ? {} : "skip"
-  );
-
-  // Fetch revenue stats
-  const revenueStats = useQuery(
-    api.offertes.getRevenueStats,
-    user?._id ? {} : "skip"
-  );
-
-  // Fetch accepted offertes without a project (action required)
-  const acceptedWithoutProject = useQuery(
-    api.offertes.getAcceptedOffertesWithoutProject,
-    user?._id ? {} : "skip"
-  );
-
-  // Fetch facturen stats
-  const facturenStats = useQuery(
-    api.facturen.getStats,
-    user?._id ? {} : "skip"
-  );
-
-  // Fetch recent facturen
-  const recentFacturen = useQuery(
-    api.facturen.getRecent,
-    user?._id ? { limit: 5 } : "skip"
-  );
-
-  // Memoized pipeline stages data
-  const pipelineStages = useMemo(() => [
-    { id: "concept", label: "Concept", count: stats?.concept || 0 },
-    { id: "voorcalculatie", label: "Voorcalculatie", count: stats?.voorcalculatie || 0 },
-    { id: "verzonden", label: "Verzonden", count: stats?.verzonden || 0 },
-    { id: "geaccepteerd", label: "Geaccepteerd", count: stats?.geaccepteerd || 0 },
-    { id: "afgewezen", label: "Afgewezen", count: stats?.afgewezen || 0 },
-  ], [stats?.concept, stats?.voorcalculatie, stats?.verzonden, stats?.geaccepteerd, stats?.afgewezen]);
-
-  const handleStageClick = useCallback((stageId: string) => {
-    router.push(`/offertes?status=${stageId}`);
-  }, [router]);
+  // Single batched query for ALL dashboard data - reduces 7 round-trips to 1
+  const {
+    offerteStats,
+    revenueStats,
+    acceptedWithoutProject,
+    projectStats,
+    activeProjects,
+    isLoading,
+  } = useFullDashboardData();
 
   const hasActionRequired = acceptedWithoutProject && acceptedWithoutProject.length > 0;
   const hasActiveProjects = activeProjects && activeProjects.length > 0;
-  const hasFacturen = facturenStats && facturenStats.totaal > 0;
+
+  // Calculate openstaande offertes (verzonden status)
+  const openstaandeOffertes = useMemo(() => {
+    return offerteStats?.verzonden || 0;
+  }, [offerteStats?.verzonden]);
+
+  // Show skeleton while primary data is loading
+  if (isLoading && !offerteStats) {
+    return (
+      <>
+        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+          <SidebarTrigger className="-ml-1" />
+          <Separator orientation="vertical" className="mr-2 h-4" />
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbPage>Dashboard</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+        </header>
+        <div className="flex flex-1 flex-col gap-6 p-6 md:p-8 max-w-5xl">
+          <DashboardSkeleton />
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -126,52 +105,64 @@ export default function DashboardPage() {
         </Breadcrumb>
       </header>
 
-      <div className="flex flex-1 flex-col gap-8 p-6 md:p-8 max-w-6xl">
-        {/* Welcome Section - Shown for all users */}
+      <div className="flex flex-1 flex-col gap-6 p-6 md:p-8 max-w-5xl">
+        {/* Welcome Section */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
-          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
         >
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Welkom{clerkUser?.firstName ? `, ${clerkUser.firstName}` : ""}
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              {isAdmin ? (
-                <>{stats?.totaal || 0} offertes • {projectStats?.totaal || 0} projecten</>
-              ) : (
-                <>{projectStats?.totaal || 0} projecten</>
-              )}
-            </p>
-          </div>
-          {isAdmin && (
-            <div className="flex gap-2">
-              <Button asChild size="sm">
-                <Link href="/offertes/nieuw/aanleg">
-                  <Shovel className="mr-2 h-4 w-4" />
-                  Nieuwe Aanleg
-                </Link>
-              </Button>
-              <Button asChild variant="outline" size="sm">
-                <Link href="/offertes/nieuw/onderhoud">
-                  <Trees className="mr-2 h-4 w-4" />
-                  Nieuw Onderhoud
-                </Link>
-              </Button>
-            </div>
-          )}
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Welkom{clerkUser?.firstName ? `, ${clerkUser.firstName}` : ""}
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            {isAdmin ? (
+              <>{offerteStats?.totaal || 0} offertes • {projectStats?.totaal || 0} projecten</>
+            ) : (
+              <>{projectStats?.totaal || 0} projecten</>
+            )}
+          </p>
         </motion.div>
 
-        {/* Medewerker/Viewer Dashboard */}
+        {/* Medewerker Dashboard */}
         {!isAdmin && (
           <>
-            {/* Mijn Projecten Section */}
+            {/* Primary CTA - Uren Registreren */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: 0.1 }}
+            >
+              <Card className="border-orange-200 dark:border-orange-900/50 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30">
+                <CardContent className="p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-500 text-white">
+                        <Clock className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <h2 className="font-semibold text-lg">Uren Registreren</h2>
+                        <p className="text-sm text-muted-foreground">
+                          Registreer je gewerkte uren voor actieve projecten
+                        </p>
+                      </div>
+                    </div>
+                    <Button asChild size="lg" className="bg-orange-500 hover:bg-orange-600">
+                      <Link href="/projecten">
+                        Naar Projecten
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Mijn Projecten Section */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.15 }}
             >
               <div className="flex items-center justify-between mb-3">
                 <h2 className="font-medium text-sm text-muted-foreground">Mijn Projecten</h2>
@@ -289,116 +280,54 @@ export default function DashboardPage() {
         {/* Admin Dashboard */}
         {isAdmin && (
           <>
-            {/* Key Metrics - Single Row */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.1 }}
-              className="grid grid-cols-2 md:grid-cols-4 gap-4"
-            >
-              {/* Total Revenue */}
-              <Card className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
-                    <Euro className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                  </div>
-                  <div>
-                    <p className="text-xl font-bold">
-                      {revenueStats ? formatCurrency(revenueStats.totalAcceptedValue) : "—"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Totale omzet</p>
-                  </div>
-                </div>
-              </Card>
-
-              {/* Conversion Rate */}
-              <Card className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                    <TrendingUp className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <div>
-                    <p className="text-xl font-bold">
-                      {revenueStats ? `${revenueStats.conversionRate}%` : "—"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Conversie</p>
-                  </div>
-                </div>
-              </Card>
-
-              {/* Active Projects */}
-              <Card className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30">
-                    <HardHat className="h-5 w-5 text-orange-600 dark:text-orange-400" />
-                  </div>
-                  <div>
-                    <p className="text-xl font-bold">
-                      {projectStats ? (projectStats.in_uitvoering || 0) : "—"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">In uitvoering</p>
-                  </div>
-                </div>
-              </Card>
-
-              {/* Pending Quotes */}
-              <Card className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-900/30">
-                    <FileText className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                  </div>
-                  <div>
-                    <p className="text-xl font-bold">
-                      {stats ? (stats.verzonden || 0) : "—"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Wacht op reactie</p>
-                  </div>
-                </div>
-              </Card>
-            </motion.div>
-
-            {/* Action Required - Only if there are items */}
+            {/* Action Required - Moved to top, more prominent */}
             {hasActionRequired && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.15 }}
+                transition={{ duration: 0.3, delay: 0.1 }}
               >
-                <Card className="border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/20">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                      <h3 className="font-medium text-sm text-amber-800 dark:text-amber-300">
-                        Actie vereist ({acceptedWithoutProject.length})
-                      </h3>
+                <Card className="border-amber-300 dark:border-amber-800 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/40">
+                  <CardContent className="p-5">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500 text-white">
+                        <AlertCircle className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-amber-900 dark:text-amber-100">
+                          Actie vereist
+                        </h3>
+                        <p className="text-sm text-amber-700 dark:text-amber-300">
+                          {acceptedWithoutProject.length} geaccepteerde offerte{acceptedWithoutProject.length !== 1 ? 's' : ''} wacht{acceptedWithoutProject.length === 1 ? '' : 'en'} op een project
+                        </p>
+                      </div>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       {acceptedWithoutProject.slice(0, 3).map((offerte) => (
                         <div
                           key={offerte._id}
-                          className="flex items-center justify-between bg-white dark:bg-white/5 rounded-lg px-3 py-2 border border-amber-200/50 dark:border-amber-800/30"
+                          className="flex items-center justify-between bg-white dark:bg-white/10 rounded-xl px-4 py-3 border border-amber-200 dark:border-amber-800/50 shadow-sm"
                         >
-                          <div className="min-w-0">
-                            <p className="font-medium text-sm truncate">{offerte.klantNaam}</p>
-                            <p className="text-xs text-muted-foreground">{offerte.offerteNummer}</p>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium truncate">{offerte.klantNaam}</p>
+                            <p className="text-sm text-muted-foreground">{offerte.offerteNummer}</p>
                           </div>
                           <Button
                             asChild
                             size="sm"
-                            variant="ghost"
-                            className="shrink-0 text-amber-700 dark:text-amber-400 hover:text-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/30"
+                            className="shrink-0 ml-4 bg-amber-500 hover:bg-amber-600 text-white"
                           >
                             <Link href={`/projecten/nieuw?offerte=${offerte._id}`}>
+                              <Play className="mr-1.5 h-3.5 w-3.5" />
                               Start Project
-                              <ArrowRight className="ml-1 h-3 w-3" />
                             </Link>
                           </Button>
                         </div>
                       ))}
                       {acceptedWithoutProject.length > 3 && (
-                        <Button asChild variant="ghost" size="sm" className="w-full text-amber-700 dark:text-amber-400">
+                        <Button asChild variant="ghost" size="sm" className="w-full text-amber-700 dark:text-amber-400 hover:text-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/30">
                           <Link href="/offertes?status=geaccepteerd">
-                            Bekijk alle {acceptedWithoutProject.length}
+                            Bekijk alle {acceptedWithoutProject.length} offertes
                             <ArrowRight className="ml-1 h-3 w-3" />
                           </Link>
                         </Button>
@@ -409,26 +338,102 @@ export default function DashboardPage() {
               </motion.div>
             )}
 
-            {/* Offerte Pipeline */}
+            {/* Quick Start - Big Buttons for New Offertes */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.2 }}
+              transition={{ duration: 0.3, delay: hasActionRequired ? 0.15 : 0.1 }}
             >
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="font-medium text-sm text-muted-foreground">Offerte Pipeline</h2>
-                <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                  <Link href="/offertes">
-                    Bekijk alle
-                    <ArrowRight className="ml-1 h-3 w-3" />
-                  </Link>
-                </Button>
+              <h2 className="font-medium text-sm text-muted-foreground mb-3">Snel starten</h2>
+              <div className="grid gap-4 md:grid-cols-2">
+                <Link href="/offertes/nieuw/aanleg" className="group">
+                  <Card className="p-6 transition-all hover:shadow-lg hover:border-emerald-300 dark:hover:border-emerald-800 hover:-translate-y-0.5">
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 dark:bg-emerald-900/30 group-hover:bg-emerald-200 dark:group-hover:bg-emerald-900/50 transition-colors">
+                        <Shovel className="h-7 w-7 text-emerald-600 dark:text-emerald-400" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-lg group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                          Nieuwe Aanleg Offerte
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Maak een offerte voor tuinaanleg
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                </Link>
+
+                <Link href="/offertes/nieuw/onderhoud" className="group">
+                  <Card className="p-6 transition-all hover:shadow-lg hover:border-green-300 dark:hover:border-green-800 hover:-translate-y-0.5">
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-green-100 dark:bg-green-900/30 group-hover:bg-green-200 dark:group-hover:bg-green-900/50 transition-colors">
+                        <Trees className="h-7 w-7 text-green-600 dark:text-green-400" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-lg group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
+                          Nieuw Onderhoud Offerte
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Maak een offerte voor tuinonderhoud
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                </Link>
               </div>
-              <Card className="p-4">
-                <PipelineView
-                  stages={pipelineStages}
-                  onStageClick={handleStageClick}
-                />
+            </motion.div>
+
+            {/* Key Metrics - 3 Cards Only */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: hasActionRequired ? 0.2 : 0.15 }}
+              className="grid grid-cols-1 md:grid-cols-3 gap-4"
+            >
+              {/* Totale Omzet */}
+              <Card className="p-5">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-900/30">
+                    <Euro className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">
+                      {revenueStats ? formatCurrency(revenueStats.totalAcceptedValue) : "..."}
+                    </p>
+                    <p className="text-sm text-muted-foreground">Totale Omzet</p>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Actieve Projecten */}
+              <Card className="p-5">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-100 dark:bg-orange-900/30">
+                    <HardHat className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">
+                      {projectStats ? (projectStats.in_uitvoering || 0) : "..."}
+                    </p>
+                    <p className="text-sm text-muted-foreground">Actieve Projecten</p>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Openstaande Offertes */}
+              <Card className="p-5">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/30">
+                    <FileText className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">
+                      {openstaandeOffertes}
+                    </p>
+                    <p className="text-sm text-muted-foreground">Openstaande Offertes</p>
+                  </div>
+                </div>
               </Card>
             </motion.div>
 
@@ -437,7 +442,7 @@ export default function DashboardPage() {
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.25 }}
+                transition={{ duration: 0.3, delay: hasActionRequired ? 0.25 : 0.2 }}
               >
                 <div className="flex items-center justify-between mb-3">
                   <h2 className="font-medium text-sm text-muted-foreground">Lopende Projecten</h2>
@@ -491,151 +496,12 @@ export default function DashboardPage() {
               </motion.div>
             )}
 
-            {/* Facturen Section - Only if there are facturen */}
-            {hasFacturen && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.3 }}
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="font-medium text-sm text-muted-foreground">Facturen Overzicht</h2>
-                  <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                    <Link href="/facturen">
-                      Bekijk alle
-                      <ArrowRight className="ml-1 h-3 w-3" />
-                    </Link>
-                  </Button>
-                </div>
-
-                {/* Facturen Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                  {/* Total Facturen Amount */}
-                  <Card className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                        <Receipt className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                      </div>
-                      <div>
-                        <p className="text-xl font-bold">
-                          {formatCurrency(facturenStats.totaalBedrag)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Totaal gefactureerd ({facturenStats.totaal})
-                        </p>
-                      </div>
-                    </div>
-                  </Card>
-
-                  {/* Openstaand */}
-                  <Card className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
-                        <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                      </div>
-                      <div>
-                        <p className="text-xl font-bold">
-                          {formatCurrency(facturenStats.openstaandBedrag)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Openstaand ({facturenStats.verzonden})
-                        </p>
-                      </div>
-                    </div>
-                  </Card>
-
-                  {/* Betaald */}
-                  <Card className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
-                        <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                      </div>
-                      <div>
-                        <p className="text-xl font-bold">
-                          {formatCurrency(facturenStats.betaaldBedrag)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Betaald ({facturenStats.betaald})
-                        </p>
-                      </div>
-                    </div>
-                  </Card>
-                </div>
-
-                {/* Recent Facturen List */}
-                {recentFacturen && recentFacturen.length > 0 && (
-                  <Card className="p-4">
-                    <h3 className="font-medium text-sm mb-3">Recente Facturen</h3>
-                    <div className="space-y-2">
-                      {recentFacturen.map((factuur) => (
-                        <Link
-                          key={factuur._id}
-                          href={`/facturen/${factuur._id}`}
-                          className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-muted/50 transition-colors group"
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${
-                              factuur.status === "betaald"
-                                ? "bg-emerald-100 dark:bg-emerald-900/30"
-                                : factuur.status === "verzonden"
-                                ? "bg-amber-100 dark:bg-amber-900/30"
-                                : factuur.status === "vervallen"
-                                ? "bg-red-100 dark:bg-red-900/30"
-                                : "bg-gray-100 dark:bg-gray-900/30"
-                            }`}>
-                              <Receipt className={`h-4 w-4 ${
-                                factuur.status === "betaald"
-                                  ? "text-emerald-600 dark:text-emerald-400"
-                                  : factuur.status === "verzonden"
-                                  ? "text-amber-600 dark:text-amber-400"
-                                  : factuur.status === "vervallen"
-                                  ? "text-red-600 dark:text-red-400"
-                                  : "text-gray-600 dark:text-gray-400"
-                              }`} />
-                            </div>
-                            <div className="min-w-0">
-                              <p className="font-medium text-sm truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                                {factuur.factuurnummer}
-                              </p>
-                              <p className="text-xs text-muted-foreground truncate">
-                                {factuur.klantNaam}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="text-right shrink-0 ml-4">
-                            <p className="text-sm font-medium">
-                              {formatCurrency(factuur.totaalInclBtw)}
-                            </p>
-                            <p className={`text-xs ${
-                              factuur.status === "betaald"
-                                ? "text-emerald-600 dark:text-emerald-400"
-                                : factuur.status === "verzonden"
-                                ? "text-amber-600 dark:text-amber-400"
-                                : factuur.status === "vervallen"
-                                ? "text-red-600 dark:text-red-400"
-                                : "text-muted-foreground"
-                            }`}>
-                              {factuur.status === "concept" && "Concept"}
-                              {factuur.status === "definitief" && "Definitief"}
-                              {factuur.status === "verzonden" && "Verzonden"}
-                              {factuur.status === "betaald" && "Betaald"}
-                              {factuur.status === "vervallen" && "Vervallen"}
-                            </p>
-                          </div>
-                        </Link>
-                      ))}
-                    </div>
-                  </Card>
-                )}
-              </motion.div>
-            )}
-
-            {/* Empty state - Only if no projects and no action required (admin only) */}
-            {!hasActionRequired && !hasActiveProjects && !isOffertesLoading && (
+            {/* Empty state - Only if no projects and no action required */}
+            {!hasActionRequired && !hasActiveProjects && !isLoading && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ duration: 0.3, delay: 0.3 }}
+                transition={{ duration: 0.3, delay: 0.25 }}
                 className="text-center py-12"
               >
                 <FolderKanban className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />

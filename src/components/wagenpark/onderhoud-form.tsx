@@ -27,7 +27,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Loader2, CalendarIcon } from "lucide-react";
-import { toast } from "sonner";
+import { showSuccessToast, showErrorToast, showWarningToast } from "@/lib/toast-utils";
+import { getMutationErrorMessage } from "@/lib/error-handling";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { nl } from "date-fns/locale";
@@ -138,12 +139,12 @@ export function OnderhoudForm({
     e.preventDefault();
 
     if (!formData.geplanteDatum) {
-      toast.error("Selecteer een datum");
+      showWarningToast("Selecteer een datum");
       return;
     }
 
     if (!formData.omschrijving.trim()) {
-      toast.error("Vul een omschrijving in");
+      showWarningToast("Vul een omschrijving in");
       return;
     }
 
@@ -162,22 +163,23 @@ export function OnderhoudForm({
 
       if (isEditMode && initialData && onUpdate) {
         await onUpdate(initialData._id, data);
-        toast.success("Onderhoud bijgewerkt");
+        showSuccessToast("Onderhoud bijgewerkt");
       } else {
         await onSubmit({
           voertuigId,
           ...data,
         });
-        toast.success("Onderhoud toegevoegd");
+        showSuccessToast("Onderhoud toegevoegd");
       }
 
       handleClose();
     } catch (error) {
       console.error("Error saving onderhoud:", error);
-      toast.error(
+      showErrorToast(
         isEditMode
           ? "Fout bij bijwerken onderhoud"
-          : "Fout bij toevoegen onderhoud"
+          : "Fout bij toevoegen onderhoud",
+        { description: getMutationErrorMessage(error) }
       );
     } finally {
       setIsLoading(false);

@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
+import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { handleKeyboardActivation } from "@/lib/accessibility";
 import {
   Table,
   TableBody,
@@ -10,9 +12,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import type { SortConfig } from "@/hooks/use-table-sort";
 
 // Types for responsive table
-export interface ResponsiveColumn<T> {
+export interface ResponsiveColumn<T, SortKey = string> {
   key: string;
   header: string;
   render: (item: T) => React.ReactNode;
@@ -28,20 +31,30 @@ export interface ResponsiveColumn<T> {
   isPrimary?: boolean;
   // Whether this is the secondary field in mobile view
   isSecondary?: boolean;
+  // Key used for sorting (if different from key or if sortable)
+  sortKey?: SortKey;
+  // Whether this column is sortable
+  sortable?: boolean;
 }
 
-interface ResponsiveTableProps<T> {
+interface ResponsiveTableProps<T, SortKey = string> {
   data: T[];
-  columns: ResponsiveColumn<T>[];
+  columns: ResponsiveColumn<T, SortKey>[];
   keyExtractor: (item: T) => string;
   onRowClick?: (item: T) => void;
   emptyMessage?: string;
   className?: string;
   // Breakpoint at which to switch to card view (default: sm = 640px)
   mobileBreakpoint?: "sm" | "md" | "lg";
+  // Sorting configuration - use generic sort config type
+  sortConfig?: {
+    key: SortKey | null;
+    direction: "asc" | "desc";
+  };
+  onSort?: (key: SortKey) => void;
 }
 
-export function ResponsiveTable<T>({
+export function ResponsiveTable<T, SortKey = string>({
   data,
   columns,
   keyExtractor,
@@ -49,7 +62,9 @@ export function ResponsiveTable<T>({
   emptyMessage = "Geen items gevonden",
   className,
   mobileBreakpoint = "sm",
-}: ResponsiveTableProps<T>) {
+  sortConfig,
+  onSort,
+}: ResponsiveTableProps<T, SortKey>) {
   const breakpointClass = {
     sm: "sm:table",
     md: "md:table",
@@ -84,17 +99,51 @@ export function ResponsiveTable<T>({
         <Table>
           <TableHeader>
             <TableRow>
-              {columns.map((column) => (
-                <TableHead
-                  key={column.key}
-                  className={cn(
-                    column.align === "right" && "text-right",
-                    column.align === "center" && "text-center"
-                  )}
-                >
-                  {column.header}
-                </TableHead>
-              ))}
+              {columns.map((column) => {
+                const isSortable = column.sortable && onSort && column.sortKey;
+                const isActive = sortConfig?.key === column.sortKey;
+                const direction = sortConfig?.direction;
+                const ariaSort: "ascending" | "descending" | "none" = isActive
+                  ? direction === "asc"
+                    ? "ascending"
+                    : "descending"
+                  : "none";
+
+                return (
+                  <TableHead
+                    key={column.key}
+                    className={cn(
+                      column.align === "right" && "text-right",
+                      column.align === "center" && "text-center",
+                      isSortable && "cursor-pointer select-none hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                    )}
+                    onClick={isSortable ? () => onSort(column.sortKey!) : undefined}
+                    onKeyDown={isSortable ? (e) => handleKeyboardActivation(e, () => onSort(column.sortKey!)) : undefined}
+                    tabIndex={isSortable ? 0 : undefined}
+                    role={isSortable ? "columnheader" : undefined}
+                    aria-sort={isSortable ? ariaSort : undefined}
+                  >
+                    {isSortable ? (
+                      <div className="flex items-center gap-1.5">
+                        <span>{column.header}</span>
+                        <span className="flex-shrink-0" aria-hidden="true">
+                          {isActive ? (
+                            direction === "asc" ? (
+                              <ArrowUp className="h-3.5 w-3.5 text-primary" />
+                            ) : (
+                              <ArrowDown className="h-3.5 w-3.5 text-primary" />
+                            )
+                          ) : (
+                            <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/50" />
+                          )}
+                        </span>
+                      </div>
+                    ) : (
+                      column.header
+                    )}
+                  </TableHead>
+                );
+              })}
             </TableRow>
           </TableHeader>
           <TableBody>

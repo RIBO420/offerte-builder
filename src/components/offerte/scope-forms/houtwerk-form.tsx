@@ -35,7 +35,7 @@ export function HoutwerkForm({ data, onChange, onValidationChange }: HoutwerkFor
   const form = useForm<HoutwerkFormData>({
     resolver: zodResolver(houtwerkSchema),
     defaultValues: data,
-    mode: "onBlur",
+    mode: "onChange",
   });
 
   const { formState: { errors, isValid }, watch } = form;

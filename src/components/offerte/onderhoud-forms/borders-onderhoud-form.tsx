@@ -36,7 +36,7 @@ export function BordersOnderhoudForm({ data, onChange, onValidationChange }: Bor
   const form = useForm<BordersOnderhoudFormData>({
     resolver: zodResolver(bordersOnderhoudSchema),
     defaultValues: data,
-    mode: "onBlur",
+    mode: "onChange",
   });
 
   const { formState: { errors, isValid }, watch } = form;

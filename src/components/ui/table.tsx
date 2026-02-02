@@ -91,14 +91,23 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
   )
 }
 
+interface TableCaptionProps extends React.ComponentProps<"caption"> {
+  /** Visually hide the caption while keeping it accessible to screen readers */
+  srOnly?: boolean;
+}
+
 function TableCaption({
   className,
+  srOnly = false,
   ...props
-}: React.ComponentProps<"caption">) {
+}: TableCaptionProps) {
   return (
     <caption
       data-slot="table-caption"
-      className={cn("text-muted-foreground mt-4 text-sm", className)}
+      className={cn(
+        srOnly ? "sr-only" : "text-muted-foreground mt-4 text-sm",
+        className
+      )}
       {...props}
     />
   )

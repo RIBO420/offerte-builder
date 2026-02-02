@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   Card,
@@ -22,13 +22,9 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  ResponsiveTable,
+  ResponsiveColumn,
+} from "@/components/ui/responsive-table";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -189,6 +185,118 @@ export default function MachinesPage() {
   const interneMachines = machines.filter((m) => m.type === "intern");
   const externeMachines = machines.filter((m) => m.type === "extern");
 
+  // Column configuration for ResponsiveTable
+  const columns: ResponsiveColumn<Machine>[] = useMemo(
+    () => [
+      {
+        key: "naam",
+        header: "Machine",
+        isPrimary: true,
+        render: (machine) => (
+          <div className="flex items-center gap-2">
+            <Wrench className="h-4 w-4 text-muted-foreground" />
+            <span className="font-medium">{machine.naam}</span>
+          </div>
+        ),
+      },
+      {
+        key: "type",
+        header: "Type",
+        isSecondary: true,
+        showInCard: true,
+        render: (machine) => (
+          <Badge
+            variant={machine.type === "intern" ? "secondary" : "outline"}
+          >
+            {machine.type === "intern" ? "Intern" : "Extern"}
+          </Badge>
+        ),
+      },
+      {
+        key: "tarief",
+        header: "Tarief",
+        align: "right" as const,
+        showInCard: true,
+        render: (machine) => (
+          <div>
+            <span className="font-medium">
+              {formatCurrency(machine.tarief)}
+            </span>
+            <span className="text-muted-foreground ml-1 text-sm">
+              /{machine.tariefType}
+            </span>
+          </div>
+        ),
+      },
+      {
+        key: "scopes",
+        header: "Gekoppelde scopes",
+        showInCard: true,
+        mobileLabel: "Scopes",
+        render: (machine) => (
+          <div className="flex flex-wrap gap-1">
+            {machine.gekoppeldeScopes.length > 0 ? (
+              machine.gekoppeldeScopes.slice(0, 3).map((scope) => (
+                <Badge
+                  key={scope}
+                  variant="outline"
+                  className="text-xs"
+                >
+                  {scopeLabels[scope] || scope}
+                </Badge>
+              ))
+            ) : (
+              <span className="text-muted-foreground text-sm">
+                Geen scopes
+              </span>
+            )}
+            {machine.gekoppeldeScopes.length > 3 && (
+              <Badge variant="outline" className="text-xs">
+                +{machine.gekoppeldeScopes.length - 3}
+              </Badge>
+            )}
+          </div>
+        ),
+      },
+      {
+        key: "acties",
+        header: "",
+        align: "right" as const,
+        showInCard: true,
+        mobileLabel: "",
+        render: (machine) => (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => handleOpenForm(machine)}
+              >
+                <Edit className="mr-2 h-4 w-4" />
+                Bewerken
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => {
+                  setMachineToDelete(machine);
+                  setShowDeleteDialog(true);
+                }}
+                className="text-destructive"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Verwijderen
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ),
+      },
+    ],
+    [handleOpenForm]
+  );
+
   return (
     <>
       <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
@@ -346,106 +454,13 @@ export default function MachinesPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Machine</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead className="text-right">Tarief</TableHead>
-                    <TableHead>Gekoppelde scopes</TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {machines.map((machine, index) => (
-                    <motion.tr
-                      key={machine._id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
-                    >
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Wrench className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-medium">{machine.naam}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            machine.type === "intern" ? "secondary" : "outline"
-                          }
-                        >
-                          {machine.type === "intern" ? "Intern" : "Extern"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div>
-                          <span className="font-medium">
-                            {formatCurrency(machine.tarief)}
-                          </span>
-                          <span className="text-muted-foreground ml-1 text-sm">
-                            /{machine.tariefType}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {machine.gekoppeldeScopes.length > 0 ? (
-                            machine.gekoppeldeScopes.slice(0, 3).map((scope) => (
-                              <Badge
-                                key={scope}
-                                variant="outline"
-                                className="text-xs"
-                              >
-                                {scopeLabels[scope] || scope}
-                              </Badge>
-                            ))
-                          ) : (
-                            <span className="text-muted-foreground text-sm">
-                              Geen scopes
-                            </span>
-                          )}
-                          {machine.gekoppeldeScopes.length > 3 && (
-                            <Badge variant="outline" className="text-xs">
-                              +{machine.gekoppeldeScopes.length - 3}
-                            </Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() => handleOpenForm(machine as Machine)}
-                            >
-                              <Edit className="mr-2 h-4 w-4" />
-                              Bewerken
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setMachineToDelete(machine as Machine);
-                                setShowDeleteDialog(true);
-                              }}
-                              className="text-destructive"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Verwijderen
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </motion.tr>
-                  ))}
-                </TableBody>
-              </Table>
+              <ResponsiveTable
+                data={machines as Machine[]}
+                columns={columns}
+                keyExtractor={(machine) => machine._id}
+                emptyMessage="Geen machines gevonden"
+                mobileBreakpoint="md"
+              />
             </CardContent>
           </Card>
         ) : (

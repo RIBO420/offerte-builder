@@ -1,9 +1,12 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
+import { useDebounce } from "@/hooks/use-debounce";
+import { useTableSort } from "@/hooks/use-table-sort";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { RequireAdmin } from "@/components/require-admin";
+import { PageHeader } from "@/components/page-header";
 import {
   Card,
   CardContent,
@@ -14,16 +17,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
   ResponsiveTable,
   ResponsiveColumn,
@@ -80,7 +73,8 @@ type Klant = {
 function KlantenPageContent() {
   const { klanten, isLoading, create, update, remove } = useKlanten();
   const [searchTerm, setSearchTerm] = useState("");
-  const { results: searchResults } = useKlantenSearch(searchTerm);
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  const { results: searchResults } = useKlantenSearch(debouncedSearchTerm);
 
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -108,7 +102,13 @@ function KlantenPageContent() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const displayedKlanten: Klant[] = (searchTerm ? searchResults : klanten) as Klant[];
+  const filteredKlanten: Klant[] = (debouncedSearchTerm ? searchResults : klanten) as Klant[];
+
+  // Apply sorting to klanten
+  const { sortedData: sortedKlanten, sortConfig, toggleSort } = useTableSort<Klant>(
+    filteredKlanten,
+    "naam"
+  );
 
   const resetForm = useCallback(() => {
     setFormData({
@@ -215,12 +215,14 @@ function KlantenPageContent() {
   }, []);
 
   // Column configuration for ResponsiveTable
-  const columns: ResponsiveColumn<Klant>[] = useMemo(
+  const columns: ResponsiveColumn<Klant, keyof Klant>[] = useMemo(
     () => [
       {
         key: "naam",
         header: "Naam",
         isPrimary: true,
+        sortable: true,
+        sortKey: "naam",
         render: (klant) => (
           <Link
             href={`/klanten/${klant._id}`}
@@ -231,9 +233,11 @@ function KlantenPageContent() {
         ),
       },
       {
-        key: "adres",
-        header: "Adres",
+        key: "plaats",
+        header: "Plaats",
         isSecondary: true,
+        sortable: true,
+        sortKey: "plaats",
         render: (klant) => (
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <MapPin className="h-3.5 w-3.5 hidden sm:inline" />
@@ -248,6 +252,8 @@ function KlantenPageContent() {
         header: "Telefoon",
         mobileLabel: "Tel",
         showInCard: true,
+        sortable: true,
+        sortKey: "telefoon",
         render: (klant) =>
           klant.telefoon ? (
             <div className="flex items-center gap-1.5 text-sm">
@@ -263,6 +269,8 @@ function KlantenPageContent() {
         header: "E-mail",
         mobileLabel: "Email",
         showInCard: true,
+        sortable: true,
+        sortKey: "email",
         render: (klant) =>
           klant.email ? (
             <div className="flex items-center gap-1.5 text-sm">
@@ -400,21 +408,7 @@ function KlantenPageContent() {
   if (isLoading) {
     return (
       <>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage>Klanten</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </header>
+        <PageHeader />
         <div className="flex flex-1 items-center justify-center">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
@@ -436,21 +430,7 @@ function KlantenPageContent() {
 
   return (
     <>
-      <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-        <SidebarTrigger className="-ml-1" />
-        <Separator orientation="vertical" className="mr-2 h-4" />
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>Klanten</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      </header>
+      <PageHeader />
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -525,7 +505,7 @@ function KlantenPageContent() {
             </div>
           </CardHeader>
           <CardContent>
-            {displayedKlanten.length === 0 ? (
+            {sortedKlanten.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <Users className="h-12 w-12 text-muted-foreground/50 mb-4" />
                 <h3 className="text-lg font-medium">
@@ -541,7 +521,7 @@ function KlantenPageContent() {
               </div>
             ) : (
               <ResponsiveTable
-                data={displayedKlanten}
+                data={sortedKlanten}
                 columns={columns}
                 keyExtractor={(klant) => klant._id}
                 emptyMessage={
@@ -550,6 +530,8 @@ function KlantenPageContent() {
                     : "Voeg je eerste klant toe om te beginnen."
                 }
                 mobileBreakpoint="md"
+                sortConfig={sortConfig}
+                onSort={toggleSort}
               />
             )}
           </CardContent>

@@ -154,6 +154,99 @@ export const staggerItem: Variants = {
 };
 
 // ============================================
+// List Stagger Animation Utilities
+// ============================================
+
+/**
+ * Creates a stagger container with customizable timing
+ * Use for list pages with multiple items
+ */
+export function createStaggerContainer(options?: {
+  staggerChildren?: number;
+  delayChildren?: number;
+}): Variants {
+  return {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: options?.staggerChildren ?? 0.05,
+        delayChildren: options?.delayChildren ?? 0.1,
+      },
+    },
+  };
+}
+
+/**
+ * Creates a stagger item with customizable animation
+ * Use as children of stagger container
+ */
+export function createStaggerItem(options?: {
+  y?: number;
+  x?: number;
+  scale?: number;
+  duration?: number;
+}): Variants {
+  const initial: Record<string, number> = { opacity: 0 };
+  const animate: Record<string, number> = { opacity: 1 };
+
+  if (options?.y !== undefined) {
+    initial.y = options.y;
+    animate.y = 0;
+  } else {
+    initial.y = 10;
+    animate.y = 0;
+  }
+
+  if (options?.x !== undefined) {
+    initial.x = options.x;
+    animate.x = 0;
+  }
+
+  if (options?.scale !== undefined) {
+    initial.scale = options.scale;
+    animate.scale = 1;
+  }
+
+  return {
+    hidden: initial,
+    show: {
+      ...animate,
+      transition: {
+        duration: options?.duration ?? 0.3,
+        ease: [0.4, 0, 0.2, 1],
+      },
+    },
+  };
+}
+
+/**
+ * Pre-configured list animation variants for common use cases
+ */
+export const listAnimations = {
+  // Standard list with fade up
+  fadeUp: {
+    container: createStaggerContainer(),
+    item: createStaggerItem({ y: 20 }),
+  },
+  // Card grid with scale
+  cardGrid: {
+    container: createStaggerContainer({ staggerChildren: 0.08 }),
+    item: createStaggerItem({ y: 20, scale: 0.95 }),
+  },
+  // Sidebar/menu items
+  menu: {
+    container: createStaggerContainer({ staggerChildren: 0.03, delayChildren: 0.05 }),
+    item: createStaggerItem({ x: -10, y: 0 }),
+  },
+  // Table rows
+  tableRows: {
+    container: createStaggerContainer({ staggerChildren: 0.02, delayChildren: 0 }),
+    item: createStaggerItem({ y: 5, duration: 0.2 }),
+  },
+} as const;
+
+// ============================================
 // Reduced Motion Variants
 // ============================================
 

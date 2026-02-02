@@ -219,3 +219,69 @@ export function useSkipLink(targetId: string) {
 
   return handleSkip;
 }
+
+/**
+ * Hook for announcing table sort changes
+ * Automatically announces when sort changes for screen reader users
+ */
+export function useSortAnnouncement() {
+  const announce = useAnnounce();
+
+  const announceSort = useCallback(
+    (column: string, direction: "asc" | "desc") => {
+      const directionText = direction === "asc" ? "oplopend" : "aflopend";
+      announce(`Gesorteerd op ${column}, ${directionText}`);
+    },
+    [announce]
+  );
+
+  return announceSort;
+}
+
+/**
+ * Hook for announcing status changes
+ * Use with status updates in the application
+ */
+export function useStatusAnnouncement() {
+  const announce = useAnnounce();
+
+  const announceStatus = useCallback(
+    (status: string, context?: string) => {
+      const message = context
+        ? `${context}: status bijgewerkt naar ${status}`
+        : `Status bijgewerkt naar ${status}`;
+      announce(message);
+    },
+    [announce]
+  );
+
+  return announceStatus;
+}
+
+/**
+ * Hook for announcing save operations
+ * Provides consistent accessibility feedback for save/update operations
+ */
+export function useSaveAnnouncement() {
+  const announce = useAnnounce();
+
+  const announceSave = useCallback(
+    (success: boolean, customMessage?: string) => {
+      if (success) {
+        announce(customMessage || "Wijzigingen succesvol opgeslagen");
+      } else {
+        announce(
+          customMessage || "Fout bij opslaan. Probeer het opnieuw.",
+          "assertive"
+        );
+      }
+    },
+    [announce]
+  );
+
+  const announceSaving = useCallback(() => {
+    announce("Bezig met opslaan...");
+  }, [announce]);
+
+  return { announceSave, announceSaving };
+}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
+import { useDebounce } from "@/hooks/use-debounce";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import {
@@ -97,23 +98,24 @@ export default function GebruikersPage() {
   const { users, availableMedewerkers, isLoading, updateRole, linkToMedewerker } = useUsers();
 
   const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserWithDetails | null>(null);
   const [selectedMedewerkerId, setSelectedMedewerkerId] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Filter users based on search - MUST be before any conditional returns
+  // Filter users based on search (use debounced value) - MUST be before any conditional returns
   const displayedUsers = useMemo(() => {
-    if (!searchTerm.trim()) return users;
+    if (!debouncedSearchTerm.trim()) return users;
 
-    const term = searchTerm.toLowerCase();
+    const term = debouncedSearchTerm.toLowerCase();
     return users.filter(
       (user) =>
         user.name.toLowerCase().includes(term) ||
         user.email.toLowerCase().includes(term) ||
         (user.linkedMedewerkerNaam?.toLowerCase().includes(term) ?? false)
     );
-  }, [users, searchTerm]);
+  }, [users, debouncedSearchTerm]);
 
   // Calculate stats
   const stats = useMemo(() => {

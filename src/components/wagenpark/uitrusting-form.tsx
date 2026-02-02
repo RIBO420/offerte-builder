@@ -24,7 +24,8 @@ import { Loader2, Calendar } from "lucide-react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
-import { toast } from "sonner";
+import { showSuccessToast, showErrorToast, showWarningToast } from "@/lib/toast-utils";
+import { getMutationErrorMessage } from "@/lib/error-handling";
 import { format } from "date-fns";
 import { nl } from "date-fns/locale";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
@@ -148,17 +149,17 @@ export function UitrustingForm({
     e.preventDefault();
 
     if (!formData.voertuigId) {
-      toast.error("Selecteer een voertuig");
+      showWarningToast("Selecteer een voertuig");
       return;
     }
 
     if (!formData.naam.trim()) {
-      toast.error("Naam is verplicht");
+      showWarningToast("Naam is verplicht");
       return;
     }
 
     if (formData.hoeveelheid < 1) {
-      toast.error("Hoeveelheid moet minimaal 1 zijn");
+      showWarningToast("Hoeveelheid moet minimaal 1 zijn");
       return;
     }
 
@@ -178,7 +179,7 @@ export function UitrustingForm({
           status: formData.status,
           notities: formData.notities || undefined,
         });
-        toast.success("Uitrusting bijgewerkt");
+        showSuccessToast("Uitrusting bijgewerkt");
       } else {
         await createUitrusting({
           voertuigId: formData.voertuigId!,
@@ -191,17 +192,18 @@ export function UitrustingForm({
           status: formData.status,
           notities: formData.notities || undefined,
         });
-        toast.success("Uitrusting toegevoegd");
+        showSuccessToast("Uitrusting toegevoegd");
       }
 
       onOpenChange(false);
       onSuccess?.();
     } catch (error) {
       console.error("Error saving uitrusting:", error);
-      toast.error(
+      showErrorToast(
         isEditMode
           ? "Fout bij bijwerken uitrusting"
-          : "Fout bij toevoegen uitrusting"
+          : "Fout bij toevoegen uitrusting",
+        { description: getMutationErrorMessage(error) }
       );
     } finally {
       setIsLoading(false);

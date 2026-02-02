@@ -37,7 +37,7 @@ export function WaterElektraForm({ data, onChange, onValidationChange }: WaterEl
   const form = useForm<WaterElektraFormData>({
     resolver: zodResolver(waterElektraSchema),
     defaultValues: data,
-    mode: "onBlur",
+    mode: "onChange",
   });
 
   const { formState: { errors, isValid }, watch, setValue } = form;

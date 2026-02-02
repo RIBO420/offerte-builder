@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { RequireAdmin } from "@/components/require-admin";
+import { useTabState } from "@/hooks/use-tab-state";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
   Breadcrumb,
@@ -96,7 +97,7 @@ const sampleMaandelijksOverzicht = [
 
 function RapportagesPageContent() {
   const reducedMotion = useReducedMotion();
-  const [activeTab, setActiveTab] = useState("overzicht");
+  const [activeTab, setActiveTab] = useTabState("overzicht");
   const [comparisonEnabled, setComparisonEnabled] = useState(false);
   const [enhancedPreset, setEnhancedPreset] = useState<DateRangePreset>("dit-jaar");
   const [customDateRange, setCustomDateRange] = useState<{ from: Date; to: Date } | undefined>();
@@ -482,7 +483,9 @@ function RapportagesPageContent() {
 export default function RapportagesPage() {
   return (
     <RequireAdmin>
-      <RapportagesPageContent />
+      <Suspense fallback={null}>
+        <RapportagesPageContent />
+      </Suspense>
     </RequireAdmin>
   );
 }

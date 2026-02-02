@@ -73,9 +73,9 @@ export function usePrefetchProductenData() {
 export function usePrefetchAllCommonData() {
   const { user } = useCurrentUser();
 
-  // Dashboard data
+  // Full dashboard data (batched query for all dashboard needs)
   useQuery(
-    api.offertes.getDashboardData,
+    api.offertes.getFullDashboardData,
     user?._id ? {} : "skip"
   );
 

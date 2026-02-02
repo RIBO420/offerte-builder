@@ -34,7 +34,9 @@ import { nl } from "date-fns/locale";
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
-import { toast } from "sonner";
+import { showSuccessToast, showErrorToast, showWarningToast } from "@/lib/toast-utils";
+import { getMutationErrorMessage } from "@/lib/error-handling";
+import { FormFieldFeedback } from "@/components/ui/form-field-feedback";
 
 // Common vehicle brands in the Netherlands for landscaping/construction
 const vehicleBrands = [
@@ -191,21 +193,15 @@ export function VoertuigForm({
       const formatted = formatKenteken(e.target.value);
       setFormData((prev) => ({ ...prev, kenteken: formatted }));
 
-      // Clear error when user is typing
-      if (kentekenError) {
+      // Real-time validation
+      if (formatted && !validateKenteken(formatted)) {
+        setKentekenError("Ongeldig kenteken formaat (bijv. AB-12-CD)");
+      } else {
         setKentekenError(null);
       }
     },
-    [kentekenError]
+    []
   );
-
-  const handleKentekenBlur = useCallback(() => {
-    if (formData.kenteken && !validateKenteken(formData.kenteken)) {
-      setKentekenError("Ongeldig kenteken formaat (bijv. AB-12-CD)");
-    } else {
-      setKentekenError(null);
-    }
-  }, [formData.kenteken]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -236,7 +232,7 @@ export function VoertuigForm({
           verzekeraar: formData.verzekeraar || undefined,
           polisnummer: formData.polisnummer || undefined,
         });
-        toast.success("Voertuig bijgewerkt");
+        showSuccessToast("Voertuig bijgewerkt");
       } else {
         await createVoertuig({
           kenteken: formData.kenteken,
@@ -253,17 +249,18 @@ export function VoertuigForm({
           verzekeraar: formData.verzekeraar || undefined,
           polisnummer: formData.polisnummer || undefined,
         });
-        toast.success("Voertuig toegevoegd");
+        showSuccessToast("Voertuig toegevoegd");
       }
 
       onOpenChange(false);
       onSuccess?.();
     } catch (error) {
       console.error("Error saving voertuig:", error);
-      toast.error(
+      showErrorToast(
         isEditMode
           ? "Fout bij bijwerken voertuig"
-          : "Fout bij toevoegen voertuig"
+          : "Fout bij toevoegen voertuig",
+        { description: getMutationErrorMessage(error) }
       );
     } finally {
       setIsLoading(false);
@@ -306,18 +303,14 @@ export function VoertuigForm({
                 id="kenteken"
                 value={formData.kenteken}
                 onChange={handleKentekenChange}
-                onBlur={handleKentekenBlur}
                 placeholder="XX-XX-XX"
                 className={kentekenError ? "border-destructive" : ""}
                 required
               />
-              {kentekenError ? (
-                <p className="text-xs text-destructive">{kentekenError}</p>
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  Nederlands kenteken formaat (bijv. AB-12-CD)
-                </p>
-              )}
+              <FormFieldFeedback
+                status={kentekenError ? "invalid" : formData.kenteken && validateKenteken(formData.kenteken) ? "valid" : "idle"}
+                message={kentekenError || (formData.kenteken ? undefined : "Nederlands kenteken formaat (bijv. AB-12-CD)")}
+              />
             </div>
 
             {/* Merk en Model */}

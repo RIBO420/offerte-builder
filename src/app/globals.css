@@ -107,6 +107,48 @@ body {
   --color-trend-positive: var(--trend-positive);
   --color-trend-negative: var(--trend-negative);
   --color-trend-neutral: var(--trend-neutral);
+  /* Status colors - Offerte */
+  --color-status-concept: var(--status-concept);
+  --color-status-concept-text: var(--status-concept-text);
+  --color-status-concept-border: var(--status-concept-border);
+  --color-status-concept-dot: var(--status-concept-dot);
+  --color-status-voorcalculatie: var(--status-voorcalculatie);
+  --color-status-voorcalculatie-text: var(--status-voorcalculatie-text);
+  --color-status-voorcalculatie-border: var(--status-voorcalculatie-border);
+  --color-status-voorcalculatie-dot: var(--status-voorcalculatie-dot);
+  --color-status-verzonden: var(--status-verzonden);
+  --color-status-verzonden-text: var(--status-verzonden-text);
+  --color-status-verzonden-border: var(--status-verzonden-border);
+  --color-status-verzonden-dot: var(--status-verzonden-dot);
+  --color-status-geaccepteerd: var(--status-geaccepteerd);
+  --color-status-geaccepteerd-text: var(--status-geaccepteerd-text);
+  --color-status-geaccepteerd-border: var(--status-geaccepteerd-border);
+  --color-status-geaccepteerd-dot: var(--status-geaccepteerd-dot);
+  --color-status-afgewezen: var(--status-afgewezen);
+  --color-status-afgewezen-text: var(--status-afgewezen-text);
+  --color-status-afgewezen-border: var(--status-afgewezen-border);
+  --color-status-afgewezen-dot: var(--status-afgewezen-dot);
+  /* Status colors - Project */
+  --color-status-gepland: var(--status-gepland);
+  --color-status-gepland-text: var(--status-gepland-text);
+  --color-status-gepland-border: var(--status-gepland-border);
+  --color-status-gepland-dot: var(--status-gepland-dot);
+  --color-status-in-uitvoering: var(--status-in-uitvoering);
+  --color-status-in-uitvoering-text: var(--status-in-uitvoering-text);
+  --color-status-in-uitvoering-border: var(--status-in-uitvoering-border);
+  --color-status-in-uitvoering-dot: var(--status-in-uitvoering-dot);
+  --color-status-afgerond: var(--status-afgerond);
+  --color-status-afgerond-text: var(--status-afgerond-text);
+  --color-status-afgerond-border: var(--status-afgerond-border);
+  --color-status-afgerond-dot: var(--status-afgerond-dot);
+  --color-status-nacalculatie: var(--status-nacalculatie);
+  --color-status-nacalculatie-text: var(--status-nacalculatie-text);
+  --color-status-nacalculatie-border: var(--status-nacalculatie-border);
+  --color-status-nacalculatie-dot: var(--status-nacalculatie-dot);
+  --color-status-gefactureerd: var(--status-gefactureerd);
+  --color-status-gefactureerd-text: var(--status-gefactureerd-text);
+  --color-status-gefactureerd-border: var(--status-gefactureerd-border);
+  --color-status-gefactureerd-dot: var(--status-gefactureerd-dot);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-accent: var(--sidebar-accent);
   --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
@@ -168,7 +210,8 @@ body {
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
+  /* Improved contrast: oklch(0.46 0 0) gives ~7:1 ratio on white for WCAG AA compliance */
+  --muted-foreground: oklch(0.46 0 0);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
@@ -202,6 +245,58 @@ body {
   --trend-positive: oklch(0.6 0.2 145);        /* Groen */
   --trend-negative: oklch(0.6 0.2 25);         /* Rood */
   --trend-neutral: oklch(0.5 0 0);             /* Grijs */
+
+  /* Status kleuren - Offerte statuses */
+  --status-concept: oklch(0.95 0 0);           /* Grijs - concept/draft */
+  --status-concept-text: oklch(0.35 0 0);
+  --status-concept-border: oklch(0.8 0 0);
+  --status-concept-dot: oklch(0.55 0 0);
+
+  --status-voorcalculatie: oklch(0.92 0.03 250);  /* Blauw - voorcalculatie */
+  --status-voorcalculatie-text: oklch(0.35 0.12 250);
+  --status-voorcalculatie-border: oklch(0.7 0.1 250);
+  --status-voorcalculatie-dot: oklch(0.55 0.15 250);
+
+  --status-verzonden: oklch(0.92 0.05 85);     /* Amber - verzonden */
+  --status-verzonden-text: oklch(0.4 0.12 85);
+  --status-verzonden-border: oklch(0.75 0.12 85);
+  --status-verzonden-dot: oklch(0.75 0.15 85);
+
+  --status-geaccepteerd: oklch(0.92 0.04 145); /* Groen - geaccepteerd */
+  --status-geaccepteerd-text: oklch(0.35 0.15 145);
+  --status-geaccepteerd-border: oklch(0.7 0.12 145);
+  --status-geaccepteerd-dot: oklch(0.65 0.18 145);
+
+  --status-afgewezen: oklch(0.92 0.04 25);     /* Rood - afgewezen */
+  --status-afgewezen-text: oklch(0.4 0.15 25);
+  --status-afgewezen-border: oklch(0.7 0.12 25);
+  --status-afgewezen-dot: oklch(0.65 0.18 25);
+
+  /* Status kleuren - Project statuses */
+  --status-gepland: oklch(0.92 0.04 290);      /* Paars - gepland */
+  --status-gepland-text: oklch(0.4 0.15 290);
+  --status-gepland-border: oklch(0.7 0.1 290);
+  --status-gepland-dot: oklch(0.6 0.15 290);
+
+  --status-in-uitvoering: oklch(0.9 0.04 200); /* Cyaan - in uitvoering */
+  --status-in-uitvoering-text: oklch(0.35 0.12 200);
+  --status-in-uitvoering-border: oklch(0.65 0.1 200);
+  --status-in-uitvoering-dot: oklch(0.6 0.15 200);
+
+  --status-afgerond: oklch(0.92 0.04 145);     /* Groen - afgerond (zelfde als geaccepteerd) */
+  --status-afgerond-text: oklch(0.35 0.15 145);
+  --status-afgerond-border: oklch(0.7 0.12 145);
+  --status-afgerond-dot: oklch(0.6 0.18 145);
+
+  --status-nacalculatie: oklch(0.9 0.04 175);  /* Teal - nacalculatie compleet */
+  --status-nacalculatie-text: oklch(0.35 0.12 175);
+  --status-nacalculatie-border: oklch(0.65 0.1 175);
+  --status-nacalculatie-dot: oklch(0.55 0.15 175);
+
+  --status-gefactureerd: oklch(0.9 0.05 155);  /* Emerald - gefactureerd */
+  --status-gefactureerd-text: oklch(0.3 0.15 155);
+  --status-gefactureerd-border: oklch(0.6 0.12 155);
+  --status-gefactureerd-dot: oklch(0.55 0.18 155);
 
   /* Shadow tokens */
   --shadow-card-hover: 0 8px 25px -5px oklch(0 0 0 / 0.1), 0 4px 10px -5px oklch(0 0 0 / 0.04);
@@ -267,6 +362,57 @@ body {
   --trend-positive: oklch(0.7 0.2 145);        /* Groen */
   --trend-negative: oklch(0.7 0.2 25);         /* Rood */
   --trend-neutral: oklch(0.6 0 0);             /* Grijs */
+
+  /* Status kleuren - Dark mode (hogere L-waarde voor backgrounds, aangepaste tekst) */
+  --status-concept: oklch(0.3 0 0);
+  --status-concept-text: oklch(0.8 0 0);
+  --status-concept-border: oklch(0.45 0 0);
+  --status-concept-dot: oklch(0.6 0 0);
+
+  --status-voorcalculatie: oklch(0.25 0.08 250);
+  --status-voorcalculatie-text: oklch(0.8 0.08 250);
+  --status-voorcalculatie-border: oklch(0.45 0.1 250);
+  --status-voorcalculatie-dot: oklch(0.65 0.15 250);
+
+  --status-verzonden: oklch(0.28 0.08 85);
+  --status-verzonden-text: oklch(0.85 0.1 85);
+  --status-verzonden-border: oklch(0.5 0.1 85);
+  --status-verzonden-dot: oklch(0.75 0.15 85);
+
+  --status-geaccepteerd: oklch(0.25 0.08 145);
+  --status-geaccepteerd-text: oklch(0.8 0.1 145);
+  --status-geaccepteerd-border: oklch(0.45 0.1 145);
+  --status-geaccepteerd-dot: oklch(0.7 0.18 145);
+
+  --status-afgewezen: oklch(0.25 0.08 25);
+  --status-afgewezen-text: oklch(0.85 0.1 25);
+  --status-afgewezen-border: oklch(0.5 0.1 25);
+  --status-afgewezen-dot: oklch(0.7 0.18 25);
+
+  --status-gepland: oklch(0.25 0.08 290);
+  --status-gepland-text: oklch(0.85 0.1 290);
+  --status-gepland-border: oklch(0.45 0.1 290);
+  --status-gepland-dot: oklch(0.7 0.15 290);
+
+  --status-in-uitvoering: oklch(0.25 0.08 200);
+  --status-in-uitvoering-text: oklch(0.85 0.1 200);
+  --status-in-uitvoering-border: oklch(0.45 0.1 200);
+  --status-in-uitvoering-dot: oklch(0.7 0.15 200);
+
+  --status-afgerond: oklch(0.25 0.08 145);
+  --status-afgerond-text: oklch(0.8 0.1 145);
+  --status-afgerond-border: oklch(0.45 0.1 145);
+  --status-afgerond-dot: oklch(0.7 0.18 145);
+
+  --status-nacalculatie: oklch(0.25 0.08 175);
+  --status-nacalculatie-text: oklch(0.85 0.1 175);
+  --status-nacalculatie-border: oklch(0.45 0.1 175);
+  --status-nacalculatie-dot: oklch(0.65 0.15 175);
+
+  --status-gefactureerd: oklch(0.25 0.1 155);
+  --status-gefactureerd-text: oklch(0.85 0.12 155);
+  --status-gefactureerd-border: oklch(0.45 0.1 155);
+  --status-gefactureerd-dot: oklch(0.65 0.18 155);
 
   /* Dark mode shadows - subtler */
   --shadow-card-hover: 0 8px 25px -5px oklch(0 0 0 / 0.3), 0 4px 10px -5px oklch(0 0 0 / 0.2);
@@ -374,6 +520,35 @@ body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+  }
+
+  /* ========================================
+     Accessible Disabled States
+     WCAG requires 3:1 contrast for UI components
+     opacity-50 often fails this requirement
+     ======================================== */
+
+  /* Use opacity-60 instead of opacity-50 for better contrast */
+  .disabled-accessible {
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  /* Alternative: Use color change instead of opacity for text */
+  .disabled-text {
+    color: oklch(0.55 0 0);
+  }
+
+  .dark .disabled-text {
+    color: oklch(0.55 0 0);
+  }
+
+  /* For buttons and interactive elements - uses both approaches */
+  .disabled-interactive {
+    opacity: 0.65;
+    cursor: not-allowed;
+    filter: grayscale(30%);
   }
 
   /* Dirty state indicator voor forms */

@@ -37,7 +37,7 @@ export function BestratingForm({ data, onChange, onValidationChange }: Bestratin
   const form = useForm<BestratingFormData>({
     resolver: zodResolver(bestratingSchema),
     defaultValues: data,
-    mode: "onBlur",
+    mode: "onChange",
   });
 
   const { formState: { errors, isValid }, watch } = form;

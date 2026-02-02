@@ -40,7 +40,7 @@ export function SpecialsForm({ data, onChange, onValidationChange }: SpecialsFor
   const form = useForm<SpecialsFormData>({
     resolver: zodResolver(specialsSchema),
     defaultValues: data,
-    mode: "onBlur",
+    mode: "onChange",
   });
 
   const { formState: { errors, isValid }, watch, control } = form;

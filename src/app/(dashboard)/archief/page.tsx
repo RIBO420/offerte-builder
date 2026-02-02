@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, Suspense } from "react";
+import { useDebounce } from "@/hooks/use-debounce";
 import { motion, AnimatePresence } from "framer-motion";
 import { useReducedMotion } from "@/hooks/use-accessibility";
 import { RequireAdmin } from "@/components/require-admin";
@@ -437,6 +438,7 @@ function ArchiefPageContent() {
   ) as ArchivedProject[] | undefined;
 
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
   const isLoading = isUserLoading || archivedProjects === undefined;
 
@@ -458,12 +460,12 @@ function ArchiefPageContent() {
     };
   }, [archivedProjects]);
 
-  // Filter projects by search
+  // Filter projects by search (use debounced value)
   const filteredProjects = useMemo(() => {
     if (!archivedProjects) return [];
-    if (!searchQuery) return archivedProjects;
+    if (!debouncedSearchQuery) return archivedProjects;
 
-    const query = searchQuery.toLowerCase();
+    const query = debouncedSearchQuery.toLowerCase();
     return archivedProjects.filter(
       (project) =>
         project.naam.toLowerCase().includes(query) ||
@@ -471,7 +473,7 @@ function ArchiefPageContent() {
         (project.offerte?.offerteNummer?.toLowerCase().includes(query) ?? false) ||
         (project.factuur?.factuurnummer?.toLowerCase().includes(query) ?? false)
     );
-  }, [archivedProjects, searchQuery]);
+  }, [archivedProjects, debouncedSearchQuery]);
 
   return (
     <>

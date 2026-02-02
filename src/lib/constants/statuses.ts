@@ -27,10 +27,10 @@ export const STATUS_CONFIG: Record<OfferteStatus, StatusConfig> = {
     description: "Offerte is in bewerking en nog niet klaar voor voorcalculatie",
     icon: Pencil,
     color: {
-      bg: "bg-gray-100 dark:bg-gray-800",
-      text: "text-gray-700 dark:text-gray-300",
-      border: "border-gray-300 dark:border-gray-600",
-      dot: "bg-gray-500",
+      bg: "bg-status-concept",
+      text: "text-status-concept-text",
+      border: "border-status-concept-border",
+      dot: "bg-status-concept-dot",
     },
   },
   voorcalculatie: {
@@ -38,10 +38,10 @@ export const STATUS_CONFIG: Record<OfferteStatus, StatusConfig> = {
     description: "Voorcalculatie is ingevuld en offerte is klaar om te verzenden",
     icon: Calculator,
     color: {
-      bg: "bg-blue-100 dark:bg-blue-900/30",
-      text: "text-blue-700 dark:text-blue-300",
-      border: "border-blue-300 dark:border-blue-700",
-      dot: "bg-blue-500",
+      bg: "bg-status-voorcalculatie",
+      text: "text-status-voorcalculatie-text",
+      border: "border-status-voorcalculatie-border",
+      dot: "bg-status-voorcalculatie-dot",
     },
   },
   verzonden: {
@@ -49,10 +49,10 @@ export const STATUS_CONFIG: Record<OfferteStatus, StatusConfig> = {
     description: "Offerte is naar de klant verzonden",
     icon: Send,
     color: {
-      bg: "bg-amber-100 dark:bg-amber-900/30",
-      text: "text-amber-700 dark:text-amber-300",
-      border: "border-amber-300 dark:border-amber-700",
-      dot: "bg-amber-500",
+      bg: "bg-status-verzonden",
+      text: "text-status-verzonden-text",
+      border: "border-status-verzonden-border",
+      dot: "bg-status-verzonden-dot",
     },
   },
   geaccepteerd: {
@@ -60,10 +60,10 @@ export const STATUS_CONFIG: Record<OfferteStatus, StatusConfig> = {
     description: "Klant heeft de offerte geaccepteerd",
     icon: ThumbsUp,
     color: {
-      bg: "bg-green-100 dark:bg-green-900/30",
-      text: "text-green-700 dark:text-green-300",
-      border: "border-green-300 dark:border-green-700",
-      dot: "bg-green-500",
+      bg: "bg-status-geaccepteerd",
+      text: "text-status-geaccepteerd-text",
+      border: "border-status-geaccepteerd-border",
+      dot: "bg-status-geaccepteerd-dot",
     },
   },
   afgewezen: {
@@ -71,10 +71,10 @@ export const STATUS_CONFIG: Record<OfferteStatus, StatusConfig> = {
     description: "Klant heeft de offerte afgewezen",
     icon: XCircle,
     color: {
-      bg: "bg-red-100 dark:bg-red-900/30",
-      text: "text-red-700 dark:text-red-300",
-      border: "border-red-300 dark:border-red-700",
-      dot: "bg-red-500",
+      bg: "bg-status-afgewezen",
+      text: "text-status-afgewezen-text",
+      border: "border-status-afgewezen-border",
+      dot: "bg-status-afgewezen-dot",
     },
   },
 };

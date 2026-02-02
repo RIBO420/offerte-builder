@@ -160,6 +160,250 @@ export const getDashboardData = query({
   },
 });
 
+// Comprehensive dashboard query - batches ALL dashboard data in a single round-trip
+// Combines: offerte stats, revenue stats, accepted without project, project stats,
+// active projects, facturen stats, and recent facturen
+export const getFullDashboardData = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireAuthUserId(ctx);
+
+    // Batch fetch all data in parallel using Promise.all
+    const [allOffertes, allProjects, allFacturen] = await Promise.all([
+      ctx.db
+        .query("offertes")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .order("desc")
+        .collect(),
+      ctx.db
+        .query("projecten")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .order("desc")
+        .collect(),
+      ctx.db
+        .query("facturen")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .order("desc")
+        .collect(),
+    ]);
+
+    // Filter out archived items
+    const offertes = allOffertes.filter((o) => !o.isArchived);
+    const projects = allProjects.filter((p) => !p.isArchived);
+
+    // === OFFERTE STATS ===
+    const offerteStats = {
+      totaal: offertes.length,
+      concept: 0,
+      voorcalculatie: 0,
+      verzonden: 0,
+      geaccepteerd: 0,
+      afgewezen: 0,
+      totaalWaarde: 0,
+      geaccepteerdWaarde: 0,
+    };
+
+    // === REVENUE STATS (calculated from offertes) ===
+    let totalAcceptedValue = 0;
+    let totalAcceptedCount = 0;
+    let totalSentCount = 0;
+    const geaccepteerdeOfferteIds: string[] = [];
+
+    for (const offerte of offertes) {
+      offerteStats[offerte.status as keyof typeof offerteStats]++;
+      offerteStats.totaalWaarde += offerte.totalen.totaalInclBtw;
+
+      if (offerte.status === "geaccepteerd") {
+        offerteStats.geaccepteerdWaarde += offerte.totalen.totaalInclBtw;
+        totalAcceptedValue += offerte.totalen.totaalInclBtw;
+        totalAcceptedCount++;
+        geaccepteerdeOfferteIds.push(offerte._id.toString());
+      }
+
+      if (
+        offerte.status === "verzonden" ||
+        offerte.status === "geaccepteerd" ||
+        offerte.status === "afgewezen"
+      ) {
+        totalSentCount++;
+      }
+    }
+
+    const conversionRate =
+      totalSentCount > 0
+        ? Math.round((totalAcceptedCount / totalSentCount) * 100)
+        : 0;
+    const averageOfferteValue =
+      totalAcceptedCount > 0
+        ? Math.round(totalAcceptedValue / totalAcceptedCount)
+        : 0;
+
+    const revenueStats = {
+      totalAcceptedValue,
+      totalAcceptedCount,
+      conversionRate,
+      averageOfferteValue,
+    };
+
+    // === ACCEPTED OFFERTES WITHOUT PROJECT ===
+    const offertesWithProject = new Set(
+      projects.map((p) => p.offerteId.toString())
+    );
+    const geaccepteerdeOffertes = offertes.filter(
+      (o) => o.status === "geaccepteerd"
+    );
+    const acceptedWithoutProject = geaccepteerdeOffertes
+      .filter((o) => !offertesWithProject.has(o._id.toString()))
+      .slice(0, 5)
+      .map((o) => ({
+        _id: o._id,
+        offerteNummer: o.offerteNummer,
+        klantNaam: o.klant.naam,
+        totaal: o.totalen.totaalInclBtw,
+        datum: o.createdAt,
+      }));
+
+    // === PROJECT STATS ===
+    const projectStats = {
+      totaal: projects.length,
+      gepland: 0,
+      in_uitvoering: 0,
+      afgerond: 0,
+      nacalculatie_compleet: 0,
+      gefactureerd: 0,
+    };
+
+    for (const project of projects) {
+      if (project.status in projectStats) {
+        projectStats[project.status as keyof typeof projectStats]++;
+      }
+    }
+
+    // === ACTIVE PROJECTS WITH PROGRESS ===
+    const activeProjectsRaw = projects
+      .filter((p) => p.status === "in_uitvoering")
+      .slice(0, 5);
+
+    // Fetch related data for active projects
+    const activeProjects = await Promise.all(
+      activeProjectsRaw.map(async (project) => {
+        // Get offerte for klant naam
+        const offerte = await ctx.db.get(project.offerteId);
+        const klantNaam = offerte?.klant?.naam || "Onbekende klant";
+
+        // Get voorcalculatie for begrote uren (check project-level first, then offerte-level)
+        let voorcalculatie = await ctx.db
+          .query("voorcalculaties")
+          .withIndex("by_project", (q) => q.eq("projectId", project._id))
+          .unique();
+
+        if (!voorcalculatie) {
+          voorcalculatie = await ctx.db
+            .query("voorcalculaties")
+            .withIndex("by_offerte", (q) => q.eq("offerteId", project.offerteId))
+            .unique();
+        }
+        const begroteUren = voorcalculatie?.normUrenTotaal || 0;
+
+        // Get uren registraties for totaal uren
+        const urenRegistraties = await ctx.db
+          .query("urenRegistraties")
+          .withIndex("by_project", (q) => q.eq("projectId", project._id))
+          .collect();
+        const totaalUren = urenRegistraties.reduce((sum, u) => sum + u.uren, 0);
+
+        // Calculate voortgang percentage (0-100)
+        let voortgang = 0;
+        if (begroteUren > 0) {
+          voortgang = Math.min(100, Math.round((totaalUren / begroteUren) * 100));
+        }
+
+        return {
+          _id: project._id,
+          naam: project.naam,
+          status: project.status,
+          voortgang,
+          totaalUren: Math.round(totaalUren * 10) / 10,
+          begroteUren: Math.round(begroteUren * 10) / 10,
+          klantNaam,
+        };
+      })
+    );
+
+    // === FACTUREN STATS ===
+    let conceptCount = 0;
+    let definitiefCount = 0;
+    let verzondenCount = 0;
+    let betaaldCount = 0;
+    let vervallenCount = 0;
+    let totaalBedrag = 0;
+    let openstaandBedrag = 0;
+    let betaaldBedrag = 0;
+
+    for (const factuur of allFacturen) {
+      switch (factuur.status) {
+        case "concept":
+          conceptCount++;
+          break;
+        case "definitief":
+          definitiefCount++;
+          break;
+        case "verzonden":
+          verzondenCount++;
+          openstaandBedrag += factuur.totaalInclBtw;
+          break;
+        case "betaald":
+          betaaldCount++;
+          betaaldBedrag += factuur.totaalInclBtw;
+          break;
+        case "vervallen":
+          vervallenCount++;
+          break;
+      }
+      totaalBedrag += factuur.totaalInclBtw;
+    }
+
+    const facturenStats = {
+      totaal: allFacturen.length,
+      totaalBedrag,
+      openstaandBedrag,
+      betaaldBedrag,
+      concept: conceptCount,
+      definitief: definitiefCount,
+      verzonden: verzondenCount,
+      betaald: betaaldCount,
+      vervallen: vervallenCount,
+    };
+
+    // === RECENT FACTUREN ===
+    const recentFacturen = allFacturen.slice(0, 5).map((factuur) => ({
+      _id: factuur._id,
+      factuurnummer: factuur.factuurnummer,
+      klantNaam: factuur.klant.naam,
+      totaalInclBtw: factuur.totaalInclBtw,
+      status: factuur.status,
+      factuurdatum: factuur.factuurdatum,
+      vervaldatum: factuur.vervaldatum,
+    }));
+
+    return {
+      // Offerte data
+      offerteStats,
+      recentOffertes: offertes.slice(0, 5),
+      // Revenue stats (derived from offertes)
+      revenueStats,
+      // Action required items
+      acceptedWithoutProject,
+      // Project data
+      projectStats,
+      activeProjects,
+      // Facturen data
+      facturenStats,
+      recentFacturen,
+    };
+  },
+});
+
 // List offertes by status
 export const listByStatus = query({
   args: {

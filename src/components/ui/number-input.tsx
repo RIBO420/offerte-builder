@@ -149,7 +149,7 @@ const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
             type="button"
             variant="outline"
             size="icon"
-            className="h-10 w-10 sm:h-9 sm:w-9 shrink-0 touch-manipulation"
+            className="h-11 w-11 sm:h-10 sm:w-10 shrink-0 touch-manipulation"
             onClick={() => handleStep(-1)}
             disabled={disabled || parseFloat(internalValue) <= min}
             aria-label="Verlaag waarde"
@@ -193,7 +193,7 @@ const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
             type="button"
             variant="outline"
             size="icon"
-            className="h-10 w-10 sm:h-9 sm:w-9 shrink-0 touch-manipulation"
+            className="h-11 w-11 sm:h-10 sm:w-10 shrink-0 touch-manipulation"
             onClick={() => handleStep(1)}
             disabled={disabled || parseFloat(internalValue) >= max}
             aria-label="Verhoog waarde"
