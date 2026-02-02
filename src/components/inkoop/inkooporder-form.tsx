@@ -300,14 +300,17 @@ export function InkooporderForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Project</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || ""}>
+                    <Select
+                      onValueChange={(value) => field.onChange(value === "none" ? "" : value)}
+                      value={field.value || "none"}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecteer project (optioneel)" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">Geen project</SelectItem>
+                        <SelectItem value="none">Geen project</SelectItem>
                         {projecten?.map((proj) => (
                           <SelectItem key={proj._id} value={proj._id}>
                             {proj.naam}
