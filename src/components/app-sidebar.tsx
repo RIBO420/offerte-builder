@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -58,7 +58,7 @@ import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { StatusDot } from "@/components/ui/status-badge";
 import { useDashboardData } from "@/hooks/use-offertes";
-import { useIsAdmin } from "@/hooks/use-users";
+import { useIsAdmin, useCurrentUserRole } from "@/hooks/use-users";
 
 // Main workflow navigation items
 const navigationItems = [
@@ -146,6 +146,27 @@ export function AppSidebar() {
   const { signOut } = useClerk();
   const [mounted, setMounted] = useState(false);
   const isAdmin = useIsAdmin();
+  const role = useCurrentUserRole();
+
+  // Filter navigation items based on user role
+  const filteredNavigationItems = useMemo(() => {
+    if (role === "admin") {
+      return navigationItems;
+    }
+    // medewerker/viewer only sees Dashboard and Projecten
+    return navigationItems.filter((item) =>
+      ["Dashboard", "Projecten"].includes(item.title)
+    );
+  }, [role]);
+
+  // Filter beheer items based on user role
+  const filteredBeheerItems = useMemo(() => {
+    if (role === "admin") {
+      return beheerItems;
+    }
+    // medewerker/viewer only sees Wagenpark
+    return beheerItems.filter((item) => item.title === "Wagenpark");
+  }, [role]);
 
   // Prevent hydration mismatch
   useEffect(() => {
@@ -187,7 +208,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Navigatie</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navigationItems.map((item) => (
+              {filteredNavigationItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
@@ -211,7 +232,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Beheer</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {beheerItems.map((item) => (
+              {filteredBeheerItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
@@ -274,32 +295,36 @@ export function AppSidebar() {
           </>
         )}
 
-        <SidebarGroup>
-          <SidebarGroupLabel className="flex items-center gap-2">
-            <Plus className="size-3" />
-            Nieuwe Offerte
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {nieuweOfferteItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname === item.url}
-                    tooltip={item.description}
-                  >
-                    <Link href={item.url}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {isAdmin && (
+          <>
+            <SidebarGroup>
+              <SidebarGroupLabel className="flex items-center gap-2">
+                <Plus className="size-3" />
+                Nieuwe Offerte
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {nieuweOfferteItems.map((item) => (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={pathname === item.url}
+                        tooltip={item.description}
+                      >
+                        <Link href={item.url}>
+                          <item.icon />
+                          <span>{item.title}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
 
-        <SidebarSeparator />
+            <SidebarSeparator />
+          </>
+        )}
 
         <SidebarGroup>
           <SidebarGroupContent>
@@ -385,12 +410,14 @@ export function AppSidebar() {
                       Profiel
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/prijsboek" className="cursor-pointer">
-                      <BookOpen className="mr-2 h-4 w-4" />
-                      Prijsboek
-                    </Link>
-                  </DropdownMenuItem>
+                  {isAdmin && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/prijsboek" className="cursor-pointer">
+                        <BookOpen className="mr-2 h-4 w-4" />
+                        Prijsboek
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem asChild>
                     <Link href="/instellingen" className="cursor-pointer">
                       <Settings className="mr-2 h-4 w-4" />

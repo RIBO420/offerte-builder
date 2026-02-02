@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { RequireAdmin } from "@/components/require-admin";
 import {
   Card,
   CardContent,
@@ -76,7 +77,7 @@ type Klant = {
   updatedAt: number;
 };
 
-export default function KlantenPage() {
+function KlantenPageContent() {
   const { klanten, isLoading, create, update, remove } = useKlanten();
   const [searchTerm, setSearchTerm] = useState("");
   const { results: searchResults } = useKlantenSearch(searchTerm);
@@ -606,5 +607,13 @@ export default function KlantenPage() {
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+}
+
+export default function KlantenPage() {
+  return (
+    <RequireAdmin>
+      <KlantenPageContent />
+    </RequireAdmin>
   );
 }

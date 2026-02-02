@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useReducedMotion } from "@/hooks/use-accessibility";
+import { RequireAdmin } from "@/components/require-admin";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Breadcrumb,
@@ -109,9 +110,11 @@ function StatusBadge({ status }: { status: FactuurStatus }) {
 
 export default function FacturenPage() {
   return (
-    <Suspense fallback={<FacturenPageLoader />}>
-      <FacturenPageContent />
-    </Suspense>
+    <RequireAdmin>
+      <Suspense fallback={<FacturenPageLoader />}>
+        <FacturenPageContent />
+      </Suspense>
+    </RequireAdmin>
   );
 }
 

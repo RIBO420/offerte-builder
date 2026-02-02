@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
+import { RequireAdmin } from "@/components/require-admin";
 import {
   Card,
   CardContent,
@@ -163,7 +164,7 @@ const categoryIcons: Record<string, React.ComponentType<{ className?: string }>>
   "default": Package,
 };
 
-export default function PrijsboekPage() {
+function PrijsboekPageContent() {
   const { isLoading: isUserLoading } = useCurrentUser();
   const {
     producten,
@@ -954,5 +955,13 @@ export default function PrijsboekPage() {
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+}
+
+export default function PrijsboekPage() {
+  return (
+    <RequireAdmin>
+      <PrijsboekPageContent />
+    </RequireAdmin>
   );
 }

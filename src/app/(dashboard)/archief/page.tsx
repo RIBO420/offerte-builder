@@ -3,6 +3,7 @@
 import { useState, useMemo, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useReducedMotion } from "@/hooks/use-accessibility";
+import { RequireAdmin } from "@/components/require-admin";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -393,9 +394,11 @@ function EmptyArchive() {
 
 export default function ArchiefPage() {
   return (
-    <Suspense fallback={<ArchiefPageLoader />}>
-      <ArchiefPageContent />
-    </Suspense>
+    <RequireAdmin>
+      <Suspense fallback={<ArchiefPageLoader />}>
+        <ArchiefPageContent />
+      </Suspense>
+    </RequireAdmin>
   );
 }
 

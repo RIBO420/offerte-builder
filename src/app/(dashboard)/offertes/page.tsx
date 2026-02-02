@@ -7,6 +7,7 @@ import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { useReducedMotion } from "@/hooks/use-accessibility";
+import { RequireAdmin } from "@/components/require-admin";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -319,9 +320,11 @@ const OfferteRow = memo(function OfferteRow({
 
 export default function OffertesPage() {
   return (
-    <Suspense fallback={<OffertesPageLoader />}>
-      <OffertesPageContent />
-    </Suspense>
+    <RequireAdmin>
+      <Suspense fallback={<OffertesPageLoader />}>
+        <OffertesPageContent />
+      </Suspense>
+    </RequireAdmin>
   );
 }
 

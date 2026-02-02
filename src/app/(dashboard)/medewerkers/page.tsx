@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { RequireAdmin } from "@/components/require-admin";
 import {
   Card,
   CardContent,
@@ -86,7 +87,7 @@ const itemVariants = {
   },
 };
 
-export default function MedewerkersPage() {
+function MedewerkersPageContent() {
   const { user } = useCurrentUser();
   const { medewerkers, isLoading, update, remove } = useMedewerkers();
   const [searchTerm, setSearchTerm] = useState("");
@@ -628,5 +629,13 @@ export default function MedewerkersPage() {
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+}
+
+export default function MedewerkersPage() {
+  return (
+    <RequireAdmin>
+      <MedewerkersPageContent />
+    </RequireAdmin>
   );
 }

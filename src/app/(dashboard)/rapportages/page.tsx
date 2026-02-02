@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { RequireAdmin } from "@/components/require-admin";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
   Breadcrumb,
@@ -93,7 +94,7 @@ const sampleMaandelijksOverzicht = [
   { maand: "Jun", omzet: 68000, kosten: 51680, winst: 16320, marge: 24 },
 ];
 
-export default function RapportagesPage() {
+function RapportagesPageContent() {
   const reducedMotion = useReducedMotion();
   const [activeTab, setActiveTab] = useState("overzicht");
   const [comparisonEnabled, setComparisonEnabled] = useState(false);
@@ -475,5 +476,13 @@ export default function RapportagesPage() {
         </AnimatePresence>
       </div>
     </>
+  );
+}
+
+export default function RapportagesPage() {
+  return (
+    <RequireAdmin>
+      <RapportagesPageContent />
+    </RequireAdmin>
   );
 }

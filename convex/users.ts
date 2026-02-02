@@ -1180,6 +1180,8 @@ export const listUsersWithDetails = query({
 
 /**
  * Link or unlink a user to a medewerker profile - Admin only
+ * When linking: sets user role to "medewerker" and updates medewerker.clerkUserId
+ * When unlinking: sets user role to "viewer" and clears medewerker.clerkUserId
  */
 export const linkUserToMedewerker = mutation({
   args: {
@@ -1195,22 +1197,50 @@ export const linkUserToMedewerker = mutation({
       throw new Error("Alleen admins kunnen gebruikers koppelen aan medewerkers");
     }
 
-    // Verify medewerker exists if provided
+    // Get the target user to access their clerkId
+    const targetUser = await ctx.db.get(args.userId);
+    if (!targetUser) {
+      throw new Error("Gebruiker niet gevonden");
+    }
+
+    // If unlinking, first clear the old medewerker's clerkUserId
+    if (targetUser.linkedMedewerkerId && targetUser.linkedMedewerkerId !== args.medewerkerId) {
+      const oldMedewerker = await ctx.db.get(targetUser.linkedMedewerkerId);
+      if (oldMedewerker) {
+        await ctx.db.patch(oldMedewerker._id, { clerkUserId: undefined });
+      }
+    }
+
     if (args.medewerkerId) {
+      // Linking: verify medewerker exists and set clerkUserId
       const medewerker = await ctx.db.get(args.medewerkerId);
       if (!medewerker) {
         throw new Error("Medewerker niet gevonden");
       }
+
+      // Update medewerker with the user's clerkId
+      await ctx.db.patch(args.medewerkerId, { clerkUserId: targetUser.clerkId });
+
+      // Update user: link to medewerker and set role to "medewerker"
+      await ctx.db.patch(args.userId, {
+        linkedMedewerkerId: args.medewerkerId,
+        role: "medewerker",
+      });
+    } else {
+      // Unlinking: set role to "viewer" and clear linkedMedewerkerId
+      await ctx.db.patch(args.userId, {
+        linkedMedewerkerId: undefined,
+        role: "viewer",
+      });
     }
 
-    await ctx.db.patch(args.userId, { linkedMedewerkerId: args.medewerkerId });
     return { success: true };
   },
 });
 
 /**
  * Get available medewerkers for linking - Admin only
- * Returns all medewerkers (active ones) that can be linked to users
+ * Returns all active medewerkers that don't have a linked user yet (no clerkUserId set)
  */
 export const getAvailableMedewerkersForLinking = query({
   args: {},
@@ -1226,14 +1256,18 @@ export const getAvailableMedewerkersForLinking = query({
       return [];
     }
 
-    // Get all active medewerkers for this user's company
-    const medewerkers = await ctx.db
+    // Get ALL active medewerkers that don't have a linked user yet
+    const allMedewerkers = await ctx.db
       .query("medewerkers")
-      .withIndex("by_user", (q) => q.eq("userId", currentUser._id))
       .filter((q) => q.eq(q.field("isActief"), true))
       .collect();
 
-    return medewerkers.map((m) => ({
+    // Filter out medewerkers that already have a clerkUserId set (already linked to a user)
+    const availableMedewerkers = allMedewerkers.filter(
+      (m) => !m.clerkUserId
+    );
+
+    return availableMedewerkers.map((m) => ({
       _id: m._id,
       naam: m.naam,
       email: m.email ?? null,
