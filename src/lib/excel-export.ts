@@ -1,4 +1,4 @@
-// XLSX is imported dynamically to reduce initial bundle size (~400KB)
+// ExcelJS is imported dynamically to reduce initial bundle size
 // This module is only loaded when user clicks export
 
 import {
@@ -90,67 +90,88 @@ function formatPercentageExcel(value: number): string {
   return formatPercentage(value, 1);
 }
 
-export async function exportToExcel(data: ExportRow[], filename: string = "offertes-export") {
-  // Dynamic import of xlsx
-  const XLSX = await import("xlsx");
+// Helper to trigger file download from buffer
+function downloadExcelFile(buffer: ArrayBuffer, filename: string) {
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(link.href);
+}
 
-  // Transform data for Dutch Excel format
-  const excelData = data.map((row) => ({
-    "Offerte Nr.": row.offerteNummer,
-    "Type": typeLabels[row.type] ?? row.type,
-    "Status": statusLabels[row.status] ?? row.status,
-    "Klant": row.klantNaam,
-    "Adres": row.klantAdres,
-    "Postcode": row.klantPostcode,
-    "Plaats": row.klantPlaats,
-    "E-mail": row.klantEmail,
-    "Telefoon": row.klantTelefoon,
-    "Materiaalkosten": formatCurrencyExcel(row.materiaalkosten),
-    "Arbeidskosten": formatCurrencyExcel(row.arbeidskosten),
-    "Totaal Uren": row.totaalUren,
-    "Subtotaal": formatCurrencyExcel(row.subtotaal),
-    "Marge": formatCurrencyExcel(row.marge),
-    "Marge %": row.margePercentage,
-    "Totaal ex. BTW": formatCurrencyExcel(row.totaalExBtw),
-    "BTW": formatCurrencyExcel(row.btw),
-    "Totaal incl. BTW": formatCurrencyExcel(row.totaalInclBtw),
-    "Aangemaakt": formatDateExcel(row.aangemaakt),
-    "Bijgewerkt": formatDateExcel(row.bijgewerkt),
-    "Verzonden": formatDateExcel(row.verzonden),
-  }));
+export async function exportToExcel(data: ExportRow[], filename: string = "offertes-export") {
+  // Dynamic import of exceljs
+  const ExcelJS = await import("exceljs");
 
   // Create workbook and worksheet
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.json_to_sheet(excelData);
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("Offertes");
 
-  // Set column widths
-  const colWidths = [
-    { wch: 14 }, // Offerte Nr.
-    { wch: 12 }, // Type
-    { wch: 12 }, // Status
-    { wch: 25 }, // Klant
-    { wch: 30 }, // Adres
-    { wch: 10 }, // Postcode
-    { wch: 15 }, // Plaats
-    { wch: 25 }, // E-mail
-    { wch: 15 }, // Telefoon
-    { wch: 14 }, // Materiaalkosten
-    { wch: 14 }, // Arbeidskosten
-    { wch: 12 }, // Totaal Uren
-    { wch: 12 }, // Subtotaal
-    { wch: 12 }, // Marge
-    { wch: 10 }, // Marge %
-    { wch: 14 }, // Totaal ex. BTW
-    { wch: 12 }, // BTW
-    { wch: 14 }, // Totaal incl. BTW
-    { wch: 12 }, // Aangemaakt
-    { wch: 12 }, // Bijgewerkt
-    { wch: 12 }, // Verzonden
+  // Define columns with headers and widths
+  worksheet.columns = [
+    { header: "Offerte Nr.", key: "offerteNummer", width: 14 },
+    { header: "Type", key: "type", width: 12 },
+    { header: "Status", key: "status", width: 12 },
+    { header: "Klant", key: "klant", width: 25 },
+    { header: "Adres", key: "adres", width: 30 },
+    { header: "Postcode", key: "postcode", width: 10 },
+    { header: "Plaats", key: "plaats", width: 15 },
+    { header: "E-mail", key: "email", width: 25 },
+    { header: "Telefoon", key: "telefoon", width: 15 },
+    { header: "Materiaalkosten", key: "materiaalkosten", width: 14 },
+    { header: "Arbeidskosten", key: "arbeidskosten", width: 14 },
+    { header: "Totaal Uren", key: "totaalUren", width: 12 },
+    { header: "Subtotaal", key: "subtotaal", width: 12 },
+    { header: "Marge", key: "marge", width: 12 },
+    { header: "Marge %", key: "margePercentage", width: 10 },
+    { header: "Totaal ex. BTW", key: "totaalExBtw", width: 14 },
+    { header: "BTW", key: "btw", width: 12 },
+    { header: "Totaal incl. BTW", key: "totaalInclBtw", width: 14 },
+    { header: "Aangemaakt", key: "aangemaakt", width: 12 },
+    { header: "Bijgewerkt", key: "bijgewerkt", width: 12 },
+    { header: "Verzonden", key: "verzonden", width: 12 },
   ];
-  ws["!cols"] = colWidths;
 
-  // Add worksheet to workbook
-  XLSX.utils.book_append_sheet(wb, ws, "Offertes");
+  // Style header row
+  const headerRow = worksheet.getRow(1);
+  headerRow.font = { bold: true };
+  headerRow.fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FFE0E0E0" },
+  };
+
+  // Add data rows
+  data.forEach((row) => {
+    worksheet.addRow({
+      offerteNummer: row.offerteNummer,
+      type: typeLabels[row.type] ?? row.type,
+      status: statusLabels[row.status] ?? row.status,
+      klant: row.klantNaam,
+      adres: row.klantAdres,
+      postcode: row.klantPostcode,
+      plaats: row.klantPlaats,
+      email: row.klantEmail,
+      telefoon: row.klantTelefoon,
+      materiaalkosten: formatCurrencyExcel(row.materiaalkosten),
+      arbeidskosten: formatCurrencyExcel(row.arbeidskosten),
+      totaalUren: row.totaalUren,
+      subtotaal: formatCurrencyExcel(row.subtotaal),
+      marge: formatCurrencyExcel(row.marge),
+      margePercentage: row.margePercentage,
+      totaalExBtw: formatCurrencyExcel(row.totaalExBtw),
+      btw: formatCurrencyExcel(row.btw),
+      totaalInclBtw: formatCurrencyExcel(row.totaalInclBtw),
+      aangemaakt: formatDateExcel(row.aangemaakt),
+      bijgewerkt: formatDateExcel(row.bijgewerkt),
+      verzonden: formatDateExcel(row.verzonden),
+    });
+  });
 
   // Generate filename with date
   const dateStr = new Intl.DateTimeFormat("nl-NL", {
@@ -161,8 +182,9 @@ export async function exportToExcel(data: ExportRow[], filename: string = "offer
 
   const fullFilename = `${filename}-${dateStr}.xlsx`;
 
-  // Download file
-  XLSX.writeFile(wb, fullFilename);
+  // Generate buffer and download
+  const buffer = await workbook.xlsx.writeBuffer();
+  downloadExcelFile(buffer as ArrayBuffer, fullFilename);
 }
 
 // Export KPI summary - Extended types
@@ -219,154 +241,219 @@ export async function exportAnalyticsReport(
   filename: string = "rapportage",
   maandelijkseTrend?: MaandelijkeTrend[]
 ) {
-  // Dynamic import of xlsx
-  const XLSX = await import("xlsx");
+  // Dynamic import of exceljs
+  const ExcelJS = await import("exceljs");
 
-  const wb = XLSX.utils.book_new();
+  const workbook = new ExcelJS.Workbook();
+
+  // Helper to style header row
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const styleHeaderRow = (worksheet: any) => {
+    const headerRow = worksheet.getRow(1);
+    headerRow.font = { bold: true };
+    headerRow.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFE0E0E0" },
+    };
+  };
 
   // ============================================
   // Sheet 1: Samenvatting (KPIs)
   // ============================================
-  const kpiData = [
-    { "Categorie": "OFFERTE PRESTATIES", "KPI": "", "Waarde": "", "Toelichting": "" },
-    { "Categorie": "", "KPI": "Totaal Offertes", "Waarde": kpis.totaalOffertes, "Toelichting": "Aantal offertes in geselecteerde periode" },
-    { "Categorie": "", "KPI": "Geaccepteerd", "Waarde": kpis.geaccepteerdCount ?? "-", "Toelichting": "Aantal geaccepteerde offertes" },
-    { "Categorie": "", "KPI": "Afgewezen", "Waarde": kpis.afgewezenCount ?? "-", "Toelichting": "Aantal afgewezen offertes" },
-    { "Categorie": "", "KPI": "Win Rate", "Waarde": formatPercentageExcel(kpis.winRate), "Toelichting": "Percentage geaccepteerde offertes" },
-    { "Categorie": "", "KPI": "", "Waarde": "", "Toelichting": "" },
-    { "Categorie": "FINANCIEEL", "KPI": "", "Waarde": "", "Toelichting": "" },
-    { "Categorie": "", "KPI": "Totale Omzet", "Waarde": formatCurrencyExcel(kpis.totaleOmzet), "Toelichting": "Som van geaccepteerde offertes (incl. BTW)" },
-    { "Categorie": "", "KPI": "Gemiddelde Offerte Waarde", "Waarde": formatCurrencyExcel(kpis.gemiddeldeWaarde), "Toelichting": "Gemiddelde waarde per offerte" },
-    { "Categorie": "", "KPI": "", "Waarde": "", "Toelichting": "" },
-    { "Categorie": "KLANT INZICHTEN", "KPI": "", "Waarde": "", "Toelichting": "" },
-    { "Categorie": "", "KPI": "Totaal Klanten", "Waarde": kpis.totalCustomers ?? "-", "Toelichting": "Unieke klanten" },
-    { "Categorie": "", "KPI": "Terugkerende Klanten", "Waarde": kpis.repeatCustomerCount ?? "-", "Toelichting": "Klanten met 2+ geaccepteerde offertes" },
-    { "Categorie": "", "KPI": "Terugkerende Klanten %", "Waarde": kpis.repeatCustomerPercentage ? formatPercentageExcel(kpis.repeatCustomerPercentage) : "-", "Toelichting": "Percentage terugkerende klanten" },
-    { "Categorie": "", "KPI": "", "Waarde": "", "Toelichting": "" },
-    { "Categorie": "DOORLOOPTIJDEN", "KPI": "", "Waarde": "", "Toelichting": "" },
-    { "Categorie": "", "KPI": "Gem. Doorlooptijd", "Waarde": kpis.avgCycleTime ? `${kpis.avgCycleTime} dagen` : "-", "Toelichting": "Gemiddelde tijd van aanmaak tot acceptatie" },
-    { "Categorie": "", "KPI": "Gem. Reactietijd", "Waarde": kpis.avgResponseTime ? `${kpis.avgResponseTime} dagen` : "-", "Toelichting": "Gemiddelde tijd van verzending tot reactie klant" },
+  const wsKpi = workbook.addWorksheet("Samenvatting");
+  wsKpi.columns = [
+    { header: "Categorie", key: "categorie", width: 20 },
+    { header: "KPI", key: "kpi", width: 28 },
+    { header: "Waarde", key: "waarde", width: 18 },
+    { header: "Toelichting", key: "toelichting", width: 45 },
   ];
+  styleHeaderRow(wsKpi);
 
-  const wsKpi = XLSX.utils.json_to_sheet(kpiData);
-  wsKpi["!cols"] = [{ wch: 20 }, { wch: 28 }, { wch: 18 }, { wch: 45 }];
-  XLSX.utils.book_append_sheet(wb, wsKpi, "Samenvatting");
+  const kpiRows = [
+    { categorie: "OFFERTE PRESTATIES", kpi: "", waarde: "", toelichting: "" },
+    { categorie: "", kpi: "Totaal Offertes", waarde: kpis.totaalOffertes, toelichting: "Aantal offertes in geselecteerde periode" },
+    { categorie: "", kpi: "Geaccepteerd", waarde: kpis.geaccepteerdCount ?? "-", toelichting: "Aantal geaccepteerde offertes" },
+    { categorie: "", kpi: "Afgewezen", waarde: kpis.afgewezenCount ?? "-", toelichting: "Aantal afgewezen offertes" },
+    { categorie: "", kpi: "Win Rate", waarde: formatPercentageExcel(kpis.winRate), toelichting: "Percentage geaccepteerde offertes" },
+    { categorie: "", kpi: "", waarde: "", toelichting: "" },
+    { categorie: "FINANCIEEL", kpi: "", waarde: "", toelichting: "" },
+    { categorie: "", kpi: "Totale Omzet", waarde: formatCurrencyExcel(kpis.totaleOmzet), toelichting: "Som van geaccepteerde offertes (incl. BTW)" },
+    { categorie: "", kpi: "Gemiddelde Offerte Waarde", waarde: formatCurrencyExcel(kpis.gemiddeldeWaarde), toelichting: "Gemiddelde waarde per offerte" },
+    { categorie: "", kpi: "", waarde: "", toelichting: "" },
+    { categorie: "KLANT INZICHTEN", kpi: "", waarde: "", toelichting: "" },
+    { categorie: "", kpi: "Totaal Klanten", waarde: kpis.totalCustomers ?? "-", toelichting: "Unieke klanten" },
+    { categorie: "", kpi: "Terugkerende Klanten", waarde: kpis.repeatCustomerCount ?? "-", toelichting: "Klanten met 2+ geaccepteerde offertes" },
+    { categorie: "", kpi: "Terugkerende Klanten %", waarde: kpis.repeatCustomerPercentage ? formatPercentageExcel(kpis.repeatCustomerPercentage) : "-", toelichting: "Percentage terugkerende klanten" },
+    { categorie: "", kpi: "", waarde: "", toelichting: "" },
+    { categorie: "DOORLOOPTIJDEN", kpi: "", waarde: "", toelichting: "" },
+    { categorie: "", kpi: "Gem. Doorlooptijd", waarde: kpis.avgCycleTime ? `${kpis.avgCycleTime} dagen` : "-", toelichting: "Gemiddelde tijd van aanmaak tot acceptatie" },
+    { categorie: "", kpi: "Gem. Reactietijd", waarde: kpis.avgResponseTime ? `${kpis.avgResponseTime} dagen` : "-", toelichting: "Gemiddelde tijd van verzending tot reactie klant" },
+  ];
+  kpiRows.forEach((row) => wsKpi.addRow(row));
 
   // ============================================
   // Sheet 2: Offertes Detail
   // ============================================
-  const offerteData = offertes.map((row) => ({
-    "Offerte Nr.": row.offerteNummer,
-    "Type": typeLabels[row.type] ?? row.type,
-    "Status": statusLabels[row.status] ?? row.status,
-    "Klant": row.klantNaam,
-    "Adres": row.klantAdres,
-    "Postcode": row.klantPostcode,
-    "Plaats": row.klantPlaats,
-    "E-mail": row.klantEmail,
-    "Telefoon": row.klantTelefoon,
-    "Materiaalkosten": formatCurrencyExcel(row.materiaalkosten),
-    "Arbeidskosten": formatCurrencyExcel(row.arbeidskosten),
-    "Totaal Uren": row.totaalUren,
-    "Subtotaal": formatCurrencyExcel(row.subtotaal),
-    "Marge": formatCurrencyExcel(row.marge),
-    "Marge %": row.margePercentage,
-    "Totaal ex. BTW": formatCurrencyExcel(row.totaalExBtw),
-    "BTW": formatCurrencyExcel(row.btw),
-    "Totaal incl. BTW": formatCurrencyExcel(row.totaalInclBtw),
-    "Aangemaakt": formatDateExcel(row.aangemaakt),
-    "Bijgewerkt": formatDateExcel(row.bijgewerkt),
-    "Verzonden": formatDateExcel(row.verzonden),
-  }));
-
-  const wsOffertes = XLSX.utils.json_to_sheet(offerteData);
-  wsOffertes["!cols"] = [
-    { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 25 }, { wch: 30 },
-    { wch: 10 }, { wch: 15 }, { wch: 25 }, { wch: 15 }, { wch: 14 },
-    { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 10 },
-    { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 12 },
-    { wch: 12 },
+  const wsOffertes = workbook.addWorksheet("Offertes Detail");
+  wsOffertes.columns = [
+    { header: "Offerte Nr.", key: "offerteNummer", width: 14 },
+    { header: "Type", key: "type", width: 12 },
+    { header: "Status", key: "status", width: 12 },
+    { header: "Klant", key: "klant", width: 25 },
+    { header: "Adres", key: "adres", width: 30 },
+    { header: "Postcode", key: "postcode", width: 10 },
+    { header: "Plaats", key: "plaats", width: 15 },
+    { header: "E-mail", key: "email", width: 25 },
+    { header: "Telefoon", key: "telefoon", width: 15 },
+    { header: "Materiaalkosten", key: "materiaalkosten", width: 14 },
+    { header: "Arbeidskosten", key: "arbeidskosten", width: 14 },
+    { header: "Totaal Uren", key: "totaalUren", width: 12 },
+    { header: "Subtotaal", key: "subtotaal", width: 12 },
+    { header: "Marge", key: "marge", width: 12 },
+    { header: "Marge %", key: "margePercentage", width: 10 },
+    { header: "Totaal ex. BTW", key: "totaalExBtw", width: 14 },
+    { header: "BTW", key: "btw", width: 12 },
+    { header: "Totaal incl. BTW", key: "totaalInclBtw", width: 14 },
+    { header: "Aangemaakt", key: "aangemaakt", width: 12 },
+    { header: "Bijgewerkt", key: "bijgewerkt", width: 12 },
+    { header: "Verzonden", key: "verzonden", width: 12 },
   ];
-  XLSX.utils.book_append_sheet(wb, wsOffertes, "Offertes Detail");
+  styleHeaderRow(wsOffertes);
+
+  offertes.forEach((row) => {
+    wsOffertes.addRow({
+      offerteNummer: row.offerteNummer,
+      type: typeLabels[row.type] ?? row.type,
+      status: statusLabels[row.status] ?? row.status,
+      klant: row.klantNaam,
+      adres: row.klantAdres,
+      postcode: row.klantPostcode,
+      plaats: row.klantPlaats,
+      email: row.klantEmail,
+      telefoon: row.klantTelefoon,
+      materiaalkosten: formatCurrencyExcel(row.materiaalkosten),
+      arbeidskosten: formatCurrencyExcel(row.arbeidskosten),
+      totaalUren: row.totaalUren,
+      subtotaal: formatCurrencyExcel(row.subtotaal),
+      marge: formatCurrencyExcel(row.marge),
+      margePercentage: row.margePercentage,
+      totaalExBtw: formatCurrencyExcel(row.totaalExBtw),
+      btw: formatCurrencyExcel(row.btw),
+      totaalInclBtw: formatCurrencyExcel(row.totaalInclBtw),
+      aangemaakt: formatDateExcel(row.aangemaakt),
+      bijgewerkt: formatDateExcel(row.bijgewerkt),
+      verzonden: formatDateExcel(row.verzonden),
+    });
+  });
 
   // ============================================
   // Sheet 3: Per Scope Analyse
   // ============================================
+  const wsScope = workbook.addWorksheet("Per Scope Analyse");
+  wsScope.columns = [
+    { header: "Scope", key: "scope", width: 18 },
+    { header: "Aantal Offertes", key: "aantalOffertes", width: 15 },
+    { header: "Totaal Kosten", key: "totaalKosten", width: 15 },
+    { header: "Totaal Marge", key: "totaalMarge", width: 14 },
+    { header: "Marge %", key: "margePercentage", width: 10 },
+    { header: "Totaal Omzet", key: "totaalOmzet", width: 14 },
+    { header: "Aandeel Omzet", key: "aandeelOmzet", width: 14 },
+    { header: "Gem. per Offerte", key: "gemPerOfferte", width: 16 },
+  ];
+  styleHeaderRow(wsScope);
+
   const totalScopeOmzet = scopeMarges.reduce((sum, s) => sum + (s.omzet ?? s.totaal + s.marge), 0);
 
-  const scopeData = scopeMarges.map((s) => {
+  scopeMarges.forEach((s) => {
     const omzet = s.omzet ?? (s.totaal + s.marge);
     const aandeel = totalScopeOmzet > 0 ? (omzet / totalScopeOmzet) * 100 : 0;
 
-    return {
-      "Scope": scopeLabels[s.scope] ?? s.scope,
-      "Aantal Offertes": s.count,
-      "Totaal Kosten": formatCurrencyExcel(s.totaal),
-      "Totaal Marge": formatCurrencyExcel(s.marge),
-      "Marge %": formatPercentageExcel(s.margePercentage),
-      "Totaal Omzet": formatCurrencyExcel(omzet),
-      "Aandeel Omzet": formatPercentageExcel(aandeel),
-      "Gem. per Offerte": formatCurrencyExcel(s.gemiddeldPerOfferte ?? (omzet / (s.count || 1))),
-    };
+    wsScope.addRow({
+      scope: scopeLabels[s.scope] ?? s.scope,
+      aantalOffertes: s.count,
+      totaalKosten: formatCurrencyExcel(s.totaal),
+      totaalMarge: formatCurrencyExcel(s.marge),
+      margePercentage: formatPercentageExcel(s.margePercentage),
+      totaalOmzet: formatCurrencyExcel(omzet),
+      aandeelOmzet: formatPercentageExcel(aandeel),
+      gemPerOfferte: formatCurrencyExcel(s.gemiddeldPerOfferte ?? (omzet / (s.count || 1))),
+    });
   });
 
   // Add totals row
-  const scopeTotals = {
-    "Scope": "TOTAAL",
-    "Aantal Offertes": scopeMarges.reduce((sum, s) => sum + s.count, 0),
-    "Totaal Kosten": formatCurrencyExcel(scopeMarges.reduce((sum, s) => sum + s.totaal, 0)),
-    "Totaal Marge": formatCurrencyExcel(scopeMarges.reduce((sum, s) => sum + s.marge, 0)),
-    "Marge %": formatPercentageExcel(
+  const totalsRow = wsScope.addRow({
+    scope: "TOTAAL",
+    aantalOffertes: scopeMarges.reduce((sum, s) => sum + s.count, 0),
+    totaalKosten: formatCurrencyExcel(scopeMarges.reduce((sum, s) => sum + s.totaal, 0)),
+    totaalMarge: formatCurrencyExcel(scopeMarges.reduce((sum, s) => sum + s.marge, 0)),
+    margePercentage: formatPercentageExcel(
       scopeMarges.reduce((sum, s) => sum + s.totaal, 0) > 0
         ? (scopeMarges.reduce((sum, s) => sum + s.marge, 0) / scopeMarges.reduce((sum, s) => sum + s.totaal, 0)) * 100
         : 0
     ),
-    "Totaal Omzet": formatCurrencyExcel(totalScopeOmzet),
-    "Aandeel Omzet": "100%",
-    "Gem. per Offerte": "-",
-  };
-
-  const wsScope = XLSX.utils.json_to_sheet([...scopeData, scopeTotals]);
-  wsScope["!cols"] = [
-    { wch: 18 }, { wch: 15 }, { wch: 15 }, { wch: 14 },
-    { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 16 },
-  ];
-  XLSX.utils.book_append_sheet(wb, wsScope, "Per Scope Analyse");
+    totaalOmzet: formatCurrencyExcel(totalScopeOmzet),
+    aandeelOmzet: "100%",
+    gemPerOfferte: "-",
+  });
+  totalsRow.font = { bold: true };
 
   // ============================================
   // Sheet 4: Per Klant
   // ============================================
-  const klantenData = topKlanten.map((k, index) => ({
-    "#": index + 1,
-    "Klant": k.klantNaam,
-    "Totaal Omzet": formatCurrencyExcel(k.totaalOmzet),
-    "Aantal Offertes": k.aantalOffertes,
-    "Geaccepteerd": k.aantalGeaccepteerd ?? "-",
-    "Gem. Waarde": formatCurrencyExcel(k.gemiddeldeWaarde),
-    "Terugkerend": k.isRepeatCustomer ? "Ja" : "Nee",
-    "Aandeel": kpis.totaleOmzet > 0 ? formatPercentageExcel((k.totaalOmzet / kpis.totaleOmzet) * 100) : "-",
-  }));
-
-  const wsKlanten = XLSX.utils.json_to_sheet(klantenData);
-  wsKlanten["!cols"] = [
-    { wch: 5 }, { wch: 30 }, { wch: 15 }, { wch: 15 },
-    { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 10 },
+  const wsKlanten = workbook.addWorksheet("Per Klant");
+  wsKlanten.columns = [
+    { header: "#", key: "nummer", width: 5 },
+    { header: "Klant", key: "klant", width: 30 },
+    { header: "Totaal Omzet", key: "totaalOmzet", width: 15 },
+    { header: "Aantal Offertes", key: "aantalOffertes", width: 15 },
+    { header: "Geaccepteerd", key: "geaccepteerd", width: 12 },
+    { header: "Gem. Waarde", key: "gemWaarde", width: 15 },
+    { header: "Terugkerend", key: "terugkerend", width: 12 },
+    { header: "Aandeel", key: "aandeel", width: 10 },
   ];
-  XLSX.utils.book_append_sheet(wb, wsKlanten, "Per Klant");
+  styleHeaderRow(wsKlanten);
+
+  topKlanten.forEach((k, index) => {
+    wsKlanten.addRow({
+      nummer: index + 1,
+      klant: k.klantNaam,
+      totaalOmzet: formatCurrencyExcel(k.totaalOmzet),
+      aantalOffertes: k.aantalOffertes,
+      geaccepteerd: k.aantalGeaccepteerd ?? "-",
+      gemWaarde: formatCurrencyExcel(k.gemiddeldeWaarde),
+      terugkerend: k.isRepeatCustomer ? "Ja" : "Nee",
+      aandeel: kpis.totaleOmzet > 0 ? formatPercentageExcel((k.totaalOmzet / kpis.totaleOmzet) * 100) : "-",
+    });
+  });
 
   // ============================================
   // Sheet 5: Maandelijkse Trends
   // ============================================
   if (maandelijkseTrend && maandelijkseTrend.length > 0) {
-    const trendData = maandelijkseTrend.map((m) => ({
-      "Maand": m.maand,
-      "Aanleg": m.aanleg,
-      "Onderhoud": m.onderhoud,
-      "Totaal Offertes": m.totaal,
-      "Omzet": formatCurrencyExcel(m.omzet),
-      "Voortschrijdend Gem. (Offertes)": m.movingAvgTotal ?? "-",
-      "Voortschrijdend Gem. (Omzet)": m.movingAvgOmzet ? formatCurrencyExcel(m.movingAvgOmzet) : "-",
-    }));
+    const wsTrend = workbook.addWorksheet("Maandelijkse Trends");
+    wsTrend.columns = [
+      { header: "Maand", key: "maand", width: 15 },
+      { header: "Aanleg", key: "aanleg", width: 10 },
+      { header: "Onderhoud", key: "onderhoud", width: 12 },
+      { header: "Totaal Offertes", key: "totaalOffertes", width: 15 },
+      { header: "Omzet", key: "omzet", width: 14 },
+      { header: "Voortschrijdend Gem. (Offertes)", key: "movingAvgOffertes", width: 25 },
+      { header: "Voortschrijdend Gem. (Omzet)", key: "movingAvgOmzet", width: 25 },
+    ];
+    styleHeaderRow(wsTrend);
+
+    maandelijkseTrend.forEach((m) => {
+      wsTrend.addRow({
+        maand: m.maand,
+        aanleg: m.aanleg,
+        onderhoud: m.onderhoud,
+        totaalOffertes: m.totaal,
+        omzet: formatCurrencyExcel(m.omzet),
+        movingAvgOffertes: m.movingAvgTotal ?? "-",
+        movingAvgOmzet: m.movingAvgOmzet ? formatCurrencyExcel(m.movingAvgOmzet) : "-",
+      });
+    });
 
     // Calculate monthly averages
     const avgOffertes = maandelijkseTrend.length > 0
@@ -377,22 +464,16 @@ export async function exportAnalyticsReport(
       : 0;
 
     // Add summary row
-    const trendSummary = {
-      "Maand": "GEMIDDELDE",
-      "Aanleg": Math.round(maandelijkseTrend.reduce((sum, m) => sum + m.aanleg, 0) / maandelijkseTrend.length * 10) / 10,
-      "Onderhoud": Math.round(maandelijkseTrend.reduce((sum, m) => sum + m.onderhoud, 0) / maandelijkseTrend.length * 10) / 10,
-      "Totaal Offertes": Math.round(avgOffertes * 10) / 10,
-      "Omzet": formatCurrencyExcel(avgOmzet),
-      "Voortschrijdend Gem. (Offertes)": "-",
-      "Voortschrijdend Gem. (Omzet)": "-",
-    };
-
-    const wsTrend = XLSX.utils.json_to_sheet([...trendData, trendSummary]);
-    wsTrend["!cols"] = [
-      { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 15 },
-      { wch: 14 }, { wch: 25 }, { wch: 25 },
-    ];
-    XLSX.utils.book_append_sheet(wb, wsTrend, "Maandelijkse Trends");
+    const summaryRow = wsTrend.addRow({
+      maand: "GEMIDDELDE",
+      aanleg: Math.round(maandelijkseTrend.reduce((sum, m) => sum + m.aanleg, 0) / maandelijkseTrend.length * 10) / 10,
+      onderhoud: Math.round(maandelijkseTrend.reduce((sum, m) => sum + m.onderhoud, 0) / maandelijkseTrend.length * 10) / 10,
+      totaalOffertes: Math.round(avgOffertes * 10) / 10,
+      omzet: formatCurrencyExcel(avgOmzet),
+      movingAvgOffertes: "-",
+      movingAvgOmzet: "-",
+    });
+    summaryRow.font = { bold: true };
   } else {
     // Generate monthly trends from offertes if not provided
     const monthlyAggregation: Record<string, { maand: string; aanleg: number; onderhoud: number; totaal: number; omzet: number }> = {};
@@ -428,19 +509,25 @@ export async function exportAnalyticsReport(
       .map(([, data]) => data);
 
     if (sortedMonths.length > 0) {
-      const trendData = sortedMonths.map((m) => ({
-        "Maand": m.maand,
-        "Aanleg": m.aanleg,
-        "Onderhoud": m.onderhoud,
-        "Totaal Offertes": m.totaal,
-        "Omzet": formatCurrencyExcel(m.omzet),
-      }));
-
-      const wsTrend = XLSX.utils.json_to_sheet(trendData);
-      wsTrend["!cols"] = [
-        { wch: 15 }, { wch: 10 }, { wch: 12 }, { wch: 15 }, { wch: 14 },
+      const wsTrend = workbook.addWorksheet("Maandelijkse Trends");
+      wsTrend.columns = [
+        { header: "Maand", key: "maand", width: 15 },
+        { header: "Aanleg", key: "aanleg", width: 10 },
+        { header: "Onderhoud", key: "onderhoud", width: 12 },
+        { header: "Totaal Offertes", key: "totaalOffertes", width: 15 },
+        { header: "Omzet", key: "omzet", width: 14 },
       ];
-      XLSX.utils.book_append_sheet(wb, wsTrend, "Maandelijkse Trends");
+      styleHeaderRow(wsTrend);
+
+      sortedMonths.forEach((m) => {
+        wsTrend.addRow({
+          maand: m.maand,
+          aanleg: m.aanleg,
+          onderhoud: m.onderhoud,
+          totaalOffertes: m.totaal,
+          omzet: formatCurrencyExcel(m.omzet),
+        });
+      });
     }
   }
 
@@ -453,8 +540,9 @@ export async function exportAnalyticsReport(
 
   const fullFilename = `${filename}-${dateStr}.xlsx`;
 
-  // Download file
-  XLSX.writeFile(wb, fullFilename);
+  // Generate buffer and download
+  const buffer = await workbook.xlsx.writeBuffer();
+  downloadExcelFile(buffer as ArrayBuffer, fullFilename);
 }
 
 // Simple export for backwards compatibility

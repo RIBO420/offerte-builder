@@ -263,11 +263,11 @@ const statusLabels: Record<string, string> = {
 };
 
 const statusColors: Record<string, string> = {
-  concept: "bg-gray-100 text-gray-800",
-  voorcalculatie: "bg-blue-100 text-blue-800",
-  verzonden: "bg-purple-100 text-purple-800",
-  geaccepteerd: "bg-green-100 text-green-800",
-  afgewezen: "bg-red-100 text-red-800",
+  concept: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100",
+  voorcalculatie: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
+  verzonden: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100",
+  geaccepteerd: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
+  afgewezen: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
 };
 
 export default function PublicOffertePage({
@@ -503,11 +503,11 @@ export default function PublicOffertePage({
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className={`flex h-12 w-12 items-center justify-center rounded-lg ${offerte.type === "aanleg" ? "bg-primary/10" : "bg-green-100"}`}>
+                  <div className={`flex h-12 w-12 items-center justify-center rounded-lg ${offerte.type === "aanleg" ? "bg-primary/10" : "bg-green-100 dark:bg-green-900/30"}`}>
                     {offerte.type === "aanleg" ? (
                       <Shovel className="h-6 w-6 text-primary" />
                     ) : (
-                      <Trees className="h-6 w-6 text-green-600" />
+                      <Trees className="h-6 w-6 text-green-600 dark:text-green-400" />
                     )}
                   </div>
                   <div>
@@ -778,7 +778,7 @@ export default function PublicOffertePage({
                   <Button
                     variant="outline"
                     onClick={() => setShowRejectDialog(true)}
-                    className="border-red-300 text-red-600 hover:bg-red-50"
+                    className="border-red-300 text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950/50"
                   >
                     <XCircle className="mr-2 h-4 w-4" />
                     Afwijzen

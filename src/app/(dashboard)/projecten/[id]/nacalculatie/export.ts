@@ -1,7 +1,7 @@
 /**
  * Nacalculatie Excel Export
  *
- * Exports nacalculatie data to Excel format.
+ * Exports nacalculatie data to Excel format using ExcelJS.
  */
 
 import type { NacalculatieResult } from "@/lib/nacalculatie-calculator";
@@ -36,144 +36,142 @@ function formatScopeName(scope: string): string {
     .join(" ");
 }
 
-export async function exportNacalculatieToExcel(data: ExportData) {
-  // Dynamic import of xlsx
-  const XLSX = await import("xlsx");
+// Helper to trigger file download from buffer
+function downloadExcelFile(buffer: ArrayBuffer, filename: string) {
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(link.href);
+}
 
-  const wb = XLSX.utils.book_new();
+export async function exportNacalculatieToExcel(data: ExportData) {
+  // Dynamic import of exceljs
+  const ExcelJS = await import("exceljs");
+
+  const workbook = new ExcelJS.Workbook();
   const { projectNaam, berekening, voorcalculatie, conclusies } = data;
 
+  // Helper to style header row
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const styleHeaderRow = (worksheet: any) => {
+    const headerRow = worksheet.getRow(1);
+    headerRow.font = { bold: true };
+    headerRow.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFE0E0E0" },
+    };
+  };
+
   // ===== Summary Sheet =====
-  const summaryData = [
-    { Omschrijving: "Project", Waarde: projectNaam },
-    { Omschrijving: "Exportdatum", Waarde: formatDate() },
-    { Omschrijving: "", Waarde: "" },
-    { Omschrijving: "SAMENVATTING", Waarde: "" },
-    { Omschrijving: "", Waarde: "" },
-    {
-      Omschrijving: "Geplande uren",
-      Waarde: berekening.geplandeUren,
-    },
-    {
-      Omschrijving: "Werkelijke uren",
-      Waarde: berekening.werkelijkeUren,
-    },
-    {
-      Omschrijving: "Afwijking uren",
-      Waarde: berekening.afwijkingUren,
-    },
-    {
-      Omschrijving: "Afwijking percentage",
-      Waarde: `${berekening.afwijkingPercentage}%`,
-    },
-    { Omschrijving: "", Waarde: "" },
-    {
-      Omschrijving: "Geplande dagen",
-      Waarde: berekening.geplandeDagen,
-    },
-    {
-      Omschrijving: "Werkelijke dagen",
-      Waarde: berekening.werkelijkeDagen,
-    },
-    {
-      Omschrijving: "Afwijking dagen",
-      Waarde: berekening.afwijkingDagen,
-    },
-    { Omschrijving: "", Waarde: "" },
-    {
-      Omschrijving: "Geplande machinekosten",
-      Waarde: berekening.geplandeMachineKosten,
-    },
-    {
-      Omschrijving: "Werkelijke machinekosten",
-      Waarde: berekening.werkelijkeMachineKosten,
-    },
-    {
-      Omschrijving: "Afwijking machinekosten",
-      Waarde: berekening.afwijkingMachineKosten,
-    },
-    { Omschrijving: "", Waarde: "" },
-    {
-      Omschrijving: "Aantal registraties",
-      Waarde: berekening.aantalRegistraties,
-    },
-    {
-      Omschrijving: "Aantal medewerkers",
-      Waarde: berekening.aantalMedewerkers,
-    },
+  const wsSummary = workbook.addWorksheet("Samenvatting");
+  wsSummary.columns = [
+    { header: "Omschrijving", key: "omschrijving", width: 25 },
+    { header: "Waarde", key: "waarde", width: 20 },
+  ];
+  styleHeaderRow(wsSummary);
+
+  const summaryRows = [
+    { omschrijving: "Project", waarde: projectNaam },
+    { omschrijving: "Exportdatum", waarde: formatDate() },
+    { omschrijving: "", waarde: "" },
+    { omschrijving: "SAMENVATTING", waarde: "" },
+    { omschrijving: "", waarde: "" },
+    { omschrijving: "Geplande uren", waarde: berekening.geplandeUren },
+    { omschrijving: "Werkelijke uren", waarde: berekening.werkelijkeUren },
+    { omschrijving: "Afwijking uren", waarde: berekening.afwijkingUren },
+    { omschrijving: "Afwijking percentage", waarde: `${berekening.afwijkingPercentage}%` },
+    { omschrijving: "", waarde: "" },
+    { omschrijving: "Geplande dagen", waarde: berekening.geplandeDagen },
+    { omschrijving: "Werkelijke dagen", waarde: berekening.werkelijkeDagen },
+    { omschrijving: "Afwijking dagen", waarde: berekening.afwijkingDagen },
+    { omschrijving: "", waarde: "" },
+    { omschrijving: "Geplande machinekosten", waarde: berekening.geplandeMachineKosten },
+    { omschrijving: "Werkelijke machinekosten", waarde: berekening.werkelijkeMachineKosten },
+    { omschrijving: "Afwijking machinekosten", waarde: berekening.afwijkingMachineKosten },
+    { omschrijving: "", waarde: "" },
+    { omschrijving: "Aantal registraties", waarde: berekening.aantalRegistraties },
+    { omschrijving: "Aantal medewerkers", waarde: berekening.aantalMedewerkers },
   ];
 
   if (voorcalculatie) {
-    summaryData.push({ Omschrijving: "", Waarde: "" });
-    summaryData.push({
-      Omschrijving: "Team grootte",
-      Waarde: voorcalculatie.teamGrootte,
-    });
-    summaryData.push({
-      Omschrijving: "Effectieve uren per dag",
-      Waarde: voorcalculatie.effectieveUrenPerDag,
-    });
+    summaryRows.push({ omschrijving: "", waarde: "" });
+    summaryRows.push({ omschrijving: "Team grootte", waarde: voorcalculatie.teamGrootte });
+    summaryRows.push({ omschrijving: "Effectieve uren per dag", waarde: voorcalculatie.effectieveUrenPerDag });
   }
 
-  const wsSummary = XLSX.utils.json_to_sheet(summaryData);
-  wsSummary["!cols"] = [{ wch: 25 }, { wch: 20 }];
-  XLSX.utils.book_append_sheet(wb, wsSummary, "Samenvatting");
+  summaryRows.forEach((row) => wsSummary.addRow(row));
 
   // ===== Scope Details Sheet =====
-  const scopeData = berekening.afwijkingenPerScope.map((s) => ({
-    Scope: formatScopeName(s.scope),
-    "Geplande uren": s.geplandeUren,
-    "Werkelijke uren": s.werkelijkeUren,
-    "Afwijking (uren)": s.afwijkingUren,
-    "Afwijking (%)": `${s.afwijkingPercentage}%`,
-    Status:
-      s.status === "good"
-        ? "Goed"
-        : s.status === "warning"
-          ? "Aandacht"
-          : "Kritiek",
-  }));
-
-  const wsScope = XLSX.utils.json_to_sheet(scopeData);
-  wsScope["!cols"] = [
-    { wch: 20 },
-    { wch: 15 },
-    { wch: 15 },
-    { wch: 15 },
-    { wch: 12 },
-    { wch: 12 },
+  const wsScope = workbook.addWorksheet("Per Scope");
+  wsScope.columns = [
+    { header: "Scope", key: "scope", width: 20 },
+    { header: "Geplande uren", key: "geplandeUren", width: 15 },
+    { header: "Werkelijke uren", key: "werkelijkeUren", width: 15 },
+    { header: "Afwijking (uren)", key: "afwijkingUren", width: 15 },
+    { header: "Afwijking (%)", key: "afwijkingPercentage", width: 12 },
+    { header: "Status", key: "status", width: 12 },
   ];
-  XLSX.utils.book_append_sheet(wb, wsScope, "Per Scope");
+  styleHeaderRow(wsScope);
+
+  berekening.afwijkingenPerScope.forEach((s) => {
+    wsScope.addRow({
+      scope: formatScopeName(s.scope),
+      geplandeUren: s.geplandeUren,
+      werkelijkeUren: s.werkelijkeUren,
+      afwijkingUren: s.afwijkingUren,
+      afwijkingPercentage: `${s.afwijkingPercentage}%`,
+      status:
+        s.status === "good"
+          ? "Goed"
+          : s.status === "warning"
+            ? "Aandacht"
+            : "Kritiek",
+    });
+  });
 
   // ===== Insights Sheet =====
   if (berekening.insights.length > 0) {
-    const insightsData = berekening.insights.map((insight) => ({
-      Type:
-        insight.type === "success"
-          ? "Succes"
-          : insight.type === "warning"
-            ? "Waarschuwing"
-            : insight.type === "critical"
-              ? "Kritiek"
-              : "Info",
-      Titel: insight.title,
-      Beschrijving: insight.description,
-      Scope: insight.scope ? formatScopeName(insight.scope) : "-",
-    }));
+    const wsInsights = workbook.addWorksheet("Inzichten");
+    wsInsights.columns = [
+      { header: "Type", key: "type", width: 15 },
+      { header: "Titel", key: "titel", width: 25 },
+      { header: "Beschrijving", key: "beschrijving", width: 50 },
+      { header: "Scope", key: "scope", width: 15 },
+    ];
+    styleHeaderRow(wsInsights);
 
-    const wsInsights = XLSX.utils.json_to_sheet(insightsData);
-    wsInsights["!cols"] = [{ wch: 15 }, { wch: 25 }, { wch: 50 }, { wch: 15 }];
-    XLSX.utils.book_append_sheet(wb, wsInsights, "Inzichten");
+    berekening.insights.forEach((insight) => {
+      wsInsights.addRow({
+        type:
+          insight.type === "success"
+            ? "Succes"
+            : insight.type === "warning"
+              ? "Waarschuwing"
+              : insight.type === "critical"
+                ? "Kritiek"
+                : "Info",
+        titel: insight.title,
+        beschrijving: insight.description,
+        scope: insight.scope ? formatScopeName(insight.scope) : "-",
+      });
+    });
   }
 
   // ===== Conclusions Sheet =====
   if (conclusies) {
-    const conclusiesData = [
-      { Conclusies: conclusies },
+    const wsConclusies = workbook.addWorksheet("Conclusies");
+    wsConclusies.columns = [
+      { header: "Conclusies", key: "conclusies", width: 80 },
     ];
-    const wsConclusies = XLSX.utils.json_to_sheet(conclusiesData);
-    wsConclusies["!cols"] = [{ wch: 80 }];
-    XLSX.utils.book_append_sheet(wb, wsConclusies, "Conclusies");
+    styleHeaderRow(wsConclusies);
+    wsConclusies.addRow({ conclusies: conclusies });
   }
 
   // Generate filename
@@ -181,6 +179,7 @@ export async function exportNacalculatieToExcel(data: ExportData) {
   const safeProjectName = projectNaam.replace(/[^a-zA-Z0-9]/g, "_");
   const filename = `nacalculatie_${safeProjectName}_${dateStr}.xlsx`;
 
-  // Download file
-  XLSX.writeFile(wb, filename);
+  // Generate buffer and download
+  const buffer = await workbook.xlsx.writeBuffer();
+  downloadExcelFile(buffer as ArrayBuffer, filename);
 }

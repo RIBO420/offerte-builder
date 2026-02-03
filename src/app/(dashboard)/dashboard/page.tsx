@@ -6,6 +6,8 @@ import { motion } from "framer-motion";
 import {
   Card,
   CardContent,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,6 +23,13 @@ import {
   Truck,
   Wrench,
   Play,
+  TrendingUp,
+  CheckCircle2,
+  XCircle,
+  Send,
+  PenLine,
+  Calculator,
+  Target,
 } from "lucide-react";
 import {
   Breadcrumb,
@@ -39,6 +48,8 @@ import { WelcomeModal, OnboardingChecklist } from "@/components/onboarding";
 import { VoorraadAlertCard } from "@/components/dashboard/voorraad-alert-card";
 import { InkoopordersCard } from "@/components/dashboard/inkooporders-card";
 import { QCStatusCard } from "@/components/dashboard/qc-status-card";
+import { DonutChart } from "@/components/ui/donut-chart";
+import { Progress } from "@/components/ui/progress";
 
 // Memoized formatter
 const currencyFormatter = new Intl.NumberFormat("nl-NL", {
@@ -52,6 +63,23 @@ function formatCurrency(amount: number): string {
   return currencyFormatter.format(amount);
 }
 
+// Time ago formatter for recent activity
+function formatTimeAgo(timestamp: number): string {
+  const now = Date.now();
+  const diff = now - timestamp;
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+
+  if (minutes < 1) return "Zojuist";
+  if (minutes < 60) return `${minutes} min geleden`;
+  if (hours < 24) return `${hours} uur geleden`;
+  if (days === 1) return "Gisteren";
+  if (days < 7) return `${days} dagen geleden`;
+  if (days < 30) return `${Math.floor(days / 7)} weken geleden`;
+  return `${Math.floor(days / 30)} maanden geleden`;
+}
+
 export default function DashboardPage() {
   const { clerkUser } = useCurrentUser();
   const isAdmin = useIsAdmin();
@@ -63,6 +91,7 @@ export default function DashboardPage() {
     acceptedWithoutProject,
     projectStats,
     activeProjects,
+    recentOffertes,
     isLoading,
   } = useFullDashboardData();
 
@@ -494,11 +523,221 @@ export default function DashboardPage() {
               </Card>
             </motion.div>
 
-            {/* Inkoop & Voorraad Widgets */}
+            {/* Analytics Widgets - Conversion Rate & Project Status */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: hasActionRequired ? 0.25 : 0.2 }}
+            >
+              <h2 className="font-medium text-sm text-muted-foreground mb-3">Analytics</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Conversion Rate Widget */}
+                <Card className="p-5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100 dark:bg-purple-900/30">
+                      <Target className="h-5 w-5 text-purple-600 dark:text-purple-400" aria-hidden="true" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Conversie Rate</p>
+                      <p className="text-2xl font-bold">
+                        {revenueStats?.conversionRate ?? 0}%
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Progress value={revenueStats?.conversionRate ?? 0} className="h-2" />
+                    <p className="text-xs text-muted-foreground">
+                      {revenueStats?.totalAcceptedCount ?? 0} van {(offerteStats?.verzonden ?? 0) + (offerteStats?.geaccepteerd ?? 0) + (offerteStats?.afgewezen ?? 0)} offertes geaccepteerd
+                    </p>
+                  </div>
+                </Card>
+
+                {/* Average Offerte Value Widget */}
+                <Card className="p-5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-100 dark:bg-teal-900/30">
+                      <TrendingUp className="h-5 w-5 text-teal-600 dark:text-teal-400" aria-hidden="true" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Gem. Offerte Waarde</p>
+                      <p className="text-2xl font-bold">
+                        {revenueStats ? formatCurrency(revenueStats.averageOfferteValue) : "..."}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Gebaseerd op {revenueStats?.totalAcceptedCount ?? 0} geaccepteerde offertes
+                  </p>
+                </Card>
+
+                {/* Offerte Pipeline Widget */}
+                <Card className="p-5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-900/30">
+                      <FileText className="h-5 w-5 text-indigo-600 dark:text-indigo-400" aria-hidden="true" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Offerte Pipeline</p>
+                      <p className="text-2xl font-bold">{offerteStats?.totaal ?? 0}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <PenLine className="h-3 w-3 text-slate-500" aria-hidden="true" />
+                        <span className="text-muted-foreground">Concept</span>
+                      </div>
+                      <span className="font-medium">{offerteStats?.concept ?? 0}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <Calculator className="h-3 w-3 text-amber-500" aria-hidden="true" />
+                        <span className="text-muted-foreground">Voorcalculatie</span>
+                      </div>
+                      <span className="font-medium">{offerteStats?.voorcalculatie ?? 0}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <Send className="h-3 w-3 text-blue-500" aria-hidden="true" />
+                        <span className="text-muted-foreground">Verzonden</span>
+                      </div>
+                      <span className="font-medium">{offerteStats?.verzonden ?? 0}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <CheckCircle2 className="h-3 w-3 text-green-500" aria-hidden="true" />
+                        <span className="text-muted-foreground">Geaccepteerd</span>
+                      </div>
+                      <span className="font-medium">{offerteStats?.geaccepteerd ?? 0}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <XCircle className="h-3 w-3 text-red-500" aria-hidden="true" />
+                        <span className="text-muted-foreground">Afgewezen</span>
+                      </div>
+                      <span className="font-medium">{offerteStats?.afgewezen ?? 0}</span>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            </motion.div>
+
+            {/* Project Status Distribution & Recent Activity */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: hasActionRequired ? 0.3 : 0.25 }}
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Project Status Distribution */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Project Status Verdeling</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {projectStats && projectStats.totaal > 0 ? (
+                      <div className="flex items-center justify-center">
+                        <DonutChart
+                          segments={[
+                            { label: "Gepland", value: projectStats.gepland || 0, color: "hsl(220, 70%, 50%)" },
+                            { label: "In Uitvoering", value: projectStats.in_uitvoering || 0, color: "hsl(25, 95%, 53%)" },
+                            { label: "Afgerond", value: projectStats.afgerond || 0, color: "hsl(142, 76%, 36%)" },
+                            { label: "Nacalculatie", value: projectStats.nacalculatie_compleet || 0, color: "hsl(280, 65%, 55%)" },
+                            { label: "Gefactureerd", value: projectStats.gefactureerd || 0, color: "hsl(160, 60%, 45%)" },
+                          ]}
+                          size={160}
+                          strokeWidth={32}
+                          showTotal={true}
+                          totalLabel="Projecten"
+                          formatValue={(v) => String(v)}
+                          showLegend={true}
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-8 text-center">
+                        <FolderKanban className="h-10 w-10 text-muted-foreground/40 mb-2" aria-hidden="true" />
+                        <p className="text-sm text-muted-foreground">Nog geen projecten</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Recent Activity Timeline */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-medium text-muted-foreground">Recente Activiteit</CardTitle>
+                      <Button asChild variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-foreground -mr-2">
+                        <Link href="/offertes">
+                          Bekijk alle
+                          <ArrowRight className="ml-1 h-3 w-3" aria-hidden="true" />
+                        </Link>
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {recentOffertes && recentOffertes.length > 0 ? (
+                      <div className="space-y-3">
+                        {recentOffertes.slice(0, 5).map((offerte, index) => {
+                          const statusConfig = {
+                            concept: { icon: PenLine, color: "text-slate-500", bg: "bg-slate-100 dark:bg-slate-800", label: "Concept aangemaakt" },
+                            voorcalculatie: { icon: Calculator, color: "text-amber-500", bg: "bg-amber-100 dark:bg-amber-900/30", label: "Voorcalculatie gemaakt" },
+                            verzonden: { icon: Send, color: "text-blue-500", bg: "bg-blue-100 dark:bg-blue-900/30", label: "Offerte verzonden" },
+                            geaccepteerd: { icon: CheckCircle2, color: "text-green-500", bg: "bg-green-100 dark:bg-green-900/30", label: "Offerte geaccepteerd" },
+                            afgewezen: { icon: XCircle, color: "text-red-500", bg: "bg-red-100 dark:bg-red-900/30", label: "Offerte afgewezen" },
+                          };
+                          const config = statusConfig[offerte.status as keyof typeof statusConfig] || statusConfig.concept;
+                          const StatusIcon = config.icon;
+                          const timeAgo = formatTimeAgo(offerte.updatedAt);
+
+                          return (
+                            <Link
+                              key={offerte._id}
+                              href={`/offertes/${offerte._id}`}
+                              className="flex items-start gap-3 group"
+                            >
+                              <div className="relative flex-shrink-0">
+                                <div className={`flex h-8 w-8 items-center justify-center rounded-full ${config.bg}`}>
+                                  <StatusIcon className={`h-4 w-4 ${config.color}`} aria-hidden="true" />
+                                </div>
+                                {index < recentOffertes.slice(0, 5).length - 1 && (
+                                  <div className="absolute top-8 left-1/2 w-px h-4 bg-border -translate-x-1/2" aria-hidden="true" />
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0 pt-0.5">
+                                <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">
+                                  {offerte.klant.naam}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {config.label} - {offerte.offerteNummer}
+                                </p>
+                                <p className="text-xs text-muted-foreground/70 mt-0.5">{timeAgo}</p>
+                              </div>
+                              <div className="text-right flex-shrink-0 pt-0.5">
+                                <p className="text-sm font-medium tabular-nums">
+                                  {formatCurrency(offerte.totalen.totaalInclBtw)}
+                                </p>
+                              </div>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-8 text-center">
+                        <Clock className="h-10 w-10 text-muted-foreground/40 mb-2" aria-hidden="true" />
+                        <p className="text-sm text-muted-foreground">Nog geen activiteit</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </motion.div>
+
+            {/* Inkoop & Voorraad Widgets */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: hasActionRequired ? 0.35 : 0.3 }}
             >
               <h2 className="font-medium text-sm text-muted-foreground mb-3">Inkoop & Kwaliteit</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -513,7 +752,7 @@ export default function DashboardPage() {
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: hasActionRequired ? 0.3 : 0.25 }}
+                transition={{ duration: 0.3, delay: hasActionRequired ? 0.4 : 0.35 }}
               >
                 <div className="flex items-center justify-between mb-3">
                   <h2 className="font-medium text-sm text-muted-foreground">Lopende Projecten</h2>
@@ -579,7 +818,7 @@ export default function DashboardPage() {
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ duration: 0.3, delay: 0.25 }}
+                transition={{ duration: 0.3, delay: 0.35 }}
                 className="flex flex-col items-center justify-center py-12 text-center"
               >
                 <FolderKanban className="h-12 w-12 text-muted-foreground/50 mb-4" aria-hidden="true" />

@@ -2,6 +2,7 @@
  * Export Utilities - CSV and Excel Export Functions
  *
  * Provides utilities for exporting data to CSV and Excel formats.
+ * Uses ExcelJS for Excel exports (more secure than xlsx).
  * Supports Dutch column headers and proper formatting.
  */
 
@@ -136,7 +137,7 @@ export function exportToCSV<T extends Record<string, unknown>>(
 
 /**
  * Export data to Excel and trigger download
- * Uses dynamic import to avoid loading xlsx in initial bundle
+ * Uses dynamic import to avoid loading exceljs in initial bundle
  *
  * @param data - Array of data objects to export
  * @param columns - Column definitions with keys and Dutch headers
@@ -154,12 +155,38 @@ export async function exportToExcel<T extends Record<string, unknown>>(
     return;
   }
 
-  // Dynamic import of xlsx to reduce initial bundle size
-  const XLSX = await import("xlsx");
+  // Dynamic import of exceljs to reduce initial bundle size
+  const ExcelJS = await import("exceljs");
 
-  // Transform data to objects with Dutch headers
-  const excelData = data.map((row) => {
-    const excelRow: Record<string, string | number> = {};
+  // Create workbook and worksheet
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet(sheetName);
+
+  // Set up columns with headers and widths
+  worksheet.columns = columns.map((col) => {
+    // Calculate width based on header length and typical content
+    const headerWidth = col.header.length;
+    // Estimate content width (minimum 10, max 40)
+    const contentWidth = Math.max(10, Math.min(40, headerWidth + 5));
+    return {
+      header: col.header,
+      key: col.key as string,
+      width: contentWidth,
+    };
+  });
+
+  // Style header row
+  const headerRow = worksheet.getRow(1);
+  headerRow.font = { bold: true };
+  headerRow.fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FFE0E0E0" },
+  };
+
+  // Add data rows
+  data.forEach((row) => {
+    const rowData: Record<string, string | number> = {};
 
     columns.forEach((col) => {
       let value: unknown;
@@ -174,37 +201,32 @@ export async function exportToExcel<T extends Record<string, unknown>>(
 
       // Convert to string or number for Excel
       if (value === null || value === undefined) {
-        excelRow[col.header] = "";
+        rowData[col.key as string] = "";
       } else if (typeof value === "number") {
-        excelRow[col.header] = value;
+        rowData[col.key as string] = value;
       } else {
-        excelRow[col.header] = String(value);
+        rowData[col.key as string] = String(value);
       }
     });
 
-    return excelRow;
+    worksheet.addRow(rowData);
   });
-
-  // Create workbook and worksheet
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.json_to_sheet(excelData);
-
-  // Set column widths based on header length and content
-  const colWidths = columns.map((col) => {
-    // Calculate width based on header length and typical content
-    const headerWidth = col.header.length;
-    // Estimate content width (minimum 10, max 40)
-    const contentWidth = Math.max(10, Math.min(40, headerWidth + 5));
-    return { wch: contentWidth };
-  });
-  ws["!cols"] = colWidths;
-
-  // Add worksheet to workbook
-  XLSX.utils.book_append_sheet(wb, ws, sheetName);
 
   // Generate and download file
   const fullFilename = generateFilename(filename, "xlsx");
-  XLSX.writeFile(wb, fullFilename);
+  const buffer = await workbook.xlsx.writeBuffer();
+
+  // Trigger download
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = fullFilename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(link.href);
 }
 
 // ============================================

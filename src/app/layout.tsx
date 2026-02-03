@@ -21,22 +21,21 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Offerte Builder | Top Tuinen",
+  title: "TOP Offerte Calculator",
   description:
-    "Scope-gedreven offerte systeem voor hoveniersbedrijven. Aanleg- en onderhoudsoffertes waarbij niets vergeten kan worden.",
+    "Offerte en project management voor hoveniers",
   keywords: ["offerte", "hovenier", "tuinaanleg", "tuinonderhoud", "calculator"],
   manifest: "/manifest.json",
   icons: {
     icon: "/favicon.ico",
     apple: [
-      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
-      { url: "/apple-touch-icon-152.png", sizes: "152x152", type: "image/png" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
     ],
   },
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
-    title: "Offerte Builder",
+    statusBarStyle: "default",
+    title: "TOP Offerte",
   },
   formatDetection: {
     telephone: false,
@@ -48,17 +47,17 @@ export const metadata: Metadata = {
     "mobile-web-app-capable": "yes",
   },
   openGraph: {
-    title: "Offerte Builder | Top Tuinen",
+    title: "TOP Offerte Calculator",
     description:
-      "Scope-gedreven offerte systeem voor hoveniersbedrijven. Aanleg- en onderhoudsoffertes waarbij niets vergeten kan worden.",
+      "Offerte en project management voor hoveniers",
     type: "website",
     locale: "nl_NL",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Offerte Builder | Top Tuinen",
+    title: "TOP Offerte Calculator",
     description:
-      "Scope-gedreven offerte systeem voor hoveniersbedrijven. Aanleg- en onderhoudsoffertes waarbij niets vergeten kan worden.",
+      "Offerte en project management voor hoveniers",
   },
 };
 
@@ -67,10 +66,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   viewportFit: "cover",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
-  ],
+  themeColor: "#10b981",
 };
 
 export default function RootLayout({

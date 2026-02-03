@@ -40,7 +40,7 @@ import {
 } from "@/components/analytics";
 import type { DateRangePreset } from "@/components/analytics";
 
-// Dynamic import for excel export (xlsx ~400KB)
+// Dynamic import for excel export (exceljs)
 const exportAnalyticsReport = async (
   kpis: Parameters<typeof import("@/lib/excel-export").exportAnalyticsReport>[0],
   topKlanten: Parameters<typeof import("@/lib/excel-export").exportAnalyticsReport>[1],

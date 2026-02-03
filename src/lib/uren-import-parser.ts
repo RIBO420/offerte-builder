@@ -63,18 +63,60 @@ export const parseCSV = async (file: File): Promise<Record<string, string>[]> =>
 export const parseExcel = async (
   file: File
 ): Promise<Record<string, string>[]> => {
-  const XLSX = await import("xlsx");
+  const ExcelJS = await import("exceljs");
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
-        const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: "array" });
-        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(firstSheet) as Record<
-          string,
-          string
-        >[];
+        const buffer = e.target?.result as ArrayBuffer;
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(buffer);
+
+        const worksheet = workbook.worksheets[0];
+        if (!worksheet) {
+          resolve([]);
+          return;
+        }
+
+        const jsonData: Record<string, string>[] = [];
+        const headers: string[] = [];
+
+        // Get headers from first row
+        const headerRow = worksheet.getRow(1);
+        headerRow.eachCell((cell, colNumber) => {
+          headers[colNumber - 1] = cell.text || `Column${colNumber}`;
+        });
+
+        // Process data rows
+        worksheet.eachRow((row, rowNumber) => {
+          if (rowNumber === 1) return; // Skip header row
+
+          const rowData: Record<string, string> = {};
+          row.eachCell((cell, colNumber) => {
+            const header = headers[colNumber - 1];
+            if (header) {
+              // Handle different cell value types
+              const value = cell.value;
+              if (value === null || value === undefined) {
+                rowData[header] = "";
+              } else if (typeof value === "object" && "result" in value) {
+                // Formula cell - use the result
+                rowData[header] = String(value.result ?? "");
+              } else if (value instanceof Date) {
+                // Date value
+                rowData[header] = value.toISOString().split("T")[0];
+              } else {
+                rowData[header] = String(value);
+              }
+            }
+          });
+
+          // Only add non-empty rows
+          if (Object.keys(rowData).length > 0) {
+            jsonData.push(rowData);
+          }
+        });
+
         resolve(jsonData);
       } catch (error) {
         reject(error);

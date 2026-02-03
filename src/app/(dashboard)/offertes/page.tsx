@@ -221,13 +221,13 @@ const OfferteRow = memo(function OfferteRow({
           className={`flex h-8 w-8 items-center justify-center rounded-lg ${
             offerte.type === "aanleg"
               ? "bg-primary/10"
-              : "bg-green-100"
+              : "bg-green-100 dark:bg-green-900/30"
           }`}
         >
           {offerte.type === "aanleg" ? (
             <Shovel className="h-4 w-4 text-primary" />
           ) : (
-            <Trees className="h-4 w-4 text-green-600" />
+            <Trees className="h-4 w-4 text-green-600 dark:text-green-400" />
           )}
         </div>
       </TableCell>
@@ -269,7 +269,7 @@ const OfferteRow = memo(function OfferteRow({
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+              className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-950/50"
               asChild
               onClick={(e) => e.stopPropagation()}
             >
@@ -282,7 +282,7 @@ const OfferteRow = memo(function OfferteRow({
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 px-2 text-xs text-green-600 hover:text-green-700 hover:bg-green-50"
+              className="h-6 px-2 text-xs text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-950/50"
               asChild
               onClick={(e) => e.stopPropagation()}
             >

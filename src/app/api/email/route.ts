@@ -3,10 +3,18 @@ import { Resend } from "resend";
 import { render } from "@react-email/components";
 import { OfferteEmail } from "@/components/email/offerte-email";
 import {
-  emailRateLimiter,
-  getRequestIdentifier,
-  createRateLimitResponse,
+  emailRateLimiter as inMemoryEmailRateLimiter,
+  getRequestIdentifier as getInMemoryRequestIdentifier,
+  createRateLimitResponse as createInMemoryRateLimitResponse,
 } from "@/lib/rate-limiter";
+import {
+  isUpstashConfigured,
+  getEmailRateLimiter,
+  checkRateLimit as checkUpstashRateLimit,
+  createUpstashRateLimitResponse,
+  getRateLimitHeaders,
+  getRequestIdentifier as getUpstashRequestIdentifier,
+} from "@/lib/upstash-rate-limiter";
 
 // Lazy initialization to avoid build-time errors when API key is not set
 let resendClient: Resend | null = null;
@@ -24,12 +32,59 @@ function getResendClient(): Resend {
 
 export async function POST(request: NextRequest) {
   try {
-    // Rate limiting: max 10 emails per minute per user/IP
-    const identifier = getRequestIdentifier(request);
-    const rateLimitInfo = emailRateLimiter.check(identifier);
+    // Rate limiting: Use Upstash if configured, otherwise fall back to in-memory
+    const useUpstash = isUpstashConfigured();
+    let rateLimitPassed = false;
+    let upstashRateLimitResult: Awaited<
+      ReturnType<typeof checkUpstashRateLimit>
+    > | null = null;
+    let inMemoryRateLimitInfo: ReturnType<
+      typeof inMemoryEmailRateLimiter.check
+    > | null = null;
 
-    if (!rateLimitInfo.allowed) {
-      return createRateLimitResponse(emailRateLimiter, rateLimitInfo);
+    if (useUpstash) {
+      // Upstash Redis-based rate limiting (5 emails per hour)
+      const identifier = getUpstashRequestIdentifier(request);
+      try {
+        upstashRateLimitResult = await checkUpstashRateLimit(
+          getEmailRateLimiter(),
+          identifier
+        );
+        rateLimitPassed = upstashRateLimitResult.success;
+
+        if (!rateLimitPassed) {
+          return createUpstashRateLimitResponse(upstashRateLimitResult);
+        }
+      } catch (upstashError) {
+        // If Upstash fails, fall back to in-memory rate limiting
+        console.warn(
+          "Upstash rate limiting failed, falling back to in-memory:",
+          upstashError
+        );
+        const fallbackIdentifier = getInMemoryRequestIdentifier(request);
+        inMemoryRateLimitInfo =
+          inMemoryEmailRateLimiter.check(fallbackIdentifier);
+        rateLimitPassed = inMemoryRateLimitInfo.allowed;
+
+        if (!rateLimitPassed) {
+          return createInMemoryRateLimitResponse(
+            inMemoryEmailRateLimiter,
+            inMemoryRateLimitInfo
+          );
+        }
+      }
+    } else {
+      // In-memory rate limiting (10 emails per minute per user/IP)
+      const identifier = getInMemoryRequestIdentifier(request);
+      inMemoryRateLimitInfo = inMemoryEmailRateLimiter.check(identifier);
+      rateLimitPassed = inMemoryRateLimitInfo.allowed;
+
+      if (!rateLimitPassed) {
+        return createInMemoryRateLimitResponse(
+          inMemoryEmailRateLimiter,
+          inMemoryRateLimitInfo
+        );
+      }
     }
 
     const body = await request.json();
@@ -109,7 +164,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Include rate limit headers in successful response
-    const rateLimitHeaders = emailRateLimiter.getHeaders(rateLimitInfo);
+    const rateLimitHeaders = upstashRateLimitResult
+      ? getRateLimitHeaders(upstashRateLimitResult)
+      : inMemoryRateLimitInfo
+        ? inMemoryEmailRateLimiter.getHeaders(inMemoryRateLimitInfo)
+        : {};
+
     return NextResponse.json(
       {
         success: true,

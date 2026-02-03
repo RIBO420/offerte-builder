@@ -202,21 +202,21 @@ export function WerklocatieCard({ projectId }: WerklocatieCardProps) {
           <div className="flex flex-wrap gap-2">
             <Badge
               variant={werklocatie.stroomAansluiting ? "default" : "outline"}
-              className={werklocatie.stroomAansluiting ? "bg-yellow-100 text-yellow-800 hover:bg-yellow-100" : "text-muted-foreground"}
+              className={werklocatie.stroomAansluiting ? "bg-yellow-100 text-yellow-800 hover:bg-yellow-100 dark:bg-yellow-900/30 dark:text-yellow-300 dark:hover:bg-yellow-900/30" : "text-muted-foreground"}
             >
               <Zap className="mr-1 h-3 w-3" />
               Stroom {werklocatie.stroomAansluiting ? "beschikbaar" : "niet beschikbaar"}
             </Badge>
             <Badge
               variant={werklocatie.waterAansluiting ? "default" : "outline"}
-              className={werklocatie.waterAansluiting ? "bg-blue-100 text-blue-800 hover:bg-blue-100" : "text-muted-foreground"}
+              className={werklocatie.waterAansluiting ? "bg-blue-100 text-blue-800 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/30" : "text-muted-foreground"}
             >
               <Droplet className="mr-1 h-3 w-3" />
               Water {werklocatie.waterAansluiting ? "beschikbaar" : "niet beschikbaar"}
             </Badge>
             <Badge
               variant={werklocatie.toiletBeschikbaar ? "default" : "outline"}
-              className={werklocatie.toiletBeschikbaar ? "bg-green-100 text-green-800 hover:bg-green-100" : "text-muted-foreground"}
+              className={werklocatie.toiletBeschikbaar ? "bg-green-100 text-green-800 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-300 dark:hover:bg-green-900/30" : "text-muted-foreground"}
             >
               <Bath className="mr-1 h-3 w-3" />
               Toilet {werklocatie.toiletBeschikbaar ? "beschikbaar" : "niet beschikbaar"}

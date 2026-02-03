@@ -392,13 +392,13 @@ export default function OfferteDetailPage({
             <div className="flex items-center gap-3">
               <div
                 className={`flex h-10 w-10 items-center justify-center rounded-lg ${
-                  offerte.type === "aanleg" ? "bg-primary/10" : "bg-green-100"
+                  offerte.type === "aanleg" ? "bg-primary/10" : "bg-green-100 dark:bg-green-900/30"
                 }`}
               >
                 {offerte.type === "aanleg" ? (
                   <Shovel className="h-5 w-5 text-primary" />
                 ) : (
-                  <Trees className="h-5 w-5 text-green-600" />
+                  <Trees className="h-5 w-5 text-green-600 dark:text-green-400" />
                 )}
               </div>
               <div>

@@ -96,8 +96,8 @@ export function NewOfferteDialog() {
             className="flex flex-col items-center gap-3 h-auto py-6 relative group"
             onClick={handleSelectOnderhoud}
           >
-            <div className="flex size-12 items-center justify-center rounded-lg bg-green-100">
-              <Trees className="size-6 text-green-600" />
+            <div className="flex size-12 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
+              <Trees className="size-6 text-green-600 dark:text-green-400" />
             </div>
             <div className="text-center">
               <div className="font-medium">Onderhoud</div>
