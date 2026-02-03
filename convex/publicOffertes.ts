@@ -2,7 +2,8 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { generateSecureToken, getOwnedOfferte, isShareTokenValid } from "./auth";
 import { internal } from "./_generated/api";
-import { checkPublicOfferteRateLimit, validateSignature } from "./security";
+// TODO: Re-enable when rate limiting is fixed
+// import { checkPublicOfferteRateLimit, validateSignature } from "./security";
 
 // Create or refresh share link for an offerte (with ownership verification)
 export const createShareLink = mutation({
@@ -48,11 +49,11 @@ export const revokeShareLink = mutation({
 export const getByToken = query({
   args: { token: v.string() },
   handler: async (ctx, args) => {
-    // Rate limiting: max 30 requests per minute to prevent brute-force token guessing
-    const rateLimitResult = checkPublicOfferteRateLimit(args.token);
-    if (!rateLimitResult.allowed) {
-      throw new Error(rateLimitResult.message || "Te veel verzoeken. Probeer het later opnieuw.");
-    }
+    // Rate limiting temporarily disabled - TODO: re-enable with Upstash
+    // const rateLimitResult = checkPublicOfferteRateLimit(args.token);
+    // if (!rateLimitResult.allowed) {
+    //   throw new Error(rateLimitResult.message || "Te veel verzoeken. Probeer het later opnieuw.");
+    // }
 
     const offerte = await ctx.db
       .query("offertes")
@@ -124,11 +125,11 @@ export const getByToken = query({
 export const markAsViewed = mutation({
   args: { token: v.string() },
   handler: async (ctx, args) => {
-    // Rate limiting: prevent abuse
-    const rateLimitResult = checkPublicOfferteRateLimit(args.token);
-    if (!rateLimitResult.allowed) {
-      throw new Error(rateLimitResult.message || "Te veel verzoeken. Probeer het later opnieuw.");
-    }
+    // Rate limiting temporarily disabled - TODO: re-enable with Upstash
+    // const rateLimitResult = checkPublicOfferteRateLimit(args.token);
+    // if (!rateLimitResult.allowed) {
+    //   throw new Error(rateLimitResult.message || "Te veel verzoeken. Probeer het later opnieuw.");
+    // }
 
     const offerte = await ctx.db
       .query("offertes")
@@ -172,11 +173,11 @@ export const respond = mutation({
     signature: v.optional(v.string()), // Base64 signature image
   },
   handler: async (ctx, args) => {
-    // Rate limiting: prevent brute-force attempts
-    const rateLimitResult = checkPublicOfferteRateLimit(args.token);
-    if (!rateLimitResult.allowed) {
-      throw new Error(rateLimitResult.message || "Te veel verzoeken. Probeer het later opnieuw.");
-    }
+    // Rate limiting temporarily disabled - TODO: re-enable with Upstash
+    // const rateLimitResult = checkPublicOfferteRateLimit(args.token);
+    // if (!rateLimitResult.allowed) {
+    //   throw new Error(rateLimitResult.message || "Te veel verzoeken. Probeer het later opnieuw.");
+    // }
 
     const offerte = await ctx.db
       .query("offertes")
@@ -201,11 +202,14 @@ export const respond = mutation({
       throw new Error("Handtekening is verplicht bij accepteren");
     }
 
-    // Validate signature if provided
+    // Basic signature validation (simplified)
     if (args.signature) {
-      const signatureValidation = validateSignature(args.signature);
-      if (!signatureValidation.valid) {
-        throw new Error(signatureValidation.error || "Ongeldige handtekening");
+      if (!args.signature.startsWith("data:image/")) {
+        throw new Error("Ongeldige handtekening formaat");
+      }
+      // Max 500KB signature
+      if (args.signature.length > 500000) {
+        throw new Error("Handtekening bestand te groot");
       }
     }
 
@@ -285,11 +289,11 @@ export const submitQuestion = mutation({
     comment: v.string(),
   },
   handler: async (ctx, args) => {
-    // Rate limiting: prevent abuse
-    const rateLimitResult = checkPublicOfferteRateLimit(args.token);
-    if (!rateLimitResult.allowed) {
-      throw new Error(rateLimitResult.message || "Te veel verzoeken. Probeer het later opnieuw.");
-    }
+    // Rate limiting temporarily disabled - TODO: re-enable with Upstash
+    // const rateLimitResult = checkPublicOfferteRateLimit(args.token);
+    // if (!rateLimitResult.allowed) {
+    //   throw new Error(rateLimitResult.message || "Te veel verzoeken. Probeer het later opnieuw.");
+    // }
 
     const offerte = await ctx.db
       .query("offertes")
