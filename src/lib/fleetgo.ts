@@ -483,8 +483,10 @@ export class FleetGoClient {
       return response.data.vehicles;
     } catch (error) {
       if (error instanceof FleetGoError && error.code === 'MOCK_MODE') {
-        // Retry with mock data
-        return this.getVehicles();
+        // Mock data is now initialized, retry will use mock path
+        if (this.useMockData) {
+          return this.getVehicles();
+        }
       }
       throw error;
     }
@@ -512,7 +514,9 @@ export class FleetGoClient {
       return response.data;
     } catch (error) {
       if (error instanceof FleetGoError && error.code === 'MOCK_MODE') {
-        return this.getVehicle(id);
+        if (this.useMockData) {
+          return this.getVehicle(id);
+        }
       }
       throw error;
     }
@@ -545,7 +549,9 @@ export class FleetGoClient {
       return response.data;
     } catch (error) {
       if (error instanceof FleetGoError && error.code === 'MOCK_MODE') {
-        return this.getVehicleByLicensePlate(plate);
+        if (this.useMockData) {
+          return this.getVehicleByLicensePlate(plate);
+        }
       }
       throw error;
     }
@@ -574,7 +580,9 @@ export class FleetGoClient {
       return response.data;
     } catch (error) {
       if (error instanceof FleetGoError && error.code === 'MOCK_MODE') {
-        return this.getVehicleLocation(id);
+        if (this.useMockData) {
+          return this.getVehicleLocation(id);
+        }
       }
       throw error;
     }
@@ -603,7 +611,9 @@ export class FleetGoClient {
       return response.data;
     } catch (error) {
       if (error instanceof FleetGoError && error.code === 'MOCK_MODE') {
-        return this.getVehicleMileage(id);
+        if (this.useMockData) {
+          return this.getVehicleMileage(id);
+        }
       }
       throw error;
     }
@@ -625,7 +635,9 @@ export class FleetGoClient {
       return response.data;
     } catch (error) {
       if (error instanceof FleetGoError && error.code === 'MOCK_MODE') {
-        return this.getAllVehicleLocations();
+        if (this.useMockData) {
+          return this.getAllVehicleLocations();
+        }
       }
       throw error;
     }

@@ -54,12 +54,12 @@ import { useTeams } from "@/hooks/use-teams";
 import { useMedewerkers } from "@/hooks/use-medewerkers";
 import { TeamCard } from "@/components/medewerkers/team-card";
 import { TeamForm, MemberManagementForm } from "@/components/medewerkers/team-form";
-import { Id } from "../../../../../convex/_generated/dataModel";
+import { Id, Doc } from "../../../../../convex/_generated/dataModel";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Team = any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Medewerker = any;
+// Type for team with medewerker details returned by useTeams hook (listWithMedewerkers)
+type TeamWithMedewerkers = Doc<"teams"> & {
+  medewerkersDetails: Doc<"medewerkers">[];
+};
 
 export default function TeamsPage() {
   const {
@@ -82,14 +82,14 @@ export default function TeamsPage() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showMembersDialog, setShowMembersDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+  const [selectedTeam, setSelectedTeam] = useState<TeamWithMedewerkers | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isLoading = teamsLoading || medewerkersLoading;
 
   // Filter teams based on search and active status
   const displayedTeams = useMemo(() => {
-    let filtered = teams as Team[];
+    let filtered = teams as TeamWithMedewerkers[];
 
     if (showOnlyActive) {
       filtered = filtered.filter((t) => t.isActief);
@@ -132,7 +132,7 @@ export default function TeamsPage() {
     [create]
   );
 
-  const handleEdit = useCallback((team: Team) => {
+  const handleEdit = useCallback((team: TeamWithMedewerkers) => {
     setSelectedTeam(team);
     setShowEditDialog(true);
   }, []);
@@ -162,7 +162,7 @@ export default function TeamsPage() {
   );
 
   const handleToggleActive = useCallback(
-    async (team: Team) => {
+    async (team: TeamWithMedewerkers) => {
       try {
         await update(team._id, { isActief: !team.isActief });
         toast.success(
@@ -176,7 +176,7 @@ export default function TeamsPage() {
     [update]
   );
 
-  const handleManageMembers = useCallback((team: Team) => {
+  const handleManageMembers = useCallback((team: TeamWithMedewerkers) => {
     setSelectedTeam(team);
     setShowMembersDialog(true);
   }, []);
@@ -209,7 +209,7 @@ export default function TeamsPage() {
     [selectedTeam, removeLid]
   );
 
-  const handleDeleteClick = useCallback((team: Team) => {
+  const handleDeleteClick = useCallback((team: TeamWithMedewerkers) => {
     setSelectedTeam(team);
     setShowDeleteDialog(true);
   }, []);
@@ -273,9 +273,9 @@ export default function TeamsPage() {
     );
   }
 
-  const totalTeams = (teams as Team[]).length;
-  const activeTeams = (teams as Team[]).filter((t) => t.isActief).length;
-  const totalMembers = (teams as Team[]).reduce(
+  const totalTeams = (teams as TeamWithMedewerkers[]).length;
+  const activeTeams = (teams as TeamWithMedewerkers[]).filter((t) => t.isActief).length;
+  const totalMembers = (teams as TeamWithMedewerkers[]).reduce(
     (sum, t) => sum + t.leden.length,
     0
   );
@@ -480,7 +480,7 @@ export default function TeamsPage() {
             </DialogDescription>
           </DialogHeader>
           <TeamForm
-            medewerkers={medewerkers as Medewerker[]}
+            medewerkers={medewerkers}
             onSubmit={handleCreate}
             onCancel={() => setShowCreateDialog(false)}
             isSubmitting={isSubmitting}
@@ -501,7 +501,7 @@ export default function TeamsPage() {
           {selectedTeam && (
             <TeamForm
               initialData={selectedTeam}
-              medewerkers={medewerkers as Medewerker[]}
+              medewerkers={medewerkers}
               onSubmit={handleUpdate}
               onCancel={() => {
                 setShowEditDialog(false);
@@ -526,7 +526,7 @@ export default function TeamsPage() {
           {selectedTeam && (
             <MemberManagementForm
               team={selectedTeam}
-              medewerkers={medewerkers as Medewerker[]}
+              medewerkers={medewerkers}
               onAddMember={handleAddMember}
               onRemoveMember={handleRemoveMember}
               onClose={() => {

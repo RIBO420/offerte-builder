@@ -20,26 +20,13 @@ import {
   UserCheck,
   UserX,
 } from "lucide-react";
-import { Id } from "../../../convex/_generated/dataModel";
+import { Id, Doc } from "../../../convex/_generated/dataModel";
 
-type Medewerker = {
-  _id: Id<"medewerkers">;
-  naam: string;
-  email?: string;
-  telefoon?: string;
-  functie?: string;
-  isActief: boolean;
-  createdAt?: number;
-  updatedAt?: number;
-};
+// Type for medewerker - using Doc for full type safety
+type Medewerker = Doc<"medewerkers">;
 
-type Team = {
-  _id: Id<"teams">;
-  naam: string;
-  beschrijving?: string;
-  leden: Id<"medewerkers">[];
-  isActief: boolean;
-};
+// Type for team (basic, without medewerker details)
+type Team = Doc<"teams">;
 
 interface TeamFormData {
   naam: string;

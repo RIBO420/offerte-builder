@@ -80,7 +80,7 @@ export function FleetGoSync({
       setSyncProgress(0);
       setError(null);
     }
-  }, [isApiKeyConfigured, connectionStatus]);
+  }, [isApiKeyConfigured, connectionStatus]); // eslint-disable-line react-hooks/exhaustive-deps -- checkConnection is defined below
 
   // Mock connection check - replace with actual API call
   const checkConnection = useCallback(async () => {

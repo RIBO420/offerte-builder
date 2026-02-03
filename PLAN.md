@@ -575,8 +575,8 @@ GOOGLE_MAPS_API_KEY=xxx        # Geocoding & address validation
 POSTNL_API_KEY=xxx             # Dutch postal validation
 
 # Fleet Management
-FLEETGO_API_KEY=xxx            # Voertuig tracking
-FLEETGO_API_SECRET=xxx
+FLEETGO_API_KEY=your_fleetgo_api_key_here            # Voertuig tracking
+FLEETGO_API_SECRET=your_fleetgo_api_secret_here
 ```
 
 ---

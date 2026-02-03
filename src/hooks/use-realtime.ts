@@ -261,12 +261,12 @@ export function useRealtimeLatestMessages(limit?: number) {
     if (!data?.messages) return;
 
     const currentIds = data.messages.map((m) => m._id.toString());
-    const prevIds = prevMessagesRef.current;
+    const prevIdsSet = new Set(prevMessagesRef.current);
 
     // Check if there are new messages not in the previous list
-    const hasNew = currentIds.some((id) => !prevIds.includes(id));
+    const hasNew = currentIds.some((id) => !prevIdsSet.has(id));
 
-    if (hasNew && prevIds.length > 0) {
+    if (hasNew && prevMessagesRef.current.length > 0) {
       setHasNewMessages(true);
       const timer = setTimeout(() => setHasNewMessages(false), 2000);
       prevMessagesRef.current = currentIds;

@@ -292,35 +292,48 @@ export default function PublicOffertePage({
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [hasMarkedViewed, setHasMarkedViewed] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastMarkedMessageCount = useRef<number>(0);
+  const isMarkingMessagesAsRead = useRef<boolean>(false);
 
-  // Mark as viewed when page loads
+  // Consolidated effect for marking as viewed and messages as read
+  // This prevents race conditions by using refs to track state across renders
   useEffect(() => {
-    if (data && !data.expired && data.offerte && !hasMarkedViewed) {
-      // Non-critical operations - log errors but don't block user
+    if (!data || data.expired || !data.offerte) {
+      return;
+    }
+
+    // Mark offerte as viewed (only once)
+    if (!hasMarkedViewed) {
       markAsViewed({ token }).catch(
         createBackgroundErrorHandler("markAsViewed", { token })
       );
-      markMessagesAsRead({ token }).catch(
-        createBackgroundErrorHandler("markMessagesAsRead", { token, context: "pageLoad" })
-      );
       setHasMarkedViewed(true);
     }
-  }, [data, token, markAsViewed, markMessagesAsRead, hasMarkedViewed]);
+
+    // Mark messages as read if there are new messages
+    // Use refs to prevent concurrent calls and track message count
+    const messageCount = messages?.length ?? 0;
+    if (
+      messageCount > 0 &&
+      messageCount > lastMarkedMessageCount.current &&
+      !isMarkingMessagesAsRead.current
+    ) {
+      isMarkingMessagesAsRead.current = true;
+      markMessagesAsRead({ token })
+        .catch(
+          createBackgroundErrorHandler("markMessagesAsRead", { token, messageCount })
+        )
+        .finally(() => {
+          lastMarkedMessageCount.current = messageCount;
+          isMarkingMessagesAsRead.current = false;
+        });
+    }
+  }, [data, messages, token, markAsViewed, markMessagesAsRead, hasMarkedViewed]);
 
   // Scroll to bottom of messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
-
-  // Mark messages as read when new ones come in
-  useEffect(() => {
-    if (messages && messages.length > 0) {
-      // Non-critical operation - log errors but don't block user
-      markMessagesAsRead({ token }).catch(
-        createBackgroundErrorHandler("markMessagesAsRead", { token, context: "newMessages" })
-      );
-    }
-  }, [messages, token, markMessagesAsRead]);
 
   const handleAccept = async () => {
     if (!signature) {
@@ -517,7 +530,7 @@ export default function PublicOffertePage({
           </Card>
 
           {/* Werkzaamheden - Customer-friendly summarized view */}
-          {offerte.regels.length > 0 && (
+          {offerte.regels && Array.isArray(offerte.regels) && offerte.regels.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle>Werkzaamheden</CardTitle>
@@ -535,7 +548,10 @@ export default function PublicOffertePage({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {summarizeRegelsByScope(offerte.regels as RegelInput[]).map((summary) => (
+                    {(offerte.regels && Array.isArray(offerte.regels)
+                      ? summarizeRegelsByScope(offerte.regels as RegelInput[])
+                      : []
+                    ).map((summary) => (
                       <TableRow key={summary.scope}>
                         <TableCell>
                           <p className="font-medium">{summary.scopeLabel}</p>

@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       return NextResponse.json(
-        { error: error.message, status: "mislukt" },
+        { error: error?.message || "Email delivery failed", status: "mislukt" },
         { status: 500 }
       );
     }

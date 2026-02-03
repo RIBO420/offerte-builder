@@ -107,6 +107,7 @@ export function useVoertuigDetails(voertuigId: Id<"voertuigen"> | null) {
   // Helper functions for compliance status calculations
   const getDaysUntilExpiry = (expiryTimestamp: number | undefined): number | null => {
     if (!expiryTimestamp) return null;
+    // eslint-disable-next-line react-hooks/purity -- Date.now() is intentionally impure for real-time calculations
     const now = Date.now();
     const diffMs = expiryTimestamp - now;
     return Math.ceil(diffMs / (1000 * 60 * 60 * 24));

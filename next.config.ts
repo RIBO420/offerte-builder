@@ -56,9 +56,23 @@ const nextConfig: NextConfig = {
     minimumCacheTTL: 604800,
   },
 
-  // Configure caching headers for static assets
+  // Configure caching headers for static assets and security headers
   async headers() {
     return [
+      {
+        // Security headers for all routes
+        source: "/(.*)",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            value:
+              "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.sentry-cdn.com https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; font-src 'self' data:; connect-src 'self' https://*.convex.cloud https://*.clerk.accounts.dev https://api.clerk.dev wss://*.convex.cloud; frame-src 'self' https://challenges.cloudflare.com; frame-ancestors 'none';",
+          },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+        ],
+      },
       {
         // Static assets (fonts, images in _next/static)
         source: "/_next/static/:path*",

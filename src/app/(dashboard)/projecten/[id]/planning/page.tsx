@@ -142,8 +142,8 @@ export default function PlanningPage({
   const [optimisticDeletedIds, setOptimisticDeletedIds] = useState<Set<string>>(new Set());
 
   // Team settings from voorcalculatie
-  const teamGrootte = (voorcalculatie as any)?.teamGrootte || 2;
-  const effectieveUrenPerDag = (voorcalculatie as any)?.effectieveUrenPerDag || 6;
+  const teamGrootte = voorcalculatie?.teamGrootte ?? 2;
+  const effectieveUrenPerDag = voorcalculatie?.effectieveUrenPerDag ?? 6;
 
   // Calculate days from hours
   const calculateDays = useCallback(
@@ -343,7 +343,7 @@ export default function PlanningPage({
   }, [taken.length, project?.toegewezenVoertuigen, startDatum, voorcalculatie, isGenerating, handleGenerate]);
 
   const completedChecklistItems = checklistItems.filter(item => item.completed).length;
-  const checklistProgress = Math.round((completedChecklistItems / checklistItems.length) * 100);
+  const checklistProgress = checklistItems.length > 0 ? Math.round((completedChecklistItems / checklistItems.length) * 100) : 0;
   const isReadyForExecution = taken.length > 0; // Minimum requirement: have tasks
 
   // Loading state

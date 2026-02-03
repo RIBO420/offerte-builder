@@ -160,7 +160,8 @@ export function useOfferteVoorcalculatie(offerteId: Id<"offertes"> | null) {
       // Check if voorcalculatie exists
       if (offerteData?.voorcalculatie) {
         // Strip offerteId from update - it's not allowed in the update mutation
-        const { offerteId: _offerteId, ...updateData } = voorcalculatieData;
+        const { offerteId: _, ...updateData } = voorcalculatieData;
+        void _; // Explicitly mark as intentionally unused
         return updateVoorcalculatie({
           id: offerteData.voorcalculatie._id,
           ...updateData,
@@ -275,7 +276,8 @@ export function useProjectVoorcalculatie(projectId: Id<"projecten"> | null) {
       // Check if voorcalculatie exists
       if (projectData?.voorcalculatie) {
         // Strip projectId from update - it's not allowed in the update mutation
-        const { projectId: _projectId, ...updateData } = voorcalculatieData;
+        const { projectId: _, ...updateData } = voorcalculatieData;
+        void _; // Explicitly mark as intentionally unused
         return updateVoorcalculatie({
           id: projectData.voorcalculatie._id,
           ...updateData,

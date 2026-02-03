@@ -73,9 +73,9 @@ function calculateScopeNormuren(
 
   switch (scope) {
     case "grondwerk": {
-      const oppervlakte = (data?.oppervlakte as number) || 0;
-      const diepte = (data?.diepte as string) || "standaard";
-      const afvoerGrond = (data?.afvoerGrond as boolean) || false;
+      const oppervlakte = typeof data?.oppervlakte === 'number' ? data.oppervlakte : 0;
+      const diepte = typeof data?.diepte === 'string' ? data.diepte : "standaard";
+      const afvoerGrond = typeof data?.afvoerGrond === 'boolean' ? data.afvoerGrond : false;
 
       const diepteFactor = getFactor(factoren, "diepte", diepte);
 

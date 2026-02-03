@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 
 interface UseAutoSaveOptions<T> {
   data: T;
@@ -44,8 +44,8 @@ export function useAutoSave<T>({
   const isMountedRef = useRef(true);
   const isInitializedRef = useRef(false);
 
-  // Serialize data for comparison
-  const serializedData = JSON.stringify(data);
+  // Serialize data for comparison (memoized to avoid unnecessary re-serialization)
+  const serializedData = useMemo(() => JSON.stringify(data), [data]);
 
   // Check if data has changed
   useEffect(() => {

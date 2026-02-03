@@ -500,9 +500,9 @@ Button.displayName = "Button"
 ```bash
 # .env.local
 NEXT_PUBLIC_CONVEX_URL=https://xxx.convex.cloud
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_xxx
-CLERK_SECRET_KEY=sk_xxx
-RESEND_API_KEY=re_xxx
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_xxxxx
+CLERK_SECRET_KEY=sk_test_xxxxx
+RESEND_API_KEY=re_xxxxx
 NEXT_PUBLIC_SENTRY_DSN=https://xxx.sentry.io
 SENTRY_AUTH_TOKEN=xxx
 ```

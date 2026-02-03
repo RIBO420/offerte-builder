@@ -56,7 +56,8 @@ export function createGetResourceHook<
   TTableName extends TableNames,
 >(
   getQuery: TGetQuery,
-  _tableName: TTableName
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _tableName?: TTableName
 ): (id: Id<TTableName> | null) => UseGetReturn<FunctionReturnType<TGetQuery>> {
   type GetData = FunctionReturnType<TGetQuery>;
 

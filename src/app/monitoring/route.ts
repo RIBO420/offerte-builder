@@ -11,6 +11,11 @@ export async function POST(request: Request) {
     const envelope = await request.text();
     const pieces = envelope.split("\n");
 
+    // Validate envelope format before parsing
+    if (!pieces.length) {
+      return NextResponse.json({ error: "Invalid Sentry envelope format" }, { status: 400 });
+    }
+
     // Parse the envelope header to get the DSN
     const header = JSON.parse(pieces[0]);
     const dsn = new URL(header.dsn);
@@ -56,7 +61,7 @@ export async function OPTIONS() {
   return new NextResponse(null, {
     status: 200,
     headers: {
-      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Origin": process.env.NODE_ENV === "production" ? "https://toptuinen.app" : "*",
       "Access-Control-Allow-Methods": "POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type",
     },

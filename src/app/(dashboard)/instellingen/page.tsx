@@ -77,6 +77,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { useNormuren } from "@/hooks/use-normuren";
 import { useCorrectiefactoren } from "@/hooks/use-correctiefactoren";
 import { FleetGoSettings } from "@/components/wagenpark/fleetgo-settings";
+import { Id } from "@convex/_generated/dataModel";
 
 const scopeLabels: Record<string, string> = {
   grondwerk: "Grondwerk",
@@ -284,7 +285,7 @@ export default function InstellingenPage() {
     try {
       if (editingNormuur) {
         await updateNormuur({
-          id: editingNormuur._id as any,
+          id: editingNormuur._id as Id<"normuren">,
           ...normuurForm,
         });
         toast.success("Normuur bijgewerkt");
@@ -304,7 +305,7 @@ export default function InstellingenPage() {
     if (!normuurToDelete) return;
 
     try {
-      await deleteNormuur({ id: normuurToDelete._id as any });
+      await deleteNormuur({ id: normuurToDelete._id as Id<"normuren"> });
       toast.success("Normuur verwijderd");
       setShowDeleteNormuurDialog(false);
       setNormuurToDelete(null);
@@ -742,7 +743,7 @@ export default function InstellingenPage() {
                                 size="icon"
                                 className="h-9 w-9 sm:h-8 sm:w-8"
                                 aria-label="Bewerken"
-                                onClick={() => handleOpenNormuurDialog(normuur as any)}
+                                onClick={() => handleOpenNormuurDialog(normuur as Normuur)}
                               >
                                 <Edit className="h-4 w-4" />
                               </Button>
@@ -752,7 +753,7 @@ export default function InstellingenPage() {
                                 className="h-9 w-9 sm:h-8 sm:w-8"
                                 aria-label="Verwijderen"
                                 onClick={() => {
-                                  setNormuurToDelete(normuur as any);
+                                  setNormuurToDelete(normuur as Normuur);
                                   setShowDeleteNormuurDialog(true);
                                 }}
                               >
@@ -930,7 +931,7 @@ export default function InstellingenPage() {
                                     size="icon"
                                     className="h-9 w-9 sm:h-8 sm:w-8"
                                     aria-label="Bewerken"
-                                    onClick={() => handleEditFactor(factor as any)}
+                                    onClick={() => handleEditFactor(factor as Correctiefactor)}
                                   >
                                     <Edit className="h-4 w-4" />
                                   </Button>
@@ -940,7 +941,7 @@ export default function InstellingenPage() {
                                       size="icon"
                                       className="h-9 w-9 sm:h-8 sm:w-8"
                                       aria-label="Reset naar standaard"
-                                      onClick={() => handleResetFactor(factor as any)}
+                                      onClick={() => handleResetFactor(factor as Correctiefactor)}
                                     >
                                       <RotateCcw className="h-4 w-4 text-muted-foreground" />
                                     </Button>
@@ -983,12 +984,10 @@ export default function InstellingenPage() {
                 isConfigured={false}
                 onSave={async (apiKey) => {
                   // TODO: Save API key to backend
-                  console.log("Saving FleetGo API key:", apiKey);
                   toast.success("FleetGo instellingen opgeslagen");
                 }}
                 onTestConnection={async (apiKey) => {
                   // TODO: Test actual connection
-                  console.log("Testing FleetGo connection with key:", apiKey);
                   return apiKey.length > 10;
                 }}
               />

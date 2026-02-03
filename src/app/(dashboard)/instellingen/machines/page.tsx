@@ -57,6 +57,7 @@ import { toast } from "sonner";
 import { useMachines } from "@/hooks/use-machines";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { MachineForm, MachineFormData } from "@/components/machines/machine-form";
+import { Id } from "@convex/_generated/dataModel";
 
 // Scope labels
 const scopeLabels: Record<string, string> = {
@@ -82,7 +83,7 @@ function formatCurrency(amount: number): string {
 }
 
 interface Machine {
-  _id: string;
+  _id: Id<"machines">;
   naam: string;
   type: "intern" | "extern";
   tarief: number;
@@ -131,7 +132,7 @@ export default function MachinesPage() {
       try {
         if (selectedMachine) {
           await update({
-            id: selectedMachine._id as any,
+            id: selectedMachine._id,
             ...data,
           });
           toast.success("Machine bijgewerkt");
@@ -154,7 +155,7 @@ export default function MachinesPage() {
     if (!machineToDelete) return;
 
     try {
-      await deleteMachine({ id: machineToDelete._id as any });
+      await deleteMachine({ id: machineToDelete._id });
       toast.success("Machine verwijderd");
       setShowDeleteDialog(false);
       setMachineToDelete(null);

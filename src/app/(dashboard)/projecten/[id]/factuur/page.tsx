@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "../../../../../../convex/_generated/api";
-import { Id } from "../../../../../../convex/_generated/dataModel";
+import { Doc, Id } from "../../../../../../convex/_generated/dataModel";
 import {
   Card,
   CardContent,
@@ -357,9 +357,9 @@ function InvoicePreviewCard({
   onGenerate,
   isGenerating,
 }: {
-  offerte: any;
-  nacalculatie: any;
-  project: any;
+  offerte: Doc<"offertes"> | null;
+  nacalculatie: Doc<"nacalculaties"> | null;
+  project: Doc<"projecten">;
   onGenerate: () => void;
   isGenerating: boolean;
 }) {
@@ -839,7 +839,7 @@ export default function FactuurPage({
         <div className="lg:col-span-2">
           <InvoicePreviewCard
             offerte={offerte}
-            nacalculatie={nacalculatie}
+            nacalculatie={nacalculatie ?? null}
             project={project}
             onGenerate={handleGenerateFactuur}
             isGenerating={isGenerating}

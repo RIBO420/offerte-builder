@@ -28,36 +28,19 @@ import {
   UserCheck,
   UserX,
 } from "lucide-react";
-import { Id } from "../../../convex/_generated/dataModel";
+import { Doc } from "../../../convex/_generated/dataModel";
 
-type Medewerker = {
-  _id: Id<"medewerkers">;
-  naam: string;
-  email?: string;
-  telefoon?: string;
-  functie?: string;
-  isActief: boolean;
-  createdAt?: number;
-  updatedAt?: number;
-};
-
-type Team = {
-  _id: Id<"teams">;
-  naam: string;
-  beschrijving?: string;
-  leden: Id<"medewerkers">[];
-  medewerkersDetails: Medewerker[];
-  isActief: boolean;
-  createdAt: number;
-  updatedAt: number;
+// Type for team with medewerker details returned by listWithMedewerkers
+type TeamWithMedewerkers = Doc<"teams"> & {
+  medewerkersDetails: Doc<"medewerkers">[];
 };
 
 interface TeamCardProps {
-  team: Team;
-  onEdit?: (team: Team) => void;
-  onDelete?: (team: Team) => void;
-  onAddMembers?: (team: Team) => void;
-  onToggleActive?: (team: Team) => void;
+  team: TeamWithMedewerkers;
+  onEdit?: (team: TeamWithMedewerkers) => void;
+  onDelete?: (team: TeamWithMedewerkers) => void;
+  onAddMembers?: (team: TeamWithMedewerkers) => void;
+  onToggleActive?: (team: TeamWithMedewerkers) => void;
   showStats?: boolean;
   totalUren?: number;
 }
@@ -242,7 +225,7 @@ export function TeamCardCompact({
   team,
   onClick,
 }: {
-  team: Team;
+  team: TeamWithMedewerkers;
   onClick?: () => void;
 }) {
   const activeMedewerkers = team.medewerkersDetails.filter((m) => m.isActief);

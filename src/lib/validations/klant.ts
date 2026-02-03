@@ -4,12 +4,6 @@ import { z } from "zod";
 export const PHONE_PATTERN = /^(\+31|0)[1-9]\d{1,8}$/;
 export const POSTCODE_PATTERN = /^\d{4}\s?[A-Za-z]{2}$/;
 
-// Helper to create optional string that treats empty string as undefined
-const optionalString = z
-  .string()
-  .optional()
-  .transform((val) => (val?.trim() === "" ? undefined : val?.trim()));
-
 // Helper to create optional email validation
 const optionalEmail = z
   .string()

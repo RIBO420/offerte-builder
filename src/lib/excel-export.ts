@@ -425,7 +425,7 @@ export async function exportAnalyticsReport(
 
     const sortedMonths = Object.entries(monthlyAggregation)
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([_, data]) => data);
+      .map(([, data]) => data);
 
     if (sortedMonths.length > 0) {
       const trendData = sortedMonths.map((m) => ({
