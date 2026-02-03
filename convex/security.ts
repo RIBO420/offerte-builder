@@ -21,8 +21,8 @@ const rateLimitMap = new Map<
   { count: number; windowStart: number }
 >();
 
-// Clean up expired entries every 5 minutes
-setInterval(() => {
+// Clean up expired entries on access (lazy cleanup)
+function cleanupExpiredEntries() {
   const now = Date.now();
   for (const [key, value] of rateLimitMap.entries()) {
     if (now - value.windowStart > 60000) {
@@ -30,7 +30,7 @@ setInterval(() => {
       rateLimitMap.delete(key);
     }
   }
-}, 300000);
+}
 
 export interface RateLimitConfig {
   maxRequests: number; // Maximum requests allowed
@@ -50,6 +50,9 @@ export interface RateLimitResult {
  * Returns whether the request is allowed and remaining quota.
  */
 export function checkRateLimit(config: RateLimitConfig): RateLimitResult {
+  // Lazy cleanup of expired entries
+  cleanupExpiredEntries();
+
   const { maxRequests, windowMs, identifier } = config;
   const now = Date.now();
   const key = identifier;
