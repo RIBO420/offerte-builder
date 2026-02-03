@@ -1,5 +1,6 @@
 /**
  * Security Utilities for Convex
+ * @version 2.0 - Fixed: removed setInterval, using lazy cleanup
  *
  * Provides rate limiting, input validation, and file validation utilities.
  * All error messages are in Dutch.
@@ -21,8 +22,8 @@ const rateLimitMap = new Map<
   { count: number; windowStart: number }
 >();
 
-// Clean up expired entries on access (lazy cleanup)
-function cleanupExpiredEntries() {
+// Clean up expired entries on access (lazy cleanup instead of setInterval)
+function cleanupExpiredEntries(): void {
   const now = Date.now();
   for (const [key, value] of rateLimitMap.entries()) {
     if (now - value.windowStart > 60000) {
