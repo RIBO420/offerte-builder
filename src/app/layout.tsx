@@ -8,6 +8,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { LiveRegionProvider } from "@/components/ui/live-region";
 import { SkipLink } from "@/components/ui/skip-link";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { ChunkReloadHandler } from "@/components/chunk-reload-handler";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -81,6 +82,7 @@ export default function RootLayout({
           className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
         >
           <SkipLink />
+          <ChunkReloadHandler />
           <ThemeProvider
             attribute="class"
             defaultTheme="system"
