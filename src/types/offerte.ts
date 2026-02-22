@@ -221,6 +221,13 @@ export interface HeggenOnderhoudData {
   breedte: number;
   snoei: "zijkanten" | "bovenkant" | "beide";
   afvoerSnoeisel: boolean;
+  // Uitbreidingsvelden
+  haagsoort?: "liguster" | "beuk" | "taxus" | "conifeer" | "buxus" | "overig";
+  haagsoortOverig?: string;
+  diepte?: number;
+  hoogwerkerNodig?: boolean;
+  ondergrond?: "bestrating" | "border" | "grind" | "gras" | "anders";
+  snoeiFrequentie?: "1x" | "2x" | "3x";
 }
 
 export interface BomenOnderhoudData {
@@ -228,6 +235,15 @@ export interface BomenOnderhoudData {
   snoei: "licht" | "zwaar";
   hoogteklasse: "laag" | "middel" | "hoog";
   afvoer: boolean;
+  // Uitbreidingsvelden
+  groottecategorie?: "0-4m" | "4-10m" | "10-20m";
+  nabijGebouw?: boolean;
+  nabijStraat?: boolean;
+  nabijKabels?: boolean;
+  afstandTotStraat?: number;
+  inspectieType?: "geen" | "visueel" | "gecertificeerd";
+  boomsoort?: string;
+  kroondiameter?: number;
 }
 
 export interface OverigeOnderhoudData {
@@ -240,6 +256,90 @@ export interface OverigeOnderhoudData {
   aantalAfwateringspunten?: number;
   overigNotities?: string;
   overigUren?: number;
+}
+
+export interface ReinigingOnderhoudData {
+  terrasReiniging?: boolean;
+  terrasType?: "keramisch" | "beton" | "klinkers" | "natuursteen" | "hout";
+  terrasOppervlakte?: number;
+  bladruimen?: boolean;
+  bladruimenOppervlakte?: number;
+  bladruimenFrequentie?: "eenmalig" | "seizoen";
+  bladruimenAfvoer?: boolean;
+  onkruidBestrating?: boolean;
+  onkruidBestratingOppervlakte?: number;
+  onkruidMethode?: "handmatig" | "branden" | "heet_water" | "chemisch";
+  hogedrukspuitAkkoord?: boolean;
+  algeReiniging?: boolean;
+  algeOppervlakte?: number;
+  algeType?: "dak" | "bestrating" | "hekwerk" | "muur";
+}
+
+export interface BemestingOnderhoudData {
+  bemestingsTypes?: Array<"gazon" | "borders" | "bomen" | "universeel">;
+  oppervlakte?: number;
+  aantalBomen?: number;
+  seizoen?: "voorjaar" | "zomer" | "najaar" | "heel_jaar";
+  productType?: "basis" | "premium" | "bio";
+  frequentie?: "1x" | "2x" | "3x" | "4x";
+  kalkbehandeling?: boolean;
+  grondanalyse?: boolean;
+  onkruidvrijeBemesting?: boolean;
+}
+
+export interface GazonanalyseProblemenData {
+  mos?: boolean;
+  mosPercentage?: number;
+  kalePlekken?: boolean;
+  kalePlekkenM2?: number;
+  onkruid?: boolean;
+  onkruidType?: "breed" | "smal" | "klaver";
+  verdroging?: boolean;
+  wateroverlast?: boolean;
+  schaduw?: boolean;
+  schaduwPercentage?: number;
+  verzuring?: boolean;
+  muizenMollen?: boolean;
+}
+
+export interface GazonanalyseOnderhoudData {
+  conditieScore?: number;
+  problemen?: GazonanalyseProblemenData;
+  oppervlakte?: number;
+  huidigGrastype?: "onbekend" | "sport" | "sier" | "schaduw" | "mix";
+  bodemtype?: "zand" | "klei" | "veen" | "leem";
+  herstelacties?: Array<"verticuteren" | "doorzaaien" | "nieuwe_grasmat" | "plaggen" | "bijzaaien">;
+  drainage?: boolean;
+  bekalken?: boolean;
+  robotmaaierAdvies?: boolean;
+  beregeningsadvies?: boolean;
+}
+
+export interface MollenbestrijdingOnderhoudData {
+  aantalMolshopen?: number;
+  oppervlakte?: number;
+  tuinType?: "gazon" | "border" | "moestuin" | "gemengd";
+  ernst?: number;
+  pakket?: "basis" | "premium" | "premium_plus";
+  gazonherstel?: boolean;
+  gazonherstelM2?: number;
+  preventiefGaas?: boolean;
+  preventiefGaasM2?: number;
+  terugkeerCheck?: boolean;
+}
+
+// Gecombineerd onderhoud scope data type
+export interface OnderhoudScopeData {
+  tuinOppervlakte?: number;
+  gras?: GrasOnderhoudData;
+  borders?: BordersOnderhoudData;
+  heggen?: HeggenOnderhoudData;
+  bomen?: BomenOnderhoudData;
+  overig?: OverigeOnderhoudData;
+  reiniging?: ReinigingOnderhoudData;
+  bemesting?: BemestingOnderhoudData;
+  gazonanalyse?: GazonanalyseOnderhoudData;
+  mollenbestrijding?: MollenbestrijdingOnderhoudData;
 }
 
 // Correctiefactoren
@@ -309,6 +409,10 @@ export interface ScopeMarges {
   heggen?: number;
   bomen?: number;
   overig?: number;
+  reiniging?: number;
+  bemesting?: number;
+  gazonanalyse?: number;
+  mollenbestrijding?: number;
 }
 
 // Instellingen

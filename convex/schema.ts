@@ -236,6 +236,10 @@ export default defineSchema({
         heggen: v.optional(v.number()),
         bomen: v.optional(v.number()),
         overig: v.optional(v.number()),
+        reiniging: v.optional(v.number()),
+        bemesting: v.optional(v.number()),
+        gazonanalyse: v.optional(v.number()),
+        mollenbestrijding: v.optional(v.number()),
       })
     ),
     btwPercentage: v.number(),

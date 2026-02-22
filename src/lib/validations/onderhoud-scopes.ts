@@ -61,6 +61,13 @@ export const heggenOnderhoudSchema = z.object({
     error: "Selecteer snoei type",
   }),
   afvoerSnoeisel: z.boolean(),
+  // Uitbreidingsvelden
+  haagsoort: z.enum(["liguster", "beuk", "taxus", "conifeer", "buxus", "overig"]).optional(),
+  haagsoortOverig: z.string().optional(),
+  diepte: z.number({ error: "Voer een getal in" }).min(0, "Diepte mag niet negatief zijn").optional(),
+  hoogwerkerNodig: z.boolean().optional(),
+  ondergrond: z.enum(["bestrating", "border", "grind", "gras", "anders"]).optional(),
+  snoeiFrequentie: z.enum(["1x", "2x", "3x"]).optional(),
 });
 
 export type HeggenOnderhoudFormData = z.infer<typeof heggenOnderhoudSchema>;
@@ -77,6 +84,15 @@ export const bomenOnderhoudSchema = z.object({
     error: "Selecteer hoogteklasse",
   }),
   afvoer: z.boolean(),
+  // Uitbreidingsvelden
+  groottecategorie: z.enum(["0-4m", "4-10m", "10-20m"]).optional(),
+  nabijGebouw: z.boolean().optional(),
+  nabijStraat: z.boolean().optional(),
+  nabijKabels: z.boolean().optional(),
+  afstandTotStraat: z.number({ error: "Voer een getal in" }).min(0, "Afstand mag niet negatief zijn").optional(),
+  inspectieType: z.enum(["geen", "visueel", "gecertificeerd"]).optional(),
+  boomsoort: z.string().optional(),
+  kroondiameter: z.number({ error: "Voer een getal in" }).min(0, "Kroondiameter mag niet negatief zijn").optional(),
 });
 
 export type BomenOnderhoudFormData = z.infer<typeof bomenOnderhoudSchema>;
@@ -140,3 +156,85 @@ export const overigeOnderhoudSchema = z.object({
 );
 
 export type OverigeOnderhoudFormData = z.infer<typeof overigeOnderhoudSchema>;
+
+// Reiniging onderhoud schema
+export const reinigingOnderhoudSchema = z.object({
+  terrasReiniging: z.boolean().optional(),
+  terrasType: z.enum(["keramisch", "beton", "klinkers", "natuursteen", "hout"]).optional(),
+  terrasOppervlakte: z.number({ error: "Voer een getal in" }).min(0, "Oppervlakte mag niet negatief zijn").optional(),
+  bladruimen: z.boolean().optional(),
+  bladruimenOppervlakte: z.number({ error: "Voer een getal in" }).min(0, "Oppervlakte mag niet negatief zijn").optional(),
+  bladruimenFrequentie: z.enum(["eenmalig", "seizoen"]).optional(),
+  bladruimenAfvoer: z.boolean().optional(),
+  onkruidBestrating: z.boolean().optional(),
+  onkruidBestratingOppervlakte: z.number({ error: "Voer een getal in" }).min(0, "Oppervlakte mag niet negatief zijn").optional(),
+  onkruidMethode: z.enum(["handmatig", "branden", "heet_water", "chemisch"]).optional(),
+  hogedrukspuitAkkoord: z.boolean().optional(),
+  algeReiniging: z.boolean().optional(),
+  algeOppervlakte: z.number({ error: "Voer een getal in" }).min(0, "Oppervlakte mag niet negatief zijn").optional(),
+  algeType: z.enum(["dak", "bestrating", "hekwerk", "muur"]).optional(),
+});
+
+export type ReinigingOnderhoudFormData = z.infer<typeof reinigingOnderhoudSchema>;
+
+// Bemesting onderhoud schema
+export const bemestingOnderhoudSchema = z.object({
+  bemestingsTypes: z.array(z.enum(["gazon", "borders", "bomen", "universeel"])).optional(),
+  oppervlakte: z.number({ error: "Voer een getal in" }).min(0, "Oppervlakte mag niet negatief zijn").optional(),
+  aantalBomen: z.number({ error: "Voer een getal in" }).min(0, "Aantal bomen mag niet negatief zijn").optional(),
+  seizoen: z.enum(["voorjaar", "zomer", "najaar", "heel_jaar"]).optional(),
+  productType: z.enum(["basis", "premium", "bio"]).optional(),
+  frequentie: z.enum(["1x", "2x", "3x", "4x"]).optional(),
+  kalkbehandeling: z.boolean().optional(),
+  grondanalyse: z.boolean().optional(),
+  onkruidvrijeBemesting: z.boolean().optional(),
+});
+
+export type BemestingOnderhoudFormData = z.infer<typeof bemestingOnderhoudSchema>;
+
+// Gazonanalyse onderhoud schema
+export const gazonanalyseProblemenSchema = z.object({
+  mos: z.boolean().optional(),
+  mosPercentage: z.number({ error: "Voer een getal in" }).min(0).max(100, "Percentage moet tussen 0 en 100 zijn").optional(),
+  kalePlekken: z.boolean().optional(),
+  kalePlekkenM2: z.number({ error: "Voer een getal in" }).min(0, "Oppervlakte mag niet negatief zijn").optional(),
+  onkruid: z.boolean().optional(),
+  onkruidType: z.enum(["breed", "smal", "klaver"]).optional(),
+  verdroging: z.boolean().optional(),
+  wateroverlast: z.boolean().optional(),
+  schaduw: z.boolean().optional(),
+  schaduwPercentage: z.number({ error: "Voer een getal in" }).min(0).max(100, "Percentage moet tussen 0 en 100 zijn").optional(),
+  verzuring: z.boolean().optional(),
+  muizenMollen: z.boolean().optional(),
+});
+
+export const gazonanalyseOnderhoudSchema = z.object({
+  conditieScore: z.number({ error: "Voer een getal in" }).min(0).max(10, "Score moet tussen 0 en 10 zijn").optional(),
+  problemen: gazonanalyseProblemenSchema.optional(),
+  oppervlakte: z.number({ error: "Voer een getal in" }).min(0, "Oppervlakte mag niet negatief zijn").optional(),
+  huidigGrastype: z.enum(["onbekend", "sport", "sier", "schaduw", "mix"]).optional(),
+  bodemtype: z.enum(["zand", "klei", "veen", "leem"]).optional(),
+  herstelacties: z.array(z.enum(["verticuteren", "doorzaaien", "nieuwe_grasmat", "plaggen", "bijzaaien"])).optional(),
+  drainage: z.boolean().optional(),
+  bekalken: z.boolean().optional(),
+  robotmaaierAdvies: z.boolean().optional(),
+  beregeningsadvies: z.boolean().optional(),
+});
+
+export type GazonanalyseOnderhoudFormData = z.infer<typeof gazonanalyseOnderhoudSchema>;
+
+// Mollenbestrijding onderhoud schema
+export const mollenbestrijdingOnderhoudSchema = z.object({
+  aantalMolshopen: z.number({ error: "Voer een getal in" }).min(0, "Aantal molshopen mag niet negatief zijn").optional(),
+  oppervlakte: z.number({ error: "Voer een getal in" }).min(0, "Oppervlakte mag niet negatief zijn").optional(),
+  tuinType: z.enum(["gazon", "border", "moestuin", "gemengd"]).optional(),
+  ernst: z.number({ error: "Voer een getal in" }).min(1).max(5, "Ernst moet tussen 1 en 5 zijn").optional(),
+  pakket: z.enum(["basis", "premium", "premium_plus"]).optional(),
+  gazonherstel: z.boolean().optional(),
+  gazonherstelM2: z.number({ error: "Voer een getal in" }).min(0, "Oppervlakte mag niet negatief zijn").optional(),
+  preventiefGaas: z.boolean().optional(),
+  preventiefGaasM2: z.number({ error: "Voer een getal in" }).min(0, "Oppervlakte mag niet negatief zijn").optional(),
+  terugkeerCheck: z.boolean().optional(),
+});
+
+export type MollenbestrijdingOnderhoudFormData = z.infer<typeof mollenbestrijdingOnderhoudSchema>;

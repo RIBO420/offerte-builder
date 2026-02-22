@@ -71,7 +71,14 @@ import {
   HeggenForm,
   BomenForm,
   OverigForm,
+  ReinigingForm,
+  BemestingForm,
+  GazonanalyseForm,
+  MollenbestrijdingForm,
 } from "@/components/offerte/onderhoud-forms";
+import { bemestingDefaultValues, type BemestingFormData } from "@/components/offerte/onderhoud-forms/bemesting-form";
+import { defaultGazonanalyseData, type GazonanalyseData } from "@/components/offerte/onderhoud-forms/gazonanalyse-form";
+import type { MollenbestrijdingData } from "@/components/offerte/onderhoud-forms/mollenbestrijding-form";
 import { TemplateSelector } from "@/components/offerte/template-selector";
 import { PackageSelector } from "@/components/offerte/package-selector";
 import { RestoreDraftDialog } from "@/components/offerte/restore-draft-dialog";
@@ -91,7 +98,7 @@ import type {
   OverigeOnderhoudData,
 } from "@/types/offerte";
 
-type OnderhoudScope = "gras" | "borders" | "heggen" | "bomen" | "overig";
+type OnderhoudScope = "gras" | "borders" | "heggen" | "bomen" | "overig" | "reiniging" | "bemesting" | "gazonanalyse" | "mollenbestrijding";
 
 const SCOPES = [
   {
@@ -125,6 +132,34 @@ const SCOPES = [
     naam: "Overige werkzaamheden",
     icon: Leaf,
     beschrijving: "Bladruimen, terras, onkruid bestrating",
+  },
+  {
+    id: "reiniging" as OnderhoudScope,
+    naam: "Reiniging",
+    icon: Leaf,
+    beschrijving: "Terras, bestrating, bladruimen",
+    color: "bg-cyan-500",
+  },
+  {
+    id: "bemesting" as OnderhoudScope,
+    naam: "Bemesting",
+    icon: Flower2,
+    beschrijving: "Gazon, borders, bomen — 70% marge",
+    color: "bg-lime-500",
+  },
+  {
+    id: "gazonanalyse" as OnderhoudScope,
+    naam: "Gazonanalyse",
+    icon: Trees,
+    beschrijving: "Beoordeling, herstelplan, advies",
+    color: "bg-teal-500",
+  },
+  {
+    id: "mollenbestrijding" as OnderhoudScope,
+    naam: "Mollenbestrijding",
+    icon: TreeDeciduous,
+    beschrijving: "3-tier pakketten, preventie",
+    color: "bg-yellow-600",
   },
 ];
 
@@ -174,12 +209,36 @@ const DEFAULT_OVERIG: OverigeOnderhoudData = {
   overigUren: 0,
 };
 
+const DEFAULT_REINIGING: Record<string, unknown> = {
+  terrasreinigingAan: false,
+  hogedrukAkkoord: false,
+  bladruimenAan: false,
+  bladafvoerAan: false,
+  onkruidBestratingAan: false,
+  algereinigingAan: false,
+};
+
+const DEFAULT_MOLLENBESTRIJDING: MollenbestrijdingData = {
+  aantalMolshopen: 0,
+  tuinOppervlakte: 1,
+  tuinType: "gazon",
+  ernst: 1,
+  gekozenPakket: "basis",
+  gazonherstel: false,
+  preventiefGaas: false,
+  terugkeerCheck: false,
+};
+
 type OnderhoudScopeData = {
   gras: GrasOnderhoudData;
   borders: BordersOnderhoudData;
   heggen: HeggenOnderhoudData;
   bomen: BomenOnderhoudData;
   overig: OverigeOnderhoudData;
+  reiniging: Record<string, unknown>;
+  bemesting: BemestingFormData;
+  gazonanalyse: GazonanalyseData;
+  mollenbestrijding: MollenbestrijdingData;
 };
 
 // Type for wizard autosave data
@@ -222,6 +281,10 @@ const INITIAL_WIZARD_DATA: WizardData = {
     heggen: DEFAULT_HEGGEN,
     bomen: DEFAULT_BOMEN,
     overig: DEFAULT_OVERIG,
+    reiniging: DEFAULT_REINIGING,
+    bemesting: bemestingDefaultValues,
+    gazonanalyse: defaultGazonanalyseData,
+    mollenbestrijding: DEFAULT_MOLLENBESTRIJDING,
   },
 };
 
@@ -265,6 +328,10 @@ export default function NieuweOnderhoudOffertePage() {
     heggen: {},
     bomen: {},
     overig: {},
+    reiniging: {},
+    bemesting: {},
+    gazonanalyse: {},
+    mollenbestrijding: {},
   });
 
   // Memoized handlers for scope validation changes to prevent infinite loops
@@ -283,6 +350,18 @@ export default function NieuweOnderhoudOffertePage() {
     },
     overig: (_isValid: boolean, errors: Record<string, string>) => {
       setScopeValidationErrors(prev => ({ ...prev, overig: errors }));
+    },
+    reiniging: (_isValid: boolean, errors: Record<string, string>) => {
+      setScopeValidationErrors(prev => ({ ...prev, reiniging: errors }));
+    },
+    bemesting: (_isValid: boolean, errors: Record<string, string>) => {
+      setScopeValidationErrors(prev => ({ ...prev, bemesting: errors }));
+    },
+    gazonanalyse: (_isValid: boolean, errors: Record<string, string>) => {
+      setScopeValidationErrors(prev => ({ ...prev, gazonanalyse: errors }));
+    },
+    mollenbestrijding: (_isValid: boolean, errors: Record<string, string>) => {
+      setScopeValidationErrors(prev => ({ ...prev, mollenbestrijding: errors }));
     },
   }), []);
 
@@ -371,6 +450,18 @@ export default function NieuweOnderhoudOffertePage() {
         return scopeData.bomen.aantalBomen > 0;
       case "overig":
         // Overig is always valid - all fields are optional
+        return true;
+      case "reiniging":
+        // Reiniging is always valid - all fields are optional
+        return true;
+      case "bemesting":
+        // Bemesting is always valid - all fields are optional
+        return true;
+      case "gazonanalyse":
+        // Gazonanalyse is always valid - all fields are optional
+        return true;
+      case "mollenbestrijding":
+        // Mollenbestrijding is always valid - all fields are optional
         return true;
       default:
         return false;
@@ -1133,6 +1224,50 @@ export default function NieuweOnderhoudOffertePage() {
                           setScopeData({ ...scopeData, overig: data })
                         }
                         onValidationChange={scopeValidationHandlers.overig}
+                      />
+                    );
+                  case "reiniging":
+                    return (
+                      <ReinigingForm
+                        key={scopeId}
+                        data={scopeData.reiniging}
+                        onChange={(data) =>
+                          setScopeData({ ...scopeData, reiniging: data })
+                        }
+                        onValidationChange={scopeValidationHandlers.reiniging}
+                      />
+                    );
+                  case "bemesting":
+                    return (
+                      <BemestingForm
+                        key={scopeId}
+                        data={scopeData.bemesting}
+                        onChange={(data) =>
+                          setScopeData({ ...scopeData, bemesting: data })
+                        }
+                        onValidationChange={scopeValidationHandlers.bemesting}
+                      />
+                    );
+                  case "gazonanalyse":
+                    return (
+                      <GazonanalyseForm
+                        key={scopeId}
+                        data={scopeData.gazonanalyse}
+                        onChange={(data) =>
+                          setScopeData({ ...scopeData, gazonanalyse: data })
+                        }
+                        onValidationChange={scopeValidationHandlers.gazonanalyse}
+                      />
+                    );
+                  case "mollenbestrijding":
+                    return (
+                      <MollenbestrijdingForm
+                        key={scopeId}
+                        data={scopeData.mollenbestrijding}
+                        onChange={(data) =>
+                          setScopeData({ ...scopeData, mollenbestrijding: data })
+                        }
+                        onValidationChange={scopeValidationHandlers.mollenbestrijding}
                       />
                     );
                   default:

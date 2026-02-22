@@ -3,3 +3,7 @@ export { BordersOnderhoudForm } from "./borders-onderhoud-form";
 export { HeggenForm } from "./heggen-form";
 export { BomenForm } from "./bomen-form";
 export { OverigForm } from "./overig-form";
+export { ReinigingForm } from "./reiniging-form";
+export { BemestingForm } from "./bemesting-form";
+export { GazonanalyseForm } from "./gazonanalyse-form";
+export { MollenbestrijdingForm } from "./mollenbestrijding-form";

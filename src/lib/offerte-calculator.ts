@@ -24,6 +24,7 @@ import type {
   BomenOnderhoudData,
   OverigeOnderhoudData,
 } from "@/types/offerte";
+import { v4 as uuidv4 } from "uuid";
 import { roundToQuarter } from "@/lib/time-utils";
 
 // ==================== CONSTANTS ====================
@@ -135,6 +136,90 @@ export interface ScopeMarges {
   heggen?: number;
   bomen?: number;
   overig?: number;
+  reiniging?: number;
+  bemesting?: number;
+  gazonanalyse?: number;
+  mollenbestrijding?: number;
+}
+
+// ==================== NIEUWE ONDERHOUD SCOPE DATA TYPES ====================
+
+export interface HeggenOnderhoudExtendedData {
+  lengte: number;
+  hoogte: number;
+  breedte: number;
+  snoei: "zijkanten" | "bovenkant" | "beide";
+  afvoerSnoeisel: boolean;
+  haagsoort?: "liguster" | "beuk" | "taxus" | "conifeer" | "buxus";
+  hoogwerkerNodig?: boolean;
+  snoeifrequentie?: 1 | 2 | 3;
+  ondergrond?: "bestrating" | "gras" | "grind" | "border";
+}
+
+export interface BomenOnderhoudExtendedData {
+  aantalBomen: number;
+  snoei: "licht" | "zwaar";
+  hoogteklasse: "laag" | "middel" | "hoog" | "zeer_hoog";
+  hoogteMeter?: number;
+  afvoer: boolean;
+  kroondiameter?: number;
+  inspectie?: "geen" | "visueel" | "gecertificeerd";
+  nabijStraat?: boolean;
+  nabijGebouw?: boolean;
+  nabijKabels?: boolean;
+}
+
+export interface ReinigingOnderhoudData {
+  // Terrasreiniging
+  terrasReinigen?: boolean;
+  terrasOppervlakte?: number;
+  terrasType?: "keramisch" | "beton" | "klinkers" | "natuursteen" | "hout";
+  // Bladruimen
+  bladruimen?: boolean;
+  bladruimenOppervlakte?: number;
+  bladruimenType?: "eenmalig" | "seizoen";
+  // Onkruid bestrating
+  onkruidBestrating?: boolean;
+  onkruidOppervlakte?: number;
+  onkruidMethode?: "handmatig" | "branden" | "heet_water" | "chemisch";
+  // Algereiniging
+  algereiniging?: boolean;
+  algeOppervlakte?: number;
+}
+
+export interface BemestingOnderhoudData {
+  oppervlakte: number;
+  bemestingstype?: "basis" | "premium" | "bio";
+  frequentie?: 1 | 2 | 3;
+  kalkbehandeling?: boolean;
+  grondanalyse?: boolean;
+}
+
+export interface GazonanalyseOnderhoudData {
+  oppervlakte: number;
+  herstelacties?: {
+    verticuteren?: boolean;
+    doorzaaien?: boolean;
+    nieuweGrasmat?: boolean;
+    plaggen?: boolean;
+    bijzaaienKalePlekken?: boolean;
+    kalePlekkOppervlakte?: number;
+  };
+  bekalken?: boolean;
+  drainage?: boolean;
+}
+
+export type MollenbestrijdingPakket = "basis" | "premium" | "premium_plus";
+
+export interface MollenbestrijdingOnderhoudData {
+  pakket: MollenbestrijdingPakket;
+  aanvullend?: {
+    gazonherstel?: boolean;
+    geschatteM2?: number;
+    preventiefGaas?: boolean;
+    gaasOppervlakte?: number;
+    terugkeerCheck?: boolean;
+  };
 }
 
 export interface Normuur {
@@ -1117,6 +1202,633 @@ function calculateOverigOnderhoud(
   return regels;
 }
 
+// ==================== UITGEBREIDE EN NIEUWE ONDERHOUD BEREKENINGEN ====================
+
+// Constanten voor nieuwe berekeningen
+const HAAGSOORT_FACTOR: Record<string, number> = {
+  liguster: 1.0,
+  beuk: 1.0,
+  taxus: 1.3,
+  conifeer: 1.4,
+  buxus: 0.8,
+};
+
+const HOOGWERKER_PRIJS_PER_DAG = 185;
+const HOOGWERKER_DREMPEL_HOOGTE = 4;
+
+const TERRAS_TYPE_FACTOR: Record<string, number> = {
+  keramisch: 1.2,
+  beton: 1.0,
+  klinkers: 1.1,
+  natuursteen: 1.5,
+  hout: 1.3,
+};
+
+const REINIGINGSMIDDEL_PRIJS_PER_M2 = 2.0;
+const ANTI_ALG_PRIJS_PER_M2 = 1.5;
+
+const BEMESTING_PRODUCT_PRIJS: Record<string, number> = {
+  basis: 0.80,
+  premium: 1.50,
+  bio: 2.00,
+};
+
+const BEMESTING_NORMUUR_PER_M2 = 0.005;
+const KALK_PRIJS_PER_M2 = 0.50;
+const KALK_NORMUUR_PER_M2 = 0.003;
+const GRONDANALYSE_PRIJS = 49;
+const BEMESTING_MARGE_OVERRIDE = 70;
+
+const MACHINE_VERTICUTEREN_PER_DAG = 80;
+const ZAAD_DOORZAAIEN_PRIJS_PER_M2 = 3.0;
+const GRASZODEN_NIEUW_PRIJS_PER_M2 = 12.0;
+const ZAAD_BIJZAAIEN_PRIJS_PER_M2 = 5.0;
+const BEKALKEN_PRIJS_PER_M2 = 0.50;
+const BEKALKEN_NORMUUR_PER_M2 = 0.003;
+
+const MOLLEN_KLEMMEN_BASIS = 35;
+const MOLLEN_KLEMMEN_PREMIUM = 75;
+const MOLLEN_KLEMMEN_PREMIUM_PLUS = 120;
+const MOLHERSTEL_ZAAD_PRIJS_PER_M2 = 5.0;
+const MOLLEN_GAAS_PRIJS_PER_M2 = 4.0;
+
+/**
+ * Uitgebreide versie van heg-onderhoud berekening.
+ * Voegt haagsoort-factor, hoogwerker, frequentie en ondergrond-toeslag toe
+ * bovenop de bestaande volume-gebaseerde berekening.
+ */
+function calculateHeggenOnderhoudExtended(
+  data: HeggenOnderhoudExtendedData,
+  context: CalculationContext
+): OfferteRegel[] {
+  const regels: OfferteRegel[] = [];
+  const { normuren, instellingen, bereikbaarheid, achterstalligheid, correctiefactoren } = context;
+
+  const bereikbaarheidFactor = getCorrectionFactor(correctiefactoren, "bereikbaarheid", bereikbaarheid);
+  const achterstalligheidFactor = achterstalligheid
+    ? getCorrectionFactor(correctiefactoren, "achterstalligheid", achterstalligheid)
+    : 1.0;
+  const uurtarief = instellingen.uurtarief;
+
+  const volume = (data.lengte || 0) * (data.hoogte || 0) * (data.breedte || 0);
+  if (volume <= 0) return regels;
+
+  // Haagsoort factor (standaard 1.0 voor onbekende soort)
+  const haagsoortFactor = data.haagsoort ? (HAAGSOORT_FACTOR[data.haagsoort] ?? 1.0) : 1.0;
+
+  // Hoogte toeslag: hoogte > 2m geeft bestaande factor, hoogte > 4m geeft hogere factor
+  let hoogteFactor = 1.0;
+  if (data.hoogte && data.hoogte > HOOGTE_DREMPEL_METERS) {
+    hoogteFactor = HOOGTE_TOESLAG_FACTOR;
+  }
+
+  // Ondergrond toeslag
+  let ondergrondFactor = 1.0;
+  if (data.ondergrond === "bestrating") {
+    ondergrondFactor = 1.15;
+  } else if (data.ondergrond === "border") {
+    ondergrondFactor = 1.05;
+  }
+
+  // Frequentie (standaard 1x per jaar)
+  const frequentie = data.snoeifrequentie ?? 1;
+
+  // Heg snoeien (arbeid)
+  const snoeienNormuur = findNormuur(normuren, "heggen_onderhoud", "heg snoeien");
+  if (snoeienNormuur) {
+    const baseHours = volume * snoeienNormuur.normuurPerEenheid;
+    const totalHoursPerBeurt = calculateLaborHours(
+      baseHours,
+      bereikbaarheidFactor,
+      hoogteFactor * haagsoortFactor * ondergrondFactor,
+      achterstalligheidFactor
+    );
+    const totalHoursJaar = totalHoursPerBeurt * frequentie;
+    const frequentieLabel = frequentie > 1 ? ` (${frequentie}x per jaar)` : "";
+    regels.push(createArbeidsRegel("heggen", `Heg snoeien${frequentieLabel}`, totalHoursJaar, uurtarief));
+  }
+
+  // Snoeisel afvoeren
+  if (data.afvoerSnoeisel) {
+    const afvoerNormuur = findNormuur(normuren, "heggen_onderhoud", "snoeisel afvoeren");
+    if (afvoerNormuur) {
+      const snoeiselVolume = volume * SNOEISEL_VOLUME_FACTOR;
+      const baseHours = snoeiselVolume * afvoerNormuur.normuurPerEenheid;
+      const totalHours = calculateLaborHours(baseHours, bereikbaarheidFactor) * frequentie;
+      regels.push(createArbeidsRegel("heggen", "Snoeisel afvoeren", totalHours, uurtarief));
+    }
+  }
+
+  // Hoogwerker: nodig als hoogte > 4m of expliciet aangevraagd
+  const hoogwerkerNodig =
+    data.hoogwerkerNodig === true || (data.hoogte !== undefined && data.hoogte > HOOGWERKER_DREMPEL_HOOGTE);
+  if (hoogwerkerNodig && data.lengte && data.lengte > 0) {
+    const dagenInzet = Math.ceil(data.lengte / 10) * frequentie;
+    const hoogwerkerTotaal = dagenInzet * HOOGWERKER_PRIJS_PER_DAG;
+    regels.push({
+      id: generateId(),
+      scope: "heggen",
+      omschrijving: `Hoogwerker huur (${dagenInzet} dag${dagenInzet > 1 ? "en" : ""})`,
+      eenheid: "dag",
+      hoeveelheid: dagenInzet,
+      prijsPerEenheid: HOOGWERKER_PRIJS_PER_DAG,
+      totaal: Math.round(hoogwerkerTotaal * 100) / 100,
+      type: "machine",
+    });
+  }
+
+  return regels;
+}
+
+/**
+ * Uitgebreide versie van boom-onderhoud berekening.
+ * Voegt uitgebreide hoogtecategorieën, boominspectie, veiligheidstoeslagen
+ * en kroondiameter-gebaseerde afvoerberekening toe.
+ */
+function calculateBomenOnderhoudExtended(
+  data: BomenOnderhoudExtendedData,
+  context: CalculationContext
+): OfferteRegel[] {
+  const regels: OfferteRegel[] = [];
+  const { normuren, instellingen, bereikbaarheid, achterstalligheid, correctiefactoren } = context;
+
+  const bereikbaarheidFactor = getCorrectionFactor(correctiefactoren, "bereikbaarheid", bereikbaarheid);
+  const achterstalligheidFactor = achterstalligheid
+    ? getCorrectionFactor(correctiefactoren, "achterstalligheid", achterstalligheid)
+    : 1.0;
+  const uurtarief = instellingen.uurtarief;
+
+  if (!data.aantalBomen || data.aantalBomen <= 0) return regels;
+
+  // Uitgebreide hoogtecategorie factor
+  let hoogteFactor = 1.0;
+  if (data.hoogteklasse === "hoog" || (data.hoogteMeter !== undefined && data.hoogteMeter > 4)) {
+    hoogteFactor = 1.5;
+  }
+  if (data.hoogteklasse === "zeer_hoog" || (data.hoogteMeter !== undefined && data.hoogteMeter > 10)) {
+    hoogteFactor = 2.5;
+  }
+
+  // Veiligheidstoeslag (cumulatief)
+  let veiligheidsFactor = 1.0;
+  if (data.nabijStraat) veiligheidsFactor += 0.20;
+  if (data.nabijGebouw) veiligheidsFactor += 0.10;
+  if (data.nabijKabels) veiligheidsFactor += 0.15;
+
+  // Boom snoeien (arbeid)
+  const snoeiType = data.snoei || "licht";
+  const normuur = findNormuur(normuren, "bomen_onderhoud", `boom snoeien ${snoeiType}`);
+  if (normuur) {
+    const baseHours = data.aantalBomen * normuur.normuurPerEenheid;
+    const totalHours = calculateLaborHours(
+      baseHours,
+      bereikbaarheidFactor,
+      hoogteFactor * veiligheidsFactor,
+      achterstalligheidFactor
+    );
+    regels.push(createArbeidsRegel("bomen", `Bomen snoeien (${snoeiType})`, totalHours, uurtarief));
+  }
+
+  // Boominspectie
+  if (data.inspectie && data.inspectie !== "geen") {
+    if (data.inspectie === "visueel") {
+      const inspectieUren = 0.5 * data.aantalBomen;
+      const totalHours = calculateLaborHours(inspectieUren, bereikbaarheidFactor);
+      regels.push(createArbeidsRegel("bomen", "Boominspectie (visueel)", totalHours, uurtarief));
+    } else if (data.inspectie === "gecertificeerd") {
+      const inspectiePrijs = 200 * data.aantalBomen;
+      regels.push({
+        id: generateId(),
+        scope: "bomen",
+        omschrijving: "Boominspectie (gecertificeerd)",
+        eenheid: "boom",
+        hoeveelheid: data.aantalBomen,
+        prijsPerEenheid: 200,
+        totaal: Math.round(inspectiePrijs * 100) / 100,
+        type: "arbeid",
+      });
+    }
+  }
+
+  // Afvoer snoeihout op basis van kroondiameter
+  if (data.afvoer) {
+    const kroondiameter = data.kroondiameter ?? 3;
+    const afvoerUren = kroondiameter * kroondiameter * 0.1 * data.aantalBomen;
+    const afvoerNormuur = findNormuur(normuren, "bomen_onderhoud", "afvoer");
+    if (afvoerNormuur) {
+      const baseHours = afvoerUren * afvoerNormuur.normuurPerEenheid;
+      const totalHours = calculateLaborHours(baseHours, bereikbaarheidFactor);
+      regels.push(createArbeidsRegel("bomen", "Snoeihout afvoeren", totalHours, uurtarief));
+    } else {
+      // Fallback: gebruik afvoerUren direct als arbeid
+      const totalHours = calculateLaborHours(afvoerUren, bereikbaarheidFactor);
+      regels.push(createArbeidsRegel("bomen", "Snoeihout afvoeren", totalHours, uurtarief));
+    }
+  }
+
+  return regels;
+}
+
+/**
+ * Berekening voor reiniging-onderhoud:
+ * terrasreiniging, bladruimen, onkruid bestrating en algereiniging.
+ */
+function calculateReinigingOnderhoud(
+  data: ReinigingOnderhoudData,
+  context: CalculationContext
+): OfferteRegel[] {
+  const regels: OfferteRegel[] = [];
+  const { normuren, instellingen, bereikbaarheid, correctiefactoren } = context;
+
+  const bereikbaarheidFactor = getCorrectionFactor(correctiefactoren, "bereikbaarheid", bereikbaarheid);
+  const uurtarief = instellingen.uurtarief;
+
+  // Terrasreiniging
+  if (data.terrasReinigen && data.terrasOppervlakte && data.terrasOppervlakte > 0) {
+    const opp = data.terrasOppervlakte;
+    const typeFactor = data.terrasType ? (TERRAS_TYPE_FACTOR[data.terrasType] ?? 1.0) : 1.0;
+
+    const terrasNormuur = findNormuur(normuren, "overig_onderhoud", "terras reinigen");
+    const normuurWaarde = terrasNormuur ? terrasNormuur.normuurPerEenheid : TERRAS_REINIGEN_UREN_PER_M2;
+
+    const baseHours = opp * normuurWaarde * typeFactor;
+    const totalHours = calculateLaborHours(baseHours, bereikbaarheidFactor);
+    const typeLabel = data.terrasType ? ` (${data.terrasType})` : "";
+    regels.push(createArbeidsRegel("reiniging", `Terras reinigen${typeLabel}`, totalHours, uurtarief));
+
+    // Reinigingsmiddel
+    regels.push(createMateriaalRegel(
+      "reiniging",
+      "Reinigingsmiddel",
+      opp,
+      "m²",
+      REINIGINGSMIDDEL_PRIJS_PER_M2,
+      0
+    ));
+  }
+
+  // Bladruimen
+  if (data.bladruimen && data.bladruimenOppervlakte && data.bladruimenOppervlakte > 0) {
+    const opp = data.bladruimenOppervlakte;
+    const beurten = data.bladruimenType === "seizoen" ? 4 : 1;
+    const bladUren = opp * 0.02 * beurten;
+    const afvoerUren = opp * 0.005 * beurten;
+
+    const totalBladHours = calculateLaborHours(bladUren, bereikbaarheidFactor);
+    const seizoenLabel = data.bladruimenType === "seizoen" ? " (4 beurten)" : " (eenmalig)";
+    regels.push(createArbeidsRegel("reiniging", `Bladruimen${seizoenLabel}`, totalBladHours, uurtarief));
+
+    const totalAfvoerHours = calculateLaborHours(afvoerUren, bereikbaarheidFactor);
+    regels.push(createArbeidsRegel("reiniging", "Blad afvoeren", totalAfvoerHours, uurtarief));
+  }
+
+  // Onkruid bestrating
+  if (data.onkruidBestrating && data.onkruidOppervlakte && data.onkruidOppervlakte > 0) {
+    const opp = data.onkruidOppervlakte;
+    const methode = data.onkruidMethode ?? "handmatig";
+
+    let onkruidUren = 0;
+    let machineKosten = 0;
+    let machineOmschrijving = "";
+    let materiaalPrijs = 0;
+
+    if (methode === "handmatig") {
+      onkruidUren = opp * 0.04;
+    } else if (methode === "branden") {
+      onkruidUren = opp * 0.02;
+      machineKosten = 45;
+      machineOmschrijving = "Onkruidbrander huur";
+    } else if (methode === "heet_water") {
+      onkruidUren = opp * 0.015;
+      machineKosten = 65;
+      machineOmschrijving = "Heetwater-apparaat huur";
+    } else if (methode === "chemisch") {
+      onkruidUren = opp * 0.01;
+      materiaalPrijs = 3.0;
+    }
+
+    const totalOnkruidHours = calculateLaborHours(onkruidUren, bereikbaarheidFactor);
+    const methodeLabel = methode === "heet_water" ? "heet water" : methode;
+    regels.push(createArbeidsRegel("reiniging", `Onkruid bestrating (${methodeLabel})`, totalOnkruidHours, uurtarief));
+
+    if (machineKosten > 0) {
+      regels.push({
+        id: generateId(),
+        scope: "reiniging",
+        omschrijving: machineOmschrijving,
+        eenheid: "dag",
+        hoeveelheid: 1,
+        prijsPerEenheid: machineKosten,
+        totaal: machineKosten,
+        type: "machine",
+      });
+    }
+
+    if (materiaalPrijs > 0) {
+      regels.push(createMateriaalRegel(
+        "reiniging",
+        "Onkruidbestrijdingsmiddel",
+        opp,
+        "m²",
+        materiaalPrijs,
+        0
+      ));
+    }
+  }
+
+  // Algereiniging
+  if (data.algereiniging && data.algeOppervlakte && data.algeOppervlakte > 0) {
+    const opp = data.algeOppervlakte;
+    const algeUren = opp * 0.03;
+    const totalAlgeHours = calculateLaborHours(algeUren, bereikbaarheidFactor);
+    regels.push(createArbeidsRegel("reiniging", "Algereiniging", totalAlgeHours, uurtarief));
+
+    regels.push(createMateriaalRegel(
+      "reiniging",
+      "Anti-alg middel",
+      opp,
+      "m²",
+      ANTI_ALG_PRIJS_PER_M2,
+      0
+    ));
+  }
+
+  return regels;
+}
+
+/**
+ * Berekening voor bemesting-onderhoud.
+ * Hoge standaard marge van 70% (scopeMargeOverride op elke regel).
+ */
+function calculateBemestingOnderhoud(
+  data: BemestingOnderhoudData,
+  context: CalculationContext
+): OfferteRegel[] {
+  const regels: OfferteRegel[] = [];
+  const { instellingen, bereikbaarheid, correctiefactoren } = context;
+
+  const bereikbaarheidFactor = getCorrectionFactor(correctiefactoren, "bereikbaarheid", bereikbaarheid);
+  const uurtarief = instellingen.uurtarief;
+
+  const opp = data.oppervlakte || 0;
+  if (opp <= 0) return regels;
+
+  const bemestingstype = data.bemestingstype ?? "basis";
+  const frequentie = data.frequentie ?? 1;
+  const kortingFactor = frequentie >= 2 ? 0.90 : 1.0;
+
+  // Arbeid bemesting
+  const bemestingUren = opp * BEMESTING_NORMUUR_PER_M2 * frequentie;
+  const totalHours = calculateLaborHours(bemestingUren * kortingFactor, bereikbaarheidFactor);
+  const freqLabel = frequentie > 1 ? ` (${frequentie}x per jaar)` : "";
+  const arbeidsRegel = createArbeidsRegel(
+    "bemesting",
+    `Bemesting aanbrengen (${bemestingstype})${freqLabel}`,
+    totalHours,
+    uurtarief
+  );
+  regels.push({ ...arbeidsRegel, margePercentage: BEMESTING_MARGE_OVERRIDE });
+
+  // Bemestingsproduct (materiaal)
+  const productPrijs = BEMESTING_PRODUCT_PRIJS[bemestingstype] ?? BEMESTING_PRODUCT_PRIJS.basis;
+  const materiaalRegel = createMateriaalRegel(
+    "bemesting",
+    `Bemestingsproduct (${bemestingstype})`,
+    opp * frequentie,
+    "m²",
+    productPrijs,
+    0
+  );
+  regels.push({ ...materiaalRegel, margePercentage: BEMESTING_MARGE_OVERRIDE });
+
+  // Kalkbehandeling
+  if (data.kalkbehandeling) {
+    const kalkUren = opp * KALK_NORMUUR_PER_M2;
+    const totalKalkHours = calculateLaborHours(kalkUren, bereikbaarheidFactor);
+    const kalkArbeid = createArbeidsRegel("bemesting", "Kalkbehandeling", totalKalkHours, uurtarief);
+    regels.push({ ...kalkArbeid, margePercentage: BEMESTING_MARGE_OVERRIDE });
+
+    const kalkMateriaal = createMateriaalRegel(
+      "bemesting",
+      "Kalk",
+      opp,
+      "m²",
+      KALK_PRIJS_PER_M2,
+      0
+    );
+    regels.push({ ...kalkMateriaal, margePercentage: BEMESTING_MARGE_OVERRIDE });
+  }
+
+  // Grondanalyse
+  if (data.grondanalyse) {
+    regels.push({
+      id: generateId(),
+      scope: "bemesting",
+      omschrijving: "Grondanalyse",
+      eenheid: "analyse",
+      hoeveelheid: 1,
+      prijsPerEenheid: GRONDANALYSE_PRIJS,
+      totaal: GRONDANALYSE_PRIJS,
+      type: "materiaal",
+      margePercentage: BEMESTING_MARGE_OVERRIDE,
+    });
+  }
+
+  return regels;
+}
+
+/**
+ * Berekening voor gazonanalyse en gazonherstel.
+ */
+function calculateGazonanalyseOnderhoud(
+  data: GazonanalyseOnderhoudData,
+  context: CalculationContext
+): OfferteRegel[] {
+  const regels: OfferteRegel[] = [];
+  const { instellingen, bereikbaarheid, correctiefactoren } = context;
+
+  const bereikbaarheidFactor = getCorrectionFactor(correctiefactoren, "bereikbaarheid", bereikbaarheid);
+  const uurtarief = instellingen.uurtarief;
+
+  const opp = data.oppervlakte || 0;
+  if (opp <= 0) return regels;
+
+  // Vaste beoordeling: 0.5 uur
+  regels.push(createArbeidsRegel("gazonanalyse", "Gazonbeoordeling ter plaatse", 0.5, uurtarief));
+
+  const acties = data.herstelacties ?? {};
+
+  // Verticuteren
+  if (acties.verticuteren) {
+    const verticuterenUren = opp * 0.01;
+    const totalHours = calculateLaborHours(verticuterenUren, bereikbaarheidFactor);
+    regels.push(createArbeidsRegel("gazonanalyse", "Verticuteren", totalHours, uurtarief));
+
+    const dagenVerticuteren = Math.max(1, Math.ceil(opp / 500));
+    regels.push({
+      id: generateId(),
+      scope: "gazonanalyse",
+      omschrijving: `Verticuteer-machine huur (${dagenVerticuteren} dag${dagenVerticuteren > 1 ? "en" : ""})`,
+      eenheid: "dag",
+      hoeveelheid: dagenVerticuteren,
+      prijsPerEenheid: MACHINE_VERTICUTEREN_PER_DAG,
+      totaal: Math.round(dagenVerticuteren * MACHINE_VERTICUTEREN_PER_DAG * 100) / 100,
+      type: "machine",
+    });
+  }
+
+  // Doorzaaien
+  if (acties.doorzaaien) {
+    const doorzaaienUren = opp * 0.005;
+    const totalHours = calculateLaborHours(doorzaaienUren, bereikbaarheidFactor);
+    regels.push(createArbeidsRegel("gazonanalyse", "Doorzaaien", totalHours, uurtarief));
+    regels.push(createMateriaalRegel("gazonanalyse", "Graszaad (doorzaaien)", opp, "m²", ZAAD_DOORZAAIEN_PRIJS_PER_M2, 0));
+  }
+
+  // Nieuwe grasmat
+  if (acties.nieuweGrasmat) {
+    const grasmatUren = opp * 0.02;
+    const totalHours = calculateLaborHours(grasmatUren, bereikbaarheidFactor);
+    regels.push(createArbeidsRegel("gazonanalyse", "Nieuwe grasmat leggen", totalHours, uurtarief));
+    regels.push(createMateriaalRegel("gazonanalyse", "Graszoden", opp, "m²", GRASZODEN_NIEUW_PRIJS_PER_M2, 5));
+  }
+
+  // Plaggen
+  if (acties.plaggen) {
+    const plaggenUren = opp * 0.025;
+    const totalHours = calculateLaborHours(plaggenUren, bereikbaarheidFactor);
+    regels.push(createArbeidsRegel("gazonanalyse", "Plaggen (zode verwijderen)", totalHours, uurtarief));
+    // Afvoer plagsel (schatting volume)
+    const afvoerUren = (opp * 0.05) * 0.1;
+    const totalAfvoerHours = calculateLaborHours(afvoerUren, bereikbaarheidFactor);
+    regels.push(createArbeidsRegel("gazonanalyse", "Plagsel afvoeren", totalAfvoerHours, uurtarief));
+  }
+
+  // Bijzaaien kale plekken
+  if (acties.bijzaaienKalePlekken) {
+    const kalePlek = acties.kalePlekkOppervlakte ?? Math.ceil(opp * 0.1);
+    const bijzaaienUren = kalePlek * 0.01;
+    const totalHours = calculateLaborHours(bijzaaienUren, bereikbaarheidFactor);
+    regels.push(createArbeidsRegel("gazonanalyse", "Bijzaaien kale plekken", totalHours, uurtarief));
+    regels.push(createMateriaalRegel("gazonanalyse", "Graszaad (kale plekken)", kalePlek, "m²", ZAAD_BIJZAAIEN_PRIJS_PER_M2, 0));
+  }
+
+  // Bekalken
+  if (data.bekalken) {
+    const bekalkenUren = opp * BEKALKEN_NORMUUR_PER_M2;
+    const totalHours = calculateLaborHours(bekalkenUren, bereikbaarheidFactor);
+    regels.push(createArbeidsRegel("gazonanalyse", "Bekalken gazon", totalHours, uurtarief));
+    regels.push(createMateriaalRegel("gazonanalyse", "Kalk (gazon)", opp, "m²", BEKALKEN_PRIJS_PER_M2, 0));
+  }
+
+  // Drainage: verwijzen naar aanleg calculator
+  if (data.drainage) {
+    regels.push({
+      id: generateId(),
+      scope: "gazonanalyse",
+      omschrijving: "OPMERKING: Drainage — zie aanleg calculator voor gedetailleerde berekening",
+      eenheid: "p.m.",
+      hoeveelheid: 1,
+      prijsPerEenheid: 0,
+      totaal: 0,
+      type: "arbeid",
+    });
+  }
+
+  return regels;
+}
+
+/**
+ * Berekening voor mollenbestrijding-onderhoud (basis, premium, premium plus).
+ */
+function calculateMollenbestrijdingOnderhoud(
+  data: MollenbestrijdingOnderhoudData,
+  context: CalculationContext
+): OfferteRegel[] {
+  const regels: OfferteRegel[] = [];
+  const { instellingen, bereikbaarheid, correctiefactoren } = context;
+
+  const bereikbaarheidFactor = getCorrectionFactor(correctiefactoren, "bereikbaarheid", bereikbaarheid);
+  const uurtarief = instellingen.uurtarief;
+
+  const pakket = data.pakket ?? "basis";
+
+  if (pakket === "basis") {
+    // 1 bezoek × 2 uur (plaatsen + ophalen)
+    const plaatsenUren = calculateLaborHours(2, bereikbaarheidFactor);
+    regels.push(createArbeidsRegel("mollenbestrijding", "Klemmen plaatsen & ophalen (1 bezoek)", plaatsenUren, uurtarief));
+
+    // Materiaal: klemmen €35
+    regels.push(createMateriaalRegel("mollenbestrijding", "Mollenval klemmen (basis)", 1, "set", MOLLEN_KLEMMEN_BASIS, 0));
+
+    // 1 controle × 0.5 uur
+    const controleUren = calculateLaborHours(0.5, bereikbaarheidFactor);
+    regels.push(createArbeidsRegel("mollenbestrijding", "Tussentijdse controle (1x)", controleUren, uurtarief));
+
+  } else if (pakket === "premium") {
+    // 3 bezoeken × 1.5 uur
+    const plaatsenUren = calculateLaborHours(3 * 1.5, bereikbaarheidFactor);
+    regels.push(createArbeidsRegel("mollenbestrijding", "Klemmen plaatsen & verplaatsen (3 bezoeken)", plaatsenUren, uurtarief));
+
+    // Materiaal: klemmen + preventie €75
+    regels.push(createMateriaalRegel("mollenbestrijding", "Mollenval klemmen + preventie (premium)", 1, "set", MOLLEN_KLEMMEN_PREMIUM, 0));
+
+    // 3 tussentijdse controles × 0.5 uur
+    const controleUren = calculateLaborHours(3 * 0.5, bereikbaarheidFactor);
+    regels.push(createArbeidsRegel("mollenbestrijding", "Tussentijdse controles (3x)", controleUren, uurtarief));
+
+  } else if (pakket === "premium_plus") {
+    // 6 bezoeken × 1 uur (efficiënt door routine)
+    const plaatsenUren = calculateLaborHours(6 * 1, bereikbaarheidFactor);
+    regels.push(createArbeidsRegel("mollenbestrijding", "Klemmen plaatsen & beheer (6 bezoeken)", plaatsenUren, uurtarief));
+
+    // Materiaal: klemmen + preventie + monitoring €120
+    regels.push(createMateriaalRegel("mollenbestrijding", "Mollenval klemmen + preventie + monitoring (premium plus)", 1, "set", MOLLEN_KLEMMEN_PREMIUM_PLUS, 0));
+
+    // Onbeperkte controles geschat: 6 × 0.5 uur
+    const controleUren = calculateLaborHours(6 * 0.5, bereikbaarheidFactor);
+    regels.push(createArbeidsRegel("mollenbestrijding", "Controles (6x, onbeperkt pakket)", controleUren, uurtarief));
+  }
+
+  // Aanvullende opties
+  const aanvullend = data.aanvullend ?? {};
+
+  if (aanvullend.gazonherstel && aanvullend.geschatteM2 && aanvullend.geschatteM2 > 0) {
+    const herstelUren = aanvullend.geschatteM2 * 0.02;
+    const totalHours = calculateLaborHours(herstelUren, bereikbaarheidFactor);
+    regels.push(createArbeidsRegel("mollenbestrijding", "Gazonherstel na mollenschade", totalHours, uurtarief));
+    regels.push(createMateriaalRegel(
+      "mollenbestrijding",
+      "Graszaad (mollenherstel)",
+      aanvullend.geschatteM2,
+      "m²",
+      MOLHERSTEL_ZAAD_PRIJS_PER_M2,
+      0
+    ));
+  }
+
+  if (aanvullend.preventiefGaas && aanvullend.gaasOppervlakte && aanvullend.gaasOppervlakte > 0) {
+    const gaasUren = aanvullend.gaasOppervlakte * 0.05;
+    const totalHours = calculateLaborHours(gaasUren, bereikbaarheidFactor);
+    regels.push(createArbeidsRegel("mollenbestrijding", "Preventiefgaas aanbrengen", totalHours, uurtarief));
+    regels.push(createMateriaalRegel(
+      "mollenbestrijding",
+      "Mollenwerend gaas",
+      aanvullend.gaasOppervlakte,
+      "m²",
+      MOLLEN_GAAS_PRIJS_PER_M2,
+      0
+    ));
+  }
+
+  if (aanvullend.terugkeerCheck) {
+    const terugkeerUren = calculateLaborHours(1, bereikbaarheidFactor);
+    regels.push(createArbeidsRegel("mollenbestrijding", "Terugkeer-check (1 bezoek)", terugkeerUren, uurtarief));
+  }
+
+  return regels;
+}
+
 // ==================== MAIN CALCULATION FUNCTION ====================
 
 export interface OfferteCalculationInput {
@@ -1179,8 +1891,26 @@ export function calculateOfferteRegels(
         case "heggen":
           regels = calculateHeggenOnderhoud(data as HeggenOnderhoudData, context);
           break;
+        case "heggen_extended":
+          regels = calculateHeggenOnderhoudExtended(data as HeggenOnderhoudExtendedData, context);
+          break;
         case "bomen":
           regels = calculateBomenOnderhoud(data as BomenOnderhoudData, context);
+          break;
+        case "bomen_extended":
+          regels = calculateBomenOnderhoudExtended(data as BomenOnderhoudExtendedData, context);
+          break;
+        case "reiniging":
+          regels = calculateReinigingOnderhoud(data as ReinigingOnderhoudData, context);
+          break;
+        case "bemesting":
+          regels = calculateBemestingOnderhoud(data as BemestingOnderhoudData, context);
+          break;
+        case "gazonanalyse":
+          regels = calculateGazonanalyseOnderhoud(data as GazonanalyseOnderhoudData, context);
+          break;
+        case "mollenbestrijding":
+          regels = calculateMollenbestrijdingOnderhoud(data as MollenbestrijdingOnderhoudData, context);
           break;
         case "overig":
           regels = calculateOverigOnderhoud(data as OverigeOnderhoudData, context);

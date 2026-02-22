@@ -188,6 +188,26 @@ export const heggenOnderhoudValidator = v.object({
   breedte: v.number(),
   snoei: v.union(v.literal("zijkanten"), v.literal("bovenkant"), v.literal("beide")),
   afvoerSnoeisel: v.boolean(),
+  // Uitbreidingsvelden
+  haagsoort: v.optional(v.union(
+    v.literal("liguster"),
+    v.literal("beuk"),
+    v.literal("taxus"),
+    v.literal("conifeer"),
+    v.literal("buxus"),
+    v.literal("overig")
+  )),
+  haagsoortOverig: v.optional(v.string()),
+  diepte: v.optional(v.number()),
+  hoogwerkerNodig: v.optional(v.boolean()),
+  ondergrond: v.optional(v.union(
+    v.literal("bestrating"),
+    v.literal("border"),
+    v.literal("grind"),
+    v.literal("gras"),
+    v.literal("anders")
+  )),
+  snoeiFrequentie: v.optional(v.union(v.literal("1x"), v.literal("2x"), v.literal("3x"))),
 });
 
 export const bomenOnderhoudValidator = v.object({
@@ -195,6 +215,15 @@ export const bomenOnderhoudValidator = v.object({
   snoei: v.union(v.literal("licht"), v.literal("zwaar")),
   hoogteklasse: v.union(v.literal("laag"), v.literal("middel"), v.literal("hoog")),
   afvoer: v.boolean(),
+  // Uitbreidingsvelden
+  groottecategorie: v.optional(v.union(v.literal("0-4m"), v.literal("4-10m"), v.literal("10-20m"))),
+  nabijGebouw: v.optional(v.boolean()),
+  nabijStraat: v.optional(v.boolean()),
+  nabijKabels: v.optional(v.boolean()),
+  afstandTotStraat: v.optional(v.number()),
+  inspectieType: v.optional(v.union(v.literal("geen"), v.literal("visueel"), v.literal("gecertificeerd"))),
+  boomsoort: v.optional(v.string()),
+  kroondiameter: v.optional(v.number()),
 });
 
 export const overigeOnderhoudValidator = v.object({
@@ -209,6 +238,122 @@ export const overigeOnderhoudValidator = v.object({
   overigUren: v.optional(v.number()),
 });
 
+export const reinigingOnderhoudValidator = v.object({
+  terrasReiniging: v.optional(v.boolean()),
+  terrasType: v.optional(v.union(
+    v.literal("keramisch"),
+    v.literal("beton"),
+    v.literal("klinkers"),
+    v.literal("natuursteen"),
+    v.literal("hout")
+  )),
+  terrasOppervlakte: v.optional(v.number()),
+  bladruimen: v.optional(v.boolean()),
+  bladruimenOppervlakte: v.optional(v.number()),
+  bladruimenFrequentie: v.optional(v.union(v.literal("eenmalig"), v.literal("seizoen"))),
+  bladruimenAfvoer: v.optional(v.boolean()),
+  onkruidBestrating: v.optional(v.boolean()),
+  onkruidBestratingOppervlakte: v.optional(v.number()),
+  onkruidMethode: v.optional(v.union(
+    v.literal("handmatig"),
+    v.literal("branden"),
+    v.literal("heet_water"),
+    v.literal("chemisch")
+  )),
+  hogedrukspuitAkkoord: v.optional(v.boolean()),
+  algeReiniging: v.optional(v.boolean()),
+  algeOppervlakte: v.optional(v.number()),
+  algeType: v.optional(v.union(
+    v.literal("dak"),
+    v.literal("bestrating"),
+    v.literal("hekwerk"),
+    v.literal("muur")
+  )),
+});
+
+export const bemestingOnderhoudValidator = v.object({
+  bemestingsTypes: v.optional(v.array(v.union(
+    v.literal("gazon"),
+    v.literal("borders"),
+    v.literal("bomen"),
+    v.literal("universeel")
+  ))),
+  oppervlakte: v.optional(v.number()),
+  aantalBomen: v.optional(v.number()),
+  seizoen: v.optional(v.union(
+    v.literal("voorjaar"),
+    v.literal("zomer"),
+    v.literal("najaar"),
+    v.literal("heel_jaar")
+  )),
+  productType: v.optional(v.union(v.literal("basis"), v.literal("premium"), v.literal("bio"))),
+  frequentie: v.optional(v.union(v.literal("1x"), v.literal("2x"), v.literal("3x"), v.literal("4x"))),
+  kalkbehandeling: v.optional(v.boolean()),
+  grondanalyse: v.optional(v.boolean()),
+  onkruidvrijeBemesting: v.optional(v.boolean()),
+});
+
+export const gazonanalyseOnderhoudValidator = v.object({
+  conditieScore: v.optional(v.number()),
+  problemen: v.optional(v.object({
+    mos: v.optional(v.boolean()),
+    mosPercentage: v.optional(v.number()),
+    kalePlekken: v.optional(v.boolean()),
+    kalePlekkenM2: v.optional(v.number()),
+    onkruid: v.optional(v.boolean()),
+    onkruidType: v.optional(v.union(v.literal("breed"), v.literal("smal"), v.literal("klaver"))),
+    verdroging: v.optional(v.boolean()),
+    wateroverlast: v.optional(v.boolean()),
+    schaduw: v.optional(v.boolean()),
+    schaduwPercentage: v.optional(v.number()),
+    verzuring: v.optional(v.boolean()),
+    muizenMollen: v.optional(v.boolean()),
+  })),
+  oppervlakte: v.optional(v.number()),
+  huidigGrastype: v.optional(v.union(
+    v.literal("onbekend"),
+    v.literal("sport"),
+    v.literal("sier"),
+    v.literal("schaduw"),
+    v.literal("mix")
+  )),
+  bodemtype: v.optional(v.union(
+    v.literal("zand"),
+    v.literal("klei"),
+    v.literal("veen"),
+    v.literal("leem")
+  )),
+  herstelacties: v.optional(v.array(v.union(
+    v.literal("verticuteren"),
+    v.literal("doorzaaien"),
+    v.literal("nieuwe_grasmat"),
+    v.literal("plaggen"),
+    v.literal("bijzaaien")
+  ))),
+  drainage: v.optional(v.boolean()),
+  bekalken: v.optional(v.boolean()),
+  robotmaaierAdvies: v.optional(v.boolean()),
+  beregeningsadvies: v.optional(v.boolean()),
+});
+
+export const mollenbestrijdingOnderhoudValidator = v.object({
+  aantalMolshopen: v.optional(v.number()),
+  oppervlakte: v.optional(v.number()),
+  tuinType: v.optional(v.union(
+    v.literal("gazon"),
+    v.literal("border"),
+    v.literal("moestuin"),
+    v.literal("gemengd")
+  )),
+  ernst: v.optional(v.number()),
+  pakket: v.optional(v.union(v.literal("basis"), v.literal("premium"), v.literal("premium_plus"))),
+  gazonherstel: v.optional(v.boolean()),
+  gazonherstelM2: v.optional(v.number()),
+  preventiefGaas: v.optional(v.boolean()),
+  preventiefGaasM2: v.optional(v.number()),
+  terugkeerCheck: v.optional(v.boolean()),
+});
+
 // Combined onderhoud scope data validator
 export const onderhoudScopeDataValidator = v.object({
   tuinOppervlakte: v.optional(v.number()), // Algemeen tuinoppervlakte voor onderhoud
@@ -217,6 +362,10 @@ export const onderhoudScopeDataValidator = v.object({
   heggen: v.optional(heggenOnderhoudValidator),
   bomen: v.optional(bomenOnderhoudValidator),
   overig: v.optional(overigeOnderhoudValidator),
+  reiniging: v.optional(reinigingOnderhoudValidator),
+  bemesting: v.optional(bemestingOnderhoudValidator),
+  gazonanalyse: v.optional(gazonanalyseOnderhoudValidator),
+  mollenbestrijding: v.optional(mollenbestrijdingOnderhoudValidator),
 });
 
 // ==================== COMBINED VALIDATOR ====================
