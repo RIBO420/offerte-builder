@@ -66,6 +66,12 @@ export const grasSchema = z.object({
     error: "Selecteer ondergrond",
   }),
   afwateringNodig: z.boolean(),
+  kunstgras: z.boolean().optional(),
+  drainage: z.boolean().optional(),
+  drainageMeters: z.number().min(1, "Minimaal 1 meter").optional(),
+  opsluitbanden: z.boolean().optional(),
+  opsluitbandenMeters: z.number().min(0.5, "Minimaal 0.5 meter").optional(),
+  verticuteren: z.boolean().optional(),
 });
 
 export type GrasFormData = z.infer<typeof grasSchema>;

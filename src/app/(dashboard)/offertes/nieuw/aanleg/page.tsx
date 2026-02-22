@@ -13,7 +13,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { ChevronLeft, Loader2, Check, Save } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, Check, Save } from "lucide-react";
 import { toast } from "sonner";
 import { useOffertes } from "@/hooks/use-offertes";
 import { useInstellingen } from "@/hooks/use-instellingen";
@@ -21,6 +21,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { useOfferteCalculation } from "@/hooks/use-offerte-calculation";
 import { TemplateSelector } from "@/components/offerte/template-selector";
 import { PackageSelector } from "@/components/offerte/package-selector";
+import { GarantiePakketSelector } from "@/components/offerte/garantie-pakket-selector";
 import { RestoreDraftDialog } from "@/components/offerte/restore-draft-dialog";
 import { WizardSteps, type WizardStep } from "@/components/offerte/wizard-steps";
 import { useKlanten } from "@/hooks/use-klanten";
@@ -123,6 +124,16 @@ export default function NieuweAanlegOffertePage() {
     },
     {
       id: 3,
+      name: "Garantie",
+      shortName: "Garantie",
+      summary: wizard.garantiePakketId ? (
+        <span>Pakket geselecteerd</span>
+      ) : (
+        <span>Geen pakket</span>
+      ),
+    },
+    {
+      id: 4,
       name: "Bevestigen",
       shortName: "Bevestigen",
     },
@@ -427,10 +438,12 @@ export default function NieuweAanlegOffertePage() {
             isStep1Valid={wizard.isStep1Valid}
             isStep2Valid={wizard.isStep2Valid}
             totalSteps={wizard.totalSteps}
+            klantvriendelijkheid={wizard.klantvriendelijkheid}
             onKlantDataChange={wizard.setKlantData}
             onKlantSelect={wizard.setSelectedKlantId}
             onBereikbaarheidChange={wizard.setBereikbaarheid}
             onToggleScope={wizard.toggleScope}
+            onKlantvriendelijkheidChange={wizard.setKlantvriendelijkheid}
             onNext={wizard.nextStep}
             onPrev={wizard.prevStep}
           />
@@ -453,8 +466,26 @@ export default function NieuweAanlegOffertePage() {
           />
         )}
 
-        {/* Step 3: Review/Confirm */}
+        {/* Step 3: Garantie Selectie */}
         {wizard.currentStep === 3 && (
+          <div className="max-w-4xl mx-auto animate-in fade-in slide-in-from-right-4 duration-300">
+            <GarantiePakketSelector
+              selectedPakketId={wizard.garantiePakketId}
+              onSelect={wizard.setGarantiePakketId}
+            />
+            <div className="flex justify-between mt-6">
+              <Button variant="outline" onClick={wizard.prevStep}>
+                <ChevronLeft className="mr-2 h-4 w-4" /> Vorige
+              </Button>
+              <Button onClick={wizard.nextStep}>
+                Volgende <ChevronRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 4: Review/Confirm */}
+        {wizard.currentStep === 4 && (
           <AanlegReviewSection
             klantData={wizard.klantData}
             bereikbaarheid={wizard.bereikbaarheid}

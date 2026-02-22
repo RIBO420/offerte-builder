@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import {
   aanlegScopeDataValidator,
   onderhoudScopeDataValidator,
+  tuintypologieValidator,
   userRoleValidator,
 } from "./validators";
 
@@ -86,6 +87,10 @@ export default defineSchema({
       achterstalligheid: v.optional(
         v.union(v.literal("laag"), v.literal("gemiddeld"), v.literal("hoog"))
       ),
+      klantvriendelijkheid: v.optional(v.number()), // 1-5 schaal
+      afstandVanLoods: v.optional(v.number()), // km
+      tuintypologie: v.optional(tuintypologieValidator),
+      typeWerkzaamheden: v.optional(v.array(v.string())),
     }),
 
     // Geselecteerde scopes (voor aanleg)
@@ -130,6 +135,9 @@ export default defineSchema({
 
     // Notities
     notities: v.optional(v.string()),
+
+    // Garantiepakket koppeling
+    garantiePakketId: v.optional(v.id("garantiePakketten")),
 
     // Timestamps
     createdAt: v.number(),
@@ -319,6 +327,10 @@ export default defineSchema({
       algemeenParams: v.object({
         bereikbaarheid: v.string(),
         achterstalligheid: v.optional(v.string()),
+        klantvriendelijkheid: v.optional(v.number()), // 1-5 schaal
+        afstandVanLoods: v.optional(v.number()), // km
+        tuintypologie: v.optional(v.string()), // snapshot als string
+        typeWerkzaamheden: v.optional(v.array(v.string())),
       }),
       scopes: v.optional(v.array(v.string())),
       scopeData: v.optional(
@@ -1585,4 +1597,79 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_project", ["projectId"])
     .index("by_project_status", ["projectId", "status"]),
+
+  // ============================================
+  // Afvalverwerkers & Transportbedrijven
+  // ============================================
+
+  // Afvalverwerkers - Beheer van afvalverwerkers met locatie en tarieven
+  afvalverwerkers: defineTable({
+    userId: v.id("users"),
+    naam: v.string(),
+    adres: v.string(),
+    lat: v.number(),
+    lng: v.number(),
+    tariefPerTon: v.number(),
+    contactInfo: v.optional(v.string()),
+    isActief: v.optional(v.boolean()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"]),
+
+  // Transportbedrijven - Beheer van transportbedrijven met locatie en km-tarieven
+  transportbedrijven: defineTable({
+    userId: v.id("users"),
+    naam: v.string(),
+    adres: v.string(),
+    lat: v.number(),
+    lng: v.number(),
+    kmTarief: v.number(),
+    contactInfo: v.optional(v.string()),
+    isActief: v.optional(v.boolean()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"]),
+
+  // ============================================
+  // Garantiepakketten
+  // ============================================
+
+  // GarantiePakketten - Garantie-opties per tier voor offertes
+  garantiePakketten: defineTable({
+    userId: v.id("users"),
+    naam: v.string(),
+    tier: v.union(v.literal("basis"), v.literal("premium"), v.literal("premium_plus")),
+    duurJaren: v.number(),
+    maxCallbacks: v.number(),
+    prijs: v.number(),
+    beschrijving: v.string(),
+    features: v.optional(v.array(v.string())),
+    isActief: v.optional(v.boolean()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_tier", ["tier"]),
+
+  // ============================================
+  // Plantsoorten
+  // ============================================
+
+  // Plantsoorten - Plantendatabase met systeem defaults en user overrides
+  plantsoorten: defineTable({
+    userId: v.optional(v.id("users")), // null = systeem defaults
+    naam: v.string(),
+    type: v.string(), // bodembedekker, heester, boom, etc.
+    lichtbehoefte: v.union(v.literal("zon"), v.literal("halfschaduw"), v.literal("schaduw")),
+    bodemvoorkeur: v.string(),
+    prijsIndicatie: v.number(),
+    omschrijving: v.optional(v.string()),
+    isActief: v.optional(v.boolean()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_lichtbehoefte", ["lichtbehoefte"]),
 });

@@ -76,6 +76,40 @@ const TERRAS_REINIGEN_UREN_PER_M2 = 0.05;
 const ONKRUID_BESTRATING_UREN_PER_M2 = 0.03;
 const AFWATERING_UREN_PER_PUNT = 0.25;
 
+// ==================== NIEUWE CONSTANTEN ====================
+
+// Fundering materiaalkosten per m³
+const FUNDERING_PRIJZEN = {
+  gebrokenPuin: 25,    // €/m³
+  straatzand: 18,       // €/m³
+  brekerszand: 35,      // €/m³
+  stabiliser: 45,       // €/m³ (cement stabilisatie)
+} as const;
+
+// Funderingsopbouw per bestratingtype (dikte in cm)
+const FUNDERING_PER_TYPE = {
+  pad: { gebrokenPuin: 10, zand: 5 },
+  oprit: { gebrokenPuin: 20, brekerszand: 5 },
+  terrein: { gebrokenPuin: 35, brekerszand: 5, stabiliser: true },
+} as const;
+
+// Kunstgras
+const KUNSTGRAS_PRIJS_PER_M2 = 45; // € per m²
+
+// Drainage
+const DRAINAGE_PVC_PRIJS_PER_M = 12;   // € per meter PVC-buis
+const DRAINAGE_KOKOS_PRIJS_PER_M = 8;  // € per meter kokos omhulsel
+
+// Opsluitbanden
+const OPSLUITBAND_PRIJS_PER_M = 15; // € per lopende meter
+
+// Bodemverbetering
+const BODEMVERBETERING_PRIJS_PER_M3 = 35; // € per m³
+const BODEMVERBETERING_DIEPTE = 0.3; // 30 cm diepte
+
+// Offerte overhead
+const OFFERTE_OVERHEAD = 200; // € vast bedrag per offerte
+
 export interface OfferteRegel {
   id: string;
   scope: string;
@@ -361,6 +395,100 @@ function calculateBestrating(
     }
   }
 
+  // Funderingsberekening per bestratingtype
+  if (data.bestratingtype) {
+    const funderingConfig = FUNDERING_PER_TYPE[data.bestratingtype];
+    const oppervlakte = data.oppervlakte;
+
+    // Gebroken puin
+    if (funderingConfig.gebrokenPuin) {
+      const puinM3 = oppervlakte * (funderingConfig.gebrokenPuin / 100);
+      regels.push(createMateriaalRegel(
+        "bestrating",
+        `Gebroken puin (${funderingConfig.gebrokenPuin} cm)`,
+        puinM3, "m³",
+        FUNDERING_PRIJZEN.gebrokenPuin, 5
+      ));
+    }
+
+    // Zand of brekerszand
+    if ('zand' in funderingConfig) {
+      const zandM3 = oppervlakte * (funderingConfig.zand / 100);
+      regels.push(createMateriaalRegel(
+        "bestrating",
+        `Straatzand (${funderingConfig.zand} cm)`,
+        zandM3, "m³",
+        FUNDERING_PRIJZEN.straatzand, 5
+      ));
+    }
+    if ('brekerszand' in funderingConfig) {
+      const brekersM3 = oppervlakte * (funderingConfig.brekerszand / 100);
+      regels.push(createMateriaalRegel(
+        "bestrating",
+        `Brekerszand (${funderingConfig.brekerszand} cm)`,
+        brekersM3, "m³",
+        FUNDERING_PRIJZEN.brekerszand, 5
+      ));
+    }
+    if ('stabiliser' in funderingConfig && funderingConfig.stabiliser) {
+      const stabM3 = oppervlakte * 0.05; // 5cm stabiliser laag
+      regels.push(createMateriaalRegel(
+        "bestrating",
+        "Stabiliser (cement)",
+        stabM3, "m³",
+        FUNDERING_PRIJZEN.stabiliser, 0
+      ));
+    }
+  }
+
+  // Multi-zone bestrating
+  if (data.zones && data.zones.length > 0) {
+    for (const zone of data.zones) {
+      const zoneFundering = FUNDERING_PER_TYPE[zone.type];
+      const zoneOpp = zone.oppervlakte;
+
+      // Gebroken puin per zone
+      if (zoneFundering.gebrokenPuin) {
+        const puinM3 = zoneOpp * (zoneFundering.gebrokenPuin / 100);
+        regels.push(createMateriaalRegel(
+          "bestrating",
+          `Zone ${zone.type}: Gebroken puin (${zoneFundering.gebrokenPuin} cm)`,
+          puinM3, "m³",
+          FUNDERING_PRIJZEN.gebrokenPuin, 5
+        ));
+      }
+
+      // Zand of brekerszand per zone
+      if ('zand' in zoneFundering) {
+        const zandM3 = zoneOpp * (zoneFundering.zand / 100);
+        regels.push(createMateriaalRegel(
+          "bestrating",
+          `Zone ${zone.type}: Straatzand (${zoneFundering.zand} cm)`,
+          zandM3, "m³",
+          FUNDERING_PRIJZEN.straatzand, 5
+        ));
+      }
+      if ('brekerszand' in zoneFundering) {
+        const brekersM3 = zoneOpp * (zoneFundering.brekerszand / 100);
+        regels.push(createMateriaalRegel(
+          "bestrating",
+          `Zone ${zone.type}: Brekerszand (${zoneFundering.brekerszand} cm)`,
+          brekersM3, "m³",
+          FUNDERING_PRIJZEN.brekerszand, 5
+        ));
+      }
+      if ('stabiliser' in zoneFundering && zoneFundering.stabiliser) {
+        const stabM3 = zoneOpp * 0.05;
+        regels.push(createMateriaalRegel(
+          "bestrating",
+          `Zone ${zone.type}: Stabiliser (cement)`,
+          stabM3, "m³",
+          FUNDERING_PRIJZEN.stabiliser, 0
+        ));
+      }
+    }
+  }
+
   return regels;
 }
 
@@ -432,6 +560,15 @@ function calculateBorders(
     }
   }
 
+  // Bodemverbetering
+  if (data.bodemverbetering && data.bodemMix && data.oppervlakte > 0) {
+    const bodemM3 = data.oppervlakte * BODEMVERBETERING_DIEPTE;
+    regels.push(createMateriaalRegel(
+      "borders", "Bodemverbetering (nieuwe grondmix)", bodemM3, "m³",
+      BODEMVERBETERING_PRIJS_PER_M3, 0
+    ));
+  }
+
   return regels;
 }
 
@@ -495,6 +632,37 @@ function calculateGras(
         zaadProduct.verliespercentage
       ));
     }
+  }
+
+  // Kunstgras optie
+  if (data.kunstgras && data.oppervlakte > 0) {
+    regels.push(createMateriaalRegel(
+      "gras", "Kunstgras", data.oppervlakte, "m²", KUNSTGRAS_PRIJS_PER_M2, 5
+    ));
+    // Kunstgras leggen arbeid
+    const kunstgrasNormuur = findNormuur(normuren, "gras", "kunstgras");
+    if (kunstgrasNormuur) {
+      const baseHours = data.oppervlakte * kunstgrasNormuur.normuurPerEenheid;
+      const totalHours = calculateLaborHours(baseHours, bereikbaarheidFactor);
+      regels.push(createArbeidsRegel("gras", "Kunstgras leggen", totalHours, uurtarief));
+    }
+  }
+
+  // Drainage
+  if (data.drainage && data.drainageMeters && data.drainageMeters > 0) {
+    regels.push(createMateriaalRegel(
+      "gras", "PVC drainagebuis", data.drainageMeters, "m", DRAINAGE_PVC_PRIJS_PER_M, 5
+    ));
+    regels.push(createMateriaalRegel(
+      "gras", "Kokos omhulsel", data.drainageMeters, "m", DRAINAGE_KOKOS_PRIJS_PER_M, 5
+    ));
+  }
+
+  // Opsluitbanden
+  if (data.opsluitbanden && data.opsluitbandenMeters && data.opsluitbandenMeters > 0) {
+    regels.push(createMateriaalRegel(
+      "gras", "Opsluitbanden", data.opsluitbandenMeters, "m", OPSLUITBAND_PRIJS_PER_M, 5
+    ));
   }
 
   return regels;
@@ -1091,5 +1259,39 @@ export function calculateTotals(
     totaalExBtw: Math.round(totaalExBtw * 100) / 100,
     btw: Math.round(btw * 100) / 100,
     totaalInclBtw: Math.round(totaalInclBtw * 100) / 100,
+  };
+}
+
+// ==================== NIEUWE HELPER FUNCTIES ====================
+
+/**
+ * Offerte overhead: vast bedrag per offerte voor voorbereiding & administratie.
+ */
+export function getOfferteOverhead(): OfferteRegel {
+  return {
+    id: generateId(),
+    scope: "algemeen",
+    omschrijving: "Offerte voorbereiding & administratie",
+    eenheid: "vast",
+    hoeveelheid: 1,
+    prijsPerEenheid: OFFERTE_OVERHEAD,
+    totaal: OFFERTE_OVERHEAD,
+    type: "arbeid",
+  };
+}
+
+/**
+ * Garantiepakket regel: voeg een garantiepakket toe aan de offerte.
+ */
+export function getGarantiePakketRegel(pakketNaam: string, prijs: number): OfferteRegel {
+  return {
+    id: generateId(),
+    scope: "garantie",
+    omschrijving: `Garantiepakket: ${pakketNaam}`,
+    eenheid: "pakket",
+    hoeveelheid: 1,
+    prijsPerEenheid: prijs,
+    totaal: prijs,
+    type: "materiaal",
   };
 }

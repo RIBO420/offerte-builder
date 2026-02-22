@@ -9,6 +9,18 @@ import { v } from "convex/values";
 
 // ==================== COMMON TYPES ====================
 
+// Tuintypologie validator
+export const tuintypologieValidator = v.union(
+  v.literal("klein_stad"),
+  v.literal("normaal"),
+  v.literal("midden"),
+  v.literal("luxe"),
+  v.literal("landgoed")
+);
+
+// Klantvriendelijkheid: 1-5 schaal
+// (number, validated in frontend met Zod min:1 max:5)
+
 export const bereikbaarheidValidator = v.union(
   v.literal("goed"),
   v.literal("beperkt"),
@@ -50,6 +62,22 @@ export const bestratingValidator = v.object({
     dikteOnderlaag: v.number(),
     opsluitbanden: v.boolean(),
   }),
+  // Bestratingtype: pad, oprit of terrein
+  bestratingtype: v.optional(v.union(v.literal("pad"), v.literal("oprit"), v.literal("terrein"))),
+  // Funderingslagen met dikte in cm
+  funderingslagen: v.optional(v.object({
+    gebrokenPuin: v.number(), // cm dikte
+    zand: v.number(), // cm dikte
+    brekerszand: v.optional(v.number()),
+    stabiliser: v.optional(v.boolean()),
+  })),
+  // Zones voor bestrating (meerdere gebieden)
+  zones: v.optional(v.array(v.object({
+    id: v.string(),
+    type: v.union(v.literal("pad"), v.literal("oprit"), v.literal("terrein")),
+    oppervlakte: v.number(),
+    materiaal: v.optional(v.string()),
+  }))),
 });
 
 export const bordersValidator = v.object({
@@ -57,6 +85,18 @@ export const bordersValidator = v.object({
   beplantingsintensiteit: intensiteitValidator,
   bodemverbetering: v.boolean(),
   afwerking: v.union(v.literal("geen"), v.literal("schors"), v.literal("grind")),
+  // Oriëntatie van de border
+  orientatie: v.optional(v.union(
+    v.literal("noord"), v.literal("zuid"), v.literal("oost"), v.literal("west"), v.literal("nvt")
+  )),
+  // Bodem mix percentages
+  bodemMix: v.optional(v.object({
+    zandPercentage: v.number(),
+    compostPercentage: v.number(),
+    teelaardPercentage: v.number(),
+  })),
+  // Bemestingsschema
+  bemestingsschema: v.optional(v.boolean()),
 });
 
 export const grasValidator = v.object({
@@ -64,18 +104,42 @@ export const grasValidator = v.object({
   type: v.union(v.literal("zaaien"), v.literal("graszoden")),
   ondergrond: v.union(v.literal("bestaand"), v.literal("nieuw")),
   afwateringNodig: v.boolean(),
+  // Kunstgras optie
+  kunstgras: v.optional(v.boolean()),
+  // Drainage opties
+  drainage: v.optional(v.boolean()),
+  drainageMeters: v.optional(v.number()),
+  // Opsluitbanden opties
+  opsluitbanden: v.optional(v.boolean()),
+  opsluitbandenMeters: v.optional(v.number()),
+  // Verticuteren
+  verticuteren: v.optional(v.boolean()),
 });
 
 export const houtwerkValidator = v.object({
   typeHoutwerk: v.union(v.literal("schutting"), v.literal("vlonder"), v.literal("pergola")),
   afmeting: v.number(),
   fundering: v.union(v.literal("standaard"), v.literal("zwaar")),
+  // Leverancier URL (bijv. voor configurator link)
+  leverancierUrl: v.optional(v.string()),
+  // Configurator gegevens
+  configurator: v.optional(v.object({
+    breedte: v.optional(v.number()),
+    hoogte: v.optional(v.number()),
+    lengte: v.optional(v.number()),
+    daktype: v.optional(v.string()),
+    materiaalKeuze: v.optional(v.string()),
+  })),
 });
 
 export const waterElektraValidator = v.object({
   verlichting: v.union(v.literal("geen"), v.literal("basis"), v.literal("uitgebreid")),
   aantalPunten: v.number(),
   sleuvenNodig: v.boolean(),
+  // Verlichtingsplan nodig
+  verlichtingsplan: v.optional(v.boolean()),
+  // Diepte eis in cm (default 60)
+  diepteEis: v.optional(v.number()),
 });
 
 export const specialsItemValidator = v.object({

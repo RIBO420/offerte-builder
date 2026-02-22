@@ -33,6 +33,8 @@ export function AanlegNavigation({
       case 1:
         return "Volgende: Scope Details";
       case 2:
+        return "Volgende: Garantie";
+      case 3:
         return "Volgende: Bevestigen";
       default:
         return "Volgende";
@@ -48,6 +50,8 @@ export function AanlegNavigation({
         return "Terug";
       case 3:
         return "Terug naar Scope Details";
+      case 4:
+        return "Terug naar Garantie";
       default:
         return "Terug";
     }

@@ -95,6 +95,9 @@ export interface WizardData {
     telefoon: string;
   };
   scopeData: ScopeData;
+  tuintypologie: string | null;
+  klantvriendelijkheid: number; // 1-5
+  garantiePakketId: string | null;
 }
 
 export const INITIAL_WIZARD_DATA: WizardData = {
@@ -119,6 +122,9 @@ export const INITIAL_WIZARD_DATA: WizardData = {
     water_elektra: DEFAULT_WATER_ELEKTRA,
     specials: DEFAULT_SPECIALS,
   },
+  tuintypologie: null,
+  klantvriendelijkheid: 3,
+  garantiePakketId: null,
 };
 
 // Scope definitions with icons and colors
@@ -183,6 +189,9 @@ export interface UseAanlegWizardReturn {
   bereikbaarheid: Bereikbaarheid;
   klantData: WizardData["klantData"];
   scopeData: ScopeData;
+  tuintypologie: string | null;
+  klantvriendelijkheid: number;
+  garantiePakketId: string | null;
 
   // Setters
   setWizardData: (data: WizardData | ((prev: WizardData) => WizardData)) => void;
@@ -193,6 +202,9 @@ export interface UseAanlegWizardReturn {
   setBereikbaarheid: (value: Bereikbaarheid) => void;
   setKlantData: (data: WizardData["klantData"]) => void;
   setScopeData: (data: ScopeData) => void;
+  setTuintypologie: (value: string | null) => void;
+  setKlantvriendelijkheid: (value: number) => void;
+  setGarantiePakketId: (id: string | null) => void;
 
   // Navigation
   nextStep: () => void;
@@ -223,7 +235,7 @@ export interface UseAanlegWizardReturn {
 }
 
 export function useAanlegWizard(): UseAanlegWizardReturn {
-  const totalSteps = 4;
+  const totalSteps = 5;
 
   // Wizard autosave hook
   const {
@@ -282,7 +294,7 @@ export function useAanlegWizard(): UseAanlegWizardReturn {
   }), []);
 
   // Extract data from wizard state for easier access
-  const { selectedTemplateId, selectedKlantId, selectedScopes, bereikbaarheid, klantData, scopeData } = wizardData;
+  const { selectedTemplateId, selectedKlantId, selectedScopes, bereikbaarheid, klantData, scopeData, tuintypologie, klantvriendelijkheid, garantiePakketId } = wizardData;
 
   // Helper functions to update wizard data - using functional updates to prevent stale state
   const setSelectedTemplateId = useCallback((id: string | null) => {
@@ -311,6 +323,18 @@ export function useAanlegWizard(): UseAanlegWizardReturn {
 
   const setScopeData = useCallback((data: ScopeData) => {
     setWizardData((prev) => ({ ...prev, scopeData: data }));
+  }, [setWizardData]);
+
+  const setTuintypologie = useCallback((value: string | null) => {
+    setWizardData((prev) => ({ ...prev, tuintypologie: value }));
+  }, [setWizardData]);
+
+  const setKlantvriendelijkheid = useCallback((value: number) => {
+    setWizardData((prev) => ({ ...prev, klantvriendelijkheid: value }));
+  }, [setWizardData]);
+
+  const setGarantiePakketId = useCallback((id: string | null) => {
+    setWizardData((prev) => ({ ...prev, garantiePakketId: id }));
   }, [setWizardData]);
 
   // Toggle scope selection
@@ -398,6 +422,9 @@ export function useAanlegWizard(): UseAanlegWizardReturn {
     bereikbaarheid,
     klantData,
     scopeData,
+    tuintypologie,
+    klantvriendelijkheid,
+    garantiePakketId,
 
     // Setters
     setWizardData,
@@ -408,6 +435,9 @@ export function useAanlegWizard(): UseAanlegWizardReturn {
     setBereikbaarheid,
     setKlantData,
     setScopeData,
+    setTuintypologie,
+    setKlantvriendelijkheid,
+    setGarantiePakketId,
 
     // Navigation
     nextStep,

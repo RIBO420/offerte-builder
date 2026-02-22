@@ -246,8 +246,8 @@ export function AanlegReviewSection({
             <Separator />
 
             <AanlegNavigation
-              currentStep={3}
-              totalSteps={4}
+              currentStep={4}
+              totalSteps={5}
               isStep1Valid={true}
               isStep2Valid={true}
               isSubmitting={isSubmitting}

@@ -30,6 +30,7 @@ import {
   CheckCircle2,
   Circle,
 } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { KlantSelector } from "@/components/offerte/klant-selector";
 import type { Bereikbaarheid } from "@/types/offerte";
@@ -65,13 +66,23 @@ interface AanlegKlantScopesStepProps {
   isStep1Valid: boolean;
   isStep2Valid: boolean;
   totalSteps: number;
+  klantvriendelijkheid?: number;
   onKlantDataChange: (data: KlantData) => void;
   onKlantSelect: (klantId: string | null) => void;
   onBereikbaarheidChange: (value: Bereikbaarheid) => void;
   onToggleScope: (scopeId: AanlegScope) => void;
+  onKlantvriendelijkheidChange?: (value: number) => void;
   onNext: () => void;
   onPrev: () => void;
 }
+
+const KLANTVRIENDELIJKHEID_LABELS: Record<number, string> = {
+  1: "Lastig",
+  2: "Moeilijk",
+  3: "Normaal",
+  4: "Prettig",
+  5: "Makkelijk",
+};
 
 export function AanlegKlantScopesStep({
   klantData,
@@ -81,10 +92,12 @@ export function AanlegKlantScopesStep({
   isStep1Valid,
   isStep2Valid,
   totalSteps,
+  klantvriendelijkheid = 3,
   onKlantDataChange,
   onKlantSelect,
   onBereikbaarheidChange,
   onToggleScope,
+  onKlantvriendelijkheidChange,
   onNext,
   onPrev,
 }: AanlegKlantScopesStepProps) {
@@ -136,6 +149,35 @@ export function AanlegKlantScopesStep({
                 Beperkte bereikbaarheid verhoogt de arbeidsuren
               </p>
             </div>
+
+            {onKlantvriendelijkheidChange && (
+              <>
+                <Separator className="my-4" />
+                <div className="space-y-3">
+                  <Label>Klantvriendelijkheid</Label>
+                  <div className="px-1">
+                    <Slider
+                      value={[klantvriendelijkheid]}
+                      onValueChange={([val]) => onKlantvriendelijkheidChange(val)}
+                      min={1}
+                      max={5}
+                      step={1}
+                    />
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>1 - Lastig</span>
+                    <span>3 - Normaal</span>
+                    <span>5 - Makkelijk</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Huidige inschatting:{" "}
+                    <span className="font-medium text-foreground">
+                      {klantvriendelijkheid} - {KLANTVRIENDELIJKHEID_LABELS[klantvriendelijkheid] || "Normaal"}
+                    </span>
+                  </p>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 

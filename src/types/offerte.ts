@@ -15,6 +15,44 @@ export type Complexiteit = "laag" | "gemiddeld" | "hoog";
 export type Intensiteit = "weinig" | "gemiddeld" | "veel";
 export type Snijwerk = "laag" | "gemiddeld" | "hoog";
 
+// Bestratingtype
+export type Bestratingtype = "pad" | "oprit" | "terrein";
+
+// Funderingslagen
+export interface FunderingslagenData {
+  gebrokenPuin: number; // cm dikte
+  zand: number; // cm dikte
+  brekerszand?: number;
+  stabiliser?: boolean;
+}
+
+// Bestrating zone
+export interface BestratingZone {
+  id: string;
+  type: Bestratingtype;
+  oppervlakte: number;
+  materiaal?: string;
+}
+
+// Oriëntatie type
+export type Orientatie = "noord" | "zuid" | "oost" | "west" | "nvt";
+
+// Bodem mix
+export interface BodemMix {
+  zandPercentage: number;
+  compostPercentage: number;
+  teelaardPercentage: number;
+}
+
+// Houtwerk configurator
+export interface HoutwerkConfigurator {
+  breedte?: number;
+  hoogte?: number;
+  lengte?: number;
+  daktype?: string;
+  materiaalKeuze?: string;
+}
+
 // Aanleg Scopes
 export type AanlegScope =
   | "grondwerk"
@@ -85,6 +123,12 @@ export interface BestratingData {
     dikteOnderlaag: number; // cm
     opsluitbanden: boolean;
   };
+  // Bestratingtype: pad, oprit of terrein
+  bestratingtype?: Bestratingtype;
+  // Funderingslagen met dikte in cm
+  funderingslagen?: FunderingslagenData;
+  // Zones voor bestrating (meerdere gebieden)
+  zones?: BestratingZone[];
 }
 
 // Borders scope data
@@ -93,6 +137,12 @@ export interface BordersData {
   beplantingsintensiteit: Intensiteit;
   bodemverbetering: boolean;
   afwerking: "geen" | "schors" | "grind";
+  // Oriëntatie van de border
+  orientatie?: Orientatie;
+  // Bodem mix percentages
+  bodemMix?: BodemMix;
+  // Bemestingsschema
+  bemestingsschema?: boolean;
 }
 
 // Gras scope data
@@ -101,6 +151,16 @@ export interface GrasData {
   type: "zaaien" | "graszoden";
   ondergrond: "bestaand" | "nieuw";
   afwateringNodig: boolean;
+  // Kunstgras optie
+  kunstgras?: boolean;
+  // Drainage opties
+  drainage?: boolean;
+  drainageMeters?: number;
+  // Opsluitbanden opties
+  opsluitbanden?: boolean;
+  opsluitbandenMeters?: number;
+  // Verticuteren
+  verticuteren?: boolean;
 }
 
 // Houtwerk scope data
@@ -109,6 +169,10 @@ export interface HoutwerkData {
   afmeting: number; // lengte in meters of m²
   // Verplichte fundering
   fundering: "standaard" | "zwaar";
+  // Leverancier URL (bijv. voor configurator link)
+  leverancierUrl?: string;
+  // Configurator gegevens
+  configurator?: HoutwerkConfigurator;
 }
 
 // Water/Elektra scope data
@@ -117,6 +181,10 @@ export interface WaterElektraData {
   aantalPunten: number;
   // Verplicht als elektra
   sleuvenNodig: boolean;
+  // Verlichtingsplan nodig
+  verlichtingsplan?: boolean;
+  // Diepte eis in cm (default 60)
+  diepteEis?: number;
 }
 
 // Specials scope data
