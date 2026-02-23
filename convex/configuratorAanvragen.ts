@@ -143,7 +143,7 @@ export const create = mutation({
       .padStart(4, "0");
     const referentie = `CFG-${jaar}${maand}${dag}-${willekeurig}`;
 
-    return await ctx.db.insert("configuratorAanvragen", {
+    const id = await ctx.db.insert("configuratorAanvragen", {
       type: args.type,
       status: "nieuw",
       referentie,
@@ -158,6 +158,8 @@ export const create = mutation({
       createdAt: now,
       updatedAt: now,
     });
+
+    return { id, referentie };
   },
 });
 

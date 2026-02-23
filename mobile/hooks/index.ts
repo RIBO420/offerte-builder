@@ -43,3 +43,38 @@ export {
   type RolePermissions,
   type UseUserRoleReturn,
 } from './use-user-role';
+
+// Opname module hooks
+export {
+  useAudioRecording,
+  type UseAudioRecordingReturn,
+} from './use-audio-recording';
+
+export {
+  useTranscription,
+  type UseTranscriptionReturn,
+} from './use-transcription';
+
+export {
+  useAutoSummary,
+  type UseAutoSummaryReturn,
+  type SummaryResult,
+} from './use-auto-summary';
+
+// Foto capture hook
+export {
+  usePhotoCapture,
+  type CapturedPhoto,
+  type FotoType,
+  type UsePhotoCaptureReturn,
+} from './use-photo-capture';
+
+// Offline upload queue hook
+export {
+  useOfflineQueue,
+  type QueueItem,
+  type QueueItemType,
+  type QueueItemStatus,
+  type UploadHandler,
+  type UseOfflineQueueReturn,
+} from './use-offline-queue';

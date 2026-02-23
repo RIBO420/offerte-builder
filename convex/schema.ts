@@ -1690,6 +1690,7 @@ export default defineSchema({
     notities: v.optional(v.string()),
     toegewezenAan: v.optional(v.id("users")),
     verificatieNotities: v.optional(v.string()),
+    fotoIds: v.optional(v.array(v.id("_storage"))),
     createdAt: v.number(),
     updatedAt: v.number(),
   })

@@ -1,31 +1,47 @@
 "use client";
 
 import * as React from "react";
-import { CalendarIcon, CheckCircle2Icon, ChevronLeftIcon, ChevronRightIcon, InfoIcon, PackageIcon, TruckIcon } from "lucide-react";
-import { format, addDays, isWeekend } from "date-fns";
+import {
+  CheckCircle2Icon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  CreditCardIcon,
+  InfoIcon,
+  Loader2Icon,
+  PackageIcon,
+  TruckIcon,
+} from "lucide-react";
+import { addDays, format, isWeekend } from "date-fns";
 import { nl } from "date-fns/locale";
+import { useMutation } from "convex/react";
+import { api } from "../../../../../convex/_generated/api";
+import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
+import { BeschikbaarheidsKalender } from "@/components/beschikbaarheids-kalender";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -43,7 +59,7 @@ type BoomschorsType = keyof typeof PRIJZEN;
 const DIKTE_FACTOR = {
   "5cm": 0.05,
   "7cm": 0.07,
-  "10cm": 0.10,
+  "10cm": 0.1,
 } as const;
 
 type LaagDikte = keyof typeof DIKTE_FACTOR;
@@ -158,12 +174,9 @@ function getBezorgInfo(postcode: string): BezorgInfo | null {
   const cleaned = postcode.replace(/\s/g, "").toUpperCase();
   if (cleaned.length < 4) return null;
 
-  // Simplified distance estimation based on first 2 digits of Dutch postcode
-  // Top Tuinen is based near Amsterdam/Haarlem area (postcodes ~1000-2999)
   const numericPart = parseInt(cleaned.slice(0, 4), 10);
   if (isNaN(numericPart)) return null;
 
-  // Reference postcode range for company ~2000-2999
   const diff = Math.abs(numericPart - 2000);
 
   if (diff < 300) {
@@ -187,7 +200,11 @@ interface StepIndicatorProps {
   stapLabels: string[];
 }
 
-function StapIndicator({ huidigeStap, totaalStappen, stapLabels }: StepIndicatorProps) {
+function StapIndicator({
+  huidigeStap,
+  totaalStappen,
+  stapLabels,
+}: StepIndicatorProps) {
   const voortgang = ((huidigeStap - 1) / (totaalStappen - 1)) * 100;
 
   return (
@@ -211,14 +228,17 @@ function StapIndicator({ huidigeStap, totaalStappen, stapLabels }: StepIndicator
                   "flex items-center justify-center size-7 rounded-full text-xs font-semibold border-2 transition-colors",
                   isVoltooid &&
                     "bg-primary border-primary text-primary-foreground",
-                  isActief &&
-                    "bg-background border-primary text-primary",
+                  isActief && "bg-background border-primary text-primary",
                   !isVoltooid &&
                     !isActief &&
                     "bg-background border-muted-foreground/30 text-muted-foreground"
                 )}
               >
-                {isVoltooid ? <CheckCircle2Icon className="size-4" /> : stapNummer}
+                {isVoltooid ? (
+                  <CheckCircle2Icon className="size-4" />
+                ) : (
+                  stapNummer
+                )}
               </div>
               <span
                 className={cn(
@@ -313,7 +333,9 @@ function Stap1Klantgegevens({ gegevens, onChange, errors }: Stap1Props) {
 
         <div className="sm:col-span-2">
           <Separator className="my-2" />
-          <p className="text-sm font-medium text-foreground mt-3 mb-4">Afleveradres</p>
+          <p className="text-sm font-medium text-foreground mt-3 mb-4">
+            Afleveradres
+          </p>
         </div>
 
         <div className="sm:col-span-2 space-y-1.5">
@@ -414,7 +436,9 @@ function Stap2Specificaties({ specificaties, onChange, errors }: Stap2Props) {
         </Label>
         <RadioGroup
           value={specificaties.soort}
-          onValueChange={(value) => handleChange("soort", value as BoomschorsType)}
+          onValueChange={(value) =>
+            handleChange("soort", value as BoomschorsType)
+          }
           className="grid gap-3 sm:grid-cols-2"
         >
           {(Object.keys(PRIJZEN) as BoomschorsType[]).map((key) => {
@@ -442,7 +466,9 @@ function Stap2Specificaties({ specificaties, onChange, errors }: Stap2Props) {
                   <div className="flex items-start justify-between gap-2 flex-wrap">
                     <div>
                       <p className="font-semibold text-sm">{info.label}</p>
-                      <p className="text-xs text-muted-foreground">{info.subtitel}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {info.subtitel}
+                      </p>
                     </div>
                     {info.badge && (
                       <Badge variant="secondary" className="text-xs shrink-0">
@@ -450,7 +476,9 @@ function Stap2Specificaties({ specificaties, onChange, errors }: Stap2Props) {
                       </Badge>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">{info.beschrijving}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {info.beschrijving}
+                  </p>
                   <p className="text-sm font-bold text-primary mt-2">
                     {formatEuro(prijs)}/m³
                   </p>
@@ -510,7 +538,8 @@ function Stap2Specificaties({ specificaties, onChange, errors }: Stap2Props) {
               ))}
             </div>
             <p className="text-xs text-muted-foreground">
-              7cm is de standaard aanbevolen dikte voor optimale onkruidonderdrukking.
+              7cm is de standaard aanbevolen dikte voor optimale
+              onkruidonderdrukking.
             </p>
           </div>
         </div>
@@ -534,14 +563,19 @@ function Stap2Specificaties({ specificaties, onChange, errors }: Stap2Props) {
             <div className="space-y-0.5">
               <p className="text-sm font-medium">
                 U heeft{" "}
-                <span className={cn("font-bold", m3Nodig < 1 ? "text-destructive" : "text-primary")}>
+                <span
+                  className={cn(
+                    "font-bold",
+                    m3Nodig < 1 ? "text-destructive" : "text-primary"
+                  )}
+                >
                   {m3Nodig} m³
                 </span>{" "}
                 boomschors nodig
               </p>
               <p className="text-xs text-muted-foreground">
-                {specificaties.oppervlakte} m² × {specificaties.laagDikte} laagdikte,
-                afgerond naar boven op 0,5 m³
+                {specificaties.oppervlakte} m² × {specificaties.laagDikte}{" "}
+                laagdikte, afgerond naar boven op 0,5 m³
               </p>
               {m3Nodig < 1 && (
                 <p className="text-xs text-destructive font-medium">
@@ -612,7 +646,9 @@ function Stap2Specificaties({ specificaties, onChange, errors }: Stap2Props) {
               <p className="text-xs text-muted-foreground mt-1">
                 Wij leveren bij u thuis met een containerwagen.
               </p>
-              <p className="text-sm font-bold text-primary mt-2">Prijs op basis van afstand</p>
+              <p className="text-sm font-bold text-primary mt-2">
+                Prijs op basis van afstand
+              </p>
             </div>
           </label>
         </RadioGroup>
@@ -627,12 +663,16 @@ function Stap2Specificaties({ specificaties, onChange, errors }: Stap2Props) {
                 id="bezorgPostcode"
                 placeholder="1234 AB"
                 value={specificaties.bezorgPostcode}
-                onChange={(e) => handleChange("bezorgPostcode", e.target.value)}
+                onChange={(e) =>
+                  handleChange("bezorgPostcode", e.target.value)
+                }
                 aria-invalid={!!errors.bezorgPostcode}
                 className="max-w-[200px]"
               />
               {errors.bezorgPostcode && (
-                <p className="text-destructive text-xs">{errors.bezorgPostcode}</p>
+                <p className="text-destructive text-xs">
+                  {errors.bezorgPostcode}
+                </p>
               )}
             </div>
 
@@ -661,8 +701,8 @@ function Stap2Specificaties({ specificaties, onChange, errors }: Stap2Props) {
             <div className="flex items-start gap-2 text-xs text-muted-foreground rounded-lg bg-muted/50 p-3">
               <InfoIcon className="size-3.5 shrink-0 mt-0.5" />
               <span>
-                Bezorging met containerwagen — zorg voor voldoende ruimte bij uw oprit
-                of inrit (minimaal 3,5 meter breed en 4 meter hoog).
+                Bezorging met containerwagen — zorg voor voldoende ruimte bij
+                uw oprit of inrit (minimaal 3,5 meter breed en 4 meter hoog).
               </span>
             </div>
           </div>
@@ -691,9 +731,7 @@ interface PrijsBerekening {
   heeftBezorgMaatwerk: boolean;
 }
 
-function berekenPrijs(
-  specificaties: BoomschorsSpecificaties
-): PrijsBerekening {
+function berekenPrijs(specificaties: BoomschorsSpecificaties): PrijsBerekening {
   const oppervlakte = parseFloat(specificaties.oppervlakte) || 0;
   const m3Nodig = berekenM3(oppervlakte, specificaties.laagDikte);
   const prijs_per_m3 = PRIJZEN[specificaties.soort];
@@ -768,7 +806,7 @@ function Stap3Samenvatting({
       <div>
         <h2 className="text-xl font-semibold">Samenvatting &amp; bevestiging</h2>
         <p className="text-muted-foreground text-sm mt-1">
-          Controleer uw bestelling en vul de leveringsdatum in.
+          Controleer uw bestelling en kies een leveringsdatum.
         </p>
       </div>
 
@@ -785,7 +823,8 @@ function Stap3Samenvatting({
             <p className="text-muted-foreground">{klantGegevens.email}</p>
             <p className="text-muted-foreground">{klantGegevens.telefoon}</p>
             <p className="text-muted-foreground">
-              {klantGegevens.adres}, {klantGegevens.postcode} {klantGegevens.plaats}
+              {klantGegevens.adres}, {klantGegevens.postcode}{" "}
+              {klantGegevens.plaats}
             </p>
           </div>
         </CardContent>
@@ -806,7 +845,7 @@ function Stap3Samenvatting({
                 {productInfo.label} ({specificaties.laagDikte})
               </p>
               <p className="text-muted-foreground text-xs">
-                {berekening.oppervlakte} m² → {berekening.m3Nodig} m³ ×{" "}
+                {berekening.oppervlakte} m² &rarr; {berekening.m3Nodig} m³ &times;{" "}
                 {formatEuro(berekening.prijs_per_m3)}/m³
               </p>
             </div>
@@ -822,8 +861,8 @@ function Stap3Samenvatting({
               {berekening.heeftBezorgMaatwerk
                 ? "Nader te bepalen"
                 : specificaties.bezorging === "ophalen"
-                ? "Gratis"
-                : formatEuro(berekening.bezorgkosten)}
+                  ? "Gratis"
+                  : formatEuro(berekening.bezorgkosten)}
             </p>
           </div>
 
@@ -833,7 +872,9 @@ function Stap3Samenvatting({
           <div className="flex items-center justify-between text-sm">
             <p className="text-muted-foreground">Subtotaal (excl. BTW)</p>
             <p className="font-medium">
-              {berekening.heeftBezorgMaatwerk ? "—" : formatEuro(berekening.subtotaal)}
+              {berekening.heeftBezorgMaatwerk
+                ? "—"
+                : formatEuro(berekening.subtotaal)}
             </p>
           </div>
 
@@ -841,7 +882,9 @@ function Stap3Samenvatting({
           <div className="flex items-center justify-between text-sm">
             <p className="text-muted-foreground">BTW (21%)</p>
             <p className="font-medium">
-              {berekening.heeftBezorgMaatwerk ? "—" : formatEuro(berekening.btw)}
+              {berekening.heeftBezorgMaatwerk
+                ? "—"
+                : formatEuro(berekening.btw)}
             </p>
           </div>
 
@@ -851,7 +894,9 @@ function Stap3Samenvatting({
           <div className="flex items-center justify-between">
             <p className="font-bold text-base">Totaal (incl. BTW)</p>
             <p className="font-bold text-lg text-primary">
-              {berekening.heeftBezorgMaatwerk ? "Op aanvraag" : formatEuro(berekening.totaal)}
+              {berekening.heeftBezorgMaatwerk
+                ? "Op aanvraag"
+                : formatEuro(berekening.totaal)}
             </p>
           </div>
 
@@ -864,41 +909,22 @@ function Stap3Samenvatting({
         </CardContent>
       </Card>
 
-      {/* Leveringsdatum */}
+      {/* Leveringsdatum via BeschikbaarheidsKalender */}
       <div className="space-y-2">
         <Label className="text-base font-medium">
           Gewenste leveringsdatum <span className="text-destructive">*</span>
         </Label>
         <p className="text-xs text-muted-foreground">
-          Vroegst mogelijke levering: {format(MIN_LEVERDATUM, "EEEE d MMMM yyyy", { locale: nl })}
+          Vroegst mogelijke levering:{" "}
+          {format(MIN_LEVERDATUM, "EEEE d MMMM yyyy", { locale: nl })}
         </p>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className={cn(
-                "w-full justify-start text-left font-normal",
-                !samenvatting.leveringsDatum && "text-muted-foreground"
-              )}
-              aria-invalid={!!errors.leveringsDatum}
-            >
-              <CalendarIcon className="mr-2 size-4" />
-              {samenvatting.leveringsDatum
-                ? format(samenvatting.leveringsDatum, "EEEE d MMMM yyyy", { locale: nl })
-                : "Selecteer een datum"}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={samenvatting.leveringsDatum}
-              onSelect={(date) => handleChange("leveringsDatum", date)}
-              disabled={(date) => date < MIN_LEVERDATUM || isWeekend(date)}
-              locale={nl}
-              initialFocus
-            />
-          </PopoverContent>
-        </Popover>
+        <BeschikbaarheidsKalender
+          mode="selectie"
+          minDatum={MIN_LEVERDATUM}
+          selectedDatum={samenvatting.leveringsDatum}
+          onDatumSelect={(datum) => handleChange("leveringsDatum", datum)}
+          geblokkeerdeDagen={[0, 6]}
+        />
         {errors.leveringsDatum && (
           <p className="text-destructive text-xs">{errors.leveringsDatum}</p>
         )}
@@ -946,7 +972,9 @@ function Stap3Samenvatting({
           </Label>
         </div>
         {errors.akkoordVoorwaarden && (
-          <p className="text-destructive text-xs ml-7">{errors.akkoordVoorwaarden}</p>
+          <p className="text-destructive text-xs ml-7">
+            {errors.akkoordVoorwaarden}
+          </p>
         )}
       </div>
     </div>
@@ -965,8 +993,10 @@ function validateStap1(gegevens: KlantGegevens): FormErrors {
   } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(gegevens.email)) {
     errors.email = "Voer een geldig e-mailadres in.";
   }
-  if (!gegevens.telefoon.trim()) errors.telefoon = "Telefoonnummer is verplicht.";
-  if (!gegevens.adres.trim()) errors.adres = "Straat en huisnummer zijn verplicht.";
+  if (!gegevens.telefoon.trim())
+    errors.telefoon = "Telefoonnummer is verplicht.";
+  if (!gegevens.adres.trim())
+    errors.adres = "Straat en huisnummer zijn verplicht.";
   if (!gegevens.postcode.trim()) errors.postcode = "Postcode is verplicht.";
   if (!gegevens.plaats.trim()) errors.plaats = "Plaats is verplicht.";
   return errors;
@@ -1005,15 +1035,65 @@ function validateStap3(samenvatting: Samenvatting): FormErrors {
 }
 
 // ---------------------------------------------------------------------------
-// Success Dialog
+// Success Dialog (met Mollie aanbetaling)
 // ---------------------------------------------------------------------------
 
 interface SuccessDialogProps {
   open: boolean;
   referentie: string;
+  klantNaam: string;
+  klantEmail: string;
 }
 
-function SuccessDialog({ open, referentie }: SuccessDialogProps) {
+function SuccessDialog({
+  open,
+  referentie,
+  klantNaam,
+  klantEmail,
+}: SuccessDialogProps) {
+  const [betalingBezig, setBetalingBezig] = React.useState(false);
+
+  async function startAanbetaling() {
+    setBetalingBezig(true);
+    try {
+      const response = await fetch("/api/mollie", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: { currency: "EUR", value: "50.00" },
+          description: `Aanbetaling boomschors ${referentie}`,
+          redirectUrl: `${window.location.origin}/configurator/boomschors?betaald=true`,
+          metadata: {
+            referentie,
+            klantNaam,
+            klantEmail,
+            type: "aanbetaling",
+          },
+        }),
+      });
+
+      const data = (await response.json()) as {
+        checkoutUrl?: string;
+        error?: string;
+      };
+
+      if (!response.ok || !data.checkoutUrl) {
+        toast.error(
+          data.error ?? "Betaling kon niet worden gestart. Probeer het later opnieuw."
+        );
+        return;
+      }
+
+      window.location.href = data.checkoutUrl;
+    } catch {
+      toast.error(
+        "Er is een fout opgetreden bij het starten van de betaling. Uw aanvraag is wel opgeslagen."
+      );
+    } finally {
+      setBetalingBezig(false);
+    }
+  }
+
   return (
     <Dialog open={open}>
       <DialogContent showCloseButton={false} className="sm:max-w-md text-center">
@@ -1028,7 +1108,8 @@ function SuccessDialog({ open, referentie }: SuccessDialogProps) {
           </DialogTitle>
           <DialogDescription className="text-center space-y-3">
             <span className="block text-sm">
-              Uw bestelling is succesvol ontvangen.
+              Uw bestelling is succesvol ontvangen. Een bevestiging is
+              verstuurd naar uw e-mailadres.
             </span>
             <span className="block">
               <span className="inline-flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-sm font-mono font-medium">
@@ -1041,12 +1122,45 @@ function SuccessDialog({ open, referentie }: SuccessDialogProps) {
             </span>
           </DialogDescription>
         </DialogHeader>
+
+        {/* Aanbetaling sectie */}
+        <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-3 text-left">
+          <div className="flex items-start gap-3">
+            <CreditCardIcon className="size-5 text-primary shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold">Optionele aanbetaling</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Zet uw levering vast met een aanbetaling van €50. Dit is niet
+                verplicht.
+              </p>
+            </div>
+          </div>
+          <Button
+            onClick={startAanbetaling}
+            disabled={betalingBezig}
+            className="w-full gap-2"
+          >
+            {betalingBezig ? (
+              <>
+                <Loader2Icon className="size-4 animate-spin" />
+                Betaling starten...
+              </>
+            ) : (
+              <>
+                <CreditCardIcon className="size-4" />
+                Betaal €50 aanbetaling
+              </>
+            )}
+          </Button>
+        </div>
+
         <DialogFooter className="sm:justify-center mt-2">
           <Button
+            variant="ghost"
             onClick={() => (window.location.href = "/")}
-            className="w-full sm:w-auto"
+            className="w-full sm:w-auto text-muted-foreground"
           >
-            Terug naar de homepage
+            Ga verder zonder aanbetaling
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1061,9 +1175,12 @@ function SuccessDialog({ open, referentie }: SuccessDialogProps) {
 const STAP_LABELS = ["Uw gegevens", "Specificaties", "Bevestiging"];
 
 export default function BoomschorsConfiguratorPage() {
+  const createAanvraag = useMutation(api.configuratorAanvragen.create);
+
   const [huidigeStap, setHuidigeStap] = React.useState(1);
   const [errors, setErrors] = React.useState<FormErrors>({});
   const [isVerstuurd, setIsVerstuurd] = React.useState(false);
+  const [isVersturen, setIsVersturen] = React.useState(false);
   const [referentie, setReferentie] = React.useState("");
 
   const [klantGegevens, setKlantGegevens] = React.useState<KlantGegevens>({
@@ -1110,21 +1227,96 @@ export default function BoomschorsConfiguratorPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  function handleVersturen() {
+  async function handleVersturen() {
     const newErrors = validateStap3(samenvatting);
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
     }
     setErrors({});
-    const ref = `BS-${Date.now()}`;
-    setReferentie(ref);
-    setIsVerstuurd(true);
+    setIsVersturen(true);
+
+    const berekening = berekenPrijs(specificaties);
+
+    try {
+      // 1. Sla de aanvraag op in Convex
+      const result = await createAanvraag({
+        type: "boomschors",
+        klantNaam: klantGegevens.naam,
+        klantEmail: klantGegevens.email,
+        klantTelefoon: klantGegevens.telefoon,
+        klantAdres: klantGegevens.adres,
+        klantPostcode: klantGegevens.postcode,
+        klantPlaats: klantGegevens.plaats,
+        specificaties: {
+          boomschorsType: specificaties.soort,
+          oppervlakte: parseFloat(specificaties.oppervlakte) || 0,
+          laagDikte: specificaties.laagDikte,
+          m3Nodig: berekening.m3Nodig,
+          bezorging: specificaties.bezorging === "bezorgen",
+          bezorgPostcode: specificaties.bezorgPostcode,
+          leveringsDatum: samenvatting.leveringsDatum
+            ? samenvatting.leveringsDatum.toISOString()
+            : null,
+          opmerkingen: samenvatting.opmerkingen,
+        },
+        indicatiePrijs: berekening.heeftBezorgMaatwerk
+          ? berekening.schors_totaal * 1.21
+          : berekening.totaal,
+      });
+
+      const refNummer = result.referentie;
+      setReferentie(refNummer);
+
+      // 2. Stuur bevestigingsmail (fire & forget — fouten tonen we als toast)
+      const leveringsDatumLabel = samenvatting.leveringsDatum
+        ? format(samenvatting.leveringsDatum, "EEEE d MMMM yyyy", {
+            locale: nl,
+          })
+        : "Niet opgegeven";
+
+      fetch("/api/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "bevestiging",
+          to: klantGegevens.email,
+          klantNaam: klantGegevens.naam,
+          bedrijfsnaam: "Top Tuinen",
+          bedrijfsEmail: "info@toptuinen.nl",
+          bedrijfsTelefoon: "020-123 4567",
+          aanvraagType: "configurator",
+          aanvraagDetails: [
+            `Referentienummer: ${refNummer}`,
+            `Product: ${PRODUCT_INFO[specificaties.soort].label} (${specificaties.laagDikte})`,
+            `Hoeveelheid: ${berekening.m3Nodig} m³ (${berekening.oppervlakte} m²)`,
+            `Bezorging: ${specificaties.bezorging === "bezorgen" ? `Bezorgen naar ${specificaties.bezorgPostcode}` : "Ophalen"}`,
+            `Gewenste leverdatum: ${leveringsDatumLabel}`,
+            berekening.heeftBezorgMaatwerk
+              ? "Totaalprijs: Op aanvraag (bezorgkosten nader te bepalen)"
+              : `Totaalprijs: ${formatEuro(berekening.totaal)} incl. BTW`,
+          ].join("\n"),
+        }),
+      }).catch(() => {
+        // Bevestigingsmail fout is niet kritiek — aanvraag is al opgeslagen
+        toast.warning(
+          "Bevestigingsmail kon niet worden verzonden, maar uw aanvraag is wel opgeslagen."
+        );
+      });
+
+      // 3. Toon success dialog
+      setIsVerstuurd(true);
+    } catch (err) {
+      const boodschap =
+        err instanceof Error ? err.message : "Er is een onbekende fout opgetreden.";
+      toast.error(`Fout bij plaatsen bestelling: ${boodschap}`);
+    } finally {
+      setIsVersturen(false);
+    }
   }
 
   // Real-time price strip — show on stap 2 and 3
-  const berekening =
-    huidigeStap >= 2 ? berekenPrijs(specificaties) : null;
+  const berekening = huidigeStap >= 2 ? berekenPrijs(specificaties) : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/30">
@@ -1152,20 +1344,26 @@ export default function BoomschorsConfiguratorPage() {
         </div>
 
         {/* Real-time prijs banner (stap 2+) */}
-        {berekening && !berekening.heeftBezorgMaatwerk && berekening.m3Nodig >= 1 && (
-          <div className="mb-6 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
-            <div className="text-sm">
-              <span className="text-muted-foreground">Geschatte prijs: </span>
-              <span className="font-bold text-primary">
-                {formatEuro(berekening.totaal)}
-              </span>
-              <span className="text-muted-foreground text-xs"> (incl. BTW)</span>
+        {berekening &&
+          !berekening.heeftBezorgMaatwerk &&
+          berekening.m3Nodig >= 1 && (
+            <div className="mb-6 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
+              <div className="text-sm">
+                <span className="text-muted-foreground">Geschatte prijs: </span>
+                <span className="font-bold text-primary">
+                  {formatEuro(berekening.totaal)}
+                </span>
+                <span className="text-muted-foreground text-xs">
+                  {" "}
+                  (incl. BTW)
+                </span>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {berekening.m3Nodig} m³{" "}
+                {PRODUCT_INFO[berekening.soort].label.toLowerCase()}
+              </div>
             </div>
-            <div className="text-xs text-muted-foreground">
-              {berekening.m3Nodig} m³ {PRODUCT_INFO[berekening.soort].label.toLowerCase()}
-            </div>
-          </div>
-        )}
+          )}
 
         {/* Formulier kaart */}
         <Card className="shadow-sm">
@@ -1202,6 +1400,7 @@ export default function BoomschorsConfiguratorPage() {
             <Button
               variant="outline"
               onClick={vorigeStap}
+              disabled={isVersturen}
               className="gap-2"
             >
               <ChevronLeftIcon className="size-4" />
@@ -1221,10 +1420,19 @@ export default function BoomschorsConfiguratorPage() {
               onClick={handleVersturen}
               size="lg"
               className="gap-2"
-              disabled={isVerstuurd}
+              disabled={isVerstuurd || isVersturen}
             >
-              <CheckCircle2Icon className="size-4" />
-              Bestelling plaatsen
+              {isVersturen ? (
+                <>
+                  <Loader2Icon className="size-4 animate-spin" />
+                  Bestelling plaatsen...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2Icon className="size-4" />
+                  Bestelling plaatsen
+                </>
+              )}
             </Button>
           )}
         </div>
@@ -1247,7 +1455,12 @@ export default function BoomschorsConfiguratorPage() {
       </div>
 
       {/* Success dialog */}
-      <SuccessDialog open={isVerstuurd} referentie={referentie} />
+      <SuccessDialog
+        open={isVerstuurd}
+        referentie={referentie}
+        klantNaam={klantGegevens.naam}
+        klantEmail={klantGegevens.email}
+      />
     </div>
   );
 }

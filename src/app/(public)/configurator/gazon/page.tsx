@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useMutation } from "convex/react";
+import { api } from "../../../../../convex/_generated/api";
+import { toast } from "sonner";
 import {
   Card,
   CardContent,
@@ -33,8 +36,12 @@ import {
   Leaf,
   Calculator,
   Info,
+  CreditCard,
+  Loader2,
+  CalendarDays,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BeschikbaarheidsKalender } from "@/components/beschikbaarheids-kalender";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -60,6 +67,7 @@ interface GazonSpecs {
   drainage: boolean;
   opsluitbanden: boolean;
   opsluitbandenMeters: string;
+  gewensteStartdatum: Date | undefined;
 }
 
 interface FormData {
@@ -88,6 +96,7 @@ interface PrijsBerekening {
 
 const STAP_LABELS = ["Klantgegevens", "Gazon specificaties", "Foto's", "Prijsoverzicht"];
 const TOTAAL_STAPPEN = 4;
+const AANBETALING_BEDRAG = 75;
 
 const TYPE_GRAS_CONFIG: Record<
   TypeGras,
@@ -149,6 +158,15 @@ function formatEuro(amount: number): string {
     style: "currency",
     currency: "EUR",
   }).format(amount);
+}
+
+function formatDatumVolledig(datum: Date): string {
+  return datum.toLocaleDateString("nl-NL", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 }
 
 function berekenPrijs(data: FormData): PrijsBerekening | null {
@@ -854,11 +872,15 @@ function Stap4Prijsoverzicht({
   akkoordVoorwaarden,
   onAkkoordChange,
   onVersturen,
+  isSubmitting,
+  onStartdatumChange,
 }: {
   data: FormData;
   akkoordVoorwaarden: boolean;
   onAkkoordChange: (value: boolean) => void;
   onVersturen: () => void;
+  isSubmitting: boolean;
+  onStartdatumChange: (datum: Date | undefined) => void;
 }) {
   const prijs = berekenPrijs(data);
 
@@ -1016,6 +1038,35 @@ function Stap4Prijsoverzicht({
         </p>
       </div>
 
+      {/* Gewenste startdatum */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <CalendarDays className="h-5 w-5 text-green-600" />
+          <h3 className="text-sm font-semibold text-gray-900">Gewenste startdatum</h3>
+          <Badge variant="outline" className="text-xs text-muted-foreground border-gray-300">
+            Optioneel
+          </Badge>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Selecteer uw voorkeursdatum voor de start van de werkzaamheden. Wij
+          bevestigen de definitieve datum na overleg.
+        </p>
+        <BeschikbaarheidsKalender
+          mode="selectie"
+          selectedDatum={data.specs.gewensteStartdatum}
+          onDatumSelect={onStartdatumChange}
+        />
+        {data.specs.gewensteStartdatum && (
+          <button
+            type="button"
+            onClick={() => onStartdatumChange(undefined)}
+            className="text-xs text-muted-foreground hover:text-red-600 underline underline-offset-2 transition-colors"
+          >
+            Datum wissen
+          </button>
+        )}
+      </div>
+
       {/* Akkoord voorwaarden */}
       <div className="flex items-start gap-3 p-4 rounded-lg border-2 border-gray-200 hover:border-green-300 transition-colors cursor-pointer"
         onClick={() => onAkkoordChange(!akkoordVoorwaarden)}
@@ -1049,15 +1100,24 @@ function Stap4Prijsoverzicht({
       {/* Versturen knop */}
       <Button
         onClick={onVersturen}
-        disabled={!akkoordVoorwaarden}
+        disabled={!akkoordVoorwaarden || isSubmitting}
         size="lg"
         className={cn(
           "w-full bg-green-600 hover:bg-green-700 text-white font-semibold",
-          !akkoordVoorwaarden && "opacity-50 cursor-not-allowed"
+          (!akkoordVoorwaarden || isSubmitting) && "opacity-50 cursor-not-allowed"
         )}
       >
-        <Leaf className="mr-2 h-5 w-5" />
-        Aanvraag versturen
+        {isSubmitting ? (
+          <>
+            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+            Aanvraag versturen...
+          </>
+        ) : (
+          <>
+            <Leaf className="mr-2 h-5 w-5" />
+            Aanvraag versturen
+          </>
+        )}
       </Button>
     </div>
   );
@@ -1067,20 +1127,74 @@ function Stap4Prijsoverzicht({
 // Success Dialog
 // ---------------------------------------------------------------------------
 
+interface SuccessDialogProps {
+  open: boolean;
+  email: string;
+  referentie: string;
+  klantNaam: string;
+  klantEmail: string;
+  onSluiten: () => void;
+}
+
 function SuccessDialog({
   open,
   email,
   referentie,
+  klantNaam,
+  klantEmail,
   onSluiten,
-}: {
-  open: boolean;
-  email: string;
-  referentie: string;
-  onSluiten: () => void;
-}) {
+}: SuccessDialogProps) {
+  const [aanbetaalBezig, setAanbetaalBezig] = useState(false);
+
+  const startAanbetaling = async () => {
+    if (aanbetaalBezig) return;
+    setAanbetaalBezig(true);
+
+    try {
+      const appUrl = window.location.origin;
+      const redirectUrl = `${appUrl}/configurator/bedankt?referentie=${encodeURIComponent(referentie)}&betaald=1`;
+
+      const response = await fetch("/api/mollie", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: {
+            currency: "EUR",
+            value: AANBETALING_BEDRAG.toFixed(2),
+          },
+          description: `Aanbetaling gazon configuratie — ${referentie}`,
+          redirectUrl,
+          metadata: {
+            referentie,
+            klantNaam,
+            klantEmail,
+            type: "configurator",
+          },
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Fout bij starten van betaling");
+      }
+
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      } else {
+        throw new Error("Geen checkout URL ontvangen van Mollie");
+      }
+    } catch (err) {
+      const foutmelding =
+        err instanceof Error ? err.message : "Fout bij starten van betaling";
+      toast.error(foutmelding);
+      setAanbetaalBezig(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onSluiten}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <div className="flex flex-col items-center text-center gap-4 py-4">
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
@@ -1091,16 +1205,17 @@ function SuccessDialog({
                 Bedankt voor uw aanvraag!
               </DialogTitle>
               <DialogDescription className="mt-3 text-sm leading-relaxed">
+                Uw aanvraag is ontvangen — u ontvangt een bevestiging per email op{" "}
+                <span className="font-semibold text-foreground">{email}</span>.
                 Wij beoordelen uw aanvraag binnen{" "}
                 <span className="font-semibold text-foreground">2 werkdagen</span>.
-                U ontvangt een bevestiging per email op{" "}
-                <span className="font-semibold text-foreground">{email}</span>.
               </DialogDescription>
             </div>
           </div>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
+          {/* Referentienummer */}
           <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">
@@ -1127,11 +1242,51 @@ function SuccessDialog({
               Na inspectie ontvangt u een definitieve offerte
             </li>
           </ul>
+
+          {/* Aanbetaling sectie */}
+          <div className="rounded-lg border-2 border-dashed border-green-200 bg-green-50/50 p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4 text-green-700" />
+              <p className="text-sm font-semibold text-green-900">
+                Aanbetaling (optioneel)
+              </p>
+            </div>
+            <p className="text-xs text-green-800 leading-relaxed">
+              Betaal €{AANBETALING_BEDRAG} aanbetaling om uw aanvraag prioriteit te
+              geven. Uw aanvraag wordt dan direct behandeld.
+            </p>
+            <Button
+              onClick={startAanbetaling}
+              disabled={aanbetaalBezig}
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-medium"
+              size="sm"
+            >
+              {aanbetaalBezig ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Betaling starten...
+                </>
+              ) : (
+                <>
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  Betaal €{AANBETALING_BEDRAG} aanbetaling om uw aanvraag te bevestigen
+                </>
+              )}
+            </Button>
+            <button
+              type="button"
+              onClick={onSluiten}
+              className="w-full text-xs text-muted-foreground hover:text-gray-700 underline underline-offset-2 transition-colors py-1"
+            >
+              Of ga verder zonder aanbetaling
+            </button>
+          </div>
         </div>
 
         <Button
           onClick={onSluiten}
-          className="w-full bg-green-600 hover:bg-green-700 text-white"
+          variant="outline"
+          className="w-full"
         >
           Sluiten
         </Button>
@@ -1161,6 +1316,7 @@ const LEEG_SPECS: GazonSpecs = {
   drainage: false,
   opsluitbanden: false,
   opsluitbandenMeters: "",
+  gewensteStartdatum: undefined,
 };
 
 export default function GazonConfiguratorPage() {
@@ -1173,6 +1329,9 @@ export default function GazonConfiguratorPage() {
   const [akkoordVoorwaarden, setAkkoordVoorwaarden] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [referentieNummer, setReferentieNummer] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const createAanvraag = useMutation(api.configuratorAanvragen.create);
 
   const updateKlant = useCallback(
     (field: keyof KlantGegevens, value: string) => {
@@ -1180,7 +1339,6 @@ export default function GazonConfiguratorPage() {
         ...prev,
         klant: { ...prev.klant, [field]: value },
       }));
-      // Clear error for field on change
       if (errors[field]) {
         setErrors((prev) => {
           const next = { ...prev };
@@ -1209,12 +1367,18 @@ export default function GazonConfiguratorPage() {
     [errors]
   );
 
+  const updateStartdatum = useCallback((datum: Date | undefined) => {
+    setFormData((prev) => ({
+      ...prev,
+      specs: { ...prev.specs, gewensteStartdatum: datum },
+    }));
+  }, []);
+
   const naarVolgendeStap = () => {
     let stapErrors: Record<string, string> = {};
 
     if (huidigStap === 1) {
       stapErrors = validateStap1(formData.klant);
-      // Blokkeer als poort te smal
       const poort = parseFloat(formData.klant.poortbreedte);
       if (!isNaN(poort) && poort < 60) {
         stapErrors.poortbreedte =
@@ -1226,7 +1390,6 @@ export default function GazonConfiguratorPage() {
 
     if (Object.keys(stapErrors).length > 0) {
       setErrors(stapErrors);
-      // Scroll naar boven
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
@@ -1242,19 +1405,122 @@ export default function GazonConfiguratorPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handleVersturen = () => {
-    const ref = "GZ-" + Date.now();
-    setReferentieNummer(ref);
-    setShowSuccessDialog(true);
+  const handleVersturen = async () => {
+    if (isSubmitting) return;
+
+    const prijs = berekenPrijs(formData);
+    if (!prijs) {
+      toast.error("Er ging iets mis bij het versturen. Probeer het opnieuw.");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      // Stel specificaties samen inclusief startdatum
+      const specificaties = {
+        oppervlakte: parseFloat(formData.specs.oppervlakte),
+        typeGras: formData.specs.typeGras,
+        ondergrond: formData.specs.ondergrond,
+        drainage: formData.specs.drainage,
+        opsluitbanden: formData.specs.opsluitbanden,
+        opsluitbandenMeters: formData.specs.opsluitbanden
+          ? parseFloat(formData.specs.opsluitbandenMeters) || 0
+          : 0,
+        poortbreedte: parseFloat(formData.klant.poortbreedte),
+        handmatigToeslag: prijs.handmatigToeslag,
+        gewensteStartdatum: formData.specs.gewensteStartdatum
+          ? formData.specs.gewensteStartdatum.toISOString().split("T")[0]
+          : null,
+        prijsDetails: {
+          subtotaalExBtw: prijs.subtotaal,
+          btw: prijs.btw,
+          totaalInclBtw: prijs.totaal,
+        },
+      };
+
+      // Stuur aanvraag naar Convex — retourneert { id, referentie }
+      const resultaat = await createAanvraag({
+        type: "gazon",
+        klantNaam: formData.klant.naam,
+        klantEmail: formData.klant.email,
+        klantTelefoon: formData.klant.telefoon,
+        klantAdres: formData.klant.adres,
+        klantPostcode: formData.klant.postcode,
+        klantPlaats: formData.klant.plaats,
+        specificaties,
+        indicatiePrijs: prijs.totaal,
+      });
+
+      // Gebruik het door Convex gegenereerde CFG-referentienummer
+      const cfgRef = resultaat.referentie;
+      setReferentieNummer(cfgRef);
+
+      // Stuur bevestigingsmail
+      const typeGrasLabel = formData.specs.typeGras
+        ? TYPE_GRAS_CONFIG[formData.specs.typeGras as TypeGras].label
+        : "";
+      const ondergrondLabel = formData.specs.ondergrond
+        ? ONDERGROND_CONFIG[formData.specs.ondergrond as Ondergrond].label
+        : "";
+
+      const aanvraagDetails = [
+        `Type gazon: ${typeGrasLabel}`,
+        `Oppervlakte: ${formData.specs.oppervlakte} m²`,
+        `Ondergrond: ${ondergrondLabel}`,
+        formData.specs.drainage ? "Drainage: ja" : null,
+        formData.specs.opsluitbanden
+          ? `Opsluitbanden: ${formData.specs.opsluitbandenMeters} m`
+          : null,
+        formData.specs.gewensteStartdatum
+          ? `Gewenste startdatum: ${formatDatumVolledig(formData.specs.gewensteStartdatum)}`
+          : null,
+        `Indicatieprijs: ${formatEuro(prijs.totaal)} incl. BTW`,
+        `Referentienummer: ${cfgRef}`,
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      try {
+        await fetch("/api/email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "bevestiging",
+            to: formData.klant.email,
+            klantNaam: formData.klant.naam,
+            aanvraagType: "configurator",
+            aanvraagDetails,
+            datumOpties: [],
+            bedrijfsnaam: "Top Tuinen",
+            bedrijfsEmail: "info@toptuinen.nl",
+            bedrijfsTelefoon: "085-0601024",
+          }),
+        });
+      } catch {
+        // Email fout is niet fataal — aanvraag is al opgeslagen
+        console.warn("[gazon] Bevestigingsmail mislukt, aanvraag is wel opgeslagen");
+      }
+
+      // Toon success dialog
+      setShowSuccessDialog(true);
+    } catch (err) {
+      const foutmelding =
+        err instanceof Error ? err.message : "Onbekende fout";
+      console.error("[gazon] Fout bij versturen aanvraag:", foutmelding);
+      toast.error("Er ging iets mis bij het versturen. Probeer het opnieuw.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleSuccessSluiten = () => {
     setShowSuccessDialog(false);
-    // Reset formulier
     setFormData({ klant: LEEG_KLANT, specs: LEEG_SPECS });
     setHuidigStap(1);
     setAkkoordVoorwaarden(false);
     setErrors({});
+    setReferentieNummer("");
   };
 
   return (
@@ -1297,6 +1563,8 @@ export default function GazonConfiguratorPage() {
               akkoordVoorwaarden={akkoordVoorwaarden}
               onAkkoordChange={setAkkoordVoorwaarden}
               onVersturen={handleVersturen}
+              isSubmitting={isSubmitting}
+              onStartdatumChange={updateStartdatum}
             />
           )}
         </CardContent>
@@ -1334,6 +1602,8 @@ export default function GazonConfiguratorPage() {
         open={showSuccessDialog}
         email={formData.klant.email}
         referentie={referentieNummer}
+        klantNaam={formData.klant.naam}
+        klantEmail={formData.klant.email}
         onSluiten={handleSuccessSluiten}
       />
     </div>

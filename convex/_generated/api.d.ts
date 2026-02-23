@@ -23,6 +23,7 @@ import type * as crons from "../crons.js";
 import type * as emailLogs from "../emailLogs.js";
 import type * as export_ from "../export.js";
 import type * as facturen from "../facturen.js";
+import type * as fotoStorage from "../fotoStorage.js";
 import type * as garantiePakketten from "../garantiePakketten.js";
 import type * as inkooporders from "../inkooporders.js";
 import type * as instellingen from "../instellingen.js";
@@ -93,6 +94,7 @@ declare const fullApi: ApiFromModules<{
   emailLogs: typeof emailLogs;
   export: typeof export_;
   facturen: typeof facturen;
+  fotoStorage: typeof fotoStorage;
   garantiePakketten: typeof garantiePakketten;
   inkooporders: typeof inkooporders;
   instellingen: typeof instellingen;
