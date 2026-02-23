@@ -3,6 +3,10 @@ import { Resend } from "resend";
 import { render } from "@react-email/components";
 import { OfferteEmail } from "@/components/email/offerte-email";
 import {
+  BevestigingEmail,
+  type BevestigingEmailProps,
+} from "@/components/email/bevestiging-email";
+import {
   emailRateLimiter as inMemoryEmailRateLimiter,
   getRequestIdentifier as getInMemoryRequestIdentifier,
   createRateLimitResponse as createInMemoryRateLimitResponse,
@@ -100,10 +104,111 @@ export async function POST(request: NextRequest) {
       bedrijfsTelefoon,
       offerteType,
       scopes,
+      // Bevestiging-specific fields
+      aanvraagType,
+      aanvraagDetails,
+      datumOpties,
+      calendlyUrl,
+      bedrijfsAdres,
     } = body;
 
     // Validate required fields
-    if (!to?.trim() || !klantNaam?.trim() || !offerteNummer?.trim() || !bedrijfsnaam?.trim()) {
+    if (!to?.trim() || !klantNaam?.trim() || !bedrijfsnaam?.trim()) {
+      return NextResponse.json(
+        { error: "Ontbrekende verplichte velden" },
+        { status: 400 }
+      );
+    }
+
+    // Bevestiging email type: separate validation and rendering path
+    if (type === "bevestiging") {
+      if (!aanvraagType) {
+        return NextResponse.json(
+          { error: "aanvraagType is verplicht voor bevestigingsmails" },
+          { status: 400 }
+        );
+      }
+
+      const bevestigingProps: BevestigingEmailProps = {
+        klantNaam,
+        aanvraagType,
+        aanvraagDetails: aanvraagDetails ?? undefined,
+        datumOpties: Array.isArray(datumOpties) ? datumOpties : [],
+        calendlyUrl: calendlyUrl ?? undefined,
+        bedrijfsnaam,
+        bedrijfsEmail: bedrijfsEmail ?? "",
+        bedrijfsTelefoon: bedrijfsTelefoon ?? "",
+        bedrijfsAdres: bedrijfsAdres ?? undefined,
+      };
+
+      const subject = `Uw aanvraag bij ${bedrijfsnaam} — bevestiging`;
+
+      const emailHtml = await render(BevestigingEmail(bevestigingProps));
+
+      const fromEmail =
+        process.env.RESEND_FROM_EMAIL || "noreply@toptuinen.nl";
+
+      let resend: Resend;
+      try {
+        resend = getResendClient();
+      } catch {
+        return NextResponse.json(
+          { error: "E-mail service niet geconfigureerd", status: "mislukt" },
+          { status: 503 }
+        );
+      }
+
+      const { data, error } = await resend.emails.send({
+        from: `${bedrijfsnaam} <${fromEmail}>`,
+        to: [to],
+        subject,
+        html: emailHtml,
+        replyTo: bedrijfsEmail || undefined,
+      });
+
+      if (error) {
+        console.error("[emailLogs] bevestiging mislukt:", {
+          to,
+          klantNaam,
+          aanvraagType,
+          error: error.message,
+        });
+        return NextResponse.json(
+          {
+            error: error?.message || "Email delivery failed",
+            status: "mislukt",
+          },
+          { status: 500 }
+        );
+      }
+
+      console.info("[emailLogs] bevestiging verzonden:", {
+        to,
+        klantNaam,
+        aanvraagType,
+        resendId: data?.id,
+        subject,
+      });
+
+      const rateLimitHeaders = upstashRateLimitResult
+        ? getRateLimitHeaders(upstashRateLimitResult)
+        : inMemoryRateLimitInfo
+          ? inMemoryEmailRateLimiter.getHeaders(inMemoryRateLimitInfo)
+          : {};
+
+      return NextResponse.json(
+        {
+          success: true,
+          resendId: data?.id,
+          status: "verzonden",
+          subject,
+        },
+        { headers: rateLimitHeaders }
+      );
+    }
+
+    // Offerte email types: validate offerte-specific required fields
+    if (!offerteNummer?.trim()) {
       return NextResponse.json(
         { error: "Ontbrekende verplichte velden" },
         { status: 400 }

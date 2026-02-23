@@ -1658,6 +1658,75 @@ export default defineSchema({
     .index("by_tier", ["tier"]),
 
   // ============================================
+  // Configurator Aanvragen & Betalingen
+  // ============================================
+
+  // ConfiguratorAanvragen - Online aanvragen via de klantconfigurator
+  // Klanten kunnen zelfstandig een aanvraag doen voor gazon, boomschors of verticuteren
+  // Workflow: nieuw → in_behandeling → goedgekeurd/afgekeurd → voltooid
+  configuratorAanvragen: defineTable({
+    type: v.union(v.literal("gazon"), v.literal("boomschors"), v.literal("verticuteren")),
+    status: v.union(
+      v.literal("nieuw"),
+      v.literal("in_behandeling"),
+      v.literal("goedgekeurd"),
+      v.literal("afgekeurd"),
+      v.literal("voltooid")
+    ),
+    referentie: v.string(),
+    klantNaam: v.string(),
+    klantEmail: v.string(),
+    klantTelefoon: v.string(),
+    klantAdres: v.string(),
+    klantPostcode: v.string(),
+    klantPlaats: v.string(),
+    specificaties: v.any(), // Type-specifieke data (gazon specs, boomschors specs etc)
+    indicatiePrijs: v.number(),
+    definitievePrijs: v.optional(v.number()),
+    betalingId: v.optional(v.string()), // Mollie payment reference
+    betalingStatus: v.optional(
+      v.union(v.literal("open"), v.literal("betaald"), v.literal("mislukt"))
+    ),
+    notities: v.optional(v.string()),
+    toegewezenAan: v.optional(v.id("users")),
+    verificatieNotities: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_status", ["status"])
+    .index("by_type", ["type"])
+    .index("by_referentie", ["referentie"]),
+
+  // Betalingen - Mollie betaalverzoeken gekoppeld aan aanvragen
+  betalingen: defineTable({
+    molliePaymentId: v.string(),
+    bedrag: v.number(),
+    status: v.union(
+      v.literal("open"),
+      v.literal("pending"),
+      v.literal("paid"),
+      v.literal("failed"),
+      v.literal("expired"),
+      v.literal("canceled")
+    ),
+    beschrijving: v.string(),
+    referentie: v.string(),
+    klantNaam: v.string(),
+    klantEmail: v.string(),
+    type: v.union(
+      v.literal("aanbetaling"),
+      v.literal("configurator"),
+      v.literal("factuur")
+    ),
+    metadata: v.optional(v.any()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_mollieId", ["molliePaymentId"])
+    .index("by_referentie", ["referentie"])
+    .index("by_status", ["status"]),
+
+  // ============================================
   // Plantsoorten
   // ============================================
 

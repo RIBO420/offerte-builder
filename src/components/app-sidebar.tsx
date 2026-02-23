@@ -60,13 +60,17 @@ import {
   Package,
   DollarSign,
   CheckSquare,
+  ClipboardCheck,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { StatusDot } from "@/components/ui/status-badge";
 import { useDashboardData } from "@/hooks/use-offertes";
 import { useIsAdmin, useCurrentUserRole } from "@/hooks/use-users";
 import { NotificationCenter } from "@/components/notification-center";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
 
 // Primary navigation - always visible (most used)
 const primaryNavItems = [
@@ -130,6 +134,12 @@ export function AppSidebar() {
   const [mounted, setMounted] = useState(false);
   const isAdmin = useIsAdmin();
   const role = useCurrentUserRole();
+
+  // Teller voor nieuwe verificatie-aanvragen (alleen geladen als admin)
+  const aantalNieuweAanvragen = useQuery(
+    api.configuratorAanvragen.countByStatus,
+    isAdmin ? {} : "skip"
+  );
 
   // Close mobile sidebar when navigating to a new page
   useEffect(() => {
@@ -328,6 +338,41 @@ export function AppSidebar() {
                 </CollapsibleContent>
               </SidebarGroup>
             </Collapsible>
+          </>
+        )}
+
+        {/* Verificatie - Admin only */}
+        {isAdmin && (
+          <>
+            <SidebarSeparator />
+            <SidebarGroup>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={pathname === "/verificatie" || pathname.startsWith("/verificatie/")}
+                      tooltip="Verificatie Aanvragen"
+                    >
+                      <Link href="/verificatie" className="flex items-center justify-between w-full">
+                        <span className="flex items-center gap-2">
+                          <ClipboardCheck />
+                          <span>Verificatie</span>
+                        </span>
+                        {aantalNieuweAanvragen !== undefined && aantalNieuweAanvragen > 0 && (
+                          <Badge
+                            variant="default"
+                            className="ml-auto text-xs h-5 min-w-5 px-1 bg-blue-600 hover:bg-blue-600"
+                          >
+                            {aantalNieuweAanvragen}
+                          </Badge>
+                        )}
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
           </>
         )}
 
