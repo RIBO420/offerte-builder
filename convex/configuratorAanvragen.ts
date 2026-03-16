@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAuthUserId } from "./auth";
+import { requireAuth, requireAuthUserId } from "./auth";
+import { Doc } from "./_generated/dataModel";
 
 // ============================================
 // Queries
@@ -85,6 +86,105 @@ export const countByStatus = query({
 });
 
 // ============================================
+// Pipeline / CRM Helpers
+// ============================================
+
+type PipelineStatus = "nieuw" | "contact_gehad" | "offerte_verstuurd" | "gewonnen" | "verloren";
+
+/**
+ * Map oude aanvraag status naar pipeline status voor backward compatibility.
+ */
+function mapOldStatus(status: string): PipelineStatus {
+  switch (status) {
+    case "nieuw":
+      return "nieuw";
+    case "in_behandeling":
+      return "contact_gehad";
+    case "goedgekeurd":
+      return "gewonnen";
+    case "afgekeurd":
+      return "verloren";
+    case "voltooid":
+      return "gewonnen";
+    default:
+      return "nieuw";
+  }
+}
+
+// ============================================
+// Pipeline Queries
+// ============================================
+
+/**
+ * Haal alle leads op gegroepeerd per pipeline status (authenticated).
+ */
+export const listByPipeline = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAuth(ctx);
+    const allLeads = await ctx.db
+      .query("configuratorAanvragen")
+      .order("desc")
+      .collect();
+
+    const grouped: Record<PipelineStatus, Doc<"configuratorAanvragen">[]> = {
+      nieuw: [],
+      contact_gehad: [],
+      offerte_verstuurd: [],
+      gewonnen: [],
+      verloren: [],
+    };
+
+    for (const lead of allLeads) {
+      const pipelineStatus = lead.pipelineStatus ?? mapOldStatus(lead.status);
+      grouped[pipelineStatus].push(lead);
+    }
+
+    return grouped;
+  },
+});
+
+/**
+ * Pipeline statistieken (authenticated).
+ */
+export const pipelineStats = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAuth(ctx);
+    const allLeads = await ctx.db
+      .query("configuratorAanvragen")
+      .collect();
+
+    let totaalLeads = allLeads.length;
+    let pipelineWaarde = 0;
+    let gewonnenWaarde = 0;
+    let gewonnenCount = 0;
+
+    for (const lead of allLeads) {
+      const pipelineStatus = lead.pipelineStatus ?? mapOldStatus(lead.status);
+      const waarde = lead.geschatteWaarde ?? lead.indicatiePrijs ?? 0;
+
+      if (pipelineStatus !== "verloren") {
+        pipelineWaarde += waarde;
+      }
+      if (pipelineStatus === "gewonnen") {
+        gewonnenWaarde += waarde;
+        gewonnenCount++;
+      }
+    }
+
+    const conversieRatio = totaalLeads > 0 ? gewonnenCount / totaalLeads : 0;
+
+    return {
+      totaalLeads,
+      pipelineWaarde,
+      gewonnenWaarde,
+      conversieRatio,
+    };
+  },
+});
+
+// ============================================
 // Mutations
 // ============================================
 
@@ -143,9 +243,18 @@ export const create = mutation({
       .padStart(4, "0");
     const referentie = `CFG-${jaar}${maand}${dag}-${willekeurig}`;
 
+    // Bepaal bron op basis van type
+    const bronMap: Record<string, "configurator_gazon" | "configurator_boomschors" | "configurator_verticuteren"> = {
+      gazon: "configurator_gazon",
+      boomschors: "configurator_boomschors",
+      verticuteren: "configurator_verticuteren",
+    };
+
     const id = await ctx.db.insert("configuratorAanvragen", {
       type: args.type,
       status: "nieuw",
+      pipelineStatus: "nieuw",
+      bron: bronMap[args.type],
       referentie,
       klantNaam: args.klantNaam.trim(),
       klantEmail: args.klantEmail.trim().toLowerCase(),
@@ -157,6 +266,14 @@ export const create = mutation({
       indicatiePrijs: args.indicatiePrijs,
       createdAt: now,
       updatedAt: now,
+    });
+
+    // Log activiteit
+    await ctx.db.insert("leadActiviteiten", {
+      leadId: id,
+      type: "aangemaakt",
+      beschrijving: `Lead aangemaakt via configurator (${args.type})`,
+      createdAt: now,
     });
 
     return { id, referentie };
@@ -206,7 +323,7 @@ export const toewijzen = mutation({
     toegewezenAan: v.id("users"),
   },
   handler: async (ctx, args) => {
-    await requireAuthUserId(ctx);
+    const currentUser = await requireAuth(ctx);
 
     const aanvraag = await ctx.db.get(args.id);
     if (!aanvraag) {
@@ -225,6 +342,16 @@ export const toewijzen = mutation({
       status: aanvraag.status === "nieuw" ? "in_behandeling" : aanvraag.status,
       updatedAt: Date.now(),
     });
+
+    // Log toewijzing activiteit
+    await ctx.db.insert("leadActiviteiten", {
+      leadId: args.id,
+      type: "toewijzing",
+      beschrijving: `Lead toegewezen aan ${medewerker.name ?? medewerker.email}`,
+      gebruikerId: currentUser._id,
+      metadata: { toegewezenAan: args.toegewezenAan },
+      createdAt: Date.now(),
+    });
   },
 });
 
@@ -237,7 +364,7 @@ export const addNotitie = mutation({
     notitie: v.string(),
   },
   handler: async (ctx, args) => {
-    await requireAuthUserId(ctx);
+    const currentUser = await requireAuth(ctx);
 
     const aanvraag = await ctx.db.get(args.id);
     if (!aanvraag) {
@@ -251,6 +378,15 @@ export const addNotitie = mutation({
     await ctx.db.patch(args.id, {
       verificatieNotities: args.notitie.trim(),
       updatedAt: Date.now(),
+    });
+
+    // Log notitie activiteit
+    await ctx.db.insert("leadActiviteiten", {
+      leadId: args.id,
+      type: "notitie",
+      beschrijving: args.notitie.trim(),
+      gebruikerId: currentUser._id,
+      createdAt: Date.now(),
     });
   },
 });
@@ -279,5 +415,219 @@ export const setPrijs = mutation({
       definitievePrijs: args.definitievePrijs,
       updatedAt: Date.now(),
     });
+  },
+});
+
+// ============================================
+// Pipeline Mutations
+// ============================================
+
+const pipelineStatusValidator = v.union(
+  v.literal("nieuw"),
+  v.literal("contact_gehad"),
+  v.literal("offerte_verstuurd"),
+  v.literal("gewonnen"),
+  v.literal("verloren")
+);
+
+const pipelineStatusLabels: Record<PipelineStatus, string> = {
+  nieuw: "Nieuw",
+  contact_gehad: "Contact gehad",
+  offerte_verstuurd: "Offerte verstuurd",
+  gewonnen: "Gewonnen",
+  verloren: "Verloren",
+};
+
+/**
+ * Wijzig de pipeline status van een lead (authenticated).
+ * Valideert transitieregels.
+ */
+export const updatePipelineStatus = mutation({
+  args: {
+    id: v.id("configuratorAanvragen"),
+    pipelineStatus: pipelineStatusValidator,
+    verliesReden: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const currentUser = await requireAuth(ctx);
+
+    const lead = await ctx.db.get(args.id);
+    if (!lead) {
+      throw new Error("Lead niet gevonden");
+    }
+
+    const currentStatus = lead.pipelineStatus ?? mapOldStatus(lead.status);
+
+    // Transitieregels
+    if (currentStatus === "gewonnen" && args.pipelineStatus !== "gewonnen") {
+      throw new Error("Een gewonnen lead kan niet terug naar een eerdere status");
+    }
+
+    if (args.pipelineStatus === "verloren" && !args.verliesReden?.trim()) {
+      throw new Error("Een verliesreden is verplicht bij status 'verloren'");
+    }
+
+    const patchData: Record<string, unknown> = {
+      pipelineStatus: args.pipelineStatus,
+      updatedAt: Date.now(),
+    };
+
+    if (args.pipelineStatus === "verloren" && args.verliesReden) {
+      patchData.verliesReden = args.verliesReden.trim();
+    }
+
+    await ctx.db.patch(args.id, patchData);
+
+    // Log status wijziging
+    await ctx.db.insert("leadActiviteiten", {
+      leadId: args.id,
+      type: "status_wijziging",
+      beschrijving: `Status gewijzigd van "${pipelineStatusLabels[currentStatus]}" naar "${pipelineStatusLabels[args.pipelineStatus]}"`,
+      gebruikerId: currentUser._id,
+      metadata: {
+        vanStatus: currentStatus,
+        naarStatus: args.pipelineStatus,
+        verliesReden: args.verliesReden,
+      },
+      createdAt: Date.now(),
+    });
+  },
+});
+
+/**
+ * Markeer een lead als gewonnen en koppel/maak een klant (authenticated).
+ */
+export const markGewonnen = mutation({
+  args: {
+    id: v.id("configuratorAanvragen"),
+  },
+  handler: async (ctx, args) => {
+    const currentUser = await requireAuth(ctx);
+
+    const lead = await ctx.db.get(args.id);
+    if (!lead) {
+      throw new Error("Lead niet gevonden");
+    }
+
+    if (!lead.klantNaam?.trim()) {
+      throw new Error("Klantnaam is verplicht om een lead als gewonnen te markeren");
+    }
+
+    // Zoek bestaande klant op basis van e-mailadres
+    let klantId = lead.gekoppeldKlantId;
+
+    if (!klantId && lead.klantEmail) {
+      const bestaandeKlanten = await ctx.db
+        .query("klanten")
+        .filter((q) => q.eq(q.field("email"), lead.klantEmail.toLowerCase()))
+        .collect();
+
+      if (bestaandeKlanten.length > 0) {
+        klantId = bestaandeKlanten[0]._id;
+      }
+    }
+
+    // Maak nieuwe klant aan als die niet bestaat
+    if (!klantId) {
+      const now = Date.now();
+      klantId = await ctx.db.insert("klanten", {
+        userId: currentUser._id,
+        naam: lead.klantNaam.trim(),
+        adres: lead.klantAdres?.trim() ?? "",
+        postcode: lead.klantPostcode?.trim() ?? "",
+        plaats: lead.klantPlaats?.trim() ?? "",
+        email: lead.klantEmail?.trim().toLowerCase(),
+        telefoon: lead.klantTelefoon?.trim(),
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    await ctx.db.patch(args.id, {
+      pipelineStatus: "gewonnen",
+      gekoppeldKlantId: klantId,
+      updatedAt: Date.now(),
+    });
+
+    // Log activiteit
+    await ctx.db.insert("leadActiviteiten", {
+      leadId: args.id,
+      type: "status_wijziging",
+      beschrijving: "Lead gemarkeerd als gewonnen en klant gekoppeld",
+      gebruikerId: currentUser._id,
+      metadata: { gekoppeldKlantId: klantId },
+      createdAt: Date.now(),
+    });
+
+    return { klantId };
+  },
+});
+
+/**
+ * Maak een handmatige lead aan (authenticated).
+ */
+export const createHandmatig = mutation({
+  args: {
+    klantNaam: v.string(),
+    klantEmail: v.optional(v.string()),
+    klantTelefoon: v.optional(v.string()),
+    klantAdres: v.optional(v.string()),
+    klantPostcode: v.optional(v.string()),
+    klantPlaats: v.optional(v.string()),
+    omschrijving: v.optional(v.string()),
+    geschatteWaarde: v.optional(v.number()),
+    bron: v.optional(v.union(
+      v.literal("handmatig"),
+      v.literal("telefoon"),
+      v.literal("email"),
+      v.literal("doorverwijzing")
+    )),
+  },
+  handler: async (ctx, args) => {
+    const currentUser = await requireAuth(ctx);
+
+    if (!args.klantNaam.trim()) {
+      throw new Error("Klantnaam is verplicht");
+    }
+
+    // Genereer uniek referentienummer: TOP-MAN-YYYY-NNNNN
+    const now = Date.now();
+    const jaar = new Date(now).getFullYear();
+    const willekeurig = Math.floor(Math.random() * 100000)
+      .toString()
+      .padStart(5, "0");
+    const referentie = `TOP-MAN-${jaar}-${willekeurig}`;
+
+    const id = await ctx.db.insert("configuratorAanvragen", {
+      type: "gazon", // Default type voor handmatige leads
+      status: "nieuw",
+      pipelineStatus: "nieuw",
+      bron: args.bron ?? "handmatig",
+      referentie,
+      klantNaam: args.klantNaam.trim(),
+      klantEmail: args.klantEmail?.trim().toLowerCase() ?? "",
+      klantTelefoon: args.klantTelefoon?.trim() ?? "",
+      klantAdres: args.klantAdres?.trim() ?? "",
+      klantPostcode: args.klantPostcode?.trim().toUpperCase() ?? "",
+      klantPlaats: args.klantPlaats?.trim() ?? "",
+      specificaties: {},
+      indicatiePrijs: args.geschatteWaarde ?? 0,
+      geschatteWaarde: args.geschatteWaarde,
+      omschrijving: args.omschrijving?.trim(),
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // Log activiteit
+    await ctx.db.insert("leadActiviteiten", {
+      leadId: id,
+      type: "aangemaakt",
+      beschrijving: `Lead handmatig aangemaakt door ${currentUser.name ?? currentUser.email}`,
+      gebruikerId: currentUser._id,
+      metadata: { bron: args.bron ?? "handmatig" },
+      createdAt: now,
+    });
+
+    return { id, referentie };
   },
 });
