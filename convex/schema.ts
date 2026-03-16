@@ -27,6 +27,7 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_clerk_id", ["clerkId"])
+    .index("by_email", ["email"])
     .index("by_role", ["role"])
     .index("by_linked_medewerker", ["linkedMedewerkerId"]),
 

@@ -65,8 +65,6 @@ import {
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { StatusDot } from "@/components/ui/status-badge";
-import { useDashboardData } from "@/hooks/use-offertes";
 import { useIsAdmin, useCurrentUserRole } from "@/hooks/use-users";
 import { NotificationCenter } from "@/components/notification-center";
 import { useQuery } from "convex/react";
@@ -93,6 +91,14 @@ const organizationItems = [
   { title: "Medewerkers", url: "/medewerkers", icon: UsersRound },
   { title: "Wagenpark", url: "/wagenpark", icon: Truck },
   { title: "Rapportages", url: "/rapportages", icon: BarChart3 },
+];
+
+// Beheer section - admin only
+const beheerItems = [
+  { title: "Prijsboek", url: "/prijsboek", icon: BookOpen },
+  { title: "Machinepark", url: "/instellingen/machines", icon: Wrench },
+  { title: "Instellingen", url: "/instellingen", icon: Settings },
+  { title: "Gebruikersbeheer", url: "/gebruikers", icon: Shield },
 ];
 
 // Quick actions for new items
@@ -128,7 +134,6 @@ export function AppSidebar() {
   const pathname = usePathname();
   const { setOpenMobile } = useSidebar();
   const { theme, setTheme } = useTheme();
-  const { recentOffertes } = useDashboardData();
   const { user, isLoaded: isUserLoaded } = useUser();
   const { signOut } = useClerk();
   const [mounted, setMounted] = useState(false);
@@ -174,6 +179,13 @@ export function AppSidebar() {
     return inkoopItems.some(
       (item) => pathname === item.url || pathname.startsWith(item.url + "/")
     );
+  }, [pathname]);
+
+  // Check if beheer section is active
+  const isBeheerSectionActive = useMemo(() => {
+    return beheerItems.some(
+      (item) => pathname === item.url || pathname.startsWith(item.url + "/")
+    ) || pathname === "/verificatie" || pathname.startsWith("/verificatie/");
   }, [pathname]);
 
   // Extract current project ID from pathname if on a project page
@@ -341,38 +353,60 @@ export function AppSidebar() {
           </>
         )}
 
-        {/* Verificatie - Admin only */}
+        {/* Beheer - Admin only, collapsible */}
         {isAdmin && (
           <>
             <SidebarSeparator />
-            <SidebarGroup>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={pathname === "/verificatie" || pathname.startsWith("/verificatie/")}
-                      tooltip="Verificatie Aanvragen"
-                    >
-                      <Link href="/verificatie" className="flex items-center justify-between w-full">
-                        <span className="flex items-center gap-2">
-                          <ClipboardCheck />
-                          <span>Verificatie</span>
-                        </span>
-                        {aantalNieuweAanvragen !== undefined && aantalNieuweAanvragen > 0 && (
-                          <Badge
-                            variant="default"
-                            className="ml-auto text-xs h-5 min-w-5 px-1 bg-blue-600 hover:bg-blue-600"
+            <Collapsible defaultOpen={isBeheerSectionActive} className="group/collapsible">
+              <SidebarGroup>
+                <SidebarGroupLabel asChild>
+                  <CollapsibleTrigger className="flex w-full items-center justify-between">
+                    <span>Beheer</span>
+                    <ChevronRight className="size-4 transition-transform group-data-[state=open]/collapsible:rotate-90" aria-hidden="true" />
+                  </CollapsibleTrigger>
+                </SidebarGroupLabel>
+                <CollapsibleContent>
+                  <SidebarGroupContent>
+                    <SidebarMenu>
+                      <SidebarMenuItem>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={pathname === "/verificatie" || pathname.startsWith("/verificatie/")}
+                          tooltip="Verificatie Aanvragen"
+                        >
+                          <Link href="/verificatie">
+                            <ClipboardCheck />
+                            <span>Verificatie</span>
+                            {aantalNieuweAanvragen !== undefined && aantalNieuweAanvragen > 0 && (
+                              <Badge
+                                variant="default"
+                                className="ml-auto text-xs h-5 min-w-5 px-1 bg-blue-600 hover:bg-blue-600"
+                              >
+                                {aantalNieuweAanvragen}
+                              </Badge>
+                            )}
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                      {beheerItems.map((item) => (
+                        <SidebarMenuItem key={item.title}>
+                          <SidebarMenuButton
+                            asChild
+                            isActive={pathname === item.url || pathname.startsWith(item.url + "/")}
+                            tooltip={item.title}
                           >
-                            {aantalNieuweAanvragen}
-                          </Badge>
-                        )}
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
+                            <Link href={item.url}>
+                              <item.icon />
+                              <span>{item.title}</span>
+                            </Link>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      ))}
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                </CollapsibleContent>
+              </SidebarGroup>
+            </Collapsible>
           </>
         )}
 
@@ -446,48 +480,6 @@ export function AppSidebar() {
           </SidebarGroup>
         </Collapsible>
 
-        {/* Recent Offertes - Admin only, collapsed by default to save space */}
-        {isAdmin && recentOffertes && recentOffertes.length > 0 && (
-          <>
-            <SidebarSeparator />
-            <Collapsible defaultOpen={false} className="group/collapsible">
-              <SidebarGroup>
-                <SidebarGroupLabel asChild>
-                  <CollapsibleTrigger className="flex w-full items-center justify-between">
-                    <span className="flex items-center gap-2">
-                      <Clock className="size-3" aria-hidden="true" />
-                      Recent
-                    </span>
-                    <ChevronRight className="size-4 transition-transform group-data-[state=open]/collapsible:rotate-90" aria-hidden="true" />
-                  </CollapsibleTrigger>
-                </SidebarGroupLabel>
-                <CollapsibleContent>
-                  <SidebarGroupContent>
-                    <SidebarMenu>
-                      {recentOffertes.slice(0, 5).map((offerte) => (
-                        <SidebarMenuItem key={offerte._id}>
-                          <SidebarMenuButton
-                            asChild
-                            isActive={pathname === `/offertes/${offerte._id}`}
-                            tooltip={`${offerte.klant.naam} - ${offerte.offerteNummer}`}
-                          >
-                            <Link href={`/offertes/${offerte._id}`}>
-                              <StatusDot status={offerte.status} />
-                              <span className="truncate" title={offerte.offerteNummer}>{offerte.offerteNummer}</span>
-                              <span className="ml-auto text-xs text-muted-foreground truncate max-w-[80px]" title={offerte.klant?.naam || "Klant"}>
-                                {offerte.klant?.naam?.split(" ")?.[0] || "Klant"}
-                              </span>
-                            </Link>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      ))}
-                    </SidebarMenu>
-                  </SidebarGroupContent>
-                </CollapsibleContent>
-              </SidebarGroup>
-            </Collapsible>
-          </>
-        )}
 
       </SidebarContent>
 
@@ -538,36 +530,6 @@ export function AppSidebar() {
                     <Link href="/profiel" className="cursor-pointer">
                       <User className="mr-2 h-4 w-4" aria-hidden="true" />
                       Mijn Profiel
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  {isAdmin && (
-                    <>
-                      <DropdownMenuItem asChild>
-                        <Link href="/instellingen" className="cursor-pointer">
-                          <Settings className="mr-2 h-4 w-4" aria-hidden="true" />
-                          Instellingen
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href="/gebruikers" className="cursor-pointer">
-                          <Shield className="mr-2 h-4 w-4" aria-hidden="true" />
-                          Gebruikersbeheer
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href="/prijsboek" className="cursor-pointer">
-                          <BookOpen className="mr-2 h-4 w-4" aria-hidden="true" />
-                          Prijsboek
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                    </>
-                  )}
-                  <DropdownMenuItem asChild>
-                    <Link href="/instellingen/machines" className="cursor-pointer">
-                      <Wrench className="mr-2 h-4 w-4" aria-hidden="true" />
-                      Machinepark
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />

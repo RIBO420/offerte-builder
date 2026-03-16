@@ -77,7 +77,7 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider localization={nlNL}>
-      <html lang="nl" suppressHydrationWarning>
+      <html lang="nl" data-scroll-behavior="smooth" suppressHydrationWarning>
         <body
           className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
         >

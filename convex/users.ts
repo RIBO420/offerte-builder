@@ -236,14 +236,25 @@ export const upsert = mutation({
     // Ensure system correction factors are initialized (runs once)
     await initializeSystemCorrectieFactoren(ctx);
 
-    const existing = await ctx.db
+    // First try to find by clerkId
+    let existing = await ctx.db
       .query("users")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
       .unique();
 
+    // If not found by clerkId, try by email to prevent duplicates
+    // (handles dev/prod Clerk instances sharing the same Convex DB)
+    if (!existing) {
+      existing = await ctx.db
+        .query("users")
+        .withIndex("by_email", (q) => q.eq("email", args.email))
+        .first();
+    }
+
     if (existing) {
-      // Update existing user, but check if they should be upgraded to admin
+      // Update existing user, including clerkId in case it changed (dev/prod switch)
       const updates: Record<string, string | undefined> = {
+        clerkId: args.clerkId,
         email: args.email,
         name: args.name,
         bedrijfsnaam: args.bedrijfsnaam,

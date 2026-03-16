@@ -1,0 +1,168 @@
+<h2>Navigatie-stijl voor veldwerkers</h2>
+<p class="subtitle">Hoe navigeren medewerkers door de app? Focus op snelheid en één-hand bediening.</p>
+
+<div class="cards">
+  <!-- Option A: Floating Tab Bar -->
+  <div class="card" data-choice="floating-tabs" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding: 24px; background: linear-gradient(135deg, #0a0a0a 0%, #1a2e1a 100%);">
+      <!-- Mock phone -->
+      <div style="background: #111; border-radius: 24px; padding: 0; max-width: 260px; margin: 0 auto; border: 1px solid #1a2e1a; overflow: hidden; position: relative; height: 380px;">
+        <!-- Screen content -->
+        <div style="padding: 20px;">
+          <div style="font-size: 10px; color: #6b8f6b;">Goedemorgen</div>
+          <div style="font-size: 16px; color: #e8e8e8; font-weight: 600; margin-bottom: 16px;">Ricardo</div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <div style="background: #1a1a1a; border-radius: 12px; padding: 12px; border: 1px solid #222;">
+              <div style="font-size: 9px; color: #555;">Projecten</div>
+              <div style="font-size: 18px; color: #4ade80; font-weight: 700;">3</div>
+            </div>
+            <div style="background: #1a1a1a; border-radius: 12px; padding: 12px; border: 1px solid #222;">
+              <div style="font-size: 9px; color: #555;">Uren</div>
+              <div style="font-size: 18px; color: #e8e8e8; font-weight: 700;">6.5</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Floating tab bar -->
+        <div style="position: absolute; bottom: 16px; left: 16px; right: 16px; background: #1a1a1a; border-radius: 20px; padding: 8px 12px; display: flex; justify-content: space-around; align-items: center; border: 1px solid #2a2a2a; backdrop-filter: blur(20px);">
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 2px;">
+            <div style="width: 28px; height: 28px; background: #4ade8020; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 14px;">🏠</div>
+            <div style="font-size: 7px; color: #4ade80;">Home</div>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 2px;">
+            <div style="font-size: 14px; opacity: 0.4;">⏱</div>
+            <div style="font-size: 7px; color: #555;">Uren</div>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 2px;">
+            <div style="font-size: 14px; opacity: 0.4;">💬</div>
+            <div style="font-size: 7px; color: #555;">Chat</div>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 2px;">
+            <div style="font-size: 14px; opacity: 0.4;">👤</div>
+            <div style="font-size: 7px; color: #555;">Profiel</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A. Floating Tab Bar</h3>
+      <p>Zwevende balk onderaan met blur-effect. Modern, compact, en altijd zichtbaar. Actief item is highlighted. Populair bij premium apps.</p>
+    </div>
+  </div>
+
+  <!-- Option B: Minimal + FAB -->
+  <div class="card" data-choice="minimal-fab" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding: 24px; background: linear-gradient(135deg, #0a0a0a 0%, #1a2e1a 100%);">
+      <!-- Mock phone -->
+      <div style="background: #111; border-radius: 24px; padding: 0; max-width: 260px; margin: 0 auto; border: 1px solid #1a2e1a; overflow: hidden; position: relative; height: 380px;">
+        <!-- Screen content -->
+        <div style="padding: 20px;">
+          <div style="font-size: 10px; color: #6b8f6b;">Goedemorgen</div>
+          <div style="font-size: 16px; color: #e8e8e8; font-weight: 600; margin-bottom: 16px;">Ricardo</div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <div style="background: #1a1a1a; border-radius: 12px; padding: 12px; border: 1px solid #222;">
+              <div style="font-size: 9px; color: #555;">Projecten</div>
+              <div style="font-size: 18px; color: #4ade80; font-weight: 700;">3</div>
+            </div>
+            <div style="background: #1a1a1a; border-radius: 12px; padding: 12px; border: 1px solid #222;">
+              <div style="font-size: 9px; color: #555;">Uren</div>
+              <div style="font-size: 18px; color: #e8e8e8; font-weight: 700;">6.5</div>
+            </div>
+          </div>
+
+          <!-- More content visible without tab bar -->
+          <div style="margin-top: 12px; background: linear-gradient(135deg, #1a2e1a, #162016); border-radius: 12px; padding: 14px; border: 1px solid #2d5a2730;">
+            <div style="font-size: 11px; color: #e8e8e8; font-weight: 600;">Van der Berg</div>
+            <div style="font-size: 9px; color: #6b8f6b; margin-top: 2px;">Bestrating • 65%</div>
+          </div>
+          <div style="margin-top: 8px; background: #1a1a1a; border-radius: 12px; padding: 14px; border: 1px solid #222;">
+            <div style="font-size: 11px; color: #e8e8e8; font-weight: 600;">Jansen</div>
+            <div style="font-size: 9px; color: #666; margin-top: 2px;">Grondwerk • 30%</div>
+          </div>
+        </div>
+
+        <!-- Minimal bottom nav (dots/icons only) -->
+        <div style="position: absolute; bottom: 0; left: 0; right: 0; padding: 12px 0 20px; display: flex; justify-content: center; gap: 20px; align-items: center;">
+          <div style="width: 6px; height: 6px; border-radius: 50%; background: #4ade80;"></div>
+          <div style="width: 4px; height: 4px; border-radius: 50%; background: #333;"></div>
+          <div style="width: 4px; height: 4px; border-radius: 50%; background: #333;"></div>
+          <div style="width: 4px; height: 4px; border-radius: 50%; background: #333;"></div>
+        </div>
+
+        <!-- FAB -->
+        <div style="position: absolute; bottom: 50px; right: 16px; width: 52px; height: 52px; background: linear-gradient(135deg, #2d5a27, #4ade80); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 22px; color: white; box-shadow: 0 4px 20px rgba(74, 222, 128, 0.3);">+</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B. Minimal + FAB</h3>
+      <p>Bijna onzichtbare navigatie (dots) met een grote Floating Action Button voor de primaire actie (uren registreren). Maximale schermruimte, swipe om te navigeren.</p>
+    </div>
+  </div>
+
+  <!-- Option C: Gesture-first -->
+  <div class="card" data-choice="gesture-first" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding: 24px; background: linear-gradient(135deg, #0a0a0a 0%, #1a2e1a 100%);">
+      <!-- Mock phone -->
+      <div style="background: #111; border-radius: 24px; padding: 0; max-width: 260px; margin: 0 auto; border: 1px solid #1a2e1a; overflow: hidden; position: relative; height: 380px;">
+        <!-- Top segmented control -->
+        <div style="padding: 16px 16px 0;">
+          <div style="display: flex; background: #1a1a1a; border-radius: 12px; padding: 3px; border: 1px solid #222;">
+            <div style="flex: 1; text-align: center; padding: 8px; background: #2d5a2730; border-radius: 10px;">
+              <div style="font-size: 10px; color: #4ade80; font-weight: 600;">Home</div>
+            </div>
+            <div style="flex: 1; text-align: center; padding: 8px;">
+              <div style="font-size: 10px; color: #555;">Uren</div>
+            </div>
+            <div style="flex: 1; text-align: center; padding: 8px;">
+              <div style="font-size: 10px; color: #555;">Chat</div>
+            </div>
+            <div style="flex: 1; text-align: center; padding: 8px;">
+              <div style="font-size: 10px; color: #555;">Meer</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Screen content - full height -->
+        <div style="padding: 16px 20px;">
+          <div style="font-size: 10px; color: #6b8f6b; margin-top: 4px;">Goedemorgen</div>
+          <div style="font-size: 16px; color: #e8e8e8; font-weight: 600; margin-bottom: 16px;">Ricardo</div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <div style="background: #1a1a1a; border-radius: 12px; padding: 12px; border: 1px solid #222;">
+              <div style="font-size: 9px; color: #555;">Projecten</div>
+              <div style="font-size: 18px; color: #4ade80; font-weight: 700;">3</div>
+            </div>
+            <div style="background: #1a1a1a; border-radius: 12px; padding: 12px; border: 1px solid #222;">
+              <div style="font-size: 9px; color: #555;">Uren</div>
+              <div style="font-size: 18px; color: #e8e8e8; font-weight: 700;">6.5</div>
+            </div>
+          </div>
+
+          <div style="margin-top: 12px; background: linear-gradient(135deg, #1a2e1a, #162016); border-radius: 12px; padding: 14px; border: 1px solid #2d5a2730;">
+            <div style="font-size: 11px; color: #e8e8e8; font-weight: 600;">Van der Berg</div>
+            <div style="font-size: 9px; color: #6b8f6b; margin-top: 2px;">Bestrating • 65%</div>
+          </div>
+          <div style="margin-top: 8px; background: #1a1a1a; border-radius: 12px; padding: 14px; border: 1px solid #222;">
+            <div style="font-size: 11px; color: #e8e8e8; font-weight: 600;">Jansen</div>
+            <div style="font-size: 9px; color: #666; margin-top: 2px;">Grondwerk • 30%</div>
+          </div>
+        </div>
+
+        <!-- Swipe indicator -->
+        <div style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 6px;">
+          <div style="font-size: 9px; color: #333;">← swipe →</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C. Top Segments + Swipe</h3>
+      <p>Navigatie bovenaan als segmented control, swipe tussen tabbladen. Hele onderkant vrij voor content en duim-bereik. Zoals iOS Weer-app of Revolut.</p>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 24px;">
+  <p class="subtitle" style="text-align: center;">Denk aan veldwerkers met vuile handen en handschoenen — grote knoppen en weinig precisie nodig.</p>
+</div>
