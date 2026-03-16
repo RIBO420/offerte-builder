@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -207,6 +207,29 @@ export function AppSidebar() {
     setMounted(true);
   }, []);
 
+  // Accordion: determine which section should be open based on current path
+  const activeSectionFromPath = useMemo(() => {
+    if (isBeheerSectionActive) return "beheer";
+    if (isInkoopSectionActive) return "inkoop";
+    if (isOfferteSectionActive) return "offertes";
+    if (isProjectSubSectionActive) return "project";
+    if (isOrganizationSectionActive) return "organisatie";
+    return null;
+  }, [isBeheerSectionActive, isInkoopSectionActive, isOfferteSectionActive, isProjectSubSectionActive, isOrganizationSectionActive]);
+
+  const [openSection, setOpenSection] = useState<string | null>(activeSectionFromPath);
+
+  // Sync open section when navigating to a new path
+  useEffect(() => {
+    if (activeSectionFromPath) {
+      setOpenSection(activeSectionFromPath);
+    }
+  }, [activeSectionFromPath]);
+
+  const toggleSection = useCallback((section: string) => {
+    setOpenSection((prev) => (prev === section ? null : section));
+  }, []);
+
   const handleSignOut = () => {
     signOut({ redirectUrl: "/sign-in" });
   };
@@ -264,7 +287,7 @@ export function AppSidebar() {
         {isAdmin && (
           <>
             <SidebarSeparator />
-            <Collapsible defaultOpen={isOfferteSectionActive} className="group/collapsible">
+            <Collapsible open={openSection === "offertes"} onOpenChange={() => toggleSection("offertes")} className="group/collapsible">
               <SidebarGroup>
                 <SidebarGroupLabel asChild>
                   <CollapsibleTrigger className="flex w-full items-center justify-between">
@@ -320,7 +343,7 @@ export function AppSidebar() {
         {isAdmin && (
           <>
             <SidebarSeparator />
-            <Collapsible defaultOpen={isInkoopSectionActive} className="group/collapsible">
+            <Collapsible open={openSection === "inkoop"} onOpenChange={() => toggleSection("inkoop")} className="group/collapsible">
               <SidebarGroup>
                 <SidebarGroupLabel asChild>
                   <CollapsibleTrigger className="flex w-full items-center justify-between">
@@ -357,7 +380,7 @@ export function AppSidebar() {
         {isAdmin && (
           <>
             <SidebarSeparator />
-            <Collapsible defaultOpen={isBeheerSectionActive} className="group/collapsible">
+            <Collapsible open={openSection === "beheer"} onOpenChange={() => toggleSection("beheer")} className="group/collapsible">
               <SidebarGroup>
                 <SidebarGroupLabel asChild>
                   <CollapsibleTrigger className="flex w-full items-center justify-between">
@@ -414,7 +437,7 @@ export function AppSidebar() {
         {currentProjectId && (
           <>
             <SidebarSeparator />
-            <Collapsible defaultOpen={isProjectSubSectionActive} className="group/collapsible">
+            <Collapsible open={openSection === "project"} onOpenChange={() => toggleSection("project")} className="group/collapsible">
               <SidebarGroup>
                 <SidebarGroupLabel asChild>
                   <CollapsibleTrigger className="flex w-full items-center justify-between">
@@ -449,7 +472,7 @@ export function AppSidebar() {
 
         {/* Organization - Collapsible */}
         <SidebarSeparator />
-        <Collapsible defaultOpen={isOrganizationSectionActive} className="group/collapsible">
+        <Collapsible open={openSection === "organisatie"} onOpenChange={() => toggleSection("organisatie")} className="group/collapsible">
           <SidebarGroup>
             <SidebarGroupLabel asChild>
               <CollapsibleTrigger className="flex w-full items-center justify-between">
