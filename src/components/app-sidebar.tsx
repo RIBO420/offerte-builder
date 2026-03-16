@@ -60,7 +60,6 @@ import {
   Package,
   DollarSign,
   CheckSquare,
-  ClipboardCheck,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -73,6 +72,7 @@ import { api } from "../../convex/_generated/api";
 // Primary navigation - always visible (most used)
 const primaryNavItems = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
+  { title: "Klanten", url: "/klanten", icon: Users },
   { title: "Projecten", url: "/projecten", icon: FolderKanban },
   { title: "Planning", url: "/planning", icon: Calendar },
   { title: "Uren", url: "/uren", icon: Clock },
@@ -87,7 +87,6 @@ const offertesItems = [
 
 // Organization section - admin only
 const organizationItems = [
-  { title: "Klanten", url: "/klanten", icon: Users },
   { title: "Medewerkers", url: "/medewerkers", icon: UsersRound },
   { title: "Wagenpark", url: "/wagenpark", icon: Truck },
   { title: "Rapportages", url: "/rapportages", icon: BarChart3 },
@@ -160,6 +159,14 @@ export function AppSidebar() {
     return organizationItems.filter((item) => item.title === "Wagenpark");
   }, [role]);
 
+  // Filter primary nav items based on role (Klanten only for admin)
+  const filteredPrimaryNavItems = useMemo(() => {
+    if (role === "admin") {
+      return primaryNavItems;
+    }
+    return primaryNavItems.filter((item) => item.title !== "Klanten");
+  }, [role]);
+
   // Check if any offerte/facturen section is active (for collapsible default state)
   const isOfferteSectionActive = useMemo(() => {
     return offertesItems.some(
@@ -185,7 +192,7 @@ export function AppSidebar() {
   const isBeheerSectionActive = useMemo(() => {
     return beheerItems.some(
       (item) => pathname === item.url || pathname.startsWith(item.url + "/")
-    ) || pathname === "/verificatie" || pathname.startsWith("/verificatie/");
+    );
   }, [pathname]);
 
   // Extract current project ID from pathname if on a project page
@@ -265,7 +272,7 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {primaryNavItems.map((item) => (
+              {filteredPrimaryNavItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
@@ -275,6 +282,14 @@ export function AppSidebar() {
                     <Link href={item.url}>
                       <item.icon />
                       <span>{item.title}</span>
+                      {item.title === "Klanten" && aantalNieuweAanvragen !== undefined && aantalNieuweAanvragen > 0 && (
+                        <Badge
+                          variant="default"
+                          className="ml-auto text-xs h-5 min-w-5 px-1 bg-blue-600 hover:bg-blue-600"
+                        >
+                          {aantalNieuweAanvragen}
+                        </Badge>
+                      )}
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -391,26 +406,6 @@ export function AppSidebar() {
                 <CollapsibleContent>
                   <SidebarGroupContent>
                     <SidebarMenu>
-                      <SidebarMenuItem>
-                        <SidebarMenuButton
-                          asChild
-                          isActive={pathname === "/verificatie" || pathname.startsWith("/verificatie/")}
-                          tooltip="Verificatie Aanvragen"
-                        >
-                          <Link href="/verificatie">
-                            <ClipboardCheck />
-                            <span>Verificatie</span>
-                            {aantalNieuweAanvragen !== undefined && aantalNieuweAanvragen > 0 && (
-                              <Badge
-                                variant="default"
-                                className="ml-auto text-xs h-5 min-w-5 px-1 bg-blue-600 hover:bg-blue-600"
-                              >
-                                {aantalNieuweAanvragen}
-                              </Badge>
-                            )}
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
                       {beheerItems.map((item) => (
                         <SidebarMenuItem key={item.title}>
                           <SidebarMenuButton
