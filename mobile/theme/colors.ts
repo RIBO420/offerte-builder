@@ -1,35 +1,44 @@
 // theme/colors.ts
 export const colors = {
-  // Base Colors (Light Mode)
-  background: '#FFFFFF',
-  foreground: '#1A1A1A',
-  card: '#FFFFFF',
-  cardForeground: '#1A1A1A',
+  // Base Colors (Dark Mode - Primary)
+  background: '#0A0A0A',
+  foreground: '#FAFAFA',
+  card: '#111111',
+  cardForeground: '#E8E8E8',
 
   // Primary
-  primary: '#2D2D2D',
-  primaryForeground: '#FAFAFA',
+  primary: '#4ADE80',
+  primaryForeground: '#0A0A0A',
 
   // Secondary
-  secondary: '#F5F5F5',
-  secondaryForeground: '#2D2D2D',
+  secondary: '#1A2E1A',
+  secondaryForeground: '#6B8F6B',
 
   // Muted
-  muted: '#F5F5F5',
-  mutedForeground: '#737373',
+  muted: '#1A1A1A',
+  mutedForeground: '#888888',
 
   // Accent
-  accent: '#F5F5F5',
-  accentForeground: '#2D2D2D',
+  accent: '#2D5A27',
+  accentForeground: '#4ADE80',
 
   // Destructive
   destructive: '#DC2626',
   destructiveForeground: '#FAFAFA',
 
   // Border & Input
-  border: '#E5E5E5',
-  input: '#E5E5E5',
-  ring: '#A3A3A3',
+  border: '#222222',
+  input: '#1A1A1A',
+  ring: '#4ADE80',
+
+  // Surface
+  surface: '#111111',
+  surfaceElevated: '#1A1A1A',
+  surfaceOverlay: '#1A1A1AEE',
+
+  // Nature
+  natureDark: '#1A2E1A',
+  natureLight: '#0D1F0D',
 
   // Scope Colors (Garden Theme - Brand Identity)
   scope: {
@@ -60,24 +69,33 @@ export const colors = {
 };
 
 export const darkColors: ColorScheme = {
-  // Aligned with webapp dark mode (OKLCH color space converted to hex)
-  background: '#0A0A0A', // oklch(0.145 0 0) - darker background
-  foreground: '#FAFAFA', // oklch(0.985 0 0)
-  card: '#1A1A1A', // oklch(0.205 0 0) - slightly lighter than background
-  cardForeground: '#FAFAFA', // oklch(0.985 0 0)
-  primary: '#FAFAFA', // oklch(0.985 0 0) - primary text
-  primaryForeground: '#1A1A1A', // oklch(0.205 0 0)
-  secondary: '#A1A1AA', // oklch(0.708 0 0) - secondary text
-  secondaryForeground: '#FAFAFA', // oklch(0.985 0 0)
-  muted: '#3D3D3D', // oklch(0.269 0 0)
-  mutedForeground: '#71717A', // oklch(0.556 0 0) - tertiary text
-  accent: '#6366F1', // Indigo - Linear/Vercel style
-  accentForeground: '#FAFAFA', // oklch(0.985 0 0)
-  destructive: '#E57373', // oklch(0.704 0.191 22.216) - proper dark variant
-  destructiveForeground: '#0A0A0A', // Match background for contrast
-  border: 'rgba(255,255,255,0.2)', // oklch(1 0 0 / 20%)
-  input: 'rgba(255,255,255,0.15)', // oklch(1 0 0 / 15%)
-  ring: '#737373', // oklch(0.556 0 0)
+  // Light Mode Overrides
+  background: '#FAFAF8',
+  foreground: '#1A1A1A',
+  card: '#FFFFFF',
+  cardForeground: '#2D2D2D',
+  primary: '#2D5A27',
+  primaryForeground: '#FFFFFF',
+  secondary: '#F0EDE4',
+  secondaryForeground: '#6B8F6B',
+  muted: '#F5F5F5',
+  mutedForeground: '#666666',
+  accent: '#1A2E1A',
+  accentForeground: '#2D5A27',
+  destructive: '#DC2626',
+  destructiveForeground: '#FAFAFA',
+  border: '#E8E4DC',
+  input: '#F5F5F5',
+  ring: '#2D5A27',
+
+  // Surface
+  surface: '#FFFFFF',
+  surfaceElevated: '#F5F5F5',
+  surfaceOverlay: '#FFFFFFEE',
+
+  // Nature
+  natureDark: '#E8F5E9',
+  natureLight: '#F1F8F1',
 
   // Scope colors - +0.1 lightness for dark mode visibility (aligned with webapp)
   scope: {

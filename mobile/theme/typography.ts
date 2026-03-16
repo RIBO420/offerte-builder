@@ -3,17 +3,19 @@ import { Platform } from 'react-native';
 export const typography = {
   fontFamily: {
     sans: Platform.select({ ios: 'System', android: 'Roboto', default: 'System' }),
+    display: Platform.select({ ios: 'System', android: 'Roboto', default: 'System' }),
     mono: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
   },
   fontSize: {
-    xs: 12,
-    sm: 14,
-    base: 16,
-    lg: 18,
-    xl: 20,
-    '2xl': 24,
-    '3xl': 30,
-    '4xl': 36,
+    xs: 10,
+    sm: 12,
+    base: 13,
+    md: 14,
+    lg: 16,
+    xl: 18,
+    '2xl': 22,
+    '3xl': 28,
+    '4xl': 34,
   },
   fontWeight: {
     normal: '400' as const,
@@ -26,6 +28,12 @@ export const typography = {
     normal: 1.5,
     relaxed: 1.75,
   },
+  letterSpacing: {
+    tight: -0.5,
+    normal: 0,
+    wide: 1,
+    wider: 1.5,
+  },
 } as const;
 
 export type Typography = typeof typography;
@@ -33,3 +41,4 @@ export type FontFamily = keyof Typography['fontFamily'];
 export type FontSize = keyof Typography['fontSize'];
 export type FontWeight = keyof Typography['fontWeight'];
 export type LineHeight = keyof Typography['lineHeight'];
+export type LetterSpacing = keyof Typography['letterSpacing'];

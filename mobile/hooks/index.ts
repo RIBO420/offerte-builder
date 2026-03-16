@@ -78,3 +78,10 @@ export {
   type UploadHandler,
   type UseOfflineQueueReturn,
 } from './use-offline-queue';
+
+// Animation & motion hooks
+export { useReducedMotion, useAnimationDuration } from './use-reduced-motion';
+export { usePressAnimation, useScaleAnimation } from './use-spring-animation';
+
+// Haptic feedback hook
+export { useHaptic } from './use-haptic';

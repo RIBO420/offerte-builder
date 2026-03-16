@@ -46,4 +46,11 @@ export const shadows = {
     shadowOpacity: 0.25,
     shadowRadius: 60,
   }, 24),
+  natureGlow: {
+    shadowColor: '#4ADE80',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 8,
+  } as ShadowStyle,
 };
