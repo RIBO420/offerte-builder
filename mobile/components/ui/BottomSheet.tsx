@@ -72,11 +72,11 @@ export function BottomSheet({
 
   return (
     <View style={styles.overlay}>
-      <Animated.View style={[styles.backdrop, backdropStyle]}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+      <Animated.View style={[styles.backdrop, backdropStyle]} accessibilityRole="none">
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Sluit paneel" />
       </Animated.View>
       <GestureDetector gesture={panGesture}>
-        <Animated.View style={[styles.sheet, sheetStyle]}>
+        <Animated.View style={[styles.sheet, sheetStyle]} accessibilityRole="summary" accessibilityLabel={title ?? 'Paneel'}>
           <View style={styles.handleContainer}>
             <View style={styles.handle} />
           </View>

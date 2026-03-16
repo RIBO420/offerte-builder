@@ -47,6 +47,8 @@ export function HeroProjectCard({
         onPress={handlePress}
         onPressIn={onPressIn}
         onPressOut={onPressOut}
+        accessibilityRole="button"
+        accessibilityLabel={`Project: ${projectName}`}
       >
         <LinearGradient
           colors={['#1A2E1A', '#0D1F0D']}
@@ -59,11 +61,11 @@ export function HeroProjectCard({
           <Text style={styles.description}>{description}</Text>
 
           <View style={styles.pillsRow}>
-            <Pressable onPress={handlePhotoPress} style={styles.pill}>
+            <Pressable onPress={handlePhotoPress} style={styles.pill} accessibilityRole="button" accessibilityLabel="Foto's toevoegen">
               <Camera size={12} color="#4ADE80" />
               <Text style={styles.pillTextGreen}>Foto's</Text>
             </Pressable>
-            <Pressable onPress={handleHoursPress} style={styles.pill}>
+            <Pressable onPress={handleHoursPress} style={styles.pill} accessibilityRole="button" accessibilityLabel="Start uren registratie">
               <Clock size={12} color="#CCCCCC" />
               <Text style={styles.pillTextGray}>Start uren</Text>
             </Pressable>

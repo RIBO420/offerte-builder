@@ -73,7 +73,7 @@ const { width: SCHERM_BREEDTE } = Dimensions.get('window');
 
 const CATEGORIE_CONFIG: Record<FotoCategorie, { label: string; kleur: string; icoon: string; beschrijving: string }> = {
   voor:     { label: 'Voor werkzaamheden', kleur: '#3b82f6', icoon: 'arrow-right-circle', beschrijving: 'Situatie vóór de aanleg' },
-  na:       { label: 'Na werkzaamheden',   kleur: '#10b981', icoon: 'check-circle',        beschrijving: 'Resultaat na voltooiing' },
+  na:       { label: 'Na werkzaamheden',   kleur: '#4ADE80', icoon: 'check-circle',        beschrijving: 'Resultaat na voltooiing' },
   probleem: { label: 'Probleem gemeld',    kleur: '#ef4444', icoon: 'alert-triangle',       beschrijving: 'Probleem of afwijking' },
 };
 
@@ -108,7 +108,7 @@ const CategorieSelector = React.memo(({ geselecteerd, onChange }: CategorieSelec
             <Feather
               name={config.icoon as 'check-circle'}
               size={20}
-              color={actief ? config.kleur : '#6b7280'}
+              color={actief ? config.kleur : '#888'}
             />
             <Text
               style={[
@@ -158,18 +158,18 @@ function ProjectDropdown({ projecten, geselecteerd, onSelecteer }: ProjectDropdo
         activeOpacity={0.8}
       >
         <View style={stijlen.dropdownKnopInhoud}>
-          <Feather name="folder" size={18} color={geselecteerd !== null ? '#3b82f6' : '#6b7280'} />
+          <Feather name="folder" size={18} color={geselecteerd !== null ? '#4ADE80' : '#888'} />
           <Text
             style={[
               stijlen.dropdownKnopTekst,
-              geselecteerd !== null && { color: '#f9fafb', fontWeight: '600' },
+              geselecteerd !== null && { color: '#E8E8E8', fontWeight: '600' },
             ]}
             numberOfLines={1}
           >
             {geselecteerd !== null ? geselecteerd.naam : 'Selecteer een project...'}
           </Text>
         </View>
-        <Feather name="chevron-down" size={18} color="#6b7280" />
+        <Feather name="chevron-down" size={18} color="#888" />
       </TouchableOpacity>
 
       {geselecteerd !== null && (
@@ -187,24 +187,24 @@ function ProjectDropdown({ projecten, geselecteerd, onSelecteer }: ProjectDropdo
           <View style={stijlen.dropdownModalHeader}>
             <Text style={stijlen.dropdownModalTitel}>Selecteer project</Text>
             <TouchableOpacity onPress={() => setOpen(false)}>
-              <Feather name="x" size={22} color="#9ca3af" />
+              <Feather name="x" size={22} color="#888" />
             </TouchableOpacity>
           </View>
 
           {/* Zoekbalk */}
           <View style={stijlen.zoekContainer}>
-            <Feather name="search" size={16} color="#6b7280" />
+            <Feather name="search" size={16} color="#888" />
             <TextInput
               style={stijlen.zoekInput}
               value={zoekterm}
               onChangeText={setZoekterm}
               placeholder="Zoek op naam of klant..."
-              placeholderTextColor="#6b7280"
+              placeholderTextColor="#888"
               autoFocus
             />
             {zoekterm.length > 0 && (
               <TouchableOpacity onPress={() => setZoekterm('')}>
-                <Feather name="x-circle" size={16} color="#6b7280" />
+                <Feather name="x-circle" size={16} color="#888" />
               </TouchableOpacity>
             )}
           </View>
@@ -236,7 +236,7 @@ function ProjectDropdown({ projecten, geselecteerd, onSelecteer }: ProjectDropdo
                       <Text
                         style={[
                           stijlen.dropdownItemNaam,
-                          actief && { color: '#3b82f6' },
+                          actief && { color: '#4ADE80' },
                         ]}
                         numberOfLines={1}
                       >
@@ -244,8 +244,8 @@ function ProjectDropdown({ projecten, geselecteerd, onSelecteer }: ProjectDropdo
                       </Text>
                       <Text style={stijlen.dropdownItemKlant}>{project.klant}</Text>
                     </View>
-                    <View style={[stijlen.statusDot, { backgroundColor: project.status === 'actief' ? '#10b981' : '#6b7280' }]} />
-                    {actief && <Feather name="check" size={16} color="#3b82f6" />}
+                    <View style={[stijlen.statusDot, { backgroundColor: project.status === 'actief' ? '#4ADE80' : '#888' }]} />
+                    {actief && <Feather name="check" size={16} color="#4ADE80" />}
                   </TouchableOpacity>
                 );
               })
@@ -302,7 +302,7 @@ function QRScanner({ zichtbaar, onScan, onSluit }: QRScannerProps) {
       <View style={stijlen.scannerContainer}>
         {permissie === null || !permissie.granted ? (
           <SafeAreaView style={stijlen.scannerPermissie} edges={['top', 'bottom']}>
-            <Feather name="camera-off" size={48} color="#6b7280" />
+            <Feather name="camera-off" size={48} color="#888" />
             <Text style={stijlen.scannerPermissieTekst}>
               Camera-toegang is vereist voor het scannen van QR-codes.
             </Text>
@@ -313,7 +313,7 @@ function QRScanner({ zichtbaar, onScan, onSluit }: QRScannerProps) {
               <Text style={stijlen.permissieKnopTekst}>Toegang verlenen</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={onSluit} style={{ marginTop: 12 }}>
-              <Text style={{ color: '#6b7280', fontSize: 15 }}>Annuleren</Text>
+              <Text style={{ color: '#888', fontSize: 15 }}>Annuleren</Text>
             </TouchableOpacity>
           </SafeAreaView>
         ) : (
@@ -478,7 +478,7 @@ export function ProjectFotoUpload({
         >
           {/* Header */}
           <View style={stijlen.schermHeader}>
-            <Feather name="upload-cloud" size={24} color="#3b82f6" />
+            <Feather name="upload-cloud" size={24} color="#4ADE80" />
             <Text style={stijlen.schermTitel}>Foto's uploaden</Text>
           </View>
 
@@ -486,7 +486,7 @@ export function ProjectFotoUpload({
           {(pendingCount > 0 || isSyncing) && (
             <View style={stijlen.syncIndicator}>
               {isSyncing ? (
-                <ActivityIndicator size="small" color="#3b82f6" />
+                <ActivityIndicator size="small" color="#4ADE80" />
               ) : (
                 <Feather name="clock" size={14} color="#f59e0b" />
               )}
@@ -507,7 +507,7 @@ export function ProjectFotoUpload({
                 onPress={() => setQrScannerZichtbaar(true)}
                 activeOpacity={0.7}
               >
-                <Feather name="maximize" size={14} color="#3b82f6" />
+                <Feather name="maximize" size={14} color="#4ADE80" />
                 <Text style={stijlen.qrKnopTekst}>QR scannen</Text>
               </TouchableOpacity>
             </View>
@@ -563,12 +563,12 @@ export function ProjectFotoUpload({
             >
               {isUploading ? (
                 <>
-                  <ActivityIndicator size="small" color="#ffffff" />
+                  <ActivityIndicator size="small" color="#0A0A0A" />
                   <Text style={stijlen.uploadKnopTekst}>Toevoegen aan wachtrij...</Text>
                 </>
               ) : (
                 <>
-                  <Feather name="upload" size={20} color="#ffffff" />
+                  <Feather name="upload" size={20} color="#0A0A0A" />
                   <Text style={stijlen.uploadKnopTekst}>
                     {aantalFotos > 0
                       ? `${aantalFotos} foto${aantalFotos !== 1 ? '\'s' : ''} uploaden`
@@ -614,7 +614,7 @@ const HOEK_DIKTE = 3;
 const stijlen = StyleSheet.create({
   scherm: {
     flex: 1,
-    backgroundColor: '#111827',
+    backgroundColor: '#0A0A0A',
   },
   safeArea: {
     flex: 1,
@@ -637,7 +637,7 @@ const stijlen = StyleSheet.create({
   schermTitel: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#f9fafb',
+    color: '#E8E8E8',
   },
 
   // Sync-indicator
@@ -645,7 +645,7 @@ const stijlen = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#1f2937',
+    backgroundColor: '#1A1A1A',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -653,7 +653,7 @@ const stijlen = StyleSheet.create({
   },
   syncIndicatorTekst: {
     fontSize: 13,
-    color: '#9ca3af',
+    color: '#888',
   },
 
   // Secties
@@ -669,7 +669,7 @@ const stijlen = StyleSheet.create({
   sectieLabel: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#9ca3af',
+    color: '#888',
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
@@ -682,13 +682,13 @@ const stijlen = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 7,
-    backgroundColor: '#1e3a5f',
+    backgroundColor: '#1A2E1A',
     borderWidth: 1,
-    borderColor: '#3b82f6',
+    borderColor: '#4ADE80',
   },
   qrKnopTekst: {
     fontSize: 12,
-    color: '#3b82f6',
+    color: '#4ADE80',
     fontWeight: '600',
   },
 
@@ -697,10 +697,10 @@ const stijlen = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#1f2937',
+    backgroundColor: '#111',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: '#222',
     paddingHorizontal: 14,
     paddingVertical: 14,
   },
@@ -712,18 +712,18 @@ const stijlen = StyleSheet.create({
   },
   dropdownKnopTekst: {
     fontSize: 15,
-    color: '#6b7280',
+    color: '#888',
     flex: 1,
   },
   geselecteerdKlant: {
     fontSize: 12,
-    color: '#6b7280',
+    color: '#888',
     marginTop: 5,
     marginLeft: 4,
   },
   dropdownModal: {
     flex: 1,
-    backgroundColor: '#111827',
+    backgroundColor: '#0A0A0A',
   },
   dropdownModalHeader: {
     flexDirection: 'row',
@@ -732,12 +732,12 @@ const stijlen = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
+    borderBottomColor: '#222',
   },
   dropdownModalTitel: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#f9fafb',
+    color: '#E8E8E8',
   },
   zoekContainer: {
     flexDirection: 'row',
@@ -746,15 +746,15 @@ const stijlen = StyleSheet.create({
     margin: 16,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    backgroundColor: '#1f2937',
+    backgroundColor: '#111',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: '#222',
   },
   zoekInput: {
     flex: 1,
     fontSize: 15,
-    color: '#f9fafb',
+    color: '#E8E8E8',
   },
   dropdownLijst: {
     flex: 1,
@@ -766,10 +766,10 @@ const stijlen = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
+    borderBottomColor: '#222',
   },
   dropdownItemActief: {
-    backgroundColor: '#1e3a5f',
+    backgroundColor: '#1A2E1A',
   },
   dropdownItemInfo: {
     flex: 1,
@@ -777,11 +777,11 @@ const stijlen = StyleSheet.create({
   dropdownItemNaam: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#f9fafb',
+    color: '#E8E8E8',
   },
   dropdownItemKlant: {
     fontSize: 13,
-    color: '#6b7280',
+    color: '#888',
     marginTop: 2,
   },
   statusDot: {
@@ -795,7 +795,7 @@ const stijlen = StyleSheet.create({
   },
   dropdownLeegTekst: {
     fontSize: 15,
-    color: '#6b7280',
+    color: '#888',
   },
 
   // Categorie-selector
@@ -809,19 +809,19 @@ const stijlen = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: '#1f2937',
+    backgroundColor: '#111',
     borderWidth: 1.5,
-    borderColor: '#374151',
+    borderColor: '#222',
   },
   categorieKnopLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#d1d5db',
+    color: '#E8E8E8',
     flex: 1,
   },
   categorieKnopOndertitel: {
     fontSize: 12,
-    color: '#6b7280',
+    color: '#888',
   },
 
   // Upload-knop
@@ -838,17 +838,17 @@ const stijlen = StyleSheet.create({
     flex: 1,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#1f2937',
+    backgroundColor: '#1A1A1A',
     overflow: 'hidden',
   },
   voortgangVulling: {
     height: '100%',
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#4ADE80',
     borderRadius: 3,
   },
   voortgangTekst: {
     fontSize: 12,
-    color: '#6b7280',
+    color: '#888',
     width: 36,
     textAlign: 'right',
   },
@@ -857,7 +857,7 @@ const stijlen = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#4ADE80',
     borderRadius: 14,
     paddingVertical: 16,
   },
@@ -867,11 +867,11 @@ const stijlen = StyleSheet.create({
   uploadKnopTekst: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#ffffff',
+    color: '#0A0A0A',
   },
   uploadHintTekst: {
     fontSize: 13,
-    color: '#6b7280',
+    color: '#888',
     textAlign: 'center',
   },
 
@@ -882,7 +882,7 @@ const stijlen = StyleSheet.create({
   },
   scannerPermissie: {
     flex: 1,
-    backgroundColor: '#111827',
+    backgroundColor: '#0A0A0A',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 16,
@@ -890,12 +890,12 @@ const stijlen = StyleSheet.create({
   },
   scannerPermissieTekst: {
     fontSize: 16,
-    color: '#9ca3af',
+    color: '#888',
     textAlign: 'center',
     lineHeight: 24,
   },
   permissieKnop: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#4ADE80',
     borderRadius: 10,
     paddingHorizontal: 24,
     paddingVertical: 12,
@@ -903,7 +903,7 @@ const stijlen = StyleSheet.create({
   permissieKnopTekst: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#ffffff',
+    color: '#0A0A0A',
   },
   scannerOverlay: {
     position: 'absolute',
@@ -944,7 +944,7 @@ const stijlen = StyleSheet.create({
     position: 'absolute',
     width: HOEK_GROOTTE,
     height: HOEK_GROOTTE,
-    borderColor: '#3b82f6',
+    borderColor: '#4ADE80',
   },
   hoekLB: {
     top: 0,

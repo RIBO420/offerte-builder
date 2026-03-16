@@ -13,7 +13,7 @@
 import { useUser } from "@clerk/clerk-expo";
 import { useQuery, useMutation, useConvexAuth } from "convex/react";
 import { api } from "../convex/_generated/api";
-import { useEffect, useRef, useMemo } from "react";
+import { useEffect, useRef, useMemo, useState } from "react";
 import type { Id } from "../convex/_generated/dataModel";
 
 /**
@@ -50,6 +50,19 @@ export interface CurrentUserResult {
 export function useCurrentUser(): CurrentUserResult {
   const { user: clerkUser, isLoaded: isClerkLoaded } = useUser();
   const { isAuthenticated, isLoading: isConvexLoading } = useConvexAuth();
+
+  // Dev mode: stop blocking UI after timeout if auth is stuck
+  const [authTimedOut, setAuthTimedOut] = useState(false);
+  useEffect(() => {
+    if (isAuthenticated) return;
+    const timer = setTimeout(() => {
+      if (__DEV__) {
+        console.warn('[useCurrentUser] Auth timed out — showing UI without data');
+        setAuthTimedOut(true);
+      }
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [isAuthenticated]);
 
   // Query current user - skip if not authenticated
   const convexUser = useQuery(
@@ -119,12 +132,14 @@ export function useCurrentUser(): CurrentUserResult {
     };
   }, [convexUser?.role, convexUser?.linkedMedewerkerId]);
 
+  const actuallyLoading = !isClerkLoaded || isConvexLoading || (isAuthenticated && convexUser === undefined);
+
   return {
     user: convexUser,
     clerkUser,
-    isLoading: !isClerkLoaded || isConvexLoading || (isAuthenticated && convexUser === undefined),
-    isAuthenticated: isAuthenticated && !!convexUser,
-    isUserSynced: convexUser !== null && convexUser !== undefined,
+    isLoading: authTimedOut ? false : actuallyLoading,
+    isAuthenticated: authTimedOut ? true : (isAuthenticated && !!convexUser),
+    isUserSynced: authTimedOut ? true : (convexUser !== null && convexUser !== undefined),
     ...roleInfo,
   };
 }

@@ -1,3 +1,5 @@
+const { colors } = require('./theme/colors');
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
@@ -9,56 +11,56 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Linear/Vercel Dark Mode Palette
+        // Base colors from theme
         background: {
-          DEFAULT: '#0a0a0a',
-          secondary: '#111111',
-          tertiary: '#171717',
+          DEFAULT: colors.background,
+          secondary: colors.surface,
+          tertiary: colors.surfaceElevated,
         },
-        foreground: '#fafafa',
+        foreground: colors.foreground,
 
         // Card
         card: {
-          DEFAULT: '#111111',
-          foreground: '#fafafa',
+          DEFAULT: colors.card,
+          foreground: colors.cardForeground,
         },
 
-        // Primary (light on dark)
+        // Primary
         primary: {
-          DEFAULT: '#fafafa',
-          foreground: '#0a0a0a',
+          DEFAULT: colors.primary,
+          foreground: colors.primaryForeground,
         },
 
         // Secondary
         secondary: {
-          DEFAULT: '#262626',
-          foreground: '#fafafa',
+          DEFAULT: colors.secondary,
+          foreground: colors.secondaryForeground,
         },
 
         // Muted
         muted: {
-          DEFAULT: '#171717',
-          foreground: '#a1a1aa',
+          DEFAULT: colors.muted,
+          foreground: colors.mutedForeground,
         },
 
-        // Accent (Linear Indigo)
+        // Accent
         accent: {
-          DEFAULT: '#6366f1',
-          foreground: '#fafafa',
-          muted: 'rgba(99,102,241,0.15)',
-          hover: '#818cf8',
+          DEFAULT: colors.accent,
+          foreground: colors.accentForeground,
+          muted: `${colors.accent}26`,
+          hover: colors.accentForeground,
         },
 
         // Destructive
         destructive: {
-          DEFAULT: '#ef4444',
-          foreground: '#fafafa',
+          DEFAULT: colors.destructive,
+          foreground: colors.destructiveForeground,
         },
 
         // Borders & Input
-        border: '#262626',
-        input: '#1a1a1a',
-        ring: '#6366f1',
+        border: colors.border,
+        input: colors.input,
+        ring: colors.ring,
 
         // Semantic Colors
         success: '#22c55e',
@@ -66,23 +68,24 @@ module.exports = {
         error: '#ef4444',
         info: '#3b82f6',
 
-        // Garden Scope Colors (Brand)
-        scope: {
-          grondwerk: '#B09070',
-          bestrating: '#9A9CA0',
-          borders: '#4D8C4D',
-          gras: '#7DD98C',
-          houtwerk: '#A87A50',
-          water: '#5AA0D0',
-          specials: '#B070D0',
+        // Surface
+        surface: {
+          DEFAULT: colors.surface,
+          elevated: colors.surfaceElevated,
+          overlay: colors.surfaceOverlay,
         },
 
-        // Trend Colors
-        trend: {
-          positive: '#22c55e',
-          negative: '#ef4444',
-          neutral: '#71717a',
+        // Nature
+        nature: {
+          dark: colors.natureDark,
+          light: colors.natureLight,
         },
+
+        // Garden Scope Colors (Brand)
+        scope: { ...colors.scope },
+
+        // Trend Colors
+        trend: { ...colors.trend },
       },
 
       borderRadius: {

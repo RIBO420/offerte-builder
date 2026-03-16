@@ -77,8 +77,8 @@ function TabItem({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       style={styles.tabButton}
-      accessibilityRole="button"
-      accessibilityState={isFocused ? { selected: true } : {}}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: isFocused }}
       accessibilityLabel={label}
     >
       <Animated.View style={[styles.tabContent, animatedStyle]}>

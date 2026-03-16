@@ -41,16 +41,16 @@ export interface OpnameScreenProps {
 
 const ROOD = '#DC2626';
 const ROOD_DONKER = '#991B1B';
-const GROEN = '#16A34A';
+const GROEN = '#4ADE80';
 const ORANJE = '#D97706';
-const GRIJS_DONKER = '#111827';
-const GRIJS = '#374151';
-const GRIJS_LICHT = '#6B7280';
-const GRIJS_HEEL_LICHT = '#F3F4F6';
-const WIT = '#FFFFFF';
-const ACHTERGROND = '#0F172A';
-const KAART = '#1E293B';
-const RAND = '#334155';
+const GRIJS_DONKER = '#111';
+const GRIJS = '#222';
+const GRIJS_LICHT = '#888';
+const GRIJS_HEEL_LICHT = '#E8E8E8';
+const WIT = '#E8E8E8';
+const ACHTERGROND = '#0A0A0A';
+const KAART = '#111';
+const RAND = '#222';
 
 // Audio-level bars voor visuele indicator
 const AANTAL_BARS = 16;
