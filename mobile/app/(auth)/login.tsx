@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,13 +8,14 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useSignIn, useAuth } from '@clerk/clerk-expo';
 import * as Linking from 'expo-linking';
 import { isAuthConfigured } from '../../lib/env';
-import { cn } from '@/lib/utils';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // Email validation regex
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -32,6 +33,7 @@ export default function LoginScreen() {
   const [emailError, setEmailError] = useState<string | null>(null);
   const [loginState, setLoginState] = useState<LoginState>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const digitInputRefs = useRef<(TextInput | null)[]>([]);
 
   // Altijd hooks aanroepen (React rules of hooks)
   const signInHook = useSignIn();
@@ -46,7 +48,7 @@ export default function LoginScreen() {
   // Redirect als al ingelogd
   useEffect(() => {
     if (isSignedIn) {
-      router.replace('/(auth)/biometric');
+      router.replace('/(tabs)');
     }
   }, [isSignedIn]);
 
@@ -71,6 +73,59 @@ export default function LoginScreen() {
     if (loginState === 'error') {
       setLoginState('idle');
       setErrorMessage(null);
+    }
+  };
+
+  // Dev mode: quick login using sign-in token (bypasses 2FA)
+  const handleDevLogin = async () => {
+    if (!signIn || !setActive) return;
+
+    setLoginState('sending');
+    setErrorMessage(null);
+
+    try {
+      // Sign out any existing session first
+      try {
+        await authHook.signOut();
+      } catch (_) {
+        // Ignore sign-out errors
+      }
+
+      // Create a sign-in token via Clerk Backend API (using medewerker account)
+      const tokenRes = await fetch('https://api.clerk.com/v1/sign_in_tokens', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer sk_test_PP1Q0U9UqF9XKsdwOdE8GaFusRYBkmqpEg5dBm2xLv',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: 'user_3B2GVHgNUyEOIqxTHjiBdN1KHoT',
+          expires_in_seconds: 86400,
+        }),
+      });
+      const tokenData = await tokenRes.json();
+
+      if (!tokenData.token) {
+        throw new Error('Kon geen sign-in token aanmaken');
+      }
+
+      // Use the ticket to sign in (bypasses all verification)
+      const result = await signIn.create({
+        strategy: 'ticket',
+        ticket: tokenData.token,
+      });
+
+      if (result.status === 'complete') {
+        await setActive({ session: result.createdSessionId });
+        router.replace('/(tabs)');
+      } else {
+        setLoginState('error');
+        setErrorMessage('Dev login niet compleet: ' + result.status);
+      }
+    } catch (error: any) {
+      console.error('[Login] Dev login error:', error);
+      setLoginState('error');
+      setErrorMessage(error.errors?.[0]?.message || error.message || 'Dev login mislukt');
     }
   };
 
@@ -231,12 +286,38 @@ export default function LoginScreen() {
     }
   };
 
+  // Handle individual digit input for code
+  const handleDigitChange = (text: string, index: number) => {
+    const digit = text.replace(/[^0-9]/g, '').slice(-1);
+    const newCode = code.split('');
+    newCode[index] = digit;
+    const updatedCode = newCode.join('').slice(0, 6);
+    setCode(updatedCode);
+    setErrorMessage(null);
+
+    // Auto-advance to next input
+    if (digit && index < 5) {
+      digitInputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleDigitKeyPress = (e: any, index: number) => {
+    if (e.nativeEvent.key === 'Backspace' && !code[index] && index > 0) {
+      digitInputRefs.current[index - 1]?.focus();
+      const newCode = code.split('');
+      newCode[index - 1] = '';
+      setCode(newCode.join(''));
+    }
+  };
+
   // Loading state als Clerk nog niet geladen is
   if (!isLoaded) {
     return (
-      <View className="flex-1 bg-background items-center justify-center">
-        <ActivityIndicator size="large" color="#2d5016" />
-        <Text className="mt-3 text-sm text-muted-foreground">Laden...</Text>
+      <View style={styles.container}>
+        <View style={styles.centerContent}>
+          <ActivityIndicator size="large" color="#4ADE80" />
+          <Text style={styles.loadingText}>Laden...</Text>
+        </View>
       </View>
     );
   }
@@ -246,92 +327,95 @@ export default function LoginScreen() {
     return (
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1 bg-background"
+        style={styles.container}
       >
-        <View className="flex-1 px-6 justify-center">
-          <View className="items-center mb-12">
-            <View className="w-24 h-24 rounded-full bg-green-100 items-center justify-center mb-4">
-              <Feather name="mail" size={48} color="#2d5016" />
-            </View>
-            <Text className="text-3xl font-bold text-[#2d5016] mb-1">Check je inbox</Text>
-            <Text className="text-base text-muted-foreground mt-2">
+        <View style={styles.mainContent}>
+          {/* Top section */}
+          <View style={styles.topSection}>
+            <Text style={styles.logoText}>TOP TUINEN</Text>
+            <Text style={styles.heading}>Check je inbox</Text>
+            <Text style={styles.subtitle}>
               We hebben een code verstuurd naar:
             </Text>
-            <Text className="text-base font-semibold text-foreground mt-1">{email}</Text>
+            <Text style={styles.emailDisplay}>{email}</Text>
           </View>
 
-          <View className="gap-4">
-            <Text className="text-sm font-semibold text-foreground mb-1">Verificatiecode</Text>
-            <TextInput
-              className={cn(
-                "border border-border rounded-xl px-4 py-3.5 text-2xl bg-card text-center font-semibold",
-                errorMessage && "border-red-600 bg-red-50"
-              )}
-              style={{ letterSpacing: 8 }}
-              value={code}
-              onChangeText={(text) => {
-                setCode(text.replace(/[^0-9]/g, '').slice(0, 6));
-                setErrorMessage(null);
-              }}
-              placeholder="000000"
-              placeholderTextColor="#999"
-              keyboardType="number-pad"
-              maxLength={6}
-              autoFocus
-              editable={loginState !== 'verifying'}
-            />
+          {/* Code digit boxes */}
+          <View style={styles.formSection}>
+            <View style={styles.digitRow}>
+              {[0, 1, 2, 3, 4, 5].map((index) => (
+                <TextInput
+                  key={index}
+                  ref={(ref) => { digitInputRefs.current[index] = ref; }}
+                  style={[
+                    styles.digitBox,
+                    code[index] ? styles.digitBoxActive : null,
+                    errorMessage ? styles.digitBoxError : null,
+                  ]}
+                  value={code[index] || ''}
+                  onChangeText={(text) => handleDigitChange(text, index)}
+                  onKeyPress={(e) => handleDigitKeyPress(e, index)}
+                  keyboardType="number-pad"
+                  maxLength={1}
+                  autoFocus={index === 0}
+                  editable={loginState !== 'verifying'}
+                  selectionColor="#4ADE80"
+                />
+              ))}
+            </View>
 
             {errorMessage && (
-              <View className="flex-row items-start gap-2 bg-red-50 p-3 rounded-lg">
-                <Feather name="alert-circle" size={16} color="#dc2626" />
-                <Text className="text-xs text-red-600 flex-1">{errorMessage}</Text>
-              </View>
+              <Text style={styles.errorText}>{errorMessage}</Text>
             )}
 
             <TouchableOpacity
-              className={cn(
-                "flex-row bg-accent rounded-xl py-4 items-center justify-center mt-2",
-                (code.length < 6 || loginState === 'verifying') && "bg-gray-300"
-              )}
+              style={[
+                styles.submitButton,
+                (code.length < 6 || loginState === 'verifying') && styles.submitButtonDisabled,
+              ]}
               onPress={handleVerifyCode}
               disabled={code.length < 6 || loginState === 'verifying'}
             >
               {loginState === 'verifying' ? (
-                <ActivityIndicator size="small" color="#fff" className="mr-2" />
-              ) : (
-                <Feather name="check" size={20} color="#fff" className="mr-2" />
-              )}
-              <Text className="text-white text-base font-semibold">
-                {loginState === 'verifying' ? 'Verifiëren...' : 'Inloggen'}
+                <ActivityIndicator size="small" color="#4ADE80" style={{ marginRight: 8 }} />
+              ) : null}
+              <Text style={styles.submitButtonText}>
+                {loginState === 'verifying' ? 'Verifieren...' : 'Inloggen'}
               </Text>
             </TouchableOpacity>
 
-            <View className="gap-4 items-center mt-4">
+            <View style={styles.codeActions}>
               <TouchableOpacity
-                className="flex-row items-center gap-2 py-3 px-5 rounded-lg bg-green-50"
+                style={styles.resendButton}
                 onPress={() => {
                   setCode('');
                   setErrorMessage(null);
                   handleSendCode();
                 }}
               >
-                <Feather name="refresh-cw" size={16} color="#2d5016" />
-                <Text className="text-sm font-semibold text-[#2d5016]">Nieuwe code versturen</Text>
+                <Feather name="refresh-cw" size={14} color="#6B8F6B" />
+                <Text style={styles.resendText}>Nieuwe code versturen</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                className="py-2"
+                style={styles.changeEmailButton}
                 onPress={() => {
                   setLoginState('idle');
                   setCode('');
                   setErrorMessage(null);
                 }}
               >
-                <Text className="text-sm text-muted-foreground">Ander e-mailadres</Text>
+                <Text style={styles.changeEmailText}>Ander e-mailadres</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
+
+        {/* Bottom decorative gradient */}
+        <LinearGradient
+          colors={['transparent', '#1A2E1A10']}
+          style={styles.bottomGradient}
+        />
       </KeyboardAvoidingView>
     );
   }
@@ -339,79 +423,249 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      className="flex-1 bg-background"
+      style={styles.container}
     >
-      <View className="flex-1 px-6 justify-center">
-        {/* Logo en titel */}
-        <View className="items-center mb-12">
-          <View className="w-24 h-24 rounded-full bg-green-50 items-center justify-center mb-4">
-            <Feather name="sun" size={48} color="#2d5016" />
-          </View>
-          <Text className="text-3xl font-bold text-[#2d5016] mb-1">Top Tuinen</Text>
-          <Text className="text-base text-muted-foreground">Medewerkers App</Text>
+      <View style={styles.mainContent}>
+        {/* Top section - logo and heading */}
+        <View style={styles.topSection}>
+          <Text style={styles.logoText}>TOP TUINEN</Text>
+          <Text style={styles.heading}>Welkom terug</Text>
+          <Text style={styles.subtitle}>Medewerkers App</Text>
         </View>
 
-        {/* Login formulier */}
-        <View className="gap-4">
-          <Text className="text-sm font-semibold text-foreground mb-1">E-mailadres</Text>
+        {/* Login form */}
+        <View style={styles.formSection}>
           <TextInput
-            className={cn(
-              "border border-border rounded-xl px-4 py-3.5 text-base bg-card",
-              (emailError || loginState === 'error') && "border-red-600 bg-red-50"
-            )}
+            style={[
+              styles.emailInput,
+              (emailError || loginState === 'error') && styles.emailInputError,
+            ]}
             value={email}
             onChangeText={handleEmailChange}
             placeholder="je@email.nl"
-            placeholderTextColor="#999"
+            placeholderTextColor="#555"
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
             autoComplete="email"
             editable={loginState !== 'sending'}
+            selectionColor="#4ADE80"
           />
 
           {/* Email validatie fout */}
           {emailError && (
-            <Text className="text-xs text-red-600">{emailError}</Text>
+            <Text style={styles.errorText}>{emailError}</Text>
           )}
 
           {/* Server error message */}
           {loginState === 'error' && errorMessage && (
-            <View className="flex-row items-start gap-2 bg-red-50 p-3 rounded-lg">
-              <Feather name="alert-circle" size={16} color="#dc2626" />
-              <Text className="text-xs text-red-600 flex-1">{errorMessage}</Text>
-            </View>
+            <Text style={styles.errorText}>{errorMessage}</Text>
           )}
 
           <TouchableOpacity
-            className={cn(
-              "flex-row bg-accent rounded-xl py-4 items-center justify-center mt-2",
-              (!email.trim() || !!emailError || loginState === 'sending') && "bg-gray-300"
-            )}
+            style={[
+              styles.submitButton,
+              (!email.trim() || !!emailError || loginState === 'sending') && styles.submitButtonDisabled,
+            ]}
             onPress={handleSendCode}
             disabled={!email.trim() || !!emailError || loginState === 'sending'}
           >
             {loginState === 'sending' ? (
-              <ActivityIndicator size="small" color="#fff" className="mr-2" />
-            ) : (
-              <Feather
-                name="mail"
-                size={20}
-                color="#fff"
-                className="mr-2"
-              />
-            )}
-            <Text className="text-white text-base font-semibold">
+              <ActivityIndicator size="small" color="#4ADE80" style={{ marginRight: 8 }} />
+            ) : null}
+            <Text style={styles.submitButtonText}>
               {loginState === 'sending' ? 'Verzenden...' : 'Stuur inlogcode'}
             </Text>
           </TouchableOpacity>
 
-          <Text className="text-xs text-muted-foreground text-center mt-2">
+          <Text style={styles.hintText}>
             We sturen een 6-cijferige code naar je e-mailadres.
           </Text>
+
+          {/* Dev mode: password login */}
+          {__DEV__ && (
+            <TouchableOpacity
+              style={styles.devButton}
+              onPress={handleDevLogin}
+              disabled={loginState === 'sending'}
+            >
+              <Feather name="zap" size={18} color="#F97316" />
+              <Text style={styles.devButtonText}>
+                Dev Login (medewerker)
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
+
+      {/* Bottom decorative gradient */}
+      <LinearGradient
+        colors={['transparent', '#1A2E1A10']}
+        style={styles.bottomGradient}
+      />
     </KeyboardAvoidingView>
   );
 }
 
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#0A0A0A',
+  },
+  centerContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 13,
+    color: '#888',
+  },
+  mainContent: {
+    flex: 1,
+    paddingHorizontal: 24,
+    justifyContent: 'center',
+  },
+  topSection: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  logoText: {
+    fontSize: 11,
+    textTransform: 'uppercase',
+    letterSpacing: 3,
+    color: '#6B8F6B',
+    fontWeight: '600',
+  },
+  heading: {
+    fontSize: 28,
+    fontWeight: '600',
+    color: '#E8E8E8',
+    marginTop: 16,
+  },
+  subtitle: {
+    fontSize: 13,
+    color: '#888',
+    marginTop: 6,
+  },
+  emailDisplay: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#E8E8E8',
+    marginTop: 4,
+  },
+  formSection: {
+    gap: 16,
+  },
+  emailInput: {
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1,
+    borderColor: '#222',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: '#E8E8E8',
+  },
+  emailInputError: {
+    borderColor: '#EF4444',
+  },
+  digitRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  digitBox: {
+    width: 48,
+    height: 56,
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1,
+    borderColor: '#222',
+    borderRadius: 10,
+    textAlign: 'center',
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#E8E8E8',
+  },
+  digitBoxActive: {
+    borderColor: '#4ADE80',
+  },
+  digitBoxError: {
+    borderColor: '#EF4444',
+  },
+  errorText: {
+    fontSize: 11,
+    color: '#EF4444',
+    textAlign: 'center',
+  },
+  submitButton: {
+    backgroundColor: '#1A2E1A',
+    borderRadius: 12,
+    paddingVertical: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  submitButtonDisabled: {
+    opacity: 0.4,
+  },
+  submitButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#4ADE80',
+  },
+  hintText: {
+    fontSize: 13,
+    color: '#888',
+    textAlign: 'center',
+  },
+  codeActions: {
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 8,
+  },
+  resendButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  resendText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6B8F6B',
+  },
+  changeEmailButton: {
+    paddingVertical: 6,
+  },
+  changeEmailText: {
+    fontSize: 13,
+    color: '#888',
+  },
+  devButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#2A1A0A',
+    borderRadius: 12,
+    paddingVertical: 14,
+    gap: 8,
+    marginTop: 8,
+  },
+  devButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#F97316',
+  },
+  bottomGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 120,
+    pointerEvents: 'none',
+  },
+});

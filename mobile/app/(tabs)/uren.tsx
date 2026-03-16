@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -19,16 +19,17 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useCurrentUser } from '../../hooks/use-current-user';
 import { useColors } from '../../theme';
+import { hapticPatterns } from '../../theme/haptics';
 import { cn } from '@/lib/utils';
 import {
   Card,
   CardContent,
   Button,
-  Tabs,
-  TabsContent,
   Badge,
   AnimatedNumber,
   Input,
+  ScopeTag,
+  Skeleton,
 } from '../../components/ui';
 
 // Scope options for time registration
@@ -100,18 +101,59 @@ function getWeekStart(): string {
   return monday.toISOString().split('T')[0];
 }
 
+// Helper: get week days with date numbers for the current week
+function getWeekDaysWithDates(): { name: string; dateNum: number; dateStr: string; isToday: boolean }[] {
+  const now = new Date();
+  const dayOfWeek = now.getDay();
+  const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - diff);
+
+  const dayNames = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'];
+  const todayStr = now.toISOString().split('T')[0];
+
+  return dayNames.map((name, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    const dateStr = d.toISOString().split('T')[0];
+    return {
+      name,
+      dateNum: d.getDate(),
+      dateStr,
+      isToday: dateStr === todayStr,
+    };
+  });
+}
+
 // Wrapper component that handles auth check
 export default function UrenScreen() {
   const colors = useColors();
   const { isLoading, isUserSynced } = useCurrentUser();
 
-  // Show loading while auth is loading or user not synced
+  // Show loading with Skeleton while auth is loading or user not synced
   if (isLoading || !isUserSynced) {
     return (
-      <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-        <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text className="mt-4 text-muted-foreground">Laden...</Text>
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#0A0A0A' }} edges={['top']}>
+        {/* Header skeleton */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12 }}>
+          <Skeleton width={60} height={10} className="mb-2" />
+          <Skeleton width={80} height={24} />
+        </View>
+        {/* Week selector skeleton */}
+        <View style={{ flexDirection: 'row', paddingHorizontal: 16, gap: 8, marginTop: 8 }}>
+          {[...Array(7)].map((_, i) => (
+            <Skeleton key={i} width={44} height={64} borderRadius={12} />
+          ))}
+        </View>
+        {/* Timer skeleton */}
+        <View style={{ alignItems: 'center', marginTop: 32 }}>
+          <Skeleton width={120} height={40} borderRadius={8} />
+        </View>
+        {/* Entries skeleton */}
+        <View style={{ paddingHorizontal: 16, marginTop: 32, gap: 12 }}>
+          <Skeleton width={140} height={16} />
+          <Skeleton height={72} borderRadius={16} />
+          <Skeleton height={72} borderRadius={16} />
         </View>
       </SafeAreaView>
     );
@@ -128,6 +170,12 @@ function AuthenticatedUrenScreen() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [projectModalVisible, setProjectModalVisible] = useState(false);
   const [selectedProject, setSelectedProject] = useState<SelectedProject | null>(null);
+
+  // Selected day in week overview
+  const [selectedDayIndex, setSelectedDayIndex] = useState<number>(() => {
+    const day = new Date().getDay();
+    return day === 0 ? 6 : day - 1;
+  });
 
   // Manual entry modal state
   const [manualEntryModalVisible, setManualEntryModalVisible] = useState(false);
@@ -339,132 +387,234 @@ function AuthenticatedUrenScreen() {
     setManualEntryProjectSelectorVisible(false);
   }, []);
 
+  // Hour increment/decrement for manual entry
+  const handleIncrementHours = useCallback(() => {
+    hapticPatterns.tap();
+    setManualEntryHours((prev) => {
+      const current = parseFloat(prev) || 0;
+      const next = Math.min(current + 0.5, 24);
+      return next.toString();
+    });
+  }, []);
+
+  const handleDecrementHours = useCallback(() => {
+    hapticPatterns.tap();
+    setManualEntryHours((prev) => {
+      const current = parseFloat(prev) || 0;
+      const next = Math.max(current - 0.5, 0);
+      return next.toString();
+    });
+  }, []);
+
   // Date options for manual entry (last 7 days)
   const dateOptions = useMemo(() => getDateOptions(7), []);
 
-  // Week days for grid
-  const weekDays = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'];
+  // Week days with date info
+  const weekDaysWithDates = useMemo(() => getWeekDaysWithDates(), []);
+
   const currentDayIndex = useMemo(() => {
     const day = new Date().getDay();
     return day === 0 ? 6 : day - 1; // Convert to Monday-based index
   }, []);
 
-  // Tab configuration
-  const tabs = [
-    { key: 'dag', label: 'Dag' },
-    { key: 'week', label: 'Week' },
-  ];
+  // Scope color mapping for entry indicators
+  const scopeColors: Record<string, string> = {
+    grondwerk: '#8B6914',
+    bestrating: '#6B7280',
+    borders: '#4ADE80',
+    gras: '#22C55E',
+    houtwerk: '#A0522D',
+    water: '#3B82F6',
+    specials: '#A855F7',
+  };
 
-  // Loading state - show loading while data is loading
-  if (activeSession === undefined || todayHours === undefined) {
-    return (
-      <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-        <View className="flex-1 justify-center items-center p-6">
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text className="mt-4 text-base text-muted-foreground font-medium">
-            Laden...
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  // Extract scope from notities string (format: [scope] notes)
+  const extractScope = (notities?: string): string | null => {
+    if (!notities) return null;
+    const match = notities.match(/^\[(\w+)\]/);
+    return match ? match[1] : null;
+  };
+
+  // Extract notes without scope prefix
+  const extractNotes = (notities?: string): string => {
+    if (!notities) return '';
+    return notities.replace(/^\[\w+\]\s*/, '');
+  };
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
-      {/* Tabs */}
-      <View className="bg-card py-2 border-b border-border">
-        <Tabs
-          tabs={tabs}
-          activeTab={activeTab}
-          onTabChange={(key) => setActiveTab(key as TabType)}
-          variant="default"
-        />
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#0A0A0A' }} edges={['top']}>
+      {/* Header */}
+      <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12 }}>
+        <Text style={{ fontSize: 9, fontWeight: '600', color: '#6B8F6B', textTransform: 'uppercase', letterSpacing: 2, marginBottom: 4 }}>
+          TOP TUINEN
+        </Text>
+        <Text style={{ fontSize: 22, fontWeight: '600', color: '#E8E8E8' }}>
+          Uren
+        </Text>
       </View>
 
       <ScrollView
-        className="flex-1"
-        contentContainerStyle={{ paddingBottom: 96 }}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={colors.primary}
+            tintColor="#4ADE80"
           />
         }
       >
-        {/* Timer Card */}
-        <View className="bg-card rounded-2xl p-4 items-center mx-4 mt-4 border border-border shadow-sm">
-          <Text className="text-sm text-muted-foreground mb-1">
-            {isClockedIn ? 'Huidige sessie' : 'Vandaag gewerkt'}
-          </Text>
-          <Text className="text-4xl font-bold text-foreground tabular-nums">
+        {/* Week Day Selector Row */}
+        <View style={{ flexDirection: 'row', paddingHorizontal: 16, gap: 6, marginBottom: 20 }}>
+          {weekDaysWithDates.map((day, index) => {
+            const isActive = index === selectedDayIndex;
+            const dayData = weekHours?.dailyHours?.[index];
+            const hoursForDay = dayData?.uren || 0;
+
+            return (
+              <TouchableOpacity
+                key={day.name}
+                onPress={() => {
+                  hapticPatterns.selection();
+                  setSelectedDayIndex(index);
+                }}
+                style={{
+                  flex: 1,
+                  alignItems: 'center',
+                  paddingVertical: 10,
+                  borderRadius: 12,
+                  backgroundColor: isActive ? '#4ADE80' : 'transparent',
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={{
+                  fontSize: 11,
+                  fontWeight: '500',
+                  color: isActive ? '#0A0A0A' : '#555555',
+                  marginBottom: 4,
+                }}>
+                  {day.name}
+                </Text>
+                <Text style={{
+                  fontSize: 16,
+                  fontWeight: '700',
+                  color: isActive ? '#0A0A0A' : '#555555',
+                }}>
+                  {day.dateNum}
+                </Text>
+                {/* Today indicator dot */}
+                {day.isToday && (
+                  <View style={{
+                    width: 4,
+                    height: 4,
+                    borderRadius: 2,
+                    backgroundColor: isActive ? '#0A0A0A' : '#4ADE80',
+                    marginTop: 4,
+                  }} />
+                )}
+                {/* Hours for day (subtle) */}
+                {hoursForDay > 0 && (
+                  <Text style={{
+                    fontSize: 9,
+                    fontWeight: '600',
+                    color: isActive ? '#0A0A0A' : '#6B8F6B',
+                    marginTop: 2,
+                  }}>
+                    {formatHoursMinutes(hoursForDay)}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Timer / Clock Section */}
+        <View style={{ alignItems: 'center', marginBottom: 24 }}>
+          {/* Status indicator */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+            <View style={{
+              width: 8,
+              height: 8,
+              borderRadius: 4,
+              backgroundColor: isClockedIn
+                ? isOnBreak ? '#F59E0B' : '#4ADE80'
+                : '#555555',
+            }} />
+            <Text style={{ fontSize: 12, color: '#888888' }}>
+              {isClockedIn
+                ? isOnBreak ? 'Op pauze' : 'Ingeklokt'
+                : 'Niet ingeklokt'}
+            </Text>
+          </View>
+
+          {/* Large timer display */}
+          <Text style={{
+            fontSize: 40,
+            fontWeight: '700',
+            color: '#E8E8E8',
+            fontVariant: ['tabular-nums'],
+            letterSpacing: 1,
+          }}>
             {isClockedIn
               ? formatTime(elapsedSeconds)
               : formatTime(Math.floor((todayHours?.totalHours || 0) * 3600))}
           </Text>
 
-          <View className="flex-row items-center gap-2 mt-2 mb-4">
-            <View
-              className={cn(
-                "w-2.5 h-2.5 rounded-full",
-                isClockedIn
-                  ? isOnBreak
-                    ? "bg-amber-500"
-                    : "bg-green-500"
-                  : "bg-muted-foreground"
-              )}
-            />
-            <Text className="text-sm text-muted-foreground">
-              {isClockedIn
-                ? isOnBreak
-                  ? 'Op pauze'
-                  : 'Ingeklokt'
-                : 'Niet ingeklokt'}
-            </Text>
-          </View>
+          <Text style={{ fontSize: 12, color: '#555555', marginTop: 4 }}>
+            {isClockedIn ? 'Huidige sessie' : 'Vandaag gewerkt'}
+          </Text>
 
-          {/* Project Selector */}
+          {/* Project selector */}
           <TouchableOpacity
-            className="flex-row items-center justify-between bg-secondary rounded-lg p-3 mt-4 w-full border border-border"
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              backgroundColor: '#1A1A1A',
+              borderWidth: 1,
+              borderColor: '#222222',
+              borderRadius: 12,
+              paddingHorizontal: 16,
+              paddingVertical: 12,
+              marginTop: 16,
+              width: '85%',
+            }}
             onPress={() => setProjectModalVisible(true)}
             disabled={isClockedIn}
+            activeOpacity={0.7}
           >
             <Text
-              className={cn(
-                "text-sm font-medium flex-1",
-                selectedProject ? "text-foreground" : "text-muted-foreground"
-              )}
+              style={{
+                fontSize: 14,
+                fontWeight: '500',
+                color: selectedProject ? '#E8E8E8' : '#555555',
+                flex: 1,
+              }}
               numberOfLines={1}
             >
               {selectedProject ? selectedProject.naam : 'Selecteer een project'}
             </Text>
-            <Feather
-              name="chevron-down"
-              size={20}
-              color={colors.mutedForeground}
-            />
+            <Feather name="chevron-down" size={18} color="#555555" />
           </TouchableOpacity>
 
-          {/* Action Buttons */}
-          <View className="flex-row gap-2 w-full mt-4">
+          {/* Clock action buttons */}
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 16, width: '85%' }}>
             {!isClockedIn ? (
-              <Button
-                title="Inklokken"
-                onPress={handleClockIn}
-                loading={isClockingIn}
-                fullWidth
-                icon={
-                  <Feather
-                    name="play"
-                    size={18}
-                    color={colors.primaryForeground}
-                  />
-                }
-              />
+              <View style={{ flex: 1 }}>
+                <Button
+                  title="Inklokken"
+                  onPress={handleClockIn}
+                  loading={isClockingIn}
+                  variant="nature"
+                  size="lg"
+                  fullWidth
+                  icon={<Feather name="play" size={18} color="#4ADE80" />}
+                />
+              </View>
             ) : (
               <>
-                <View className="flex-1">
+                <View style={{ flex: 1 }}>
                   <Button
                     title={isOnBreak ? 'Verder' : 'Pauze'}
                     onPress={handleTogglePause}
@@ -475,25 +625,19 @@ function AuthenticatedUrenScreen() {
                       <Feather
                         name={isOnBreak ? 'play' : 'pause'}
                         size={18}
-                        color={colors.secondaryForeground}
+                        color="#6B8F6B"
                       />
                     }
                   />
                 </View>
-                <View className="flex-1">
+                <View style={{ flex: 1 }}>
                   <Button
                     title="Uitklokken"
                     onPress={handleClockOut}
                     loading={isClockingOut}
                     variant="destructive"
                     fullWidth
-                    icon={
-                      <Feather
-                        name="square"
-                        size={18}
-                        color={colors.destructiveForeground}
-                      />
-                    }
+                    icon={<Feather name="square" size={18} color="#FAFAFA" />}
                   />
                 </View>
               </>
@@ -501,160 +645,143 @@ function AuthenticatedUrenScreen() {
           </View>
         </View>
 
-        {/* Tab Content */}
-        <TabsContent tabKey="dag" activeTab={activeTab}>
-          {/* Week Overview Grid */}
-          <View className="mt-6 px-4">
-            <Text className="text-lg font-semibold text-foreground mb-4">Week Overzicht</Text>
-            <View className="flex-row gap-1">
-              {weekDays.map((day, index) => {
-                const dayData = weekHours?.dailyHours?.[index];
-                const hoursForDay = dayData?.uren || 0;
-
-                return (
-                  <View
-                    key={day}
-                    className={cn(
-                      "flex-1 bg-card rounded-lg p-2 items-center border border-border",
-                      index === currentDayIndex && "bg-primary border-primary"
-                    )}
-                  >
-                    <Text
-                      className={cn(
-                        "text-xs text-muted-foreground mb-0.5",
-                        index === currentDayIndex && "text-primary-foreground opacity-80"
-                      )}
-                    >
-                      {day}
-                    </Text>
-                    <Text
-                      className={cn(
-                        "text-sm font-semibold text-foreground",
-                        index === currentDayIndex && "text-primary-foreground"
-                      )}
-                    >
-                      {formatHoursMinutes(hoursForDay)}
-                    </Text>
-                  </View>
-                );
-              })}
-            </View>
-          </View>
-
-          {/* Today's Entries */}
-          <View className="mt-6 px-4">
-            <Text className="text-lg font-semibold text-foreground mb-4">Registraties Vandaag</Text>
-            {todayHours?.entries && todayHours.entries.length > 0 ? (
-              todayHours.entries.map((entry, index) => {
-                const projectInfo = todayHours.projects?.find(
-                  (p) => p?.projectId.toString() === entry.projectId.toString()
-                );
-                return (
-                  <View key={entry._id || index} className="bg-card rounded-lg p-4 mb-2 border border-border">
-                    <View className="flex-row justify-between items-center mb-1">
-                      <Text
-                        className="text-base font-medium text-foreground flex-1"
-                        numberOfLines={1}
-                      >
-                        {projectInfo?.naam || 'Project'}
-                      </Text>
-                      <Text className="text-base font-semibold text-foreground">
-                        {formatHoursMinutes(entry.uren)} uur
-                      </Text>
-                    </View>
-                    {entry.notities && (
-                      <Text
-                        className="text-sm text-muted-foreground mt-1"
-                        numberOfLines={2}
-                      >
-                        {entry.notities}
-                      </Text>
-                    )}
-                  </View>
-                );
-              })
-            ) : (
-              <View className="bg-card rounded-lg p-6 items-center gap-2 border border-border">
-                <Feather
-                  name="clock"
-                  size={32}
-                  color={colors.mutedForeground}
-                  className="mb-2"
-                />
-                <Text className="text-base text-muted-foreground font-medium">
-                  Geen registraties vandaag
-                </Text>
-                <Text className="text-sm text-muted-foreground text-center">
-                  Klok in om je werkdag te starten
-                </Text>
-              </View>
-            )}
-          </View>
-        </TabsContent>
-
-        <TabsContent tabKey="week" activeTab={activeTab}>
-          {/* Week Summary */}
-          <View className="mt-6 px-4">
-            <Text className="text-lg font-semibold text-foreground mb-4">Week Samenvatting</Text>
-            <Card>
-              <CardContent>
-                <View className="flex-row justify-between items-center">
-                  <Text className="text-base text-muted-foreground">Totaal uren</Text>
-                  <Text className="text-lg font-bold text-foreground">
+        {/* Week Total Summary Card */}
+        <View style={{ paddingHorizontal: 16, marginBottom: 20 }}>
+          <Card variant="nature">
+            <CardContent>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <View>
+                  <Text style={{ fontSize: 11, color: '#6B8F6B', textTransform: 'uppercase', letterSpacing: 1, fontWeight: '600' }}>
+                    Deze week
+                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 4 }}>
                     <AnimatedNumber
                       value={weekHours?.totalHours || 0}
                       decimals={1}
-                      suffix=" uur"
-                      style={{ fontSize: 18, fontWeight: 'bold' }}
+                      suffix=""
+                      style={{ fontSize: 28, fontWeight: '700', color: '#4ADE80' }}
                     />
-                  </Text>
+                    <Text style={{ fontSize: 14, color: '#6B8F6B', marginLeft: 4 }}>/ 40 uur</Text>
+                  </View>
                 </View>
-                <View className="h-px bg-border my-2" />
-                <View className="flex-row justify-between items-center">
-                  <Text className="text-base text-muted-foreground">Projecten</Text>
-                  <Text className="text-lg font-bold text-foreground">
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={{ fontSize: 11, color: '#6B8F6B', textTransform: 'uppercase', letterSpacing: 1, fontWeight: '600' }}>
+                    Projecten
+                  </Text>
+                  <Text style={{ fontSize: 28, fontWeight: '700', color: '#4ADE80', marginTop: 4 }}>
                     {weekHours?.projectCount || 0}
                   </Text>
                 </View>
-              </CardContent>
-            </Card>
-          </View>
+              </View>
+            </CardContent>
+          </Card>
+        </View>
 
-          {/* Daily Breakdown */}
-          <View className="mt-6 px-4">
-            <Text className="text-lg font-semibold text-foreground mb-4">Per Dag</Text>
-            {weekHours?.dailyHours?.map((day, index) => (
-              <View key={day.datum || index} className="bg-card rounded-lg p-4 mb-2 border border-border">
-                <View className="flex-row justify-between items-center mb-1">
-                  <Text className="text-base font-medium text-foreground flex-1">
-                    {day.dag} - {day.datum}
-                  </Text>
-                  <Text className="text-base font-semibold text-foreground">
+        {/* Recent Entries */}
+        <View style={{ paddingHorizontal: 16 }}>
+          <Text style={{ fontSize: 14, fontWeight: '600', color: '#888888', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>
+            Registraties vandaag
+          </Text>
+
+          {todayHours === undefined ? (
+            // Loading state
+            <View style={{ gap: 12 }}>
+              <Skeleton height={72} borderRadius={16} />
+              <Skeleton height={72} borderRadius={16} />
+            </View>
+          ) : todayHours?.entries && todayHours.entries.length > 0 ? (
+            todayHours.entries.map((entry, index) => {
+              const projectInfo = todayHours.projects?.find(
+                (p) => p?.projectId.toString() === entry.projectId.toString()
+              );
+              const scope = extractScope(entry.notities);
+              const notes = extractNotes(entry.notities);
+              const indicatorColor = scope && scopeColors[scope] ? scopeColors[scope] : '#4ADE80';
+
+              return (
+                <Card key={entry._id || index} variant="default" className="mb-3">
+                  <View style={{ flexDirection: 'row' }}>
+                    {/* Scope color indicator on left */}
+                    <View style={{
+                      width: 3,
+                      borderRadius: 2,
+                      backgroundColor: indicatorColor,
+                      marginRight: 12,
+                      minHeight: 40,
+                    }} />
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text
+                          style={{ fontSize: 15, fontWeight: '600', color: '#E8E8E8', flex: 1 }}
+                          numberOfLines={1}
+                        >
+                          {projectInfo?.naam || 'Project'}
+                        </Text>
+                        <Text style={{ fontSize: 16, fontWeight: '700', color: '#4ADE80' }}>
+                          {formatHoursMinutes(entry.uren)} uur
+                        </Text>
+                      </View>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 }}>
+                        {scope && (
+                          <ScopeTag scope={scope as any} size="sm" />
+                        )}
+                        {notes ? (
+                          <Text
+                            style={{ fontSize: 13, color: '#888888', flex: 1 }}
+                            numberOfLines={1}
+                          >
+                            {notes}
+                          </Text>
+                        ) : null}
+                      </View>
+                    </View>
+                  </View>
+                </Card>
+              );
+            })
+          ) : (
+            <Card variant="default">
+              <View style={{ alignItems: 'center', paddingVertical: 24 }}>
+                <Feather name="clock" size={28} color="#555555" style={{ marginBottom: 8 }} />
+                <Text style={{ fontSize: 14, fontWeight: '500', color: '#888888' }}>
+                  Geen registraties vandaag
+                </Text>
+                <Text style={{ fontSize: 12, color: '#555555', marginTop: 4, textAlign: 'center' }}>
+                  Klok in om je werkdag te starten
+                </Text>
+              </View>
+            </Card>
+          )}
+        </View>
+
+        {/* Week Breakdown (only visible when viewing week data) */}
+        {weekHours?.dailyHours && weekHours.dailyHours.length > 0 && (
+          <View style={{ paddingHorizontal: 16, marginTop: 24 }}>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: '#888888', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>
+              Week overzicht
+            </Text>
+            {weekHours.dailyHours.map((day, index) => (
+              <Card key={day.datum || index} variant="default" className="mb-2">
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <View style={{
+                      width: 3,
+                      height: 24,
+                      borderRadius: 2,
+                      backgroundColor: index === currentDayIndex ? '#4ADE80' : '#222222',
+                    }} />
+                    <Text style={{ fontSize: 14, fontWeight: '500', color: index === currentDayIndex ? '#E8E8E8' : '#888888' }}>
+                      {day.dag}
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: day.uren > 0 ? '#E8E8E8' : '#555555' }}>
                     {formatHoursMinutes(day.uren)} uur
                   </Text>
                 </View>
-              </View>
+              </Card>
             ))}
           </View>
-        </TabsContent>
-
-        {/* Totals Footer */}
-        <View className="bg-card rounded-lg p-4 mt-6 mx-4 mb-10 border border-border">
-          <View className="flex-row justify-between items-center">
-            <Text className="text-base text-muted-foreground">Totaal deze week</Text>
-            <AnimatedNumber
-              value={weekHours?.totalHours || 0}
-              decimals={1}
-              suffix=" uur"
-              style={{ fontSize: 18, fontWeight: 'bold' }}
-            />
-          </View>
-          <View className="h-px bg-border my-2" />
-          <View className="flex-row justify-between items-center">
-            <Text className="text-base text-muted-foreground">Doel deze week</Text>
-            <Text className="text-lg font-semibold text-muted-foreground">40:00</Text>
-          </View>
-        </View>
+        )}
       </ScrollView>
 
       {/* Project Selection Modal */}
@@ -665,15 +792,15 @@ function AuthenticatedUrenScreen() {
         onRequestClose={() => setProjectModalVisible(false)}
       >
         <TouchableOpacity
-          className="flex-1 bg-black/50 justify-end"
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}
           activeOpacity={1}
           onPress={() => setProjectModalVisible(false)}
         >
-          <View className="bg-card rounded-t-2xl max-h-[70%]">
-            <View className="flex-row justify-between items-center p-4 border-b border-border">
-              <Text className="text-lg font-semibold text-foreground">Selecteer Project</Text>
+          <View style={{ backgroundColor: '#111111', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '70%' }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#222222' }}>
+              <Text style={{ fontSize: 17, fontWeight: '600', color: '#E8E8E8' }}>Selecteer Project</Text>
               <TouchableOpacity onPress={() => setProjectModalVisible(false)}>
-                <Feather name="x" size={24} color={colors.foreground} />
+                <Feather name="x" size={22} color="#888888" />
               </TouchableOpacity>
             </View>
             <FlatList
@@ -681,35 +808,36 @@ function AuthenticatedUrenScreen() {
               keyExtractor={(item) => item._id}
               renderItem={({ item }) => (
                 <TouchableOpacity
-                  className={cn(
-                    "flex-row items-center p-4 border-b border-border",
-                    selectedProject?._id === item._id && "bg-primary/10"
-                  )}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    padding: 16,
+                    borderBottomWidth: 1,
+                    borderBottomColor: '#222222',
+                    backgroundColor: selectedProject?._id === item._id ? 'rgba(74,222,128,0.08)' : 'transparent',
+                  }}
                   onPress={() => handleSelectProject(item)}
+                  activeOpacity={0.7}
                 >
-                  <View className="flex-1">
-                    <Text className="text-base font-medium text-foreground">
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '500', color: '#E8E8E8' }}>
                       {item.naam}
                     </Text>
-                    <Text className="text-sm text-muted-foreground mt-0.5">
+                    <Text style={{ fontSize: 13, color: '#888888', marginTop: 2 }}>
                       {item.klantNaam}
                     </Text>
                   </View>
                   {selectedProject?._id === item._id && (
-                    <Feather
-                      name="check"
-                      size={20}
-                      color={colors.trend.positive}
-                    />
+                    <Feather name="check" size={20} color="#4ADE80" />
                   )}
                 </TouchableOpacity>
               )}
               ListEmptyComponent={
-                <View className="bg-card rounded-lg p-6 items-center gap-2 border border-border">
-                  <Text className="text-base text-muted-foreground font-medium">
+                <View style={{ padding: 32, alignItems: 'center' }}>
+                  <Text style={{ fontSize: 14, fontWeight: '500', color: '#888888' }}>
                     Geen projecten beschikbaar
                   </Text>
-                  <Text className="text-sm text-muted-foreground text-center">
+                  <Text style={{ fontSize: 12, color: '#555555', textAlign: 'center', marginTop: 4 }}>
                     Je hebt nog geen actieve projecten toegewezen gekregen
                   </Text>
                 </View>
@@ -721,12 +849,26 @@ function AuthenticatedUrenScreen() {
 
       {/* Floating Action Button for Manual Entry */}
       <TouchableOpacity
-        className="absolute right-5 bottom-32 w-14 h-14 rounded-full bg-primary justify-center items-center shadow-lg"
-        style={{ elevation: 4 }}
+        style={{
+          position: 'absolute',
+          right: 20,
+          bottom: 120,
+          width: 52,
+          height: 52,
+          borderRadius: 16,
+          backgroundColor: '#4ADE80',
+          justifyContent: 'center',
+          alignItems: 'center',
+          shadowColor: '#4ADE80',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.3,
+          shadowRadius: 8,
+          elevation: 6,
+        }}
         onPress={handleOpenManualEntry}
         activeOpacity={0.8}
       >
-        <Feather name="plus" size={24} color={colors.primaryForeground} />
+        <Feather name="plus" size={22} color="#0A0A0A" />
       </TouchableOpacity>
 
       {/* Manual Entry Modal */}
@@ -737,169 +879,259 @@ function AuthenticatedUrenScreen() {
         onRequestClose={handleCloseManualEntry}
       >
         <KeyboardAvoidingView
-          className="flex-1"
+          style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <TouchableOpacity
-            className="flex-1 bg-black/50 justify-end"
+            style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}
             activeOpacity={1}
             onPress={handleCloseManualEntry}
           >
             <TouchableOpacity
               activeOpacity={1}
               onPress={() => {}}
-              className="bg-card rounded-t-2xl max-h-[90%]"
+              style={{ backgroundColor: '#111111', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '90%' }}
             >
-              <View className="flex-row justify-between items-center p-4 border-b border-border">
-                <Text className="text-lg font-semibold text-foreground">Uren Toevoegen</Text>
+              {/* Modal Header */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#222222' }}>
+                <Text style={{ fontSize: 17, fontWeight: '600', color: '#E8E8E8' }}>Uren Toevoegen</Text>
                 <TouchableOpacity onPress={handleCloseManualEntry}>
-                  <Feather name="x" size={24} color={colors.foreground} />
+                  <Feather name="x" size={22} color="#888888" />
                 </TouchableOpacity>
               </View>
 
               <ScrollView
-                className="p-4"
+                style={{ padding: 16 }}
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
               >
                 {/* Date Picker */}
-                <Text className="text-sm font-medium text-foreground mb-1">
+                <Text style={{ fontSize: 12, fontWeight: '600', color: '#888888', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
                   Datum
                 </Text>
-                <View className="flex-row flex-wrap gap-1">
-                  {dateOptions.map((option) => (
-                    <TouchableOpacity
-                      key={option.key}
-                      className={cn(
-                        "px-4 py-2 rounded-lg bg-secondary border border-border",
-                        manualEntryDate === option.key && "bg-primary border-primary"
-                      )}
-                      onPress={() => setManualEntryDate(option.key)}
-                    >
-                      <Text
-                        className={cn(
-                          "text-sm text-foreground",
-                          manualEntryDate === option.key && "text-primary-foreground font-medium"
-                        )}
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                  {dateOptions.map((option) => {
+                    const isSelected = manualEntryDate === option.key;
+                    return (
+                      <TouchableOpacity
+                        key={option.key}
+                        style={{
+                          paddingHorizontal: 14,
+                          paddingVertical: 8,
+                          borderRadius: 10,
+                          backgroundColor: isSelected ? '#4ADE80' : '#1A1A1A',
+                          borderWidth: 1,
+                          borderColor: isSelected ? '#4ADE80' : '#222222',
+                        }}
+                        onPress={() => setManualEntryDate(option.key)}
+                        activeOpacity={0.7}
                       >
-                        {option.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                        <Text style={{
+                          fontSize: 13,
+                          fontWeight: isSelected ? '600' : '400',
+                          color: isSelected ? '#0A0A0A' : '#E8E8E8',
+                        }}>
+                          {option.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
 
                 {/* Project Selector */}
-                <Text className="text-sm font-medium text-foreground mb-1 mt-4">Project *</Text>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: '#888888', textTransform: 'uppercase', letterSpacing: 1, marginTop: 20, marginBottom: 8 }}>
+                  Project *
+                </Text>
                 <TouchableOpacity
-                  className="flex-row items-center justify-between bg-secondary rounded-md p-3 border border-border"
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    backgroundColor: '#1A1A1A',
+                    borderWidth: 1,
+                    borderColor: '#222222',
+                    borderRadius: 12,
+                    paddingHorizontal: 14,
+                    paddingVertical: 12,
+                  }}
                   onPress={() => setManualEntryProjectSelectorVisible(true)}
+                  activeOpacity={0.7}
                 >
                   <Text
-                    className={cn(
-                      "text-sm font-medium flex-1",
-                      manualEntryProject ? "text-foreground" : "text-muted-foreground"
-                    )}
+                    style={{
+                      fontSize: 14,
+                      fontWeight: '500',
+                      color: manualEntryProject ? '#E8E8E8' : '#555555',
+                      flex: 1,
+                    }}
                     numberOfLines={1}
                   >
                     {manualEntryProject ? manualEntryProject.naam : 'Selecteer een project'}
                   </Text>
-                  <Feather
-                    name="chevron-down"
-                    size={20}
-                    color={colors.mutedForeground}
-                  />
+                  <Feather name="chevron-down" size={18} color="#555555" />
                 </TouchableOpacity>
 
-                {/* Hours Input */}
-                <Text className="text-sm font-medium text-foreground mb-1 mt-4">Uren *</Text>
-                <View className="mt-1">
-                  <TextInput
-                    className="bg-background border border-border rounded-md p-3 text-lg text-foreground text-center font-semibold"
-                    value={manualEntryHours}
-                    onChangeText={setManualEntryHours}
-                    placeholder="0.0"
-                    placeholderTextColor={colors.mutedForeground}
-                    keyboardType="decimal-pad"
-                    returnKeyType="done"
-                  />
-                </View>
-                <View className="flex-row gap-2 mt-1">
-                  {QUICK_HOURS.map((hours) => (
+                {/* Hour Input with +/- */}
+                <Text style={{ fontSize: 12, fontWeight: '600', color: '#888888', textTransform: 'uppercase', letterSpacing: 1, marginTop: 20, marginBottom: 8 }}>
+                  Uren *
+                </Text>
+                <View style={{ alignItems: 'center', marginVertical: 8 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 20 }}>
+                    {/* Decrement button */}
                     <TouchableOpacity
-                      key={hours}
-                      className={cn(
-                        "flex-1 py-2 rounded-md bg-secondary items-center border border-border",
-                        manualEntryHours === hours.toString() && "bg-primary border-primary"
-                      )}
-                      onPress={() => setManualEntryHours(hours.toString())}
+                      onPress={handleDecrementHours}
+                      style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: 14,
+                        backgroundColor: '#1A1A1A',
+                        borderWidth: 1,
+                        borderColor: '#222222',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      }}
+                      activeOpacity={0.7}
                     >
-                      <Text
-                        className={cn(
-                          "text-sm text-foreground font-medium",
-                          manualEntryHours === hours.toString() && "text-primary-foreground"
-                        )}
-                      >
-                        {hours}u
-                      </Text>
+                      <Feather name="minus" size={20} color="#E8E8E8" />
                     </TouchableOpacity>
-                  ))}
+
+                    {/* Large centered number */}
+                    <Text style={{
+                      fontSize: 34,
+                      fontWeight: '700',
+                      color: '#E8E8E8',
+                      minWidth: 80,
+                      textAlign: 'center',
+                      fontVariant: ['tabular-nums'],
+                    }}>
+                      {manualEntryHours || '0'}
+                    </Text>
+
+                    {/* Increment button */}
+                    <TouchableOpacity
+                      onPress={handleIncrementHours}
+                      style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: 14,
+                        backgroundColor: '#1A1A1A',
+                        borderWidth: 1,
+                        borderColor: '#222222',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Feather name="plus" size={20} color="#E8E8E8" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
 
-                {/* Scope Selector */}
-                <Text className="text-sm font-medium text-foreground mb-1 mt-4">Categorie</Text>
-                <View className="flex-row flex-wrap gap-1">
-                  {SCOPE_OPTIONS.map((scope) => (
-                    <TouchableOpacity
-                      key={scope.key}
-                      className={cn(
-                        "px-4 py-2 rounded-lg bg-secondary border border-border",
-                        manualEntryScope === scope.key && "bg-primary border-primary"
-                      )}
-                      onPress={() =>
-                        setManualEntryScope(
-                          manualEntryScope === scope.key ? '' : scope.key
-                        )
-                      }
-                    >
-                      <Text
-                        className={cn(
-                          "text-sm text-foreground",
-                          manualEntryScope === scope.key && "text-primary-foreground font-medium"
-                        )}
+                {/* Quick hour buttons */}
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                  {QUICK_HOURS.map((hours) => {
+                    const isSelected = manualEntryHours === hours.toString();
+                    return (
+                      <TouchableOpacity
+                        key={hours}
+                        style={{
+                          flex: 1,
+                          paddingVertical: 8,
+                          borderRadius: 10,
+                          backgroundColor: isSelected ? '#4ADE80' : '#1A1A1A',
+                          borderWidth: 1,
+                          borderColor: isSelected ? '#4ADE80' : '#222222',
+                          alignItems: 'center',
+                        }}
+                        onPress={() => {
+                          hapticPatterns.selection();
+                          setManualEntryHours(hours.toString());
+                        }}
+                        activeOpacity={0.7}
                       >
-                        {scope.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                        <Text style={{
+                          fontSize: 13,
+                          fontWeight: '600',
+                          color: isSelected ? '#0A0A0A' : '#E8E8E8',
+                        }}>
+                          {hours}u
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* Scope Selector using ScopeTag */}
+                <Text style={{ fontSize: 12, fontWeight: '600', color: '#888888', textTransform: 'uppercase', letterSpacing: 1, marginTop: 20, marginBottom: 8 }}>
+                  Categorie
+                </Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                  {SCOPE_OPTIONS.map((scope) => {
+                    const isSelected = manualEntryScope === scope.key;
+                    return (
+                      <TouchableOpacity
+                        key={scope.key}
+                        onPress={() =>
+                          setManualEntryScope(
+                            manualEntryScope === scope.key ? '' : scope.key
+                          )
+                        }
+                        style={{
+                          paddingHorizontal: 14,
+                          paddingVertical: 8,
+                          borderRadius: 10,
+                          backgroundColor: isSelected ? '#4ADE80' : '#1A1A1A',
+                          borderWidth: 1,
+                          borderColor: isSelected ? '#4ADE80' : '#222222',
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={{
+                          fontSize: 13,
+                          fontWeight: isSelected ? '600' : '400',
+                          color: isSelected ? '#0A0A0A' : '#E8E8E8',
+                        }}>
+                          {scope.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
 
                 {/* Notes Input */}
-                <Text className="text-sm font-medium text-foreground mb-1 mt-4">Notities</Text>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: '#888888', textTransform: 'uppercase', letterSpacing: 1, marginTop: 20, marginBottom: 8 }}>
+                  Notities
+                </Text>
                 <TextInput
-                  className="bg-background border border-border rounded-md p-3 text-base text-foreground min-h-[80px]"
-                  style={{ textAlignVertical: 'top' }}
+                  style={{
+                    backgroundColor: '#1A1A1A',
+                    borderWidth: 1,
+                    borderColor: '#222222',
+                    borderRadius: 12,
+                    padding: 14,
+                    fontSize: 14,
+                    color: '#E8E8E8',
+                    minHeight: 80,
+                    textAlignVertical: 'top',
+                  }}
                   value={manualEntryNotes}
                   onChangeText={setManualEntryNotes}
                   placeholder="Optionele notities..."
-                  placeholderTextColor={colors.mutedForeground}
+                  placeholderTextColor="#555555"
                   multiline
                   numberOfLines={3}
                 />
 
                 {/* Submit Button */}
-                <View className="p-4 pt-6 border-t border-border mt-4">
+                <View style={{ paddingTop: 20, paddingBottom: 32 }}>
                   <Button
                     title="Opslaan"
                     onPress={handleSubmitManualEntry}
                     loading={isSubmittingManualEntry}
+                    variant="nature"
+                    size="lg"
                     fullWidth
-                    icon={
-                      <Feather
-                        name="check"
-                        size={18}
-                        color={colors.primaryForeground}
-                      />
-                    }
+                    icon={<Feather name="check" size={18} color="#4ADE80" />}
                   />
                 </View>
               </ScrollView>
@@ -916,15 +1148,15 @@ function AuthenticatedUrenScreen() {
         onRequestClose={() => setManualEntryProjectSelectorVisible(false)}
       >
         <TouchableOpacity
-          className="flex-1 bg-black/50 justify-end"
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}
           activeOpacity={1}
           onPress={() => setManualEntryProjectSelectorVisible(false)}
         >
-          <View className="bg-card rounded-t-2xl max-h-[70%]">
-            <View className="flex-row justify-between items-center p-4 border-b border-border">
-              <Text className="text-lg font-semibold text-foreground">Selecteer Project</Text>
+          <View style={{ backgroundColor: '#111111', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '70%' }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#222222' }}>
+              <Text style={{ fontSize: 17, fontWeight: '600', color: '#E8E8E8' }}>Selecteer Project</Text>
               <TouchableOpacity onPress={() => setManualEntryProjectSelectorVisible(false)}>
-                <Feather name="x" size={24} color={colors.foreground} />
+                <Feather name="x" size={22} color="#888888" />
               </TouchableOpacity>
             </View>
             <FlatList
@@ -932,35 +1164,36 @@ function AuthenticatedUrenScreen() {
               keyExtractor={(item) => item._id}
               renderItem={({ item }) => (
                 <TouchableOpacity
-                  className={cn(
-                    "flex-row items-center p-4 border-b border-border",
-                    manualEntryProject?._id === item._id && "bg-primary/10"
-                  )}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    padding: 16,
+                    borderBottomWidth: 1,
+                    borderBottomColor: '#222222',
+                    backgroundColor: manualEntryProject?._id === item._id ? 'rgba(74,222,128,0.08)' : 'transparent',
+                  }}
                   onPress={() => handleSelectManualEntryProject(item)}
+                  activeOpacity={0.7}
                 >
-                  <View className="flex-1">
-                    <Text className="text-base font-medium text-foreground">
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '500', color: '#E8E8E8' }}>
                       {item.naam}
                     </Text>
-                    <Text className="text-sm text-muted-foreground mt-0.5">
+                    <Text style={{ fontSize: 13, color: '#888888', marginTop: 2 }}>
                       {item.klantNaam}
                     </Text>
                   </View>
                   {manualEntryProject?._id === item._id && (
-                    <Feather
-                      name="check"
-                      size={20}
-                      color={colors.trend.positive}
-                    />
+                    <Feather name="check" size={20} color="#4ADE80" />
                   )}
                 </TouchableOpacity>
               )}
               ListEmptyComponent={
-                <View className="bg-card rounded-lg p-6 items-center gap-2 border border-border">
-                  <Text className="text-base text-muted-foreground font-medium">
+                <View style={{ padding: 32, alignItems: 'center' }}>
+                  <Text style={{ fontSize: 14, fontWeight: '500', color: '#888888' }}>
                     Geen projecten beschikbaar
                   </Text>
-                  <Text className="text-sm text-muted-foreground text-center">
+                  <Text style={{ fontSize: 12, color: '#555555', textAlign: 'center', marginTop: 4 }}>
                     Je hebt nog geen actieve projecten toegewezen gekregen
                   </Text>
                 </View>

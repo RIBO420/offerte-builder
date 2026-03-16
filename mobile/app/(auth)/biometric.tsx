@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -17,7 +18,6 @@ import {
   BiometricType,
 } from '../../lib/auth/biometric';
 import { isAuthConfigured } from '../../lib/env';
-import { cn } from '@/lib/utils';
 
 // Check auth configuratie buiten component (constant tijdens runtime)
 const AUTH_CONFIGURED = isAuthConfigured();
@@ -145,10 +145,10 @@ export default function BiometricSetupScreen() {
   // Loading state
   if (isLoading) {
     return (
-      <View className="flex-1 bg-background">
-        <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#2d5016" />
-          <Text className="mt-3 text-sm text-muted-foreground">Biometrie controleren...</Text>
+      <View style={styles.container}>
+        <View style={styles.centerContent}>
+          <ActivityIndicator size="large" color="#4ADE80" />
+          <Text style={styles.loadingText}>Biometrie controleren...</Text>
         </View>
       </View>
     );
@@ -162,80 +162,78 @@ export default function BiometricSetupScreen() {
     }, 100);
 
     return (
-      <View className="flex-1 bg-background">
-        <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#2d5016" />
-          <Text className="mt-3 text-sm text-muted-foreground">Doorsturen...</Text>
+      <View style={styles.container}>
+        <View style={styles.centerContent}>
+          <ActivityIndicator size="large" color="#4ADE80" />
+          <Text style={styles.loadingText}>Doorsturen...</Text>
         </View>
       </View>
     );
   }
 
-  const iconName = biometricType === 'face' ? 'eye' : 'smartphone';
   const biometricLabel = biometricType === 'face' ? 'Face ID' : 'Touch ID';
+  const iconName = biometricType === 'face' ? 'shield' : 'smartphone';
 
   return (
-    <View className="flex-1 bg-background">
-      <View className="flex-1 px-6 justify-center items-center">
+    <View style={styles.container}>
+      <View style={styles.centerContent}>
+        {/* Logo */}
+        <Text style={styles.logoText}>TOP TUINEN</Text>
+
         {/* Icon */}
-        <View className="w-32 h-32 rounded-full bg-green-50 items-center justify-center mb-8">
-          <Feather name={iconName} size={64} color="#2d5016" />
+        <View style={styles.iconContainer}>
+          <Feather name={iconName} size={64} color="#4ADE80" />
         </View>
 
-        {/* Titel en beschrijving */}
-        <Text className="text-3xl font-bold text-foreground text-center mb-3">Sneller Inloggen?</Text>
-        <Text className="text-base text-muted-foreground text-center leading-6 mb-8 px-4">
+        {/* Title and description */}
+        <Text style={styles.title}>Sneller Inloggen?</Text>
+        <Text style={styles.subtitle}>
           Schakel {biometricLabel} in om de volgende keer sneller en veiliger in
           te loggen op de Top Tuinen app.
         </Text>
 
-        {/* Voordelen */}
-        <View className="w-full gap-4 mb-10">
-          <View className="flex-row items-center gap-3 px-4">
-            <Feather name="zap" size={20} color="#2d5016" />
-            <Text className="text-base text-foreground">Direct inloggen in 1 seconde</Text>
+        {/* Benefits */}
+        <View style={styles.benefitsList}>
+          <View style={styles.benefitItem}>
+            <Feather name="zap" size={18} color="#4ADE80" />
+            <Text style={styles.benefitText}>Direct inloggen in 1 seconde</Text>
           </View>
-          <View className="flex-row items-center gap-3 px-4">
-            <Feather name="shield" size={20} color="#2d5016" />
-            <Text className="text-base text-foreground">Extra beveiligd met biometrie</Text>
+          <View style={styles.benefitItem}>
+            <Feather name="shield" size={18} color="#4ADE80" />
+            <Text style={styles.benefitText}>Extra beveiligd met biometrie</Text>
           </View>
-          <View className="flex-row items-center gap-3 px-4">
-            <Feather name="lock" size={20} color="#2d5016" />
-            <Text className="text-base text-foreground">Geen wachtwoord onthouden</Text>
+          <View style={styles.benefitItem}>
+            <Feather name="lock" size={18} color="#4ADE80" />
+            <Text style={styles.benefitText}>Geen wachtwoord onthouden</Text>
           </View>
         </View>
 
-        {/* Knoppen */}
-        <View className="w-full gap-3">
+        {/* Buttons */}
+        <View style={styles.buttonGroup}>
           <TouchableOpacity
-            className={cn(
-              "flex-row bg-accent rounded-xl py-4 items-center justify-center",
-              isSettingUp && "bg-green-300"
-            )}
+            style={[
+              styles.enableButton,
+              isSettingUp && styles.enableButtonDisabled,
+            ]}
             onPress={handleEnableBiometric}
             disabled={isSettingUp}
           >
             {isSettingUp ? (
-              <ActivityIndicator size="small" color="#fff" className="mr-2" />
+              <ActivityIndicator size="small" color="#4ADE80" style={{ marginRight: 8 }} />
             ) : (
-              <Feather
-                name={biometricType === 'face' ? 'eye' : 'smartphone'}
-                size={20}
-                color="#fff"
-                className="mr-2"
-              />
+              <Feather name={iconName} size={20} color="#4ADE80" style={{ marginRight: 8 }} />
             )}
-            <Text className="text-white text-base font-semibold">
+            <Text style={styles.enableButtonText}>
               {isSettingUp ? 'Bezig...' : `Activeer ${biometricLabel}`}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            className="py-4 items-center"
+            style={styles.skipButton}
             onPress={handleSkip}
             disabled={isSettingUp}
           >
-            <Text className="text-muted-foreground text-base">Later instellen</Text>
+            <Text style={styles.skipText}>Later instellen</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -243,3 +241,90 @@ export default function BiometricSetupScreen() {
   );
 }
 
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#0A0A0A',
+  },
+  centerContent: {
+    flex: 1,
+    paddingHorizontal: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 13,
+    color: '#888',
+  },
+  logoText: {
+    fontSize: 11,
+    textTransform: 'uppercase',
+    letterSpacing: 3,
+    color: '#6B8F6B',
+    fontWeight: '600',
+    marginBottom: 32,
+  },
+  iconContainer: {
+    marginBottom: 24,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '600',
+    color: '#E8E8E8',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  subtitle: {
+    fontSize: 13,
+    color: '#888',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 32,
+    paddingHorizontal: 16,
+  },
+  benefitsList: {
+    width: '100%',
+    gap: 16,
+    marginBottom: 40,
+  },
+  benefitItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+  },
+  benefitText: {
+    fontSize: 14,
+    color: '#E8E8E8',
+  },
+  buttonGroup: {
+    width: '100%',
+    gap: 12,
+  },
+  enableButton: {
+    width: '100%',
+    flexDirection: 'row',
+    backgroundColor: '#1A2E1A',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  enableButtonDisabled: {
+    opacity: 0.5,
+  },
+  enableButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#4ADE80',
+  },
+  skipButton: {
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  skipText: {
+    fontSize: 14,
+    color: '#888',
+  },
+});

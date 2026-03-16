@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -23,7 +24,6 @@ import {
   BiometricType,
 } from '../../lib/auth/biometric';
 import { isAuthConfigured } from '../../lib/env';
-import { cn } from '@/lib/utils';
 
 // Check auth configuratie buiten component (constant tijdens runtime)
 const AUTH_CONFIGURED = isAuthConfigured();
@@ -159,56 +159,125 @@ export default function BiometricLoginScreen() {
 
   if (isLoading) {
     return (
-      <View className="flex-1 bg-background">
-        <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#2d5016" />
-          <Text className="mt-3 text-sm text-muted-foreground">Laden...</Text>
+      <View style={styles.container}>
+        <View style={styles.centerContent}>
+          <ActivityIndicator size="large" color="#4ADE80" />
+          <Text style={styles.loadingText}>Laden...</Text>
         </View>
       </View>
     );
   }
 
   const biometricLabel = biometricType === 'face' ? 'Face ID' : 'Touch ID';
-  const biometricIcon = biometricType === 'face' ? 'eye' : 'smartphone';
+  const biometricIcon = biometricType === 'face' ? 'shield' : 'smartphone';
 
   return (
-    <View className="flex-1 bg-background">
-      <View className="flex-1 px-6 justify-center items-center">
-        {/* Logo en titel */}
-        <View className="items-center mb-12">
-          <View className="w-24 h-24 rounded-full bg-green-50 items-center justify-center mb-4">
-            <Feather name="sun" size={48} color="#2d5016" />
-          </View>
-          <Text className="text-3xl font-bold text-[#2d5016] mb-1">Top Tuinen</Text>
-          <Text className="text-lg text-muted-foreground">Welkom terug</Text>
+    <View style={styles.container}>
+      <View style={styles.centerContent}>
+        {/* Logo */}
+        <Text style={styles.logoText}>TOP TUINEN</Text>
+
+        {/* Large centered icon */}
+        <View style={styles.iconContainer}>
+          <Feather name={biometricIcon} size={64} color="#4ADE80" />
         </View>
+
+        {/* Title */}
+        <Text style={styles.title}>{biometricLabel}</Text>
+
+        {/* Subtitle */}
+        <Text style={styles.subtitle}>Gebruik biometrie om in te loggen</Text>
 
         {/* Biometric button */}
         <TouchableOpacity
-          className={cn(
-            "w-full flex-row bg-accent rounded-xl py-4.5 items-center justify-center mb-4",
-            isAuthenticating && "bg-green-300"
-          )}
+          style={[
+            styles.biometricButton,
+            isAuthenticating && styles.biometricButtonDisabled,
+          ]}
           onPress={handleBiometricLogin}
           disabled={isAuthenticating}
         >
           {isAuthenticating ? (
-            <ActivityIndicator size="small" color="#fff" className="mr-2.5" />
+            <ActivityIndicator size="small" color="#4ADE80" style={{ marginRight: 8 }} />
           ) : (
-            <Feather name={biometricIcon} size={24} color="#fff" className="mr-2.5" />
+            <Feather name={biometricIcon} size={20} color="#4ADE80" style={{ marginRight: 8 }} />
           )}
-          <Text className="text-white text-lg font-semibold">
-            {isAuthenticating ? 'Verificatie...' : `Inloggen met ${biometricLabel}`}
+          <Text style={styles.biometricButtonText}>
+            {isAuthenticating ? 'Verificatie...' : `Gebruik ${biometricLabel}`}
           </Text>
         </TouchableOpacity>
 
-        {/* Alternatieve login */}
-        <TouchableOpacity className="flex-row items-center gap-2 py-3 px-4" onPress={handleUseEmail}>
-          <Feather name="mail" size={18} color="#666" />
-          <Text className="text-base text-muted-foreground">Gebruik magic link</Text>
+        {/* Skip link */}
+        <TouchableOpacity style={styles.skipButton} onPress={handleUseEmail}>
+          <Text style={styles.skipText}>Gebruik email</Text>
         </TouchableOpacity>
       </View>
     </View>
   );
 }
 
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#0A0A0A',
+  },
+  centerContent: {
+    flex: 1,
+    paddingHorizontal: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 13,
+    color: '#888',
+  },
+  logoText: {
+    fontSize: 11,
+    textTransform: 'uppercase',
+    letterSpacing: 3,
+    color: '#6B8F6B',
+    fontWeight: '600',
+    marginBottom: 40,
+  },
+  iconContainer: {
+    marginBottom: 24,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '600',
+    color: '#E8E8E8',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 13,
+    color: '#888',
+    marginBottom: 40,
+  },
+  biometricButton: {
+    width: '100%',
+    flexDirection: 'row',
+    backgroundColor: '#1A2E1A',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  biometricButtonDisabled: {
+    opacity: 0.5,
+  },
+  biometricButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#4ADE80',
+  },
+  skipButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  skipText: {
+    fontSize: 13,
+    color: '#6B8F6B',
+  },
+});

@@ -157,8 +157,8 @@ export default function CallbackScreen() {
     return (
       <View style={styles.container}>
         <View style={styles.content}>
-          <ActivityIndicator size="large" color="#2d5016" />
-          <Text style={styles.statusText}>Verificatie bezig...</Text>
+          <ActivityIndicator size="large" color="#4ADE80" />
+          <Text style={styles.statusText}>Even geduld...</Text>
           <Text style={styles.hintText}>
             We controleren je inloglink. Dit duurt maar even.
           </Text>
@@ -173,7 +173,7 @@ export default function CallbackScreen() {
       <View style={styles.container}>
         <View style={styles.content}>
           <View style={styles.successIcon}>
-            <Feather name="check-circle" size={64} color="#16a34a" />
+            <Feather name="check-circle" size={64} color="#4ADE80" />
           </View>
           <Text style={styles.successText}>Ingelogd!</Text>
           <Text style={styles.hintText}>
@@ -189,7 +189,7 @@ export default function CallbackScreen() {
     <View style={styles.container}>
       <View style={styles.content}>
         <View style={styles.errorIcon}>
-          <Feather name="alert-circle" size={64} color="#dc2626" />
+          <Feather name="alert-circle" size={64} color="#EF4444" />
         </View>
         <Text style={styles.errorText}>Verificatie mislukt</Text>
         <Text style={styles.errorMessage}>
@@ -198,7 +198,7 @@ export default function CallbackScreen() {
 
         <View style={styles.actions}>
           <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
-            <Feather name="arrow-left" size={20} color="#2d5016" />
+            <Feather name="arrow-left" size={20} color="#4ADE80" />
             <Text style={styles.retryButtonText}>
               Terug naar inloggen
             </Text>
@@ -212,7 +212,7 @@ export default function CallbackScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#0A0A0A',
   },
   content: {
     flex: 1,
@@ -222,14 +222,14 @@ const styles = StyleSheet.create({
   },
   statusText: {
     marginTop: 24,
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: 13,
+    fontWeight: '400',
+    color: '#888',
   },
   hintText: {
     marginTop: 8,
-    fontSize: 14,
-    color: '#666',
+    fontSize: 13,
+    color: '#888',
     textAlign: 'center',
   },
   successIcon: {
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
   successText: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#16a34a',
+    color: '#4ADE80',
   },
   errorIcon: {
     marginBottom: 16,
@@ -246,15 +246,15 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#dc2626',
+    color: '#EF4444',
   },
   errorMessage: {
     marginTop: 12,
-    fontSize: 15,
-    color: '#666',
+    fontSize: 13,
+    color: '#888',
     textAlign: 'center',
     paddingHorizontal: 16,
-    lineHeight: 22,
+    lineHeight: 20,
   },
   actions: {
     marginTop: 32,
@@ -265,12 +265,12 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 14,
     paddingHorizontal: 24,
-    backgroundColor: '#f0f9e8',
+    backgroundColor: '#1A2E1A',
     borderRadius: 12,
   },
   retryButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#2d5016',
+    color: '#4ADE80',
   },
 });
