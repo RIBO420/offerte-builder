@@ -1,6 +1,5 @@
 import React from 'react';
 import { Text, View, StyleSheet, TextStyle, ViewStyle } from 'react-native';
-import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { AnimatedNumber } from './AnimatedNumber';
 
@@ -88,15 +87,15 @@ const sizeStyles = StyleSheet.create({
 
 const variantStyles = StyleSheet.create({
   default: {
-    color: colors.foreground,
+    color: '#E8E8E8',
   },
   success: {
-    color: colors.trend.positive,
+    color: '#4ADE80',
   },
   warning: {
-    color: colors.trend.negative,
+    color: '#EF4444',
   },
   muted: {
-    color: colors.mutedForeground,
+    color: '#888888',
   },
 });

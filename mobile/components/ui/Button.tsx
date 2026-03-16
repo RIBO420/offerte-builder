@@ -4,23 +4,26 @@ import {
   ActivityIndicator,
   Pressable,
   View,
-  Animated,
 } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
+import { usePressAnimation } from '../../hooks/use-spring-animation';
+import { hapticPatterns } from '../../theme/haptics';
 
 // Button container variants
 const buttonVariants = cva(
-  'flex-row items-center justify-center min-h-11 active:opacity-80',
+  'flex-row items-center justify-center min-h-11',
   {
     variants: {
       variant: {
-        primary: 'bg-primary',
-        secondary: 'bg-secondary',
-        outline: 'bg-transparent border border-border',
+        primary: '',
+        secondary: '',
+        outline: 'bg-transparent',
         destructive: 'bg-destructive',
         ghost: 'bg-transparent',
         link: 'bg-transparent',
+        nature: '',
       },
       size: {
         sm: 'h-11 px-4 rounded-lg',
@@ -42,12 +45,13 @@ const buttonTextVariants = cva(
   {
     variants: {
       variant: {
-        primary: 'text-primary-foreground',
-        secondary: 'text-secondary-foreground',
-        outline: 'text-foreground',
+        primary: '',
+        secondary: '',
+        outline: '',
         destructive: 'text-destructive-foreground',
-        ghost: 'text-foreground',
-        link: 'text-primary underline',
+        ghost: '',
+        link: 'underline',
+        nature: '',
       },
       size: {
         sm: 'text-sm',
@@ -63,15 +67,37 @@ const buttonTextVariants = cva(
   }
 );
 
+// Inline style colors per variant
+const variantContainerStyles: Record<string, { backgroundColor?: string; borderWidth?: number; borderColor?: string }> = {
+  primary: { backgroundColor: '#4ADE80' },
+  secondary: { backgroundColor: '#1A2E1A' },
+  outline: { borderWidth: 1, borderColor: '#222222' },
+  destructive: {},
+  ghost: {},
+  link: {},
+  nature: { backgroundColor: '#1A2E1A' },
+};
+
+const variantTextColors: Record<string, string> = {
+  primary: '#0A0A0A',
+  secondary: '#6B8F6B',
+  outline: '#E8E8E8',
+  destructive: '#FAFAFA',
+  ghost: '#E8E8E8',
+  link: '#4ADE80',
+  nature: '#4ADE80',
+};
+
 // Loader color mapping
-const loaderColors = {
-  primary: '#FFFFFF',
-  secondary: '#18181B',
-  outline: '#18181B',
+const loaderColors: Record<string, string> = {
+  primary: '#0A0A0A',
+  secondary: '#6B8F6B',
+  outline: '#E8E8E8',
   destructive: '#FFFFFF',
-  ghost: '#18181B',
-  link: '#000000',
-} as const;
+  ghost: '#E8E8E8',
+  link: '#4ADE80',
+  nature: '#4ADE80',
+};
 
 // Icon spacing mapping
 const iconSpacing = {
@@ -108,34 +134,24 @@ export function Button({
   fullWidth = false,
   children,
 }: ButtonProps) {
-  const scaleAnim = React.useRef(new Animated.Value(1)).current;
-
-  const handlePressIn = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 0.97,
-      useNativeDriver: true,
-      speed: 50,
-      bounciness: 4,
-    }).start();
-  };
-
-  const handlePressOut = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-      speed: 50,
-      bounciness: 4,
-    }).start();
-  };
+  const { animatedStyle, onPressIn, onPressOut } = usePressAnimation();
 
   const isDisabled = disabled || loading;
+  const variantKey = variant || 'primary';
+
+  const handlePress = () => {
+    if (!isDisabled) {
+      hapticPatterns.tap();
+      onPress();
+    }
+  };
 
   const renderContent = () => {
     if (loading) {
       return (
         <ActivityIndicator
           size="small"
-          color={loaderColors[variant || 'primary']}
+          color={loaderColors[variantKey]}
         />
       );
     }
@@ -164,6 +180,7 @@ export function Button({
         {hasTitle && (
           <Text
             className={cn(buttonTextVariants({ variant, size }), textClassName)}
+            style={{ color: variantTextColors[variantKey] }}
             numberOfLines={1}
           >
             {title}
@@ -176,15 +193,13 @@ export function Button({
 
   return (
     <Animated.View
-      style={[
-        { transform: [{ scale: scaleAnim }] },
-      ]}
+      style={animatedStyle}
       className={cn(fullWidth && 'w-full')}
     >
       <Pressable
-        onPress={onPress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
+        onPress={handlePress}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
         disabled={isDisabled}
         className={cn(
           buttonVariants({ variant, size }),
@@ -192,6 +207,7 @@ export function Button({
           fullWidth && 'w-full',
           className
         )}
+        style={variantContainerStyles[variantKey]}
         accessibilityRole="button"
         accessibilityState={{ disabled: isDisabled }}
         accessibilityLabel={title}

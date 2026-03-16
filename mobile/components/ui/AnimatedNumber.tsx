@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Text, StyleSheet, Animated, TextStyle } from 'react-native';
-import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 
 interface AnimatedNumberProps {
@@ -69,6 +68,6 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.sans,
     fontSize: typography.fontSize.base,
     fontWeight: typography.fontWeight.normal,
-    color: colors.foreground,
+    // No hardcoded color - inherits from parent via style prop
   },
 });

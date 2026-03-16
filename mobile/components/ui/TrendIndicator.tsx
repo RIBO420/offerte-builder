@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { radius } from '../../theme/radius';
 
@@ -23,10 +22,10 @@ export function TrendIndicator({
   const autoDirection: TrendDirection = value > 0 ? 'up' : value < 0 ? 'down' : 'neutral';
   const actualDirection = direction ?? autoDirection;
 
-  const trendColors = {
-    up: colors.trend.positive,
-    down: colors.trend.negative,
-    neutral: colors.trend.neutral,
+  const trendColors: Record<TrendDirection, string> = {
+    up: '#4ADE80',
+    down: '#EF4444',
+    neutral: '#888888',
   };
 
   const icons: Record<TrendDirection, 'trending-up' | 'trending-down' | 'minus'> = {

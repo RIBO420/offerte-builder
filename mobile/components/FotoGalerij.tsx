@@ -48,7 +48,7 @@ const FOTO_TYPE_CONFIG: Record<FotoType, { label: string; kleur: string; icoon: 
   situatie: { label: 'Situatie',  kleur: '#3b82f6', icoon: 'eye' },
   detail:   { label: 'Detail',    kleur: '#8b5cf6', icoon: 'zoom-in' },
   probleem: { label: 'Probleem',  kleur: '#ef4444', icoon: 'alert-triangle' },
-  overzicht:{ label: 'Overzicht', kleur: '#10b981', icoon: 'map' },
+  overzicht:{ label: 'Overzicht', kleur: '#4ADE80', icoon: 'map' },
 };
 
 function formateerDatum(timestamp: number): string {
@@ -161,6 +161,7 @@ const FotoItem = React.memo(({ foto, index, onTik, onVerwijder }: FotoItemProps)
           <Feather name="x" size={12} color="#ffffff" />
         </TouchableOpacity>
 
+        {/* Selection checkmark overlay */}
         {/* Beschrijving onderaan als aanwezig */}
         {foto.beschrijving !== undefined && foto.beschrijving.length > 0 && (
           <View style={stijlen.beschrijvingOverlay}>
@@ -269,7 +270,7 @@ function FullscreenFoto({ foto, zichtbaar, onSluit }: FullscreenFotoProps) {
             <Text style={stijlen.fullscreenTijdstip}>{formateerDatum(foto.timestamp)}</Text>
             {foto.latitude !== undefined && (
               <View style={stijlen.gpsRij}>
-                <Feather name="map-pin" size={14} color="#34d399" />
+                <Feather name="map-pin" size={14} color="#4ADE80" />
                 <Text style={stijlen.gpsTekst}>Locatie vastgelegd</Text>
               </View>
             )}
@@ -395,7 +396,7 @@ function FotoToevoegModal({
               />
               {nieuweFoto.latitude !== undefined && (
                 <View style={stijlen.gpsBevestigingRij}>
-                  <Feather name="map-pin" size={14} color="#34d399" />
+                  <Feather name="map-pin" size={14} color="#4ADE80" />
                   <Text style={stijlen.gpsBevestigingTekst}>
                     Locatie vastgelegd ({nieuweFoto.latitude.toFixed(4)}, {nieuweFoto.longitude?.toFixed(4)})
                   </Text>
@@ -409,7 +410,7 @@ function FotoToevoegModal({
                 value={beschrijving}
                 onChangeText={setBeschrijving}
                 placeholder="Voeg een korte beschrijving toe..."
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor="#555555"
                 multiline
                 numberOfLines={3}
                 maxLength={300}
@@ -425,7 +426,7 @@ function FotoToevoegModal({
                 disabled={isBezig}
                 activeOpacity={0.8}
               >
-                <Feather name="camera" size={28} color="#3b82f6" />
+                <Feather name="camera" size={28} color="#4ADE80" />
                 <Text style={stijlen.actieKnopTekst}>Camera</Text>
                 <Text style={stijlen.actieKnopOndertitel}>Maak een nieuwe foto</Text>
               </TouchableOpacity>
@@ -436,7 +437,7 @@ function FotoToevoegModal({
                 disabled={isBezig}
                 activeOpacity={0.8}
               >
-                <Feather name="image" size={28} color="#8b5cf6" />
+                <Feather name="image" size={28} color="#6B8F6B" />
                 <Text style={stijlen.actieKnopTekst}>Galerij</Text>
                 <Text style={stijlen.actieKnopOndertitel}>Kies uit je bibliotheek</Text>
               </TouchableOpacity>
@@ -518,7 +519,7 @@ export function FotoGalerij({ maxFotos = 10, fotos: externeFootos, onChange }: F
             onPress={() => setToevoegModalZichtbaar(true)}
             activeOpacity={0.7}
           >
-            <Feather name="plus" size={16} color="#3b82f6" />
+            <Feather name="plus" size={16} color="#4ADE80" />
             <Text style={stijlen.toevoegKnopTekst}>Foto toevoegen</Text>
           </TouchableOpacity>
         )}
@@ -531,7 +532,7 @@ export function FotoGalerij({ maxFotos = 10, fotos: externeFootos, onChange }: F
           onPress={() => setToevoegModalZichtbaar(true)}
           activeOpacity={0.7}
         >
-          <Feather name="camera" size={32} color="#9ca3af" />
+          <Feather name="camera" size={32} color="#888888" />
           <Text style={stijlen.leegGridTekst}>Nog geen foto's</Text>
           <Text style={stijlen.leegGridOndertitel}>Tik om een foto toe te voegen</Text>
         </TouchableOpacity>
@@ -590,7 +591,7 @@ const stijlen = StyleSheet.create({
   },
   teller: {
     fontSize: 14,
-    color: '#6b7280',
+    color: '#888888',
     fontWeight: '500',
   },
   toevoegKnop: {
@@ -600,13 +601,13 @@ const stijlen = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: '#eff6ff',
+    backgroundColor: 'rgba(74,222,128,0.1)',
     borderWidth: 1,
-    borderColor: '#bfdbfe',
+    borderColor: 'rgba(74,222,128,0.3)',
   },
   toevoegKnopTekst: {
     fontSize: 13,
-    color: '#3b82f6',
+    color: '#4ADE80',
     fontWeight: '600',
   },
 
@@ -621,7 +622,9 @@ const stijlen = StyleSheet.create({
     height: KOLOM_BREEDTE,
     borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: '#1f2937',
+    backgroundColor: '#111111',
+    borderWidth: 1,
+    borderColor: '#222222',
   },
   thumbnail: {
     width: '100%',
@@ -699,8 +702,8 @@ const stijlen = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: 'transparent',
-    backgroundColor: '#f3f4f6',
+    borderColor: '#222222',
+    backgroundColor: '#1A1A1A',
     gap: 4,
   },
   typeSelectorTekst: {
@@ -714,7 +717,8 @@ const stijlen = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 2,
     borderStyle: 'dashed',
-    borderColor: '#d1d5db',
+    borderColor: '#222222',
+    backgroundColor: '#1A1A1A',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
@@ -722,11 +726,11 @@ const stijlen = StyleSheet.create({
   leegGridTekst: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#6b7280',
+    color: '#888888',
   },
   leegGridOndertitel: {
     fontSize: 13,
-    color: '#9ca3af',
+    color: '#555555',
   },
 
   // Fullscreen
@@ -764,7 +768,7 @@ const stijlen = StyleSheet.create({
   },
   fullscreenTijdstip: {
     fontSize: 13,
-    color: '#9ca3af',
+    color: '#888888',
   },
   gpsRij: {
     flexDirection: 'row',
@@ -773,18 +777,18 @@ const stijlen = StyleSheet.create({
   },
   gpsTekst: {
     fontSize: 13,
-    color: '#34d399',
+    color: '#4ADE80',
   },
   fullscreenBeschrijving: {
     fontSize: 14,
-    color: '#e5e7eb',
+    color: '#E8E8E8',
     lineHeight: 20,
   },
 
   // Toevoeg-modal
   modalContainer: {
     flex: 1,
-    backgroundColor: '#111827',
+    backgroundColor: '#0A0A0A',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -793,22 +797,22 @@ const stijlen = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
+    borderBottomColor: '#222222',
   },
   annulerenTekst: {
     fontSize: 16,
-    color: '#9ca3af',
+    color: '#888888',
     width: 60,
   },
   modalTitel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#f9fafb',
+    color: '#E8E8E8',
   },
   bevestigenTekst: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#3b82f6',
+    color: '#4ADE80',
     textAlign: 'right',
     width: 60,
   },
@@ -819,7 +823,7 @@ const stijlen = StyleSheet.create({
   sectieLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#9ca3af',
+    color: '#888888',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 10,
@@ -836,9 +840,9 @@ const stijlen = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 24,
     borderRadius: 16,
-    backgroundColor: '#1f2937',
+    backgroundColor: '#111111',
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: '#222222',
     gap: 8,
   },
   actieKnopDisabled: {
@@ -847,11 +851,11 @@ const stijlen = StyleSheet.create({
   actieKnopTekst: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#f9fafb',
+    color: '#E8E8E8',
   },
   actieKnopOndertitel: {
     fontSize: 12,
-    color: '#6b7280',
+    color: '#888888',
   },
   voorbeeldAfbeelding: {
     width: '100%',
@@ -867,22 +871,22 @@ const stijlen = StyleSheet.create({
   },
   gpsBevestigingTekst: {
     fontSize: 13,
-    color: '#34d399',
+    color: '#4ADE80',
   },
   beschrijvingInput: {
-    backgroundColor: '#1f2937',
+    backgroundColor: '#1A1A1A',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: '#222222',
     padding: 12,
     fontSize: 14,
-    color: '#f9fafb',
+    color: '#E8E8E8',
     minHeight: 80,
     textAlignVertical: 'top',
   },
   tekenTeller: {
     fontSize: 11,
-    color: '#6b7280',
+    color: '#888888',
     textAlign: 'right',
     marginTop: 4,
   },
@@ -895,6 +899,6 @@ const stijlen = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
-    backgroundColor: '#064e3b',
+    backgroundColor: '#1A2E1A',
   },
 });

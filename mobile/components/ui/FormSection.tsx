@@ -1,7 +1,6 @@
 import React, { ReactNode, useState } from 'react';
 import { View, Text, TouchableOpacity, LayoutAnimation, Platform, UIManager } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors } from '../../theme/colors';
 import { cn } from '@/lib/utils';
 
 // Enable LayoutAnimation on Android
@@ -54,22 +53,29 @@ export function FormSection({
   const HeaderWrapper = collapsible ? TouchableOpacity : View;
 
   return (
-    <View className="bg-card rounded-lg border border-border mb-4 overflow-hidden">
+    <View
+      className="rounded-lg mb-4 overflow-hidden"
+      style={{ backgroundColor: 'transparent', borderWidth: 1, borderColor: '#222222' }}
+    >
       <HeaderWrapper
         onPress={collapsible ? toggle : undefined}
-        className="flex-row items-center justify-between py-4 px-4 bg-muted border-b border-border"
+        className="flex-row items-center justify-between py-4 px-4"
+        style={{ backgroundColor: '#1A1A1A', borderBottomWidth: 1, borderBottomColor: '#222222' }}
         activeOpacity={collapsible ? 0.7 : 1}
       >
         <View className="flex-row items-center flex-1">
           {icon && (
-            <View className="w-8 h-8 rounded-md bg-background items-center justify-center mr-3">
-              <Feather name={icon} size={18} color={colors.primary} />
+            <View
+              className="w-8 h-8 rounded-md items-center justify-center mr-3"
+              style={{ backgroundColor: '#111111' }}
+            >
+              <Feather name={icon} size={18} color="#4ADE80" />
             </View>
           )}
           <View className="flex-1">
-            <Text className="font-sans text-base font-semibold text-foreground">{title}</Text>
+            <Text className="font-sans text-base font-semibold" style={{ color: '#E8E8E8' }}>{title}</Text>
             {description && (
-              <Text className="font-sans text-sm text-muted-foreground mt-0.5">{description}</Text>
+              <Text className="font-sans text-sm mt-0.5" style={{ color: '#888888' }}>{description}</Text>
             )}
           </View>
         </View>
@@ -77,7 +83,7 @@ export function FormSection({
           <Feather
             name={expanded ? 'chevron-up' : 'chevron-down'}
             size={20}
-            color={colors.mutedForeground}
+            color="#888888"
           />
         )}
       </HeaderWrapper>
@@ -114,16 +120,16 @@ export function FieldGroup({
   return (
     <View className="mb-4">
       <View className="mb-2">
-        <Text className="font-sans text-sm font-medium text-foreground">
+        <Text className="font-sans text-sm font-medium" style={{ color: '#E8E8E8' }}>
           {label}
-          {required && <Text className="text-destructive"> *</Text>}
+          {required && <Text style={{ color: '#EF4444' }}> *</Text>}
         </Text>
         {description && (
-          <Text className="font-sans text-xs text-muted-foreground mt-0.5">{description}</Text>
+          <Text className="font-sans text-xs mt-0.5" style={{ color: '#888888' }}>{description}</Text>
         )}
       </View>
       {children}
-      {error && <Text className="font-sans text-xs text-destructive mt-2">{error}</Text>}
+      {error && <Text className="font-sans text-xs mt-2" style={{ color: '#EF4444' }}>{error}</Text>}
     </View>
   );
 }
@@ -132,13 +138,12 @@ export function FormDivider({ label }: FormDividerProps) {
   if (label) {
     return (
       <View className="flex-row items-center my-4">
-        <View className="flex-1 h-px bg-border" />
-        <Text className="font-sans text-xs text-muted-foreground px-3 uppercase tracking-wider">{label}</Text>
-        <View className="flex-1 h-px bg-border" />
+        <View className="flex-1 h-px" style={{ backgroundColor: '#1A1A1A' }} />
+        <Text className="font-sans text-xs px-3 uppercase tracking-wider" style={{ color: '#888888' }}>{label}</Text>
+        <View className="flex-1 h-px" style={{ backgroundColor: '#1A1A1A' }} />
       </View>
     );
   }
 
-  return <View className="h-px bg-border my-4" />;
+  return <View className="h-px my-4" style={{ backgroundColor: '#1A1A1A' }} />;
 }
-

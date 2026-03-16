@@ -1,6 +1,5 @@
 import React from 'react';
 import { Text, StyleSheet, TextStyle } from 'react-native';
-import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 
 interface LabelProps {
@@ -25,15 +24,15 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.sans,
     fontSize: typography.fontSize.sm,
     fontWeight: typography.fontWeight.medium,
-    color: colors.foreground,
+    color: '#888888',
     lineHeight: typography.fontSize.sm * typography.lineHeight.normal,
   },
   disabled: {
-    color: colors.mutedForeground,
+    color: '#555555',
     opacity: 0.7,
   },
   required: {
-    color: colors.destructive,
+    color: '#EF4444',
     fontWeight: typography.fontWeight.medium,
   },
 });

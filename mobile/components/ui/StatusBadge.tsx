@@ -1,6 +1,5 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
-import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { radius } from '../../theme/radius';
 
@@ -14,12 +13,12 @@ interface StatusBadgeProps {
 }
 
 const statusColors: Record<StatusType, { bg: string; text: string; dot: string }> = {
-  active: { bg: '#DCFCE7', text: '#166534', dot: '#22C55E' },
-  inactive: { bg: '#F3F4F6', text: '#6B7280', dot: '#9CA3AF' },
-  pending: { bg: '#FEF3C7', text: '#92400E', dot: '#F59E0B' },
-  success: { bg: '#DCFCE7', text: '#166534', dot: '#22C55E' },
-  error: { bg: '#FEE2E2', text: '#991B1B', dot: '#EF4444' },
-  warning: { bg: '#FEF3C7', text: '#92400E', dot: '#F59E0B' },
+  active: { bg: 'rgba(74,222,128,0.13)', text: '#4ADE80', dot: '#4ADE80' },
+  inactive: { bg: '#1A1A1A', text: '#555555', dot: '#555555' },
+  pending: { bg: 'rgba(245,158,11,0.13)', text: '#F59E0B', dot: '#F59E0B' },
+  success: { bg: 'rgba(74,222,128,0.13)', text: '#4ADE80', dot: '#4ADE80' },
+  error: { bg: 'rgba(239,68,68,0.13)', text: '#EF4444', dot: '#EF4444' },
+  warning: { bg: 'rgba(245,158,11,0.13)', text: '#F59E0B', dot: '#F59E0B' },
 };
 
 const defaultLabels: Record<StatusType, string> = {

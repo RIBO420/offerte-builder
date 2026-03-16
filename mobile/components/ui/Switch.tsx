@@ -4,8 +4,8 @@ import {
   Animated,
   ViewStyle,
 } from 'react-native';
-import { useColorScheme } from 'nativewind';
 import { cn } from '@/lib/utils';
+import { hapticPatterns } from '../../theme/haptics';
 
 type SwitchSize = 'sm' | 'md' | 'lg';
 
@@ -48,7 +48,6 @@ export function Switch({
   style,
   className,
 }: SwitchProps) {
-  const { colorScheme } = useColorScheme();
   const translateX = useRef(new Animated.Value(value ? 1 : 0)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
@@ -66,6 +65,7 @@ export function Switch({
 
   const handlePress = () => {
     if (!disabled) {
+      hapticPatterns.tap();
       onValueChange(!value);
     }
   };
@@ -90,22 +90,15 @@ export function Switch({
     }).start();
   };
 
-  // Get color values for interpolation
-  const mutedColor = colorScheme === 'dark' ? '#171717' : '#F5F5F5';
-  const accentColor = colorScheme === 'dark' ? '#6366f1' : '#F5F5F5';
-  const foregroundColor = colorScheme === 'dark' ? '#FAFAFA' : '#1A1A1A';
-  const whiteColor = '#FFFFFF';
+  // Premium Organic palette colors
+  const trackOffColor = '#222222';
+  const trackOnColor = '#4ADE80';
+  const thumbColor = '#FAFAFA';
 
   // Interpolate track background color
   const trackBackgroundColor = translateX.interpolate({
     inputRange: [0, 1],
-    outputRange: [mutedColor, accentColor],
-  });
-
-  // Interpolate thumb background color
-  const thumbBackgroundColor = translateX.interpolate({
-    inputRange: [0, 1],
-    outputRange: [foregroundColor, whiteColor],
+    outputRange: [trackOffColor, trackOnColor],
   });
 
   // Interpolate thumb position
@@ -146,7 +139,7 @@ export function Switch({
               height: config.thumbSize,
               borderRadius: config.thumbSize / 2,
               transform: [{ translateX: thumbTranslateX }],
-              backgroundColor: thumbBackgroundColor,
+              backgroundColor: thumbColor,
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 2 },
               shadowOpacity: 0.2,

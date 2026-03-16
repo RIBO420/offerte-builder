@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 interface CardProps {
   children: ReactNode;
   className?: string;
-  variant?: 'default' | 'subtle' | 'ghost' | 'elevated' | 'glass';
+  variant?: 'default' | 'subtle' | 'ghost' | 'elevated' | 'glass' | 'nature';
   style?: ViewStyle;
 }
 
@@ -36,29 +36,52 @@ interface CardFooterProps {
 
 /**
  * Card - Main container component
- * Variants: default, subtle, ghost, elevated, glass (glassmorphism)
+ * Variants: default, subtle, ghost, elevated, glass, nature
  */
 export function Card({ children, className, variant = 'default', style }: CardProps) {
-  const variantClasses = {
-    default: 'bg-card border border-border',
-    subtle: 'bg-muted/30',
+  const variantClasses: Record<string, string> = {
+    default: '',
+    subtle: '',
     ghost: 'bg-transparent',
-    elevated: 'bg-card border border-primary/20',
-    glass: 'border border-white/10',
+    elevated: '',
+    glass: '',
+    nature: '',
   };
 
-  const glassStyle: ViewStyle = variant === 'glass' ? {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-  } : {};
+  const variantStyles: Record<string, ViewStyle> = {
+    default: {
+      backgroundColor: '#111111',
+      borderWidth: 1,
+      borderColor: '#222222',
+    },
+    subtle: {
+      backgroundColor: '#0A0A0A',
+    },
+    ghost: {},
+    elevated: {
+      backgroundColor: '#1A1A1A',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.2,
+      shadowRadius: 12,
+      elevation: 6,
+    },
+    glass: {
+      backgroundColor: 'rgba(17,17,17,0.8)',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.1)',
+    },
+    nature: {
+      backgroundColor: '#1A2E1A',
+      borderWidth: 1,
+      borderColor: 'rgba(45,90,39,0.19)',
+    },
+  };
 
   return (
     <View
       className={cn('rounded-2xl p-4', variantClasses[variant], className)}
-      style={[glassStyle, style]}
+      style={[variantStyles[variant], style]}
     >
       {children}
     </View>
@@ -81,7 +104,7 @@ export function CardHeader({ children, className }: CardHeaderProps) {
  */
 export function CardTitle({ children, className }: CardTitleProps) {
   return (
-    <Text className={cn('text-base font-semibold text-foreground', className)}>
+    <Text className={cn('text-base font-semibold', className)} style={{ color: '#E8E8E8' }}>
       {children}
     </Text>
   );
@@ -92,7 +115,7 @@ export function CardTitle({ children, className }: CardTitleProps) {
  */
 export function CardDescription({ children, className }: CardDescriptionProps) {
   return (
-    <Text className={cn('text-sm text-muted-foreground', className)}>
+    <Text className={cn('text-sm', className)} style={{ color: '#888888' }}>
       {children}
     </Text>
   );

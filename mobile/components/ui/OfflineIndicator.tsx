@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 import { Feather } from '@expo/vector-icons';
-import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { radius } from '../../theme/radius';
 import { spacing } from '../../theme/spacing';
@@ -44,9 +43,9 @@ export function OfflineIndicator({ showWhenOnline = false }: OfflineIndicatorPro
       <Feather
         name={isConnected ? 'wifi' : 'wifi-off'}
         size={14}
-        color={isConnected ? colors.trend.positive : '#FFF'}
+        color={isConnected ? '#4ADE80' : '#8B7355'}
       />
-      <Text style={[styles.text, isConnected && styles.onlineText]}>
+      <Text style={[styles.text, isConnected ? styles.onlineText : styles.offlineText]}>
         {isConnected ? 'Online' : 'Offline - wijzigingen worden lokaal opgeslagen'}
       </Text>
     </Animated.View>
@@ -77,17 +76,19 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   offline: {
-    backgroundColor: colors.destructive,
+    backgroundColor: 'rgba(139,115,85,0.13)',
   },
   online: {
-    backgroundColor: colors.muted,
+    backgroundColor: '#1A1A1A',
   },
   text: {
-    color: '#FFF',
     fontSize: typography.fontSize.sm,
     fontWeight: typography.fontWeight.medium,
   },
+  offlineText: {
+    color: '#8B7355',
+  },
   onlineText: {
-    color: colors.foreground,
+    color: '#E8E8E8',
   },
 });

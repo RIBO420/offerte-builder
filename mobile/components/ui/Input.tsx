@@ -1,12 +1,17 @@
-import React, { useState, forwardRef, useRef, useEffect } from 'react';
+import React, { useState, forwardRef, useEffect } from 'react';
 import {
   View,
   TextInput,
   Text,
   TextInputProps,
-  Animated,
   ActivityIndicator,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { cn } from '@/lib/utils';
 
 export type InputStatus = 'idle' | 'valid' | 'invalid' | 'validating';
@@ -24,17 +29,17 @@ export interface InputProps extends Omit<TextInputProps, 'style'> {
 }
 
 const STATUS_BORDER_COLORS: Record<InputStatus, string> = {
-  idle: 'border-border',
-  valid: 'border-green-500',
-  invalid: 'border-destructive',
-  validating: 'border-ring',
+  idle: '#222222',
+  valid: '#4ADE80',
+  invalid: '#EF4444',
+  validating: '#4ADE80',
 };
 
 const FOCUS_BORDER_COLORS: Record<InputStatus, string> = {
-  idle: 'border-ring',
-  valid: 'border-green-500',
-  invalid: 'border-destructive',
-  validating: 'border-ring',
+  idle: '#4ADE80',
+  valid: '#4ADE80',
+  invalid: '#EF4444',
+  validating: '#4ADE80',
 };
 
 export const Input = forwardRef<TextInput, InputProps>(
@@ -55,38 +60,26 @@ export const Input = forwardRef<TextInput, InputProps>(
     ref
   ) => {
     const [isFocused, setIsFocused] = useState(false);
-    const shakeAnimation = useRef(new Animated.Value(0)).current;
+    const shakeX = useSharedValue(0);
 
     // Shake animation when status becomes invalid
     useEffect(() => {
       if (status === 'invalid') {
-        Animated.sequence([
-          Animated.timing(shakeAnimation, {
-            toValue: 10,
-            duration: 50,
-            useNativeDriver: true,
-          }),
-          Animated.timing(shakeAnimation, {
-            toValue: -10,
-            duration: 50,
-            useNativeDriver: true,
-          }),
-          Animated.timing(shakeAnimation, {
-            toValue: 10,
-            duration: 50,
-            useNativeDriver: true,
-          }),
-          Animated.timing(shakeAnimation, {
-            toValue: 0,
-            duration: 50,
-            useNativeDriver: true,
-          }),
-        ]).start();
+        shakeX.value = withSequence(
+          withTiming(6, { duration: 50 }),
+          withTiming(-6, { duration: 50 }),
+          withTiming(6, { duration: 50 }),
+          withTiming(0, { duration: 50 })
+        );
       }
-    }, [status, shakeAnimation]);
+    }, [status, shakeX]);
 
-    const getBorderColorClass = () => {
-      if (disabled) return 'border-border';
+    const shakeStyle = useAnimatedStyle(() => ({
+      transform: [{ translateX: shakeX.value }],
+    }));
+
+    const getBorderColor = () => {
+      if (disabled) return '#222222';
       if (isFocused) return FOCUS_BORDER_COLORS[status];
       return STATUS_BORDER_COLORS[status];
     };
@@ -98,9 +91,10 @@ export const Input = forwardRef<TextInput, InputProps>(
         {label && (
           <Text
             className={cn(
-              'text-sm font-medium text-foreground',
-              disabled && 'text-muted-foreground'
+              'text-sm font-medium',
+              disabled && 'opacity-50'
             )}
+            style={{ color: disabled ? '#888888' : '#E8E8E8' }}
           >
             {label}
           </Text>
@@ -108,26 +102,33 @@ export const Input = forwardRef<TextInput, InputProps>(
 
         <Animated.View
           className={cn(
-            'flex-row items-center border rounded-lg px-3',
+            'flex-row items-center rounded-lg px-3',
             multiline ? 'min-h-[88px] items-start py-3' : 'min-h-[44px]',
-            disabled ? 'bg-muted' : 'bg-background',
-            getBorderColorClass()
           )}
-          style={{ transform: [{ translateX: shakeAnimation }] }}
+          style={[
+            shakeStyle,
+            {
+              backgroundColor: disabled ? '#111111' : '#1A1A1A',
+              borderWidth: 1,
+              borderColor: getBorderColor(),
+            },
+          ]}
         >
           {leftIcon && <View className="mr-2 justify-center items-center">{leftIcon}</View>}
 
           <TextInput
             ref={ref}
             className={cn(
-              'flex-1 text-base text-foreground py-3 px-1',
+              'flex-1 text-base py-3 px-1',
               leftIcon && 'pl-1',
               rightIcon && 'pr-1',
               multiline && 'min-h-[72px]',
-              disabled && 'text-muted-foreground',
               inputClassName
             )}
-            placeholderTextColor="#71717a"
+            style={{
+              color: disabled ? '#888888' : '#E8E8E8',
+            }}
+            placeholderTextColor="#555555"
             editable={!disabled}
             multiline={multiline}
             textAlignVertical={multiline ? 'top' : 'center'}
@@ -147,10 +148,8 @@ export const Input = forwardRef<TextInput, InputProps>(
 
         {displayMessage && (
           <Text
-            className={cn(
-              'text-xs mt-1',
-              error ? 'text-destructive' : 'text-muted-foreground'
-            )}
+            className="text-xs mt-1"
+            style={{ color: error ? '#EF4444' : '#888888' }}
           >
             {displayMessage}
           </Text>
@@ -167,21 +166,21 @@ const StatusIcon: React.FC<{ status: InputStatus }> = ({ status }) => {
   switch (status) {
     case 'valid':
       return (
-        <View className="w-5 h-5 rounded-full bg-green-500 justify-center items-center">
-          <Text className="text-background text-xs font-bold">✓</Text>
+        <View className="w-5 h-5 rounded-full justify-center items-center" style={{ backgroundColor: '#4ADE80' }}>
+          <Text className="text-xs font-bold" style={{ color: '#0A0A0A' }}>✓</Text>
         </View>
       );
     case 'invalid':
       return (
         <View className="w-5 h-5 rounded-full bg-destructive justify-center items-center">
-          <Text className="text-background text-xs font-bold">!</Text>
+          <Text className="text-xs font-bold" style={{ color: '#0A0A0A' }}>!</Text>
         </View>
       );
     case 'validating':
       return (
         <ActivityIndicator
           size="small"
-          color="#3b82f6"
+          color="#4ADE80"
           className="w-5 h-5"
         />
       );
@@ -214,12 +213,12 @@ export const InputWithFeedback = forwardRef<TextInput, InputWithFeedbackProps>(
     };
 
     const feedback = getFeedbackMessage();
-    const feedbackColorClass =
+    const feedbackColor =
       status === 'valid'
-        ? 'text-green-500'
+        ? '#4ADE80'
         : status === 'invalid'
-          ? 'text-destructive'
-          : 'text-muted-foreground';
+          ? '#EF4444'
+          : '#888888';
 
     return (
       <View>
@@ -230,7 +229,7 @@ export const InputWithFeedback = forwardRef<TextInput, InputWithFeedbackProps>(
           {...props}
         />
         {feedback && !props.error && !props.hint && (
-          <Text className={cn('text-xs mt-1', feedbackColorClass)}>
+          <Text className="text-xs mt-1" style={{ color: feedbackColor }}>
             {feedback}
           </Text>
         )}

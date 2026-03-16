@@ -6,7 +6,6 @@ import {
   Animated,
   ViewStyle,
 } from 'react-native';
-import { useColorScheme } from 'nativewind';
 import { cn } from '@/lib/utils';
 
 // Minimum touch target size for accessibility (44x44 points)
@@ -32,7 +31,6 @@ export function Checkbox({
   style,
   className,
 }: CheckboxProps) {
-  const { colorScheme } = useColorScheme();
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const checkmarkAnim = useRef(new Animated.Value(checked ? 1 : 0)).current;
 
@@ -84,8 +82,12 @@ export function Checkbox({
     outputRange: [0, 0.5, 1],
   });
 
-  // Get color values for indeterminate mark and checkmark
-  const primaryForeground = colorScheme === 'dark' ? '#1A1A1A' : '#FAFAFA';
+  // Premium Organic palette colors
+  const checkedBg = '#4ADE80';
+  const checkedBorder = '#4ADE80';
+  const uncheckedBorder = '#333333';
+  const uncheckedBg = 'transparent';
+  const checkmarkColor = '#0A0A0A';
 
   return (
     <Pressable
@@ -107,13 +109,17 @@ export function Checkbox({
         style={{ transform: [{ scale: scaleAnim }] }}
       >
         <View
-          className={cn(
-            'w-5 h-5 rounded-md border-2 justify-center items-center',
-            disabled && !isActive && 'border-border bg-muted',
-            disabled && isActive && 'border-accent bg-accent',
-            !disabled && !isActive && 'border-border bg-background',
-            !disabled && isActive && 'border-accent bg-accent'
-          )}
+          style={{
+            width: CHECKBOX_SIZE,
+            height: CHECKBOX_SIZE,
+            borderRadius: 6,
+            borderWidth: 2,
+            borderColor: isActive ? checkedBorder : uncheckedBorder,
+            backgroundColor: isActive ? checkedBg : uncheckedBg,
+            justifyContent: 'center',
+            alignItems: 'center',
+            opacity: disabled ? 0.5 : 1,
+          }}
         >
           <Animated.View
             className="w-full h-full justify-center items-center"
@@ -125,21 +131,21 @@ export function Checkbox({
             {indeterminate ? (
               <View
                 className="w-2.5 h-0.5 rounded-sm"
-                style={{ backgroundColor: primaryForeground }}
+                style={{ backgroundColor: checkmarkColor }}
               />
             ) : (
               <View className="w-3 h-2.5 relative">
                 <View
                   className="absolute w-0.5 h-1.5 bottom-0 left-0.5 rounded-sm"
                   style={{
-                    backgroundColor: primaryForeground,
+                    backgroundColor: checkmarkColor,
                     transform: [{ rotate: '-45deg' }],
                   }}
                 />
                 <View
                   className="absolute w-0.5 h-2.5 bottom-0 left-1.5 rounded-sm"
                   style={{
-                    backgroundColor: primaryForeground,
+                    backgroundColor: checkmarkColor,
                     transform: [{ rotate: '45deg' }],
                   }}
                 />
@@ -151,10 +157,8 @@ export function Checkbox({
 
       {label && (
         <Text
-          className={cn(
-            'text-base font-sans ml-2 flex-shrink',
-            disabled ? 'text-muted-foreground' : 'text-foreground'
-          )}
+          className="text-base font-sans ml-2 flex-shrink"
+          style={{ color: disabled ? '#888888' : '#E8E8E8' }}
         >
           {label}
         </Text>

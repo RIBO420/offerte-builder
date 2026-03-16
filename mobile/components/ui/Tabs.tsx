@@ -14,7 +14,7 @@ const tabListVariants = cva(
   {
     variants: {
       variant: {
-        default: 'bg-muted rounded-lg p-1',
+        default: 'rounded-lg p-1',
         pills: '',
         underline: '',
       },
@@ -31,7 +31,7 @@ const tabTriggerVariants = cva(
     variants: {
       variant: {
         default: 'rounded-md',
-        pills: 'rounded-full border border-border',
+        pills: 'rounded-full',
         underline: 'rounded-none border-b-2 border-b-transparent px-2',
       },
       active: {
@@ -49,7 +49,7 @@ const tabTriggerVariants = cva(
       {
         variant: 'default',
         active: true,
-        className: 'bg-background',
+        className: '',
       },
       // Pills variant
       {
@@ -60,7 +60,7 @@ const tabTriggerVariants = cva(
       {
         variant: 'pills',
         active: true,
-        className: 'bg-accent border-accent',
+        className: '',
       },
       // Underline variant
       {
@@ -71,7 +71,7 @@ const tabTriggerVariants = cva(
       {
         variant: 'underline',
         active: true,
-        className: 'border-b-accent',
+        className: '',
       },
     ],
     defaultVariants: {
@@ -92,7 +92,7 @@ const tabTextVariants = cva(
       },
       active: {
         true: '',
-        false: 'text-muted-foreground',
+        false: '',
       },
     },
     compoundVariants: [
@@ -100,34 +100,34 @@ const tabTextVariants = cva(
       {
         variant: 'default',
         active: false,
-        className: 'text-muted-foreground',
+        className: '',
       },
       {
         variant: 'default',
         active: true,
-        className: 'text-foreground',
+        className: '',
       },
       // Pills variant
       {
         variant: 'pills',
         active: false,
-        className: 'text-muted-foreground',
+        className: '',
       },
       {
         variant: 'pills',
         active: true,
-        className: 'text-accent-foreground',
+        className: '',
       },
       // Underline variant
       {
         variant: 'underline',
         active: false,
-        className: 'text-muted-foreground',
+        className: '',
       },
       {
         variant: 'underline',
         active: true,
-        className: 'text-foreground font-semibold',
+        className: 'font-semibold',
       },
     ],
     defaultVariants: {
@@ -151,12 +151,47 @@ interface TabsContentProps {
 }
 
 export function Tabs({ tabs, activeTab, onTabChange, variant = 'default', className }: TabsProps) {
+  const getTabListBgStyle = () => {
+    if (variant === 'default') return { backgroundColor: '#1A1A1A' };
+    return {};
+  };
+
+  const getActiveTriggerStyle = (isActive: boolean) => {
+    if (!isActive) return {};
+    switch (variant) {
+      case 'default':
+        return { backgroundColor: '#111111' };
+      case 'pills':
+        return { backgroundColor: '#4ADE80', borderWidth: 1, borderColor: '#4ADE80' };
+      case 'underline':
+        return { borderBottomWidth: 2, borderBottomColor: '#4ADE80' };
+      default:
+        return {};
+    }
+  };
+
+  const getInactiveTriggerStyle = () => {
+    if (variant === 'pills') return { borderWidth: 1, borderColor: '#222222' };
+    return {};
+  };
+
+  const getTextColor = (isActive: boolean) => {
+    if (!isActive) return '#555555';
+    switch (variant) {
+      case 'pills':
+        return '#0A0A0A';
+      default:
+        return '#E8E8E8';
+    }
+  };
+
   return (
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
       className="flex-grow-0"
       contentContainerClassName={cn(tabListVariants({ variant }), className)}
+      style={getTabListBgStyle()}
     >
       {tabs.map((tab) => {
         const isActive = activeTab === tab.key;
@@ -165,8 +200,12 @@ export function Tabs({ tabs, activeTab, onTabChange, variant = 'default', classN
             key={tab.key}
             onPress={() => onTabChange(tab.key)}
             className={cn(tabTriggerVariants({ variant, active: isActive }))}
+            style={isActive ? getActiveTriggerStyle(isActive) : getInactiveTriggerStyle()}
           >
-            <Text className={cn(tabTextVariants({ variant, active: isActive }))}>
+            <Text
+              className={cn(tabTextVariants({ variant, active: isActive }))}
+              style={{ color: getTextColor(isActive) }}
+            >
               {tab.label}
             </Text>
             {tab.badge !== undefined && tab.badge > 0 && (

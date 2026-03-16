@@ -110,10 +110,14 @@ export function Dialog({
             {/* Backdrop */}
             <Animated.View
               style={{
-                ...{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
                 opacity: fadeAnim,
+                backgroundColor: 'rgba(0,0,0,0.7)',
               }}
-              className="bg-black/50"
             >
               <Pressable
                 className="flex-1"
@@ -167,11 +171,14 @@ export function DialogContent({ children, style, maxWidth }: DialogContentProps)
         {
           maxWidth: contentMaxWidth,
           marginBottom: Math.max(insets.bottom, spacing.lg),
+          backgroundColor: '#111111',
+          borderWidth: 1,
+          borderColor: '#222222',
         },
         shadows.modal,
         style,
       ]}
-      className="w-full bg-card rounded-2xl mx-4 overflow-hidden"
+      className="w-full rounded-2xl mx-4 overflow-hidden"
       accessible
       accessibilityViewIsModal
     >
@@ -194,7 +201,14 @@ interface DialogHeaderProps {
  * Provides consistent spacing at the top of the dialog
  */
 export function DialogHeader({ children, style }: DialogHeaderProps) {
-  return <View style={style} className="p-4 border-b border-border">{children}</View>;
+  return (
+    <View
+      style={[{ borderBottomWidth: 1, borderBottomColor: '#222222' }, style]}
+      className="p-4"
+    >
+      {children}
+    </View>
+  );
 }
 
 // ============================================================================
@@ -213,8 +227,8 @@ interface DialogTitleProps {
 export function DialogTitle({ children, style }: DialogTitleProps) {
   return (
     <Text
-      style={style}
-      className="text-lg font-semibold text-foreground"
+      style={[{ color: '#E8E8E8' }, style]}
+      className="text-lg font-semibold"
       accessibilityRole="header"
     >
       {children}
@@ -237,7 +251,7 @@ interface DialogDescriptionProps {
  */
 export function DialogDescription({ children, style }: DialogDescriptionProps) {
   return (
-    <Text style={style} className="text-sm text-muted-foreground">
+    <Text style={[{ color: '#888888' }, style]} className="text-sm">
       {children}
     </Text>
   );
@@ -274,7 +288,14 @@ interface DialogFooterProps {
  * Flex row layout for action buttons
  */
 export function DialogFooter({ children, style }: DialogFooterProps) {
-  return <View style={style} className="p-4 border-t border-border flex-row gap-2">{children}</View>;
+  return (
+    <View
+      style={[{ borderTopWidth: 1, borderTopColor: '#222222' }, style]}
+      className="p-4 flex-row gap-2"
+    >
+      {children}
+    </View>
+  );
 }
 
 // ============================================================================
@@ -349,4 +370,3 @@ export function AlertDialog({
     </Dialog>
   );
 }
-

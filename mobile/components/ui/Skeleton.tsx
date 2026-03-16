@@ -25,27 +25,28 @@ export function Skeleton({
         Animated.timing(shimmerAnim, {
           toValue: 1,
           duration: 1000,
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
         Animated.timing(shimmerAnim, {
           toValue: 0,
           duration: 1000,
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
       ])
     ).start();
   }, []);
 
-  const opacity = shimmerAnim.interpolate({
+  // Shimmer colors: #1A1A1A -> #222222 -> #1A1A1A
+  const backgroundColor = shimmerAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0.3, 0.7],
+    outputRange: ['#1A1A1A', '#222222'],
   });
 
   return (
     <Animated.View
-      className={cn('bg-muted rounded-md', className)}
+      className={cn('rounded-md', className)}
       style={[
-        { width, height, borderRadius, opacity },
+        { width, height, borderRadius, backgroundColor },
         style,
       ]}
     />
@@ -55,7 +56,7 @@ export function Skeleton({
 // SkeletonCard for card placeholders
 export function SkeletonCard({ lines = 3 }: { lines?: number }) {
   return (
-    <View className="bg-card border border-border rounded-xl p-4">
+    <View style={{ backgroundColor: '#111111', borderWidth: 1, borderColor: '#222222', borderRadius: 12, padding: 16 }}>
       <Skeleton width={120} height={16} className="mb-3" />
       {Array.from({ length: lines }).map((_, i) => (
         <Skeleton

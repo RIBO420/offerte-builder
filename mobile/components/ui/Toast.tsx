@@ -30,27 +30,31 @@ interface ToastProps extends ToastData {
   index: number;
 }
 
-const getVariantClasses = (variant: ToastVariant) => {
-  const classes: Record<ToastVariant, { container: string; icon: string }> = {
+const getVariantStyles = (variant: ToastVariant) => {
+  const styles: Record<ToastVariant, { bg: string; border: string; iconColor: string }> = {
     default: {
-      container: 'bg-card border-border',
-      icon: 'text-foreground',
+      bg: '#1A1A1A',
+      border: '#222222',
+      iconColor: '#E8E8E8',
     },
     success: {
-      container: 'bg-success/10 border-success',
-      icon: 'text-success',
+      bg: 'rgba(74,222,128,0.1)',
+      border: '#4ADE80',
+      iconColor: '#4ADE80',
     },
     error: {
-      container: 'bg-destructive/10 border-destructive',
-      icon: 'text-destructive',
+      bg: 'rgba(239,68,68,0.1)',
+      border: '#EF4444',
+      iconColor: '#EF4444',
     },
     warning: {
-      container: 'bg-warning/10 border-warning',
-      icon: 'text-warning',
+      bg: 'rgba(245,158,11,0.1)',
+      border: '#F59E0B',
+      iconColor: '#F59E0B',
     },
   };
 
-  return classes[variant];
+  return styles[variant];
 };
 
 const getVariantIcon = (variant: ToastVariant): string => {
@@ -82,11 +86,11 @@ export function Toast({
   const opacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.9)).current;
 
-  const variantClasses = getVariantClasses(variant);
+  const variantStyle = getVariantStyles(variant);
   const icon = getVariantIcon(variant);
 
   // Calculate stack offset
-  const stackOffset = index * 12; // spacing.sm equivalent
+  const stackOffset = index * 12;
   const stackScale = 1 - index * 0.03;
 
   useEffect(() => {
@@ -194,11 +198,11 @@ export function Toast({
 
   const containerStyle: ViewStyle = {
     position: 'absolute',
-    left: 16, // spacing.lg equivalent
+    left: 16,
     right: 16,
     zIndex: 1000 - index,
     ...(position === 'top'
-      ? { top: insets.top + 12 + stackOffset } // spacing.md equivalent
+      ? { top: insets.top + 12 + stackOffset }
       : { bottom: insets.bottom + 12 + stackOffset }),
   };
 
@@ -218,26 +222,39 @@ export function Toast({
       {...panResponder.panHandlers}
     >
       <View
-        className={cn(
-          'rounded-xl p-4 shadow-lg border flex-row items-start w-full',
-          variantClasses.container
-        )}
+        style={{
+          backgroundColor: variantStyle.bg,
+          borderWidth: 1,
+          borderColor: variantStyle.border,
+          borderRadius: 12,
+          padding: 16,
+          flexDirection: 'row',
+          alignItems: 'flex-start',
+          width: '100%',
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.3,
+          shadowRadius: 8,
+          elevation: 8,
+        }}
       >
         <View className="w-6 h-6 items-center justify-center mr-3">
-          <Text className={cn('text-base font-bold', variantClasses.icon)}>
+          <Text className="text-base font-bold" style={{ color: variantStyle.iconColor }}>
             {icon}
           </Text>
         </View>
         <View className="flex-1 gap-1">
           <Text
-            className="text-foreground font-semibold text-base leading-tight"
+            className="font-semibold text-base leading-tight"
+            style={{ color: '#E8E8E8' }}
             numberOfLines={2}
           >
             {title}
           </Text>
           {description && (
             <Text
-              className="text-muted-foreground text-sm leading-normal"
+              className="text-sm leading-normal"
+              style={{ color: '#888888' }}
               numberOfLines={3}
             >
               {description}

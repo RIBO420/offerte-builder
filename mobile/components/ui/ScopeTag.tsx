@@ -23,20 +23,21 @@ const scopeLabels: Record<ScopeType, string> = {
   specials: 'Specials',
 };
 
-// Calculate foreground color based on background brightness
-function getContrastColor(hexColor: string): string {
-  const hex = hexColor.replace('#', '');
-  const r = parseInt(hex.substring(0, 2), 16);
-  const g = parseInt(hex.substring(2, 4), 16);
-  const b = parseInt(hex.substring(4, 6), 16);
-  // Calculate relative luminance
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.5 ? '#1A1A1A' : '#FFFFFF';
+/**
+ * Convert a hex color to rgba with a given alpha (for 15% opacity background)
+ */
+function hexToRgba(hex: string, alpha: number): string {
+  const cleaned = hex.replace('#', '');
+  const r = parseInt(cleaned.substring(0, 2), 16);
+  const g = parseInt(cleaned.substring(2, 4), 16);
+  const b = parseInt(cleaned.substring(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
 }
 
 export function ScopeTag({ scope, size = 'md', style }: ScopeTagProps) {
-  const backgroundColor = colors.scope[scope];
-  const textColor = getContrastColor(backgroundColor);
+  const scopeColor = colors.scope[scope];
+  // Background: scope color at 15% opacity
+  const backgroundColor = hexToRgba(scopeColor, 0.15);
 
   return (
     <View
@@ -51,7 +52,7 @@ export function ScopeTag({ scope, size = 'md', style }: ScopeTagProps) {
         style={[
           styles.text,
           size === 'sm' ? styles.textSm : styles.textMd,
-          { color: textColor },
+          { color: scopeColor },
         ]}
       >
         {scopeLabels[scope]}
