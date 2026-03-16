@@ -169,12 +169,16 @@ export default defineSchema({
 
     // Soft delete
     deletedAt: v.optional(v.number()),
+
+    // CRM Lead koppeling
+    leadId: v.optional(v.id("configuratorAanvragen")),
   })
     .index("by_user", ["userId"])
     .index("by_status", ["status"])
     .index("by_user_status", ["userId", "status"])
     .index("by_nummer", ["offerteNummer"])
-    .index("by_share_token", ["shareToken"]),
+    .index("by_share_token", ["shareToken"])
+    .index("by_lead", ["leadId"]),
 
   // Prijsboek
   producten: defineTable({
@@ -1692,12 +1696,51 @@ export default defineSchema({
     toegewezenAan: v.optional(v.id("users")),
     verificatieNotities: v.optional(v.string()),
     fotoIds: v.optional(v.array(v.id("_storage"))),
+    // Pipeline/CRM fields
+    pipelineStatus: v.optional(v.union(
+      v.literal("nieuw"),
+      v.literal("contact_gehad"),
+      v.literal("offerte_verstuurd"),
+      v.literal("gewonnen"),
+      v.literal("verloren")
+    )),
+    bron: v.optional(v.union(
+      v.literal("configurator_gazon"),
+      v.literal("configurator_boomschors"),
+      v.literal("configurator_verticuteren"),
+      v.literal("handmatig"),
+      v.literal("telefoon"),
+      v.literal("email"),
+      v.literal("doorverwijzing")
+    )),
+    verliesReden: v.optional(v.string()),
+    gekoppeldKlantId: v.optional(v.id("klanten")),
+    geschatteWaarde: v.optional(v.number()),
+    omschrijving: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_status", ["status"])
     .index("by_type", ["type"])
-    .index("by_referentie", ["referentie"]),
+    .index("by_referentie", ["referentie"])
+    .index("by_pipeline_status", ["pipelineStatus"])
+    .index("by_gekoppeld_klant", ["gekoppeldKlantId"]),
+
+  // Lead activiteiten - Activiteitenlog voor CRM pipeline
+  leadActiviteiten: defineTable({
+    leadId: v.id("configuratorAanvragen"),
+    type: v.union(
+      v.literal("status_wijziging"),
+      v.literal("notitie"),
+      v.literal("toewijzing"),
+      v.literal("offerte_gekoppeld"),
+      v.literal("aangemaakt")
+    ),
+    beschrijving: v.string(),
+    gebruikerId: v.optional(v.id("users")),
+    metadata: v.optional(v.any()),
+    createdAt: v.number(),
+  }).index("by_lead", ["leadId", "createdAt"]),
 
   // Betalingen - Mollie betaalverzoeken gekoppeld aan aanvragen
   betalingen: defineTable({
