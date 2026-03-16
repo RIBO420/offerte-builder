@@ -40,6 +40,13 @@ Bestaande velden die behouden blijven:
 Nieuwe indexes:
 - `by_pipeline_status` — voor kanban-kolommen
 - `by_gekoppeld_klant` — voor klant-detail pagina
+- `by_referentie` — voor publieke status-lookup (behouden van bestaande index)
+
+Opmerkingen:
+- `referentie` blijft behouden voor publieke status-lookup en betalingen-koppeling
+- `toegewezenAan` blijft `Id<"users">` (consistent met huidig schema)
+- `type` wordt optioneel (`v.optional`) voor handmatige leads
+- Tabel heeft geen `userId` — leads zijn globaal (configurator is unauthenticated). Queries filteren op admin-rol, niet op userId.
 
 ### Nieuwe tabel: `leadActiviteiten`
 
@@ -52,13 +59,15 @@ Nieuwe indexes:
 | `metadata` | `object?` | Extra data (bijv. `{ van: "nieuw", naar: "contact_gehad" }` of `{ offerteId: "..." }`) |
 | `createdAt` | `number` | Timestamp |
 
-Index: `by_lead` op `leadId` (gesorteerd op `createdAt` desc)
+Index: `by_lead: ["leadId", "createdAt"]` — query gebruikt `.order("desc")` voor nieuwste eerst
 
 ### Wijziging in `offertes`-tabel
 
 | Veld | Type | Beschrijving |
 |------|------|-------------|
 | `leadId` | `Id<"leads">?` | Optionele koppeling aan lead |
+
+Nieuwe index op offertes: `by_leadId: ["leadId"]` — voor efficiënt ophalen van gekoppelde offertes in lead-modal
 
 ## Kanban Board UI
 
@@ -89,6 +98,18 @@ Onderin het kanban-board, toont:
 - Sleep kaart naar andere kolom → statuswijziging + activiteitenlog entry
 - Drag naar "Verloren" → popup voor verliesreden (verplicht)
 - Drag naar "Gewonnen" → automatisch klant aanmaken of koppelen aan bestaand e-mailadres
+
+### Transitieregels
+
+| Van | Toegestaan naar | Opmerkingen |
+|-----|----------------|-------------|
+| Nieuw | Contact gehad, Verloren | Standaard voorwaartse flow |
+| Contact gehad | Offerte verstuurd, Nieuw, Verloren | Terug naar Nieuw = heroverweging |
+| Offerte verstuurd | Gewonnen, Contact gehad, Verloren | Terug = offerte ingetrokken |
+| Gewonnen | — | Niet terug te zetten. Klant is al aangemaakt. |
+| Verloren | Nieuw | "Heropenen" — wist `verliesReden`, logt reopen-activiteit |
+
+**Offertes bij "Verloren":** Gekoppelde offertes behouden hun eigen status (geen cascade). Er verschijnt een waarschuwing als er actieve offertes zijn ("Let op: er zijn X openstaande offertes gekoppeld aan deze lead").
 
 ## Lead Detail Modal
 
@@ -132,7 +153,8 @@ Secties van boven naar beneden:
 
 | Functie | Beschrijving |
 |---------|-------------|
-| `leads.create` | Nieuwe lead (handmatig of configurator) |
+| `leads.createFromConfigurator` | Nieuwe lead vanuit configurator (publiek, geen auth) |
+| `leads.create` | Nieuwe lead handmatig (authenticated, admin) |
 | `leads.updatePipelineStatus` | Status wijzigen + activiteitenlog entry aanmaken |
 | `leads.updateDetails` | Contactgegevens/specificaties bijwerken |
 | `leads.toewijzen` | Medewerker toewijzen + activiteitenlog |
@@ -173,10 +195,13 @@ Modal met velden:
 
 ### Klant-conversie (bij "Gewonnen")
 
-1. Zoek bestaande klant op e-mailadres
-2. Indien gevonden: koppel via `gekoppeldKlantId`
-3. Indien niet gevonden: maak nieuwe klant aan met lead-gegevens
-4. Activiteitenlog entry: "Klant aangemaakt" of "Gekoppeld aan bestaande klant"
+1. Controleer of `klantEmail` aanwezig is
+2. Indien email aanwezig: zoek bestaande klant op e-mailadres
+3. Indien klant gevonden: koppel via `gekoppeldKlantId`
+4. Indien niet gevonden (of geen email): maak nieuwe klant aan met lead-gegevens
+5. Activiteitenlog entry: "Klant aangemaakt" of "Gekoppeld aan bestaande klant"
+
+Validatie: `klantNaam` is verplicht voor de "Gewonnen" transitie. Als naam ontbreekt (onwaarschijnlijk maar mogelijk bij handmatige leads), blokkeer de transitie met een melding.
 
 ## Migratie
 
@@ -195,6 +220,12 @@ Het `type`-veld wordt gemapt naar `bron`:
 - `boomschors` → `configurator_boomschors`
 - `verticuteren` → `configurator_verticuteren`
 
+### Betalingen en publieke status
+
+- De `betalingen`-tabel linkt aan leads via het `referentie`-veld. Dit veld blijft behouden, dus betalingskoppelingen blijven werken.
+- Records met `betalingStatus: "open"` worden gemigreerd naar `pipelineStatus: "nieuw"` ongeacht hun oude status. Het betalingsproces loopt onafhankelijk.
+- De publieke configurator-statuspagina (`/configurator/status`) gebruikt `getByReferentie`. Deze query wordt behouden op de `leads`-tabel. De statuspagina toont klantgerichte labels (mapping: `nieuw`→"Ontvangen", `contact_gehad`→"In behandeling", `offerte_verstuurd`→"Offerte verstuurd", `gewonnen`→"Geaccepteerd", `verloren`→"Afgewezen").
+
 ## Buiten scope (YAGNI)
 
 - Geen aparte analytics/rapportage pagina
@@ -206,7 +237,7 @@ Het `type`-veld wordt gemapt naar `bron`:
 
 ## Technische keuzes
 
-- **Drag & drop**: `@dnd-kit/core` + `@dnd-kit/sortable` (lightweight, React-native, accessible)
+- **Drag & drop**: `@dnd-kit/core` + `@dnd-kit/sortable` (reeds geïnstalleerd in project: core@6.x, sortable@10.x)
 - **Kanban rendering**: Virtualized kolommen zijn niet nodig bij verwacht volume (< 100 actieve leads)
 - **Activiteitenlog**: Aparte tabel ipv array-in-document (schaalbaarder, makkelijker te queryen)
 - **Optimistic updates**: Drag & drop past UI direct aan, rollback bij fout
