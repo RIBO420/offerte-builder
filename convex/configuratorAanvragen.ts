@@ -77,11 +77,11 @@ export const countByStatus = query({
   args: {},
   handler: async (ctx) => {
     await requireAuthUserId(ctx);
-    const nieuw = await ctx.db
-      .query("configuratorAanvragen")
-      .withIndex("by_status", (q) => q.eq("status", "nieuw"))
-      .collect();
-    return nieuw.length;
+    const all = await ctx.db.query("configuratorAanvragen").collect();
+    return all.filter((a) => {
+      const status = a.pipelineStatus ?? a.status;
+      return status === "nieuw";
+    }).length;
   },
 });
 
