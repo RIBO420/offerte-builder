@@ -1,0 +1,211 @@
+"use client";
+
+import { useState, useCallback } from "react";
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  closestCorners,
+  type DragStartEvent,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { useMutation } from "convex/react";
+import { api } from "../../../convex/_generated/api";
+import type { Id } from "../../../convex/_generated/dataModel";
+import { toast } from "sonner";
+import { KanbanColumn } from "./kanban-column";
+import { LeadCard } from "./lead-card";
+import { VerliesRedenDialog } from "./verlies-reden-dialog";
+import type { Lead } from "./lead-card";
+
+// ============================================
+// Column definitions
+// ============================================
+
+type PipelineStatus =
+  | "nieuw"
+  | "contact_gehad"
+  | "offerte_verstuurd"
+  | "gewonnen"
+  | "verloren";
+
+interface ColumnDef {
+  id: PipelineStatus;
+  label: string;
+  color: string;
+  isLost?: boolean;
+}
+
+const columns: ColumnDef[] = [
+  { id: "nieuw", label: "Nieuw", color: "#3b82f6" },
+  { id: "contact_gehad", label: "Contact gehad", color: "#f59e0b" },
+  { id: "offerte_verstuurd", label: "Offerte verstuurd", color: "#8b5cf6" },
+  { id: "gewonnen", label: "Gewonnen", color: "#10b981" },
+  { id: "verloren", label: "Verloren", color: "#ef4444", isLost: true },
+];
+
+// ============================================
+// KanbanBoard component
+// ============================================
+
+interface KanbanBoardProps {
+  leads: Record<string, Lead[]>;
+  onLeadClick?: (lead: Lead) => void;
+}
+
+export function KanbanBoard({ leads, onLeadClick }: KanbanBoardProps) {
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [verliesDialogOpen, setVerliesDialogOpen] = useState(false);
+  const [pendingVerliesLeadId, setPendingVerliesLeadId] =
+    useState<Id<"configuratorAanvragen"> | null>(null);
+
+  const updatePipelineStatus = useMutation(
+    api.configuratorAanvragen.updatePipelineStatus
+  );
+  const markGewonnen = useMutation(api.configuratorAanvragen.markGewonnen);
+
+  // Sensors
+  const pointerSensor = useSensor(PointerSensor, {
+    activationConstraint: { distance: 8 },
+  });
+  const keyboardSensor = useSensor(KeyboardSensor);
+  const sensors = useSensors(pointerSensor, keyboardSensor);
+
+  // Find active lead for DragOverlay
+  const activeLead = activeId
+    ? Object.values(leads)
+        .flat()
+        .find((l) => l._id === activeId) ?? null
+    : null;
+
+  // Find which column a lead currently belongs to
+  const findLeadColumn = useCallback(
+    (leadId: string): PipelineStatus | null => {
+      for (const [status, statusLeads] of Object.entries(leads)) {
+        if (statusLeads.some((l) => l._id === leadId)) {
+          return status as PipelineStatus;
+        }
+      }
+      return null;
+    },
+    [leads]
+  );
+
+  // Drag handlers
+  function handleDragStart(event: DragStartEvent) {
+    setActiveId(String(event.active.id));
+  }
+
+  async function handleDragEnd(event: DragEndEvent) {
+    setActiveId(null);
+
+    const { active, over } = event;
+    if (!over) return;
+
+    const leadId = String(active.id) as Id<"configuratorAanvragen">;
+    const sourceColumn = findLeadColumn(leadId);
+    const targetColumn = String(over.id) as PipelineStatus;
+
+    // No change needed
+    if (!sourceColumn || sourceColumn === targetColumn) return;
+
+    // Block dragging FROM gewonnen
+    if (sourceColumn === "gewonnen") {
+      toast.error("Een gewonnen lead kan niet terug naar een eerdere status");
+      return;
+    }
+
+    // Validate target is a known column
+    if (!columns.some((c) => c.id === targetColumn)) return;
+
+    try {
+      if (targetColumn === "gewonnen") {
+        await markGewonnen({ id: leadId });
+        toast.success("Lead gemarkeerd als gewonnen");
+      } else if (targetColumn === "verloren") {
+        // Open dialog instead of calling mutation directly
+        setPendingVerliesLeadId(leadId);
+        setVerliesDialogOpen(true);
+      } else {
+        await updatePipelineStatus({
+          id: leadId,
+          pipelineStatus: targetColumn,
+        });
+      }
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Er ging iets mis bij het verplaatsen"
+      );
+    }
+  }
+
+  // VerliesRedenDialog handlers
+  async function handleVerliesBevestig(reden: string) {
+    if (!pendingVerliesLeadId) return;
+
+    try {
+      await updatePipelineStatus({
+        id: pendingVerliesLeadId,
+        pipelineStatus: "verloren",
+        verliesReden: reden,
+      });
+      toast.success("Lead gemarkeerd als verloren");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Er ging iets mis bij het markeren als verloren"
+      );
+    } finally {
+      setVerliesDialogOpen(false);
+      setPendingVerliesLeadId(null);
+    }
+  }
+
+  function handleVerliesClose() {
+    setVerliesDialogOpen(false);
+    setPendingVerliesLeadId(null);
+  }
+
+  return (
+    <>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="flex gap-4 overflow-x-auto pb-4">
+          {columns.map((col) => (
+            <KanbanColumn
+              key={col.id}
+              id={col.id}
+              label={col.label}
+              color={col.color}
+              leads={leads[col.id] ?? []}
+              onLeadClick={onLeadClick}
+              isLost={col.isLost}
+            />
+          ))}
+        </div>
+
+        <DragOverlay>
+          {activeLead ? (
+            <LeadCard lead={activeLead} isDragOverlay />
+          ) : null}
+        </DragOverlay>
+      </DndContext>
+
+      <VerliesRedenDialog
+        open={verliesDialogOpen}
+        onClose={handleVerliesClose}
+        onBevestig={handleVerliesBevestig}
+      />
+    </>
+  );
+}
