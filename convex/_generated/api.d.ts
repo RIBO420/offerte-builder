@@ -30,6 +30,7 @@ import type * as instellingen from "../instellingen.js";
 import type * as kilometerStanden from "../kilometerStanden.js";
 import type * as klanten from "../klanten.js";
 import type * as kwaliteitsControles from "../kwaliteitsControles.js";
+import type * as leadActiviteiten from "../leadActiviteiten.js";
 import type * as leerfeedback from "../leerfeedback.js";
 import type * as leveranciers from "../leveranciers.js";
 import type * as machineGebruik from "../machineGebruik.js";
@@ -101,6 +102,7 @@ declare const fullApi: ApiFromModules<{
   kilometerStanden: typeof kilometerStanden;
   klanten: typeof klanten;
   kwaliteitsControles: typeof kwaliteitsControles;
+  leadActiviteiten: typeof leadActiviteiten;
   leerfeedback: typeof leerfeedback;
   leveranciers: typeof leveranciers;
   machineGebruik: typeof machineGebruik;
