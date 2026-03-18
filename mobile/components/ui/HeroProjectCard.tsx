@@ -15,7 +15,7 @@ interface HeroProjectCardProps {
   onHoursPress: () => void;
 }
 
-export function HeroProjectCard({
+export const HeroProjectCard = React.memo(function HeroProjectCard({
   projectName,
   description,
   progress,
@@ -86,7 +86,7 @@ export function HeroProjectCard({
       </Pressable>
     </Animated.View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

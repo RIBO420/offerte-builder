@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { CalendarIcon, Filter, X, Shovel, Trees } from "lucide-react";
 import { format } from "date-fns";
-import { nl } from "date-fns/locale";
+import { nl } from "@/lib/date-locale";
 import { cn } from "@/lib/utils";
 
 export interface OfferteFilters {

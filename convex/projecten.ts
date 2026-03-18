@@ -173,6 +173,11 @@ export const getByOfferte = query({
  * List all projects for the authenticated user.
  * Ordered by updatedAt descending (most recent first).
  * By default, archived and deleted projects are excluded.
+ *
+ * NOTE: The projecten page (src/app/(dashboard)/projecten/page.tsx) fetches both
+ * this `list` query AND `listPaginated` simultaneously, causing redundant data loading.
+ * Consider removing the `list` usage from that page and relying solely on `listPaginated`.
+ * The `list` query is still used by other pages (inkoop/page.tsx, inkooporder-form.tsx).
  */
 export const list = query({
   args: {
@@ -699,15 +704,18 @@ export const listForPlanning = query({
       medewerkerNaam = medewerker.naam;
     }
 
-    // Fetch all active projects
-    const allProjects = await ctx.db
+    // Fetch all active projects (filter archived/deleted at query level, not in memory)
+    const activeProjects = await ctx.db
       .query("projecten")
       .withIndex("by_user", (q) => q.eq("userId", queryUserId))
-      .filter((q) => q.neq(q.field("status"), "gefactureerd"))
+      .filter((q) =>
+        q.and(
+          q.neq(q.field("status"), "gefactureerd"),
+          q.neq(q.field("isArchived"), true),
+          q.eq(q.field("deletedAt"), undefined)
+        )
+      )
       .collect();
-
-    // Filter out archived and deleted projects
-    const activeProjects = allProjects.filter((p) => p.isArchived !== true && !p.deletedAt);
 
     if (activeProjects.length === 0) {
       return [];

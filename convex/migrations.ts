@@ -1,6 +1,7 @@
 import { mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
+import { requireAdmin } from "./roles";
 
 // Migreer user van oude Clerk ID naar nieuwe Clerk ID
 export const migrateUserClerkId = mutation({
@@ -9,6 +10,8 @@ export const migrateUserClerkId = mutation({
     newClerkId: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
     // Vind de oude user
     const oldUser = await ctx.db
       .query("users")
@@ -50,6 +53,8 @@ export const migrateUserClerkId = mutation({
 export const migrateDefinitiefToVoorcalculatie = mutation({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
+
     // Find all offertes with "definitief" status
     const offertesWithDefinitief = await ctx.db
       .query("offertes")
@@ -82,6 +87,8 @@ export const migrateDefinitiefToVoorcalculatie = mutation({
 export const migrateProjectVoorcalculatieToGepland = mutation({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
+
     // Find all projects with "voorcalculatie" status
     const projectsWithVoorcalculatie = await ctx.db
       .query("projecten")
@@ -113,6 +120,8 @@ export const migrateProjectVoorcalculatieToGepland = mutation({
 export const migrateAllStatuses = mutation({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
+
     // Migrate offertes: definitief -> voorcalculatie
     const offertesWithDefinitief = await ctx.db
       .query("offertes")
@@ -151,6 +160,8 @@ export const migrateAllStatuses = mutation({
 export const migrateInstellingenForFacturen = mutation({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
+
     // Haal alle bestaande instellingen op
     const alleInstellingen = await ctx.db.query("instellingen").collect();
 
@@ -198,6 +209,8 @@ export const migrateInstellingenForFacturen = mutation({
 export const migrateProjectsWithFacturen = mutation({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
+
     const now = Date.now();
     let statusMigratedCount = 0;
     let projectsArchivedCount = 0;
@@ -311,6 +324,8 @@ export const migrateProjectsWithFacturen = mutation({
 export const fixAllProjectStatusesAdmin = mutation({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
+
     const now = Date.now();
 
     // Get all projects with "afgerond" status
@@ -357,6 +372,8 @@ export const fixAllProjectStatusesAdmin = mutation({
 export const archiveOffertesWithFacturenAdmin = mutation({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
+
     const now = Date.now();
 
     // Get all facturen with voltooide status
@@ -416,6 +433,8 @@ export const archiveOffertesWithFacturenAdmin = mutation({
 export const archivePaidProjectsAdmin = mutation({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
+
     const now = Date.now();
 
     // Get all betaalde facturen
@@ -480,6 +499,8 @@ export const archivePaidProjectsAdmin = mutation({
 export const runAllArchivingMigrations = mutation({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
+
     const now = Date.now();
     const results = {
       projectStatusFixes: 0,
@@ -580,6 +601,8 @@ export const setUserRole = mutation({
     role: v.union(v.literal("admin"), v.literal("medewerker"), v.literal("viewer")),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
     const user = await ctx.db
       .query("users")
       .filter((q) => q.eq(q.field("email"), args.email))
@@ -616,6 +639,8 @@ export const setUserRole = mutation({
 export const setAllUsersToAdmin = mutation({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
+
     const users = await ctx.db.query("users").collect();
     let updatedCount = 0;
 
@@ -644,6 +669,8 @@ export const setAllUsersToAdmin = mutation({
 export const listUsersWithRoles = mutation({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
+
     const users = await ctx.db.query("users").collect();
     return users.map((u) => ({
       _id: u._id,

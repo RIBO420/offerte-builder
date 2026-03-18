@@ -11,6 +11,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 
 const OPENAI_WHISPER_URL = 'https://api.openai.com/v1/audio/transcriptions';
 const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024; // 25 MB
@@ -32,6 +33,15 @@ interface SuccessResponse {
 export async function POST(
   request: NextRequest
 ): Promise<NextResponse<SuccessResponse | ErrorResponse>> {
+  // ── Authenticatie ─────────────────────────────────────────────────────────
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json(
+      { error: 'Niet geautoriseerd. Log in om deze functie te gebruiken.' },
+      { status: 401 }
+    );
+  }
+
   // Controleer of de request multipart is
   const contentType = request.headers.get('content-type') ?? '';
   if (!contentType.includes('multipart/form-data')) {

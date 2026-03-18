@@ -2,8 +2,7 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { generateSecureToken, getOwnedOfferte, isShareTokenValid } from "./auth";
 import { internal } from "./_generated/api";
-// TODO: Re-enable when rate limiting is fixed
-// import { checkPublicOfferteRateLimit, validateSignature } from "./security";
+import { checkPublicOfferteRateLimit } from "./security";
 
 // Create or refresh share link for an offerte (with ownership verification)
 export const createShareLink = mutation({
@@ -49,11 +48,11 @@ export const revokeShareLink = mutation({
 export const getByToken = query({
   args: { token: v.string() },
   handler: async (ctx, args) => {
-    // Rate limiting temporarily disabled - TODO: re-enable with Upstash
-    // const rateLimitResult = checkPublicOfferteRateLimit(args.token);
-    // if (!rateLimitResult.allowed) {
-    //   throw new Error(rateLimitResult.message || "Te veel verzoeken. Probeer het later opnieuw.");
-    // }
+    // Rate limiting: max 30 requests per minute per token
+    const rateLimitResult = checkPublicOfferteRateLimit(args.token);
+    if (!rateLimitResult.allowed) {
+      throw new Error(rateLimitResult.message || "Te veel verzoeken. Probeer het later opnieuw.");
+    }
 
     const offerte = await ctx.db
       .query("offertes")
@@ -125,11 +124,11 @@ export const getByToken = query({
 export const markAsViewed = mutation({
   args: { token: v.string() },
   handler: async (ctx, args) => {
-    // Rate limiting temporarily disabled - TODO: re-enable with Upstash
-    // const rateLimitResult = checkPublicOfferteRateLimit(args.token);
-    // if (!rateLimitResult.allowed) {
-    //   throw new Error(rateLimitResult.message || "Te veel verzoeken. Probeer het later opnieuw.");
-    // }
+    // Rate limiting: max 30 requests per minute per token
+    const rateLimitResult = checkPublicOfferteRateLimit(args.token);
+    if (!rateLimitResult.allowed) {
+      throw new Error(rateLimitResult.message || "Te veel verzoeken. Probeer het later opnieuw.");
+    }
 
     const offerte = await ctx.db
       .query("offertes")
@@ -173,11 +172,11 @@ export const respond = mutation({
     signature: v.optional(v.string()), // Base64 signature image
   },
   handler: async (ctx, args) => {
-    // Rate limiting temporarily disabled - TODO: re-enable with Upstash
-    // const rateLimitResult = checkPublicOfferteRateLimit(args.token);
-    // if (!rateLimitResult.allowed) {
-    //   throw new Error(rateLimitResult.message || "Te veel verzoeken. Probeer het later opnieuw.");
-    // }
+    // Rate limiting: max 30 requests per minute per token
+    const rateLimitResult = checkPublicOfferteRateLimit(args.token);
+    if (!rateLimitResult.allowed) {
+      throw new Error(rateLimitResult.message || "Te veel verzoeken. Probeer het later opnieuw.");
+    }
 
     const offerte = await ctx.db
       .query("offertes")
@@ -289,11 +288,11 @@ export const submitQuestion = mutation({
     comment: v.string(),
   },
   handler: async (ctx, args) => {
-    // Rate limiting temporarily disabled - TODO: re-enable with Upstash
-    // const rateLimitResult = checkPublicOfferteRateLimit(args.token);
-    // if (!rateLimitResult.allowed) {
-    //   throw new Error(rateLimitResult.message || "Te veel verzoeken. Probeer het later opnieuw.");
-    // }
+    // Rate limiting: max 30 requests per minute per token
+    const rateLimitResult = checkPublicOfferteRateLimit(args.token);
+    if (!rateLimitResult.allowed) {
+      throw new Error(rateLimitResult.message || "Te veel verzoeken. Probeer het later opnieuw.");
+    }
 
     const offerte = await ctx.db
       .query("offertes")

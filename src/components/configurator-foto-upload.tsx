@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import Image from "next/image";
 import { useMutation } from "convex/react";
 import {
   Camera,
@@ -64,10 +65,13 @@ function FotoThumbnail({
   return (
     <div className="relative group aspect-square rounded-lg overflow-hidden border border-border bg-muted">
       {url ? (
-        <img
+        <Image
           src={url}
           alt="Geüploade tuinfoto"
-          className="w-full h-full object-cover"
+          fill
+          unoptimized
+          priority={false}
+          className="object-cover"
         />
       ) : (
         <div className="w-full h-full flex items-center justify-center">

@@ -213,16 +213,17 @@ export const calculate = query({
       .withIndex("by_user_scope", (q) => q.eq("userId", userId))
       .collect();
 
-    // Get correctiefactoren
-    const systemDefaults = await ctx.db
-      .query("correctiefactoren")
-      .filter((q) => q.eq(q.field("userId"), undefined))
-      .collect();
-
-    const userOverrides = await ctx.db
-      .query("correctiefactoren")
-      .withIndex("by_user_type", (q) => q.eq("userId", userId))
-      .collect();
+    // Get correctiefactoren - use index for both queries instead of full table scan
+    const [systemDefaults, userOverrides] = await Promise.all([
+      ctx.db
+        .query("correctiefactoren")
+        .withIndex("by_user_type", (q) => q.eq("userId", undefined))
+        .collect(),
+      ctx.db
+        .query("correctiefactoren")
+        .withIndex("by_user_type", (q) => q.eq("userId", userId))
+        .collect(),
+    ]);
 
     // Merge factors
     const overrideMap = new Map(

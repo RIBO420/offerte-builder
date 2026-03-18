@@ -33,8 +33,12 @@ function verifyWebhookSignature(
   rawBody: string
 ): boolean {
   if (!SIGNING_KEY) {
-    // Geen sleutel geconfigureerd — verificatie overgeslagen
-    return true;
+    // Geen sleutel geconfigureerd — verzoeken worden afgewezen
+    console.error(
+      "[Calendly Webhook] CALENDLY_WEBHOOK_SIGNING_KEY niet geconfigureerd — webhook wordt afgewezen. " +
+      "Stel deze omgevingsvariabele in om webhooks te verwerken."
+    );
+    return false;
   }
 
   const parts = Object.fromEntries(

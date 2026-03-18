@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/popover";
 import { CalendarIcon, Loader2, Plus, Euro } from "lucide-react";
 import { format, subDays } from "date-fns";
-import { nl } from "date-fns/locale";
+import { nl } from "@/lib/date-locale";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 

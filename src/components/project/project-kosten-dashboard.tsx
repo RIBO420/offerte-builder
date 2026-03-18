@@ -69,7 +69,7 @@ import {
   BarChart3,
 } from "lucide-react";
 import { format } from "date-fns";
-import { nl } from "date-fns/locale";
+import { nl } from "@/lib/date-locale";
 import { KostenEntryForm, type KostenEntryData } from "./kosten-entry-form";
 import { KostenVergelijkingChart, KostenAfwijkingChart } from "./kosten-vergelijking-chart";
 

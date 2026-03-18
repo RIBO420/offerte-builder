@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 import {
   SyncEngine,
   SyncState,
@@ -66,6 +67,24 @@ export function useSyncStatus() {
 
   useEffect(() => {
     let mounted = true;
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
+
+    const startPolling = () => {
+      if (pollInterval) clearInterval(pollInterval);
+      pollInterval = setInterval(async () => {
+        if (engineRef.current && mounted) {
+          const newState = await engineRef.current.getState();
+          setState(newState);
+        }
+      }, 10000); // Every 10 seconds
+    };
+
+    const stopPolling = () => {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+      }
+    };
 
     const init = async () => {
       try {
@@ -88,6 +107,11 @@ export function useSyncStatus() {
           setState(initialState);
           setIsReady(true);
         }
+
+        // Start polling only if app is in foreground
+        if (AppState.currentState === 'active') {
+          startPolling();
+        }
       } catch (error) {
         console.error('[useSyncStatus] Failed to initialize:', error);
       }
@@ -95,17 +119,25 @@ export function useSyncStatus() {
 
     init();
 
-    // Poll for state updates (backup for missed events)
-    const interval = setInterval(async () => {
-      if (engineRef.current && mounted) {
-        const newState = await engineRef.current.getState();
-        setState(newState);
+    // Pause polling when app goes to background, restart on foreground
+    const appStateSubscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active') {
+        startPolling();
+        // Also do an immediate refresh when coming back to foreground
+        if (engineRef.current && mounted) {
+          engineRef.current.getState().then((newState) => {
+            if (mounted) setState(newState);
+          });
+        }
+      } else {
+        stopPolling();
       }
-    }, 10000); // Every 10 seconds
+    });
 
     return () => {
       mounted = false;
-      clearInterval(interval);
+      stopPolling();
+      appStateSubscription.remove();
     };
   }, []);
 

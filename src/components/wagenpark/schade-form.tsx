@@ -28,7 +28,7 @@ import { Id } from "../../../convex/_generated/dataModel";
 import { showSuccessToast, showErrorToast, showWarningToast } from "@/lib/toast-utils";
 import { getMutationErrorMessage } from "@/lib/error-handling";
 import { format } from "date-fns";
-import { nl } from "date-fns/locale";
+import { nl } from "@/lib/date-locale";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import {
   Popover,

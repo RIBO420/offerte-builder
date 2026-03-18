@@ -17,9 +17,10 @@ import {
 } from 'lucide-react-native';
 import { hapticPatterns } from '../../theme/haptics';
 import { springConfigs } from '../../theme/animations';
+import { colors } from '../../theme/colors';
 
-const ACTIVE_COLOR = '#4ADE80';
-const INACTIVE_COLOR = '#555555';
+const ACTIVE_COLOR = colors.primary;
+const INACTIVE_COLOR = colors.inactive;
 const ICON_SIZE = 22;
 
 const routeIcons: Record<string, React.ComponentType<any>> = {

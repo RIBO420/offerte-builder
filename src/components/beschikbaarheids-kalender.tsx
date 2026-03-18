@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { DayPicker, getDefaultClassNames, type DayButton } from "react-day-picker"
-import { nl } from "date-fns/locale"
+import { nl } from "@/lib/date-locale"
 import {
   CalendarDays,
   Clock,

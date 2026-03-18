@@ -12,7 +12,7 @@ interface ProjectListItemProps {
   onPress: () => void;
 }
 
-export function ProjectListItem({
+export const ProjectListItem = React.memo(function ProjectListItem({
   name,
   scope,
   progress,
@@ -61,7 +61,7 @@ export function ProjectListItem({
       </Pressable>
     </Animated.View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

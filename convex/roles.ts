@@ -66,6 +66,26 @@ export async function isViewer(ctx: QueryCtx | MutationCtx): Promise<boolean> {
 }
 
 /**
+ * Require the authenticated user is NOT a viewer (read-only).
+ * Throws AuthError if role is "viewer".
+ * Use this in mutations that should be accessible to admins and medewerkers but not viewers.
+ */
+export async function requireNotViewer(
+  ctx: QueryCtx | MutationCtx
+): Promise<Doc<"users">> {
+  const user = await requireAuth(ctx);
+  const role = await getUserRole(ctx);
+
+  if (role === "viewer") {
+    throw new AuthError(
+      "Viewers hebben geen schrijfrechten voor deze actie"
+    );
+  }
+
+  return user;
+}
+
+/**
  * Require the authenticated user to be an admin.
  * Throws AuthError if not admin.
  */

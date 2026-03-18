@@ -1,11 +1,15 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
+import { requireAuth, getOwnedOfferte } from "./auth";
 
 // Get all versions for an offerte
 export const listByOfferte = query({
   args: { offerteId: v.id("offertes") },
   handler: async (ctx, args) => {
+    // Verify the offerte belongs to the authenticated user
+    await getOwnedOfferte(ctx, args.offerteId);
+
     return await ctx.db
       .query("offerte_versions")
       .withIndex("by_offerte", (q) => q.eq("offerteId", args.offerteId))
@@ -18,7 +22,15 @@ export const listByOfferte = query({
 export const get = query({
   args: { id: v.id("offerte_versions") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
+    const version = await ctx.db.get(args.id);
+    if (!version) {
+      throw new Error("Version not found");
+    }
+
+    // Verify the parent offerte belongs to the authenticated user
+    await getOwnedOfferte(ctx, version.offerteId);
+
+    return version;
   },
 });
 
@@ -26,6 +38,9 @@ export const get = query({
 export const getLatestVersionNumber = query({
   args: { offerteId: v.id("offertes") },
   handler: async (ctx, args) => {
+    // Verify the offerte belongs to the authenticated user
+    await getOwnedOfferte(ctx, args.offerteId);
+
     const versions = await ctx.db
       .query("offerte_versions")
       .withIndex("by_offerte", (q) => q.eq("offerteId", args.offerteId))
@@ -40,7 +55,6 @@ export const getLatestVersionNumber = query({
 export const createVersion = mutation({
   args: {
     offerteId: v.id("offertes"),
-    userId: v.id("users"),
     actie: v.union(
       v.literal("aangemaakt"),
       v.literal("gewijzigd"),
@@ -51,11 +65,11 @@ export const createVersion = mutation({
     omschrijving: v.string(),
   },
   handler: async (ctx, args) => {
-    // Get the current offerte
-    const offerte = await ctx.db.get(args.offerteId);
-    if (!offerte) {
-      throw new Error("Offerte not found");
-    }
+    // Derive userId from auth context instead of accepting from client
+    const user = await requireAuth(ctx);
+
+    // Get the current offerte and verify ownership
+    const offerte = await getOwnedOfferte(ctx, args.offerteId);
 
     // Get next version number
     const versions = await ctx.db
@@ -92,7 +106,7 @@ export const createVersion = mutation({
 
     return await ctx.db.insert("offerte_versions", {
       offerteId: args.offerteId,
-      userId: args.userId,
+      userId: user._id,
       versieNummer,
       snapshot,
       actie: args.actie,
@@ -106,20 +120,19 @@ export const createVersion = mutation({
 export const rollback = mutation({
   args: {
     versionId: v.id("offerte_versions"),
-    userId: v.id("users"),
   },
   handler: async (ctx, args) => {
+    // Derive userId from auth context
+    const user = await requireAuth(ctx);
+
     // Get the version to restore
     const version = await ctx.db.get(args.versionId);
     if (!version) {
       throw new Error("Version not found");
     }
 
-    // Get the offerte
-    const offerte = await ctx.db.get(version.offerteId);
-    if (!offerte) {
-      throw new Error("Offerte not found");
-    }
+    // Verify the offerte belongs to the authenticated user
+    const offerte = await getOwnedOfferte(ctx, version.offerteId);
 
     // First create a version snapshot of current state before rollback
     const currentVersions = await ctx.db
@@ -157,7 +170,7 @@ export const rollback = mutation({
     // Save current state as new version (before rollback)
     await ctx.db.insert("offerte_versions", {
       offerteId: version.offerteId,
-      userId: args.userId,
+      userId: user._id,
       versieNummer: newVersieNummer,
       snapshot: currentSnapshot,
       actie: "teruggedraaid",
@@ -215,6 +228,12 @@ export const compareVersions = query({
 
     if (!version1 || !version2) {
       throw new Error("Version not found");
+    }
+
+    // Verify ownership of the parent offerte(s)
+    await getOwnedOfferte(ctx, version1.offerteId);
+    if (version1.offerteId !== version2.offerteId) {
+      await getOwnedOfferte(ctx, version2.offerteId);
     }
 
     return {

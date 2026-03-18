@@ -18,7 +18,7 @@ export default defineSchema({
     email: v.string(),
     name: v.string(),
     bedrijfsnaam: v.optional(v.string()),
-    // Role-based access control - defaults to 'admin' for backwards compatibility
+    // Role-based access control - defaults to 'viewer' for safety
     role: v.optional(userRoleValidator),
     // Link to medewerkers table (for medewerker role)
     // This allows a user to be connected to their medewerker profile
@@ -217,7 +217,9 @@ export default defineSchema({
     type: v.string(), // bereikbaarheid, complexiteit, hoogteverschil, etc.
     waarde: v.string(), // goed, beperkt, slecht, laag, gemiddeld, hoog
     factor: v.number(),
-  }).index("by_user_type", ["userId", "type"]),
+  })
+    .index("by_user_type", ["userId", "type"])
+    .index("by_type", ["type"]),
 
   // Instellingen
   instellingen: defineTable({
@@ -594,6 +596,7 @@ export default defineSchema({
     medewerkerClerkId: v.optional(v.string()), // Link naar Clerk user
   })
     .index("by_project", ["projectId"])
+    .index("by_project_datum", ["projectId", "datum"])
     .index("by_datum", ["datum"])
     .index("by_idempotency", ["idempotencyKey"]),
 
@@ -606,6 +609,7 @@ export default defineSchema({
     kosten: v.number(),
   })
     .index("by_project", ["projectId"])
+    .index("by_project_datum", ["projectId", "datum"])
     .index("by_machine", ["machineId"]),
 
   // Nacalculaties - Post-calculation results

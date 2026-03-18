@@ -2,7 +2,7 @@
 
 import { memo } from "react";
 import { format } from "date-fns";
-import { nl } from "date-fns/locale";
+import { nl } from "@/lib/date-locale";
 import {
   Card,
   CardContent,

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, TouchableOpacity, RefreshControl, ScrollView, FlatList, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -151,16 +151,29 @@ function AuthenticatedDashboard() {
   const [isClockingIn, setIsClockingIn] = useState(false);
   const [isClockedIn, setIsClockedIn] = useState(false);
   const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
+  const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Timer effect
+  // Timer effect - store interval ID in ref for reliable cleanup
   useEffect(() => {
-    let interval: ReturnType<typeof setInterval> | null = null;
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+      timerIntervalRef.current = null;
+    }
+
     if (isClockedIn && sessionStartTime) {
-      interval = setInterval(() => {
+      timerIntervalRef.current = setInterval(() => {
         setCurrentTime(Math.floor((Date.now() - sessionStartTime) / 1000));
       }, 1000);
+    } else {
+      setCurrentTime(0);
     }
-    return () => { if (interval) clearInterval(interval); };
+
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+    };
   }, [isClockedIn, sessionStartTime]);
 
   const onRefresh = useCallback(async () => {
@@ -324,6 +337,11 @@ function AuthenticatedDashboard() {
                   keyExtractor={(item) => item._id}
                   contentContainerStyle={{ gap: 10, paddingRight: 16 }}
                   style={{ marginBottom: 16 }}
+                  getItemLayout={(_, index) => ({
+                    length: 200,
+                    offset: (200 + 10) * index,
+                    index,
+                  })}
                   renderItem={({ item }) => (
                     <View style={{ width: 200 }}>
                       <ProjectListItem

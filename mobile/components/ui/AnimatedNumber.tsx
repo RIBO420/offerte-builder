@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Text, StyleSheet, Animated, TextStyle } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { Text, StyleSheet, TextStyle } from 'react-native';
+import { useSharedValue, withTiming, runOnJS, useDerivedValue } from 'react-native-reanimated';
 import { typography } from '../../theme/typography';
 
 interface AnimatedNumberProps {
@@ -23,27 +24,25 @@ export function AnimatedNumber({
   style,
   formatOptions,
 }: AnimatedNumberProps) {
-  const [displayValue, setDisplayValue] = useState(0);
-  const animatedValue = useRef(new Animated.Value(0)).current;
-  const previousValue = useRef(0);
+  const [displayValue, setDisplayValue] = useState(value);
+  const animatedProgress = useSharedValue(0);
+  const startValue = useSharedValue(0);
+  const targetValue = useSharedValue(value);
+
+  const updateDisplay = useCallback((val: number) => {
+    setDisplayValue(val);
+  }, []);
+
+  useDerivedValue(() => {
+    const current = startValue.value + (targetValue.value - startValue.value) * animatedProgress.value;
+    runOnJS(updateDisplay)(current);
+  });
 
   useEffect(() => {
-    const startValue = previousValue.current;
-    previousValue.current = value;
-
-    animatedValue.setValue(0);
-    Animated.timing(animatedValue, {
-      toValue: 1,
-      duration,
-      useNativeDriver: false,
-    }).start();
-
-    const listener = animatedValue.addListener(({ value: progress }) => {
-      const current = startValue + (value - startValue) * progress;
-      setDisplayValue(current);
-    });
-
-    return () => animatedValue.removeListener(listener);
+    startValue.value = displayValue;
+    targetValue.value = value;
+    animatedProgress.value = 0;
+    animatedProgress.value = withTiming(1, { duration });
   }, [value, duration]);
 
   // Ensure minimumFractionDigits doesn't exceed maximumFractionDigits

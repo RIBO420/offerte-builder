@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
@@ -190,10 +191,12 @@ export function WerklocatieFotoGallery({
                   key={foto.url}
                   className="group relative aspect-square overflow-hidden rounded-lg bg-muted"
                 >
-                  <img
+                  <Image
                     src={foto.url}
                     alt={foto.beschrijving || `Foto ${index + 1}`}
-                    className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                    fill
+                    unoptimized
+                    className="object-cover transition-transform group-hover:scale-105"
                   />
 
                   {/* Overlay with actions */}
@@ -283,12 +286,15 @@ export function WerklocatieFotoGallery({
             className="relative max-h-[80vh] max-w-[90vw]"
             onClick={(e) => e.stopPropagation()}
           >
-            <img
+            <Image
               src={filteredFotos[selectedIndex].url}
               alt={
                 filteredFotos[selectedIndex].beschrijving ||
                 `Foto ${selectedIndex + 1}`
               }
+              width={1200}
+              height={800}
+              unoptimized
               className="max-h-[80vh] max-w-[90vw] object-contain"
             />
 

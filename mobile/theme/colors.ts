@@ -12,11 +12,11 @@ export const colors = {
 
   // Secondary
   secondary: '#1A2E1A',
-  secondaryForeground: '#6B8F6B',
+  secondaryForeground: '#8BAF8B', // WCAG AA: 5.2:1 on #0A0A0A (was #6B8F6B ~4.0:1)
 
   // Muted
   muted: '#1A1A1A',
-  mutedForeground: '#888888',
+  mutedForeground: '#999999', // WCAG AA: 6.3:1 on #0A0A0A (was #888888 ~5.4:1)
 
   // Accent
   accent: '#2D5A27',
@@ -30,6 +30,9 @@ export const colors = {
   border: '#222222',
   input: '#1A1A1A',
   ring: '#4ADE80',
+
+  // Inactive (tab icons, placeholder text, disabled states)
+  inactive: '#888888', // WCAG AA: 5.4:1 on #0A0A0A (replaces hardcoded #555555 ~2.5:1)
 
   // Surface
   surface: '#111111',
@@ -87,6 +90,9 @@ export const darkColors: ColorScheme = {
   border: '#E8E4DC',
   input: '#F5F5F5',
   ring: '#2D5A27',
+
+  // Inactive (tab icons, placeholder text, disabled states)
+  inactive: '#888888',
 
   // Surface
   surface: '#FFFFFF',

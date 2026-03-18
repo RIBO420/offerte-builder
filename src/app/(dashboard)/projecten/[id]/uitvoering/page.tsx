@@ -90,7 +90,7 @@ import { UrenEntryForm, UrenEntryData, DatabaseMedewerker } from "@/components/p
 import { ProjectProgressStepper } from "@/components/project/project-progress-stepper";
 import { Id } from "../../../../../../convex/_generated/dataModel";
 import { format, parseISO } from "date-fns";
-import { nl } from "date-fns/locale";
+import { nl } from "@/lib/date-locale";
 import { cn } from "@/lib/utils";
 
 // Scope labels

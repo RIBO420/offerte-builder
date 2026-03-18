@@ -12,8 +12,8 @@ export function useOfferteVersions(offerteId: Id<"offertes"> | null) {
 
   const rollbackMutation = useMutation(api.offerteVersions.rollback);
 
-  const rollback = async (versionId: Id<"offerte_versions">, userId: Id<"users">) => {
-    return await rollbackMutation({ versionId, userId });
+  const rollback = async (versionId: Id<"offerte_versions">) => {
+    return await rollbackMutation({ versionId });
   };
 
   return {

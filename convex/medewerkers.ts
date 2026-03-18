@@ -738,15 +738,11 @@ export const getWithStats = query({
       return null;
     }
 
-    // Haal alle urenregistraties op voor deze medewerker
-    const alleUrenRegistraties = await ctx.db
+    // Haal urenregistraties op gefilterd op medewerker naam (query-level filter i.p.v. in-memory)
+    const medewerkerUren = await ctx.db
       .query("urenRegistraties")
+      .filter((q) => q.eq(q.field("medewerker"), medewerker.naam))
       .collect();
-
-    // Filter op medewerker naam (urenRegistraties gebruikt medewerker naam, niet ID)
-    const medewerkerUren = alleUrenRegistraties.filter(
-      (ur) => ur.medewerker === medewerker.naam
-    );
 
     // Bereken totaal gewerkte uren
     const totaalUren = medewerkerUren.reduce((sum, ur) => sum + ur.uren, 0);
@@ -811,16 +807,22 @@ export const getMedewerkersMetPrestaties = query({
       )
       .collect();
 
-    // Haal alle urenregistraties op
-    let urenRegistraties = await ctx.db.query("urenRegistraties").collect();
-
-    // Filter op periode indien opgegeven
+    // Haal urenregistraties op met query-level filter op periode (i.p.v. collect-all + in-memory filter)
+    let urenRegistraties;
     if (args.periode) {
       const vanDatum = new Date(args.periode.van).toISOString().slice(0, 10);
       const totDatum = new Date(args.periode.tot).toISOString().slice(0, 10);
-      urenRegistraties = urenRegistraties.filter(
-        (ur) => ur.datum >= vanDatum && ur.datum <= totDatum
-      );
+      urenRegistraties = await ctx.db
+        .query("urenRegistraties")
+        .filter((q) =>
+          q.and(
+            q.gte(q.field("datum"), vanDatum),
+            q.lte(q.field("datum"), totDatum)
+          )
+        )
+        .collect();
+    } else {
+      urenRegistraties = await ctx.db.query("urenRegistraties").collect();
     }
 
     // Haal projecten op voor efficiëntie berekening
@@ -833,8 +835,27 @@ export const getMedewerkersMetPrestaties = query({
       (p) => p.status === "afgerond" || p.status === "nacalculatie_compleet" || p.status === "gefactureerd"
     );
 
-    // Haal voorcalculaties op voor norm uren
-    const voorcalculaties = await ctx.db.query("voorcalculaties").collect();
+    // Haal voorcalculaties op en bouw Maps voor O(1) lookups (i.p.v. O(n²) nested .find())
+    const allVoorcalculaties = await ctx.db.query("voorcalculaties").collect();
+    const voorcalcByProjectId = new Map<string, typeof allVoorcalculaties[0]>();
+    const voorcalcByOfferteId = new Map<string, typeof allVoorcalculaties[0]>();
+    for (const vc of allVoorcalculaties) {
+      if (vc.projectId) voorcalcByProjectId.set(vc.projectId.toString(), vc);
+      if (vc.offerteId) voorcalcByOfferteId.set(vc.offerteId.toString(), vc);
+    }
+
+    // Bouw Map van afgeronde projecten voor O(1) lookup
+    const afgerondProjectMap = new Map<string, typeof afgerondeProjecten[0]>();
+    for (const p of afgerondeProjecten) {
+      afgerondProjectMap.set(p._id.toString(), p);
+    }
+
+    // Pre-bereken totaal uren per project voor efficiëntie ratio (voorkom herhaalde filtering)
+    const totaalUrenPerProject = new Map<string, number>();
+    for (const ur of urenRegistraties) {
+      const key = ur.projectId.toString();
+      totaalUrenPerProject.set(key, (totaalUrenPerProject.get(key) || 0) + ur.uren);
+    }
 
     // Bereken prestaties per medewerker
     const medewerkersMetPrestaties = medewerkers.map((medewerker) => {
@@ -853,20 +874,18 @@ export const getMedewerkersMetPrestaties = query({
       const medewerkerProjectIds = [...new Set(medewerkerUren.map((ur) => ur.projectId.toString()))];
 
       for (const projectIdStr of medewerkerProjectIds) {
-        const project = afgerondeProjecten.find((p) => p._id.toString() === projectIdStr);
+        const project = afgerondProjectMap.get(projectIdStr);
         if (project) {
-          const voorcalc = voorcalculaties.find(
-            (vc) => vc.projectId?.toString() === projectIdStr || vc.offerteId?.toString() === project.offerteId.toString()
-          );
+          // O(1) lookup via Maps i.p.v. O(n) .find()
+          const voorcalc = voorcalcByProjectId.get(projectIdStr)
+            || voorcalcByOfferteId.get(project.offerteId.toString());
           if (voorcalc) {
             // Proportioneel deel van norm uren (gebaseerd op bijdrage aan project)
             const projectUren = medewerkerUren
               .filter((ur) => ur.projectId.toString() === projectIdStr)
               .reduce((sum, ur) => sum + ur.uren, 0);
 
-            const totaalProjectUren = urenRegistraties
-              .filter((ur) => ur.projectId.toString() === projectIdStr)
-              .reduce((sum, ur) => sum + ur.uren, 0);
+            const totaalProjectUren = totaalUrenPerProject.get(projectIdStr) || 0;
 
             if (totaalProjectUren > 0) {
               const proportie = projectUren / totaalProjectUren;

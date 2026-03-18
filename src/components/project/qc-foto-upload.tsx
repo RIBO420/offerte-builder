@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import Image from "next/image";
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
@@ -342,11 +343,13 @@ export function QCFotoUpload({
 
           {previewFoto && (
             <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <Image
                 src={previewFoto.url}
                 alt={previewFoto.beschrijving || "Foto"}
-                className="h-full w-full object-contain"
+                fill
+                unoptimized
+                priority={false}
+                className="object-contain"
               />
             </div>
           )}
@@ -376,11 +379,13 @@ function FotoThumbnail({
 }: FotoThumbnailProps) {
   return (
     <div className="group relative aspect-square overflow-hidden rounded-lg border bg-muted">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
+      <Image
         src={foto.url}
         alt={foto.beschrijving || "Foto"}
-        className="h-full w-full object-cover"
+        fill
+        unoptimized
+        priority={false}
+        className="object-cover"
       />
 
       {/* Overlay with actions */}

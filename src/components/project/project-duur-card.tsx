@@ -19,7 +19,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarDays, Clock, ArrowRight, CalendarCheck2 } from "lucide-react";
 import { format, addBusinessDays, isWeekend, parseISO } from "date-fns";
-import { nl } from "date-fns/locale";
+import { nl } from "@/lib/date-locale";
 import { cn } from "@/lib/utils";
 
 interface ProjectDuurCardProps {

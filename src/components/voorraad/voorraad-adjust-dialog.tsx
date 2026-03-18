@@ -104,7 +104,10 @@ export function VoorraadAdjustDialog({
   const isUnderMinimum = newStock < (item?.minVoorraad || 0);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(isOpen) => {
+      if (!isOpen && isSaving) return;
+      onOpenChange(isOpen);
+    }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">

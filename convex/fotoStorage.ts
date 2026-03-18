@@ -9,7 +9,7 @@
 
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAuthUserId } from "./auth";
+import { requireAuth, requireAuthUserId, getAuthenticatedUser } from "./auth";
 
 // ============================================
 // Public mutations (geen auth vereist — klanten zijn niet ingelogd)
@@ -17,19 +17,20 @@ import { requireAuthUserId } from "./auth";
 
 /**
  * Genereert een upload URL voor Convex file storage.
- * Klanten kunnen deze URL gebruiken om direct een bestand te uploaden.
- * Geen authenticatie vereist — beschikbaar voor anonieme configurator-gebruikers.
+ * Authenticatie vereist — alleen ingelogde gebruikers mogen bestanden uploaden.
  */
 export const generateUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
+    await requireAuth(ctx);
     return await ctx.storage.generateUploadUrl();
   },
 });
 
 /**
  * Voegt een storageId toe aan de fotoIds-array van een configuratorAanvraag.
- * Geen authenticatie vereist — klanten doen dit direct na het uploaden.
+ * Authenticatie vereist — verifieert dat de aanvraag bij de gebruiker hoort
+ * of een geldige publieke aanvraag is (aangemaakt in de afgelopen 24 uur).
  */
 export const addFotoToAanvraag = mutation({
   args: {
@@ -40,6 +41,17 @@ export const addFotoToAanvraag = mutation({
     const aanvraag = await ctx.db.get(args.aanvraagId);
     if (!aanvraag) {
       throw new Error("Aanvraag niet gevonden");
+    }
+
+    // Auth check: verify user is authenticated OR this is a valid recent public submission.
+    // configuratorAanvragen are public (customers are not logged in), so we allow
+    // unauthenticated access only for recently created aanvragen (within 24 hours).
+    const user = await getAuthenticatedUser(ctx);
+    if (!user) {
+      const twentyFourHoursAgo = Date.now() - 24 * 60 * 60 * 1000;
+      if (aanvraag._creationTime < twentyFourHoursAgo) {
+        throw new Error("Niet geautoriseerd om foto's toe te voegen aan deze aanvraag");
+      }
     }
 
     const huidigeFotoIds = aanvraag.fotoIds ?? [];

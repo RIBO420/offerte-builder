@@ -213,7 +213,7 @@ export default function OfferteHistoryPage({
 
     setIsRollingBack(true);
     try {
-      await rollback(rollbackVersion._id, user._id);
+      await rollback(rollbackVersion._id);
       toast.success(`Teruggedraaid naar versie ${rollbackVersion.versieNummer}`);
       setRollbackVersion(null);
       router.push(`/offertes/${id}`);

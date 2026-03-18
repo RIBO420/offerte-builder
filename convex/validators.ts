@@ -489,6 +489,83 @@ export const VALIDATION_MESSAGES = {
   required: "Dit veld is verplicht",
 };
 
+// ==================== FINANCIAL FIELD VALIDATORS ====================
+
+/**
+ * Validates financial number fields at the start of mutations.
+ * Convex v.number() does not support min/max constraints, so we enforce them at runtime.
+ */
+
+/**
+ * Validates prijsPerEenheid (price per unit): must be >= 0.
+ * Throws if negative.
+ */
+export function validatePrijsPerEenheid(value: number): number {
+  if (value < 0) {
+    throw new Error("Prijs per eenheid mag niet negatief zijn");
+  }
+  return value;
+}
+
+/**
+ * Validates hoeveelheid (quantity): must be >= 0.
+ * Throws if negative.
+ */
+export function validateHoeveelheid(value: number): number {
+  if (value < 0) {
+    throw new Error("Hoeveelheid mag niet negatief zijn");
+  }
+  return value;
+}
+
+/**
+ * Validates margePercentage (margin percentage): must be between 0 and 100.
+ * Throws if out of range.
+ */
+export function validateMargePercentage(value: number): number {
+  if (value < 0 || value > 100) {
+    throw new Error("Marge percentage moet tussen 0 en 100 liggen");
+  }
+  return value;
+}
+
+/**
+ * Validates an optional margePercentage: skips if undefined/null, otherwise must be between 0 and 100.
+ */
+export function validateOptionalMargePercentage(value: number | undefined | null): number | undefined {
+  if (value === undefined || value === null) return undefined;
+  return validateMargePercentage(value);
+}
+
+/**
+ * Validates a financial amount (kosten, totaal, btw, etc.): must be >= 0.
+ * Throws if negative.
+ */
+export function validateFinancialAmount(value: number, fieldName: string = "Bedrag"): number {
+  if (value < 0) {
+    throw new Error(`${fieldName} mag niet negatief zijn`);
+  }
+  return value;
+}
+
+/**
+ * Validates all financial fields in an offerte regel (line item).
+ * Call this at the start of any mutation that accepts regels.
+ */
+export function validateRegelFinancials(regel: {
+  hoeveelheid: number;
+  prijsPerEenheid: number;
+  totaal: number;
+  margePercentage?: number | null;
+}): void {
+  validateHoeveelheid(regel.hoeveelheid);
+  validatePrijsPerEenheid(regel.prijsPerEenheid);
+  validateFinancialAmount(regel.totaal, "Totaal");
+  if (regel.margePercentage !== undefined && regel.margePercentage !== null) {
+    validateMargePercentage(regel.margePercentage);
+  }
+}
+
 /**
  * Sanitizes optional string fields: converts empty strings to undefined.
  * This ensures consistent handling between frontend and backend.

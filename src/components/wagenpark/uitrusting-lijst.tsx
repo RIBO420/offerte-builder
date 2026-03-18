@@ -56,7 +56,7 @@ import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
 import { UitrustingForm, Uitrusting } from "./uitrusting-form";
 import { format } from "date-fns";
-import { nl } from "date-fns/locale";
+import { nl } from "@/lib/date-locale";
 
 // Categorie labels and icons
 const categorieConfig: Record<

@@ -11,8 +11,10 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { createHmac, timingSafeEqual } from "crypto";
 
 const MOLLIE_API = "https://api.mollie.com/v2";
+const WEBHOOK_SIGNING_KEY = process.env.MOLLIE_WEBHOOK_SIGNING_KEY;
 
 interface MolliePaymentDetail {
   id: string;
@@ -27,6 +29,40 @@ interface MolliePaymentDetail {
   failedAt?: string;
   expiredAt?: string;
   canceledAt?: string;
+}
+
+/**
+ * Verifieert de Mollie webhook-handtekening (HMAC-SHA256).
+ *
+ * Mollie stuurt de handtekening mee als "webhook-signing" header.
+ * De te ondertekenen boodschap is de rauwe request body.
+ */
+function verifyWebhookSignature(
+  signatureHeader: string,
+  rawBody: string
+): boolean {
+  if (!WEBHOOK_SIGNING_KEY) {
+    // Geen sleutel geconfigureerd — verzoeken worden afgewezen in productie
+    console.error(
+      "[mollie/webhook] MOLLIE_WEBHOOK_SIGNING_KEY niet geconfigureerd — webhook wordt afgewezen. " +
+        "Stel deze omgevingsvariabele in om webhooks te verwerken."
+    );
+    return false;
+  }
+
+  const expectedSignature = createHmac("sha256", WEBHOOK_SIGNING_KEY)
+    .update(rawBody, "utf8")
+    .digest("hex");
+
+  // Gebruik timingSafeEqual om timing-aanvallen te voorkomen
+  try {
+    return timingSafeEqual(
+      Buffer.from(signatureHeader, "hex"),
+      Buffer.from(expectedSignature, "hex")
+    );
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -66,16 +102,31 @@ export async function POST(request: NextRequest) {
     return new NextResponse("OK", { status: 200 });
   }
 
+  // ── Handtekening verificatie (HMAC-SHA256) ──────────────────────────────
+  const rawBody = await request.text();
+  const signatureHeader = request.headers.get("webhook-signing");
+
+  if (!signatureHeader) {
+    console.warn("[mollie/webhook] Handtekening-header ontbreekt.");
+    return new NextResponse("Unauthorized", { status: 401 });
+  }
+
+  if (!verifyWebhookSignature(signatureHeader, rawBody)) {
+    console.warn("[mollie/webhook] Ongeldige handtekening ontvangen.");
+    return new NextResponse("Unauthorized", { status: 401 });
+  }
+
+  // ── Body verwerken ──────────────────────────────────────────────────────
   let paymentId: string | null = null;
 
   try {
     // Mollie stuurt een application/x-www-form-urlencoded body met het betaling-ID
-    const formData = await request.formData();
-    paymentId = formData.get("id") as string | null;
+    const params = new URLSearchParams(rawBody);
+    paymentId = params.get("id");
   } catch {
     // Fallback: probeer JSON body te lezen
     try {
-      const json = (await request.json()) as { id?: string };
+      const json = JSON.parse(rawBody) as { id?: string };
       paymentId = json.id ?? null;
     } catch {
       console.error("[mollie/webhook] Kan request body niet verwerken");

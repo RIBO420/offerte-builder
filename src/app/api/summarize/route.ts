@@ -11,6 +11,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_MODEL = 'claude-opus-4-6';
@@ -64,6 +65,15 @@ Antwoord uitsluitend met het JSON object, geen extra tekst.`;
 export async function POST(
   request: NextRequest
 ): Promise<NextResponse<SummaryResult | ErrorResponse>> {
+  // ── Authenticatie ─────────────────────────────────────────────────────────
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json(
+      { error: 'Niet geautoriseerd. Log in om deze functie te gebruiken.' },
+      { status: 401 }
+    );
+  }
+
   // Verwerk request body
   let body: { transcript?: string };
   try {

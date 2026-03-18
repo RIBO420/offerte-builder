@@ -53,7 +53,7 @@ import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
 import { SchadeForm, Schade } from "./schade-form";
 import { format } from "date-fns";
-import { nl } from "date-fns/locale";
+import { nl } from "@/lib/date-locale";
 
 // Ernst labels and styling
 const ernstConfig: Record<

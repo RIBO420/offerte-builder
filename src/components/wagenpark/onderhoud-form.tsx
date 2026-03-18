@@ -31,7 +31,7 @@ import { showSuccessToast, showErrorToast, showWarningToast } from "@/lib/toast-
 import { getMutationErrorMessage } from "@/lib/error-handling";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { nl } from "date-fns/locale";
+import { nl } from "@/lib/date-locale";
 import { Id } from "../../../convex/_generated/dataModel";
 import type { OnderhoudType, OnderhoudStatus, OnderhoudRecord } from "@/hooks/use-voertuig-details";
 

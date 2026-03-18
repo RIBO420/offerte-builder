@@ -806,6 +806,11 @@ function AuthenticatedUrenScreen() {
             <FlatList
               data={assignedProjects || []}
               keyExtractor={(item) => item._id}
+              getItemLayout={(_, index) => ({
+                length: 58,
+                offset: 58 * index,
+                index,
+              })}
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={{
@@ -1162,6 +1167,11 @@ function AuthenticatedUrenScreen() {
             <FlatList
               data={assignedProjects || []}
               keyExtractor={(item) => item._id}
+              getItemLayout={(_, index) => ({
+                length: 58,
+                offset: 58 * index,
+                index,
+              })}
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={{

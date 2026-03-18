@@ -12,7 +12,7 @@ import {
   TruckIcon,
 } from "lucide-react";
 import { addDays, format, isWeekend } from "date-fns";
-import { nl } from "date-fns/locale";
+import { nl } from "@/lib/date-locale";
 import { useMutation } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { toast } from "sonner";

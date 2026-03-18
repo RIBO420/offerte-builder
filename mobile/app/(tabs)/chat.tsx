@@ -460,6 +460,11 @@ function AuthenticatedChatScreen() {
                 inverted
                 contentContainerStyle={styles.messageList}
                 showsVerticalScrollIndicator={false}
+                getItemLayout={(_, index) => ({
+                  length: 80,
+                  offset: 80 * index,
+                  index,
+                })}
                 refreshControl={
                   <RefreshControl
                     refreshing={refreshing}
@@ -488,6 +493,11 @@ function AuthenticatedChatScreen() {
                   inverted
                   contentContainerStyle={styles.messageList}
                   showsVerticalScrollIndicator={false}
+                  getItemLayout={(_, index) => ({
+                    length: 80,
+                    offset: 80 * index,
+                    index,
+                  })}
                   refreshControl={
                     <RefreshControl
                       refreshing={refreshing}
@@ -510,6 +520,11 @@ function AuthenticatedChatScreen() {
                   renderItem={renderDMConversation}
                   contentContainerStyle={styles.conversationList}
                   showsVerticalScrollIndicator={false}
+                  getItemLayout={(_, index) => ({
+                    length: 82,
+                    offset: 82 * index,
+                    index,
+                  })}
                   refreshControl={
                     <RefreshControl
                       refreshing={refreshing}
@@ -537,6 +552,11 @@ function AuthenticatedChatScreen() {
                 inverted
                 contentContainerStyle={styles.messageList}
                 showsVerticalScrollIndicator={false}
+                getItemLayout={(_, index) => ({
+                  length: 80,
+                  offset: 80 * index,
+                  index,
+                })}
                 refreshControl={
                   <RefreshControl
                     refreshing={refreshing}

@@ -67,7 +67,7 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://clerk.toptuinen.app https://*.clerk.accounts.dev https://*.clerk.dev https://cdn.sentry-cdn.com https://challenges.cloudflare.com",
+              "script-src 'self' https://clerk.toptuinen.app https://*.clerk.accounts.dev https://*.clerk.dev https://cdn.sentry-cdn.com https://challenges.cloudflare.com",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' https: data: blob:",
               "font-src 'self' data:",
@@ -76,6 +76,10 @@ const nextConfig: NextConfig = {
               "worker-src 'self' blob:",
               "frame-ancestors 'none'",
             ].join("; "),
+          },
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=31536000; includeSubDomains; preload",
           },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "DENY" },

@@ -23,6 +23,7 @@ type FormFieldContextValue<
   TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
 > = {
   name: TName
+  required?: boolean
 }
 
 const FormFieldContext = React.createContext<FormFieldContextValue>(
@@ -33,10 +34,11 @@ const FormField = <
   TFieldValues extends FieldValues = FieldValues,
   TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
 >({
+  required,
   ...props
-}: ControllerProps<TFieldValues, TName>) => {
+}: ControllerProps<TFieldValues, TName> & { required?: boolean }) => {
   return (
-    <FormFieldContext.Provider value={{ name: props.name }}>
+    <FormFieldContext.Provider value={{ name: props.name, required }}>
       <Controller {...props} />
     </FormFieldContext.Provider>
   )
@@ -58,6 +60,7 @@ const useFormField = () => {
   return {
     id,
     name: fieldContext.name,
+    required: fieldContext.required,
     formItemId: `${id}-form-item`,
     formDescriptionId: `${id}-form-item-description`,
     formMessageId: `${id}-form-item-message`,
@@ -112,7 +115,7 @@ const FormLabel = React.forwardRef<
       {...props}
     >
       {children}
-      {required && <span className="text-destructive ml-1">*</span>}
+      {required && <span className="text-destructive ml-1" aria-label="verplicht">*</span>}
     </Label>
   )
 })
@@ -123,19 +126,21 @@ const FormControl = React.forwardRef<
   React.ComponentRef<typeof Slot>,
   React.ComponentProps<typeof Slot>
 >(({ ...props }, ref) => {
-  const { error, formItemId, formDescriptionId, formMessageId } = useFormField()
+  const { error, required, formItemId, formDescriptionId, formMessageId } = useFormField()
+
+  const describedByIds = [formDescriptionId]
+  if (error) {
+    describedByIds.push(formMessageId)
+  }
 
   return (
     <Slot
       ref={ref}
       data-slot="form-control"
       id={formItemId}
-      aria-describedby={
-        !error
-          ? `${formDescriptionId}`
-          : `${formDescriptionId} ${formMessageId}`
-      }
+      aria-describedby={describedByIds.join(" ")}
       aria-invalid={!!error}
+      aria-required={required || undefined}
       {...props}
     />
   )
@@ -162,9 +167,9 @@ const FormDescription = React.forwardRef<HTMLParagraphElement, React.ComponentPr
 FormDescription.displayName = "FormDescription"
 
 const FormMessage = React.forwardRef<HTMLParagraphElement, React.ComponentProps<"p">>(
-  ({ className, ...props }, ref) => {
+  ({ className, children, ...props }, ref) => {
     const { error, formMessageId } = useFormField()
-    const body = error ? String(error?.message ?? "") : props.children
+    const body = error ? String(error?.message ?? "") : children
 
     if (!body) {
       return null
@@ -176,8 +181,11 @@ const FormMessage = React.forwardRef<HTMLParagraphElement, React.ComponentProps<
         data-slot="form-message"
         id={formMessageId}
         className={cn("text-destructive text-sm", className)}
+        {...(error ? { role: "alert" } : {})}
         {...props}
-      />
+      >
+        {body}
+      </p>
     )
   }
 )

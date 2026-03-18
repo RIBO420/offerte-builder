@@ -228,16 +228,18 @@ export function useAudioRecording(): UseAudioRecordingReturn {
     if (!recordingRef.current || !isRecording || isPaused) return;
 
     try {
-      await recordingRef.current.pauseAsync();
-
-      // Sla de opgelopen duur op voor hervatting
+      // Stop the duration timer immediately before awaiting pauseAsync
+      // to prevent the timer from ticking while we wait for the pause
       pausedDurationRef.current = duration;
       stopDurationTimer();
+
+      await recordingRef.current.pauseAsync();
 
       setIsPaused(true);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Onbekende fout bij pauzeren';
       setError(`Kon opname niet pauzeren: ${message}`);
+      // Timer is already stopped - don't restart it on error
     }
   }, [isRecording, isPaused, duration, stopDurationTimer]);
 

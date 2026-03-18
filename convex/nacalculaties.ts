@@ -292,25 +292,43 @@ export const listAll = query({
       .collect();
 
     const projectIds = projects.map((p) => p._id);
+    const projectMap = new Map(projects.map((p) => [p._id.toString(), p]));
 
-    // Get nacalculaties for all projects
-    const nacalculaties = await Promise.all(
-      projectIds.map(async (projectId) => {
-        const nacalculatie = await ctx.db
-          .query("nacalculaties")
-          .withIndex("by_project", (q) => q.eq("projectId", projectId))
-          .unique();
+    // Batch fetch all nacalculaties and voorcalculaties in parallel
+    const [allNacalculaties, allVoorcalculaties] = await Promise.all([
+      Promise.all(
+        projectIds.map((projectId) =>
+          ctx.db
+            .query("nacalculaties")
+            .withIndex("by_project", (q) => q.eq("projectId", projectId))
+            .unique()
+        )
+      ),
+      Promise.all(
+        projectIds.map((projectId) =>
+          ctx.db
+            .query("voorcalculaties")
+            .withIndex("by_project", (q) => q.eq("projectId", projectId))
+            .unique()
+        )
+      ),
+    ]);
 
+    // Build voorcalculatie lookup map by projectId
+    const voorcalculatieMap = new Map(
+      allVoorcalculaties
+        .filter(Boolean)
+        .map((vc) => [vc!.projectId?.toString(), vc])
+    );
+
+    // Combine results
+    const nacalculaties = allNacalculaties
+      .map((nacalculatie, index) => {
         if (!nacalculatie) return null;
 
-        // Get project details
-        const project = projects.find((p) => p._id === projectId);
-
-        // Get voorcalculatie for planned hours
-        const voorcalculatie = await ctx.db
-          .query("voorcalculaties")
-          .withIndex("by_project", (q) => q.eq("projectId", projectId))
-          .unique();
+        const projectId = projectIds[index];
+        const project = projectMap.get(projectId.toString());
+        const voorcalculatie = voorcalculatieMap.get(projectId.toString());
 
         return {
           ...nacalculatie,
@@ -318,9 +336,9 @@ export const listAll = query({
           geplandeUrenPerScope: voorcalculatie?.normUrenPerScope || {},
         };
       })
-    );
+      .filter(Boolean);
 
-    return nacalculaties.filter(Boolean);
+    return nacalculaties;
   },
 });
 
