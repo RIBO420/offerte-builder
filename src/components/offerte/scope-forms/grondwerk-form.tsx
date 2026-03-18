@@ -23,9 +23,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Shovel } from "lucide-react";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { Shovel, Info } from "lucide-react";
 import { grondwerkSchema, type GrondwerkFormData } from "@/lib/validations/aanleg-scopes";
 import type { GrondwerkData } from "@/types/offerte";
+
+const GRONDWERK_TOOLTIPS: Record<string, string> = {
+  diepte:
+    "Licht grondwerk (0-15 cm) is geschikt voor borders en gazon. Standaard (15-30 cm) voor bestrating en paden. Zwaar (30+ cm) voor funderingen en vijvers. Meer diepte = meer kubieke meters = hogere kosten voor machines en afvoer.",
+  afvoer:
+    "Grondafvoer voegt aanzienlijke transportkosten toe. Reken op ~€25-€35 per m³ inclusief stortkosten. Overweeg of grond elders in de tuin hergebruikt kan worden om kosten te besparen.",
+  egaliseren:
+    "Egaliseren is nodig wanneer de ondergrond ongelijk is, bijv. na sloop of bij niveauverschillen. Dit zorgt voor een vlakke basis voor bestrating, gazon of beplanting.",
+};
 
 interface GrondwerkFormProps {
   data: GrondwerkData;
@@ -126,7 +136,19 @@ export function GrondwerkForm({ data, onChange, onValidationChange }: GrondwerkF
                 name="diepte"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel required>Diepte</FormLabel>
+                    <div className="flex items-center gap-1.5">
+                      <FormLabel required>Diepte</FormLabel>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button type="button" className="inline-flex rounded-full p-0.5 text-muted-foreground hover:text-foreground">
+                            <Info className="h-3.5 w-3.5" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="right" className="max-w-[260px]">
+                          {GRONDWERK_TOOLTIPS.diepte}
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                     <Select
                       value={field.value}
                       onValueChange={field.onChange}
@@ -157,7 +179,19 @@ export function GrondwerkForm({ data, onChange, onValidationChange }: GrondwerkF
               render={({ field }) => (
                 <FormItem className="flex items-center justify-between rounded-lg border p-3">
                   <div className="space-y-0">
-                    <FormLabel className="text-sm">Afvoer grond</FormLabel>
+                    <div className="flex items-center gap-1.5">
+                      <FormLabel className="text-sm">Afvoer grond</FormLabel>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button type="button" className="inline-flex rounded-full p-0.5 text-muted-foreground hover:text-foreground">
+                            <Info className="h-3.5 w-3.5" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="right" className="max-w-[260px]">
+                          {GRONDWERK_TOOLTIPS.afvoer}
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                     <FormDescription className="text-xs">
                       Grond afvoeren naar depot
                     </FormDescription>

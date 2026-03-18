@@ -1,15 +1,18 @@
 "use client";
 
 import { useState, useMemo, useCallback, Suspense } from "react";
+import { formatCurrency } from "@/lib/format";
+import { TrendingUp, Calculator, Target, Clock, CheckSquare, XSquare } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useReducedMotion } from "@/hooks/use-accessibility";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useTableSort } from "@/hooks/use-table-sort";
 import { RequireAdmin } from "@/components/require-admin";
 import { PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { toast } from "sonner";
 import {
@@ -25,6 +28,7 @@ import type { SortableOfferte } from "./components/types";
 import { OfferteToolbar } from "./components/offerte-toolbar";
 import { StatusTabs } from "./components/status-tabs";
 import { BulkDeleteDialog } from "./components/bulk-delete-dialog";
+import { BulkStatusPreviewDialog } from "./components/bulk-status-preview-dialog";
 import { useOfferteActions } from "./components/use-offerte-actions";
 
 export default function OffertesPage() {
@@ -63,8 +67,16 @@ function OffertesPageContent() {
     setShowBulkDeleteDialog,
     bulkStatusValue,
     setBulkStatusValue,
+    // Bulk status preview
+    pendingBulkStatus,
+    showBulkStatusDialog,
+    setShowBulkStatusDialog,
+    requestBulkStatusChange,
+    confirmBulkStatusChange,
+    cancelBulkStatusChange,
     optimisticStatusUpdates,
     optimisticDeletedIds,
+    handleStatusChange,
     handleDuplicate,
     handleDelete,
     handleNavigate,
@@ -212,10 +224,15 @@ function OffertesPageContent() {
 
   const filteredOffertes = useMemo(() => {
     return offertesWithOptimisticUpdates.filter((offerte) => {
+      const searchLower = debouncedSearchQuery.toLowerCase();
       const matchesSearch =
         debouncedSearchQuery === "" ||
-        offerte.klant.naam.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-        offerte.offerteNummer.toLowerCase().includes(debouncedSearchQuery.toLowerCase());
+        offerte.klant.naam.toLowerCase().includes(searchLower) ||
+        offerte.offerteNummer.toLowerCase().includes(searchLower) ||
+        (offerte.klant.adres && offerte.klant.adres.toLowerCase().includes(searchLower)) ||
+        (offerte.klant.plaats && offerte.klant.plaats.toLowerCase().includes(searchLower)) ||
+        (offerte.klant.email && offerte.klant.email.toLowerCase().includes(searchLower)) ||
+        (offerte.klant.telefoon && offerte.klant.telefoon.toLowerCase().includes(searchLower));
       const matchesStatus = activeTab === "alle" || offerte.status === activeTab;
       const matchesType = filters.type === "alle" || offerte.type === filters.type;
       const offerteDate = new Date(offerte.updatedAt);
@@ -252,6 +269,22 @@ function OffertesPageContent() {
 
   const isAllSelected = sortedOffertes.length > 0 && selectedIds.size === sortedOffertes.length;
 
+  // Aggregate metrics computed from visible (filtered) offertes
+  const aggregateMetrics = useMemo(() => {
+    const visible = filteredOffertes ?? [];
+    const totaleWaarde = visible.reduce((sum, o) => sum + o.totalen.totaalInclBtw, 0);
+    const gemiddelde = visible.length > 0 ? totaleWaarde / visible.length : 0;
+    const geaccepteerd = visible.filter((o) => o.status === "geaccepteerd").length;
+    const afgewezen = visible.filter((o) => o.status === "afgewezen").length;
+    const afgerond = geaccepteerd + afgewezen;
+    const conversieratio = afgerond > 0 ? Math.round((geaccepteerd / afgerond) * 100) : 0;
+    const openOffertes = visible.filter((o) =>
+      ["concept", "voorcalculatie", "verzonden"].includes(o.status)
+    ).length;
+
+    return { totaleWaarde, gemiddelde, conversieratio, openOffertes };
+  }, [filteredOffertes]);
+
   return (
     <>
       <PageHeader />
@@ -280,6 +313,86 @@ function OffertesPageContent() {
           reducedMotion={reducedMotion}
         />
 
+        {/* Aggregate metrics */}
+        <motion.div
+          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: reducedMotion ? 0 : 0.4, delay: reducedMotion ? 0 : 0.2 }}
+          className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4"
+        >
+          <div className="rounded-lg border bg-card p-3 md:p-4 shadow-sm">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+              <TrendingUp className="h-3.5 w-3.5" />
+              <span>Totale waarde</span>
+            </div>
+            <p className="text-base md:text-lg font-semibold truncate">
+              {formatCurrency(aggregateMetrics.totaleWaarde)}
+            </p>
+          </div>
+          <div className="rounded-lg border bg-card p-3 md:p-4 shadow-sm">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+              <Calculator className="h-3.5 w-3.5" />
+              <span>Gemiddelde offerte</span>
+            </div>
+            <p className="text-base md:text-lg font-semibold truncate">
+              {formatCurrency(aggregateMetrics.gemiddelde)}
+            </p>
+          </div>
+          <div className="rounded-lg border bg-card p-3 md:p-4 shadow-sm">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+              <Target className="h-3.5 w-3.5" />
+              <span>Conversieratio</span>
+            </div>
+            <p className="text-base md:text-lg font-semibold">
+              {aggregateMetrics.conversieratio}%
+            </p>
+          </div>
+          <div className="rounded-lg border bg-card p-3 md:p-4 shadow-sm">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+              <Clock className="h-3.5 w-3.5" />
+              <span>Open offertes</span>
+            </div>
+            <p className="text-base md:text-lg font-semibold">
+              {aggregateMetrics.openOffertes}
+            </p>
+          </div>
+        </motion.div>
+
+        {/* Quick select bar */}
+        <AnimatePresence>
+          {sortedOffertes.length > 0 && (
+            <motion.div
+              initial={reducedMotion ? false : { opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={reducedMotion ? undefined : { opacity: 0, height: 0 }}
+              transition={{ duration: reducedMotion ? 0 : 0.2 }}
+              className="flex items-center gap-2"
+            >
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => toggleSelectAll(sortedOffertes)}
+                disabled={isAllSelected}
+                className="h-8 text-xs"
+              >
+                <CheckSquare className="mr-1.5 h-3.5 w-3.5" />
+                Selecteer alle zichtbare ({sortedOffertes.length})
+              </Button>
+              {selectedIds.size > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearSelection}
+                  className="h-8 text-xs"
+                >
+                  <XSquare className="mr-1.5 h-3.5 w-3.5" />
+                  Deselecteer alles ({selectedIds.size})
+                </Button>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <motion.div
           initial={reducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -291,7 +404,7 @@ function OffertesPageContent() {
             stats={stats}
             selectedCount={selectedIds.size}
             bulkStatusValue={bulkStatusValue}
-            onBulkStatusChange={handleBulkStatusChange}
+            onBulkStatusChange={requestBulkStatusChange}
             onSetBulkStatusValue={setBulkStatusValue}
             onClearSelection={clearSelection}
             onExportCSV={() => handleExportCSV(sortedOffertes)}
@@ -304,6 +417,7 @@ function OffertesPageContent() {
             isAllSelected={isAllSelected}
             toggleSelectAll={() => toggleSelectAll(sortedOffertes)}
             toggleSelect={toggleSelect}
+            handleStatusChange={handleStatusChange}
             handleDuplicate={handleDuplicate}
             handleDelete={handleDelete}
             handleNavigate={handleNavigate}
@@ -320,6 +434,17 @@ function OffertesPageContent() {
         onOpenChange={setShowBulkDeleteDialog}
         selectedCount={selectedIds.size}
         onConfirm={handleBulkDelete}
+      />
+
+      <BulkStatusPreviewDialog
+        open={showBulkStatusDialog}
+        onOpenChange={(open) => {
+          if (!open) cancelBulkStatusChange();
+        }}
+        selectedOffertes={sortedOffertes.filter((o) => selectedIds.has(o._id))}
+        newStatus={pendingBulkStatus}
+        onConfirm={confirmBulkStatusChange}
+        onCancel={cancelBulkStatusChange}
       />
     </>
   );

@@ -500,22 +500,32 @@ export function BestratingForm({ data, onChange, onValidationChange }: Bestratin
         </Card>
 
         {/* ─── Sectie 2: Funderingsvisualisatie (als type gekozen) ─── */}
-        {bestratingtype && (
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-amber-600" />
-                <CardTitle className="text-base">Berekende fundering</CardTitle>
-              </div>
-              <CardDescription className="text-xs">
-                Automatisch bepaald op basis van type &quot;{BESTRATINGTYPE_OPTIONS.find(o => o.value === bestratingtype)?.label}&quot;
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <FunderingsVisualisatie spec={FUNDERINGS_SPECS[bestratingtype]} />
-            </CardContent>
-          </Card>
-        )}
+        <div
+          className="grid transition-all duration-200 ease-in-out"
+          style={{
+            gridTemplateRows: bestratingtype ? "1fr" : "0fr",
+            opacity: bestratingtype ? 1 : 0,
+          }}
+        >
+          <div className="overflow-hidden">
+          {bestratingtype && (
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  <CardTitle className="text-base">Berekende fundering</CardTitle>
+                </div>
+                <CardDescription className="text-xs">
+                  Automatisch bepaald op basis van type &quot;{BESTRATINGTYPE_OPTIONS.find(o => o.value === bestratingtype)?.label}&quot;
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <FunderingsVisualisatie spec={FUNDERINGS_SPECS[bestratingtype]} />
+              </CardContent>
+            </Card>
+          )}
+          </div>
+        </div>
 
         {/* ─── Sectie 3: Bestaande bestrating velden ─── */}
         <Card>
@@ -694,11 +704,19 @@ export function BestratingForm({ data, onChange, onValidationChange }: Bestratin
               )}
             />
 
-            {estimatedZandVolume !== null && (
-              <div className="rounded-lg bg-muted/50 p-2 text-xs text-muted-foreground dark:bg-orange-950/30">
-                Geschat zandvolume: {estimatedZandVolume.toFixed(2)} m&#179;
+            <div
+              className="grid transition-all duration-200 ease-in-out"
+              style={{
+                gridTemplateRows: estimatedZandVolume !== null ? "1fr" : "0fr",
+                opacity: estimatedZandVolume !== null ? 1 : 0,
+              }}
+            >
+              <div className="overflow-hidden">
+                <div className="rounded-lg bg-muted/50 p-2 text-xs text-muted-foreground dark:bg-orange-950/30">
+                  Geschat zandvolume: {estimatedZandVolume !== null ? estimatedZandVolume.toFixed(2) : "0"} m&#179;
+                </div>
               </div>
-            )}
+            </div>
           </CardContent>
         </Card>
 
@@ -758,17 +776,25 @@ export function BestratingForm({ data, onChange, onValidationChange }: Bestratin
                 </div>
 
                 {/* Zone samenvatting */}
-                {totalZoneOppervlakte > 0 && (
-                  <div className="rounded-lg bg-muted/50 p-2 text-xs text-muted-foreground">
-                    <span className="font-medium">Totaal zones:</span> {zones.length} zone{zones.length !== 1 ? "s" : ""},{" "}
-                    {totalZoneOppervlakte.toFixed(1)} m&#178; totaal
-                    {watchedValues.oppervlakte > 0 && totalZoneOppervlakte !== watchedValues.oppervlakte && (
-                      <span className="ml-1 text-amber-600 dark:text-amber-400">
-                        (verschilt van hoofdoppervlakte: {watchedValues.oppervlakte} m&#178;)
-                      </span>
-                    )}
+                <div
+                  className="grid transition-all duration-200 ease-in-out"
+                  style={{
+                    gridTemplateRows: totalZoneOppervlakte > 0 ? "1fr" : "0fr",
+                    opacity: totalZoneOppervlakte > 0 ? 1 : 0,
+                  }}
+                >
+                  <div className="overflow-hidden">
+                    <div className="rounded-lg bg-muted/50 p-2 text-xs text-muted-foreground">
+                      <span className="font-medium">Totaal zones:</span> {zones.length} zone{zones.length !== 1 ? "s" : ""},{" "}
+                      {totalZoneOppervlakte.toFixed(1)} m&#178; totaal
+                      {watchedValues.oppervlakte > 0 && totalZoneOppervlakte !== watchedValues.oppervlakte && (
+                        <span className="ml-1 text-amber-600 dark:text-amber-400">
+                          (verschilt van hoofdoppervlakte: {watchedValues.oppervlakte} m&#178;)
+                        </span>
+                      )}
+                    </div>
                   </div>
-                )}
+                </div>
               </div>
             )}
           </CardContent>

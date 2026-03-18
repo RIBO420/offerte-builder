@@ -15,6 +15,10 @@ interface UseAutoSaveResult {
   lastSaved: Date | null;
   saveNow: () => Promise<void>;
   error: Error | null;
+  /** Alias for lastSaved — timestamp of the last successful save */
+  lastSavedAt: Date | null;
+  /** Alias for isDirty — true when data has changed since the last save */
+  hasUnsavedChanges: boolean;
 }
 
 /**
@@ -140,5 +144,7 @@ export function useAutoSave<T>({
     lastSaved,
     saveNow,
     error,
+    lastSavedAt: lastSaved,
+    hasUnsavedChanges: isDirty,
   };
 }

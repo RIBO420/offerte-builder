@@ -133,12 +133,20 @@ export function GrasForm({ data, onChange, onValidationChange }: GrasFormProps) 
               )}
             />
 
-            {isKunstgras && (
-              <div className="flex items-start gap-2 rounded-lg bg-blue-50 p-3 text-xs text-blue-700 dark:bg-blue-950/30 dark:text-blue-300">
-                <Info className="h-4 w-4 mt-0.5 shrink-0" />
-                <span>Kunstgras is een premium optie die geen onderhoud vereist. Type aanleg (zaaien/graszoden) is niet van toepassing bij kunstgras.</span>
+            <div
+              className="grid transition-all duration-200 ease-in-out"
+              style={{
+                gridTemplateRows: isKunstgras ? "1fr" : "0fr",
+                opacity: isKunstgras ? 1 : 0,
+              }}
+            >
+              <div className="overflow-hidden">
+                <div className="flex items-start gap-2 rounded-lg bg-blue-50 p-3 text-xs text-blue-700 dark:bg-blue-950/30 dark:text-blue-300">
+                  <Info className="h-4 w-4 mt-0.5 shrink-0" />
+                  <span>Kunstgras is een premium optie die geen onderhoud vereist. Type aanleg (zaaien/graszoden) is niet van toepassing bij kunstgras.</span>
+                </div>
               </div>
-            )}
+            </div>
 
             <div className="grid gap-3 md:grid-cols-2">
               <FormField
@@ -270,38 +278,46 @@ export function GrasForm({ data, onChange, onValidationChange }: GrasFormProps) 
               )}
             />
 
-            {watchedValues.drainage && (
-              <div className="ml-4 space-y-3 border-l-2 border-blue-200 pl-4 dark:border-blue-800">
-                <FormField
-                  control={form.control}
-                  name="drainageMeters"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Meters PVC-buis</FormLabel>
-                      <FormControl>
-                        <NumberInput
-                          id="gras-drainage-meters"
-                          min={1}
-                          step={0.5}
-                          decimals={1}
-                          suffix="m"
-                          value={field.value ?? 1}
-                          onChange={field.onChange}
-                          onBlur={field.onBlur}
-                          showStepper
-                          error={!!errors.drainageMeters}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="flex items-start gap-2 rounded-lg bg-blue-50 p-2.5 text-xs text-blue-700 dark:bg-blue-950/30 dark:text-blue-300">
-                  <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                  <span>PVC-buizen met kokos omhulsel voor optimale waterafvoer</span>
+            <div
+              className="grid transition-all duration-200 ease-in-out"
+              style={{
+                gridTemplateRows: watchedValues.drainage ? "1fr" : "0fr",
+                opacity: watchedValues.drainage ? 1 : 0,
+              }}
+            >
+              <div className="overflow-hidden">
+                <div className="ml-4 space-y-3 border-l-2 border-blue-200 pl-4 dark:border-blue-800">
+                  <FormField
+                    control={form.control}
+                    name="drainageMeters"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Meters PVC-buis</FormLabel>
+                        <FormControl>
+                          <NumberInput
+                            id="gras-drainage-meters"
+                            min={1}
+                            step={0.5}
+                            decimals={1}
+                            suffix="m"
+                            value={field.value ?? 1}
+                            onChange={field.onChange}
+                            onBlur={field.onBlur}
+                            showStepper
+                            error={!!errors.drainageMeters}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="flex items-start gap-2 rounded-lg bg-blue-50 p-2.5 text-xs text-blue-700 dark:bg-blue-950/30 dark:text-blue-300">
+                    <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                    <span>PVC-buizen met kokos omhulsel voor optimale waterafvoer</span>
+                  </div>
                 </div>
               </div>
-            )}
+            </div>
 
             {/* Opsluitbanden sectie */}
             <FormField
@@ -328,87 +344,113 @@ export function GrasForm({ data, onChange, onValidationChange }: GrasFormProps) 
               )}
             />
 
-            {watchedValues.opsluitbanden && (
-              <div className="ml-4 space-y-3 border-l-2 border-stone-200 pl-4 dark:border-stone-700">
+            <div
+              className="grid transition-all duration-200 ease-in-out"
+              style={{
+                gridTemplateRows: watchedValues.opsluitbanden ? "1fr" : "0fr",
+                opacity: watchedValues.opsluitbanden ? 1 : 0,
+              }}
+            >
+              <div className="overflow-hidden">
+                <div className="ml-4 space-y-3 border-l-2 border-stone-200 pl-4 dark:border-stone-700">
+                  <FormField
+                    control={form.control}
+                    name="opsluitbandenMeters"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Lopende meters opsluitbanden</FormLabel>
+                        <FormControl>
+                          <NumberInput
+                            id="gras-opsluitbanden-meters"
+                            min={0.5}
+                            step={0.5}
+                            decimals={1}
+                            suffix="m"
+                            value={field.value ?? 1}
+                            onChange={field.onChange}
+                            onBlur={field.onBlur}
+                            showStepper
+                            error={!!errors.opsluitbandenMeters}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="flex items-start gap-2 rounded-lg bg-stone-50 p-2.5 text-xs text-stone-600 dark:bg-stone-950/30 dark:text-stone-400">
+                    <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                    <span>Opsluitbanden houden het gazon netjes afgebakend</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Verticuteren - alleen bij bestaande ondergrond */}
+            <div
+              className="grid transition-all duration-200 ease-in-out"
+              style={{
+                gridTemplateRows: watchedValues.ondergrond === "bestaand" ? "1fr" : "0fr",
+                opacity: watchedValues.ondergrond === "bestaand" ? 1 : 0,
+              }}
+            >
+              <div className="overflow-hidden">
+              {watchedValues.ondergrond === "bestaand" && (
                 <FormField
                   control={form.control}
-                  name="opsluitbandenMeters"
+                  name="verticuteren"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Lopende meters opsluitbanden</FormLabel>
-                      <FormControl>
-                        <NumberInput
-                          id="gras-opsluitbanden-meters"
-                          min={0.5}
-                          step={0.5}
-                          decimals={1}
-                          suffix="m"
-                          value={field.value ?? 1}
-                          onChange={field.onChange}
-                          onBlur={field.onBlur}
-                          showStepper
-                          error={!!errors.opsluitbandenMeters}
-                        />
-                      </FormControl>
-                      <FormMessage />
+                    <FormItem className="space-y-3">
+                      <div className="flex items-center justify-between rounded-lg border p-3">
+                        <div className="space-y-0">
+                          <FormLabel className="text-sm">Bestaand gras verticuteren?</FormLabel>
+                          <FormDescription className="text-xs">
+                            Verwijdert mos en dood materiaal
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </div>
+                      {field.value && (
+                        <div className="flex items-start gap-2 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-700 dark:bg-amber-950/30 dark:text-amber-300">
+                          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                          <span>Verticuteren verwijdert mos en dood materiaal uit bestaand gras</span>
+                        </div>
+                      )}
                     </FormItem>
                   )}
                 />
-                <div className="flex items-start gap-2 rounded-lg bg-stone-50 p-2.5 text-xs text-stone-600 dark:bg-stone-950/30 dark:text-stone-400">
-                  <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                  <span>Opsluitbanden houden het gazon netjes afgebakend</span>
-                </div>
+              )}
               </div>
-            )}
-
-            {/* Verticuteren - alleen bij bestaande ondergrond */}
-            {watchedValues.ondergrond === "bestaand" && (
-              <FormField
-                control={form.control}
-                name="verticuteren"
-                render={({ field }) => (
-                  <FormItem className="space-y-3">
-                    <div className="flex items-center justify-between rounded-lg border p-3">
-                      <div className="space-y-0">
-                        <FormLabel className="text-sm">Bestaand gras verticuteren?</FormLabel>
-                        <FormDescription className="text-xs">
-                          Verwijdert mos en dood materiaal
-                        </FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </div>
-                    {field.value && (
-                      <div className="flex items-start gap-2 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-700 dark:bg-amber-950/30 dark:text-amber-300">
-                        <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                        <span>Verticuteren verwijdert mos en dood materiaal uit bestaand gras</span>
-                      </div>
-                    )}
-                  </FormItem>
-                )}
-              />
-            )}
+            </div>
 
             {/* Indicatie */}
-            {watchedValues.oppervlakte > 0 && (
-              <div className="rounded-lg bg-muted/50 p-2 text-xs text-muted-foreground">
-                <span className="font-medium">Indicatie:</span>{" "}
-                {isKunstgras
-                  ? `Kunstgras: ~${watchedValues.oppervlakte} m²`
-                  : watchedValues.type === "zaaien"
-                    ? `Graszaad: ~${(watchedValues.oppervlakte * 0.035).toFixed(1)} kg`
-                    : `Graszoden: ~${watchedValues.oppervlakte} m²`}
-                {watchedValues.ondergrond === "nieuw" && `, zand: ${(watchedValues.oppervlakte * 0.05).toFixed(1)} m³`}
-                {watchedValues.afwateringNodig && `, drainage: ${Math.ceil(watchedValues.oppervlakte / 4)} m`}
-                {watchedValues.drainage && watchedValues.drainageMeters && `, PVC-buis: ${watchedValues.drainageMeters} m`}
-                {watchedValues.opsluitbanden && watchedValues.opsluitbandenMeters && `, opsluitbanden: ${watchedValues.opsluitbandenMeters} m`}
-                {watchedValues.verticuteren && `, verticuteren: ${watchedValues.oppervlakte} m²`}
+            <div
+              className="grid transition-all duration-200 ease-in-out"
+              style={{
+                gridTemplateRows: watchedValues.oppervlakte > 0 ? "1fr" : "0fr",
+                opacity: watchedValues.oppervlakte > 0 ? 1 : 0,
+              }}
+            >
+              <div className="overflow-hidden">
+                <div className="rounded-lg bg-muted/50 p-2 text-xs text-muted-foreground">
+                  <span className="font-medium">Indicatie:</span>{" "}
+                  {isKunstgras
+                    ? `Kunstgras: ~${watchedValues.oppervlakte} m²`
+                    : watchedValues.type === "zaaien"
+                      ? `Graszaad: ~${(watchedValues.oppervlakte * 0.035).toFixed(1)} kg`
+                      : `Graszoden: ~${watchedValues.oppervlakte} m²`}
+                  {watchedValues.ondergrond === "nieuw" && `, zand: ${(watchedValues.oppervlakte * 0.05).toFixed(1)} m³`}
+                  {watchedValues.afwateringNodig && `, drainage: ${Math.ceil(watchedValues.oppervlakte / 4)} m`}
+                  {watchedValues.drainage && watchedValues.drainageMeters && `, PVC-buis: ${watchedValues.drainageMeters} m`}
+                  {watchedValues.opsluitbanden && watchedValues.opsluitbandenMeters && `, opsluitbanden: ${watchedValues.opsluitbandenMeters} m`}
+                  {watchedValues.verticuteren && `, verticuteren: ${watchedValues.oppervlakte} m²`}
+                </div>
               </div>
-            )}
+            </div>
           </CardContent>
         </Card>
 

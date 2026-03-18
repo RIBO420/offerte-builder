@@ -2,6 +2,7 @@
 
 import {
   Document,
+  Image,
   Page,
   Text,
   View,
@@ -227,32 +228,58 @@ export function OffertePDF({ offerte, bedrijfsgegevens }: OffertePDFProps) {
     ? `${bedrijfsgegevens.adres}, ${bedrijfsgegevens.postcode} ${bedrijfsgegevens.plaats}`
     : "";
 
+  // Determine if CONCEPT watermark should be shown
+  const showConceptWatermark = !["verzonden", "geaccepteerd"].includes(
+    offerte.status
+  );
+
+  // Resolve logo source: bedrijfsgegevens.logo URL or fallback to text-based logo
+  const logoSrc = bedrijfsgegevens?.logo || null;
+
   // Summarize regels by scope for customer-friendly view
   const scopeSummaries = summarizeRegelsByScope(offerte.regels);
 
   return (
     <Document>
       <Page size="A4" style={styles.page}>
+        {/* CONCEPT Watermark */}
+        {showConceptWatermark && (
+          <Text style={styles.watermark} fixed>
+            CONCEPT
+          </Text>
+        )}
+
         {/* Header */}
         <View style={styles.header}>
-          <View style={styles.companyInfo}>
-            <Text style={styles.companyName}>{companyName}</Text>
-            {companyAddress && (
-              <Text style={styles.companyDetail}>{companyAddress}</Text>
+          <View style={styles.headerLeft}>
+            {/* Company Logo */}
+            {logoSrc ? (
+              <Image style={styles.logo} src={logoSrc} />
+            ) : (
+              <View style={styles.logoTextContainer}>
+                <Text style={styles.logoTextTop}>TOP</Text>
+                <Text style={styles.logoTextTuinen}>TUINEN</Text>
+              </View>
             )}
-            {bedrijfsgegevens?.telefoon && (
-              <Text style={styles.companyDetail}>
-                Tel: {bedrijfsgegevens.telefoon}
-              </Text>
-            )}
-            {bedrijfsgegevens?.email && (
-              <Text style={styles.companyDetail}>{bedrijfsgegevens.email}</Text>
-            )}
-            {bedrijfsgegevens?.kvk && (
-              <Text style={styles.companyDetail}>
-                KvK: {bedrijfsgegevens.kvk}
-              </Text>
-            )}
+            <View style={styles.companyInfo}>
+              <Text style={styles.companyName}>{companyName}</Text>
+              {companyAddress && (
+                <Text style={styles.companyDetail}>{companyAddress}</Text>
+              )}
+              {bedrijfsgegevens?.telefoon && (
+                <Text style={styles.companyDetail}>
+                  Tel: {bedrijfsgegevens.telefoon}
+                </Text>
+              )}
+              {bedrijfsgegevens?.email && (
+                <Text style={styles.companyDetail}>{bedrijfsgegevens.email}</Text>
+              )}
+              {bedrijfsgegevens?.kvk && (
+                <Text style={styles.companyDetail}>
+                  KvK: {bedrijfsgegevens.kvk}
+                </Text>
+              )}
+            </View>
           </View>
           <View style={styles.offerteInfo}>
             <Text style={styles.offerteNummer}>{offerte.offerteNummer}</Text>

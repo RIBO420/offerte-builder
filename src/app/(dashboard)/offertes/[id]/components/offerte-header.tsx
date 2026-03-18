@@ -32,6 +32,15 @@ import { DynamicPDFDownloadButton as PDFDownloadButton } from "@/components/pdf"
 import type { OfferteStatus } from "@/lib/constants/statuses";
 import { formatDate } from "./utils";
 
+interface OfferteVersion {
+  _id: string;
+  versieNummer: number;
+  createdAt: number;
+  actie: string;
+  omschrijving: string;
+  userId?: string;
+}
+
 interface OfferteHeaderProps {
   // Offerte is passed through to PDFDownloadButton which expects a broad type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -42,12 +51,33 @@ interface OfferteHeaderProps {
   voorcalculatie: unknown;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   instellingen: any;
+  offerteVersions?: OfferteVersion[];
   onStatusChange: (status: "concept" | "voorcalculatie" | "verzonden" | "geaccepteerd" | "afgewezen") => void;
   onDuplicate: () => void;
   onShowTemplateDialog: () => void;
   onShowEmailDialog: () => void;
   onShowShareDialog: () => void;
   onShowDeleteDialog: () => void;
+}
+
+function formatTimeAgo(timestamp: number): string {
+  const now = Date.now();
+  const diff = now - timestamp;
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+  const weeks = Math.floor(days / 7);
+  const months = Math.floor(days / 30);
+
+  if (minutes < 1) return "zojuist";
+  if (minutes < 60) return `${minutes} min geleden`;
+  if (hours < 24) return `${hours} uur geleden`;
+  if (days === 1) return "1 dag geleden";
+  if (days < 7) return `${days} dagen geleden`;
+  if (weeks === 1) return "1 week geleden";
+  if (weeks < 5) return `${weeks} weken geleden`;
+  if (months === 1) return "1 maand geleden";
+  return `${months} maanden geleden`;
 }
 
 export function OfferteHeader({
@@ -57,6 +87,7 @@ export function OfferteHeader({
   isUpdating,
   voorcalculatie,
   instellingen,
+  offerteVersions,
   onStatusChange,
   onDuplicate,
   onShowTemplateDialog,
@@ -64,6 +95,9 @@ export function OfferteHeader({
   onShowShareDialog,
   onShowDeleteDialog,
 }: OfferteHeaderProps) {
+  // Determine version indicator info
+  const latestVersion = offerteVersions && offerteVersions.length > 0 ? offerteVersions[0] : null;
+  const versionCount = latestVersion ? latestVersion.versieNummer : 1;
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-4">
@@ -95,6 +129,22 @@ export function OfferteHeader({
               {offerte.type === "aanleg" ? "Aanleg" : "Onderhoud"} offerte •
               Aangemaakt op {formatDate(offerte.createdAt)}
             </p>
+            {latestVersion ? (
+              <Link
+                href={`/offertes/${id}/history`}
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <History className="h-3 w-3" />
+                <span>
+                  v{versionCount} · bijgewerkt {formatTimeAgo(latestVersion.createdAt)}
+                </span>
+              </Link>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                <History className="h-3 w-3" />
+                <span>v1 · origineel</span>
+              </span>
+            )}
           </div>
         </div>
       </div>

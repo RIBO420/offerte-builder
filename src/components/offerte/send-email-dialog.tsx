@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -86,6 +87,9 @@ export function SendEmailDialog({
 
   const [emailType, setEmailType] = useState<EmailType>("offerte_verzonden");
   const [toEmail, setToEmail] = useState(offerte.klant.email || "");
+  const [customMessage, setCustomMessage] = useState("");
+  const [ccEmail, setCcEmail] = useState("");
+  const [ccError, setCcError] = useState("");
 
   // Optimistic state for showing pending email in logs
   const [optimisticPendingEmail, setOptimisticPendingEmail] = useState<{
@@ -94,9 +98,27 @@ export function SendEmailDialog({
     timestamp: number;
   } | null>(null);
 
+  const validateEmail = (email: string): boolean => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  };
+
+  const handleCcChange = (value: string) => {
+    setCcEmail(value);
+    if (value.trim() && !validateEmail(value.trim())) {
+      setCcError("Ongeldig emailadres");
+    } else {
+      setCcError("");
+    }
+  };
+
   const handleSend = async () => {
     if (!toEmail.trim()) {
       toast.error("Vul een emailadres in");
+      return;
+    }
+
+    if (ccEmail.trim() && !validateEmail(ccEmail.trim())) {
+      toast.error("Ongeldig CC emailadres");
       return;
     }
 
@@ -133,6 +155,8 @@ export function SendEmailDialog({
         bedrijfsTelefoon: bedrijfsgegevens?.telefoon,
         offerteType: offerte.type,
         scopes: offerte.scopes,
+        customMessage: customMessage.trim() || undefined,
+        cc: ccEmail.trim() || undefined,
       });
 
       // 4. Clear optimistic state and show success
@@ -207,6 +231,43 @@ export function SendEmailDialog({
               onChange={(e) => setToEmail(e.target.value)}
               disabled={isSending}
             />
+          </div>
+
+          {/* CC Email */}
+          <div className="space-y-2">
+            <Label htmlFor="cc-email">CC (optioneel)</Label>
+            <Input
+              id="cc-email"
+              type="email"
+              placeholder="collega@bedrijf.nl"
+              value={ccEmail}
+              onChange={(e) => handleCcChange(e.target.value)}
+              disabled={isSending}
+            />
+            {ccError && (
+              <p className="text-sm text-destructive">{ccError}</p>
+            )}
+          </div>
+
+          {/* Custom Message */}
+          <div className="space-y-2">
+            <Label htmlFor="custom-message">Persoonlijk bericht (optioneel)</Label>
+            <Textarea
+              id="custom-message"
+              placeholder="Voeg een persoonlijk bericht toe aan de email..."
+              value={customMessage}
+              onChange={(e) => {
+                if (e.target.value.length <= 500) {
+                  setCustomMessage(e.target.value);
+                }
+              }}
+              disabled={isSending}
+              rows={3}
+              className="resize-none"
+            />
+            <p className="text-sm text-muted-foreground text-right">
+              {customMessage.length}/500
+            </p>
           </div>
 
           {/* Previous Emails */}

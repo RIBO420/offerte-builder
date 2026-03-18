@@ -19,6 +19,8 @@ interface SendEmailParams {
   bedrijfsTelefoon?: string;
   offerteType: "aanleg" | "onderhoud";
   scopes?: string[];
+  customMessage?: string;
+  cc?: string;
 }
 
 export function useEmail() {
@@ -46,6 +48,8 @@ export function useEmail() {
           bedrijfsTelefoon: params.bedrijfsTelefoon,
           offerteType: params.offerteType,
           scopes: params.scopes,
+          customMessage: params.customMessage,
+          cc: params.cc,
         }),
       });
 
@@ -60,6 +64,8 @@ export function useEmail() {
         status: result.success ? "verzonden" : "mislukt",
         resendId: result.resendId,
         error: result.error,
+        customMessage: params.customMessage,
+        cc: params.cc,
       });
 
       if (!result.success) {
@@ -76,6 +82,8 @@ export function useEmail() {
         subject: `Offerte ${params.offerteNummer}`,
         status: "mislukt",
         error: error instanceof Error ? error.message : "Onbekende fout",
+        customMessage: params.customMessage,
+        cc: params.cc,
       });
 
       throw error;

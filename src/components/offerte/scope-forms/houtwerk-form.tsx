@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { NumberInput } from "@/components/ui/number-input";
+import { PriceEstimateBadge } from "@/components/ui/price-estimate-badge";
 import {
   Form,
   FormControl,
@@ -21,9 +22,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Hammer, AlertTriangle } from "lucide-react";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { Hammer, AlertTriangle, Info } from "lucide-react";
 import { houtwerkSchema, type HoutwerkFormData } from "@/lib/validations/aanleg-scopes";
 import type { HoutwerkData } from "@/types/offerte";
+
+const HOUTWERK_TOOLTIPS: Record<string, string> = {
+  type:
+    "Schutting: erfafscheiding, gemeten in strekkende meters. Vlonder: houten terras/deck, gemeten in m². Pergola: open overkapping voor schaduw of klimplanten, gemeten in m².",
+  fundering:
+    "Standaard fundering (betonpoeren/paalvoeten) is geschikt voor de meeste constructies. Zware fundering (in beton gegoten) is nodig bij hoge schuttingen (>180 cm), zware pergola's of slappe/venige grond.",
+  houtsoort:
+    "Vuren (geimpregneerd) is de goedkoopste optie maar heeft een kortere levensduur (~10-15 jaar). Hardhout (bijv. Bankirai) is duurder maar gaat 25+ jaar mee. Douglas is een goede middenweg qua prijs en duurzaamheid.",
+};
 
 interface HoutwerkFormProps {
   data: HoutwerkData;
@@ -99,9 +110,15 @@ export function HoutwerkForm({ data, onChange, onValidationChange }: HoutwerkFor
       <form className="space-y-3">
         <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center gap-2">
-              <Hammer className="h-4 w-4 text-muted-foreground" />
-              <CardTitle className="text-base">Houtwerk</CardTitle>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Hammer className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-base">Houtwerk</CardTitle>
+              </div>
+              <PriceEstimateBadge
+                scope="houtwerk"
+                oppervlakte={watchedValues.afmeting}
+              />
             </div>
             <CardDescription className="text-xs">
               Schutting, vlonder of pergola
@@ -114,7 +131,19 @@ export function HoutwerkForm({ data, onChange, onValidationChange }: HoutwerkFor
                 name="typeHoutwerk"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel required>Type houtwerk</FormLabel>
+                    <div className="flex items-center gap-1.5">
+                      <FormLabel required>Type houtwerk</FormLabel>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button type="button" className="inline-flex rounded-full p-0.5 text-muted-foreground hover:text-foreground">
+                            <Info className="h-3.5 w-3.5" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="right" className="max-w-[260px]">
+                          {HOUTWERK_TOOLTIPS.type}
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                     <Select value={field.value} onValueChange={field.onChange}>
                       <FormControl>
                         <SelectTrigger id="houtwerk-type">
@@ -182,7 +211,19 @@ export function HoutwerkForm({ data, onChange, onValidationChange }: HoutwerkFor
               name="fundering"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel required>Fundering type</FormLabel>
+                  <div className="flex items-center gap-1.5">
+                    <FormLabel required>Fundering type</FormLabel>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button type="button" className="inline-flex rounded-full p-0.5 text-muted-foreground hover:text-foreground">
+                          <Info className="h-3.5 w-3.5" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="max-w-[260px]">
+                        {HOUTWERK_TOOLTIPS.fundering}
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
                   <Select value={field.value} onValueChange={field.onChange}>
                     <FormControl>
                       <SelectTrigger id="houtwerk-fundering">

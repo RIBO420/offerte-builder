@@ -50,12 +50,14 @@ import {
   PenTool,
   Calendar,
   Users,
+  AlertTriangle,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DynamicSignaturePad as SignaturePadComponent } from "@/components/ui/signature-pad-dynamic";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { createBackgroundErrorHandler } from "@/lib/error-handling";
+import { PDFDownloadButton } from "@/components/pdf/pdf-download-button";
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("nl-NL", {
@@ -252,6 +254,128 @@ function formatLineItems(summary: ScopeSummary): string {
   }
 
   return parts.length > 0 ? parts.join(', ') : 'Inclusief materiaal en arbeid';
+}
+
+// Expiration countdown logic
+// Share links default to 30 days validity from offerte creation
+const SHARE_VALIDITY_DAYS = 30;
+
+interface ExpirationInfo {
+  label: string;
+  variant: "default" | "secondary" | "destructive" | "outline";
+  className: string;
+}
+
+function getExpirationInfo(createdAt: number): ExpirationInfo {
+  const expiresAt = createdAt + SHARE_VALIDITY_DAYS * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const diffMs = expiresAt - now;
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  const diffHours = Math.ceil(diffMs / (1000 * 60 * 60));
+
+  if (diffMs <= 0) {
+    return {
+      label: "Verlopen",
+      variant: "destructive",
+      className: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
+    };
+  }
+
+  if (diffHours <= 24) {
+    const hoursText = diffHours === 1 ? "1 uur" : `${diffHours} uur`;
+    return {
+      label: diffHours <= 1 ? "Verloopt vandaag!" : `Verloopt over ${hoursText}`,
+      variant: "destructive",
+      className: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
+    };
+  }
+
+  if (diffDays <= 7) {
+    return {
+      label: `Verloopt over ${diffDays} ${diffDays === 1 ? "dag" : "dagen"}`,
+      variant: "secondary",
+      className:
+        "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100",
+    };
+  }
+
+  // More than 7 days - show valid until date
+  const expirationDate = new Intl.DateTimeFormat("nl-NL", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date(expiresAt));
+
+  return {
+    label: `Geldig tot ${expirationDate}`,
+    variant: "secondary",
+    className:
+      "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
+  };
+}
+
+// Adapter to map public offerte data to PDFDownloadButton's expected shape
+function adaptOfferteForPdf(offerte: {
+  offerteNummer: string;
+  type: string;
+  status: string;
+  klant: {
+    naam: string;
+    adres: string;
+    postcode: string;
+    plaats: string;
+    email?: string;
+    telefoon?: string;
+  };
+  regels: {
+    omschrijving: string;
+    eenheid: string;
+    hoeveelheid: number;
+    totaal: number;
+    scope: string;
+  }[];
+  totalen: {
+    totaalExBtw: number;
+    btw: number;
+    totaalInclBtw: number;
+  };
+  notities?: string;
+  createdAt: number;
+}) {
+  return {
+    offerteNummer: offerte.offerteNummer,
+    type: offerte.type as "aanleg" | "onderhoud",
+    status: offerte.status,
+    klant: offerte.klant,
+    algemeenParams: {
+      bereikbaarheid: "normaal",
+    },
+    scopes: [...new Set(offerte.regels.map((r) => r.scope))],
+    regels: offerte.regels.map((r, index) => ({
+      id: `regel-${index}`,
+      scope: r.scope,
+      omschrijving: r.omschrijving,
+      eenheid: r.eenheid,
+      hoeveelheid: r.hoeveelheid,
+      prijsPerEenheid: r.hoeveelheid > 0 ? r.totaal / r.hoeveelheid : 0,
+      totaal: r.totaal,
+      type: "materiaal" as const,
+    })),
+    totalen: {
+      materiaalkosten: 0,
+      arbeidskosten: 0,
+      totaalUren: 0,
+      subtotaal: offerte.totalen.totaalExBtw,
+      marge: 0,
+      margePercentage: 0,
+      totaalExBtw: offerte.totalen.totaalExBtw,
+      btw: offerte.totalen.btw,
+      totaalInclBtw: offerte.totalen.totaalInclBtw,
+    },
+    notities: offerte.notities,
+    createdAt: offerte.createdAt,
+    updatedAt: offerte.createdAt,
+  };
 }
 
 const statusLabels: Record<string, string> = {
@@ -454,6 +578,28 @@ export default function PublicOffertePage({
         <p className="text-muted-foreground">
           Offerte voor {offerte.klant.naam}
         </p>
+        {/* Expiration countdown badge */}
+        {(() => {
+          const expInfo = getExpirationInfo(offerte.createdAt);
+          return (
+            <div className="mt-3 flex items-center justify-center gap-3 flex-wrap">
+              <Badge className={cn("text-sm px-3 py-1", expInfo.className)}>
+                {expInfo.label === "Verlopen" ? (
+                  <AlertTriangle className="mr-1.5 h-3.5 w-3.5" />
+                ) : (
+                  <Clock className="mr-1.5 h-3.5 w-3.5" />
+                )}
+                {expInfo.label}
+              </Badge>
+              <PDFDownloadButton
+                offerte={adaptOfferteForPdf(offerte)}
+                bedrijfsgegevens={bedrijfsgegevens}
+                variant="outline"
+                size="sm"
+              />
+            </div>
+          );
+        })()}
       </div>
 
       {/* Status Banner */}
@@ -793,7 +939,19 @@ export default function PublicOffertePage({
       {/* Footer */}
       <div className="mt-12 text-center text-sm text-muted-foreground">
         <p>
-          Deze offerte is geldig tot 30 dagen na verzending.
+          {(() => {
+            const expInfo = getExpirationInfo(offerte.createdAt);
+            if (expInfo.label === "Verlopen") {
+              return "Deze offerte is verlopen.";
+            }
+            const expiresAt = offerte.createdAt + SHARE_VALIDITY_DAYS * 24 * 60 * 60 * 1000;
+            const expirationDate = new Intl.DateTimeFormat("nl-NL", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            }).format(new Date(expiresAt));
+            return `Deze offerte is geldig tot ${expirationDate}.`;
+          })()}
         </p>
       </div>
 

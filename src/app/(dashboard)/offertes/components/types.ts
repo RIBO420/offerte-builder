@@ -1,4 +1,5 @@
 import { Id } from "../../../../../convex/_generated/dataModel";
+import type { OfferteStatus } from "@/lib/constants/statuses";
 
 // Project info type for offerte rows
 export type ProjectInfo = {
@@ -43,6 +44,7 @@ export interface OfferteRowProps {
   projectInfo: ProjectInfo;
   isSelected: boolean;
   onToggleSelect: (id: Id<"offertes">) => void;
+  onStatusChange: (id: string, newStatus: OfferteStatus) => void;
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
   onNavigate: (id: string) => void;

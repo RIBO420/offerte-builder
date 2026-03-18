@@ -104,6 +104,8 @@ export async function POST(request: NextRequest) {
       bedrijfsTelefoon,
       offerteType,
       scopes,
+      customMessage,
+      cc,
       // Bevestiging-specific fields
       aanvraagType,
       aanvraagDetails,
@@ -111,6 +113,15 @@ export async function POST(request: NextRequest) {
       calendlyUrl,
       bedrijfsAdres,
     } = body;
+
+    // Validate CC email format server-side if provided
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (cc && typeof cc === "string" && cc.trim() && !emailRegex.test(cc.trim())) {
+      return NextResponse.json(
+        { error: "Ongeldig CC emailadres" },
+        { status: 400 }
+      );
+    }
 
     // Validate required fields
     if (!to?.trim() || !klantNaam?.trim() || !bedrijfsnaam?.trim()) {
@@ -236,6 +247,7 @@ export async function POST(request: NextRequest) {
         bedrijfsTelefoon,
         offerteType,
         scopes,
+        customMessage: customMessage?.trim() || undefined,
       })
     );
 
@@ -252,9 +264,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Build CC list if provided
+    const ccList = cc?.trim() ? [cc.trim()] : undefined;
+
     const { data, error } = await resend.emails.send({
       from: `${bedrijfsnaam} <${fromEmail}>`,
       to: [to],
+      cc: ccList,
       subject,
       html: emailHtml,
       // Reply-to the business email if provided

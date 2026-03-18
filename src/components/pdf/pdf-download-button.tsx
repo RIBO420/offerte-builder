@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { pdf } from "@react-pdf/renderer";
 import { Button } from "@/components/ui/button";
-import { Download, Loader2, AlertCircle } from "lucide-react";
+import { Download, Loader2, AlertCircle, Eye } from "lucide-react";
 import { OffertePDF } from "./offerte-pdf";
+import { PdfPreviewModal } from "@/components/offerte/pdf-preview-modal";
 import { handleError, getMutationErrorMessage } from "@/lib/error-handling";
 import { toast } from "sonner";
 import type { Bedrijfsgegevens } from "@/types/offerte";
@@ -62,6 +63,7 @@ interface PDFDownloadButtonProps {
   bedrijfsgegevens?: Bedrijfsgegevens;
   variant?: "default" | "outline" | "secondary" | "ghost";
   size?: "default" | "sm" | "lg" | "icon";
+  showPreview?: boolean;
 }
 
 export function PDFDownloadButton({
@@ -69,9 +71,11 @@ export function PDFDownloadButton({
   bedrijfsgegevens,
   variant = "outline",
   size = "default",
+  showPreview = false,
 }: PDFDownloadButtonProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const handleDownload = async () => {
     setIsGenerating(true);
@@ -119,6 +123,27 @@ export function PDFDownloadButton({
       setIsGenerating(false);
     }
   };
+
+  if (showPreview) {
+    return (
+      <>
+        <Button
+          variant={variant}
+          size={size}
+          onClick={() => setPreviewOpen(true)}
+        >
+          <Eye className="mr-2 h-4 w-4" />
+          Bekijk PDF
+        </Button>
+        <PdfPreviewModal
+          offerte={offerte}
+          bedrijfsgegevens={bedrijfsgegevens}
+          open={previewOpen}
+          onOpenChange={setPreviewOpen}
+        />
+      </>
+    );
+  }
 
   return (
     <Button

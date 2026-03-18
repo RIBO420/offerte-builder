@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Card,
   CardContent,
@@ -7,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
   Shovel,
@@ -16,6 +18,7 @@ import {
   Hammer,
   Zap,
   Sparkles,
+  Settings2,
 } from "lucide-react";
 import {
   GrondwerkForm,
@@ -27,6 +30,7 @@ import {
   SpecialsForm,
 } from "@/components/offerte/scope-forms";
 import { ValidationSummary, type ScopeValidation } from "@/components/offerte/validation-summary";
+import { ScopeChangeModal } from "@/components/offerte/scope-change-modal";
 import type { AanlegScope, ScopeData } from "../hooks/useAanlegWizard";
 import { SCOPES } from "../hooks/useAanlegWizard";
 import { AanlegNavigation } from "./AanlegNavigation";
@@ -52,6 +56,7 @@ interface AanlegScopeDetailsStepProps {
   totalSteps: number;
   isScopeDataValid: (scope: AanlegScope) => boolean;
   onScopeDataChange: (data: ScopeData) => void;
+  onScopesChange?: (scopes: AanlegScope[]) => void;
   onNext: () => void;
   onPrev: () => void;
 }
@@ -66,12 +71,41 @@ export function AanlegScopeDetailsStep({
   totalSteps,
   isScopeDataValid,
   onScopeDataChange,
+  onScopesChange,
   onNext,
   onPrev,
 }: AanlegScopeDetailsStepProps) {
+  const [scopeModalOpen, setScopeModalOpen] = useState(false);
+
   return (
     <div className="grid gap-4 lg:grid-cols-3 lg:gap-6 animate-in fade-in slide-in-from-right-4 duration-300">
       <div className="lg:col-span-2 space-y-4 lg:space-y-5">
+        {onScopesChange && (
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              {selectedScopes.length} scope{selectedScopes.length !== 1 ? "s" : ""} geselecteerd
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setScopeModalOpen(true)}
+              className="gap-2"
+            >
+              <Settings2 className="h-4 w-4" />
+              Scopes wijzigen
+            </Button>
+          </div>
+        )}
+
+        {onScopesChange && (
+          <ScopeChangeModal
+            selectedScopes={selectedScopes}
+            onScopesChange={onScopesChange}
+            open={scopeModalOpen}
+            onOpenChange={setScopeModalOpen}
+          />
+        )}
+
         {selectedScopes.map((scopeId) => {
           switch (scopeId) {
             case "grondwerk":

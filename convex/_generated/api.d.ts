@@ -45,6 +45,7 @@ import type * as nacalculaties from "../nacalculaties.js";
 import type * as normuren from "../normuren.js";
 import type * as notifications from "../notifications.js";
 import type * as offerteMessages from "../offerteMessages.js";
+import type * as offerteReminders from "../offerteReminders.js";
 import type * as offerteVersions from "../offerteVersions.js";
 import type * as offertes from "../offertes.js";
 import type * as planningTaken from "../planningTaken.js";
@@ -118,6 +119,7 @@ declare const fullApi: ApiFromModules<{
   normuren: typeof normuren;
   notifications: typeof notifications;
   offerteMessages: typeof offerteMessages;
+  offerteReminders: typeof offerteReminders;
   offerteVersions: typeof offerteVersions;
   offertes: typeof offertes;
   planningTaken: typeof planningTaken;

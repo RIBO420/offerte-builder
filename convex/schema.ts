@@ -313,6 +313,8 @@ export default defineSchema({
     ),
     resendId: v.optional(v.string()), // Resend message ID for tracking
     error: v.optional(v.string()),
+    customMessage: v.optional(v.string()), // Persoonlijk bericht bij email
+    cc: v.optional(v.string()), // CC emailadres
     createdAt: v.number(),
     openedAt: v.optional(v.number()),
   })
@@ -1379,6 +1381,7 @@ export default defineSchema({
       v.literal("offerte_aangemaakt"),
       v.literal("offerte_verzonden"),
       v.literal("offerte_bekeken"),
+      v.literal("offerte_herinnering"),
       // Chat notifications
       v.literal("chat_message"),
       v.literal("chat_dm"),
@@ -1795,4 +1798,27 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_lichtbehoefte", ["lichtbehoefte"]),
+
+  // ============================================
+  // Offerte Reminders — Automatische follow-up herinneringen
+  // ============================================
+
+  offerte_reminders: defineTable({
+    offerteId: v.id("offertes"),
+    userId: v.id("users"),
+    type: v.union(
+      v.literal("niet_bekeken"),
+      v.literal("niet_gereageerd"),
+      v.literal("laatste")
+    ),
+    scheduledAt: v.number(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("sent"),
+      v.literal("cancelled")
+    ),
+    sentAt: v.optional(v.number()),
+  })
+    .index("by_offerte", ["offerteId"])
+    .index("by_status_scheduled", ["status", "scheduledAt"]),
 });

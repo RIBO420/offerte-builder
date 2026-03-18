@@ -17,10 +17,13 @@ import {
 } from "@/components/ui/breadcrumb";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { FileText } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { formatCurrency } from "@/lib/format";
 import { SaveAsTemplateDialog } from "@/components/offerte/save-as-template-dialog";
 import { SendEmailDialog } from "@/components/offerte/send-email-dialog";
 import { ShareOfferteDialog } from "@/components/offerte/share-offerte-dialog";
 import { OfferteWorkflowStepper } from "@/components/offerte/offerte-workflow-stepper";
+import { EngagementTimeline } from "@/components/offerte/engagement-timeline";
 import { useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { useOffertes } from "@/hooks/use-offertes";
@@ -67,7 +70,13 @@ export default function OfferteDetailPage({
   const { updateStatus, delete: deleteOfferte, restore: restoreOfferte, duplicate } = useOffertes();
   const { getNextNummer, instellingen } = useInstellingen();
 
-  const { stats: emailStats } = useEmailLogs(id as Id<"offertes">);
+  const { logs: emailLogs, stats: emailStats } = useEmailLogs(id as Id<"offertes">);
+
+  // Fetch version history for engagement timeline
+  const offerteVersions = useQuery(
+    api.offerteVersions.listByOfferte,
+    { offerteId: id as Id<"offertes"> }
+  );
 
   // Check if a project exists for this offerte (always query to show project info)
   const existingProject = useQuery(
@@ -240,7 +249,7 @@ export default function OfferteDetailPage({
 
   return (
     <>
-      <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+      <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4">
         <SidebarTrigger className="-ml-1" />
         <Separator orientation="vertical" className="mr-2 h-4" />
         <Breadcrumb>
@@ -258,6 +267,11 @@ export default function OfferteDetailPage({
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
+        <div className="ml-auto flex items-center gap-2">
+          <Badge variant="secondary" className="text-sm md:text-lg font-semibold px-2 py-0.5 md:px-3 md:py-1 truncate max-w-[150px] md:max-w-none">
+            {formatCurrency(offerte.totalen.totaalInclBtw)} incl. BTW
+          </Badge>
+        </div>
       </header>
 
       <motion.div
@@ -279,6 +293,7 @@ export default function OfferteDetailPage({
             isUpdating={isUpdating}
             voorcalculatie={voorcalculatie}
             instellingen={instellingen}
+            offerteVersions={offerteVersions ?? undefined}
             onStatusChange={handleStatusChange}
             onDuplicate={handleDuplicate}
             onShowTemplateDialog={() => setShowTemplateDialog(true)}
@@ -342,6 +357,12 @@ export default function OfferteDetailPage({
               updatedAt={offerte.updatedAt}
               verzondenAt={offerte.verzondenAt}
               emailStats={emailStats}
+            />
+            <EngagementTimeline
+              emailLogs={emailLogs}
+              versions={offerteVersions ?? []}
+              customerResponse={offerte.customerResponse}
+              createdAt={offerte.createdAt}
             />
             <ProjectCard
               id={id}

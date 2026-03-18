@@ -23,6 +23,7 @@ interface OfferteEmailProps {
   bedrijfsTelefoon?: string;
   offerteType: "aanleg" | "onderhoud";
   scopes?: string[];
+  customMessage?: string;
 }
 
 const scopeLabels: Record<string, string> = {
@@ -56,6 +57,7 @@ export function OfferteEmail({
   bedrijfsTelefoon,
   offerteType,
   scopes,
+  customMessage,
 }: OfferteEmailProps) {
   const previewText = {
     offerte_verzonden: `Offerte ${offerteNummer} van ${bedrijfsnaam}`,
@@ -93,6 +95,12 @@ export function OfferteEmail({
             <Text style={greeting}>Beste {klantNaam},</Text>
 
             <Text style={paragraph}>{intro[type]}</Text>
+
+            {customMessage && (
+              <Section style={customMessageBox}>
+                <Text style={customMessageText}>{customMessage}</Text>
+              </Section>
+            )}
 
             {/* Offerte Details Box */}
             <Section style={detailsBox}>
@@ -229,6 +237,22 @@ const paragraph = {
   fontSize: "15px",
   lineHeight: "24px",
   margin: "0 0 16px",
+};
+
+const customMessageBox = {
+  backgroundColor: "#f0fdf4",
+  borderLeft: "4px solid #16a34a",
+  borderRadius: "0 8px 8px 0",
+  padding: "16px 20px",
+  margin: "0 0 16px",
+};
+
+const customMessageText = {
+  color: "#374151",
+  fontSize: "15px",
+  lineHeight: "24px",
+  margin: "0",
+  fontStyle: "italic" as const,
 };
 
 const detailsBox = {

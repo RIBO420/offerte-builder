@@ -50,6 +50,8 @@ export const create = mutation({
     ),
     resendId: v.optional(v.string()),
     error: v.optional(v.string()),
+    customMessage: v.optional(v.string()),
+    cc: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
@@ -65,6 +67,8 @@ export const create = mutation({
       status: args.status,
       resendId: args.resendId,
       error: args.error,
+      customMessage: args.customMessage,
+      cc: args.cc,
       createdAt: Date.now(),
     });
   },

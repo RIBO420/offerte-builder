@@ -15,6 +15,37 @@ export const styles = StyleSheet.create({
     borderBottomWidth: 2,
     borderBottomColor: "#16a34a",
   },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  logo: {
+    width: 60,
+    height: 60,
+    marginRight: 12,
+  },
+  logoTextContainer: {
+    width: 60,
+    height: 60,
+    marginRight: 12,
+    backgroundColor: "#16a34a",
+    borderRadius: 6,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  logoTextTop: {
+    fontSize: 10,
+    fontFamily: "Helvetica-Bold",
+    color: "#ffffff",
+    textAlign: "center",
+  },
+  logoTextTuinen: {
+    fontSize: 7,
+    fontFamily: "Helvetica-Bold",
+    color: "#ffffff",
+    textAlign: "center",
+    letterSpacing: 2,
+  },
   companyInfo: {
     flexDirection: "column",
   },
@@ -231,6 +262,18 @@ export const styles = StyleSheet.create({
   },
   scopeDetailValue: {
     fontSize: 9,
+  },
+  watermark: {
+    position: "absolute",
+    top: "35%",
+    left: 0,
+    right: 0,
+    textAlign: "center",
+    fontSize: 60,
+    fontFamily: "Helvetica-Bold",
+    color: "#CCCCCC",
+    opacity: 0.3,
+    transform: "rotate(-45deg)",
   },
 });
 

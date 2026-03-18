@@ -952,6 +952,7 @@ export const createInAppNotification = internalMutation({
       v.literal("offerte_aangemaakt"),
       v.literal("offerte_verzonden"),
       v.literal("offerte_bekeken"),
+      v.literal("offerte_herinnering"),
       v.literal("chat_message"),
       v.literal("chat_dm"),
       v.literal("chat_broadcast"),
@@ -1407,5 +1408,66 @@ export const getByOfferte = query({
       .collect();
 
     return notifications;
+  },
+});
+
+// ============================================
+// OFFERTE REMINDER NOTIFICATIONS
+// ============================================
+
+/**
+ * Create a reminder notification for an offerte follow-up.
+ * Called from offerteReminders.ts when a scheduled reminder fires.
+ */
+export const createReminderNotification = internalMutation({
+  args: {
+    userId: v.id("users"),
+    offerteId: v.id("offertes"),
+    offerteNummer: v.string(),
+    klantNaam: v.string(),
+    reminderType: v.union(
+      v.literal("niet_bekeken"),
+      v.literal("niet_gereageerd"),
+      v.literal("laatste")
+    ),
+  },
+  handler: async (ctx, args) => {
+    // Build title and message based on reminder type
+    let title: string;
+    let message: string;
+
+    switch (args.reminderType) {
+      case "niet_bekeken":
+        title = "Herinnering: offerte bekijken";
+        message = `Offerte ${args.offerteNummer} voor ${args.klantNaam} is nog niet bekeken (3 dagen geleden verzonden).`;
+        break;
+      case "niet_gereageerd":
+        title = "Herinnering: offerte reageren";
+        message = `Offerte ${args.offerteNummer} voor ${args.klantNaam} is bekeken maar er is nog geen reactie (7 dagen geleden verzonden).`;
+        break;
+      case "laatste":
+        title = "Laatste herinnering";
+        message = `Offerte ${args.offerteNummer} voor ${args.klantNaam} wacht al 14 dagen op een reactie. Overweeg om contact op te nemen.`;
+        break;
+    }
+
+    const notificationId = await ctx.db.insert("notifications", {
+      userId: args.userId,
+      type: "offerte_herinnering",
+      title,
+      message,
+      offerteId: args.offerteId,
+      offerteNummer: args.offerteNummer,
+      klantNaam: args.klantNaam,
+      isRead: false,
+      isDismissed: false,
+      triggeredBy: "systeem",
+      metadata: {
+        reminderType: args.reminderType,
+      },
+      createdAt: Date.now(),
+    });
+
+    return { notificationId };
   },
 });

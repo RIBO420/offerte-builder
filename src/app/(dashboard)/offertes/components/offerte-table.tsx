@@ -19,6 +19,7 @@ import type { SortConfig } from "@/hooks/use-table-sort";
 import { OfferteRow } from "./offerte-row";
 import type { SortableOfferte, ProjectInfo } from "./types";
 import type { Id } from "../../../../../convex/_generated/dataModel";
+import type { OfferteStatus } from "@/lib/constants/statuses";
 
 interface OfferteTableProps {
   sortedOffertes: SortableOfferte[];
@@ -29,6 +30,7 @@ interface OfferteTableProps {
   isAllSelected: boolean;
   toggleSelectAll: () => void;
   toggleSelect: (id: Id<"offertes">) => void;
+  handleStatusChange: (id: string, newStatus: OfferteStatus) => void;
   handleDuplicate: (id: string) => void;
   handleDelete: (id: string) => void;
   handleNavigate: (id: string) => void;
@@ -47,6 +49,7 @@ export function OfferteTable({
   isAllSelected,
   toggleSelectAll,
   toggleSelect,
+  handleStatusChange,
   handleDuplicate,
   handleDelete,
   handleNavigate,
@@ -149,6 +152,7 @@ export function OfferteTable({
                     projectInfo={projectsByOfferte?.[sortableOfferte._id] ?? null}
                     isSelected={selectedIds.has(sortableOfferte._id)}
                     onToggleSelect={toggleSelect}
+                    onStatusChange={handleStatusChange}
                     onDuplicate={handleDuplicate}
                     onDelete={handleDelete}
                     onNavigate={handleNavigate}

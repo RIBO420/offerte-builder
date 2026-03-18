@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -13,7 +14,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { ChevronLeft, ChevronRight, Loader2, Check, Save } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, Check, Save, CheckCircle2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useOffertes } from "@/hooks/use-offertes";
 import { useInstellingen } from "@/hooks/use-instellingen";
@@ -60,6 +61,74 @@ export default function NieuweAanlegOffertePage() {
   const [createdOfferteNummer, setCreatedOfferteNummer] = useState<string | null>(null);
 
   const isLoading = isUserLoading || isSettingsLoading;
+
+  // Auto-save status tracking
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const previousDataRef = useRef<string | null>(null);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Track wizard data changes for auto-save indicator
+  const serializedWizardData = JSON.stringify(wizard.wizardData);
+
+  useEffect(() => {
+    // Skip initial render
+    if (previousDataRef.current === null) {
+      previousDataRef.current = serializedWizardData;
+      return;
+    }
+
+    // Data hasn't changed
+    if (previousDataRef.current === serializedWizardData) return;
+
+    // Data changed — mark as unsaved, then simulate save after debounce
+    setHasUnsavedChanges(true);
+    setSaveStatus("saving");
+
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // localStorage save happens synchronously in useWizardAutosave,
+    // so we show "saving" briefly then transition to "saved"
+    saveTimeoutRef.current = setTimeout(() => {
+      previousDataRef.current = serializedWizardData;
+      setSaveStatus("saved");
+      setLastSavedAt(new Date());
+      setHasUnsavedChanges(false);
+      toast.success("Concept opgeslagen", { duration: 2000 });
+    }, 500);
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [serializedWizardData]);
+
+  // Warn user about unsaved changes before leaving
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  // Format last saved time as HH:MM
+  const formatTime = useCallback((date: Date | null): string => {
+    if (!date) return "";
+    return date.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
+  }, []);
+
+  // Handle scope changes from AanlegScopeDetailsStep
+  const handleScopesChange = useCallback((updatedScopes: AanlegScope[]) => {
+    wizard.setSelectedScopes(updatedScopes);
+  }, [wizard]);
 
   // Scroll naar top bij stap wisseling
   useEffect(() => {
@@ -389,9 +458,28 @@ export default function NieuweAanlegOffertePage() {
               </p>
             </div>
             {wizard.currentStep > 0 && (
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Save className="h-3 w-3" />
-                <span className="hidden sm:inline">Auto-save aan</span>
+              <div className="flex items-center gap-2">
+                {saveStatus === "saving" ? (
+                  <Badge variant="outline" className="flex items-center gap-1.5 text-xs font-normal text-muted-foreground border-muted">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <span className="hidden sm:inline">Opslaan...</span>
+                  </Badge>
+                ) : hasUnsavedChanges ? (
+                  <Badge variant="outline" className="flex items-center gap-1.5 text-xs font-normal text-orange-600 border-orange-300 dark:text-orange-400 dark:border-orange-600">
+                    <AlertCircle className="h-3 w-3" />
+                    <span className="hidden sm:inline">Niet-opgeslagen wijzigingen</span>
+                  </Badge>
+                ) : lastSavedAt ? (
+                  <Badge variant="outline" className="flex items-center gap-1.5 text-xs font-normal text-green-600 border-green-300 dark:text-green-400 dark:border-green-600">
+                    <CheckCircle2 className="h-3 w-3" />
+                    <span className="hidden sm:inline">Opgeslagen om {formatTime(lastSavedAt)}</span>
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="flex items-center gap-1.5 text-xs font-normal text-muted-foreground border-muted">
+                    <Save className="h-3 w-3" />
+                    <span className="hidden sm:inline">Auto-save aan</span>
+                  </Badge>
+                )}
               </div>
             )}
           </div>
@@ -461,6 +549,7 @@ export default function NieuweAanlegOffertePage() {
             totalSteps={wizard.totalSteps}
             isScopeDataValid={wizard.isScopeDataValid}
             onScopeDataChange={wizard.setScopeData}
+            onScopesChange={handleScopesChange}
             onNext={wizard.nextStep}
             onPrev={wizard.prevStep}
           />
