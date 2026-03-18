@@ -1,0 +1,48 @@
+export const scopeLabels: Record<string, string> = {
+  grondwerk: "Grondwerk",
+  bestrating: "Bestrating",
+  borders: "Borders",
+  gras: "Gras",
+  houtwerk: "Houtwerk",
+  water_elektra: "Water/Elektra",
+  gras_onderhoud: "Gras Onderhoud",
+  borders_onderhoud: "Borders Onderhoud",
+  heggen_onderhoud: "Heggen Onderhoud",
+  bomen_onderhoud: "Bomen Onderhoud",
+};
+
+export const typeLabels: Record<string, string> = {
+  bereikbaarheid: "Bereikbaarheid",
+  complexiteit: "Complexiteit",
+  intensiteit: "Intensiteit",
+  snijwerk: "Snijwerk",
+  achterstalligheid: "Achterstalligheid",
+  hoogteverschil: "Hoogteverschil",
+  diepte: "Diepte",
+  hoogte: "Hoogte",
+  bodem: "Bodemtype",
+  snoei: "Snoeitype",
+};
+
+export const waardeLabels: Record<string, string> = {
+  goed: "Goed",
+  beperkt: "Beperkt",
+  slecht: "Slecht",
+  laag: "Laag",
+  gemiddeld: "Gemiddeld",
+  hoog: "Hoog",
+  weinig: "Weinig",
+  veel: "Veel",
+  geen: "Geen",
+  licht: "Licht",
+  standaard: "Standaard",
+  zwaar: "Zwaar",
+  matig: "Matig",
+  sterk: "Sterk",
+  middel: "Middel",
+  open: "Open",
+  bedekt: "Bedekt",
+  zijkanten: "Zijkanten",
+  bovenkant: "Bovenkant",
+  beide: "Beide",
+};

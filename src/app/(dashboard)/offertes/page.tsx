@@ -1,349 +1,31 @@
 "use client";
 
-import { useState, useMemo, useCallback, Suspense, memo, useRef } from "react";
-import Link from "next/link";
+import { useState, useMemo, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useReducedMotion } from "@/hooks/use-accessibility";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useTableSort } from "@/hooks/use-table-sort";
 import { RequireAdmin } from "@/components/require-admin";
 import { PageHeader } from "@/components/page-header";
-import { SortableTableHead } from "@/components/ui/sortable-table-head";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  Shovel,
-  Trees,
-  Search,
-  MoreHorizontal,
-  Copy,
-  Trash2,
-  Eye,
-  ExternalLink,
-  Download,
-  X,
-  FileText,
-  FolderKanban,
-} from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Id } from "../../../../convex/_generated/dataModel";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { ScrollableTable } from "@/components/ui/responsive-table";
-import { NoOffertes, NoSearchResults } from "@/components/empty-states";
-import { useOffertes } from "@/hooks/use-offertes";
-import { useInstellingen } from "@/hooks/use-instellingen";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { toast } from "sonner";
-import { showDeleteToast } from "@/lib/toast-utils";
 import {
-  OfferteFiltersComponent,
-  ActiveFilters,
   defaultFilters,
   type OfferteFilters,
 } from "@/components/offerte/filters";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { FilterPresetSelector } from "@/components/ui/filter-preset-selector";
 import {
   useFilterPresets,
   type OfferteFilterState,
 } from "@/hooks/use-filter-presets";
-import {
-  ExportDropdown,
-  offerteExportColumns,
-} from "@/components/export-dropdown";
 import { OffertesTableSkeleton } from "@/components/skeletons";
-
-// Memoized formatter instances to avoid recreation
-const currencyFormatter = new Intl.NumberFormat("nl-NL", {
-  style: "currency",
-  currency: "EUR",
-});
-
-const dateFormatter = new Intl.DateTimeFormat("nl-NL", {
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-});
-
-function formatCurrency(amount: number): string {
-  return currencyFormatter.format(amount);
-}
-
-function formatDate(timestamp: number): string {
-  return dateFormatter.format(new Date(timestamp));
-}
-
-// Project info type for offerte rows
-type ProjectInfo = {
-  _id: Id<"projecten">;
-  naam: string;
-  status: string;
-} | null;
-
-// Type for sortable offerte data
-type SortableOfferte = {
-  _id: Id<"offertes">;
-  type: "aanleg" | "onderhoud";
-  offerteNummer: string;
-  klantNaam: string;
-  klantPlaats: string;
-  bedrag: number;
-  status: string;
-  datum: number;
-  // Original offerte reference
-  original: {
-    _id: Id<"offertes">;
-    type: "aanleg" | "onderhoud";
-    offerteNummer: string;
-    klant: { naam: string; adres: string; plaats: string };
-    totalen: { totaalInclBtw: number };
-    status: string;
-    updatedAt: number;
-  };
-};
-
-// Memoized table row component to prevent unnecessary re-renders
-interface OfferteRowProps {
-  offerte: {
-    _id: Id<"offertes">;
-    type: "aanleg" | "onderhoud";
-    offerteNummer: string;
-    klant: { naam: string; plaats: string };
-    totalen: { totaalInclBtw: number };
-    status: string;
-    updatedAt: number;
-  };
-  projectInfo: ProjectInfo;
-  isSelected: boolean;
-  onToggleSelect: (id: Id<"offertes">) => void;
-  onDuplicate: (id: string) => void;
-  onDelete: (id: string) => void;
-  onNavigate: (id: string) => void;
-  reducedMotion: boolean;
-  index: number;
-}
-
-const OfferteRow = memo(function OfferteRow({
-  offerte,
-  projectInfo,
-  isSelected,
-  onToggleSelect,
-  onDuplicate,
-  onDelete,
-  onNavigate,
-  reducedMotion,
-  index,
-}: OfferteRowProps) {
-  const hasProject = projectInfo !== null;
-  const handleRowClick = useCallback((e: React.MouseEvent) => {
-    const target = e.target as HTMLElement;
-    if (!target.closest('button') && !target.closest('[role="checkbox"]')) {
-      onNavigate(offerte._id);
-    }
-  }, [offerte._id, onNavigate]);
-
-  const handleToggleSelect = useCallback(() => {
-    onToggleSelect(offerte._id);
-  }, [offerte._id, onToggleSelect]);
-
-  const handleDuplicate = useCallback(() => {
-    onDuplicate(offerte._id);
-  }, [offerte._id, onDuplicate]);
-
-  const handleDelete = useCallback(() => {
-    onDelete(offerte._id);
-  }, [offerte._id, onDelete]);
-
-  return (
-    <motion.tr
-      key={offerte._id}
-      initial={reducedMotion ? false : { opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{
-        duration: reducedMotion ? 0 : 0.3,
-        delay: reducedMotion ? 0 : index * 0.05,
-      }}
-      className={`border-b hover:bg-muted/50 transition-colors cursor-pointer hover:translate-y-[-1px] ${isSelected ? "bg-muted/50" : ""}`}
-      onClick={handleRowClick}
-    >
-      <TableCell>
-        <Checkbox
-          checked={isSelected}
-          onCheckedChange={handleToggleSelect}
-          aria-label={`Selecteer ${offerte.offerteNummer}`}
-        />
-      </TableCell>
-      <TableCell>
-        <div
-          className={`flex h-8 w-8 items-center justify-center rounded-lg ${
-            offerte.type === "aanleg"
-              ? "bg-primary/10"
-              : "bg-green-100 dark:bg-green-900/30"
-          }`}
-        >
-          {offerte.type === "aanleg" ? (
-            <Shovel className="h-4 w-4 text-primary" />
-          ) : (
-            <Trees className="h-4 w-4 text-green-600 dark:text-green-400" />
-          )}
-        </div>
-      </TableCell>
-      <TableCell className="font-medium">
-        <Link
-          href={`/offertes/${offerte._id}`}
-          className="hover:underline"
-        >
-          {offerte.offerteNummer}
-        </Link>
-      </TableCell>
-      <TableCell>{offerte.klant.naam}</TableCell>
-      <TableCell>{offerte.klant.plaats}</TableCell>
-      <TableCell>
-        {formatCurrency(offerte.totalen.totaalInclBtw)}
-      </TableCell>
-      <TableCell>
-        <div className="flex items-center gap-2">
-          <StatusBadge status={offerte.status} size="sm" />
-          {/* Project indicator icon with tooltip */}
-          {hasProject && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Link
-                  href={`/projecten/${projectInfo._id}`}
-                  onClick={(e) => e.stopPropagation()}
-                  className="text-blue-600 hover:text-blue-700"
-                >
-                  <FolderKanban className="h-4 w-4" />
-                </Link>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{projectInfo.naam}</p>
-              </TooltipContent>
-            </Tooltip>
-          )}
-          {/* Project button: "Bekijk Project" if exists, "Start Project" if geaccepteerd without project */}
-          {hasProject ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-950/50"
-              asChild
-              onClick={(e) => e.stopPropagation()}
-            >
-              <Link href={`/projecten/${projectInfo._id}`}>
-                <ExternalLink className="h-3 w-3 mr-1" />
-                Bekijk Project
-              </Link>
-            </Button>
-          ) : offerte.status === "geaccepteerd" ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 px-2 text-xs text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-950/50"
-              asChild
-              onClick={(e) => e.stopPropagation()}
-            >
-              <Link href={`/projecten/nieuw?offerte=${offerte._id}`}>
-                <FolderKanban className="h-3 w-3 mr-1" />
-                Start Project
-              </Link>
-            </Button>
-          ) : null}
-        </div>
-      </TableCell>
-      <TableCell className="text-muted-foreground">
-        {formatDate(offerte.updatedAt)}
-      </TableCell>
-      <TableCell>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" aria-label="Meer opties">
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem asChild>
-              <Link href={`/offertes/${offerte._id}`}>
-                <Eye className="mr-2 h-4 w-4" />
-                Bekijken
-              </Link>
-            </DropdownMenuItem>
-            {hasProject ? (
-              <DropdownMenuItem asChild>
-                <Link href={`/projecten/${projectInfo._id}`} className="text-blue-600">
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  Bekijk Project
-                </Link>
-              </DropdownMenuItem>
-            ) : offerte.status === "geaccepteerd" ? (
-              <DropdownMenuItem asChild>
-                <Link href={`/projecten/nieuw?offerte=${offerte._id}`} className="text-green-600">
-                  <FolderKanban className="mr-2 h-4 w-4" />
-                  Start Project
-                </Link>
-              </DropdownMenuItem>
-            ) : null}
-            <DropdownMenuItem onClick={handleDuplicate}>
-              <Copy className="mr-2 h-4 w-4" />
-              Dupliceren
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={handleDelete}
-              className="text-destructive"
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Verwijderen
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </TableCell>
-    </motion.tr>
-  );
-});
+import type { SortableOfferte } from "./components/types";
+import { OfferteToolbar } from "./components/offerte-toolbar";
+import { StatusTabs } from "./components/status-tabs";
+import { BulkDeleteDialog } from "./components/bulk-delete-dialog";
+import { useOfferteActions } from "./components/use-offerte-actions";
 
 export default function OffertesPage() {
   return (
@@ -371,31 +53,32 @@ function OffertesPageContent() {
   const searchParams = useSearchParams();
   const reducedMotion = useReducedMotion();
   const { isLoading: isUserLoading } = useCurrentUser();
+
   const {
     offertes,
     stats,
-    isLoading: isOffertesLoading,
-    delete: deleteOfferte,
-    restore: restoreOfferte,
-    duplicate,
-    bulkUpdateStatus,
-    bulkRemove,
-    bulkRestore,
-  } = useOffertes();
-  const { getNextNummer } = useInstellingen();
+    isOffertesLoading,
+    selectedIds,
+    showBulkDeleteDialog,
+    setShowBulkDeleteDialog,
+    bulkStatusValue,
+    setBulkStatusValue,
+    optimisticStatusUpdates,
+    optimisticDeletedIds,
+    handleDuplicate,
+    handleDelete,
+    handleNavigate,
+    toggleSelectAll,
+    toggleSelect,
+    clearSelection,
+    handleBulkStatusChange,
+    handleBulkDelete,
+    handleExportCSV,
+  } = useOfferteActions();
+
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [activeTab, setActiveTab] = useState(searchParams.get("status") || "alle");
-
-  // Bulk selection state
-  const [selectedIds, setSelectedIds] = useState<Set<Id<"offertes">>>(new Set());
-  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
-  const [bulkStatusValue, setBulkStatusValue] = useState<string>("");
-
-  // Optimistic updates state
-  const [optimisticStatusUpdates, setOptimisticStatusUpdates] = useState<Map<string, string>>(new Map());
-  const [optimisticDeletedIds, setOptimisticDeletedIds] = useState<Set<string>>(new Set());
-  const previousOffertesRef = useRef<typeof offertes>(null);
 
   // Initialize filters from URL params
   const [filters, setFilters] = useState<OfferteFilters>(() => ({
@@ -418,7 +101,7 @@ function OffertesPageContent() {
   // Export data query
   const exportData = useQuery(api.export.exportOffertes);
 
-  const isLoading = isUserLoading || isOffertesLoading;
+  const isLoading = !!(isUserLoading || isOffertesLoading);
 
   // Get offerte IDs for batch project lookup
   const offerteIds = useMemo(() => {
@@ -460,20 +143,17 @@ function OffertesPageContent() {
     updateUrlParams(filters, tab);
   }, [filters]);
 
-  // Handle preset selection - convert preset filters to OfferteFilters format
+  // Handle preset selection
   const handlePresetSelect = useCallback((presetFilters: OfferteFilterState) => {
-    // Convert preset status to tab if it matches a single status
     if (presetFilters.status) {
       const statuses = presetFilters.status.split(",");
       if (statuses.length === 1 && ["concept", "voorcalculatie", "verzonden", "geaccepteerd", "afgewezen"].includes(statuses[0])) {
         setActiveTab(statuses[0]);
       } else {
-        // Multiple statuses - keep on "alle" tab
         setActiveTab("alle");
       }
     }
 
-    // Convert preset filters to OfferteFilters format
     const newFilters: OfferteFilters = {
       type: presetFilters.type || "alle",
       dateFrom: presetFilters.dateFrom ? new Date(presetFilters.dateFrom) : undefined,
@@ -505,13 +185,11 @@ function OffertesPageContent() {
       activeTab !== "alle";
   }, [filters, activeTab]);
 
-  // Handle saving preset
   const handleSavePreset = useCallback((name: string, presetFilters: OfferteFilterState) => {
     addPreset(name, presetFilters);
     toast.success(`Preset "${name}" opgeslagen`);
   }, [addPreset]);
 
-  // Handle deleting preset
   const handleDeletePreset = useCallback((id: string) => {
     deletePreset(id);
     toast.success("Preset verwijderd");
@@ -522,9 +200,7 @@ function OffertesPageContent() {
     if (!offertes) return [];
 
     return offertes
-      // Filter out optimistically deleted items
       .filter((offerte) => !optimisticDeletedIds.has(offerte._id))
-      // Apply optimistic status updates
       .map((offerte) => {
         const optimisticStatus = optimisticStatusUpdates.get(offerte._id);
         if (optimisticStatus) {
@@ -536,43 +212,20 @@ function OffertesPageContent() {
 
   const filteredOffertes = useMemo(() => {
     return offertesWithOptimisticUpdates.filter((offerte) => {
-      // Search filter (use debounced value for filtering)
       const matchesSearch =
         debouncedSearchQuery === "" ||
         offerte.klant.naam.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
         offerte.offerteNummer.toLowerCase().includes(debouncedSearchQuery.toLowerCase());
-
-      // Status filter (from tabs)
-      const matchesStatus =
-        activeTab === "alle" || offerte.status === activeTab;
-
-      // Type filter
-      const matchesType =
-        filters.type === "alle" || offerte.type === filters.type;
-
-      // Date range filter
+      const matchesStatus = activeTab === "alle" || offerte.status === activeTab;
+      const matchesType = filters.type === "alle" || offerte.type === filters.type;
       const offerteDate = new Date(offerte.updatedAt);
-      const matchesDateFrom =
-        !filters.dateFrom || offerteDate >= filters.dateFrom;
-      const matchesDateTo =
-        !filters.dateTo || offerteDate <= new Date(filters.dateTo.getTime() + 86400000); // Include end date
-
-      // Amount range filter
+      const matchesDateFrom = !filters.dateFrom || offerteDate >= filters.dateFrom;
+      const matchesDateTo = !filters.dateTo || offerteDate <= new Date(filters.dateTo.getTime() + 86400000);
       const amount = offerte.totalen.totaalInclBtw;
-      const matchesAmountMin =
-        !filters.amountMin || amount >= parseFloat(filters.amountMin);
-      const matchesAmountMax =
-        !filters.amountMax || amount <= parseFloat(filters.amountMax);
+      const matchesAmountMin = !filters.amountMin || amount >= parseFloat(filters.amountMin);
+      const matchesAmountMax = !filters.amountMax || amount <= parseFloat(filters.amountMax);
 
-      return (
-        matchesSearch &&
-        matchesStatus &&
-        matchesType &&
-        matchesDateFrom &&
-        matchesDateTo &&
-        matchesAmountMin &&
-        matchesAmountMax
-      );
+      return matchesSearch && matchesStatus && matchesType && matchesDateFrom && matchesDateTo && matchesAmountMin && matchesAmountMax;
     });
   }, [offertesWithOptimisticUpdates, debouncedSearchQuery, activeTab, filters]);
 
@@ -591,207 +244,13 @@ function OffertesPageContent() {
     }));
   }, [filteredOffertes]);
 
-  // Apply sorting to offertes
+  // Apply sorting
   const { sortedData: sortedOffertes, sortConfig, toggleSort } = useTableSort<SortableOfferte>(
     sortableOffertes,
     "datum"
   );
 
-  const handleDuplicate = useCallback(async (offerteId: string) => {
-    try {
-      const newNummer = await getNextNummer();
-      await duplicate({ id: offerteId as Id<"offertes">, newOfferteNummer: newNummer });
-      toast.success("Offerte gedupliceerd");
-    } catch {
-      toast.error("Fout bij dupliceren offerte");
-    }
-  }, [getNextNummer, duplicate]);
-
-  const handleDelete = useCallback(async (offerteId: string) => {
-    const id = offerteId as Id<"offertes">;
-
-    // 1. Apply optimistic delete immediately
-    setOptimisticDeletedIds((prev) => new Set(prev).add(id));
-
-    try {
-      // 2. Make actual server call
-      await deleteOfferte({ id });
-
-      // 3. Clear optimistic delete (server data will take over)
-      setOptimisticDeletedIds((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(id);
-        return newSet;
-      });
-
-      // Show undo toast with 30-second window
-      showDeleteToast(
-        "Offerte verwijderd",
-        async () => {
-          await restoreOfferte({ id });
-        }
-      );
-    } catch {
-      // 4. Rollback on error
-      setOptimisticDeletedIds((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(id);
-        return newSet;
-      });
-      toast.error("Fout bij verwijderen offerte");
-    }
-  }, [deleteOfferte, restoreOfferte]);
-
-  const handleNavigate = useCallback((offerteId: string) => {
-    router.push(`/offertes/${offerteId}`);
-  }, [router]);
-
-  // Bulk action handlers - memoized with useCallback
-  const toggleSelectAll = useCallback(() => {
-    if (sortedOffertes.length === 0) return;
-    if (selectedIds.size === sortedOffertes.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(sortedOffertes.map((o) => o._id)));
-    }
-  }, [sortedOffertes, selectedIds.size]);
-
-  const toggleSelect = useCallback((id: Id<"offertes">) => {
-    setSelectedIds(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(id)) {
-        newSet.delete(id);
-      } else {
-        newSet.add(id);
-      }
-      return newSet;
-    });
-  }, []);
-
-  const clearSelection = useCallback(() => {
-    setSelectedIds(new Set());
-    setBulkStatusValue("");
-  }, []);
-
-  const handleBulkStatusChange = useCallback(async (status: string) => {
-    if (selectedIds.size === 0) return;
-
-    const ids = Array.from(selectedIds);
-    const count = ids.length;
-
-    // 1. Apply optimistic update immediately
-    setOptimisticStatusUpdates((prev) => {
-      const newMap = new Map(prev);
-      ids.forEach((id) => newMap.set(id, status));
-      return newMap;
-    });
-
-    // Show immediate feedback
-    toast.success(`${count} offerte(s) bijgewerkt naar ${status}`);
-    clearSelection();
-
-    try {
-      // 2. Make actual server call
-      await bulkUpdateStatus({
-        ids,
-        status: status as "concept" | "voorcalculatie" | "verzonden" | "geaccepteerd" | "afgewezen",
-      });
-
-      // 3. Clear optimistic updates (server data will take over)
-      setOptimisticStatusUpdates((prev) => {
-        const newMap = new Map(prev);
-        ids.forEach((id) => newMap.delete(id));
-        return newMap;
-      });
-    } catch (error) {
-      // 4. Rollback on error
-      setOptimisticStatusUpdates((prev) => {
-        const newMap = new Map(prev);
-        ids.forEach((id) => newMap.delete(id));
-        return newMap;
-      });
-      const errorMessage = error instanceof Error ? error.message : "Fout bij bijwerken status";
-      toast.error(errorMessage);
-    }
-  }, [selectedIds, bulkUpdateStatus, clearSelection]);
-
-  const handleBulkDelete = useCallback(async () => {
-    if (selectedIds.size === 0) return;
-    const ids = Array.from(selectedIds);
-    const count = ids.length;
-
-    // 1. Apply optimistic delete immediately
-    setOptimisticDeletedIds((prev) => {
-      const newSet = new Set(prev);
-      ids.forEach((id) => newSet.add(id));
-      return newSet;
-    });
-
-    clearSelection();
-    setShowBulkDeleteDialog(false);
-
-    try {
-      // 2. Make actual server call
-      await bulkRemove({ ids });
-
-      // 3. Clear optimistic deletes (server data will take over)
-      setOptimisticDeletedIds((prev) => {
-        const newSet = new Set(prev);
-        ids.forEach((id) => newSet.delete(id));
-        return newSet;
-      });
-
-      // Show undo toast with 30-second window
-      showDeleteToast(
-        `${count} offerte(s) verwijderd`,
-        async () => {
-          await bulkRestore({ ids });
-        }
-      );
-    } catch {
-      // 4. Rollback on error
-      setOptimisticDeletedIds((prev) => {
-        const newSet = new Set(prev);
-        ids.forEach((id) => newSet.delete(id));
-        return newSet;
-      });
-      toast.error("Fout bij verwijderen offertes");
-    }
-  }, [selectedIds, bulkRemove, bulkRestore, clearSelection]);
-
-  const handleExportCSV = useCallback(() => {
-    if (sortedOffertes.length === 0) return;
-    const exportData = selectedIds.size > 0
-      ? sortedOffertes.filter((o) => selectedIds.has(o._id))
-      : sortedOffertes;
-
-    const headers = ["Nummer", "Type", "Klant", "Adres", "Plaats", "Status", "Bedrag (incl. BTW)", "Datum"];
-    const rows = exportData.map((o) => [
-      o.offerteNummer,
-      o.type,
-      o.klantNaam,
-      o.original.klant.adres,
-      o.klantPlaats,
-      o.status,
-      o.bedrag.toFixed(2),
-      new Date(o.datum).toLocaleDateString("nl-NL"),
-    ]);
-
-    const csvContent = [headers, ...rows]
-      .map((row) => row.map((cell) => `"${cell}"`).join(","))
-      .join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `offertes-export-${new Date().toISOString().split("T")[0]}.csv`;
-    link.click();
-
-    toast.success(`${exportData.length} offerte(s) geexporteerd`);
-  }, [sortedOffertes, selectedIds]);
-
   const isAllSelected = sortedOffertes.length > 0 && selectedIds.size === sortedOffertes.length;
-  const isSomeSelected = selectedIds.size > 0;
 
   return (
     <>
@@ -803,366 +262,65 @@ function OffertesPageContent() {
         transition={{ duration: reducedMotion ? 0 : 0.5, ease: "easeOut" }}
         className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
       >
-        <motion.div
-          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: reducedMotion ? 0 : 0.4, delay: reducedMotion ? 0 : 0.1 }}
-          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
-        >
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
-              Offertes
-            </h1>
-            <p className="text-muted-foreground">
-              Beheer al je aanleg- en onderhoudsoffertes
-            </p>
-          </div>
-          <div className="flex gap-2 w-full sm:w-auto">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button asChild variant="outline" className="flex-1 sm:flex-none">
-                  <Link href="/offertes/nieuw/onderhoud">
-                    <Trees className="mr-2 h-4 w-4" />
-                    <span className="hidden sm:inline">Onderhoud</span>
-                    <span className="sm:hidden">Onderhoud Offerte</span>
-                  </Link>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Maak een nieuwe onderhoudsofferte</p>
-                <p className="text-xs text-muted-foreground">Voor periodiek tuinonderhoud</p>
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button asChild className="flex-1 sm:flex-none">
-                  <Link href="/offertes/nieuw/aanleg">
-                    <Shovel className="mr-2 h-4 w-4" />
-                    <span className="hidden sm:inline">Aanleg</span>
-                    <span className="sm:hidden">Aanleg Offerte</span>
-                  </Link>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Maak een nieuwe aanlegofferte</p>
-                <p className="text-xs text-muted-foreground">Voor tuinaanleg projecten</p>
-              </TooltipContent>
-            </Tooltip>
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: reducedMotion ? 0 : 0.4, delay: reducedMotion ? 0 : 0.2 }}
-          className="flex flex-col gap-4"
-        >
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
-            <div className="relative w-full sm:w-auto sm:flex-1 sm:max-w-sm">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Zoek op klantnaam of offertenummer..."
-                className="pl-8 w-full"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <ExportDropdown
-                getData={() => exportData ?? []}
-                columns={offerteExportColumns}
-                filename="offertes"
-                sheetName="Offertes"
-                disabled={!exportData || exportData.length === 0}
-              />
-              <FilterPresetSelector<OfferteFilterState>
-                presets={presets}
-                defaultPresets={defaultPresets}
-                userPresets={userPresets}
-                currentFilters={currentFiltersForPreset}
-                onSelectPreset={handlePresetSelect}
-                onSavePreset={handleSavePreset}
-                onDeletePreset={handleDeletePreset}
-                hasActiveFilters={hasActiveFilters}
-              />
-              <OfferteFiltersComponent
-                filters={filters}
-                onChange={handleFiltersChange}
-                onReset={handleFiltersReset}
-              />
-            </div>
-          </div>
-          <ActiveFilters filters={filters} onChange={handleFiltersChange} />
-        </motion.div>
+        <OfferteToolbar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          filters={filters}
+          onFiltersChange={handleFiltersChange}
+          onFiltersReset={handleFiltersReset}
+          exportData={exportData}
+          presets={presets}
+          defaultPresets={defaultPresets}
+          userPresets={userPresets}
+          currentFiltersForPreset={currentFiltersForPreset}
+          onPresetSelect={handlePresetSelect}
+          onSavePreset={handleSavePreset}
+          onDeletePreset={handleDeletePreset}
+          hasActiveFilters={hasActiveFilters}
+          reducedMotion={reducedMotion}
+        />
 
         <motion.div
           initial={reducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: reducedMotion ? 0 : 0.4, delay: reducedMotion ? 0 : 0.3 }}
         >
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="alle">
-              Alle
-              <Badge variant="secondary" className="ml-2">
-                {stats?.totaal || 0}
-              </Badge>
-            </TabsTrigger>
-            <TabsTrigger value="concept">
-              Concept
-              {(stats?.concept || 0) > 0 && (
-                <Badge variant="secondary" className="ml-2">
-                  {stats?.concept}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="voorcalculatie">
-              Voorcalculatie
-              {(stats?.voorcalculatie || 0) > 0 && (
-                <Badge variant="secondary" className="ml-2">
-                  {stats?.voorcalculatie}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="verzonden">
-              Verzonden
-              {(stats?.verzonden || 0) > 0 && (
-                <Badge variant="secondary" className="ml-2">
-                  {stats?.verzonden}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="geaccepteerd">
-              Geaccepteerd
-              {(stats?.geaccepteerd || 0) > 0 && (
-                <Badge variant="secondary" className="ml-2">
-                  {stats?.geaccepteerd}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="afgewezen">
-              Afgewezen
-              {(stats?.afgewezen || 0) > 0 && (
-                <Badge variant="secondary" className="ml-2">
-                  {stats?.afgewezen}
-                </Badge>
-              )}
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value={activeTab} className="space-y-6">
-            {/* Bulk Actions Bar */}
-            {isSomeSelected && (
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 bg-muted/50 rounded-lg border">
-                <div className="flex items-center justify-between sm:justify-start gap-2">
-                  <span className="text-sm font-medium">
-                    {selectedIds.size} geselecteerd
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={clearSelection}
-                    className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 sm:h-8 sm:w-8"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-                <Separator orientation="vertical" className="hidden sm:block h-6" />
-                <Separator orientation="horizontal" className="sm:hidden" />
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-wrap">
-                  <Select
-                    value={bulkStatusValue}
-                    onValueChange={(value) => {
-                      setBulkStatusValue(value);
-                      handleBulkStatusChange(value);
-                    }}
-                  >
-                    <SelectTrigger className="w-full sm:w-[180px] min-h-[44px] sm:min-h-0 sm:h-8">
-                      <SelectValue placeholder="Wijzig status..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="concept">Concept</SelectItem>
-                      <SelectItem value="voorcalculatie">Voorcalculatie</SelectItem>
-                      <SelectItem value="verzonden">Verzonden</SelectItem>
-                      <SelectItem value="geaccepteerd">Geaccepteerd</SelectItem>
-                      <SelectItem value="afgewezen">Afgewezen</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleExportCSV}
-                      className="flex-1 sm:flex-none min-h-[44px] sm:min-h-0 sm:h-8"
-                    >
-                      <Download className="mr-2 h-4 w-4" />
-                      Exporteer
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => setShowBulkDeleteDialog(true)}
-                      className="flex-1 sm:flex-none min-h-[44px] sm:min-h-0 sm:h-8"
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Verwijderen
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <AnimatePresence mode="wait">
-              {isLoading ? (
-                <motion.div
-                  key="loading"
-                  initial={reducedMotion ? false : { opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={reducedMotion ? undefined : { opacity: 0 }}
-                  transition={{ duration: reducedMotion ? 0 : 0.2 }}
-                >
-                  <OffertesTableSkeleton rows={5} />
-                </motion.div>
-              ) : sortedOffertes.length > 0 ? (
-                <motion.div
-                  key="content"
-                  initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={reducedMotion ? undefined : { opacity: 0, y: -10 }}
-                  transition={{ duration: reducedMotion ? 0 : 0.4 }}
-                >
-                  <Card className="overflow-hidden">
-                    <ScrollableTable>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-[50px]">
-                            <Checkbox
-                              checked={isAllSelected}
-                              onCheckedChange={toggleSelectAll}
-                              aria-label="Selecteer alle"
-                            />
-                          </TableHead>
-                          <SortableTableHead<SortableOfferte>
-                            sortKey="type"
-                            sortConfig={sortConfig}
-                            onSort={toggleSort}
-                          >
-                            Type
-                          </SortableTableHead>
-                          <SortableTableHead<SortableOfferte>
-                            sortKey="offerteNummer"
-                            sortConfig={sortConfig}
-                            onSort={toggleSort}
-                          >
-                            Nummer
-                          </SortableTableHead>
-                          <SortableTableHead<SortableOfferte>
-                            sortKey="klantNaam"
-                            sortConfig={sortConfig}
-                            onSort={toggleSort}
-                          >
-                            Klant
-                          </SortableTableHead>
-                          <SortableTableHead<SortableOfferte>
-                            sortKey="klantPlaats"
-                            sortConfig={sortConfig}
-                            onSort={toggleSort}
-                          >
-                            Plaats
-                          </SortableTableHead>
-                          <SortableTableHead<SortableOfferte>
-                            sortKey="bedrag"
-                            sortConfig={sortConfig}
-                            onSort={toggleSort}
-                          >
-                            Bedrag
-                          </SortableTableHead>
-                          <SortableTableHead<SortableOfferte>
-                            sortKey="status"
-                            sortConfig={sortConfig}
-                            onSort={toggleSort}
-                          >
-                            Status
-                          </SortableTableHead>
-                          <SortableTableHead<SortableOfferte>
-                            sortKey="datum"
-                            sortConfig={sortConfig}
-                            onSort={toggleSort}
-                          >
-                            Datum
-                          </SortableTableHead>
-                          <TableHead className="w-[50px]"></TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {sortedOffertes.map((sortableOfferte, index) => (
-                          <OfferteRow
-                            key={sortableOfferte._id}
-                            offerte={sortableOfferte.original}
-                            projectInfo={projectsByOfferte?.[sortableOfferte._id] ?? null}
-                            isSelected={selectedIds.has(sortableOfferte._id)}
-                            onToggleSelect={toggleSelect}
-                            onDuplicate={handleDuplicate}
-                            onDelete={handleDelete}
-                            onNavigate={handleNavigate}
-                            reducedMotion={reducedMotion}
-                            index={index}
-                          />
-                        ))}
-                      </TableBody>
-                    </Table>
-                    </ScrollableTable>
-                  </Card>
-                </motion.div>
-              ) : searchQuery ? (
-                <motion.div
-                  key="no-results"
-                  initial={reducedMotion ? false : { opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={reducedMotion ? undefined : { opacity: 0, scale: 0.95 }}
-                  transition={{ duration: reducedMotion ? 0 : 0.3 }}
-                >
-                  <NoSearchResults onAction={() => setSearchQuery("")} />
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="empty"
-                  initial={reducedMotion ? false : { opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={reducedMotion ? undefined : { opacity: 0, scale: 0.95 }}
-                  transition={{ duration: reducedMotion ? 0 : 0.3 }}
-                >
-                  <NoOffertes onAction={() => router.push("/offertes/nieuw/aanleg")} />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </TabsContent>
-        </Tabs>
+          <StatusTabs
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+            stats={stats}
+            selectedCount={selectedIds.size}
+            bulkStatusValue={bulkStatusValue}
+            onBulkStatusChange={handleBulkStatusChange}
+            onSetBulkStatusValue={setBulkStatusValue}
+            onClearSelection={clearSelection}
+            onExportCSV={() => handleExportCSV(sortedOffertes)}
+            onShowDeleteDialog={() => setShowBulkDeleteDialog(true)}
+            sortedOffertes={sortedOffertes}
+            sortConfig={sortConfig}
+            toggleSort={toggleSort}
+            projectsByOfferte={projectsByOfferte}
+            selectedIds={selectedIds}
+            isAllSelected={isAllSelected}
+            toggleSelectAll={() => toggleSelectAll(sortedOffertes)}
+            toggleSelect={toggleSelect}
+            handleDuplicate={handleDuplicate}
+            handleDelete={handleDelete}
+            handleNavigate={handleNavigate}
+            reducedMotion={reducedMotion}
+            isLoading={isLoading}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+          />
         </motion.div>
       </motion.div>
 
-      {/* Bulk Delete Confirmation Dialog */}
-      <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Offertes verwijderen</AlertDialogTitle>
-            <AlertDialogDescription>
-              Weet je zeker dat je {selectedIds.size} offerte(s) wilt verwijderen?
-              Deze actie kan niet ongedaan worden gemaakt.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Annuleren</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleBulkDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Verwijderen
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <BulkDeleteDialog
+        open={showBulkDeleteDialog}
+        onOpenChange={setShowBulkDeleteDialog}
+        selectedCount={selectedIds.size}
+        onConfirm={handleBulkDelete}
+      />
     </>
   );
 }
