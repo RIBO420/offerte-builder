@@ -14,6 +14,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuth, requireAuthUserId, verifyOwnership } from "./auth";
+import { requireNotViewer } from "./roles";
 import { Id } from "./_generated/dataModel";
 import { validatePositive, sanitizeOptionalString } from "./validators";
 
@@ -409,6 +410,7 @@ export const create = mutation({
     notities: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
     await getOwnedProject(ctx, args.projectId);
 
@@ -525,7 +527,7 @@ export const update = mutation({
     medewerker: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireAuth(ctx);
+    await requireNotViewer(ctx);
     await getOwnedProject(ctx, args.projectId);
 
     if (args.type === "arbeid") {
@@ -615,7 +617,7 @@ export const remove = mutation({
     projectId: v.id("projecten"),
   },
   handler: async (ctx, args) => {
-    await requireAuth(ctx);
+    await requireNotViewer(ctx);
     await getOwnedProject(ctx, args.projectId);
 
     if (args.type === "arbeid") {

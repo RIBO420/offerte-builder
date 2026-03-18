@@ -2,6 +2,7 @@ import React, { ReactNode } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
+import { colors } from '../../theme/colors';
 
 interface Tab {
   key: string;
@@ -176,7 +177,7 @@ export function Tabs({ tabs, activeTab, onTabChange, variant = 'default', classN
   };
 
   const getTextColor = (isActive: boolean) => {
-    if (!isActive) return '#555555';
+    if (!isActive) return colors.inactive;
     switch (variant) {
       case 'pills':
         return '#0A0A0A';

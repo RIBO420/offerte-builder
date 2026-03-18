@@ -16,6 +16,7 @@ import { Feather } from '@expo/vector-icons';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useColors } from '../../theme';
+import { colors } from '../../theme/colors';
 import { useCurrentUser } from '../../hooks/use-current-user';
 import { Tabs, TabsContent, Badge } from '../../components/ui';
 import { cn } from '@/lib/utils';
@@ -379,7 +380,7 @@ function AuthenticatedChatScreen() {
   // Empty state renderer
   const renderEmptyState = (icon: string, title: string, subtitle: string) => (
     <View style={styles.emptyState}>
-      <Feather name={icon as any} size={48} color="#555555" />
+      <Feather name={icon as any} size={48} color={colors.inactive} />
       <Text style={styles.emptyTitle}>{title}</Text>
       <Text style={styles.emptySubtitle}>{subtitle}</Text>
     </View>
@@ -434,7 +435,7 @@ function AuthenticatedChatScreen() {
                 <Text style={styles.headerSubtitle}>TOP TUINEN</Text>
               </View>
               <TouchableOpacity style={styles.searchButton}>
-                <Feather name="search" size={20} color="#555555" />
+                <Feather name="search" size={20} color={colors.inactive} />
               </TouchableOpacity>
             </>
           )}
@@ -577,7 +578,7 @@ function AuthenticatedChatScreen() {
               value={message}
               onChangeText={setMessage}
               placeholder="Typ een bericht..."
-              placeholderTextColor="#555555"
+              placeholderTextColor={colors.inactive}
               multiline
               maxLength={1000}
             />
@@ -592,7 +593,7 @@ function AuthenticatedChatScreen() {
               <Feather
                 name="send"
                 size={18}
-                color={message.trim() ? '#0A0A0A' : '#555555'}
+                color={message.trim() ? '#0A0A0A' : colors.inactive}
               />
             </TouchableOpacity>
           </View>
@@ -623,7 +624,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 14,
-    color: '#555555',
+    color: colors.inactive,
   },
 
   // Header
@@ -697,7 +698,7 @@ const styles = StyleSheet.create({
   tabLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#555555',
+    color: colors.inactive,
   },
   tabLabelActive: {
     color: '#4ADE80',
@@ -784,7 +785,7 @@ const styles = StyleSheet.create({
   },
   channelTime: {
     fontSize: 9,
-    color: '#555555',
+    color: colors.inactive,
   },
   channelBottomRow: {
     flexDirection: 'row',
@@ -863,7 +864,7 @@ const styles = StyleSheet.create({
   },
   messageTimestamp: {
     fontSize: 8,
-    color: '#555555',
+    color: colors.inactive,
     textAlign: 'right',
     marginTop: 4,
   },
@@ -879,13 +880,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#555555',
+    color: colors.inactive,
     marginTop: 8,
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 13,
-    color: '#555555',
+    color: colors.inactive,
     textAlign: 'center',
   },
 

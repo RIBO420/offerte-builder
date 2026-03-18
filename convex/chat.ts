@@ -9,6 +9,7 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { requireAuth, requireAuthUserId } from "./auth";
+import { requireNotViewer } from "./roles";
 import {
   validateFile,
   MAX_FILE_SIZE_BYTES,
@@ -38,7 +39,7 @@ export const sendTeamMessage = mutation({
     attachmentType: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const user = await requireNotViewer(ctx);
 
     // Validate attachment type if provided
     if (args.attachmentType) {
@@ -265,7 +266,7 @@ export const sendDirectMessage = mutation({
     attachmentType: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const user = await requireNotViewer(ctx);
 
     // Validate attachment type if provided
     if (args.attachmentType) {
@@ -751,7 +752,7 @@ export const deleteTeamMessage = mutation({
     messageId: v.id("team_messages"),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const user = await requireNotViewer(ctx);
 
     const message = await ctx.db.get(args.messageId);
     if (!message) {
@@ -779,7 +780,7 @@ export const deleteDirectMessage = mutation({
     messageId: v.id("direct_messages"),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const user = await requireNotViewer(ctx);
 
     const message = await ctx.db.get(args.messageId);
     if (!message) {
@@ -807,7 +808,7 @@ export const editTeamMessage = mutation({
     newMessage: v.string(),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const user = await requireNotViewer(ctx);
 
     const message = await ctx.db.get(args.messageId);
     if (!message) {
@@ -850,8 +851,8 @@ export const validateFileUpload = mutation({
     fileSize: v.number(),
   },
   handler: async (ctx, args) => {
-    // Require authentication
-    await requireAuth(ctx);
+    // Require authentication (viewers cannot upload)
+    await requireNotViewer(ctx);
 
     // Validate the file
     const validation = validateFile(args.fileName, args.mimeType, args.fileSize);
@@ -879,8 +880,8 @@ export const generateUploadUrl = mutation({
     fileSize: v.number(),
   },
   handler: async (ctx, args) => {
-    // Require authentication
-    const user = await requireAuth(ctx);
+    // Require authentication (viewers cannot upload)
+    const user = await requireNotViewer(ctx);
 
     // Validate the file before generating URL
     const validation = validateFile(args.fileName, args.mimeType, args.fileSize);
@@ -910,7 +911,7 @@ export const registerChatAttachment = mutation({
     directMessageId: v.optional(v.id("direct_messages")),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const user = await requireNotViewer(ctx);
 
     // Re-validate file info (in case of tampering)
     const validation = validateFile(args.fileName, args.fileType, args.fileSize);

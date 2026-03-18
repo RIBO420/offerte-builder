@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuth, requireAuthUserId } from "./auth";
-import { getUserRole, getLinkedMedewerker, getCompanyUserId } from "./roles";
+import { getUserRole, getLinkedMedewerker, getCompanyUserId, requireNotViewer } from "./roles";
 
 /**
  * List all time entries globally with pagination (for global Uren page).
@@ -259,6 +259,7 @@ export const add = mutation({
     notities: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Verify project ownership
@@ -295,6 +296,7 @@ export const importBatch = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Verify project ownership
@@ -337,6 +339,7 @@ export const update = mutation({
     notities: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Get entry and verify ownership through project
@@ -368,6 +371,7 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("urenRegistraties") },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Get entry and verify ownership through project

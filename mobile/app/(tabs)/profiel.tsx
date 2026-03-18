@@ -19,6 +19,7 @@ import Constants from 'expo-constants';
 import { LinearGradient } from 'expo-linear-gradient';
 import { api } from '../../convex/_generated/api';
 import { useTheme, useColors } from '../../theme';
+import { colors } from '../../theme/colors';
 import { useCurrentUser } from '../../hooks/use-current-user';
 import { useUserRole, ROLE_BADGE_COLORS } from '../../hooks/use-user-role';
 import { Card, CardContent, Button, Badge, Switch, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui';
@@ -83,12 +84,12 @@ function ThemeSelector({
             <Feather
               name={option.icon}
               size={14}
-              color={isSelected ? '#4ADE80' : '#555555'}
+              color={isSelected ? '#4ADE80' : colors.inactive}
             />
             <Text
               style={{
                 fontSize: 12,
-                color: isSelected ? '#E8E8E8' : '#555555',
+                color: isSelected ? '#E8E8E8' : colors.inactive,
                 fontWeight: isSelected ? '600' : '400',
               }}
             >
@@ -111,7 +112,7 @@ export default function ProfielScreen() {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#0A0A0A' }} edges={['top']}>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: '#555555', fontSize: 14 }}>Laden...</Text>
+          <Text style={{ color: colors.inactive, fontSize: 14 }}>Laden...</Text>
         </View>
       </SafeAreaView>
     );
@@ -450,7 +451,7 @@ function AuthenticatedProfielScreen() {
 
           {/* ACCOUNT Section */}
           <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
-            <Text style={{ fontSize: 10, color: '#555555', textTransform: 'uppercase', letterSpacing: 1.5, fontWeight: '600', marginBottom: 8, paddingLeft: 4 }}>
+            <Text style={{ fontSize: 10, color: colors.inactive, textTransform: 'uppercase', letterSpacing: 1.5, fontWeight: '600', marginBottom: 8, paddingLeft: 4 }}>
               ACCOUNT
             </Text>
             <View style={{ backgroundColor: '#111111', borderWidth: 1, borderColor: '#222222', borderRadius: 14, overflow: 'hidden' }}>
@@ -472,7 +473,7 @@ function AuthenticatedProfielScreen() {
 
           {/* BEVEILIGING Section */}
           <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
-            <Text style={{ fontSize: 10, color: '#555555', textTransform: 'uppercase', letterSpacing: 1.5, fontWeight: '600', marginBottom: 8, paddingLeft: 4 }}>
+            <Text style={{ fontSize: 10, color: colors.inactive, textTransform: 'uppercase', letterSpacing: 1.5, fontWeight: '600', marginBottom: 8, paddingLeft: 4 }}>
               BEVEILIGING
             </Text>
             <View style={{ backgroundColor: '#111111', borderWidth: 1, borderColor: '#222222', borderRadius: 14, overflow: 'hidden' }}>
@@ -486,7 +487,7 @@ function AuthenticatedProfielScreen() {
                     size="sm"
                   />
                 </View>
-                <Text style={{ fontSize: 11, color: '#555555', marginTop: 4 }}>
+                <Text style={{ fontSize: 11, color: colors.inactive, marginTop: 4 }}>
                   {getBiometricDescription()}
                 </Text>
               </View>
@@ -495,7 +496,7 @@ function AuthenticatedProfielScreen() {
 
           {/* NOTIFICATIES Section */}
           <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
-            <Text style={{ fontSize: 10, color: '#555555', textTransform: 'uppercase', letterSpacing: 1.5, fontWeight: '600', marginBottom: 8, paddingLeft: 4 }}>
+            <Text style={{ fontSize: 10, color: colors.inactive, textTransform: 'uppercase', letterSpacing: 1.5, fontWeight: '600', marginBottom: 8, paddingLeft: 4 }}>
               NOTIFICATIES
             </Text>
             <View style={{ backgroundColor: '#111111', borderWidth: 1, borderColor: '#222222', borderRadius: 14, overflow: 'hidden' }}>
@@ -543,7 +544,7 @@ function AuthenticatedProfielScreen() {
 
           {/* APP Section */}
           <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
-            <Text style={{ fontSize: 10, color: '#555555', textTransform: 'uppercase', letterSpacing: 1.5, fontWeight: '600', marginBottom: 8, paddingLeft: 4 }}>
+            <Text style={{ fontSize: 10, color: colors.inactive, textTransform: 'uppercase', letterSpacing: 1.5, fontWeight: '600', marginBottom: 8, paddingLeft: 4 }}>
               APP
             </Text>
             <View style={{ backgroundColor: '#111111', borderWidth: 1, borderColor: '#222222', borderRadius: 14, overflow: 'hidden' }}>

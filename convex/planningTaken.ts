@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query, QueryCtx, MutationCtx } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
+import { requireNotViewer } from "./roles";
 import { Id } from "./_generated/dataModel";
 
 /**
@@ -57,6 +58,7 @@ export const generateFromVoorcalculatie = mutation({
     projectId: v.id("projecten"),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const { project } = await getOwnedProject(ctx, args.projectId);
 
     // Get the voorcalculatie - first try by offerte (new workflow), then by project (legacy)
@@ -178,6 +180,7 @@ export const update = mutation({
     geschatteDagen: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Get task and verify ownership through project
@@ -221,6 +224,7 @@ export const updateVolgorde = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     await getOwnedProject(ctx, args.projectId);
 
     // Update each task's volgorde
@@ -243,6 +247,7 @@ export const remove = mutation({
     taskId: v.id("planningTaken"),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Get task and verify ownership through project
@@ -273,6 +278,7 @@ export const add = mutation({
     geschatteDagen: v.number(),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     await getOwnedProject(ctx, args.projectId);
 
     // Get highest volgorde
@@ -370,6 +376,7 @@ export const moveUp = mutation({
     taskId: v.id("planningTaken"),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     const task = await ctx.db.get(args.taskId);
@@ -413,6 +420,7 @@ export const moveDown = mutation({
     taskId: v.id("planningTaken"),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     const task = await ctx.db.get(args.taskId);

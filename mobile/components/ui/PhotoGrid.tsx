@@ -12,6 +12,7 @@ import Animated from 'react-native-reanimated';
 import { Camera } from 'lucide-react-native';
 import { usePressAnimation } from '../../hooks/use-spring-animation';
 import { hapticPatterns } from '../../theme/haptics';
+import { colors } from '../../theme/colors';
 
 interface PhotoGridProps {
   photos: { uri: string; caption?: string }[];
@@ -36,7 +37,7 @@ function AddButton({ onPress, size }: { onPress: () => void; size: number }) {
         onPressOut={onPressOut}
         style={[styles.addButton, { width: size, height: size }]}
       >
-        <Camera size={20} color="#555" />
+        <Camera size={20} color={colors.inactive} />
         <Text style={styles.addText}>Voeg toe</Text>
       </Pressable>
     </Animated.View>
@@ -153,7 +154,7 @@ const styles = StyleSheet.create({
   },
   addText: {
     fontSize: 9,
-    color: '#555',
+    color: colors.inactive,
   },
   photo: {
     borderRadius: 4,

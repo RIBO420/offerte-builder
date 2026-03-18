@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuth, requireAuthUserId, getOwnedKlant } from "./auth";
+import { requireNotViewer } from "./roles";
 import {
   sanitizeEmail,
   sanitizePhone,
@@ -117,6 +118,7 @@ export const create = mutation({
     notities: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
     const now = Date.now();
 
@@ -165,6 +167,7 @@ export const update = mutation({
     notities: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     // Verify ownership
     await getOwnedKlant(ctx, args.id);
 
@@ -219,6 +222,7 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("klanten") },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     // Verify ownership
     const klant = await getOwnedKlant(ctx, args.id);
 
@@ -268,6 +272,7 @@ export const createFromOfferte = mutation({
     telefoon: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Check if a klant with the same name and address already exists

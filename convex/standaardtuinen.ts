@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
+import { requireNotViewer } from "./roles";
 
 // System default templates
 const SYSTEM_TEMPLATES = {
@@ -235,6 +236,7 @@ const SYSTEM_TEMPLATES = {
 export const initializeSystemTemplates = mutation({
   args: {},
   handler: async (ctx) => {
+    await requireNotViewer(ctx);
     // Check if system templates exist
     const existing = await ctx.db
       .query("standaardtuinen")
@@ -332,6 +334,7 @@ export const create = mutation({
     defaultWaarden: v.any(),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
     return await ctx.db.insert("standaardtuinen", {
       userId,
@@ -354,6 +357,7 @@ export const update = mutation({
     defaultWaarden: v.optional(v.any()),
   },
   handler: async (ctx, { id, ...updates }) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     const template = await ctx.db.get(id);
@@ -378,6 +382,7 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("standaardtuinen") },
   handler: async (ctx, { id }) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     const template = await ctx.db.get(id);
@@ -414,6 +419,7 @@ export const createOfferteFromTemplate = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     const template = await ctx.db.get(args.templateId);

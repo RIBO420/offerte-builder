@@ -10,7 +10,7 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuth, requireAuthUserId, verifyOwnership } from "./auth";
 import { Id } from "./_generated/dataModel";
-import { getUserRole, getLinkedMedewerker } from "./roles";
+import { getUserRole, getLinkedMedewerker, requireNotViewer } from "./roles";
 
 // Status validator for project status
 // Note: voorcalculatie is now done at offerte level before a project is created
@@ -48,6 +48,7 @@ export const create = mutation({
     copyVoorcalculatie: v.optional(v.boolean()), // Whether to copy/link voorcalculatie from offerte to project
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
     const now = Date.now();
 
@@ -282,6 +283,7 @@ export const updateStatus = mutation({
     status: projectStatusValidator,
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     // Verify ownership before updating
     const project = await getOwnedProject(ctx, args.id);
     const now = Date.now();
@@ -355,6 +357,7 @@ export const archive = mutation({
     id: v.id("projecten"),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     // Verify ownership before archiving
     await getOwnedProject(ctx, args.id);
 
@@ -377,6 +380,7 @@ export const update = mutation({
     toegewezenVoertuigen: v.optional(v.array(v.id("voertuigen"))),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     // Verify ownership before updating
     await getOwnedProject(ctx, args.id);
     const now = Date.now();
@@ -407,6 +411,7 @@ export const updateVoertuigen = mutation({
     voertuigIds: v.array(v.id("voertuigen")),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     // Verify ownership before updating
     await getOwnedProject(ctx, args.id);
     const now = Date.now();
@@ -457,6 +462,7 @@ export const getVoertuigen = query({
 export const remove = mutation({
   args: { id: v.id("projecten") },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     // Verify ownership before deleting
     await getOwnedProject(ctx, args.id);
     const now = Date.now();
@@ -476,6 +482,7 @@ export const remove = mutation({
 export const restore = mutation({
   args: { id: v.id("projecten") },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     // Verify ownership before restoring
     const project = await getOwnedProject(ctx, args.id);
 
@@ -503,6 +510,7 @@ export const restore = mutation({
 export const permanentlyDelete = mutation({
   args: { id: v.id("projecten") },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     // Verify ownership before deleting
     await getOwnedProject(ctx, args.id);
 
@@ -887,6 +895,7 @@ export const bulkUpdateStatus = mutation({
     status: projectStatusValidator,
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const now = Date.now();
 
     for (const id of args.ids) {
@@ -912,6 +921,7 @@ export const bulkRemove = mutation({
     ids: v.array(v.id("projecten")),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const now = Date.now();
 
     for (const id of args.ids) {
@@ -936,6 +946,7 @@ export const bulkRestore = mutation({
     ids: v.array(v.id("projecten")),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const now = Date.now();
 
     for (const id of args.ids) {

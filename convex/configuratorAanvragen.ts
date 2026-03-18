@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
 import { requireAuth, requireAuthUserId } from "./auth";
+import { requireNotViewer } from "./roles";
 import { Doc } from "./_generated/dataModel";
 
 // ============================================
@@ -296,7 +297,7 @@ export const updateStatus = mutation({
     verificatieNotities: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireAuthUserId(ctx);
+    await requireNotViewer(ctx);
 
     const aanvraag = await ctx.db.get(args.id);
     if (!aanvraag) {
@@ -323,7 +324,7 @@ export const toewijzen = mutation({
     toegewezenAan: v.id("users"),
   },
   handler: async (ctx, args) => {
-    const currentUser = await requireAuth(ctx);
+    const currentUser = await requireNotViewer(ctx);
 
     const aanvraag = await ctx.db.get(args.id);
     if (!aanvraag) {
@@ -364,7 +365,7 @@ export const addNotitie = mutation({
     notitie: v.string(),
   },
   handler: async (ctx, args) => {
-    const currentUser = await requireAuth(ctx);
+    const currentUser = await requireNotViewer(ctx);
 
     const aanvraag = await ctx.db.get(args.id);
     if (!aanvraag) {
@@ -400,7 +401,7 @@ export const setPrijs = mutation({
     definitievePrijs: v.number(),
   },
   handler: async (ctx, args) => {
-    await requireAuthUserId(ctx);
+    await requireNotViewer(ctx);
 
     const aanvraag = await ctx.db.get(args.id);
     if (!aanvraag) {
@@ -449,7 +450,7 @@ export const updatePipelineStatus = mutation({
     verliesReden: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const currentUser = await requireAuth(ctx);
+    const currentUser = await requireNotViewer(ctx);
 
     const lead = await ctx.db.get(args.id);
     if (!lead) {
@@ -502,7 +503,7 @@ export const markGewonnen = mutation({
     id: v.id("configuratorAanvragen"),
   },
   handler: async (ctx, args) => {
-    const currentUser = await requireAuth(ctx);
+    const currentUser = await requireNotViewer(ctx);
 
     const lead = await ctx.db.get(args.id);
     if (!lead) {
@@ -584,7 +585,7 @@ export const createHandmatig = mutation({
     )),
   },
   handler: async (ctx, args) => {
-    const currentUser = await requireAuth(ctx);
+    const currentUser = await requireNotViewer(ctx);
 
     if (!args.klantNaam.trim()) {
       throw new Error("Klantnaam is verplicht");

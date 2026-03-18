@@ -6,6 +6,7 @@ import {
   getOwnedOfferte,
   verifyOwnership,
 } from "./auth";
+import { requireNotViewer } from "./roles";
 import { internal } from "./_generated/api";
 
 const klantValidator = v.object({
@@ -531,6 +532,7 @@ export const create = mutation({
     klantId: v.optional(v.id("klanten")),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
     const now = Date.now();
 
@@ -609,6 +611,7 @@ export const update = mutation({
     createVersion: v.optional(v.boolean()), // Optional: skip version for auto-save
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     // Verify ownership before updating
     await getOwnedOfferte(ctx, args.id);
 
@@ -686,6 +689,7 @@ export const updateRegels = mutation({
     createVersion: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     // Verify ownership before updating
     await getOwnedOfferte(ctx, args.id);
 
@@ -820,6 +824,7 @@ export const updateStatus = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     // Verify ownership before updating (also retrieves the offerte)
     const oldOfferte = await getOwnedOfferte(ctx, args.id);
     const now = Date.now();
@@ -954,6 +959,7 @@ export const updateStatus = mutation({
 export const remove = mutation({
   args: { id: v.id("offertes") },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     // Verify ownership before deleting
     await getOwnedOfferte(ctx, args.id);
     const now = Date.now();
@@ -971,6 +977,7 @@ export const remove = mutation({
 export const restore = mutation({
   args: { id: v.id("offertes") },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     // Verify ownership before restoring
     const offerte = await getOwnedOfferte(ctx, args.id);
 
@@ -994,6 +1001,7 @@ export const restore = mutation({
 export const permanentlyDelete = mutation({
   args: { id: v.id("offertes") },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     // Verify ownership before deleting
     await getOwnedOfferte(ctx, args.id);
     await ctx.db.delete(args.id);
@@ -1005,6 +1013,7 @@ export const permanentlyDelete = mutation({
 export const archive = mutation({
   args: { id: v.id("offertes") },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     // Verify ownership before archiving
     await getOwnedOfferte(ctx, args.id);
     const now = Date.now();
@@ -1026,6 +1035,7 @@ export const duplicate = mutation({
     newOfferteNummer: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     // Verify ownership before duplicating
     const original = await getOwnedOfferte(ctx, args.id);
     const userId = await requireAuthUserId(ctx);
@@ -1166,6 +1176,7 @@ export const bulkUpdateStatus = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const now = Date.now();
 
     for (const id of args.ids) {
@@ -1208,6 +1219,7 @@ export const bulkRemove = mutation({
     ids: v.array(v.id("offertes")),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const now = Date.now();
     for (const id of args.ids) {
       // Verify ownership for each offerte
@@ -1227,6 +1239,7 @@ export const bulkRestore = mutation({
     ids: v.array(v.id("offertes")),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const now = Date.now();
     for (const id of args.ids) {
       // Verify ownership for each offerte

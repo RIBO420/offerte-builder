@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
+import { requireNotViewer } from "./roles";
 import { Id } from "./_generated/dataModel";
 import { validateNonNegative, sanitizeOptionalString } from "./validators";
 
@@ -255,6 +256,7 @@ export const create = mutation({
     notities: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Verify product ownership
@@ -332,6 +334,7 @@ export const update = mutation({
     notities: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Verify ownership
@@ -392,6 +395,7 @@ export const adjustStock = mutation({
     createdBy: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Verify voorraad ownership
@@ -483,6 +487,7 @@ export const adjustStock = mutation({
 export const remove = mutation({
   args: { id: v.id("voorraad") },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Verify ownership
@@ -516,6 +521,7 @@ export const initializeFromProducts = mutation({
     defaultMaxVoorraad: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Get all active products for this user

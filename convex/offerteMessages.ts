@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getOwnedOfferte, isShareTokenValid } from "./auth";
+import { requireNotViewer } from "./roles";
 
 // Get all messages for an offerte (with ownership verification)
 export const listByOfferte = query({
@@ -66,6 +67,7 @@ export const sendFromBusiness = mutation({
     message: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     // Verify ownership
     await getOwnedOfferte(ctx, args.offerteId);
 

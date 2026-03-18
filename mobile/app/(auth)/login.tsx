@@ -16,6 +16,7 @@ import { useSignIn, useAuth } from '@clerk/clerk-expo';
 import * as Linking from 'expo-linking';
 import { isAuthConfigured } from '../../lib/env';
 import { LinearGradient } from 'expo-linear-gradient';
+import { colors } from '../../theme/colors';
 
 // Email validation regex
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -443,7 +444,7 @@ export default function LoginScreen() {
             value={email}
             onChangeText={handleEmailChange}
             placeholder="je@email.nl"
-            placeholderTextColor="#555"
+            placeholderTextColor={colors.inactive}
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}

@@ -36,6 +36,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuth } from "./auth";
+import { requireNotViewer } from "./roles";
 
 // ============================================
 // VALIDATORS
@@ -137,7 +138,7 @@ export const create = mutation({
     metadata: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
-    await requireAuth(ctx);
+    await requireNotViewer(ctx);
     const now = Date.now();
 
     const betalingId = await ctx.db.insert("betalingen", {
@@ -168,6 +169,7 @@ export const updateStatus = mutation({
     status: betalingStatusValidator,
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const betaling = await ctx.db
       .query("betalingen")
       .withIndex("by_mollieId", (q) =>

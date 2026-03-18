@@ -9,6 +9,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuth, requireAuthUserId } from "./auth";
+import { requireNotViewer } from "./roles";
 import { Id } from "./_generated/dataModel";
 
 // Minimum number of projects required for a reliable suggestion
@@ -215,7 +216,7 @@ export const applyAanpassing = mutation({
     bronProjecten: v.array(v.id("projecten")),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const user = await requireNotViewer(ctx);
     const now = Date.now();
 
     // Get the normuur and verify ownership
@@ -375,7 +376,7 @@ export const getStats = query({
 export const revertAanpassing = mutation({
   args: { historieId: v.id("leerfeedback_historie") },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const user = await requireNotViewer(ctx);
     const now = Date.now();
 
     // Get the history entry

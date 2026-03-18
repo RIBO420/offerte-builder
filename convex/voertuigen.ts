@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
+import { requireNotViewer } from "./roles";
 
 /**
  * Search voertuigen by kenteken, merk, model, or type.
@@ -209,6 +210,7 @@ export const create = mutation({
     polisnummer: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
     const now = Date.now();
 
@@ -263,6 +265,7 @@ export const update = mutation({
     polisnummer: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Verifieer eigenaarschap
@@ -322,6 +325,7 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("voertuigen") },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Verifieer eigenaarschap
@@ -346,6 +350,7 @@ export const remove = mutation({
 export const hardDelete = mutation({
   args: { id: v.id("voertuigen") },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Verifieer eigenaarschap
@@ -369,6 +374,7 @@ export const syncFromFleetGo = mutation({
     fleetgoData: v.any(),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Verifieer eigenaarschap
@@ -399,6 +405,7 @@ export const updateKmStand = mutation({
     kmStand: v.number(),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Verifieer eigenaarschap

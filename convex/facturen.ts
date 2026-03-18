@@ -8,6 +8,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuth, requireAuthUserId, verifyOwnership } from "./auth";
+import { requireNotViewer } from "./roles";
 import { Id } from "./_generated/dataModel";
 
 /**
@@ -75,6 +76,7 @@ export const generate = mutation({
     notities: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
     const now = Date.now();
 
@@ -354,6 +356,7 @@ export const update = mutation({
     notities: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     // Verifieer eigenaarschap
     const factuur = await getOwnedFactuur(ctx, args.id);
     const now = Date.now();
@@ -418,6 +421,7 @@ export const updateStatus = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     // Verifieer eigenaarschap
     const factuur = await getOwnedFactuur(ctx, args.id);
     const now = Date.now();
@@ -478,6 +482,7 @@ export const markAsPaid = mutation({
     betaaldAt: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     // Verifieer eigenaarschap
     const factuur = await getOwnedFactuur(ctx, args.id);
     const now = Date.now();
@@ -506,6 +511,7 @@ export const archive = mutation({
     id: v.id("facturen"),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     // Verifieer eigenaarschap
     await getOwnedFactuur(ctx, args.id);
     const now = Date.now();
@@ -532,6 +538,7 @@ export const markAsPaidAndArchiveProject = mutation({
     id: v.id("facturen"),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     // Verifieer eigenaarschap van factuur
     const factuur = await getOwnedFactuur(ctx, args.id);
     const now = Date.now();
@@ -746,6 +753,7 @@ export const bulkArchive = mutation({
     ids: v.array(v.id("facturen")),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const now = Date.now();
 
     for (const id of args.ids) {
@@ -772,6 +780,7 @@ export const bulkRestore = mutation({
     ids: v.array(v.id("facturen")),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const now = Date.now();
 
     for (const id of args.ids) {

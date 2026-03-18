@@ -8,6 +8,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuth, requireAuthUserId, verifyOwnership } from "./auth";
+import { requireNotViewer } from "./roles";
 import { Id } from "./_generated/dataModel";
 import { validatePositive, sanitizeOptionalString } from "./validators";
 
@@ -298,6 +299,7 @@ export const create = mutation({
     verwachteLevertijd: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
     const now = Date.now();
 
@@ -363,6 +365,7 @@ export const update = mutation({
     verwachteLevertijd: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     // Verifieer eigenaarschap
     const inkooporder = await getOwnedInkooporder(ctx, args.id);
     const now = Date.now();
@@ -421,6 +424,7 @@ export const updateStatus = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     // Verifieer eigenaarschap
     const inkooporder = await getOwnedInkooporder(ctx, args.id);
     const now = Date.now();
@@ -475,6 +479,7 @@ export const updateStatus = mutation({
 export const remove = mutation({
   args: { id: v.id("inkooporders") },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     // Verifieer eigenaarschap
     const inkooporder = await getOwnedInkooporder(ctx, args.id);
 

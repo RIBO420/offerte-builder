@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId, getOwnedOfferte } from "./auth";
+import { requireNotViewer } from "./roles";
 
 // List email logs for an offerte (with ownership verification)
 export const listByOfferte = query({
@@ -51,6 +52,7 @@ export const create = mutation({
     error: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     // Verify user owns this offerte
     const offerte = await getOwnedOfferte(ctx, args.offerteId);
 
@@ -80,6 +82,7 @@ export const updateStatus = mutation({
     openedAt: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Get the log and verify ownership

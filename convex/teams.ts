@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
+import { requireNotViewer } from "./roles";
 import { Doc } from "./_generated/dataModel";
 
 // ============================================
@@ -124,6 +125,7 @@ export const create = mutation({
     leden: v.array(v.id("medewerkers")),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
     const now = Date.now();
 
@@ -160,6 +162,7 @@ export const update = mutation({
     isActief: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Verifieer eigenaarschap
@@ -213,6 +216,7 @@ export const addLid = mutation({
     medewerkerId: v.id("medewerkers"),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Verifieer team eigenaarschap
@@ -255,6 +259,7 @@ export const removeLid = mutation({
     medewerkerId: v.id("medewerkers"),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Verifieer team eigenaarschap
@@ -282,6 +287,7 @@ export const removeLid = mutation({
 export const remove = mutation({
   args: { id: v.id("teams") },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Verifieer eigenaarschap
@@ -306,6 +312,7 @@ export const remove = mutation({
 export const hardDelete = mutation({
   args: { id: v.id("teams") },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Verifieer eigenaarschap

@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
+import { requireNotViewer } from "./roles";
 
 // List all machine usage for a project
 export const list = query({
@@ -105,6 +106,7 @@ export const add = mutation({
     uren: v.number(),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Verify project ownership
@@ -148,6 +150,7 @@ export const update = mutation({
     uren: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Get entry and verify ownership through project
@@ -192,6 +195,7 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("machineGebruik") },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Get entry and verify ownership through project

@@ -11,6 +11,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuth, requireAuthUserId } from "./auth";
+import { requireNotViewer } from "./roles";
 
 // ============================================
 // CLOCK IN/OUT
@@ -28,7 +29,7 @@ export const clockIn = mutation({
     longitude: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const user = await requireNotViewer(ctx);
     const userId = user._id;
     const now = Date.now();
 
@@ -124,7 +125,7 @@ export const clockOut = mutation({
     notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const user = await requireNotViewer(ctx);
     const userId = user._id;
     const now = Date.now();
 
@@ -204,7 +205,7 @@ export const clockOut = mutation({
 export const startBreak = mutation({
   args: {},
   handler: async (ctx) => {
-    const user = await requireAuth(ctx);
+    const user = await requireNotViewer(ctx);
     const userId = user._id;
     const now = Date.now();
 
@@ -246,7 +247,7 @@ export const startBreak = mutation({
 export const endBreak = mutation({
   args: {},
   handler: async (ctx) => {
-    const user = await requireAuth(ctx);
+    const user = await requireNotViewer(ctx);
     const userId = user._id;
     const now = Date.now();
 
@@ -621,7 +622,7 @@ export const syncUrenRegistraties = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const user = await requireNotViewer(ctx);
 
     // Get medewerker info
     const medewerker = await ctx.db

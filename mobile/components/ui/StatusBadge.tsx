@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { typography } from '../../theme/typography';
 import { radius } from '../../theme/radius';
+import { colors } from '../../theme/colors';
 
 type StatusType = 'active' | 'inactive' | 'pending' | 'success' | 'error' | 'warning';
 
@@ -14,7 +15,7 @@ interface StatusBadgeProps {
 
 const statusColors: Record<StatusType, { bg: string; text: string; dot: string }> = {
   active: { bg: 'rgba(74,222,128,0.13)', text: '#4ADE80', dot: '#4ADE80' },
-  inactive: { bg: '#1A1A1A', text: '#555555', dot: '#555555' },
+  inactive: { bg: '#1A1A1A', text: colors.inactive, dot: colors.inactive },
   pending: { bg: 'rgba(245,158,11,0.13)', text: '#F59E0B', dot: '#F59E0B' },
   success: { bg: 'rgba(74,222,128,0.13)', text: '#4ADE80', dot: '#4ADE80' },
   error: { bg: 'rgba(239,68,68,0.13)', text: '#EF4444', dot: '#EF4444' },

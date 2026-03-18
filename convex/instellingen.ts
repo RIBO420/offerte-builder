@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
+import { requireNotViewer } from "./roles";
 
 const bedrijfsgegevensValidator = v.object({
   naam: v.string(),
@@ -48,6 +49,7 @@ export const get = query({
 export const createDefaults = mutation({
   args: {},
   handler: async (ctx) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Idempotent: return existing if already created
@@ -88,6 +90,7 @@ export const update = mutation({
     offerteNummerPrefix: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     const settings = await ctx.db
@@ -121,6 +124,7 @@ export const update = mutation({
 export const getNextOfferteNummer = mutation({
   args: {},
   handler: async (ctx) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     const settings = await ctx.db

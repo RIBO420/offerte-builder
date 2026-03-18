@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
+import { requireNotViewer } from "./roles";
 import {
   sanitizeEmail,
   sanitizePhone,
@@ -126,6 +127,7 @@ export const create = mutation({
     notities: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
     const now = Date.now();
 
@@ -192,6 +194,7 @@ export const update = mutation({
     isActief: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Verify ownership
@@ -273,6 +276,7 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("leveranciers") },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Verify ownership
@@ -315,6 +319,7 @@ export const remove = mutation({
 export const hardDelete = mutation({
   args: { id: v.id("leveranciers") },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Verify ownership
@@ -453,6 +458,7 @@ export const listAllWithStats = query({
 export const reactivate = mutation({
   args: { id: v.id("leveranciers") },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Verify ownership

@@ -7,6 +7,7 @@ import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
 import { useColors } from '../../theme';
+import { colors as themeColors } from '../../theme/colors';
 import {
   ParallaxHeader,
   AnimatedNumber,
@@ -182,7 +183,7 @@ export default function ProjectDetailScreen() {
               <View style={s.card}>
                 {offerte?.klant?.adres && (
                   <View style={s.detailRow}>
-                    <Feather name="map-pin" size={16} color="#555" />
+                    <Feather name="map-pin" size={16} color={themeColors.inactive} />
                     <View style={s.detailContent}>
                       <Text style={s.detailText}>{offerte.klant.adres}</Text>
                       <Text style={s.detailSubText}>
@@ -193,7 +194,7 @@ export default function ProjectDetailScreen() {
                 )}
                 {project.startDatum && (
                   <View style={[s.detailRow, offerte?.klant?.adres && s.detailRowBorder]}>
-                    <Feather name="calendar" size={16} color="#555" />
+                    <Feather name="calendar" size={16} color={themeColors.inactive} />
                     <View style={s.detailContent}>
                       <Text style={s.detailSubText}>Startdatum</Text>
                       <Text style={s.detailText}>
@@ -208,7 +209,7 @@ export default function ProjectDetailScreen() {
                 )}
                 {project.deadline && (
                   <View style={[s.detailRow, s.detailRowBorder]}>
-                    <Feather name="flag" size={16} color="#555" />
+                    <Feather name="flag" size={16} color={themeColors.inactive} />
                     <View style={s.detailContent}>
                       <Text style={s.detailSubText}>Deadline</Text>
                       <Text style={s.detailText}>
@@ -223,7 +224,7 @@ export default function ProjectDetailScreen() {
                 )}
                 {offerte?.klant?.telefoon && (
                   <View style={[s.detailRow, s.detailRowBorder]}>
-                    <Feather name="phone" size={16} color="#555" />
+                    <Feather name="phone" size={16} color={themeColors.inactive} />
                     <View style={s.detailContent}>
                       <Text style={s.detailSubText}>Telefoon</Text>
                       <Text style={[s.detailText, { color: '#4ADE80' }]}>
@@ -507,7 +508,7 @@ const s = StyleSheet.create({
   sectionLabel: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#555',
+    color: themeColors.inactive,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
     marginBottom: 8,

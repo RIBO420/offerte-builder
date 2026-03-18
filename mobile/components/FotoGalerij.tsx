@@ -36,6 +36,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import { usePhotoCapture, type CapturedPhoto, type FotoType } from '@/hooks/use-photo-capture';
+import { colors } from '../theme/colors';
 
 // ============================================
 // CONSTANTEN & HELPERS
@@ -410,7 +411,7 @@ function FotoToevoegModal({
                 value={beschrijving}
                 onChangeText={setBeschrijving}
                 placeholder="Voeg een korte beschrijving toe..."
-                placeholderTextColor="#555555"
+                placeholderTextColor={colors.inactive}
                 multiline
                 numberOfLines={3}
                 maxLength={300}
@@ -730,7 +731,7 @@ const stijlen = StyleSheet.create({
   },
   leegGridOndertitel: {
     fontSize: 13,
-    color: '#555555',
+    color: colors.inactive,
   },
 
   // Fullscreen

@@ -13,6 +13,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { cn } from '@/lib/utils';
+import { colors } from '../../theme/colors';
 
 export type InputStatus = 'idle' | 'valid' | 'invalid' | 'validating';
 
@@ -128,7 +129,7 @@ export const Input = forwardRef<TextInput, InputProps>(
             style={{
               color: disabled ? '#888888' : '#E8E8E8',
             }}
-            placeholderTextColor="#555555"
+            placeholderTextColor={colors.inactive}
             editable={!disabled}
             multiline={multiline}
             textAlignVertical={multiline ? 'top' : 'center'}

@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
+import { requireNotViewer } from "./roles";
 
 // Haversine formule voor afstandsberekening in km
 function haversineDistance(
@@ -64,6 +65,7 @@ export const create = mutation({
     contactInfo: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     if (!args.naam.trim()) {
@@ -102,6 +104,7 @@ export const update = mutation({
     isActief: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     const transportbedrijf = await ctx.db.get(args.id);
@@ -130,6 +133,7 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("transportbedrijven") },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     const transportbedrijf = await ctx.db.get(args.id);

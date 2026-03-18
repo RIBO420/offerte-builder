@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId, getAuthenticatedUser, requireAuth } from "./auth";
+import { requireNotViewer } from "./roles";
 import { Id, Doc } from "./_generated/dataModel";
 import { QueryCtx, MutationCtx } from "./_generated/server";
 
@@ -522,6 +523,7 @@ export const update = mutation({
     noodcontact: v.optional(noodcontactValidator),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const { role, linkedMedewerker, companyUserId } = await getUserRole(ctx);
 
     if (!role) {

@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { requireAuth, getOwnedOfferte } from "./auth";
+import { requireNotViewer } from "./roles";
 
 // Get all versions for an offerte
 export const listByOfferte = query({
@@ -66,7 +67,7 @@ export const createVersion = mutation({
   },
   handler: async (ctx, args) => {
     // Derive userId from auth context instead of accepting from client
-    const user = await requireAuth(ctx);
+    const user = await requireNotViewer(ctx);
 
     // Get the current offerte and verify ownership
     const offerte = await getOwnedOfferte(ctx, args.offerteId);
@@ -123,7 +124,7 @@ export const rollback = mutation({
   },
   handler: async (ctx, args) => {
     // Derive userId from auth context
-    const user = await requireAuth(ctx);
+    const user = await requireNotViewer(ctx);
 
     // Get the version to restore
     const version = await ctx.db.get(args.versionId);

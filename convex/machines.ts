@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
+import { requireNotViewer } from "./roles";
 
 // List all machines for authenticated user
 export const list = query({
@@ -58,6 +59,7 @@ export const create = mutation({
     gekoppeldeScopes: v.array(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
     return await ctx.db.insert("machines", {
       userId,
@@ -83,6 +85,7 @@ export const update = mutation({
     isActief: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Verify ownership
@@ -112,6 +115,7 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("machines") },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Verify ownership
@@ -134,6 +138,7 @@ export const remove = mutation({
 export const hardDelete = mutation({
   args: { id: v.id("machines") },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Verify ownership
@@ -212,6 +217,7 @@ export const getUsageStats = query({
 export const createDefaults = mutation({
   args: {},
   handler: async (ctx) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Idempotent: check if user already has machines

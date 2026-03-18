@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
+import { requireNotViewer } from "./roles";
 
 // Get all fuel records for a vehicle
 export const listByVoertuig = query({
@@ -85,6 +86,7 @@ export const create = mutation({
     locatie: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Verify ownership of the vehicle
@@ -116,6 +118,7 @@ export const create = mutation({
 export const remove = mutation({
   args: { id: v.id("brandstofRegistratie") },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     const record = await ctx.db.get(args.id);

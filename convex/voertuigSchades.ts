@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
+import { requireNotViewer } from "./roles";
 
 // Ernst levels for damage
 export const ernstValidator = v.union(
@@ -127,6 +128,7 @@ export const create = mutation({
     claimNummer: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
     const now = Date.now();
 
@@ -174,6 +176,7 @@ export const update = mutation({
     claimNummer: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Verify ownership
@@ -226,6 +229,7 @@ export const updateStatus = mutation({
     status: schadeStatusValidator,
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Verify ownership
@@ -250,6 +254,7 @@ export const updateStatus = mutation({
 export const remove = mutation({
   args: { id: v.id("voertuigSchades") },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Verify ownership

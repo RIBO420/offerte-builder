@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId, requireAuth } from "./auth";
+import { requireNotViewer } from "./roles";
 
 // Get voorcalculatie by ID
 export const get = query({
@@ -82,6 +83,7 @@ export const create = mutation({
     normUrenPerScope: v.record(v.string(), v.number()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Validate that at least one of projectId or offerteId is provided
@@ -152,6 +154,7 @@ export const update = mutation({
     normUrenPerScope: v.optional(v.record(v.string(), v.number())),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
     const voorcalculatie = await ctx.db.get(args.id);
 
@@ -463,6 +466,7 @@ export const calculate = query({
 export const remove = mutation({
   args: { id: v.id("voorcalculaties") },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
     const voorcalculatie = await ctx.db.get(args.id);
 

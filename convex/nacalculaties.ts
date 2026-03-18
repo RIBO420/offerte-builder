@@ -8,6 +8,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuth, requireAuthUserId, verifyOwnership } from "./auth";
+import { requireNotViewer } from "./roles";
 import { Id } from "./_generated/dataModel";
 
 /**
@@ -188,6 +189,7 @@ export const save = mutation({
     updateProjectStatus: v.optional(v.boolean()), // Deprecated: status is now always updated
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     // Verify ownership of project
     const project = await getOwnedProject(ctx, args.projectId);
     const now = Date.now();
@@ -251,6 +253,7 @@ export const addConclusion = mutation({
     conclusies: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     // Verify ownership of project
     await getOwnedProject(ctx, args.projectId);
     const now = Date.now();
@@ -405,6 +408,7 @@ export const getWithDetails = query({
 export const fixProjectStatuses = mutation({
   args: {},
   handler: async (ctx) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
     const now = Date.now();
 
@@ -450,6 +454,7 @@ export const fixProjectStatuses = mutation({
 export const ensureCorrectStatus = mutation({
   args: { projectId: v.id("projecten") },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     // Verify ownership of project
     const project = await getOwnedProject(ctx, args.projectId);
 

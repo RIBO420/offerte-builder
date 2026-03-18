@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
+import { requireNotViewer } from "./roles";
 
 // List all normuren for authenticated user
 export const list = query({
@@ -56,6 +57,7 @@ export const create = mutation({
     omschrijving: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
     return await ctx.db.insert("normuren", {
       userId,
@@ -79,6 +81,7 @@ export const update = mutation({
     omschrijving: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Verify ownership
@@ -108,6 +111,7 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("normuren") },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Verify ownership
@@ -128,6 +132,7 @@ export const remove = mutation({
 export const createDefaults = mutation({
   args: {},
   handler: async (ctx) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Idempotent: check if user already has normuren

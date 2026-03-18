@@ -11,6 +11,7 @@ import { Bell, Leaf, Hammer, TreePine, Shovel } from 'lucide-react-native';
 
 // Theme system
 import { useColors } from '../../theme';
+import { colors } from '../../theme/colors';
 
 // UI Components
 import {
@@ -438,7 +439,7 @@ const styles = StyleSheet.create({
   emptyHeroTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#555',
+    color: colors.inactive,
     marginTop: 12,
   },
   emptyHeroSubtitle: {
@@ -458,7 +459,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     textTransform: 'uppercase',
     letterSpacing: 1.5,
-    color: '#555',
+    color: colors.inactive,
     fontWeight: '600',
   },
   unreadBadge: {

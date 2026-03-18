@@ -9,6 +9,7 @@ import Animated, {
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { usePressAnimation } from '../../hooks/use-spring-animation';
 import { hapticPatterns } from '../../theme/haptics';
+import { colors } from '../../theme/colors';
 
 interface NotificationBannerProps {
   icon: React.ReactNode;
@@ -132,7 +133,7 @@ const styles = StyleSheet.create({
   },
   time: {
     fontSize: 8,
-    color: '#555',
+    color: colors.inactive,
     textAlign: 'right',
   },
 });

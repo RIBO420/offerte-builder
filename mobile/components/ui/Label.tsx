@@ -1,6 +1,7 @@
 import React from 'react';
 import { Text, StyleSheet, TextStyle } from 'react-native';
 import { typography } from '../../theme/typography';
+import { colors } from '../../theme/colors';
 
 interface LabelProps {
   children: string;
@@ -28,7 +29,7 @@ const styles = StyleSheet.create({
     lineHeight: typography.fontSize.sm * typography.lineHeight.normal,
   },
   disabled: {
-    color: '#555555',
+    color: colors.inactive,
     opacity: 0.7,
   },
   required: {

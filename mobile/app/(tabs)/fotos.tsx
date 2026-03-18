@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { colors } from '../../theme/colors';
 
 export default function FotosScreen() {
   return (
@@ -13,7 +14,7 @@ export default function FotosScreen() {
           Foto's
         </Text>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: '#555', fontSize: 13 }}>Foto's worden hier geladen...</Text>
+          <Text style={{ color: colors.inactive, fontSize: 13 }}>Foto's worden hier geladen...</Text>
         </View>
       </View>
     </SafeAreaView>

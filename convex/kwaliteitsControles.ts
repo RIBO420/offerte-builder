@@ -8,6 +8,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId, verifyOwnership } from "./auth";
+import { requireNotViewer } from "./roles";
 import { Id } from "./_generated/dataModel";
 
 // ============================================
@@ -234,6 +235,7 @@ export const create = mutation({
     customChecklistItems: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     // Verify ownership of project
@@ -278,6 +280,7 @@ export const updateChecklistItem = mutation({
     afgevinktDoor: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const controle = await ctx.db.get(args.id);
 
     if (!controle) {
@@ -332,6 +335,7 @@ export const addFoto = mutation({
     beschrijving: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const controle = await ctx.db.get(args.id);
 
     if (!controle) {
@@ -370,6 +374,7 @@ export const removeFoto = mutation({
     fotoUrl: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const controle = await ctx.db.get(args.id);
 
     if (!controle) {
@@ -409,6 +414,7 @@ export const updateStatus = mutation({
     opmerkingen: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const controle = await ctx.db.get(args.id);
 
     if (!controle) {
@@ -445,6 +451,7 @@ export const approve = mutation({
     opmerkingen: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const controle = await ctx.db.get(args.id);
 
     if (!controle) {
@@ -487,6 +494,7 @@ export const reject = mutation({
     afgekeurdDoor: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const controle = await ctx.db.get(args.id);
 
     if (!controle) {
@@ -517,6 +525,7 @@ export const addChecklistItem = mutation({
     omschrijving: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const controle = await ctx.db.get(args.id);
 
     if (!controle) {
@@ -552,6 +561,7 @@ export const removeChecklistItem = mutation({
     itemId: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const controle = await ctx.db.get(args.id);
 
     if (!controle) {
@@ -582,6 +592,7 @@ export const removeChecklistItem = mutation({
 export const remove = mutation({
   args: { id: v.id("kwaliteitsControles") },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const controle = await ctx.db.get(args.id);
 
     if (!controle) {

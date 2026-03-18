@@ -10,6 +10,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuth, requireAuthUserId, getAuthenticatedUser } from "./auth";
+import { requireNotViewer } from "./roles";
 
 // ============================================
 // Public mutations (geen auth vereist — klanten zijn niet ingelogd)
@@ -22,7 +23,7 @@ import { requireAuth, requireAuthUserId, getAuthenticatedUser } from "./auth";
 export const generateUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
-    await requireAuth(ctx);
+    await requireNotViewer(ctx);
     return await ctx.storage.generateUploadUrl();
   },
 });
@@ -124,7 +125,7 @@ export const deleteFile = mutation({
     storageId: v.id("_storage"),
   },
   handler: async (ctx, args) => {
-    await requireAuthUserId(ctx);
+    await requireNotViewer(ctx);
     await ctx.storage.delete(args.storageId);
   },
 });
@@ -139,7 +140,7 @@ export const removeFotoFromAanvraag = mutation({
     storageId: v.id("_storage"),
   },
   handler: async (ctx, args) => {
-    await requireAuthUserId(ctx);
+    await requireNotViewer(ctx);
 
     const aanvraag = await ctx.db.get(args.aanvraagId);
     if (!aanvraag) {

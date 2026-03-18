@@ -9,6 +9,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuth, requireAuthUserId, verifyOwnership } from "./auth";
+import { requireNotViewer } from "./roles";
 import { Id } from "./_generated/dataModel";
 
 // Foto type validator matching schema
@@ -96,6 +97,7 @@ export const create = mutation({
     fotos: v.optional(v.array(fotoValidator)),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
     const now = Date.now();
 
@@ -181,6 +183,7 @@ export const update = mutation({
     bijzonderheden: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     // Verify ownership
     await getOwnedWerklocatie(ctx, args.id);
     const now = Date.now();
@@ -215,6 +218,7 @@ export const addFoto = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     // Verify ownership
     const werklocatie = await getOwnedWerklocatie(ctx, args.id);
     const now = Date.now();
@@ -249,6 +253,7 @@ export const removeFoto = mutation({
     fotoUrl: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     // Verify ownership
     const werklocatie = await getOwnedWerklocatie(ctx, args.id);
     const now = Date.now();
@@ -280,6 +285,7 @@ export const createFromOfferte = mutation({
     plaatsOverride: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
     const now = Date.now();
 
@@ -341,6 +347,7 @@ export const createFromOfferte = mutation({
 export const remove = mutation({
   args: { id: v.id("werklocaties") },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     // Verify ownership
     await getOwnedWerklocatie(ctx, args.id);
 

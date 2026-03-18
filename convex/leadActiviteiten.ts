@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuth } from "./auth";
+import { requireNotViewer } from "./roles";
 
 // ============================================
 // Queries
@@ -45,7 +46,7 @@ export const create = mutation({
     metadata: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const user = await requireNotViewer(ctx);
 
     const id = await ctx.db.insert("leadActiviteiten", {
       leadId: args.leadId,

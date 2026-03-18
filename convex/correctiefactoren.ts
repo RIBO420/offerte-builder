@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId, getAuthenticatedUser } from "./auth";
+import { requireNotViewer } from "./roles";
 
 // Get all correction factors for authenticated user (falls back to system defaults)
 export const list = query({
@@ -113,6 +114,7 @@ export const upsert = mutation({
     factor: v.number(),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     const existing = await ctx.db
@@ -142,6 +144,7 @@ export const resetToDefault = mutation({
     waarde: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
     const existing = await ctx.db
@@ -160,6 +163,7 @@ export const resetToDefault = mutation({
 export const initializeSystemDefaults = mutation({
   args: {},
   handler: async (ctx) => {
+    await requireNotViewer(ctx);
     // Check if already initialized
     const existing = await ctx.db
       .query("correctiefactoren")

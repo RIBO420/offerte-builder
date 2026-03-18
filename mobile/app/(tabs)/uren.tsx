@@ -20,6 +20,7 @@ import { api } from '../../convex/_generated/api';
 import { useCurrentUser } from '../../hooks/use-current-user';
 import { useColors } from '../../theme';
 import { hapticPatterns } from '../../theme/haptics';
+import { colors } from '../../theme/colors';
 import { cn } from '@/lib/utils';
 import {
   Card,
@@ -491,7 +492,7 @@ function AuthenticatedUrenScreen() {
                 <Text style={{
                   fontSize: 11,
                   fontWeight: '500',
-                  color: isActive ? '#0A0A0A' : '#555555',
+                  color: isActive ? '#0A0A0A' : colors.inactive,
                   marginBottom: 4,
                 }}>
                   {day.name}
@@ -499,7 +500,7 @@ function AuthenticatedUrenScreen() {
                 <Text style={{
                   fontSize: 16,
                   fontWeight: '700',
-                  color: isActive ? '#0A0A0A' : '#555555',
+                  color: isActive ? '#0A0A0A' : colors.inactive,
                 }}>
                   {day.dateNum}
                 </Text>
@@ -539,7 +540,7 @@ function AuthenticatedUrenScreen() {
               borderRadius: 4,
               backgroundColor: isClockedIn
                 ? isOnBreak ? '#F59E0B' : '#4ADE80'
-                : '#555555',
+                : colors.inactive,
             }} />
             <Text style={{ fontSize: 12, color: '#888888' }}>
               {isClockedIn
@@ -561,7 +562,7 @@ function AuthenticatedUrenScreen() {
               : formatTime(Math.floor((todayHours?.totalHours || 0) * 3600))}
           </Text>
 
-          <Text style={{ fontSize: 12, color: '#555555', marginTop: 4 }}>
+          <Text style={{ fontSize: 12, color: colors.inactive, marginTop: 4 }}>
             {isClockedIn ? 'Huidige sessie' : 'Vandaag gewerkt'}
           </Text>
 
@@ -588,14 +589,14 @@ function AuthenticatedUrenScreen() {
               style={{
                 fontSize: 14,
                 fontWeight: '500',
-                color: selectedProject ? '#E8E8E8' : '#555555',
+                color: selectedProject ? '#E8E8E8' : colors.inactive,
                 flex: 1,
               }}
               numberOfLines={1}
             >
               {selectedProject ? selectedProject.naam : 'Selecteer een project'}
             </Text>
-            <Feather name="chevron-down" size={18} color="#555555" />
+            <Feather name="chevron-down" size={18} color={colors.inactive} />
           </TouchableOpacity>
 
           {/* Clock action buttons */}
@@ -742,11 +743,11 @@ function AuthenticatedUrenScreen() {
           ) : (
             <Card variant="default">
               <View style={{ alignItems: 'center', paddingVertical: 24 }}>
-                <Feather name="clock" size={28} color="#555555" style={{ marginBottom: 8 }} />
+                <Feather name="clock" size={28} color={colors.inactive} style={{ marginBottom: 8 }} />
                 <Text style={{ fontSize: 14, fontWeight: '500', color: '#888888' }}>
                   Geen registraties vandaag
                 </Text>
-                <Text style={{ fontSize: 12, color: '#555555', marginTop: 4, textAlign: 'center' }}>
+                <Text style={{ fontSize: 12, color: colors.inactive, marginTop: 4, textAlign: 'center' }}>
                   Klok in om je werkdag te starten
                 </Text>
               </View>
@@ -774,7 +775,7 @@ function AuthenticatedUrenScreen() {
                       {day.dag}
                     </Text>
                   </View>
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: day.uren > 0 ? '#E8E8E8' : '#555555' }}>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: day.uren > 0 ? '#E8E8E8' : colors.inactive }}>
                     {formatHoursMinutes(day.uren)} uur
                   </Text>
                 </View>
@@ -842,7 +843,7 @@ function AuthenticatedUrenScreen() {
                   <Text style={{ fontSize: 14, fontWeight: '500', color: '#888888' }}>
                     Geen projecten beschikbaar
                   </Text>
-                  <Text style={{ fontSize: 12, color: '#555555', textAlign: 'center', marginTop: 4 }}>
+                  <Text style={{ fontSize: 12, color: colors.inactive, textAlign: 'center', marginTop: 4 }}>
                     Je hebt nog geen actieve projecten toegewezen gekregen
                   </Text>
                 </View>
@@ -966,14 +967,14 @@ function AuthenticatedUrenScreen() {
                     style={{
                       fontSize: 14,
                       fontWeight: '500',
-                      color: manualEntryProject ? '#E8E8E8' : '#555555',
+                      color: manualEntryProject ? '#E8E8E8' : colors.inactive,
                       flex: 1,
                     }}
                     numberOfLines={1}
                   >
                     {manualEntryProject ? manualEntryProject.naam : 'Selecteer een project'}
                   </Text>
-                  <Feather name="chevron-down" size={18} color="#555555" />
+                  <Feather name="chevron-down" size={18} color={colors.inactive} />
                 </TouchableOpacity>
 
                 {/* Hour Input with +/- */}
@@ -1122,7 +1123,7 @@ function AuthenticatedUrenScreen() {
                   value={manualEntryNotes}
                   onChangeText={setManualEntryNotes}
                   placeholder="Optionele notities..."
-                  placeholderTextColor="#555555"
+                  placeholderTextColor={colors.inactive}
                   multiline
                   numberOfLines={3}
                 />
@@ -1203,7 +1204,7 @@ function AuthenticatedUrenScreen() {
                   <Text style={{ fontSize: 14, fontWeight: '500', color: '#888888' }}>
                     Geen projecten beschikbaar
                   </Text>
-                  <Text style={{ fontSize: 12, color: '#555555', textAlign: 'center', marginTop: 4 }}>
+                  <Text style={{ fontSize: 12, color: colors.inactive, textAlign: 'center', marginTop: 4 }}>
                     Je hebt nog geen actieve projecten toegewezen gekregen
                   </Text>
                 </View>

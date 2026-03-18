@@ -5,6 +5,7 @@ import Animated from 'react-native-reanimated';
 import { Camera, Clock } from 'lucide-react-native';
 import { usePressAnimation } from '../../hooks/use-spring-animation';
 import { hapticPatterns } from '../../theme/haptics';
+import { colors } from '../../theme/colors';
 
 interface HeroProjectCardProps {
   projectName: string;
@@ -153,6 +154,6 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: 9,
-    color: '#555',
+    color: colors.inactive,
   },
 });
