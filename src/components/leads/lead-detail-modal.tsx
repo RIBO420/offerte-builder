@@ -93,6 +93,11 @@ const typeBadgeConfig: Record<string, { label: string; className: string }> = {
     className:
       "bg-lime-100 text-lime-800 dark:bg-lime-900/40 dark:text-lime-300",
   },
+  contact: {
+    label: "Website",
+    className:
+      "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
+  },
 };
 
 // Quick action mapping: current status → next status

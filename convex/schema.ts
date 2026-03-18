@@ -1670,7 +1670,7 @@ export default defineSchema({
   // Klanten kunnen zelfstandig een aanvraag doen voor gazon, boomschors of verticuteren
   // Workflow: nieuw → in_behandeling → goedgekeurd/afgekeurd → voltooid
   configuratorAanvragen: defineTable({
-    type: v.union(v.literal("gazon"), v.literal("boomschors"), v.literal("verticuteren")),
+    type: v.union(v.literal("gazon"), v.literal("boomschors"), v.literal("verticuteren"), v.literal("contact")),
     status: v.union(
       v.literal("nieuw"),
       v.literal("in_behandeling"),
@@ -1708,6 +1708,7 @@ export default defineSchema({
       v.literal("configurator_gazon"),
       v.literal("configurator_boomschors"),
       v.literal("configurator_verticuteren"),
+      v.literal("website_contact"),
       v.literal("handmatig"),
       v.literal("telefoon"),
       v.literal("email"),

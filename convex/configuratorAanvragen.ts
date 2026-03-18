@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
 import { requireAuth, requireAuthUserId } from "./auth";
 import { Doc } from "./_generated/dataModel";
 
@@ -625,6 +625,82 @@ export const createHandmatig = mutation({
       beschrijving: `Lead handmatig aangemaakt door ${currentUser.name ?? currentUser.email}`,
       gebruikerId: currentUser._id,
       metadata: { bron: args.bron ?? "handmatig" },
+      createdAt: now,
+    });
+
+    return { id, referentie };
+  },
+});
+
+/**
+ * Maak een lead aan vanuit het website contactformulier (internal, aangeroepen via HTTP action).
+ * Geen authenticatie vereist — beveiligd via shared secret in de HTTP action.
+ */
+export const createFromWebsite = internalMutation({
+  args: {
+    klantNaam: v.string(),
+    klantEmail: v.string(),
+    klantTelefoon: v.optional(v.string()),
+    onderwerp: v.string(),
+    bericht: v.string(),
+    aantalFotos: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    if (!args.klantNaam.trim()) {
+      throw new Error("Naam is verplicht");
+    }
+    if (!args.klantEmail.trim()) {
+      throw new Error("E-mailadres is verplicht");
+    }
+
+    const now = Date.now();
+    const datum = new Date(now);
+    const jaar = datum.getFullYear();
+    const maand = String(datum.getMonth() + 1).padStart(2, "0");
+    const dag = String(datum.getDate()).padStart(2, "0");
+    const willekeurig = Math.floor(Math.random() * 100000)
+      .toString()
+      .padStart(5, "0");
+    const referentie = `TOP-WEB-${jaar}${maand}${dag}-${willekeurig}`;
+
+    // Bouw omschrijving op basis van onderwerp en bericht
+    const onderwerpLabels: Record<string, string> = {
+      tuinonderhoud: "Tuinonderhoud",
+      tuinaanleg: "Tuinaanleg",
+      zakelijk: "Zakelijk",
+      anders: "Anders",
+    };
+    const onderwerpLabel = onderwerpLabels[args.onderwerp] ?? args.onderwerp;
+    const omschrijving = `[${onderwerpLabel}] ${args.bericht}`;
+
+    const id = await ctx.db.insert("configuratorAanvragen", {
+      type: "contact",
+      status: "nieuw",
+      pipelineStatus: "nieuw",
+      bron: "website_contact",
+      referentie,
+      klantNaam: args.klantNaam.trim(),
+      klantEmail: args.klantEmail.trim().toLowerCase(),
+      klantTelefoon: args.klantTelefoon?.trim() ?? "",
+      klantAdres: "",
+      klantPostcode: "",
+      klantPlaats: "",
+      specificaties: {
+        onderwerp: args.onderwerp,
+        bericht: args.bericht,
+        aantalFotos: args.aantalFotos ?? 0,
+      },
+      indicatiePrijs: 0,
+      omschrijving,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // Log activiteit
+    await ctx.db.insert("leadActiviteiten", {
+      leadId: id,
+      type: "aangemaakt",
+      beschrijving: `Lead aangemaakt via website contactformulier (${onderwerpLabel})`,
       createdAt: now,
     });
 

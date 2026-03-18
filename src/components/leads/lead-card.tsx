@@ -22,6 +22,7 @@ const handmatigeBronnen: LeadBron[] = [
   "telefoon",
   "email",
   "doorverwijzing",
+  "website_contact",
 ];
 
 // ============================================
@@ -29,7 +30,7 @@ const handmatigeBronnen: LeadBron[] = [
 // ============================================
 
 const typeBadgeConfig: Record<
-  LeadType | "handmatig",
+  LeadType | "handmatig" | "website",
   { label: string; className: string }
 > = {
   gazon: {
@@ -44,9 +45,17 @@ const typeBadgeConfig: Record<
     label: "Verticuteren",
     className: "bg-lime-100 text-lime-800 dark:bg-lime-900/40 dark:text-lime-300",
   },
+  contact: {
+    label: "Website",
+    className: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
+  },
   handmatig: {
     label: "Handmatig",
     className: "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300",
+  },
+  website: {
+    label: "Website",
+    className: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
   },
 };
 
@@ -84,10 +93,15 @@ export function LeadCard({ lead, onClick, isDragOverlay = false }: LeadCardProps
       }
     : undefined;
 
+  const isWebsite = lead.bron === "website_contact";
   const isHandmatig =
-    lead.bron != null && handmatigeBronnen.includes(lead.bron);
+    !isWebsite && lead.bron != null && handmatigeBronnen.includes(lead.bron);
 
-  const badgeKey: LeadType | "handmatig" = isHandmatig ? "handmatig" : lead.type;
+  const badgeKey: LeadType | "handmatig" | "website" = isWebsite
+    ? "website"
+    : isHandmatig
+      ? "handmatig"
+      : lead.type;
   const badgeConfig = typeBadgeConfig[badgeKey];
 
   const waarde = lead.geschatteWaarde ?? lead.definitievePrijs ?? lead.indicatiePrijs ?? 0;

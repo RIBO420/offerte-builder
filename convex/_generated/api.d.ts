@@ -25,6 +25,7 @@ import type * as export_ from "../export.js";
 import type * as facturen from "../facturen.js";
 import type * as fotoStorage from "../fotoStorage.js";
 import type * as garantiePakketten from "../garantiePakketten.js";
+import type * as http from "../http.js";
 import type * as inkooporders from "../inkooporders.js";
 import type * as instellingen from "../instellingen.js";
 import type * as kilometerStanden from "../kilometerStanden.js";
@@ -97,6 +98,7 @@ declare const fullApi: ApiFromModules<{
   facturen: typeof facturen;
   fotoStorage: typeof fotoStorage;
   garantiePakketten: typeof garantiePakketten;
+  http: typeof http;
   inkooporders: typeof inkooporders;
   instellingen: typeof instellingen;
   kilometerStanden: typeof kilometerStanden;
