@@ -253,7 +253,7 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <DialogHeader className="flex-shrink-0">
           <div className="flex items-center gap-3 flex-wrap">
@@ -292,9 +292,9 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
         </DialogHeader>
 
         {/* Body: two columns */}
-        <div className="flex gap-6 overflow-hidden flex-1 min-h-0">
+        <div className="flex flex-col md:flex-row gap-6 overflow-hidden flex-1 min-h-0">
           {/* Left column — Lead information */}
-          <div className="flex-1 overflow-y-auto space-y-6 pr-2">
+          <div className="flex-1 overflow-y-auto space-y-6 md:pr-2">
             {/* 1. Contactgegevens */}
             <section>
               <h3 className="text-sm font-semibold mb-3">Contactgegevens</h3>
@@ -455,7 +455,7 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
           </div>
 
           {/* Right column — Activiteitenlog */}
-          <div className="w-[320px] shrink-0 bg-card rounded-lg border flex flex-col overflow-hidden">
+          <div className="w-full md:w-[320px] shrink-0 bg-card rounded-lg border flex flex-col overflow-hidden">
             <div className="p-4 border-b">
               <h3 className="text-sm font-semibold mb-3">Activiteitenlog</h3>
 
