@@ -651,7 +651,7 @@
       "cluster": "B",
       "priority": "P0",
       "description": "Drag-and-drop weekplanning",
-      "passes": false,
+      "passes": true,
       "steps": [
         "UI: weekweergave component met dagen op X-as (ma-vr) en medewerkers op Y-as",
         "UI: projectblokken als draggable kaarten op het grid",
@@ -665,7 +665,9 @@
         "convex/planningen.ts (nieuw of uitbreid planningTaken.ts)",
         "src/app/(dashboard)/planning/page.tsx",
         "src/components/planning/ (nieuw)"
-      ]
+      ],
+      "completed_by": "cluster-b-agent",
+      "completed_at": "2026-03-26"
     },
     {
       "id": "PLN-002",
@@ -1090,7 +1092,8 @@
       "cluster": "D",
       "priority": "P1",
       "description": "Verlofregistratie met goedkeuringsflow",
-      "passes": false,
+      "passes": true,
+      "evidence": "verlofaanvragen table + convex/verlof.ts + /verlof page (lijst/kalender) + sidebar nav",
       "steps": [
         "Schema: verlofaanvragen tabel (medewerker, startDatum, eindDatum, type, status, opmerking)",
         "Backend: CRUD + goedkeuringsflow (aangevraagd → goedgekeurd/afgekeurd)",
@@ -1112,7 +1115,8 @@
       "cluster": "D",
       "priority": "P1",
       "description": "Ziekteverzuim tracking",
-      "passes": false,
+      "passes": true,
+      "evidence": "verzuimregistraties table + convex/verzuim.ts + /verzuim page (stats/forms) + sidebar nav",
       "steps": [
         "Schema: verzuim tabel (medewerker, startDatum, herstelDatum, notities)",
         "Backend: ziekmelding/herstelmelding mutations",
@@ -1133,7 +1137,8 @@
       "cluster": "D",
       "priority": "P1",
       "description": "Toolbox-meetings registratie",
-      "passes": false,
+      "passes": true,
+      "evidence": "toolboxMeetings table + convex/toolboxMeetings.ts + /toolbox page + sidebar nav",
       "steps": [
         "Schema: toolboxMeetings tabel (datum, onderwerp, aanwezigen, notities, projectId optioneel)",
         "Backend: CRUD mutations",

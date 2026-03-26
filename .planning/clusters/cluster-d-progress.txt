@@ -1,0 +1,18 @@
+## Cluster D: Support Modules (HR + Wagenpark + Onderhoudscontracten)
+## Laatst bijgewerkt: 2026-03-26
+## Status: DONE — 9/9 tracked features af (100%)
+
+### Module 1: HR — 5/5 af (100%) ✓
+| ID | Feature | Status |
+|----|---------|--------|
+| HR-001 | Personeelsdossier | AF |
+| HR-002 | Certificeringen | AF |
+| HR-003 | Verlofregistratie | AF — verlofaanvragen table + goedkeuringsflow + verlofsaldo + kalender + /verlof |
+| HR-004 | Ziekteverzuim | AF — verzuimregistraties table + ziek/herstel + stats + frequent verzuim + /verzuim |
+| HR-005 | Toolbox-meetings | AF — toolboxMeetings table + CRUD + multi-select aanwezigen + /toolbox |
+
+### Module 2: Wagenpark — 4/4 af (100%) ✓
+
+### Cluster D: COMPLEET
+Alle 3 HR features (HR-003, HR-004, HR-005) gebouwd en gedeployed op 2026-03-26.
+Convex schema, backend functions, UI pages, en sidebar navigatie zijn compleet.
