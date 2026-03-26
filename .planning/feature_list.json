@@ -142,7 +142,9 @@
       "cluster": "A",
       "priority": "P0",
       "description": "Tagging en segmentatie (particulier, zakelijk, VvE, gemeente)",
-      "passes": false,
+      "passes": true,
+      "completed_by": "main-agent",
+      "completed_at": "2026-03-26",
       "steps": [
         "Schema: voeg 'type' veld toe aan klanten (particulier/zakelijk/vve/gemeente/overig)",
         "Schema: voeg 'tags' optional array of strings toe voor vrije tags",
