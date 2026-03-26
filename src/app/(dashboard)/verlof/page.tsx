@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useMemo, Suspense } from "react";
+import { motion } from "framer-motion";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { Id } from "../../../../convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -35,6 +37,15 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import {
   Plus,
   Check,
   X,
@@ -54,6 +65,16 @@ import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import { format } from "date-fns";
 import { nl } from "@/lib/date-locale";
 
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { staggerChildren: 0.1 } },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4 } },
+};
+
 const TYPE_LABELS: Record<string, string> = {
   vakantie: "Vakantie",
   bijzonder: "Bijzonder verlof",
@@ -69,11 +90,24 @@ const STATUS_LABELS: Record<string, string> = {
 
 function VerlofPageSkeleton() {
   return (
-    <div className="flex flex-col gap-6 p-4 md:gap-8 md:p-8 animate-pulse">
-      <div className="h-8 bg-muted rounded w-1/4" />
-      <div className="h-10 bg-muted rounded w-1/3" />
-      <div className="h-64 bg-muted rounded" />
-    </div>
+    <>
+      <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+        <SidebarTrigger className="-ml-1" />
+        <Separator orientation="vertical" className="mr-2 h-4" />
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem><BreadcrumbLink href="/">Dashboard</BreadcrumbLink></BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem><BreadcrumbPage>Verlof</BreadcrumbPage></BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </header>
+      <div className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8 animate-pulse">
+        <div className="h-8 bg-muted rounded w-1/4" />
+        <div className="h-10 bg-muted rounded w-1/3" />
+        <div className="h-64 bg-muted rounded" />
+      </div>
+    </>
   );
 }
 
@@ -187,11 +221,29 @@ function VerlofPageContent() {
   if (isLoading) return <VerlofPageSkeleton />;
 
   return (
-    <div className="flex flex-col gap-6 p-4 md:gap-8 md:p-8">
+    <>
+      <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+        <SidebarTrigger className="-ml-1" />
+        <Separator orientation="vertical" className="mr-2 h-4" />
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem><BreadcrumbLink href="/">Dashboard</BreadcrumbLink></BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem><BreadcrumbPage>Verlof</BreadcrumbPage></BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </header>
+
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
+      >
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <motion.div variants={itemVariants} className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Verlofregistratie</h1>
+          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Verlofregistratie</h1>
           <p className="text-muted-foreground">
             Beheer verlofaanvragen en bekijk het verlofoverzicht.
           </p>
@@ -200,7 +252,7 @@ function VerlofPageContent() {
           <Plus className="mr-2 h-4 w-4" />
           Verlof aanvragen
         </Button>
-      </div>
+      </motion.div>
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
@@ -538,7 +590,8 @@ function VerlofPageContent() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </motion.div>
+    </>
   );
 }
 

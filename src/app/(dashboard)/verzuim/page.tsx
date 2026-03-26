@@ -1,16 +1,20 @@
 "use client";
 
 import { useState, useMemo, Suspense } from "react";
+import { motion } from "framer-motion";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { Id } from "../../../../convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Plus, HeartPulse, Heart, Trash2, Thermometer, Loader2 } from "lucide-react";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useIsAdmin } from "@/hooks/use-users";
@@ -20,8 +24,37 @@ import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import { format } from "date-fns";
 import { nl } from "@/lib/date-locale";
 
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { staggerChildren: 0.1 } },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4 } },
+};
+
 function VerzuimPageSkeleton() {
-  return (<div className="flex flex-col gap-6 animate-pulse"><div className="h-8 bg-muted rounded w-1/4" /><div className="grid grid-cols-4 gap-4">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-20 bg-muted rounded" />)}</div><div className="h-64 bg-muted rounded" /></div>);
+  return (
+    <>
+      <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+        <SidebarTrigger className="-ml-1" />
+        <Separator orientation="vertical" className="mr-2 h-4" />
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem><BreadcrumbLink href="/">Dashboard</BreadcrumbLink></BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem><BreadcrumbPage>Verzuim</BreadcrumbPage></BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </header>
+      <div className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8 animate-pulse">
+        <div className="h-8 bg-muted rounded w-1/4" />
+        <div className="grid grid-cols-4 gap-4">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-20 bg-muted rounded" />)}</div>
+        <div className="h-64 bg-muted rounded" />
+      </div>
+    </>
+  );
 }
 
 function VerzuimPageContent() {
@@ -70,11 +103,29 @@ function VerzuimPageContent() {
   if (isLoading) return <VerzuimPageSkeleton />;
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div><h1 className="text-3xl font-bold">Ziekteverzuim</h1><p className="text-muted-foreground">Registreer ziek- en herstelmeldingen, bekijk verzuimstatistieken.</p></div>
+    <>
+      <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+        <SidebarTrigger className="-ml-1" />
+        <Separator orientation="vertical" className="mr-2 h-4" />
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem><BreadcrumbLink href="/">Dashboard</BreadcrumbLink></BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem><BreadcrumbPage>Verzuim</BreadcrumbPage></BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </header>
+
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
+      >
+      <motion.div variants={itemVariants} className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div><h1 className="text-2xl font-bold tracking-tight md:text-3xl">Ziekteverzuim</h1><p className="text-muted-foreground">Registreer ziek- en herstelmeldingen, bekijk verzuimstatistieken.</p></div>
         <Button onClick={() => setShowZiekmeldingForm(true)}><Plus className="mr-2 h-4 w-4" />Ziekmelding</Button>
-      </div>
+      </motion.div>
 
       <VerzuimStatsCards stats={stats ?? null} frequentVerzuim={frequentVerzuim ?? []} isLoading={stats === undefined} />
 
@@ -110,7 +161,8 @@ function VerzuimPageContent() {
       <ZiekmeldingForm open={showZiekmeldingForm} onOpenChange={setShowZiekmeldingForm} />
       <HerstelmeldingForm open={!!herstelTarget} onOpenChange={(open) => !open && setHerstelTarget(null)} verzuimId={herstelTarget?.id ?? null} medewerkerNaam={herstelTarget?.naam ?? ""} />
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Verzuimregistratie verwijderen</AlertDialogTitle><AlertDialogDescription>Weet je zeker dat je deze registratie wilt verwijderen?</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Annuleren</AlertDialogCancel><AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Verwijderen</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
-    </div>
+    </motion.div>
+    </>
   );
 }
 
