@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { Resend } from "resend";
 import { render } from "@react-email/components";
 import { OfferteEmail } from "@/components/email/offerte-email";
@@ -36,6 +37,15 @@ function getResendClient(): Resend {
 
 export async function POST(request: NextRequest) {
   try {
+    // ── Authenticatie ─────────────────────────────────────────────────────────
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Niet geautoriseerd. Log in om deze functie te gebruiken." },
+        { status: 401 }
+      );
+    }
+
     // Rate limiting: Use Upstash if configured, otherwise fall back to in-memory
     const useUpstash = isUpstashConfigured();
     let rateLimitPassed = false;

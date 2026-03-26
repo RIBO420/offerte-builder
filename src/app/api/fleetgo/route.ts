@@ -9,6 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import {
   fleetgoRateLimiter,
   getRequestIdentifier,
@@ -51,6 +52,15 @@ interface FleetGoProxyRequest {
 
 export async function POST(request: NextRequest) {
   try {
+    // ── Authenticatie ─────────────────────────────────────────────────────────
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Niet geautoriseerd. Log in om deze functie te gebruiken." },
+        { status: 401 }
+      );
+    }
+
     // Rate limiting
     const identifier = getRequestIdentifier(request);
     const rateLimitInfo = fleetgoRateLimiter.check(identifier);
@@ -168,6 +178,15 @@ export async function POST(request: NextRequest) {
 
 // Also support GET for simple requests (returns API status)
 export async function GET(request: NextRequest) {
+  // ── Authenticatie ─────────────────────────────────────────────────────────
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json(
+      { error: "Niet geautoriseerd. Log in om deze functie te gebruiken." },
+      { status: 401 }
+    );
+  }
+
   const identifier = getRequestIdentifier(request);
   const rateLimitInfo = fleetgoRateLimiter.check(identifier);
 

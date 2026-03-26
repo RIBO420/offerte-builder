@@ -7,6 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 
 // In-memory cache (per serverless instance)
 const cache = new Map<string, { data: WeatherDay[]; expiry: number }>();
@@ -36,6 +37,15 @@ function getWaarschuwing(
 }
 
 export async function GET(request: NextRequest) {
+  // ── Authenticatie ─────────────────────────────────────────────────────────
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json(
+      { error: "Niet geautoriseerd. Log in om deze functie te gebruiken." },
+      { status: 401 }
+    );
+  }
+
   const { searchParams } = new URL(request.url);
   const lat = searchParams.get("lat") || "51.42"; // Veldhoven
   const lon = searchParams.get("lon") || "5.40";

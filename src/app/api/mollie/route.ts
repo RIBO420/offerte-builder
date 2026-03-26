@@ -8,6 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 
 // Mollie API v2 base URL
 const MOLLIE_API = "https://api.mollie.com/v2";
@@ -53,6 +54,15 @@ function isValidBedrag(value: string): boolean {
 }
 
 export async function POST(request: NextRequest) {
+  // ── Authenticatie ─────────────────────────────────────────────────────────
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json(
+      { error: "Niet geautoriseerd. Log in om deze functie te gebruiken." },
+      { status: 401 }
+    );
+  }
+
   const apiKey = process.env.MOLLIE_API_KEY;
   if (!apiKey) {
     return NextResponse.json(

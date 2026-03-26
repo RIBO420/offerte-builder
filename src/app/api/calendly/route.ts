@@ -75,25 +75,34 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const rawBody = await request.text();
 
-    // ── Handtekening verificatie (wanneer sleutel is geconfigureerd) ──────────
+    // ── Handtekening verificatie (verplicht) ─────────────────────────────────
+    if (!SIGNING_KEY) {
+      console.error(
+        "[Calendly Webhook] CALENDLY_WEBHOOK_SIGNING_KEY niet geconfigureerd — " +
+        "alle webhooks worden afgewezen. Stel deze omgevingsvariabele in."
+      );
+      return NextResponse.json(
+        { foutmelding: "Webhook niet geconfigureerd." },
+        { status: 503 }
+      );
+    }
+
     const signatureHeader = request.headers.get("Calendly-Webhook-Signature");
 
-    if (SIGNING_KEY) {
-      if (!signatureHeader) {
-        console.warn("[Calendly Webhook] Handtekening-header ontbreekt.");
-        return NextResponse.json(
-          { foutmelding: "Handtekening-header ontbreekt." },
-          { status: 401 }
-        );
-      }
+    if (!signatureHeader) {
+      console.warn("[Calendly Webhook] Handtekening-header ontbreekt.");
+      return NextResponse.json(
+        { foutmelding: "Handtekening-header ontbreekt." },
+        { status: 401 }
+      );
+    }
 
-      if (!verifyWebhookSignature(signatureHeader, rawBody)) {
-        console.warn("[Calendly Webhook] Ongeldige handtekening ontvangen.");
-        return NextResponse.json(
-          { foutmelding: "Ongeldige handtekening." },
-          { status: 401 }
-        );
-      }
+    if (!verifyWebhookSignature(signatureHeader, rawBody)) {
+      console.warn("[Calendly Webhook] Ongeldige handtekening ontvangen.");
+      return NextResponse.json(
+        { foutmelding: "Ongeldige handtekening." },
+        { status: 401 }
+      );
     }
 
     // ── Event verwerken ───────────────────────────────────────────────────────
