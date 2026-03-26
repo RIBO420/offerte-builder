@@ -46,7 +46,6 @@ import {
   Phone,
   MapPin,
   FileText,
-  Plus,
   Loader2,
   ArrowLeft,
   Shovel,
@@ -358,6 +357,15 @@ export default function KlantDetailPage({
               </p>
             </div>
           </div>
+        )}
+
+        {/* CRM-005: Opvolgherinnering banner */}
+        {!isAnonymized && (
+          <KlantReminderBanner
+            klantId={id as Id<"klanten">}
+            telefoon={klant.telefoon}
+            email={klant.email}
+          />
         )}
 
         <div className="grid gap-6 md:grid-cols-3">

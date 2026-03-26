@@ -309,6 +309,16 @@ export default defineSchema({
         label: v.string(),
       })),
     }))),
+    // Herinneringen & aanmaningen instellingen (FAC-006, FAC-007)
+    herinneringInstellingen: v.optional(
+      v.object({
+        herinneringDagen: v.optional(v.array(v.number())),
+        aanmaningDagen: v.optional(v.array(v.number())),
+        automatischVersturen: v.optional(v.boolean()),
+      })
+    ),
+    // Creditnota nummering (FAC-008)
+    laatsteCreditnotaNummer: v.optional(v.number()),
     // Algemene voorwaarden PDF (EML-003)
     voorwaardenPdfId: v.optional(v.id("_storage")),
     voorwaardenPdfNaam: v.optional(v.string()),
@@ -761,6 +771,11 @@ export default defineSchema({
     // Meerwerk referentie (FAC-003)
     meerwerkId: v.optional(v.id("meerwerk")),
 
+    // Creditnota velden (FAC-008)
+    isCreditnota: v.optional(v.boolean()),
+    referentieFactuurId: v.optional(v.id("facturen")),
+    creditnotaReden: v.optional(v.string()),
+
     // Klantgegevens (snapshot op moment van factuur aanmaken)
     klant: v.object({
       naam: v.string(),
@@ -833,6 +848,25 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_factuurnummer", ["factuurnummer"])
     .index("by_status", ["status"]),
+
+  // Betalingsherinneringen & Aanmaningen (FAC-006, FAC-007)
+  betalingsherinneringen: defineTable({
+    factuurId: v.id("facturen"),
+    userId: v.id("users"),
+    type: v.union(
+      v.literal("herinnering"),
+      v.literal("eerste_aanmaning"),
+      v.literal("tweede_aanmaning"),
+      v.literal("ingebrekestelling")
+    ),
+    volgnummer: v.number(),
+    dagenVervallen: v.number(),
+    verstuurdAt: v.number(),
+    emailVerstuurd: v.optional(v.boolean()),
+    notities: v.optional(v.string()),
+  })
+    .index("by_factuur", ["factuurId"])
+    .index("by_user", ["userId"]),
 
   // Leerfeedback Historie - Audit trail for normuur adjustments
   leerfeedback_historie: defineTable({
