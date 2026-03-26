@@ -61,7 +61,8 @@ export const createVersion = mutation({
       v.literal("gewijzigd"),
       v.literal("status_gewijzigd"),
       v.literal("regels_gewijzigd"),
-      v.literal("teruggedraaid")
+      v.literal("teruggedraaid"),
+      v.literal("nieuwe_versie")
     ),
     omschrijving: v.string(),
   },

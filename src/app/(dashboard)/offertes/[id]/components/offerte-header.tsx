@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -9,6 +11,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Edit,
   Send,
@@ -26,6 +38,8 @@ import {
   History,
   Link2,
   Calculator,
+  FilePlus2,
+  ShieldAlert,
 } from "lucide-react";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { DynamicPDFDownloadButton as PDFDownloadButton } from "@/components/pdf";
@@ -95,10 +109,16 @@ export function OfferteHeader({
   onShowShareDialog,
   onShowDeleteDialog,
 }: OfferteHeaderProps) {
+  const router = useRouter();
+  const [showNieuweVersieDialog, setShowNieuweVersieDialog] = useState(false);
+
+  const isGeaccepteerd = offerte?.status === "geaccepteerd";
+
   // Determine version indicator info
   const latestVersion = offerteVersions && offerteVersions.length > 0 ? offerteVersions[0] : null;
   const versionCount = latestVersion ? latestVersion.versieNummer : 1;
   return (
+    <>
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" asChild aria-label="Terug naar offertes">
@@ -201,12 +221,23 @@ export function OfferteHeader({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <Button variant="outline" asChild>
-          <Link href={`/offertes/${id}/bewerken`}>
-            <Edit className="mr-2 h-4 w-4" />
-            Bewerken
-          </Link>
-        </Button>
+        {isGeaccepteerd ? (
+          <Button
+            variant="outline"
+            onClick={() => setShowNieuweVersieDialog(true)}
+            className="border-amber-500/50 text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950/30"
+          >
+            <FilePlus2 className="mr-2 h-4 w-4" />
+            Nieuwe versie aanmaken
+          </Button>
+        ) : (
+          <Button variant="outline" asChild>
+            <Link href={`/offertes/${id}/bewerken`}>
+              <Edit className="mr-2 h-4 w-4" />
+              Bewerken
+            </Link>
+          </Button>
+        )}
 
         <Button
           variant="outline"
@@ -262,5 +293,32 @@ export function OfferteHeader({
         </DropdownMenu>
       </div>
     </div>
+
+    {/* Waarschuwingsdialoog voor nieuwe versie van getekende offerte */}
+    <AlertDialog open={showNieuweVersieDialog} onOpenChange={setShowNieuweVersieDialog}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <div className="flex items-center gap-2">
+            <ShieldAlert className="h-5 w-5 text-amber-500" />
+            <AlertDialogTitle>Getekende offerte bewerken</AlertDialogTitle>
+          </div>
+          <AlertDialogDescription className="text-left">
+            Deze offerte is getekend en geaccepteerd door de klant. Wijzigingen
+            maken automatisch een nieuwe versie. De originele getekende versie
+            blijft bewaard in de versiegeschiedenis.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Annuleren</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => router.push(`/offertes/${id}/bewerken`)}
+            className="bg-amber-600 hover:bg-amber-700"
+          >
+            Doorgaan
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
