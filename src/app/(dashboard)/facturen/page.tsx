@@ -56,6 +56,7 @@ import {
   ExportDropdown,
   facturenExportColumns,
 } from "@/components/export-dropdown";
+import { formatCurrency } from "@/lib/format/currency";
 
 // Status configuration for facturen - WCAG AA compliant colors (4.5:1 contrast ratio)
 const statusConfig = {
@@ -88,21 +89,11 @@ const statusConfig = {
 
 type FactuurStatus = keyof typeof statusConfig;
 
-// Memoized formatter instances
-const currencyFormatter = new Intl.NumberFormat("nl-NL", {
-  style: "currency",
-  currency: "EUR",
-});
-
 const dateFormatter = new Intl.DateTimeFormat("nl-NL", {
   day: "numeric",
   month: "short",
   year: "numeric",
 });
-
-function formatCurrency(amount: number): string {
-  return currencyFormatter.format(amount);
-}
 
 function formatDate(timestamp: number): string {
   return dateFormatter.format(new Date(timestamp));

@@ -87,6 +87,7 @@ import {
 import { useProducten } from "@/hooks/use-producten";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { toast } from "sonner";
+import { formatCurrency } from "@/lib/format/currency";
 
 // Dynamic imports for heavy libraries (~400KB total)
 // These are only needed when user imports a file
@@ -166,13 +167,6 @@ const parseExcel = async (file: File): Promise<Record<string, string>[]> => {
     reader.readAsArrayBuffer(file);
   });
 };
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("nl-NL", {
-    style: "currency",
-    currency: "EUR",
-  }).format(amount);
-}
 
 interface Product {
   _id: string;

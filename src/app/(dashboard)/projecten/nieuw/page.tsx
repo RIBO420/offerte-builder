@@ -39,13 +39,7 @@ import { api } from "../../../../../convex/_generated/api";
 import { Id } from "../../../../../convex/_generated/dataModel";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { toast } from "sonner";
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("nl-NL", {
-    style: "currency",
-    currency: "EUR",
-  }).format(amount);
-}
+import { formatCurrency } from "@/lib/format/currency";
 
 export default function NieuwProjectPage() {
   return (

@@ -58,6 +58,7 @@ import { useMachines } from "@/hooks/use-machines";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { MachineForm, MachineFormData } from "@/components/machines/machine-form";
 import { Id } from "@convex/_generated/dataModel";
+import { formatCurrency } from "@/lib/format/currency";
 
 // Scope labels
 const scopeLabels: Record<string, string> = {
@@ -74,13 +75,6 @@ const scopeLabels: Record<string, string> = {
   bomen: "Bomen",
   overig: "Overig",
 };
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("nl-NL", {
-    style: "currency",
-    currency: "EUR",
-  }).format(amount);
-}
 
 interface Machine {
   _id: Id<"machines">;

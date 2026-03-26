@@ -66,13 +66,7 @@ import { OfferteHistorySkeleton } from "@/components/skeletons";
 import { Id } from "../../../../../../convex/_generated/dataModel";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("nl-NL", {
-    style: "currency",
-    currency: "EUR",
-  }).format(amount);
-}
+import { formatCurrency } from "@/lib/format/currency";
 
 function formatDateTime(timestamp: number): string {
   return new Intl.DateTimeFormat("nl-NL", {

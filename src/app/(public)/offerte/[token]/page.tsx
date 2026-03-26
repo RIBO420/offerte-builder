@@ -67,13 +67,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { createBackgroundErrorHandler } from "@/lib/error-handling";
 import { PDFDownloadButton } from "@/components/pdf/pdf-download-button";
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("nl-NL", {
-    style: "currency",
-    currency: "EUR",
-  }).format(amount);
-}
+import { formatCurrency } from "@/lib/format/currency";
 
 function formatDate(timestamp: number): string {
   return new Intl.DateTimeFormat("nl-NL", {

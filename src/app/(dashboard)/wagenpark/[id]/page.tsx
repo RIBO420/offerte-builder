@@ -66,6 +66,7 @@ import { ComplianceStatus } from "@/components/wagenpark/compliance-badges";
 import { OnderhoudForm } from "@/components/wagenpark/onderhoud-form";
 import { KilometerLog } from "@/components/wagenpark/kilometer-log";
 import { BrandstofForm } from "@/components/wagenpark/brandstof-form";
+import { formatCurrency } from "@/lib/format/currency";
 
 // Vehicle type labels
 const typeLabels: Record<string, string> = {
@@ -131,12 +132,9 @@ function formatKmStand(km: number | undefined): string {
   return new Intl.NumberFormat("nl-NL").format(km) + " km";
 }
 
-function formatCurrency(amount: number | undefined): string {
+function formatCurrencyOptional(amount: number | undefined): string {
   if (amount === undefined) return "-";
-  return new Intl.NumberFormat("nl-NL", {
-    style: "currency",
-    currency: "EUR",
-  }).format(amount);
+  return formatCurrency(amount);
 }
 
 export default function VoertuigDetailPage({
@@ -578,7 +576,7 @@ export default function VoertuigDetailPage({
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right">
-                            {formatCurrency(record.kosten)}
+                            {formatCurrencyOptional(record.kosten)}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -670,7 +668,7 @@ export default function VoertuigDetailPage({
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right">
-                            {formatCurrency(record.kosten)}
+                            {formatCurrencyOptional(record.kosten)}
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center justify-end gap-1">

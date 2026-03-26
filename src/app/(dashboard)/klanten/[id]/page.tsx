@@ -61,6 +61,7 @@ import { useIsAdmin } from "@/hooks/use-users";
 import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import { Id } from "../../../../../convex/_generated/dataModel";
 import { KlantReminderBanner } from "@/components/klant-reminder-banner";
+import { formatCurrency } from "@/lib/format/currency";
 
 const statusColors: Record<string, string> = {
   concept: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100",
@@ -124,13 +125,6 @@ function formatDate(timestamp: number): string {
     month: "short",
     year: "numeric",
   });
-}
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("nl-NL", {
-    style: "currency",
-    currency: "EUR",
-  }).format(amount);
 }
 
 export default function KlantDetailPage({

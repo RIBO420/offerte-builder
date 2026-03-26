@@ -63,22 +63,13 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-
-// Memoized formatter instances
-const currencyFormatter = new Intl.NumberFormat("nl-NL", {
-  style: "currency",
-  currency: "EUR",
-});
+import { formatCurrency } from "@/lib/format/currency";
 
 const dateFormatter = new Intl.DateTimeFormat("nl-NL", {
   day: "numeric",
   month: "long",
   year: "numeric",
 });
-
-function formatCurrency(amount: number): string {
-  return currencyFormatter.format(amount);
-}
 
 function formatDate(timestamp: number): string {
   return dateFormatter.format(new Date(timestamp));

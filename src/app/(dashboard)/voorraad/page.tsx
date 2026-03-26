@@ -57,13 +57,7 @@ import { VoorraadAdjustDialog, type VoorraadItem, type MutatieType } from "@/com
 import { VoorraadMutatiesDialog } from "@/components/voorraad/voorraad-mutaties-dialog";
 import { useVoorraad, useVoorraadStats, useVoorraadMutaties, useVoorraadMutations } from "@/hooks/use-voorraad";
 import type { Id } from "../../../../convex/_generated/dataModel";
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("nl-NL", {
-    style: "currency",
-    currency: "EUR",
-  }).format(amount);
-}
+import { formatCurrency } from "@/lib/format/currency";
 
 function getStatusBadge(hoeveelheid: number, minVoorraad: number) {
   const percentage = (hoeveelheid / minVoorraad) * 100;

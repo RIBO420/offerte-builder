@@ -54,18 +54,7 @@ import { VoormanDashboard } from "@/components/dashboard/voorman-dashboard";
 import { WarningsFeed } from "@/components/dashboard/warnings-feed";
 import { DonutChart } from "@/components/ui/donut-chart";
 import { Progress } from "@/components/ui/progress";
-
-// Memoized formatter
-const currencyFormatter = new Intl.NumberFormat("nl-NL", {
-  style: "currency",
-  currency: "EUR",
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 0,
-});
-
-function formatCurrency(amount: number): string {
-  return currencyFormatter.format(amount);
-}
+import { formatCurrency } from "@/lib/format/currency";
 
 // Time ago formatter for recent activity
 function formatTimeAgo(timestamp: number): string {

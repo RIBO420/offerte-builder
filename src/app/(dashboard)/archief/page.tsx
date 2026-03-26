@@ -43,18 +43,7 @@ import {
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useCurrentUser } from "@/hooks/use-current-user";
-
-// Currency formatter
-const currencyFormatter = new Intl.NumberFormat("nl-NL", {
-  style: "currency",
-  currency: "EUR",
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 0,
-});
-
-function formatCurrency(amount: number): string {
-  return currencyFormatter.format(amount);
-}
+import { formatCurrency } from "@/lib/format/currency";
 
 function formatDate(timestamp: number): string {
   return new Intl.DateTimeFormat("nl-NL", {
