@@ -799,6 +799,165 @@ export const bulkRestore = mutation({
 });
 
 /**
+ * Maak een creditnota aan voor een bestaande factuur (FAC-008).
+ * Een creditnota is een negatieve factuur die verwijst naar de originele factuur.
+ * De originele factuur wordt NOOIT verwijderd (fiscale eis).
+ * Creditnota krijgt automatisch een CN-prefix factuurnummer.
+ */
+export const createCreditnota = mutation({
+  args: {
+    factuurId: v.id("facturen"),
+    reden: v.string(),
+    // Optional: select specific regels to credit (by regel id). If omitted, all regels are credited.
+    regelIds: v.optional(v.array(v.string())),
+  },
+  handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
+    const userId = await requireAuthUserId(ctx);
+    const now = Date.now();
+
+    // Haal originele factuur op en verifieer eigenaarschap
+    const factuur = await getOwnedFactuur(ctx, args.factuurId);
+
+    // Alleen verzonden, betaald of vervallen facturen kunnen gecrediteerd worden
+    if (!["verzonden", "betaald", "vervallen"].includes(factuur.status)) {
+      throw new Error(
+        "Alleen verzonden, betaalde of vervallen facturen kunnen gecrediteerd worden"
+      );
+    }
+
+    // Controleer of er al een creditnota bestaat voor deze factuur
+    const bestaandeCreditnota = await ctx.db
+      .query("facturen")
+      .withIndex("by_referentieFactuur", (q) =>
+        q.eq("referentieFactuurId", args.factuurId)
+      )
+      .first();
+
+    if (bestaandeCreditnota) {
+      throw new Error(
+        "Er bestaat al een creditnota voor deze factuur"
+      );
+    }
+
+    // Haal instellingen op voor factuurnummer generatie
+    const instellingen = await ctx.db
+      .query("instellingen")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique();
+
+    if (!instellingen) {
+      throw new Error(
+        "Instellingen niet gevonden. Configureer eerst je bedrijfsgegevens."
+      );
+    }
+
+    // Genereer creditnota nummer met CN-prefix
+    const laatsteNummer = instellingen.laatsteFactuurNummer ?? 0;
+    const volgendNummer = laatsteNummer + 1;
+    const jaar = new Date().getFullYear();
+    const creditnotaNummer = `CN-${jaar}-${String(volgendNummer).padStart(3, "0")}`;
+
+    // Bepaal welke regels gecrediteerd worden
+    let creditRegels = factuur.regels;
+    if (args.regelIds && args.regelIds.length > 0) {
+      creditRegels = factuur.regels.filter((r) =>
+        args.regelIds!.includes(r.id)
+      );
+      if (creditRegels.length === 0) {
+        throw new Error("Geen geldige regels geselecteerd voor creditnota");
+      }
+    }
+
+    // Maak negatieve regels (bedragen worden negatief)
+    const negatieveRegels = creditRegels.map((r) => ({
+      id: r.id,
+      omschrijving: r.omschrijving,
+      eenheid: r.eenheid,
+      hoeveelheid: r.hoeveelheid,
+      prijsPerEenheid: -Math.abs(r.prijsPerEenheid),
+      totaal: -Math.abs(r.totaal),
+    }));
+
+    // Bereken negatieve totalen
+    const regelsTotaal = negatieveRegels.reduce((sum, r) => sum + r.totaal, 0);
+    const subtotaal = regelsTotaal;
+    const btwBedrag = subtotaal * (factuur.btwPercentage / 100);
+    const totaalInclBtw = subtotaal + btwBedrag;
+
+    // Maak de creditnota aan (als factuur met isCreditnota = true)
+    const creditnotaId = await ctx.db.insert("facturen", {
+      userId,
+      projectId: factuur.projectId,
+      factuurnummer: creditnotaNummer,
+      status: "definitief", // Creditnota's zijn meteen definitief
+      isCreditnota: true,
+      referentieFactuurId: args.factuurId,
+      creditnotaReden: args.reden,
+      klant: factuur.klant,
+      bedrijf: factuur.bedrijf,
+      regels: negatieveRegels,
+      correcties: undefined,
+      subtotaal,
+      btwPercentage: factuur.btwPercentage,
+      btwBedrag,
+      totaalInclBtw,
+      factuurdatum: now,
+      vervaldatum: now, // Creditnota's hebben geen betalingstermijn
+      betalingstermijnDagen: 0,
+      notities: `Creditnota voor ${factuur.factuurnummer}: ${args.reden}`,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // Update laatsteFactuurNummer in instellingen
+    await ctx.db.patch(instellingen._id, {
+      laatsteFactuurNummer: volgendNummer,
+    });
+
+    return creditnotaId;
+  },
+});
+
+/**
+ * Haal creditnota op voor een specifieke factuur (FAC-008).
+ * Geeft de creditnota terug die gekoppeld is aan de opgegeven factuur.
+ */
+export const getCreditnota = query({
+  args: { factuurId: v.id("facturen") },
+  handler: async (ctx, args) => {
+    await requireAuth(ctx);
+
+    const creditnota = await ctx.db
+      .query("facturen")
+      .withIndex("by_referentieFactuur", (q) =>
+        q.eq("referentieFactuurId", args.factuurId)
+      )
+      .first();
+
+    return creditnota ?? null;
+  },
+});
+
+/**
+ * Haal alle creditnota's op voor de ingelogde gebruiker (FAC-008).
+ */
+export const listCreditnotas = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireAuthUserId(ctx);
+
+    const facturen = await ctx.db
+      .query("facturen")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .order("desc")
+      .collect();
+
+    return facturen.filter((f) => f.isCreditnota === true);
+  },
+});
+
+/**
  * Haal factuur op met volledige project, offerte en nacalculatie details.
  */
 export const getWithDetails = query({

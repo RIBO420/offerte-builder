@@ -292,7 +292,9 @@
       "cluster": "A",
       "priority": "P0",
       "description": "Creditnota's aanmaken",
-      "passes": false,
+      "passes": true,
+      "completed_by": "agent",
+      "completed_at": "2026-03-26",
       "steps": [
         "Schema: voeg 'type' veld toe aan facturen (factuur/creditnota)",
         "Backend: creditnota mutation die referentie-factuur linkt en bedrag negatief maakt",
@@ -314,7 +316,7 @@
       "cluster": "A",
       "priority": "P0",
       "description": "Automatische aanmaningsbrieven",
-      "passes": false,
+      "passes": true,
       "steps": [
         "Backend: na configureerbare dagen (bijv. 30/45/60) → aanmaning genereren",
         "Templates: 1e aanmaning (vriendelijk), 2e aanmaning (formeel), ingebrekestelling (juridisch)",

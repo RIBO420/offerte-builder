@@ -32,6 +32,10 @@ import {
   TrendingUp,
   FileStack,
   Wrench,
+  FileX,
+  MinusCircle,
+  Bell,
+  AlertTriangle,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -208,6 +212,12 @@ function FacturenPageContent() {
   // Also fetch stats (non-paginated for counts)
   const facturen = useQuery(api.facturen.list, user?._id ? {} : "skip");
 
+  // Overdue stats for herinnering badges (FAC-006)
+  const overdueStats = useQuery(
+    api.betalingsherinneringen.getOverdueStats,
+    user?._id ? {} : "skip"
+  );
+
   // Export query
   const exportData = useQuery(api.export.exportFacturen, user?._id ? {} : "skip");
 
@@ -225,9 +235,11 @@ function FacturenPageContent() {
         vervallen: 0,
         totaalOmzet: 0,
         openstaand: 0,
+        verlopen: 0,
       };
     }
 
+    const now = Date.now();
     const counts = {
       totaal: facturen.length,
       concept: 0,
@@ -237,19 +249,34 @@ function FacturenPageContent() {
       vervallen: 0,
       totaalOmzet: 0,
       openstaand: 0,
+      verlopen: 0,
     };
 
     facturen.forEach((factuur) => {
       counts[factuur.status as FactuurStatus]++;
 
-      // Total revenue from paid invoices
+      // Total revenue from paid invoices (creditnota's have negative amounts, so they reduce revenue)
       if (factuur.status === "betaald") {
         counts.totaalOmzet += factuur.totaalInclBtw;
       }
 
-      // Outstanding amount (verzonden + vervallen)
-      if (factuur.status === "verzonden" || factuur.status === "vervallen") {
+      // Creditnota's that are definitief also reduce revenue
+      if (factuur.isCreditnota && factuur.status === "definitief") {
+        counts.totaalOmzet += factuur.totaalInclBtw; // negative amount
+      }
+
+      // Outstanding amount (verzonden + vervallen), creditnota's excluded
+      if ((factuur.status === "verzonden" || factuur.status === "vervallen") && !factuur.isCreditnota) {
         counts.openstaand += factuur.totaalInclBtw;
+      }
+
+      // Count overdue invoices (verzonden/vervallen past due date)
+      if (
+        (factuur.status === "verzonden" || factuur.status === "vervallen") &&
+        now > factuur.vervaldatum &&
+        !factuur.isCreditnota
+      ) {
+        counts.verlopen++;
       }
     });
 
@@ -348,7 +375,7 @@ function FacturenPageContent() {
             duration: reducedMotion ? 0 : 0.4,
             delay: reducedMotion ? 0 : 0.15,
           }}
-          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
         >
           <Card>
             <CardContent className="pt-6">
@@ -555,22 +582,27 @@ function FacturenPageContent() {
                             {displayedFacturen.map((factuur) => {
                               const isMeerwerk = factuur.factuurType === "meerwerk";
                               const isDeelfactuur = !!factuur.isDeelfactuur;
+                              const isCreditnota = !!factuur.isCreditnota;
                               return (
                               <TableRow
                                 key={factuur._id}
-                                className="cursor-pointer hover:bg-muted/50"
+                                className={`cursor-pointer hover:bg-muted/50 ${isCreditnota ? "bg-red-50/50 dark:bg-red-950/20" : ""}`}
                                 onClick={() => handleNavigate(factuur.projectId)}
                               >
                                 <TableCell>
                                   <div className="flex items-center gap-3">
                                     <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${
-                                      isMeerwerk
-                                        ? "bg-orange-100 dark:bg-orange-950"
-                                        : isDeelfactuur
-                                          ? "bg-purple-100 dark:bg-purple-950"
-                                          : "bg-primary/10"
+                                      isCreditnota
+                                        ? "bg-red-100 dark:bg-red-950"
+                                        : isMeerwerk
+                                          ? "bg-orange-100 dark:bg-orange-950"
+                                          : isDeelfactuur
+                                            ? "bg-purple-100 dark:bg-purple-950"
+                                            : "bg-primary/10"
                                     }`}>
-                                      {isMeerwerk ? (
+                                      {isCreditnota ? (
+                                        <FileX className="h-4 w-4 text-red-600 dark:text-red-400" />
+                                      ) : isMeerwerk ? (
                                         <Wrench className="h-4 w-4 text-orange-600 dark:text-orange-400" />
                                       ) : isDeelfactuur ? (
                                         <FileStack className="h-4 w-4 text-purple-600 dark:text-purple-400" />
@@ -579,9 +611,14 @@ function FacturenPageContent() {
                                       )}
                                     </div>
                                     <div>
-                                      <p className="font-medium">
+                                      <p className={`font-medium ${isCreditnota ? "text-red-700 dark:text-red-400" : ""}`}>
                                         {factuur.factuurnummer}
                                       </p>
+                                      {isCreditnota && factuur.creditnotaReden && (
+                                        <p className="text-xs text-red-500 dark:text-red-400 truncate max-w-[200px]" title={factuur.creditnotaReden}>
+                                          {factuur.creditnotaReden}
+                                        </p>
+                                      )}
                                     </div>
                                   </div>
                                 </TableCell>
@@ -594,7 +631,12 @@ function FacturenPageContent() {
                                   </div>
                                 </TableCell>
                                 <TableCell>
-                                  {isMeerwerk ? (
+                                  {isCreditnota ? (
+                                    <Badge variant="outline" className="bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200 border-red-200 dark:border-red-800">
+                                      <MinusCircle className="h-3 w-3 mr-1" />
+                                      Creditnota
+                                    </Badge>
+                                  ) : isMeerwerk ? (
                                     <Badge variant="outline" className="bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-200 border-orange-200 dark:border-orange-800">
                                       Meerwerk
                                     </Badge>
@@ -606,7 +648,7 @@ function FacturenPageContent() {
                                     <span className="text-xs text-muted-foreground">Volledig</span>
                                   )}
                                 </TableCell>
-                                <TableCell className="font-medium">
+                                <TableCell className={`font-medium ${isCreditnota ? "text-red-600 dark:text-red-400" : ""}`}>
                                   {formatCurrency(factuur.totaalInclBtw)}
                                 </TableCell>
                                 <TableCell className="text-muted-foreground">
