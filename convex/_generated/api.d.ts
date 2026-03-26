@@ -37,6 +37,7 @@ import type * as leerfeedback from "../leerfeedback.js";
 import type * as leveranciers from "../leveranciers.js";
 import type * as machineGebruik from "../machineGebruik.js";
 import type * as machines from "../machines.js";
+import type * as materiaalmanDashboard from "../materiaalmanDashboard.js";
 import type * as medewerkerAnalytics from "../medewerkerAnalytics.js";
 import type * as medewerkerRapportages from "../medewerkerRapportages.js";
 import type * as medewerkers from "../medewerkers.js";
@@ -116,6 +117,7 @@ declare const fullApi: ApiFromModules<{
   leveranciers: typeof leveranciers;
   machineGebruik: typeof machineGebruik;
   machines: typeof machines;
+  materiaalmanDashboard: typeof materiaalmanDashboard;
   medewerkerAnalytics: typeof medewerkerAnalytics;
   medewerkerRapportages: typeof medewerkerRapportages;
   medewerkers: typeof medewerkers;

@@ -785,7 +785,7 @@
       "cluster": "B",
       "priority": "P0",
       "description": "Slimme materieel-suggesties op basis van werkzaamheidstype",
-      "passes": false,
+      "passes": true,
       "steps": [
         "Schema: taak-naar-machine koppeltabel (werkzaamheidstype → benodigde machines)",
         "Backend: bij inplannen werkzaamheid → automatisch benodigde machines ophalen",
@@ -798,7 +798,9 @@
         "convex/planningen.ts",
         "src/components/planning/",
         "src/app/(dashboard)/instellingen/"
-      ]
+      ],
+      "completed_by": "cluster-b-agent",
+      "completed_at": "2026-03-26"
     },
     {
       "id": "PLN-007",
@@ -806,7 +808,7 @@
       "cluster": "B",
       "priority": "P0",
       "description": "Weer-integratie",
-      "passes": false,
+      "passes": true,
       "steps": [
         "API route: /api/weather → KNMI of OpenWeather API call per locatie",
         "Backend: cache weer-data per dag per locatie",
@@ -817,7 +819,9 @@
       "files_to_edit": [
         "src/app/api/weather/ (nieuw)",
         "src/components/planning/"
-      ]
+      ],
+      "completed_by": "cluster-b-agent",
+      "completed_at": "2026-03-26"
     },
     {
       "id": "PRJ-001",
@@ -1041,7 +1045,7 @@
       "cluster": "C",
       "priority": "P0",
       "description": "Materiaalman dashboard (Mickey)",
-      "passes": false,
+      "passes": true,
       "steps": [
         "Backend: query die dagelijkse to-do's genereert voor materiaalman rol",
         "Backend: aggregatie van openstaande defecten, naderende keuringen, bestellijsten",

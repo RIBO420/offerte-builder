@@ -49,6 +49,7 @@ import { VoorraadAlertCard } from "@/components/dashboard/voorraad-alert-card";
 import { InkoopordersCard } from "@/components/dashboard/inkooporders-card";
 import { QCStatusCard } from "@/components/dashboard/qc-status-card";
 import { DirectieDashboard } from "@/components/dashboard/directie-dashboard";
+import { MateriaalmanDashboard } from "@/components/dashboard/materiaalman-dashboard";
 import { DonutChart } from "@/components/ui/donut-chart";
 import { Progress } from "@/components/ui/progress";
 
@@ -369,6 +370,9 @@ export default function DashboardPage() {
           <>
             {/* Directie Dashboard — Financial & Operational KPIs (SOD-003) */}
             <DirectieDashboard />
+
+            {/* Materiaalman Dashboard — Fleet & Inventory (SOD-001) */}
+            <MateriaalmanDashboard />
 
             {/* Action Required - Moved to top, more prominent */}
             {hasActionRequired && (
