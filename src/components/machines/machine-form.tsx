@@ -82,15 +82,15 @@ export function MachineForm({
   // Reset form when dialog opens/closes or machine changes
   useEffect(() => {
     if (machine) {
-      setFormData({
+      setTimeout(() => setFormData({
         naam: machine.naam,
         type: machine.type,
         tarief: machine.tarief,
         tariefType: machine.tariefType,
         gekoppeldeScopes: machine.gekoppeldeScopes,
-      });
+      }), 0);
     } else {
-      setFormData(defaultFormData);
+      setTimeout(() => setFormData(defaultFormData), 0);
     }
   }, [machine, open]);
 

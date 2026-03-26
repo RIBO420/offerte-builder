@@ -131,54 +131,45 @@ export function useOfferteVoorcalculatie(offerteId: Id<"offertes"> | null) {
   );
 
   // Save voorcalculatie for offerte
-  const saveVoorcalculatie = useCallback(
-    async (data: {
-      teamGrootte: 2 | 3 | 4;
-      teamleden?: string[];
-      effectieveUrenPerDag: number;
-    }) => {
-      if (!offerteId || !calculation) {
-        throw new Error("Offerte or calculation not available");
-      }
+  // No useCallback needed — React Compiler handles memoization automatically
+  const saveVoorcalculatie = async (data: {
+    teamGrootte: 2 | 3 | 4;
+    teamleden?: string[];
+    effectieveUrenPerDag: number;
+  }) => {
+    if (!offerteId || !calculation) {
+      throw new Error("Offerte or calculation not available");
+    }
 
-      const geschatteDagen = calculateDays(
-        calculation.normUrenTotaal,
-        data.teamGrootte,
-        data.effectieveUrenPerDag
-      );
+    const geschatteDagen = calculateDays(
+      calculation.normUrenTotaal,
+      data.teamGrootte,
+      data.effectieveUrenPerDag
+    );
 
-      const voorcalculatieData = {
-        offerteId,
-        teamGrootte: data.teamGrootte,
-        teamleden: data.teamleden,
-        effectieveUrenPerDag: data.effectieveUrenPerDag,
-        normUrenTotaal: calculation.normUrenTotaal,
-        geschatteDagen,
-        normUrenPerScope: calculation.normUrenPerScope,
-      };
-
-      // Check if voorcalculatie exists
-      if (offerteData?.voorcalculatie) {
-        // Strip offerteId from update - it's not allowed in the update mutation
-        const { offerteId: _, ...updateData } = voorcalculatieData;
-        void _; // Explicitly mark as intentionally unused
-        return updateVoorcalculatie({
-          id: offerteData.voorcalculatie._id,
-          ...updateData,
-        });
-      } else {
-        return createVoorcalculatie(voorcalculatieData);
-      }
-    },
-    [
+    const voorcalculatieData = {
       offerteId,
-      calculation,
-      offerteData?.voorcalculatie,
-      calculateDays,
-      createVoorcalculatie,
-      updateVoorcalculatie,
-    ]
-  );
+      teamGrootte: data.teamGrootte,
+      teamleden: data.teamleden,
+      effectieveUrenPerDag: data.effectieveUrenPerDag,
+      normUrenTotaal: calculation.normUrenTotaal,
+      geschatteDagen,
+      normUrenPerScope: calculation.normUrenPerScope,
+    };
+
+    // Check if voorcalculatie exists
+    if (offerteData?.voorcalculatie) {
+      // Strip offerteId from update - it's not allowed in the update mutation
+      const { offerteId: _, ...updateData } = voorcalculatieData;
+      void _; // Explicitly mark as intentionally unused
+      return updateVoorcalculatie({
+        id: offerteData.voorcalculatie._id,
+        ...updateData,
+      });
+    } else {
+      return createVoorcalculatie(voorcalculatieData);
+    }
+  };
 
   // Move offerte to voorcalculatie status
   const moveToVoorcalculatie = useCallback(async () => {
@@ -247,54 +238,45 @@ export function useProjectVoorcalculatie(projectId: Id<"projecten"> | null) {
   );
 
   // Save voorcalculatie
-  const saveVoorcalculatie = useCallback(
-    async (data: {
-      teamGrootte: 2 | 3 | 4;
-      teamleden?: string[];
-      effectieveUrenPerDag: number;
-    }) => {
-      if (!projectId || !calculation) {
-        throw new Error("Project or calculation not available");
-      }
+  // No useCallback needed — React Compiler handles memoization automatically
+  const saveVoorcalculatie = async (data: {
+    teamGrootte: 2 | 3 | 4;
+    teamleden?: string[];
+    effectieveUrenPerDag: number;
+  }) => {
+    if (!projectId || !calculation) {
+      throw new Error("Project or calculation not available");
+    }
 
-      const geschatteDagen = calculateDays(
-        calculation.normUrenTotaal,
-        data.teamGrootte,
-        data.effectieveUrenPerDag
-      );
+    const geschatteDagen = calculateDays(
+      calculation.normUrenTotaal,
+      data.teamGrootte,
+      data.effectieveUrenPerDag
+    );
 
-      const voorcalculatieData = {
-        projectId,
-        teamGrootte: data.teamGrootte,
-        teamleden: data.teamleden,
-        effectieveUrenPerDag: data.effectieveUrenPerDag,
-        normUrenTotaal: calculation.normUrenTotaal,
-        geschatteDagen,
-        normUrenPerScope: calculation.normUrenPerScope,
-      };
-
-      // Check if voorcalculatie exists
-      if (projectData?.voorcalculatie) {
-        // Strip projectId from update - it's not allowed in the update mutation
-        const { projectId: _, ...updateData } = voorcalculatieData;
-        void _; // Explicitly mark as intentionally unused
-        return updateVoorcalculatie({
-          id: projectData.voorcalculatie._id,
-          ...updateData,
-        });
-      } else {
-        return createVoorcalculatie(voorcalculatieData);
-      }
-    },
-    [
+    const voorcalculatieData = {
       projectId,
-      calculation,
-      projectData?.voorcalculatie,
-      calculateDays,
-      createVoorcalculatie,
-      updateVoorcalculatie,
-    ]
-  );
+      teamGrootte: data.teamGrootte,
+      teamleden: data.teamleden,
+      effectieveUrenPerDag: data.effectieveUrenPerDag,
+      normUrenTotaal: calculation.normUrenTotaal,
+      geschatteDagen,
+      normUrenPerScope: calculation.normUrenPerScope,
+    };
+
+    // Check if voorcalculatie exists
+    if (projectData?.voorcalculatie) {
+      // Strip projectId from update - it's not allowed in the update mutation
+      const { projectId: _, ...updateData } = voorcalculatieData;
+      void _; // Explicitly mark as intentionally unused
+      return updateVoorcalculatie({
+        id: projectData.voorcalculatie._id,
+        ...updateData,
+      });
+    } else {
+      return createVoorcalculatie(voorcalculatieData);
+    }
+  };
 
   // Move project to next phase
   const moveToPlanning = useCallback(async () => {

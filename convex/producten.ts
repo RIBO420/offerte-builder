@@ -39,7 +39,7 @@ export const search = query({
   },
   handler: async (ctx, args) => {
     const userId = await requireAuthUserId(ctx);
-    let searchQuery = ctx.db
+    const searchQuery = ctx.db
       .query("producten")
       .withSearchIndex("search_producten", (q) => {
         let search = q.search("productnaam", args.zoekterm);

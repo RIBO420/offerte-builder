@@ -93,6 +93,21 @@ export function Toast({
   const stackOffset = index * 12;
   const stackScale = 1 - index * 0.03;
 
+  const dismiss = () => {
+    Animated.parallel([
+      Animated.timing(translateY, {
+        toValue: position === 'top' ? -100 : 100,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacity, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => onDismiss(id));
+  };
+
   useEffect(() => {
     // Animate in
     Animated.parallel([
@@ -122,21 +137,6 @@ export function Toast({
 
     return () => clearTimeout(timer);
   }, [duration, stackScale]);
-
-  const dismiss = () => {
-    Animated.parallel([
-      Animated.timing(translateY, {
-        toValue: position === 'top' ? -100 : 100,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacity, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-    ]).start(() => onDismiss(id));
-  };
 
   const panResponder = useRef(
     PanResponder.create({

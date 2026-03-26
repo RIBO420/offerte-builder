@@ -135,7 +135,7 @@ export function FAQSection() {
                     aria-expanded={openObjection === index}
                   >
                     <div className="flex items-center gap-3">
-                      <span className="text-muted-foreground">"</span>
+                      <span className="text-muted-foreground">&ldquo;</span>
                       <span className="font-medium italic text-muted-foreground pr-4">
                         {item.objection}
                       </span>

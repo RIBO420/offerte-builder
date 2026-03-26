@@ -189,6 +189,7 @@ export default function GlobalError({
               </svg>
               Probeer opnieuw
             </button>
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- Full reload needed in global error boundary */}
             <a href="/" style={{ ...styles.button, ...styles.primaryButton }}>
               {/* Home icon */}
               <svg

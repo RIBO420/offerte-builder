@@ -726,7 +726,7 @@ export const searchMessages = query({
     const limit = args.limit || 20;
 
     // Use the search index for team messages
-    let results = await ctx.db
+    const results = await ctx.db
       .query("team_messages")
       .withSearchIndex("search_messages", (q) => {
         let search = q.search("message", args.searchQuery);

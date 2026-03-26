@@ -22,7 +22,7 @@ export const list = query({
   handler: async (ctx, args) => {
     const userId = await requireAuthUserId(ctx);
 
-    let query = ctx.db
+    const query = ctx.db
       .query("leveranciers")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .filter((q) => q.eq(q.field("isActief"), true));

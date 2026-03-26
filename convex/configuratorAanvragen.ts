@@ -156,7 +156,7 @@ export const pipelineStats = query({
       .query("configuratorAanvragen")
       .collect();
 
-    let totaalLeads = allLeads.length;
+    const totaalLeads = allLeads.length;
     let pipelineWaarde = 0;
     let gewonnenWaarde = 0;
     let gewonnenCount = 0;

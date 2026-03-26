@@ -165,7 +165,7 @@ export default function ProjectDetailScreen() {
             <View style={s.quickActionsRow}>
               <TouchableOpacity style={s.quickAction}>
                 <Feather name="camera" size={20} color="#6B8F6B" />
-                <Text style={s.quickActionLabel}>Foto's</Text>
+                <Text style={s.quickActionLabel}>Foto&apos;s</Text>
               </TouchableOpacity>
               <TouchableOpacity style={s.quickAction}>
                 <Feather name="clock" size={20} color="#6B8F6B" />

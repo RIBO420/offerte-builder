@@ -46,15 +46,17 @@ export function CommandProvider({ children }: { children: ReactNode }) {
         const parsed: StoredRecentItem[] = JSON.parse(stored);
         // We only store the IDs and basic info; actual items need to be matched
         // from the available commands when rendering
-        setRecentItems(
-          parsed.map((item) => ({
-            id: item.id,
-            type: item.type,
-            title: item.title,
-            subtitle: item.subtitle,
-            action: () => {}, // Will be replaced when rendering
-          }))
-        );
+        setTimeout(() => {
+          setRecentItems(
+            parsed.map((item) => ({
+              id: item.id,
+              type: item.type,
+              title: item.title,
+              subtitle: item.subtitle,
+              action: () => {}, // Will be replaced when rendering
+            }))
+          );
+        }, 0);
       }
     } catch {
       // Ignore localStorage errors

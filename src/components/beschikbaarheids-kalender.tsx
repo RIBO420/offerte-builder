@@ -50,6 +50,7 @@ interface BeschikbaarheidsKalenderProps {
 // useBeschikbaarheid – mock-data hook (vervang later door Convex query)
 // ---------------------------------------------------------------------------
 
+/* eslint-disable react-hooks/purity -- Mock data generator, will be replaced by Convex query */
 export function useBeschikbaarheid(): BeschikbaarheidItem[] {
   return React.useMemo(() => {
     const items: BeschikbaarheidItem[] = []
@@ -118,6 +119,7 @@ export function useBeschikbaarheid(): BeschikbaarheidItem[] {
     return items
   }, [])
 }
+/* eslint-enable react-hooks/purity */
 
 // ---------------------------------------------------------------------------
 // Helpers

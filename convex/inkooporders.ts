@@ -256,7 +256,7 @@ export const getStats = query({
     }
 
     let totaalBedrag = 0;
-    let totaalAantal = inkooporders.length;
+    const totaalAantal = inkooporders.length;
 
     for (const io of inkooporders) {
       // Tel per status

@@ -23,7 +23,7 @@ export function QCStatusCard() {
 
     if (prevValueRef.current !== undefined &&
         prevValueRef.current !== stats.totaalOpen) {
-      setIsUpdating(true);
+      setTimeout(() => setIsUpdating(true), 0);
       const timer = setTimeout(() => setIsUpdating(false), 500);
       prevValueRef.current = stats.totaalOpen;
       return () => clearTimeout(timer);

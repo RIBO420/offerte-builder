@@ -11,10 +11,10 @@ export default function FotosScreen() {
           TOP TUINEN
         </Text>
         <Text style={{ color: '#E8E8E8', fontSize: 22, fontWeight: '600', marginTop: 4 }}>
-          Foto's
+          Foto&apos;s
         </Text>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: colors.inactive, fontSize: 13 }}>Foto's worden hier geladen...</Text>
+          <Text style={{ color: colors.inactive, fontSize: 13 }}>Foto&apos;s worden hier geladen...</Text>
         </View>
       </View>
     </SafeAreaView>

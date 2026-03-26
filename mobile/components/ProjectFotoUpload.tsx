@@ -479,7 +479,7 @@ export function ProjectFotoUpload({
           {/* Header */}
           <View style={stijlen.schermHeader}>
             <Feather name="upload-cloud" size={24} color="#4ADE80" />
-            <Text style={stijlen.schermTitel}>Foto's uploaden</Text>
+            <Text style={stijlen.schermTitel}>Foto&apos;s uploaden</Text>
           </View>
 
           {/* Sync-status indicator */}
@@ -527,7 +527,7 @@ export function ProjectFotoUpload({
 
           {/* === Sectie 3: Foto's === */}
           <View style={stijlen.sectie}>
-            <Text style={stijlen.sectieLabel}>Foto's</Text>
+            <Text style={stijlen.sectieLabel}>Foto&apos;s</Text>
             <FotoGalerij
               maxFotos={20}
               fotos={fotos}
@@ -585,7 +585,7 @@ export function ProjectFotoUpload({
             )}
             {geselecteerdProject !== null && aantalFotos === 0 && (
               <Text style={stijlen.uploadHintTekst}>
-                Voeg foto's toe via de galerij hierboven
+                Voeg foto&apos;s toe via de galerij hierboven
               </Text>
             )}
           </View>

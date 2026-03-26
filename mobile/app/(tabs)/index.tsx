@@ -166,7 +166,7 @@ function AuthenticatedDashboard() {
         setCurrentTime(Math.floor((Date.now() - sessionStartTime) / 1000));
       }, 1000);
     } else {
-      setCurrentTime(0);
+      setTimeout(() => setCurrentTime(0), 0);
     }
 
     return () => {

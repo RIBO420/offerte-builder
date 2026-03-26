@@ -64,19 +64,21 @@ export function CertificaatFormDialog({
   // Reset form when dialog opens/closes
   useEffect(() => {
     if (open) {
-      if (initialData) {
-        setNaam(initialData.naam);
-        setUitgifteDatum(new Date(initialData.uitgifteDatum));
-        setVervaldatum(
-          initialData.vervaldatum ? new Date(initialData.vervaldatum) : undefined
-        );
-        setDocumentUrl(initialData.documentUrl || "");
-      } else {
-        setNaam("");
-        setUitgifteDatum(undefined);
-        setVervaldatum(undefined);
-        setDocumentUrl("");
-      }
+      setTimeout(() => {
+        if (initialData) {
+          setNaam(initialData.naam);
+          setUitgifteDatum(new Date(initialData.uitgifteDatum));
+          setVervaldatum(
+            initialData.vervaldatum ? new Date(initialData.vervaldatum) : undefined
+          );
+          setDocumentUrl(initialData.documentUrl || "");
+        } else {
+          setNaam("");
+          setUitgifteDatum(undefined);
+          setVervaldatum(undefined);
+          setDocumentUrl("");
+        }
+      }, 0);
     }
   }, [open, initialData]);
 

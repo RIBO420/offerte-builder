@@ -24,7 +24,7 @@ import type {
   BomenOnderhoudData,
   OverigeOnderhoudData,
 } from "@/types/offerte";
-import { v4 as uuidv4 } from "uuid";
+
 import { roundToQuarter } from "@/lib/time-utils";
 
 // ==================== CONSTANTS ====================

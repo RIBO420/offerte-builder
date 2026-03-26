@@ -67,7 +67,7 @@ export function CommandPalette({ additionalItems = [] }: CommandPaletteProps) {
 
   // Prevent hydration mismatch for theme
   useEffect(() => {
-    setMounted(true);
+    setTimeout(() => setMounted(true), 0);
   }, []);
 
   // Navigate and track in recent items
@@ -364,7 +364,7 @@ export function CommandPalette({ additionalItems = [] }: CommandPaletteProps) {
   // Reset search when dialog closes
   useEffect(() => {
     if (!open) {
-      setSearch("");
+      setTimeout(() => setSearch(""), 0);
     }
   }, [open]);
 

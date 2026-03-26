@@ -534,8 +534,10 @@ function StatusPageContent() {
   // Automatisch zoeken als ref query param aanwezig is bij laden
   useEffect(() => {
     if (refParam) {
-      setInputWaarde(refParam);
-      setZoekReferentie(refParam);
+      setTimeout(() => {
+        setInputWaarde(refParam);
+        setZoekReferentie(refParam);
+      }, 0);
     }
   }, [refParam]);
 

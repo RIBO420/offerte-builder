@@ -217,7 +217,7 @@ export function AppSidebar() {
 
   // Prevent hydration mismatch
   useEffect(() => {
-    setMounted(true);
+    setTimeout(() => setMounted(true), 0);
   }, []);
 
   // Accordion: determine which section should be open based on current path
@@ -235,7 +235,7 @@ export function AppSidebar() {
   // Sync open section when navigating to a new path
   useEffect(() => {
     if (activeSectionFromPath) {
-      setOpenSection(activeSectionFromPath);
+      setTimeout(() => setOpenSection(activeSectionFromPath), 0);
     }
   }, [activeSectionFromPath]);
 

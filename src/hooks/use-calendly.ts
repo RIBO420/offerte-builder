@@ -35,7 +35,7 @@ export function useCalendlyEmbed() {
     // Controleer of het script al is geladen
     const existingScript = document.getElementById(SCRIPT_ID);
     if (existingScript) {
-      setIsLoaded(true);
+      setTimeout(() => setIsLoaded(true), 0);
       return;
     }
 

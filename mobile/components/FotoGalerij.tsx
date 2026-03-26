@@ -534,7 +534,7 @@ export function FotoGalerij({ maxFotos = 10, fotos: externeFootos, onChange }: F
           activeOpacity={0.7}
         >
           <Feather name="camera" size={32} color="#888888" />
-          <Text style={stijlen.leegGridTekst}>Nog geen foto's</Text>
+          <Text style={stijlen.leegGridTekst}>Nog geen foto&apos;s</Text>
           <Text style={stijlen.leegGridOndertitel}>Tik om een foto toe te voegen</Text>
         </TouchableOpacity>
       ) : (

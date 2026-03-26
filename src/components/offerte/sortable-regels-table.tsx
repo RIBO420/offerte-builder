@@ -147,7 +147,7 @@ function InlineEditableCell({
   // Sync edit value and auto-focus when entering edit mode
   useEffect(() => {
     if (isEditing) {
-      setEditValue(String(value));
+      setTimeout(() => setEditValue(String(value)), 0);
       // Use requestAnimationFrame to ensure the input is rendered before focusing
       requestAnimationFrame(() => {
         inputRef.current?.focus();

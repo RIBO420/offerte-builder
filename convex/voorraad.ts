@@ -214,7 +214,7 @@ export const getStats = query({
     // Calculate totale voorraadwaarde and count items under minimum
     let totaleWaarde = 0;
     let aantalOnderMinimum = 0;
-    let totaalAantalItems = voorraadItems.length;
+    const totaalAantalItems = voorraadItems.length;
 
     for (const item of voorraadItems) {
       const product = await ctx.db.get(item.productId);

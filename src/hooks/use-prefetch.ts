@@ -3,7 +3,8 @@
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useCurrentUser } from "./use-current-user";
-import { useEffect } from "react";
+import { useEffect, useRef, useCallback } from "react";
+import type { Id } from "../../convex/_generated/dataModel";
 
 /**
  * Prefetch hook for proactively loading data that will likely be needed.
@@ -99,7 +100,7 @@ export function usePrefetchAllCommonData() {
 export function usePrefetchOfferte(offerteId: string | null) {
   useQuery(
     api.offertes.get,
-    offerteId ? { id: offerteId as any } : "skip"
+    offerteId ? { id: offerteId as Id<"offertes"> } : "skip"
   );
 }
 
@@ -111,27 +112,27 @@ export function usePrefetchOnInteraction(
   prefetchFn: () => void,
   delay: number = 100
 ) {
-  let timeoutId: NodeJS.Timeout | null = null;
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const handleMouseEnter = () => {
-    timeoutId = setTimeout(prefetchFn, delay);
-  };
+  const handleMouseEnter = useCallback(() => {
+    timeoutRef.current = setTimeout(prefetchFn, delay);
+  }, [prefetchFn, delay]);
 
-  const handleMouseLeave = () => {
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-      timeoutId = null;
+  const handleMouseLeave = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
     }
-  };
+  }, []);
 
-  const handleFocus = () => {
+  const handleFocus = useCallback(() => {
     prefetchFn();
-  };
+  }, [prefetchFn]);
 
   useEffect(() => {
     return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
       }
     };
   }, []);

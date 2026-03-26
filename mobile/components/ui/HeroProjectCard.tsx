@@ -64,7 +64,7 @@ export const HeroProjectCard = React.memo(function HeroProjectCard({
           <View style={styles.pillsRow}>
             <Pressable onPress={handlePhotoPress} style={styles.pill} accessibilityRole="button" accessibilityLabel="Foto's toevoegen">
               <Camera size={12} color="#4ADE80" />
-              <Text style={styles.pillTextGreen}>Foto's</Text>
+              <Text style={styles.pillTextGreen}>Foto&apos;s</Text>
             </Pressable>
             <Pressable onPress={handleHoursPress} style={styles.pill} accessibilityRole="button" accessibilityLabel="Start uren registratie">
               <Clock size={12} color="#CCCCCC" />

@@ -22,14 +22,21 @@ export function LiveRegion({
   const [currentMessage, setCurrentMessage] = useState(message);
 
   useEffect(() => {
-    setCurrentMessage(message);
+    const messageTimer = setTimeout(() => {
+      setCurrentMessage(message);
+    }, 0);
 
+    let clearTimer: ReturnType<typeof setTimeout> | undefined;
     if (clearAfter > 0 && message) {
-      const timer = setTimeout(() => {
+      clearTimer = setTimeout(() => {
         setCurrentMessage("");
       }, clearAfter);
-      return () => clearTimeout(timer);
     }
+
+    return () => {
+      clearTimeout(messageTimer);
+      if (clearTimer) clearTimeout(clearTimer);
+    };
   }, [message, clearAfter]);
 
   return (

@@ -40,9 +40,12 @@ function useUpdateIndicator<T>(
     if (prevValue !== undefined && currentValue !== prevValue) {
       // Skip the initial load if configured
       if (!(skipInitial && isFirstRender.current)) {
-        setIsUpdating(true);
-        const timer = setTimeout(() => setIsUpdating(false), indicatorDuration);
-        return () => clearTimeout(timer);
+        const showTimer = setTimeout(() => setIsUpdating(true), 0);
+        const hideTimer = setTimeout(() => setIsUpdating(false), indicatorDuration);
+        return () => {
+          clearTimeout(showTimer);
+          clearTimeout(hideTimer);
+        };
       }
     }
 
@@ -90,10 +93,13 @@ export function useRealtimeDashboardStats() {
     }
 
     if (changes.size > 0) {
-      setChangedStats(changes);
-      const timer = setTimeout(() => setChangedStats(new Set()), 1000);
+      const showTimer = setTimeout(() => setChangedStats(changes), 0);
+      const hideTimer = setTimeout(() => setChangedStats(new Set()), 1000);
       prevStatsRef.current = data;
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(showTimer);
+        clearTimeout(hideTimer);
+      };
     }
 
     prevStatsRef.current = data;
@@ -127,10 +133,13 @@ export function useRealtimeNotificationCounts() {
     if (data === undefined) return;
 
     if (data.total > prevTotalRef.current && prevTotalRef.current > 0) {
-      setCountIncreased(true);
-      const timer = setTimeout(() => setCountIncreased(false), 1000);
+      const showTimer = setTimeout(() => setCountIncreased(true), 0);
+      const hideTimer = setTimeout(() => setCountIncreased(false), 1000);
       prevTotalRef.current = data.total;
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(showTimer);
+        clearTimeout(hideTimer);
+      };
     }
 
     prevTotalRef.current = data.total;
@@ -163,10 +172,13 @@ export function useRealtimeChatCounts() {
     if (data === undefined) return;
 
     if (data.total > prevTotalRef.current && prevTotalRef.current >= 0) {
-      setHasNewMessages(true);
-      const timer = setTimeout(() => setHasNewMessages(false), 2000);
+      const setTimer = setTimeout(() => setHasNewMessages(true), 0);
+      const clearTimer = setTimeout(() => setHasNewMessages(false), 2000);
       prevTotalRef.current = data.total;
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(setTimer);
+        clearTimeout(clearTimer);
+      };
     }
 
     prevTotalRef.current = data.total;
@@ -198,10 +210,13 @@ export function useRealtimeActionItems() {
     if (data === undefined) return;
 
     if (data.total > prevTotalRef.current && prevTotalRef.current >= 0) {
-      setHasNewActions(true);
-      const timer = setTimeout(() => setHasNewActions(false), 2000);
+      const setTimer = setTimeout(() => setHasNewActions(true), 0);
+      const clearTimer = setTimeout(() => setHasNewActions(false), 2000);
       prevTotalRef.current = data.total;
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(setTimer);
+        clearTimeout(clearTimer);
+      };
     }
 
     prevTotalRef.current = data.total;
@@ -267,10 +282,13 @@ export function useRealtimeLatestMessages(limit?: number) {
     const hasNew = currentIds.some((id) => !prevIdsSet.has(id));
 
     if (hasNew && prevMessagesRef.current.length > 0) {
-      setHasNewMessages(true);
-      const timer = setTimeout(() => setHasNewMessages(false), 2000);
+      const setTimer = setTimeout(() => setHasNewMessages(true), 0);
+      const clearTimer = setTimeout(() => setHasNewMessages(false), 2000);
       prevMessagesRef.current = currentIds;
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(setTimer);
+        clearTimeout(clearTimer);
+      };
     }
 
     prevMessagesRef.current = currentIds;

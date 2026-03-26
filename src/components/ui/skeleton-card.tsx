@@ -62,6 +62,9 @@ export function SkeletonFormField() {
   );
 }
 
+// Deterministic widths for skeleton table columns
+const SKELETON_COLUMN_WIDTHS = [35, 48, 25, 42, 30, 38, 45, 28];
+
 // Table row skeleton
 export function SkeletonTableRow({ columns = 4 }: { columns?: number }) {
   return (
@@ -70,7 +73,7 @@ export function SkeletonTableRow({ columns = 4 }: { columns?: number }) {
         <Skeleton
           key={i}
           className="h-4"
-          style={{ width: `${Math.random() * 30 + 20}%` }}
+          style={{ width: `${SKELETON_COLUMN_WIDTHS[i % SKELETON_COLUMN_WIDTHS.length]}%` }}
         />
       ))}
     </div>

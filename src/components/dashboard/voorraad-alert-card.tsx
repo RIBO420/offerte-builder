@@ -23,7 +23,7 @@ export function VoorraadAlertCard() {
 
     if (prevValueRef.current !== undefined &&
         prevValueRef.current !== stats.aantalOnderMinimum) {
-      setIsUpdating(true);
+      setTimeout(() => setIsUpdating(true), 0);
       const timer = setTimeout(() => setIsUpdating(false), 500);
       prevValueRef.current = stats.aantalOnderMinimum;
       return () => clearTimeout(timer);

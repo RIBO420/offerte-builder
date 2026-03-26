@@ -275,7 +275,7 @@ export function FleetGoSettings({
             <ol className="list-decimal list-inside space-y-1 text-sm">
               <li>Log in op je FleetGo dashboard</li>
               <li>Ga naar Instellingen &gt; API &amp; Integraties</li>
-              <li>Klik op "Nieuwe API key genereren"</li>
+              <li>Klik op &quot;Nieuwe API key genereren&quot;</li>
               <li>Kopieer de key en plak deze hierboven</li>
             </ol>
             <Button variant="link" className="h-auto p-0 text-primary" asChild>

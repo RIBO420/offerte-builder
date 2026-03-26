@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 import { requireAuth } from "./auth";
 import {
   requireAdmin,
@@ -182,10 +183,10 @@ export const checkFrequentVerzuim = query({
 
     const result = await Promise.all(
       frequentIds.map(async (id) => {
-        const medewerker = await ctx.db.get(id as any);
+        const medewerker = await ctx.db.get(id as Id<"medewerkers">);
         return {
           medewerkerId: id,
-          medewerkerNaam: (medewerker as any)?.naam ?? "Onbekend",
+          medewerkerNaam: medewerker?.naam ?? "Onbekend",
           aantalMeldingen: perMedewerker[id],
         };
       })

@@ -42,21 +42,6 @@ export default function CallbackScreen() {
   const setActiveSignUp = AUTH_CONFIGURED ? signUpHook.setActive : null;
   const isSignedIn = AUTH_CONFIGURED ? authHook.isSignedIn : false;
 
-  useEffect(() => {
-    handleCallback();
-  }, []);
-
-  // Als al ingelogd, redirect naar biometric setup
-  useEffect(() => {
-    if (isSignedIn && status === 'success') {
-      // Kleine delay om de success state te tonen
-      const timer = setTimeout(() => {
-        router.replace('/(auth)/biometric');
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [isSignedIn, status]);
-
   const handleCallback = async () => {
     try {
       console.log('[Callback] Params:', params);
@@ -147,6 +132,21 @@ export default function CallbackScreen() {
       }
     }
   };
+
+  useEffect(() => {
+    setTimeout(() => handleCallback(), 0);
+  }, []);
+
+  // Als al ingelogd, redirect naar biometric setup
+  useEffect(() => {
+    if (isSignedIn && status === 'success') {
+      // Kleine delay om de success state te tonen
+      const timer = setTimeout(() => {
+        router.replace('/(auth)/biometric');
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [isSignedIn, status]);
 
   const handleRetry = () => {
     router.replace('/(auth)/login');

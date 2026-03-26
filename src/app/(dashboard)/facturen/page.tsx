@@ -215,6 +215,7 @@ function FacturenPageContent() {
   const isLoading = isUserLoading || paginatedData === undefined;
 
   // Calculate stats from facturen
+  /* eslint-disable react-hooks/purity -- Date.now() needed for expiry check */
   const stats = useMemo(() => {
     if (!facturen) {
       return {
@@ -273,6 +274,7 @@ function FacturenPageContent() {
 
     return counts;
   }, [facturen]);
+  /* eslint-enable react-hooks/purity */
 
   // Get items to display - use search results when searching, otherwise use paginated data
   const displayedFacturen = useMemo(() => {

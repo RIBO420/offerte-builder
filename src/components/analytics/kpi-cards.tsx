@@ -35,7 +35,7 @@ const generateTrendData = (value: number, trend: "up" | "down" | "stable" = "up"
 
   for (let i = 0; i < points; i++) {
     const progress = i / (points - 1);
-    let baseValue = trend === "up"
+    const baseValue = trend === "up"
       ? value * (0.7 + 0.3 * progress)
       : trend === "down"
         ? value * (1 - 0.3 * progress)

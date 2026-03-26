@@ -187,7 +187,7 @@ function AuthenticatedChatScreen() {
   // Reset selected conversation when switching away from DM tab
   useEffect(() => {
     if (activeTab !== 'dm') {
-      setSelectedDMConversation(null);
+      setTimeout(() => setSelectedDMConversation(null), 0);
     }
   }, [activeTab]);
 
