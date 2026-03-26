@@ -37,6 +37,15 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -58,6 +67,12 @@ import {
   Mail,
   Bell,
   ArrowRight,
+  FileX,
+  Scale,
+  History,
+  ChevronDown,
+  AlertTriangle,
+  Gavel,
 } from "lucide-react";
 import { useReducedMotion } from "@/hooks/use-accessibility";
 import {
@@ -87,6 +102,11 @@ export default function FactuurPage({
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isCreatingCreditnota, setIsCreatingCreditnota] = useState(false);
+  const [creditnotaReden, setCreditnotaReden] = useState("");
+  const [isSendingAanmaning, setIsSendingAanmaning] = useState(false);
+  const [aanmaningNotities, setAanmaningNotities] = useState("");
+  const [selectedAanmaningType, setSelectedAanmaningType] = useState<"eerste_aanmaning" | "tweede_aanmaning" | "ingebrekestelling" | null>(null);
 
   // State for success/celebration screens
   const [showSentSuccess, setShowSentSuccess] = useState(false);
@@ -114,10 +134,31 @@ export default function FactuurPage({
     projectId ? { projectId } : "skip"
   );
 
+  // Herinneringen for this factuur (FAC-006)
+  const herinneringen = useQuery(
+    api.betalingsherinneringen.listByFactuur,
+    factuur ? { factuurId: factuur._id } : "skip"
+  );
+
+  // Aanmaning status for this factuur (FAC-007)
+  const aanmaningStatus = useQuery(
+    api.betalingsherinneringen.getAanmaningStatus,
+    factuur ? { factuurId: factuur._id } : "skip"
+  );
+
+  // Creditnota for this factuur (FAC-008)
+  const creditnota = useQuery(
+    api.facturen.getCreditnota,
+    factuur ? { factuurId: factuur._id } : "skip"
+  );
+
   // Mutations
   const generateFactuur = useMutation(api.facturen.generate);
   const updateFactuurStatus = useMutation(api.facturen.updateStatus);
   const markAsPaidAndArchive = useMutation(api.facturen.markAsPaidAndArchiveProject);
+  const verstuurHerinnering = useMutation(api.betalingsherinneringen.verstuurHandmatig);
+  const verstuurAanmaning = useMutation(api.betalingsherinneringen.verstuurAanmaning);
+  const createCreditnota = useMutation(api.facturen.createCreditnota);
 
   // Loading state - wait for both project details and factuur query
   if (projectDetails === undefined || factuur === undefined) {
@@ -252,17 +293,66 @@ export default function FactuurPage({
     }
   };
 
-  // Handler for sending reminder
+  // Handler for sending reminder (FAC-006)
   const handleSendReminder = async () => {
+    if (!factuur) return;
     setIsSending(true);
     try {
-      // TODO: Implement reminder functionality when API is available
-      toast.info("Herinnering verzenden functionaliteit wordt binnenkort toegevoegd");
+      await verstuurHerinnering({ factuurId: factuur._id });
+      toast.success("Betalingsherinnering verstuurd");
     } catch (error) {
-      toast.error("Fout bij verzenden herinnering");
+      const errorMessage = error instanceof Error ? error.message : "Onbekende fout";
+      toast.error(`Fout bij verzenden herinnering: ${errorMessage}`);
       console.error(error);
     } finally {
       setIsSending(false);
+    }
+  };
+
+  // Handler for sending aanmaning with specific level (FAC-007)
+  const handleSendAanmaning = async () => {
+    if (!factuur || !selectedAanmaningType) return;
+    setIsSendingAanmaning(true);
+    try {
+      await verstuurAanmaning({
+        factuurId: factuur._id,
+        type: selectedAanmaningType,
+        notities: aanmaningNotities.trim() || undefined,
+      });
+      const labels: Record<string, string> = {
+        eerste_aanmaning: "1e Aanmaning",
+        tweede_aanmaning: "2e Aanmaning",
+        ingebrekestelling: "Ingebrekestelling",
+      };
+      toast.success(`${labels[selectedAanmaningType]} succesvol verstuurd`);
+      setSelectedAanmaningType(null);
+      setAanmaningNotities("");
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Onbekende fout";
+      toast.error(`Fout bij verzenden aanmaning: ${errorMessage}`);
+      console.error(error);
+    } finally {
+      setIsSendingAanmaning(false);
+    }
+  };
+
+  // Handler for creating creditnota (FAC-008)
+  const handleCreateCreditnota = async () => {
+    if (!factuur || !creditnotaReden.trim()) return;
+    setIsCreatingCreditnota(true);
+    try {
+      await createCreditnota({
+        factuurId: factuur._id,
+        reden: creditnotaReden.trim(),
+      });
+      setCreditnotaReden("");
+      toast.success("Creditnota succesvol aangemaakt");
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Onbekende fout";
+      toast.error(`Fout bij aanmaken creditnota: ${errorMessage}`);
+      console.error(error);
+    } finally {
+      setIsCreatingCreditnota(false);
     }
   };
 
@@ -518,6 +608,62 @@ export default function FactuurPage({
                 )}
                 Herinnering Sturen
               </Button>
+              {/* Aanmaning dropdown (FAC-007) */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="gap-2 text-orange-600 border-orange-200 hover:bg-orange-50 dark:text-orange-400 dark:border-orange-800 dark:hover:bg-orange-950">
+                    <Scale className="h-4 w-4" />
+                    Aanmaning
+                    <ChevronDown className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64">
+                  <DropdownMenuLabel>Aanmaning versturen</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => setSelectedAanmaningType("eerste_aanmaning")}
+                    disabled={aanmaningStatus?.heeftEerste}
+                    className="flex items-start gap-3 py-3"
+                  >
+                    <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="font-medium">1e Aanmaning</p>
+                      <p className="text-xs text-muted-foreground">Vriendelijk verzoek tot betaling</p>
+                      {aanmaningStatus?.heeftEerste && (
+                        <Badge variant="outline" className="mt-1 text-xs">Verstuurd</Badge>
+                      )}
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setSelectedAanmaningType("tweede_aanmaning")}
+                    disabled={!aanmaningStatus?.heeftEerste || aanmaningStatus?.heeftTweede}
+                    className="flex items-start gap-3 py-3"
+                  >
+                    <AlertTriangle className="h-4 w-4 text-orange-500 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="font-medium">2e Aanmaning</p>
+                      <p className="text-xs text-muted-foreground">Formeel verzoek met waarschuwing</p>
+                      {aanmaningStatus?.heeftTweede && (
+                        <Badge variant="outline" className="mt-1 text-xs">Verstuurd</Badge>
+                      )}
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setSelectedAanmaningType("ingebrekestelling")}
+                    disabled={!aanmaningStatus?.heeftTweede || aanmaningStatus?.heeftIngebrekestelling}
+                    className="flex items-start gap-3 py-3"
+                  >
+                    <Gavel className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="font-medium">Ingebrekestelling</p>
+                      <p className="text-xs text-muted-foreground">Juridische sommatie (art. 6:82 BW)</p>
+                      {aanmaningStatus?.heeftIngebrekestelling && (
+                        <Badge variant="outline" className="mt-1 text-xs">Verstuurd</Badge>
+                      )}
+                    </div>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button className="gap-2 bg-green-600 hover:bg-green-700">
@@ -559,6 +705,53 @@ export default function FactuurPage({
                 <Download className="h-4 w-4" />
                 Download PDF
               </Button>
+              {/* Creditnota button (FAC-008) - only if no creditnota exists yet */}
+              {!creditnota && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" className="gap-2 text-red-600 border-red-200 hover:bg-red-50">
+                      <FileX className="h-4 w-4" />
+                      Creditnota
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Creditnota aanmaken</AlertDialogTitle>
+                      <AlertDialogDescription asChild>
+                        <div className="space-y-3">
+                          <p>
+                            Hiermee maakt u een creditnota aan voor factuur {factuur.factuurnummer}.
+                            De originele factuur blijft bewaard (fiscale eis).
+                          </p>
+                          <Textarea
+                            placeholder="Reden voor creditnota..."
+                            value={creditnotaReden}
+                            onChange={(e) => setCreditnotaReden(e.target.value)}
+                            className="mt-2"
+                          />
+                        </div>
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel onClick={() => setCreditnotaReden("")}>Annuleren</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleCreateCreditnota}
+                        disabled={isCreatingCreditnota || !creditnotaReden.trim()}
+                        className="bg-red-600 hover:bg-red-700"
+                      >
+                        {isCreatingCreditnota ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                        Creditnota Aanmaken
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+              {creditnota && (
+                <Badge variant="outline" className="text-red-600 border-red-200">
+                  <FileX className="h-3 w-3 mr-1" />
+                  Gecrediteerd: {creditnota.factuurnummer}
+                </Badge>
+              )}
               <Button variant="outline" className="gap-2" asChild>
                 <Link href={`/projecten/${id}`}>
                   <ArrowLeft className="h-4 w-4" />
@@ -583,6 +776,109 @@ export default function FactuurPage({
                 )}
                 Herinnering Sturen
               </Button>
+              {/* Aanmaning dropdown (FAC-007) */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="gap-2 text-orange-600 border-orange-200 hover:bg-orange-50 dark:text-orange-400 dark:border-orange-800 dark:hover:bg-orange-950">
+                    <Scale className="h-4 w-4" />
+                    Aanmaning
+                    <ChevronDown className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64">
+                  <DropdownMenuLabel>Aanmaning versturen</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => setSelectedAanmaningType("eerste_aanmaning")}
+                    disabled={aanmaningStatus?.heeftEerste}
+                    className="flex items-start gap-3 py-3"
+                  >
+                    <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="font-medium">1e Aanmaning</p>
+                      <p className="text-xs text-muted-foreground">Vriendelijk verzoek tot betaling</p>
+                      {aanmaningStatus?.heeftEerste && (
+                        <Badge variant="outline" className="mt-1 text-xs">Verstuurd</Badge>
+                      )}
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setSelectedAanmaningType("tweede_aanmaning")}
+                    disabled={!aanmaningStatus?.heeftEerste || aanmaningStatus?.heeftTweede}
+                    className="flex items-start gap-3 py-3"
+                  >
+                    <AlertTriangle className="h-4 w-4 text-orange-500 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="font-medium">2e Aanmaning</p>
+                      <p className="text-xs text-muted-foreground">Formeel verzoek met waarschuwing</p>
+                      {aanmaningStatus?.heeftTweede && (
+                        <Badge variant="outline" className="mt-1 text-xs">Verstuurd</Badge>
+                      )}
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setSelectedAanmaningType("ingebrekestelling")}
+                    disabled={!aanmaningStatus?.heeftTweede || aanmaningStatus?.heeftIngebrekestelling}
+                    className="flex items-start gap-3 py-3"
+                  >
+                    <Gavel className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="font-medium">Ingebrekestelling</p>
+                      <p className="text-xs text-muted-foreground">Juridische sommatie (art. 6:82 BW)</p>
+                      {aanmaningStatus?.heeftIngebrekestelling && (
+                        <Badge variant="outline" className="mt-1 text-xs">Verstuurd</Badge>
+                      )}
+                    </div>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {/* Creditnota button (FAC-008) */}
+              {!creditnota && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" className="gap-2 text-red-600 border-red-200 hover:bg-red-50">
+                      <FileX className="h-4 w-4" />
+                      Creditnota
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Creditnota aanmaken</AlertDialogTitle>
+                      <AlertDialogDescription asChild>
+                        <div className="space-y-3">
+                          <p>
+                            Hiermee maakt u een creditnota aan voor factuur {factuur.factuurnummer}.
+                            De originele factuur blijft bewaard (fiscale eis).
+                          </p>
+                          <Textarea
+                            placeholder="Reden voor creditnota..."
+                            value={creditnotaReden}
+                            onChange={(e) => setCreditnotaReden(e.target.value)}
+                            className="mt-2"
+                          />
+                        </div>
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel onClick={() => setCreditnotaReden("")}>Annuleren</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleCreateCreditnota}
+                        disabled={isCreatingCreditnota || !creditnotaReden.trim()}
+                        className="bg-red-600 hover:bg-red-700"
+                      >
+                        {isCreatingCreditnota ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                        Creditnota Aanmaken
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+              {creditnota && (
+                <Badge variant="outline" className="text-red-600 border-red-200">
+                  <FileX className="h-3 w-3 mr-1" />
+                  Gecrediteerd: {creditnota.factuurnummer}
+                </Badge>
+              )}
             </div>
           );
 
@@ -965,6 +1261,149 @@ export default function FactuurPage({
                 </CardContent>
               </Card>
             )}
+
+            {/* Aanmaning Status Samenvatting (FAC-007) */}
+            {aanmaningStatus && aanmaningStatus.totaalVerstuurd > 0 && (
+              <Card className={
+                aanmaningStatus.heeftIngebrekestelling
+                  ? "border-red-200 dark:border-red-900"
+                  : aanmaningStatus.heeftTweede
+                    ? "border-orange-200 dark:border-orange-900"
+                    : aanmaningStatus.heeftEerste
+                      ? "border-amber-200 dark:border-amber-900"
+                      : ""
+              }>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Scale className="h-4 w-4" />
+                    Aanmaningen
+                  </CardTitle>
+                  <CardDescription>
+                    {aanmaningStatus.volgendNiveau
+                      ? `Volgende stap: ${
+                          aanmaningStatus.volgendNiveau === "eerste_aanmaning" ? "1e Aanmaning" :
+                          aanmaningStatus.volgendNiveau === "tweede_aanmaning" ? "2e Aanmaning" :
+                          "Ingebrekestelling"
+                        }`
+                      : "Alle niveaus verstuurd"
+                    }
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {/* Escalation level indicators */}
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className={`flex-1 h-2 rounded-full ${aanmaningStatus.heeftEerste ? "bg-amber-400" : "bg-muted"}`} />
+                    <div className={`flex-1 h-2 rounded-full ${aanmaningStatus.heeftTweede ? "bg-orange-400" : "bg-muted"}`} />
+                    <div className={`flex-1 h-2 rounded-full ${aanmaningStatus.heeftIngebrekestelling ? "bg-red-500" : "bg-muted"}`} />
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground mb-3">
+                    <span>1e Aanmaning</span>
+                    <span>2e Aanmaning</span>
+                    <span>Ingebrekestelling</span>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Herinneringen & Aanmaningen Historie (FAC-006, FAC-007) */}
+            {herinneringen && herinneringen.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <History className="h-4 w-4" />
+                    Historie
+                  </CardTitle>
+                  <CardDescription>
+                    {herinneringen.length} herinnering(en) / aanmaning(en) verstuurd
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {herinneringen.map((h) => {
+                    const typeLabelsMap: Record<string, string> = {
+                      herinnering: "Herinnering",
+                      eerste_aanmaning: "1e Aanmaning",
+                      tweede_aanmaning: "2e Aanmaning",
+                      ingebrekestelling: "Ingebrekestelling",
+                    };
+                    const typeColors: Record<string, string> = {
+                      herinnering: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200",
+                      eerste_aanmaning: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-200",
+                      tweede_aanmaning: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200",
+                      ingebrekestelling: "bg-red-200 text-red-900 dark:bg-red-900/50 dark:text-red-100",
+                    };
+                    const typeIcons: Record<string, typeof Bell> = {
+                      herinnering: Bell,
+                      eerste_aanmaning: AlertCircle,
+                      tweede_aanmaning: AlertTriangle,
+                      ingebrekestelling: Gavel,
+                    };
+                    const Icon = typeIcons[h.type] ?? Scale;
+                    return (
+                      <div key={h._id} className="flex items-start gap-3">
+                        <div className={`p-1.5 rounded-full ${typeColors[h.type] ?? "bg-muted"}`}>
+                          <Icon className="h-3 w-3" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium">
+                              {typeLabelsMap[h.type] ?? h.type}
+                            </p>
+                            <Badge variant="outline" className="text-xs">
+                              #{h.volgnummer}
+                            </Badge>
+                            {h.emailVerstuurd && (
+                              <Mail className="h-3 w-3 text-muted-foreground" />
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {formatDate(h.verstuurdAt)} &middot; {h.dagenVervallen} dagen verlopen
+                          </p>
+                          {h.notities && (
+                            <p className="text-xs text-muted-foreground mt-1 truncate" title={h.notities}>
+                              {h.notities}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Creditnota Info (FAC-008) */}
+            {creditnota && (
+              <Card className="border-red-200 dark:border-red-900">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-red-600">
+                    <FileX className="h-4 w-4" />
+                    Creditnota
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Nummer</span>
+                    <span className="font-medium">{creditnota.factuurnummer}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Datum</span>
+                    <span className="font-medium">{formatDateShort(creditnota.factuurdatum)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Bedrag</span>
+                    <span className="font-bold text-red-600">{formatCurrency(creditnota.totaalInclBtw)}</span>
+                  </div>
+                  {creditnota.creditnotaReden && (
+                    <>
+                      <Separator />
+                      <p className="text-xs text-muted-foreground">
+                        <span className="font-medium">Reden:</span> {creditnota.creditnotaReden}
+                      </p>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>
@@ -1003,6 +1442,95 @@ export default function FactuurPage({
       </header>
 
       {hasFactuur ? renderFactuurState() : renderNoFactuurState()}
+
+      {/* Aanmaning Bevestigingsdialoog (FAC-007) */}
+      <AlertDialog
+        open={selectedAanmaningType !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedAanmaningType(null);
+            setAanmaningNotities("");
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {selectedAanmaningType === "eerste_aanmaning" && "1e Aanmaning versturen"}
+              {selectedAanmaningType === "tweede_aanmaning" && "2e Aanmaning versturen"}
+              {selectedAanmaningType === "ingebrekestelling" && "Ingebrekestelling versturen"}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-4">
+                {selectedAanmaningType === "eerste_aanmaning" && (
+                  <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950">
+                    <AlertCircle className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
+                    <div className="text-sm">
+                      <p className="font-medium text-amber-800 dark:text-amber-200">Vriendelijke aanmaning</p>
+                      <p className="text-amber-700 dark:text-amber-300">
+                        De klant ontvangt een vriendelijk verzoek om de openstaande factuur alsnog te voldoen.
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {selectedAanmaningType === "tweede_aanmaning" && (
+                  <div className="flex items-start gap-3 rounded-lg border border-orange-200 bg-orange-50 p-3 dark:border-orange-900 dark:bg-orange-950">
+                    <AlertTriangle className="h-5 w-5 text-orange-500 mt-0.5 shrink-0" />
+                    <div className="text-sm">
+                      <p className="font-medium text-orange-800 dark:text-orange-200">Formele aanmaning</p>
+                      <p className="text-orange-700 dark:text-orange-300">
+                        De klant ontvangt een formeel verzoek met de waarschuwing dat verdere stappen volgen bij uitblijven van betaling.
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {selectedAanmaningType === "ingebrekestelling" && (
+                  <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-900 dark:bg-red-950">
+                    <Gavel className="h-5 w-5 text-red-500 mt-0.5 shrink-0" />
+                    <div className="text-sm">
+                      <p className="font-medium text-red-800 dark:text-red-200">Juridische ingebrekestelling</p>
+                      <p className="text-red-700 dark:text-red-300">
+                        De klant wordt formeel in gebreke gesteld conform art. 6:82 BW. Bij uitblijven van betaling binnen 14 dagen wordt de vordering uit handen gegeven aan een incassobureau.
+                      </p>
+                    </div>
+                  </div>
+                )}
+                <div>
+                  <p className="text-sm font-medium mb-2">Notities (optioneel)</p>
+                  <Textarea
+                    placeholder="Eventuele opmerkingen bij deze aanmaning..."
+                    value={aanmaningNotities}
+                    onChange={(e) => setAanmaningNotities(e.target.value)}
+                    rows={3}
+                  />
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setSelectedAanmaningType(null);
+              setAanmaningNotities("");
+            }}>
+              Annuleren
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleSendAanmaning}
+              disabled={isSendingAanmaning}
+              className={
+                selectedAanmaningType === "ingebrekestelling"
+                  ? "bg-red-600 hover:bg-red-700"
+                  : selectedAanmaningType === "tweede_aanmaning"
+                    ? "bg-orange-600 hover:bg-orange-700"
+                    : "bg-amber-600 hover:bg-amber-700"
+              }
+            >
+              {isSendingAanmaning ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Aanmaning Versturen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
