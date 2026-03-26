@@ -628,7 +628,7 @@
       "cluster": "B",
       "priority": "P0",
       "description": "Automatische notificatie als projectkosten 80% van budget bereiken",
-      "passes": false,
+      "passes": true,
       "steps": [
         "Backend: query die projectkosten vs budget berekent",
         "Backend: cron of trigger bij uren/kosten toevoegen → check 80% drempel",
@@ -641,7 +641,9 @@
         "convex/projecten.ts",
         "convex/notifications.ts",
         "src/app/(dashboard)/projecten/[id]/"
-      ]
+      ],
+      "completed_by": "cluster-b-agent",
+      "completed_at": "2026-03-26"
     },
     {
       "id": "PLN-001",

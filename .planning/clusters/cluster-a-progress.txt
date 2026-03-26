@@ -1,0 +1,50 @@
+## Cluster A: Core Flow (Offerte → Klant → Factuur)
+## Laatst bijgewerkt: 2026-03-26
+## Status: 19/32 features af (59%)
+
+### Module 1: Offerte Calculator — 12/13 af (92%)
+| ID | Feature | Status |
+|----|---------|--------|
+| OFF-001 | Omrekenfactoren | AF |
+| OFF-002 | Prijsberekening m2/stuks/meters | AF |
+| OFF-003 | Versioning met wijzigingslog | AF |
+| OFF-004 | Markering getekende versie | AF |
+| OFF-005 | PDF-export met huisstijl | AF |
+| OFF-006 | Digitale handtekening flow | AF |
+| OFF-007 | Juridische disclaimer | AF — checkbox + tooltip in accept-dialoog |
+| OFF-008 | CRM statusupdate na ondertekening | AF |
+| OFF-009 | Offerte → project automatisch | AF |
+| OFF-010 | Optionele posten/keuzes klant | AF — Switch toggles op publieke pagina, optioneel veld in schema |
+| OFF-011 | Interne notities per regel | AF — textarea in edit/add dialogen + indicator icoon |
+| OFF-012 | Vergrendeling getekende offertes | NIET AF — geen mutation guards na accept |
+| OFF-013 | Waarschuwing onrealistische bedragen | AF |
+
+### Module 2: CRM — 3/8 af (38%)
+| ID | Feature | Status |
+|----|---------|--------|
+| CRM-001 | Klantkaart met contactgegevens | AF — nog geen project/factuur historie |
+| CRM-002 | Klant lifecycle pipeline | NIET AF — alleen offerte workflow, niet op klant-niveau |
+| CRM-003 | Tagging/segmentatie | NIET AF — geen veld |
+| CRM-004 | Communicatiehistorie | AF — via leadActiviteiten + emailLogs |
+| CRM-005 | Opvolgherinneringen | NIET AF — offerteReminders.ts werkt op offerte-niveau, niet klant |
+| CRM-006 | Module-koppelingen | AF — klant → leads → offertes navigatie |
+| CRM-007 | Duplicaatdetectie | NIET AF |
+| CRM-008 | GDPR verwijdering | NIET AF — softDelete bestaat maar geen GDPR-compliant flow |
+
+### Module 3: Facturatie — 4/11 af (36%)
+| ID | Feature | Status |
+|----|---------|--------|
+| FAC-001 | Deelfacturatie | NIET AF |
+| FAC-002 | Deelfactuur-templates | NIET AF |
+| FAC-003 | Meerwerk facturatie | NIET AF — meerwerk module ontbreekt |
+| FAC-004 | Auto factuurgeneratie | AF — convex/facturen.ts generate mutation |
+| FAC-005 | Status tracking | AF — concept/definitief/verzonden/betaald/vervallen |
+| FAC-006 | Betalingsherinneringen | NIET AF |
+| FAC-007 | Aanmaningsbrieven | NIET AF |
+| FAC-008 | Creditnota's | NIET AF |
+| FAC-009 | BTW berekening | AF — 21%/9% |
+| FAC-010 | Offerte-vereiste | AF — validatie in generate |
+| FAC-011 | Waarschuwing >100% | NIET AF (deelfacturatie ontbreekt) |
+
+### Volgende agent actie
+OFF-007, OFF-011, OFF-010 zijn af. Volgende: OFF-012 (vergrendeling getekende offertes).
