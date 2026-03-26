@@ -1288,6 +1288,8 @@ export const getBudgetStatus = query({
 export const checkBudgetThreshold = mutation({
   args: { projectId: v.id("projecten") },
   handler: async (ctx, args) => {
+    await requireAuthUserId(ctx);
+
     const project = await ctx.db.get(args.projectId);
     if (!project) return;
 

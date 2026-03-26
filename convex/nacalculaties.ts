@@ -28,6 +28,7 @@ async function getOwnedProject(
 export const get = query({
   args: { projectId: v.id("projecten") },
   handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
     // Verify ownership of project
     await getOwnedProject(ctx, args.projectId);
 
@@ -48,6 +49,7 @@ export const get = query({
 export const calculate = query({
   args: { projectId: v.id("projecten") },
   handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
     // Verify ownership of project
     const project = await getOwnedProject(ctx, args.projectId);
 
@@ -351,6 +353,7 @@ export const listAll = query({
 export const getWithDetails = query({
   args: { projectId: v.id("projecten") },
   handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
     // Verify ownership of project
     const project = await getOwnedProject(ctx, args.projectId);
 

@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getAuthenticatedUser, requireAuth } from "./auth";
+import { requireAdmin } from "./roles";
 import { Id } from "./_generated/dataModel";
 import { MutationCtx } from "./_generated/server";
 
@@ -233,6 +234,8 @@ export const upsert = mutation({
     bedrijfsnaam: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // Called by Clerk webhook - auth handled by Clerk, no user-level auth needed
+
     // Ensure system correction factors are initialized (runs once)
     await initializeSystemCorrectieFactoren(ctx);
 
@@ -549,6 +552,8 @@ export const adminMigrateUserData = mutation({
     toUserId: v.id("users"),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
     let migratedNormuren = 0;
     let migratedProducten = 0;
     let migratedInstellingen = 0;
@@ -602,6 +607,8 @@ export const adminSeedUserDefaults = mutation({
     userEmail: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
     // Find user by email
     const user = await ctx.db
       .query("users")
@@ -871,6 +878,8 @@ export const adminRunMigrations = mutation({
     userEmail: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
     // Find user by email
     const user = await ctx.db
       .query("users")
@@ -1334,6 +1343,7 @@ export const updateUserRole = mutation({
 export const adminMigrateExistingUsersToAdmin = mutation({
   args: {},
   handler: async (ctx) => {
+    // One-time setup migration - requires no existing admin users to bootstrap
     const users = await ctx.db.query("users").collect();
     let updatedCount = 0;
 
@@ -1365,6 +1375,8 @@ export const cliSetUserRole = mutation({
     role: v.union(v.literal("admin"), v.literal("medewerker"), v.literal("viewer")),
   },
   handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
     const user = await ctx.db
       .query("users")
       .filter((q) => q.eq(q.field("email"), args.email))

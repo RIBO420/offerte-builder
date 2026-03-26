@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { generateSecureToken, getOwnedOfferte, isShareTokenValid } from "./auth";
+import { generateSecureToken, getOwnedOfferte, isShareTokenValid, requireAuthUserId } from "./auth";
+import { requireNotViewer } from "./roles";
 import { internal } from "./_generated/api";
 import { checkPublicOfferteRateLimit } from "./security";
 import { upgradeKlantPipeline } from "./pipelineHelpers";
@@ -12,6 +13,8 @@ export const createShareLink = mutation({
     expiresInDays: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await requireAuthUserId(ctx);
+    await requireNotViewer(ctx);
     // Verify ownership
     await getOwnedOfferte(ctx, args.offerteId);
 
@@ -34,6 +37,8 @@ export const createShareLink = mutation({
 export const revokeShareLink = mutation({
   args: { offerteId: v.id("offertes") },
   handler: async (ctx, args) => {
+    await requireAuthUserId(ctx);
+    await requireNotViewer(ctx);
     // Verify ownership
     await getOwnedOfferte(ctx, args.offerteId);
 
@@ -123,7 +128,7 @@ export const getByToken = query({
   },
 });
 
-// Record that customer viewed the offerte
+// Public: accessed via share token — customer marks offerte as viewed (no auth required)
 export const markAsViewed = mutation({
   args: { token: v.string() },
   handler: async (ctx, args) => {
@@ -166,7 +171,7 @@ export const markAsViewed = mutation({
   },
 });
 
-// Customer responds to offerte (accept/reject with optional comment and signature)
+// Public: accessed via share token — customer responds to offerte (no auth required)
 export const respond = mutation({
   args: {
     token: v.string(),
@@ -291,7 +296,7 @@ export const respond = mutation({
   },
 });
 
-// Submit a question/comment without accepting or rejecting
+// Public: accessed via share token — customer submits question/comment (no auth required)
 export const submitQuestion = mutation({
   args: {
     token: v.string(),

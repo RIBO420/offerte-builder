@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { getOwnedOfferte, isShareTokenValid } from "./auth";
+import { getOwnedOfferte, isShareTokenValid, requireAuthUserId } from "./auth";
 import { requireNotViewer } from "./roles";
 
 // Get all messages for an offerte (with ownership verification)
@@ -81,7 +81,7 @@ export const sendFromBusiness = mutation({
   },
 });
 
-// Send message from customer (via share token)
+// Public: accessed via share token — customer sends message (no auth required)
 export const sendFromCustomer = mutation({
   args: {
     token: v.string(),
@@ -113,6 +113,7 @@ export const sendFromCustomer = mutation({
 export const markAsRead = mutation({
   args: { offerteId: v.id("offertes") },
   handler: async (ctx, args) => {
+    await requireAuthUserId(ctx);
     // Verify ownership
     await getOwnedOfferte(ctx, args.offerteId);
 
@@ -132,7 +133,7 @@ export const markAsRead = mutation({
   },
 });
 
-// Mark customer messages as read (when customer views, via share token)
+// Public: accessed via share token — customer marks business messages as read (no auth required)
 export const markCustomerMessagesAsRead = mutation({
   args: { token: v.string() },
   handler: async (ctx, args) => {

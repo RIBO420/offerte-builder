@@ -11,6 +11,7 @@
 import { v } from "convex/values";
 import { mutation, query, internalMutation, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { requireAuthUserId } from "./auth";
 
 // 30 days in milliseconds
 const SOFT_DELETE_RETENTION_DAYS = 30;
@@ -315,25 +316,12 @@ export const cleanupExpiredItems = internalMutation({
 export const getDeletedItems = query({
   args: {},
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      return { offertes: [], projecten: [] };
-    }
-
-    // Get user from clerk ID
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .unique();
-
-    if (!user) {
-      return { offertes: [], projecten: [] };
-    }
+    const userId = await requireAuthUserId(ctx);
 
     // Get deleted offertes
     const allOffertes = await ctx.db
       .query("offertes")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
     const deletedOffertes = allOffertes
       .filter((o) => o.deletedAt)
@@ -354,7 +342,7 @@ export const getDeletedItems = query({
     // Get deleted projecten
     const allProjecten = await ctx.db
       .query("projecten")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
     const deletedProjecten = await Promise.all(
       allProjecten

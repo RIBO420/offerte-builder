@@ -88,6 +88,8 @@ export const getCorrectie = query({
     waarde: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireAuthUserId(ctx);
+
     // Try user override first
     if (args.userId) {
       const userFactor = await ctx.db
@@ -125,6 +127,8 @@ export const getNormuur = query({
     scope: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireAuthUserId(ctx);
+
     const normuur = await ctx.db
       .query("normuren")
       .withIndex("by_user_scope", (q) =>
@@ -150,6 +154,12 @@ export const berekenGrondwerk = action({
     uurtarief: v.number(),
   },
   handler: async (ctx, args): Promise<OfferteRegel[]> => {
+    // Verify caller is authenticated
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Niet geautoriseerd");
+    }
+
     const regels: OfferteRegel[] = [];
     const { data, uurtarief } = args;
 
@@ -266,6 +276,12 @@ export const berekenBestrating = action({
     uurtarief: v.number(),
   },
   handler: async (ctx, args): Promise<OfferteRegel[]> => {
+    // Verify caller is authenticated
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Niet geautoriseerd");
+    }
+
     const regels: OfferteRegel[] = [];
     const { data, uurtarief } = args;
 
@@ -412,6 +428,12 @@ export const berekenHeggenOnderhoud = action({
     uurtarief: v.number(),
   },
   handler: async (ctx, args): Promise<OfferteRegel[]> => {
+    // Verify caller is authenticated
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Niet geautoriseerd");
+    }
+
     const regels: OfferteRegel[] = [];
     const { data, uurtarief } = args;
 
@@ -526,6 +548,12 @@ export const berekenBordersOnderhoud = action({
     uurtarief: v.number(),
   },
   handler: async (ctx, args): Promise<OfferteRegel[]> => {
+    // Verify caller is authenticated
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Niet geautoriseerd");
+    }
+
     const regels: OfferteRegel[] = [];
     const { data, uurtarief } = args;
 

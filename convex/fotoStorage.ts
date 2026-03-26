@@ -47,6 +47,8 @@ export const addFotoToAanvraag = mutation({
     // Auth check: verify user is authenticated OR this is a valid recent public submission.
     // configuratorAanvragen are public (customers are not logged in), so we allow
     // unauthenticated access only for recently created aanvragen (within 24 hours).
+    // Security: the 24-hour time window limits exposure — after that, only authenticated
+    // users can add photos. The aanvraagId itself acts as an unguessable token.
     const user = await getAuthenticatedUser(ctx);
     if (!user) {
       const twentyFourHoursAgo = Date.now() - 24 * 60 * 60 * 1000;
