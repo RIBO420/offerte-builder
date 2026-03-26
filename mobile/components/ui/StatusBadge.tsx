@@ -32,6 +32,7 @@ const defaultLabels: Record<StatusType, string> = {
 };
 
 export function StatusBadge({ status, label, showPulse = true, size = 'md' }: StatusBadgeProps) {
+  // eslint-disable-next-line react-hooks/refs -- RN Animated.Value refs are stable and safe to access during render
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {

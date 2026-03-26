@@ -86,6 +86,7 @@ import {
 } from "lucide-react";
 import { useProducten } from "@/hooks/use-producten";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { Id } from "../../../../convex/_generated/dataModel";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format/currency";
 
@@ -169,7 +170,7 @@ const parseExcel = async (file: File): Promise<Record<string, string>[]> => {
 };
 
 interface Product {
-  _id: string;
+  _id: Id<"producten">;
   productnaam: string;
   categorie: string;
   inkoopprijs: number;
@@ -277,7 +278,7 @@ function PrijsboekPageContent() {
     try {
       if (selectedProduct) {
         await update({
-          id: selectedProduct._id as any,
+          id: selectedProduct._id,
           ...newProduct,
         });
         toast.success("Product bijgewerkt");
@@ -313,7 +314,7 @@ function PrijsboekPageContent() {
     if (!selectedProduct) return;
 
     try {
-      await deleteProduct({ id: selectedProduct._id as any });
+      await deleteProduct({ id: selectedProduct._id });
       toast.success("Product verwijderd");
       setShowDeleteDialog(false);
       setSelectedProduct(null);
@@ -820,7 +821,7 @@ function PrijsboekPageContent() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem
-                                onClick={() => handleEditProduct(product as any)}
+                                onClick={() => handleEditProduct(product as Product)}
                               >
                                 <Edit className="mr-2 h-4 w-4" />
                                 Bewerken
@@ -828,7 +829,7 @@ function PrijsboekPageContent() {
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
                                 onClick={() => {
-                                  setSelectedProduct(product as any);
+                                  setSelectedProduct(product as Product);
                                   setShowDeleteDialog(true);
                                 }}
                                 className="text-destructive"

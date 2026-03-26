@@ -66,6 +66,7 @@ export const Input = forwardRef<TextInput, InputProps>(
     // Shake animation when status becomes invalid
     useEffect(() => {
       if (status === 'invalid') {
+        // eslint-disable-next-line react-hooks/immutability -- Reanimated shared values are mutable by design
         shakeX.value = withSequence(
           withTiming(6, { duration: 50 }),
           withTiming(-6, { duration: 50 }),

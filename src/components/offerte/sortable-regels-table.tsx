@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -156,7 +156,7 @@ function InlineEditableCell({
     }
   }, [isEditing, value]);
 
-  const handleConfirm = useCallback(() => {
+  const handleConfirm = () => {
     if (type === "number") {
       const numValue = parseFloat(editValue);
       if (!isNaN(numValue) && numValue >= 0) {
@@ -172,24 +172,21 @@ function InlineEditableCell({
         onCancel();
       }
     }
-  }, [editValue, type, onConfirm, onCancel]);
+  };
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        handleConfirm();
-      } else if (e.key === "Escape") {
-        e.preventDefault();
-        onCancel();
-      } else if (e.key === "Tab") {
-        e.preventDefault();
-        handleConfirm();
-        onTab(e.shiftKey);
-      }
-    },
-    [handleConfirm, onCancel, onTab]
-  );
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleConfirm();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      onCancel();
+    } else if (e.key === "Tab") {
+      e.preventDefault();
+      handleConfirm();
+      onTab(e.shiftKey);
+    }
+  };
 
   if (isEditing) {
     return (
@@ -424,17 +421,14 @@ export function SortableRegelsTable({
 }: SortableRegelsTableProps) {
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
 
-  const handleReorder = useCallback(
-    (newItems: Array<{ id: string | number }>) => {
-      // Rebuild the regels array in the new order
-      const newRegels = newItems.map((item) => {
-        const regel = regels.find((r) => r.id === item.id);
-        return regel!;
-      }).filter(Boolean);
-      onReorder(newRegels);
-    },
-    [regels, onReorder]
-  );
+  const handleReorder = (newItems: Array<{ id: string | number }>) => {
+    // Rebuild the regels array in the new order
+    const newRegels = newItems.map((item) => {
+      const regel = regels.find((r) => r.id === item.id);
+      return regel!;
+    }).filter(Boolean);
+    onReorder(newRegels);
+  };
 
   // Add id field to regels for sortable list
   const sortableItems = regels.map((regel) => ({

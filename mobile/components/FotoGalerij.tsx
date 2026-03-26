@@ -483,6 +483,7 @@ export function FotoGalerij({ maxFotos = 10, fotos: externeFootos, onChange }: F
 
   // In gecontroleerde modus houden we een extra ref bij voor de foto-lijst
   const interneFootosRef = useRef<CapturedPhoto[]>(fotos);
+  // eslint-disable-next-line react-hooks/refs -- Syncing ref with latest props for use in callbacks (standard pattern)
   interneFootosRef.current = fotos;
 
   const handleFotoToegevoegd = useCallback((foto: CapturedPhoto) => {

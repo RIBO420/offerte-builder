@@ -81,9 +81,13 @@ export function Toast({
   index,
 }: ToastProps) {
   const insets = useSafeAreaInsets();
+  // eslint-disable-next-line react-hooks/refs -- RN Animated.Value refs are stable and safe to access during render
   const translateY = useRef(new Animated.Value(position === 'top' ? -100 : 100)).current;
+  // eslint-disable-next-line react-hooks/refs -- RN Animated.Value refs are stable and safe to access during render
   const translateX = useRef(new Animated.Value(0)).current;
+  // eslint-disable-next-line react-hooks/refs -- RN Animated.Value refs are stable and safe to access during render
   const opacity = useRef(new Animated.Value(0)).current;
+  // eslint-disable-next-line react-hooks/refs -- RN Animated.Value refs are stable and safe to access during render
   const scale = useRef(new Animated.Value(0.9)).current;
 
   const variantStyle = getVariantStyles(variant);
@@ -138,6 +142,7 @@ export function Toast({
     return () => clearTimeout(timer);
   }, [duration, stackScale]);
 
+  // eslint-disable-next-line react-hooks/refs -- PanResponder ref is stable and safe to access during render
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,

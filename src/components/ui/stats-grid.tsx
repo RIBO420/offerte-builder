@@ -3,7 +3,7 @@
 import * as React from "react"
 import { memo, useMemo } from "react"
 import { motion } from "framer-motion"
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 import { DataCard, type TrendData } from "@/components/ui/data-card"
 
 interface StatItem {

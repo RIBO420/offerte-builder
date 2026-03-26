@@ -53,7 +53,9 @@ export function Dialog({
   closeOnBackdropPress = true,
   animationDuration = 200,
 }: DialogProps) {
+  // eslint-disable-next-line react-hooks/refs -- RN Animated.Value refs are stable and safe to access during render
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  // eslint-disable-next-line react-hooks/refs -- RN Animated.Value refs are stable and safe to access during render
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
 
   useEffect(() => {

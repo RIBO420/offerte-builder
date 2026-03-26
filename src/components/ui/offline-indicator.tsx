@@ -3,7 +3,7 @@
 import * as React from "react"
 import { WifiOff, Wifi } from "lucide-react"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 interface OfflineIndicatorProps {
   className?: string

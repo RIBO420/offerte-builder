@@ -31,10 +31,14 @@ export function BottomSheet({
 
   useEffect(() => {
     if (isOpen) {
+      // eslint-disable-next-line react-hooks/immutability -- Reanimated shared values are mutable by design
       translateY.value = withSpring(0, springConfigs.default);
+      // eslint-disable-next-line react-hooks/immutability -- Reanimated shared values are mutable by design
       backdropOpacity.value = withTiming(1, { duration: 300 });
     } else {
+      // eslint-disable-next-line react-hooks/immutability -- Reanimated shared values are mutable by design
       translateY.value = withSpring(SCREEN_HEIGHT, springConfigs.default);
+      // eslint-disable-next-line react-hooks/immutability -- Reanimated shared values are mutable by design
       backdropOpacity.value = withTiming(0, { duration: 200 });
     }
   }, [isOpen]);

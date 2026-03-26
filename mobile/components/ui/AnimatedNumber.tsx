@@ -39,9 +39,13 @@ export function AnimatedNumber({
   });
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/immutability -- Reanimated shared values are mutable by design
     startValue.value = displayValue;
+    // eslint-disable-next-line react-hooks/immutability -- Reanimated shared values are mutable by design
     targetValue.value = value;
+    // eslint-disable-next-line react-hooks/immutability -- Reanimated shared values are mutable by design
     animatedProgress.value = 0;
+    // eslint-disable-next-line react-hooks/immutability -- Reanimated shared values are mutable by design
     animatedProgress.value = withTiming(1, { duration });
   }, [value, duration]);
 

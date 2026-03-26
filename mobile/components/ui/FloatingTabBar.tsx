@@ -59,10 +59,12 @@ function TabItem({
   }));
 
   const handlePressIn = () => {
+    // eslint-disable-next-line react-hooks/immutability -- Reanimated shared values are mutable by design
     scale.value = withSpring(0.85, springConfigs.snappy);
   };
 
   const handlePressOut = () => {
+    // eslint-disable-next-line react-hooks/immutability -- Reanimated shared values are mutable by design
     scale.value = withSpring(1, springConfigs.snappy);
   };
 

@@ -48,7 +48,9 @@ export function Switch({
   style,
   className,
 }: SwitchProps) {
+  // eslint-disable-next-line react-hooks/refs -- RN Animated.Value refs are stable and safe to access during render
   const translateX = useRef(new Animated.Value(value ? 1 : 0)).current;
+  // eslint-disable-next-line react-hooks/refs -- RN Animated.Value refs are stable and safe to access during render
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const config = sizeConfig[size];
@@ -95,13 +97,13 @@ export function Switch({
   const trackOnColor = '#4ADE80';
   const thumbColor = '#FAFAFA';
 
-  // Interpolate track background color
+  // eslint-disable-next-line react-hooks/refs -- RN Animated interpolation creates a derived value, does not read .current
   const trackBackgroundColor = translateX.interpolate({
     inputRange: [0, 1],
     outputRange: [trackOffColor, trackOnColor],
   });
 
-  // Interpolate thumb position
+  // eslint-disable-next-line react-hooks/refs -- RN Animated interpolation creates a derived value, does not read .current
   const thumbTranslateX = translateX.interpolate({
     inputRange: [0, 1],
     outputRange: [0, thumbTravel],

@@ -17,6 +17,7 @@ export function Skeleton({
   style,
   className
 }: SkeletonProps) {
+  // eslint-disable-next-line react-hooks/refs -- RN Animated.Value refs are stable and safe to access during render
   const shimmerAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -37,6 +38,7 @@ export function Skeleton({
   }, []);
 
   // Shimmer colors: #1A1A1A -> #222222 -> #1A1A1A
+  // eslint-disable-next-line react-hooks/refs -- RN Animated interpolation creates a derived value, does not read .current
   const backgroundColor = shimmerAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ['#1A1A1A', '#222222'],

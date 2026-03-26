@@ -60,7 +60,14 @@ function ToolboxPageContent() {
   const currentYear = new Date().getFullYear();
   const [selectedJaar, setSelectedJaar] = useState(currentYear);
   const [showForm, setShowForm] = useState(false);
-  const [editMeeting, setEditMeeting] = useState<any>(null);
+  const [editMeeting, setEditMeeting] = useState<{
+    _id: Id<"toolboxMeetings">;
+    datum: string;
+    onderwerp: string;
+    beschrijving?: string;
+    aanwezigen: Id<"medewerkers">[];
+    notities?: string;
+  } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Id<"toolboxMeetings"> | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 

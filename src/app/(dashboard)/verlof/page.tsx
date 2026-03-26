@@ -55,7 +55,7 @@ import {
   List,
   Loader2,
 } from "lucide-react";
-import { useVerlof, useVerlofsaldo, type VerlofStatus } from "@/hooks/use-verlof";
+import { useVerlof, useVerlofsaldo, type VerlofStatus, type VerlofType } from "@/hooks/use-verlof";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useIsAdmin } from "@/hooks/use-users";
 import { VerlofForm } from "@/components/verlof/verlof-form";
@@ -126,7 +126,15 @@ function VerlofPageContent() {
 
   // Dialog state
   const [showAddForm, setShowAddForm] = useState(false);
-  const [editAanvraag, setEditAanvraag] = useState<any>(null);
+  const [editAanvraag, setEditAanvraag] = useState<{
+    _id: Id<"verlofaanvragen">;
+    medewerkerId: Id<"medewerkers">;
+    startDatum: string;
+    eindDatum: string;
+    aantalDagen: number;
+    type: VerlofType;
+    opmerking?: string;
+  } | null>(null);
   const [afkeurAanvraag, setAfkeurAanvraag] = useState<Id<"verlofaanvragen"> | null>(null);
   const [afwijzingReden, setAfwijzingReden] = useState("");
   const [deleteAanvraag, setDeleteAanvraag] = useState<Id<"verlofaanvragen"> | null>(null);

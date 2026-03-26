@@ -58,8 +58,7 @@ export async function exportNacalculatieToExcel(data: ExportData) {
   const { projectNaam, berekening, voorcalculatie, conclusies } = data;
 
   // Helper to style header row
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const styleHeaderRow = (worksheet: any) => {
+  const styleHeaderRow = (worksheet: import("exceljs").Worksheet) => {
     const headerRow = worksheet.getRow(1);
     headerRow.font = { bold: true };
     headerRow.fill = {

@@ -25,6 +25,7 @@ function formatTime(timestamp: number | null): string | null {
 
 export function OfflineIndicator({ showWhenOnline = false }: OfflineIndicatorProps) {
   const [isConnected, setIsConnected] = useState<boolean | null>(true);
+  // eslint-disable-next-line react-hooks/refs -- RN Animated.Value refs are stable and safe to access during render
   const slideAnim = useRef(new Animated.Value(-100)).current;
 
   // Use the sync engine for pending count, last sync time, and force sync

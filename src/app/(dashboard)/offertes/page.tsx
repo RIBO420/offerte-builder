@@ -140,23 +140,23 @@ function OffertesPageContent() {
     router.replace(queryString ? `?${queryString}` : "/offertes", { scroll: false });
   };
 
-  const handleFiltersChange = useCallback((newFilters: OfferteFilters) => {
+  const handleFiltersChange = (newFilters: OfferteFilters) => {
     setFilters(newFilters);
     updateUrlParams(newFilters, activeTab);
-  }, [activeTab]);
+  };
 
-  const handleFiltersReset = useCallback(() => {
+  const handleFiltersReset = () => {
     setFilters(defaultFilters);
     updateUrlParams(defaultFilters, activeTab);
-  }, [activeTab]);
+  };
 
-  const handleTabChange = useCallback((tab: string) => {
+  const handleTabChange = (tab: string) => {
     setActiveTab(tab);
     updateUrlParams(filters, tab);
-  }, [filters]);
+  };
 
   // Handle preset selection
-  const handlePresetSelect = useCallback((presetFilters: OfferteFilterState) => {
+  const handlePresetSelect = (presetFilters: OfferteFilterState) => {
     if (presetFilters.status) {
       const statuses = presetFilters.status.split(",");
       if (statuses.length === 1 && ["concept", "voorcalculatie", "verzonden", "geaccepteerd", "afgewezen"].includes(statuses[0])) {
@@ -175,17 +175,17 @@ function OffertesPageContent() {
     };
     setFilters(newFilters);
     updateUrlParams(newFilters, presetFilters.status?.split(",")[0] || activeTab);
-  }, [activeTab]);
+  };
 
   // Convert current filters to preset format for saving
-  const currentFiltersForPreset = useMemo((): OfferteFilterState => ({
+  const currentFiltersForPreset: OfferteFilterState = {
     status: activeTab !== "alle" ? activeTab : undefined,
     type: filters.type,
     dateFrom: filters.dateFrom?.toISOString(),
     dateTo: filters.dateTo?.toISOString(),
     amountMin: filters.amountMin,
     amountMax: filters.amountMax,
-  }), [activeTab, filters]);
+  };
 
   // Check if there are active filters
   const hasActiveFilters = useMemo(() => {
@@ -197,15 +197,15 @@ function OffertesPageContent() {
       activeTab !== "alle";
   }, [filters, activeTab]);
 
-  const handleSavePreset = useCallback((name: string, presetFilters: OfferteFilterState) => {
+  const handleSavePreset = (name: string, presetFilters: OfferteFilterState) => {
     addPreset(name, presetFilters);
     toast.success(`Preset "${name}" opgeslagen`);
-  }, [addPreset]);
+  };
 
-  const handleDeletePreset = useCallback((id: string) => {
+  const handleDeletePreset = (id: string) => {
     deletePreset(id);
     toast.success("Preset verwijderd");
-  }, [deletePreset]);
+  };
 
   // Apply optimistic updates to offertes before filtering
   const offertesWithOptimisticUpdates = useMemo(() => {

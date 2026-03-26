@@ -31,7 +31,9 @@ export function Checkbox({
   style,
   className,
 }: CheckboxProps) {
+  // eslint-disable-next-line react-hooks/refs -- RN Animated.Value refs are stable and safe to access during render
   const scaleAnim = useRef(new Animated.Value(1)).current;
+  // eslint-disable-next-line react-hooks/refs -- RN Animated.Value refs are stable and safe to access during render
   const checkmarkAnim = useRef(new Animated.Value(checked ? 1 : 0)).current;
 
   // Animate checkmark appearance
@@ -72,11 +74,13 @@ export function Checkbox({
 
   const isActive = checked || indeterminate;
 
+  // eslint-disable-next-line react-hooks/refs -- RN Animated interpolation creates a derived value, does not read .current
   const checkmarkScale = checkmarkAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0, 1],
   });
 
+  // eslint-disable-next-line react-hooks/refs -- RN Animated interpolation creates a derived value, does not read .current
   const checkmarkOpacity = checkmarkAnim.interpolate({
     inputRange: [0, 0.5, 1],
     outputRange: [0, 0.5, 1],
