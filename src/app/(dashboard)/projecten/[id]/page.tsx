@@ -80,6 +80,12 @@ export default function ProjectDetailPage({
   const router = useRouter();
   const projectId = id as Id<"projecten">;
 
+  // Budget status check
+  const budgetStatus = useQuery(
+    api.projectKosten.getBudgetStatus,
+    projectId ? { projectId } : "skip"
+  );
+
   // Get project with all details
   const projectDetails = useQuery(
     api.projecten.getWithDetails,
@@ -212,6 +218,29 @@ export default function ProjectDetailPage({
             hasNacalculatie={!!nacalculatie}
           />
         </Card>
+
+        {/* Budget Warning Banner */}
+        {budgetStatus?.drempel80 && (
+          <Card className={`border-2 ${budgetStatus.drempel100 ? "border-red-500 bg-red-50/50 dark:bg-red-950/20" : "border-amber-500 bg-amber-50/50 dark:bg-amber-950/20"}`}>
+            <CardContent className="flex items-center gap-3 p-4">
+              <AlertTriangle className={`h-5 w-5 shrink-0 ${budgetStatus.drempel100 ? "text-red-600" : "text-amber-600"}`} />
+              <div className="flex-1">
+                <p className={`font-medium ${budgetStatus.drempel100 ? "text-red-700 dark:text-red-400" : "text-amber-700 dark:text-amber-400"}`}>
+                  {budgetStatus.drempel100
+                    ? `Budget overschreden — ${budgetStatus.percentage}% verbruikt`
+                    : `Budget waarschuwing — ${budgetStatus.percentage}% verbruikt`}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Werkelijke kosten: €{budgetStatus.werkelijkeKosten.toLocaleString("nl-NL", { minimumFractionDigits: 2 })} van €{budgetStatus.budget.toLocaleString("nl-NL", { minimumFractionDigits: 2 })} budget
+                </p>
+              </div>
+              <Progress
+                value={Math.min(budgetStatus.percentage, 100)}
+                className={`h-2 w-24 ${budgetStatus.drempel100 ? "[&>div]:bg-red-500" : "[&>div]:bg-amber-500"}`}
+              />
+            </CardContent>
+          </Card>
+        )}
 
         {/* Quick Stats */}
         <div className="grid gap-4 md:grid-cols-4">

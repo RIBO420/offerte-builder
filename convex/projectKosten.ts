@@ -1219,3 +1219,130 @@ export const getProjectOverzicht = query({
     };
   },
 });
+
+// ============================================
+// Budget Threshold Check (PRJ-010)
+// ============================================
+
+/**
+ * Bereken budget status voor een project.
+ * Retourneert percentage verbruikt en of drempels zijn bereikt.
+ */
+export const getBudgetStatus = query({
+  args: { projectId: v.id("projecten") },
+  handler: async (ctx, args) => {
+    const project = await ctx.db.get(args.projectId);
+    if (!project) return null;
+
+    const offerte = await ctx.db.get(project.offerteId);
+    if (!offerte) return null;
+
+    // Budget uit offerte totalen
+    const budget = (offerte as Record<string, unknown>).totalen
+      ? ((offerte as Record<string, unknown>).totalen as Record<string, number>).totaalExBtw ?? 0
+      : 0;
+
+    if (budget <= 0) return { budget: 0, werkelijkeKosten: 0, percentage: 0, drempel80: false, drempel100: false };
+
+    // Bereken werkelijke kosten uit uren + machines + projectKosten tabel
+    const uren = await ctx.db
+      .query("urenRegistraties")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+
+    const machines = await ctx.db
+      .query("machineGebruik")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+
+    const extraKosten = await ctx.db
+      .query("projectKosten")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+
+    // Standaard uurtarief ophalen
+    const instellingen = await ctx.db.query("instellingen").first();
+    const standaardUurtarief = (instellingen as Record<string, unknown>)?.uurtarief as number ?? 45;
+
+    const arbeidskosten = uren.reduce((sum, u) => sum + (u.uren * standaardUurtarief), 0);
+    const machinekosten = machines.reduce((sum, m) => sum + m.kosten, 0);
+    const overigeKosten = extraKosten.reduce((sum, k) => sum + (k.bedrag ?? 0), 0);
+    const werkelijkeKosten = arbeidskosten + machinekosten + overigeKosten;
+
+    const percentage = Math.round((werkelijkeKosten / budget) * 100);
+
+    return {
+      budget,
+      werkelijkeKosten,
+      percentage,
+      drempel80: percentage >= 80,
+      drempel100: percentage >= 100,
+    };
+  },
+});
+
+/**
+ * Check budget drempel en maak notificatie aan als 80% bereikt is.
+ * Wordt aangeroepen na toevoegen van uren/kosten.
+ */
+export const checkBudgetThreshold = mutation({
+  args: { projectId: v.id("projecten") },
+  handler: async (ctx, args) => {
+    const project = await ctx.db.get(args.projectId);
+    if (!project) return;
+
+    const offerte = await ctx.db.get(project.offerteId);
+    if (!offerte) return;
+
+    const budget = (offerte as Record<string, unknown>).totalen
+      ? ((offerte as Record<string, unknown>).totalen as Record<string, number>).totaalExBtw ?? 0
+      : 0;
+    if (budget <= 0) return;
+
+    // Bereken werkelijke kosten
+    const uren = await ctx.db
+      .query("urenRegistraties")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+    const machines = await ctx.db
+      .query("machineGebruik")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+
+    const instellingen = await ctx.db.query("instellingen").first();
+    const standaardUurtarief = (instellingen as Record<string, unknown>)?.uurtarief as number ?? 45;
+
+    const arbeidskosten = uren.reduce((sum, u) => sum + (u.uren * standaardUurtarief), 0);
+    const machinekosten = machines.reduce((sum, m) => sum + m.kosten, 0);
+    const werkelijkeKosten = arbeidskosten + machinekosten;
+    const percentage = Math.round((werkelijkeKosten / budget) * 100);
+
+    if (percentage < 80) return;
+
+    // Check of er al een budget_warning notificatie is voor dit project
+    const bestaandeNotificatie = await ctx.db
+      .query("notifications")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .filter((q) => q.eq(q.field("type"), "budget_warning"))
+      .first();
+
+    if (bestaandeNotificatie) return; // Al gemeld, niet opnieuw
+
+    // Maak notificatie aan voor de project-eigenaar
+    await ctx.db.insert("notifications", {
+      userId: project.userId,
+      type: "budget_warning",
+      title: percentage >= 100
+        ? `Budget overschreden: ${project.naam}`
+        : `Budget waarschuwing: ${project.naam}`,
+      message: percentage >= 100
+        ? `De kosten van project "${project.naam}" hebben het budget overschreden (${percentage}% verbruikt).`
+        : `De kosten van project "${project.naam}" naderen het budget (${percentage}% verbruikt).`,
+      projectId: args.projectId,
+      projectNaam: project.naam,
+      isRead: false,
+      isDismissed: false,
+      createdAt: Date.now(),
+    });
+  },
+});
