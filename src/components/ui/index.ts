@@ -229,9 +229,6 @@ export { ScopeTag } from "./scope-tag";
 export { EmptyState } from "./empty-state";
 export { TrendIndicator } from "./trend-indicator";
 export { MargeIndicator } from "./marge-indicator";
-export { AutoSaveIndicator } from "./auto-save-indicator";
-export { CalculationFeedback } from "./calculation-feedback";
-export { ErrorRecovery } from "./error-recovery";
 
 // Data Display
 export { AnimatedNumber } from "./animated-number";
@@ -251,7 +248,6 @@ export { InputWithFeedback } from "./input-with-feedback";
 export { FormFieldFeedback } from "./form-field-feedback";
 export { ValidationSummary } from "./validation-summary";
 export { FormSection } from "./form-section";
-export { AddressFieldGroup } from "./address-field-group";
 export { SignaturePadComponent as SignaturePad } from "./signature-pad";
 
 // Navigation & Layout
@@ -262,13 +258,11 @@ export { FloatingActionBar } from "./floating-action-bar";
 export { PipelineView } from "./pipeline-view";
 
 // Mobile & Touch
-export { BottomSheet, BottomSheetTrigger, BottomSheetClose } from "./bottom-sheet";
 export { SwipeableRow } from "./swipeable-row";
 export { LongPressMenu } from "./long-press-menu";
 export { OfflineIndicator, useOnlineStatus } from "./offline-indicator";
 
 // Accessibility
-export { AccessibleLoading, LoadingOverlay } from "./accessible-loading";
 export { LiveRegion, LiveRegionProvider } from "./live-region";
 export { SkipLink } from "./skip-link";
 
@@ -276,16 +270,6 @@ export { SkipLink } from "./skip-link";
 export { PDFProgressModal } from "./pdf-progress-modal";
 
 // Animations & Motion
-export {
-  AnimatedList,
-  AnimatedListItem,
-  AnimatedTableRow,
-  AnimatedGrid,
-  containerVariants,
-  itemVariants,
-  slideItemVariants,
-  scaleItemVariants,
-} from "./animated-list";
 export {
   MotionCard,
   InteractiveCard,
@@ -298,12 +282,6 @@ export {
   MotionIconButton,
   FloatingActionButton,
 } from "./motion-button";
-export {
-  AnimatedButton,
-  HoverFillButton,
-  ShineButton,
-  AnimatedIconButton,
-} from "./animated-button";
 
 // Re-export page transitions from parent components folder
 // Note: PageTransition, ContentTransition, FadeIn are in @/components/page-transition
@@ -320,9 +298,7 @@ export {
 
 // Types - Re-export important types
 export type { OfflineIndicatorProps } from "./offline-indicator";
-export type { BottomSheetProps } from "./bottom-sheet";
 export type { DonutSegment, DonutChartProps, DonutChartWithLegendProps, MiniDonutProps } from "./donut-chart";
 export type { HeadingProps, TextProps, CaptionProps, TextLabelProps } from "./typography";
 export type { StatusBadgeProps, StatusDotProps } from "./status-badge";
 export type { EmptyStateProps, EmptyStateAction } from "./empty-state";
-export type { ErrorRecoveryProps, ErrorAction, InlineErrorProps } from "./error-recovery";

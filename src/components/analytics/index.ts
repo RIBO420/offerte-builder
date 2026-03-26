@@ -1,5 +1,4 @@
 // Static exports (lightweight components)
-export { AnalyticsDateFilter } from "./analytics-date-filter";
 export { EnhancedDateFilter } from "./enhanced-date-filter";
 export type { DateRangePreset } from "./enhanced-date-filter";
 export { ComparisonIndicator, ComparisonArrow, ComparisonDisplay } from "./comparison-indicator";
