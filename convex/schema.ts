@@ -50,11 +50,22 @@ export default defineSchema({
       v.literal("opgeleverd"),
       v.literal("onderhoud"),
     )),
+    // CRM-003: Klant type segmentatie
+    klantType: v.optional(v.union(
+      v.literal("particulier"),
+      v.literal("zakelijk"),
+      v.literal("vve"),
+      v.literal("gemeente"),
+      v.literal("overig"),
+    )),
+    // CRM-003: Vrije tags voor segmentatie
+    tags: v.optional(v.array(v.string())),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
     .index("by_pipeline_status", ["userId", "pipelineStatus"])
+    .index("by_klant_type", ["userId", "klantType"])
     .searchIndex("search_klanten", {
       searchField: "naam",
       filterFields: ["userId"],
@@ -281,6 +292,16 @@ export default defineSchema({
     factuurNummerPrefix: v.optional(v.string()),
     laatsteFactuurNummer: v.optional(v.number()),
     standaardBetalingstermijn: v.optional(v.number()),
+    // Deelfactuur templates (FAC-002)
+    // Bijv. [{naam: "50/30/20", stappen: [{percentage: 50, label: "Vooraf"}, ...]}]
+    deelfactuurTemplates: v.optional(v.array(v.object({
+      id: v.string(),
+      naam: v.string(),
+      stappen: v.array(v.object({
+        percentage: v.number(),
+        label: v.string(),
+      })),
+    }))),
     // Algemene voorwaarden PDF (EML-003)
     voorwaardenPdfId: v.optional(v.id("_storage")),
     voorwaardenPdfNaam: v.optional(v.string()),
@@ -428,6 +449,13 @@ export default defineSchema({
     ),
     // Toegewezen voertuigen voor dit project (fleet management)
     toegewezenVoertuigen: v.optional(v.array(v.id("voertuigen"))),
+
+    // Deelfactuur schema per project (FAC-001)
+    // Bijv. [{percentage: 50, label: "Vooraf"}, {percentage: 30, label: "Bij start"}, {percentage: 20, label: "Bij oplevering"}]
+    deelfactuurSchema: v.optional(v.array(v.object({
+      percentage: v.number(),
+      label: v.string(),
+    }))),
 
     // Archiving
     isArchived: v.optional(v.boolean()),
@@ -664,6 +692,37 @@ export default defineSchema({
   // Facturatie
   // ============================================
 
+  // Meerwerk - Extra werk bovenop de originele offerte (FAC-003)
+  // Status: aangevraagd → goedgekeurd → gefactureerd / afgewezen
+  meerwerk: defineTable({
+    projectId: v.id("projecten"),
+    userId: v.id("users"),
+    omschrijving: v.string(),
+    reden: v.optional(v.string()),
+    regels: v.array(v.object({
+      id: v.string(),
+      omschrijving: v.string(),
+      hoeveelheid: v.number(),
+      eenheid: v.string(),
+      prijsPerEenheid: v.number(),
+      totaal: v.number(),
+    })),
+    totaalExclBtw: v.number(),
+    status: v.union(
+      v.literal("aangevraagd"),
+      v.literal("goedgekeurd"),
+      v.literal("afgewezen"),
+      v.literal("gefactureerd"),
+    ),
+    goedgekeurdDoor: v.optional(v.string()),
+    goedgekeurdAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_user", ["userId"])
+    .index("by_status", ["status"]),
+
   // Facturen - Facturen gegenereerd vanuit projecten
   // Een factuur bevat een snapshot van klant- en bedrijfsgegevens op moment van aanmaak
   // Workflow: concept → definitief → verzonden → betaald/vervallen
@@ -679,6 +738,21 @@ export default defineSchema({
       v.literal("betaald"),
       v.literal("vervallen")
     ),
+
+    // Factuur type: regulier (volledig/deelfactuur) of meerwerk (FAC-003)
+    factuurType: v.optional(v.union(
+      v.literal("regulier"),
+      v.literal("meerwerk"),
+    )),
+
+    // Deelfacturatie (FAC-001)
+    isDeelfactuur: v.optional(v.boolean()),
+    deelfactuurNummer: v.optional(v.number()), // 1, 2, 3... volgnummer binnen project
+    deelfactuurPercentage: v.optional(v.number()), // percentage van totaal offertebedrag
+    deelfactuurLabel: v.optional(v.string()), // bijv. "Vooraf", "Bij start", "Bij oplevering"
+
+    // Meerwerk referentie (FAC-003)
+    meerwerkId: v.optional(v.id("meerwerk")),
 
     // Klantgegevens (snapshot op moment van factuur aanmaken)
     klant: v.object({

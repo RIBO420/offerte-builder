@@ -51,6 +51,8 @@ export function useKlanten() {
       email?: string;
       telefoon?: string;
       notities?: string;
+      klantType?: "particulier" | "zakelijk" | "vve" | "gemeente" | "overig";
+      tags?: string[];
     }) => {
       if (!user?._id) throw new Error("User not found");
       return await createMutation(klantData);
@@ -69,6 +71,8 @@ export function useKlanten() {
         email?: string;
         telefoon?: string;
         notities?: string;
+        klantType?: "particulier" | "zakelijk" | "vve" | "gemeente" | "overig";
+        tags?: string[];
       }
     ) => {
       return await updateMutation({ id, ...klantData });

@@ -42,6 +42,7 @@ import {
   Shovel,
   Trees,
   StickyNote,
+  Tag,
 } from "lucide-react";
 import { useKlantWithOffertes } from "@/hooks/use-klanten";
 import { Id } from "../../../../../convex/_generated/dataModel";
@@ -73,6 +74,25 @@ const pipelineColors: Record<PipelineStatus, string> = {
   in_uitvoering: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
   opgeleverd: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
   onderhoud: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+};
+
+// CRM-003: Klant type labels and colors
+type KlantType = "particulier" | "zakelijk" | "vve" | "gemeente" | "overig";
+
+const klantTypeLabels: Record<KlantType, string> = {
+  particulier: "Particulier",
+  zakelijk: "Zakelijk",
+  vve: "VvE",
+  gemeente: "Gemeente",
+  overig: "Overig",
+};
+
+const klantTypeColors: Record<KlantType, string> = {
+  particulier: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+  zakelijk: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
+  vve: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+  gemeente: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+  overig: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
 };
 
 const statusLabels: Record<string, string> = {
@@ -221,15 +241,28 @@ export default function KlantDetailPage({
               </Link>
             </Button>
             <div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
                 <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
                   {klant.naam}
                 </h1>
                 <Badge className={pipelineColors[(klant as { pipelineStatus?: PipelineStatus }).pipelineStatus ?? "lead"]}>
                   {pipelineLabels[(klant as { pipelineStatus?: PipelineStatus }).pipelineStatus ?? "lead"]}
                 </Badge>
+                <Badge className={klantTypeColors[(klant as { klantType?: KlantType }).klantType ?? "particulier"]}>
+                  {klantTypeLabels[(klant as { klantType?: KlantType }).klantType ?? "particulier"]}
+                </Badge>
               </div>
-              <p className="text-muted-foreground">
+              {(klant as { tags?: string[] }).tags && (klant as { tags?: string[] }).tags!.length > 0 && (
+                <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                  <Tag className="h-3.5 w-3.5 text-muted-foreground" />
+                  {(klant as { tags?: string[] }).tags!.map((tag: string) => (
+                    <Badge key={tag} variant="outline" className="text-xs">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+              <p className="text-muted-foreground mt-1">
                 Klant sinds {formatDate(klant.createdAt)}
               </p>
             </div>

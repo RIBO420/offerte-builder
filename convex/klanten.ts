@@ -107,6 +107,15 @@ export const search = query({
   },
 });
 
+// CRM-003: Klant type validator
+const klantTypeValidator = v.optional(v.union(
+  v.literal("particulier"),
+  v.literal("zakelijk"),
+  v.literal("vve"),
+  v.literal("gemeente"),
+  v.literal("overig"),
+));
+
 // Create a new klant
 export const create = mutation({
   args: {
@@ -117,6 +126,8 @@ export const create = mutation({
     email: v.optional(v.string()),
     telefoon: v.optional(v.string()),
     notities: v.optional(v.string()),
+    klantType: klantTypeValidator,
+    tags: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
@@ -140,6 +151,11 @@ export const create = mutation({
     const telefoon = sanitizePhone(args.telefoon);
     const notities = sanitizeOptionalString(args.notities);
 
+    // Sanitize tags: trim, lowercase, remove empties, deduplicate
+    const sanitizedTags = args.tags
+      ? [...new Set(args.tags.map((t) => t.trim().toLowerCase()).filter(Boolean))]
+      : undefined;
+
     return await ctx.db.insert("klanten", {
       userId,
       naam: args.naam.trim(),
@@ -150,6 +166,8 @@ export const create = mutation({
       telefoon,
       notities,
       pipelineStatus: "lead",
+      klantType: args.klantType ?? "particulier",
+      tags: sanitizedTags,
       createdAt: now,
       updatedAt: now,
     });
@@ -167,6 +185,8 @@ export const update = mutation({
     email: v.optional(v.string()),
     telefoon: v.optional(v.string()),
     notities: v.optional(v.string()),
+    klantType: klantTypeValidator,
+    tags: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
@@ -211,6 +231,15 @@ export const update = mutation({
 
     if (args.notities !== undefined) {
       filteredUpdates.notities = sanitizeOptionalString(args.notities);
+    }
+
+    if (args.klantType !== undefined) {
+      filteredUpdates.klantType = args.klantType;
+    }
+
+    if (args.tags !== undefined) {
+      // Sanitize tags: trim, lowercase, remove empties, deduplicate
+      filteredUpdates.tags = [...new Set(args.tags.map((t) => t.trim().toLowerCase()).filter(Boolean))];
     }
 
     await ctx.db.patch(args.id, {
@@ -260,6 +289,28 @@ export const listWithRecent = query({
       klanten,
       recentKlanten: klanten.slice(0, 5),
     };
+  },
+});
+
+// CRM-003: Get all unique tags used across klanten (for autocomplete)
+export const getAllTags = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireAuthUserId(ctx);
+    const klanten = await ctx.db
+      .query("klanten")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    const tagSet = new Set<string>();
+    for (const klant of klanten) {
+      if (klant.tags) {
+        for (const tag of klant.tags) {
+          tagSet.add(tag);
+        }
+      }
+    }
+    return [...tagSet].sort();
   },
 });
 

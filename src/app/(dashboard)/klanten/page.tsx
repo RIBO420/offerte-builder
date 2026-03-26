@@ -56,6 +56,14 @@ import {
   Trash2,
   FileText,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { TagInput } from "@/components/ui/tag-input";
 import { toast } from "sonner";
 import { useKlanten, useKlantenSearch } from "@/hooks/use-klanten";
 import { Id } from "../../../../convex/_generated/dataModel";
@@ -75,6 +83,8 @@ import type { Lead } from "@/components/leads/lead-card";
 
 type PipelineStatus = "lead" | "offerte_verzonden" | "getekend" | "in_uitvoering" | "opgeleverd" | "onderhoud";
 
+type KlantType = "particulier" | "zakelijk" | "vve" | "gemeente" | "overig";
+
 type Klant = {
   _id: Id<"klanten">;
   naam: string;
@@ -85,9 +95,29 @@ type Klant = {
   telefoon?: string;
   notities?: string;
   pipelineStatus?: PipelineStatus;
+  klantType?: KlantType;
+  tags?: string[];
   createdAt: number;
   updatedAt: number;
 };
+
+const KLANT_TYPE_LABELS: Record<KlantType, string> = {
+  particulier: "Particulier",
+  zakelijk: "Zakelijk",
+  vve: "VvE",
+  gemeente: "Gemeente",
+  overig: "Overig",
+};
+
+const KLANT_TYPE_COLORS: Record<KlantType, string> = {
+  particulier: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+  zakelijk: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
+  vve: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+  gemeente: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+  overig: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
+};
+
+const ALL_KLANT_TYPES: KlantType[] = ["particulier", "zakelijk", "vve", "gemeente", "overig"];
 
 const PIPELINE_LABELS: Record<PipelineStatus, string> = {
   lead: "Lead",
@@ -148,10 +178,16 @@ function KlantenPageContent() {
     email: "",
     telefoon: "",
     notities: "",
+    klantType: "particulier" as KlantType,
+    tags: [] as string[],
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pipelineFilter, setPipelineFilter] = useState<PipelineStatus | "alle">("alle");
+  const [klantTypeFilter, setKlantTypeFilter] = useState<KlantType | "alle">("alle");
+
+  // CRM-003: Fetch all existing tags for autocomplete
+  const allTags = useQuery(api.klanten.getAllTags, user?._id ? {} : "skip");
 
   // Optimistic updates state
   const [optimisticDeletedIds, setOptimisticDeletedIds] = useState<Set<string>>(new Set());
@@ -172,10 +208,15 @@ function KlantenPageContent() {
   }, [klanten, optimisticDeletedIds, optimisticUpdates]);
 
   const filteredKlanten: Klant[] = useMemo(() => {
-    const base = (debouncedSearchTerm ? searchResults : klantenWithOptimisticUpdates) as Klant[];
-    if (pipelineFilter === "alle") return base;
-    return base.filter((klant) => (klant.pipelineStatus ?? "lead") === pipelineFilter);
-  }, [debouncedSearchTerm, searchResults, klantenWithOptimisticUpdates, pipelineFilter]);
+    let base = (debouncedSearchTerm ? searchResults : klantenWithOptimisticUpdates) as Klant[];
+    if (pipelineFilter !== "alle") {
+      base = base.filter((klant) => (klant.pipelineStatus ?? "lead") === pipelineFilter);
+    }
+    if (klantTypeFilter !== "alle") {
+      base = base.filter((klant) => (klant.klantType ?? "particulier") === klantTypeFilter);
+    }
+    return base;
+  }, [debouncedSearchTerm, searchResults, klantenWithOptimisticUpdates, pipelineFilter, klantTypeFilter]);
 
   // Apply sorting to klanten
   const { sortedData: sortedKlanten, sortConfig, toggleSort } = useTableSort<Klant>(
@@ -192,6 +233,8 @@ function KlantenPageContent() {
       email: "",
       telefoon: "",
       notities: "",
+      klantType: "particulier",
+      tags: [],
     });
   }, []);
 
@@ -211,6 +254,8 @@ function KlantenPageContent() {
         email: formData.email || undefined,
         telefoon: formData.telefoon || undefined,
         notities: formData.notities || undefined,
+        klantType: formData.klantType,
+        tags: formData.tags.length > 0 ? formData.tags : undefined,
       });
       toast.success("Klant toegevoegd");
       setShowAddDialog(false);
@@ -233,6 +278,8 @@ function KlantenPageContent() {
       email: klant.email || "",
       telefoon: klant.telefoon || "",
       notities: klant.notities || "",
+      klantType: klant.klantType ?? "particulier",
+      tags: klant.tags ?? [],
     });
     setShowEditDialog(true);
   }, []);
@@ -248,6 +295,8 @@ function KlantenPageContent() {
       email: formData.email || undefined,
       telefoon: formData.telefoon || undefined,
       notities: formData.notities || undefined,
+      klantType: formData.klantType,
+      tags: formData.tags,
     };
 
     // 1. Apply optimistic update immediately
@@ -338,16 +387,30 @@ function KlantenPageContent() {
         sortable: true,
         sortKey: "naam",
         render: (klant) => (
-          <div className="flex items-center gap-2">
-            <Link
-              href={`/klanten/${klant._id}`}
-              className="font-medium hover:underline"
-            >
-              {klant.naam}
-            </Link>
-            <Badge className={`text-xs ${PIPELINE_COLORS[klant.pipelineStatus ?? "lead"]}`}>
-              {PIPELINE_LABELS[klant.pipelineStatus ?? "lead"]}
-            </Badge>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Link
+                href={`/klanten/${klant._id}`}
+                className="font-medium hover:underline"
+              >
+                {klant.naam}
+              </Link>
+              <Badge className={`text-xs ${PIPELINE_COLORS[klant.pipelineStatus ?? "lead"]}`}>
+                {PIPELINE_LABELS[klant.pipelineStatus ?? "lead"]}
+              </Badge>
+              <Badge className={`text-xs ${KLANT_TYPE_COLORS[klant.klantType ?? "particulier"]}`}>
+                {KLANT_TYPE_LABELS[klant.klantType ?? "particulier"]}
+              </Badge>
+            </div>
+            {klant.tags && klant.tags.length > 0 && (
+              <div className="flex items-center gap-1 flex-wrap">
+                {klant.tags.map((tag) => (
+                  <Badge key={tag} variant="outline" className="text-[10px] px-1.5 py-0 h-5">
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            )}
           </div>
         ),
       },
@@ -457,6 +520,29 @@ function KlantenPageContent() {
           />
         </div>
         <div className="space-y-2">
+          <Label htmlFor="klantType">Type klant</Label>
+          <Select
+            value={formData.klantType}
+            onValueChange={(value) =>
+              setFormData({ ...formData, klantType: value as KlantType })
+            }
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Selecteer type" />
+            </SelectTrigger>
+            <SelectContent>
+              {ALL_KLANT_TYPES.map((type) => (
+                <SelectItem key={type} value={type}>
+                  {KLANT_TYPE_LABELS[type]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
           <Label htmlFor="telefoon">Telefoon</Label>
           <Input
             id="telefoon"
@@ -465,6 +551,16 @@ function KlantenPageContent() {
             onChange={(e) =>
               setFormData({ ...formData, telefoon: e.target.value })
             }
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="email">E-mail</Label>
+          <Input
+            id="email"
+            type="email"
+            placeholder="jan@voorbeeld.nl"
+            value={formData.email}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
           />
         </div>
       </div>
@@ -503,13 +599,12 @@ function KlantenPageContent() {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="email">E-mail</Label>
-        <Input
-          id="email"
-          type="email"
-          placeholder="jan@voorbeeld.nl"
-          value={formData.email}
-          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+        <Label>Tags</Label>
+        <TagInput
+          value={formData.tags}
+          onChange={(tags) => setFormData({ ...formData, tags })}
+          suggestions={allTags ?? []}
+          placeholder="Typ een tag en druk Enter..."
         />
       </div>
 
@@ -624,6 +719,41 @@ function KlantenPageContent() {
             </Badge>
           );
         })}
+      </div>
+
+      {/* CRM-003: Klant type filter */}
+      <div className="flex items-center gap-3">
+        <span className="text-sm text-muted-foreground font-medium">Type:</span>
+        <div className="flex flex-wrap gap-2">
+          <Badge
+            className={`cursor-pointer transition-colors ${
+              klantTypeFilter === "alle"
+                ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
+            }`}
+            onClick={() => setKlantTypeFilter("alle")}
+          >
+            Alle
+          </Badge>
+          {ALL_KLANT_TYPES.map((type) => {
+            const count = klantenWithOptimisticUpdates.filter(
+              (k) => (k.klantType ?? "particulier") === type
+            ).length;
+            return (
+              <Badge
+                key={type}
+                className={`cursor-pointer transition-colors ${
+                  klantTypeFilter === type
+                    ? KLANT_TYPE_COLORS[type]
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                }`}
+                onClick={() => setKlantTypeFilter(type)}
+              >
+                {KLANT_TYPE_LABELS[type]} ({count})
+              </Badge>
+            );
+          })}
+        </div>
       </div>
 
       <Card>
