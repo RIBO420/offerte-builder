@@ -10,7 +10,7 @@
 
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAuth, requireAuthUserId } from "./auth";
+import { requireAuth } from "./auth";
 import { requireAdmin, requireNotViewer } from "./roles";
 
 // ============================================
@@ -1046,7 +1046,7 @@ export const getCurrentUserRole = query({
 export const adminListAllUsers = query({
   args: {},
   handler: async (ctx) => {
-    const user = await requireAdmin(ctx);
+    await requireAdmin(ctx);
 
     // Get all users
     const users = await ctx.db.query("users").collect();
