@@ -7,6 +7,21 @@ import {
   userRoleValidator,
 } from "./validators";
 
+/**
+ * KNOWN SCHEMA TYPE INCONSISTENCIES (from parallel agent development):
+ *
+ * These fields have different types across tables. This is documented
+ * for future cleanup but left as-is to avoid breaking existing data.
+ *
+ * - adres: string (8 tables) vs optional (2 tables: leveranciers, medewerkers)
+ * - beschrijving: string (4 tables) vs optional (4 tables)
+ * - btw: number (2 tables) vs optional (2 tables)
+ * - voertuigId: id (3 tables) vs optional (3 tables)
+ * - projectId: id (some) vs optional (some)
+ *
+ * TODO: Standardize these in a future migration.
+ */
+
 export default defineSchema({
   // Gebruikers (via Clerk, alleen referentie)
   // Role-based access control (RBAC):
@@ -240,7 +255,9 @@ export default defineSchema({
     normuurPerEenheid: v.number(),
     eenheid: v.string(),
     omschrijving: v.optional(v.string()),
-  }).index("by_user_scope", ["userId", "scope"]),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_scope", ["userId", "scope"]),
 
   // Correctiefactoren (systeem defaults + user overrides)
   correctiefactoren: defineTable({
@@ -373,7 +390,8 @@ export default defineSchema({
     openedAt: v.optional(v.number()),
   })
     .index("by_offerte", ["offerteId"])
-    .index("by_user", ["userId"]),
+    .index("by_user", ["userId"])
+    .index("by_status", ["status"]),
 
   // Offerte versies (versiegeschiedenis)
   offerte_versions: defineTable({
@@ -442,7 +460,8 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_offerte", ["offerteId"])
-    .index("by_offerte_versie", ["offerteId", "versieNummer"]),
+    .index("by_offerte_versie", ["offerteId", "versieNummer"])
+    .index("by_user", ["userId"]),
 
   // ============================================
   // Calculatie, Planning & Nacalculatie Add-on
@@ -485,6 +504,7 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_status", ["status"])
     .index("by_user_status", ["userId", "status"])
     .index("by_offerte", ["offerteId"]),
 
@@ -518,7 +538,9 @@ export default defineSchema({
       v.literal("gestart"),
       v.literal("afgerond")
     ),
-  }).index("by_project", ["projectId"]),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_status", ["status"]),
 
   // WeekPlanning — Medewerker-project-dag toewijzingen voor weekplanning
   weekPlanning: defineTable({
@@ -531,6 +553,7 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_datum", ["datum"])
+    .index("by_medewerker", ["medewerkerId"])
     .index("by_medewerker_datum", ["medewerkerId", "datum"])
     .index("by_project", ["projectId"])
     .index("by_datum_project", ["datum", "projectId"]),
@@ -647,6 +670,7 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_user_actief", ["userId", "isActief"])
+    .index("by_status", ["status"])
     .index("by_org", ["clerkOrgId"]) // App: medewerkers per organisatie
     .index("by_clerk_id", ["clerkUserId"]), // App: medewerker opzoeken via Clerk ID
 
@@ -921,6 +945,7 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_status", ["status"])
     .index("by_user_status", ["userId", "status"])
     .index("by_kenteken", ["kenteken"])
     .index("by_fleetgo", ["fleetgoId"]),
@@ -967,7 +992,8 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_voertuig", ["voertuigId"])
-    .index("by_user", ["userId"]),
+    .index("by_user", ["userId"])
+    .index("by_project", ["projectId"]),
 
   // BrandstofRegistratie - Fuel registration
   // Track fuel consumption and costs
@@ -1061,7 +1087,8 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_voertuig", ["voertuigId"])
-    .index("by_user", ["userId"]),
+    .index("by_user", ["userId"])
+    .index("by_status", ["status"]),
 
   // ============================================
   // CHAT TABELLEN (Medewerkers App)
@@ -1220,7 +1247,9 @@ export default defineSchema({
 
     createdAt: v.number(),
   })
+    .index("by_user", ["userId"])
     .index("by_user_active", ["userId", "status"])
+    .index("by_status", ["status"])
     .index("by_project", ["projectId"])
     .index("by_date", ["clockInAt"]),
 
@@ -1252,6 +1281,7 @@ export default defineSchema({
     .index("by_session", ["sessionId"])
     .index("by_session_time", ["sessionId", "recordedAt"])
     .index("by_user", ["userId"])
+    .index("by_project", ["projectId"])
     .index("by_time", ["recordedAt"]),
 
   // JobSiteGeofences - Geofence definities per project
@@ -1368,6 +1398,7 @@ export default defineSchema({
 
     createdAt: v.number(),
   })
+    .index("by_user", ["userId"])
     .index("by_user_date", ["userId", "datum"])
     .index("by_project", ["projectId"]),
 
@@ -1468,6 +1499,10 @@ export default defineSchema({
     .index("by_token", ["expoPushToken"]),
 
   // Push notification logs - Track sent notifications for debugging and analytics
+  // TODO: consolidate with notification_log table — both track sent notification status.
+  // pushNotificationLogs is push-specific (has ticketId, Expo type enum, userId ref),
+  // notification_log is chat-specific (has channelType, messageId, senderClerkId).
+  // Consider merging into a single unified "notification_delivery_log" table.
   pushNotificationLogs: defineTable({
     userId: v.id("users"),
     type: v.union(
@@ -1497,6 +1532,9 @@ export default defineSchema({
 
   // Notification log - Track sent notifications for batching and debugging
   // Used to prevent notification spam by tracking recent notifications per user/channel
+  // TODO: consolidate with pushNotificationLogs table — both log notification delivery attempts.
+  // This table uses clerkId refs and chat-oriented fields; pushNotificationLogs uses userId refs
+  // and push-oriented fields. A unified table would simplify cleanup and analytics queries.
   notification_log: defineTable({
     recipientClerkId: v.string(),
     senderClerkId: v.string(),
@@ -1512,7 +1550,8 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_recipient_time", ["recipientClerkId", "createdAt"])
-    .index("by_message", ["messageId"]),
+    .index("by_message", ["messageId"])
+    .index("by_status", ["status"]),
 
   // ============================================
   // IN-APP NOTIFICATIONS (Mobile App Notification Center)
@@ -1641,6 +1680,7 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_status", ["status"])
     .index("by_user_status", ["userId", "status"])
     .index("by_leverancier", ["leverancierId"])
     .index("by_project", ["projectId"]),
@@ -1761,6 +1801,7 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_project", ["projectId"])
+    .index("by_status", ["status"])
     .index("by_project_status", ["projectId", "status"]),
 
   // ============================================
@@ -1969,6 +2010,8 @@ export default defineSchema({
     sentAt: v.optional(v.number()),
   })
     .index("by_offerte", ["offerteId"])
+    .index("by_user", ["userId"])
+    .index("by_status", ["status"])
     .index("by_status_scheduled", ["status", "scheduledAt"]),
 
   // ============================================
@@ -1992,6 +2035,7 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_medewerker", ["medewerkerId"])
+    .index("by_status", ["status"])
     .index("by_medewerker_status", ["medewerkerId", "status"])
     .index("by_user_status", ["userId", "status"]),
 
