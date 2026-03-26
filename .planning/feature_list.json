@@ -1,0 +1,1203 @@
+{
+  "meta": {
+    "version": "3.0",
+    "created": "2026-03-26",
+    "last_audit": "2026-03-26",
+    "source": "TOP_TUINEN_SCOPE_DOCUMENT.md",
+    "rules": [
+      "Agents may ONLY change 'passes' from false to true after ALL steps are verified.",
+      "It is UNACCEPTABLE to remove or edit features — this leads to missing functionality.",
+      "Each feature has testable 'steps'. ALL steps must pass before marking passes:true.",
+      "When completing a feature, add 'completed_by' and 'completed_at' fields."
+    ],
+    "stats": {
+      "total": 75,
+      "passes_true": 45,
+      "passes_false": 30,
+      "completion_percentage": 60
+    }
+  },
+  "features": [
+    {
+      "id": "OFF-007",
+      "module": "offerte-calculator",
+      "cluster": "A",
+      "priority": "P0",
+      "description": "Bevestigingstekst bij handtekening met juridische disclaimer",
+      "passes": true,
+      "completed_by": "cluster-A",
+      "completed_at": "2026-03-26",
+      "steps": [
+        "Open publieke offerte pagina via token link",
+        "Voordat handtekening kan worden gezet, moet een checkbox zichtbaar zijn met juridische tekst",
+        "Tekst bevat: 'Hierbij bevestig ik dat ik akkoord ga met deze offerte en geef ik toestemming om digitaal te ondertekenen'",
+        "Checkbox moet aangevinkt zijn voordat 'Accorderen' knop actief wordt",
+        "Zonder aangevinkte checkbox is de knop disabled met tooltip uitleg"
+      ],
+      "files_to_edit": [
+        "src/app/(public)/offerte/[token]/page.tsx"
+      ]
+    },
+    {
+      "id": "OFF-011",
+      "module": "offerte-calculator",
+      "cluster": "A",
+      "priority": "P0",
+      "description": "Interne notities per offerteregel (niet zichtbaar voor klant)",
+      "passes": true,
+      "completed_by": "cluster-A",
+      "completed_at": "2026-03-26",
+      "steps": [
+        "Schema: voeg 'interneNotitie' optional string veld toe aan regels object",
+        "Edit UI: icoon/knop per regel om interne notitie toe te voegen (textarea popover)",
+        "Notitie is zichtbaar in edit-mode met subtle indicator icoon",
+        "Notitie is NIET zichtbaar op publieke offerte pagina",
+        "Notitie is NIET zichtbaar op klant PDF",
+        "Notitie IS zichtbaar op interne PDF variant (als die bestaat)"
+      ],
+      "files_to_edit": [
+        "convex/schema.ts",
+        "src/app/(dashboard)/offertes/[id]/bewerken/components/",
+        "src/app/(public)/offerte/[token]/page.tsx",
+        "src/components/pdf/offerte-pdf.tsx"
+      ]
+    },
+    {
+      "id": "OFF-010",
+      "module": "offerte-calculator",
+      "cluster": "A",
+      "priority": "P0",
+      "description": "Optionele posten / keuzemogelijkheden voor de klant",
+      "passes": true,
+      "steps": [
+        "Schema: voeg 'optioneel' boolean veld toe aan regels in convex/schema.ts",
+        "Edit UI: toggle om regel als optioneel te markeren in offerte bewerken",
+        "PDF: optionele regels worden apart getoond met label 'Optioneel'",
+        "Publieke pagina: klant kan optionele posten aan/uit zetten",
+        "Totaalbedrag past zich aan op basis van klant's keuze",
+        "Keuze wordt opgeslagen in customerResponse"
+      ],
+      "files_to_edit": [
+        "convex/schema.ts",
+        "convex/validators.ts",
+        "src/app/(dashboard)/offertes/[id]/bewerken/",
+        "src/components/pdf/offerte-pdf.tsx",
+        "src/app/(public)/offerte/[token]/page.tsx",
+        "convex/publicOffertes.ts"
+      ],
+      "completed_by": "cluster-A",
+      "completed_at": "2026-03-26"
+    },
+    {
+      "id": "OFF-012",
+      "module": "offerte-calculator",
+      "cluster": "A",
+      "priority": "P0",
+      "description": "Getekende offertes zijn vergrendeld — wijzigingen maken automatisch nieuwe versie",
+      "passes": false,
+      "steps": [
+        "Backend: mutation guard in convex/offertes.ts update — blokkeer edits als status === 'geaccepteerd'",
+        "Backend: bij poging tot edit op geaccepteerde offerte → automatisch nieuwe versie aanmaken",
+        "UI: edit knop toont 'Nieuwe versie aanmaken' bij geaccepteerde offerte i.p.v. 'Bewerken'",
+        "UI: waarschuwingsdialoog: 'Deze offerte is getekend. Wijzigingen maken een nieuwe versie.'",
+        "Originele getekende versie blijft ongewijzigd in versiegeschiedenis"
+      ],
+      "files_to_edit": [
+        "convex/offertes.ts",
+        "convex/offerteVersions.ts",
+        "src/app/(dashboard)/offertes/[id]/"
+      ]
+    },
+    {
+      "id": "CRM-002",
+      "module": "crm",
+      "cluster": "A",
+      "priority": "P0",
+      "description": "Automatische statusupdates: lead → offerte verzonden → getekend → in uitvoering → opgeleverd → onderhoud",
+      "passes": false,
+      "steps": [
+        "Schema: voeg 'pipelineStatus' veld toe aan klanten tabel (lead/offerte_verzonden/getekend/in_uitvoering/opgeleverd/onderhoud)",
+        "Backend: automatische status wijziging bij offerte verzenden → klant.pipelineStatus = 'offerte_verzonden'",
+        "Backend: automatische status bij offerte acceptatie → 'getekend'",
+        "Backend: automatische status bij project aanmaak → 'in_uitvoering'",
+        "Backend: automatische status bij project afsluiting → 'opgeleverd'",
+        "UI: pipeline view op klanten overzichtspagina (kanban of filterbaar)",
+        "UI: status badge zichtbaar op klantkaart"
+      ],
+      "files_to_edit": [
+        "convex/schema.ts",
+        "convex/klanten.ts",
+        "convex/publicOffertes.ts",
+        "convex/projecten.ts",
+        "src/app/(dashboard)/klanten/page.tsx"
+      ]
+    },
+    {
+      "id": "CRM-003",
+      "module": "crm",
+      "cluster": "A",
+      "priority": "P0",
+      "description": "Tagging en segmentatie (particulier, zakelijk, VvE, gemeente)",
+      "passes": false,
+      "steps": [
+        "Schema: voeg 'type' veld toe aan klanten (particulier/zakelijk/vve/gemeente/overig)",
+        "Schema: voeg 'tags' optional array of strings toe voor vrije tags",
+        "UI: type selectie bij klant aanmaken/bewerken",
+        "UI: tag input met autocomplete (bestaande tags suggereren)",
+        "UI: filteren op type en tags in klanten overzicht",
+        "UI: badge/chip weergave van type en tags op klantkaart"
+      ],
+      "files_to_edit": [
+        "convex/schema.ts",
+        "convex/klanten.ts",
+        "src/app/(dashboard)/klanten/"
+      ]
+    },
+    {
+      "id": "CRM-007",
+      "module": "crm",
+      "cluster": "A",
+      "priority": "P0",
+      "description": "Duplicaatdetectie bij aanmaken nieuwe klant",
+      "passes": false,
+      "steps": [
+        "Backend: bij klant create → check op bestaande email, telefoonnummer, of naam+postcode combo",
+        "UI: bij invoeren van email/telefoon → live check op duplicaten",
+        "UI: als duplicaat gevonden → waarschuwingsdialoog met link naar bestaande klant",
+        "Gebruiker kan alsnog doorgaan (soft block, niet hard block)"
+      ],
+      "files_to_edit": [
+        "convex/klanten.ts",
+        "src/app/(dashboard)/klanten/"
+      ]
+    },
+    {
+      "id": "CRM-008",
+      "module": "crm",
+      "cluster": "A",
+      "priority": "P0",
+      "description": "GDPR-compliant: verwijderverzoek met audit trail",
+      "passes": false,
+      "steps": [
+        "Backend: GDPR delete functie die alle persoonsgegevens anonimiseert (naam → 'Verwijderd', email → null, etc.)",
+        "Backend: audit log entry bij verwijdering (wie, wanneer, welke klant-ID)",
+        "Backend: check dat geen openstaande facturen of lopende projecten bestaan",
+        "UI: 'GDPR verwijderverzoek' knop op klantkaart (alleen admin)",
+        "UI: bevestigingsdialoog met waarschuwing over gevolgen",
+        "Geanonimiseerde klant blijft in systeem voor financiele integriteit maar is niet meer identificeerbaar"
+      ],
+      "files_to_edit": [
+        "convex/klanten.ts",
+        "src/app/(dashboard)/klanten/[id]/page.tsx"
+      ]
+    },
+    {
+      "id": "CRM-005",
+      "module": "crm",
+      "cluster": "A",
+      "priority": "P0",
+      "description": "Automatische opvolgherinneringen op klant-niveau",
+      "passes": false,
+      "steps": [
+        "Backend: herinnering als offerte 7+ dagen zonder reactie (uitbreid offerteReminders naar klant-niveau)",
+        "Backend: herinnering als klant lead is zonder offerte na 14 dagen",
+        "UI: herinneringen zichtbaar op klantkaart als notificatie badge",
+        "UI: actieknoppen: 'Bel klant', 'Stuur herinnering', 'Niet meer herinneren'",
+        "Herinnering stopt automatisch bij statuswijziging"
+      ],
+      "files_to_edit": [
+        "convex/offerteReminders.ts",
+        "convex/klanten.ts",
+        "src/app/(dashboard)/klanten/[id]/page.tsx"
+      ]
+    },
+    {
+      "id": "FAC-001",
+      "module": "facturatie",
+      "cluster": "A",
+      "priority": "P0",
+      "description": "Deelfacturatie met flexibele percentages",
+      "passes": false,
+      "steps": [
+        "Schema: voeg 'deelfactuurNummer' en 'deelfactuurPercentage' toe aan facturen tabel",
+        "Schema: voeg 'deelfactuurSchema' array toe aan projecten (bijv. [{percentage: 50, label: 'Vooraf'}, ...])",
+        "Backend: genereer deelfactuur mutation met percentage van totaal offertebedrag",
+        "UI: bij factuur aanmaken → keuze 'volledige factuur' of 'deelfactuur'",
+        "UI: bij deelfactuur → percentage invoer of selectie uit standaard schema",
+        "UI: overzicht welke deelfacturen al verstuurd zijn per project met totaal percentage",
+        "Validatie: totaal percentage mag niet boven 100% komen"
+      ],
+      "files_to_edit": [
+        "convex/schema.ts",
+        "convex/facturen.ts",
+        "src/app/(dashboard)/facturen/"
+      ]
+    },
+    {
+      "id": "FAC-002",
+      "module": "facturatie",
+      "cluster": "A",
+      "priority": "P0",
+      "description": "Standaard deelfactuur-templates instelbaar",
+      "passes": false,
+      "steps": [
+        "Schema: settings tabel met deelfactuur-templates (bijv. '50/30/20', '40/60', '100')",
+        "UI: instellingenpagina om standaard templates te beheren",
+        "UI: bij nieuw project → template selecteren of custom schema invoeren",
+        "Template wordt gekopieerd naar project (per project aanpasbaar)"
+      ],
+      "files_to_edit": [
+        "convex/schema.ts",
+        "convex/settings.ts",
+        "src/app/(dashboard)/instellingen/"
+      ]
+    },
+    {
+      "id": "FAC-006",
+      "module": "facturatie",
+      "cluster": "A",
+      "priority": "P0",
+      "description": "Automatische betalingsherinneringen",
+      "passes": false,
+      "steps": [
+        "Schema: voeg herinneringsinstellingen toe (dag 7, 14, 21 configureerbaar in settings)",
+        "Backend: cron job die dagelijks onbetaalde facturen checkt",
+        "Backend: na X dagen → automatisch herinneringsmail versturen via Resend",
+        "Backend: herinnering log per factuur (wanneer verstuurd)",
+        "UI: herinnering-status zichtbaar op factuur detail",
+        "UI: handmatig herinnering sturen knop op factuur",
+        "Herinneringen stoppen automatisch bij betaalstatus 'betaald'"
+      ],
+      "files_to_edit": [
+        "convex/facturen.ts",
+        "convex/crons.ts",
+        "src/app/(dashboard)/facturen/"
+      ]
+    },
+    {
+      "id": "FAC-008",
+      "module": "facturatie",
+      "cluster": "A",
+      "priority": "P0",
+      "description": "Creditnota's aanmaken",
+      "passes": false,
+      "steps": [
+        "Schema: voeg 'type' veld toe aan facturen (factuur/creditnota)",
+        "Backend: creditnota mutation die referentie-factuur linkt en bedrag negatief maakt",
+        "UI: 'Creditnota aanmaken' knop op factuur detail",
+        "UI: automatisch factuurnummer met 'CN-' prefix",
+        "Creditnota heeft eigen PDF template",
+        "Originele factuur wordt NOOIT verwijderd (fiscale eis)"
+      ],
+      "files_to_edit": [
+        "convex/schema.ts",
+        "convex/facturen.ts",
+        "src/app/(dashboard)/facturen/",
+        "src/components/pdf/"
+      ]
+    },
+    {
+      "id": "FAC-007",
+      "module": "facturatie",
+      "cluster": "A",
+      "priority": "P0",
+      "description": "Automatische aanmaningsbrieven",
+      "passes": false,
+      "steps": [
+        "Backend: na configureerbare dagen (bijv. 30/45/60) → aanmaning genereren",
+        "Templates: 1e aanmaning (vriendelijk), 2e aanmaning (formeel), ingebrekestelling (juridisch)",
+        "PDF generatie per aanmaningstype",
+        "Email verzending met aanmanings-PDF als bijlage",
+        "Log van alle aanmaningen per factuur"
+      ],
+      "files_to_edit": [
+        "convex/facturen.ts",
+        "convex/crons.ts",
+        "src/components/pdf/"
+      ]
+    },
+    {
+      "id": "FAC-003",
+      "module": "facturatie",
+      "cluster": "A",
+      "priority": "P0",
+      "description": "Meerwerk apart factureren",
+      "passes": false,
+      "depends_on": [
+        "PRJ-006",
+        "PRJ-007"
+      ],
+      "steps": [
+        "Wacht op: meerwerk module (PRJ-006/007) moet eerst bestaan",
+        "Backend: factuur generate mutation accepteert 'type: meerwerk' met link naar goedgekeurd meerwerkitem",
+        "UI: vanuit goedgekeurd meerwerk → 'Factureer' knop",
+        "Meerwerkfactuur verwijst naar origineel project + meerwerkbeschrijving"
+      ],
+      "files_to_edit": [
+        "convex/facturen.ts",
+        "src/app/(dashboard)/facturen/"
+      ]
+    },
+    {
+      "id": "FAC-011",
+      "module": "facturatie",
+      "cluster": "A",
+      "priority": "P0",
+      "description": "Waarschuwing als deelfacturen samen meer dan 100%",
+      "passes": false,
+      "depends_on": [
+        "FAC-001"
+      ],
+      "steps": [
+        "Backend: validatie bij deelfactuur aanmaken → som van alle deelfactuur percentages berekenen",
+        "UI: als totaal > 100% → blokkade met foutmelding",
+        "UI: als totaal = 90-100% → waarschuwing (maar doorgang mogelijk)",
+        "Voortgangsbalk zichtbaar bij deelfactuur overzicht"
+      ],
+      "files_to_edit": [
+        "convex/facturen.ts",
+        "src/app/(dashboard)/facturen/"
+      ]
+    },
+    {
+      "id": "OFF-001",
+      "module": "offerte-calculator",
+      "cluster": "A",
+      "priority": "P0",
+      "description": "Offerte samenstellen op basis van omrekenfactoren",
+      "passes": true,
+      "evidence": "convex/berekeningen.ts + src/lib/offerte-calculator.ts"
+    },
+    {
+      "id": "OFF-002",
+      "module": "offerte-calculator",
+      "cluster": "A",
+      "priority": "P0",
+      "description": "Automatische prijsberekening",
+      "passes": true,
+      "evidence": "regels array met hoeveelheid x prijsPerEenheid"
+    },
+    {
+      "id": "OFF-003",
+      "module": "offerte-calculator",
+      "cluster": "A",
+      "priority": "P0",
+      "description": "Offerteversies met wijzigingslog",
+      "passes": true,
+      "evidence": "convex/offerteVersions.ts"
+    },
+    {
+      "id": "OFF-004",
+      "module": "offerte-calculator",
+      "cluster": "A",
+      "priority": "P0",
+      "description": "Markering getekende versie",
+      "passes": true,
+      "evidence": "customerResponse.signedAt"
+    },
+    {
+      "id": "OFF-005",
+      "module": "offerte-calculator",
+      "cluster": "A",
+      "priority": "P0",
+      "description": "PDF-export met huisstijl",
+      "passes": true,
+      "evidence": "src/components/pdf/offerte-pdf.tsx"
+    },
+    {
+      "id": "OFF-006",
+      "module": "offerte-calculator",
+      "cluster": "A",
+      "priority": "P0",
+      "description": "Digitale handtekening flow",
+      "passes": true,
+      "evidence": "DynamicSignaturePad + publicOffertes.ts"
+    },
+    {
+      "id": "OFF-008",
+      "module": "offerte-calculator",
+      "cluster": "A",
+      "priority": "P0",
+      "description": "CRM statusupdate na ondertekening",
+      "passes": true,
+      "evidence": "notifyOfferteStatusChange"
+    },
+    {
+      "id": "OFF-009",
+      "module": "offerte-calculator",
+      "cluster": "A",
+      "priority": "P0",
+      "description": "Offerte → project aanmaak",
+      "passes": true,
+      "evidence": "convex/projecten.ts create"
+    },
+    {
+      "id": "OFF-013",
+      "module": "offerte-calculator",
+      "cluster": "A",
+      "priority": "P0",
+      "description": "Waarschuwing onrealistische bedragen",
+      "passes": true,
+      "evidence": "price-anomaly-alert.tsx"
+    },
+    {
+      "id": "CRM-001",
+      "module": "crm",
+      "cluster": "A",
+      "priority": "P0",
+      "description": "Klantkaart met contactgegevens en linked offertes",
+      "passes": true,
+      "evidence": "klanten/[id]/page.tsx"
+    },
+    {
+      "id": "CRM-004",
+      "module": "crm",
+      "cluster": "A",
+      "priority": "P0",
+      "description": "Communicatiehistorie via leads en emailLogs",
+      "passes": true,
+      "evidence": "leadActiviteiten.ts + emailLogs.ts"
+    },
+    {
+      "id": "CRM-006",
+      "module": "crm",
+      "cluster": "A",
+      "priority": "P0",
+      "description": "Module-koppelingen (klant → leads → offertes)",
+      "passes": true,
+      "evidence": "gekoppeldKlantId + navigatie"
+    },
+    {
+      "id": "FAC-004",
+      "module": "facturatie",
+      "cluster": "A",
+      "priority": "P0",
+      "description": "Automatische factuurgeneratie",
+      "passes": true,
+      "evidence": "convex/facturen.ts generate mutation"
+    },
+    {
+      "id": "FAC-005",
+      "module": "facturatie",
+      "cluster": "A",
+      "priority": "P0",
+      "description": "Factuurstatus tracking",
+      "passes": true,
+      "evidence": "concept/definitief/verzonden/betaald/vervallen"
+    },
+    {
+      "id": "FAC-009",
+      "module": "facturatie",
+      "cluster": "A",
+      "priority": "P0",
+      "description": "BTW berekening 21%/9%",
+      "passes": true,
+      "evidence": "btwPercentage + btwBedrag velden"
+    },
+    {
+      "id": "FAC-010",
+      "module": "facturatie",
+      "cluster": "A",
+      "priority": "P0",
+      "description": "Factuur vereist gekoppelde offerte",
+      "passes": true,
+      "evidence": "validatie in generate"
+    },
+    {
+      "id": "PRJ-005",
+      "module": "projectmodule",
+      "cluster": "B",
+      "priority": "P0",
+      "description": "Foto-upload met verplichte categorisering: voor, tijdens, na",
+      "passes": true,
+      "steps": [
+        "Schema: voeg 'fotoCategorie' veld toe (voor/tijdens/na/overig)",
+        "UI: bij foto upload → verplichte selectie van categorie",
+        "UI: foto galerij per project met tabs/filters per categorie",
+        "Mobile: zelfde categorisering in ProjectFotoUpload component",
+        "Automatische datum- en locatiestempel op foto metadata"
+      ],
+      "files_to_edit": [
+        "convex/schema.ts",
+        "convex/fotoStorage.ts",
+        "src/app/(dashboard)/projecten/[id]/",
+        "mobile/components/ProjectFotoUpload.tsx"
+      ],
+      "completed_by": "cluster-b-agent",
+      "completed_at": "2026-03-26"
+    },
+    {
+      "id": "PRJ-004",
+      "module": "projectmodule",
+      "cluster": "B",
+      "priority": "P0",
+      "description": "Documentbeheer per project",
+      "passes": true,
+      "steps": [
+        "Schema: voeg 'categorie' veld toe aan fotoStorage (tekening/vergunning/klic/contract/overig)",
+        "UI: document upload met categorie selectie",
+        "UI: documenten overzicht per project gegroepeerd op categorie",
+        "UI: preview voor afbeeldingen, download voor overige bestanden",
+        "Bestanden worden automatisch gecategoriseerd op bestandstype als suggestie"
+      ],
+      "files_to_edit": [
+        "convex/schema.ts",
+        "convex/fotoStorage.ts",
+        "src/app/(dashboard)/projecten/[id]/"
+      ],
+      "completed_by": "cluster-b-agent",
+      "completed_at": "2026-03-26"
+    },
+    {
+      "id": "URN-002",
+      "module": "urenregistratie",
+      "cluster": "B",
+      "priority": "P0",
+      "description": "Uurtypes volledig uitwerken",
+      "passes": true,
+      "steps": [
+        "Schema: definieer uurtype enum (productief/reistijd/pauze/intern/ziekte/verlof)",
+        "Backend: validatie dat uurtype verplicht is bij registratie",
+        "UI web: uurtype dropdown bij uren invoeren",
+        "UI mobile: uurtype selector in uren tab",
+        "Rapportage: uren per type per medewerker per week"
+      ],
+      "files_to_edit": [
+        "convex/schema.ts",
+        "convex/urenRegistraties.ts",
+        "src/app/(dashboard)/uren/",
+        "mobile/app/(tabs)/uren.tsx"
+      ],
+      "completed_by": "cluster-b-agent",
+      "completed_at": "2026-03-26"
+    },
+    {
+      "id": "PRJ-006",
+      "module": "projectmodule",
+      "cluster": "B",
+      "priority": "P0",
+      "description": "Meerwerk registratie: beschrijving, foto, geschatte kosten",
+      "passes": true,
+      "steps": [
+        "Schema: nieuwe 'meerwerk' tabel (projectId, beschrijving, geschatteKosten, fotos, status, gemeldDoor, datum)",
+        "Backend: CRUD mutations voor meerwerk",
+        "UI: 'Meerwerk melden' knop op project detail pagina",
+        "UI: formulier met beschrijving (verplicht), foto upload (verplicht), geschatte kosten",
+        "UI: meerwerk overzicht per project met status badges",
+        "Mobile: meerwerk melden vanuit voorman app"
+      ],
+      "files_to_edit": [
+        "convex/schema.ts",
+        "convex/meerwerk.ts (nieuw)",
+        "src/app/(dashboard)/projecten/[id]/",
+        "mobile/"
+      ],
+      "completed_by": "cluster-b-agent",
+      "completed_at": "2026-03-26"
+    },
+    {
+      "id": "PRJ-007",
+      "module": "projectmodule",
+      "cluster": "B",
+      "priority": "P0",
+      "description": "Meerwerk goedkeuringsflow: voorman → projectleider → klant",
+      "passes": true,
+      "depends_on": [
+        "PRJ-006"
+      ],
+      "steps": [
+        "Schema: meerwerk status flow: gemeld → beoordeeld → goedgekeurd_intern → goedgekeurd_klant → afgekeurd",
+        "Backend: projectleider kan meerwerk goedkeuren/afkeuren met opmerking",
+        "Backend: na interne goedkeuring → notificatie naar klant (email)",
+        "Backend: klant kan goedkeuren via klant-link (vergelijkbaar met offerte flow)",
+        "UI: goedkeuringsknopen per meerwerkitem voor projectleider",
+        "UI: status timeline per meerwerkitem",
+        "Goedgekeurd meerwerk kan gefactureerd worden (link naar FAC-003)"
+      ],
+      "files_to_edit": [
+        "convex/meerwerk.ts",
+        "convex/notifications.ts",
+        "src/app/(dashboard)/projecten/[id]/"
+      ],
+      "completed_by": "cluster-b-agent",
+      "completed_at": "2026-03-26"
+    },
+    {
+      "id": "PRJ-010",
+      "module": "projectmodule",
+      "cluster": "B",
+      "priority": "P0",
+      "description": "Automatische notificatie als projectkosten 80% van budget bereiken",
+      "passes": false,
+      "steps": [
+        "Backend: query die projectkosten vs budget berekent",
+        "Backend: cron of trigger bij uren/kosten toevoegen → check 80% drempel",
+        "Backend: notificatie aanmaken bij overschrijding (eenmalig per project)",
+        "UI: waarschuwingsbanner op projectdashboard bij >80%",
+        "UI: rood bij >100%",
+        "Push notificatie naar projectleider"
+      ],
+      "files_to_edit": [
+        "convex/projecten.ts",
+        "convex/notifications.ts",
+        "src/app/(dashboard)/projecten/[id]/"
+      ]
+    },
+    {
+      "id": "PLN-001",
+      "module": "planning",
+      "cluster": "B",
+      "priority": "P0",
+      "description": "Drag-and-drop weekplanning",
+      "passes": false,
+      "steps": [
+        "UI: weekweergave component met dagen op X-as (ma-vr) en medewerkers op Y-as",
+        "UI: projectblokken als draggable kaarten op het grid",
+        "UI: drag-and-drop om medewerkers op projecten in te plannen",
+        "Backend: planningTaken mutation bij drag (medewerker + project + dag)",
+        "UI: visuele feedback bij drag (ghost element, drop target highlight)",
+        "Navigatie: volgende/vorige week knoppen",
+        "Data: planning wordt real-time gesynct (Convex reactivity)"
+      ],
+      "files_to_edit": [
+        "convex/planningen.ts (nieuw of uitbreid planningTaken.ts)",
+        "src/app/(dashboard)/planning/page.tsx",
+        "src/components/planning/ (nieuw)"
+      ]
+    },
+    {
+      "id": "PLN-002",
+      "module": "planning",
+      "cluster": "B",
+      "priority": "P0",
+      "description": "Beschikbaarheidspaneel (wie is niet ingepland)",
+      "passes": false,
+      "steps": [
+        "Backend: query die medewerkers retourneert die NIET ingepland zijn op een specifieke dag",
+        "Backend: filter op verlof/ziekte (medewerker met verlof verschijnt NIET in pool)",
+        "UI: zijpaneel met 'Beschikbare medewerkers' lijst per geselecteerde dag",
+        "UI: medewerker slepen van pool naar weekplanning grid",
+        "UI: na inplannen → medewerker verdwijnt uit beschikbare pool"
+      ],
+      "files_to_edit": [
+        "convex/planningen.ts",
+        "src/components/planning/"
+      ]
+    },
+    {
+      "id": "PLN-003",
+      "module": "planning",
+      "cluster": "B",
+      "priority": "P0",
+      "description": "Bus-/voertuigtoewijzing per dag",
+      "passes": false,
+      "steps": [
+        "Schema: voeg 'voertuigId' toe aan planning entries",
+        "UI: voertuig dropdown per project/team in planning",
+        "UI: voertuig beschikbaarheid zichtbaar (welke bussen zijn al toegewezen)",
+        "Validatie: bus met verlopen APK kan NIET worden toegewezen (rode waarschuwing)",
+        "Validatie: bus met status 'defect' kan NIET worden toegewezen"
+      ],
+      "files_to_edit": [
+        "convex/schema.ts",
+        "convex/planningen.ts",
+        "src/components/planning/"
+      ]
+    },
+    {
+      "id": "PLN-005",
+      "module": "planning",
+      "cluster": "B",
+      "priority": "P0",
+      "description": "Capaciteitsoverzicht",
+      "passes": false,
+      "steps": [
+        "Backend: query totaal beschikbare uren per week vs ingeplande uren",
+        "Backend: query beschikbare bussen/machines per dag",
+        "UI: capaciteitsbalk bovenaan planning (bezettingsgraad %)",
+        "UI: kleurcodering (groen <80%, oranje 80-100%, rood >100%)",
+        "UI: hover voor details per dag"
+      ],
+      "files_to_edit": [
+        "convex/planningen.ts",
+        "src/components/planning/"
+      ]
+    },
+    {
+      "id": "PLN-006",
+      "module": "planning",
+      "cluster": "B",
+      "priority": "P0",
+      "description": "Conflictdetectie",
+      "passes": false,
+      "steps": [
+        "Backend: bij inplannen → check of medewerker al ergens anders ingepland is die dag",
+        "Backend: check of bus/machine al toegewezen is",
+        "UI: rode rand om conflicterend blok",
+        "UI: tooltip met uitleg: 'Jan is al ingepland op Project X'",
+        "Conflict is warning, niet hard block (planner kan overrulen)"
+      ],
+      "files_to_edit": [
+        "convex/planningen.ts",
+        "src/components/planning/"
+      ]
+    },
+    {
+      "id": "URN-004",
+      "module": "urenregistratie",
+      "cluster": "B",
+      "priority": "P0",
+      "description": "Automatische herinnering als uren niet ingevuld",
+      "passes": false,
+      "steps": [
+        "Backend: cron job om 18:00 → check welke medewerkers geen uren hebben ingevuld vandaag",
+        "Backend: push notificatie naar medewerker via pushNotifications",
+        "Backend: escalatie om 20:00 (tweede herinnering)",
+        "Backend: volgende ochtend melding aan voorman als nog steeds niet ingevuld",
+        "UI: voorman ziet rood/groen overzicht wie al heeft ingevuld"
+      ],
+      "files_to_edit": [
+        "convex/crons.ts",
+        "convex/urenRegistraties.ts",
+        "convex/pushNotifications.ts",
+        "src/app/(dashboard)/uren/"
+      ]
+    },
+    {
+      "id": "PLN-004",
+      "module": "planning",
+      "cluster": "B",
+      "priority": "P0",
+      "description": "Slimme materieel-suggesties op basis van werkzaamheidstype",
+      "passes": false,
+      "steps": [
+        "Schema: taak-naar-machine koppeltabel (werkzaamheidstype → benodigde machines)",
+        "Backend: bij inplannen werkzaamheid → automatisch benodigde machines ophalen",
+        "UI: suggestie-panel naast planning met aanbevolen machines",
+        "UI: suggesties zijn soft (planner kan toevoegen/negeren)",
+        "Admin UI: koppeltabel beheren (welk werk = welke machines)"
+      ],
+      "files_to_edit": [
+        "convex/schema.ts",
+        "convex/planningen.ts",
+        "src/components/planning/",
+        "src/app/(dashboard)/instellingen/"
+      ]
+    },
+    {
+      "id": "PLN-007",
+      "module": "planning",
+      "cluster": "B",
+      "priority": "P0",
+      "description": "Weer-integratie",
+      "passes": false,
+      "steps": [
+        "API route: /api/weather → KNMI of OpenWeather API call per locatie",
+        "Backend: cache weer-data per dag per locatie",
+        "UI: weer-icoon per dag in weekplanning header",
+        "UI: waarschuwing bij vorst/storm/zware regen met tooltip",
+        "Weer is informatief — geen automatische planningswijzigingen"
+      ],
+      "files_to_edit": [
+        "src/app/api/weather/ (nieuw)",
+        "src/components/planning/"
+      ]
+    },
+    {
+      "id": "PRJ-001",
+      "module": "projectmodule",
+      "cluster": "B",
+      "priority": "P0",
+      "description": "Projectaanmaak vanuit offerte",
+      "passes": true,
+      "evidence": "convex/projecten.ts create + /projecten/nieuw"
+    },
+    {
+      "id": "PRJ-002",
+      "module": "projectmodule",
+      "cluster": "B",
+      "priority": "P0",
+      "description": "Projectdashboard",
+      "passes": true,
+      "evidence": "getActiveProjectsWithProgress + /projecten/[id]"
+    },
+    {
+      "id": "PRJ-003",
+      "module": "projectmodule",
+      "cluster": "B",
+      "priority": "P0",
+      "description": "To-do lijsten per project",
+      "passes": true,
+      "evidence": "planningTaken tabel + /projecten/[id]/planning"
+    },
+    {
+      "id": "PRJ-008",
+      "module": "projectmodule",
+      "cluster": "B",
+      "priority": "P0",
+      "description": "Nacalculatie",
+      "passes": true,
+      "evidence": "nacalculaties + grafieken + vergelijking"
+    },
+    {
+      "id": "PRJ-009",
+      "module": "projectmodule",
+      "cluster": "B",
+      "priority": "P0",
+      "description": "Projectafsluiting checklist",
+      "passes": true,
+      "evidence": "kwaliteitsControles + /projecten/[id]/kwaliteit"
+    },
+    {
+      "id": "PLN-008",
+      "module": "planning",
+      "cluster": "B",
+      "priority": "P0",
+      "description": "Kleurcodering per projecttype",
+      "passes": true,
+      "evidence": "statusConfig met kleuren"
+    },
+    {
+      "id": "URN-001",
+      "module": "urenregistratie",
+      "cluster": "B",
+      "priority": "P0",
+      "description": "Medewerker ziet ingeplande projecten",
+      "passes": true,
+      "evidence": "planning link + mobile uren tab"
+    },
+    {
+      "id": "URN-003",
+      "module": "urenregistratie",
+      "cluster": "B",
+      "priority": "P0",
+      "description": "Voorman team uren invoer",
+      "passes": true,
+      "evidence": "importBatch + UrenEntryForm"
+    },
+    {
+      "id": "URN-005",
+      "module": "urenregistratie",
+      "cluster": "B",
+      "priority": "P0",
+      "description": "Weekoverzicht + goedkeuring",
+      "passes": true,
+      "evidence": "listByDateRange + week filters + mobile"
+    },
+    {
+      "id": "URN-006",
+      "module": "urenregistratie",
+      "cluster": "B",
+      "priority": "P0",
+      "description": "Uren → nacalculatie link",
+      "passes": true,
+      "evidence": "via projectId"
+    },
+    {
+      "id": "EML-005",
+      "module": "email",
+      "cluster": "C",
+      "priority": "P0",
+      "description": "Open/klik tracking via Resend webhooks",
+      "passes": true,
+      "steps": [
+        "API route: /api/webhooks/resend → ontvang Resend webhook events",
+        "Backend: bij 'delivered' event → update email_logs status",
+        "Backend: bij 'opened' event → set openedAt timestamp",
+        "Backend: bij 'bounced' event → markeer als bounced + notificatie aan gebruiker",
+        "UI: email status iconen op engagement timeline (delivered/opened/bounced)",
+        "Resend webhook signing verificatie voor security"
+      ],
+      "files_to_edit": [
+        "src/app/api/webhooks/resend/ (nieuw)",
+        "convex/emailLogs.ts",
+        "src/components/offerte/engagement-timeline.tsx"
+      ]
+    },
+    {
+      "id": "EML-006",
+      "module": "email",
+      "cluster": "C",
+      "priority": "P0",
+      "description": "Herinnerings-e-mail flow (7/14/21 dagen)",
+      "passes": true,
+      "steps": [
+        "Backend: bestaande offerteReminders scheduler koppelen aan daadwerkelijke email verzending",
+        "Backend: template laden per herinneringstype (niet_bekeken, niet_gereageerd, laatste)",
+        "Backend: oplopende urgentie in toon per herinnering",
+        "UI: herinnerings-status zichtbaar op offerte detail",
+        "UI: handmatig herinnering sturen knop",
+        "Log: alle verstuurde herinneringen in email_logs"
+      ],
+      "files_to_edit": [
+        "convex/offerteReminders.ts",
+        "convex/emailLogs.ts",
+        "src/app/api/email/route.ts"
+      ]
+    },
+    {
+      "id": "EML-001",
+      "module": "email",
+      "cluster": "C",
+      "priority": "P0",
+      "description": "E-mail template bibliotheek met standaardteksten per trigger",
+      "passes": true,
+      "steps": [
+        "Schema: emailTemplates tabel (naam, trigger, onderwerp, inhoud, variabelen)",
+        "Backend: CRUD mutations + seed met standaard templates",
+        "Triggers: offerte_verzonden, factuur_verzonden, herinnering, aanmaning_1/2/3, oplevering, contract_verlenging",
+        "UI: admin pagina voor template beheer met rich text editor",
+        "UI: variabelen systeem ({{klantNaam}}, {{offerteBedrag}}, {{projectNaam}}, etc.)",
+        "Backend: template rendering functie die variabelen vervangt"
+      ],
+      "files_to_edit": [
+        "convex/schema.ts",
+        "convex/emailTemplates.ts (nieuw)",
+        "src/app/(dashboard)/instellingen/email-templates/ (nieuw)"
+      ]
+    },
+    {
+      "id": "EML-003",
+      "module": "email",
+      "cluster": "C",
+      "priority": "P0",
+      "description": "Automatische bijlage: algemene voorwaarden bij offerte/contract",
+      "passes": true,
+      "steps": [
+        "Backend: upload en opslag van algemene voorwaarden PDF in instellingen",
+        "Backend: bij offerte email → automatisch voorwaarden PDF bijvoegen",
+        "UI: instellingen pagina om voorwaarden PDF te uploaden/vervangen",
+        "UI: bij send-email-dialog → voorwaarden automatisch in bijlage-lijst (niet verwijderbaar)",
+        "Voorwaarden bijlage verschijnt ALTIJD bij offertes en contracten"
+      ],
+      "files_to_edit": [
+        "convex/settings.ts",
+        "src/app/api/email/route.ts",
+        "src/components/email/send-email-dialog.tsx"
+      ]
+    },
+    {
+      "id": "SOD-003",
+      "module": "smart-dashboard",
+      "cluster": "C",
+      "priority": "P0",
+      "description": "Directie dashboard",
+      "passes": false,
+      "steps": [
+        "Backend: aggregatie queries voor omzet, marges, bezettingsgraad",
+        "UI: dedicated dashboard voor rol 'admin/directie'",
+        "UI: financieel overzicht (omzet, openstaande facturen, cashflow)",
+        "UI: operationeel (bezettingsgraad, projectstatus, nacalculatie afwijkingen)",
+        "UI: HR-signalen (verlopen certificaten, verzuim)",
+        "UI: vergelijking dit kwartaal vs vorig kwartaal"
+      ],
+      "files_to_edit": [
+        "convex/smartAnalytics.ts",
+        "src/app/(dashboard)/dashboard/"
+      ]
+    },
+    {
+      "id": "SOD-002",
+      "module": "smart-dashboard",
+      "cluster": "C",
+      "priority": "P0",
+      "description": "Voorman dashboard",
+      "passes": false,
+      "depends_on": [
+        "PLN-001"
+      ],
+      "steps": [
+        "Backend: query dagplanning voor ingelogde voorman",
+        "UI: dedicated dashboard voor rol 'voorman'",
+        "UI: vandaag's project met team, bus, machines",
+        "UI: to-do's per project",
+        "UI: uren-overzicht team (wie heeft ingevuld, wie niet — rood/groen)",
+        "UI: status van eerder gemelde defecten"
+      ],
+      "files_to_edit": [
+        "convex/smartAnalytics.ts",
+        "src/app/(dashboard)/dashboard/"
+      ]
+    },
+    {
+      "id": "SOD-001",
+      "module": "smart-dashboard",
+      "cluster": "C",
+      "priority": "P0",
+      "description": "Materiaalman dashboard (Mickey)",
+      "passes": false,
+      "steps": [
+        "Backend: query die dagelijkse to-do's genereert voor materiaalman rol",
+        "Backend: aggregatie van openstaande defecten, naderende keuringen, bestellijsten",
+        "UI: dedicated dashboard view voor rol 'materiaalman'",
+        "UI: defectmeldingen inbox met prioriteit kleuren (rood=onbruikbaar, oranje=beperkt)",
+        "UI: keuringskalender tijdlijn",
+        "UI: blokkade-overzicht (wat is niet inzetbaar en waarom)",
+        "UI: actieknoppen per item ('Bestel nu', 'Plan keuring', 'Bel reparateur')"
+      ],
+      "files_to_edit": [
+        "convex/smartAnalytics.ts",
+        "src/app/(dashboard)/dashboard/",
+        "src/components/dashboard/ (nieuw)"
+      ]
+    },
+    {
+      "id": "SOD-004",
+      "module": "smart-dashboard",
+      "cluster": "C",
+      "priority": "P0",
+      "description": "Proactieve waarschuwingen bij conflicten",
+      "passes": false,
+      "depends_on": [
+        "PLN-001",
+        "PLN-006"
+      ],
+      "steps": [
+        "Backend: engine die planning + materieel + projecten combineert voor conflicten",
+        "Backend: detecteer dubbele planning, ontbrekend materieel, naderende deadlines",
+        "UI: waarschuwingen-feed op elk dashboard",
+        "UI: elke waarschuwing heeft actieknop en uitleg",
+        "Waarschuwingen zijn suggesties, nooit automatische acties"
+      ],
+      "files_to_edit": [
+        "convex/smartAnalytics.ts",
+        "src/components/dashboard/"
+      ]
+    },
+    {
+      "id": "EML-002",
+      "module": "email",
+      "cluster": "C",
+      "priority": "P0",
+      "description": "Templates aanpasbaar per verzending",
+      "passes": true,
+      "evidence": "send-email-dialog.tsx + customMessage"
+    },
+    {
+      "id": "EML-004",
+      "module": "email",
+      "cluster": "C",
+      "priority": "P0",
+      "description": "Offerte-email flow",
+      "passes": true,
+      "evidence": "OfferteEmail → dialog → Resend"
+    },
+    {
+      "id": "HR-003",
+      "module": "hr",
+      "cluster": "D",
+      "priority": "P1",
+      "description": "Verlofregistratie met goedkeuringsflow",
+      "passes": false,
+      "steps": [
+        "Schema: verlofaanvragen tabel (medewerker, startDatum, eindDatum, type, status, opmerking)",
+        "Backend: CRUD + goedkeuringsflow (aangevraagd → goedgekeurd/afgekeurd)",
+        "Backend: verlofsaldo berekening per medewerker",
+        "UI: verlof aanvragen formulier",
+        "UI: goedkeuringslijst voor leidinggevende",
+        "UI: verlofkalender overzicht",
+        "Integratie: goedgekeurd verlof → medewerker verdwijnt uit beschikbare pool in planning"
+      ],
+      "files_to_edit": [
+        "convex/schema.ts",
+        "convex/verlof.ts (nieuw)",
+        "src/app/(dashboard)/medewerkers/"
+      ]
+    },
+    {
+      "id": "HR-004",
+      "module": "hr",
+      "cluster": "D",
+      "priority": "P1",
+      "description": "Ziekteverzuim tracking",
+      "passes": false,
+      "steps": [
+        "Schema: verzuim tabel (medewerker, startDatum, herstelDatum, notities)",
+        "Backend: ziekmelding/herstelmelding mutations",
+        "Backend: automatische melding bij 3 ziekmeldingen binnen 3 maanden",
+        "UI: ziekmelding registreren",
+        "UI: verzuimoverzicht per medewerker",
+        "UI: verzuimpercentage op HR dashboard"
+      ],
+      "files_to_edit": [
+        "convex/schema.ts",
+        "convex/verzuim.ts (nieuw)",
+        "src/app/(dashboard)/medewerkers/"
+      ]
+    },
+    {
+      "id": "HR-005",
+      "module": "hr",
+      "cluster": "D",
+      "priority": "P1",
+      "description": "Toolbox-meetings registratie",
+      "passes": false,
+      "steps": [
+        "Schema: toolboxMeetings tabel (datum, onderwerp, aanwezigen, notities, projectId optioneel)",
+        "Backend: CRUD mutations",
+        "Validatie: minimaal een onderwerp en een aanwezige verplicht",
+        "UI: toolbox meeting registratie formulier",
+        "UI: overzicht van alle meetings (wettelijke documentatie)"
+      ],
+      "files_to_edit": [
+        "convex/schema.ts",
+        "convex/toolboxMeetings.ts (nieuw)",
+        "src/app/(dashboard)/medewerkers/"
+      ]
+    },
+    {
+      "id": "HR-001",
+      "module": "hr",
+      "cluster": "D",
+      "priority": "P1",
+      "description": "Personeelsdossier",
+      "passes": true,
+      "evidence": "medewerkers tabel + /medewerkers page"
+    },
+    {
+      "id": "HR-002",
+      "module": "hr",
+      "cluster": "D",
+      "priority": "P1",
+      "description": "Certificeringen met verloopmeldingen",
+      "passes": true,
+      "evidence": "certificaten array + certificaat-form + badges"
+    },
+    {
+      "id": "WP-001",
+      "module": "wagenpark",
+      "cluster": "D",
+      "priority": "P1",
+      "description": "Voertuigen CRUD",
+      "passes": true,
+      "evidence": "13+ functies + /wagenpark + 13 componenten"
+    },
+    {
+      "id": "WP-002",
+      "module": "wagenpark",
+      "cluster": "D",
+      "priority": "P1",
+      "description": "Fleet and Go integratie",
+      "passes": true,
+      "evidence": "syncFromFleetGo + fleetgo-settings.tsx"
+    },
+    {
+      "id": "WP-003",
+      "module": "wagenpark",
+      "cluster": "D",
+      "priority": "P1",
+      "description": "Defect/schademeldingen",
+      "passes": true,
+      "evidence": "voertuigSchades + schade-form + schade-lijst"
+    },
+    {
+      "id": "WP-004",
+      "module": "wagenpark",
+      "cluster": "D",
+      "priority": "P1",
+      "description": "APK/keuringen",
+      "passes": true,
+      "evidence": "apkVervaldatum + getVervaldataOverzicht + onderhoud-form"
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalQuery } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
 import { requireNotViewer } from "./roles";
 
@@ -145,5 +145,111 @@ export const getNextOfferteNummer = mutation({
     });
 
     return offerteNummer;
+  },
+});
+
+// ── Algemene Voorwaarden PDF (EML-003) ────────────────────────────────
+
+/** Generate upload URL for voorwaarden PDF */
+export const generateVoorwaardenUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    await requireNotViewer(ctx);
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
+/** Save uploaded voorwaarden PDF to settings */
+export const updateVoorwaardenPdf = mutation({
+  args: {
+    storageId: v.id("_storage"),
+    bestandsnaam: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
+    const userId = await requireAuthUserId(ctx);
+
+    const settings = await ctx.db
+      .query("instellingen")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique();
+
+    if (!settings) {
+      throw new Error("Instellingen niet gevonden");
+    }
+
+    // Delete old PDF from storage if exists
+    if (settings.voorwaardenPdfId) {
+      await ctx.storage.delete(settings.voorwaardenPdfId);
+    }
+
+    await ctx.db.patch(settings._id, {
+      voorwaardenPdfId: args.storageId,
+      voorwaardenPdfNaam: args.bestandsnaam,
+    });
+
+    return settings._id;
+  },
+});
+
+/** Remove voorwaarden PDF from settings */
+export const removeVoorwaardenPdf = mutation({
+  args: {},
+  handler: async (ctx) => {
+    await requireNotViewer(ctx);
+    const userId = await requireAuthUserId(ctx);
+
+    const settings = await ctx.db
+      .query("instellingen")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique();
+
+    if (!settings) throw new Error("Instellingen niet gevonden");
+    if (!settings.voorwaardenPdfId) return;
+
+    await ctx.storage.delete(settings.voorwaardenPdfId);
+    await ctx.db.patch(settings._id, {
+      voorwaardenPdfId: undefined,
+      voorwaardenPdfNaam: undefined,
+    });
+  },
+});
+
+/** Get voorwaarden PDF URL (for use in email sending) */
+export const getVoorwaardenPdfUrl = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireAuthUserId(ctx);
+    const settings = await ctx.db
+      .query("instellingen")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique();
+
+    if (!settings?.voorwaardenPdfId) return null;
+
+    const url = await ctx.storage.getUrl(settings.voorwaardenPdfId);
+    return {
+      url,
+      naam: settings.voorwaardenPdfNaam ?? "Algemene Voorwaarden.pdf",
+    };
+  },
+});
+
+/** Internal: get voorwaarden URL for a specific user (for automated emails) */
+export const getVoorwaardenForUser = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const settings = await ctx.db
+      .query("instellingen")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .unique();
+
+    if (!settings?.voorwaardenPdfId) return null;
+
+    const url = await ctx.storage.getUrl(settings.voorwaardenPdfId);
+    return {
+      url,
+      naam: settings.voorwaardenPdfNaam ?? "Algemene Voorwaarden.pdf",
+    };
   },
 });

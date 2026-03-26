@@ -22,9 +22,11 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Send, Mail, Clock, CheckCircle, AlertCircle } from "lucide-react";
+import { Loader2, Send, Mail, Clock, CheckCircle, AlertCircle, Paperclip } from "lucide-react";
 import { useEmail, useEmailLogs, type EmailType } from "@/hooks/use-email";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { useQuery } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 import { toast } from "sonner";
 import { Id } from "../../../convex/_generated/dataModel";
 
@@ -84,6 +86,7 @@ export function SendEmailDialog({
   const { user } = useCurrentUser();
   const { sendEmail, isSending } = useEmail();
   const { logs } = useEmailLogs(offerte._id);
+  const voorwaarden = useQuery(api.instellingen.getVoorwaardenPdfUrl);
 
   const [emailType, setEmailType] = useState<EmailType>("offerte_verzonden");
   const [toEmail, setToEmail] = useState(offerte.klant.email || "");
@@ -157,6 +160,8 @@ export function SendEmailDialog({
         scopes: offerte.scopes,
         customMessage: customMessage.trim() || undefined,
         cc: ccEmail.trim() || undefined,
+        voorwaardenPdfUrl: voorwaarden?.url ?? undefined,
+        voorwaardenPdfNaam: voorwaarden?.naam,
       });
 
       // 4. Clear optimistic state and show success
@@ -269,6 +274,24 @@ export function SendEmailDialog({
               {customMessage.length}/500
             </p>
           </div>
+
+          {/* Voorwaarden attachment indicator */}
+          {voorwaarden?.url && (
+            <div className="flex items-center gap-2 rounded-md bg-muted/50 px-3 py-2">
+              <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium truncate">
+                  {voorwaarden.naam}
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  Wordt automatisch bijgevoegd
+                </p>
+              </div>
+              <Badge variant="secondary" className="text-[10px] shrink-0">
+                Bijlage
+              </Badge>
+            </div>
+          )}
 
           {/* Previous Emails */}
           {logs.length > 0 && (

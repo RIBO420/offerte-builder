@@ -67,6 +67,8 @@ import type * as transportbedrijven from "../transportbedrijven.js";
 import type * as urenRegistraties from "../urenRegistraties.js";
 import type * as users from "../users.js";
 import type * as validators from "../validators.js";
+import type * as verlof from "../verlof.js";
+import type * as verzuim from "../verzuim.js";
 import type * as voertuigOnderhoud from "../voertuigOnderhoud.js";
 import type * as voertuigSchades from "../voertuigSchades.js";
 import type * as voertuigUitrusting from "../voertuigUitrusting.js";
@@ -141,6 +143,8 @@ declare const fullApi: ApiFromModules<{
   urenRegistraties: typeof urenRegistraties;
   users: typeof users;
   validators: typeof validators;
+  verlof: typeof verlof;
+  verzuim: typeof verzuim;
   voertuigOnderhoud: typeof voertuigOnderhoud;
   voertuigSchades: typeof voertuigSchades;
   voertuigUitrusting: typeof voertuigUitrusting;

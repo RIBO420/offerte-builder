@@ -106,6 +106,9 @@ export async function POST(request: NextRequest) {
       scopes,
       customMessage,
       cc,
+      // Voorwaarden PDF attachment (EML-003)
+      voorwaardenPdfUrl,
+      voorwaardenPdfNaam,
       // Bevestiging-specific fields
       aanvraagType,
       aanvraagDetails,
@@ -267,14 +270,23 @@ export async function POST(request: NextRequest) {
     // Build CC list if provided
     const ccList = cc?.trim() ? [cc.trim()] : undefined;
 
+    // Build attachments (voorwaarden PDF if provided)
+    const attachments: Array<{ filename: string; path: string }> = [];
+    if (voorwaardenPdfUrl && typeof voorwaardenPdfUrl === "string") {
+      attachments.push({
+        filename: (voorwaardenPdfNaam as string) || "Algemene Voorwaarden.pdf",
+        path: voorwaardenPdfUrl,
+      });
+    }
+
     const { data, error } = await resend.emails.send({
       from: `${bedrijfsnaam} <${fromEmail}>`,
       to: [to],
       cc: ccList,
       subject,
       html: emailHtml,
-      // Reply-to the business email if provided
       replyTo: bedrijfsEmail || undefined,
+      ...(attachments.length > 0 ? { attachments } : {}),
     });
 
     if (error) {

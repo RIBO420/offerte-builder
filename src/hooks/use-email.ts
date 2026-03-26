@@ -21,6 +21,8 @@ interface SendEmailParams {
   scopes?: string[];
   customMessage?: string;
   cc?: string;
+  voorwaardenPdfUrl?: string;
+  voorwaardenPdfNaam?: string;
 }
 
 export function useEmail() {
@@ -50,6 +52,8 @@ export function useEmail() {
           scopes: params.scopes,
           customMessage: params.customMessage,
           cc: params.cc,
+          voorwaardenPdfUrl: params.voorwaardenPdfUrl,
+          voorwaardenPdfNaam: params.voorwaardenPdfNaam,
         }),
       });
 
