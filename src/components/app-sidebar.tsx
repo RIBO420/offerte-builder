@@ -57,6 +57,7 @@ import {
   Calendar,
   CalendarDays,
   Thermometer,
+  ClipboardList,
   Building2,
   ShoppingCart,
   Package,
@@ -92,6 +93,7 @@ const organizationItems = [
   { title: "Medewerkers", url: "/medewerkers", icon: UsersRound },
   { title: "Verlof", url: "/verlof", icon: CalendarDays },
   { title: "Verzuim", url: "/verzuim", icon: Thermometer },
+  { title: "Toolbox", url: "/toolbox", icon: ClipboardList },
   { title: "Wagenpark", url: "/wagenpark", icon: Truck },
   { title: "Rapportages", url: "/rapportages", icon: BarChart3 },
 ];

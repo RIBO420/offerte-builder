@@ -387,7 +387,8 @@ export default defineSchema({
       v.literal("gewijzigd"),
       v.literal("status_gewijzigd"),
       v.literal("regels_gewijzigd"),
-      v.literal("teruggedraaid")
+      v.literal("teruggedraaid"),
+      v.literal("nieuwe_versie")
     ),
     omschrijving: v.string(), // Human readable beschrijving
     createdAt: v.number(),
@@ -463,6 +464,20 @@ export default defineSchema({
       v.literal("afgerond")
     ),
   }).index("by_project", ["projectId"]),
+
+  // WeekPlanning — Medewerker-project-dag toewijzingen voor weekplanning
+  weekPlanning: defineTable({
+    medewerkerId: v.id("medewerkers"),
+    projectId: v.id("projecten"),
+    datum: v.string(), // YYYY-MM-DD
+    uren: v.optional(v.number()), // Geplande uren (default: volle dag)
+    notities: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_datum", ["datum"])
+    .index("by_medewerker_datum", ["medewerkerId", "datum"])
+    .index("by_project", ["projectId"])
+    .index("by_datum_project", ["datum", "projectId"]),
 
   // Machines - Machinepark / Wagenpark
   // Beheer van intern en extern gehuurde machines en voertuigen
@@ -1867,4 +1882,20 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_medewerker", ["medewerkerId"])
     .index("by_user_active", ["userId", "herstelDatum"]),
+
+  // Toolbox-meetings — Wettelijk verplichte veiligheidsbijeenkomsten
+  toolboxMeetings: defineTable({
+    userId: v.id("users"),
+    datum: v.string(), // YYYY-MM-DD
+    onderwerp: v.string(),
+    beschrijving: v.optional(v.string()),
+    aanwezigen: v.array(v.id("medewerkers")), // Minimaal 1 verplicht
+    notities: v.optional(v.string()),
+    projectId: v.optional(v.id("projecten")), // Optioneel gekoppeld aan project
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_datum", ["userId", "datum"])
+    .index("by_project", ["projectId"]),
 });
