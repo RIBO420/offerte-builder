@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuth, requireAuthUserId, getOwnedKlant } from "./auth";
-import { requireNotViewer } from "./roles";
+import { requireNotViewer, requireAdmin } from "./roles";
 import {
   sanitizeEmail,
   sanitizePhone,
@@ -434,5 +434,356 @@ export const createFromOfferte = mutation({
       createdAt: now,
       updatedAt: now,
     });
+  },
+});
+
+// ============================================
+// CRM-008: GDPR Anonimisering
+// ============================================
+
+// Check for blockers before GDPR anonymization (open invoices or active projects)
+export const checkGdprBlockers = query({
+  args: { id: v.id("klanten") },
+  handler: async (ctx, args) => {
+    const klant = await ctx.db.get(args.id);
+    if (!klant) return null;
+
+    // Verify ownership
+    const user = await requireAuth(ctx);
+    if (klant.userId.toString() !== user._id.toString()) {
+      return null;
+    }
+
+    const blockers: Array<{ type: "factuur" | "project"; label: string }> = [];
+
+    // Find all offertes for this klant to check linked projects and invoices
+    const offertes = await ctx.db
+      .query("offertes")
+      .withIndex("by_user", (q) => q.eq("userId", klant.userId))
+      .filter((q) => q.eq(q.field("klantId"), args.id))
+      .collect();
+
+    for (const offerte of offertes) {
+      // Check for active projects (not afgerond/gefactureerd/nacalculatie_compleet)
+      const projecten = await ctx.db
+        .query("projecten")
+        .withIndex("by_offerte", (q) => q.eq("offerteId", offerte._id))
+        .collect();
+
+      for (const project of projecten) {
+        if (
+          project.status !== "afgerond" &&
+          project.status !== "gefactureerd" &&
+          project.status !== "nacalculatie_compleet"
+        ) {
+          blockers.push({
+            type: "project",
+            label: `Project "${project.naam}" (status: ${project.status})`,
+          });
+        }
+
+        // Check for open invoices (not betaald/vervallen)
+        const facturen = await ctx.db
+          .query("facturen")
+          .withIndex("by_project", (q) => q.eq("projectId", project._id))
+          .collect();
+
+        for (const factuur of facturen) {
+          if (factuur.status !== "betaald" && factuur.status !== "vervallen") {
+            blockers.push({
+              type: "factuur",
+              label: `Factuur ${factuur.factuurnummer} (status: ${factuur.status})`,
+            });
+          }
+        }
+      }
+    }
+
+    return {
+      hasBlockers: blockers.length > 0,
+      blockers,
+      isAnonymized: klant.gdprAnonymized === true,
+      anonymizedAt: klant.gdprAnonymizedAt,
+    };
+  },
+});
+
+// GDPR anonymize a klant (admin only)
+export const gdprAnonymize = mutation({
+  args: { id: v.id("klanten") },
+  handler: async (ctx, args) => {
+    // Only admins can perform GDPR anonymization
+    const adminUser = await requireAdmin(ctx);
+
+    const klant = await ctx.db.get(args.id);
+    if (!klant) {
+      throw new Error("Klant niet gevonden");
+    }
+
+    // Verify ownership (admin must belong to same company)
+    if (klant.userId.toString() !== adminUser._id.toString()) {
+      throw new Error("Je hebt geen toegang tot deze klant");
+    }
+
+    // Check if already anonymized
+    if (klant.gdprAnonymized) {
+      throw new Error("Deze klant is al geanonimiseerd");
+    }
+
+    // Check for blockers: active projects and open invoices
+    const offertes = await ctx.db
+      .query("offertes")
+      .withIndex("by_user", (q) => q.eq("userId", klant.userId))
+      .filter((q) => q.eq(q.field("klantId"), args.id))
+      .collect();
+
+    for (const offerte of offertes) {
+      const projecten = await ctx.db
+        .query("projecten")
+        .withIndex("by_offerte", (q) => q.eq("offerteId", offerte._id))
+        .collect();
+
+      for (const project of projecten) {
+        if (
+          project.status !== "afgerond" &&
+          project.status !== "gefactureerd" &&
+          project.status !== "nacalculatie_compleet"
+        ) {
+          throw new Error(
+            `Kan niet anonimiseren: project "${project.naam}" is nog actief (status: ${project.status}). Rond eerst alle projecten af.`
+          );
+        }
+
+        const facturen = await ctx.db
+          .query("facturen")
+          .withIndex("by_project", (q) => q.eq("projectId", project._id))
+          .collect();
+
+        for (const factuur of facturen) {
+          if (factuur.status !== "betaald" && factuur.status !== "vervallen") {
+            throw new Error(
+              `Kan niet anonimiseren: factuur ${factuur.factuurnummer} is nog openstaand (status: ${factuur.status}). Zorg dat alle facturen betaald of vervallen zijn.`
+            );
+          }
+        }
+      }
+    }
+
+    // Anonymize the klant record — clear all PII, keep record for financial integrity
+    // Audit trail: gdprAnonymizedBy + gdprAnonymizedAt track who and when
+    const now = Date.now();
+    await ctx.db.patch(args.id, {
+      naam: "Geanonimiseerd",
+      email: undefined,
+      telefoon: undefined,
+      adres: "Geanonimiseerd",
+      postcode: "0000AA",
+      plaats: "Geanonimiseerd",
+      notities: undefined,
+      tags: undefined,
+      gdprAnonymized: true,
+      gdprAnonymizedAt: now,
+      gdprAnonymizedBy: adminUser._id,
+      updatedAt: now,
+    });
+
+    // Also anonymize klant data embedded in linked offertes (snapshots)
+    for (const offerte of offertes) {
+      await ctx.db.patch(offerte._id, {
+        klant: {
+          naam: "Geanonimiseerd",
+          adres: "Geanonimiseerd",
+          postcode: "0000AA",
+          plaats: "Geanonimiseerd",
+          email: undefined,
+          telefoon: undefined,
+        },
+        updatedAt: now,
+      });
+    }
+
+    return { success: true, anonymizedAt: now };
+  },
+});
+
+// ============ CRM-005: Opvolgherinneringen op klant-niveau ============
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * CRM-005: Get reminder info for a single klant.
+ * Returns reminder type and days overdue, or null if no reminder needed.
+ *
+ * Reminder triggers:
+ * - Klant has pipelineStatus "lead" and was created >14 days ago with no linked offerte
+ * - Klant has pipelineStatus "offerte_verzonden" and offerte was sent >7 days ago without response
+ *
+ * Excludes klanten where reminderSnoozed === true.
+ */
+export const getKlantReminder = query({
+  args: { id: v.id("klanten") },
+  handler: async (ctx, args) => {
+    const klant = await ctx.db.get(args.id);
+    if (!klant) return null;
+
+    // Verify ownership
+    const user = await requireAuth(ctx);
+    if (klant.userId.toString() !== user._id.toString()) return null;
+
+    // If snoozed, return snoozed state
+    if (klant.reminderSnoozed) {
+      return { type: "snoozed" as const, dagenOpen: 0 };
+    }
+
+    const now = Date.now();
+    const pipelineStatus = klant.pipelineStatus ?? "lead";
+
+    // Check: Lead without offerte for >14 days
+    if (pipelineStatus === "lead") {
+      const dagenSindsAanmaak = Math.floor((now - klant.createdAt) / DAY_MS);
+      if (dagenSindsAanmaak >= 14) {
+        // Check if there are any linked offertes
+        const offertes = await ctx.db
+          .query("offertes")
+          .withIndex("by_user", (q) => q.eq("userId", klant.userId))
+          .filter((q) => q.eq(q.field("klantId"), args.id))
+          .take(1);
+
+        if (offertes.length === 0) {
+          return {
+            type: "lead_zonder_offerte" as const,
+            dagenOpen: dagenSindsAanmaak,
+          };
+        }
+      }
+    }
+
+    // Check: Offerte verzonden without response for >7 days
+    if (pipelineStatus === "offerte_verzonden") {
+      const offertes = await ctx.db
+        .query("offertes")
+        .withIndex("by_user", (q) => q.eq("userId", klant.userId))
+        .filter((q) => q.eq(q.field("klantId"), args.id))
+        .order("desc")
+        .collect();
+
+      // Find the most recent "verzonden" offerte
+      const verzondenOfferte = offertes.find((o) => o.status === "verzonden");
+      if (verzondenOfferte) {
+        // Use the offerte's updatedAt as proxy for when it was sent
+        const sentAt = verzondenOfferte.updatedAt ?? verzondenOfferte.createdAt;
+        const dagenSindsVerzonden = Math.floor((now - sentAt) / DAY_MS);
+        if (dagenSindsVerzonden >= 7) {
+          return {
+            type: "offerte_zonder_reactie" as const,
+            dagenOpen: dagenSindsVerzonden,
+          };
+        }
+      }
+    }
+
+    return null;
+  },
+});
+
+/**
+ * CRM-005: Get all klant IDs that need follow-up reminders.
+ * Used by the klanten overview page to show bell badges.
+ */
+export const getKlantenMetHerinneringen = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireAuthUserId(ctx);
+    const now = Date.now();
+
+    // Get all klanten for this user
+    const klanten = await ctx.db
+      .query("klanten")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    const klantIdsMetHerinnering: string[] = [];
+
+    for (const klant of klanten) {
+      // Skip snoozed klanten
+      if (klant.reminderSnoozed) continue;
+
+      const pipelineStatus = klant.pipelineStatus ?? "lead";
+
+      // Check: Lead without offerte for >14 days
+      if (pipelineStatus === "lead") {
+        const dagenSindsAanmaak = Math.floor((now - klant.createdAt) / DAY_MS);
+        if (dagenSindsAanmaak >= 14) {
+          const offertes = await ctx.db
+            .query("offertes")
+            .withIndex("by_user", (q) => q.eq("userId", klant.userId))
+            .filter((q) => q.eq(q.field("klantId"), klant._id))
+            .take(1);
+
+          if (offertes.length === 0) {
+            klantIdsMetHerinnering.push(klant._id);
+            continue;
+          }
+        }
+      }
+
+      // Check: Offerte verzonden without response for >7 days
+      if (pipelineStatus === "offerte_verzonden") {
+        const offertes = await ctx.db
+          .query("offertes")
+          .withIndex("by_user", (q) => q.eq("userId", klant.userId))
+          .filter((q) => q.eq(q.field("klantId"), klant._id))
+          .order("desc")
+          .collect();
+
+        const verzondenOfferte = offertes.find((o) => o.status === "verzonden");
+        if (verzondenOfferte) {
+          const sentAt = verzondenOfferte.updatedAt ?? verzondenOfferte.createdAt;
+          const dagenSindsVerzonden = Math.floor((now - sentAt) / DAY_MS);
+          if (dagenSindsVerzonden >= 7) {
+            klantIdsMetHerinnering.push(klant._id);
+          }
+        }
+      }
+    }
+
+    return klantIdsMetHerinnering;
+  },
+});
+
+/**
+ * CRM-005: Snooze reminders for a klant ("Niet meer herinneren")
+ */
+export const snoozeReminder = mutation({
+  args: { id: v.id("klanten") },
+  handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
+    await getOwnedKlant(ctx, args.id);
+
+    await ctx.db.patch(args.id, {
+      reminderSnoozed: true,
+      lastReminderAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    return { success: true };
+  },
+});
+
+/**
+ * CRM-005: Unsnooze reminders for a klant ("Heractiveren")
+ */
+export const unsnoozeReminder = mutation({
+  args: { id: v.id("klanten") },
+  handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
+    await getOwnedKlant(ctx, args.id);
+
+    await ctx.db.patch(args.id, {
+      reminderSnoozed: false,
+      updatedAt: Date.now(),
+    });
+
+    return { success: true };
   },
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -23,6 +23,16 @@ import {
 } from "@/components/ui/breadcrumb";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Table,
   TableBody,
   TableCell,
@@ -43,9 +53,15 @@ import {
   Trees,
   StickyNote,
   Tag,
+  ShieldAlert,
 } from "lucide-react";
+import { useMutation, useQuery } from "convex/react";
+import { api } from "../../../../../convex/_generated/api";
 import { useKlantWithOffertes } from "@/hooks/use-klanten";
+import { useIsAdmin } from "@/hooks/use-users";
+import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import { Id } from "../../../../../convex/_generated/dataModel";
+import { KlantReminderBanner } from "@/components/klant-reminder-banner";
 
 const statusColors: Record<string, string> = {
   concept: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100",
@@ -125,7 +141,35 @@ export default function KlantDetailPage({
 }) {
   const { id } = use(params);
   const router = useRouter();
+  const isAdmin = useIsAdmin();
   const { klant, isLoading } = useKlantWithOffertes(id as Id<"klanten">);
+  const gdprAnonymize = useMutation(api.klanten.gdprAnonymize);
+  const gdprBlockers = useQuery(
+    api.klanten.checkGdprBlockers,
+    id ? { id: id as Id<"klanten"> } : "skip"
+  );
+  const [showGdprDialog, setShowGdprDialog] = useState(false);
+  const [isAnonymizing, setIsAnonymizing] = useState(false);
+
+  const isAnonymized = gdprBlockers?.isAnonymized === true;
+  const hasBlockers = gdprBlockers?.hasBlockers === true;
+
+  const handleGdprAnonymize = async () => {
+    setIsAnonymizing(true);
+    try {
+      await gdprAnonymize({ id: id as Id<"klanten"> });
+      showSuccessToast("Klantgegevens zijn geanonimiseerd", {
+        description: "Alle persoonsgegevens zijn definitief verwijderd conform GDPR.",
+      });
+      setShowGdprDialog(false);
+    } catch (error) {
+      showErrorToast(
+        error instanceof Error ? error.message : "Fout bij anonimiseren"
+      );
+    } finally {
+      setIsAnonymizing(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -268,20 +312,53 @@ export default function KlantDetailPage({
             </div>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" asChild>
-              <Link href="/offertes/nieuw/aanleg">
-                <Shovel className="mr-2 h-4 w-4" />
-                Aanleg Offerte
-              </Link>
-            </Button>
-            <Button asChild>
-              <Link href="/offertes/nieuw/onderhoud">
-                <Trees className="mr-2 h-4 w-4" />
-                Onderhoud Offerte
-              </Link>
-            </Button>
+            {isAdmin && !isAnonymized && (
+              <Button
+                variant="outline"
+                className="text-destructive border-destructive/50 hover:bg-destructive/10"
+                onClick={() => setShowGdprDialog(true)}
+              >
+                <ShieldAlert className="mr-2 h-4 w-4" />
+                GDPR Verwijderverzoek
+              </Button>
+            )}
+            {!isAnonymized && (
+              <>
+                <Button variant="outline" asChild>
+                  <Link href="/offertes/nieuw/aanleg">
+                    <Shovel className="mr-2 h-4 w-4" />
+                    Aanleg Offerte
+                  </Link>
+                </Button>
+                <Button asChild>
+                  <Link href="/offertes/nieuw/onderhoud">
+                    <Trees className="mr-2 h-4 w-4" />
+                    Onderhoud Offerte
+                  </Link>
+                </Button>
+              </>
+            )}
           </div>
         </div>
+
+        {/* CRM-008: GDPR Anonymized Banner */}
+        {isAnonymized && (
+          <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950">
+            <ShieldAlert className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                Deze klant is geanonimiseerd conform GDPR
+              </p>
+              <p className="text-sm text-amber-600 dark:text-amber-400">
+                Persoonsgegevens zijn verwijderd op{" "}
+                {gdprBlockers?.anonymizedAt
+                  ? formatDate(gdprBlockers.anonymizedAt)
+                  : "onbekend"
+                }. Financiele gegevens zijn bewaard voor de boekhouding.
+              </p>
+            </div>
+          </div>
+        )}
 
         <div className="grid gap-6 md:grid-cols-3">
           {/* Contact Card */}
@@ -476,6 +553,58 @@ export default function KlantDetailPage({
           </CardContent>
         </Card>
       </div>
+
+      {/* CRM-008: GDPR Anonymization Confirmation Dialog */}
+      <AlertDialog open={showGdprDialog} onOpenChange={setShowGdprDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>GDPR Verwijderverzoek</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  Alle persoonsgegevens van deze klant worden definitief
+                  geanonimiseerd. Dit kan niet ongedaan gemaakt worden.
+                </p>
+                <p>
+                  Financiele gegevens blijven bewaard voor de boekhouding.
+                </p>
+
+                {hasBlockers && gdprBlockers?.blockers && (
+                  <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 mt-2">
+                    <p className="text-sm font-medium text-destructive mb-2">
+                      Anonimisering is niet mogelijk vanwege:
+                    </p>
+                    <ul className="text-sm text-destructive space-y-1 list-disc list-inside">
+                      {gdprBlockers.blockers.map((blocker, i) => (
+                        <li key={i}>{blocker.label}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isAnonymizing}>
+              Annuleren
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleGdprAnonymize}
+              disabled={isAnonymizing || hasBlockers}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isAnonymizing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Bezig met anonimiseren...
+                </>
+              ) : (
+                "Definitief anonimiseren"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

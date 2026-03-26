@@ -185,7 +185,9 @@
       "cluster": "A",
       "priority": "P0",
       "description": "GDPR-compliant: verwijderverzoek met audit trail",
-      "passes": false,
+      "passes": true,
+      "completed_by": "main-agent",
+      "completed_at": "2026-03-26",
       "steps": [
         "Backend: GDPR delete functie die alle persoonsgegevens anonimiseert (naam → 'Verwijderd', email → null, etc.)",
         "Backend: audit log entry bij verwijdering (wie, wanneer, welke klant-ID)",
