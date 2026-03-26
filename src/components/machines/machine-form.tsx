@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -19,6 +21,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, X } from "lucide-react";
@@ -54,6 +65,17 @@ interface Machine extends MachineFormData {
   isActief: boolean;
 }
 
+// Zod schema
+const machineFormSchema = z.object({
+  naam: z.string().min(1, "Naam is verplicht"),
+  type: z.enum(["intern", "extern"]),
+  tarief: z.number().min(0, "Tarief moet 0 of hoger zijn"),
+  tariefType: z.enum(["uur", "dag"]),
+  gekoppeldeScopes: z.array(z.string()),
+});
+
+type MachineFormSchemaData = z.infer<typeof machineFormSchema>;
+
 interface MachineFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -62,7 +84,7 @@ interface MachineFormProps {
   isLoading?: boolean;
 }
 
-const defaultFormData: MachineFormData = {
+const defaultFormData: MachineFormSchemaData = {
   naam: "",
   type: "intern",
   tarief: 0,
@@ -77,43 +99,52 @@ export function MachineForm({
   onSubmit,
   isLoading = false,
 }: MachineFormProps) {
-  const [formData, setFormData] = useState<MachineFormData>(defaultFormData);
+  const form = useForm<MachineFormSchemaData>({
+    resolver: zodResolver(machineFormSchema),
+    defaultValues: defaultFormData,
+  });
 
   // Reset form when dialog opens/closes or machine changes
   useEffect(() => {
     if (machine) {
-      setTimeout(() => setFormData({
-        naam: machine.naam,
-        type: machine.type,
-        tarief: machine.tarief,
-        tariefType: machine.tariefType,
-        gekoppeldeScopes: machine.gekoppeldeScopes,
-      }), 0);
+      setTimeout(
+        () =>
+          form.reset({
+            naam: machine.naam,
+            type: machine.type,
+            tarief: machine.tarief,
+            tariefType: machine.tariefType,
+            gekoppeldeScopes: machine.gekoppeldeScopes,
+          }),
+        0
+      );
     } else {
-      setTimeout(() => setFormData(defaultFormData), 0);
+      setTimeout(() => form.reset(defaultFormData), 0);
     }
-  }, [machine, open]);
+  }, [machine, open, form]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await onSubmit(formData);
+  const handleFormSubmit = async (data: MachineFormSchemaData) => {
+    await onSubmit(data);
   };
 
   const toggleScope = (scopeId: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      gekoppeldeScopes: prev.gekoppeldeScopes.includes(scopeId)
-        ? prev.gekoppeldeScopes.filter((s) => s !== scopeId)
-        : [...prev.gekoppeldeScopes, scopeId],
-    }));
+    const current = form.getValues("gekoppeldeScopes");
+    const newScopes = current.includes(scopeId)
+      ? current.filter((s) => s !== scopeId)
+      : [...current, scopeId];
+    form.setValue("gekoppeldeScopes", newScopes);
   };
 
   const removeScope = (scopeId: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      gekoppeldeScopes: prev.gekoppeldeScopes.filter((s) => s !== scopeId),
-    }));
+    const current = form.getValues("gekoppeldeScopes");
+    form.setValue(
+      "gekoppeldeScopes",
+      current.filter((s) => s !== scopeId)
+    );
   };
+
+  const gekoppeldeScopes = form.watch("gekoppeldeScopes");
+  const tariefType = form.watch("tariefType");
 
   const aanlegScopes = availableScopes.filter((s) => s.category === "aanleg");
   const onderhoudScopes = availableScopes.filter(
@@ -123,196 +154,214 @@ export function MachineForm({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>
-              {machine ? "Machine bewerken" : "Nieuwe machine"}
-            </DialogTitle>
-            <DialogDescription>
-              {machine
-                ? "Pas de gegevens van de machine aan"
-                : "Voeg een machine toe aan je machinepark"}
-            </DialogDescription>
-          </DialogHeader>
+        <DialogHeader>
+          <DialogTitle>
+            {machine ? "Machine bewerken" : "Nieuwe machine"}
+          </DialogTitle>
+          <DialogDescription>
+            {machine
+              ? "Pas de gegevens van de machine aan"
+              : "Voeg een machine toe aan je machinepark"}
+          </DialogDescription>
+        </DialogHeader>
 
-          <div className="grid gap-4 py-4">
-            {/* Naam */}
-            <div className="grid gap-2">
-              <Label htmlFor="naam">Naam</Label>
-              <Input
-                id="naam"
-                value={formData.naam}
-                onChange={(e) =>
-                  setFormData({ ...formData, naam: e.target.value })
-                }
-                placeholder="Bijv. Minikraan, Trilplaat"
-                required
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleFormSubmit)}>
+            <div className="grid gap-4 py-4">
+              {/* Naam */}
+              <FormField
+                control={form.control}
+                name="naam"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Naam</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder="Bijv. Minikraan, Trilplaat"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
 
-            {/* Type en Tarief */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="type">Type</Label>
-                <Select
-                  value={formData.type}
-                  onValueChange={(value: "intern" | "extern") =>
-                    setFormData({ ...formData, type: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="intern">Intern (eigen)</SelectItem>
-                    <SelectItem value="extern">Extern (huur)</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  {formData.type === "intern"
-                    ? "Eigen materieel"
-                    : "Gehuurd materieel"}
-                </p>
-              </div>
+              {/* Type en Tarief Type */}
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Type</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="intern">Intern (eigen)</SelectItem>
+                          <SelectItem value="extern">Extern (huur)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        {field.value === "intern"
+                          ? "Eigen materieel"
+                          : "Gehuurd materieel"}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              <div className="grid gap-2">
-                <Label htmlFor="tariefType">Tarief type</Label>
-                <Select
-                  value={formData.tariefType}
-                  onValueChange={(value: "uur" | "dag") =>
-                    setFormData({ ...formData, tariefType: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="uur">Per uur</SelectItem>
-                    <SelectItem value="dag">Per dag</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Tarief */}
-            <div className="grid gap-2">
-              <Label htmlFor="tarief">
-                Tarief ({formData.tariefType === "uur" ? "per uur" : "per dag"})
-              </Label>
-              <div className="relative">
-                <span className="absolute left-3 top-2.5 text-muted-foreground">
-                  &euro;
-                </span>
-                <Input
-                  id="tarief"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  className="pl-7"
-                  value={formData.tarief}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      tarief: parseFloat(e.target.value) || 0,
-                    })
-                  }
-                  required
+                <FormField
+                  control={form.control}
+                  name="tariefType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tarief type</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="uur">Per uur</SelectItem>
+                          <SelectItem value="dag">Per dag</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
               </div>
-            </div>
 
-            {/* Gekoppelde Scopes */}
-            <div className="grid gap-2">
-              <Label>Gekoppelde scopes</Label>
-              <p className="text-xs text-muted-foreground">
-                Selecteer de werkzaamheden waarvoor deze machine automatisch
-                wordt voorgesteld
-              </p>
+              {/* Tarief */}
+              <FormField
+                control={form.control}
+                name="tarief"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Tarief ({tariefType === "uur" ? "per uur" : "per dag"})
+                    </FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <span className="absolute left-3 top-2.5 text-muted-foreground">
+                          &euro;
+                        </span>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          className="pl-7"
+                          value={field.value}
+                          onChange={(e) =>
+                            field.onChange(parseFloat(e.target.value) || 0)
+                          }
+                        />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-              {/* Selected scopes */}
-              {formData.gekoppeldeScopes.length > 0 && (
-                <div className="flex flex-wrap gap-1 mb-2">
-                  {formData.gekoppeldeScopes.map((scopeId) => {
-                    const scope = availableScopes.find((s) => s.id === scopeId);
-                    return (
-                      <Badge
-                        key={scopeId}
-                        variant="secondary"
-                        className="cursor-pointer"
-                        onClick={() => removeScope(scopeId)}
-                      >
-                        {scope?.label || scopeId}
-                        <X className="ml-1 h-3 w-3" />
-                      </Badge>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Aanleg scopes */}
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground">
-                  Aanleg
+              {/* Gekoppelde Scopes */}
+              <div className="grid gap-2">
+                <FormLabel>Gekoppelde scopes</FormLabel>
+                <p className="text-xs text-muted-foreground">
+                  Selecteer de werkzaamheden waarvoor deze machine automatisch
+                  wordt voorgesteld
                 </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {aanlegScopes.map((scope) => (
-                    <div key={scope.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`scope-${scope.id}`}
-                        checked={formData.gekoppeldeScopes.includes(scope.id)}
-                        onCheckedChange={() => toggleScope(scope.id)}
-                      />
-                      <label
-                        htmlFor={`scope-${scope.id}`}
-                        className="text-sm cursor-pointer"
-                      >
-                        {scope.label}
-                      </label>
-                    </div>
-                  ))}
+
+                {/* Selected scopes */}
+                {gekoppeldeScopes.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {gekoppeldeScopes.map((scopeId) => {
+                      const scope = availableScopes.find((s) => s.id === scopeId);
+                      return (
+                        <Badge
+                          key={scopeId}
+                          variant="secondary"
+                          className="cursor-pointer"
+                          onClick={() => removeScope(scopeId)}
+                        >
+                          {scope?.label || scopeId}
+                          <X className="ml-1 h-3 w-3" />
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Aanleg scopes */}
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Aanleg
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {aanlegScopes.map((scope) => (
+                      <div key={scope.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`scope-${scope.id}`}
+                          checked={gekoppeldeScopes.includes(scope.id)}
+                          onCheckedChange={() => toggleScope(scope.id)}
+                        />
+                        <label
+                          htmlFor={`scope-${scope.id}`}
+                          className="text-sm cursor-pointer"
+                        >
+                          {scope.label}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Onderhoud scopes */}
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Onderhoud
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {onderhoudScopes.map((scope) => (
+                      <div key={scope.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`scope-${scope.id}`}
+                          checked={gekoppeldeScopes.includes(scope.id)}
+                          onCheckedChange={() => toggleScope(scope.id)}
+                        />
+                        <label
+                          htmlFor={`scope-${scope.id}`}
+                          className="text-sm cursor-pointer"
+                        >
+                          {scope.label}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-
-              {/* Onderhoud scopes */}
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground">
-                  Onderhoud
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {onderhoudScopes.map((scope) => (
-                    <div key={scope.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`scope-${scope.id}`}
-                        checked={formData.gekoppeldeScopes.includes(scope.id)}
-                        onCheckedChange={() => toggleScope(scope.id)}
-                      />
-                      <label
-                        htmlFor={`scope-${scope.id}`}
-                        className="text-sm cursor-pointer"
-                      >
-                        {scope.label}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
-          </div>
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              Annuleren
-            </Button>
-            <Button type="submit" disabled={isLoading || !formData.naam}>
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {machine ? "Bijwerken" : "Toevoegen"}
-            </Button>
-          </DialogFooter>
-        </form>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+              >
+                Annuleren
+              </Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {machine ? "Bijwerken" : "Toevoegen"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );

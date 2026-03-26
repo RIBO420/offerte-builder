@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -20,6 +22,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
@@ -27,7 +37,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Loader2, CalendarIcon } from "lucide-react";
-import { showSuccessToast, showErrorToast, showWarningToast } from "@/lib/toast-utils";
+import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import { getMutationErrorMessage } from "@/lib/error-handling";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -51,6 +61,19 @@ const statusOptions: { value: OnderhoudStatus; label: string }[] = [
   { value: "in_uitvoering", label: "In uitvoering" },
   { value: "voltooid", label: "Voltooid" },
 ];
+
+// Zod schema
+const onderhoudFormSchema = z.object({
+  type: z.enum(["olie", "apk", "banden", "inspectie", "reparatie", "overig"]),
+  omschrijving: z.string().min(1, "Omschrijving is verplicht"),
+  geplanteDatum: z.date({ message: "Geplande datum is verplicht" }),
+  voltooidDatum: z.date().optional(),
+  kosten: z.string().optional(),
+  status: z.enum(["gepland", "in_uitvoering", "voltooid"]),
+  notities: z.string().optional(),
+});
+
+type OnderhoudFormData = z.infer<typeof onderhoudFormSchema>;
 
 interface OnderhoudFormProps {
   open: boolean;
@@ -81,26 +104,6 @@ interface OnderhoudFormProps {
   ) => Promise<unknown>;
 }
 
-interface FormData {
-  type: OnderhoudType;
-  omschrijving: string;
-  geplanteDatum: Date | undefined;
-  voltooidDatum: Date | undefined;
-  kosten: string;
-  status: OnderhoudStatus;
-  notities: string;
-}
-
-const defaultFormData: FormData = {
-  type: "overig",
-  omschrijving: "",
-  geplanteDatum: undefined,
-  voltooidDatum: undefined,
-  kosten: "",
-  status: "gepland",
-  notities: "",
-};
-
 export function OnderhoudForm({
   open,
   onOpenChange,
@@ -109,65 +112,76 @@ export function OnderhoudForm({
   onSubmit,
   onUpdate,
 }: OnderhoudFormProps) {
-  const [formData, setFormData] = useState<FormData>(() => {
-    if (initialData) {
-      return {
-        type: initialData.type,
-        omschrijving: initialData.omschrijving,
-        geplanteDatum: new Date(initialData.geplanteDatum),
-        voltooidDatum: initialData.voltooidDatum
-          ? new Date(initialData.voltooidDatum)
-          : undefined,
-        kosten: initialData.kosten?.toString() ?? "",
-        status: initialData.status,
-        notities: initialData.notities ?? "",
-      };
-    }
-    return defaultFormData;
+  const [isLoading, setIsLoading] = useState(false);
+  const isEditMode = !!initialData;
+
+  const form = useForm<OnderhoudFormData>({
+    resolver: zodResolver(onderhoudFormSchema),
+    defaultValues: {
+      type: "overig",
+      omschrijving: "",
+      geplanteDatum: undefined,
+      voltooidDatum: undefined,
+      kosten: "",
+      status: "gepland",
+      notities: "",
+    },
   });
 
-  const [isLoading, setIsLoading] = useState(false);
-
-  const isEditMode = !!initialData;
+  // Reset form when dialog opens
+  useEffect(() => {
+    if (open) {
+      if (initialData) {
+        form.reset({
+          type: initialData.type,
+          omschrijving: initialData.omschrijving,
+          geplanteDatum: new Date(initialData.geplanteDatum),
+          voltooidDatum: initialData.voltooidDatum
+            ? new Date(initialData.voltooidDatum)
+            : undefined,
+          kosten: initialData.kosten?.toString() ?? "",
+          status: initialData.status,
+          notities: initialData.notities ?? "",
+        });
+      } else {
+        form.reset({
+          type: "overig",
+          omschrijving: "",
+          geplanteDatum: undefined,
+          voltooidDatum: undefined,
+          kosten: "",
+          status: "gepland",
+          notities: "",
+        });
+      }
+    }
+  }, [open, initialData, form]);
 
   const handleClose = useCallback(() => {
     onOpenChange(false);
-    setFormData(defaultFormData);
   }, [onOpenChange]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!formData.geplanteDatum) {
-      showWarningToast("Selecteer een datum");
-      return;
-    }
-
-    if (!formData.omschrijving.trim()) {
-      showWarningToast("Vul een omschrijving in");
-      return;
-    }
-
+  const handleFormSubmit = async (data: OnderhoudFormData) => {
     setIsLoading(true);
 
     try {
-      const data = {
-        type: formData.type,
-        omschrijving: formData.omschrijving.trim(),
-        geplanteDatum: formData.geplanteDatum.getTime(),
-        voltooidDatum: formData.voltooidDatum?.getTime(),
-        kosten: formData.kosten ? parseFloat(formData.kosten) : undefined,
-        status: formData.status,
-        notities: formData.notities.trim() || undefined,
+      const submitData = {
+        type: data.type,
+        omschrijving: data.omschrijving.trim(),
+        geplanteDatum: data.geplanteDatum.getTime(),
+        voltooidDatum: data.voltooidDatum?.getTime(),
+        kosten: data.kosten ? parseFloat(data.kosten) : undefined,
+        status: data.status,
+        notities: data.notities?.trim() || undefined,
       };
 
       if (isEditMode && initialData && onUpdate) {
-        await onUpdate(initialData._id, data);
+        await onUpdate(initialData._id, submitData);
         showSuccessToast("Onderhoud bijgewerkt");
       } else {
         await onSubmit({
           voertuigId,
-          ...data,
+          ...submitData,
         });
         showSuccessToast("Onderhoud toegevoegd");
       }
@@ -186,192 +200,229 @@ export function OnderhoudForm({
     }
   };
 
-  const isFormValid =
-    formData.omschrijving.trim() && formData.geplanteDatum;
+  const statusValue = form.watch("status");
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>
-              {isEditMode ? "Onderhoud bewerken" : "Onderhoud plannen"}
-            </DialogTitle>
-            <DialogDescription>
-              {isEditMode
-                ? "Pas de gegevens van het onderhoud aan"
-                : "Plan een nieuwe onderhoudsbeurt"}
-            </DialogDescription>
-          </DialogHeader>
+        <DialogHeader>
+          <DialogTitle>
+            {isEditMode ? "Onderhoud bewerken" : "Onderhoud plannen"}
+          </DialogTitle>
+          <DialogDescription>
+            {isEditMode
+              ? "Pas de gegevens van het onderhoud aan"
+              : "Plan een nieuwe onderhoudsbeurt"}
+          </DialogDescription>
+        </DialogHeader>
 
-          <div className="grid gap-4 py-4">
-            {/* Type */}
-            <div className="grid gap-2">
-              <Label htmlFor="type">Type onderhoud *</Label>
-              <Select
-                value={formData.type}
-                onValueChange={(value: OnderhoudType) =>
-                  setFormData({ ...formData, type: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecteer type" />
-                </SelectTrigger>
-                <SelectContent position="popper" sideOffset={4}>
-                  {onderhoudTypes.map((type) => (
-                    <SelectItem key={type.value} value={type.value}>
-                      {type.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleFormSubmit)}>
+            <div className="grid gap-4 py-4">
+              {/* Type */}
+              <FormField
+                control={form.control}
+                name="type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Type onderhoud *</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecteer type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent position="popper" sideOffset={4}>
+                        {onderhoudTypes.map((type) => (
+                          <SelectItem key={type.value} value={type.value}>
+                            {type.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            {/* Omschrijving */}
-            <div className="grid gap-2">
-              <Label htmlFor="omschrijving">Omschrijving *</Label>
-              <Input
-                id="omschrijving"
-                value={formData.omschrijving}
-                onChange={(e) =>
-                  setFormData({ ...formData, omschrijving: e.target.value })
-                }
-                placeholder="Bijv. Jaarlijkse APK keuring"
-                required
+              {/* Omschrijving */}
+              <FormField
+                control={form.control}
+                name="omschrijving"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Omschrijving *</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder="Bijv. Jaarlijkse APK keuring"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Geplande Datum */}
+              <FormField
+                control={form.control}
+                name="geplanteDatum"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Geplande datum *</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {field.value ? (
+                              format(field.value, "d MMMM yyyy", { locale: nl })
+                            ) : (
+                              <span>Selecteer datum</span>
+                            )}
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={field.onChange}
+                          locale={nl}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Status */}
+              <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Status</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent position="popper" sideOffset={4}>
+                        {statusOptions.map((status) => (
+                          <SelectItem key={status.value} value={status.value}>
+                            {status.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Voltooid Datum (only show if status is voltooid) */}
+              {statusValue === "voltooid" && (
+                <FormField
+                  control={form.control}
+                  name="voltooidDatum"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Voltooid op</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {field.value ? (
+                                format(field.value, "d MMMM yyyy", { locale: nl })
+                              ) : (
+                                <span>Selecteer datum</span>
+                              )}
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            locale={nl}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              {/* Kosten */}
+              <FormField
+                control={form.control}
+                name="kosten"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Kosten (EUR)</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="0,00"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Notities */}
+              <FormField
+                control={form.control}
+                name="notities"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Notities</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        {...field}
+                        placeholder="Eventuele opmerkingen..."
+                        rows={3}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
             </div>
 
-            {/* Geplande Datum */}
-            <div className="grid gap-2">
-              <Label>Geplande datum *</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "justify-start text-left font-normal",
-                      !formData.geplanteDatum && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formData.geplanteDatum ? (
-                      format(formData.geplanteDatum, "d MMMM yyyy", { locale: nl })
-                    ) : (
-                      <span>Selecteer datum</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={formData.geplanteDatum}
-                    onSelect={(date) =>
-                      setFormData({ ...formData, geplanteDatum: date })
-                    }
-                    locale={nl}
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            {/* Status */}
-            <div className="grid gap-2">
-              <Label htmlFor="status">Status</Label>
-              <Select
-                value={formData.status}
-                onValueChange={(value: OnderhoudStatus) =>
-                  setFormData({ ...formData, status: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent position="popper" sideOffset={4}>
-                  {statusOptions.map((status) => (
-                    <SelectItem key={status.value} value={status.value}>
-                      {status.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Voltooid Datum (only show if status is voltooid) */}
-            {formData.status === "voltooid" && (
-              <div className="grid gap-2">
-                <Label>Voltooid op</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "justify-start text-left font-normal",
-                        !formData.voltooidDatum && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {formData.voltooidDatum ? (
-                        format(formData.voltooidDatum, "d MMMM yyyy", { locale: nl })
-                      ) : (
-                        <span>Selecteer datum</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={formData.voltooidDatum}
-                      onSelect={(date) =>
-                        setFormData({ ...formData, voltooidDatum: date })
-                      }
-                      locale={nl}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            )}
-
-            {/* Kosten */}
-            <div className="grid gap-2">
-              <Label htmlFor="kosten">Kosten (EUR)</Label>
-              <Input
-                id="kosten"
-                type="number"
-                min="0"
-                step="0.01"
-                value={formData.kosten}
-                onChange={(e) =>
-                  setFormData({ ...formData, kosten: e.target.value })
-                }
-                placeholder="0,00"
-              />
-            </div>
-
-            {/* Notities */}
-            <div className="grid gap-2">
-              <Label htmlFor="notities">Notities</Label>
-              <Textarea
-                id="notities"
-                value={formData.notities}
-                onChange={(e) =>
-                  setFormData({ ...formData, notities: e.target.value })
-                }
-                placeholder="Eventuele opmerkingen..."
-                rows={3}
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose}>
-              Annuleren
-            </Button>
-            <Button type="submit" disabled={isLoading || !isFormValid}>
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isEditMode ? "Bijwerken" : "Toevoegen"}
-            </Button>
-          </DialogFooter>
-        </form>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={handleClose}>
+                Annuleren
+              </Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isEditMode ? "Bijwerken" : "Toevoegen"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );

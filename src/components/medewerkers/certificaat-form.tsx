@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { format } from "date-fns";
 import { nl } from "@/lib/date-locale";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -22,6 +24,15 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+  FormDescription,
+} from "@/components/ui/form";
 import {
   CalendarIcon,
   Plus,
@@ -41,6 +52,16 @@ export interface Certificaat {
   documentUrl?: string;
 }
 
+// Zod schema for certificate form
+const certificaatFormSchema = z.object({
+  naam: z.string().min(1, "Naam is verplicht"),
+  uitgifteDatum: z.date({ message: "Uitgiftedatum is verplicht" }),
+  vervaldatum: z.date().optional(),
+  documentUrl: z.string().url("Ongeldige URL").optional().or(z.literal("")),
+});
+
+type CertificaatFormData = z.infer<typeof certificaatFormSchema>;
+
 interface CertificaatFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -54,52 +75,64 @@ export function CertificaatFormDialog({
   initialData,
   onSave,
 }: CertificaatFormDialogProps) {
-  const [naam, setNaam] = useState("");
-  const [uitgifteDatum, setUitgifteDatum] = useState<Date | undefined>();
-  const [vervaldatum, setVervaldatum] = useState<Date | undefined>();
-  const [documentUrl, setDocumentUrl] = useState("");
-
   const isEditMode = !!initialData;
 
+  const form = useForm<CertificaatFormData>({
+    resolver: zodResolver(certificaatFormSchema),
+    defaultValues: {
+      naam: "",
+      uitgifteDatum: undefined,
+      vervaldatum: undefined,
+      documentUrl: "",
+    },
+  });
+
   // Reset form when dialog opens/closes
-  useEffect(() => {
-    if (open) {
-      setTimeout(() => {
-        if (initialData) {
-          setNaam(initialData.naam);
-          setUitgifteDatum(new Date(initialData.uitgifteDatum));
-          setVervaldatum(
-            initialData.vervaldatum ? new Date(initialData.vervaldatum) : undefined
-          );
-          setDocumentUrl(initialData.documentUrl || "");
-        } else {
-          setNaam("");
-          setUitgifteDatum(undefined);
-          setVervaldatum(undefined);
-          setDocumentUrl("");
-        }
-      }, 0);
-    }
-  }, [open, initialData]);
+  const handleOpenChange = useCallback(
+    (isOpen: boolean) => {
+      if (isOpen) {
+        setTimeout(() => {
+          if (initialData) {
+            form.reset({
+              naam: initialData.naam,
+              uitgifteDatum: new Date(initialData.uitgifteDatum),
+              vervaldatum: initialData.vervaldatum
+                ? new Date(initialData.vervaldatum)
+                : undefined,
+              documentUrl: initialData.documentUrl || "",
+            });
+          } else {
+            form.reset({
+              naam: "",
+              uitgifteDatum: undefined,
+              vervaldatum: undefined,
+              documentUrl: "",
+            });
+          }
+        }, 0);
+      }
+      onOpenChange(isOpen);
+    },
+    [initialData, onOpenChange, form]
+  );
 
-  const handleSave = useCallback(() => {
-    if (!naam.trim() || !uitgifteDatum) return;
+  const onSubmit = useCallback(
+    (data: CertificaatFormData) => {
+      const certificaat: Certificaat = {
+        naam: data.naam.trim(),
+        uitgifteDatum: data.uitgifteDatum.getTime(),
+        vervaldatum: data.vervaldatum ? data.vervaldatum.getTime() : undefined,
+        documentUrl: data.documentUrl?.trim() || undefined,
+      };
 
-    const certificaat: Certificaat = {
-      naam: naam.trim(),
-      uitgifteDatum: uitgifteDatum.getTime(),
-      vervaldatum: vervaldatum ? vervaldatum.getTime() : undefined,
-      documentUrl: documentUrl.trim() || undefined,
-    };
-
-    onSave(certificaat);
-    onOpenChange(false);
-  }, [naam, uitgifteDatum, vervaldatum, documentUrl, onSave, onOpenChange]);
-
-  const isFormValid = naam.trim() && uitgifteDatum;
+      onSave(certificaat);
+      onOpenChange(false);
+    },
+    [onSave, onOpenChange]
+  );
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>
@@ -112,107 +145,154 @@ export function CertificaatFormDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 py-4">
-          {/* Naam */}
-          <div className="grid gap-2">
-            <Label htmlFor="cert-naam">Naam certificaat *</Label>
-            <Input
-              id="cert-naam"
-              value={naam}
-              onChange={(e) => setNaam(e.target.value)}
-              placeholder="Bijv. VCA Basis, Groenkeur, BHV"
-            />
-          </div>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <div className="grid gap-4 py-4">
+              {/* Naam */}
+              <FormField
+                control={form.control}
+                name="naam"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Naam certificaat *</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder="Bijv. VCA Basis, Groenkeur, BHV"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-          {/* Uitgiftedatum */}
-          <div className="grid gap-2">
-            <Label>Uitgiftedatum *</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "justify-start text-left font-normal",
-                    !uitgifteDatum && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {uitgifteDatum
-                    ? format(uitgifteDatum, "d MMMM yyyy", { locale: nl })
-                    : "Selecteer datum"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={uitgifteDatum}
-                  onSelect={setUitgifteDatum}
-                  disabled={(date) => date > new Date()}
-                  defaultMonth={uitgifteDatum}
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
+              {/* Uitgiftedatum */}
+              <FormField
+                control={form.control}
+                name="uitgifteDatum"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Uitgiftedatum *</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {field.value
+                              ? format(field.value, "d MMMM yyyy", {
+                                  locale: nl,
+                                })
+                              : "Selecteer datum"}
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={field.onChange}
+                          disabled={(date) => date > new Date()}
+                          defaultMonth={field.value}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-          {/* Vervaldatum */}
-          <div className="grid gap-2">
-            <Label>Vervaldatum (optioneel)</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "justify-start text-left font-normal",
-                    !vervaldatum && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {vervaldatum
-                    ? format(vervaldatum, "d MMMM yyyy", { locale: nl })
-                    : "Selecteer datum"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={vervaldatum}
-                  onSelect={setVervaldatum}
-                  disabled={(date) =>
-                    uitgifteDatum ? date < uitgifteDatum : false
-                  }
-                  defaultMonth={vervaldatum || uitgifteDatum}
-                />
-              </PopoverContent>
-            </Popover>
-            <p className="text-xs text-muted-foreground">
-              Laat leeg als het certificaat geen vervaldatum heeft
-            </p>
-          </div>
+              {/* Vervaldatum */}
+              <FormField
+                control={form.control}
+                name="vervaldatum"
+                render={({ field }) => {
+                  const uitgifteDatum = form.watch("uitgifteDatum");
+                  return (
+                    <FormItem>
+                      <FormLabel>Vervaldatum (optioneel)</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {field.value
+                                ? format(field.value, "d MMMM yyyy", {
+                                    locale: nl,
+                                  })
+                                : "Selecteer datum"}
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            disabled={(date) =>
+                              uitgifteDatum ? date < uitgifteDatum : false
+                            }
+                            defaultMonth={field.value || uitgifteDatum}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormDescription>
+                        Laat leeg als het certificaat geen vervaldatum heeft
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
+              />
 
-          {/* Document URL */}
-          <div className="grid gap-2">
-            <Label htmlFor="cert-url">Document URL (optioneel)</Label>
-            <Input
-              id="cert-url"
-              type="url"
-              value={documentUrl}
-              onChange={(e) => setDocumentUrl(e.target.value)}
-              placeholder="https://..."
-            />
-            <p className="text-xs text-muted-foreground">
-              Link naar het gescande certificaat of document
-            </p>
-          </div>
-        </div>
+              {/* Document URL */}
+              <FormField
+                control={form.control}
+                name="documentUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Document URL (optioneel)</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        type="url"
+                        placeholder="https://..."
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Link naar het gescande certificaat of document
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Annuleren
-          </Button>
-          <Button onClick={handleSave} disabled={!isFormValid}>
-            {isEditMode ? "Bijwerken" : "Toevoegen"}
-          </Button>
-        </DialogFooter>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+              >
+                Annuleren
+              </Button>
+              <Button type="submit">
+                {isEditMode ? "Bijwerken" : "Toevoegen"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );

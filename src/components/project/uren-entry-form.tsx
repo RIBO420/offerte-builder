@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -20,6 +22,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+  FormDescription,
+} from "@/components/ui/form";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
@@ -63,6 +74,20 @@ export interface DatabaseMedewerker {
   functie?: string;
 }
 
+// Zod schema
+const urenEntrySchema = z.object({
+  datum: z.date({ message: "Datum is verplicht" }),
+  medewerker: z.string().min(1, "Medewerker is verplicht"),
+  uren: z.string().min(1, "Uren is verplicht").refine(
+    (val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
+    { message: "Voer geldige uren in" }
+  ),
+  scope: z.string().optional(),
+  notities: z.string().optional(),
+});
+
+type UrenEntryFormData = z.infer<typeof urenEntrySchema>;
+
 interface UrenEntryFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -85,17 +110,20 @@ export function UrenEntryForm({
   databaseMedewerkers = [],
   projectScopes,
 }: UrenEntryFormProps) {
-  const [date, setDate] = useState<Date | undefined>(
-    initialData?.datum ? new Date(initialData.datum) : new Date()
-  );
-  const [medewerker, setMedewerker] = useState(initialData?.medewerker || "");
-  const [uren, setUren] = useState(initialData?.uren?.toString() || "");
-  const [scope, setScope] = useState(initialData?.scope || "");
-  const [notities, setNotities] = useState(initialData?.notities || "");
   const [showNewMedewerker, setShowNewMedewerker] = useState(false);
 
+  const form = useForm<UrenEntryFormData>({
+    resolver: zodResolver(urenEntrySchema),
+    defaultValues: {
+      datum: initialData?.datum ? new Date(initialData.datum) : new Date(),
+      medewerker: initialData?.medewerker || "",
+      uren: initialData?.uren?.toString() || "",
+      scope: initialData?.scope || "",
+      notities: initialData?.notities || "",
+    },
+  });
+
   // Combine database medewerkers with existing medewerkers, removing duplicates
-  // Database medewerkers take precedence (shown first)
   const allMedewerkers = [
     ...databaseMedewerkers.map((m) => ({ naam: m.naam, functie: m.functie, isFromDb: true })),
     ...existingMedewerkers
@@ -108,241 +136,281 @@ export function UrenEntryForm({
     ? availableScopes.filter((s) => projectScopes.includes(s.id))
     : availableScopes;
 
-  const handleSubmit = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!date || !medewerker || !uren) return;
-
+  const handleFormSubmit = useCallback(
+    async (data: UrenEntryFormData) => {
       await onSubmit({
-        datum: format(date, "yyyy-MM-dd"),
-        medewerker: medewerker.trim(),
-        uren: parseFloat(uren) || 0,
-        scope: scope && scope !== "__none__" ? scope : undefined,
-        notities: notities.trim() || undefined,
+        datum: format(data.datum, "yyyy-MM-dd"),
+        medewerker: data.medewerker.trim(),
+        uren: parseFloat(data.uren) || 0,
+        scope: data.scope && data.scope !== "__none__" ? data.scope : undefined,
+        notities: data.notities?.trim() || undefined,
       });
 
       // Reset form after successful submit
-      setMedewerker("");
-      setUren("");
-      setScope("");
-      setNotities("");
+      form.reset({
+        datum: form.getValues("datum"),
+        medewerker: "",
+        uren: "",
+        scope: "",
+        notities: "",
+      });
       setShowNewMedewerker(false);
     },
-    [date, medewerker, uren, scope, notities, onSubmit]
+    [onSubmit, form]
   );
 
   const handleClose = useCallback(() => {
     onOpenChange(false);
-    // Reset form
-    setDate(new Date());
-    setMedewerker("");
-    setUren("");
-    setScope("");
-    setNotities("");
+    form.reset({
+      datum: new Date(),
+      medewerker: "",
+      uren: "",
+      scope: "",
+      notities: "",
+    });
     setShowNewMedewerker(false);
-  }, [onOpenChange]);
+  }, [onOpenChange, form]);
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-md">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>Uren registreren</DialogTitle>
-            <DialogDescription>
-              Voeg handmatig gewerkte uren toe aan het project
-            </DialogDescription>
-          </DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Uren registreren</DialogTitle>
+          <DialogDescription>
+            Voeg handmatig gewerkte uren toe aan het project
+          </DialogDescription>
+        </DialogHeader>
 
-          <div className="grid gap-4 py-4">
-            {/* Datum met snelkeuze */}
-            <div className="grid gap-2">
-              <Label>Datum</Label>
-              {/* Snelkeuze knoppen */}
-              <div className="flex flex-wrap gap-2 mb-2">
-                <Badge
-                  variant={date && format(date, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd") ? "default" : "outline"}
-                  className="cursor-pointer hover:bg-primary/80 transition-colors"
-                  onClick={() => setDate(new Date())}
-                >
-                  Vandaag
-                </Badge>
-                <Badge
-                  variant={date && format(date, "yyyy-MM-dd") === format(subDays(new Date(), 1), "yyyy-MM-dd") ? "default" : "outline"}
-                  className="cursor-pointer hover:bg-primary/80 transition-colors"
-                  onClick={() => setDate(subDays(new Date(), 1))}
-                >
-                  Gisteren
-                </Badge>
-                <Badge
-                  variant={date && format(date, "yyyy-MM-dd") === format(subDays(new Date(), 2), "yyyy-MM-dd") ? "default" : "outline"}
-                  className="cursor-pointer hover:bg-primary/80 transition-colors"
-                  onClick={() => setDate(subDays(new Date(), 2))}
-                >
-                  Eergisteren
-                </Badge>
-              </div>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "justify-start text-left font-normal",
-                      !date && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {date ? (
-                      format(date, "EEEE d MMMM yyyy", { locale: nl })
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleFormSubmit)}>
+            <div className="grid gap-4 py-4">
+              {/* Datum met snelkeuze */}
+              <FormField
+                control={form.control}
+                name="datum"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Datum</FormLabel>
+                    {/* Snelkeuze knoppen */}
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      <Badge
+                        variant={field.value && format(field.value, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd") ? "default" : "outline"}
+                        className="cursor-pointer hover:bg-primary/80 transition-colors"
+                        onClick={() => field.onChange(new Date())}
+                      >
+                        Vandaag
+                      </Badge>
+                      <Badge
+                        variant={field.value && format(field.value, "yyyy-MM-dd") === format(subDays(new Date(), 1), "yyyy-MM-dd") ? "default" : "outline"}
+                        className="cursor-pointer hover:bg-primary/80 transition-colors"
+                        onClick={() => field.onChange(subDays(new Date(), 1))}
+                      >
+                        Gisteren
+                      </Badge>
+                      <Badge
+                        variant={field.value && format(field.value, "yyyy-MM-dd") === format(subDays(new Date(), 2), "yyyy-MM-dd") ? "default" : "outline"}
+                        className="cursor-pointer hover:bg-primary/80 transition-colors"
+                        onClick={() => field.onChange(subDays(new Date(), 2))}
+                      >
+                        Eergisteren
+                      </Badge>
+                    </div>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {field.value ? (
+                              format(field.value, "EEEE d MMMM yyyy", { locale: nl })
+                            ) : (
+                              <span>Selecteer datum</span>
+                            )}
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={field.onChange}
+                          locale={nl}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Medewerker */}
+              <FormField
+                control={form.control}
+                name="medewerker"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Medewerker</FormLabel>
+                    {allMedewerkers.length > 0 && !showNewMedewerker ? (
+                      <div className="flex gap-2">
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger className="flex-1">
+                              <SelectValue placeholder="Kies medewerker" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent position="popper" sideOffset={4}>
+                            {allMedewerkers.map((m) => (
+                              <SelectItem key={m.naam} value={m.naam}>
+                                {m.naam}
+                                {m.functie && (
+                                  <span className="text-muted-foreground ml-1">
+                                    ({m.functie})
+                                  </span>
+                                )}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => {
+                            setShowNewMedewerker(true);
+                            field.onChange("");
+                          }}
+                          title="Handmatig invoeren"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
                     ) : (
-                      <span>Selecteer datum</span>
+                      <div className="flex gap-2">
+                        <FormControl>
+                          <Input
+                            {...field}
+                            placeholder="Naam medewerker"
+                          />
+                        </FormControl>
+                        {allMedewerkers.length > 0 && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setShowNewMedewerker(false)}
+                          >
+                            Kiezen
+                          </Button>
+                        )}
+                      </div>
                     )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={date}
-                    onSelect={setDate}
-                    locale={nl}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            {/* Medewerker */}
-            <div className="grid gap-2">
-              <Label>Medewerker</Label>
-              {allMedewerkers.length > 0 && !showNewMedewerker ? (
-                <div className="flex gap-2">
-                  <Select value={medewerker} onValueChange={setMedewerker}>
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="Kies medewerker" />
-                    </SelectTrigger>
-                    <SelectContent position="popper" sideOffset={4}>
-                      {allMedewerkers.map((m) => (
-                        <SelectItem key={m.naam} value={m.naam}>
-                          {m.naam}
-                          {m.functie && (
-                            <span className="text-muted-foreground ml-1">
-                              ({m.functie})
-                            </span>
-                          )}
-                        </SelectItem>
+              {/* Uren met snelkeuze */}
+              <FormField
+                control={form.control}
+                name="uren"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Uren</FormLabel>
+                    {/* Snelkeuze knoppen voor veelvoorkomende uren */}
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {[4, 6, 7.5, 8, 9, 10].map((hours) => (
+                        <Badge
+                          key={hours}
+                          variant={field.value === hours.toString() ? "default" : "outline"}
+                          className="cursor-pointer hover:bg-primary/80 transition-colors"
+                          onClick={() => field.onChange(hours.toString())}
+                        >
+                          <Clock className="mr-1 h-3 w-3" />
+                          {hours} uur
+                        </Badge>
                       ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => {
-                      setShowNewMedewerker(true);
-                      setMedewerker("");
-                    }}
-                    title="Handmatig invoeren"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex gap-2">
-                  <Input
-                    value={medewerker}
-                    onChange={(e) => setMedewerker(e.target.value)}
-                    placeholder="Naam medewerker"
-                    required
-                  />
-                  {allMedewerkers.length > 0 && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setShowNewMedewerker(false)}
-                    >
-                      Kiezen
-                    </Button>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Uren met snelkeuze */}
-            <div className="grid gap-2">
-              <Label htmlFor="uren">Uren</Label>
-              {/* Snelkeuze knoppen voor veelvoorkomende uren */}
-              <div className="flex flex-wrap gap-2 mb-2">
-                {[4, 6, 7.5, 8, 9, 10].map((hours) => (
-                  <Badge
-                    key={hours}
-                    variant={uren === hours.toString() ? "default" : "outline"}
-                    className="cursor-pointer hover:bg-primary/80 transition-colors"
-                    onClick={() => setUren(hours.toString())}
-                  >
-                    <Clock className="mr-1 h-3 w-3" />
-                    {hours} uur
-                  </Badge>
-                ))}
-              </div>
-              <Input
-                id="uren"
-                type="number"
-                min="0"
-                max="24"
-                step="0.5"
-                value={uren}
-                onChange={(e) => setUren(e.target.value)}
-                placeholder="8"
-                required
+                    </div>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        type="number"
+                        min="0"
+                        max="24"
+                        step="0.5"
+                        placeholder="8"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Gewerkte uren (halve uren toegestaan, bijv. 7.5)
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-              <p className="text-xs text-muted-foreground">
-                Gewerkte uren (halve uren toegestaan, bijv. 7.5)
-              </p>
-            </div>
 
-            {/* Scope (optional) */}
-            <div className="grid gap-2">
-              <Label>Scope / Taak (optioneel)</Label>
-              <Select value={scope} onValueChange={setScope}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecteer scope" />
-                </SelectTrigger>
-                <SelectContent position="popper" sideOffset={4}>
-                  <SelectItem value="__none__">Geen scope</SelectItem>
-                  {filteredScopes.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+              {/* Scope (optional) */}
+              <FormField
+                control={form.control}
+                name="scope"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Scope / Taak (optioneel)</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecteer scope" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent position="popper" sideOffset={4}>
+                        <SelectItem value="__none__">Geen scope</SelectItem>
+                        {filteredScopes.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            {/* Notities (optional) */}
-            <div className="grid gap-2">
-              <Label htmlFor="notities">Notities (optioneel)</Label>
-              <Textarea
-                id="notities"
-                value={notities}
-                onChange={(e) => setNotities(e.target.value)}
-                placeholder="Beschrijving van werkzaamheden..."
-                rows={2}
+              {/* Notities (optional) */}
+              <FormField
+                control={form.control}
+                name="notities"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Notities (optioneel)</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        {...field}
+                        placeholder="Beschrijving van werkzaamheden..."
+                        rows={2}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
             </div>
-          </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose}>
-              Annuleren
-            </Button>
-            <Button
-              type="submit"
-              disabled={isLoading || !date || !medewerker || !uren}
-            >
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Toevoegen
-            </Button>
-          </DialogFooter>
-        </form>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={handleClose}>
+                Annuleren
+              </Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Toevoegen
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );

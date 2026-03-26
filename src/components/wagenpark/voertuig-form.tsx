@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -20,6 +22,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+  FormDescription,
+} from "@/components/ui/form";
 import { Loader2, CalendarIcon } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -34,9 +45,8 @@ import { nl } from "@/lib/date-locale";
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
-import { showSuccessToast, showErrorToast, showWarningToast } from "@/lib/toast-utils";
+import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import { getMutationErrorMessage } from "@/lib/error-handling";
-import { FormFieldFeedback } from "@/components/ui/form-field-feedback";
 
 // Common vehicle brands in the Netherlands for landscaping/construction
 const vehicleBrands = [
@@ -88,29 +98,6 @@ export interface Voertuig extends VoertuigFormData {
   _id: Id<"voertuigen">;
 }
 
-interface VoertuigFormProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  initialData?: Voertuig | null;
-  onSuccess?: () => void;
-}
-
-const defaultFormData: VoertuigFormData = {
-  kenteken: "",
-  merk: "",
-  model: "",
-  type: "",
-  bouwjaar: undefined,
-  kleur: "",
-  kmStand: undefined,
-  status: "actief",
-  notities: "",
-  apkVervaldatum: undefined,
-  verzekeringsVervaldatum: undefined,
-  verzekeraar: "",
-  polisnummer: "",
-};
-
 /**
  * Format Dutch license plate to standard format (XX-XX-XX or XX-XXX-X, etc.)
  * Converts to uppercase and adds dashes in appropriate places
@@ -147,26 +134,72 @@ function validateKenteken(kenteken: string): boolean {
   return true;
 }
 
+// Zod schema for voertuig form
+const voertuigFormSchema = z.object({
+  kenteken: z.string().min(1, "Kenteken is verplicht").refine(
+    (val) => validateKenteken(val),
+    { message: "Ongeldig kenteken formaat (bijv. AB-12-CD)" }
+  ),
+  merk: z.string().min(1, "Merk is verplicht"),
+  model: z.string().min(1, "Model is verplicht"),
+  type: z.string().min(1, "Type is verplicht"),
+  bouwjaar: z.number().min(1990).max(new Date().getFullYear() + 1).optional(),
+  kleur: z.string().optional(),
+  kmStand: z.number().min(0).optional(),
+  status: z.enum(["actief", "inactief", "onderhoud"]),
+  notities: z.string().optional(),
+  apkVervaldatum: z.date().optional(),
+  verzekeringsVervaldatum: z.date().optional(),
+  verzekeraar: z.string().optional(),
+  polisnummer: z.string().optional(),
+});
+
+type VoertuigFormSchemaData = z.infer<typeof voertuigFormSchema>;
+
+interface VoertuigFormProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  initialData?: Voertuig | null;
+  onSuccess?: () => void;
+}
+
 export function VoertuigForm({
   open,
   onOpenChange,
   initialData,
   onSuccess,
 }: VoertuigFormProps) {
-  const [formData, setFormData] = useState<VoertuigFormData>(defaultFormData);
   const [isLoading, setIsLoading] = useState(false);
-  const [kentekenError, setKentekenError] = useState<string | null>(null);
 
   const createVoertuig = useMutation(api.voertuigen.create);
   const updateVoertuig = useMutation(api.voertuigen.update);
 
   const isEditMode = !!initialData;
 
+  const form = useForm<VoertuigFormSchemaData>({
+    resolver: zodResolver(voertuigFormSchema),
+    defaultValues: {
+      kenteken: "",
+      merk: "",
+      model: "",
+      type: "",
+      bouwjaar: undefined,
+      kleur: "",
+      kmStand: undefined,
+      status: "actief",
+      notities: "",
+      apkVervaldatum: undefined,
+      verzekeringsVervaldatum: undefined,
+      verzekeraar: "",
+      polisnummer: "",
+    },
+  });
+
   // Reset form when dialog opens/closes or initialData changes
   useEffect(() => {
     if (open) {
       if (initialData) {
-        setFormData({
+        form.reset({
           kenteken: initialData.kenteken,
           merk: initialData.merk,
           model: initialData.model,
@@ -176,78 +209,72 @@ export function VoertuigForm({
           kmStand: initialData.kmStand,
           status: initialData.status,
           notities: initialData.notities || "",
-          apkVervaldatum: (initialData as { apkVervaldatum?: number }).apkVervaldatum,
-          verzekeringsVervaldatum: (initialData as { verzekeringsVervaldatum?: number }).verzekeringsVervaldatum,
+          apkVervaldatum: (initialData as { apkVervaldatum?: number }).apkVervaldatum
+            ? new Date((initialData as { apkVervaldatum?: number }).apkVervaldatum!)
+            : undefined,
+          verzekeringsVervaldatum: (initialData as { verzekeringsVervaldatum?: number }).verzekeringsVervaldatum
+            ? new Date((initialData as { verzekeringsVervaldatum?: number }).verzekeringsVervaldatum!)
+            : undefined,
           verzekeraar: (initialData as { verzekeraar?: string }).verzekeraar || "",
           polisnummer: (initialData as { polisnummer?: string }).polisnummer || "",
         });
       } else {
-        setFormData(defaultFormData);
+        form.reset({
+          kenteken: "",
+          merk: "",
+          model: "",
+          type: "",
+          bouwjaar: undefined,
+          kleur: "",
+          kmStand: undefined,
+          status: "actief",
+          notities: "",
+          apkVervaldatum: undefined,
+          verzekeringsVervaldatum: undefined,
+          verzekeraar: "",
+          polisnummer: "",
+        });
       }
-      setKentekenError(null);
     }
-  }, [initialData, open]);
+  }, [initialData, open, form]);
 
-  const handleKentekenChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const formatted = formatKenteken(e.target.value);
-      setFormData((prev) => ({ ...prev, kenteken: formatted }));
-
-      // Real-time validation
-      if (formatted && !validateKenteken(formatted)) {
-        setKentekenError("Ongeldig kenteken formaat (bijv. AB-12-CD)");
-      } else {
-        setKentekenError(null);
-      }
-    },
-    []
-  );
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // Validate kenteken before submit
-    if (!validateKenteken(formData.kenteken)) {
-      setKentekenError("Ongeldig kenteken formaat (bijv. AB-12-CD)");
-      return;
-    }
-
+  const handleFormSubmit = async (data: VoertuigFormSchemaData) => {
     setIsLoading(true);
 
     try {
       if (isEditMode && initialData) {
         await updateVoertuig({
           id: initialData._id,
-          kenteken: formData.kenteken,
-          merk: formData.merk,
-          model: formData.model,
-          type: formData.type,
-          bouwjaar: formData.bouwjaar,
-          kleur: formData.kleur || undefined,
-          kmStand: formData.kmStand,
-          status: formData.status,
-          notities: formData.notities || undefined,
-          apkVervaldatum: formData.apkVervaldatum,
-          verzekeringsVervaldatum: formData.verzekeringsVervaldatum,
-          verzekeraar: formData.verzekeraar || undefined,
-          polisnummer: formData.polisnummer || undefined,
+          kenteken: data.kenteken,
+          merk: data.merk,
+          model: data.model,
+          type: data.type,
+          bouwjaar: data.bouwjaar,
+          kleur: data.kleur || undefined,
+          kmStand: data.kmStand,
+          status: data.status,
+          notities: data.notities || undefined,
+          apkVervaldatum: data.apkVervaldatum?.getTime(),
+          verzekeringsVervaldatum: data.verzekeringsVervaldatum?.getTime(),
+          verzekeraar: data.verzekeraar || undefined,
+          polisnummer: data.polisnummer || undefined,
         });
         showSuccessToast("Voertuig bijgewerkt");
       } else {
         await createVoertuig({
-          kenteken: formData.kenteken,
-          merk: formData.merk,
-          model: formData.model,
-          type: formData.type,
-          bouwjaar: formData.bouwjaar,
-          kleur: formData.kleur || undefined,
-          kmStand: formData.kmStand,
-          status: formData.status,
-          notities: formData.notities || undefined,
-          apkVervaldatum: formData.apkVervaldatum,
-          verzekeringsVervaldatum: formData.verzekeringsVervaldatum,
-          verzekeraar: formData.verzekeraar || undefined,
-          polisnummer: formData.polisnummer || undefined,
+          kenteken: data.kenteken,
+          merk: data.merk,
+          model: data.model,
+          type: data.type,
+          bouwjaar: data.bouwjaar,
+          kleur: data.kleur || undefined,
+          kmStand: data.kmStand,
+          status: data.status,
+          notities: data.notities || undefined,
+          apkVervaldatum: data.apkVervaldatum?.getTime(),
+          verzekeringsVervaldatum: data.verzekeringsVervaldatum?.getTime(),
+          verzekeraar: data.verzekeraar || undefined,
+          polisnummer: data.polisnummer || undefined,
         });
         showSuccessToast("Voertuig toegevoegd");
       }
@@ -269,338 +296,378 @@ export function VoertuigForm({
 
   const handleClose = useCallback(() => {
     onOpenChange(false);
-    setFormData(defaultFormData);
-    setKentekenError(null);
   }, [onOpenChange]);
-
-  const isFormValid =
-    formData.kenteken &&
-    formData.merk &&
-    formData.model &&
-    formData.type &&
-    !kentekenError;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>
-              {isEditMode ? "Voertuig bewerken" : "Nieuw voertuig"}
-            </DialogTitle>
-            <DialogDescription>
-              {isEditMode
-                ? "Pas de gegevens van het voertuig aan"
-                : "Voeg een voertuig toe aan je wagenpark"}
-            </DialogDescription>
-          </DialogHeader>
+        <DialogHeader>
+          <DialogTitle>
+            {isEditMode ? "Voertuig bewerken" : "Nieuw voertuig"}
+          </DialogTitle>
+          <DialogDescription>
+            {isEditMode
+              ? "Pas de gegevens van het voertuig aan"
+              : "Voeg een voertuig toe aan je wagenpark"}
+          </DialogDescription>
+        </DialogHeader>
 
-          <div className="grid gap-4 py-4">
-            {/* Kenteken */}
-            <div className="grid gap-2">
-              <Label htmlFor="kenteken">Kenteken *</Label>
-              <Input
-                id="kenteken"
-                value={formData.kenteken}
-                onChange={handleKentekenChange}
-                placeholder="XX-XX-XX"
-                className={kentekenError ? "border-destructive" : ""}
-                required
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleFormSubmit)}>
+            <div className="grid gap-4 py-4">
+              {/* Kenteken */}
+              <FormField
+                control={form.control}
+                name="kenteken"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Kenteken *</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        onChange={(e) => {
+                          const formatted = formatKenteken(e.target.value);
+                          field.onChange(formatted);
+                        }}
+                        placeholder="XX-XX-XX"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-              <FormFieldFeedback
-                status={kentekenError ? "invalid" : formData.kenteken && validateKenteken(formData.kenteken) ? "valid" : "idle"}
-                message={kentekenError || (formData.kenteken ? undefined : "Nederlands kenteken formaat (bijv. AB-12-CD)")}
-              />
-            </div>
 
-            {/* Merk en Model */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="merk">Merk *</Label>
-                <Select
-                  value={formData.merk}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, merk: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecteer merk" />
-                  </SelectTrigger>
-                  <SelectContent position="popper" sideOffset={4}>
-                    {vehicleBrands.map((brand) => (
-                      <SelectItem key={brand} value={brand}>
-                        {brand}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="model">Model *</Label>
-                <Input
-                  id="model"
-                  value={formData.model}
-                  onChange={(e) =>
-                    setFormData({ ...formData, model: e.target.value })
-                  }
-                  placeholder="Bijv. Sprinter, Transporter"
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Type */}
-            <div className="grid gap-2">
-              <Label htmlFor="type">Type *</Label>
-              <Select
-                value={formData.type}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, type: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecteer type" />
-                </SelectTrigger>
-                <SelectContent position="popper" sideOffset={4}>
-                  {vehicleTypes.map((type) => (
-                    <SelectItem key={type.value} value={type.value}>
-                      {type.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Bouwjaar en Kleur */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="bouwjaar">Bouwjaar</Label>
-                <Input
-                  id="bouwjaar"
-                  type="number"
-                  min="1990"
-                  max={new Date().getFullYear() + 1}
-                  value={formData.bouwjaar || ""}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      bouwjaar: e.target.value
-                        ? parseInt(e.target.value)
-                        : undefined,
-                    })
-                  }
-                  placeholder={`Bijv. ${new Date().getFullYear()}`}
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="kleur">Kleur</Label>
-                <Input
-                  id="kleur"
-                  value={formData.kleur}
-                  onChange={(e) =>
-                    setFormData({ ...formData, kleur: e.target.value })
-                  }
-                  placeholder="Bijv. Wit, Grijs"
-                />
-              </div>
-            </div>
-
-            {/* KM Stand */}
-            <div className="grid gap-2">
-              <Label htmlFor="kmStand">KM Stand</Label>
-              <Input
-                id="kmStand"
-                type="number"
-                min="0"
-                step="1"
-                value={formData.kmStand || ""}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    kmStand: e.target.value
-                      ? parseInt(e.target.value)
-                      : undefined,
-                  })
-                }
-                placeholder="Bijv. 125000"
-              />
-              <p className="text-xs text-muted-foreground">
-                Huidige kilometerstand van het voertuig
-              </p>
-            </div>
-
-            {/* Status */}
-            <div className="grid gap-2">
-              <Label htmlFor="status">Status</Label>
-              <Select
-                value={formData.status}
-                onValueChange={(value: "actief" | "inactief" | "onderhoud") =>
-                  setFormData({ ...formData, status: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent position="popper" sideOffset={4}>
-                  {statusOptions.map((status) => (
-                    <SelectItem key={status.value} value={status.value}>
-                      {status.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Compliance Section */}
-            <Separator className="my-2" />
-            <div className="space-y-4">
-              <h4 className="text-sm font-medium text-muted-foreground">
-                APK & Verzekering
-              </h4>
-
-              {/* APK Vervaldatum */}
-              <div className="grid gap-2">
-                <Label>APK Vervaldatum</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "justify-start text-left font-normal",
-                        !formData.apkVervaldatum && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {formData.apkVervaldatum ? (
-                        format(new Date(formData.apkVervaldatum), "d MMMM yyyy", {
-                          locale: nl,
-                        })
-                      ) : (
-                        <span>Selecteer APK vervaldatum</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={
-                        formData.apkVervaldatum
-                          ? new Date(formData.apkVervaldatum)
-                          : undefined
-                      }
-                      onSelect={(date) =>
-                        setFormData({
-                          ...formData,
-                          apkVervaldatum: date?.getTime(),
-                        })
-                      }
-                      locale={nl}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              {/* Verzekering Vervaldatum */}
-              <div className="grid gap-2">
-                <Label>Verzekering Vervaldatum</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "justify-start text-left font-normal",
-                        !formData.verzekeringsVervaldatum && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {formData.verzekeringsVervaldatum ? (
-                        format(
-                          new Date(formData.verzekeringsVervaldatum),
-                          "d MMMM yyyy",
-                          { locale: nl }
-                        )
-                      ) : (
-                        <span>Selecteer verzekering vervaldatum</span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={
-                        formData.verzekeringsVervaldatum
-                          ? new Date(formData.verzekeringsVervaldatum)
-                          : undefined
-                      }
-                      onSelect={(date) =>
-                        setFormData({
-                          ...formData,
-                          verzekeringsVervaldatum: date?.getTime(),
-                        })
-                      }
-                      locale={nl}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              {/* Verzekeraar en Polisnummer */}
+              {/* Merk en Model */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="verzekeraar">Verzekeraar</Label>
-                  <Input
-                    id="verzekeraar"
-                    value={formData.verzekeraar}
-                    onChange={(e) =>
-                      setFormData({ ...formData, verzekeraar: e.target.value })
-                    }
-                    placeholder="Bijv. ANWB, Centraal Beheer"
-                  />
-                </div>
+                <FormField
+                  control={form.control}
+                  name="merk"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Merk *</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecteer merk" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent position="popper" sideOffset={4}>
+                          {vehicleBrands.map((brand) => (
+                            <SelectItem key={brand} value={brand}>
+                              {brand}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                <div className="grid gap-2">
-                  <Label htmlFor="polisnummer">Polisnummer</Label>
-                  <Input
-                    id="polisnummer"
-                    value={formData.polisnummer}
-                    onChange={(e) =>
-                      setFormData({ ...formData, polisnummer: e.target.value })
-                    }
-                    placeholder="Bijv. 123456789"
+                <FormField
+                  control={form.control}
+                  name="model"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Model *</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          placeholder="Bijv. Sprinter, Transporter"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Type */}
+              <FormField
+                control={form.control}
+                name="type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Type *</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecteer type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent position="popper" sideOffset={4}>
+                        {vehicleTypes.map((type) => (
+                          <SelectItem key={type.value} value={type.value}>
+                            {type.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Bouwjaar en Kleur */}
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="bouwjaar"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Bouwjaar</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min="1990"
+                          max={new Date().getFullYear() + 1}
+                          value={field.value || ""}
+                          onChange={(e) =>
+                            field.onChange(
+                              e.target.value
+                                ? parseInt(e.target.value)
+                                : undefined
+                            )
+                          }
+                          placeholder={`Bijv. ${new Date().getFullYear()}`}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="kleur"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Kleur</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Bijv. Wit, Grijs" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* KM Stand */}
+              <FormField
+                control={form.control}
+                name="kmStand"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>KM Stand</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={field.value || ""}
+                        onChange={(e) =>
+                          field.onChange(
+                            e.target.value
+                              ? parseInt(e.target.value)
+                              : undefined
+                          )
+                        }
+                        placeholder="Bijv. 125000"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Huidige kilometerstand van het voertuig
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Status */}
+              <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Status</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent position="popper" sideOffset={4}>
+                        {statusOptions.map((status) => (
+                          <SelectItem key={status.value} value={status.value}>
+                            {status.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Compliance Section */}
+              <Separator className="my-2" />
+              <div className="space-y-4">
+                <h4 className="text-sm font-medium text-muted-foreground">
+                  APK & Verzekering
+                </h4>
+
+                {/* APK Vervaldatum */}
+                <FormField
+                  control={form.control}
+                  name="apkVervaldatum"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>APK Vervaldatum</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {field.value ? (
+                                format(field.value, "d MMMM yyyy", {
+                                  locale: nl,
+                                })
+                              ) : (
+                                <span>Selecteer APK vervaldatum</span>
+                              )}
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            locale={nl}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Verzekering Vervaldatum */}
+                <FormField
+                  control={form.control}
+                  name="verzekeringsVervaldatum"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Verzekering Vervaldatum</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {field.value ? (
+                                format(field.value, "d MMMM yyyy", {
+                                  locale: nl,
+                                })
+                              ) : (
+                                <span>Selecteer verzekering vervaldatum</span>
+                              )}
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            locale={nl}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Verzekeraar en Polisnummer */}
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="verzekeraar"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Verzekeraar</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            placeholder="Bijv. ANWB, Centraal Beheer"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="polisnummer"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Polisnummer</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Bijv. 123456789" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
                 </div>
               </div>
-            </div>
 
-            <Separator className="my-2" />
+              <Separator className="my-2" />
 
-            {/* Notities */}
-            <div className="grid gap-2">
-              <Label htmlFor="notities">Notities</Label>
-              <Textarea
-                id="notities"
-                value={formData.notities}
-                onChange={(e) =>
-                  setFormData({ ...formData, notities: e.target.value })
-                }
-                placeholder="Eventuele opmerkingen over het voertuig..."
-                rows={3}
+              {/* Notities */}
+              <FormField
+                control={form.control}
+                name="notities"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Notities</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        {...field}
+                        placeholder="Eventuele opmerkingen over het voertuig..."
+                        rows={3}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
             </div>
-          </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose}>
-              Annuleren
-            </Button>
-            <Button type="submit" disabled={isLoading || !isFormValid}>
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isEditMode ? "Bijwerken" : "Toevoegen"}
-            </Button>
-          </DialogFooter>
-        </form>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={handleClose}>
+                Annuleren
+              </Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isEditMode ? "Bijwerken" : "Toevoegen"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );

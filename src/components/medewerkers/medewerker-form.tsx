@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,15 +31,22 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Loader2, User, Clock, GraduationCap, Award, FileText, MapPin, Phone } from "lucide-react";
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-import { showSuccessToast, showErrorToast, showWarningToast } from "@/lib/toast-utils";
+import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import { getMutationErrorMessage } from "@/lib/error-handling";
 import { Id } from "../../../convex/_generated/dataModel";
 import { SkillsSelector, Specialisatie } from "./skills-selector";
 import { CertificatenList, Certificaat } from "./certificaat-form";
-import { FormFieldFeedback } from "@/components/ui/form-field-feedback";
 import { inputPatterns, formatInput, validateInput } from "@/lib/input-patterns";
 
 export const FUNCTIE_OPTIONS = [
@@ -124,26 +134,29 @@ export interface Medewerker {
   };
 }
 
-const defaultFormData: MedewerkerFormData = {
-  naam: "",
-  email: "",
-  telefoon: "",
-  functie: "",
-  uurtarief: "",
-  notities: "",
-  contractType: "",
-  werkdagen: [1, 2, 3, 4, 5], // Ma-Vr
-  urenPerWeek: "40",
-  maxUrenPerDag: "8",
-  specialisaties: [],
-  certificaten: [],
-  straat: "",
-  postcode: "",
-  plaats: "",
-  noodcontactNaam: "",
-  noodcontactTelefoon: "",
-  noodcontactRelatie: "",
-};
+// Zod schema for medewerker form
+const medewerkerFormSchema = z.object({
+  naam: z.string().min(1, "Naam is verplicht"),
+  email: z.string().email("Ongeldig e-mailadres").optional().or(z.literal("")),
+  telefoon: z.string().optional(),
+  functie: z.string().optional(),
+  uurtarief: z.string().optional(),
+  notities: z.string().optional(),
+  contractType: z.string().optional(),
+  werkdagen: z.array(z.number()).optional(),
+  urenPerWeek: z.string().optional(),
+  maxUrenPerDag: z.string().optional(),
+  specialisaties: z.custom<Specialisatie[]>().optional(),
+  certificaten: z.custom<Certificaat[]>().optional(),
+  straat: z.string().optional(),
+  postcode: z.string().optional(),
+  plaats: z.string().optional(),
+  noodcontactNaam: z.string().optional(),
+  noodcontactTelefoon: z.string().optional(),
+  noodcontactRelatie: z.string().optional(),
+});
+
+type MedewerkerFormSchemaData = z.infer<typeof medewerkerFormSchema>;
 
 interface MedewerkerFormProps {
   open: boolean;
@@ -158,25 +171,42 @@ export function MedewerkerForm({
   initialData,
   onSuccess,
 }: MedewerkerFormProps) {
-  const [formData, setFormData] = useState<MedewerkerFormData>(defaultFormData);
   const [isLoading, setIsLoading] = useState(false);
-
-  // Validation state for fields with input patterns
-  const [emailError, setEmailError] = useState<string | null>(null);
-  const [telefoonError, setTelefoonError] = useState<string | null>(null);
-  const [postcodeError, setPostcodeError] = useState<string | null>(null);
-  const [noodcontactTelefoonError, setNoodcontactTelefoonError] = useState<string | null>(null);
 
   const createMedewerker = useMutation(api.medewerkers.create);
   const updateMedewerker = useMutation(api.medewerkers.update);
 
   const isEditMode = !!initialData;
 
+  const form = useForm<MedewerkerFormSchemaData>({
+    resolver: zodResolver(medewerkerFormSchema),
+    defaultValues: {
+      naam: "",
+      email: "",
+      telefoon: "",
+      functie: "",
+      uurtarief: "",
+      notities: "",
+      contractType: "",
+      werkdagen: [1, 2, 3, 4, 5],
+      urenPerWeek: "40",
+      maxUrenPerDag: "8",
+      specialisaties: [],
+      certificaten: [],
+      straat: "",
+      postcode: "",
+      plaats: "",
+      noodcontactNaam: "",
+      noodcontactTelefoon: "",
+      noodcontactRelatie: "",
+    },
+  });
+
   // Reset form when dialog opens/closes or initialData changes
   useEffect(() => {
     if (open) {
       if (initialData) {
-        setFormData({
+        form.reset({
           naam: initialData.naam,
           email: initialData.email || "",
           telefoon: initialData.telefoon || "",
@@ -197,88 +227,56 @@ export function MedewerkerForm({
           noodcontactRelatie: initialData.noodcontact?.relatie || "",
         });
       } else {
-        setFormData(defaultFormData);
+        form.reset({
+          naam: "",
+          email: "",
+          telefoon: "",
+          functie: "",
+          uurtarief: "",
+          notities: "",
+          contractType: "",
+          werkdagen: [1, 2, 3, 4, 5],
+          urenPerWeek: "40",
+          maxUrenPerDag: "8",
+          specialisaties: [],
+          certificaten: [],
+          straat: "",
+          postcode: "",
+          plaats: "",
+          noodcontactNaam: "",
+          noodcontactTelefoon: "",
+          noodcontactRelatie: "",
+        });
       }
-      // Clear validation errors when dialog opens
-      setEmailError(null);
-      setTelefoonError(null);
-      setPostcodeError(null);
-      setNoodcontactTelefoonError(null);
     }
-  }, [initialData, open]);
+  }, [initialData, open, form]);
 
-  // Real-time validation handlers
-  const handleEmailChange = useCallback((value: string) => {
-    setFormData((prev) => ({ ...prev, email: value }));
-    if (value && !validateInput("email", value)) {
-      setEmailError("Ongeldig e-mailadres");
-    } else {
-      setEmailError(null);
-    }
-  }, []);
-
-  const handleTelefoonChange = useCallback((value: string) => {
-    const formatted = formatInput("telefoon", value);
-    setFormData((prev) => ({ ...prev, telefoon: formatted }));
-    if (formatted && !validateInput("telefoon", formatted)) {
-      setTelefoonError("Ongeldig telefoonnummer (bijv. 06 12345678)");
-    } else {
-      setTelefoonError(null);
-    }
-  }, []);
-
-  const handlePostcodeChange = useCallback((value: string) => {
-    const formatted = formatInput("postcode", value);
-    setFormData((prev) => ({ ...prev, postcode: formatted }));
-    if (formatted && !validateInput("postcode", formatted)) {
-      setPostcodeError("Ongeldige postcode (bijv. 1234 AB)");
-    } else {
-      setPostcodeError(null);
-    }
-  }, []);
-
-  const handleNoodcontactTelefoonChange = useCallback((value: string) => {
-    const formatted = formatInput("telefoon", value);
-    setFormData((prev) => ({ ...prev, noodcontactTelefoon: formatted }));
-    if (formatted && !validateInput("telefoon", formatted)) {
-      setNoodcontactTelefoonError("Ongeldig telefoonnummer (bijv. 06 12345678)");
-    } else {
-      setNoodcontactTelefoonError(null);
-    }
-  }, []);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!formData.naam.trim()) {
-      showWarningToast("Vul de naam in");
-      return;
-    }
-
+  const handleFormSubmit = async (data: MedewerkerFormSchemaData) => {
     setIsLoading(true);
 
     // Build the data object for Convex
-    const beschikbaarheid = formData.werkdagen.length > 0
+    const werkdagen = data.werkdagen ?? [];
+    const beschikbaarheid = werkdagen.length > 0
       ? {
-          werkdagen: formData.werkdagen,
-          urenPerWeek: parseInt(formData.urenPerWeek) || 40,
-          maxUrenPerDag: parseInt(formData.maxUrenPerDag) || 8,
+          werkdagen,
+          urenPerWeek: parseInt(data.urenPerWeek || "40") || 40,
+          maxUrenPerDag: parseInt(data.maxUrenPerDag || "8") || 8,
         }
       : undefined;
 
-    const adres = formData.straat.trim()
+    const adres = data.straat?.trim()
       ? {
-          straat: formData.straat.trim(),
-          postcode: formData.postcode.trim(),
-          plaats: formData.plaats.trim(),
+          straat: data.straat.trim(),
+          postcode: data.postcode?.trim() || "",
+          plaats: data.plaats?.trim() || "",
         }
       : undefined;
 
-    const noodcontact = formData.noodcontactNaam.trim()
+    const noodcontact = data.noodcontactNaam?.trim()
       ? {
-          naam: formData.noodcontactNaam.trim(),
-          telefoon: formData.noodcontactTelefoon.trim(),
-          relatie: formData.noodcontactRelatie.trim(),
+          naam: data.noodcontactNaam.trim(),
+          telefoon: data.noodcontactTelefoon?.trim() || "",
+          relatie: data.noodcontactRelatie?.trim() || "",
         }
       : undefined;
 
@@ -286,32 +284,32 @@ export function MedewerkerForm({
       if (isEditMode && initialData) {
         await updateMedewerker({
           id: initialData._id,
-          naam: formData.naam,
-          email: formData.email || undefined,
-          telefoon: formData.telefoon || undefined,
-          functie: formData.functie || undefined,
-          uurtarief: formData.uurtarief ? parseFloat(formData.uurtarief) : undefined,
-          notities: formData.notities || undefined,
-          contractType: formData.contractType as ContractType || undefined,
+          naam: data.naam,
+          email: data.email || undefined,
+          telefoon: data.telefoon || undefined,
+          functie: data.functie || undefined,
+          uurtarief: data.uurtarief ? parseFloat(data.uurtarief) : undefined,
+          notities: data.notities || undefined,
+          contractType: (data.contractType as ContractType) || undefined,
           beschikbaarheid,
-          specialisaties: formData.specialisaties.length > 0 ? formData.specialisaties : undefined,
-          certificaten: formData.certificaten.length > 0 ? formData.certificaten : undefined,
+          specialisaties: (data.specialisaties ?? []).length > 0 ? data.specialisaties : undefined,
+          certificaten: (data.certificaten ?? []).length > 0 ? data.certificaten : undefined,
           adres,
           noodcontact,
         });
         showSuccessToast("Medewerker bijgewerkt");
       } else {
         await createMedewerker({
-          naam: formData.naam,
-          email: formData.email || undefined,
-          telefoon: formData.telefoon || undefined,
-          functie: formData.functie || undefined,
-          uurtarief: formData.uurtarief ? parseFloat(formData.uurtarief) : undefined,
-          notities: formData.notities || undefined,
-          contractType: formData.contractType as ContractType || undefined,
+          naam: data.naam,
+          email: data.email || undefined,
+          telefoon: data.telefoon || undefined,
+          functie: data.functie || undefined,
+          uurtarief: data.uurtarief ? parseFloat(data.uurtarief) : undefined,
+          notities: data.notities || undefined,
+          contractType: (data.contractType as ContractType) || undefined,
           beschikbaarheid,
-          specialisaties: formData.specialisaties.length > 0 ? formData.specialisaties : undefined,
-          certificaten: formData.certificaten.length > 0 ? formData.certificaten : undefined,
+          specialisaties: (data.specialisaties ?? []).length > 0 ? data.specialisaties : undefined,
+          certificaten: (data.certificaten ?? []).length > 0 ? data.certificaten : undefined,
           adres,
           noodcontact,
         });
@@ -335,461 +333,538 @@ export function MedewerkerForm({
 
   const handleClose = useCallback(() => {
     onOpenChange(false);
-    setFormData(defaultFormData);
   }, [onOpenChange]);
 
-  const handleWerkdagToggle = useCallback((dag: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      werkdagen: prev.werkdagen.includes(dag)
-        ? prev.werkdagen.filter((d) => d !== dag)
-        : [...prev.werkdagen, dag],
-    }));
-  }, []);
-
-  const isFormValid = formData.naam.trim() && !emailError && !telefoonError && !postcodeError && !noodcontactTelefoonError;
+  const handleWerkdagToggle = useCallback(
+    (dag: number) => {
+      const current = form.getValues("werkdagen") ?? [];
+      const newDagen = current.includes(dag)
+        ? current.filter((d) => d !== dag)
+        : [...current, dag];
+      form.setValue("werkdagen", newDagen);
+    },
+    [form]
+  );
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>
-              {isEditMode ? "Medewerker bewerken" : "Nieuwe medewerker"}
-            </DialogTitle>
-            <DialogDescription>
-              {isEditMode
-                ? `Pas de gegevens van ${initialData?.naam} aan`
-                : "Voeg een nieuwe medewerker toe aan je team"}
-            </DialogDescription>
-          </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleFormSubmit)}>
+            <DialogHeader>
+              <DialogTitle>
+                {isEditMode ? "Medewerker bewerken" : "Nieuwe medewerker"}
+              </DialogTitle>
+              <DialogDescription>
+                {isEditMode
+                  ? `Pas de gegevens van ${initialData?.naam} aan`
+                  : "Voeg een nieuwe medewerker toe aan je team"}
+              </DialogDescription>
+            </DialogHeader>
 
-          <div className="grid gap-4 py-4">
-            <Accordion
-              type="multiple"
-              defaultValue={["basis", "beschikbaarheid"]}
-              className="space-y-2"
-            >
-              {/* Basisgegevens */}
-              <AccordionItem value="basis" className="border rounded-lg px-4">
-                <AccordionTrigger className="hover:no-underline">
-                  <div className="flex items-center gap-2">
-                    <User className="h-4 w-4" />
-                    <span className="font-medium">Basisgegevens</span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="pb-4">
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="grid gap-4"
-                  >
-                    {/* Naam en Functie */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="naam">Naam *</Label>
-                        <Input
-                          id="naam"
-                          value={formData.naam}
-                          onChange={(e) =>
-                            setFormData({ ...formData, naam: e.target.value })
-                          }
-                          placeholder="Jan Jansen"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="functie">Functie</Label>
-                        <Select
-                          value={formData.functie}
-                          onValueChange={(value) =>
-                            setFormData({ ...formData, functie: value })
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecteer functie" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {FUNCTIE_OPTIONS.map((functie) => (
-                              <SelectItem key={functie} value={functie}>
-                                {functie}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+            <div className="grid gap-4 py-4">
+              <Accordion
+                type="multiple"
+                defaultValue={["basis", "beschikbaarheid"]}
+                className="space-y-2"
+              >
+                {/* Basisgegevens */}
+                <AccordionItem value="basis" className="border rounded-lg px-4">
+                  <AccordionTrigger className="hover:no-underline">
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      <span className="font-medium">Basisgegevens</span>
                     </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-4">
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="grid gap-4"
+                    >
+                      {/* Naam en Functie */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="naam"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Naam *</FormLabel>
+                              <FormControl>
+                                <Input {...field} placeholder="Jan Jansen" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
 
-                    {/* Email en Telefoon */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="email">E-mail</Label>
-                        <Input
-                          id="email"
-                          type="email"
-                          value={formData.email}
-                          onChange={(e) => handleEmailChange(e.target.value)}
-                          placeholder={inputPatterns.email.placeholder}
-                          inputMode={inputPatterns.email.inputMode}
-                          autoComplete={inputPatterns.email.autoComplete}
-                          className={emailError ? "border-destructive" : ""}
-                        />
-                        <FormFieldFeedback
-                          status={emailError ? "invalid" : formData.email ? "valid" : "idle"}
-                          message={emailError || undefined}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="telefoon">Telefoon</Label>
-                        <Input
-                          id="telefoon"
-                          value={formData.telefoon}
-                          onChange={(e) => handleTelefoonChange(e.target.value)}
-                          placeholder={inputPatterns.telefoon.placeholder}
-                          inputMode={inputPatterns.telefoon.inputMode}
-                          autoComplete={inputPatterns.telefoon.autoComplete}
-                          className={telefoonError ? "border-destructive" : ""}
-                        />
-                        <FormFieldFeedback
-                          status={telefoonError ? "invalid" : formData.telefoon ? "valid" : "idle"}
-                          message={telefoonError || undefined}
+                        <FormField
+                          control={form.control}
+                          name="functie"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Functie</FormLabel>
+                              <Select
+                                onValueChange={field.onChange}
+                                value={field.value}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Selecteer functie" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {FUNCTIE_OPTIONS.map((functie) => (
+                                    <SelectItem key={functie} value={functie}>
+                                      {functie}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
                         />
                       </div>
+
+                      {/* Email en Telefoon */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="email"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>E-mail</FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  type="email"
+                                  placeholder={inputPatterns.email.placeholder}
+                                  inputMode={inputPatterns.email.inputMode}
+                                  autoComplete={inputPatterns.email.autoComplete}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="telefoon"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Telefoon</FormLabel>
+                              <FormControl>
+                                <Input
+                                  value={field.value}
+                                  onChange={(e) => {
+                                    const formatted = formatInput("telefoon", e.target.value);
+                                    field.onChange(formatted);
+                                  }}
+                                  placeholder={inputPatterns.telefoon.placeholder}
+                                  inputMode={inputPatterns.telefoon.inputMode}
+                                  autoComplete={inputPatterns.telefoon.autoComplete}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      {/* Contract Type en Uurtarief */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="contractType"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Contract type</FormLabel>
+                              <Select
+                                onValueChange={field.onChange}
+                                value={field.value}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Selecteer type" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {CONTRACT_TYPE_OPTIONS.map((type) => (
+                                    <SelectItem key={type.value} value={type.value}>
+                                      {type.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="uurtarief"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Uurtarief (optioneel)</FormLabel>
+                              <FormControl>
+                                <div className="relative">
+                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                                    EUR
+                                  </span>
+                                  <Input
+                                    {...field}
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    className="pl-12"
+                                    placeholder="45.00"
+                                  />
+                                </div>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </motion.div>
+                  </AccordionContent>
+                </AccordionItem>
+
+                {/* Beschikbaarheid */}
+                <AccordionItem value="beschikbaarheid" className="border rounded-lg px-4">
+                  <AccordionTrigger className="hover:no-underline">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      <span className="font-medium">Beschikbaarheid</span>
                     </div>
-
-                    {/* Contract Type en Uurtarief */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="contractType">Contract type</Label>
-                        <Select
-                          value={formData.contractType}
-                          onValueChange={(value) =>
-                            setFormData({
-                              ...formData,
-                              contractType: value as ContractType,
-                            })
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecteer type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {CONTRACT_TYPE_OPTIONS.map((type) => (
-                              <SelectItem key={type.value} value={type.value}>
-                                {type.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="uurtarief">Uurtarief (optioneel)</Label>
-                        <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-                            EUR
-                          </span>
-                          <Input
-                            id="uurtarief"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            className="pl-12"
-                            value={formData.uurtarief}
-                            onChange={(e) =>
-                              setFormData({ ...formData, uurtarief: e.target.value })
-                            }
-                            placeholder="45.00"
-                          />
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-4">
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="space-y-4"
+                    >
+                      {/* Werkdagen */}
+                      <div className="space-y-3">
+                        <Label>Werkdagen</Label>
+                        <div className="flex flex-wrap gap-2">
+                          {WERKDAGEN.map((dag) => (
+                            <div
+                              key={dag.key}
+                              className="flex items-center space-x-2"
+                            >
+                              <Checkbox
+                                id={`dag-${dag.key}`}
+                                checked={(form.watch("werkdagen") ?? []).includes(dag.key)}
+                                onCheckedChange={() => handleWerkdagToggle(dag.key)}
+                              />
+                              <Label
+                                htmlFor={`dag-${dag.key}`}
+                                className="text-sm font-normal cursor-pointer"
+                              >
+                                {dag.label}
+                              </Label>
+                            </div>
+                          ))}
                         </div>
                       </div>
-                    </div>
-                  </motion.div>
-                </AccordionContent>
-              </AccordionItem>
 
-              {/* Beschikbaarheid */}
-              <AccordionItem value="beschikbaarheid" className="border rounded-lg px-4">
-                <AccordionTrigger className="hover:no-underline">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    <span className="font-medium">Beschikbaarheid</span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="pb-4">
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="space-y-4"
-                  >
-                    {/* Werkdagen */}
-                    <div className="space-y-3">
-                      <Label>Werkdagen</Label>
-                      <div className="flex flex-wrap gap-2">
-                        {WERKDAGEN.map((dag) => (
-                          <div
-                            key={dag.key}
-                            className="flex items-center space-x-2"
-                          >
-                            <Checkbox
-                              id={`dag-${dag.key}`}
-                              checked={formData.werkdagen.includes(dag.key)}
-                              onCheckedChange={() => handleWerkdagToggle(dag.key)}
-                            />
-                            <Label
-                              htmlFor={`dag-${dag.key}`}
-                              className="text-sm font-normal cursor-pointer"
-                            >
-                              {dag.label}
-                            </Label>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                      {/* Uren */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="urenPerWeek"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Uren per week</FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  type="number"
+                                  min="0"
+                                  max="60"
+                                  placeholder="40"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
 
-                    {/* Uren */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="urenPerWeek">Uren per week</Label>
-                        <Input
-                          id="urenPerWeek"
-                          type="number"
-                          min="0"
-                          max="60"
-                          value={formData.urenPerWeek}
-                          onChange={(e) =>
-                            setFormData({ ...formData, urenPerWeek: e.target.value })
-                          }
-                          placeholder="40"
+                        <FormField
+                          control={form.control}
+                          name="maxUrenPerDag"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Max uren per dag</FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  type="number"
+                                  min="0"
+                                  max="12"
+                                  placeholder="8"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
                         />
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="maxUrenPerDag">Max uren per dag</Label>
-                        <Input
-                          id="maxUrenPerDag"
-                          type="number"
-                          min="0"
-                          max="12"
-                          value={formData.maxUrenPerDag}
-                          onChange={(e) =>
-                            setFormData({ ...formData, maxUrenPerDag: e.target.value })
-                          }
-                          placeholder="8"
-                        />
-                      </div>
+                    </motion.div>
+                  </AccordionContent>
+                </AccordionItem>
+
+                {/* Specialisaties */}
+                <AccordionItem value="specialisaties" className="border rounded-lg px-4">
+                  <AccordionTrigger className="hover:no-underline">
+                    <div className="flex items-center gap-2">
+                      <GraduationCap className="h-4 w-4" />
+                      <span className="font-medium">Specialisaties</span>
+                      {(form.watch("specialisaties") ?? []).length > 0 && (
+                        <span className="text-xs bg-muted px-2 py-0.5 rounded-full">
+                          {(form.watch("specialisaties") ?? []).length}
+                        </span>
+                      )}
                     </div>
-                  </motion.div>
-                </AccordionContent>
-              </AccordionItem>
-
-              {/* Specialisaties */}
-              <AccordionItem value="specialisaties" className="border rounded-lg px-4">
-                <AccordionTrigger className="hover:no-underline">
-                  <div className="flex items-center gap-2">
-                    <GraduationCap className="h-4 w-4" />
-                    <span className="font-medium">Specialisaties</span>
-                    {formData.specialisaties.length > 0 && (
-                      <span className="text-xs bg-muted px-2 py-0.5 rounded-full">
-                        {formData.specialisaties.length}
-                      </span>
-                    )}
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="pb-4">
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                  >
-                    <SkillsSelector
-                      value={formData.specialisaties}
-                      onChange={(specs) =>
-                        setFormData({ ...formData, specialisaties: specs })
-                      }
-                    />
-                  </motion.div>
-                </AccordionContent>
-              </AccordionItem>
-
-              {/* Certificaten */}
-              <AccordionItem value="certificaten" className="border rounded-lg px-4">
-                <AccordionTrigger className="hover:no-underline">
-                  <div className="flex items-center gap-2">
-                    <Award className="h-4 w-4" />
-                    <span className="font-medium">Certificaten</span>
-                    {formData.certificaten.length > 0 && (
-                      <span className="text-xs bg-muted px-2 py-0.5 rounded-full">
-                        {formData.certificaten.length}
-                      </span>
-                    )}
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="pb-4">
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                  >
-                    <CertificatenList
-                      certificaten={formData.certificaten}
-                      onChange={(certs) =>
-                        setFormData({ ...formData, certificaten: certs })
-                      }
-                    />
-                  </motion.div>
-                </AccordionContent>
-              </AccordionItem>
-
-              {/* Adresgegevens */}
-              <AccordionItem value="adres" className="border rounded-lg px-4">
-                <AccordionTrigger className="hover:no-underline">
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4" />
-                    <span className="font-medium">Adresgegevens</span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="pb-4">
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="grid gap-4"
-                  >
-                    <div className="space-y-2">
-                      <Label htmlFor="straat">Straat + huisnummer</Label>
-                      <Input
-                        id="straat"
-                        value={formData.straat}
-                        onChange={(e) =>
-                          setFormData({ ...formData, straat: e.target.value })
-                        }
-                        placeholder="Hoofdstraat 123"
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-4">
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                    >
+                      <Controller
+                        control={form.control}
+                        name="specialisaties"
+                        render={({ field }) => (
+                          <SkillsSelector
+                            value={field.value ?? []}
+                            onChange={field.onChange}
+                          />
+                        )}
                       />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="postcode">Postcode</Label>
-                        <Input
-                          id="postcode"
-                          value={formData.postcode}
-                          onChange={(e) => handlePostcodeChange(e.target.value)}
-                          placeholder={inputPatterns.postcode.placeholder}
-                          inputMode={inputPatterns.postcode.inputMode}
-                          autoComplete={inputPatterns.postcode.autoComplete}
-                          maxLength={inputPatterns.postcode.maxLength}
-                          className={postcodeError ? "border-destructive" : ""}
-                        />
-                        <FormFieldFeedback
-                          status={postcodeError ? "invalid" : formData.postcode ? "valid" : "idle"}
-                          message={postcodeError || undefined}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="plaats">Plaats</Label>
-                        <Input
-                          id="plaats"
-                          value={formData.plaats}
-                          onChange={(e) =>
-                            setFormData({ ...formData, plaats: e.target.value })
-                          }
-                          placeholder="Amsterdam"
-                        />
-                      </div>
-                    </div>
-                  </motion.div>
-                </AccordionContent>
-              </AccordionItem>
+                    </motion.div>
+                  </AccordionContent>
+                </AccordionItem>
 
-              {/* Noodcontact */}
-              <AccordionItem value="noodcontact" className="border rounded-lg px-4">
-                <AccordionTrigger className="hover:no-underline">
-                  <div className="flex items-center gap-2">
-                    <Phone className="h-4 w-4" />
-                    <span className="font-medium">Noodcontact</span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="pb-4">
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="grid gap-4"
-                  >
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="noodcontactNaam">Naam</Label>
-                        <Input
-                          id="noodcontactNaam"
-                          value={formData.noodcontactNaam}
-                          onChange={(e) =>
-                            setFormData({ ...formData, noodcontactNaam: e.target.value })
-                          }
-                          placeholder="Maria Jansen"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="noodcontactRelatie">Relatie</Label>
-                        <Input
-                          id="noodcontactRelatie"
-                          value={formData.noodcontactRelatie}
-                          onChange={(e) =>
-                            setFormData({ ...formData, noodcontactRelatie: e.target.value })
-                          }
-                          placeholder="Partner"
-                        />
-                      </div>
+                {/* Certificaten */}
+                <AccordionItem value="certificaten" className="border rounded-lg px-4">
+                  <AccordionTrigger className="hover:no-underline">
+                    <div className="flex items-center gap-2">
+                      <Award className="h-4 w-4" />
+                      <span className="font-medium">Certificaten</span>
+                      {(form.watch("certificaten") ?? []).length > 0 && (
+                        <span className="text-xs bg-muted px-2 py-0.5 rounded-full">
+                          {(form.watch("certificaten") ?? []).length}
+                        </span>
+                      )}
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="noodcontactTelefoon">Telefoon</Label>
-                      <Input
-                        id="noodcontactTelefoon"
-                        value={formData.noodcontactTelefoon}
-                        onChange={(e) => handleNoodcontactTelefoonChange(e.target.value)}
-                        placeholder={inputPatterns.telefoon.placeholder}
-                        inputMode={inputPatterns.telefoon.inputMode}
-                        autoComplete={inputPatterns.telefoon.autoComplete}
-                        className={noodcontactTelefoonError ? "border-destructive" : ""}
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-4">
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                    >
+                      <Controller
+                        control={form.control}
+                        name="certificaten"
+                        render={({ field }) => (
+                          <CertificatenList
+                            certificaten={field.value ?? []}
+                            onChange={field.onChange}
+                          />
+                        )}
                       />
-                      <FormFieldFeedback
-                        status={noodcontactTelefoonError ? "invalid" : formData.noodcontactTelefoon ? "valid" : "idle"}
-                        message={noodcontactTelefoonError || undefined}
-                      />
+                    </motion.div>
+                  </AccordionContent>
+                </AccordionItem>
+
+                {/* Adresgegevens */}
+                <AccordionItem value="adres" className="border rounded-lg px-4">
+                  <AccordionTrigger className="hover:no-underline">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4" />
+                      <span className="font-medium">Adresgegevens</span>
                     </div>
-                  </motion.div>
-                </AccordionContent>
-              </AccordionItem>
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-4">
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="grid gap-4"
+                    >
+                      <FormField
+                        control={form.control}
+                        name="straat"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Straat + huisnummer</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="Hoofdstraat 123" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="postcode"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Postcode</FormLabel>
+                              <FormControl>
+                                <Input
+                                  value={field.value}
+                                  onChange={(e) => {
+                                    const formatted = formatInput("postcode", e.target.value);
+                                    field.onChange(formatted);
+                                  }}
+                                  placeholder={inputPatterns.postcode.placeholder}
+                                  inputMode={inputPatterns.postcode.inputMode}
+                                  autoComplete={inputPatterns.postcode.autoComplete}
+                                  maxLength={inputPatterns.postcode.maxLength}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="plaats"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Plaats</FormLabel>
+                              <FormControl>
+                                <Input {...field} placeholder="Amsterdam" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </motion.div>
+                  </AccordionContent>
+                </AccordionItem>
 
-              {/* Notities */}
-              <AccordionItem value="notities" className="border rounded-lg px-4">
-                <AccordionTrigger className="hover:no-underline">
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4" />
-                    <span className="font-medium">Notities</span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="pb-4">
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                  >
-                    <Textarea
-                      value={formData.notities}
-                      onChange={(e) =>
-                        setFormData({ ...formData, notities: e.target.value })
-                      }
-                      placeholder="Extra informatie over de medewerker..."
-                      rows={4}
-                    />
-                  </motion.div>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          </div>
+                {/* Noodcontact */}
+                <AccordionItem value="noodcontact" className="border rounded-lg px-4">
+                  <AccordionTrigger className="hover:no-underline">
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4" />
+                      <span className="font-medium">Noodcontact</span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-4">
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="grid gap-4"
+                    >
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="noodcontactNaam"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Naam</FormLabel>
+                              <FormControl>
+                                <Input {...field} placeholder="Maria Jansen" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="noodcontactRelatie"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Relatie</FormLabel>
+                              <FormControl>
+                                <Input {...field} placeholder="Partner" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <FormField
+                        control={form.control}
+                        name="noodcontactTelefoon"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Telefoon</FormLabel>
+                            <FormControl>
+                              <Input
+                                value={field.value}
+                                onChange={(e) => {
+                                  const formatted = formatInput("telefoon", e.target.value);
+                                  field.onChange(formatted);
+                                }}
+                                placeholder={inputPatterns.telefoon.placeholder}
+                                inputMode={inputPatterns.telefoon.inputMode}
+                                autoComplete={inputPatterns.telefoon.autoComplete}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </motion.div>
+                  </AccordionContent>
+                </AccordionItem>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose}>
-              Annuleren
-            </Button>
-            <Button type="submit" disabled={isLoading || !isFormValid}>
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isEditMode ? "Bijwerken" : "Toevoegen"}
-            </Button>
-          </DialogFooter>
-        </form>
+                {/* Notities */}
+                <AccordionItem value="notities" className="border rounded-lg px-4">
+                  <AccordionTrigger className="hover:no-underline">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      <span className="font-medium">Notities</span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-4">
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                    >
+                      <FormField
+                        control={form.control}
+                        name="notities"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormControl>
+                              <Textarea
+                                {...field}
+                                placeholder="Extra informatie over de medewerker..."
+                                rows={4}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </motion.div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={handleClose}>
+                Annuleren
+              </Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isEditMode ? "Bijwerken" : "Toevoegen"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );

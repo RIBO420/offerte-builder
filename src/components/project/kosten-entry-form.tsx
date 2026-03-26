@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -20,6 +22,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
@@ -67,6 +77,23 @@ export interface KostenEntryData {
   notities?: string;
 }
 
+// Zod schema
+const kostenEntrySchema = z.object({
+  datum: z.date({ message: "Datum is verplicht" }),
+  type: z.enum(["materiaal", "arbeid", "machine", "overig"]),
+  omschrijving: z.string().min(1, "Omschrijving is verplicht"),
+  bedrag: z.string().min(1, "Bedrag is verplicht").refine(
+    (val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
+    { message: "Voer een geldig bedrag in" }
+  ),
+  scope: z.string().optional(),
+  medewerker: z.string().optional(),
+  factuurNummer: z.string().optional(),
+  notities: z.string().optional(),
+});
+
+type KostenEntryFormData = z.infer<typeof kostenEntrySchema>;
+
 interface KostenEntryFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -84,248 +111,310 @@ export function KostenEntryForm({
   initialData,
   projectScopes,
 }: KostenEntryFormProps) {
-  const [date, setDate] = useState<Date | undefined>(
-    initialData?.datum ? new Date(initialData.datum) : new Date()
-  );
-  const [type, setType] = useState<"materiaal" | "arbeid" | "machine" | "overig">(
-    initialData?.type || "materiaal"
-  );
-  const [omschrijving, setOmschrijving] = useState(initialData?.omschrijving || "");
-  const [bedrag, setBedrag] = useState(initialData?.bedrag?.toString() || "");
-  const [scope, setScope] = useState(initialData?.scope || "");
-  const [medewerker, setMedewerker] = useState(initialData?.medewerker || "");
-  const [factuurNummer, setFactuurNummer] = useState(initialData?.factuurNummer || "");
-  const [notities, setNotities] = useState(initialData?.notities || "");
+  const form = useForm<KostenEntryFormData>({
+    resolver: zodResolver(kostenEntrySchema),
+    defaultValues: {
+      datum: initialData?.datum ? new Date(initialData.datum) : new Date(),
+      type: initialData?.type || "materiaal",
+      omschrijving: initialData?.omschrijving || "",
+      bedrag: initialData?.bedrag?.toString() || "",
+      scope: initialData?.scope || "",
+      medewerker: initialData?.medewerker || "",
+      factuurNummer: initialData?.factuurNummer || "",
+      notities: initialData?.notities || "",
+    },
+  });
 
   // Filter scopes if project has specific scopes
   const filteredScopes = projectScopes?.length
     ? availableScopes.filter((s) => projectScopes.includes(s.id))
     : availableScopes;
 
-  const handleSubmit = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!date || !omschrijving || !bedrag) return;
+  const typeValue = form.watch("type");
 
+  const handleFormSubmit = useCallback(
+    async (data: KostenEntryFormData) => {
       await onSubmit({
-        datum: format(date, "yyyy-MM-dd"),
-        type,
-        omschrijving: omschrijving.trim(),
-        bedrag: parseFloat(bedrag) || 0,
-        scope: scope && scope !== "__none__" ? scope : undefined,
-        medewerker: medewerker.trim() || undefined,
-        factuurNummer: factuurNummer.trim() || undefined,
-        notities: notities.trim() || undefined,
+        datum: format(data.datum, "yyyy-MM-dd"),
+        type: data.type,
+        omschrijving: data.omschrijving.trim(),
+        bedrag: parseFloat(data.bedrag) || 0,
+        scope: data.scope && data.scope !== "__none__" ? data.scope : undefined,
+        medewerker: data.medewerker?.trim() || undefined,
+        factuurNummer: data.factuurNummer?.trim() || undefined,
+        notities: data.notities?.trim() || undefined,
       });
 
       // Reset form after successful submit
-      setOmschrijving("");
-      setBedrag("");
-      setScope("");
-      setMedewerker("");
-      setFactuurNummer("");
-      setNotities("");
+      form.reset({
+        datum: form.getValues("datum"),
+        type: form.getValues("type"),
+        omschrijving: "",
+        bedrag: "",
+        scope: "",
+        medewerker: "",
+        factuurNummer: "",
+        notities: "",
+      });
     },
-    [date, type, omschrijving, bedrag, scope, medewerker, factuurNummer, notities, onSubmit]
+    [onSubmit, form]
   );
 
   const handleClose = useCallback(() => {
     onOpenChange(false);
-    // Reset form
-    setDate(new Date());
-    setType("materiaal");
-    setOmschrijving("");
-    setBedrag("");
-    setScope("");
-    setMedewerker("");
-    setFactuurNummer("");
-    setNotities("");
-  }, [onOpenChange]);
+    form.reset({
+      datum: new Date(),
+      type: "materiaal",
+      omschrijving: "",
+      bedrag: "",
+      scope: "",
+      medewerker: "",
+      factuurNummer: "",
+      notities: "",
+    });
+  }, [onOpenChange, form]);
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>Kosten toevoegen</DialogTitle>
-            <DialogDescription>
-              Voeg een nieuwe kostenpost toe aan het project
-            </DialogDescription>
-          </DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Kosten toevoegen</DialogTitle>
+          <DialogDescription>
+            Voeg een nieuwe kostenpost toe aan het project
+          </DialogDescription>
+        </DialogHeader>
 
-          <div className="grid gap-4 py-4">
-            {/* Datum met snelkeuze */}
-            <div className="grid gap-2">
-              <Label>Datum</Label>
-              {/* Snelkeuze knoppen */}
-              <div className="flex flex-wrap gap-2 mb-2">
-                <Badge
-                  variant={date && format(date, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd") ? "default" : "outline"}
-                  className="cursor-pointer hover:bg-primary/80 transition-colors"
-                  onClick={() => setDate(new Date())}
-                >
-                  Vandaag
-                </Badge>
-                <Badge
-                  variant={date && format(date, "yyyy-MM-dd") === format(subDays(new Date(), 1), "yyyy-MM-dd") ? "default" : "outline"}
-                  className="cursor-pointer hover:bg-primary/80 transition-colors"
-                  onClick={() => setDate(subDays(new Date(), 1))}
-                >
-                  Gisteren
-                </Badge>
-                <Badge
-                  variant={date && format(date, "yyyy-MM-dd") === format(subDays(new Date(), 2), "yyyy-MM-dd") ? "default" : "outline"}
-                  className="cursor-pointer hover:bg-primary/80 transition-colors"
-                  onClick={() => setDate(subDays(new Date(), 2))}
-                >
-                  Eergisteren
-                </Badge>
-              </div>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "justify-start text-left font-normal",
-                      !date && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {date ? (
-                      format(date, "EEEE d MMMM yyyy", { locale: nl })
-                    ) : (
-                      <span>Selecteer datum</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={date}
-                    onSelect={setDate}
-                    locale={nl}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            {/* Type */}
-            <div className="grid gap-2">
-              <Label>Type kosten</Label>
-              <div className="flex flex-wrap gap-2">
-                {kostenTypes.map((t) => (
-                  <Badge
-                    key={t.id}
-                    variant={type === t.id ? "default" : "outline"}
-                    className="cursor-pointer hover:bg-primary/80 transition-colors px-3 py-1.5"
-                    onClick={() => setType(t.id)}
-                  >
-                    {t.label}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-
-            {/* Omschrijving */}
-            <div className="grid gap-2">
-              <Label htmlFor="omschrijving">Omschrijving *</Label>
-              <Input
-                id="omschrijving"
-                value={omschrijving}
-                onChange={(e) => setOmschrijving(e.target.value)}
-                placeholder="Bijv. Levering tegels, Machinehuur graafmachine..."
-                required
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleFormSubmit)}>
+            <div className="grid gap-4 py-4">
+              {/* Datum met snelkeuze */}
+              <FormField
+                control={form.control}
+                name="datum"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Datum</FormLabel>
+                    {/* Snelkeuze knoppen */}
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      <Badge
+                        variant={field.value && format(field.value, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd") ? "default" : "outline"}
+                        className="cursor-pointer hover:bg-primary/80 transition-colors"
+                        onClick={() => field.onChange(new Date())}
+                      >
+                        Vandaag
+                      </Badge>
+                      <Badge
+                        variant={field.value && format(field.value, "yyyy-MM-dd") === format(subDays(new Date(), 1), "yyyy-MM-dd") ? "default" : "outline"}
+                        className="cursor-pointer hover:bg-primary/80 transition-colors"
+                        onClick={() => field.onChange(subDays(new Date(), 1))}
+                      >
+                        Gisteren
+                      </Badge>
+                      <Badge
+                        variant={field.value && format(field.value, "yyyy-MM-dd") === format(subDays(new Date(), 2), "yyyy-MM-dd") ? "default" : "outline"}
+                        className="cursor-pointer hover:bg-primary/80 transition-colors"
+                        onClick={() => field.onChange(subDays(new Date(), 2))}
+                      >
+                        Eergisteren
+                      </Badge>
+                    </div>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {field.value ? (
+                              format(field.value, "EEEE d MMMM yyyy", { locale: nl })
+                            ) : (
+                              <span>Selecteer datum</span>
+                            )}
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={field.onChange}
+                          locale={nl}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
 
-            {/* Bedrag */}
-            <div className="grid gap-2">
-              <Label htmlFor="bedrag">Bedrag (EUR) *</Label>
-              <div className="relative">
-                <Euro className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="bedrag"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={bedrag}
-                  onChange={(e) => setBedrag(e.target.value)}
-                  placeholder="0,00"
-                  className="pl-10"
-                  required
+              {/* Type */}
+              <FormField
+                control={form.control}
+                name="type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Type kosten</FormLabel>
+                    <div className="flex flex-wrap gap-2">
+                      {kostenTypes.map((t) => (
+                        <Badge
+                          key={t.id}
+                          variant={field.value === t.id ? "default" : "outline"}
+                          className="cursor-pointer hover:bg-primary/80 transition-colors px-3 py-1.5"
+                          onClick={() => field.onChange(t.id)}
+                        >
+                          {t.label}
+                        </Badge>
+                      ))}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Omschrijving */}
+              <FormField
+                control={form.control}
+                name="omschrijving"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Omschrijving *</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder="Bijv. Levering tegels, Machinehuur graafmachine..."
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Bedrag */}
+              <FormField
+                control={form.control}
+                name="bedrag"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Bedrag (EUR) *</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Euro className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          {...field}
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="0,00"
+                          className="pl-10"
+                        />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Scope (optional) */}
+              <FormField
+                control={form.control}
+                name="scope"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Scope / Werkgebied (optioneel)</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecteer scope" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent position="popper" sideOffset={4}>
+                        <SelectItem value="__none__">Geen scope</SelectItem>
+                        {filteredScopes.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Medewerker (optional, for arbeid type) */}
+              {typeValue === "arbeid" && (
+                <FormField
+                  control={form.control}
+                  name="medewerker"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Medewerker (optioneel)</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          placeholder="Naam medewerker"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
-            </div>
+              )}
 
-            {/* Scope (optional) */}
-            <div className="grid gap-2">
-              <Label>Scope / Werkgebied (optioneel)</Label>
-              <Select value={scope} onValueChange={setScope}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecteer scope" />
-                </SelectTrigger>
-                <SelectContent position="popper" sideOffset={4}>
-                  <SelectItem value="__none__">Geen scope</SelectItem>
-                  {filteredScopes.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+              {/* Factuur nummer (optional) */}
+              <FormField
+                control={form.control}
+                name="factuurNummer"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Factuur/Bon nummer (optioneel)</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder="Bijv. F2024-001"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            {/* Medewerker (optional, for arbeid type) */}
-            {type === "arbeid" && (
-              <div className="grid gap-2">
-                <Label htmlFor="medewerker">Medewerker (optioneel)</Label>
-                <Input
-                  id="medewerker"
-                  value={medewerker}
-                  onChange={(e) => setMedewerker(e.target.value)}
-                  placeholder="Naam medewerker"
-                />
-              </div>
-            )}
-
-            {/* Factuur nummer (optional) */}
-            <div className="grid gap-2">
-              <Label htmlFor="factuurNummer">Factuur/Bon nummer (optioneel)</Label>
-              <Input
-                id="factuurNummer"
-                value={factuurNummer}
-                onChange={(e) => setFactuurNummer(e.target.value)}
-                placeholder="Bijv. F2024-001"
+              {/* Notities (optional) */}
+              <FormField
+                control={form.control}
+                name="notities"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Notities (optioneel)</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        {...field}
+                        placeholder="Extra opmerkingen..."
+                        rows={2}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
             </div>
 
-            {/* Notities (optional) */}
-            <div className="grid gap-2">
-              <Label htmlFor="notities">Notities (optioneel)</Label>
-              <Textarea
-                id="notities"
-                value={notities}
-                onChange={(e) => setNotities(e.target.value)}
-                placeholder="Extra opmerkingen..."
-                rows={2}
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose}>
-              Annuleren
-            </Button>
-            <Button
-              type="submit"
-              disabled={isLoading || !date || !omschrijving || !bedrag}
-            >
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Toevoegen
-            </Button>
-          </DialogFooter>
-        </form>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={handleClose}>
+                Annuleren
+              </Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Toevoegen
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );

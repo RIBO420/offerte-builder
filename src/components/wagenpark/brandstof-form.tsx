@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
@@ -30,12 +32,40 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Loader2, Plus, Trash2, Fuel, TrendingDown, Euro, Droplets } from "lucide-react";
-import { showSuccessToast, showErrorToast, showWarningToast } from "@/lib/toast-utils";
+import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import { getMutationErrorMessage } from "@/lib/error-handling";
 import { cn } from "@/lib/utils";
 import { Id } from "../../../convex/_generated/dataModel";
 import type { BrandstofRecord, BrandstofStats } from "@/hooks/use-voertuig-details";
+
+// Zod schema for brandstof entry
+const brandstofEntrySchema = z.object({
+  datum: z.string().min(1, "Datum is verplicht"),
+  liters: z.string().min(1, "Liters is verplicht").refine(
+    (val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
+    { message: "Voer een geldig aantal liters in" }
+  ),
+  kosten: z.string().min(1, "Kosten is verplicht").refine(
+    (val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
+    { message: "Voer geldige kosten in" }
+  ),
+  kilometerstand: z.string().min(1, "Kilometerstand is verplicht").refine(
+    (val) => !isNaN(parseInt(val)) && parseInt(val) >= 0,
+    { message: "Voer een geldige kilometerstand in" }
+  ),
+  locatie: z.string().optional(),
+});
+
+type BrandstofEntryData = z.infer<typeof brandstofEntrySchema>;
 
 interface BrandstofFormProps {
   voertuigId: Id<"voertuigen">;
@@ -90,51 +120,41 @@ export function BrandstofForm({
   onRemove,
 }: BrandstofFormProps) {
   const [isAdding, setIsAdding] = useState(false);
-  const [liters, setLiters] = useState("");
-  const [kosten, setKosten] = useState("");
-  const [kilometerstand, setKilometerstand] = useState("");
-  const [locatie, setLocatie] = useState("");
-  const [datum, setDatum] = useState(() => new Date().toISOString().split("T")[0]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteId, setDeleteId] = useState<Id<"brandstofRegistratie"> | null>(null);
 
+  const form = useForm<BrandstofEntryData>({
+    resolver: zodResolver(brandstofEntrySchema),
+    defaultValues: {
+      datum: new Date().toISOString().split("T")[0],
+      liters: "",
+      kosten: "",
+      kilometerstand: "",
+      locatie: "",
+    },
+  });
+
+  const litersValue = form.watch("liters");
+  const kostenValue = form.watch("kosten");
+
   // Calculate price per liter for display
   const prijsPerLiter = useMemo(() => {
-    const l = parseFloat(liters);
-    const k = parseFloat(kosten);
+    const l = parseFloat(litersValue);
+    const k = parseFloat(kostenValue);
     if (l > 0 && k > 0) {
       return k / l;
     }
     return null;
-  }, [liters, kosten]);
+  }, [litersValue, kostenValue]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    const litersValue = parseFloat(liters);
-    const kostenValue = parseFloat(kosten);
-    const kmValue = parseInt(kilometerstand);
-
-    if (isNaN(litersValue) || litersValue <= 0) {
-      showWarningToast("Voer een geldig aantal liters in");
-      return;
-    }
-
-    if (isNaN(kostenValue) || kostenValue <= 0) {
-      showWarningToast("Voer geldige kosten in");
-      return;
-    }
-
-    if (isNaN(kmValue) || kmValue < 0) {
-      showWarningToast("Voer een geldige kilometerstand in");
-      return;
-    }
+  const handleFormSubmit = async (data: BrandstofEntryData) => {
+    const kmValue = parseInt(data.kilometerstand);
 
     // Validate that new reading is higher than current
     if (currentKmStand && kmValue < currentKmStand) {
-      showWarningToast(
-        `Kilometerstand moet hoger zijn dan de huidige stand (${formatKm(currentKmStand)} km)`
-      );
+      form.setError("kilometerstand", {
+        message: `Kilometerstand moet hoger zijn dan de huidige stand (${formatKm(currentKmStand)} km)`,
+      });
       return;
     }
 
@@ -142,18 +162,20 @@ export function BrandstofForm({
     try {
       await onCreate({
         voertuigId,
-        datum: new Date(datum).getTime(),
-        liters: litersValue,
-        kosten: kostenValue,
+        datum: new Date(data.datum).getTime(),
+        liters: parseFloat(data.liters),
+        kosten: parseFloat(data.kosten),
         kilometerstand: kmValue,
-        locatie: locatie.trim() || undefined,
+        locatie: data.locatie?.trim() || undefined,
       });
       showSuccessToast("Tankbeurt toegevoegd");
-      setLiters("");
-      setKosten("");
-      setKilometerstand("");
-      setLocatie("");
-      setDatum(new Date().toISOString().split("T")[0]);
+      form.reset({
+        datum: new Date().toISOString().split("T")[0],
+        liters: "",
+        kosten: "",
+        kilometerstand: "",
+        locatie: "",
+      });
       setIsAdding(false);
     } catch (error) {
       console.error("Error adding fuel:", error);
@@ -271,102 +293,132 @@ export function BrandstofForm({
               transition={{ duration: 0.2 }}
             >
               <CardContent className="border-t pt-4">
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="datum">Datum</Label>
-                      <Input
-                        id="datum"
-                        type="date"
-                        value={datum}
-                        onChange={(e) => setDatum(e.target.value)}
-                        required
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <FormField
+                        control={form.control}
+                        name="datum"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Datum</FormLabel>
+                            <FormControl>
+                              <Input {...field} type="date" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="kilometerstand"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Kilometerstand</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                type="number"
+                                min={currentKmStand || 0}
+                                placeholder={
+                                  currentKmStand
+                                    ? `Min. ${formatKm(currentKmStand)}`
+                                    : "Bijv. 125000"
+                                }
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
                       />
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="kilometerstand">Kilometerstand</Label>
-                      <Input
-                        id="kilometerstand"
-                        type="number"
-                        min={currentKmStand || 0}
-                        value={kilometerstand}
-                        onChange={(e) => setKilometerstand(e.target.value)}
-                        placeholder={
-                          currentKmStand
-                            ? `Min. ${formatKm(currentKmStand)}`
-                            : "Bijv. 125000"
-                        }
-                        required
+                    <div className="grid gap-4 sm:grid-cols-3">
+                      <FormField
+                        control={form.control}
+                        name="liters"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Liters</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                placeholder="Bijv. 45.5"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
                       />
-                    </div>
-                  </div>
 
-                  <div className="grid gap-4 sm:grid-cols-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="liters">Liters</Label>
-                      <Input
-                        id="liters"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={liters}
-                        onChange={(e) => setLiters(e.target.value)}
-                        placeholder="Bijv. 45.5"
-                        required
+                      <FormField
+                        control={form.control}
+                        name="kosten"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Kosten (EUR)</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                placeholder="Bijv. 85.00"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
                       />
-                    </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="kosten">Kosten (EUR)</Label>
-                      <Input
-                        id="kosten"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={kosten}
-                        onChange={(e) => setKosten(e.target.value)}
-                        placeholder="Bijv. 85.00"
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Prijs/liter</Label>
-                      <div className="flex h-9 items-center px-3 border rounded-md bg-muted text-muted-foreground">
-                        {prijsPerLiter !== null
-                          ? formatCurrency(prijsPerLiter)
-                          : "-"}
+                      <div className="space-y-2">
+                        <FormLabel>Prijs/liter</FormLabel>
+                        <div className="flex h-9 items-center px-3 border rounded-md bg-muted text-muted-foreground">
+                          {prijsPerLiter !== null
+                            ? formatCurrency(prijsPerLiter)
+                            : "-"}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="locatie">Tankstation (optioneel)</Label>
-                    <Input
-                      id="locatie"
-                      value={locatie}
-                      onChange={(e) => setLocatie(e.target.value)}
-                      placeholder="Bijv. Shell A2 Breukelen"
-                    />
-                  </div>
-
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setIsAdding(false)}
-                    >
-                      Annuleren
-                    </Button>
-                    <Button type="submit" disabled={isSubmitting}>
-                      {isSubmitting && (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <FormField
+                      control={form.control}
+                      name="locatie"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Tankstation (optioneel)</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              placeholder="Bijv. Shell A2 Breukelen"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
                       )}
-                      Opslaan
-                    </Button>
-                  </div>
-                </form>
+                    />
+
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsAdding(false)}
+                      >
+                        Annuleren
+                      </Button>
+                      <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting && (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        )}
+                        Opslaan
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
               </CardContent>
             </motion.div>
           )}
