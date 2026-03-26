@@ -385,9 +385,9 @@ export const assignVoertuig = mutation({
       const voertuig = await ctx.db.get(args.voertuigId);
       if (!voertuig) throw new Error("Voertuig niet gevonden");
 
-      // Check defect status
-      if (voertuig.status === "defect") {
-        throw new Error(`Voertuig "${voertuig.kenteken}" is defect en kan niet worden toegewezen`);
+      // Check if vehicle is available
+      if (voertuig.status !== "actief") {
+        throw new Error(`Voertuig "${voertuig.kenteken}" is niet actief (${voertuig.status}) en kan niet worden toegewezen`);
       }
 
       // Check APK verlopen
@@ -410,7 +410,7 @@ export const getBeschikbareVoertuigen = query({
 
     const alleVoertuigen = await ctx.db.query("voertuigen").collect();
     const actief = alleVoertuigen.filter(
-      (v) => v.status !== "defect" && v.status !== "uit_dienst"
+      (v) => v.status === "actief"
     );
 
     // Welke zijn al toegewezen?
@@ -554,5 +554,43 @@ export const sendUrenHerinneringen = mutation({
     }
 
     return { sent };
+  },
+});
+
+// ============================================
+// PLN-004: Slimme materieel-suggesties
+// ============================================
+
+/**
+ * Suggereer machines op basis van de scopes van ingeplande projecten.
+ * Gebruikt het `gekoppeldeScopes` veld op de machines tabel.
+ */
+export const getMaterieelSuggesties = query({
+  args: {
+    projectId: v.id("projecten"),
+  },
+  handler: async (ctx, args) => {
+    await requireAuth(ctx);
+
+    const taken = await ctx.db
+      .query("planningTaken")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+
+    const projectScopes = [...new Set(taken.map((t) => t.scope))];
+    if (projectScopes.length === 0) return [];
+
+    const machines = await ctx.db.query("machines").collect();
+
+    return machines
+      .filter((m) => m.isActief && m.gekoppeldeScopes.some((s) => projectScopes.includes(s)))
+      .map((m) => ({
+        _id: m._id,
+        naam: m.naam,
+        type: m.type,
+        tarief: m.tarief,
+        tariefType: m.tariefType,
+        matchendeScopes: m.gekoppeldeScopes.filter((s) => projectScopes.includes(s)),
+      }));
   },
 });
