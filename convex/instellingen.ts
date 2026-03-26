@@ -271,6 +271,83 @@ export const updateHerinneringInstellingen = mutation({
   },
 });
 
+// ── Deelfactuur Templates ──────────────────────────────────────────
+
+export const getDeelfactuurTemplates = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireAuthUserId(ctx);
+    const settings = await ctx.db
+      .query("instellingen")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique();
+
+    return settings?.deelfactuurTemplates ?? [];
+  },
+});
+
+export const upsertDeelfactuurTemplate = mutation({
+  args: {
+    template: v.object({
+      id: v.string(),
+      naam: v.string(),
+      stappen: v.array(v.object({
+        percentage: v.number(),
+        label: v.string(),
+      })),
+    }),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+    await requireNotViewer(ctx);
+
+    const settings = await ctx.db
+      .query("instellingen")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique();
+
+    if (!settings) {
+      throw new Error("Instellingen niet gevonden. Maak eerst standaardinstellingen aan.");
+    }
+
+    const templates = settings.deelfactuurTemplates ?? [];
+    const existingIndex = templates.findIndex((t) => t.id === args.template.id);
+
+    if (existingIndex >= 0) {
+      templates[existingIndex] = args.template;
+    } else {
+      templates.push(args.template);
+    }
+
+    await ctx.db.patch(settings._id, { deelfactuurTemplates: templates });
+    return settings._id;
+  },
+});
+
+export const deleteDeelfactuurTemplate = mutation({
+  args: { templateId: v.string() },
+  handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+    await requireNotViewer(ctx);
+
+    const settings = await ctx.db
+      .query("instellingen")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique();
+
+    if (!settings) {
+      throw new Error("Instellingen niet gevonden. Maak eerst standaardinstellingen aan.");
+    }
+
+    const templates = (settings.deelfactuurTemplates ?? []).filter(
+      (t) => t.id !== args.templateId
+    );
+
+    await ctx.db.patch(settings._id, { deelfactuurTemplates: templates });
+    return settings._id;
+  },
+});
+
 /** Internal: get voorwaarden URL for a specific user (for automated emails) */
 export const getVoorwaardenForUser = internalQuery({
   args: { userId: v.id("users") },
