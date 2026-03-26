@@ -55,6 +55,8 @@ import {
   Truck,
   Shield,
   Calendar,
+  CalendarDays,
+  Thermometer,
   Building2,
   ShoppingCart,
   Package,
@@ -88,6 +90,8 @@ const offertesItems = [
 // Organization section - admin only
 const organizationItems = [
   { title: "Medewerkers", url: "/medewerkers", icon: UsersRound },
+  { title: "Verlof", url: "/verlof", icon: CalendarDays },
+  { title: "Verzuim", url: "/verzuim", icon: Thermometer },
   { title: "Wagenpark", url: "/wagenpark", icon: Truck },
   { title: "Rapportages", url: "/rapportages", icon: BarChart3 },
 ];

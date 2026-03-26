@@ -268,6 +268,9 @@ export default defineSchema({
     factuurNummerPrefix: v.optional(v.string()),
     laatsteFactuurNummer: v.optional(v.number()),
     standaardBetalingstermijn: v.optional(v.number()),
+    // Algemene voorwaarden PDF (EML-003)
+    voorwaardenPdfId: v.optional(v.id("_storage")),
+    voorwaardenPdfNaam: v.optional(v.string()),
   }).index("by_user", ["userId"]),
 
   // Standaardtuinen (templates)
@@ -1389,6 +1392,7 @@ export default defineSchema({
       // Project notifications
       v.literal("project_assignment"),
       v.literal("project_status_update"),
+      v.literal("budget_warning"),
       // System notifications
       v.literal("system_announcement"),
       v.literal("system_reminder")
@@ -1821,4 +1825,43 @@ export default defineSchema({
   })
     .index("by_offerte", ["offerteId"])
     .index("by_status_scheduled", ["status", "scheduledAt"]),
+
+  // ============================================
+  // HR MODULE — Verlof, Verzuim, Toolbox
+  // ============================================
+
+  verlofaanvragen: defineTable({
+    userId: v.id("users"),
+    medewerkerId: v.id("medewerkers"),
+    startDatum: v.string(),
+    eindDatum: v.string(),
+    aantalDagen: v.number(),
+    type: v.union(v.literal("vakantie"), v.literal("bijzonder"), v.literal("onbetaald"), v.literal("compensatie")),
+    opmerking: v.optional(v.string()),
+    status: v.union(v.literal("aangevraagd"), v.literal("goedgekeurd"), v.literal("afgekeurd")),
+    behandeldDoor: v.optional(v.id("users")),
+    behandeldOp: v.optional(v.number()),
+    afwijzingReden: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_medewerker", ["medewerkerId"])
+    .index("by_medewerker_status", ["medewerkerId", "status"])
+    .index("by_user_status", ["userId", "status"]),
+
+  verzuimregistraties: defineTable({
+    userId: v.id("users"),
+    medewerkerId: v.id("medewerkers"),
+    startDatum: v.string(),
+    herstelDatum: v.optional(v.string()),
+    reden: v.optional(v.string()),
+    notities: v.optional(v.string()),
+    verzuimgesprek: v.optional(v.object({ datum: v.string(), notities: v.string(), afspraken: v.optional(v.string()) })),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_medewerker", ["medewerkerId"])
+    .index("by_user_active", ["userId", "herstelDatum"]),
 });
