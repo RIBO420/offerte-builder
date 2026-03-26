@@ -1022,7 +1022,7 @@
       "cluster": "C",
       "priority": "P0",
       "description": "Voorman dashboard",
-      "passes": false,
+      "passes": true,
       "depends_on": [
         "PLN-001"
       ],
@@ -1067,7 +1067,7 @@
       "cluster": "C",
       "priority": "P0",
       "description": "Proactieve waarschuwingen bij conflicten",
-      "passes": false,
+      "passes": true,
       "depends_on": [
         "PLN-001",
         "PLN-006"

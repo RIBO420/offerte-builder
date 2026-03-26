@@ -50,6 +50,8 @@ import { InkoopordersCard } from "@/components/dashboard/inkooporders-card";
 import { QCStatusCard } from "@/components/dashboard/qc-status-card";
 import { DirectieDashboard } from "@/components/dashboard/directie-dashboard";
 import { MateriaalmanDashboard } from "@/components/dashboard/materiaalman-dashboard";
+import { VoormanDashboard } from "@/components/dashboard/voorman-dashboard";
+import { WarningsFeed } from "@/components/dashboard/warnings-feed";
 import { DonutChart } from "@/components/ui/donut-chart";
 import { Progress } from "@/components/ui/progress";
 
@@ -202,6 +204,12 @@ export default function DashboardPage() {
         {/* Medewerker Dashboard */}
         {!isAdmin && (
           <>
+            {/* Voorman Dashboard — Daily planning (SOD-002) */}
+            <VoormanDashboard />
+
+            {/* Proactive Warnings for medewerkers (SOD-004) */}
+            <WarningsFeed />
+
             {/* Primary CTA - Uren Registreren */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -373,6 +381,9 @@ export default function DashboardPage() {
 
             {/* Materiaalman Dashboard — Fleet & Inventory (SOD-001) */}
             <MateriaalmanDashboard />
+
+            {/* Proactive Warnings (SOD-004) */}
+            <WarningsFeed />
 
             {/* Action Required - Moved to top, more prominent */}
             {hasActionRequired && (
