@@ -225,7 +225,7 @@
       "cluster": "A",
       "priority": "P0",
       "description": "Deelfacturatie met flexibele percentages",
-      "passes": false,
+      "passes": true,
       "steps": [
         "Schema: voeg 'deelfactuurNummer' en 'deelfactuurPercentage' toe aan facturen tabel",
         "Schema: voeg 'deelfactuurSchema' array toe aan projecten (bijv. [{percentage: 50, label: 'Vooraf'}, ...])",
@@ -247,7 +247,7 @@
       "cluster": "A",
       "priority": "P0",
       "description": "Standaard deelfactuur-templates instelbaar",
-      "passes": false,
+      "passes": true,
       "steps": [
         "Schema: settings tabel met deelfactuur-templates (bijv. '50/30/20', '40/60', '100')",
         "UI: instellingenpagina om standaard templates te beheren",
@@ -330,7 +330,7 @@
       "cluster": "A",
       "priority": "P0",
       "description": "Meerwerk apart factureren",
-      "passes": false,
+      "passes": true,
       "depends_on": [
         "PRJ-006",
         "PRJ-007"
@@ -352,7 +352,7 @@
       "cluster": "A",
       "priority": "P0",
       "description": "Waarschuwing als deelfacturen samen meer dan 100%",
-      "passes": false,
+      "passes": true,
       "depends_on": [
         "FAC-001"
       ],

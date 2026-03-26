@@ -60,6 +60,13 @@ export default defineSchema({
     )),
     // CRM-003: Vrije tags voor segmentatie
     tags: v.optional(v.array(v.string())),
+    // CRM-005: Opvolgherinneringen op klant-niveau
+    reminderSnoozed: v.optional(v.boolean()),
+    lastReminderAt: v.optional(v.number()),
+    // CRM-008: GDPR anonimisatie tracking
+    gdprAnonymized: v.optional(v.boolean()),
+    gdprAnonymizedAt: v.optional(v.number()),
+    gdprAnonymizedBy: v.optional(v.id("users")),
     createdAt: v.number(),
     updatedAt: v.number(),
   })

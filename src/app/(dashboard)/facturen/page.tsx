@@ -30,6 +30,8 @@ import {
   AlertCircle,
   Euro,
   TrendingUp,
+  FileStack,
+  Wrench,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -542,6 +544,7 @@ function FacturenPageContent() {
                             <TableRow>
                               <TableHead>Factuurnummer</TableHead>
                               <TableHead>Klant</TableHead>
+                              <TableHead>Type</TableHead>
                               <TableHead>Bedrag</TableHead>
                               <TableHead>Factuurdatum</TableHead>
                               <TableHead>Vervaldatum</TableHead>
@@ -549,7 +552,10 @@ function FacturenPageContent() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {displayedFacturen.map((factuur) => (
+                            {displayedFacturen.map((factuur) => {
+                              const isMeerwerk = factuur.factuurType === "meerwerk";
+                              const isDeelfactuur = !!factuur.isDeelfactuur;
+                              return (
                               <TableRow
                                 key={factuur._id}
                                 className="cursor-pointer hover:bg-muted/50"
@@ -557,8 +563,20 @@ function FacturenPageContent() {
                               >
                                 <TableCell>
                                   <div className="flex items-center gap-3">
-                                    <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                                      <FileText className="h-4 w-4 text-primary" />
+                                    <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${
+                                      isMeerwerk
+                                        ? "bg-orange-100 dark:bg-orange-950"
+                                        : isDeelfactuur
+                                          ? "bg-purple-100 dark:bg-purple-950"
+                                          : "bg-primary/10"
+                                    }`}>
+                                      {isMeerwerk ? (
+                                        <Wrench className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                                      ) : isDeelfactuur ? (
+                                        <FileStack className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                                      ) : (
+                                        <FileText className="h-4 w-4 text-primary" />
+                                      )}
                                     </div>
                                     <div>
                                       <p className="font-medium">
@@ -574,6 +592,19 @@ function FacturenPageContent() {
                                       {factuur.klant.plaats}
                                     </p>
                                   </div>
+                                </TableCell>
+                                <TableCell>
+                                  {isMeerwerk ? (
+                                    <Badge variant="outline" className="bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-200 border-orange-200 dark:border-orange-800">
+                                      Meerwerk
+                                    </Badge>
+                                  ) : isDeelfactuur ? (
+                                    <Badge variant="outline" className="bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-200 border-purple-200 dark:border-purple-800">
+                                      Deel {factuur.deelfactuurNummer} ({factuur.deelfactuurPercentage}%)
+                                    </Badge>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground">Volledig</span>
+                                  )}
                                 </TableCell>
                                 <TableCell className="font-medium">
                                   {formatCurrency(factuur.totaalInclBtw)}
@@ -597,7 +628,8 @@ function FacturenPageContent() {
                                   />
                                 </TableCell>
                               </TableRow>
-                            ))}
+                              );
+                            })}
                           </TableBody>
                         </Table>
                       </ScrollableTable>
