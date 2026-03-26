@@ -77,7 +77,10 @@ export default function LoginScreen() {
     }
   };
 
-  // Dev mode: quick login using sign-in token (bypasses 2FA)
+  // Dev mode: quick login using a server-side endpoint that creates a sign-in token.
+  // IMPORTANT: Never embed Clerk secret keys (sk_test_* / sk_live_*) in client code.
+  // The server endpoint (e.g. a Convex HTTP action or Next.js API route) should hold
+  // CLERK_SECRET_KEY and call https://api.clerk.com/v1/sign_in_tokens on our behalf.
   const handleDevLogin = async () => {
     if (!signIn || !setActive) return;
 
@@ -92,22 +95,23 @@ export default function LoginScreen() {
         // Ignore sign-out errors
       }
 
-      // Create a sign-in token via Clerk Backend API (using medewerker account)
-      const tokenRes = await fetch('https://api.clerk.com/v1/sign_in_tokens', {
+      // Request a sign-in token from our own backend (keeps the secret key server-side)
+      const devLoginUrl = process.env.EXPO_PUBLIC_DEV_LOGIN_URL;
+      if (!devLoginUrl) {
+        throw new Error(
+          'EXPO_PUBLIC_DEV_LOGIN_URL is niet geconfigureerd. ' +
+          'Stel een server-side dev-login endpoint in en voeg de URL toe aan .env.local.'
+        );
+      }
+
+      const tokenRes = await fetch(devLoginUrl, {
         method: 'POST',
-        headers: {
-          'Authorization': 'Bearer sk_test_PP1Q0U9UqF9XKsdwOdE8GaFusRYBkmqpEg5dBm2xLv',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          user_id: 'user_3B2GVHgNUyEOIqxTHjiBdN1KHoT',
-          expires_in_seconds: 86400,
-        }),
+        headers: { 'Content-Type': 'application/json' },
       });
       const tokenData = await tokenRes.json();
 
       if (!tokenData.token) {
-        throw new Error('Kon geen sign-in token aanmaken');
+        throw new Error('Kon geen sign-in token aanmaken via server');
       }
 
       // Use the ticket to sign in (bypasses all verification)
