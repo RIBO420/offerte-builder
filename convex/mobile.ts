@@ -11,7 +11,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuth, requireAuthUserId } from "./auth";
-import { requireNotViewer } from "./roles";
+import { requireAdmin, requireNotViewer } from "./roles";
 
 // ============================================
 // CLOCK IN/OUT
@@ -1046,12 +1046,7 @@ export const getCurrentUserRole = query({
 export const adminListAllUsers = query({
   args: {},
   handler: async (ctx) => {
-    const user = await requireAuth(ctx);
-
-    // Check if user is admin
-    if (user.role && user.role !== "admin") {
-      throw new Error("Alleen beheerders kunnen gebruikers bekijken");
-    }
+    const user = await requireAdmin(ctx);
 
     // Get all users
     const users = await ctx.db.query("users").collect();
@@ -1097,12 +1092,7 @@ export const adminListAllUsers = query({
 export const adminListMedewerkers = query({
   args: {},
   handler: async (ctx) => {
-    const user = await requireAuth(ctx);
-
-    // Check if user is admin
-    if (user.role && user.role !== "admin") {
-      throw new Error("Alleen beheerders kunnen medewerkers bekijken");
-    }
+    const user = await requireAdmin(ctx);
 
     // Get medewerkers owned by this admin
     const medewerkers = await ctx.db
@@ -1138,12 +1128,7 @@ export const adminUpdateUserRole = mutation({
     role: v.union(v.literal("admin"), v.literal("medewerker"), v.literal("viewer")),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
-
-    // Check if user is admin
-    if (user.role && user.role !== "admin") {
-      throw new Error("Alleen beheerders kunnen rollen wijzigen");
-    }
+    const user = await requireAdmin(ctx);
 
     // Prevent changing own role
     if (args.userId.toString() === user._id.toString()) {
@@ -1168,12 +1153,7 @@ export const adminLinkUserToMedewerker = mutation({
     medewerkerId: v.optional(v.id("medewerkers")),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
-
-    // Check if user is admin
-    if (user.role && user.role !== "admin") {
-      throw new Error("Alleen beheerders kunnen gebruikers koppelen");
-    }
+    const user = await requireAdmin(ctx);
 
     // If linking (not unlinking), verify the medewerker exists and belongs to admin
     if (args.medewerkerId) {

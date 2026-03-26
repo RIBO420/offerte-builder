@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalMutation } from "./_generated/server";
 import { getAuthenticatedUser, requireAuth } from "./auth";
 import { requireAdmin } from "./roles";
 import { Id } from "./_generated/dataModel";
@@ -12,7 +12,7 @@ import { MutationCtx } from "./_generated/server";
 // Admin users are determined by:
 // 1. First user created in the system is automatically an admin
 // 2. Users with emails matching ADMIN_EMAILS list are automatically admins
-// 3. Existing users can be promoted via makeCurrentUserAdmin() (one-time bootstrap)
+// 3. Existing users can be promoted via makeCurrentUserAdmin() (internal, server-side only)
 //
 // To add more admin emails, add them to this list:
 const ADMIN_EMAILS: string[] = [
@@ -986,77 +986,69 @@ export const adminRunMigrations = mutation({
 // ============================================
 
 /**
- * Make the currently logged-in user an admin.
+ * Make a user an admin (internal only — not callable from clients).
+ *
+ * This is a bootstrap utility for first-time setup or server-side admin
+ * provisioning. It can only be invoked from other Convex functions
+ * (actions, scheduled jobs, the Convex dashboard), never from a client.
  *
  * USAGE:
- * This is a one-time bootstrap mutation intended to be called when setting up the system.
- * It allows the first/current user to claim admin privileges.
- *
- * Security considerations:
- * - This mutation can only be called by an authenticated user
- * - It is designed for initial setup when no admins exist yet
- * - In production, you may want to disable this after initial setup
- *   by checking if any admins already exist
- *
- * To call from Convex Dashboard:
- * 1. Login to your app first (so you have a session)
- * 2. Go to Convex Dashboard > Functions
- * 3. Find users:makeCurrentUserAdmin
- * 4. Click "Run" (no arguments needed)
- *
- * To call programmatically (from authenticated client):
+ * From Convex Dashboard > Functions > users:makeCurrentUserAdmin > "Run"
+ * Or from another server-side function:
  * ```typescript
- * import { useMutation } from "convex/react";
- * import { api } from "../convex/_generated/api";
- *
- * const makeAdmin = useMutation(api.users.makeCurrentUserAdmin);
- * await makeAdmin({ force: false });
+ * import { internal } from "./_generated/api";
+ * await ctx.runMutation(internal.users.makeCurrentUserAdmin, { userId });
  * ```
  *
  * Arguments:
- * - force: If true, bypasses the "no existing admin" check (use with caution)
+ * - userId: The ID of the user to promote to admin
  */
-export const makeCurrentUserAdmin = mutation({
+export const makeCurrentUserAdmin = internalMutation({
   args: {
-    force: v.optional(v.boolean()),
+    userId: v.id("users"),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const user = await ctx.db.get(args.userId);
+
+    if (!user) {
+      return {
+        success: false,
+        message: "Gebruiker niet gevonden.",
+      };
+    }
 
     // Check if user is already an admin
     if (user.role === "admin") {
       return {
         success: true,
-        message: "Je bent al een admin.",
+        message: "Gebruiker is al een admin.",
         wasAlreadyAdmin: true,
       };
     }
 
-    // Safety check: Only allow if no admins exist yet (unless force is true)
-    if (!args.force) {
-      const existingAdmins = await ctx.db
-        .query("users")
-        .filter((q) => q.eq(q.field("role"), "admin"))
-        .collect();
+    // Safety check: Only allow if no admins exist yet
+    const existingAdmins = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("role"), "admin"))
+      .collect();
 
-      if (existingAdmins.length > 0) {
-        return {
-          success: false,
-          message:
-            "Er bestaat al een admin. Gebruik { force: true } om dit te omzeilen, of vraag een bestaande admin om je rechten te geven.",
-          existingAdminCount: existingAdmins.length,
-        };
-      }
+    if (existingAdmins.length > 0) {
+      return {
+        success: false,
+        message:
+          "Er bestaat al een admin. Gebruik setUserRole via een bestaande admin om rechten te geven.",
+        existingAdminCount: existingAdmins.length,
+      };
     }
 
-    // Make the current user an admin
+    // Make the user an admin
     await ctx.db.patch(user._id, {
       role: "admin",
     });
 
     return {
       success: true,
-      message: "Je bent nu een admin!",
+      message: "Gebruiker is nu een admin!",
       userId: user._id,
       email: user.email,
     };
