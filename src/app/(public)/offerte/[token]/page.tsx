@@ -51,9 +51,18 @@ import {
   Calendar,
   Users,
   AlertTriangle,
+  Info,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DynamicSignaturePad as SignaturePadComponent } from "@/components/ui/signature-pad-dynamic";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { createBackgroundErrorHandler } from "@/lib/error-handling";
@@ -151,12 +160,14 @@ const kleinmateriaalKeywords = [
 ];
 
 interface RegelInput {
+  id?: string;
   scope: string;
   omschrijving: string;
   eenheid: string;
   hoeveelheid: number;
   totaal: number;
   type: string;
+  optioneel?: boolean;
 }
 
 function shouldShowItem(regel: RegelInput): boolean {
@@ -415,6 +426,8 @@ export default function PublicOffertePage({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [hasMarkedViewed, setHasMarkedViewed] = useState(false);
+  const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
+  const [selectedOptionalIds, setSelectedOptionalIds] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastMarkedMessageCount = useRef<number>(0);
   const isMarkingMessagesAsRead = useRef<boolean>(false);
@@ -460,15 +473,22 @@ export default function PublicOffertePage({
   }, [messages]);
 
   const handleAccept = async () => {
-    if (!signature) {
+    if (!signature || !disclaimerAccepted) {
       return;
     }
     setIsSubmitting(true);
     try {
-      await respond({ token, status: "geaccepteerd", comment: comment || undefined, signature });
+      await respond({
+        token,
+        status: "geaccepteerd",
+        comment: comment || undefined,
+        signature,
+        selectedOptionalRegelIds: selectedOptionalIds.size > 0 ? Array.from(selectedOptionalIds) : undefined,
+      });
       setShowAcceptDialog(false);
       setComment("");
       setSignature(null);
+      setDisclaimerAccepted(false);
       toast.success("Offerte geaccepteerd");
     } catch {
       toast.error("Kon offerte niet accepteren. Probeer het opnieuw.");
@@ -676,48 +696,114 @@ export default function PublicOffertePage({
           </Card>
 
           {/* Werkzaamheden - Customer-friendly summarized view */}
-          {offerte.regels && Array.isArray(offerte.regels) && offerte.regels.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Werkzaamheden</CardTitle>
-                <CardDescription>
-                  Overzicht van de geoffreerde werkzaamheden
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Onderdeel</TableHead>
-                      <TableHead className="hidden sm:table-cell">Omschrijving</TableHead>
-                      <TableHead className="text-right">Bedrag</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(offerte.regels && Array.isArray(offerte.regels)
-                      ? summarizeRegelsByScope(offerte.regels as RegelInput[])
-                      : []
-                    ).map((summary) => (
-                      <TableRow key={summary.scope}>
-                        <TableCell>
-                          <p className="font-medium">{summary.scopeLabel}</p>
-                          <p className="text-xs text-muted-foreground sm:hidden">
-                            {formatLineItems(summary)}
-                          </p>
-                        </TableCell>
-                        <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
-                          {formatLineItems(summary)}
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                          {formatCurrency(summary.totaal)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          )}
+          {offerte.regels && Array.isArray(offerte.regels) && offerte.regels.length > 0 && (() => {
+            const allRegels = offerte.regels as RegelInput[];
+            const standardRegels = allRegels.filter((r) => !r.optioneel);
+            const optionalRegels = allRegels.filter((r) => r.optioneel);
+            const standardSummaries = summarizeRegelsByScope(standardRegels);
+            const optionalSummaries = summarizeRegelsByScope(optionalRegels);
+
+            return (
+              <>
+                {/* Standard werkzaamheden */}
+                {standardSummaries.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Werkzaamheden</CardTitle>
+                      <CardDescription>
+                        Overzicht van de geoffreerde werkzaamheden
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Onderdeel</TableHead>
+                            <TableHead className="hidden sm:table-cell">Omschrijving</TableHead>
+                            <TableHead className="text-right">Bedrag</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {standardSummaries.map((summary) => (
+                            <TableRow key={summary.scope}>
+                              <TableCell>
+                                <p className="font-medium">{summary.scopeLabel}</p>
+                                <p className="text-xs text-muted-foreground sm:hidden">
+                                  {formatLineItems(summary)}
+                                </p>
+                              </TableCell>
+                              <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
+                                {formatLineItems(summary)}
+                              </TableCell>
+                              <TableCell className="text-right font-medium">
+                                {formatCurrency(summary.totaal)}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Optional werkzaamheden */}
+                {optionalRegels.length > 0 && (
+                  <Card className="border-orange-200">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Info className="h-5 w-5 text-orange-500" />
+                        Optionele werkzaamheden
+                      </CardTitle>
+                      <CardDescription>
+                        Onderstaande posten zijn optioneel. U kunt ze aan- of uitzetten.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {optionalRegels.map((regel) => {
+                        const regelId = regel.id || regel.omschrijving;
+                        const isSelected = selectedOptionalIds.has(regelId);
+                        return (
+                          <div
+                            key={regelId}
+                            className={cn(
+                              "flex items-center justify-between rounded-lg border p-3 transition-colors",
+                              isSelected ? "border-orange-300 bg-orange-50 dark:bg-orange-950/20" : "border-muted"
+                            )}
+                          >
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <Switch
+                                checked={isSelected}
+                                onCheckedChange={(checked) => {
+                                  setSelectedOptionalIds((prev) => {
+                                    const next = new Set(prev);
+                                    if (checked) {
+                                      next.add(regelId);
+                                    } else {
+                                      next.delete(regelId);
+                                    }
+                                    return next;
+                                  });
+                                }}
+                              />
+                              <div className="min-w-0">
+                                <p className="font-medium text-sm truncate">{regel.omschrijving}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {scopeLabels[regel.scope] || regel.scope}
+                                </p>
+                              </div>
+                            </div>
+                            <span className="font-medium text-sm ml-2 shrink-0">
+                              {formatCurrency(regel.totaal)}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </CardContent>
+                  </Card>
+                )}
+              </>
+            );
+          })()}
 
           {/* Chat Section */}
           <Card>
@@ -809,21 +895,40 @@ export default function PublicOffertePage({
               <CardTitle>Totalen</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Subtotaal</span>
-                <span>{formatCurrency(offerte.totalen.totaalExBtw)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">BTW (21%)</span>
-                <span>{formatCurrency(offerte.totalen.btw)}</span>
-              </div>
-              <Separator />
-              <div className="flex justify-between text-lg font-bold">
-                <span>Totaal</span>
-                <span className="text-primary">
-                  {formatCurrency(offerte.totalen.totaalInclBtw)}
-                </span>
-              </div>
+              {(() => {
+                const allRegels = (offerte.regels || []) as RegelInput[];
+                const optionalRegels = allRegels.filter((r) => r.optioneel);
+                const optionalExtras = optionalRegels
+                  .filter((r) => selectedOptionalIds.has(r.id || r.omschrijving))
+                  .reduce((sum, r) => sum + r.totaal, 0);
+                const optionalExtrasBtw = optionalExtras * 0.21;
+
+                return (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Subtotaal</span>
+                      <span>{formatCurrency(offerte.totalen.totaalExBtw)}</span>
+                    </div>
+                    {optionalExtras > 0 && (
+                      <div className="flex justify-between text-orange-600">
+                        <span className="text-sm">Optionele posten</span>
+                        <span className="text-sm">+ {formatCurrency(optionalExtras)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">BTW (21%)</span>
+                      <span>{formatCurrency(offerte.totalen.btw + optionalExtrasBtw)}</span>
+                    </div>
+                    <Separator />
+                    <div className="flex justify-between text-lg font-bold">
+                      <span>Totaal</span>
+                      <span className="text-primary">
+                        {formatCurrency(offerte.totalen.totaalInclBtw + optionalExtras + optionalExtrasBtw)}
+                      </span>
+                    </div>
+                  </>
+                );
+              })()}
             </CardContent>
           </Card>
 
@@ -970,6 +1075,23 @@ export default function PublicOffertePage({
           </DialogHeader>
 
           <div className="space-y-4 py-4">
+            <div className="flex items-start space-x-3 rounded-lg border border-amber-200 bg-amber-50 p-4">
+              <Checkbox
+                id="disclaimer-accept"
+                checked={disclaimerAccepted}
+                onCheckedChange={(checked) => setDisclaimerAccepted(checked === true)}
+                className="mt-0.5"
+              />
+              <label
+                htmlFor="disclaimer-accept"
+                className="text-sm leading-relaxed text-amber-900 cursor-pointer select-none"
+              >
+                Hierbij bevestig ik dat ik akkoord ga met deze offerte en de
+                bijbehorende werkzaamheden, prijzen en voorwaarden. Ik geef
+                toestemming om digitaal te ondertekenen.
+              </label>
+            </div>
+
             <div className="space-y-2">
               <Label>Uw handtekening *</Label>
               <SignaturePadComponent onSignatureChange={setSignature} />
@@ -990,18 +1112,35 @@ export default function PublicOffertePage({
             <Button variant="outline" onClick={() => setShowAcceptDialog(false)} disabled={isSubmitting}>
               Annuleren
             </Button>
-            <Button
-              onClick={handleAccept}
-              disabled={isSubmitting || !signature}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              {isSubmitting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <PenTool className="mr-2 h-4 w-4" />
-              )}
-              Ondertekenen & Accepteren
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    <Button
+                      onClick={handleAccept}
+                      disabled={isSubmitting || !signature || !disclaimerAccepted}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      {isSubmitting ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <PenTool className="mr-2 h-4 w-4" />
+                      )}
+                      Ondertekenen & Accepteren
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {(!signature || !disclaimerAccepted) && (
+                  <TooltipContent>
+                    {!disclaimerAccepted && !signature
+                      ? "Accepteer de voorwaarden en plaats uw handtekening"
+                      : !disclaimerAccepted
+                        ? "Accepteer eerst de voorwaarden"
+                        : "Plaats eerst uw handtekening"}
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
           </DialogFooter>
         </DialogContent>
       </Dialog>

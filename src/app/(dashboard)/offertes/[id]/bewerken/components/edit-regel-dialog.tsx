@@ -3,6 +3,8 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -177,6 +179,41 @@ export function EditRegelDialog({
                 />
                 <span className="absolute right-3 top-2.5 text-muted-foreground">%</span>
               </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="edit-optioneel"
+                checked={editingRegel.optioneel ?? false}
+                onCheckedChange={(checked) =>
+                  onEditingRegelChange({
+                    ...editingRegel,
+                    optioneel: checked === true || undefined,
+                  })
+                }
+              />
+              <Label htmlFor="edit-optioneel" className="text-sm font-normal cursor-pointer">
+                Optionele post (klant kan deze aan/uit zetten)
+              </Label>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-interne-notitie">
+                Interne notitie
+                <span className="ml-1 text-xs font-normal text-muted-foreground">
+                  (niet zichtbaar voor klant)
+                </span>
+              </Label>
+              <Textarea
+                id="edit-interne-notitie"
+                value={editingRegel.interneNotitie ?? ""}
+                onChange={(e) =>
+                  onEditingRegelChange({
+                    ...editingRegel,
+                    interneNotitie: e.target.value || undefined,
+                  })
+                }
+                placeholder="Interne opmerkingen bij deze regel..."
+                className="h-20 resize-none"
+              />
             </div>
             <div className="rounded-lg bg-muted p-3">
               <p className="text-sm text-muted-foreground">

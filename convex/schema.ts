@@ -131,6 +131,8 @@ export default defineSchema({
           v.literal("machine")
         ),
         margePercentage: v.optional(v.number()), // Override marge per regel
+        interneNotitie: v.optional(v.string()), // Interne notitie, niet zichtbaar voor klant
+        optioneel: v.optional(v.boolean()), // Optionele post — klant kan aan/uit zetten
       })
     ),
 
@@ -160,6 +162,7 @@ export default defineSchema({
         viewedAt: v.optional(v.number()),
         signature: v.optional(v.string()), // Base64 signature image
         signedAt: v.optional(v.number()),
+        selectedOptionalRegelIds: v.optional(v.array(v.string())), // IDs van optionele regels die klant heeft gekozen
       })
     ),
 

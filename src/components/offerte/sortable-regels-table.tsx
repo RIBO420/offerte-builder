@@ -17,7 +17,7 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from "@/components/ui/tooltip";
-import { Calculator, Pencil, PencilLine, Trash2 } from "lucide-react";
+import { Calculator, MessageSquareText, Pencil, PencilLine, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   SortableList,
@@ -69,6 +69,8 @@ interface Regel {
   totaal: number;
   type: "materiaal" | "arbeid" | "machine";
   margePercentage?: number;
+  interneNotitie?: string;
+  optioneel?: boolean;
   /** Explicitly marks a regel as manually added. When undefined, determined by scope. */
   handmatig?: boolean;
 }
@@ -316,9 +318,27 @@ function SortableRegelRow({
                   : "Automatisch berekend vanuit scope"}
               </TooltipContent>
             </Tooltip>
+            {regel.interneNotitie && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex items-center text-blue-500/70 cursor-help">
+                    <MessageSquareText className="h-3.5 w-3.5" />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="max-w-xs">
+                  <p className="text-xs font-medium">Interne notitie:</p>
+                  <p className="text-xs">{regel.interneNotitie}</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
           </div>
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <span className="capitalize">{regel.type}</span>
+            {regel.optioneel && (
+              <Badge variant="outline" className="text-[10px] px-1 py-0 border-orange-300 text-orange-600">
+                Optioneel
+              </Badge>
+            )}
             {regel.margePercentage !== undefined && (
               <Badge variant="secondary" className="text-[10px] px-1 py-0">
                 {regel.margePercentage}% marge

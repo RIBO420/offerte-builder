@@ -91,11 +91,13 @@ export const getByToken = query({
         klant: offerte.klant,
         scopes: offerte.scopes,
         regels: offerte.regels.map((r) => ({
+          id: r.id,
           omschrijving: r.omschrijving,
           eenheid: r.eenheid,
           hoeveelheid: r.hoeveelheid,
           totaal: r.totaal,
           scope: r.scope,
+          ...(r.optioneel ? { optioneel: true as const } : {}),
         })),
         totalen: {
           totaalExBtw: offerte.totalen.totaalExBtw,
@@ -170,6 +172,7 @@ export const respond = mutation({
     status: v.union(v.literal("geaccepteerd"), v.literal("afgewezen")),
     comment: v.optional(v.string()),
     signature: v.optional(v.string()), // Base64 signature image
+    selectedOptionalRegelIds: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     // Rate limiting: max 30 requests per minute per token
@@ -223,6 +226,7 @@ export const respond = mutation({
         respondedAt: now,
         signature: args.signature,
         signedAt: args.signature ? now : undefined,
+        selectedOptionalRegelIds: args.selectedOptionalRegelIds,
       },
       // Also update the main status
       status: args.status,

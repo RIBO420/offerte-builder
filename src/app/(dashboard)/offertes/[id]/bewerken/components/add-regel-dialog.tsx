@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -66,6 +68,8 @@ export function AddRegelDialog({
       prijsPerEenheid: newRegel.prijsPerEenheid || 0,
       totaal,
       type: newRegel.type || "materiaal",
+      ...(newRegel.interneNotitie ? { interneNotitie: newRegel.interneNotitie } : {}),
+      ...(newRegel.optioneel ? { optioneel: true } : {}),
     };
 
     onAdd(regel);
@@ -199,6 +203,41 @@ export function AddRegelDialog({
                   prijsPerEenheid: parseFloat(e.target.value) || 0,
                 })
               }
+            />
+          </div>
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="add-optioneel"
+              checked={newRegel.optioneel ?? false}
+              onCheckedChange={(checked) =>
+                setNewRegel({
+                  ...newRegel,
+                  optioneel: checked === true || undefined,
+                })
+              }
+            />
+            <Label htmlFor="add-optioneel" className="text-sm font-normal cursor-pointer">
+              Optionele post (klant kan deze aan/uit zetten)
+            </Label>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="add-interne-notitie">
+              Interne notitie
+              <span className="ml-1 text-xs font-normal text-muted-foreground">
+                (niet zichtbaar voor klant)
+              </span>
+            </Label>
+            <Textarea
+              id="add-interne-notitie"
+              value={newRegel.interneNotitie ?? ""}
+              onChange={(e) =>
+                setNewRegel({
+                  ...newRegel,
+                  interneNotitie: e.target.value || undefined,
+                })
+              }
+              placeholder="Interne opmerkingen bij deze regel..."
+              className="h-20 resize-none"
             />
           </div>
           <div className="rounded-lg bg-muted p-3">

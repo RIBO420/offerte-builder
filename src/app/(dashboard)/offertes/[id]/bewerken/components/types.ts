@@ -8,6 +8,8 @@ export interface Regel {
   totaal: number;
   type: "materiaal" | "arbeid" | "machine";
   margePercentage?: number;
+  interneNotitie?: string;
+  optioneel?: boolean;
 }
 
 export interface Totals {

@@ -20,6 +20,8 @@ interface OfferteRegel {
   prijsPerEenheid: number;
   totaal: number;
   type: "materiaal" | "arbeid" | "machine";
+  interneNotitie?: string; // NOT rendered in customer PDF
+  optioneel?: boolean;
 }
 
 interface OfferteTotalen {
@@ -237,7 +239,11 @@ export function OffertePDF({ offerte, bedrijfsgegevens }: OffertePDFProps) {
   const logoSrc = bedrijfsgegevens?.logo || null;
 
   // Summarize regels by scope for customer-friendly view
-  const scopeSummaries = summarizeRegelsByScope(offerte.regels);
+  // Separate standard and optional regels
+  const standardRegels = offerte.regels.filter((r) => !r.optioneel);
+  const optionalRegels = offerte.regels.filter((r) => r.optioneel);
+  const scopeSummaries = summarizeRegelsByScope(standardRegels);
+  const optionalScopeSummaries = summarizeRegelsByScope(optionalRegels);
 
   return (
     <Document>
@@ -367,6 +373,45 @@ export function OffertePDF({ offerte, bedrijfsgegevens }: OffertePDFProps) {
                 </Text>
               </View>
               {scopeSummaries.map((summary, index) => (
+                <View
+                  key={summary.scope}
+                  style={index % 2 === 0 ? styles.tableRow : styles.tableRowAlt}
+                >
+                  <Text style={[styles.tableCell, { flex: 2, fontWeight: 600 }]}>
+                    {summary.scopeLabel}
+                  </Text>
+                  <Text style={[styles.tableCell, { flex: 4, fontSize: 9, color: "#666" }]}>
+                    {formatLineItems(summary)}
+                  </Text>
+                  <Text style={[styles.tableCellRight, { flex: 1 }]}>
+                    {formatCurrency(summary.totaal)}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* Optionele posten */}
+        {optionalScopeSummaries.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Optionele werkzaamheden</Text>
+            <Text style={{ fontSize: 9, color: "#666", marginBottom: 6 }}>
+              Onderstaande posten zijn optioneel en niet inbegrepen in het totaalbedrag.
+            </Text>
+            <View style={styles.table}>
+              <View style={styles.tableHeader}>
+                <Text style={[styles.tableHeaderCell, { flex: 2 }]}>
+                  Onderdeel
+                </Text>
+                <Text style={[styles.tableHeaderCell, { flex: 4 }]}>
+                  Omschrijving
+                </Text>
+                <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: "right" }]}>
+                  Bedrag
+                </Text>
+              </View>
+              {optionalScopeSummaries.map((summary, index) => (
                 <View
                   key={summary.scope}
                   style={index % 2 === 0 ? styles.tableRow : styles.tableRowAlt}
