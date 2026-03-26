@@ -471,6 +471,7 @@ export default defineSchema({
     projectId: v.id("projecten"),
     datum: v.string(), // YYYY-MM-DD
     uren: v.optional(v.number()), // Geplande uren (default: volle dag)
+    voertuigId: v.optional(v.id("voertuigen")), // Bus/voertuig toewijzing (PLN-003)
     notities: v.optional(v.string()),
     createdAt: v.number(),
   })

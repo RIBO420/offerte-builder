@@ -361,3 +361,198 @@ export const getConflicten = query({
     return conflicten;
   },
 });
+
+// ============================================
+// PLN-003: Voertuigtoewijzing
+// ============================================
+
+/**
+ * Wijs een voertuig toe aan een planning entry.
+ * Valideert dat voertuig niet defect is en APK niet verlopen.
+ */
+export const assignVoertuig = mutation({
+  args: {
+    id: v.id("weekPlanning"),
+    voertuigId: v.optional(v.id("voertuigen")),
+  },
+  handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
+
+    const item = await ctx.db.get(args.id);
+    if (!item) throw new Error("Toewijzing niet gevonden");
+
+    if (args.voertuigId) {
+      const voertuig = await ctx.db.get(args.voertuigId);
+      if (!voertuig) throw new Error("Voertuig niet gevonden");
+
+      // Check defect status
+      if (voertuig.status === "defect") {
+        throw new Error(`Voertuig "${voertuig.kenteken}" is defect en kan niet worden toegewezen`);
+      }
+
+      // Check APK verlopen
+      if (voertuig.apkVervaldatum && voertuig.apkVervaldatum < Date.now()) {
+        throw new Error(`APK van voertuig "${voertuig.kenteken}" is verlopen`);
+      }
+    }
+
+    await ctx.db.patch(args.id, { voertuigId: args.voertuigId });
+  },
+});
+
+/**
+ * Beschikbare voertuigen op een dag (niet al toegewezen).
+ */
+export const getBeschikbareVoertuigen = query({
+  args: { datum: v.string() },
+  handler: async (ctx, args) => {
+    await requireAuth(ctx);
+
+    const alleVoertuigen = await ctx.db.query("voertuigen").collect();
+    const actief = alleVoertuigen.filter(
+      (v) => v.status !== "defect" && v.status !== "uit_dienst"
+    );
+
+    // Welke zijn al toegewezen?
+    const dagToewijzingen = await ctx.db
+      .query("weekPlanning")
+      .withIndex("by_datum", (q) => q.eq("datum", args.datum))
+      .collect();
+
+    const toegewezenIds = new Set(
+      dagToewijzingen
+        .filter((t) => t.voertuigId)
+        .map((t) => t.voertuigId!)
+    );
+
+    return actief.map((v) => ({
+      _id: v._id,
+      kenteken: v.kenteken,
+      merk: v.merk,
+      model: v.model,
+      type: v.type,
+      isBeschikbaar: !toegewezenIds.has(v._id),
+    }));
+  },
+});
+
+// ============================================
+// URN-004: Uren herinnering check
+// ============================================
+
+/**
+ * Check welke ingeplande medewerkers hun uren nog niet hebben ingevuld.
+ * Bedoeld om aangeroepen te worden door een cron job.
+ */
+export const getOntbrekendeUren = query({
+  args: { datum: v.string() },
+  handler: async (ctx, args) => {
+    await requireAuth(ctx);
+
+    // Wie was ingepland vandaag?
+    const dagPlanning = await ctx.db
+      .query("weekPlanning")
+      .withIndex("by_datum", (q) => q.eq("datum", args.datum))
+      .collect();
+
+    if (dagPlanning.length === 0) return [];
+
+    // Unieke medewerkers die ingepland waren
+    const ingeplandeMedewerkerIds = [...new Set(dagPlanning.map((t) => t.medewerkerId))];
+
+    // Welke uren zijn al geregistreerd?
+    const urenVandaag = await ctx.db
+      .query("urenRegistraties")
+      .withIndex("by_datum", (q) => q.eq("datum", args.datum))
+      .collect();
+
+    const ingevuldeNamen = new Set(urenVandaag.map((u) => u.medewerker));
+
+    // Enriche met medewerker info
+    const ontbrekend = [];
+    for (const mwId of ingeplandeMedewerkerIds) {
+      const mw = await ctx.db.get(mwId);
+      if (mw && !ingevuldeNamen.has(mw.naam)) {
+        ontbrekend.push({
+          medewerkerId: mwId,
+          naam: mw.naam,
+          functie: mw.functie,
+        });
+      }
+    }
+
+    return ontbrekend;
+  },
+});
+
+/**
+ * Stuur herinneringsnotificaties naar medewerkers die uren niet hebben ingevuld.
+ */
+export const sendUrenHerinneringen = mutation({
+  args: { datum: v.string() },
+  handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
+
+    // Wie was ingepland?
+    const dagPlanning = await ctx.db
+      .query("weekPlanning")
+      .withIndex("by_datum", (q) => q.eq("datum", args.datum))
+      .collect();
+
+    if (dagPlanning.length === 0) return { sent: 0 };
+
+    const ingeplandeMedewerkerIds = [...new Set(dagPlanning.map((t) => t.medewerkerId))];
+
+    // Welke uren zijn al geregistreerd?
+    const urenVandaag = await ctx.db
+      .query("urenRegistraties")
+      .withIndex("by_datum", (q) => q.eq("datum", args.datum))
+      .collect();
+
+    const ingevuldeNamen = new Set(urenVandaag.map((u) => u.medewerker));
+
+    let sent = 0;
+    for (const mwId of ingeplandeMedewerkerIds) {
+      const mw = await ctx.db.get(mwId);
+      if (!mw || ingevuldeNamen.has(mw.naam)) continue;
+
+      // Zoek user account van medewerker
+      if (!mw.clerkUserId) continue;
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_clerk_id", (q) => q.eq("clerkId", mw.clerkUserId!))
+        .unique();
+
+      if (!user) continue;
+
+      // Check of er al een herinnering is gestuurd vandaag
+      const bestaand = await ctx.db
+        .query("notifications")
+        .withIndex("by_user_type", (q) =>
+          q.eq("userId", user._id).eq("type", "system_reminder")
+        )
+        .filter((q) =>
+          q.and(
+            q.gte(q.field("createdAt"), new Date(args.datum).getTime()),
+            q.lt(q.field("createdAt"), new Date(args.datum).getTime() + 86400000)
+          )
+        )
+        .first();
+
+      if (bestaand) continue;
+
+      await ctx.db.insert("notifications", {
+        userId: user._id,
+        type: "system_reminder",
+        title: "Uren invullen",
+        message: `Je hebt je uren nog niet ingevuld voor ${args.datum}. Vul ze zo snel mogelijk in.`,
+        isRead: false,
+        isDismissed: false,
+        createdAt: Date.now(),
+      });
+      sent++;
+    }
+
+    return { sent };
+  },
+});
