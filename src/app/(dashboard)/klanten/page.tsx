@@ -55,6 +55,7 @@ import {
   Pencil,
   Trash2,
   FileText,
+  AlertTriangle,
 } from "lucide-react";
 import {
   Select,
@@ -188,6 +189,26 @@ function KlantenPageContent() {
 
   // CRM-003: Fetch all existing tags for autocomplete
   const allTags = useQuery(api.klanten.getAllTags, user?._id ? {} : "skip");
+
+  // CRM-007: Debounced duplicate check for form fields
+  const debouncedEmail = useDebounce(formData.email, 500);
+  const debouncedTelefoon = useDebounce(formData.telefoon, 500);
+  const debouncedNaam = useDebounce(formData.naam, 500);
+  const debouncedPostcode = useDebounce(formData.postcode, 500);
+
+  const hasDuplicateCheckInput = !!(debouncedEmail || debouncedTelefoon || (debouncedNaam && debouncedPostcode));
+  const duplicates = useQuery(
+    api.klanten.checkDuplicates,
+    hasDuplicateCheckInput && user?._id
+      ? {
+          email: debouncedEmail || undefined,
+          telefoon: debouncedTelefoon || undefined,
+          naam: debouncedNaam || undefined,
+          postcode: debouncedPostcode || undefined,
+          excludeId: selectedKlant?._id,
+        }
+      : "skip"
+  );
 
   // Optimistic updates state
   const [optimisticDeletedIds, setOptimisticDeletedIds] = useState<Set<string>>(new Set());
@@ -620,6 +641,39 @@ function KlantenPageContent() {
           rows={3}
         />
       </div>
+
+      {/* CRM-007: Duplicate warning */}
+      {duplicates && duplicates.length > 0 && (
+        <div className="rounded-md border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/50 p-3">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                Mogelijke duplicaat gevonden
+              </p>
+              {duplicates.map((dup) => (
+                <div key={dup._id} className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-300">
+                  <span>
+                    <strong>{dup.naam}</strong>
+                    {" — match op "}
+                    {dup.matchType === "email" ? "e-mail" : dup.matchType === "telefoon" ? "telefoonnummer" : "naam + postcode"}
+                  </span>
+                  <Link
+                    href={`/klanten/${dup._id}`}
+                    className="text-xs underline hover:text-amber-900 dark:hover:text-amber-100"
+                    target="_blank"
+                  >
+                    Bekijk
+                  </Link>
+                </div>
+              ))}
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                Je kunt alsnog doorgaan als dit geen duplicaat is.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 

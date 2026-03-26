@@ -314,6 +314,74 @@ export const getAllTags = query({
   },
 });
 
+// CRM-007: Check for duplicate klanten based on email, telefoon, or naam+postcode
+export const checkDuplicates = query({
+  args: {
+    email: v.optional(v.string()),
+    telefoon: v.optional(v.string()),
+    naam: v.optional(v.string()),
+    postcode: v.optional(v.string()),
+    excludeId: v.optional(v.id("klanten")),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+    const klanten = await ctx.db
+      .query("klanten")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    const duplicates: Array<{
+      _id: string;
+      naam: string;
+      matchType: "email" | "telefoon" | "naam_postcode";
+    }> = [];
+    const seen = new Set<string>();
+
+    for (const klant of klanten) {
+      if (args.excludeId && klant._id === args.excludeId) continue;
+
+      // Check email match
+      if (
+        args.email &&
+        klant.email &&
+        args.email.trim().toLowerCase() === klant.email.toLowerCase()
+      ) {
+        if (!seen.has(klant._id)) {
+          duplicates.push({ _id: klant._id, naam: klant.naam, matchType: "email" });
+          seen.add(klant._id);
+        }
+      }
+
+      // Check telefoon match
+      if (
+        args.telefoon &&
+        klant.telefoon &&
+        args.telefoon.replace(/[\s\-]/g, "") === klant.telefoon.replace(/[\s\-]/g, "")
+      ) {
+        if (!seen.has(klant._id)) {
+          duplicates.push({ _id: klant._id, naam: klant.naam, matchType: "telefoon" });
+          seen.add(klant._id);
+        }
+      }
+
+      // Check naam + postcode combo
+      if (
+        args.naam &&
+        args.postcode &&
+        args.naam.trim().toLowerCase() === klant.naam.toLowerCase() &&
+        args.postcode.replace(/\s/g, "").toLowerCase() === klant.postcode.replace(/\s/g, "").toLowerCase()
+      ) {
+        if (!seen.has(klant._id)) {
+          duplicates.push({ _id: klant._id, naam: klant.naam, matchType: "naam_postcode" });
+          seen.add(klant._id);
+        }
+      }
+    }
+
+    return duplicates;
+  },
+});
+
 // Create klant from offerte data (for auto-creating klanten from wizard)
 export const createFromOfferte = mutation({
   args: {

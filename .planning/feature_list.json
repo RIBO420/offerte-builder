@@ -165,7 +165,9 @@
       "cluster": "A",
       "priority": "P0",
       "description": "Duplicaatdetectie bij aanmaken nieuwe klant",
-      "passes": false,
+      "passes": true,
+      "completed_by": "main-agent",
+      "completed_at": "2026-03-26",
       "steps": [
         "Backend: bij klant create → check op bestaande email, telefoonnummer, of naam+postcode combo",
         "UI: bij invoeren van email/telefoon → live check op duplicaten",
