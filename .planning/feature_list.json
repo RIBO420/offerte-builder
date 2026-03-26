@@ -12,9 +12,9 @@
     ],
     "stats": {
       "total": 75,
-      "passes_true": 58,
-      "passes_false": 17,
-      "completion_percentage": 77
+      "passes_true": 64,
+      "passes_false": 11,
+      "completion_percentage": 85
     }
   },
   "features": [
@@ -116,7 +116,7 @@
       "cluster": "A",
       "priority": "P0",
       "description": "Automatische statusupdates: lead → offerte verzonden → getekend → in uitvoering → opgeleverd → onderhoud",
-      "passes": false,
+      "passes": true,
       "steps": [
         "Schema: voeg 'pipelineStatus' veld toe aan klanten tabel (lead/offerte_verzonden/getekend/in_uitvoering/opgeleverd/onderhoud)",
         "Backend: automatische status wijziging bij offerte verzenden → klant.pipelineStatus = 'offerte_verzonden'",
@@ -132,7 +132,9 @@
         "convex/publicOffertes.ts",
         "convex/projecten.ts",
         "src/app/(dashboard)/klanten/page.tsx"
-      ]
+      ],
+      "completed_by": "cluster-A",
+      "completed_at": "2026-03-26"
     },
     {
       "id": "CRM-003",
