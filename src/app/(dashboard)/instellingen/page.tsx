@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calculator, Clock, Sliders, Loader2, Link2, FileStack } from "lucide-react";
+import { Calculator, Clock, Sliders, Loader2, Link2, FileStack, Bell } from "lucide-react";
 import { toast } from "sonner";
 import { useInstellingen } from "@/hooks/use-instellingen";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -29,6 +29,7 @@ import { KoppelingenTab } from "./components/koppelingen-tab";
 import { NormuurDialog } from "./components/normuur-dialog";
 import { DeleteNormuurDialog } from "./components/delete-normuur-dialog";
 import { DeelfactuurTemplatesTab } from "./components/deelfactuur-templates-tab";
+import { HerinneringenTab } from "./components/herinneringen-tab";
 
 export default function InstellingenPage() {
   const reducedMotion = useReducedMotion();
@@ -327,6 +328,10 @@ export default function InstellingenPage() {
               <FileStack className="h-4 w-4" />
               Deelfacturen
             </TabsTrigger>
+            <TabsTrigger value="herinneringen" className="flex items-center gap-2">
+              <Bell className="h-4 w-4" />
+              Herinneringen
+            </TabsTrigger>
           </TabsList>
 
           <AnimatePresence mode="wait">
@@ -383,6 +388,13 @@ export default function InstellingenPage() {
 
             {activeTab === "deelfacturen" && (
               <DeelfactuurTemplatesTab reducedMotion={reducedMotion} />
+            )}
+
+            {activeTab === "herinneringen" && (
+              <HerinneringenTab
+                reducedMotion={reducedMotion}
+                herinneringInstellingen={instellingen?.herinneringInstellingen ?? undefined}
+              />
             )}
           </AnimatePresence>
         </Tabs>

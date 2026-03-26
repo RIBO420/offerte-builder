@@ -235,6 +235,42 @@ export const getVoorwaardenPdfUrl = query({
   },
 });
 
+// ── Betalingsherinneringen Instellingen (FAC-006) ──────────────────────
+
+/** Update herinnering settings for the authenticated user */
+export const updateHerinneringInstellingen = mutation({
+  args: {
+    herinneringDagen: v.optional(v.array(v.number())),
+    aanmaningDagen: v.optional(v.array(v.number())),
+    automatischVersturen: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
+    const userId = await requireAuthUserId(ctx);
+
+    const settings = await ctx.db
+      .query("instellingen")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique();
+
+    if (!settings) {
+      throw new Error("Instellingen niet gevonden. Maak eerst standaardinstellingen aan.");
+    }
+
+    const current = settings.herinneringInstellingen ?? {};
+
+    await ctx.db.patch(settings._id, {
+      herinneringInstellingen: {
+        herinneringDagen: args.herinneringDagen ?? current.herinneringDagen ?? [7, 14, 21],
+        aanmaningDagen: args.aanmaningDagen ?? current.aanmaningDagen ?? [30, 45, 60],
+        automatischVersturen: args.automatischVersturen ?? current.automatischVersturen ?? false,
+      },
+    });
+
+    return settings._id;
+  },
+});
+
 /** Internal: get voorwaarden URL for a specific user (for automated emails) */
 export const getVoorwaardenForUser = internalQuery({
   args: { userId: v.id("users") },

@@ -270,7 +270,7 @@
       "cluster": "A",
       "priority": "P0",
       "description": "Automatische betalingsherinneringen",
-      "passes": false,
+      "passes": true,
       "steps": [
         "Schema: voeg herinneringsinstellingen toe (dag 7, 14, 21 configureerbaar in settings)",
         "Backend: cron job die dagelijks onbetaalde facturen checkt",

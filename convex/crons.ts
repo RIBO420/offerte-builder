@@ -35,4 +35,19 @@ crons.daily(
   internal.softDelete.runDailyCleanup
 );
 
+/**
+ * Daily Payment Reminders & Collection Letters (FAC-006, FAC-007)
+ *
+ * Runs at 8:00 AM UTC every day to:
+ * - Check for overdue invoices
+ * - Send automatic payment reminders (7, 14, 21 days)
+ * - Generate collection letters (30, 45, 60 days)
+ * - Only processes invoices where automatischVersturen is enabled
+ */
+crons.daily(
+  "betalingsherinneringen verwerken",
+  { hourUTC: 8, minuteUTC: 0 },
+  internal.betalingsherinneringen.processAutomatischeHerinneringen
+);
+
 export default crons;

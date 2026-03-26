@@ -311,9 +311,9 @@ function FacturenPageContent() {
     [router]
   );
 
-  // Check if vervaldatum is in the past
+  // Check if vervaldatum is in the past (verzonden or vervallen status)
   const isOverdue = useCallback((vervaldatum: number, status: string) => {
-    return status === "verzonden" && vervaldatum < Date.now();
+    return (status === "verzonden" || status === "vervallen") && vervaldatum < Date.now();
   }, []);
 
   return (
@@ -424,6 +424,24 @@ function FacturenPageContent() {
                 </div>
                 <div className="h-10 w-10 rounded-full bg-amber-100 dark:bg-amber-950 flex items-center justify-center">
                   <Euro className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className={stats.verlopen > 0 ? "border-red-200 dark:border-red-900" : ""}>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className={`text-2xl font-bold ${stats.verlopen > 0 ? "text-red-600 dark:text-red-400" : ""}`}>
+                    {stats.verlopen}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Verlopen facturen
+                  </p>
+                </div>
+                <div className={`h-10 w-10 rounded-full flex items-center justify-center ${stats.verlopen > 0 ? "bg-red-100 dark:bg-red-950" : "bg-gray-100 dark:bg-gray-950"}`}>
+                  <AlertTriangle className={`h-5 w-5 ${stats.verlopen > 0 ? "text-red-600 dark:text-red-400" : "text-gray-400 dark:text-gray-600"}`} />
                 </div>
               </div>
             </CardContent>
@@ -655,14 +673,35 @@ function FacturenPageContent() {
                                   {formatDate(factuur.factuurdatum)}
                                 </TableCell>
                                 <TableCell>
-                                  <div className="flex items-center gap-2">
-                                    <span className={isOverdue(factuur.vervaldatum, factuur.status) ? "text-red-600 dark:text-red-400 font-medium" : "text-muted-foreground"}>
-                                      {formatDate(factuur.vervaldatum)}
-                                    </span>
-                                    {isOverdue(factuur.vervaldatum, factuur.status) && (
-                                      <Clock className="h-4 w-4 text-red-500" />
-                                    )}
-                                  </div>
+                                  {(() => {
+                                    const factuurOverdue = isOverdue(factuur.vervaldatum, factuur.status);
+                                    const overdueInfo = overdueStats?.[factuur._id];
+                                    return (
+                                      <div className="space-y-1">
+                                        <div className="flex items-center gap-2">
+                                          <span className={factuurOverdue ? "text-red-600 dark:text-red-400 font-medium" : "text-muted-foreground"}>
+                                            {formatDate(factuur.vervaldatum)}
+                                          </span>
+                                          {factuurOverdue && (
+                                            <AlertTriangle className="h-4 w-4 text-red-500" />
+                                          )}
+                                        </div>
+                                        {factuurOverdue && overdueInfo && (
+                                          <div className="flex items-center gap-1.5">
+                                            <span className="text-xs text-red-600 dark:text-red-400 font-medium">
+                                              {overdueInfo.dagenVervallen}d verlopen
+                                            </span>
+                                            {overdueInfo.aantalHerinneringen > 0 && (
+                                              <Badge variant="outline" className="h-5 px-1.5 text-[10px] bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800">
+                                                <Bell className="h-2.5 w-2.5 mr-0.5" />
+                                                {overdueInfo.aantalHerinneringen}
+                                              </Badge>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })()}
                                 </TableCell>
                                 <TableCell>
                                   <StatusBadge
