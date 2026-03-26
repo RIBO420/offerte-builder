@@ -34,23 +34,30 @@
 ---
 
 ## Fase 2: Data Integriteit (Week 1-2)
-**Status:** [ ] Not Started / [ ] In Progress / [ ] Complete
+**Status:** [x] Complete
 **Target:** 2026-04-07
 
 | # | Task | Locatie | Severity | Status | Agent | Datum |
 |---|------|---------|----------|--------|-------|-------|
-| 2.1 | Voeg index toe: `offertes` by `klantId` | `convex/schema.ts` | CRITICAL | [ ] | — | — |
-| 2.2 | Voeg index toe: `urenRegistraties` by datum+medewerker | `convex/schema.ts` | CRITICAL | [ ] | — | — |
-| 2.3 | Herschrijf voormanDashboard queries (full table scan) | `convex/voormanDashboard.ts` | CRITICAL | [ ] | — | — |
-| 2.4 | Herschrijf directieDashboard queries (full table scan) | `convex/directieDashboard.ts` | CRITICAL | [ ] | — | — |
-| 2.5 | Herschrijf medewerkerAnalytics queries (5 full scans) | `convex/medewerkerAnalytics.ts` | CRITICAL | [ ] | — | — |
-| 2.6 | Fix mobile.ts getWeekHours full table scan | `convex/mobile.ts` | CRITICAL | [ ] | — | — |
-| 2.7 | Migreer `urenRegistraties.medewerker` string → `v.id("medewerkers")` | `convex/schema.ts` + migrations | CRITICAL | [ ] | — | — |
-| 2.8 | Vervang `v.any()` door specifieke validators (7 locaties) | `convex/schema.ts` | WARNING | [ ] | — | — |
-| 2.9 | Fix offset-based pagination → cursor-based | `convex/projecten.ts`, `facturen.ts`, `leveranciers.ts` | WARNING | [ ] | — | — |
+| 2.1 | Voeg index toe: `offertes` by `klantId` (+17 extra indexes over 10 tabellen) | `convex/schema.ts` | CRITICAL | [x] | add-indexes | 2026-03-26 |
+| 2.2 | Voeg index toe: `urenRegistraties` by datum+medewerker (+by_project, by_medewerker_clerk) | `convex/schema.ts` | CRITICAL | [x] | add-indexes | 2026-03-26 |
+| 2.3 | Herschrijf voormanDashboard queries (full table scan) | `convex/voormanDashboard.ts` | CRITICAL | [x] | fix-table-scans | 2026-03-26 |
+| 2.4 | Herschrijf directieDashboard queries (full table scan) | `convex/directieDashboard.ts` | CRITICAL | [x] | fix-table-scans | 2026-03-26 |
+| 2.5 | Herschrijf medewerkerAnalytics queries (6 full scans → indexed) | `convex/medewerkerAnalytics.ts` | CRITICAL | [x] | fix-table-scans | 2026-03-26 |
+| 2.6 | Fix mobile.ts getWeekHours full table scan | `convex/mobile.ts` | CRITICAL | [x] | fix-table-scans | 2026-03-26 |
+| 2.7 | Migreer `urenRegistraties.medewerker` string → `v.id("medewerkers")` + migration script | `convex/schema.ts` + `convex/migrations.ts` | CRITICAL | [x] | fix-schema-types | 2026-03-26 |
+| 2.8 | Vervang alle 7 `v.any()` door specifieke validators | `convex/schema.ts` + 6 functiebestanden | WARNING | [x] | fix-schema-types | 2026-03-26 |
+| 2.9 | Fix offset-based pagination → cursor-based (3 backend + 2 frontend) | `convex/projecten.ts`, `facturen.ts`, `leveranciers.ts` + frontend pages | WARNING | [x] | fix-pagination | 2026-03-26 |
 | 2.10 | Voeg soft delete toe aan tabellen die het missen | `convex/schema.ts` | WARNING | [ ] | — | — |
-| 2.11 | Voeg `updatedAt` toe aan ~16 tabellen die het missen | `convex/schema.ts` | INFO | [ ] | — | — |
+| 2.11 | Voeg `updatedAt` toe aan 6 tabellen die het missen | `convex/schema.ts` | INFO | [x] | fix-schema-types | 2026-03-26 |
 | 2.12 | Fix N+1 queries in teams.ts (8 instances) | `convex/teams.ts` | WARNING | [ ] | — | — |
+
+**Bonus fixes (niet in origineel plan):**
+- [x] 18 indexes toegevoegd over 10 tabellen (add-indexes, 2026-03-26)
+- [x] `configuratorAanvragen.countByStatus` full table scan → indexed (fix-table-scans, 2026-03-26)
+- [x] `brandstofRegistratie.datum` v.number() → v.string() (date type consistentie) (fix-schema-types, 2026-03-26)
+- [x] Migration script `backfillMedewerkerId` + `migrateBrandstofDatum` toegevoegd (fix-schema-types, 2026-03-26)
+- [x] `configuratorAanvragen.specificaties` v.any() → typed v.union() met 5 type-specifieke validators (fix-schema-types, 2026-03-26)
 
 **Fase 2 Score Impact:** Performance C → B, Architecture B- → B
 

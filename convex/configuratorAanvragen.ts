@@ -78,10 +78,16 @@ export const countByStatus = query({
   args: {},
   handler: async (ctx) => {
     await requireAuthUserId(ctx);
-    const all = await ctx.db.query("configuratorAanvragen").collect();
-    return all.filter((a) => {
-      const status = a.pipelineStatus ?? a.status;
-      return status === "nieuw";
+    // Use by_status index to fetch only "nieuw" records instead of full table scan.
+    // Also check pipelineStatus for records where status differs from pipeline status.
+    const nieuwByStatus = await ctx.db
+      .query("configuratorAanvragen")
+      .withIndex("by_status", (q) => q.eq("status", "nieuw"))
+      .collect();
+    // Count records where the effective status (pipelineStatus ?? status) is "nieuw"
+    return nieuwByStatus.filter((a) => {
+      const effectiveStatus = a.pipelineStatus ?? a.status;
+      return effectiveStatus === "nieuw";
     }).length;
   },
 });
@@ -206,7 +212,50 @@ export const create = mutation({
     klantAdres: v.string(),
     klantPostcode: v.string(),
     klantPlaats: v.string(),
-    specificaties: v.any(),
+    specificaties: v.union(
+      v.object({
+        oppervlakte: v.number(),
+        typeGras: v.string(),
+        ondergrond: v.string(),
+        drainage: v.boolean(),
+        opsluitbanden: v.boolean(),
+        opsluitbandenMeters: v.number(),
+        poortbreedte: v.number(),
+        handmatigToeslag: v.optional(v.boolean()),
+        gewensteStartdatum: v.optional(v.union(v.string(), v.null())),
+        prijsDetails: v.optional(v.object({
+          subtotaalExBtw: v.number(),
+          btw: v.number(),
+          totaalInclBtw: v.number(),
+        })),
+      }),
+      v.object({
+        boomschorsType: v.string(),
+        oppervlakte: v.number(),
+        laagDikte: v.string(),
+        m3Nodig: v.number(),
+        bezorging: v.boolean(),
+        bezorgPostcode: v.optional(v.string()),
+        leveringsDatum: v.optional(v.union(v.string(), v.null())),
+        opmerkingen: v.optional(v.union(v.string(), v.null())),
+      }),
+      v.object({
+        oppervlakte: v.number(),
+        conditie: v.string(),
+        bijzaaien: v.boolean(),
+        topdressing: v.boolean(),
+        bemesting: v.boolean(),
+        poortBreedte: v.number(),
+        gewensteDatum: v.optional(v.union(v.string(), v.null())),
+        opmerkingen: v.optional(v.union(v.string(), v.null())),
+      }),
+      v.object({
+        onderwerp: v.string(),
+        bericht: v.string(),
+        aantalFotos: v.optional(v.number()),
+      }),
+      v.object({})
+    ),
     indicatiePrijs: v.number(),
   },
   handler: async (ctx, args) => {
@@ -488,7 +537,7 @@ export const updatePipelineStatus = mutation({
       metadata: {
         vanStatus: currentStatus,
         naarStatus: args.pipelineStatus,
-        verliesReden: args.verliesReden,
+        ...(args.verliesReden ? { verliesReden: args.verliesReden } : {}),
       },
       createdAt: Date.now(),
     });

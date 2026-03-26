@@ -193,7 +193,7 @@ export const create = mutation({
     bouwjaar: v.optional(v.number()),
     kleur: v.optional(v.string()),
     fleetgoId: v.optional(v.string()),
-    fleetgoData: v.optional(v.any()),
+    fleetgoData: v.optional(v.record(v.string(), v.union(v.string(), v.number(), v.boolean(), v.null()))),
     kmStand: v.optional(v.number()),
     status: v.optional(
       v.union(
@@ -248,7 +248,7 @@ export const update = mutation({
     bouwjaar: v.optional(v.number()),
     kleur: v.optional(v.string()),
     fleetgoId: v.optional(v.string()),
-    fleetgoData: v.optional(v.any()),
+    fleetgoData: v.optional(v.record(v.string(), v.union(v.string(), v.number(), v.boolean(), v.null()))),
     kmStand: v.optional(v.number()),
     status: v.optional(
       v.union(
@@ -286,7 +286,7 @@ export const update = mutation({
       bouwjaar?: number;
       kleur?: string;
       fleetgoId?: string;
-      fleetgoData?: unknown;
+      fleetgoData?: Record<string, string | number | boolean | null>;
       kmStand?: number;
       status?: "actief" | "inactief" | "onderhoud";
       notities?: string;
@@ -371,7 +371,7 @@ export const hardDelete = mutation({
 export const syncFromFleetGo = mutation({
   args: {
     id: v.id("voertuigen"),
-    fleetgoData: v.any(),
+    fleetgoData: v.record(v.string(), v.union(v.string(), v.number(), v.boolean(), v.null())),
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
@@ -462,7 +462,7 @@ export const getWithDetails = query({
       b.datum.localeCompare(a.datum)
     );
     const sortedBrandstof = brandstofRegistraties.sort((a, b) =>
-      b.datum - a.datum
+      b.datum.localeCompare(a.datum)
     );
     const sortedOnderhoud = onderhoud.sort((a, b) =>
       b.geplanteDatum - a.geplanteDatum

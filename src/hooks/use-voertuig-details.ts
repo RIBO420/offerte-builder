@@ -35,7 +35,7 @@ export interface KilometerRecord {
 export interface BrandstofRecord {
   _id: Id<"brandstofRegistratie">;
   voertuigId: Id<"voertuigen">;
-  datum: number;
+  datum: string; // YYYY-MM-DD format
   liters: number;
   kosten: number;
   kilometerstand: number;
@@ -130,7 +130,7 @@ export function useVoertuigDetails(voertuigId: Id<"voertuigen"> | null) {
     voertuig,
     onderhoudRecords: (onderhoudRecords ?? []) as OnderhoudRecord[],
     kilometerRecords: (kilometerRecords ?? []) as KilometerRecord[],
-    brandstofRecords: (brandstofRecords ?? []) as BrandstofRecord[],
+    brandstofRecords: (brandstofRecords ?? []) as unknown as BrandstofRecord[],
     brandstofStats: brandstofStats as BrandstofStats | null,
     upcomingOnderhoud,
     apkDaysLeft,
@@ -171,7 +171,7 @@ export function useVoertuigDetails(voertuigId: Id<"voertuigen"> | null) {
     // Brandstof mutations
     createBrandstof: async (data: {
       voertuigId: Id<"voertuigen">;
-      datum: number;
+      datum: string;
       liters: number;
       kosten: number;
       kilometerstand: number;

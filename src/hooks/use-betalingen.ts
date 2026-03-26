@@ -140,7 +140,7 @@ export function useStartMollieBetaling() {
           klantNaam: params.klantNaam,
           klantEmail: params.klantEmail,
           type: params.type,
-          metadata: params.metadata as Record<string, unknown> | undefined,
+          metadata: params.metadata as Record<string, string | number | boolean | null> | undefined,
         });
 
         return data;

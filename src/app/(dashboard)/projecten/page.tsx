@@ -2,13 +2,12 @@
 
 import { useState, useMemo, useCallback, Suspense } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useReducedMotion } from "@/hooks/use-accessibility";
 import { useDebounce } from "@/hooks/use-debounce";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Pagination } from "@/components/ui/pagination";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -126,51 +125,25 @@ function ProjectenPageLoader() {
 
 function ProjectenPageContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const reducedMotion = useReducedMotion();
   const { user, isLoading: isUserLoading } = useCurrentUser();
-
-  // Pagination state from URL params
-  const [page, setPage] = useState(() => {
-    const pageParam = searchParams.get("page");
-    return pageParam ? parseInt(pageParam, 10) : 1;
-  });
-  const [limit, setLimit] = useState(() => {
-    const limitParam = searchParams.get("limit");
-    return limitParam ? parseInt(limitParam, 10) : 25;
-  });
 
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [activeTab, setActiveTab] = useState("alle");
 
-  // Update URL when pagination changes
-  const updateUrl = useCallback((newPage: number, newLimit: number) => {
-    const params = new URLSearchParams(window.location.search);
-    params.set("page", newPage.toString());
-    params.set("limit", newLimit.toString());
-    const newUrl = `${window.location.pathname}?${params.toString()}`;
-    window.history.pushState({}, "", newUrl);
-  }, []);
-
-  const handlePageChange = useCallback((newPage: number) => {
-    setPage(newPage);
-    updateUrl(newPage, limit);
-  }, [limit, updateUrl]);
-
-  const handleLimitChange = useCallback((newLimit: number) => {
-    setLimit(newLimit);
-    setPage(1);
-    updateUrl(1, newLimit);
-  }, [updateUrl]);
+  // Cursor-based pagination state
+  const [cursor, setCursor] = useState<string | undefined>(undefined);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [previousItems, setPreviousItems] = useState<any[]>([]);
 
   // Status filter for paginated query
   const statusFilter = activeTab !== "alle" ? activeTab as "gepland" | "in_uitvoering" | "afgerond" | "nacalculatie_compleet" | "gefactureerd" : undefined;
 
-  // Use paginated query
+  // Use cursor-based paginated query
   const paginatedData = useQuery(
     api.projecten.listPaginated,
-    user?._id ? { page, limit, status: statusFilter } : "skip"
+    user?._id ? { limit: 25, cursor, status: statusFilter } : "skip"
   );
 
   // Also fetch full list for stats and other features (non-paginated)
@@ -214,6 +187,13 @@ function ProjectenPageContent() {
     );
   }, [geaccepteerdeOffertes, projecten]);
 
+  // Accumulate items across cursor pages
+  const allItems = useMemo(() => {
+    if (!paginatedData) return previousItems;
+    if (!cursor) return paginatedData.items;
+    return [...previousItems, ...paginatedData.items];
+  }, [paginatedData, cursor, previousItems]);
+
   // Get items to display - use search results when searching, otherwise use paginated data
   const displayedProjecten = useMemo(() => {
     // Use search results if we have a search query (search is not paginated)
@@ -224,16 +204,24 @@ function ProjectenPageContent() {
       });
     }
 
-    // Otherwise use paginated data (already filtered by status on server)
-    return paginatedData?.items ?? [];
-  }, [paginatedData, searchResults, debouncedSearchQuery, activeTab]);
+    // Otherwise use accumulated cursor-based paginated data
+    return allItems;
+  }, [allItems, searchResults, debouncedSearchQuery, activeTab]);
 
-  // Reset to page 1 when changing tabs (status filter changes)
+  // Handle "Meer laden" button
+  const handleLoadMore = useCallback(() => {
+    if (paginatedData?.nextCursor && paginatedData.hasMore) {
+      setPreviousItems(allItems);
+      setCursor(paginatedData.nextCursor);
+    }
+  }, [paginatedData, allItems]);
+
+  // Reset cursor when changing tabs (status filter changes)
   const handleTabChange = useCallback((newTab: string) => {
     setActiveTab(newTab);
-    setPage(1);
-    updateUrl(1, limit);
-  }, [limit, updateUrl]);
+    setCursor(undefined);
+    setPreviousItems([]);
+  }, []);
 
   const handleNavigate = useCallback(
     (projectId: string) => {
@@ -530,16 +518,17 @@ function ProjectenPageContent() {
                           </TableBody>
                         </Table>
                       </ScrollableTable>
-                      {/* Pagination - only show when not searching */}
-                      {!debouncedSearchQuery.trim() && paginatedData && paginatedData.totalCount > 0 && (
-                        <Pagination
-                          page={page}
-                          totalCount={paginatedData.totalCount}
-                          limit={limit}
-                          onPageChange={handlePageChange}
-                          onLimitChange={handleLimitChange}
-                          className="border-t px-4"
-                        />
+                      {/* Load More - only show when not searching and more data available */}
+                      {!debouncedSearchQuery.trim() && paginatedData?.hasMore && (
+                        <div className="border-t px-4 py-4 flex justify-center">
+                          <Button
+                            variant="outline"
+                            onClick={handleLoadMore}
+                            disabled={!paginatedData.hasMore}
+                          >
+                            Meer laden
+                          </Button>
+                        </div>
                       )}
                     </Card>
                   </motion.div>

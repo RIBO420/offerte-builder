@@ -23,7 +23,7 @@
  *   type: v.union(
  *     v.literal("aanbetaling"), v.literal("configurator"), v.literal("factuur")
  *   ),
- *   metadata: v.optional(v.any()),
+ *   metadata: v.optional(v.record(v.string(), v.union(v.string(), v.number(), v.boolean(), v.null()))),
  *   createdAt: v.number(),
  *   updatedAt: v.number(),
  * })
@@ -143,7 +143,7 @@ export const create = mutation({
     klantNaam: v.string(),
     klantEmail: v.string(),
     type: betalingTypeValidator,
-    metadata: v.optional(v.any()),
+    metadata: v.optional(v.record(v.string(), v.union(v.string(), v.number(), v.boolean(), v.null()))),
   },
   handler: async (ctx, args) => {
     const user = await requireNotViewer(ctx);

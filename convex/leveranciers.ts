@@ -13,34 +13,40 @@ import {
   validateNonNegative,
 } from "./validators";
 
-// List all leveranciers for authenticated user
+// List all active leveranciers for authenticated user
+// When called without cursor, returns all active leveranciers (used by dropdowns/forms).
+// When called with cursor, returns cursor-based paginated results.
 export const list = query({
   args: {
     limit: v.optional(v.number()),
-    offset: v.optional(v.number()),
+    cursor: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await requireAuthUserId(ctx);
 
-    const query = ctx.db
-      .query("leveranciers")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .filter((q) => q.eq(q.field("isActief"), true));
-
-    const leveranciers = await query.collect();
-
-    // Apply pagination if specified
-    if (args.offset !== undefined || args.limit !== undefined) {
-      const offset = args.offset ?? 0;
-      const limit = args.limit ?? leveranciers.length;
-      return {
-        leveranciers: leveranciers.slice(offset, offset + limit),
-        total: leveranciers.length,
-        hasMore: offset + limit < leveranciers.length,
-      };
+    // If no cursor is provided, return all active leveranciers (backward compat for dropdowns)
+    if (!args.cursor && !args.limit) {
+      const leveranciers = await ctx.db
+        .query("leveranciers")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .filter((q) => q.eq(q.field("isActief"), true))
+        .collect();
+      return leveranciers;
     }
 
-    return leveranciers;
+    // Cursor-based pagination
+    const limit = args.limit || 25;
+    const result = await ctx.db
+      .query("leveranciers")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .filter((q) => q.eq(q.field("isActief"), true))
+      .paginate({ numItems: limit, cursor: args.cursor ?? null });
+
+    return {
+      leveranciers: result.page,
+      nextCursor: result.continueCursor,
+      hasMore: !result.isDone,
+    };
   },
 });
 

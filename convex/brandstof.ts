@@ -25,7 +25,7 @@ export const listByVoertuig = query({
       .collect();
 
     // Sorteer op datum (nieuwste eerst)
-    const sorted = records.sort((a, b) => b.datum - a.datum);
+    const sorted = records.sort((a, b) => b.datum.localeCompare(a.datum));
 
     return sorted.slice(0, limit);
   },
@@ -46,7 +46,7 @@ export const list = query({
       .collect();
 
     // Sorteer op datum (nieuwste eerst)
-    const sorted = records.sort((a, b) => b.datum - a.datum);
+    const sorted = records.sort((a, b) => b.datum.localeCompare(a.datum));
 
     return sorted.slice(0, limit);
   },
@@ -72,7 +72,7 @@ export const get = query({
 export const create = mutation({
   args: {
     voertuigId: v.id("voertuigen"),
-    datum: v.number(), // Timestamp
+    datum: v.string(), // YYYY-MM-DD format
     liters: v.number(),
     kosten: v.number(),
     kilometerstand: v.number(),
@@ -115,7 +115,7 @@ export const create = mutation({
 export const update = mutation({
   args: {
     id: v.id("brandstofRegistratie"),
-    datum: v.optional(v.number()),
+    datum: v.optional(v.string()),
     liters: v.optional(v.number()),
     kosten: v.optional(v.number()),
     kilometerstand: v.optional(v.number()),
@@ -136,7 +136,7 @@ export const update = mutation({
 
     // Bouw update object
     const updateData: {
-      datum?: number;
+      datum?: string;
       liters?: number;
       kosten?: number;
       kilometerstand?: number;
@@ -193,14 +193,15 @@ export const getVerbruikStatistieken = query({
     }
 
     const periode = args.periode ?? 365; // Standaard 1 jaar
-    const startDatum = Date.now() - periode * 24 * 60 * 60 * 1000;
+    const startTimestamp = Date.now() - periode * 24 * 60 * 60 * 1000;
+    const startDatum = new Date(startTimestamp).toISOString().split("T")[0]; // YYYY-MM-DD
 
     const records = await ctx.db
       .query("brandstofRegistratie")
       .withIndex("by_voertuig", (q) => q.eq("voertuigId", args.voertuigId))
       .collect();
 
-    // Filter op periode
+    // Filter op periode (YYYY-MM-DD string comparison works for date ordering)
     const filteredRecords = records.filter(
       (record) => record.datum >= startDatum
     );
@@ -268,7 +269,8 @@ export const getKostenOverzicht = query({
   handler: async (ctx, args) => {
     const userId = await requireAuthUserId(ctx);
     const periode = args.periode ?? 30; // Standaard 30 dagen
-    const startDatum = Date.now() - periode * 24 * 60 * 60 * 1000;
+    const startTimestamp = Date.now() - periode * 24 * 60 * 60 * 1000;
+    const startDatum = new Date(startTimestamp).toISOString().split("T")[0]; // YYYY-MM-DD
 
     // Haal alle voertuigen op
     const voertuigen = await ctx.db
@@ -282,7 +284,7 @@ export const getKostenOverzicht = query({
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
 
-    // Filter op periode
+    // Filter op periode (YYYY-MM-DD string comparison works for date ordering)
     const filteredRecords = records.filter(
       (record) => record.datum >= startDatum
     );
@@ -366,7 +368,7 @@ export const getRecenteRegistraties = query({
       .collect();
 
     // Sorteer op datum (nieuwste eerst)
-    const sorted = records.sort((a, b) => b.datum - a.datum);
+    const sorted = records.sort((a, b) => b.datum.localeCompare(a.datum));
     const recent = sorted.slice(0, limit);
 
     // Haal voertuig details op

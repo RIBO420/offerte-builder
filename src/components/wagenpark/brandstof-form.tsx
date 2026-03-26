@@ -75,7 +75,7 @@ interface BrandstofFormProps {
   isLoading?: boolean;
   onCreate: (data: {
     voertuigId: Id<"voertuigen">;
-    datum: number;
+    datum: string;
     liters: number;
     kosten: number;
     kilometerstand: number;
@@ -84,8 +84,10 @@ interface BrandstofFormProps {
   onRemove: (id: Id<"brandstofRegistratie">) => Promise<unknown>;
 }
 
-function formatDate(timestamp: number): string {
-  return new Date(timestamp).toLocaleDateString("nl-NL", {
+function formatDate(datum: string): string {
+  // datum is YYYY-MM-DD format
+  const date = new Date(datum + "T00:00:00");
+  return date.toLocaleDateString("nl-NL", {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -162,7 +164,7 @@ export function BrandstofForm({
     try {
       await onCreate({
         voertuigId,
-        datum: new Date(data.datum).getTime(),
+        datum: data.datum, // YYYY-MM-DD string from date input
         liters: parseFloat(data.liters),
         kosten: parseFloat(data.kosten),
         kilometerstand: kmValue,

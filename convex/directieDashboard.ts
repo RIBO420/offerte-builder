@@ -28,12 +28,17 @@ export const getDirectieStats = query({
     const thisQ = getQuarterBounds(now);
     const prevQ = getQuarterBounds(new Date(now.getTime() - QUARTER_MS));
 
-    // Fetch all data in parallel
-    const [allOffertes, allProjecten, allFacturen, allUren] = await Promise.all([
+    // Utilization: hours logged this month — compute date string before parallel fetch
+    const monthStartStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+
+    // Fetch all data in parallel (uren scoped to current month via by_datum index)
+    const [allOffertes, allProjecten, allFacturen, urenDezeMaandRecords] = await Promise.all([
       ctx.db.query("offertes").withIndex("by_user", (q) => q.eq("userId", userId)).collect(),
       ctx.db.query("projecten").withIndex("by_user", (q) => q.eq("userId", userId)).collect(),
       ctx.db.query("facturen").withIndex("by_user", (q) => q.eq("userId", userId)).collect(),
-      ctx.db.query("urenRegistraties").collect(),
+      ctx.db.query("urenRegistraties")
+        .withIndex("by_datum", (q) => q.gte("datum", monthStartStr))
+        .collect(),
     ]);
 
     // ── Financial KPIs ──────────────────────────────────────────────
@@ -74,10 +79,7 @@ export const getDirectieStats = query({
       (p) => p.status === "afgerond" || p.status === "gefactureerd"
     );
 
-    // Utilization: hours logged this month
-    const monthStartStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
-    const urenDezeMaand = allUren
-      .filter((u) => u.datum >= monthStartStr)
+    const urenDezeMaand = urenDezeMaandRecords
       .reduce((sum, u) => sum + (u.uren ?? 0), 0);
 
     // Offerte conversion rate

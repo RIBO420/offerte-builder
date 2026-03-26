@@ -57,7 +57,7 @@ export const create = mutation({
       v.literal("aangemaakt")
     ),
     beschrijving: v.string(),
-    metadata: v.optional(v.any()),
+    metadata: v.optional(v.record(v.string(), v.union(v.string(), v.number(), v.boolean(), v.null()))),
   },
   handler: async (ctx, args) => {
     const user = await requireNotViewer(ctx);

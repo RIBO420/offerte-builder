@@ -224,7 +224,12 @@ export default defineSchema({
     .index("by_user_status", ["userId", "status"])
     .index("by_nummer", ["offerteNummer"])
     .index("by_share_token", ["shareToken"])
-    .index("by_lead", ["leadId"]),
+    .index("by_lead", ["leadId"])
+    // Index for klant-scoped queries (klanten.ts: getById, delete, anonymize — 8+ queries)
+    .index("by_klant", ["klantId"])
+    // Compound indexes for archived/deleted filtering (offertes.ts: list, stats, dashboard)
+    .index("by_user_archived", ["userId", "isArchived"])
+    .index("by_user_deleted", ["userId", "deletedAt"]),
 
   // Prijsboek
   producten: defineTable({
@@ -242,6 +247,8 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_categorie", ["userId", "categorie"])
+    // Index for active-only product queries (voorraad.ts: inventarisatie)
+    .index("by_user_actief", ["userId", "isActief"])
     .searchIndex("search_producten", {
       searchField: "productnaam",
       filterFields: ["userId", "categorie"],
@@ -255,6 +262,7 @@ export default defineSchema({
     normuurPerEenheid: v.number(),
     eenheid: v.string(),
     omschrijving: v.optional(v.string()),
+    updatedAt: v.optional(v.number()),
   })
     .index("by_user", ["userId"])
     .index("by_user_scope", ["userId", "scope"]),
@@ -265,9 +273,12 @@ export default defineSchema({
     type: v.string(), // bereikbaarheid, complexiteit, hoogteverschil, etc.
     waarde: v.string(), // goed, beperkt, slecht, laag, gemiddeld, hoog
     factor: v.number(),
+    updatedAt: v.optional(v.number()),
   })
     .index("by_user_type", ["userId", "type"])
-    .index("by_type", ["type"]),
+    .index("by_type", ["type"])
+    // Compound index to avoid .filter on waarde after by_user_type (correctiefactoren.ts)
+    .index("by_user_type_waarde", ["userId", "type", "waarde"]),
 
   // Instellingen
   instellingen: defineTable({
@@ -506,7 +517,10 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_status", ["status"])
     .index("by_user_status", ["userId", "status"])
-    .index("by_offerte", ["offerteId"]),
+    .index("by_offerte", ["offerteId"])
+    // Compound indexes for archived/deleted filtering (projecten.ts: list, search, stats)
+    .index("by_user_archived", ["userId", "isArchived"])
+    .index("by_user_deleted", ["userId", "deletedAt"]),
 
   // Voorcalculaties - Pre-calculation data
   // Can be linked to either an offerte (before sending) or a project (for legacy/reference)
@@ -521,6 +535,7 @@ export default defineSchema({
     geschatteDagen: v.number(),
     normUrenPerScope: v.record(v.string(), v.number()), // { "grondwerk": 16, "bestrating": 24, ... }
     createdAt: v.number(),
+    updatedAt: v.optional(v.number()),
   })
     .index("by_project", ["projectId"])
     .index("by_offerte", ["offerteId"]),
@@ -538,9 +553,12 @@ export default defineSchema({
       v.literal("gestart"),
       v.literal("afgerond")
     ),
+    updatedAt: v.optional(v.number()),
   })
     .index("by_project", ["projectId"])
-    .index("by_status", ["status"]),
+    .index("by_status", ["status"])
+    // Compound index for project-scoped status filtering (voormanDashboard.ts, weekPlanning.ts)
+    .index("by_project_status", ["projectId", "status"]),
 
   // WeekPlanning — Medewerker-project-dag toewijzingen voor weekplanning
   weekPlanning: defineTable({
@@ -551,6 +569,7 @@ export default defineSchema({
     voertuigId: v.optional(v.id("voertuigen")), // Bus/voertuig toewijzing (PLN-003)
     notities: v.optional(v.string()),
     createdAt: v.number(),
+    updatedAt: v.optional(v.number()),
   })
     .index("by_datum", ["datum"])
     .index("by_medewerker", ["medewerkerId"])
@@ -570,7 +589,10 @@ export default defineSchema({
     tariefType: v.union(v.literal("uur"), v.literal("dag")),
     gekoppeldeScopes: v.array(v.string()), // Scopes die automatisch deze machine triggeren
     isActief: v.boolean(),
-  }).index("by_user", ["userId"]),
+  })
+    .index("by_user", ["userId"])
+    // Index for active-only machine queries (machines.ts: getForScopes, getStatistics; weekPlanning.ts)
+    .index("by_user_actief", ["userId", "isActief"]),
 
   // Medewerkers - Personeelsbeheer
   // Registratie van medewerkers voor planning en urenregistratie
@@ -697,11 +719,20 @@ export default defineSchema({
       )
     ),
     medewerkerClerkId: v.optional(v.string()), // Link naar Clerk user
+    medewerkerId: v.optional(v.id("medewerkers")), // Typed reference to medewerkers table
   })
     .index("by_project", ["projectId"])
     .index("by_project_datum", ["projectId", "datum"])
     .index("by_datum", ["datum"])
-    .index("by_idempotency", ["idempotencyKey"]),
+    .index("by_idempotency", ["idempotencyKey"])
+    // Index for medewerker-scoped queries (urenRegistraties.ts, mobile.ts, medewerkerAnalytics.ts)
+    .index("by_medewerker", ["medewerker"])
+    // Compound index for medewerker + datum filtering (dashboard queries, week summaries)
+    .index("by_medewerker_datum", ["medewerker", "datum"])
+    // Index for clerkId-based lookups from mobile app
+    .index("by_medewerker_clerk", ["medewerkerClerkId"])
+    // Index for typed medewerker ID lookups
+    .index("by_medewerker_id", ["medewerkerId"]),
 
   // MachineGebruik - Machine usage per project
   machineGebruik: defineTable({
@@ -710,6 +741,7 @@ export default defineSchema({
     datum: v.string(), // YYYY-MM-DD format
     uren: v.number(),
     kosten: v.number(),
+    updatedAt: v.optional(v.number()),
   })
     .index("by_project", ["projectId"])
     .index("by_project_datum", ["projectId", "datum"])
@@ -872,7 +904,9 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_factuurnummer", ["factuurnummer"])
     .index("by_status", ["status"])
-    .index("by_referentieFactuur", ["referentieFactuurId"]),
+    .index("by_referentieFactuur", ["referentieFactuurId"])
+    // Compound index for user-scoped status queries (betalingsherinneringen.ts, users.ts)
+    .index("by_user_status", ["userId", "status"]),
 
   // Betalingsherinneringen & Aanmaningen (FAC-006, FAC-007)
   betalingsherinneringen: defineTable({
@@ -927,7 +961,7 @@ export default defineSchema({
     bouwjaar: v.optional(v.number()), // Year built
     kleur: v.optional(v.string()), // Color
     fleetgoId: v.optional(v.string()), // External ID from FleetGo
-    fleetgoData: v.optional(v.any()), // Raw data from FleetGo API
+    fleetgoData: v.optional(v.record(v.string(), v.union(v.string(), v.number(), v.boolean(), v.null()))), // Raw data from FleetGo API
     laatsteSyncAt: v.optional(v.number()), // Last sync timestamp
     kmStand: v.optional(v.number()), // Current mileage
     status: v.union(
@@ -1000,7 +1034,7 @@ export default defineSchema({
   brandstofRegistratie: defineTable({
     voertuigId: v.id("voertuigen"),
     userId: v.id("users"),
-    datum: v.number(), // Timestamp
+    datum: v.string(), // YYYY-MM-DD format (consistent with other tables)
     liters: v.number(),
     kosten: v.number(),
     kilometerstand: v.number(),
@@ -1023,7 +1057,10 @@ export default defineSchema({
     isActief: v.boolean(),
     createdAt: v.number(),
     updatedAt: v.number(),
-  }).index("by_user", ["userId"]),
+  })
+    .index("by_user", ["userId"])
+    // Index for active-only team queries (teams.ts: list, teamOverzicht)
+    .index("by_user_actief", ["userId", "isActief"]),
 
   // VoertuigSchades - Damage reports for vehicles
   // Track damages, repairs, and insurance claims
@@ -1527,7 +1564,7 @@ export default defineSchema({
     // Shared optional fields
     error: v.optional(v.string()), // Error message on failure
     reason: v.optional(v.string()), // Reason for skipping (e.g., quiet hours, prefs disabled, anti-spam)
-    data: v.optional(v.any()), // Additional payload data
+    data: v.optional(v.record(v.string(), v.union(v.string(), v.number(), v.boolean(), v.null()))), // Additional payload data
     projectId: v.optional(v.string()), // Related project ID
     senderUserId: v.optional(v.id("users")), // Who triggered the notification
 
@@ -1551,7 +1588,7 @@ export default defineSchema({
     ),
     title: v.string(),
     body: v.string(),
-    data: v.optional(v.any()), // Additional data payload
+    data: v.optional(v.record(v.string(), v.union(v.string(), v.number(), v.boolean(), v.null()))), // Additional data payload (DEPRECATED: migrate to notificationDeliveryLog)
     status: v.union(
       v.literal("sent"),
       v.literal("delivered"),
@@ -1642,7 +1679,7 @@ export default defineSchema({
 
     // Metadata
     triggeredBy: v.optional(v.string()), // "klant" | "systeem" | clerkId
-    metadata: v.optional(v.any()), // Additional context data
+    metadata: v.optional(v.record(v.string(), v.union(v.string(), v.number(), v.boolean(), v.null()))), // Additional context data
 
     createdAt: v.number(),
   })
@@ -1836,7 +1873,9 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_project", ["projectId"])
     .index("by_status", ["status"])
-    .index("by_project_status", ["projectId", "status"]),
+    .index("by_project_status", ["projectId", "status"])
+    // Compound index for user-scoped status queries (materiaalmanDashboard.ts, realtime.ts)
+    .index("by_user_status", ["userId", "status"]),
 
   // ============================================
   // Afvalverwerkers & Transportbedrijven
@@ -1916,7 +1955,57 @@ export default defineSchema({
     klantAdres: v.string(),
     klantPostcode: v.string(),
     klantPlaats: v.string(),
-    specificaties: v.any(), // Type-specifieke data (gazon specs, boomschors specs etc)
+    // Type-specifieke data per aanvraagtype:
+    // - gazon: oppervlakte, typeGras, ondergrond, drainage, opsluitbanden, etc.
+    // - boomschors: boomschorsType, oppervlakte, laagDikte, m3Nodig, bezorging, etc.
+    // - verticuteren: oppervlakte, conditie, bijzaaien, topdressing, bemesting, etc.
+    // - contact: onderwerp, bericht, aantalFotos
+    // - handmatig (empty): {}
+    specificaties: v.union(
+      v.object({
+        oppervlakte: v.number(),
+        typeGras: v.string(),
+        ondergrond: v.string(),
+        drainage: v.boolean(),
+        opsluitbanden: v.boolean(),
+        opsluitbandenMeters: v.number(),
+        poortbreedte: v.number(),
+        handmatigToeslag: v.optional(v.boolean()),
+        gewensteStartdatum: v.optional(v.union(v.string(), v.null())),
+        prijsDetails: v.optional(v.object({
+          subtotaalExBtw: v.number(),
+          btw: v.number(),
+          totaalInclBtw: v.number(),
+        })),
+      }),
+      v.object({
+        boomschorsType: v.string(),
+        oppervlakte: v.number(),
+        laagDikte: v.string(),
+        m3Nodig: v.number(),
+        bezorging: v.boolean(),
+        bezorgPostcode: v.optional(v.string()),
+        leveringsDatum: v.optional(v.union(v.string(), v.null())),
+        opmerkingen: v.optional(v.union(v.string(), v.null())),
+      }),
+      v.object({
+        oppervlakte: v.number(),
+        conditie: v.string(),
+        bijzaaien: v.boolean(),
+        topdressing: v.boolean(),
+        bemesting: v.boolean(),
+        poortBreedte: v.number(),
+        gewensteDatum: v.optional(v.union(v.string(), v.null())),
+        opmerkingen: v.optional(v.union(v.string(), v.null())),
+      }),
+      v.object({
+        onderwerp: v.string(),
+        bericht: v.string(),
+        aantalFotos: v.optional(v.number()),
+      }),
+      // Empty object for handmatige leads
+      v.object({})
+    ),
     indicatiePrijs: v.number(),
     definitievePrijs: v.optional(v.number()),
     betalingId: v.optional(v.string()), // Mollie payment reference
@@ -1956,7 +2045,11 @@ export default defineSchema({
     .index("by_type", ["type"])
     .index("by_referentie", ["referentie"])
     .index("by_pipeline_status", ["pipelineStatus"])
-    .index("by_gekoppeld_klant", ["gekoppeldKlantId"]),
+    .index("by_gekoppeld_klant", ["gekoppeldKlantId"])
+    // Index for assigned user queries (configuratorAanvragen.ts: toewijzen)
+    .index("by_toegewezen", ["toegewezenAan"])
+    // Compound index for type + status filtering (configuratorAanvragen.ts: list queries)
+    .index("by_type_status", ["type", "status"]),
 
   // Lead activiteiten - Activiteitenlog voor CRM pipeline
   leadActiviteiten: defineTable({
@@ -1970,7 +2063,7 @@ export default defineSchema({
     ),
     beschrijving: v.string(),
     gebruikerId: v.optional(v.id("users")),
-    metadata: v.optional(v.any()),
+    metadata: v.optional(v.record(v.string(), v.union(v.string(), v.number(), v.boolean(), v.null()))),
     createdAt: v.number(),
   }).index("by_lead", ["leadId", "createdAt"]),
 
@@ -1996,7 +2089,7 @@ export default defineSchema({
       v.literal("configurator"),
       v.literal("factuur")
     ),
-    metadata: v.optional(v.any()),
+    metadata: v.optional(v.record(v.string(), v.union(v.string(), v.number(), v.boolean(), v.null()))),
     createdAt: v.number(),
     updatedAt: v.number(),
   })

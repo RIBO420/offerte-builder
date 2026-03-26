@@ -1,4 +1,4 @@
-import { mutation } from "./_generated/server";
+import { internalMutation, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { requireAdmin } from "./roles";
@@ -678,5 +678,78 @@ export const listUsersWithRoles = mutation({
       name: u.name,
       role: u.role || "none",
     }));
+  },
+});
+
+// ============================================
+// SCHEMA TYPE MIGRATIONS
+// ============================================
+
+/**
+ * Backfill medewerkerId on urenRegistraties.
+ * Matches the `medewerker` (naam) field to a medewerkers record
+ * and writes the typed `medewerkerId` reference.
+ *
+ * Usage: npx convex run migrations:backfillMedewerkerId
+ */
+export const backfillMedewerkerId = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    // Get all medewerkers to build name->id lookup
+    const medewerkers = await ctx.db.query("medewerkers").collect();
+    const nameToId = new Map(medewerkers.map((m) => [m.naam, m._id]));
+
+    // Get urenRegistraties without medewerkerId
+    const uren = await ctx.db.query("urenRegistraties").collect();
+    let updated = 0;
+    for (const ur of uren) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const record = ur as any;
+      if (!record.medewerkerId && record.medewerker) {
+        const id = nameToId.get(record.medewerker);
+        if (id) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await ctx.db.patch(ur._id, { medewerkerId: id } as any);
+          updated++;
+        }
+      }
+    }
+    return { updated, total: uren.length };
+  },
+});
+
+/**
+ * Migrate brandstofRegistratie.datum from number (timestamp) to string (YYYY-MM-DD).
+ * Converts existing numeric timestamps to YYYY-MM-DD format strings.
+ *
+ * Usage: npx convex run migrations:migrateBrandstofDatum
+ */
+export const migrateBrandstofDatum = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const records = await ctx.db.query("brandstofRegistratie").collect();
+    let migrated = 0;
+    let skipped = 0;
+
+    for (const record of records) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const datum = (record as any).datum;
+      // Check if datum is still a number (not yet migrated)
+      if (typeof datum === "number") {
+        const date = new Date(datum);
+        const yyyy = date.getFullYear();
+        const mm = String(date.getMonth() + 1).padStart(2, "0");
+        const dd = String(date.getDate()).padStart(2, "0");
+        const datumString = `${yyyy}-${mm}-${dd}`;
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await ctx.db.patch(record._id, { datum: datumString } as any);
+        migrated++;
+      } else {
+        skipped++;
+      }
+    }
+
+    return { migrated, skipped, total: records.length };
   },
 });

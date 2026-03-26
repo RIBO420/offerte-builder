@@ -32,14 +32,12 @@ export const getVoormanStats = query({
     const projectIds = [...new Set(dagPlanning.map((p) => p.projectId))];
 
     // Fetch projects, medewerkers, voertuigen in parallel
-    const [projecten, allMedewerkers, allUren] = await Promise.all([
+    // Use by_datum index to fetch only today's uren instead of full table scan
+    const [projecten, allMedewerkers, urenVandaag] = await Promise.all([
       Promise.all(projectIds.map((id) => ctx.db.get(id))),
       ctx.db.query("medewerkers").withIndex("by_user", (q) => q.eq("userId", userId)).collect(),
-      ctx.db.query("urenRegistraties").collect(),
+      ctx.db.query("urenRegistraties").withIndex("by_datum", (q) => q.eq("datum", today)).collect(),
     ]);
-
-    // Today's hours registrations
-    const urenVandaag = allUren.filter((u) => u.datum === today);
 
     // Build project overviews
     const projectOverzichten = await Promise.all(

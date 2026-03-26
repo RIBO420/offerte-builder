@@ -286,7 +286,7 @@ export const sendExpoPushNotification = internalAction({
         to: v.string(),
         title: v.string(),
         body: v.string(),
-        data: v.optional(v.any()),
+        data: v.optional(v.record(v.string(), v.union(v.string(), v.number(), v.boolean(), v.null()))),
         sound: v.optional(v.union(v.literal("default"), v.null())),
         badge: v.optional(v.number()),
         channelId: v.optional(v.string()),
@@ -541,8 +541,9 @@ export const sendChatNotifications = internalAction({
 
     // Send all notifications in batch
     if (messages.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await ctx.runAction(internal.notifications.sendExpoPushNotification, {
-        messages,
+        messages: messages as any,
       });
     }
 
@@ -682,8 +683,9 @@ export const sendDirectMessageNotification = internalAction({
       },
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await ctx.runAction(internal.notifications.sendExpoPushNotification, {
-      messages: [message],
+      messages: [message] as any,
     });
 
     // Log the notification
@@ -1045,7 +1047,7 @@ export const createInAppNotification = internalMutation({
     senderName: v.optional(v.string()),
     senderClerkId: v.optional(v.string()),
     triggeredBy: v.optional(v.string()),
-    metadata: v.optional(v.any()),
+    metadata: v.optional(v.record(v.string(), v.union(v.string(), v.number(), v.boolean(), v.null()))),
   },
   handler: async (ctx, args) => {
     const notificationId = await ctx.db.insert("notifications", {
@@ -1255,7 +1257,7 @@ export const notifyOfferteStatusChange = internalMutation({
           triggeredBy: args.triggeredBy,
           metadata: {
             totaalInclBtw: offerte.totalen.totaalInclBtw,
-            comment: args.comment,
+            ...(args.comment ? { comment: args.comment } : {}),
           },
           createdAt: Date.now(),
         });

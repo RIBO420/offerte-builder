@@ -33,13 +33,11 @@ export const getMedewerkerStats = query({
       throw new Error("Geen toegang tot deze medewerker");
     }
 
-    // Haal alle urenregistraties op
-    let urenRegistraties = await ctx.db.query("urenRegistraties").collect();
-
-    // Filter op medewerker naam
-    urenRegistraties = urenRegistraties.filter(
-      (ur) => ur.medewerker === medewerker.naam
-    );
+    // Haal urenregistraties op via by_medewerker_datum index (scoped to this medewerker)
+    let urenRegistraties = await ctx.db
+      .query("urenRegistraties")
+      .withIndex("by_medewerker_datum", (q) => q.eq("medewerker", medewerker.naam))
+      .collect();
 
     // Filter op periode indien opgegeven
     if (args.periode) {
@@ -73,10 +71,7 @@ export const getMedewerkerStats = query({
           p.status === "gefactureerd")
     );
 
-    // Haal voorcalculaties op voor efficiëntie berekening
-    const voorcalculaties = await ctx.db.query("voorcalculaties").collect();
-
-    // Bereken efficiëntie ratio
+    // Bereken efficiëntie ratio (voorcalculaties fetched per project via index)
     let totaalNormUren = 0;
     let totaalWerkelijkeUren = 0;
 
@@ -85,11 +80,18 @@ export const getMedewerkerStats = query({
         (p) => p._id.toString() === projectIdStr
       );
       if (project) {
-        const voorcalc = voorcalculaties.find(
-          (vc) =>
-            vc.projectId?.toString() === projectIdStr ||
-            vc.offerteId?.toString() === project.offerteId.toString()
-        );
+        // Fetch voorcalculatie via by_project index instead of full table scan
+        let voorcalc = await ctx.db
+          .query("voorcalculaties")
+          .withIndex("by_project", (q) => q.eq("projectId", project._id))
+          .first();
+        // Fallback: look up by offerteId if not found by project
+        if (!voorcalc && project.offerteId) {
+          voorcalc = await ctx.db
+            .query("voorcalculaties")
+            .withIndex("by_offerte", (q) => q.eq("offerteId", project.offerteId))
+            .first();
+        }
         if (voorcalc) {
           // Bereken proportioneel deel van norm uren
           const projectUren = urenRegistraties
@@ -265,96 +267,114 @@ export const getTeamPerformance = query({
       return { medewerkers: [], samenvatting: null };
     }
 
-    // Haal alle urenregistraties op
-    let urenRegistraties = await ctx.db.query("urenRegistraties").collect();
-
-    // Filter op periode indien opgegeven
-    if (args.periode) {
-      const vanDatum = new Date(args.periode.van).toISOString().slice(0, 10);
-      const totDatum = new Date(args.periode.tot).toISOString().slice(0, 10);
-      urenRegistraties = urenRegistraties.filter(
-        (ur) => ur.datum >= vanDatum && ur.datum <= totDatum
-      );
-    }
-
-    // Haal projecten en voorcalculaties op
+    // Haal projecten op (indexed)
     const projecten = await ctx.db
       .query("projecten")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
 
-    const voorcalculaties = await ctx.db.query("voorcalculaties").collect();
+    // Optionele periode filter bounds
+    const vanDatum = args.periode
+      ? new Date(args.periode.van).toISOString().slice(0, 10)
+      : null;
+    const totDatum = args.periode
+      ? new Date(args.periode.tot).toISOString().slice(0, 10)
+      : null;
 
-    // Bereken stats per medewerker
-    const medewerkerStats = medewerkers.map((m) => {
-      if (!m) return null;
+    // Bereken stats per medewerker (async to use indexed queries per medewerker)
+    const medewerkerStats = (await Promise.all(
+      medewerkers.map(async (m) => {
+        if (!m) return null;
 
-      const medewerkerUren = urenRegistraties.filter(
-        (ur) => ur.medewerker === m.naam
-      );
-      const totaalUren = medewerkerUren.reduce((sum, ur) => sum + ur.uren, 0);
-      const uniekeProjectIds = [
-        ...new Set(medewerkerUren.map((ur) => ur.projectId.toString())),
-      ];
-      const aantalProjecten = uniekeProjectIds.length;
+        // Fetch uren scoped to this medewerker via by_medewerker_datum index
+        let medewerkerUren = await ctx.db
+          .query("urenRegistraties")
+          .withIndex("by_medewerker_datum", (q) => q.eq("medewerker", m.naam))
+          .collect();
 
-      // Bereken efficiëntie
-      let totaalNormUren = 0;
-      let totaalWerkelijkeUren = 0;
-
-      for (const projectIdStr of uniekeProjectIds) {
-        const project = projecten.find(
-          (p) =>
-            p._id.toString() === projectIdStr &&
-            (p.status === "afgerond" ||
-              p.status === "nacalculatie_compleet" ||
-              p.status === "gefactureerd")
-        );
-        if (project) {
-          const voorcalc = voorcalculaties.find(
-            (vc) =>
-              vc.projectId?.toString() === projectIdStr ||
-              vc.offerteId?.toString() === project.offerteId.toString()
+        // Filter op periode indien opgegeven
+        if (vanDatum && totDatum) {
+          medewerkerUren = medewerkerUren.filter(
+            (ur) => ur.datum >= vanDatum && ur.datum <= totDatum
           );
-          if (voorcalc) {
-            const projectUren = medewerkerUren
-              .filter((ur) => ur.projectId.toString() === projectIdStr)
-              .reduce((sum, ur) => sum + ur.uren, 0);
+        }
 
-            const totaalProjectUren = urenRegistraties
-              .filter((ur) => ur.projectId.toString() === projectIdStr)
-              .reduce((sum, ur) => sum + ur.uren, 0);
+        const totaalUren = medewerkerUren.reduce((sum, ur) => sum + ur.uren, 0);
+        const uniekeProjectIds = [
+          ...new Set(medewerkerUren.map((ur) => ur.projectId.toString())),
+        ];
+        const aantalProjecten = uniekeProjectIds.length;
 
-            if (totaalProjectUren > 0) {
-              const proportie = projectUren / totaalProjectUren;
-              totaalNormUren += voorcalc.normUrenTotaal * proportie;
-              totaalWerkelijkeUren += projectUren;
+        // Bereken efficiëntie (voorcalculaties fetched per project via index)
+        let totaalNormUren = 0;
+        let totaalWerkelijkeUren = 0;
+
+        for (const projectIdStr of uniekeProjectIds) {
+          const project = projecten.find(
+            (p) =>
+              p._id.toString() === projectIdStr &&
+              (p.status === "afgerond" ||
+                p.status === "nacalculatie_compleet" ||
+                p.status === "gefactureerd")
+          );
+          if (project) {
+            // Fetch voorcalculatie via index instead of full table scan
+            let voorcalc = await ctx.db
+              .query("voorcalculaties")
+              .withIndex("by_project", (q) => q.eq("projectId", project._id))
+              .first();
+            if (!voorcalc && project.offerteId) {
+              voorcalc = await ctx.db
+                .query("voorcalculaties")
+                .withIndex("by_offerte", (q) => q.eq("offerteId", project.offerteId))
+                .first();
+            }
+            if (voorcalc) {
+              const projectUren = medewerkerUren
+                .filter((ur) => ur.projectId.toString() === projectIdStr)
+                .reduce((sum, ur) => sum + ur.uren, 0);
+
+              // Fetch total project uren via by_project index
+              const alleProjectUren = await ctx.db
+                .query("urenRegistraties")
+                .withIndex("by_project", (q) => q.eq("projectId", project._id))
+                .collect();
+              const totaalProjectUren = alleProjectUren.reduce(
+                (sum, ur) => sum + ur.uren,
+                0
+              );
+
+              if (totaalProjectUren > 0) {
+                const proportie = projectUren / totaalProjectUren;
+                totaalNormUren += voorcalc.normUrenTotaal * proportie;
+                totaalWerkelijkeUren += projectUren;
+              }
             }
           }
         }
-      }
 
-      const efficiëntieRatio =
-        totaalNormUren > 0
-          ? Math.round((totaalNormUren / totaalWerkelijkeUren) * 100) / 100
-          : null;
+        const efficiëntieRatio =
+          totaalNormUren > 0
+            ? Math.round((totaalNormUren / totaalWerkelijkeUren) * 100) / 100
+            : null;
 
-      return {
-        medewerker: {
-          _id: m._id,
-          naam: m.naam,
-          functie: m.functie,
-          contractType: m.contractType,
-        },
-        totaalUren,
-        aantalProjecten,
-        efficiëntieRatio,
-        gemiddeldeUrenPerProject:
-          aantalProjecten > 0
-            ? Math.round((totaalUren / aantalProjecten) * 100) / 100
-            : 0,
-      };
-    }).filter((s) => s !== null);
+        return {
+          medewerker: {
+            _id: m._id,
+            naam: m.naam,
+            functie: m.functie,
+            contractType: m.contractType,
+          },
+          totaalUren,
+          aantalProjecten,
+          efficiëntieRatio,
+          gemiddeldeUrenPerProject:
+            aantalProjecten > 0
+              ? Math.round((totaalUren / aantalProjecten) * 100) / 100
+              : 0,
+        };
+      })
+    )).filter((s) => s !== null);
 
     // Bereken team samenvatting
     const totaalTeamUren = medewerkerStats.reduce(
@@ -438,23 +458,22 @@ export const getProductiviteitTrend = query({
       medewerkerNamen = medewerkers.map((m) => m.naam);
     }
 
-    // Haal alle urenregistraties op
-    const alleUrenRegistraties = await ctx.db
-      .query("urenRegistraties")
-      .collect();
-
-    // Filter op medewerker(s)
-    const urenRegistraties = alleUrenRegistraties.filter((ur) =>
-      medewerkerNamen.includes(ur.medewerker)
+    // Fetch uren per medewerker via by_medewerker_datum index, then merge
+    const urenPerMedewerker = await Promise.all(
+      medewerkerNamen.map((naam) =>
+        ctx.db
+          .query("urenRegistraties")
+          .withIndex("by_medewerker_datum", (q) => q.eq("medewerker", naam))
+          .collect()
+      )
     );
+    const urenRegistraties = urenPerMedewerker.flat();
 
-    // Haal projecten en voorcalculaties op voor efficiëntie
+    // Haal projecten op voor efficiëntie (voorcalculaties fetched per project below)
     const projecten = await ctx.db
       .query("projecten")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
-
-    const voorcalculaties = await ctx.db.query("voorcalculaties").collect();
 
     // Bereken trend per maand
     const now = new Date();
@@ -506,19 +525,31 @@ export const getProductiviteitTrend = query({
               p.status === "gefactureerd")
         );
         if (project) {
-          const voorcalc = voorcalculaties.find(
-            (vc) =>
-              vc.projectId?.toString() === projectIdStr ||
-              vc.offerteId?.toString() === project.offerteId.toString()
-          );
+          // Fetch voorcalculatie via index instead of full table scan
+          let voorcalc = await ctx.db
+            .query("voorcalculaties")
+            .withIndex("by_project", (q) => q.eq("projectId", project._id))
+            .first();
+          if (!voorcalc && project.offerteId) {
+            voorcalc = await ctx.db
+              .query("voorcalculaties")
+              .withIndex("by_offerte", (q) => q.eq("offerteId", project.offerteId))
+              .first();
+          }
           if (voorcalc) {
             const projectUren = maandRegistraties
               .filter((ur) => ur.projectId.toString() === projectIdStr)
               .reduce((sum, ur) => sum + ur.uren, 0);
 
-            const totaalProjectUren = urenRegistraties
-              .filter((ur) => ur.projectId.toString() === projectIdStr)
-              .reduce((sum, ur) => sum + ur.uren, 0);
+            // Fetch total project uren via by_project index
+            const alleProjectUren = await ctx.db
+              .query("urenRegistraties")
+              .withIndex("by_project", (q) => q.eq("projectId", project._id))
+              .collect();
+            const totaalProjectUren = alleProjectUren.reduce(
+              (sum, ur) => sum + ur.uren,
+              0
+            );
 
             if (totaalProjectUren > 0) {
               const proportie = projectUren / totaalProjectUren;

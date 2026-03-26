@@ -222,57 +222,47 @@ export const list = query({
 });
 
 /**
- * List projects with pagination.
- * Returns paginated results with total count for pagination UI.
- * By default, archived and deleted projects are excluded.
+ * List projects with cursor-based pagination.
+ * Uses Convex native .paginate() to avoid loading all records into memory.
+ * By default, archived and deleted projects are excluded via post-filtering.
  */
 export const listPaginated = query({
   args: {
-    page: v.number(),
-    limit: v.number(),
+    limit: v.optional(v.number()),
+    cursor: v.optional(v.string()),
     status: v.optional(projectStatusValidator),
     includeArchived: v.optional(v.boolean()),
     includeDeleted: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const userId = await requireAuthUserId(ctx);
+    const limit = args.limit || 25;
 
-    // Get all projects
-    let allProjects = await ctx.db
+    const result = await ctx.db
       .query("projecten")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .order("desc")
-      .collect();
+      .paginate({ numItems: limit, cursor: args.cursor ?? null });
 
-    // Filter out deleted projects unless explicitly requested
+    // Post-filter: exclude deleted, archived, and filter by status
+    let items = result.page;
+
     if (!args.includeDeleted) {
-      allProjects = allProjects.filter((p) => !p.deletedAt);
+      items = items.filter((p) => !p.deletedAt);
     }
 
-    // Filter out archived projects unless explicitly requested
     if (!args.includeArchived) {
-      allProjects = allProjects.filter((p) => p.isArchived !== true);
+      items = items.filter((p) => p.isArchived !== true);
     }
 
-    // Filter by status if provided
     if (args.status) {
-      allProjects = allProjects.filter((p) => p.status === args.status);
+      items = items.filter((p) => p.status === args.status);
     }
-
-    const totalCount = allProjects.length;
-    const totalPages = Math.ceil(totalCount / args.limit);
-
-    // Calculate pagination slice
-    const startIndex = (args.page - 1) * args.limit;
-    const endIndex = startIndex + args.limit;
-    const items = allProjects.slice(startIndex, endIndex);
 
     return {
       items,
-      totalCount,
-      totalPages,
-      page: args.page,
-      limit: args.limit,
+      nextCursor: result.continueCursor,
+      hasMore: !result.isDone,
     };
   },
 });

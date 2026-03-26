@@ -416,15 +416,18 @@ export const getWeekHours = query({
 
     const medewerkerNaam = medewerker?.naam || user.name || "";
 
-    // Get all uren registraties (no date range index, so we filter)
-    const allEntries = await ctx.db.query("urenRegistraties").collect();
+    // Fetch uren for this week using by_datum index with range query
+    const weekEntries = await ctx.db
+      .query("urenRegistraties")
+      .withIndex("by_datum", (q) =>
+        q.gte("datum", args.weekStart).lte("datum", weekEnd)
+      )
+      .collect();
 
-    // Filter by date range and medewerker
-    const entries = allEntries.filter(
+    // Filter by medewerker (can't be expressed in the datum index)
+    const entries = weekEntries.filter(
       (e) =>
-        e.datum >= args.weekStart &&
-        e.datum <= weekEnd &&
-        (e.medewerker === medewerkerNaam || e.medewerkerClerkId === user.clerkId)
+        e.medewerker === medewerkerNaam || e.medewerkerClerkId === user.clerkId
     );
 
     // Group by day

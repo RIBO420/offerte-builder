@@ -79,7 +79,7 @@ export const getStats = query({
 export const create = mutation({
   args: {
     voertuigId: v.id("voertuigen"),
-    datum: v.number(), // Timestamp
+    datum: v.string(), // YYYY-MM-DD format
     liters: v.number(),
     kosten: v.number(),
     kilometerstand: v.number(),

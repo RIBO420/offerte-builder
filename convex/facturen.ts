@@ -664,13 +664,13 @@ export const getStats = query({
 });
 
 /**
- * List facturen with pagination.
- * Returns paginated results with total count for pagination UI.
+ * List facturen with cursor-based pagination.
+ * Uses Convex native .paginate() to avoid loading all records into memory.
  */
 export const listPaginated = query({
   args: {
-    page: v.number(),
-    limit: v.number(),
+    limit: v.optional(v.number()),
+    cursor: v.optional(v.string()),
     status: v.optional(
       v.union(
         v.literal("concept"),
@@ -683,33 +683,24 @@ export const listPaginated = query({
   },
   handler: async (ctx, args) => {
     const userId = await requireAuthUserId(ctx);
+    const limit = args.limit || 25;
 
-    // Get all facturen for counting
-    let allFacturen = await ctx.db
+    const result = await ctx.db
       .query("facturen")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .order("desc")
-      .collect();
+      .paginate({ numItems: limit, cursor: args.cursor ?? null });
 
-    // Filter by status if provided
+    // Post-filter by status if provided
+    let items = result.page;
     if (args.status) {
-      allFacturen = allFacturen.filter((f) => f.status === args.status);
+      items = items.filter((f) => f.status === args.status);
     }
-
-    const totalCount = allFacturen.length;
-    const totalPages = Math.ceil(totalCount / args.limit);
-
-    // Calculate pagination slice
-    const startIndex = (args.page - 1) * args.limit;
-    const endIndex = startIndex + args.limit;
-    const items = allFacturen.slice(startIndex, endIndex);
 
     return {
       items,
-      totalCount,
-      totalPages,
-      page: args.page,
-      limit: args.limit,
+      nextCursor: result.continueCursor,
+      hasMore: !result.isDone,
     };
   },
 });

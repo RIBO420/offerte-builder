@@ -1811,11 +1811,11 @@ export const requestDataDeletion = mutation({
         triggeredBy: user.clerkId,
         metadata: {
           gdprType: "deletion_request",
-          requestedBy: user._id,
+          requestedBy: user._id.toString(),
           requestedByEmail: user.email,
           requestedByName: user.name,
-          reason: args.reason,
-          requestedAt: now,
+          ...(args.reason ? { reason: args.reason } : {}),
+          requestedAt: now.toString(),
         },
         createdAt: now,
       });

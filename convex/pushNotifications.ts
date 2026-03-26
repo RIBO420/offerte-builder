@@ -185,7 +185,7 @@ export const logNotification = internalMutation({
     ),
     title: v.string(),
     body: v.string(),
-    data: v.optional(v.any()),
+    data: v.optional(v.record(v.string(), v.union(v.string(), v.number(), v.boolean(), v.null()))),
     status: v.union(
       v.literal("sent"),
       v.literal("delivered"),
@@ -227,7 +227,7 @@ export const sendPushNotification = internalAction({
     ),
     title: v.string(),
     body: v.string(),
-    data: v.optional(v.any()),
+    data: v.optional(v.record(v.string(), v.union(v.string(), v.number(), v.boolean(), v.null()))),
   },
   handler: async (ctx, args) => {
     // Get user's active push tokens
@@ -493,9 +493,9 @@ export const notifyNewChatMessage = internalAction({
       data: {
         type: "chat",
         channelType: args.channelType,
-        channelName: args.channelName,
-        messageId: args.messageId,
-        projectId: args.projectId,
+        ...(args.channelName ? { channelName: args.channelName } : {}),
+        ...(args.messageId ? { messageId: args.messageId } : {}),
+        ...(args.projectId ? { projectId: args.projectId } : {}),
       },
     });
   },
@@ -765,7 +765,7 @@ export const createNotification = internalMutation({
     senderName: v.optional(v.string()),
     senderClerkId: v.optional(v.string()),
     triggeredBy: v.optional(v.string()),
-    metadata: v.optional(v.any()),
+    metadata: v.optional(v.record(v.string(), v.union(v.string(), v.number(), v.boolean(), v.null()))),
   },
   handler: async (ctx, args) => {
     const notificationId = await ctx.db.insert("notifications", {
@@ -808,7 +808,7 @@ export const sendNotificationWithInApp = internalAction({
     ),
     title: v.string(),
     body: v.string(),
-    data: v.optional(v.any()),
+    data: v.optional(v.record(v.string(), v.union(v.string(), v.number(), v.boolean(), v.null()))),
     // In-app notification specific fields
     inAppType: v.optional(v.union(
       v.literal("offerte_geaccepteerd"),
