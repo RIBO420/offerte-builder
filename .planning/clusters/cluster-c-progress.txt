@@ -1,0 +1,44 @@
+## Cluster C: Infra & Dashboards
+## Laatst bijgewerkt: 2026-03-26
+## Status: 10/10 features af (100%) ✅ COMPLEET
+
+### Module 1: E-mailmodule — 6/6 af (100%)
+| ID | Feature | Status |
+|----|---------|--------|
+| EML-001 | Template bibliotheek | AF — email_templates tabel, CRUD, 10 standaard templates, admin UI, variabelen systeem |
+| EML-002 | Aanpasbaar per verzending | AF — send-email-dialog.tsx met custom message + cc |
+| EML-003 | Auto T&C bijlage | AF — voorwaarden PDF upload in instellingen, automatisch bijgevoegd via Resend attachments |
+| EML-004 | Offerte-email flow | AF — OfferteEmail → send-email-dialog → use-email → /api/email → Resend |
+| EML-005 | Open/klik tracking | AF — Resend webhook op /resend-webhook (Convex HTTP), svix HMAC verificatie, delivered/opened/bounced in email_logs |
+| EML-006 | Herinnerings flow | AF — sendDueReminderEmails internalAction, escalerende templates (dag 3/7/14), cron elk uur, handmatig versturen knop |
+
+### Module 2: Smart Operations Dashboard — 4/4 af (100%)
+| ID | Feature | Status |
+|----|---------|--------|
+| SOD-001 | Materiaalman dashboard | AF — vloot status, blokkades, keuringen kalender, inkooporders, voorraad alerts |
+| SOD-002 | Voorman dashboard | AF — dagplanning met team, voertuigen, taken, uren overzicht (rood/groen) |
+| SOD-003 | Directie dashboard | AF — financieel overzicht, operationeel KPIs, kwartaal vergelijking met trend badges |
+| SOD-004 | Proactieve waarschuwingen | AF — conflictdetectie engine (dubbele planning, materieel, keuringen, facturen), warnings feed |
+
+### Nieuwe bestanden aangemaakt
+- convex/emailTemplates.ts — Template CRUD + seed + rendering
+- convex/directieDashboard.ts — Directie aggregatie queries
+- convex/materiaalmanDashboard.ts — Vloot/materieel queries
+- convex/voormanDashboard.ts — Dagplanning queries
+- convex/proactiveWarnings.ts — Conflict detectie engine
+- src/components/offerte/reminder-status-card.tsx — Herinnering status UI
+- src/components/dashboard/directie-dashboard.tsx — Financieel + operationeel KPIs
+- src/components/dashboard/materiaalman-dashboard.tsx — Vloot overzicht
+- src/components/dashboard/voorman-dashboard.tsx — Dagplanning + team uren
+- src/components/dashboard/warnings-feed.tsx — Waarschuwingen feed
+- src/app/(dashboard)/instellingen/email-templates/page.tsx — Template beheer admin UI
+
+### Schema wijzigingen
+- email_logs: +afgeleverd/gebounced statuses, +deliveredAt/bouncedAt, +by_resendId index
+- instellingen: +voorwaardenPdfId, +voorwaardenPdfNaam
+- email_templates: nieuwe tabel met 10 trigger types
+- convex/http.ts: +/resend-webhook endpoint
+- convex/crons.ts: +hourly reminder processing
+
+### Volgende agent actie
+Cluster C is 100% compleet. Geen verdere acties nodig.
