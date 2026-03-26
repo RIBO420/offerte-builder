@@ -450,15 +450,16 @@ export const cleanupOldNotifications = internalMutation({
 });
 
 /**
- * Clean up old notification logs (push notification tracking).
- * Deletes logs older than 30 days.
+ * Clean up old notification logs (chat notification tracking).
+ * Deletes logs older than 30 days from both the deprecated notification_log
+ * table and the new notificationDeliveryLog table (chat channel).
  */
 export const cleanupOldNotificationLogs = internalMutation({
   args: {},
   handler: async (ctx) => {
     const cutoffTime = Date.now() - SOFT_DELETE_RETENTION_MS; // 30 days
 
-    // Get all notification logs and filter for old ones
+    // Clean up deprecated notification_log table (kept for backwards compat during migration)
     const allLogs = await ctx.db.query("notification_log").collect();
     const oldLogs = allLogs.filter((l) => l.createdAt < cutoffTime);
 
@@ -469,8 +470,25 @@ export const cleanupOldNotificationLogs = internalMutation({
       deletedLogs++;
     }
 
+    // Also clean up notificationDeliveryLog records (chat channel)
+    const allDeliveryLogs = await ctx.db
+      .query("notificationDeliveryLog")
+      .withIndex("by_channel", (q) => q.eq("channel", "chat"))
+      .collect();
+    const oldDeliveryLogs = allDeliveryLogs.filter(
+      (l) => l.createdAt < cutoffTime
+    );
+
+    let deletedDeliveryLogs = 0;
+
+    for (const log of oldDeliveryLogs) {
+      await ctx.db.delete(log._id);
+      deletedDeliveryLogs++;
+    }
+
     return {
       deletedLogs,
+      deletedDeliveryLogs,
       timestamp: Date.now(),
     };
   },
@@ -478,15 +496,32 @@ export const cleanupOldNotificationLogs = internalMutation({
 
 /**
  * Clean up old push notification logs.
- * Deletes logs older than 30 days.
+ * Deletes logs older than 30 days from both the deprecated pushNotificationLogs
+ * table and the new notificationDeliveryLog table (push channel).
  */
 export const cleanupOldPushNotificationLogs = internalMutation({
   args: {},
   handler: async (ctx) => {
     const cutoffTime = Date.now() - SOFT_DELETE_RETENTION_MS; // 30 days
 
-    // Get all push notification logs and filter for old ones
-    const allLogs = await ctx.db.query("pushNotificationLogs").collect();
+    // Clean up deprecated pushNotificationLogs table (kept for backwards compat during migration)
+    const allDeprecatedLogs = await ctx.db.query("pushNotificationLogs").collect();
+    const oldDeprecatedLogs = allDeprecatedLogs.filter(
+      (l) => l.createdAt < cutoffTime
+    );
+
+    let deletedDeprecatedLogs = 0;
+
+    for (const log of oldDeprecatedLogs) {
+      await ctx.db.delete(log._id);
+      deletedDeprecatedLogs++;
+    }
+
+    // Clean up notificationDeliveryLog records (push channel)
+    const allLogs = await ctx.db
+      .query("notificationDeliveryLog")
+      .withIndex("by_channel", (q) => q.eq("channel", "push"))
+      .collect();
     const oldLogs = allLogs.filter((l) => l.createdAt < cutoffTime);
 
     let deletedLogs = 0;
@@ -497,6 +532,7 @@ export const cleanupOldPushNotificationLogs = internalMutation({
     }
 
     return {
+      deletedDeprecatedLogs,
       deletedLogs,
       timestamp: Date.now(),
     };
@@ -606,9 +642,10 @@ export const runDailyCleanup = internalMutation({
     }
 
     // ============================================
-    // 4. Clean up old notification logs
+    // 4. Clean up old notification logs (deprecated + new)
     // ============================================
 
+    // Deprecated notification_log table (kept for backwards compat during migration)
     const allNotificationLogs = await ctx.db.query("notification_log").collect();
     const oldNotificationLogs = allNotificationLogs.filter(
       (l) => l.createdAt < softDeleteCutoff
@@ -621,18 +658,47 @@ export const runDailyCleanup = internalMutation({
       deletedNotificationLogs++;
     }
 
+    // New notificationDeliveryLog table (chat channel)
+    const allChatDeliveryLogs = await ctx.db
+      .query("notificationDeliveryLog")
+      .withIndex("by_channel", (q) => q.eq("channel", "chat"))
+      .collect();
+    const oldChatDeliveryLogs = allChatDeliveryLogs.filter(
+      (l) => l.createdAt < softDeleteCutoff
+    );
+
+    for (const log of oldChatDeliveryLogs) {
+      await ctx.db.delete(log._id);
+      deletedNotificationLogs++;
+    }
+
     // ============================================
-    // 5. Clean up old push notification logs
+    // 5. Clean up old push notification logs (deprecated + new)
     // ============================================
 
-    const allPushLogs = await ctx.db.query("pushNotificationLogs").collect();
-    const oldPushLogs = allPushLogs.filter(
+    // Deprecated pushNotificationLogs table (kept for backwards compat during migration)
+    const allDeprecatedPushLogs = await ctx.db.query("pushNotificationLogs").collect();
+    const oldDeprecatedPushLogs = allDeprecatedPushLogs.filter(
       (l) => l.createdAt < softDeleteCutoff
     );
 
     let deletedPushLogs = 0;
 
-    for (const log of oldPushLogs) {
+    for (const log of oldDeprecatedPushLogs) {
+      await ctx.db.delete(log._id);
+      deletedPushLogs++;
+    }
+
+    // New notificationDeliveryLog table (push channel)
+    const allPushDeliveryLogs = await ctx.db
+      .query("notificationDeliveryLog")
+      .withIndex("by_channel", (q) => q.eq("channel", "push"))
+      .collect();
+    const oldPushDeliveryLogs = allPushDeliveryLogs.filter(
+      (l) => l.createdAt < softDeleteCutoff
+    );
+
+    for (const log of oldPushDeliveryLogs) {
       await ctx.db.delete(log._id);
       deletedPushLogs++;
     }

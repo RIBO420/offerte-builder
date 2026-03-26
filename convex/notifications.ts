@@ -109,6 +109,20 @@ function getChannelDisplayName(
 // ============ INTERNAL QUERIES ============
 
 /**
+ * Resolve a clerkId to a Convex user _id.
+ */
+export const resolveUserIdByClerkId = internalQuery({
+  args: { clerkId: v.string() },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
+      .unique();
+    return user?._id ?? null;
+  },
+});
+
+/**
  * Get notification preferences for a user by their clerkId.
  */
 export const getPreferencesByClerkId = internalQuery({
@@ -138,6 +152,7 @@ export const getTeamMembersWithTokens = internalQuery({
     // Get notification preferences for each medewerker with a clerkUserId
     const membersWithTokens: Array<{
       clerkId: string;
+      recipientUserId: Id<"users"> | null;
       naam: string;
       preferences: Doc<"notification_preferences"> | null;
     }> = [];
@@ -151,8 +166,17 @@ export const getTeamMembersWithTokens = internalQuery({
           )
           .unique();
 
+        // Resolve clerkUserId to Convex user _id
+        const userDoc = await ctx.db
+          .query("users")
+          .withIndex("by_clerk_id", (q) =>
+            q.eq("clerkId", medewerker.clerkUserId!)
+          )
+          .unique();
+
         membersWithTokens.push({
           clerkId: medewerker.clerkUserId,
+          recipientUserId: userDoc?._id ?? null,
           naam: medewerker.naam,
           preferences,
         });
@@ -169,6 +193,7 @@ export const getTeamMembersWithTokens = internalQuery({
 
       membersWithTokens.push({
         clerkId: owner.clerkId,
+        recipientUserId: owner._id,
         naam: owner.name || "Eigenaar",
         preferences: ownerPrefs,
       });
@@ -180,25 +205,31 @@ export const getTeamMembersWithTokens = internalQuery({
 
 /**
  * Get recent notification count for batching check.
+ * Queries notificationDeliveryLog (channel: "chat") for anti-spam throttling.
  */
 export const getRecentNotificationCount = internalQuery({
   args: {
-    recipientClerkId: v.string(),
+    recipientUserId: v.id("users"),
     channelType: v.string(),
     projectId: v.optional(v.string()),
     sinceTimestamp: v.number(),
   },
   handler: async (ctx, args) => {
-    // Query notification_log to count recent notifications
+    // Query notificationDeliveryLog to count recent chat notifications
     // This helps prevent notification spam
     const logs = await ctx.db
-      .query("notification_log")
-      .withIndex("by_recipient_time", (q) =>
+      .query("notificationDeliveryLog")
+      .withIndex("by_user", (q) =>
         q
-          .eq("recipientClerkId", args.recipientClerkId)
+          .eq("userId", args.recipientUserId)
           .gte("createdAt", args.sinceTimestamp)
       )
-      .filter((q) => q.eq(q.field("channelType"), args.channelType))
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("channel"), "chat"),
+          q.eq(q.field("channelType"), args.channelType)
+        )
+      )
       .collect();
 
     // Further filter by projectId if provided
@@ -214,25 +245,29 @@ export const getRecentNotificationCount = internalQuery({
 
 /**
  * Log a sent notification for batching tracking.
+ * Writes to notificationDeliveryLog (channel: "chat").
  */
 export const logNotification = internalMutation({
   args: {
-    recipientClerkId: v.string(),
-    senderClerkId: v.string(),
-    channelType: v.string(),
+    userId: v.id("users"),
+    senderUserId: v.optional(v.id("users")),
+    type: v.string(),
+    channelType: v.optional(v.string()),
     projectId: v.optional(v.string()),
-    messageId: v.string(),
+    messageId: v.optional(v.string()),
     status: v.union(v.literal("sent"), v.literal("skipped"), v.literal("failed")),
     reason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await ctx.db.insert("notification_log", {
-      recipientClerkId: args.recipientClerkId,
-      senderClerkId: args.senderClerkId,
+    await ctx.db.insert("notificationDeliveryLog", {
+      userId: args.userId,
+      channel: "chat",
+      type: args.type,
+      status: args.status,
+      messageId: args.messageId,
       channelType: args.channelType,
       projectId: args.projectId,
-      messageId: args.messageId,
-      status: args.status,
+      senderUserId: args.senderUserId,
       reason: args.reason,
       createdAt: Date.now(),
     });
@@ -317,12 +352,19 @@ export const sendChatNotifications = internalAction({
     messagePreview: v.string(),
   },
   handler: async (ctx, args) => {
+    // Resolve sender clerkId to Convex user _id
+    const senderUserId = await ctx.runQuery(
+      internal.notifications.resolveUserIdByClerkId,
+      { clerkId: args.senderClerkId }
+    );
+
     // Get all team members with push tokens
     const teamMembers = await ctx.runQuery(
       internal.notifications.getTeamMembersWithTokens,
       { companyId: args.companyId as Id<"users"> }
     );
 
+    const notificationType = `chat_${args.channelType}`;
     const messages: ExpoPushMessage[] = [];
     const now = Date.now();
     const batchWindowStart = now - BATCH_WINDOW_MS;
@@ -333,13 +375,19 @@ export const sendChatNotifications = internalAction({
         continue;
       }
 
+      // Skip members without a resolved user ID (can't log without one)
+      if (!member.recipientUserId) {
+        continue;
+      }
+
       const prefs = member.preferences;
 
       // Check if user has push notifications enabled and has a device token
       if (!prefs?.enablePushNotifications || !prefs?.deviceToken) {
         await ctx.runMutation(internal.notifications.logNotification, {
-          recipientClerkId: member.clerkId,
-          senderClerkId: args.senderClerkId,
+          userId: member.recipientUserId,
+          senderUserId: senderUserId ?? undefined,
+          type: notificationType,
           channelType: args.channelType,
           projectId: args.projectId,
           messageId: args.messageId,
@@ -357,8 +405,9 @@ export const sendChatNotifications = internalAction({
 
       if (!shouldNotify) {
         await ctx.runMutation(internal.notifications.logNotification, {
-          recipientClerkId: member.clerkId,
-          senderClerkId: args.senderClerkId,
+          userId: member.recipientUserId,
+          senderUserId: senderUserId ?? undefined,
+          type: notificationType,
           channelType: args.channelType,
           projectId: args.projectId,
           messageId: args.messageId,
@@ -374,8 +423,9 @@ export const sendChatNotifications = internalAction({
         isQuietHours(prefs.quietHoursStart, prefs.quietHoursEnd)
       ) {
         await ctx.runMutation(internal.notifications.logNotification, {
-          recipientClerkId: member.clerkId,
-          senderClerkId: args.senderClerkId,
+          userId: member.recipientUserId,
+          senderUserId: senderUserId ?? undefined,
+          type: notificationType,
           channelType: args.channelType,
           projectId: args.projectId,
           messageId: args.messageId,
@@ -393,8 +443,9 @@ export const sendChatNotifications = internalAction({
 
       if (prefs.mutedChannels?.includes(channelKey)) {
         await ctx.runMutation(internal.notifications.logNotification, {
-          recipientClerkId: member.clerkId,
-          senderClerkId: args.senderClerkId,
+          userId: member.recipientUserId,
+          senderUserId: senderUserId ?? undefined,
+          type: notificationType,
           channelType: args.channelType,
           projectId: args.projectId,
           messageId: args.messageId,
@@ -407,8 +458,9 @@ export const sendChatNotifications = internalAction({
       // Check muted users
       if (prefs.mutedUsers?.includes(args.senderClerkId)) {
         await ctx.runMutation(internal.notifications.logNotification, {
-          recipientClerkId: member.clerkId,
-          senderClerkId: args.senderClerkId,
+          userId: member.recipientUserId,
+          senderUserId: senderUserId ?? undefined,
+          type: notificationType,
           channelType: args.channelType,
           projectId: args.projectId,
           messageId: args.messageId,
@@ -422,7 +474,7 @@ export const sendChatNotifications = internalAction({
       const recentCount = await ctx.runQuery(
         internal.notifications.getRecentNotificationCount,
         {
-          recipientClerkId: member.clerkId,
+          recipientUserId: member.recipientUserId,
           channelType: args.channelType,
           projectId: args.projectId,
           sinceTimestamp: batchWindowStart,
@@ -431,8 +483,9 @@ export const sendChatNotifications = internalAction({
 
       if (recentCount >= MAX_NOTIFICATIONS_PER_BATCH) {
         await ctx.runMutation(internal.notifications.logNotification, {
-          recipientClerkId: member.clerkId,
-          senderClerkId: args.senderClerkId,
+          userId: member.recipientUserId,
+          senderUserId: senderUserId ?? undefined,
+          type: notificationType,
           channelType: args.channelType,
           projectId: args.projectId,
           messageId: args.messageId,
@@ -476,8 +529,9 @@ export const sendChatNotifications = internalAction({
 
       // Log the notification
       await ctx.runMutation(internal.notifications.logNotification, {
-        recipientClerkId: member.clerkId,
-        senderClerkId: args.senderClerkId,
+        userId: member.recipientUserId,
+        senderUserId: senderUserId ?? undefined,
+        type: notificationType,
         channelType: args.channelType,
         projectId: args.projectId,
         messageId: args.messageId,
@@ -508,6 +562,20 @@ export const sendDirectMessageNotification = internalAction({
     messagePreview: v.string(),
   },
   handler: async (ctx, args) => {
+    // Resolve clerkIds to Convex user _ids
+    const recipientUserId = await ctx.runQuery(
+      internal.notifications.resolveUserIdByClerkId,
+      { clerkId: args.recipientClerkId }
+    );
+    const senderUserId = await ctx.runQuery(
+      internal.notifications.resolveUserIdByClerkId,
+      { clerkId: args.senderClerkId }
+    );
+
+    if (!recipientUserId) {
+      return { sent: false, reason: "recipient_user_not_found" };
+    }
+
     // Get recipient's notification preferences
     const prefs = await ctx.runQuery(
       internal.notifications.getPreferencesByClerkId,
@@ -517,8 +585,9 @@ export const sendDirectMessageNotification = internalAction({
     // Check if user has push notifications enabled and has a device token
     if (!prefs?.enablePushNotifications || !prefs?.deviceToken) {
       await ctx.runMutation(internal.notifications.logNotification, {
-        recipientClerkId: args.recipientClerkId,
-        senderClerkId: args.senderClerkId,
+        userId: recipientUserId,
+        senderUserId: senderUserId ?? undefined,
+        type: "chat_dm",
         channelType: "direct",
         messageId: args.messageId,
         status: "skipped",
@@ -530,8 +599,9 @@ export const sendDirectMessageNotification = internalAction({
     // Check DM notification preference
     if (!prefs.notifyOnDirectMessage) {
       await ctx.runMutation(internal.notifications.logNotification, {
-        recipientClerkId: args.recipientClerkId,
-        senderClerkId: args.senderClerkId,
+        userId: recipientUserId,
+        senderUserId: senderUserId ?? undefined,
+        type: "chat_dm",
         channelType: "direct",
         messageId: args.messageId,
         status: "skipped",
@@ -546,8 +616,9 @@ export const sendDirectMessageNotification = internalAction({
       isQuietHours(prefs.quietHoursStart, prefs.quietHoursEnd)
     ) {
       await ctx.runMutation(internal.notifications.logNotification, {
-        recipientClerkId: args.recipientClerkId,
-        senderClerkId: args.senderClerkId,
+        userId: recipientUserId,
+        senderUserId: senderUserId ?? undefined,
+        type: "chat_dm",
         channelType: "direct",
         messageId: args.messageId,
         status: "skipped",
@@ -559,8 +630,9 @@ export const sendDirectMessageNotification = internalAction({
     // Check if sender is muted
     if (prefs.mutedUsers?.includes(args.senderClerkId)) {
       await ctx.runMutation(internal.notifications.logNotification, {
-        recipientClerkId: args.recipientClerkId,
-        senderClerkId: args.senderClerkId,
+        userId: recipientUserId,
+        senderUserId: senderUserId ?? undefined,
+        type: "chat_dm",
         channelType: "direct",
         messageId: args.messageId,
         status: "skipped",
@@ -576,7 +648,7 @@ export const sendDirectMessageNotification = internalAction({
     const recentCount = await ctx.runQuery(
       internal.notifications.getRecentNotificationCount,
       {
-        recipientClerkId: args.recipientClerkId,
+        recipientUserId,
         channelType: "direct",
         sinceTimestamp: batchWindowStart,
       }
@@ -584,8 +656,9 @@ export const sendDirectMessageNotification = internalAction({
 
     if (recentCount >= MAX_NOTIFICATIONS_PER_BATCH) {
       await ctx.runMutation(internal.notifications.logNotification, {
-        recipientClerkId: args.recipientClerkId,
-        senderClerkId: args.senderClerkId,
+        userId: recipientUserId,
+        senderUserId: senderUserId ?? undefined,
+        type: "chat_dm",
         channelType: "direct",
         messageId: args.messageId,
         status: "skipped",
@@ -615,8 +688,9 @@ export const sendDirectMessageNotification = internalAction({
 
     // Log the notification
     await ctx.runMutation(internal.notifications.logNotification, {
-      recipientClerkId: args.recipientClerkId,
-      senderClerkId: args.senderClerkId,
+      userId: recipientUserId,
+      senderUserId: senderUserId ?? undefined,
+      type: "chat_dm",
       channelType: "direct",
       messageId: args.messageId,
       status: "sent",

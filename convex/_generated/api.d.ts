@@ -44,6 +44,7 @@ import type * as medewerkerRapportages from "../medewerkerRapportages.js";
 import type * as medewerkers from "../medewerkers.js";
 import type * as meerwerk from "../meerwerk.js";
 import type * as migrations from "../migrations.js";
+import type * as migrations_consolidateNotificationLogs from "../migrations/consolidateNotificationLogs.js";
 import type * as mobile from "../mobile.js";
 import type * as nacalculaties from "../nacalculaties.js";
 import type * as normuren from "../normuren.js";
@@ -129,6 +130,7 @@ declare const fullApi: ApiFromModules<{
   medewerkers: typeof medewerkers;
   meerwerk: typeof meerwerk;
   migrations: typeof migrations;
+  "migrations/consolidateNotificationLogs": typeof migrations_consolidateNotificationLogs;
   mobile: typeof mobile;
   nacalculaties: typeof nacalculaties;
   normuren: typeof normuren;

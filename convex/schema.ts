@@ -1498,11 +1498,47 @@ export default defineSchema({
     .index("by_clerk_id", ["clerkUserId"])
     .index("by_token", ["expoPushToken"]),
 
+  // Unified notification delivery log — tracks all delivery attempts across channels
+  // Replaces pushNotificationLogs (push-specific) and notification_log (chat anti-spam)
+  notificationDeliveryLog: defineTable({
+    userId: v.id("users"), // Normalized user reference (not clerkId)
+    channel: v.union(
+      v.literal("push"),
+      v.literal("chat"),
+      v.literal("email")
+    ),
+    type: v.string(), // Notification type (e.g., "chat_team", "chat_dm", "offerte_status", "project_assignment")
+    status: v.union(
+      v.literal("sent"),
+      v.literal("skipped"),
+      v.literal("failed"),
+      v.literal("delivered")
+    ),
+
+    // Push-specific fields
+    ticketId: v.optional(v.string()), // Expo push ticket ID
+    title: v.optional(v.string()), // Push notification title
+    body: v.optional(v.string()), // Push notification body
+
+    // Chat-specific fields
+    messageId: v.optional(v.string()), // Chat message ID for deduplication
+    channelType: v.optional(v.string()), // Chat channel: "team", "project", "broadcast", "direct"
+
+    // Shared optional fields
+    error: v.optional(v.string()), // Error message on failure
+    reason: v.optional(v.string()), // Reason for skipping (e.g., quiet hours, prefs disabled, anti-spam)
+    data: v.optional(v.any()), // Additional payload data
+    projectId: v.optional(v.string()), // Related project ID
+    senderUserId: v.optional(v.id("users")), // Who triggered the notification
+
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId", "createdAt"])
+    .index("by_status", ["status"])
+    .index("by_channel", ["channel", "createdAt"]),
+
   // Push notification logs - Track sent notifications for debugging and analytics
-  // TODO: consolidate with notification_log table — both track sent notification status.
-  // pushNotificationLogs is push-specific (has ticketId, Expo type enum, userId ref),
-  // notification_log is chat-specific (has channelType, messageId, senderClerkId).
-  // Consider merging into a single unified "notification_delivery_log" table.
+  // DEPRECATED: migrate to notificationDeliveryLog
   pushNotificationLogs: defineTable({
     userId: v.id("users"),
     type: v.union(
@@ -1532,9 +1568,7 @@ export default defineSchema({
 
   // Notification log - Track sent notifications for batching and debugging
   // Used to prevent notification spam by tracking recent notifications per user/channel
-  // TODO: consolidate with pushNotificationLogs table — both log notification delivery attempts.
-  // This table uses clerkId refs and chat-oriented fields; pushNotificationLogs uses userId refs
-  // and push-oriented fields. A unified table would simplify cleanup and analytics queries.
+  // DEPRECATED: migrate to notificationDeliveryLog
   notification_log: defineTable({
     recipientClerkId: v.string(),
     senderClerkId: v.string(),
