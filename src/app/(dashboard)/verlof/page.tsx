@@ -69,7 +69,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 function VerlofPageSkeleton() {
   return (
-    <div className="flex flex-col gap-6 animate-pulse">
+    <div className="flex flex-col gap-6 p-4 md:gap-8 md:p-8 animate-pulse">
       <div className="h-8 bg-muted rounded w-1/4" />
       <div className="h-10 bg-muted rounded w-1/3" />
       <div className="h-64 bg-muted rounded" />
@@ -187,7 +187,7 @@ function VerlofPageContent() {
   if (isLoading) return <VerlofPageSkeleton />;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 p-4 md:gap-8 md:p-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
