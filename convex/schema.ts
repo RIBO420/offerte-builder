@@ -847,7 +847,8 @@ export default defineSchema({
     .index("by_project", ["projectId"])
     .index("by_user", ["userId"])
     .index("by_factuurnummer", ["factuurnummer"])
-    .index("by_status", ["status"]),
+    .index("by_status", ["status"])
+    .index("by_referentieFactuur", ["referentieFactuurId"]),
 
   // Betalingsherinneringen & Aanmaningen (FAC-006, FAC-007)
   betalingsherinneringen: defineTable({

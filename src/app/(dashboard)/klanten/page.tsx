@@ -56,6 +56,7 @@ import {
   Trash2,
   FileText,
   AlertTriangle,
+  Bell,
 } from "lucide-react";
 import {
   Select,
@@ -156,6 +157,16 @@ function KlantenPageContent() {
 
   // Export data query
   const exportData = useQuery(api.export.exportKlanten, user?._id ? {} : "skip");
+
+  // CRM-005: Klanten met opvolgherinneringen
+  const klantIdsMetHerinnering = useQuery(
+    api.klanten.getKlantenMetHerinneringen,
+    user?._id ? {} : "skip"
+  );
+  const herinneringSet = useMemo(
+    () => new Set(klantIdsMetHerinnering ?? []),
+    [klantIdsMetHerinnering]
+  );
 
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -416,6 +427,13 @@ function KlantenPageContent() {
               >
                 {klant.naam}
               </Link>
+              {/* CRM-005: Opvolgherinnering indicator */}
+              {herinneringSet.has(klant._id) && (
+                <span title="Opvolging nodig" className="relative flex h-5 w-5 items-center justify-center">
+                  <Bell className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                  <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                </span>
+              )}
               <Badge className={`text-xs ${PIPELINE_COLORS[klant.pipelineStatus ?? "lead"]}`}>
                 {PIPELINE_LABELS[klant.pipelineStatus ?? "lead"]}
               </Badge>
@@ -525,7 +543,7 @@ function KlantenPageContent() {
         ),
       },
     ],
-    [handleEdit, handleDeleteClick]
+    [handleEdit, handleDeleteClick, herinneringSet]
   );
 
   const KlantForm = () => (

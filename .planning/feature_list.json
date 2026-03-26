@@ -207,7 +207,9 @@
       "cluster": "A",
       "priority": "P0",
       "description": "Automatische opvolgherinneringen op klant-niveau",
-      "passes": false,
+      "passes": true,
+      "completed_by": "main-agent",
+      "completed_at": "2026-03-26",
       "steps": [
         "Backend: herinnering als offerte 7+ dagen zonder reactie (uitbreid offerteReminders naar klant-niveau)",
         "Backend: herinnering als klant lead is zonder offerte na 14 dagen",
