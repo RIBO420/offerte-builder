@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAuth } from "./auth";
-import { requireAdmin, requireNotViewer, getUserRole } from "./roles";
+import { AuthError, requireAuth } from "./auth";
+import { requireAdmin, requireNotViewer, getUserRole, isAdmin } from "./roles";
 
 export const list = query({
   args: { jaar: v.optional(v.number()), projectId: v.optional(v.id("projecten")) },
@@ -110,9 +110,15 @@ export const update = mutation({
     projectId: v.optional(v.id("projecten")),
   },
   handler: async (ctx, args) => {
-    await requireNotViewer(ctx);
+    const user = await requireNotViewer(ctx);
     const meeting = await ctx.db.get(args.id);
     if (!meeting) throw new Error("Toolbox meeting niet gevonden");
+
+    // Verify ownership: only the creator or an admin can update
+    const userIsAdmin = await isAdmin(ctx);
+    if (!userIsAdmin && meeting.userId.toString() !== user._id.toString()) {
+      throw new AuthError("Je hebt geen toegang om deze meeting te wijzigen");
+    }
 
     if (args.onderwerp !== undefined && !args.onderwerp.trim()) throw new Error("Onderwerp is verplicht");
     if (args.aanwezigen !== undefined && args.aanwezigen.length === 0) throw new Error("Minimaal één aanwezige is verplicht");

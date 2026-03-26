@@ -1976,6 +1976,7 @@ export default defineSchema({
 
   // Betalingen - Mollie betaalverzoeken gekoppeld aan aanvragen
   betalingen: defineTable({
+    userId: v.id("users"),
     molliePaymentId: v.string(),
     bedrag: v.number(),
     status: v.union(
@@ -1999,6 +2000,7 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   })
+    .index("by_user", ["userId"])
     .index("by_mollieId", ["molliePaymentId"])
     .index("by_referentie", ["referentie"])
     .index("by_status", ["status"]),

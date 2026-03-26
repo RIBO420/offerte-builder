@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getOwnedOfferte, isShareTokenValid, requireAuthUserId } from "./auth";
 import { requireNotViewer } from "./roles";
+import { checkPublicOfferteRateLimit } from "./security";
 
 // Get all messages for an offerte (with ownership verification)
 export const listByOfferte = query({
@@ -88,6 +89,12 @@ export const sendFromCustomer = mutation({
     message: v.string(),
   },
   handler: async (ctx, args) => {
+    // Rate limiting: max 30 requests per minute per token
+    const rateLimitResult = checkPublicOfferteRateLimit(args.token);
+    if (!rateLimitResult.allowed) {
+      throw new Error(rateLimitResult.message || "Te veel verzoeken. Probeer het later opnieuw.");
+    }
+
     // Find the offerte by token
     const offerte = await ctx.db
       .query("offertes")
@@ -137,6 +144,12 @@ export const markAsRead = mutation({
 export const markCustomerMessagesAsRead = mutation({
   args: { token: v.string() },
   handler: async (ctx, args) => {
+    // Rate limiting: max 30 requests per minute per token
+    const rateLimitResult = checkPublicOfferteRateLimit(args.token);
+    if (!rateLimitResult.allowed) {
+      throw new Error(rateLimitResult.message || "Te veel verzoeken. Probeer het later opnieuw.");
+    }
+
     const offerte = await ctx.db
       .query("offertes")
       .withIndex("by_share_token", (q) => q.eq("shareToken", args.token))

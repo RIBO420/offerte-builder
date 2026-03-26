@@ -36,7 +36,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuth } from "./auth";
-import { requireNotViewer } from "./roles";
+import { requireNotViewer, isAdmin } from "./roles";
 
 // ============================================
 // VALIDATORS
@@ -62,20 +62,28 @@ const betalingTypeValidator = v.union(
 // ============================================
 
 /**
- * Haal alle betalingen op (admin).
+ * Haal betalingen op.
+ * Admins zien alle betalingen; andere gebruikers alleen hun eigen.
  * Gesorteerd op aanmaakdatum, nieuwste eerst.
  */
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    await requireAuth(ctx);
+    const user = await requireAuth(ctx);
+    const userIsAdmin = await isAdmin(ctx);
 
-    const betalingen = await ctx.db
+    if (userIsAdmin) {
+      return await ctx.db
+        .query("betalingen")
+        .order("desc")
+        .collect();
+    }
+
+    return await ctx.db
       .query("betalingen")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
       .order("desc")
       .collect();
-
-    return betalingen;
   },
 });
 
@@ -138,10 +146,11 @@ export const create = mutation({
     metadata: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
-    await requireNotViewer(ctx);
+    const user = await requireNotViewer(ctx);
     const now = Date.now();
 
     const betalingId = await ctx.db.insert("betalingen", {
+      userId: user._id,
       molliePaymentId: args.molliePaymentId,
       bedrag: args.bedrag,
       status: "open",

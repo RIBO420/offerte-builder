@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAuth } from "./auth";
-import { requireNotViewer } from "./roles";
+import { AuthError, requireAuth } from "./auth";
+import { requireNotViewer, isAdmin } from "./roles";
 
 // ============================================
 // Queries
@@ -9,13 +9,27 @@ import { requireNotViewer } from "./roles";
 
 /**
  * Haal alle activiteiten op voor een lead, gesorteerd op datum aflopend.
+ * Alleen admins of de gebruiker aan wie de lead is toegewezen krijgen toegang.
  */
 export const listByLead = query({
   args: {
     leadId: v.id("configuratorAanvragen"),
   },
   handler: async (ctx, args) => {
-    await requireAuth(ctx);
+    const user = await requireAuth(ctx);
+    const userIsAdmin = await isAdmin(ctx);
+
+    // Verify the user has access to this lead
+    if (!userIsAdmin) {
+      const lead = await ctx.db.get(args.leadId);
+      if (!lead) {
+        throw new AuthError("Lead niet gevonden");
+      }
+      if (!lead.toegewezenAan || lead.toegewezenAan.toString() !== user._id.toString()) {
+        throw new AuthError("Je hebt geen toegang tot deze lead");
+      }
+    }
+
     const activiteiten = await ctx.db
       .query("leadActiviteiten")
       .withIndex("by_lead", (q) => q.eq("leadId", args.leadId))
