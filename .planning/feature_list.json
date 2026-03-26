@@ -12,9 +12,9 @@
     ],
     "stats": {
       "total": 75,
-      "passes_true": 45,
-      "passes_false": 30,
-      "completion_percentage": 60
+      "passes_true": 58,
+      "passes_false": 17,
+      "completion_percentage": 77
     }
   },
   "features": [
@@ -94,7 +94,7 @@
       "cluster": "A",
       "priority": "P0",
       "description": "Getekende offertes zijn vergrendeld — wijzigingen maken automatisch nieuwe versie",
-      "passes": false,
+      "passes": true,
       "steps": [
         "Backend: mutation guard in convex/offertes.ts update — blokkeer edits als status === 'geaccepteerd'",
         "Backend: bij poging tot edit op geaccepteerde offerte → automatisch nieuwe versie aanmaken",
@@ -106,7 +106,9 @@
         "convex/offertes.ts",
         "convex/offerteVersions.ts",
         "src/app/(dashboard)/offertes/[id]/"
-      ]
+      ],
+      "completed_by": "cluster-A",
+      "completed_at": "2026-03-26"
     },
     {
       "id": "CRM-002",
