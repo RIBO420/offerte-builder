@@ -181,3 +181,183 @@ export const remove = mutation({
     await ctx.db.delete(args.id);
   },
 });
+
+// ============================================
+// PLN-002: Beschikbaarheidspaneel
+// ============================================
+
+/**
+ * Medewerkers die NIET ingepland zijn op een specifieke dag.
+ * Filtert ook op verlof/ziekte via urenRegistraties met uurtype.
+ */
+export const getBeschikbaar = query({
+  args: { datum: v.string() },
+  handler: async (ctx, args) => {
+    await requireAuth(ctx);
+
+    const alleMedewerkers = await ctx.db
+      .query("medewerkers")
+      .filter((q) => q.eq(q.field("isActief"), true))
+      .collect();
+
+    // Wie is al ingepland?
+    const ingepland = await ctx.db
+      .query("weekPlanning")
+      .withIndex("by_datum", (q) => q.eq("datum", args.datum))
+      .collect();
+
+    const ingeplandIds = new Set(ingepland.map((t) => t.medewerkerId));
+
+    // Check verlof/ziekte in urenRegistraties
+    const urenVandaag = await ctx.db
+      .query("urenRegistraties")
+      .withIndex("by_datum", (q) => q.eq("datum", args.datum))
+      .collect();
+
+    const afwezigNamen = new Set(
+      urenVandaag
+        .filter((u) => {
+          const uurtype = (u as Record<string, unknown>).uurtype as string | undefined;
+          return uurtype === "ziekte" || uurtype === "verlof";
+        })
+        .map((u) => u.medewerker)
+    );
+
+    return alleMedewerkers
+      .filter((m) => !ingeplandIds.has(m._id) && !afwezigNamen.has(m.naam))
+      .map((m) => ({ _id: m._id, naam: m.naam, functie: m.functie }));
+  },
+});
+
+// ============================================
+// PLN-005: Capaciteitsoverzicht
+// ============================================
+
+/**
+ * Capaciteitsoverzicht: beschikbare vs ingeplande uren per dag in een week.
+ */
+export const getCapaciteit = query({
+  args: {
+    startDatum: v.string(),
+    eindDatum: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await requireAuth(ctx);
+
+    const alleMedewerkers = await ctx.db
+      .query("medewerkers")
+      .filter((q) => q.eq(q.field("isActief"), true))
+      .collect();
+
+    const toewijzingen = await ctx.db
+      .query("weekPlanning")
+      .withIndex("by_datum")
+      .filter((q) =>
+        q.and(
+          q.gte(q.field("datum"), args.startDatum),
+          q.lte(q.field("datum"), args.eindDatum)
+        )
+      )
+      .collect();
+
+    const urenPerDag = 8;
+    const totaalBeschikbaar = alleMedewerkers.length * urenPerDag;
+
+    // Groepeer per dag
+    const perDag: Record<string, { ingepland: number; beschikbaar: number; bezetting: number }> = {};
+
+    // Maak 5 werkdagen aan
+    const start = new Date(args.startDatum);
+    for (let i = 0; i < 5; i++) {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      const dateStr = d.toISOString().split("T")[0];
+
+      const dagToewijzingen = toewijzingen.filter((t) => t.datum === dateStr);
+      const ingeplandUren = dagToewijzingen.reduce((sum, t) => sum + (t.uren ?? urenPerDag), 0);
+      const bezetting = totaalBeschikbaar > 0
+        ? Math.round((ingeplandUren / totaalBeschikbaar) * 100)
+        : 0;
+
+      perDag[dateStr] = {
+        ingepland: ingeplandUren,
+        beschikbaar: totaalBeschikbaar,
+        bezetting,
+      };
+    }
+
+    const totaalIngepland = Object.values(perDag).reduce((s, d) => s + d.ingepland, 0);
+    const totaalBeschikbaarWeek = totaalBeschikbaar * 5;
+    const weekBezetting = totaalBeschikbaarWeek > 0
+      ? Math.round((totaalIngepland / totaalBeschikbaarWeek) * 100)
+      : 0;
+
+    return {
+      perDag,
+      weekBezetting,
+      totaalMedewerkers: alleMedewerkers.length,
+    };
+  },
+});
+
+// ============================================
+// PLN-006: Conflictdetectie
+// ============================================
+
+/**
+ * Detecteer conflicten in de weekplanning.
+ * Conflict = medewerker ingepland op meerdere projecten op dezelfde dag.
+ */
+export const getConflicten = query({
+  args: {
+    startDatum: v.string(),
+    eindDatum: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await requireAuth(ctx);
+
+    const toewijzingen = await ctx.db
+      .query("weekPlanning")
+      .withIndex("by_datum")
+      .filter((q) =>
+        q.and(
+          q.gte(q.field("datum"), args.startDatum),
+          q.lte(q.field("datum"), args.eindDatum)
+        )
+      )
+      .collect();
+
+    // Groepeer per medewerker + datum
+    const grouped = new Map<string, typeof toewijzingen>();
+    for (const t of toewijzingen) {
+      const key = `${t.medewerkerId}:${t.datum}`;
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key)!.push(t);
+    }
+
+    // Conflicten = medewerker met >1 project op dezelfde dag
+    const conflicten: {
+      medewerkerId: string;
+      datum: string;
+      toewijzingen: string[]; // weekPlanning IDs
+      projectIds: string[];
+    }[] = [];
+
+    for (const [, items] of grouped) {
+      if (items.length > 1) {
+        // Meerdere projecten op dezelfde dag = potentieel conflict
+        const uniqueProjects = new Set(items.map((i) => i.projectId));
+        if (uniqueProjects.size > 1) {
+          conflicten.push({
+            medewerkerId: items[0].medewerkerId,
+            datum: items[0].datum,
+            toewijzingen: items.map((i) => i._id),
+            projectIds: [...uniqueProjects],
+          });
+        }
+      }
+    }
+
+    return conflicten;
+  },
+});
