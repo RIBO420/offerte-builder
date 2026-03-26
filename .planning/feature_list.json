@@ -675,7 +675,7 @@
       "cluster": "B",
       "priority": "P0",
       "description": "Beschikbaarheidspaneel (wie is niet ingepland)",
-      "passes": false,
+      "passes": true,
       "steps": [
         "Backend: query die medewerkers retourneert die NIET ingepland zijn op een specifieke dag",
         "Backend: filter op verlof/ziekte (medewerker met verlof verschijnt NIET in pool)",
@@ -686,7 +686,9 @@
       "files_to_edit": [
         "convex/planningen.ts",
         "src/components/planning/"
-      ]
+      ],
+      "completed_by": "cluster-b-agent",
+      "completed_at": "2026-03-26"
     },
     {
       "id": "PLN-003",
@@ -694,7 +696,7 @@
       "cluster": "B",
       "priority": "P0",
       "description": "Bus-/voertuigtoewijzing per dag",
-      "passes": false,
+      "passes": true,
       "steps": [
         "Schema: voeg 'voertuigId' toe aan planning entries",
         "UI: voertuig dropdown per project/team in planning",
@@ -706,7 +708,9 @@
         "convex/schema.ts",
         "convex/planningen.ts",
         "src/components/planning/"
-      ]
+      ],
+      "completed_by": "cluster-b-agent",
+      "completed_at": "2026-03-26"
     },
     {
       "id": "PLN-005",
@@ -714,7 +718,7 @@
       "cluster": "B",
       "priority": "P0",
       "description": "Capaciteitsoverzicht",
-      "passes": false,
+      "passes": true,
       "steps": [
         "Backend: query totaal beschikbare uren per week vs ingeplande uren",
         "Backend: query beschikbare bussen/machines per dag",
@@ -725,7 +729,9 @@
       "files_to_edit": [
         "convex/planningen.ts",
         "src/components/planning/"
-      ]
+      ],
+      "completed_by": "cluster-b-agent",
+      "completed_at": "2026-03-26"
     },
     {
       "id": "PLN-006",
@@ -733,7 +739,7 @@
       "cluster": "B",
       "priority": "P0",
       "description": "Conflictdetectie",
-      "passes": false,
+      "passes": true,
       "steps": [
         "Backend: bij inplannen → check of medewerker al ergens anders ingepland is die dag",
         "Backend: check of bus/machine al toegewezen is",
@@ -744,7 +750,9 @@
       "files_to_edit": [
         "convex/planningen.ts",
         "src/components/planning/"
-      ]
+      ],
+      "completed_by": "cluster-b-agent",
+      "completed_at": "2026-03-26"
     },
     {
       "id": "URN-004",
@@ -752,7 +760,7 @@
       "cluster": "B",
       "priority": "P0",
       "description": "Automatische herinnering als uren niet ingevuld",
-      "passes": false,
+      "passes": true,
       "steps": [
         "Backend: cron job om 18:00 → check welke medewerkers geen uren hebben ingevuld vandaag",
         "Backend: push notificatie naar medewerker via pushNotifications",
@@ -765,7 +773,9 @@
         "convex/urenRegistraties.ts",
         "convex/pushNotifications.ts",
         "src/app/(dashboard)/uren/"
-      ]
+      ],
+      "completed_by": "cluster-b-agent",
+      "completed_at": "2026-03-26"
     },
     {
       "id": "PLN-004",
@@ -986,7 +996,7 @@
       "cluster": "C",
       "priority": "P0",
       "description": "Directie dashboard",
-      "passes": false,
+      "passes": true,
       "steps": [
         "Backend: aggregatie queries voor omzet, marges, bezettingsgraad",
         "UI: dedicated dashboard voor rol 'admin/directie'",

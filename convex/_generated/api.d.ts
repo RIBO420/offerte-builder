@@ -20,6 +20,7 @@ import type * as chat from "../chat.js";
 import type * as configuratorAanvragen from "../configuratorAanvragen.js";
 import type * as correctiefactoren from "../correctiefactoren.js";
 import type * as crons from "../crons.js";
+import type * as directieDashboard from "../directieDashboard.js";
 import type * as emailLogs from "../emailLogs.js";
 import type * as export_ from "../export.js";
 import type * as facturen from "../facturen.js";
@@ -63,6 +64,7 @@ import type * as smartAnalytics from "../smartAnalytics.js";
 import type * as softDelete from "../softDelete.js";
 import type * as standaardtuinen from "../standaardtuinen.js";
 import type * as teams from "../teams.js";
+import type * as toolboxMeetings from "../toolboxMeetings.js";
 import type * as transportbedrijven from "../transportbedrijven.js";
 import type * as urenRegistraties from "../urenRegistraties.js";
 import type * as users from "../users.js";
@@ -75,6 +77,7 @@ import type * as voertuigUitrusting from "../voertuigUitrusting.js";
 import type * as voertuigen from "../voertuigen.js";
 import type * as voorcalculaties from "../voorcalculaties.js";
 import type * as voorraad from "../voorraad.js";
+import type * as weekPlanning from "../weekPlanning.js";
 import type * as werklocaties from "../werklocaties.js";
 
 import type {
@@ -96,6 +99,7 @@ declare const fullApi: ApiFromModules<{
   configuratorAanvragen: typeof configuratorAanvragen;
   correctiefactoren: typeof correctiefactoren;
   crons: typeof crons;
+  directieDashboard: typeof directieDashboard;
   emailLogs: typeof emailLogs;
   export: typeof export_;
   facturen: typeof facturen;
@@ -139,6 +143,7 @@ declare const fullApi: ApiFromModules<{
   softDelete: typeof softDelete;
   standaardtuinen: typeof standaardtuinen;
   teams: typeof teams;
+  toolboxMeetings: typeof toolboxMeetings;
   transportbedrijven: typeof transportbedrijven;
   urenRegistraties: typeof urenRegistraties;
   users: typeof users;
@@ -151,6 +156,7 @@ declare const fullApi: ApiFromModules<{
   voertuigen: typeof voertuigen;
   voorcalculaties: typeof voorcalculaties;
   voorraad: typeof voorraad;
+  weekPlanning: typeof weekPlanning;
   werklocaties: typeof werklocaties;
 }>;
 
