@@ -29,6 +29,8 @@ export {
   generateIdempotencyKey,
   extractTimestamp,
   isIdempotencyKeyExpired,
+  VALID_SYNC_TABLES,
+  validateTableName,
   type SyncConfig,
   type SyncState,
   type SyncQueueItem,

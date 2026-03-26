@@ -9,6 +9,33 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 
 // ============================================
+// TABLE NAME WHITELIST (SQL injection prevention)
+// ============================================
+
+/**
+ * Whitelist of valid table names that can appear in sync queue operations.
+ * Only these tables may be referenced in dynamically constructed SQL.
+ * This prevents SQL injection via malicious sync queue entries.
+ */
+export const VALID_SYNC_TABLES = [
+  'uren_registraties',
+  'location_cache',
+] as const;
+
+export type ValidSyncTable = (typeof VALID_SYNC_TABLES)[number];
+
+/**
+ * Validate that a table name is in the whitelist before using it in SQL.
+ * Throws if the name is not a known sync table.
+ */
+export function validateTableName(name: string): ValidSyncTable {
+  if (!VALID_SYNC_TABLES.includes(name as ValidSyncTable)) {
+    throw new Error(`Invalid table name in sync queue: ${name}`);
+  }
+  return name as ValidSyncTable;
+}
+
+// ============================================
 // TYPES
 // ============================================
 
@@ -192,9 +219,11 @@ export class SyncEngine {
 
   /**
    * Register a sync handler for a specific table.
+   * The table name is validated against the whitelist.
    */
   registerHandler(tableName: string, handler: SyncHandler): void {
-    this.syncHandlers.set(tableName, handler);
+    const validated = validateTableName(tableName);
+    this.syncHandlers.set(validated, handler);
   }
 
   /**
@@ -236,6 +265,9 @@ export class SyncEngine {
     payload: object,
     priority: number = 0
   ): Promise<string> {
+    // Validate table name before inserting into sync queue
+    const validatedTableName = validateTableName(tableName);
+
     const id = generateIdempotencyKey();
     const idempotencyKey =
       (payload as { idempotencyKey?: string }).idempotencyKey ||
@@ -255,7 +287,7 @@ export class SyncEngine {
       ) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)`,
       [
         id,
-        tableName,
+        validatedTableName,
         operation,
         recordId,
         JSON.stringify(payload),
@@ -300,13 +332,20 @@ export class SyncEngine {
    * Get all pending items from the sync queue.
    */
   async getPendingItems(limit?: number): Promise<SyncQueueItem[]> {
-    const sql = `
-      SELECT * FROM sync_queue
-      WHERE status = 'pending' AND retry_count < max_retries
-      ORDER BY priority DESC, sequence_number ASC
-      ${limit ? `LIMIT ${limit}` : ''}
-    `;
-    return this.db.getAllAsync<SyncQueueItem>(sql);
+    if (limit !== undefined) {
+      return this.db.getAllAsync<SyncQueueItem>(
+        `SELECT * FROM sync_queue
+         WHERE status = 'pending' AND retry_count < max_retries
+         ORDER BY priority DESC, sequence_number ASC
+         LIMIT ?`,
+        [limit]
+      );
+    }
+    return this.db.getAllAsync<SyncQueueItem>(
+      `SELECT * FROM sync_queue
+       WHERE status = 'pending' AND retry_count < max_retries
+       ORDER BY priority DESC, sequence_number ASC`
+    );
   }
 
   /**
@@ -416,16 +455,17 @@ export class SyncEngine {
           );
 
           // Update source record if it was an INSERT and we got a server ID
+          const validatedTable = validateTableName(item.table_name);
           if (item.operation === 'INSERT' && result.serverId) {
             await this.db.runAsync(
-              `UPDATE ${item.table_name}
+              `UPDATE ${validatedTable}
                SET server_id = ?, sync_status = 'synced', server_timestamp = ?
                WHERE id = ?`,
               [result.serverId, Date.now(), item.record_id]
             );
           } else if (item.operation === 'UPDATE' || item.operation === 'DELETE') {
             await this.db.runAsync(
-              `UPDATE ${item.table_name}
+              `UPDATE ${validatedTable}
                SET sync_status = 'synced', server_timestamp = ?
                WHERE id = ?`,
               [Date.now(), item.record_id]
@@ -459,8 +499,9 @@ export class SyncEngine {
 
           // Update source record status if failed permanently
           if (isConflict || maxRetriesReached) {
+            const failedTable = validateTableName(item.table_name);
             await this.db.runAsync(
-              `UPDATE ${item.table_name}
+              `UPDATE ${failedTable}
                SET sync_status = ?, last_error = ?
                WHERE id = ?`,
               [isConflict ? 'conflict' : 'error', errorMessage, item.record_id]
