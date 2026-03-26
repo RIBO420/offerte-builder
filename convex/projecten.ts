@@ -11,6 +11,7 @@ import { mutation, query } from "./_generated/server";
 import { requireAuth, requireAuthUserId, verifyOwnership } from "./auth";
 import { Id } from "./_generated/dataModel";
 import { getUserRole, getLinkedMedewerker, requireNotViewer } from "./roles";
+import { upgradeKlantPipeline } from "./pipelineHelpers";
 
 // Status validator for project status
 // Note: voorcalculatie is now done at offerte level before a project is created
@@ -105,6 +106,11 @@ export const create = mutation({
       createdAt: now,
       updatedAt: now,
     });
+
+    // CRM-002: Auto-upgrade klant pipeline status to "in_uitvoering"
+    if (offerte.klantId) {
+      await upgradeKlantPipeline(ctx, offerte.klantId, "in_uitvoering");
+    }
 
     // Optionally copy the voorcalculatie from offerte to project for reference
     if (args.copyVoorcalculatie) {
@@ -343,6 +349,15 @@ export const updateStatus = mutation({
       status: args.status,
       updatedAt: now,
     });
+
+    // CRM-002: Auto-upgrade klant pipeline status when project is completed
+    if (newStatus === "afgerond") {
+      // Look up the offerte to find the klantId
+      const offerte = await ctx.db.get(project.offerteId);
+      if (offerte?.klantId) {
+        await upgradeKlantPipeline(ctx, offerte.klantId, "opgeleverd");
+      }
+    }
 
     return args.id;
   },

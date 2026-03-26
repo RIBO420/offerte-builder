@@ -9,6 +9,7 @@ import {
   sanitizeOptionalString,
   VALIDATION_MESSAGES,
 } from "./validators";
+import { shouldUpgradePipeline } from "./pipelineHelpers";
 
 // Get all klanten for authenticated user
 export const list = query({
@@ -148,6 +149,7 @@ export const create = mutation({
       email,
       telefoon,
       notities,
+      pipelineStatus: "lead",
       createdAt: now,
       updatedAt: now,
     });
@@ -309,6 +311,7 @@ export const createFromOfferte = mutation({
       plaats: args.plaats.trim(),
       email,
       telefoon,
+      pipelineStatus: "lead",
       createdAt: now,
       updatedAt: now,
     });

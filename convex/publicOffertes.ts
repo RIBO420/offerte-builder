@@ -3,6 +3,7 @@ import { mutation, query } from "./_generated/server";
 import { generateSecureToken, getOwnedOfferte, isShareTokenValid } from "./auth";
 import { internal } from "./_generated/api";
 import { checkPublicOfferteRateLimit } from "./security";
+import { upgradeKlantPipeline } from "./pipelineHelpers";
 
 // Create or refresh share link for an offerte (with ownership verification)
 export const createShareLink = mutation({
@@ -280,6 +281,11 @@ export const respond = mutation({
       triggeredBy: "klant",
       comment: args.comment,
     });
+
+    // CRM-002: Auto-upgrade klant pipeline status on acceptance
+    if (args.status === "geaccepteerd" && offerte!.klantId) {
+      await upgradeKlantPipeline(ctx, offerte!.klantId, "getekend");
+    }
 
     return { success: true };
   },

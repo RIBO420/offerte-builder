@@ -8,6 +8,7 @@ import {
 } from "./auth";
 import { requireNotViewer } from "./roles";
 import { internal } from "./_generated/api";
+import { upgradeKlantPipeline } from "./pipelineHelpers";
 
 const klantValidator = v.object({
   naam: v.string(),
@@ -1060,6 +1061,15 @@ export const updateStatus = mutation({
           triggeredBy: offerte.userId.toString(),
         });
       }
+
+      // CRM-002: Auto-upgrade klant pipeline status
+      if (offerte.klantId) {
+        if (args.status === "verzonden") {
+          await upgradeKlantPipeline(ctx, offerte.klantId, "offerte_verzonden");
+        } else if (args.status === "geaccepteerd") {
+          await upgradeKlantPipeline(ctx, offerte.klantId, "getekend");
+        }
+      }
     }
 
     return args.id;
@@ -1319,6 +1329,16 @@ export const bulkUpdateStatus = mutation({
       }
 
       await ctx.db.patch(id, updates);
+
+      // CRM-002: Auto-upgrade klant pipeline status
+      const offerte = await ctx.db.get(id);
+      if (offerte?.klantId) {
+        if (args.status === "verzonden") {
+          await upgradeKlantPipeline(ctx, offerte.klantId, "offerte_verzonden");
+        } else if (args.status === "geaccepteerd") {
+          await upgradeKlantPipeline(ctx, offerte.klantId, "getekend");
+        }
+      }
     }
 
     return args.ids.length;

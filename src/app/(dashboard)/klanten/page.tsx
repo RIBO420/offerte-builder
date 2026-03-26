@@ -73,6 +73,8 @@ import { LeadDetailModal } from "@/components/leads/lead-detail-modal";
 import { NieuweLeadDialog } from "@/components/leads/nieuwe-lead-dialog";
 import type { Lead } from "@/components/leads/lead-card";
 
+type PipelineStatus = "lead" | "offerte_verzonden" | "getekend" | "in_uitvoering" | "opgeleverd" | "onderhoud";
+
 type Klant = {
   _id: Id<"klanten">;
   naam: string;
@@ -82,9 +84,37 @@ type Klant = {
   email?: string;
   telefoon?: string;
   notities?: string;
+  pipelineStatus?: PipelineStatus;
   createdAt: number;
   updatedAt: number;
 };
+
+const PIPELINE_LABELS: Record<PipelineStatus, string> = {
+  lead: "Lead",
+  offerte_verzonden: "Offerte verzonden",
+  getekend: "Getekend",
+  in_uitvoering: "In uitvoering",
+  opgeleverd: "Opgeleverd",
+  onderhoud: "Onderhoud",
+};
+
+const PIPELINE_COLORS: Record<PipelineStatus, string> = {
+  lead: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
+  offerte_verzonden: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+  getekend: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+  in_uitvoering: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+  opgeleverd: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
+  onderhoud: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+};
+
+const ALL_PIPELINE_STATUSES: PipelineStatus[] = [
+  "lead",
+  "offerte_verzonden",
+  "getekend",
+  "in_uitvoering",
+  "opgeleverd",
+  "onderhoud",
+];
 
 function KlantenPageContent() {
   const { user } = useCurrentUser();
@@ -121,6 +151,7 @@ function KlantenPageContent() {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pipelineFilter, setPipelineFilter] = useState<PipelineStatus | "alle">("alle");
 
   // Optimistic updates state
   const [optimisticDeletedIds, setOptimisticDeletedIds] = useState<Set<string>>(new Set());
@@ -140,7 +171,11 @@ function KlantenPageContent() {
       });
   }, [klanten, optimisticDeletedIds, optimisticUpdates]);
 
-  const filteredKlanten: Klant[] = (debouncedSearchTerm ? searchResults : klantenWithOptimisticUpdates) as Klant[];
+  const filteredKlanten: Klant[] = useMemo(() => {
+    const base = (debouncedSearchTerm ? searchResults : klantenWithOptimisticUpdates) as Klant[];
+    if (pipelineFilter === "alle") return base;
+    return base.filter((klant) => (klant.pipelineStatus ?? "lead") === pipelineFilter);
+  }, [debouncedSearchTerm, searchResults, klantenWithOptimisticUpdates, pipelineFilter]);
 
   // Apply sorting to klanten
   const { sortedData: sortedKlanten, sortConfig, toggleSort } = useTableSort<Klant>(
@@ -303,12 +338,17 @@ function KlantenPageContent() {
         sortable: true,
         sortKey: "naam",
         render: (klant) => (
-          <Link
-            href={`/klanten/${klant._id}`}
-            className="font-medium hover:underline"
-          >
-            {klant.naam}
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href={`/klanten/${klant._id}`}
+              className="font-medium hover:underline"
+            >
+              {klant.naam}
+            </Link>
+            <Badge className={`text-xs ${PIPELINE_COLORS[klant.pipelineStatus ?? "lead"]}`}>
+              {PIPELINE_LABELS[klant.pipelineStatus ?? "lead"]}
+            </Badge>
+          </div>
         ),
       },
       {
@@ -554,6 +594,38 @@ function KlantenPageContent() {
         </div>
       </div>
 
+      {/* Pipeline filter */}
+      <div className="flex flex-wrap gap-2">
+        <Badge
+          className={`cursor-pointer transition-colors ${
+            pipelineFilter === "alle"
+              ? "bg-primary text-primary-foreground hover:bg-primary/90"
+              : "bg-muted text-muted-foreground hover:bg-muted/80"
+          }`}
+          onClick={() => setPipelineFilter("alle")}
+        >
+          Alle ({klantenWithOptimisticUpdates.length})
+        </Badge>
+        {ALL_PIPELINE_STATUSES.map((status) => {
+          const count = klantenWithOptimisticUpdates.filter(
+            (k) => (k.pipelineStatus ?? "lead") === status
+          ).length;
+          return (
+            <Badge
+              key={status}
+              className={`cursor-pointer transition-colors ${
+                pipelineFilter === status
+                  ? PIPELINE_COLORS[status]
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              }`}
+              onClick={() => setPipelineFilter(status)}
+            >
+              {PIPELINE_LABELS[status]} ({count})
+            </Badge>
+          );
+        })}
+      </div>
+
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -563,7 +635,7 @@ function KlantenPageContent() {
                 Klantenlijst
               </CardTitle>
               <CardDescription>
-                {klanten.length} klant{klanten.length !== 1 ? "en" : ""} in je bestand
+                {filteredKlanten.length} klant{filteredKlanten.length !== 1 ? "en" : ""}{pipelineFilter !== "alle" ? ` (${PIPELINE_LABELS[pipelineFilter]})` : ""} in je bestand
               </CardDescription>
             </div>
             <div className="relative w-full sm:w-64">

@@ -41,10 +41,20 @@ export default defineSchema({
     email: v.optional(v.string()),
     telefoon: v.optional(v.string()),
     notities: v.optional(v.string()),
+    // CRM pipeline lifecycle status (CRM-002)
+    pipelineStatus: v.optional(v.union(
+      v.literal("lead"),
+      v.literal("offerte_verzonden"),
+      v.literal("getekend"),
+      v.literal("in_uitvoering"),
+      v.literal("opgeleverd"),
+      v.literal("onderhoud"),
+    )),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_pipeline_status", ["userId", "pipelineStatus"])
     .searchIndex("search_klanten", {
       searchField: "naam",
       filterFields: ["userId"],

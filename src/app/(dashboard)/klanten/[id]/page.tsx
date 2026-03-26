@@ -54,6 +54,27 @@ const statusColors: Record<string, string> = {
   afgewezen: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
 };
 
+// CRM-002: Pipeline status labels and colors
+type PipelineStatus = "lead" | "offerte_verzonden" | "getekend" | "in_uitvoering" | "opgeleverd" | "onderhoud";
+
+const pipelineLabels: Record<PipelineStatus, string> = {
+  lead: "Lead",
+  offerte_verzonden: "Offerte verzonden",
+  getekend: "Getekend",
+  in_uitvoering: "In uitvoering",
+  opgeleverd: "Opgeleverd",
+  onderhoud: "Onderhoud",
+};
+
+const pipelineColors: Record<PipelineStatus, string> = {
+  lead: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
+  offerte_verzonden: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+  getekend: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+  in_uitvoering: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+  opgeleverd: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
+  onderhoud: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+};
+
 const statusLabels: Record<string, string> = {
   concept: "Concept",
   voorcalculatie: "Voorcalculatie",
@@ -200,9 +221,14 @@ export default function KlantDetailPage({
               </Link>
             </Button>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
-                {klant.naam}
-              </h1>
+              <div className="flex items-center gap-3">
+                <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
+                  {klant.naam}
+                </h1>
+                <Badge className={pipelineColors[(klant as { pipelineStatus?: PipelineStatus }).pipelineStatus ?? "lead"]}>
+                  {pipelineLabels[(klant as { pipelineStatus?: PipelineStatus }).pipelineStatus ?? "lead"]}
+                </Badge>
+              </div>
               <p className="text-muted-foreground">
                 Klant sinds {formatDate(klant.createdAt)}
               </p>
