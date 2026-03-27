@@ -5,8 +5,8 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useTableSort } from "@/hooks/use-table-sort";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { RequireAdmin } from "@/components/require-admin";
+import { m } from "framer-motion";
+import { RequireRole } from "@/components/require-admin";
 import { PageHeader } from "@/components/page-header";
 import {
   Card,
@@ -57,7 +57,21 @@ import {
   FileText,
   AlertTriangle,
   Bell,
+  Upload,
+  Download,
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
+  FileUp,
+  Globe,
+  GlobeLock,
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
@@ -69,8 +83,13 @@ import { TagInput } from "@/components/ui/tag-input";
 import { toast } from "sonner";
 import { useKlanten, useKlantenSearch } from "@/hooks/use-klanten";
 import { Id } from "../../../../convex/_generated/dataModel";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
+import {
+  parseKlantenFile,
+  getSampleKlantCSV,
+  type KlantParseResult,
+} from "@/lib/klant-import-parser";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useIsAdmin } from "@/hooks/use-users";
 import {
@@ -99,6 +118,8 @@ type Klant = {
   pipelineStatus?: PipelineStatus;
   klantType?: KlantType;
   tags?: string[];
+  portalEnabled?: boolean;
+  clerkUserId?: string;
   createdAt: number;
   updatedAt: number;
 };
@@ -171,6 +192,7 @@ function KlantenPageContent() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
   const [selectedKlant, setSelectedKlant] = useState<{
     _id: Id<"klanten">;
     naam: string;
@@ -197,6 +219,44 @@ function KlantenPageContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pipelineFilter, setPipelineFilter] = useState<PipelineStatus | "alle">("alle");
   const [klantTypeFilter, setKlantTypeFilter] = useState<KlantType | "alle">("alle");
+
+  // Portal mutations
+  const activatePortalMutation = useMutation(api.klanten.activatePortal);
+  const deactivatePortalMutation = useMutation(api.klanten.deactivatePortal);
+
+  const handleActivatePortal = useCallback(async (klant: Klant) => {
+    try {
+      await activatePortalMutation({ id: klant._id });
+      toast.success(`Portaal geactiveerd voor ${klant.naam}. Een uitnodiging wordt verstuurd.`);
+    } catch (error) {
+      if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error("Fout bij activeren portaal");
+      }
+    }
+  }, [activatePortalMutation]);
+
+  const handleDeactivatePortal = useCallback(async (klant: Klant) => {
+    try {
+      await deactivatePortalMutation({ id: klant._id });
+      toast.success(`Portaal gedeactiveerd voor ${klant.naam}`);
+    } catch (error) {
+      if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error("Fout bij deactiveren portaal");
+      }
+    }
+  }, [deactivatePortalMutation]);
+
+  // Import state
+  const importKlantenMutation = useMutation(api.klanten.importKlanten);
+  const [importParseResult, setImportParseResult] = useState<KlantParseResult | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [isParsing, setIsParsing] = useState(false);
+  const [importResult, setImportResult] = useState<{ imported: number; skipped: number; errors: string[] } | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   // CRM-003: Fetch all existing tags for autocomplete
   const allTags = useQuery(api.klanten.getAllTags, user?._id ? {} : "skip");
@@ -409,6 +469,87 @@ function KlantenPageContent() {
     setShowDeleteDialog(true);
   }, []);
 
+  // Import handlers
+  const handleFileSelect = useCallback(async (file: File) => {
+    setIsParsing(true);
+    setImportResult(null);
+    try {
+      const result = await parseKlantenFile(file);
+      setImportParseResult(result);
+    } catch {
+      toast.error("Fout bij verwerken bestand");
+    } finally {
+      setIsParsing(false);
+    }
+  }, []);
+
+  const handleImportDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragOver(false);
+      const file = e.dataTransfer.files[0];
+      if (file) handleFileSelect(file);
+    },
+    [handleFileSelect]
+  );
+
+  const handleImportFileInput = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) handleFileSelect(file);
+    },
+    [handleFileSelect]
+  );
+
+  const handleImportSubmit = useCallback(async () => {
+    if (!importParseResult || importParseResult.entries.length === 0) return;
+
+    setIsImporting(true);
+    try {
+      const result = await importKlantenMutation({
+        klanten: importParseResult.entries.map((entry) => ({
+          naam: entry.naam,
+          email: entry.email,
+          telefoon: entry.telefoon,
+          adres: entry.adres,
+          postcode: entry.postcode,
+          plaats: entry.plaats,
+          klantType: entry.klantType,
+        })),
+      });
+      setImportResult(result);
+      if (result.imported > 0) {
+        toast.success(`${result.imported} klant${result.imported !== 1 ? "en" : ""} geimporteerd`);
+      }
+    } catch {
+      toast.error("Fout bij importeren klanten");
+    } finally {
+      setIsImporting(false);
+    }
+  }, [importParseResult, importKlantenMutation]);
+
+  const handleImportDialogClose = useCallback((open: boolean) => {
+    if (!open) {
+      setImportParseResult(null);
+      setImportResult(null);
+      setIsDragOver(false);
+    }
+    setShowImportDialog(open);
+  }, []);
+
+  const handleDownloadSampleCSV = useCallback(() => {
+    const csv = getSampleKlantCSV();
+    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "klanten-voorbeeld.csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, []);
+
   // Column configuration for ResponsiveTable
   const columns: ResponsiveColumn<Klant, keyof Klant>[] = useMemo(
     () => [
@@ -440,6 +581,18 @@ function KlantenPageContent() {
               <Badge className={`text-xs ${KLANT_TYPE_COLORS[klant.klantType ?? "particulier"]}`}>
                 {KLANT_TYPE_LABELS[klant.klantType ?? "particulier"]}
               </Badge>
+              {klant.portalEnabled && klant.clerkUserId && (
+                <Badge className="text-[10px] bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                  <Globe className="h-3 w-3 mr-0.5" />
+                  Portaal actief
+                </Badge>
+              )}
+              {klant.portalEnabled && !klant.clerkUserId && (
+                <Badge className="text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                  <Globe className="h-3 w-3 mr-0.5" />
+                  Uitgenodigd
+                </Badge>
+              )}
             </div>
             {klant.tags && klant.tags.length > 0 && (
               <div className="flex items-center gap-1 flex-wrap">
@@ -509,41 +662,86 @@ function KlantenPageContent() {
         showInCard: true,
         mobileLabel: "",
         render: (klant) => (
-          <div className="flex items-center justify-end gap-1">
-            <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" asChild aria-label="Bekijk details">
-              <Link href={`/klanten/${klant._id}`}>
-                <FileText className="h-4 w-4" />
-              </Link>
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 sm:h-8 sm:w-8"
-              aria-label="Bewerken"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleEdit(klant);
-              }}
-            >
-              <Pencil className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 sm:h-8 sm:w-8"
-              aria-label="Verwijderen"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDeleteClick(klant);
-              }}
-            >
-              <Trash2 className="h-4 w-4 text-destructive" />
-            </Button>
-          </div>
+          <TooltipProvider>
+            <div className="flex items-center justify-end gap-1">
+              <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" asChild aria-label="Bekijk details">
+                <Link href={`/klanten/${klant._id}`}>
+                  <FileText className="h-4 w-4" />
+                </Link>
+              </Button>
+              {/* Portal activate/deactivate button */}
+              {klant.portalEnabled ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 sm:h-8 sm:w-8"
+                      aria-label="Portaal deactiveren"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeactivatePortal(klant);
+                      }}
+                    >
+                      <GlobeLock className="h-4 w-4 text-green-600" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Portaal deactiveren</TooltipContent>
+                </Tooltip>
+              ) : (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 sm:h-8 sm:w-8"
+                      aria-label="Portaal activeren"
+                      disabled={!klant.email}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleActivatePortal(klant);
+                      }}
+                    >
+                      <Globe className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {klant.email
+                      ? "Portaal activeren"
+                      : "Voeg eerst een e-mailadres toe"}
+                  </TooltipContent>
+                </Tooltip>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 sm:h-8 sm:w-8"
+                aria-label="Bewerken"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleEdit(klant);
+                }}
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 sm:h-8 sm:w-8"
+                aria-label="Verwijderen"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteClick(klant);
+                }}
+              >
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            </div>
+          </TooltipProvider>
         ),
       },
     ],
-    [handleEdit, handleDeleteClick, herinneringSet]
+    [handleEdit, handleDeleteClick, herinneringSet, handleActivatePortal, handleDeactivatePortal]
   );
 
   const KlantForm = () => (
@@ -698,7 +896,7 @@ function KlantenPageContent() {
   if (isLoading) {
     return (
       <div className="flex flex-1 items-center justify-center">
-        <motion.div
+        <m.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           className="flex flex-col items-center gap-4"
@@ -710,7 +908,7 @@ function KlantenPageContent() {
             </div>
           </div>
           <p className="text-muted-foreground animate-pulse">Laden...</p>
-        </motion.div>
+        </m.div>
       </div>
     );
   }
@@ -727,6 +925,10 @@ function KlantenPageContent() {
             sheetName="Klanten"
             disabled={!exportData || exportData.length === 0}
           />
+          <Button variant="outline" onClick={() => setShowImportDialog(true)}>
+            <Upload className="mr-2 h-4 w-4" />
+            Importeren
+          </Button>
           <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
             <DialogTrigger asChild>
               <Button onClick={() => resetForm()}>
@@ -934,6 +1136,207 @@ function KlantenPageContent() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Import Dialog */}
+      <Dialog open={showImportDialog} onOpenChange={handleImportDialogClose}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Upload className="h-5 w-5" />
+              Klanten Importeren
+            </DialogTitle>
+            <DialogDescription>
+              Upload een CSV bestand met klantgegevens. Duplicaten worden automatisch overgeslagen.
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Import result state */}
+          {importResult && (
+            <div className="space-y-3">
+              <div className="rounded-lg border bg-card p-4 space-y-3">
+                <h4 className="font-medium flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5 text-green-600" />
+                  Import voltooid
+                </h4>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="rounded-md bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 p-3 text-center">
+                    <p className="text-2xl font-bold text-green-700 dark:text-green-400">{importResult.imported}</p>
+                    <p className="text-xs text-green-600 dark:text-green-500">Geimporteerd</p>
+                  </div>
+                  <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-center">
+                    <p className="text-2xl font-bold text-amber-700 dark:text-amber-400">{importResult.skipped}</p>
+                    <p className="text-xs text-amber-600 dark:text-amber-500">Overgeslagen (duplicaat)</p>
+                  </div>
+                  <div className="rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 p-3 text-center">
+                    <p className="text-2xl font-bold text-red-700 dark:text-red-400">{importResult.errors.length}</p>
+                    <p className="text-xs text-red-600 dark:text-red-500">Fouten</p>
+                  </div>
+                </div>
+                {importResult.errors.length > 0 && (
+                  <div className="rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 p-3">
+                    <p className="text-sm font-medium text-red-700 dark:text-red-400 mb-1">Fouten:</p>
+                    <ul className="text-xs text-red-600 dark:text-red-500 space-y-0.5 max-h-32 overflow-y-auto">
+                      {importResult.errors.map((err, i) => (
+                        <li key={i}>{err}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                <Button onClick={() => handleImportDialogClose(false)}>Sluiten</Button>
+              </DialogFooter>
+            </div>
+          )}
+
+          {/* Parse + upload state */}
+          {!importResult && (
+            <div className="space-y-4">
+              {/* File drop zone */}
+              <div
+                className={`relative rounded-lg border-2 border-dashed p-8 text-center transition-colors ${
+                  isDragOver
+                    ? "border-primary bg-primary/5"
+                    : "border-muted-foreground/25 hover:border-muted-foreground/50"
+                }`}
+                onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+                onDragLeave={() => setIsDragOver(false)}
+                onDrop={handleImportDrop}
+              >
+                {isParsing ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">Bestand verwerken...</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2">
+                    <FileUp className="h-8 w-8 text-muted-foreground/50" />
+                    <div>
+                      <p className="text-sm font-medium">Sleep een CSV bestand hierheen</p>
+                      <p className="text-xs text-muted-foreground">of klik om een bestand te selecteren</p>
+                    </div>
+                    <input
+                      type="file"
+                      accept=".csv"
+                      className="absolute inset-0 cursor-pointer opacity-0"
+                      onChange={handleImportFileInput}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Sample CSV download */}
+              <div className="flex items-center justify-between rounded-md bg-muted/50 p-3">
+                <div className="text-sm">
+                  <p className="font-medium">Voorbeeld CSV</p>
+                  <p className="text-xs text-muted-foreground">Download een voorbeeldbestand met het juiste formaat</p>
+                </div>
+                <Button variant="outline" size="sm" onClick={handleDownloadSampleCSV}>
+                  <Download className="mr-2 h-3.5 w-3.5" />
+                  Download
+                </Button>
+              </div>
+
+              {/* Parse errors */}
+              {importParseResult && importParseResult.errors.length > 0 && (
+                <div className="rounded-md border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 p-3">
+                  <p className="text-sm font-medium text-red-700 dark:text-red-400 flex items-center gap-1.5 mb-1">
+                    <XCircle className="h-4 w-4" />
+                    Validatiefouten
+                  </p>
+                  <ul className="text-xs text-red-600 dark:text-red-500 space-y-0.5 max-h-32 overflow-y-auto">
+                    {importParseResult.errors.map((err, i) => (
+                      <li key={i}>{err}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Parse warnings */}
+              {importParseResult && importParseResult.warnings.length > 0 && (
+                <div className="rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-3">
+                  <p className="text-sm font-medium text-amber-700 dark:text-amber-400 flex items-center gap-1.5 mb-1">
+                    <AlertCircle className="h-4 w-4" />
+                    Waarschuwingen
+                  </p>
+                  <ul className="text-xs text-amber-600 dark:text-amber-500 space-y-0.5 max-h-24 overflow-y-auto">
+                    {importParseResult.warnings.map((warn, i) => (
+                      <li key={i}>{warn}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Preview table */}
+              {importParseResult && importParseResult.entries.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">
+                    Voorbeeld ({importParseResult.entries.length} klant{importParseResult.entries.length !== 1 ? "en" : ""} gevonden)
+                  </p>
+                  <div className="rounded-md border overflow-x-auto max-h-64 overflow-y-auto">
+                    <table className="w-full text-xs">
+                      <thead className="bg-muted/50 sticky top-0">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-medium">#</th>
+                          <th className="px-3 py-2 text-left font-medium">Naam</th>
+                          <th className="px-3 py-2 text-left font-medium">E-mail</th>
+                          <th className="px-3 py-2 text-left font-medium">Telefoon</th>
+                          <th className="px-3 py-2 text-left font-medium">Adres</th>
+                          <th className="px-3 py-2 text-left font-medium">Postcode</th>
+                          <th className="px-3 py-2 text-left font-medium">Plaats</th>
+                          <th className="px-3 py-2 text-left font-medium">Type</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {importParseResult.entries.slice(0, 50).map((entry, i) => (
+                          <tr key={i} className="hover:bg-muted/30">
+                            <td className="px-3 py-1.5 text-muted-foreground">{i + 1}</td>
+                            <td className="px-3 py-1.5 font-medium">{entry.naam}</td>
+                            <td className="px-3 py-1.5 text-muted-foreground">{entry.email || "-"}</td>
+                            <td className="px-3 py-1.5 text-muted-foreground">{entry.telefoon || "-"}</td>
+                            <td className="px-3 py-1.5 text-muted-foreground truncate max-w-[120px]">{entry.adres}</td>
+                            <td className="px-3 py-1.5">{entry.postcode}</td>
+                            <td className="px-3 py-1.5">{entry.plaats}</td>
+                            <td className="px-3 py-1.5">
+                              <Badge className={`text-[10px] ${KLANT_TYPE_COLORS[entry.klantType]}`}>
+                                {KLANT_TYPE_LABELS[entry.klantType]}
+                              </Badge>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {importParseResult.entries.length > 50 && (
+                      <p className="text-xs text-muted-foreground text-center py-2">
+                        ...en nog {importParseResult.entries.length - 50} meer
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => handleImportDialogClose(false)}>
+                  Annuleren
+                </Button>
+                <Button
+                  onClick={handleImportSubmit}
+                  disabled={!importParseResult || importParseResult.entries.length === 0 || isImporting}
+                >
+                  {isImporting ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Upload className="mr-2 h-4 w-4" />
+                  )}
+                  {isImporting
+                    ? "Bezig met importeren..."
+                    : `${importParseResult?.entries.length ?? 0} klant${(importParseResult?.entries.length ?? 0) !== 1 ? "en" : ""} importeren`}
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
@@ -1017,7 +1420,7 @@ function KlantenPageWithTabs() {
   return (
     <>
       <PageHeader />
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
@@ -1050,15 +1453,15 @@ function KlantenPageWithTabs() {
         ) : (
           <KlantenPageContent />
         )}
-      </motion.div>
+      </m.div>
     </>
   );
 }
 
 export default function KlantenPage() {
   return (
-    <RequireAdmin>
+    <RequireRole allowedRoles={["directie", "projectleider"]}>
       <KlantenPageWithTabs />
-    </RequireAdmin>
+    </RequireRole>
   );
 }
