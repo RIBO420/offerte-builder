@@ -3,12 +3,12 @@
 import { useState, useCallback, useMemo, Suspense } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useSearchParams } from "next/navigation";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useTabState } from "@/hooks/use-tab-state";
-import { RequireAdmin } from "@/components/require-admin";
+import { RequireRole } from "@/components/require-admin";
 import { Pagination } from "@/components/ui/pagination";
 import {
   Card,
@@ -457,13 +457,13 @@ function MedewerkersPageContent() {
         </Breadcrumb>
       </header>
 
-      <motion.div
+      <m.div
         variants={containerVariants}
         initial="hidden"
         animate="visible"
         className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
       >
-        <motion.div variants={itemVariants} className="flex items-center justify-between">
+        <m.div variants={itemVariants} className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
               Medewerkers
@@ -477,10 +477,10 @@ function MedewerkersPageContent() {
             <Plus className="mr-2 h-4 w-4" />
             Nieuwe Medewerker
           </Button>
-        </motion.div>
+        </m.div>
 
         {/* Stats Cards */}
-        <motion.div variants={itemVariants} className="grid gap-4 md:grid-cols-4">
+        <m.div variants={itemVariants} className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Totaal</CardTitle>
@@ -528,10 +528,10 @@ function MedewerkersPageContent() {
               <p className="text-xs text-muted-foreground">verlopen</p>
             </CardContent>
           </Card>
-        </motion.div>
+        </m.div>
 
         {/* Filter Tabs and Table */}
-        <motion.div variants={itemVariants}>
+        <m.div variants={itemVariants}>
           <Card>
             <CardHeader>
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -631,8 +631,8 @@ function MedewerkersPageContent() {
               )}
             </CardContent>
           </Card>
-        </motion.div>
-      </motion.div>
+        </m.div>
+      </m.div>
 
       {/* Add Dialog */}
       <MedewerkerForm
@@ -691,10 +691,10 @@ function MedewerkersPageContent() {
 
 export default function MedewerkersPage() {
   return (
-    <RequireAdmin>
+    <RequireRole allowedRoles={["directie", "projectleider"]}>
       <Suspense fallback={null}>
         <MedewerkersPageContent />
       </Suspense>
-    </RequireAdmin>
+    </RequireRole>
   );
 }

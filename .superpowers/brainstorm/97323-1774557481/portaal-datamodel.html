@@ -1,0 +1,174 @@
+<h2>Klantenportaal — Datamodel & Unified Chat</h2>
+<p class="subtitle">Schema-wijzigingen en hoe klant-chat in het dashboard komt</p>
+
+<div class="section">
+  <h3>Klant ↔ User koppeling</h3>
+  <div class="mockup">
+    <div class="mockup-header">Nieuw veld in klanten tabel</div>
+    <div class="mockup-body" style="font-family: monospace; font-size: 13px; line-height: 2;">
+      <div style="color: #888;">// convex/schema.ts → klanten tabel</div>
+      <div>klanten: {</div>
+      <div style="padding-left: 20px;">
+        <div style="color: #888;">userId: id("users"), &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// eigenaar (bedrijf)</div>
+        <div style="color: #888;">naam, adres, email, ... &nbsp;// bestaande velden</div>
+        <div style="color: #4ADE80; font-weight: bold;">clerkUserId?: string, &nbsp;&nbsp;&nbsp;// NIEUW: Clerk account van de klant zelf</div>
+        <div style="color: #4ADE80; font-weight: bold;">portalEnabled?: boolean, &nbsp;// NIEUW: heeft portaal-toegang</div>
+        <div style="color: #4ADE80; font-weight: bold;">lastLoginAt?: number, &nbsp;&nbsp;&nbsp;// NIEUW: laatste portaal-login</div>
+      </div>
+      <div>}</div>
+    </div>
+  </div>
+  <div style="margin-top: 12px; padding: 12px; background: #1a1a2e; border-radius: 8px; font-size: 13px; color: #ccc;">
+    <strong style="color: #F59E0B;">Flow:</strong> Medewerker maakt klant aan → klikt "Portaal activeren" →
+    systeem stuurt uitnodigings-email → klant registreert bij Clerk → clerkUserId wordt gekoppeld aan klanten record
+  </div>
+</div>
+
+<div class="section">
+  <h3>Unified Chat — Nieuw: chat_threads tabel</h3>
+  <div class="mockup">
+    <div class="mockup-header">Nieuw schema: chat_threads</div>
+    <div class="mockup-body" style="font-family: monospace; font-size: 13px; line-height: 2;">
+      <div style="color: #888;">// Vervangt offerteMessages met een flexibeler systeem</div>
+      <div style="color: #4ADE80;">chat_threads: {</div>
+      <div style="padding-left: 20px; color: #4ADE80;">
+        <div>type: "klant" | "team" | "project",</div>
+        <div>klantId?: id("klanten"), &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// voor klant-threads</div>
+        <div>offerteId?: id("offertes"), &nbsp;&nbsp;// context: welke offerte</div>
+        <div>projectId?: id("projecten"), &nbsp;// context: welk project</div>
+        <div>participants: string[], &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// Clerk userIds</div>
+        <div>lastMessageAt?: number,</div>
+        <div>lastMessagePreview?: string,</div>
+        <div>unreadByBedrijf?: number,</div>
+        <div>unreadByKlant?: number,</div>
+        <div>userId: id("users"), &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// bedrijf-eigenaar</div>
+      </div>
+      <div style="color: #4ADE80;">}</div>
+    </div>
+  </div>
+
+  <div style="margin-top: 16px;"></div>
+
+  <div class="mockup">
+    <div class="mockup-header">Nieuw schema: chat_messages (unified)</div>
+    <div class="mockup-body" style="font-family: monospace; font-size: 13px; line-height: 2;">
+      <div style="color: #4ADE80;">chat_messages: {</div>
+      <div style="padding-left: 20px; color: #4ADE80;">
+        <div>threadId: id("chat_threads"),</div>
+        <div>senderType: "bedrijf" | "klant" | "medewerker",</div>
+        <div>senderUserId: string, &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// Clerk userId</div>
+        <div>senderName: string, &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// display name</div>
+        <div>message: string,</div>
+        <div>attachments?: string[], &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// file URLs</div>
+        <div>isRead: boolean,</div>
+        <div>createdAt: number,</div>
+      </div>
+      <div style="color: #4ADE80;">}</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Hoe het samenkomt op het Dashboard</h3>
+  <div class="mockup">
+    <div class="mockup-header">Dashboard Chat — Unified Inbox</div>
+    <div class="mockup-body" style="padding: 0;">
+      <div style="display: flex; height: 300px;">
+        <!-- Sidebar -->
+        <div style="width: 280px; border-right: 1px solid #333; overflow-y: auto;">
+          <div style="padding: 12px; border-bottom: 1px solid #333; font-size: 12px; text-transform: uppercase; color: #888; letter-spacing: 1px;">
+            Alle gesprekken
+          </div>
+
+          <!-- Klant thread -->
+          <div style="padding: 12px; border-bottom: 1px solid #333; background: #1a2a1a; cursor: pointer;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="background: #4ADE80; color: #000; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">KLANT</span>
+                <strong style="font-size: 13px;">Fam. De Vries</strong>
+              </div>
+              <span style="background: #4ADE80; color: #000; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold;">2</span>
+            </div>
+            <div style="font-size: 12px; color: #888; margin-top: 4px;">OFF-2024-042 · Tuinaanleg</div>
+            <div style="font-size: 12px; color: #aaa; margin-top: 2px;">Wanneer kunnen jullie starten?</div>
+          </div>
+
+          <!-- Klant thread 2 -->
+          <div style="padding: 12px; border-bottom: 1px solid #333; cursor: pointer;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="background: #4ADE80; color: #000; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">KLANT</span>
+                <strong style="font-size: 13px;">J. Bakker</strong>
+              </div>
+            </div>
+            <div style="font-size: 12px; color: #888; margin-top: 4px;">OFF-2024-038 · Onderhoud</div>
+            <div style="font-size: 12px; color: #aaa; margin-top: 2px;">Bedankt voor de offerte!</div>
+          </div>
+
+          <!-- Team thread -->
+          <div style="padding: 12px; border-bottom: 1px solid #333; cursor: pointer;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="background: #60A5FA; color: #000; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">TEAM</span>
+              <strong style="font-size: 13px;">Project Zandvoort</strong>
+            </div>
+            <div style="font-size: 12px; color: #aaa; margin-top: 4px;">Jan: Materiaal is besteld</div>
+          </div>
+
+          <!-- Team thread 2 -->
+          <div style="padding: 12px; border-bottom: 1px solid #333; cursor: pointer;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="background: #60A5FA; color: #000; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">TEAM</span>
+              <strong style="font-size: 13px;">Algemeen</strong>
+            </div>
+            <div style="font-size: 12px; color: #aaa; margin-top: 4px;">Piet: Morgen toolbox 8:00</div>
+          </div>
+        </div>
+
+        <!-- Chat area -->
+        <div style="flex: 1; display: flex; flex-direction: column;">
+          <div style="padding: 12px; border-bottom: 1px solid #333; display: flex; align-items: center; gap: 8px;">
+            <span style="background: #4ADE80; color: #000; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">KLANT</span>
+            <strong>Fam. De Vries</strong>
+            <span style="color: #888; font-size: 12px;">· OFF-2024-042 Tuinaanleg Zandvoort</span>
+          </div>
+          <div style="flex: 1; padding: 16px; overflow-y: auto;">
+            <div style="margin-bottom: 16px;">
+              <div style="font-size: 11px; color: #888;">Top Tuinen · gisteren 14:30</div>
+              <div style="background: #1a2a3a; padding: 10px; border-radius: 8px; margin-top: 4px; font-size: 13px;">
+                Goedemiddag! De offerte voor uw tuinaanleg staat klaar. U kunt deze bekijken in uw portaal.
+              </div>
+            </div>
+            <div style="margin-bottom: 16px;">
+              <div style="font-size: 11px; color: #4ADE80; text-align: right;">Fam. De Vries · gisteren 16:45</div>
+              <div style="background: #1a2a1a; padding: 10px; border-radius: 8px; margin-top: 4px; font-size: 13px; margin-left: 40px;">
+                Bedankt! Ziet er goed uit. Wanneer kunnen jullie starten?
+              </div>
+            </div>
+            <div style="margin-bottom: 16px;">
+              <div style="font-size: 11px; color: #4ADE80; text-align: right;">Fam. De Vries · vandaag 09:12</div>
+              <div style="background: #1a2a1a; padding: 10px; border-radius: 8px; margin-top: 4px; font-size: 13px; margin-left: 40px;">
+                En is het mogelijk om de bestrating in antraciet te krijgen?
+              </div>
+            </div>
+          </div>
+          <div style="padding: 12px; border-top: 1px solid #333;">
+            <div style="background: #222; border-radius: 8px; padding: 10px; font-size: 13px; color: #666;">
+              Typ een bericht...
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Migratie: offerteMessages → chat_messages</h3>
+  <div style="padding: 12px; background: #1a1a2e; border-radius: 8px; font-size: 13px; color: #ccc; line-height: 1.8;">
+    <div><strong style="color: #F59E0B;">Stap 1:</strong> Nieuwe tabellen aanmaken (chat_threads + chat_messages)</div>
+    <div><strong style="color: #F59E0B;">Stap 2:</strong> Migratiescript: bestaande offerteMessages → chat_messages + auto-create threads</div>
+    <div><strong style="color: #F59E0B;">Stap 3:</strong> Dashboard chat updaten naar unified inbox</div>
+    <div><strong style="color: #F59E0B;">Stap 4:</strong> Portaal chat bouwen (leest van dezelfde threads)</div>
+    <div><strong style="color: #F59E0B;">Stap 5:</strong> offerteMessages deprecated, redirect naar chat_messages</div>
+  </div>
+</div>

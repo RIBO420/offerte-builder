@@ -4,7 +4,7 @@ import { useState, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../../convex/_generated/api";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,11 +20,14 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  AlertTriangle,
+  CheckCircle2,
   Clock,
   Wrench,
   Plus,
   TrendingUp,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import {
@@ -66,11 +69,18 @@ export default function UitvoeringPage() {
   );
   const voorcalculatie = voorcalculatieByOfferte || voorcalculatieByProject;
 
+  // Get linked offerte to check type/scopes for KLIC-melding (PRJ-W01)
+  const offerte = useQuery(
+    api.offertes.get,
+    project?.offerteId ? { id: project.offerteId } : "skip"
+  );
+
   // Fetch active medewerkers from database for the form dropdown
   const medewerkers = useQuery(api.medewerkers.getActive);
 
   // Mutation for updating project status
   const updateProjectStatus = useMutation(api.projecten.updateStatus);
+  const setKlicMelding = useMutation(api.projecten.setKlicMelding);
 
   const { isLoading: isUserLoading } = useCurrentUser();
   const {
@@ -221,6 +231,28 @@ export default function UitvoeringPage() {
     }
   }, [projectId, updateProjectStatus, router]);
 
+  // PRJ-W01: KLIC-melding check — required for aanleg projects with grondwerk
+  const requiresKlicMelding =
+    offerte?.type === "aanleg" && offerte?.scopes?.includes("grondwerk");
+  const klicMeldingGedaan = project?.klicMeldingGedaan === true;
+
+  const handleKlicMeldingToggle = useCallback(
+    async (checked: boolean) => {
+      try {
+        await setKlicMelding({ id: projectId, klicMeldingGedaan: checked });
+        toast.success(
+          checked
+            ? "KLIC-melding als gedaan gemarkeerd"
+            : "KLIC-melding markering verwijderd"
+        );
+      } catch (error) {
+        toast.error("Fout bij opslaan KLIC-melding status");
+        console.error(error);
+      }
+    },
+    [projectId, setKlicMelding]
+  );
+
   // Check if project can be finished
   const canFinishProject = project?.status === "in_uitvoering" && urenTotals.totaalUren > 0;
   const hasVoorcalculatie = !!voorcalculatie;
@@ -267,7 +299,7 @@ export default function UitvoeringPage() {
         </Breadcrumb>
       </header>
 
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
@@ -301,6 +333,42 @@ export default function UitvoeringPage() {
             hasNacalculatie={false}
           />
         </Card>
+
+        {/* PRJ-W01: KLIC-melding warning banner for aanleg projects with grondwerk */}
+        {requiresKlicMelding && (
+          <Card className={`p-4 border-l-4 ${klicMeldingGedaan ? "border-l-green-500 bg-green-50 dark:bg-green-950/20" : "border-l-amber-500 bg-amber-50 dark:bg-amber-950/20"}`}>
+            <div className="flex items-start gap-4">
+              {klicMeldingGedaan ? (
+                <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5 shrink-0" />
+              ) : (
+                <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+              )}
+              <div className="flex-1">
+                <h3 className={`font-semibold ${klicMeldingGedaan ? "text-green-800 dark:text-green-300" : "text-amber-800 dark:text-amber-300"}`}>
+                  {klicMeldingGedaan ? "KLIC-melding gedaan" : "KLIC-melding vereist"}
+                </h3>
+                <p className={`text-sm mt-1 ${klicMeldingGedaan ? "text-green-700 dark:text-green-400" : "text-amber-700 dark:text-amber-400"}`}>
+                  {klicMeldingGedaan
+                    ? "De KLIC-melding is bevestigd. Het project kan worden gestart."
+                    : "Dit aanlegproject bevat graafwerk. Een KLIC-melding is wettelijk verplicht voordat je begint met graven. Het project kan niet worden gestart zonder deze bevestiging."}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Checkbox
+                  id="klic-melding"
+                  checked={klicMeldingGedaan}
+                  onCheckedChange={(checked) => handleKlicMeldingToggle(checked === true)}
+                />
+                <label
+                  htmlFor="klic-melding"
+                  className={`text-sm font-medium cursor-pointer ${klicMeldingGedaan ? "text-green-700 dark:text-green-300" : "text-amber-700 dark:text-amber-300"}`}
+                >
+                  KLIC-melding gedaan
+                </label>
+              </div>
+            </div>
+          </Card>
+        )}
 
         {/* Progress Indicator - Prominent visual feedback */}
         {hasVoorcalculatie && (
@@ -395,7 +463,7 @@ export default function UitvoeringPage() {
             />
           </TabsContent>
         </Tabs>
-      </motion.div>
+      </m.div>
 
       {/* Uren Entry Form */}
       <UrenEntryForm

@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import { nl } from "@/lib/date-locale";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -396,7 +396,7 @@ export function CertificatenList({
       <div className="space-y-2">
         <AnimatePresence mode="popLayout">
           {certificaten.length === 0 ? (
-            <motion.div
+            <m.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -404,12 +404,12 @@ export function CertificatenList({
             >
               <Award className="h-4 w-4" />
               Nog geen certificaten toegevoegd
-            </motion.div>
+            </m.div>
           ) : (
             certificaten.map((cert, index) => {
               const status = getCertificaatStatus(cert.vervaldatum);
               return (
-                <motion.div
+                <m.div
                   key={`${cert.naam}-${cert.uitgifteDatum}`}
                   layout
                   initial={{ opacity: 0, y: -10 }}
@@ -499,7 +499,7 @@ export function CertificatenList({
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
-                </motion.div>
+                </m.div>
               );
             })
           )}

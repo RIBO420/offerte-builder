@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import {
   Card,
   CardContent,
@@ -57,7 +57,7 @@ const StatCard = memo(function StatCard({
     afwijking > 0 ? TrendingUp : afwijking < 0 ? TrendingDown : Minus;
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
@@ -109,7 +109,7 @@ const StatCard = memo(function StatCard({
           </div>
         </CardContent>
       </Card>
-    </motion.div>
+    </m.div>
   );
 });
 
@@ -130,7 +130,7 @@ export const NacalculatieSummary = memo(function NacalculatieSummary({
   return (
     <div className="space-y-6">
       {/* Overall Status Banner */}
-      <motion.div
+      <m.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.4 }}
@@ -162,7 +162,7 @@ export const NacalculatieSummary = memo(function NacalculatieSummary({
             </div>
           </CardContent>
         </Card>
-      </motion.div>
+      </m.div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -196,7 +196,7 @@ export const NacalculatieSummary = memo(function NacalculatieSummary({
           status={machineStatus}
         />
         {teamGrootte && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: 0.3 }}
@@ -237,7 +237,7 @@ export const NacalculatieSummary = memo(function NacalculatieSummary({
                 </div>
               </CardContent>
             </Card>
-          </motion.div>
+          </m.div>
         )}
       </div>
 

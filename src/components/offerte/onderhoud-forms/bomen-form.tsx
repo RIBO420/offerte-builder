@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useFormValidationSync } from "@/hooks/use-scope-form-sync";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -148,19 +149,8 @@ export function BomenForm({ data, onChange, onValidationChange }: BomenFormProps
     return () => subscription.unsubscribe();
   }, [watch, onChange]);
 
-  // ── validatiewijzigingen doorgeven ──────────────────────────────────────────
-  useEffect(() => {
-    if (onValidationChange) {
-      const errorMessages: Record<string, string> = {};
-      Object.entries(errors).forEach(([key, error]) => {
-        if (error?.message) {
-          errorMessages[key] = error.message;
-        }
-      });
-      onValidationChange(isValid, errorMessages);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(errors), isValid]);
+  // Validatiewijzigingen doorgeven aan parent
+  useFormValidationSync(errors, isValid, onValidationChange);
 
   const watchedValues = watch();
 

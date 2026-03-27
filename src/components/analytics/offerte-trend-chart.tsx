@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, memo } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   AreaChart,
@@ -52,7 +52,7 @@ function CustomTooltip({ active, payload, label }: {
   const totaal = (aanleg?.value || 0) + (onderhoud?.value || 0);
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 10, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       className="relative overflow-hidden rounded-xl border border-border bg-popover/95 text-popover-foreground backdrop-blur-xl p-4 shadow-2xl"
@@ -96,7 +96,7 @@ function CustomTooltip({ active, payload, label }: {
           </div>
         </div>
       </div>
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -144,7 +144,7 @@ export const OfferteTrendChart = memo(function OfferteTrendChart({ data }: Offer
   }
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
@@ -176,13 +176,13 @@ export const OfferteTrendChart = memo(function OfferteTrendChart({ data }: Offer
               <defs>
                 {/* Aanleg gradient */}
                 <linearGradient id={`aanleg-gradient-${gradientId}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="rgb(59, 130, 246)" stopOpacity={0.4} />
-                  <stop offset="95%" stopColor="rgb(59, 130, 246)" stopOpacity={0} />
+                  <stop offset="0%" stopColor="hsl(var(--chart-1))" stopOpacity={0.4} />
+                  <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0} />
                 </linearGradient>
                 {/* Onderhoud gradient */}
                 <linearGradient id={`onderhoud-gradient-${gradientId}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="rgb(34, 197, 94)" stopOpacity={0.4} />
-                  <stop offset="95%" stopColor="rgb(34, 197, 94)" stopOpacity={0} />
+                  <stop offset="0%" stopColor="hsl(var(--chart-2))" stopOpacity={0.4} />
+                  <stop offset="95%" stopColor="hsl(var(--chart-2))" stopOpacity={0} />
                 </linearGradient>
                 {/* Glow filters */}
                 <filter id={`glow-blue-${gradientId}`}>
@@ -263,6 +263,6 @@ export const OfferteTrendChart = memo(function OfferteTrendChart({ data }: Offer
           </ResponsiveContainer>
         </CardContent>
       </Card>
-    </motion.div>
+    </m.div>
   );
 });

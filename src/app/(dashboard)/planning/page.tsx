@@ -1,14 +1,16 @@
 "use client";
 
-import { useMemo, Suspense } from "react";
+import { useMemo, useCallback, Suspense } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { useRouter, useSearchParams } from "next/navigation";
+import { m } from "framer-motion";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -29,10 +31,17 @@ import {
   Play,
   CheckCircle2,
   ClipboardCheck,
+  CalendarRange,
+  BarChart3,
 } from "lucide-react";
 import { PlanningPageSkeleton } from "@/components/ui/skeleton-card";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useIsAdmin } from "@/hooks/use-users";
+import { MaandKalender } from "@/components/planning/maand-kalender";
+import { KwartaalOverzicht } from "@/components/planning/kwartaal-overzicht";
+import { JaarOverzicht } from "@/components/planning/jaar-overzicht";
+
+type PlanningView = "week" | "maand" | "kwartaal" | "jaar";
 
 // Project status configuration - WCAG AA compliant colors (4.5:1 contrast ratio)
 const statusConfig = {
@@ -271,11 +280,41 @@ function PlanningPageLoader() {
 function PlanningPageContent() {
   const { user, isLoading: isUserLoading } = useCurrentUser();
   const isAdmin = useIsAdmin();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // View state from URL search params
+  const currentView = (searchParams.get("view") as PlanningView) || "week";
+
+  const setView = useCallback(
+    (view: PlanningView) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (view === "week") {
+        params.delete("view");
+      } else {
+        params.set("view", view);
+      }
+      const query = params.toString();
+      router.push(`/planning${query ? `?${query}` : ""}`, { scroll: false });
+    },
+    [router, searchParams]
+  );
+
+  // Navigate from jaar view to maand view
+  const handleNavigateToMonth = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    (year: number, month: number) => {
+      const params = new URLSearchParams();
+      params.set("view", "maand");
+      router.push(`/planning?${params.toString()}`, { scroll: false });
+    },
+    [router]
+  );
 
   // Fetch project details including voorcalculatie and planning data
   const projectVoortgangData = useQuery(
     api.projectRapportages.getProjectVoortgang,
-    user?._id ? { alleenActief: true } : "skip"
+    user?._id && currentView === "week" ? { alleenActief: true } : "skip"
   );
 
   // Get current user's name for medewerker filtering
@@ -362,7 +401,7 @@ function PlanningPageContent() {
     return { gepland, inUitvoering, totaal };
   }, [filteredProjects]);
 
-  const isLoading = isUserLoading || projectVoortgangData === undefined;
+  const isLoading = isUserLoading || (currentView === "week" && projectVoortgangData === undefined);
 
   return (
     <>
@@ -382,179 +421,238 @@ function PlanningPageContent() {
         </Breadcrumb>
       </header>
 
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
         className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
       >
-        {/* Header */}
-        <motion.div
+        {/* Header with view switcher */}
+        <m.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.1 }}
-          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+          className="flex flex-col gap-4"
         >
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
-              Planning Overzicht
-            </h1>
-            <p className="text-muted-foreground">
-              {isAdmin
-                ? "Overzicht van alle actieve projecten en hun planningen"
-                : "Jouw toegewezen projecten en planningen"}
-            </p>
-          </div>
-          {isAdmin && (
-            <Button asChild>
-              <Link href="/projecten">
-                <FolderKanban className="mr-2 h-4 w-4" />
-                Alle Projecten
-              </Link>
-            </Button>
-          )}
-        </motion.div>
-
-        {/* Stats Cards */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.15 }}
-          className="grid gap-4 sm:grid-cols-3"
-        >
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-2xl font-bold">{stats.totaal}</p>
-                  <p className="text-xs text-muted-foreground">Actieve Projecten</p>
-                </div>
-                <div className="h-10 w-10 rounded-full flex items-center justify-center bg-primary/10">
-                  <FolderKanban className="h-5 w-5 text-primary" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-2xl font-bold">{stats.gepland}</p>
-                  <p className="text-xs text-muted-foreground">Gepland</p>
-                </div>
-                <div className="h-10 w-10 rounded-full flex items-center justify-center bg-blue-100 dark:bg-blue-950">
-                  <Calendar className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-2xl font-bold">{stats.inUitvoering}</p>
-                  <p className="text-xs text-muted-foreground">In Uitvoering</p>
-                </div>
-                <div className="h-10 w-10 rounded-full flex items-center justify-center bg-orange-100 dark:bg-orange-950">
-                  <Play className="h-5 w-5 text-orange-600 dark:text-orange-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Projects by Week */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.2 }}
-          className="space-y-6"
-        >
-          {isLoading ? (
-            <div
-              className="flex flex-col items-center justify-center py-20 gap-4"
-              role="status"
-              aria-live="polite"
-              aria-busy="true"
-            >
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-primary" />
-              <p className="text-sm text-muted-foreground">Projecten laden...</p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
+                Planning Overzicht
+              </h1>
+              <p className="text-muted-foreground">
+                {isAdmin
+                  ? "Overzicht van alle actieve projecten en hun planningen"
+                  : "Jouw toegewezen projecten en planningen"}
+              </p>
             </div>
-          ) : filteredProjects.length === 0 ? (
-            <Card className="p-8">
-              <div className="flex flex-col items-center justify-center text-center">
-                <FolderKanban className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                <h3 className="text-lg font-medium mb-2">
-                  {isAdmin
-                    ? "Geen actieve projecten"
-                    : "Geen projecten toegewezen"}
-                </h3>
-                <p className="text-sm text-muted-foreground mb-4 max-w-sm">
-                  {isAdmin
-                    ? "Er zijn momenteel geen projecten in de planning of uitvoering. Start een nieuw project vanuit een geaccepteerde offerte."
-                    : "Je bent nog niet toegewezen aan een project. Neem contact op met je leidinggevende voor projecttoewijzing."}
-                </p>
-                {isAdmin ? (
-                  <div className="flex gap-3">
-                    <Button asChild>
-                      <Link href="/projecten">
-                        <FolderKanban className="mr-2 h-4 w-4" />
-                        Alle Projecten
-                      </Link>
-                    </Button>
-                    <Button asChild variant="outline">
-                      <Link href="/offertes?status=geaccepteerd">
-                        Geaccepteerde Offertes
-                      </Link>
-                    </Button>
-                  </div>
-                ) : (
-                  <Button asChild variant="outline">
-                    <Link href="/dashboard">
-                      Terug naar Dashboard
-                    </Link>
-                  </Button>
-                )}
-              </div>
-            </Card>
-          ) : (
-            <>
-              {projectsByWeek.map((group) => (
-                <WeekSection
-                  key={group.label}
-                  weekLabel={group.label}
-                  projects={group.projects}
-                />
-              ))}
-            </>
-          )}
-        </motion.div>
+            {isAdmin && (
+              <Button asChild>
+                <Link href="/projecten">
+                  <FolderKanban className="mr-2 h-4 w-4" />
+                  Alle Projecten
+                </Link>
+              </Button>
+            )}
+          </div>
 
-        {/* Quick legend */}
-        {filteredProjects.length > 0 && (
-          <motion.div
+          {/* View switcher tabs */}
+          <Tabs value={currentView} onValueChange={(v) => setView(v as PlanningView)}>
+            <TabsList>
+              <TabsTrigger value="week" className="gap-1.5">
+                <CalendarDays className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Week</span>
+              </TabsTrigger>
+              <TabsTrigger value="maand" className="gap-1.5">
+                <Calendar className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Maand</span>
+              </TabsTrigger>
+              <TabsTrigger value="kwartaal" className="gap-1.5">
+                <CalendarRange className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Kwartaal</span>
+              </TabsTrigger>
+              <TabsTrigger value="jaar" className="gap-1.5">
+                <BarChart3 className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Jaar</span>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </m.div>
+
+        {/* View content */}
+        {currentView === "week" && (
+          <>
+            {/* Stats Cards */}
+            <m.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.15 }}
+              className="grid gap-4 sm:grid-cols-3"
+            >
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-2xl font-bold">{stats.totaal}</p>
+                      <p className="text-xs text-muted-foreground">Actieve Projecten</p>
+                    </div>
+                    <div className="h-10 w-10 rounded-full flex items-center justify-center bg-primary/10">
+                      <FolderKanban className="h-5 w-5 text-primary" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-2xl font-bold">{stats.gepland}</p>
+                      <p className="text-xs text-muted-foreground">Gepland</p>
+                    </div>
+                    <div className="h-10 w-10 rounded-full flex items-center justify-center bg-blue-100 dark:bg-blue-950">
+                      <Calendar className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-2xl font-bold">{stats.inUitvoering}</p>
+                      <p className="text-xs text-muted-foreground">In Uitvoering</p>
+                    </div>
+                    <div className="h-10 w-10 rounded-full flex items-center justify-center bg-orange-100 dark:bg-orange-950">
+                      <Play className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </m.div>
+
+            {/* Projects by Week */}
+            <m.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.2 }}
+              className="space-y-6"
+            >
+              {isLoading ? (
+                <div
+                  className="flex flex-col items-center justify-center py-20 gap-4"
+                  role="status"
+                  aria-live="polite"
+                  aria-busy="true"
+                >
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-primary" />
+                  <p className="text-sm text-muted-foreground">Projecten laden...</p>
+                </div>
+              ) : filteredProjects.length === 0 ? (
+                <Card className="p-8">
+                  <div className="flex flex-col items-center justify-center text-center">
+                    <FolderKanban className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                    <h3 className="text-lg font-medium mb-2">
+                      {isAdmin
+                        ? "Geen actieve projecten"
+                        : "Geen projecten toegewezen"}
+                    </h3>
+                    <p className="text-sm text-muted-foreground mb-4 max-w-sm">
+                      {isAdmin
+                        ? "Er zijn momenteel geen projecten in de planning of uitvoering. Start een nieuw project vanuit een geaccepteerde offerte."
+                        : "Je bent nog niet toegewezen aan een project. Neem contact op met je leidinggevende voor projecttoewijzing."}
+                    </p>
+                    {isAdmin ? (
+                      <div className="flex gap-3">
+                        <Button asChild>
+                          <Link href="/projecten">
+                            <FolderKanban className="mr-2 h-4 w-4" />
+                            Alle Projecten
+                          </Link>
+                        </Button>
+                        <Button asChild variant="outline">
+                          <Link href="/offertes?status=geaccepteerd">
+                            Geaccepteerde Offertes
+                          </Link>
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button asChild variant="outline">
+                        <Link href="/dashboard">
+                          Terug naar Dashboard
+                        </Link>
+                      </Button>
+                    )}
+                  </div>
+                </Card>
+              ) : (
+                <>
+                  {projectsByWeek.map((group) => (
+                    <WeekSection
+                      key={group.label}
+                      weekLabel={group.label}
+                      projects={group.projects}
+                    />
+                  ))}
+                </>
+              )}
+            </m.div>
+
+            {/* Quick legend */}
+            {filteredProjects.length > 0 && (
+              <m.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.25 }}
+              >
+                <Card className="p-4">
+                  <div className="flex flex-wrap items-center gap-4 text-sm">
+                    <span className="text-muted-foreground font-medium">Status:</span>
+                    {Object.entries(statusConfig)
+                      .filter(([key]) => key === "gepland" || key === "in_uitvoering")
+                      .map(([key, config]) => (
+                        <div key={key} className="flex items-center gap-1.5">
+                          <div className={`h-2 w-2 rounded-full ${config.color}`} />
+                          <span className="text-muted-foreground">{config.label}</span>
+                        </div>
+                      ))}
+                  </div>
+                </Card>
+              </m.div>
+            )}
+          </>
+        )}
+
+        {currentView === "maand" && (
+          <m.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.25 }}
+            transition={{ duration: 0.4, delay: 0.15 }}
           >
-            <Card className="p-4">
-              <div className="flex flex-wrap items-center gap-4 text-sm">
-                <span className="text-muted-foreground font-medium">Status:</span>
-                {Object.entries(statusConfig)
-                  .filter(([key]) => key === "gepland" || key === "in_uitvoering")
-                  .map(([key, config]) => (
-                    <div key={key} className="flex items-center gap-1.5">
-                      <div className={`h-2 w-2 rounded-full ${config.color}`} />
-                      <span className="text-muted-foreground">{config.label}</span>
-                    </div>
-                  ))}
-              </div>
-            </Card>
-          </motion.div>
+            <MaandKalender />
+          </m.div>
         )}
-      </motion.div>
+
+        {currentView === "kwartaal" && (
+          <m.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.15 }}
+          >
+            <KwartaalOverzicht />
+          </m.div>
+        )}
+
+        {currentView === "jaar" && (
+          <m.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.15 }}
+          >
+            <JaarOverzicht onNavigateToMonth={handleNavigateToMonth} />
+          </m.div>
+        )}
+      </m.div>
     </>
   );
 }

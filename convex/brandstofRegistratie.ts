@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
 import { requireNotViewer } from "./roles";
@@ -92,7 +92,7 @@ export const create = mutation({
     // Verify ownership of the vehicle
     const voertuig = await ctx.db.get(args.voertuigId);
     if (!voertuig || voertuig.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit voertuig");
+      throw new ConvexError("Geen toegang tot dit voertuig");
     }
 
     // Also update the vehicle's current km stand
@@ -123,7 +123,7 @@ export const remove = mutation({
 
     const record = await ctx.db.get(args.id);
     if (!record || record.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit brandstof record");
+      throw new ConvexError("Geen toegang tot dit brandstof record");
     }
 
     await ctx.db.delete(args.id);

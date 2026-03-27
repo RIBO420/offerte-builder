@@ -47,7 +47,7 @@ import {
   Euro,
   FileWarning,
 } from "lucide-react";
-import { toast } from "sonner";
+import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
@@ -190,11 +190,11 @@ export function SchadeLijst({
     setIsSubmitting(true);
     try {
       await removeSchade({ id: selectedSchade._id });
-      toast.success("Schademelding verwijderd");
+      showSuccessToast("Schademelding verwijderd");
       setShowDeleteDialog(false);
       setSelectedSchade(null);
     } catch {
-      toast.error("Fout bij verwijderen schademelding");
+      showErrorToast("Fout bij verwijderen schademelding");
     } finally {
       setIsSubmitting(false);
     }
@@ -209,7 +209,7 @@ export function SchadeLijst({
     async (schade: SchadeRow, newStatus: "nieuw" | "in_reparatie" | "afgehandeld") => {
       try {
         await updateStatus({ id: schade._id, status: newStatus });
-        toast.success(
+        showSuccessToast(
           newStatus === "afgehandeld"
             ? "Schade afgehandeld"
             : newStatus === "in_reparatie"
@@ -217,7 +217,7 @@ export function SchadeLijst({
             : "Status bijgewerkt"
         );
       } catch {
-        toast.error("Fout bij wijzigen status");
+        showErrorToast("Fout bij wijzigen status");
       }
     },
     [updateStatus]

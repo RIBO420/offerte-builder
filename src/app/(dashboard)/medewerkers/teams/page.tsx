@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import {
   Card,
   CardContent,
@@ -255,7 +255,7 @@ export default function TeamsPage() {
           </Breadcrumb>
         </header>
         <div className="flex flex-1 items-center justify-center">
-          <motion.div
+          <m.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             className="flex flex-col items-center gap-4"
@@ -267,7 +267,7 @@ export default function TeamsPage() {
               </div>
             </div>
             <p className="text-muted-foreground animate-pulse">Laden...</p>
-          </motion.div>
+          </m.div>
         </div>
       </>
     );
@@ -302,7 +302,7 @@ export default function TeamsPage() {
         </Breadcrumb>
       </header>
 
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
@@ -468,7 +468,7 @@ export default function TeamsPage() {
             )}
           </CardContent>
         </Card>
-      </motion.div>
+      </m.div>
 
       {/* Create Team Dialog */}
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>

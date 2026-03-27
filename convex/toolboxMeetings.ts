@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { AuthError, requireAuth } from "./auth";
 import { requireAdmin, requireNotViewer, getUserRole, isAdmin } from "./roles";
@@ -8,7 +8,7 @@ export const list = query({
   handler: async (ctx, args) => {
     const user = await requireAuth(ctx);
     const role = await getUserRole(ctx);
-    if (role === "viewer") return [];
+    if (role === "klant") return [];
 
     let meetings;
     if (args.projectId) {
@@ -81,8 +81,8 @@ export const create = mutation({
   handler: async (ctx, args) => {
     const user = await requireNotViewer(ctx);
 
-    if (!args.onderwerp.trim()) throw new Error("Onderwerp is verplicht");
-    if (args.aanwezigen.length === 0) throw new Error("Minimaal één aanwezige is verplicht");
+    if (!args.onderwerp.trim()) throw new ConvexError("Onderwerp is verplicht");
+    if (args.aanwezigen.length === 0) throw new ConvexError("Minimaal één aanwezige is verplicht");
 
     const now = Date.now();
     return await ctx.db.insert("toolboxMeetings", {
@@ -112,7 +112,7 @@ export const update = mutation({
   handler: async (ctx, args) => {
     const user = await requireNotViewer(ctx);
     const meeting = await ctx.db.get(args.id);
-    if (!meeting) throw new Error("Toolbox meeting niet gevonden");
+    if (!meeting) throw new ConvexError("Toolbox meeting niet gevonden");
 
     // Verify ownership: only the creator or an admin can update
     const userIsAdmin = await isAdmin(ctx);
@@ -120,8 +120,8 @@ export const update = mutation({
       throw new AuthError("Je hebt geen toegang om deze meeting te wijzigen");
     }
 
-    if (args.onderwerp !== undefined && !args.onderwerp.trim()) throw new Error("Onderwerp is verplicht");
-    if (args.aanwezigen !== undefined && args.aanwezigen.length === 0) throw new Error("Minimaal één aanwezige is verplicht");
+    if (args.onderwerp !== undefined && !args.onderwerp.trim()) throw new ConvexError("Onderwerp is verplicht");
+    if (args.aanwezigen !== undefined && args.aanwezigen.length === 0) throw new ConvexError("Minimaal één aanwezige is verplicht");
 
     const updateData: Record<string, unknown> = { updatedAt: Date.now() };
     if (args.datum !== undefined) updateData.datum = args.datum;
@@ -141,7 +141,7 @@ export const remove = mutation({
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
     const meeting = await ctx.db.get(args.id);
-    if (!meeting) throw new Error("Toolbox meeting niet gevonden");
+    if (!meeting) throw new ConvexError("Toolbox meeting niet gevonden");
     await ctx.db.delete(args.id);
   },
 });

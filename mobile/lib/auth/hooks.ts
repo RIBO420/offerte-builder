@@ -63,7 +63,6 @@ export function useAuthSession(): AuthSessionState {
           const daysSinceLogin =
             (Date.now() - parseInt(lastLogin, 10)) / (1000 * 60 * 60 * 24);
           if (daysSinceLogin > SESSION_CONFIG.MAX_SESSION_DAYS) {
-            console.log('[AuthSession] Sessie verlopen, uitloggen...');
             await signOut();
             setIsSessionValid(false);
             router.replace('/(auth)/login');
@@ -174,7 +173,6 @@ export function useTokenRefresh(): void {
     const interval = setInterval(async () => {
       try {
         await getToken({ skipCache: true });
-        console.log('[TokenRefresh] Token succesvol vernieuwd');
       } catch (error) {
         console.error('[TokenRefresh] Token refresh mislukt:', error);
       }
@@ -210,7 +208,6 @@ export function useRequireAuth(): RequireAuthState {
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
-      console.log('[RequireAuth] Niet ingelogd, redirect naar login...');
       router.replace('/(auth)/login');
     }
   }, [isSignedIn, isLoaded, router]);
@@ -289,7 +286,6 @@ export function useSignOut() {
       // Sign out from Clerk
       await clerkSignOut();
 
-      console.log('[SignOut] Succesvol uitgelogd');
       router.replace('/(auth)/login');
     } catch (error) {
       console.error('[SignOut] Fout bij uitloggen:', error);

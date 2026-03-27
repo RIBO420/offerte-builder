@@ -3,7 +3,7 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -191,14 +191,14 @@ export default function OfferteDetailPage({
           </Breadcrumb>
         </header>
 
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
           className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
         >
           <OfferteDetailSkeleton />
-        </motion.div>
+        </m.div>
       </>
     );
   }
@@ -274,14 +274,14 @@ export default function OfferteDetailPage({
         </div>
       </header>
 
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
         className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
       >
         {/* Header */}
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.1 }}
@@ -301,10 +301,10 @@ export default function OfferteDetailPage({
             onShowShareDialog={() => setShowShareDialog(true)}
             onShowDeleteDialog={() => setShowDeleteDialog(true)}
           />
-        </motion.div>
+        </m.div>
 
         {/* Workflow Stepper */}
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.15 }}
@@ -318,11 +318,11 @@ export default function OfferteDetailPage({
               onSendOfferte={() => setShowEmailDialog(true)}
             />
           </Card>
-        </motion.div>
+        </m.div>
 
         {/* Voorcalculatie Card */}
         {(offerte.status === "concept" || voorcalculatie) && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.18 }}
@@ -332,10 +332,10 @@ export default function OfferteDetailPage({
               offerteStatus={offerte.status}
               voorcalculatie={voorcalculatie}
             />
-          </motion.div>
+          </m.div>
         )}
 
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.2 }}
@@ -376,8 +376,8 @@ export default function OfferteDetailPage({
               customerResponse={offerte.customerResponse}
             />
           </div>
-        </motion.div>
-      </motion.div>
+        </m.div>
+      </m.div>
 
       {/* Delete confirmation dialog */}
       <DeleteDialog

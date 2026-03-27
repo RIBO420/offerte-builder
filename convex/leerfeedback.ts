@@ -6,7 +6,7 @@
  * require explicit user action for transparency and auditability.
  */
 
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuth, requireAuthUserId } from "./auth";
 import { requireNotViewer } from "./roles";
@@ -222,10 +222,10 @@ export const applyAanpassing = mutation({
     // Get the normuur and verify ownership
     const normuur = await ctx.db.get(args.normuurId);
     if (!normuur) {
-      throw new Error("Normuur niet gevonden");
+      throw new ConvexError("Normuur niet gevonden");
     }
     if (normuur.userId.toString() !== user._id.toString()) {
-      throw new Error("Geen toegang tot deze normuur");
+      throw new ConvexError("Geen toegang tot deze normuur");
     }
 
     const oudeWaarde = normuur.normuurPerEenheid;
@@ -382,16 +382,16 @@ export const revertAanpassing = mutation({
     // Get the history entry
     const historieEntry = await ctx.db.get(args.historieId);
     if (!historieEntry) {
-      throw new Error("Historie entry niet gevonden");
+      throw new ConvexError("Historie entry niet gevonden");
     }
     if (historieEntry.userId.toString() !== user._id.toString()) {
-      throw new Error("Geen toegang tot deze historie entry");
+      throw new ConvexError("Geen toegang tot deze historie entry");
     }
 
     // Get the normuur
     const normuur = await ctx.db.get(historieEntry.normuurId);
     if (!normuur) {
-      throw new Error("Normuur niet meer gevonden");
+      throw new ConvexError("Normuur niet meer gevonden");
     }
 
     const oudeWaarde = normuur.normuurPerEenheid;

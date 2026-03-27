@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getOwnedOfferte, isShareTokenValid, requireAuthUserId } from "./auth";
 import { requireNotViewer } from "./roles";
@@ -92,7 +92,7 @@ export const sendFromCustomer = mutation({
     // Rate limiting: max 30 requests per minute per token
     const rateLimitResult = checkPublicOfferteRateLimit(args.token);
     if (!rateLimitResult.allowed) {
-      throw new Error(rateLimitResult.message || "Te veel verzoeken. Probeer het later opnieuw.");
+      throw new ConvexError(rateLimitResult.message || "Te veel verzoeken. Probeer het later opnieuw.");
     }
 
     // Find the offerte by token
@@ -103,7 +103,7 @@ export const sendFromCustomer = mutation({
 
     // Validate token and check expiry
     if (!isShareTokenValid(offerte, args.token)) {
-      throw new Error("Ongeldige of verlopen link");
+      throw new ConvexError("Ongeldige of verlopen link");
     }
 
     return await ctx.db.insert("offerte_messages", {
@@ -147,7 +147,7 @@ export const markCustomerMessagesAsRead = mutation({
     // Rate limiting: max 30 requests per minute per token
     const rateLimitResult = checkPublicOfferteRateLimit(args.token);
     if (!rateLimitResult.allowed) {
-      throw new Error(rateLimitResult.message || "Te veel verzoeken. Probeer het later opnieuw.");
+      throw new ConvexError(rateLimitResult.message || "Te veel verzoeken. Probeer het later opnieuw.");
     }
 
     const offerte = await ctx.db
@@ -157,7 +157,7 @@ export const markCustomerMessagesAsRead = mutation({
 
     // Validate token and check expiry
     if (!isShareTokenValid(offerte, args.token)) {
-      throw new Error("Ongeldige of verlopen link");
+      throw new ConvexError("Ongeldige of verlopen link");
     }
 
     const unread = await ctx.db

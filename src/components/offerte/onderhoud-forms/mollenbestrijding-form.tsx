@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useFormValidationSync } from "@/hooks/use-scope-form-sync";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -210,18 +211,7 @@ export function MollenbestrijdingForm({
   }, [watch, onChange]);
 
   // Notify parent of validation state changes
-  useEffect(() => {
-    if (onValidationChange) {
-      const errorMessages: Record<string, string> = {};
-      Object.entries(errors).forEach(([key, error]) => {
-        if (error && typeof error === "object" && "message" in error && error.message) {
-          errorMessages[key] = error.message as string;
-        }
-      });
-      onValidationChange(isValid, errorMessages);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(errors), isValid]);
+  useFormValidationSync(errors, isValid, onValidationChange);
 
   const watchedValues = watch();
   const geselecteerdPakket = watchedValues.gekozenPakket;

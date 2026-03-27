@@ -32,7 +32,7 @@ import {
   Loader2,
   Trash2,
 } from "lucide-react";
-import { toast } from "sonner";
+import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 
 type Werklocatie = {
   _id: Id<"werklocaties">;
@@ -146,7 +146,7 @@ export function WerklocatieForm({
           veiligheidsNotities: data.veiligheidsNotities || undefined,
           bijzonderheden: data.bijzonderheden || undefined,
         });
-        toast.success("Werklocatie bijgewerkt");
+        showSuccessToast("Werklocatie bijgewerkt");
       } else {
         await createWerklocatie({
           projectId,
@@ -169,13 +169,13 @@ export function WerklocatieForm({
           veiligheidsNotities: data.veiligheidsNotities || undefined,
           bijzonderheden: data.bijzonderheden || undefined,
         });
-        toast.success("Werklocatie toegevoegd");
+        showSuccessToast("Werklocatie toegevoegd");
       }
 
       onSuccess?.();
     } catch (error) {
       console.error("Error saving werklocatie:", error);
-      toast.error("Er ging iets mis bij het opslaan");
+      showErrorToast("Er ging iets mis bij het opslaan");
     } finally {
       setIsSubmitting(false);
     }
@@ -192,11 +192,11 @@ export function WerklocatieForm({
 
     try {
       await deleteWerklocatie({ id: werklocatie._id });
-      toast.success("Werklocatie verwijderd");
+      showSuccessToast("Werklocatie verwijderd");
       onSuccess?.();
     } catch (error) {
       console.error("Error deleting werklocatie:", error);
-      toast.error("Er ging iets mis bij het verwijderen");
+      showErrorToast("Er ging iets mis bij het verwijderen");
     } finally {
       setIsDeleting(false);
     }

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useQuery } from "convex/react";
 import { useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { CheckSquare, ArrowRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -52,7 +52,7 @@ export function QCStatusCard() {
     : "/projecten";
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
@@ -61,7 +61,7 @@ export function QCStatusCard() {
       {/* Real-time update flash */}
       <AnimatePresence>
         {isUpdating && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -99,7 +99,7 @@ export function QCStatusCard() {
                   {/* Real-time indicator when updating */}
                   <AnimatePresence>
                     {isUpdating && (
-                      <motion.span
+                      <m.span
                         initial={{ opacity: 0, scale: 0.8 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.8 }}
@@ -107,13 +107,13 @@ export function QCStatusCard() {
                       >
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75" />
                         <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-purple-500" />
-                      </motion.span>
+                      </m.span>
                     )}
                   </AnimatePresence>
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <motion.p
+                    <m.p
                       key={stats.totaalOpen}
                       initial={isUpdating ? { scale: 1.1, color: "rgb(147 51 234)" } : false}
                       animate={{ scale: 1, color: "inherit" }}
@@ -121,7 +121,7 @@ export function QCStatusCard() {
                       className="text-2xl font-bold"
                     >
                       {stats.totaalOpen}
-                    </motion.p>
+                    </m.p>
                     {hasOpenChecks && (
                       <Badge
                         variant="outline"
@@ -160,6 +160,6 @@ export function QCStatusCard() {
           </CardContent>
         </Card>
       </Link>
-    </motion.div>
+    </m.div>
   );
 }

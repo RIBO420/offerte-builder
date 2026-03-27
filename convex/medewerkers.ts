@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId, getAuthenticatedUser, requireAuth } from "./auth";
 import { requireNotViewer } from "./roles";
@@ -69,13 +69,17 @@ async function isLinkedMedewerker(
 
 /**
  * Get the user's role in relation to medewerkers.
- * Returns: "admin" | "medewerker" | null
- * - admin: User is a company owner with medewerkers under their account
+ * Returns: "directie" | "medewerker" | null
+ * - directie: User is a company owner with medewerkers under their account
  * - medewerker: User is linked to a medewerker record via clerkUserId
  * - null: User has no access
+ *
+ * NOTE: This is a local ownership-based role check specific to medewerkers,
+ * separate from the global RBAC role in roles.ts. It determines if the user
+ * owns the medewerker records (directie) or is linked as a medewerker.
  */
 async function getUserRole(ctx: QueryCtx | MutationCtx): Promise<{
-  role: "admin" | "medewerker" | null;
+  role: "directie" | "medewerker" | null;
   userId: Id<"users"> | null;
   linkedMedewerker: Doc<"medewerkers"> | null;
   companyUserId: Id<"users"> | null;
@@ -101,26 +105,26 @@ async function getUserRole(ctx: QueryCtx | MutationCtx): Promise<{
     };
   }
 
-  // Check if user has medewerkers under their account (is a company owner/admin)
+  // Check if user has medewerkers under their account (is a company owner/directie)
   const ownedMedewerkers = await ctx.db
     .query("medewerkers")
     .withIndex("by_user", (q) => q.eq("userId", user._id))
     .first();
 
   if (ownedMedewerkers) {
-    // User is an admin (company owner) with medewerkers
+    // User is directie (company owner) with medewerkers
     return {
-      role: "admin",
+      role: "directie",
       userId: user._id,
       linkedMedewerker: null,
       companyUserId: user._id,
     };
   }
 
-  // User is authenticated but doesn't have medewerkers - could be a new admin
-  // Allow them to create medewerkers (admin role by default for authenticated users)
+  // User is authenticated but doesn't have medewerkers - could be new directie
+  // Allow them to create medewerkers (directie role by default for authenticated users)
   return {
-    role: "admin",
+    role: "directie",
     userId: user._id,
     linkedMedewerker: null,
     companyUserId: user._id,
@@ -128,15 +132,15 @@ async function getUserRole(ctx: QueryCtx | MutationCtx): Promise<{
 }
 
 /**
- * Require admin role. Throws error if user is not admin.
+ * Require directie (admin) role. Throws error if user is not directie.
  */
 async function requireAdmin(ctx: QueryCtx | MutationCtx): Promise<{
   userId: Id<"users">;
   companyUserId: Id<"users">;
 }> {
   const { role, userId, companyUserId } = await getUserRole(ctx);
-  if (role !== "admin" || !userId || !companyUserId) {
-    throw new Error("Alleen beheerders kunnen deze actie uitvoeren");
+  if (role !== "directie" || !userId || !companyUserId) {
+    throw new ConvexError("Alleen beheerders kunnen deze actie uitvoeren");
   }
   return { userId, companyUserId };
 }
@@ -527,12 +531,12 @@ export const update = mutation({
     const { role, linkedMedewerker, companyUserId } = await getUserRole(ctx);
 
     if (!role) {
-      throw new Error("Je moet ingelogd zijn om deze actie uit te voeren");
+      throw new ConvexError("Je moet ingelogd zijn om deze actie uit te voeren");
     }
 
     const medewerker = await ctx.db.get(args.id);
     if (!medewerker) {
-      throw new Error("Medewerker niet gevonden");
+      throw new ConvexError("Medewerker niet gevonden");
     }
 
     // Check access based on role
@@ -542,7 +546,7 @@ export const update = mutation({
     if (role === "medewerker") {
       // Medewerker can only update their own profile
       if (!isOwnProfile) {
-        throw new Error("Je hebt geen toegang tot deze medewerker");
+        throw new ConvexError("Je hebt geen toegang tot deze medewerker");
       }
 
       // Medewerker can only update limited fields
@@ -553,7 +557,7 @@ export const update = mutation({
       const disallowedFields = attemptedFields.filter((f) => !allowedFields.includes(f));
 
       if (disallowedFields.length > 0) {
-        throw new Error(
+        throw new ConvexError(
           `Je kunt alleen de volgende velden bijwerken: ${allowedFields.join(", ")}`
         );
       }
@@ -578,7 +582,7 @@ export const update = mutation({
 
     // Admin role: verify ownership
     if (!isOwner) {
-      throw new Error("Geen toegang tot deze medewerker");
+      throw new ConvexError("Geen toegang tot deze medewerker");
     }
 
     // Admin can update all fields
@@ -641,7 +645,7 @@ export const updateMyProfile = mutation({
       .first();
 
     if (!medewerker) {
-      throw new Error("Geen medewerker profiel gevonden voor dit account");
+      throw new ConvexError("Geen medewerker profiel gevonden voor dit account");
     }
 
     const updateData: {
@@ -673,10 +677,10 @@ export const remove = mutation({
 
     const medewerker = await ctx.db.get(args.id);
     if (!medewerker) {
-      throw new Error("Medewerker niet gevonden");
+      throw new ConvexError("Medewerker niet gevonden");
     }
     if (medewerker.userId.toString() !== companyUserId.toString()) {
-      throw new Error("Geen toegang tot deze medewerker");
+      throw new ConvexError("Geen toegang tot deze medewerker");
     }
 
     await ctx.db.patch(args.id, {
@@ -699,10 +703,10 @@ export const hardDelete = mutation({
 
     const medewerker = await ctx.db.get(args.id);
     if (!medewerker) {
-      throw new Error("Medewerker niet gevonden");
+      throw new ConvexError("Medewerker niet gevonden");
     }
     if (medewerker.userId.toString() !== companyUserId.toString()) {
-      throw new Error("Geen toegang tot deze medewerker");
+      throw new ConvexError("Geen toegang tot deze medewerker");
     }
 
     await ctx.db.delete(args.id);
@@ -736,7 +740,7 @@ export const getWithStats = query({
     if (role === "medewerker" && !isOwnProfile) {
       return null;
     }
-    if (role === "admin" && !isOwner) {
+    if (role === "directie" && !isOwner) {
       return null;
     }
 
@@ -797,7 +801,7 @@ export const getMedewerkersMetPrestaties = query({
   handler: async (ctx, args) => {
     const { role, companyUserId } = await getUserRole(ctx);
 
-    if (role !== "admin" || !companyUserId) {
+    if (role !== "directie" || !companyUserId) {
       return [];
     }
 
@@ -1052,10 +1056,10 @@ export const updateCertificaat = mutation({
 
     const medewerker = await ctx.db.get(args.medewerkerId);
     if (!medewerker) {
-      throw new Error("Medewerker niet gevonden");
+      throw new ConvexError("Medewerker niet gevonden");
     }
     if (medewerker.userId.toString() !== companyUserId.toString()) {
-      throw new Error("Geen toegang tot deze medewerker");
+      throw new ConvexError("Geen toegang tot deze medewerker");
     }
 
     const certificaten = medewerker.certificaten || [];
@@ -1067,14 +1071,14 @@ export const updateCertificaat = mutation({
 
       case "bijwerken":
         if (args.certificaatIndex === undefined || args.certificaatIndex < 0 || args.certificaatIndex >= certificaten.length) {
-          throw new Error("Ongeldige certificaat index");
+          throw new ConvexError("Ongeldige certificaat index");
         }
         certificaten[args.certificaatIndex] = args.certificaat;
         break;
 
       case "verwijderen":
         if (args.certificaatIndex === undefined || args.certificaatIndex < 0 || args.certificaatIndex >= certificaten.length) {
-          throw new Error("Ongeldige certificaat index");
+          throw new ConvexError("Ongeldige certificaat index");
         }
         certificaten.splice(args.certificaatIndex, 1);
         break;

@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { LucideIcon } from "lucide-react";
 
 interface StoryCardProps {
@@ -27,7 +27,7 @@ export function StoryCard({
   gradient = "from-emerald-500 to-green-600",
 }: StoryCardProps) {
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 40 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-100px" }}
@@ -39,7 +39,7 @@ export function StoryCard({
       {/* Text content */}
       <div className={`space-y-6 ${reversed ? "lg:order-2" : ""}`}>
         {/* Badge */}
-        <motion.div
+        <m.div
           initial={{ opacity: 0, x: -20 }}
           whileInView={{ opacity: 1, x: 0 }}
           viewport={{ once: true }}
@@ -49,7 +49,7 @@ export function StoryCard({
           <span className={`px-3 py-1 rounded-full bg-gradient-to-r ${gradient} bg-opacity-10 text-white text-xs font-medium`}>
             {title}
           </span>
-        </motion.div>
+        </m.div>
 
         {/* Headline */}
         <h3 className="text-3xl font-bold tracking-tight leading-tight">
@@ -75,7 +75,7 @@ export function StoryCard({
       </div>
 
       {/* Visual */}
-      <motion.div
+      <m.div
         className={`relative ${reversed ? "lg:order-1" : ""}`}
         whileHover={{ scale: 1.02 }}
         transition={{ duration: 0.3 }}
@@ -83,7 +83,7 @@ export function StoryCard({
         <div className={`absolute -inset-4 bg-gradient-to-r ${gradient} opacity-10 rounded-3xl blur-2xl`} />
         <div className="relative aspect-square rounded-2xl overflow-hidden bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm border border-white/10 flex items-center justify-center">
           {/* Icon container */}
-          <motion.div
+          <m.div
             className={`relative w-32 h-32 rounded-2xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-2xl`}
             animate={{ 
               y: [0, -10, 0],
@@ -99,15 +99,15 @@ export function StoryCard({
             
             {/* Glow */}
             <div className={`absolute inset-0 bg-gradient-to-br ${gradient} rounded-2xl blur-xl opacity-50`} />
-          </motion.div>
+          </m.div>
 
           {/* Decorative elements */}
           <div className="absolute top-4 right-4 w-16 h-16 rounded-full bg-white/5" />
           <div className="absolute bottom-8 left-8 w-8 h-8 rounded-full bg-white/5" />
           <div className="absolute top-1/2 right-8 w-4 h-4 rounded-full bg-emerald-500/30" />
         </div>
-      </motion.div>
-    </motion.div>
+      </m.div>
+    </m.div>
   );
 }
 
@@ -128,7 +128,7 @@ export function CompactStoryCard({
   delay = 0,
 }: CompactStoryCardProps) {
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
@@ -156,6 +156,6 @@ export function CompactStoryCard({
           {stat}
         </div>
       </div>
-    </motion.div>
+    </m.div>
   );
 }

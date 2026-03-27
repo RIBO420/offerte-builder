@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
 import { requireNotViewer } from "./roles";
@@ -106,7 +106,7 @@ export const create = mutation({
     // Verify ownership of the vehicle
     const voertuig = await ctx.db.get(args.voertuigId);
     if (!voertuig || voertuig.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit voertuig");
+      throw new ConvexError("Geen toegang tot dit voertuig");
     }
 
     const now = Date.now();
@@ -159,7 +159,7 @@ export const update = mutation({
 
     const record = await ctx.db.get(args.id);
     if (!record || record.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit onderhoud record");
+      throw new ConvexError("Geen toegang tot dit onderhoud record");
     }
 
     const updateData: {
@@ -195,7 +195,7 @@ export const remove = mutation({
 
     const record = await ctx.db.get(args.id);
     if (!record || record.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit onderhoud record");
+      throw new ConvexError("Geen toegang tot dit onderhoud record");
     }
 
     await ctx.db.delete(args.id);
@@ -350,10 +350,10 @@ export const markeerVoltooid = mutation({
     // Verifieer eigenaarschap
     const onderhoud = await ctx.db.get(args.id);
     if (!onderhoud) {
-      throw new Error("Onderhoud record niet gevonden");
+      throw new ConvexError("Onderhoud record niet gevonden");
     }
     if (onderhoud.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit onderhoud record");
+      throw new ConvexError("Geen toegang tot dit onderhoud record");
     }
 
     const updateData: {

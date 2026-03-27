@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
@@ -353,7 +353,7 @@ function UrenPageContent() {
           </Breadcrumb>
         </header>
         <div className="flex flex-1 items-center justify-center">
-          <motion.div
+          <m.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             className="flex flex-col items-center gap-4"
@@ -365,7 +365,7 @@ function UrenPageContent() {
               </div>
             </div>
             <p className="text-muted-foreground animate-pulse">Laden...</p>
-          </motion.div>
+          </m.div>
         </div>
       </>
     );
@@ -389,14 +389,14 @@ function UrenPageContent() {
         </Breadcrumb>
       </header>
 
-      <motion.div
+      <m.div
         variants={containerVariants}
         initial="hidden"
         animate="visible"
         className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
       >
         {/* Page Header */}
-        <motion.div variants={itemVariants} className="flex items-center justify-between">
+        <m.div variants={itemVariants} className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
               Uren Overzicht
@@ -416,10 +416,10 @@ function UrenPageContent() {
               disabled={!exportData || exportData.length === 0}
             />
           )}
-        </motion.div>
+        </m.div>
 
         {/* Stats Cards */}
-        <motion.div variants={itemVariants} className="grid gap-4 md:grid-cols-4">
+        <m.div variants={itemVariants} className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Deze Week</CardTitle>
@@ -471,11 +471,11 @@ function UrenPageContent() {
               <p className="text-xs text-muted-foreground">uren entries</p>
             </CardContent>
           </Card>
-        </motion.div>
+        </m.div>
 
         {/* Hours per Project */}
         {statsData?.perProject && statsData.perProject.length > 0 && (
-          <motion.div variants={itemVariants}>
+          <m.div variants={itemVariants}>
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -515,12 +515,12 @@ function UrenPageContent() {
                 </div>
               </CardContent>
             </Card>
-          </motion.div>
+          </m.div>
         )}
 
         {/* Hours per Medewerker (Admin only) */}
         {isAdmin && statsData?.perMedewerker && statsData.perMedewerker.length > 0 && (
-          <motion.div variants={itemVariants}>
+          <m.div variants={itemVariants}>
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -552,11 +552,11 @@ function UrenPageContent() {
                 </div>
               </CardContent>
             </Card>
-          </motion.div>
+          </m.div>
         )}
 
         {/* Filters and Table */}
-        <motion.div variants={itemVariants}>
+        <m.div variants={itemVariants}>
           <Card>
             <CardHeader>
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -767,8 +767,8 @@ function UrenPageContent() {
               )}
             </CardContent>
           </Card>
-        </motion.div>
-      </motion.div>
+        </m.div>
+      </m.div>
     </>
   );
 }

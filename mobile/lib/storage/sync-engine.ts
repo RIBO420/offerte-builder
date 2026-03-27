@@ -204,7 +204,6 @@ export class SyncEngine {
       this.state.lastSyncAt = parseInt(lastSyncAt, 10);
     }
 
-    console.log('[SyncEngine] Initialized', this.state);
   }
 
   /**
@@ -245,7 +244,6 @@ export class SyncEngine {
 
     // Came back online - trigger sync
     if (wasOffline && this.state.isOnline) {
-      console.log('[SyncEngine] Network restored, triggering sync');
       this.triggerSync();
     }
   }

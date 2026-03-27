@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { query, action } from "./_generated/server";
 import { api } from "./_generated/api";
 import { requireAuthUserId, getAuthenticatedUser } from "./auth";
@@ -157,7 +157,7 @@ export const berekenGrondwerk = action({
     // Verify caller is authenticated
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error("Niet geautoriseerd");
+      throw new ConvexError("Niet geautoriseerd");
     }
 
     const regels: OfferteRegel[] = [];
@@ -279,7 +279,7 @@ export const berekenBestrating = action({
     // Verify caller is authenticated
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error("Niet geautoriseerd");
+      throw new ConvexError("Niet geautoriseerd");
     }
 
     const regels: OfferteRegel[] = [];
@@ -431,7 +431,7 @@ export const berekenHeggenOnderhoud = action({
     // Verify caller is authenticated
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error("Niet geautoriseerd");
+      throw new ConvexError("Niet geautoriseerd");
     }
 
     const regels: OfferteRegel[] = [];
@@ -551,7 +551,7 @@ export const berekenBordersOnderhoud = action({
     // Verify caller is authenticated
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error("Niet geautoriseerd");
+      throw new ConvexError("Niet geautoriseerd");
     }
 
     const regels: OfferteRegel[] = [];

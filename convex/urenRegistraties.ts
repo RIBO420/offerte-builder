@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuth, requireAuthUserId } from "./auth";
 import { getUserRole, getLinkedMedewerker, getCompanyUserId, requireNotViewer } from "./roles";
@@ -47,7 +47,7 @@ export const listGlobalPaginated = query({
     }
 
     // Filter by role
-    if (role !== "admin") {
+    if (role !== "directie") {
       const medewerker = await getLinkedMedewerker(ctx);
       if (!medewerker) {
         return {
@@ -131,7 +131,7 @@ export const listGlobal = query({
     }
 
     // Filter by role
-    if (role !== "admin") {
+    if (role !== "directie") {
       const medewerker = await getLinkedMedewerker(ctx);
       if (!medewerker) return [];
 
@@ -158,7 +158,7 @@ export const list = query({
     // Verify project ownership
     const project = await ctx.db.get(args.projectId);
     if (!project || project.userId.toString() !== userId.toString()) {
-      throw new Error("Project niet gevonden of geen toegang");
+      throw new ConvexError("Project niet gevonden of geen toegang");
     }
 
     return await ctx.db
@@ -181,7 +181,7 @@ export const listByDateRange = query({
     // Verify project ownership
     const project = await ctx.db.get(args.projectId);
     if (!project || project.userId.toString() !== userId.toString()) {
-      throw new Error("Project niet gevonden of geen toegang");
+      throw new ConvexError("Project niet gevonden of geen toegang");
     }
 
     const entries = await ctx.db
@@ -205,7 +205,7 @@ export const getTotals = query({
     // Verify project ownership
     const project = await ctx.db.get(args.projectId);
     if (!project || project.userId.toString() !== userId.toString()) {
-      throw new Error("Project niet gevonden of geen toegang");
+      throw new ConvexError("Project niet gevonden of geen toegang");
     }
 
     const entries = await ctx.db
@@ -265,7 +265,7 @@ export const add = mutation({
     // Verify project ownership
     const project = await ctx.db.get(args.projectId);
     if (!project || project.userId.toString() !== userId.toString()) {
-      throw new Error("Project niet gevonden of geen toegang");
+      throw new ConvexError("Project niet gevonden of geen toegang");
     }
 
     return await ctx.db.insert("urenRegistraties", {
@@ -302,7 +302,7 @@ export const importBatch = mutation({
     // Verify project ownership
     const project = await ctx.db.get(args.projectId);
     if (!project || project.userId.toString() !== userId.toString()) {
-      throw new Error("Project niet gevonden of geen toegang");
+      throw new ConvexError("Project niet gevonden of geen toegang");
     }
 
     const insertedIds: string[] = [];
@@ -345,12 +345,12 @@ export const update = mutation({
     // Get entry and verify ownership through project
     const entry = await ctx.db.get(args.id);
     if (!entry) {
-      throw new Error("Registratie niet gevonden");
+      throw new ConvexError("Registratie niet gevonden");
     }
 
     const project = await ctx.db.get(entry.projectId);
     if (!project || project.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot deze registratie");
+      throw new ConvexError("Geen toegang tot deze registratie");
     }
 
     const { id, ...updates } = args;
@@ -377,12 +377,12 @@ export const remove = mutation({
     // Get entry and verify ownership through project
     const entry = await ctx.db.get(args.id);
     if (!entry) {
-      throw new Error("Registratie niet gevonden");
+      throw new ConvexError("Registratie niet gevonden");
     }
 
     const project = await ctx.db.get(entry.projectId);
     if (!project || project.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot deze registratie");
+      throw new ConvexError("Geen toegang tot deze registratie");
     }
 
     await ctx.db.delete(args.id);
@@ -438,7 +438,7 @@ export const getGlobalStats = query({
     let allUren = urenArrays.flat();
 
     // Filter by role
-    if (role !== "admin") {
+    if (role !== "directie") {
       if (!linkedMedewerker) {
         return {
           urenDezeWeek: 0,

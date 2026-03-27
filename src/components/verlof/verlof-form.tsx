@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
@@ -13,7 +16,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -22,6 +24,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Loader2 } from "lucide-react";
 import { useVerlof, type VerlofType } from "@/hooks/use-verlof";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -33,6 +44,18 @@ const VERLOF_TYPES: { value: VerlofType; label: string }[] = [
   { value: "onbetaald", label: "Onbetaald verlof" },
   { value: "compensatie", label: "Compensatie (ATV/ADV)" },
 ];
+
+// Zod schema
+const verlofFormSchema = z.object({
+  medewerkerId: z.string().min(1, "Selecteer een medewerker"),
+  type: z.enum(["vakantie", "bijzonder", "onbetaald", "compensatie"]),
+  startDatum: z.string().min(1, "Vul een startdatum in"),
+  eindDatum: z.string().min(1, "Vul een einddatum in"),
+  aantalDagen: z.number().min(0.5, "Aantal dagen moet groter zijn dan 0"),
+  opmerking: z.string().optional(),
+});
+
+type VerlofFormData = z.infer<typeof verlofFormSchema>;
 
 interface VerlofFormProps {
   open: boolean;
@@ -75,14 +98,6 @@ export function VerlofForm({
   const { create, update } = useVerlof();
   const [isLoading, setIsLoading] = useState(false);
 
-  // Form state
-  const [medewerkerId, setMedewerkerId] = useState<string>("");
-  const [startDatum, setStartDatum] = useState("");
-  const [eindDatum, setEindDatum] = useState("");
-  const [aantalDagen, setAantalDagen] = useState(0);
-  const [type, setType] = useState<VerlofType>("vakantie");
-  const [opmerking, setOpmerking] = useState("");
-
   const isEditMode = !!initialData;
 
   // Load medewerkers for the dropdown (admin only)
@@ -90,75 +105,76 @@ export function VerlofForm({
     api.medewerkers.list,
     user?._id ? { isActief: true } : "skip"
   );
-
   const medewerkersList = useMemo(() => medewerkers ?? [], [medewerkers]);
+
+  const form = useForm<VerlofFormData>({
+    resolver: zodResolver(verlofFormSchema),
+    defaultValues: {
+      medewerkerId: defaultMedewerkerId?.toString() ?? "",
+      type: "vakantie",
+      startDatum: "",
+      eindDatum: "",
+      aantalDagen: 0,
+      opmerking: "",
+    },
+  });
 
   // Reset form on open
   useEffect(() => {
     if (open) {
       if (initialData) {
-        setMedewerkerId(initialData.medewerkerId.toString());
-        setStartDatum(initialData.startDatum);
-        setEindDatum(initialData.eindDatum);
-        setAantalDagen(initialData.aantalDagen);
-        setType(initialData.type);
-        setOpmerking(initialData.opmerking ?? "");
+        form.reset({
+          medewerkerId: initialData.medewerkerId.toString(),
+          startDatum: initialData.startDatum,
+          eindDatum: initialData.eindDatum,
+          aantalDagen: initialData.aantalDagen,
+          type: initialData.type,
+          opmerking: initialData.opmerking ?? "",
+        });
       } else {
-        setMedewerkerId(defaultMedewerkerId?.toString() ?? "");
-        setStartDatum("");
-        setEindDatum("");
-        setAantalDagen(0);
-        setType("vakantie");
-        setOpmerking("");
+        form.reset({
+          medewerkerId: defaultMedewerkerId?.toString() ?? "",
+          startDatum: "",
+          eindDatum: "",
+          aantalDagen: 0,
+          type: "vakantie",
+          opmerking: "",
+        });
       }
     }
-  }, [open, initialData, defaultMedewerkerId]);
+  }, [open, initialData, defaultMedewerkerId, form]);
 
   // Auto-calculate working days when dates change
+  const startDatum = form.watch("startDatum");
+  const eindDatum = form.watch("eindDatum");
+
   useEffect(() => {
     if (startDatum && eindDatum) {
-      setAantalDagen(calculateWorkingDays(startDatum, eindDatum));
+      form.setValue("aantalDagen", calculateWorkingDays(startDatum, eindDatum));
     }
-  }, [startDatum, eindDatum]);
+  }, [startDatum, eindDatum, form]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!medewerkerId) {
-      showErrorToast("Selecteer een medewerker");
-      return;
-    }
-
-    if (!startDatum || !eindDatum) {
-      showErrorToast("Vul een start- en einddatum in");
-      return;
-    }
-
-    if (aantalDagen <= 0) {
-      showErrorToast("Aantal dagen moet groter zijn dan 0");
-      return;
-    }
-
+  const handleFormSubmit = async (data: VerlofFormData) => {
     setIsLoading(true);
 
     try {
       if (isEditMode) {
         await update(initialData._id, {
-          startDatum,
-          eindDatum,
-          aantalDagen,
-          type,
-          opmerking: opmerking || undefined,
+          startDatum: data.startDatum,
+          eindDatum: data.eindDatum,
+          aantalDagen: data.aantalDagen,
+          type: data.type,
+          opmerking: data.opmerking || undefined,
         });
         showSuccessToast("Verlofaanvraag bijgewerkt");
       } else {
         await create({
-          medewerkerId: medewerkerId as Id<"medewerkers">,
-          startDatum,
-          eindDatum,
-          aantalDagen,
-          type,
-          opmerking: opmerking || undefined,
+          medewerkerId: data.medewerkerId as Id<"medewerkers">,
+          startDatum: data.startDatum,
+          eindDatum: data.eindDatum,
+          aantalDagen: data.aantalDagen,
+          type: data.type,
+          opmerking: data.opmerking || undefined,
         });
         showSuccessToast("Verlofaanvraag ingediend");
       }
@@ -181,119 +197,166 @@ export function VerlofForm({
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Medewerker selector */}
-          <div className="space-y-2">
-            <Label htmlFor="medewerker">Medewerker</Label>
-            <Select
-              value={medewerkerId}
-              onValueChange={setMedewerkerId}
-              disabled={isEditMode}
-            >
-              <SelectTrigger id="medewerker">
-                <SelectValue placeholder="Selecteer medewerker" />
-              </SelectTrigger>
-              <SelectContent>
-                {medewerkersList.map((m) => (
-                  <SelectItem key={m._id} value={m._id}>
-                    {m.naam}
-                    {m.functie ? ` — ${m.functie}` : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Type */}
-          <div className="space-y-2">
-            <Label htmlFor="type">Type verlof</Label>
-            <Select
-              value={type}
-              onValueChange={(v) => setType(v as VerlofType)}
-            >
-              <SelectTrigger id="type">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {VERLOF_TYPES.map((t) => (
-                  <SelectItem key={t.value} value={t.value}>
-                    {t.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Date range */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="startDatum">Startdatum</Label>
-              <Input
-                id="startDatum"
-                type="date"
-                value={startDatum}
-                onChange={(e) => setStartDatum(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="eindDatum">Einddatum</Label>
-              <Input
-                id="eindDatum"
-                type="date"
-                value={eindDatum}
-                onChange={(e) => setEindDatum(e.target.value)}
-                min={startDatum}
-                required
-              />
-            </div>
-          </div>
-
-          {/* Calculated days */}
-          <div className="space-y-2">
-            <Label htmlFor="aantalDagen">Aantal werkdagen</Label>
-            <Input
-              id="aantalDagen"
-              type="number"
-              min={0.5}
-              step={0.5}
-              value={aantalDagen}
-              onChange={(e) => setAantalDagen(Number(e.target.value))}
-              required
-            />
-            <p className="text-xs text-muted-foreground">
-              Automatisch berekend op basis van werkdagen (ma-vr). Pas aan voor halve dagen.
-            </p>
-          </div>
-
-          {/* Opmerking */}
-          <div className="space-y-2">
-            <Label htmlFor="opmerking">Opmerking (optioneel)</Label>
-            <Textarea
-              id="opmerking"
-              value={opmerking}
-              onChange={(e) => setOpmerking(e.target.value)}
-              placeholder="Reden of toelichting..."
-              rows={3}
-            />
-          </div>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              Annuleren
-            </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(handleFormSubmit)}
+            className="space-y-4"
+          >
+            {/* Medewerker selector */}
+            <FormField
+              control={form.control}
+              name="medewerkerId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Medewerker</FormLabel>
+                  <Select
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    disabled={isEditMode}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecteer medewerker" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {medewerkersList.map((m) => (
+                        <SelectItem key={m._id} value={m._id}>
+                          {m.naam}
+                          {m.functie ? ` — ${m.functie}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
               )}
-              {isEditMode ? "Opslaan" : "Indienen"}
-            </Button>
-          </DialogFooter>
-        </form>
+            />
+
+            {/* Type */}
+            <FormField
+              control={form.control}
+              name="type"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Type verlof</FormLabel>
+                  <Select
+                    value={field.value}
+                    onValueChange={field.onChange}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {VERLOF_TYPES.map((t) => (
+                        <SelectItem key={t.value} value={t.value}>
+                          {t.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Date range */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="startDatum"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Startdatum</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="eindDatum"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Einddatum</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="date"
+                        min={startDatum}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Calculated days */}
+            <FormField
+              control={form.control}
+              name="aantalDagen"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Aantal werkdagen</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={0.5}
+                      step={0.5}
+                      value={field.value}
+                      onChange={(e) => field.onChange(Number(e.target.value))}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Automatisch berekend op basis van werkdagen (ma-vr). Pas aan
+                    voor halve dagen.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Opmerking */}
+            <FormField
+              control={form.control}
+              name="opmerking"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Opmerking (optioneel)</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Reden of toelichting..."
+                      rows={3}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+              >
+                Annuleren
+              </Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                {isEditMode ? "Opslaan" : "Indienen"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );

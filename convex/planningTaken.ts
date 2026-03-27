@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query, QueryCtx, MutationCtx } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
 import { requireNotViewer } from "./roles";
@@ -39,11 +39,11 @@ async function getOwnedProject(
   const project = await ctx.db.get(projectId);
 
   if (!project) {
-    throw new Error("Project niet gevonden");
+    throw new ConvexError("Project niet gevonden");
   }
 
   if (project.userId.toString() !== userId.toString()) {
-    throw new Error("Je hebt geen toegang tot dit project");
+    throw new ConvexError("Je hebt geen toegang tot dit project");
   }
 
   return { project, userId };
@@ -76,7 +76,7 @@ export const generateFromVoorcalculatie = mutation({
     }
 
     if (!voorcalculatie) {
-      throw new Error("Geen voorcalculatie gevonden. Maak eerst een voorcalculatie aan bij de offerte.");
+      throw new ConvexError("Geen voorcalculatie gevonden. Maak eerst een voorcalculatie aan bij de offerte.");
     }
 
     // Delete existing tasks for this project (regenerate)
@@ -92,7 +92,7 @@ export const generateFromVoorcalculatie = mutation({
     // Get the offerte to know the scopes
     const offerte = await ctx.db.get(project.offerteId);
     if (!offerte) {
-      throw new Error("Offerte niet gevonden");
+      throw new ConvexError("Offerte niet gevonden");
     }
 
     // Determine active scopes
@@ -186,12 +186,12 @@ export const update = mutation({
     // Get task and verify ownership through project
     const task = await ctx.db.get(args.taskId);
     if (!task) {
-      throw new Error("Taak niet gevonden");
+      throw new ConvexError("Taak niet gevonden");
     }
 
     const project = await ctx.db.get(task.projectId);
     if (!project || project.userId.toString() !== userId.toString()) {
-      throw new Error("Je hebt geen toegang tot deze taak");
+      throw new ConvexError("Je hebt geen toegang tot deze taak");
     }
 
     // Build update object
@@ -253,12 +253,12 @@ export const remove = mutation({
     // Get task and verify ownership through project
     const task = await ctx.db.get(args.taskId);
     if (!task) {
-      throw new Error("Taak niet gevonden");
+      throw new ConvexError("Taak niet gevonden");
     }
 
     const project = await ctx.db.get(task.projectId);
     if (!project || project.userId.toString() !== userId.toString()) {
-      throw new Error("Je hebt geen toegang tot deze taak");
+      throw new ConvexError("Je hebt geen toegang tot deze taak");
     }
 
     await ctx.db.delete(args.taskId);
@@ -381,12 +381,12 @@ export const moveUp = mutation({
 
     const task = await ctx.db.get(args.taskId);
     if (!task) {
-      throw new Error("Taak niet gevonden");
+      throw new ConvexError("Taak niet gevonden");
     }
 
     const project = await ctx.db.get(task.projectId);
     if (!project || project.userId.toString() !== userId.toString()) {
-      throw new Error("Je hebt geen toegang tot deze taak");
+      throw new ConvexError("Je hebt geen toegang tot deze taak");
     }
 
     // Find task with lower volgorde (to swap with)
@@ -425,12 +425,12 @@ export const moveDown = mutation({
 
     const task = await ctx.db.get(args.taskId);
     if (!task) {
-      throw new Error("Taak niet gevonden");
+      throw new ConvexError("Taak niet gevonden");
     }
 
     const project = await ctx.db.get(task.projectId);
     if (!project || project.userId.toString() !== userId.toString()) {
-      throw new Error("Je hebt geen toegang tot deze taak");
+      throw new ConvexError("Je hebt geen toegang tot deze taak");
     }
 
     // Find task with higher volgorde (to swap with)

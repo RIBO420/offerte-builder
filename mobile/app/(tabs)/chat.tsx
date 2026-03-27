@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -23,7 +24,7 @@ import { cn } from '@/lib/utils';
 import type { Id } from '../../convex/_generated/dataModel';
 
 // Types
-type ChannelType = 'team' | 'dm' | 'project';
+type ChannelType = 'team' | 'dm' | 'project' | 'broadcast';
 
 interface DMConversation {
   partnerId: Id<'users'>;
@@ -38,10 +39,20 @@ interface Message {
   _id: string;
   senderId: string;
   senderName: string;
+  senderRole?: string;
   message: string;
   createdAt: number;
   isOwn?: boolean;
 }
+
+// Map role to Dutch display label
+const ROLE_LABELS: Record<string, string> = {
+  directie: 'Directie',
+  projectleider: 'Projectleider',
+  voorman: 'Voorman',
+  medewerker: 'Medewerker',
+  klant: 'Klant',
+};
 
 // Helper function to format timestamps in Dutch
 function formatTimestamp(timestamp: number): string {
@@ -136,18 +147,22 @@ export default function ChatScreen() {
 // Separate component that only renders when authenticated
 function AuthenticatedChatScreen() {
   const colors = useColors();
+  const { user: currentUser } = useCurrentUser();
   const [activeTab, setActiveTab] = useState<ChannelType>('team');
   const [message, setMessage] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [selectedDMConversation, setSelectedDMConversation] = useState<DMConversation | null>(null);
+  const [showNewDMModal, setShowNewDMModal] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const dmFlatListRef = useRef<FlatList>(null);
 
   // These queries will only run when this component is mounted (i.e., when authenticated)
   const teamMessages = useQuery(api.chat.getTeamMessages, { channelType: 'team', limit: 50 });
+  const broadcastMessages = useQuery(api.chat.getTeamMessages, { channelType: 'broadcast', limit: 50 });
   const projectMessages = useQuery(api.chat.getTeamMessages, { channelType: 'project', limit: 50 });
   const dmConversations = useQuery(api.chat.getDMConversations);
   const unreadCounts = useQuery(api.chat.getUnreadCounts);
+  const dmUsers = useQuery(api.chat.getUsersForDM, activeTab === 'dm' ? {} : 'skip');
 
   // Query DM messages when a conversation is selected
   const dmMessages = useQuery(
@@ -172,10 +187,12 @@ function AuthenticatedChatScreen() {
   useEffect(() => {
     if (activeTab === 'team' && teamMessages && teamMessages.length > 0) {
       markAsRead({ channelType: 'team' }).catch(console.error);
+    } else if (activeTab === 'broadcast' && broadcastMessages && broadcastMessages.length > 0) {
+      markAsRead({ channelType: 'broadcast' }).catch(console.error);
     } else if (activeTab === 'project' && projectMessages && projectMessages.length > 0) {
       markAsRead({ channelType: 'project' }).catch(console.error);
     }
-  }, [activeTab, teamMessages, projectMessages, markAsRead]);
+  }, [activeTab, teamMessages, broadcastMessages, projectMessages, markAsRead]);
 
   // Mark DM messages as read when viewing a conversation
   useEffect(() => {
@@ -195,9 +212,9 @@ function AuthenticatedChatScreen() {
     if (!message.trim()) return;
 
     try {
-      if (activeTab === 'team' || activeTab === 'project') {
+      if (activeTab === 'team' || activeTab === 'broadcast' || activeTab === 'project') {
         await sendTeamMessage({
-          channelType: activeTab === 'team' ? 'team' : 'project',
+          channelType: activeTab,
           message: message.trim(),
           messageType: 'text',
         });
@@ -226,6 +243,27 @@ function AuthenticatedChatScreen() {
     setMessage('');
   }, []);
 
+  // Handle selecting a user from the new DM modal
+  const handleStartNewDM = useCallback((user: { userId: Id<'users'>; naam: string; email?: string; functie?: string }) => {
+    setShowNewDMModal(false);
+    // Check if there's already an existing conversation with this user
+    const existing = dmConversations?.find((c) => c.partnerId === user.userId);
+    if (existing) {
+      setSelectedDMConversation(existing);
+    } else {
+      // Create a temporary DMConversation object to open the thread
+      setSelectedDMConversation({
+        partnerId: user.userId,
+        partnerName: user.naam,
+        partnerEmail: user.email,
+        lastMessage: '',
+        lastMessageAt: Date.now(),
+        unreadCount: 0,
+      });
+    }
+    setMessage('');
+  }, [dmConversations]);
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     // Convex queries auto-refresh, so we just wait a bit
@@ -239,6 +277,11 @@ function AuthenticatedChatScreen() {
       key: 'team' as ChannelType,
       label: 'Team',
       badge: unreadCounts?.team || 0,
+    },
+    {
+      key: 'broadcast' as ChannelType,
+      label: 'Mededelingen',
+      badge: unreadCounts?.broadcast || 0,
     },
     {
       key: 'dm' as ChannelType,
@@ -267,7 +310,16 @@ function AuthenticatedChatScreen() {
           )}
           <View style={[styles.messageBubble, isOwn ? styles.messageBubbleSent : styles.messageBubbleReceived]}>
             {!isOwn && (
-              <Text style={styles.messageSenderName}>{item.senderName}</Text>
+              <View style={styles.senderRow}>
+                <Text style={styles.messageSenderName}>{item.senderName}</Text>
+                {item.senderRole && (
+                  <View style={styles.roleBadge}>
+                    <Text style={styles.roleBadgeText}>
+                      {ROLE_LABELS[item.senderRole] || item.senderRole}
+                    </Text>
+                  </View>
+                )}
+              </View>
             )}
             <Text style={styles.messageText}>{item.message}</Text>
             <Text style={styles.messageTimestamp}>{formatTimestamp(item.createdAt)}</Text>
@@ -338,12 +390,18 @@ function AuthenticatedChatScreen() {
     [selectedDMConversation]
   );
 
-  // Get messages for current tab
+  // Get messages for current tab, marking own messages
   const getMessages = () => {
+    const currentUserId = currentUser?._id;
+    const markOwn = (msgs: any[] | undefined) =>
+      (msgs || []).map((m: any) => ({ ...m, isOwn: m.senderId === currentUserId }));
+
     if (activeTab === 'team') {
-      return teamMessages || [];
+      return markOwn(teamMessages);
+    } else if (activeTab === 'broadcast') {
+      return markOwn(broadcastMessages);
     } else if (activeTab === 'project') {
-      return projectMessages || [];
+      return markOwn(projectMessages);
     }
     return [];
   };
@@ -477,6 +535,36 @@ function AuthenticatedChatScreen() {
             )}
           </TabsContent>
 
+          {/* Mededelingen (Broadcast) */}
+          <TabsContent tabKey="broadcast" activeTab={activeTab}>
+            {isLoading ? (
+              renderLoadingState('Mededelingen laden...')
+            ) : messages.length === 0 ? (
+              renderEmptyState('volume-2', 'Geen mededelingen', 'Hier verschijnen belangrijke berichten van de directie')
+            ) : (
+              <FlatList
+                data={messages}
+                keyExtractor={(item) => item._id}
+                renderItem={renderMessage}
+                inverted
+                contentContainerStyle={styles.messageList}
+                showsVerticalScrollIndicator={false}
+                getItemLayout={(_, index) => ({
+                  length: 80,
+                  offset: 80 * index,
+                  index,
+                })}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={onRefresh}
+                    tintColor="#4ADE80"
+                  />
+                }
+              />
+            )}
+          </TabsContent>
+
           {/* DM */}
           <TabsContent tabKey="dm" activeTab={activeTab}>
             {selectedDMConversation ? (
@@ -510,31 +598,41 @@ function AuthenticatedChatScreen() {
               )
             ) : (
               // Show conversation list
-              isLoading ? (
-                renderLoadingState('Gesprekken laden...')
-              ) : !dmConversations || dmConversations.length === 0 ? (
-                renderEmptyState('users', 'Geen directe berichten', 'Start een privegesprek met een collega')
-              ) : (
-                <FlatList
-                  data={dmConversations}
-                  keyExtractor={(item) => item.partnerId}
-                  renderItem={renderDMConversation}
-                  contentContainerStyle={styles.conversationList}
-                  showsVerticalScrollIndicator={false}
-                  getItemLayout={(_, index) => ({
-                    length: 82,
-                    offset: 82 * index,
-                    index,
-                  })}
-                  refreshControl={
-                    <RefreshControl
-                      refreshing={refreshing}
-                      onRefresh={onRefresh}
-                      tintColor="#4ADE80"
-                    />
-                  }
-                />
-              )
+              <View style={styles.flex1}>
+                {isLoading ? (
+                  renderLoadingState('Gesprekken laden...')
+                ) : !dmConversations || dmConversations.length === 0 ? (
+                  renderEmptyState('users', 'Geen directe berichten', 'Start een privegesprek met een collega')
+                ) : (
+                  <FlatList
+                    data={dmConversations}
+                    keyExtractor={(item) => item.partnerId}
+                    renderItem={renderDMConversation}
+                    contentContainerStyle={styles.conversationList}
+                    showsVerticalScrollIndicator={false}
+                    getItemLayout={(_, index) => ({
+                      length: 82,
+                      offset: 82 * index,
+                      index,
+                    })}
+                    refreshControl={
+                      <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        tintColor="#4ADE80"
+                      />
+                    }
+                  />
+                )}
+                {/* Floating action button for new DM */}
+                <TouchableOpacity
+                  style={styles.fab}
+                  activeOpacity={0.8}
+                  onPress={() => setShowNewDMModal(true)}
+                >
+                  <Feather name="edit" size={22} color="#0A0A0A" />
+                </TouchableOpacity>
+              </View>
             )}
           </TabsContent>
 
@@ -570,8 +668,8 @@ function AuthenticatedChatScreen() {
           </TabsContent>
         </View>
 
-        {/* Input bar - show for team/project channels and when viewing a DM conversation */}
-        {(activeTab !== 'dm' || selectedDMConversation) && (
+        {/* Input bar - show for team/broadcast/project channels and when viewing a DM conversation */}
+        {(activeTab === 'team' || activeTab === 'broadcast' || activeTab === 'project' || selectedDMConversation) && (
           <View style={styles.inputBar}>
             <TextInput
               style={styles.textInput}
@@ -598,6 +696,70 @@ function AuthenticatedChatScreen() {
             </TouchableOpacity>
           </View>
         )}
+        {/* New DM user selection modal */}
+        <Modal
+          visible={showNewDMModal}
+          animationType="slide"
+          transparent
+          onRequestClose={() => setShowNewDMModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              {/* Modal header */}
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Nieuw Gesprek</Text>
+                <TouchableOpacity
+                  style={styles.modalCloseButton}
+                  onPress={() => setShowNewDMModal(false)}
+                  activeOpacity={0.7}
+                >
+                  <Feather name="x" size={22} color="#999999" />
+                </TouchableOpacity>
+              </View>
+
+              {/* User list */}
+              {!dmUsers ? (
+                <View style={styles.modalLoading}>
+                  <ActivityIndicator size="large" color="#4ADE80" />
+                  <Text style={styles.modalLoadingText}>Collega's laden...</Text>
+                </View>
+              ) : dmUsers.length === 0 ? (
+                <View style={styles.modalEmpty}>
+                  <Feather name="users" size={40} color="#999999" />
+                  <Text style={styles.modalEmptyTitle}>Geen collega's beschikbaar</Text>
+                  <Text style={styles.modalEmptySubtitle}>
+                    Er zijn geen andere gebruikers om mee te chatten
+                  </Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={dmUsers}
+                  keyExtractor={(item) => item.userId}
+                  contentContainerStyle={styles.modalList}
+                  showsVerticalScrollIndicator={false}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={styles.modalUserItem}
+                      activeOpacity={0.7}
+                      onPress={() => handleStartNewDM(item)}
+                    >
+                      <View style={[styles.modalUserAvatar, { backgroundColor: getAvatarColor(item.naam) }]}>
+                        <Text style={styles.modalUserAvatarText}>{getInitials(item.naam)}</Text>
+                      </View>
+                      <View style={styles.modalUserInfo}>
+                        <Text style={styles.modalUserName}>{item.naam}</Text>
+                        {item.functie && (
+                          <Text style={styles.modalUserFunctie}>{item.functie}</Text>
+                        )}
+                      </View>
+                      <Feather name="message-circle" size={18} color="#4ADE80" />
+                    </TouchableOpacity>
+                  )}
+                />
+              )}
+            </View>
+          </View>
+        </Modal>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -851,11 +1013,27 @@ const styles = StyleSheet.create({
     backgroundColor: '#1A1A1A',
     borderBottomLeftRadius: 4,
   },
+  senderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
   messageSenderName: {
     fontSize: 11,
     fontWeight: '600',
     color: '#6B8F6B',
-    marginBottom: 4,
+  },
+  roleBadge: {
+    backgroundColor: '#1A2E1A',
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+  },
+  roleBadgeText: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: '#4ADE80',
   },
   messageText: {
     fontSize: 14,
@@ -925,5 +1103,123 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     backgroundColor: '#1A1A1A',
+  },
+
+  // Floating action button
+  fab: {
+    position: 'absolute',
+    bottom: 100,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#4ADE80',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#4ADE80',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+
+  // New DM Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#0A0A0A',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '70%',
+    minHeight: 300,
+    borderTopWidth: 1,
+    borderTopColor: '#222222',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#222222',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FAFAFA',
+  },
+  modalCloseButton: {
+    padding: 4,
+  },
+  modalList: {
+    padding: 12,
+    paddingBottom: 40,
+  },
+  modalLoading: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  modalLoadingText: {
+    fontSize: 14,
+    color: '#999999',
+  },
+  modalEmpty: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  modalEmptyTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#999999',
+    marginTop: 8,
+  },
+  modalEmptySubtitle: {
+    fontSize: 13,
+    color: '#999999',
+    textAlign: 'center',
+  },
+  modalUserItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1A1A1A',
+    padding: 14,
+    marginBottom: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#222222',
+  },
+  modalUserAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  modalUserAvatarText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  modalUserInfo: {
+    flex: 1,
+  },
+  modalUserName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FAFAFA',
+  },
+  modalUserFunctie: {
+    fontSize: 12,
+    color: '#999999',
+    marginTop: 2,
   },
 });

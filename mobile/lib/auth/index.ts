@@ -25,7 +25,7 @@ export {
   setupBiometric,
   disableBiometric,
   authenticateWithBiometric,
-  updateBiometricToken,
+  updateBiometricSession,
   getBiometricUserId,
 } from './biometric';
 

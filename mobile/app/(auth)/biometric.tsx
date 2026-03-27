@@ -8,9 +8,9 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
+import { ShieldCheck, Fingerprint, Zap, Shield, Lock } from 'lucide-react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
-import { useAuth, useUser } from '@clerk/clerk-expo';
+import { useAuth, useUser, useClerk } from '@clerk/clerk-expo';
 import {
   isBiometricAvailable,
   getBiometricType,
@@ -32,9 +32,11 @@ export default function BiometricSetupScreen() {
   // Altijd hooks aanroepen (React rules of hooks)
   const authHook = useAuth();
   const userHook = useUser();
+  const clerkHook = useClerk();
 
   // Gebruik resultaat alleen als auth geconfigureerd is
   const getToken = AUTH_CONFIGURED ? authHook.getToken : null;
+  const sessionId = AUTH_CONFIGURED ? authHook.sessionId : null;
   const userId = AUTH_CONFIGURED ? userHook.user?.id : null;
   const isSignedIn = AUTH_CONFIGURED ? authHook.isSignedIn : false;
 
@@ -93,11 +95,11 @@ export default function BiometricSetupScreen() {
       }
 
       // Haal Clerk token op en sla op voor biometric login
-      if (getToken && userId) {
+      if (getToken && userId && sessionId) {
         const token = await getToken();
 
         if (token) {
-          const success = await setupBiometric(token, userId);
+          const success = await setupBiometric(sessionId, token, userId);
 
           if (success) {
             Alert.alert(
@@ -172,7 +174,7 @@ export default function BiometricSetupScreen() {
   }
 
   const biometricLabel = biometricType === 'face' ? 'Face ID' : 'Touch ID';
-  const iconName = biometricType === 'face' ? 'shield' : 'smartphone';
+  const BiometricIcon = biometricType === 'face' ? ShieldCheck : Fingerprint;
 
   return (
     <View style={styles.container}>
@@ -182,7 +184,7 @@ export default function BiometricSetupScreen() {
 
         {/* Icon */}
         <View style={styles.iconContainer}>
-          <Feather name={iconName} size={64} color="#4ADE80" />
+          <BiometricIcon size={64} color="#4ADE80" />
         </View>
 
         {/* Title and description */}
@@ -195,15 +197,15 @@ export default function BiometricSetupScreen() {
         {/* Benefits */}
         <View style={styles.benefitsList}>
           <View style={styles.benefitItem}>
-            <Feather name="zap" size={18} color="#4ADE80" />
+            <Zap size={18} color="#4ADE80" />
             <Text style={styles.benefitText}>Direct inloggen in 1 seconde</Text>
           </View>
           <View style={styles.benefitItem}>
-            <Feather name="shield" size={18} color="#4ADE80" />
+            <Shield size={18} color="#4ADE80" />
             <Text style={styles.benefitText}>Extra beveiligd met biometrie</Text>
           </View>
           <View style={styles.benefitItem}>
-            <Feather name="lock" size={18} color="#4ADE80" />
+            <Lock size={18} color="#4ADE80" />
             <Text style={styles.benefitText}>Geen wachtwoord onthouden</Text>
           </View>
         </View>
@@ -221,7 +223,7 @@ export default function BiometricSetupScreen() {
             {isSettingUp ? (
               <ActivityIndicator size="small" color="#4ADE80" style={{ marginRight: 8 }} />
             ) : (
-              <Feather name={iconName} size={20} color="#4ADE80" style={{ marginRight: 8 }} />
+              <BiometricIcon size={20} color="#4ADE80" style={{ marginRight: 8 }} />
             )}
             <Text style={styles.enableButtonText}>
               {isSettingUp ? 'Bezig...' : `Activeer ${biometricLabel}`}

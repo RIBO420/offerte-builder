@@ -7,7 +7,7 @@
  * Beheer-functies (verwijderen etc.) vereisen wel authenticatie.
  */
 
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuth, requireAuthUserId, getAuthenticatedUser } from "./auth";
 import { requireNotViewer } from "./roles";
@@ -41,7 +41,7 @@ export const addFotoToAanvraag = mutation({
   handler: async (ctx, args) => {
     const aanvraag = await ctx.db.get(args.aanvraagId);
     if (!aanvraag) {
-      throw new Error("Aanvraag niet gevonden");
+      throw new ConvexError("Aanvraag niet gevonden");
     }
 
     // Auth check: verify user is authenticated OR this is a valid recent public submission.
@@ -53,7 +53,7 @@ export const addFotoToAanvraag = mutation({
     if (!user) {
       const twentyFourHoursAgo = Date.now() - 24 * 60 * 60 * 1000;
       if (aanvraag._creationTime < twentyFourHoursAgo) {
-        throw new Error("Niet geautoriseerd om foto's toe te voegen aan deze aanvraag");
+        throw new ConvexError("Niet geautoriseerd om foto's toe te voegen aan deze aanvraag");
       }
     }
 
@@ -61,7 +61,7 @@ export const addFotoToAanvraag = mutation({
 
     // Maximaal 5 foto's per aanvraag
     if (huidigeFotoIds.length >= 5) {
-      throw new Error("Maximaal 5 foto's per aanvraag toegestaan");
+      throw new ConvexError("Maximaal 5 foto's per aanvraag toegestaan");
     }
 
     // Voorkom duplicaten
@@ -146,7 +146,7 @@ export const removeFotoFromAanvraag = mutation({
 
     const aanvraag = await ctx.db.get(args.aanvraagId);
     if (!aanvraag) {
-      throw new Error("Aanvraag niet gevonden");
+      throw new ConvexError("Aanvraag niet gevonden");
     }
 
     const huidigeFotoIds = aanvraag.fotoIds ?? [];

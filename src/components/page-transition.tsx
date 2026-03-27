@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, AnimatePresence, type Variants } from "framer-motion";
+import { m, AnimatePresence, type Variants } from "framer-motion";
 import { usePathname } from "next/navigation";
 import { useReducedMotion } from "@/hooks/use-accessibility";
 
@@ -134,7 +134,7 @@ export function PageTransition({
 
   return (
     <AnimatePresence mode="wait">
-      <motion.div
+      <m.div
         key={key}
         variants={getVariants()}
         initial="hidden"
@@ -144,7 +144,7 @@ export function PageTransition({
         className="will-change-[opacity,transform]"
       >
         {children}
-      </motion.div>
+      </m.div>
     </AnimatePresence>
   );
 }
@@ -196,7 +196,7 @@ export function ContentTransition({
 
   return (
     <AnimatePresence mode="wait">
-      <motion.div
+      <m.div
         key={transitionKey}
         variants={getVariants()}
         initial="hidden"
@@ -208,7 +208,7 @@ export function ContentTransition({
         }}
       >
         {children}
-      </motion.div>
+      </m.div>
     </AnimatePresence>
   );
 }
@@ -241,7 +241,7 @@ export function FadeIn({
   }
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{
@@ -252,7 +252,7 @@ export function FadeIn({
       className={className}
     >
       {children}
-    </motion.div>
+    </m.div>
   );
 }
 

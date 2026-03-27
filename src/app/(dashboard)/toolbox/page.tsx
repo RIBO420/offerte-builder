@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, Suspense } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { Id } from "../../../../convex/_generated/dataModel";
@@ -102,19 +102,19 @@ function ToolboxPageContent() {
         </Breadcrumb>
       </header>
 
-      <motion.div
+      <m.div
         variants={containerVariants}
         initial="hidden"
         animate="visible"
         className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
       >
-      <motion.div variants={itemVariants} className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <m.div variants={itemVariants} className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Toolbox Meetings</h1>
           <p className="text-muted-foreground">Registreer veiligheidsbijeenkomsten voor wettelijke documentatie.</p>
         </div>
         <Button onClick={() => setShowForm(true)}><Plus className="mr-2 h-4 w-4" />Nieuwe meeting</Button>
-      </motion.div>
+      </m.div>
 
       <div className="flex items-center gap-4">
         <Select value={String(selectedJaar)} onValueChange={(v) => setSelectedJaar(Number(v))}>
@@ -165,7 +165,7 @@ function ToolboxPageContent() {
         <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Toolbox meeting verwijderen</AlertDialogTitle><AlertDialogDescription>Weet je zeker dat je deze meeting wilt verwijderen? Dit kan niet ongedaan worden gemaakt.</AlertDialogDescription></AlertDialogHeader>
         <AlertDialogFooter><AlertDialogCancel>Annuleren</AlertDialogCancel><AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Verwijderen</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
       </AlertDialog>
-    </motion.div>
+    </m.div>
     </>
   );
 }

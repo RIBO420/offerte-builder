@@ -1,5 +1,6 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query, internalQuery } from "./_generated/server";
+import { Id } from "./_generated/dataModel";
 import { requireAuthUserId } from "./auth";
 import { requireNotViewer } from "./roles";
 
@@ -41,6 +42,17 @@ export const get = query({
     return await ctx.db
       .query("instellingen")
       .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique();
+  },
+});
+
+// Get settings by userId (internal — no auth required, for use by cron jobs/actions)
+export const getByUserId = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("instellingen")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
       .unique();
   },
 });
@@ -99,7 +111,7 @@ export const update = mutation({
       .unique();
 
     if (!settings) {
-      throw new Error("Instellingen niet gevonden. Maak eerst standaardinstellingen aan.");
+      throw new ConvexError("Instellingen niet gevonden. Maak eerst standaardinstellingen aan.");
     }
 
     const updates: Record<string, unknown> = {};
@@ -133,7 +145,7 @@ export const getNextOfferteNummer = mutation({
       .unique();
 
     if (!settings) {
-      throw new Error("Instellingen niet gevonden");
+      throw new ConvexError("Instellingen niet gevonden");
     }
 
     const nextNumber = settings.laatsteOfferteNummer + 1;
@@ -175,7 +187,7 @@ export const updateVoorwaardenPdf = mutation({
       .unique();
 
     if (!settings) {
-      throw new Error("Instellingen niet gevonden");
+      throw new ConvexError("Instellingen niet gevonden");
     }
 
     // Delete old PDF from storage if exists
@@ -204,7 +216,7 @@ export const removeVoorwaardenPdf = mutation({
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .unique();
 
-    if (!settings) throw new Error("Instellingen niet gevonden");
+    if (!settings) throw new ConvexError("Instellingen niet gevonden");
     if (!settings.voorwaardenPdfId) return;
 
     await ctx.storage.delete(settings.voorwaardenPdfId);
@@ -254,7 +266,7 @@ export const updateHerinneringInstellingen = mutation({
       .unique();
 
     if (!settings) {
-      throw new Error("Instellingen niet gevonden. Maak eerst standaardinstellingen aan.");
+      throw new ConvexError("Instellingen niet gevonden. Maak eerst standaardinstellingen aan.");
     }
 
     const current = settings.herinneringInstellingen ?? {};
@@ -307,7 +319,7 @@ export const upsertDeelfactuurTemplate = mutation({
       .unique();
 
     if (!settings) {
-      throw new Error("Instellingen niet gevonden. Maak eerst standaardinstellingen aan.");
+      throw new ConvexError("Instellingen niet gevonden. Maak eerst standaardinstellingen aan.");
     }
 
     const templates = settings.deelfactuurTemplates ?? [];
@@ -336,7 +348,7 @@ export const deleteDeelfactuurTemplate = mutation({
       .unique();
 
     if (!settings) {
-      throw new Error("Instellingen niet gevonden. Maak eerst standaardinstellingen aan.");
+      throw new ConvexError("Instellingen niet gevonden. Maak eerst standaardinstellingen aan.");
     }
 
     const templates = (settings.deelfactuurTemplates ?? []).filter(

@@ -3,3 +3,4 @@ export { TableRowSkeleton, OffertesTableSkeleton, TableSkeleton } from "./table-
 export { OfferteDetailSkeleton, OfferteHistorySkeleton, ProjectDetailSkeleton, ProjectKostenSkeleton, QCPageSkeleton } from "./detail-skeletons";
 export { FormCardSkeleton } from "./form-skeletons";
 export { PageLoadingSkeleton, AnalyticsSkeleton } from "./page-skeletons";
+export { GenericPageSkeleton } from "./generic-page-skeleton";

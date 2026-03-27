@@ -1,5 +1,5 @@
 import { internalMutation, mutation } from "./_generated/server";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { requireAdmin } from "./roles";
 
@@ -19,7 +19,7 @@ export const migrateUserClerkId = mutation({
       .first();
 
     if (!oldUser) {
-      throw new Error(`User met clerkId ${args.oldClerkId} niet gevonden`);
+      throw new ConvexError(`User met clerkId ${args.oldClerkId} niet gevonden`);
     }
 
     // Vind en verwijder de nieuwe user (als die bestaat)
@@ -590,15 +590,26 @@ export const runAllArchivingMigrations = mutation({
 
 /**
  * Set a user's role by email.
- * No authentication required - for CLI/initial setup only.
+ * Requires directie (admin) authentication.
  *
  * Usage:
- * npx convex run migrations:setUserRole '{"email": "user@example.com", "role": "admin"}'
+ * npx convex run migrations:setUserRole '{"email": "user@example.com", "role": "directie"}'
  */
 export const setUserRole = mutation({
   args: {
     email: v.string(),
-    role: v.union(v.literal("admin"), v.literal("medewerker"), v.literal("viewer")),
+    role: v.union(
+      v.literal("directie"),
+      v.literal("projectleider"),
+      v.literal("voorman"),
+      v.literal("medewerker"),
+      v.literal("klant"),
+      v.literal("onderaannemer_zzp"),
+      v.literal("materiaalman"),
+      // Legacy compat
+      v.literal("admin"),
+      v.literal("viewer")
+    ),
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
@@ -616,22 +627,23 @@ export const setUserRole = mutation({
     }
 
     const oldRole = user.role || "none";
-    await ctx.db.patch(user._id, { role: args.role });
+    const newRole = args.role === "admin" ? "directie" : args.role === "viewer" ? "klant" : args.role;
+    await ctx.db.patch(user._id, { role: newRole });
 
     return {
       success: true,
-      message: `Role for ${args.email} changed from "${oldRole}" to "${args.role}"`,
+      message: `Role for ${args.email} changed from "${oldRole}" to "${newRole}"`,
       userId: user._id,
       email: args.email,
       oldRole,
-      newRole: args.role,
+      newRole,
     };
   },
 });
 
 /**
- * Set all users without a role to admin.
- * No authentication required - for initial bootstrap only.
+ * Set all users without a role to directie.
+ * Requires directie (admin) authentication - for initial bootstrap only.
  *
  * Usage:
  * npx convex run migrations:setAllUsersToAdmin
@@ -646,14 +658,14 @@ export const setAllUsersToAdmin = mutation({
 
     for (const user of users) {
       if (!user.role) {
-        await ctx.db.patch(user._id, { role: "admin" });
+        await ctx.db.patch(user._id, { role: "directie" });
         updatedCount++;
       }
     }
 
     return {
       success: true,
-      message: `${updatedCount} users updated to admin role`,
+      message: `${updatedCount} users updated to directie role`,
       updatedCount,
     };
   },

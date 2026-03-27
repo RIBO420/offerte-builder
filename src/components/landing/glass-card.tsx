@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { LucideIcon } from "lucide-react";
 import { useReducedMotion } from "@/hooks/use-accessibility";
 import { transitions } from "@/lib/motion-config";
@@ -23,7 +23,7 @@ export function GlassCard({
   const prefersReducedMotion = useReducedMotion();
 
   return (
-    <motion.div
+    <m.div
       initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 30 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-50px" }}
@@ -43,7 +43,7 @@ export function GlassCard({
         <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
         {/* Icon container */}
-        <motion.div
+        <m.div
           className={`relative w-14 h-14 mb-4 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-optimized-lg`}
           whileHover={prefersReducedMotion ? undefined : { scale: 1.1 }}
           transition={prefersReducedMotion ? { duration: 0 } : transitions.fast}
@@ -55,7 +55,7 @@ export function GlassCard({
             className={`absolute inset-0 bg-gradient-to-br ${gradient} rounded-xl opacity-40`}
             style={{ filter: "blur(8px)" }}
           />
-        </motion.div>
+        </m.div>
 
         {/* Content */}
         <h3 className="relative text-lg font-semibold text-foreground mb-2 group-hover:text-emerald-400 transition-colors">
@@ -68,7 +68,7 @@ export function GlassCard({
         {/* Hover indicator - uses transform for GPU acceleration */}
         <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-emerald-500 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
       </div>
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -91,7 +91,7 @@ export function FeatureHighlightCard({
   const prefersReducedMotion = useReducedMotion();
 
   return (
-    <motion.div
+    <m.div
       initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 40 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-100px" }}
@@ -107,7 +107,7 @@ export function FeatureHighlightCard({
       </div>
 
       {/* Visual content */}
-      <motion.div
+      <m.div
         className={`relative ${reversed ? "lg:order-1" : ""}`}
         whileHover={prefersReducedMotion ? undefined : { scale: 1.02 }}
         transition={prefersReducedMotion ? { duration: 0 } : transitions.fast}
@@ -119,8 +119,8 @@ export function FeatureHighlightCard({
         <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-white/10 to-white/5 dark:from-black/20 dark:to-black/10 backdrop-blur-sm border border-white/10">
           {children}
         </div>
-      </motion.div>
-    </motion.div>
+      </m.div>
+    </m.div>
   );
 }
 
@@ -137,7 +137,7 @@ export function StatCard({ value, suffix = "", label, description, delay = 0 }: 
   const prefersReducedMotion = useReducedMotion();
 
   return (
-    <motion.div
+    <m.div
       initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, scale: 0.95 }}
       whileInView={{ opacity: 1, scale: 1 }}
       viewport={{ once: true }}
@@ -158,6 +158,6 @@ export function StatCard({ value, suffix = "", label, description, delay = 0 }: 
         <div className="text-sm font-medium text-foreground mb-1">{label}</div>
         <div className="text-xs text-muted-foreground">{description}</div>
       </div>
-    </motion.div>
+    </m.div>
   );
 }

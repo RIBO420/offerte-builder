@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, Suspense } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { Id } from "../../../../convex/_generated/dataModel";
@@ -242,14 +242,14 @@ function VerlofPageContent() {
         </Breadcrumb>
       </header>
 
-      <motion.div
+      <m.div
         variants={containerVariants}
         initial="hidden"
         animate="visible"
         className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
       >
       {/* Header */}
-      <motion.div variants={itemVariants} className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <m.div variants={itemVariants} className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Verlofregistratie</h1>
           <p className="text-muted-foreground">
@@ -260,7 +260,7 @@ function VerlofPageContent() {
           <Plus className="mr-2 h-4 w-4" />
           Verlof aanvragen
         </Button>
-      </motion.div>
+      </m.div>
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
@@ -598,7 +598,7 @@ function VerlofPageContent() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </motion.div>
+    </m.div>
     </>
   );
 }

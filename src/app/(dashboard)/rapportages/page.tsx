@@ -2,8 +2,8 @@
 
 import { useState, useCallback, Suspense } from "react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
-import { RequireAdmin } from "@/components/require-admin";
+import { m, AnimatePresence } from "framer-motion";
+import { RequireRole } from "@/components/require-admin";
 import { useTabState } from "@/hooks/use-tab-state";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
@@ -182,7 +182,7 @@ function RapportagesPageContent() {
               <BarChart3 className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight">Rapportages</h1>
+              <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Rapportages</h1>
               <p className="text-muted-foreground">
                 Analyseer je offerte prestaties en omzet
               </p>
@@ -211,7 +211,7 @@ function RapportagesPageContent() {
 
         <AnimatePresence mode="popLayout">
           {isLoading ? (
-            <motion.div
+            <m.div
               key="loader"
               initial={reducedMotion ? false : { opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -220,9 +220,9 @@ function RapportagesPageContent() {
               className="flex items-center justify-center py-20"
             >
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </motion.div>
+            </m.div>
           ) : kpis ? (
-            <motion.div
+            <m.div
               key="content"
               initial={reducedMotion ? false : { opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -230,25 +230,25 @@ function RapportagesPageContent() {
               className="space-y-4"
             >
               {/* Primary KPI Cards */}
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.1 }}
               >
                 <KpiCards kpis={kpis} />
-              </motion.div>
+              </m.div>
 
               {/* Secondary KPI Cards - New Insights */}
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.15 }}
               >
                 <SecondaryKpiCards kpis={kpis} />
-              </motion.div>
+              </m.div>
 
               {/* Tabs */}
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.2 }}
@@ -277,7 +277,7 @@ function RapportagesPageContent() {
                   <AnimatePresence mode="wait">
                     {/* Overzicht Tab */}
                     {activeTab === "overzicht" && (
-                      <motion.div
+                      <m.div
                         key="overzicht"
                         {...getAnimationProps()}
                         transition={{ duration: reducedMotion ? 0 : 0.2 }}
@@ -292,12 +292,12 @@ function RapportagesPageContent() {
                             <ScopeMarginChart data={scopeMarges} />
                           </div>
                         </TabsContent>
-                      </motion.div>
+                      </m.div>
                     )}
 
                     {/* Pipeline Tab */}
                     {activeTab === "pipeline" && (
-                      <motion.div
+                      <m.div
                         key="pipeline"
                         {...getAnimationProps()}
                         transition={{ duration: reducedMotion ? 0 : 0.2 }}
@@ -311,12 +311,12 @@ function RapportagesPageContent() {
                             <TopKlantenTable klanten={topKlanten} />
                           </div>
                         </TabsContent>
-                      </motion.div>
+                      </m.div>
                     )}
 
                     {/* Omzet & Forecast Tab */}
                     {activeTab === "omzet" && (
-                      <motion.div
+                      <m.div
                         key="omzet"
                         {...getAnimationProps()}
                         transition={{ duration: reducedMotion ? 0 : 0.2 }}
@@ -331,12 +331,12 @@ function RapportagesPageContent() {
                             quarterlyData={kwartaalOmzet}
                           />
                         </TabsContent>
-                      </motion.div>
+                      </m.div>
                     )}
 
                     {/* Klanten Tab */}
                     {activeTab === "klanten" && (
-                      <motion.div
+                      <m.div
                         key="klanten"
                         {...getAnimationProps()}
                         transition={{ duration: reducedMotion ? 0 : 0.2 }}
@@ -344,12 +344,12 @@ function RapportagesPageContent() {
                         <TabsContent value="klanten" className="space-y-4" forceMount>
                           <TopKlantenTable klanten={topKlanten} />
                         </TabsContent>
-                      </motion.div>
+                      </m.div>
                     )}
 
                     {/* Winstgevendheid Tab */}
                     {activeTab === "marges" && (
-                      <motion.div
+                      <m.div
                         key="marges"
                         {...getAnimationProps()}
                         transition={{ duration: reducedMotion ? 0 : 0.2 }}
@@ -361,12 +361,12 @@ function RapportagesPageContent() {
                           />
                           <ScopeMarginChart data={scopeMarges} />
                         </TabsContent>
-                      </motion.div>
+                      </m.div>
                     )}
 
                     {/* Calculatie Analyse Tab - NEW */}
                     {activeTab === "calculatie" && (
-                      <motion.div
+                      <m.div
                         key="calculatie"
                         {...getAnimationProps()}
                         transition={{ duration: reducedMotion ? 0 : 0.2 }}
@@ -378,12 +378,12 @@ function RapportagesPageContent() {
                             previousAccuracyScore={comparisonEnabled ? 72 : undefined}
                           />
                         </TabsContent>
-                      </motion.div>
+                      </m.div>
                     )}
 
                     {/* Medewerkers Tab - NEW */}
                     {activeTab === "medewerkers" && (
-                      <motion.div
+                      <m.div
                         key="medewerkers"
                         {...getAnimationProps()}
                         transition={{ duration: reducedMotion ? 0 : 0.2 }}
@@ -395,12 +395,12 @@ function RapportagesPageContent() {
                             previousPeriodTotaalUren={comparisonEnabled ? 720 : undefined}
                           />
                         </TabsContent>
-                      </motion.div>
+                      </m.div>
                     )}
 
                     {/* Projecten Tab - NEW */}
                     {activeTab === "projecten" && (
-                      <motion.div
+                      <m.div
                         key="projecten"
                         {...getAnimationProps()}
                         transition={{ duration: reducedMotion ? 0 : 0.2 }}
@@ -428,14 +428,14 @@ function RapportagesPageContent() {
                             previousNettoWinst={comparisonEnabled ? 67000 : undefined}
                           />
                         </TabsContent>
-                      </motion.div>
+                      </m.div>
                     )}
                   </AnimatePresence>
                 </Tabs>
-              </motion.div>
-            </motion.div>
+              </m.div>
+            </m.div>
           ) : (
-            <motion.div
+            <m.div
               key="empty"
               initial={reducedMotion ? false : { opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -443,7 +443,7 @@ function RapportagesPageContent() {
               transition={{ duration: reducedMotion ? 0 : 0.3 }}
               className="flex flex-col items-center justify-center py-12 text-center"
             >
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{
@@ -453,7 +453,7 @@ function RapportagesPageContent() {
                 className="relative"
               >
                 {/* Subtle glow effect */}
-                <motion.div
+                <m.div
                   className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 blur-xl"
                   animate={{
                     opacity: [0.3, 0.5, 0.3],
@@ -468,7 +468,7 @@ function RapportagesPageContent() {
                 <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
                   <BarChart3 className="h-8 w-8 text-muted-foreground" />
                 </div>
-              </motion.div>
+              </m.div>
               <h3 className="mt-4 text-lg font-semibold">Geen data beschikbaar</h3>
               <p className="mt-2 text-sm text-muted-foreground max-w-sm">
                 Maak eerst enkele offertes aan om je rapportages te bekijken. Start met een nieuwe offerte om te beginnen.
@@ -485,7 +485,7 @@ function RapportagesPageContent() {
                   </Link>
                 </Button>
               </div>
-            </motion.div>
+            </m.div>
           )}
         </AnimatePresence>
       </div>
@@ -495,10 +495,10 @@ function RapportagesPageContent() {
 
 export default function RapportagesPage() {
   return (
-    <RequireAdmin>
+    <RequireRole allowedRoles={["directie", "projectleider"]}>
       <Suspense fallback={null}>
         <RapportagesPageContent />
       </Suspense>
-    </RequireAdmin>
+    </RequireRole>
   );
 }

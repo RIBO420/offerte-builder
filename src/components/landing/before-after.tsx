@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { X, Check, FileSpreadsheet, FileCheck, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { beforeAfterComparison } from "./copy-variants";
@@ -17,7 +17,7 @@ export function BeforeAfterComparison() {
 
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
@@ -33,7 +33,7 @@ export function BeforeAfterComparison() {
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             Zie het verschil tussen offreren zoals je het nu doet, en offreren met Offerte Builder.
           </p>
-        </motion.div>
+        </m.div>
 
         {/* Mobile Tabs */}
         <div className="md:hidden mb-8">
@@ -66,7 +66,7 @@ export function BeforeAfterComparison() {
           {/* Before Column */}
           <AnimatePresence mode="wait">
             {(activeTab === "before" || typeof window !== "undefined") && (
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
@@ -91,7 +91,7 @@ export function BeforeAfterComparison() {
                   {/* List */}
                   <ul className="space-y-4">
                     {beforeAfterComparison.before.items.map((item, index) => (
-                      <motion.li
+                      <m.li
                         key={index}
                         initial={{ opacity: 0, x: -10 }}
                         whileInView={{ opacity: 1, x: 0 }}
@@ -101,21 +101,21 @@ export function BeforeAfterComparison() {
                       >
                         <X className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
                         <span className="text-muted-foreground">{item}</span>
-                      </motion.li>
+                      </m.li>
                     ))}
                   </ul>
 
                   {/* Visual decoration */}
                   <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-red-500/10 rounded-full blur-2xl" />
                 </div>
-              </motion.div>
+              </m.div>
             )}
           </AnimatePresence>
 
           {/* After Column */}
           <AnimatePresence mode="wait">
             {(activeTab === "after" || typeof window !== "undefined") && (
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
@@ -140,7 +140,7 @@ export function BeforeAfterComparison() {
                   {/* List */}
                   <ul className="space-y-4">
                     {beforeAfterComparison.after.items.map((item, index) => (
-                      <motion.li
+                      <m.li
                         key={index}
                         initial={{ opacity: 0, x: 10 }}
                         whileInView={{ opacity: 1, x: 0 }}
@@ -150,7 +150,7 @@ export function BeforeAfterComparison() {
                       >
                         <Check className="h-5 w-5 text-emerald-500 flex-shrink-0 mt-0.5" />
                         <span className="text-foreground font-medium">{item}</span>
-                      </motion.li>
+                      </m.li>
                     ))}
                   </ul>
 
@@ -175,7 +175,7 @@ export function BeforeAfterComparison() {
                     </span>
                   </div>
                 </div>
-              </motion.div>
+              </m.div>
             )}
           </AnimatePresence>
         </div>

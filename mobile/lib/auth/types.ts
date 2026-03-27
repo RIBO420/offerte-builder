@@ -36,6 +36,8 @@ export interface BiometricAuthState {
 export interface BiometricAuthResult {
   /** Whether authentication was successful */
   success: boolean;
+  /** Clerk session ID for restoring session via clerk.setActive() */
+  sessionId?: string;
   /** Session token if authentication succeeded */
   token?: string;
   /** User ID if authentication succeeded */

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
@@ -366,7 +366,7 @@ export default function NieuweAanlegOffertePage() {
             </BreadcrumbList>
           </Breadcrumb>
         </header>
-        <motion.div
+        <m.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
@@ -374,22 +374,22 @@ export default function NieuweAanlegOffertePage() {
         >
           <div className="relative flex flex-col items-center gap-4">
             <div className="absolute inset-0 -m-8 rounded-full bg-gradient-to-br from-primary/20 via-primary/10 to-amber-100/40 dark:from-primary/10 dark:via-primary/5 dark:to-amber-900/20 blur-2xl" />
-            <motion.div
+            <m.div
               animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
               transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
               className="absolute h-16 w-16 rounded-full bg-gradient-to-br from-primary/40 to-amber-400/40 dark:from-primary/30 dark:to-amber-500/30 blur-xl"
             />
-            <motion.div
+            <m.div
               initial={{ scale: 0.8 }}
               animate={{ scale: 1 }}
               transition={{ duration: 0.3, delay: 0.1 }}
               className="relative flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br from-primary/10 to-amber-50 dark:from-primary/20 dark:to-amber-950/50 border border-primary/20 dark:border-primary/30 shadow-lg shadow-primary/10"
             >
-              <motion.div animate={{ rotate: 360 }} transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}>
+              <m.div animate={{ rotate: 360 }} transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}>
                 <Loader2 className="h-8 w-8 text-primary" />
-              </motion.div>
-            </motion.div>
-            <motion.div
+              </m.div>
+            </m.div>
+            <m.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: 0.2 }}
@@ -397,9 +397,9 @@ export default function NieuweAanlegOffertePage() {
             >
               <p className="text-sm font-medium text-primary">Wizard laden...</p>
               <p className="text-xs text-muted-foreground mt-1">Even geduld alstublieft</p>
-            </motion.div>
+            </m.div>
           </div>
-        </motion.div>
+        </m.div>
       </>
     );
   }
@@ -435,13 +435,13 @@ export default function NieuweAanlegOffertePage() {
         </Breadcrumb>
       </header>
 
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
         className="flex flex-1 flex-col gap-3 p-3 md:gap-4 md:p-4 lg:gap-6 lg:p-6"
       >
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.1 }}
@@ -492,7 +492,7 @@ export default function NieuweAanlegOffertePage() {
             showSummaries={wizard.currentStep > 0}
             className={wizard.currentStep === 0 ? "max-w-4xl mx-auto" : ""}
           />
-        </motion.div>
+        </m.div>
 
         {/* Step 0: Package/Template Selection */}
         {wizard.currentStep === 0 && (
@@ -585,7 +585,7 @@ export default function NieuweAanlegOffertePage() {
             onPrev={wizard.prevStep}
           />
         )}
-      </motion.div>
+      </m.div>
 
       {/* Success Dialog */}
       <AanlegSuccessDialog

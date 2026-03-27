@@ -6,11 +6,11 @@ import { TrendingUp, Calculator, Target, Clock, CheckSquare, XSquare } from "luc
 import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { useReducedMotion } from "@/hooks/use-accessibility";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useTableSort } from "@/hooks/use-table-sort";
-import { RequireAdmin } from "@/components/require-admin";
+import { RequireRole } from "@/components/require-admin";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -33,11 +33,11 @@ import { useOfferteActions } from "./components/use-offerte-actions";
 
 export default function OffertesPage() {
   return (
-    <RequireAdmin>
+    <RequireRole allowedRoles={["directie", "projectleider"]}>
       <Suspense fallback={<OffertesPageLoader />}>
         <OffertesPageContent />
       </Suspense>
-    </RequireAdmin>
+    </RequireRole>
   );
 }
 
@@ -289,7 +289,7 @@ function OffertesPageContent() {
     <>
       <PageHeader />
 
-      <motion.div
+      <m.div
         initial={reducedMotion ? false : { opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: reducedMotion ? 0 : 0.5, ease: "easeOut" }}
@@ -314,7 +314,7 @@ function OffertesPageContent() {
         />
 
         {/* Aggregate metrics */}
-        <motion.div
+        <m.div
           initial={reducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: reducedMotion ? 0 : 0.4, delay: reducedMotion ? 0 : 0.2 }}
@@ -356,12 +356,12 @@ function OffertesPageContent() {
               {aggregateMetrics.openOffertes}
             </p>
           </div>
-        </motion.div>
+        </m.div>
 
         {/* Quick select bar */}
         <AnimatePresence>
           {sortedOffertes.length > 0 && (
-            <motion.div
+            <m.div
               initial={reducedMotion ? false : { opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={reducedMotion ? undefined : { opacity: 0, height: 0 }}
@@ -389,11 +389,11 @@ function OffertesPageContent() {
                   Deselecteer alles ({selectedIds.size})
                 </Button>
               )}
-            </motion.div>
+            </m.div>
           )}
         </AnimatePresence>
 
-        <motion.div
+        <m.div
           initial={reducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: reducedMotion ? 0 : 0.4, delay: reducedMotion ? 0 : 0.3 }}
@@ -426,8 +426,8 @@ function OffertesPageContent() {
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
           />
-        </motion.div>
-      </motion.div>
+        </m.div>
+      </m.div>
 
       <BulkDeleteDialog
         open={showBulkDeleteDialog}

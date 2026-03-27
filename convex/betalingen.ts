@@ -33,7 +33,7 @@
  *   .index("by_user_status", ["userId", "status"]),
  */
 
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuth } from "./auth";
 import { requireNotViewer, isAdmin } from "./roles";
@@ -187,7 +187,7 @@ export const updateStatus = mutation({
       .unique();
 
     if (!betaling) {
-      throw new Error(
+      throw new ConvexError(
         `Betaling met Mollie ID ${args.molliePaymentId} niet gevonden`
       );
     }

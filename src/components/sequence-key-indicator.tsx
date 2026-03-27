@@ -2,7 +2,7 @@
 
 import { useShortcuts } from "@/components/providers/shortcuts-provider";
 import { KeyboardHint } from "@/components/ui/keyboard-hint";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence,  m } from "framer-motion";
 
 /**
  * Visual indicator showing the current sequence key being pressed
@@ -14,7 +14,7 @@ export function SequenceKeyIndicator() {
   return (
     <AnimatePresence>
       {pendingSequenceKeys.length > 0 && (
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 20 }}
@@ -31,7 +31,7 @@ export function SequenceKeyIndicator() {
             <span className="text-sm text-muted-foreground">+</span>
             <span className="text-sm font-medium">...</span>
           </div>
-        </motion.div>
+        </m.div>
       )}
     </AnimatePresence>
   );

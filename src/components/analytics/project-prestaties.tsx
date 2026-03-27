@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useMemo } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -122,7 +122,7 @@ function KpiCard({
   const change = previousValue !== undefined ? value - previousValue : undefined;
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay }}
@@ -158,7 +158,7 @@ function KpiCard({
           </div>
         </CardContent>
       </Card>
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -180,7 +180,7 @@ function StatusBreakdown({ data }: { data: ProjectData[] }) {
   const total = data.length;
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.2 }}
@@ -226,7 +226,7 @@ function StatusBreakdown({ data }: { data: ProjectData[] }) {
           })}
         </CardContent>
       </Card>
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -339,7 +339,7 @@ export const ProjectPrestaties = memo(function ProjectPrestaties({
         <StatusBreakdown data={data} />
 
         {/* Recent Projects Table */}
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.25 }}
@@ -442,7 +442,7 @@ export const ProjectPrestaties = memo(function ProjectPrestaties({
               </Table>
             </CardContent>
           </Card>
-        </motion.div>
+        </m.div>
       </div>
     </div>
   );

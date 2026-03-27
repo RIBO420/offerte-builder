@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Doc } from "../../../../../../../convex/_generated/dataModel";
 import {
   Card,
@@ -32,7 +32,7 @@ export function InvoicePreviewCard({
   const prefersReducedMotion = useReducedMotion();
 
   return (
-    <motion.div
+    <m.div
       variants={fadeInUp}
       initial="initial"
       animate="animate"
@@ -40,13 +40,13 @@ export function InvoicePreviewCard({
     >
       <Card className="border-2 border-dashed border-primary/30 bg-gradient-to-b from-primary/5 to-transparent">
         <CardHeader className="text-center pb-4">
-          <motion.div
+          <m.div
             className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10"
             animate={prefersReducedMotion ? {} : { y: [0, -5, 0] }}
             transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
           >
             <FileText className="h-8 w-8 text-primary" />
-          </motion.div>
+          </m.div>
           <CardTitle className="text-xl">Factuur Voorvertoning</CardTitle>
           <CardDescription>
             Bekijk de gegevens voordat je de factuur genereert
@@ -101,7 +101,7 @@ export function InvoicePreviewCard({
 
           {/* Nacalculatie warning if applicable */}
           {nacalculatie && Math.abs(nacalculatie.afwijkingPercentage) > 10 && (
-            <motion.div
+            <m.div
               initial={prefersReducedMotion ? {} : { opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950"
@@ -116,7 +116,7 @@ export function InvoicePreviewCard({
                   Overweeg correctieregels toe te voegen aan de factuur.
                 </p>
               </div>
-            </motion.div>
+            </m.div>
           )}
 
           {/* Generate button */}
@@ -143,6 +143,6 @@ export function InvoicePreviewCard({
           </div>
         </CardContent>
       </Card>
-    </motion.div>
+    </m.div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { format } from "date-fns";
 import { nl } from "@/lib/date-locale";
 import {
@@ -224,7 +224,7 @@ export function MedewerkerDetailDialog({
           <ScrollArea className="flex-1 pr-4">
             {/* Profiel Tab */}
             <TabsContent value="profiel" className="mt-0 space-y-6">
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="space-y-4"
@@ -368,12 +368,12 @@ export function MedewerkerDetailDialog({
                     })}
                   </span>
                 </div>
-              </motion.div>
+              </m.div>
             </TabsContent>
 
             {/* Specialisaties Tab */}
             <TabsContent value="specialisaties" className="mt-0 space-y-4">
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="space-y-4"
@@ -431,12 +431,12 @@ export function MedewerkerDetailDialog({
                     })}
                   </div>
                 )}
-              </motion.div>
+              </m.div>
             </TabsContent>
 
             {/* Certificaten Tab */}
             <TabsContent value="certificaten" className="mt-0 space-y-4">
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="space-y-4"
@@ -546,18 +546,18 @@ export function MedewerkerDetailDialog({
                     })}
                   </div>
                 )}
-              </motion.div>
+              </m.div>
             </TabsContent>
 
             {/* Prestaties Tab */}
             <TabsContent value="prestaties" className="mt-0 space-y-4">
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="space-y-6"
               >
                 {/* Stats */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-4 sm:grid-cols-2">
                   <div className="p-4 bg-muted/30 rounded-lg">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
                       <Clock className="h-4 w-4" />
@@ -580,7 +580,7 @@ export function MedewerkerDetailDialog({
 
                 {stats && (
                   <>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-4 sm:grid-cols-2">
                       <div className="p-4 bg-muted/30 rounded-lg">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
                           <Star className="h-4 w-4" />
@@ -611,7 +611,7 @@ export function MedewerkerDetailDialog({
                     </p>
                   </div>
                 )}
-              </motion.div>
+              </m.div>
             </TabsContent>
           </ScrollArea>
         </Tabs>

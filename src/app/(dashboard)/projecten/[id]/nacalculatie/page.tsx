@@ -3,7 +3,7 @@
 import { use, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { useMutation } from "convex/react";
 import { api } from "../../../../../../convex/_generated/api";
 import { Id } from "../../../../../../convex/_generated/dataModel";
@@ -327,7 +327,7 @@ export default function NacalculatiePage({
                 disabled={!clientCalculation || isExporting}
               >
                 {isExporting ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <FileSpreadsheet className="h-4 w-4 mr-2" />
                 )}
@@ -356,7 +356,7 @@ export default function NacalculatiePage({
 
         {/* Quick Status Summary - Visual budget indicator */}
         {clientCalculation && budgetStatus && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
@@ -440,7 +440,7 @@ export default function NacalculatiePage({
                     {/* Budget marker at 50% */}
                     <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-foreground/30 z-10" />
                     {/* Progress fill */}
-                    <motion.div
+                    <m.div
                       className={`h-full rounded-full ${
                         budgetStatus.status === "good"
                           ? "bg-green-500"
@@ -456,7 +456,7 @@ export default function NacalculatiePage({
                 </div>
               </CardContent>
             </Card>
-          </motion.div>
+          </m.div>
         )}
 
         {/* Progress Stepper - Collapsed on mobile */}
@@ -588,7 +588,7 @@ export default function NacalculatiePage({
                             info: <Info className="h-4 w-4 text-blue-500 shrink-0" />,
                           };
                           return (
-                            <motion.div
+                            <m.div
                               key={index}
                               initial={{ opacity: 0, y: 5 }}
                               animate={{ opacity: 1, y: 0 }}
@@ -610,7 +610,7 @@ export default function NacalculatiePage({
                                   {insight.description}
                                 </p>
                               </div>
-                            </motion.div>
+                            </m.div>
                           );
                         })}
                       </div>
@@ -670,7 +670,7 @@ export default function NacalculatiePage({
                         disabled={!clientCalculation || isSaving}
                       >
                         {isSaving ? (
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         ) : (
                           <Save className="h-4 w-4 mr-2" />
                         )}
@@ -682,7 +682,7 @@ export default function NacalculatiePage({
                         className="bg-primary"
                       >
                         {isSaving ? (
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         ) : (
                           <Receipt className="h-4 w-4 mr-2" />
                         )}
@@ -815,7 +815,7 @@ export default function NacalculatiePage({
 
       {/* Mobile Sticky Bottom Action Bar */}
       {clientCalculation && (
-        <motion.div
+        <m.div
           initial={{ y: 100 }}
           animate={{ y: 0 }}
           className="fixed bottom-0 left-0 right-0 md:hidden bg-background border-t shadow-lg z-50 safe-area-bottom"
@@ -849,7 +849,7 @@ export default function NacalculatiePage({
                 className="flex-1"
               >
                 {isSaving ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <Save className="h-4 w-4 mr-2" />
                 )}
@@ -858,7 +858,7 @@ export default function NacalculatiePage({
               </Button>
             )}
           </div>
-        </motion.div>
+        </m.div>
       )}
 
       {/* Success Dialog */}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import {
   Card,
   CardContent,
@@ -42,7 +42,6 @@ import {
   Save,
   Loader2,
   User,
-  Trees,
   Shield,
   Download,
   Trash2,
@@ -235,7 +234,7 @@ export default function ProfielPage() {
 
       <AnimatePresence mode="wait">
         {isLoading ? (
-          <motion.div
+          <m.div
             key="loader"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -243,7 +242,7 @@ export default function ProfielPage() {
             transition={{ duration: 0.3 }}
             className="flex flex-1 items-center justify-center"
           >
-            <motion.div
+            <m.div
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{
@@ -253,7 +252,7 @@ export default function ProfielPage() {
               className="relative"
             >
               {/* Pulsing glow effect */}
-              <motion.div
+              <m.div
                 className="absolute inset-0 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 blur-xl"
                 animate={{
                   opacity: [0.4, 0.7, 0.4],
@@ -267,7 +266,7 @@ export default function ProfielPage() {
               />
 
               {/* Icon container */}
-              <motion.div
+              <m.div
                 className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 shadow-lg shadow-emerald-500/30"
                 animate={{
                   y: [0, -4, 0],
@@ -279,11 +278,11 @@ export default function ProfielPage() {
                 }}
               >
                 <User className="h-8 w-8 text-white" />
-              </motion.div>
-            </motion.div>
-          </motion.div>
+              </m.div>
+            </m.div>
+          </m.div>
         ) : (
-          <motion.div
+          <m.div
             key="content"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -291,14 +290,14 @@ export default function ProfielPage() {
             className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
           >
             {/* User Profile Header */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.4, delay: 0.1 }}
               className="flex items-center gap-4"
             >
               {clerkUser?.imageUrl ? (
-                <motion.img
+                <m.img
                   initial={{ scale: 0.8, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ duration: 0.4, delay: 0.2 }}
@@ -307,14 +306,14 @@ export default function ProfielPage() {
                   className="h-16 w-16 rounded-full object-cover"
                 />
               ) : (
-                <motion.div
+                <m.div
                   initial={{ scale: 0.8, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ duration: 0.4, delay: 0.2 }}
                   className="flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground text-xl font-semibold"
                 >
                   {userInitials}
-                </motion.div>
+                </m.div>
               )}
               <div>
                 <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
@@ -324,9 +323,9 @@ export default function ProfielPage() {
                   <p className="text-muted-foreground">{userEmail}</p>
                 )}
               </div>
-            </motion.div>
+            </m.div>
 
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.2 }}
@@ -353,10 +352,11 @@ export default function ProfielPage() {
 
           {/* Account Tab */}
           <TabsContent value="account" className="space-y-4">
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
+              className="space-y-4"
             >
             <Card>
               <CardHeader>
@@ -392,12 +392,41 @@ export default function ProfielPage() {
                 </div>
               </CardContent>
             </Card>
-            </motion.div>
+
+            {/* 2FA Security Card */}
+            <Card className="border-emerald-200 dark:border-emerald-800">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="h-5 w-5 text-emerald-600" />
+                  Twee-factor authenticatie (2FA)
+                </CardTitle>
+                <CardDescription>
+                  Beveilig je account met een extra verificatiestap bij het inloggen
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 p-4">
+                  <p className="text-sm text-emerald-800 dark:text-emerald-200">
+                    Twee-factor authenticatie voegt een extra beveiligingslaag toe aan je account.
+                    Naast je wachtwoord heb je dan ook een code van je telefoon nodig om in te loggen.
+                  </p>
+                  <p className="text-sm text-emerald-700 dark:text-emerald-300 mt-2">
+                    Je kunt 2FA inschakelen via je accountinstellingen bij Clerk. Klik op je profielfoto
+                    rechtsonder en kies &quot;Mijn Profiel&quot; om je beveiligingsinstellingen te beheren.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Shield className="h-3.5 w-3.5" />
+                  <span>Aanbevolen voor alle admin gebruikers</span>
+                </div>
+              </CardContent>
+            </Card>
+            </m.div>
           </TabsContent>
 
           {/* Bedrijfsgegevens Tab */}
           <TabsContent value="bedrijf" className="space-y-4">
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
@@ -537,12 +566,12 @@ export default function ProfielPage() {
                 </div>
               </CardContent>
             </Card>
-            </motion.div>
+            </m.div>
           </TabsContent>
 
           {/* Offerte Tab */}
           <TabsContent value="offerte" className="space-y-4">
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
@@ -599,12 +628,12 @@ export default function ProfielPage() {
                 </div>
               </CardContent>
             </Card>
-            </motion.div>
+            </m.div>
           </TabsContent>
 
           {/* Privacy Tab (GDPR) */}
           <TabsContent value="privacy" className="space-y-4">
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
@@ -782,11 +811,11 @@ export default function ProfielPage() {
                 </div>
               </CardContent>
             </Card>
-            </motion.div>
+            </m.div>
           </TabsContent>
               </Tabs>
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
         )}
       </AnimatePresence>
     </>

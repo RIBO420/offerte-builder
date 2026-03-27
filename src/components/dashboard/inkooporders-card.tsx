@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useQuery } from "convex/react";
 import { useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { ShoppingCart, ArrowRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -62,7 +62,7 @@ export function InkoopordersCard() {
   const hasOpenOrders = aantalBesteld > 0;
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
@@ -71,7 +71,7 @@ export function InkoopordersCard() {
       {/* Real-time update flash */}
       <AnimatePresence>
         {isUpdating && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -109,7 +109,7 @@ export function InkoopordersCard() {
                   {/* Real-time indicator when updating */}
                   <AnimatePresence>
                     {isUpdating && (
-                      <motion.span
+                      <m.span
                         initial={{ opacity: 0, scale: 0.8 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.8 }}
@@ -117,12 +117,12 @@ export function InkoopordersCard() {
                       >
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
                         <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500" />
-                      </motion.span>
+                      </m.span>
                     )}
                   </AnimatePresence>
                 </div>
                 <div>
-                  <motion.p
+                  <m.p
                     key={aantalBesteld}
                     initial={isUpdating ? { scale: 1.1, color: "rgb(59 130 246)" } : false}
                     animate={{ scale: 1, color: "inherit" }}
@@ -130,7 +130,7 @@ export function InkoopordersCard() {
                     className="text-2xl font-bold"
                   >
                     {aantalBesteld}
-                  </motion.p>
+                  </m.p>
                   <p className="text-sm text-muted-foreground">
                     Open Inkooporders
                   </p>
@@ -139,18 +139,18 @@ export function InkoopordersCard() {
               <ArrowRight className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" aria-hidden="true" />
             </div>
             {hasOpenOrders && (
-              <motion.p
+              <m.p
                 key={waardeBesteld}
                 initial={isUpdating ? { opacity: 0.5 } : false}
                 animate={{ opacity: 1 }}
                 className="mt-3 text-xs text-blue-600 dark:text-blue-400"
               >
                 Totale waarde: {formatCurrency(waardeBesteld)}
-              </motion.p>
+              </m.p>
             )}
           </CardContent>
         </Card>
       </Link>
-    </motion.div>
+    </m.div>
   );
 }

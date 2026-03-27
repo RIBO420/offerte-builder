@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -204,7 +204,7 @@ export function TeamForm({
             <div className="flex flex-wrap gap-2">
               <AnimatePresence mode="popLayout">
                 {selectedMedewerkers.map((medewerker) => (
-                  <motion.div
+                  <m.div
                     key={medewerker._id}
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -229,7 +229,7 @@ export function TeamForm({
                     >
                       <X className="h-3 w-3" />
                     </button>
-                  </motion.div>
+                  </m.div>
                 ))}
               </AnimatePresence>
             </div>
@@ -262,7 +262,7 @@ export function TeamForm({
                 filteredMedewerkers.map((medewerker) => {
                   const isSelected = ledenValue.includes(medewerker._id);
                   return (
-                    <motion.div
+                    <m.div
                       key={medewerker._id}
                       initial={false}
                       animate={{
@@ -306,7 +306,7 @@ export function TeamForm({
                       {isSelected && (
                         <Check className="h-4 w-4 text-primary shrink-0" />
                       )}
-                    </motion.div>
+                    </m.div>
                   );
                 })
               )}

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -61,7 +61,7 @@ export function OfferteToolbar({
 }: OfferteToolbarProps) {
   return (
     <>
-      <motion.div
+      <m.div
         initial={reducedMotion ? false : { opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: reducedMotion ? 0 : 0.4, delay: reducedMotion ? 0 : 0.1 }}
@@ -107,9 +107,9 @@ export function OfferteToolbar({
             </TooltipContent>
           </Tooltip>
         </div>
-      </motion.div>
+      </m.div>
 
-      <motion.div
+      <m.div
         initial={reducedMotion ? false : { opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: reducedMotion ? 0 : 0.4, delay: reducedMotion ? 0 : 0.2 }}
@@ -151,7 +151,7 @@ export function OfferteToolbar({
           </div>
         </div>
         <ActiveFilters filters={filters} onChange={onFiltersChange} />
-      </motion.div>
+      </m.div>
     </>
   );
 }

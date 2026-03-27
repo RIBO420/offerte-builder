@@ -24,6 +24,7 @@ export default function GlobalError({
   }, [error]);
 
   // Basic inline styles since we can't rely on Tailwind in global-error
+  // Dark mode is handled via CSS media query in the <style> tag below
   const styles = {
     container: {
       display: "flex",
@@ -127,18 +128,39 @@ export default function GlobalError({
     },
   };
 
+  const darkModeCSS = `
+    @media (prefers-color-scheme: dark) {
+      body { background-color: #0A0A0A !important; }
+      .ge-container { background-color: #0A0A0A !important; }
+      .ge-title { color: #FAFAFA !important; }
+      .ge-description { color: #A1A1AA !important; }
+      .ge-error-id { color: #71717A !important; }
+      .ge-icon-container { background-color: rgba(239, 68, 68, 0.15) !important; }
+      .ge-icon { color: #EF4444 !important; }
+      .ge-btn-primary { background-color: #FAFAFA !important; color: #0A0A0A !important; }
+      .ge-btn-secondary { background-color: #27272A !important; color: #FAFAFA !important; border-color: #3F3F46 !important; }
+      .ge-details { background-color: #18181B !important; }
+      .ge-details-title { color: #EF4444 !important; }
+      .ge-details-text { color: #A1A1AA !important; }
+      .ge-help { border-color: #27272A !important; color: #A1A1AA !important; }
+      .ge-link { color: #60A5FA !important; }
+    }
+  `;
+
   return (
     <html lang="nl">
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>Kritieke fout | Top Tuinen</title>
+        <style dangerouslySetInnerHTML={{ __html: darkModeCSS }} />
       </head>
       <body style={{ margin: 0 }}>
-        <div style={styles.container}>
-          <div style={styles.iconContainer}>
+        <div className="ge-container" style={styles.container}>
+          <div className="ge-icon-container" style={styles.iconContainer}>
             {/* Inline SVG for AlertTriangle icon */}
             <svg
+              className="ge-icon"
               style={styles.icon}
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
@@ -155,20 +177,21 @@ export default function GlobalError({
           </div>
 
           <div>
-            <h1 style={styles.title}>Kritieke fout</h1>
-            <p style={styles.description}>
+            <h1 className="ge-title" style={styles.title}>Kritieke fout</h1>
+            <p className="ge-description" style={styles.description}>
               Er is een ernstige fout opgetreden in de applicatie.
               Onze excuses voor het ongemak. Probeer de pagina te vernieuwen
               of ga terug naar het dashboard.
             </p>
             {error.digest && (
-              <p style={styles.errorId}>Fout referentie: {error.digest}</p>
+              <p className="ge-error-id" style={styles.errorId}>Fout referentie: {error.digest}</p>
             )}
           </div>
 
           <div style={styles.buttonGroup}>
             <button
               onClick={reset}
+              className="ge-btn-secondary"
               style={{ ...styles.button, ...styles.secondaryButton }}
             >
               {/* RefreshCw icon */}
@@ -190,7 +213,7 @@ export default function GlobalError({
               Probeer opnieuw
             </button>
             {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- Full reload needed in global error boundary */}
-            <a href="/" style={{ ...styles.button, ...styles.primaryButton }}>
+            <a href="/" className="ge-btn-primary" style={{ ...styles.button, ...styles.primaryButton }}>
               {/* Home icon */}
               <svg
                 width="16"
@@ -211,9 +234,10 @@ export default function GlobalError({
 
           {/* Debug info for development */}
           {process.env.NODE_ENV === "development" && (
-            <div style={styles.detailsContainer}>
+            <div className="ge-details" style={styles.detailsContainer}>
               <button
                 onClick={() => setShowDetails(!showDetails)}
+                className="ge-btn-secondary"
                 style={{
                   ...styles.button,
                   ...styles.secondaryButton,
@@ -226,22 +250,22 @@ export default function GlobalError({
               </button>
               {showDetails && (
                 <>
-                  <div style={styles.detailsTitle}>
+                  <div className="ge-details-title" style={styles.detailsTitle}>
                     {error.name}: {error.message}
                   </div>
                   {error.stack && (
-                    <pre style={styles.detailsText}>{error.stack}</pre>
+                    <pre className="ge-details-text" style={styles.detailsText}>{error.stack}</pre>
                   )}
                 </>
               )}
             </div>
           )}
 
-          <div style={styles.helpSection}>
+          <div className="ge-help" style={styles.helpSection}>
             <p style={{ margin: "0 0 0.5rem 0" }}>
               Blijft dit probleem zich voordoen?
             </p>
-            <a href="mailto:support@toptuinen.nl" style={styles.link}>
+            <a href="mailto:support@toptuinen.nl" className="ge-link" style={styles.link}>
               Neem contact op met support
             </a>
           </div>

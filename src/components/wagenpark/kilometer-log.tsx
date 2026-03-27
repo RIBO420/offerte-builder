@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,8 +31,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Loader2, Plus, Trash2, TrendingUp, TrendingDown, Minus } from "lucide-react";
-import { toast } from "sonner";
+import { Loader2, Plus, Trash2, TrendingUp, Minus } from "lucide-react";
+import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import { cn } from "@/lib/utils";
 import { Id } from "../../../convex/_generated/dataModel";
 import type { KilometerRecord } from "@/hooks/use-voertuig-details";
@@ -121,13 +121,13 @@ export function KilometerLog({
 
     const kmValue = parseInt(kilometerstand);
     if (isNaN(kmValue) || kmValue < 0) {
-      toast.error("Voer een geldige kilometerstand in");
+      showErrorToast("Voer een geldige kilometerstand in");
       return;
     }
 
     // Validate that new reading is higher than current
     if (currentKmStand && kmValue < currentKmStand) {
-      toast.error(
+      showErrorToast(
         `Kilometerstand moet hoger zijn dan de huidige stand (${formatKm(currentKmStand)} km)`
       );
       return;
@@ -141,14 +141,14 @@ export function KilometerLog({
         kilometerstand: kmValue,
         notities: notities.trim() || undefined,
       });
-      toast.success("Kilometerstand toegevoegd");
+      showSuccessToast("Kilometerstand toegevoegd");
       setKilometerstand("");
       setNotities("");
       setDatum(getTodayString());
       setIsAdding(false);
     } catch (error) {
       console.error("Error adding km:", error);
-      toast.error("Fout bij toevoegen kilometerstand");
+      showErrorToast("Fout bij toevoegen kilometerstand");
     } finally {
       setIsSubmitting(false);
     }
@@ -159,11 +159,11 @@ export function KilometerLog({
 
     try {
       await onRemove(deleteId);
-      toast.success("Kilometerstand verwijderd");
+      showSuccessToast("Kilometerstand verwijderd");
       setDeleteId(null);
     } catch (error) {
       console.error("Error deleting km:", error);
-      toast.error("Fout bij verwijderen");
+      showErrorToast("Fout bij verwijderen");
     }
   };
 
@@ -171,7 +171,7 @@ export function KilometerLog({
     <div className="space-y-6">
       {/* Trend Statistics */}
       {trendData && (
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           className="grid gap-4 sm:grid-cols-3"
@@ -217,7 +217,7 @@ export function KilometerLog({
               </div>
             </CardContent>
           </Card>
-        </motion.div>
+        </m.div>
       )}
 
       {/* Quick Entry Form */}
@@ -243,7 +243,7 @@ export function KilometerLog({
 
         <AnimatePresence>
           {isAdding && (
-            <motion.div
+            <m.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
@@ -309,7 +309,7 @@ export function KilometerLog({
                   </div>
                 </form>
               </CardContent>
-            </motion.div>
+            </m.div>
           )}
         </AnimatePresence>
 

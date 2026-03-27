@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { Trees, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,7 +27,7 @@ export function Navigation() {
 
   return (
     <>
-      <motion.header
+      <m.header
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
@@ -41,7 +41,7 @@ export function Navigation() {
           <div className="flex h-20 items-center justify-between">
             {/* Logo */}
             <Link href="/" className="flex items-center gap-3 group">
-              <motion.div
+              <m.div
                 className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 shadow-lg"
                 whileHover={{ scale: 1.1, rotate: 5 }}
                 whileTap={{ scale: 0.95 }}
@@ -49,7 +49,7 @@ export function Navigation() {
                 <Trees className="h-5 w-5 text-white" />
                 {/* Glow effect */}
                 <div className="absolute inset-0 rounded-xl bg-emerald-500 blur-lg opacity-50 group-hover:opacity-100 transition-opacity" />
-              </motion.div>
+              </m.div>
               <span className="text-lg font-bold tracking-tight">Offerte Builder</span>
             </Link>
 
@@ -94,12 +94,12 @@ export function Navigation() {
             </button>
           </div>
         </div>
-      </motion.header>
+      </m.header>
 
       {/* Mobile Menu */}
       <AnimatePresence>
         {isMobileMenuOpen && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
@@ -110,7 +110,7 @@ export function Navigation() {
             <div className="mx-4 p-6 rounded-2xl bg-background/95 backdrop-blur-xl border border-white/10 shadow-2xl">
               <nav className="flex flex-col gap-4">
                 {navLinks.map((link, index) => (
-                  <motion.div
+                  <m.div
                     key={link.href}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -123,7 +123,7 @@ export function Navigation() {
                     >
                       {link.label}
                     </Link>
-                  </motion.div>
+                  </m.div>
                 ))}
                 <hr className="border-white/10 my-2" />
                 <div className="flex flex-col gap-3">
@@ -139,7 +139,7 @@ export function Navigation() {
                 </div>
               </nav>
             </div>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
     </>

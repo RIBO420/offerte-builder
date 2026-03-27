@@ -12,9 +12,9 @@
     ],
     "stats": {
       "total": 75,
-      "passes_true": 66,
-      "passes_false": 9,
-      "completion_percentage": 88
+      "passes_true": 73,
+      "passes_false": 2,
+      "completion_percentage": 97
     }
   },
   "features": [
@@ -932,6 +932,8 @@
       "priority": "P0",
       "description": "Open/klik tracking via Resend webhooks",
       "passes": true,
+      "completed_by": "implement-resend-webhook",
+      "completed_at": "2026-03-26",
       "steps": [
         "API route: /api/webhooks/resend → ontvang Resend webhook events",
         "Backend: bij 'delivered' event → update email_logs status",
@@ -941,8 +943,9 @@
         "Resend webhook signing verificatie voor security"
       ],
       "files_to_edit": [
-        "src/app/api/webhooks/resend/ (nieuw)",
+        "src/app/api/webhooks/resend/route.ts",
         "convex/emailLogs.ts",
+        "convex/schema.ts",
         "src/components/offerte/engagement-timeline.tsx"
       ]
     },
@@ -953,6 +956,8 @@
       "priority": "P0",
       "description": "Herinnerings-e-mail flow (7/14/21 dagen)",
       "passes": true,
+      "completed_by": "fix-reminder-emails",
+      "completed_at": "2026-03-26",
       "steps": [
         "Backend: bestaande offerteReminders scheduler koppelen aan daadwerkelijke email verzending",
         "Backend: template laden per herinneringstype (niet_bekeken, niet_gereageerd, laatste)",
@@ -964,7 +969,9 @@
       "files_to_edit": [
         "convex/offerteReminders.ts",
         "convex/emailLogs.ts",
-        "src/app/api/email/route.ts"
+        "convex/emailTemplates.ts",
+        "convex/instellingen.ts",
+        "convex/schema.ts"
       ]
     },
     {
@@ -974,6 +981,8 @@
       "priority": "P0",
       "description": "E-mail template bibliotheek met standaardteksten per trigger",
       "passes": true,
+      "completed_by": "implement-email-templates",
+      "completed_at": "2026-03-26",
       "steps": [
         "Schema: emailTemplates tabel (naam, trigger, onderwerp, inhoud, variabelen)",
         "Backend: CRUD mutations + seed met standaard templates",

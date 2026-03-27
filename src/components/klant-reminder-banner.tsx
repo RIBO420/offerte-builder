@@ -6,7 +6,7 @@ import { Id } from "../../convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Phone, Mail, BellOff, Bell, AlertTriangle } from "lucide-react";
-import { toast } from "sonner";
+import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import { useState } from "react";
 
 interface KlantReminderBannerProps {
@@ -44,9 +44,9 @@ export function KlantReminderBanner({
               setIsLoading(true);
               try {
                 await unsnooze({ id: klantId });
-                toast.success("Herinneringen heractiveerd");
+                showSuccessToast("Herinneringen heractiveerd");
               } catch {
-                toast.error("Fout bij heractiveren");
+                showErrorToast("Fout bij heractiveren");
               } finally {
                 setIsLoading(false);
               }
@@ -132,9 +132,9 @@ export function KlantReminderBanner({
                 setIsLoading(true);
                 try {
                   await snooze({ id: klantId });
-                  toast.success("Herinneringen uitgeschakeld voor deze klant");
+                  showSuccessToast("Herinneringen uitgeschakeld voor deze klant");
                 } catch {
-                  toast.error("Fout bij uitschakelen");
+                  showErrorToast("Fout bij uitschakelen");
                 } finally {
                   setIsLoading(false);
                 }

@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId, requireAuth } from "./auth";
 import { requireNotViewer } from "./roles";
@@ -88,14 +88,14 @@ export const create = mutation({
 
     // Validate that at least one of projectId or offerteId is provided
     if (!args.projectId && !args.offerteId) {
-      throw new Error("projectId of offerteId is verplicht");
+      throw new ConvexError("projectId of offerteId is verplicht");
     }
 
     // Verify ownership based on what's provided
     if (args.projectId) {
       const project = await ctx.db.get(args.projectId);
       if (!project || project.userId.toString() !== userId.toString()) {
-        throw new Error("Project niet gevonden of geen toegang");
+        throw new ConvexError("Project niet gevonden of geen toegang");
       }
 
       // Check if voorcalculatie already exists for project
@@ -105,14 +105,14 @@ export const create = mutation({
         .unique();
 
       if (existingByProject) {
-        throw new Error("Voorcalculatie bestaat al voor dit project");
+        throw new ConvexError("Voorcalculatie bestaat al voor dit project");
       }
     }
 
     if (args.offerteId) {
       const offerte = await ctx.db.get(args.offerteId);
       if (!offerte || offerte.userId.toString() !== userId.toString()) {
-        throw new Error("Offerte niet gevonden of geen toegang");
+        throw new ConvexError("Offerte niet gevonden of geen toegang");
       }
 
       // Check if voorcalculatie already exists for offerte
@@ -122,7 +122,7 @@ export const create = mutation({
         .unique();
 
       if (existingByOfferte) {
-        throw new Error("Voorcalculatie bestaat al voor deze offerte");
+        throw new ConvexError("Voorcalculatie bestaat al voor deze offerte");
       }
     }
 
@@ -159,7 +159,7 @@ export const update = mutation({
     const voorcalculatie = await ctx.db.get(args.id);
 
     if (!voorcalculatie) {
-      throw new Error("Voorcalculatie niet gevonden");
+      throw new ConvexError("Voorcalculatie niet gevonden");
     }
 
     // Verify ownership through project or offerte
@@ -177,7 +177,7 @@ export const update = mutation({
       }
     }
     if (!hasAccess) {
-      throw new Error("Geen toegang tot deze voorcalculatie");
+      throw new ConvexError("Geen toegang tot deze voorcalculatie");
     }
 
     const { id, ...updates } = args;
@@ -207,7 +207,7 @@ export const calculate = query({
     // Get offerte
     const offerte = await ctx.db.get(args.offerteId);
     if (!offerte || offerte.userId.toString() !== userId.toString()) {
-      throw new Error("Offerte niet gevonden of geen toegang");
+      throw new ConvexError("Offerte niet gevonden of geen toegang");
     }
 
     // Get normuren for user
@@ -471,7 +471,7 @@ export const remove = mutation({
     const voorcalculatie = await ctx.db.get(args.id);
 
     if (!voorcalculatie) {
-      throw new Error("Voorcalculatie niet gevonden");
+      throw new ConvexError("Voorcalculatie niet gevonden");
     }
 
     // Verify ownership through project or offerte
@@ -489,7 +489,7 @@ export const remove = mutation({
       }
     }
     if (!hasAccess) {
-      throw new Error("Geen toegang tot deze voorcalculatie");
+      throw new ConvexError("Geen toegang tot deze voorcalculatie");
     }
 
     await ctx.db.delete(args.id);

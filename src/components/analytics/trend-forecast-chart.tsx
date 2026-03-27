@@ -164,7 +164,7 @@ export const TrendForecastChart = memo(function TrendForecastChart({ data, forec
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} />
             <XAxis
               dataKey="maand"
-              tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+              tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
               stroke="hsl(var(--border))"
               angle={-45}
               textAnchor="end"
@@ -217,7 +217,7 @@ export const TrendForecastChart = memo(function TrendForecastChart({ data, forec
                   value: "Nu",
                   position: "top",
                   fill: "hsl(var(--muted-foreground))",
-                  fontSize: 11,
+                  fontSize: 12,
                 }}
               />
             )}

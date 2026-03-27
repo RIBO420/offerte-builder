@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { PartyPopper, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useReducedMotion } from "@/hooks/use-accessibility";
@@ -29,7 +29,7 @@ export function ProjectCompletedCelebration({
   const prefersReducedMotion = useReducedMotion();
 
   return (
-    <motion.div
+    <m.div
       initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={transitions.entrance}
@@ -39,7 +39,7 @@ export function ProjectCompletedCelebration({
       {!prefersReducedMotion && (
         <div className="absolute inset-0 overflow-hidden">
           {sparklePositions.map((pos, i) => (
-            <motion.div
+            <m.div
               key={i}
               className="absolute"
               initial={{ opacity: 0 }}
@@ -61,14 +61,14 @@ export function ProjectCompletedCelebration({
               }}
             >
               <Sparkles className="h-6 w-6 text-white/40" />
-            </motion.div>
+            </m.div>
           ))}
         </div>
       )}
 
       <div className="relative z-10">
         {/* Icon */}
-        <motion.div
+        <m.div
           className="mb-6 flex justify-center"
           animate={prefersReducedMotion ? {} : { rotate: [0, -10, 10, -10, 0] }}
           transition={{ duration: 0.5, delay: 0.3 }}
@@ -76,30 +76,30 @@ export function ProjectCompletedCelebration({
           <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm">
             <PartyPopper className="h-10 w-10" />
           </div>
-        </motion.div>
+        </m.div>
 
         {/* Title */}
-        <motion.h2
+        <m.h2
           className="mb-2 text-center text-2xl font-bold md:text-3xl"
           initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
           Project Voltooid!
-        </motion.h2>
+        </m.h2>
 
         {/* Project name */}
-        <motion.p
+        <m.p
           className="mb-4 text-center text-lg text-white/90"
           initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
           {projectNaam}
-        </motion.p>
+        </m.p>
 
         {/* Amount */}
-        <motion.div
+        <m.div
           className="mb-6 text-center"
           initial={prefersReducedMotion ? {} : { opacity: 0, scale: 0.5 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -109,20 +109,20 @@ export function ProjectCompletedCelebration({
             <p className="text-sm text-white/80">Totaal ontvangen</p>
             <p className="text-3xl font-bold">{formatCurrency(bedrag)}</p>
           </div>
-        </motion.div>
+        </m.div>
 
         {/* Message */}
-        <motion.p
+        <m.p
           className="mb-6 text-center text-white/80"
           initial={prefersReducedMotion ? {} : { opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
         >
           Gefeliciteerd! De factuur is betaald en het project is succesvol afgerond.
-        </motion.p>
+        </m.p>
 
         {/* Dismiss button */}
-        <motion.div
+        <m.div
           className="flex justify-center"
           initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -135,8 +135,8 @@ export function ProjectCompletedCelebration({
           >
             Bekijk Details
           </Button>
-        </motion.div>
+        </m.div>
       </div>
-    </motion.div>
+    </m.div>
   );
 }

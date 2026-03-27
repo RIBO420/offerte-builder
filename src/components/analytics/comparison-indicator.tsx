@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { TrendingUp, TrendingDown, Minus, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatPercentage, formatDecimal } from "@/lib/format";
@@ -71,7 +71,7 @@ export const ComparisonIndicator = memo(function ComparisonIndicator({
     : size === "sm" ? TrendingDown : ArrowDownRight;
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, x: -5 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.3 }}
@@ -92,7 +92,7 @@ export const ComparisonIndicator = memo(function ComparisonIndicator({
           ({isPositive ? "+" : ""}{formatValue(absoluteChange, format)})
         </span>
       )}
-    </motion.div>
+    </m.div>
   );
 });
 
@@ -126,7 +126,7 @@ export const ComparisonArrow = memo(function ComparisonArrow({
   }
 
   return (
-    <motion.span
+    <m.span
       initial={{ opacity: 0, y: 5 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
@@ -141,7 +141,7 @@ export const ComparisonArrow = memo(function ComparisonArrow({
         <TrendingDown className="h-3 w-3" />
       )}
       {isPositive ? "+" : ""}{percentageChange.toFixed(1)}%
-    </motion.span>
+    </m.span>
   );
 });
 
@@ -171,7 +171,7 @@ export const ComparisonDisplay = memo(function ComparisonDisplay({
   const isGood = positiveIsGood ? isPositive : !isPositive;
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: 0.1 }}
@@ -199,6 +199,6 @@ export const ComparisonDisplay = memo(function ComparisonDisplay({
         )}
       </div>
       <p className="text-xs text-muted-foreground">{label}</p>
-    </motion.div>
+    </m.div>
   );
 });

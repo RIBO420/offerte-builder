@@ -25,7 +25,7 @@ import {
   Info,
   RefreshCw,
 } from "lucide-react";
-import { toast } from "sonner";
+import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 
 interface FleetGoSettingsProps {
   initialApiKey?: string;
@@ -65,7 +65,7 @@ export function FleetGoSettings({
   // Test connection
   const handleTestConnection = useCallback(async () => {
     if (!apiKey.trim()) {
-      toast.error("Voer eerst een API key in");
+      showErrorToast("Voer eerst een API key in");
       return;
     }
 
@@ -76,10 +76,10 @@ export function FleetGoSettings({
         const success = await onTestConnection(apiKey);
         if (success) {
           setTestStatus("success");
-          toast.success("Verbinding succesvol!");
+          showSuccessToast("Verbinding succesvol!");
         } else {
           setTestStatus("error");
-          toast.error("Verbinding mislukt");
+          showErrorToast("Verbinding mislukt");
         }
       } else {
         // Mock test connection - replace with actual implementation
@@ -89,22 +89,22 @@ export function FleetGoSettings({
         // For demo: any key starting with "fleetgo_" is valid
         if (apiKey.startsWith("fleetgo_") && apiKey.length > 10) {
           setTestStatus("success");
-          toast.success("Verbinding succesvol!");
+          showSuccessToast("Verbinding succesvol!");
         } else {
           setTestStatus("error");
-          toast.error("Ongeldige API key");
+          showErrorToast("Ongeldige API key");
         }
       }
     } catch (error) {
       setTestStatus("error");
-      toast.error("Fout bij testen verbinding");
+      showErrorToast("Fout bij testen verbinding");
     }
   }, [apiKey, onTestConnection]);
 
   // Save API key
   const handleSave = useCallback(async () => {
     if (!apiKey.trim()) {
-      toast.error("Voer een API key in");
+      showErrorToast("Voer een API key in");
       return;
     }
 
@@ -125,10 +125,10 @@ export function FleetGoSettings({
         );
       }
 
-      toast.success("FleetGo instellingen opgeslagen");
+      showSuccessToast("FleetGo instellingen opgeslagen");
       setHasChanges(false);
     } catch (error) {
-      toast.error("Fout bij opslaan instellingen");
+      showErrorToast("Fout bij opslaan instellingen");
     } finally {
       setIsSaving(false);
     }

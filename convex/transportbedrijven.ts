@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
 import { requireNotViewer } from "./roles";
@@ -69,10 +69,10 @@ export const create = mutation({
     const userId = await requireAuthUserId(ctx);
 
     if (!args.naam.trim()) {
-      throw new Error("Naam is verplicht");
+      throw new ConvexError("Naam is verplicht");
     }
     if (!args.adres.trim()) {
-      throw new Error("Adres is verplicht");
+      throw new ConvexError("Adres is verplicht");
     }
 
     const now = Date.now();
@@ -109,10 +109,10 @@ export const update = mutation({
 
     const transportbedrijf = await ctx.db.get(args.id);
     if (!transportbedrijf) {
-      throw new Error("Transportbedrijf niet gevonden");
+      throw new ConvexError("Transportbedrijf niet gevonden");
     }
     if (transportbedrijf.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit transportbedrijf");
+      throw new ConvexError("Geen toegang tot dit transportbedrijf");
     }
 
     const { id, ...updates } = args;
@@ -138,10 +138,10 @@ export const remove = mutation({
 
     const transportbedrijf = await ctx.db.get(args.id);
     if (!transportbedrijf) {
-      throw new Error("Transportbedrijf niet gevonden");
+      throw new ConvexError("Transportbedrijf niet gevonden");
     }
     if (transportbedrijf.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit transportbedrijf");
+      throw new ConvexError("Geen toegang tot dit transportbedrijf");
     }
 
     await ctx.db.patch(args.id, {

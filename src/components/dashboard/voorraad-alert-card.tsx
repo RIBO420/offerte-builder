@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useQuery } from "convex/react";
 import { useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { Package, AlertTriangle, ArrowRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -49,7 +49,7 @@ export function VoorraadAlertCard() {
   const hasAlerts = stats.aantalOnderMinimum > 0;
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
@@ -58,7 +58,7 @@ export function VoorraadAlertCard() {
       {/* Real-time update flash */}
       <AnimatePresence>
         {isUpdating && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -107,7 +107,7 @@ export function VoorraadAlertCard() {
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <motion.p
+                    <m.p
                       key={stats.aantalOnderMinimum}
                       initial={isUpdating ? { scale: 1.1, color: "rgb(239 68 68)" } : false}
                       animate={{ scale: 1, color: "inherit" }}
@@ -115,7 +115,7 @@ export function VoorraadAlertCard() {
                       className="text-2xl font-bold"
                     >
                       {stats.aantalOnderMinimum}
-                    </motion.p>
+                    </m.p>
                     {hasAlerts && (
                       <Badge variant="destructive" className="text-xs">
                         Alert
@@ -137,6 +137,6 @@ export function VoorraadAlertCard() {
           </CardContent>
         </Card>
       </Link>
-    </motion.div>
+    </m.div>
   );
 }

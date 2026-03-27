@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
 import { requireNotViewer } from "./roles";
@@ -120,10 +120,10 @@ export const update = mutation({
     // Verify ownership
     const product = await ctx.db.get(args.id);
     if (!product) {
-      throw new Error("Product niet gevonden");
+      throw new ConvexError("Product niet gevonden");
     }
     if (product.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit product");
+      throw new ConvexError("Geen toegang tot dit product");
     }
 
     const { id, ...updates } = args;
@@ -150,10 +150,10 @@ export const remove = mutation({
     // Verify ownership
     const product = await ctx.db.get(args.id);
     if (!product) {
-      throw new Error("Product niet gevonden");
+      throw new ConvexError("Product niet gevonden");
     }
     if (product.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit product");
+      throw new ConvexError("Geen toegang tot dit product");
     }
 
     await ctx.db.patch(args.id, {
@@ -174,10 +174,10 @@ export const hardDelete = mutation({
     // Verify ownership
     const product = await ctx.db.get(args.id);
     if (!product) {
-      throw new Error("Product niet gevonden");
+      throw new ConvexError("Product niet gevonden");
     }
     if (product.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit product");
+      throw new ConvexError("Geen toegang tot dit product");
     }
 
     await ctx.db.delete(args.id);

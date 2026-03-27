@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { RequireAdmin } from "@/components/require-admin";
 import {
   Card,
@@ -480,7 +480,7 @@ function PrijsboekPageContent() {
         </Breadcrumb>
       </header>
 
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
@@ -749,7 +749,7 @@ function PrijsboekPageContent() {
             {isLoading ? (
               <Card>
                 <CardContent className="flex items-center justify-center py-12">
-                  <motion.div
+                  <m.div
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     className="flex flex-col items-center gap-4"
@@ -761,7 +761,7 @@ function PrijsboekPageContent() {
                       </div>
                     </div>
                     <p className="text-muted-foreground animate-pulse">Laden...</p>
-                  </motion.div>
+                  </m.div>
                 </CardContent>
               </Card>
             ) : filteredProducts.length > 0 ? (
@@ -780,7 +780,7 @@ function PrijsboekPageContent() {
                   </TableHeader>
                   <TableBody>
                     {filteredProducts.map((product, index) => (
-                      <motion.tr
+                      <m.tr
                         key={product._id}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -840,7 +840,7 @@ function PrijsboekPageContent() {
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
-                      </motion.tr>
+                      </m.tr>
                     ))}
                   </TableBody>
                 </Table>
@@ -877,7 +877,7 @@ function PrijsboekPageContent() {
             )}
           </TabsContent>
         </Tabs>
-      </motion.div>
+      </m.div>
 
       {/* Import Preview Dialog */}
       <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>

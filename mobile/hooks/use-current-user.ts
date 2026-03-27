@@ -93,8 +93,6 @@ export function useCurrentUser(): CurrentUserResult {
       !hasAttemptedUpsert.current
     ) {
       hasAttemptedUpsert.current = true;
-      console.log("[useCurrentUser] Creating user in Convex:", clerkUser.id);
-
       upsertUser({
         clerkId: clerkUser.id,
         email: clerkUser.primaryEmailAddress?.emailAddress || "",

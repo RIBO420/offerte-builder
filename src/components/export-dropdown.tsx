@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Download, FileSpreadsheet, FileText, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { showSuccessToast, showErrorToast, showWarningToast } from "@/lib/toast-utils";
 import {
   exportToCSV,
   exportToExcel,
@@ -75,14 +75,14 @@ export function ExportDropdown<T extends Record<string, unknown>>({
     try {
       const data = await getData();
       if (data.length === 0) {
-        toast.warning("Geen data om te exporteren");
+        showWarningToast("Geen data om te exporteren");
         return;
       }
       exportToCSV(data, columns, filename);
-      toast.success(`${data.length} rij(en) geexporteerd naar CSV`);
+      showSuccessToast(`${data.length} rij(en) geexporteerd naar CSV`);
     } catch (error) {
       console.error("Export CSV error:", error);
-      toast.error("Fout bij exporteren naar CSV");
+      showErrorToast("Fout bij exporteren naar CSV");
     } finally {
       setIsExporting(false);
     }
@@ -93,14 +93,14 @@ export function ExportDropdown<T extends Record<string, unknown>>({
     try {
       const data = await getData();
       if (data.length === 0) {
-        toast.warning("Geen data om te exporteren");
+        showWarningToast("Geen data om te exporteren");
         return;
       }
       await exportToExcel(data, columns, filename, sheetName);
-      toast.success(`${data.length} rij(en) geexporteerd naar Excel`);
+      showSuccessToast(`${data.length} rij(en) geexporteerd naar Excel`);
     } catch (error) {
       console.error("Export Excel error:", error);
-      toast.error("Fout bij exporteren naar Excel");
+      showErrorToast("Fout bij exporteren naar Excel");
     } finally {
       setIsExporting(false);
     }

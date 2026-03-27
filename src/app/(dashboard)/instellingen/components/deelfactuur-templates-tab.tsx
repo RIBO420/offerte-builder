@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { toast } from "sonner";
@@ -149,7 +149,7 @@ export function DeelfactuurTemplatesTab({ reducedMotion }: DeelfactuurTemplatesT
   }
 
   return (
-    <motion.div
+    <m.div
       key="deelfactuur-templates"
       initial={reducedMotion ? false : { opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
@@ -368,6 +368,6 @@ export function DeelfactuurTemplatesTab({ reducedMotion }: DeelfactuurTemplatesT
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </motion.div>
+    </m.div>
   );
 }

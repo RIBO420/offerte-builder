@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
 import { requireNotViewer } from "./roles";
@@ -139,7 +139,7 @@ export const create = mutation({
 
     // Validate required fields
     if (!args.naam.trim()) {
-      throw new Error("Naam is verplicht");
+      throw new ConvexError("Naam is verplicht");
     }
 
     // Validate and sanitize optional fields
@@ -206,10 +206,10 @@ export const update = mutation({
     // Verify ownership
     const leverancier = await ctx.db.get(args.id);
     if (!leverancier) {
-      throw new Error("Leverancier niet gevonden");
+      throw new ConvexError("Leverancier niet gevonden");
     }
     if (leverancier.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot deze leverancier");
+      throw new ConvexError("Geen toegang tot deze leverancier");
     }
 
     const filteredUpdates: Record<string, unknown> = { updatedAt: Date.now() };
@@ -217,7 +217,7 @@ export const update = mutation({
     // Validate and sanitize each field if provided
     if (args.naam !== undefined) {
       if (!args.naam.trim()) {
-        throw new Error("Naam is verplicht");
+        throw new ConvexError("Naam is verplicht");
       }
       filteredUpdates.naam = args.naam.trim();
     }
@@ -288,10 +288,10 @@ export const remove = mutation({
     // Verify ownership
     const leverancier = await ctx.db.get(args.id);
     if (!leverancier) {
-      throw new Error("Leverancier niet gevonden");
+      throw new ConvexError("Leverancier niet gevonden");
     }
     if (leverancier.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot deze leverancier");
+      throw new ConvexError("Geen toegang tot deze leverancier");
     }
 
     // Check if there are inkooporders linked to this leverancier
@@ -331,10 +331,10 @@ export const hardDelete = mutation({
     // Verify ownership
     const leverancier = await ctx.db.get(args.id);
     if (!leverancier) {
-      throw new Error("Leverancier niet gevonden");
+      throw new ConvexError("Leverancier niet gevonden");
     }
     if (leverancier.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot deze leverancier");
+      throw new ConvexError("Geen toegang tot deze leverancier");
     }
 
     // Check if there are inkooporders linked to this leverancier
@@ -344,7 +344,7 @@ export const hardDelete = mutation({
       .take(1);
 
     if (linkedOrders.length > 0) {
-      throw new Error(
+      throw new ConvexError(
         "Deze leverancier heeft gekoppelde inkooporders en kan niet worden verwijderd. Deactiveer de leverancier in plaats daarvan."
       );
     }
@@ -363,10 +363,10 @@ export const getStats = query({
     // Verify ownership
     const leverancier = await ctx.db.get(args.id);
     if (!leverancier) {
-      throw new Error("Leverancier niet gevonden");
+      throw new ConvexError("Leverancier niet gevonden");
     }
     if (leverancier.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot deze leverancier");
+      throw new ConvexError("Geen toegang tot deze leverancier");
     }
 
     // Get all inkooporders for this leverancier
@@ -470,14 +470,14 @@ export const reactivate = mutation({
     // Verify ownership
     const leverancier = await ctx.db.get(args.id);
     if (!leverancier) {
-      throw new Error("Leverancier niet gevonden");
+      throw new ConvexError("Leverancier niet gevonden");
     }
     if (leverancier.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot deze leverancier");
+      throw new ConvexError("Geen toegang tot deze leverancier");
     }
 
     if (leverancier.isActief) {
-      throw new Error("Leverancier is al actief");
+      throw new ConvexError("Leverancier is al actief");
     }
 
     await ctx.db.patch(args.id, {

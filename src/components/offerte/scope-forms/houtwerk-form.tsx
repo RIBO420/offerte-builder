@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useFormValidationSync } from "@/hooks/use-scope-form-sync";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,19 +66,8 @@ export function HoutwerkForm({ data, onChange, onValidationChange }: HoutwerkFor
     return () => subscription.unsubscribe();
   }, [watch, onChange]);
 
-  // Notify parent of validation state changes (only when errors object changes)
-  useEffect(() => {
-    if (onValidationChange) {
-      const errorMessages: Record<string, string> = {};
-      Object.entries(errors).forEach(([key, error]) => {
-        if (error?.message) {
-          errorMessages[key] = error.message;
-        }
-      });
-      onValidationChange(isValid, errorMessages);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(errors), isValid]);
+  // Notify parent of validation state changes
+  useFormValidationSync(errors, isValid, onValidationChange);
 
   const watchedValues = watch();
 

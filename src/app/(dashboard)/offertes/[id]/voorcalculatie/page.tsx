@@ -3,7 +3,7 @@
 import { use, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { useReducedMotion } from "@/hooks/use-accessibility";
 import { useAutoSave } from "@/hooks/use-auto-save";
 import {
@@ -298,14 +298,14 @@ export default function OfferteVoorcalculatiePage({
         </Breadcrumb>
       </header>
 
-      <motion.div
+      <m.div
         initial={reducedMotion ? false : { opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: reducedMotion ? 0 : 0.5, ease: "easeOut" }}
         className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
       >
         {/* Header */}
-        <motion.div
+        <m.div
           initial={reducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{
@@ -368,11 +368,11 @@ export default function OfferteVoorcalculatiePage({
               </div>
             )}
           </div>
-        </motion.div>
+        </m.div>
 
         {/* View-only banner for accepted/rejected offertes */}
         {isViewOnly && (
-          <motion.div
+          <m.div
             initial={reducedMotion ? false : { opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{
@@ -392,11 +392,11 @@ export default function OfferteVoorcalculatiePage({
                 Je bekijkt de voorcalculatie ter referentie.
               </p>
             </div>
-          </motion.div>
+          </m.div>
         )}
 
         {/* Progress and Guidance Section */}
-        <motion.div
+        <m.div
           initial={reducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{
@@ -451,12 +451,12 @@ export default function OfferteVoorcalculatiePage({
               </details>
             </div>
           </Card>
-        </motion.div>
+        </m.div>
 
         {/* Main Content */}
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Left Column - Team Config */}
-          <motion.div
+          <m.div
             initial={reducedMotion ? false : { opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{
@@ -472,10 +472,10 @@ export default function OfferteVoorcalculatiePage({
               onTeamledenChange={setTeamleden}
               onEffectieveUrenChange={setEffectieveUrenPerDag}
             />
-          </motion.div>
+          </m.div>
 
           {/* Right Column - Uren Overzicht */}
-          <motion.div
+          <m.div
             initial={reducedMotion ? false : { opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{
@@ -502,12 +502,12 @@ export default function OfferteVoorcalculatiePage({
                 </CardContent>
               </Card>
             )}
-          </motion.div>
+          </m.div>
         </div>
 
         {/* Summary Card */}
         {calculation && (
-          <motion.div
+          <m.div
             initial={reducedMotion ? false : { opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{
@@ -563,12 +563,12 @@ export default function OfferteVoorcalculatiePage({
                 </div>
               </CardContent>
             </Card>
-          </motion.div>
+          </m.div>
         )}
 
         {/* Next Steps Card - only show when not in view-only mode */}
         {calculation && !isViewOnly && (
-          <motion.div
+          <m.div
             initial={reducedMotion ? false : { opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{
@@ -675,9 +675,9 @@ export default function OfferteVoorcalculatiePage({
                 </p>
               </CardContent>
             </Card>
-          </motion.div>
+          </m.div>
         )}
-      </motion.div>
+      </m.div>
 
       {/* Complete Voorcalculatie Dialog */}
       <AlertDialog open={showCompleteDialog} onOpenChange={setShowCompleteDialog}>

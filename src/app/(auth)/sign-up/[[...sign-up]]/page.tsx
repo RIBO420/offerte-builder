@@ -5,7 +5,7 @@ import { useSignUp, useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Trees, Loader2 } from "lucide-react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { GoogleIcon } from "@/components/icons";
 import { Input } from "@/components/ui/input";
@@ -140,7 +140,7 @@ export default function SignUpPage() {
         {/* Card glow effect */}
         <div className="absolute left-1/2 top-1/2 h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-500/10 blur-[100px]" />
 
-        <motion.div
+        <m.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ duration: 0.5, ease: "easeOut" }}
@@ -148,14 +148,14 @@ export default function SignUpPage() {
         >
           <Card className="border-border/50 bg-card/80 backdrop-blur-sm shadow-xl">
             <CardHeader className="text-center">
-              <motion.div
+              <m.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
                 className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-green-600 text-white shadow-lg shadow-emerald-500/25"
               >
                 <Trees className="h-6 w-6" />
-              </motion.div>
+              </m.div>
               <CardTitle className="text-2xl">Verifieer je e-mail</CardTitle>
               <CardDescription>
                 We hebben een verificatiecode gestuurd naar {email}
@@ -164,13 +164,13 @@ export default function SignUpPage() {
 
             <CardContent>
               {error && (
-                <motion.div
+                <m.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="mb-4 rounded-md bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive"
                 >
                   {error}
-                </motion.div>
+                </m.div>
               )}
 
               <form onSubmit={handleVerification} className="space-y-4">
@@ -215,7 +215,7 @@ export default function SignUpPage() {
               </Button>
             </CardFooter>
           </Card>
-        </motion.div>
+        </m.div>
       </div>
     );
   }
@@ -238,7 +238,7 @@ export default function SignUpPage() {
       {/* Card glow effect */}
       <div className="absolute left-1/2 top-1/2 h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-500/10 blur-[100px]" />
 
-      <motion.div
+      <m.div
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
@@ -246,14 +246,14 @@ export default function SignUpPage() {
       >
         <Card className="border-border/50 bg-card/80 backdrop-blur-sm shadow-xl">
           <CardHeader className="text-center">
-            <motion.div
+            <m.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
               className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-green-600 text-white shadow-lg shadow-emerald-500/25"
             >
               <Trees className="h-6 w-6" />
-            </motion.div>
+            </m.div>
             <CardTitle className="text-2xl">Account aanmaken</CardTitle>
             <CardDescription>
               Maak een account aan voor Top Tuinen Offerte Builder
@@ -262,13 +262,13 @@ export default function SignUpPage() {
 
           <CardContent className="space-y-4">
             {error && (
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="rounded-md bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive"
               >
                 {error}
-              </motion.div>
+              </m.div>
             )}
 
             <Button
@@ -380,7 +380,7 @@ export default function SignUpPage() {
             </p>
           </CardFooter>
         </Card>
-      </motion.div>
+      </m.div>
     </div>
   );
 }

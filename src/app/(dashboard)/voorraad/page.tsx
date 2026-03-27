@@ -2,8 +2,8 @@
 
 import { useState, useMemo } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
-import { motion } from "framer-motion";
-import { RequireAdmin } from "@/components/require-admin";
+import { m } from "framer-motion";
+import { RequireRole } from "@/components/require-admin";
 import {
   Card,
   CardContent,
@@ -215,7 +215,7 @@ function VoorraadPageContent() {
         </Breadcrumb>
       </header>
 
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
@@ -295,7 +295,7 @@ function VoorraadPageContent() {
         {isLoading || statsLoading ? (
           <Card>
             <CardContent className="flex items-center justify-center py-12">
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className="flex flex-col items-center gap-4"
@@ -307,7 +307,7 @@ function VoorraadPageContent() {
                   </div>
                 </div>
                 <p className="text-muted-foreground animate-pulse">Laden...</p>
-              </motion.div>
+              </m.div>
             </CardContent>
           </Card>
         ) : filteredItems.length > 0 ? (
@@ -332,7 +332,7 @@ function VoorraadPageContent() {
                   const locatie = item.locatie || "Niet opgegeven";
 
                   return (
-                    <motion.tr
+                    <m.tr
                       key={item._id}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -384,7 +384,7 @@ function VoorraadPageContent() {
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
-                    </motion.tr>
+                    </m.tr>
                   );
                 })}
               </TableBody>
@@ -407,7 +407,7 @@ function VoorraadPageContent() {
             </CardContent>
           </Card>
         )}
-      </motion.div>
+      </m.div>
 
       {/* Dialogs */}
       <VoorraadAdjustDialog
@@ -436,8 +436,8 @@ function VoorraadPageContent() {
 
 export default function VoorraadPage() {
   return (
-    <RequireAdmin>
+    <RequireRole allowedRoles={["directie", "projectleider", "materiaalman"]}>
       <VoorraadPageContent />
-    </RequireAdmin>
+    </RequireRole>
   );
 }

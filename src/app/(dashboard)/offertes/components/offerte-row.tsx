@@ -2,7 +2,7 @@
 
 import { memo, useCallback, useState } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -106,7 +106,7 @@ export const OfferteRow = memo(function OfferteRow({
 
   return (
     <>
-      <motion.tr
+      <m.tr
         key={offerte._id}
         initial={reducedMotion ? false : { opacity: 0, x: -10 }}
         animate={{ opacity: 1, x: 0 }}
@@ -286,7 +286,7 @@ export const OfferteRow = memo(function OfferteRow({
             </DropdownMenuContent>
           </DropdownMenu>
         </TableCell>
-      </motion.tr>
+      </m.tr>
 
       {/* Status change confirmation dialog */}
       <AlertDialog

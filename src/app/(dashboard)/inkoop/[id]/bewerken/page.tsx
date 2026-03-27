@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2, Package } from "lucide-react";
-import { RequireAdmin } from "@/components/require-admin";
+import { RequireRole } from "@/components/require-admin";
 import { InkooporderForm } from "@/components/inkoop/inkooporder-form";
 
 export default function BewerkInkooporderPage({
@@ -39,7 +39,7 @@ export default function BewerkInkooporderPage({
   // Loading state
   if (inkooporderData === undefined) {
     return (
-      <RequireAdmin>
+      <RequireRole allowedRoles={["directie", "projectleider", "materiaalman"]}>
         <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
@@ -62,14 +62,14 @@ export default function BewerkInkooporderPage({
         <div className="flex flex-1 items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
-      </RequireAdmin>
+      </RequireRole>
     );
   }
 
   // Not found state
   if (!inkooporderData) {
     return (
-      <RequireAdmin>
+      <RequireRole allowedRoles={["directie", "projectleider", "materiaalman"]}>
         <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
@@ -97,14 +97,14 @@ export default function BewerkInkooporderPage({
             Terug naar inkoop
           </Button>
         </div>
-      </RequireAdmin>
+      </RequireRole>
     );
   }
 
   // Check if order can be edited (only in concept status)
   if (inkooporderData.status !== "concept") {
     return (
-      <RequireAdmin>
+      <RequireRole allowedRoles={["directie", "projectleider", "materiaalman"]}>
         <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
@@ -136,7 +136,7 @@ export default function BewerkInkooporderPage({
             Terug naar inkooporder
           </Button>
         </div>
-      </RequireAdmin>
+      </RequireRole>
     );
   }
 
@@ -160,7 +160,7 @@ export default function BewerkInkooporderPage({
   };
 
   return (
-    <RequireAdmin>
+    <RequireRole allowedRoles={["directie", "projectleider", "materiaalman"]}>
       <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
         <SidebarTrigger className="-ml-1" />
         <Separator orientation="vertical" className="mr-2 h-4" />
@@ -210,6 +210,6 @@ export default function BewerkInkooporderPage({
           defaultValues={defaultValues}
         />
       </div>
-    </RequireAdmin>
+    </RequireRole>
   );
 }

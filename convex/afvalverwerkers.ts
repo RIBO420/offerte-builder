@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
 import { requireNotViewer } from "./roles";
@@ -69,10 +69,10 @@ export const create = mutation({
     const userId = await requireAuthUserId(ctx);
 
     if (!args.naam.trim()) {
-      throw new Error("Naam is verplicht");
+      throw new ConvexError("Naam is verplicht");
     }
     if (!args.adres.trim()) {
-      throw new Error("Adres is verplicht");
+      throw new ConvexError("Adres is verplicht");
     }
 
     const now = Date.now();
@@ -109,10 +109,10 @@ export const update = mutation({
 
     const afvalverwerker = await ctx.db.get(args.id);
     if (!afvalverwerker) {
-      throw new Error("Afvalverwerker niet gevonden");
+      throw new ConvexError("Afvalverwerker niet gevonden");
     }
     if (afvalverwerker.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot deze afvalverwerker");
+      throw new ConvexError("Geen toegang tot deze afvalverwerker");
     }
 
     const { id, ...updates } = args;
@@ -138,10 +138,10 @@ export const remove = mutation({
 
     const afvalverwerker = await ctx.db.get(args.id);
     if (!afvalverwerker) {
-      throw new Error("Afvalverwerker niet gevonden");
+      throw new ConvexError("Afvalverwerker niet gevonden");
     }
     if (afvalverwerker.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot deze afvalverwerker");
+      throw new ConvexError("Geen toegang tot deze afvalverwerker");
     }
 
     await ctx.db.patch(args.id, {

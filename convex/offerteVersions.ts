@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { requireAuth, getOwnedOfferte } from "./auth";
@@ -25,7 +25,7 @@ export const get = query({
   handler: async (ctx, args) => {
     const version = await ctx.db.get(args.id);
     if (!version) {
-      throw new Error("Version not found");
+      throw new ConvexError("Version not found");
     }
 
     // Verify the parent offerte belongs to the authenticated user
@@ -130,7 +130,7 @@ export const rollback = mutation({
     // Get the version to restore
     const version = await ctx.db.get(args.versionId);
     if (!version) {
-      throw new Error("Version not found");
+      throw new ConvexError("Version not found");
     }
 
     // Verify the offerte belongs to the authenticated user
@@ -229,7 +229,7 @@ export const compareVersions = query({
     ]);
 
     if (!version1 || !version2) {
-      throw new Error("Version not found");
+      throw new ConvexError("Version not found");
     }
 
     // Verify ownership of the parent offerte(s)

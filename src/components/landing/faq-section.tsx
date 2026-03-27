@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { ChevronDown, MessageCircle } from "lucide-react";
 import { faqData, objectionHandlers } from "./copy-variants";
 import { Button } from "@/components/ui/button";
@@ -48,7 +48,7 @@ export function FAQSection() {
     <section className="py-24 bg-gradient-to-b from-transparent via-white/[0.02] to-transparent">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <motion.div
+        <m.div
           initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
@@ -66,7 +66,7 @@ export function FAQSection() {
             Alles wat je wilt weten voordat je start. Staat je vraag er niet tussen? 
             We helpen je graag.
           </p>
-        </motion.div>
+        </m.div>
 
         <div className="grid lg:grid-cols-2 gap-12">
           {/* FAQ Column */}
@@ -79,7 +79,7 @@ export function FAQSection() {
             </h3>
             <div className="space-y-4">
               {faqData.map((faq, index) => (
-                <motion.div
+                <m.div
                   key={index}
                   initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 10 }}
                   whileInView={{ opacity: 1, y: 0 }}
@@ -93,12 +93,12 @@ export function FAQSection() {
                     aria-expanded={openIndex === index}
                   >
                     <span className="font-medium pr-4">{faq.question}</span>
-                    <motion.div
+                    <m.div
                       animate={{ rotate: openIndex === index ? 180 : 0 }}
                       transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.2 }}
                     >
                       <ChevronDown className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                    </motion.div>
+                    </m.div>
                   </button>
                   {/* Using CSS grid collapse for GPU-accelerated animation */}
                   <CollapsibleContent isOpen={openIndex === index}>
@@ -106,7 +106,7 @@ export function FAQSection() {
                       {faq.answer}
                     </div>
                   </CollapsibleContent>
-                </motion.div>
+                </m.div>
               ))}
             </div>
           </div>
@@ -121,7 +121,7 @@ export function FAQSection() {
             </h3>
             <div className="space-y-4">
               {objectionHandlers.map((item, index) => (
-                <motion.div
+                <m.div
                   key={index}
                   initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 10 }}
                   whileInView={{ opacity: 1, y: 0 }}
@@ -140,12 +140,12 @@ export function FAQSection() {
                         {item.objection}
                       </span>
                     </div>
-                    <motion.div
+                    <m.div
                       animate={{ rotate: openObjection === index ? 180 : 0 }}
                       transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.2 }}
                     >
                       <ChevronDown className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                    </motion.div>
+                    </m.div>
                   </button>
                   {/* Using CSS grid collapse for GPU-accelerated animation */}
                   <CollapsibleContent isOpen={openObjection === index}>
@@ -154,7 +154,7 @@ export function FAQSection() {
                       <span className="text-muted-foreground">{item.response}</span>
                     </div>
                   </CollapsibleContent>
-                </motion.div>
+                </m.div>
               ))}
             </div>
 

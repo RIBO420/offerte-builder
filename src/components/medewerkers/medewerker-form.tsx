@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -377,13 +377,13 @@ export function MedewerkerForm({
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="pb-4">
-                    <motion.div
+                    <m.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       className="grid gap-4"
                     >
                       {/* Naam en Functie */}
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-4 sm:grid-cols-2">
                         <FormField
                           control={form.control}
                           name="naam"
@@ -428,7 +428,7 @@ export function MedewerkerForm({
                       </div>
 
                       {/* Email en Telefoon */}
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-4 sm:grid-cols-2">
                         <FormField
                           control={form.control}
                           name="email"
@@ -474,7 +474,7 @@ export function MedewerkerForm({
                       </div>
 
                       {/* Contract Type en Uurtarief */}
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-4 sm:grid-cols-2">
                         <FormField
                           control={form.control}
                           name="contractType"
@@ -529,7 +529,7 @@ export function MedewerkerForm({
                           )}
                         />
                       </div>
-                    </motion.div>
+                    </m.div>
                   </AccordionContent>
                 </AccordionItem>
 
@@ -542,7 +542,7 @@ export function MedewerkerForm({
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="pb-4">
-                    <motion.div
+                    <m.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       className="space-y-4"
@@ -573,7 +573,7 @@ export function MedewerkerForm({
                       </div>
 
                       {/* Uren */}
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-4 sm:grid-cols-2">
                         <FormField
                           control={form.control}
                           name="urenPerWeek"
@@ -614,7 +614,7 @@ export function MedewerkerForm({
                           )}
                         />
                       </div>
-                    </motion.div>
+                    </m.div>
                   </AccordionContent>
                 </AccordionItem>
 
@@ -632,7 +632,7 @@ export function MedewerkerForm({
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="pb-4">
-                    <motion.div
+                    <m.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                     >
@@ -646,7 +646,7 @@ export function MedewerkerForm({
                           />
                         )}
                       />
-                    </motion.div>
+                    </m.div>
                   </AccordionContent>
                 </AccordionItem>
 
@@ -664,7 +664,7 @@ export function MedewerkerForm({
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="pb-4">
-                    <motion.div
+                    <m.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                     >
@@ -678,7 +678,7 @@ export function MedewerkerForm({
                           />
                         )}
                       />
-                    </motion.div>
+                    </m.div>
                   </AccordionContent>
                 </AccordionItem>
 
@@ -691,7 +691,7 @@ export function MedewerkerForm({
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="pb-4">
-                    <motion.div
+                    <m.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       className="grid gap-4"
@@ -709,7 +709,7 @@ export function MedewerkerForm({
                           </FormItem>
                         )}
                       />
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-4 sm:grid-cols-2">
                         <FormField
                           control={form.control}
                           name="postcode"
@@ -747,7 +747,7 @@ export function MedewerkerForm({
                           )}
                         />
                       </div>
-                    </motion.div>
+                    </m.div>
                   </AccordionContent>
                 </AccordionItem>
 
@@ -760,12 +760,12 @@ export function MedewerkerForm({
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="pb-4">
-                    <motion.div
+                    <m.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       className="grid gap-4"
                     >
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-4 sm:grid-cols-2">
                         <FormField
                           control={form.control}
                           name="noodcontactNaam"
@@ -815,7 +815,7 @@ export function MedewerkerForm({
                           </FormItem>
                         )}
                       />
-                    </motion.div>
+                    </m.div>
                   </AccordionContent>
                 </AccordionItem>
 
@@ -828,7 +828,7 @@ export function MedewerkerForm({
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="pb-4">
-                    <motion.div
+                    <m.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                     >
@@ -848,7 +848,7 @@ export function MedewerkerForm({
                           </FormItem>
                         )}
                       />
-                    </motion.div>
+                    </m.div>
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>

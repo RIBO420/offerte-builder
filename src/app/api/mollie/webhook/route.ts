@@ -160,17 +160,6 @@ export async function POST(request: NextRequest) {
   });
 
   // TODO: Update betalingsstatus in Convex via een server-side action
-  // Voorbeeld (wanneer Convex HTTP actions beschikbaar zijn):
-  //
-  // await fetch(`${process.env.NEXT_PUBLIC_CONVEX_URL}/api/betalingen/updateStatus`, {
-  //   method: "POST",
-  //   headers: { "Content-Type": "application/json" },
-  //   body: JSON.stringify({
-  //     molliePaymentId: payment.id,
-  //     status: payment.status,
-  //     updatedAt: Date.now(),
-  //   }),
-  // });
 
   // Mollie verwacht altijd een 200 OK response
   return new NextResponse("OK", { status: 200 });

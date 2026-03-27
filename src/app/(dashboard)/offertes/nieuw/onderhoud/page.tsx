@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Separator } from "@/components/ui/separator";
 import {
   Breadcrumb,
@@ -172,13 +172,13 @@ export default function NieuweOnderhoudOffertePage() {
         </Breadcrumb>
       </header>
 
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
         className="flex flex-1 flex-col gap-3 p-3 md:gap-4 md:p-4 lg:gap-6 lg:p-6"
       >
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.1 }}
@@ -211,7 +211,7 @@ export default function NieuweOnderhoudOffertePage() {
             showSummaries={currentStep > 0}
             className={currentStep === 0 ? "max-w-4xl mx-auto" : ""}
           />
-        </motion.div>
+        </m.div>
 
         {/* Step 0: Package/Template Selectie */}
         {currentStep === 0 && (
@@ -275,7 +275,7 @@ export default function NieuweOnderhoudOffertePage() {
             prevStep={prevStep}
           />
         )}
-      </motion.div>
+      </m.div>
 
       {/* Success Dialog */}
       <SuccessDialog

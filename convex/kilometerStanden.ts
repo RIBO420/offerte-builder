@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
 import { requireNotViewer } from "./roles";
@@ -61,7 +61,7 @@ export const create = mutation({
     // Verify ownership of the vehicle
     const voertuig = await ctx.db.get(args.voertuigId);
     if (!voertuig || voertuig.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit voertuig");
+      throw new ConvexError("Geen toegang tot dit voertuig");
     }
 
     // Also update the vehicle's current km stand
@@ -91,7 +91,7 @@ export const remove = mutation({
 
     const record = await ctx.db.get(args.id);
     if (!record || record.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit kilometer record");
+      throw new ConvexError("Geen toegang tot dit kilometer record");
     }
 
     await ctx.db.delete(args.id);
@@ -152,12 +152,12 @@ export const log = mutation({
     // Verify ownership of the vehicle
     const voertuig = await ctx.db.get(args.voertuigId);
     if (!voertuig || voertuig.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit voertuig");
+      throw new ConvexError("Geen toegang tot dit voertuig");
     }
 
     // Valideer dat de kilometerstand niet lager is dan de huidige
     if (voertuig.kmStand && args.kilometerstand < voertuig.kmStand) {
-      throw new Error(
+      throw new ConvexError(
         `Kilometerstand (${args.kilometerstand}) kan niet lager zijn dan huidige stand (${voertuig.kmStand})`
       );
     }
@@ -166,7 +166,7 @@ export const log = mutation({
     if (args.projectId) {
       const project = await ctx.db.get(args.projectId);
       if (!project || project.userId.toString() !== userId.toString()) {
-        throw new Error("Geen toegang tot dit project");
+        throw new ConvexError("Geen toegang tot dit project");
       }
     }
 
@@ -204,7 +204,7 @@ export const update = mutation({
 
     const record = await ctx.db.get(args.id);
     if (!record || record.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit kilometer record");
+      throw new ConvexError("Geen toegang tot dit kilometer record");
     }
 
     const updateData: {

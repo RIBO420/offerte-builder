@@ -7,7 +7,7 @@ import { Download, Loader2, AlertCircle, Eye } from "lucide-react";
 import { OffertePDF } from "./offerte-pdf";
 import { PdfPreviewModal } from "@/components/offerte/pdf-preview-modal";
 import { handleError, getMutationErrorMessage } from "@/lib/error-handling";
-import { toast } from "sonner";
+import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import type { Bedrijfsgegevens } from "@/types/offerte";
 
 interface OfferteRegel {
@@ -94,7 +94,7 @@ export function PDFDownloadButton({
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
-      toast.success("PDF gedownload", {
+      showSuccessToast("PDF gedownload", {
         description: `${offerte.offerteNummer} is succesvol gedownload.`,
       });
     } catch (error) {
@@ -112,12 +112,9 @@ export function PDFDownloadButton({
 
       // Show user-friendly error message
       const errorMessage = getMutationErrorMessage(error);
-      toast.error("PDF kon niet worden gegenereerd", {
+      showErrorToast("PDF kon niet worden gegenereerd", {
         description: errorMessage,
-        action: {
-          label: "Opnieuw",
-          onClick: handleDownload,
-        },
+        retry: handleDownload,
       });
     } finally {
       setIsGenerating(false);

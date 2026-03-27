@@ -312,13 +312,23 @@ function AuthenticatedProfielScreen() {
           return;
         }
 
-        // Get session token from Clerk
-        const token = await user?.getSessions();
-        const sessionToken = token?.[0]?.id || 'session_' + Date.now();
+        // Get session info from Clerk
+        const sessions = await user?.getSessions();
+        const activeSession = sessions?.[0];
+        const sessionId = activeSession?.id || '';
         const userId = user?.id || '';
 
-        // Setup biometric locally
-        const success = await setupBiometric(sessionToken, userId);
+        if (!sessionId || !userId) {
+          Alert.alert('Fout', 'Kon sessie gegevens niet ophalen. Probeer het opnieuw.');
+          setBiometricLoading(false);
+          return;
+        }
+
+        // Get a token for backup storage
+        const sessionToken = sessionId;
+
+        // Setup biometric locally with session ID, token, and user ID
+        const success = await setupBiometric(sessionId, sessionToken, userId);
 
         if (success) {
           setBiometricEnabled(true);

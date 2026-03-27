@@ -11,7 +11,7 @@
  * - Deep link data for navigation
  */
 
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import {
   internalAction,
   internalMutation,
@@ -937,11 +937,11 @@ export const markAsRead = mutation({
 
     const notification = await ctx.db.get(args.notificationId);
     if (!notification) {
-      throw new Error("Notificatie niet gevonden");
+      throw new ConvexError("Notificatie niet gevonden");
     }
 
     if (notification.userId.toString() !== user._id.toString()) {
-      throw new Error("Geen toegang tot deze notificatie");
+      throw new ConvexError("Geen toegang tot deze notificatie");
     }
 
     if (!notification.isRead) {
@@ -997,11 +997,11 @@ export const dismiss = mutation({
 
     const notification = await ctx.db.get(args.notificationId);
     if (!notification) {
-      throw new Error("Notificatie niet gevonden");
+      throw new ConvexError("Notificatie niet gevonden");
     }
 
     if (notification.userId.toString() !== user._id.toString()) {
-      throw new Error("Geen toegang tot deze notificatie");
+      throw new ConvexError("Geen toegang tot deze notificatie");
     }
 
     await ctx.db.patch(args.notificationId, {
@@ -1265,7 +1265,6 @@ export const notifyOfferteStatusChange = internalMutation({
       }
 
       // TODO: Add push notification support when needed
-      // if (shouldSend.push) { ... }
     }
 
     return { success: true, notificationsSent };

@@ -5,7 +5,17 @@ import { api } from "../../convex/_generated/api";
 import { useCurrentUser } from "./use-current-user";
 import { Id } from "../../convex/_generated/dataModel";
 
-export type UserRole = "admin" | "medewerker" | "viewer";
+export type UserRole =
+  | "directie"
+  | "projectleider"
+  | "voorman"
+  | "medewerker"
+  | "klant"
+  | "onderaannemer_zzp"
+  | "materiaalman"
+  // Legacy roles still in DB until fully migrated
+  | "admin"
+  | "viewer";
 
 export interface UserWithDetails {
   _id: Id<"users">;
@@ -77,8 +87,8 @@ export function useIsAdmin() {
     return false;
   }
 
-  // Check actual role - default to false if not set (secure default)
-  return user.role === "admin";
+  // Check actual role - "directie" is the new admin, keep "admin" for backward compat
+  return user.role === "directie" || user.role === "admin";
 }
 
 /**

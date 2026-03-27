@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, useMemo, type ReactNode } from "react";
 
 export interface CommandItem {
   id: string;
@@ -40,23 +40,30 @@ export function CommandProvider({ children }: { children: ReactNode }) {
 
   // Load recent items from localStorage on mount
   useEffect(() => {
+    let cancelled = false;
     try {
       const stored = localStorage.getItem(RECENT_ITEMS_KEY);
       if (stored) {
         const parsed: StoredRecentItem[] = JSON.parse(stored);
         // We only store the IDs and basic info; actual items need to be matched
         // from the available commands when rendering
-        setTimeout(() => {
-          setRecentItems(
-            parsed.map((item) => ({
-              id: item.id,
-              type: item.type,
-              title: item.title,
-              subtitle: item.subtitle,
-              action: () => {}, // Will be replaced when rendering
-            }))
-          );
+        const id = setTimeout(() => {
+          if (!cancelled) {
+            setRecentItems(
+              parsed.map((item) => ({
+                id: item.id,
+                type: item.type,
+                title: item.title,
+                subtitle: item.subtitle,
+                action: () => {}, // Will be replaced when rendering
+              }))
+            );
+          }
         }, 0);
+        return () => {
+          cancelled = true;
+          clearTimeout(id);
+        };
       }
     } catch {
       // Ignore localStorage errors
@@ -97,16 +104,19 @@ export function CommandProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const contextValue = useMemo(
+    () => ({
+      open,
+      setOpen,
+      recentItems,
+      addRecentItem,
+      clearRecentItems,
+    }),
+    [open, setOpen, recentItems, addRecentItem, clearRecentItems]
+  );
+
   return (
-    <CommandContext.Provider
-      value={{
-        open,
-        setOpen,
-        recentItems,
-        addRecentItem,
-        clearRecentItems,
-      }}
-    >
+    <CommandContext.Provider value={contextValue}>
       {children}
     </CommandContext.Provider>
   );

@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { useRouter } from "next/navigation";
 import {
   Card,
@@ -52,22 +52,35 @@ import {
   Search,
   Loader2,
   Shield,
-  UserCog,
   Eye,
   Link2,
   Link2Off,
   ShieldCheck,
   ShieldAlert,
+  Crown,
+  ClipboardList,
+  HardHat,
+  Wrench,
+  UserRound,
+  Handshake,
+  Package,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useUsers, useIsAdmin, UserWithDetails, UserRole } from "@/hooks/use-users";
 import { Id } from "../../../../convex/_generated/dataModel";
 
-// Role display configuration
-const roleConfig: Record<UserRole, { label: string; variant: "default" | "secondary" | "outline"; icon: React.ElementType }> = {
-  admin: { label: "Admin", variant: "default", icon: ShieldCheck },
-  medewerker: { label: "Medewerker", variant: "secondary", icon: UserCog },
-  viewer: { label: "Viewer", variant: "outline", icon: Eye },
+// Role display configuration — all 7 new roles + legacy backward compat
+const roleConfig: Record<UserRole, { label: string; badgeClass: string; icon: React.ElementType }> = {
+  directie: { label: "Directie / Admin", badgeClass: "bg-red-100 text-red-800 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800", icon: Crown },
+  projectleider: { label: "Projectleider", badgeClass: "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800", icon: ClipboardList },
+  voorman: { label: "Voorman", badgeClass: "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800", icon: HardHat },
+  medewerker: { label: "Medewerker (veld)", badgeClass: "bg-green-100 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800", icon: Wrench },
+  klant: { label: "Klant", badgeClass: "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800", icon: UserRound },
+  onderaannemer_zzp: { label: "Onderaannemer / ZZP", badgeClass: "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-300 dark:border-yellow-800", icon: Handshake },
+  materiaalman: { label: "Materiaalman", badgeClass: "bg-cyan-100 text-cyan-800 border-cyan-200 dark:bg-cyan-950 dark:text-cyan-300 dark:border-cyan-800", icon: Package },
+  // Legacy roles — still displayed correctly if present in DB
+  admin: { label: "Admin (oud)", badgeClass: "bg-red-100 text-red-800 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800", icon: ShieldCheck },
+  viewer: { label: "Viewer (oud)", badgeClass: "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800", icon: Eye },
 };
 
 // Animation variants
@@ -117,14 +130,24 @@ export default function GebruikersPage() {
     );
   }, [users, debouncedSearchTerm]);
 
-  // Calculate stats
+  // Calculate stats grouped by function
   const stats = useMemo(() => {
-    const admins = users.filter((u) => u.role === "admin").length;
-    const medewerkers = users.filter((u) => u.role === "medewerker").length;
-    const viewers = users.filter((u) => u.role === "viewer").length;
+    const beheer = users.filter(
+      (u) => u.role === "directie" || u.role === "projectleider" || u.role === "admin"
+    ).length;
+    const veldwerk = users.filter(
+      (u) =>
+        u.role === "voorman" ||
+        u.role === "medewerker" ||
+        u.role === "onderaannemer_zzp" ||
+        u.role === "materiaalman"
+    ).length;
+    const extern = users.filter(
+      (u) => u.role === "klant" || u.role === "viewer"
+    ).length;
     const linked = users.filter((u) => u.linkedMedewerkerId).length;
 
-    return { admins, medewerkers, viewers, linked, total: users.length };
+    return { beheer, veldwerk, extern, linked, total: users.length };
   }, [users]);
 
   // Handle role change
@@ -221,7 +244,7 @@ export default function GebruikersPage() {
           </Breadcrumb>
         </header>
         <div className="flex flex-1 items-center justify-center">
-          <motion.div
+          <m.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             className="flex flex-col items-center gap-4"
@@ -233,7 +256,7 @@ export default function GebruikersPage() {
               </div>
             </div>
             <p className="text-muted-foreground animate-pulse">Laden...</p>
-          </motion.div>
+          </m.div>
         </div>
       </>
     );
@@ -257,14 +280,14 @@ export default function GebruikersPage() {
         </Breadcrumb>
       </header>
 
-      <motion.div
+      <m.div
         variants={containerVariants}
         initial="hidden"
         animate="visible"
         className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
       >
         {/* Page Header */}
-        <motion.div variants={itemVariants} className="flex items-center justify-between">
+        <m.div variants={itemVariants} className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <Shield className="h-5 w-5" />
@@ -278,40 +301,40 @@ export default function GebruikersPage() {
               </p>
             </div>
           </div>
-        </motion.div>
+        </m.div>
 
         {/* Stats Cards */}
-        <motion.div variants={itemVariants} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <m.div variants={itemVariants} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Totaal</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Beheer</CardTitle>
+              <Crown className="h-4 w-4 text-red-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.total}</div>
-              <p className="text-xs text-muted-foreground">gebruikers</p>
+              <div className="text-2xl font-bold">{stats.beheer}</div>
+              <p className="text-xs text-muted-foreground">directie + projectleiders</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Admins</CardTitle>
-              <ShieldCheck className="h-4 w-4 text-primary" />
+              <CardTitle className="text-sm font-medium">Veldwerk</CardTitle>
+              <HardHat className="h-4 w-4 text-orange-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.admins}</div>
-              <p className="text-xs text-muted-foreground">volledige toegang</p>
+              <div className="text-2xl font-bold">{stats.veldwerk}</div>
+              <p className="text-xs text-muted-foreground">voorman, medewerkers, ZZP, materiaal</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Medewerkers</CardTitle>
-              <UserCog className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Extern</CardTitle>
+              <UserRound className="h-4 w-4 text-purple-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.medewerkers}</div>
-              <p className="text-xs text-muted-foreground">beperkte toegang</p>
+              <div className="text-2xl font-bold">{stats.extern}</div>
+              <p className="text-xs text-muted-foreground">klanten</p>
             </CardContent>
           </Card>
 
@@ -325,10 +348,10 @@ export default function GebruikersPage() {
               <p className="text-xs text-muted-foreground">aan medewerker profiel</p>
             </CardContent>
           </Card>
-        </motion.div>
+        </m.div>
 
         {/* Users Table */}
-        <motion.div variants={itemVariants}>
+        <m.div variants={itemVariants}>
           <Card>
             <CardHeader>
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -381,7 +404,7 @@ export default function GebruikersPage() {
                     </TableHeader>
                     <TableBody>
                       {displayedUsers.map((user) => {
-                        const config = roleConfig[user.role];
+                        const config = roleConfig[user.role] ?? roleConfig.medewerker;
                         const RoleIcon = config.icon;
 
                         return (
@@ -397,7 +420,7 @@ export default function GebruikersPage() {
                                   handleRoleChange(user._id, value as UserRole)
                                 }
                               >
-                                <SelectTrigger className="w-full sm:w-[140px]">
+                                <SelectTrigger className="w-full sm:w-[200px]">
                                   <SelectValue>
                                     <div className="flex items-center gap-2">
                                       <RoleIcon className="h-4 w-4" />
@@ -406,22 +429,46 @@ export default function GebruikersPage() {
                                   </SelectValue>
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="admin">
+                                  <SelectItem value="directie">
                                     <div className="flex items-center gap-2">
-                                      <ShieldCheck className="h-4 w-4" />
-                                      <span>Admin</span>
+                                      <Crown className="h-4 w-4 text-red-600" />
+                                      <span>Directie / Admin</span>
+                                    </div>
+                                  </SelectItem>
+                                  <SelectItem value="projectleider">
+                                    <div className="flex items-center gap-2">
+                                      <ClipboardList className="h-4 w-4 text-blue-600" />
+                                      <span>Projectleider</span>
+                                    </div>
+                                  </SelectItem>
+                                  <SelectItem value="voorman">
+                                    <div className="flex items-center gap-2">
+                                      <HardHat className="h-4 w-4 text-orange-600" />
+                                      <span>Voorman</span>
                                     </div>
                                   </SelectItem>
                                   <SelectItem value="medewerker">
                                     <div className="flex items-center gap-2">
-                                      <UserCog className="h-4 w-4" />
-                                      <span>Medewerker</span>
+                                      <Wrench className="h-4 w-4 text-green-600" />
+                                      <span>Medewerker (veld)</span>
                                     </div>
                                   </SelectItem>
-                                  <SelectItem value="viewer">
+                                  <SelectItem value="klant">
                                     <div className="flex items-center gap-2">
-                                      <Eye className="h-4 w-4" />
-                                      <span>Viewer</span>
+                                      <UserRound className="h-4 w-4 text-purple-600" />
+                                      <span>Klant</span>
+                                    </div>
+                                  </SelectItem>
+                                  <SelectItem value="onderaannemer_zzp">
+                                    <div className="flex items-center gap-2">
+                                      <Handshake className="h-4 w-4 text-yellow-600" />
+                                      <span>Onderaannemer / ZZP</span>
+                                    </div>
+                                  </SelectItem>
+                                  <SelectItem value="materiaalman">
+                                    <div className="flex items-center gap-2">
+                                      <Package className="h-4 w-4 text-cyan-600" />
+                                      <span>Materiaalman</span>
                                     </div>
                                   </SelectItem>
                                 </SelectContent>
@@ -467,10 +514,10 @@ export default function GebruikersPage() {
               )}
             </CardContent>
           </Card>
-        </motion.div>
+        </m.div>
 
         {/* Info Card */}
-        <motion.div variants={itemVariants}>
+        <m.div variants={itemVariants}>
           <Card className="bg-muted/50">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
@@ -480,18 +527,30 @@ export default function GebruikersPage() {
             </CardHeader>
             <CardContent className="space-y-2 text-sm text-muted-foreground">
               <p>
-                <strong className="text-foreground">Admin:</strong> Volledige toegang tot alle functies, kan gebruikers en medewerkers beheren.
+                <strong className="text-foreground">Directie / Admin:</strong> Volledige toegang tot alle functies, kan gebruikers, medewerkers en instellingen beheren.
               </p>
               <p>
-                <strong className="text-foreground">Medewerker:</strong> Beperkte toegang, ziet alleen eigen uren en toegewezen projecten wanneer gekoppeld aan een medewerker profiel.
+                <strong className="text-foreground">Projectleider:</strong> Beheert projecten, offertes, klanten en planning. Leest rapportages.
               </p>
               <p>
-                <strong className="text-foreground">Viewer:</strong> Alleen-lezen toegang tot toegestane functies.
+                <strong className="text-foreground">Voorman:</strong> Beheert veldwerk: uren, toolbox meetings. Leest planning en projecten.
+              </p>
+              <p>
+                <strong className="text-foreground">Medewerker (veld):</strong> Eigen uren, verlof, chat en toegewezen projecten (lezen).
+              </p>
+              <p>
+                <strong className="text-foreground">Klant:</strong> Alleen-lezen toegang tot eigen offertes, facturen en projecten.
+              </p>
+              <p>
+                <strong className="text-foreground">Onderaannemer / ZZP:</strong> Eigen uren en facturen, leest toegewezen projecten.
+              </p>
+              <p>
+                <strong className="text-foreground">Materiaalman:</strong> Beheert voorraad en wagenpark, leest inkoop en projecten.
               </p>
             </CardContent>
           </Card>
-        </motion.div>
-      </motion.div>
+        </m.div>
+      </m.div>
 
       {/* Link to Medewerker Dialog */}
       <Dialog open={showLinkDialog} onOpenChange={setShowLinkDialog}>

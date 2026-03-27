@@ -3,9 +3,9 @@
 import { useState, useMemo, useCallback, Suspense } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { useReducedMotion } from "@/hooks/use-accessibility";
-import { RequireAdmin } from "@/components/require-admin";
+import { RequireRole } from "@/components/require-admin";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -113,11 +113,11 @@ function StatusBadge({ status }: { status: FactuurStatus }) {
 
 export default function FacturenPage() {
   return (
-    <RequireAdmin>
+    <RequireRole allowedRoles={["directie", "projectleider"]}>
       <Suspense fallback={<FacturenPageLoader />}>
         <FacturenPageContent />
       </Suspense>
-    </RequireAdmin>
+    </RequireRole>
   );
 }
 
@@ -316,14 +316,14 @@ function FacturenPageContent() {
         </Breadcrumb>
       </header>
 
-      <motion.div
+      <m.div
         initial={reducedMotion ? false : { opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: reducedMotion ? 0 : 0.5, ease: "easeOut" }}
         className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
       >
         {/* Header */}
-        <motion.div
+        <m.div
           initial={reducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{
@@ -347,10 +347,10 @@ function FacturenPageContent() {
             sheetName="Facturen"
             disabled={!exportData || exportData.length === 0}
           />
-        </motion.div>
+        </m.div>
 
         {/* Stats Summary */}
-        <motion.div
+        <m.div
           initial={reducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{
@@ -428,10 +428,10 @@ function FacturenPageContent() {
               </div>
             </CardContent>
           </Card>
-        </motion.div>
+        </m.div>
 
         {/* Search */}
-        <motion.div
+        <m.div
           initial={reducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{
@@ -448,10 +448,10 @@ function FacturenPageContent() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-        </motion.div>
+        </m.div>
 
         {/* Facturen list */}
-        <motion.div
+        <m.div
           initial={reducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{
@@ -516,7 +516,7 @@ function FacturenPageContent() {
             <TabsContent value={activeTab} className="space-y-6">
               <AnimatePresence mode="wait">
                 {isLoading ? (
-                  <motion.div
+                  <m.div
                     key="loading"
                     initial={reducedMotion ? false : { opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -555,9 +555,9 @@ function FacturenPageContent() {
                         ))}
                       </div>
                     </Card>
-                  </motion.div>
+                  </m.div>
                 ) : displayedFacturen.length > 0 ? (
-                  <motion.div
+                  <m.div
                     key="content"
                     initial={reducedMotion ? false : { opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -709,9 +709,9 @@ function FacturenPageContent() {
                         </div>
                       )}
                     </Card>
-                  </motion.div>
+                  </m.div>
                 ) : (
-                  <motion.div
+                  <m.div
                     key="empty"
                     initial={reducedMotion ? false : { opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -749,13 +749,13 @@ function FacturenPageContent() {
                         />
                       </CardContent>
                     </Card>
-                  </motion.div>
+                  </m.div>
                 )}
               </AnimatePresence>
             </TabsContent>
           </Tabs>
-        </motion.div>
-      </motion.div>
+        </m.div>
+      </m.div>
     </>
   );
 }

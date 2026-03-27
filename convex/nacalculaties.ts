@@ -5,7 +5,7 @@
  * data. Compares voorcalculatie (planned) with actual hours worked.
  */
 
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuth, requireAuthUserId, verifyOwnership } from "./auth";
 import { requireNotViewer } from "./roles";
@@ -267,7 +267,7 @@ export const addConclusion = mutation({
       .unique();
 
     if (!existing) {
-      throw new Error(
+      throw new ConvexError(
         "Nacalculatie niet gevonden. Bereken eerst de nacalculatie."
       );
     }

@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuth } from "./auth";
 import {
@@ -44,8 +44,8 @@ export const list = query({
 
     let aanvragen;
 
-    if (role === "admin") {
-      // Admin sees all for the company
+    if (role === "directie") {
+      // Directie sees all for the company
       if (args.status) {
         aanvragen = await ctx.db
           .query("verlofaanvragen")
@@ -139,7 +139,7 @@ export const countPending = query({
     const user = await requireAuth(ctx);
     const role = await getUserRole(ctx);
 
-    if (role !== "admin") return 0;
+    if (role !== "directie") return 0;
 
     const pending = await ctx.db
       .query("verlofaanvragen")
@@ -166,7 +166,7 @@ export const getVerlofsaldo = query({
 
     const jaar = args.jaar ?? new Date().getFullYear();
     const medewerker = await ctx.db.get(args.medewerkerId);
-    if (!medewerker) throw new Error("Medewerker niet gevonden");
+    if (!medewerker) throw new ConvexError("Medewerker niet gevonden");
 
     // Calculate annual entitlement based on contract type
     const urenPerWeek = medewerker.beschikbaarheid?.urenPerWeek ?? 40;
@@ -267,7 +267,7 @@ export const create = mutation({
 
     // Validate medewerker access
     const medewerker = await ctx.db.get(args.medewerkerId);
-    if (!medewerker) throw new Error("Medewerker niet gevonden");
+    if (!medewerker) throw new ConvexError("Medewerker niet gevonden");
 
     if (role === "medewerker") {
       // Medewerker can only create for themselves
@@ -276,7 +276,7 @@ export const create = mutation({
         !linked ||
         linked._id.toString() !== args.medewerkerId.toString()
       ) {
-        throw new Error(
+        throw new ConvexError(
           "Je kunt alleen verlof aanvragen voor jezelf"
         );
       }
@@ -284,10 +284,10 @@ export const create = mutation({
 
     // Validate dates
     if (args.startDatum > args.eindDatum) {
-      throw new Error("Startdatum moet voor einddatum liggen");
+      throw new ConvexError("Startdatum moet voor einddatum liggen");
     }
     if (args.aantalDagen <= 0) {
-      throw new Error("Aantal dagen moet groter zijn dan 0");
+      throw new ConvexError("Aantal dagen moet groter zijn dan 0");
     }
 
     // Check for overlapping leave
@@ -306,7 +306,7 @@ export const create = mutation({
     );
 
     if (overlap) {
-      throw new Error(
+      throw new ConvexError(
         "Er is al een verlofaanvraag voor deze periode"
       );
     }
@@ -344,10 +344,10 @@ export const update = mutation({
     await requireNotViewer(ctx);
 
     const aanvraag = await ctx.db.get(args.id);
-    if (!aanvraag) throw new Error("Verlofaanvraag niet gevonden");
+    if (!aanvraag) throw new ConvexError("Verlofaanvraag niet gevonden");
 
     if (aanvraag.status !== "aangevraagd") {
-      throw new Error(
+      throw new ConvexError(
         "Alleen aanvragen met status 'aangevraagd' kunnen worden gewijzigd"
       );
     }
@@ -369,7 +369,7 @@ export const update = mutation({
     const eind =
       (updateData.eindDatum as string) ?? aanvraag.eindDatum;
     if (start > eind) {
-      throw new Error("Startdatum moet voor einddatum liggen");
+      throw new ConvexError("Startdatum moet voor einddatum liggen");
     }
 
     await ctx.db.patch(args.id, updateData);
@@ -388,10 +388,10 @@ export const goedkeuren = mutation({
     const user = await requireAdmin(ctx);
 
     const aanvraag = await ctx.db.get(args.id);
-    if (!aanvraag) throw new Error("Verlofaanvraag niet gevonden");
+    if (!aanvraag) throw new ConvexError("Verlofaanvraag niet gevonden");
 
     if (aanvraag.status !== "aangevraagd") {
-      throw new Error("Alleen aanvragen met status 'aangevraagd' kunnen worden goedgekeurd");
+      throw new ConvexError("Alleen aanvragen met status 'aangevraagd' kunnen worden goedgekeurd");
     }
 
     await ctx.db.patch(args.id, {
@@ -417,10 +417,10 @@ export const afkeuren = mutation({
     const user = await requireAdmin(ctx);
 
     const aanvraag = await ctx.db.get(args.id);
-    if (!aanvraag) throw new Error("Verlofaanvraag niet gevonden");
+    if (!aanvraag) throw new ConvexError("Verlofaanvraag niet gevonden");
 
     if (aanvraag.status !== "aangevraagd") {
-      throw new Error("Alleen aanvragen met status 'aangevraagd' kunnen worden afgekeurd");
+      throw new ConvexError("Alleen aanvragen met status 'aangevraagd' kunnen worden afgekeurd");
     }
 
     await ctx.db.patch(args.id, {
@@ -444,10 +444,10 @@ export const remove = mutation({
     await requireNotViewer(ctx);
 
     const aanvraag = await ctx.db.get(args.id);
-    if (!aanvraag) throw new Error("Verlofaanvraag niet gevonden");
+    if (!aanvraag) throw new ConvexError("Verlofaanvraag niet gevonden");
 
     if (aanvraag.status !== "aangevraagd") {
-      throw new Error(
+      throw new ConvexError(
         "Alleen aanvragen met status 'aangevraagd' kunnen worden verwijderd"
       );
     }

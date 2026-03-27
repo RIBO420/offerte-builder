@@ -146,7 +146,6 @@ export async function getExpoPushToken(): Promise<string | null> {
       projectId,
     });
 
-    console.log("[PushNotifications] Push token obtained:", tokenResponse.data);
     return tokenResponse.data;
   } catch (error) {
     console.error("[PushNotifications] Failed to get push token:", error);

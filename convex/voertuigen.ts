@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
 import { requireNotViewer } from "./roles";
@@ -271,10 +271,10 @@ export const update = mutation({
     // Verifieer eigenaarschap
     const voertuig = await ctx.db.get(args.id);
     if (!voertuig) {
-      throw new Error("Voertuig niet gevonden");
+      throw new ConvexError("Voertuig niet gevonden");
     }
     if (voertuig.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit voertuig");
+      throw new ConvexError("Geen toegang tot dit voertuig");
     }
 
     // Bouw update object expliciet (geen dynamic object access)
@@ -331,10 +331,10 @@ export const remove = mutation({
     // Verifieer eigenaarschap
     const voertuig = await ctx.db.get(args.id);
     if (!voertuig) {
-      throw new Error("Voertuig niet gevonden");
+      throw new ConvexError("Voertuig niet gevonden");
     }
     if (voertuig.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit voertuig");
+      throw new ConvexError("Geen toegang tot dit voertuig");
     }
 
     await ctx.db.patch(args.id, {
@@ -356,10 +356,10 @@ export const hardDelete = mutation({
     // Verifieer eigenaarschap
     const voertuig = await ctx.db.get(args.id);
     if (!voertuig) {
-      throw new Error("Voertuig niet gevonden");
+      throw new ConvexError("Voertuig niet gevonden");
     }
     if (voertuig.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit voertuig");
+      throw new ConvexError("Geen toegang tot dit voertuig");
     }
 
     await ctx.db.delete(args.id);
@@ -380,10 +380,10 @@ export const syncFromFleetGo = mutation({
     // Verifieer eigenaarschap
     const voertuig = await ctx.db.get(args.id);
     if (!voertuig) {
-      throw new Error("Voertuig niet gevonden");
+      throw new ConvexError("Voertuig niet gevonden");
     }
     if (voertuig.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit voertuig");
+      throw new ConvexError("Geen toegang tot dit voertuig");
     }
 
     const now = Date.now();
@@ -411,10 +411,10 @@ export const updateKmStand = mutation({
     // Verifieer eigenaarschap
     const voertuig = await ctx.db.get(args.id);
     if (!voertuig) {
-      throw new Error("Voertuig niet gevonden");
+      throw new ConvexError("Voertuig niet gevonden");
     }
     if (voertuig.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit voertuig");
+      throw new ConvexError("Geen toegang tot dit voertuig");
     }
 
     await ctx.db.patch(args.id, {

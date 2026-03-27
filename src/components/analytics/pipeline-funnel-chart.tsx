@@ -71,7 +71,7 @@ function ConversionArrow({ rate, label }: { rate: number; label: string }) {
         {isLow && <AlertTriangle className="h-3 w-3 text-red-500" />}
         {isGood && <CheckCircle2 className="h-3 w-3 text-green-500" />}
       </div>
-      <span className="text-[10px] text-muted-foreground">{label}</span>
+      <span className="text-xs text-muted-foreground">{label}</span>
     </div>
   );
 }

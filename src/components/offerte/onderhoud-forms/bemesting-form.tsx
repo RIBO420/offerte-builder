@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useFormValidationSyncNested } from "@/hooks/use-scope-form-sync";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -223,24 +224,8 @@ export function BemestingForm({ data, onChange, onValidationChange }: BemestingF
   }, [watch, onChange]);
 
   // Validatiestatus naar parent sturen
-  useEffect(() => {
-    if (onValidationChange) {
-      const errorMessages: Record<string, string> = {};
-      const flattenErrors = (obj: Record<string, unknown>, prefix = "") => {
-        Object.entries(obj).forEach(([key, val]) => {
-          const fullKey = prefix ? `${prefix}.${key}` : key;
-          if (val && typeof val === "object" && "message" in val) {
-            errorMessages[fullKey] = String((val as { message: string }).message);
-          } else if (val && typeof val === "object") {
-            flattenErrors(val as Record<string, unknown>, fullKey);
-          }
-        });
-      };
-      flattenErrors(errors as Record<string, unknown>);
-      onValidationChange(isValid, errorMessages);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(errors), isValid]);
+  // Notify parent of validation state changes
+  useFormValidationSyncNested(errors, isValid, onValidationChange);
 
   const watchedValues = watch();
   const { types, product, frequentie, grondanalyse } = watchedValues;

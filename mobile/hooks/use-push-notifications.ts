@@ -64,8 +64,6 @@ export function usePushNotifications(): PushNotificationState {
    */
   const handleNotificationTap = useCallback(
     (data: NotificationData) => {
-      console.log("[usePushNotifications] Notification tapped:", data);
-
       // Navigate based on notification type/data
       if (data.type === "chat" || data.channelType) {
         switch (data.channelType) {
@@ -146,11 +144,6 @@ export function usePushNotifications(): PushNotificationState {
         devicePlatform: platform,
       });
 
-      console.log(
-        "[usePushNotifications] Token registered with backend:",
-        token.substring(0, 20) + "..."
-      );
-
       setIsEnabled(true);
       return true;
     } catch (err) {
@@ -188,10 +181,6 @@ export function usePushNotifications(): PushNotificationState {
     // Check if app was opened from a notification
     getLastNotificationResponse().then((response) => {
       if (response) {
-        console.log(
-          "[usePushNotifications] App opened from notification:",
-          response
-        );
         const data = response.notification.request.content
           .data as NotificationData;
         if (data) {
@@ -208,11 +197,7 @@ export function usePushNotifications(): PushNotificationState {
   useEffect(() => {
     // Listen for incoming notifications (foreground)
     notificationReceivedSubscription.current = addNotificationReceivedListener(
-      (notification) => {
-        console.log(
-          "[usePushNotifications] Notification received in foreground:",
-          notification.request.content
-        );
+      (_notification) => {
         // Could update UI here (e.g., show badge, update unread count)
       }
     );
@@ -220,10 +205,6 @@ export function usePushNotifications(): PushNotificationState {
     // Listen for notification taps
     notificationResponseSubscription.current =
       addNotificationResponseReceivedListener((response) => {
-        console.log(
-          "[usePushNotifications] Notification response:",
-          response.actionIdentifier
-        );
         const data = response.notification.request.content
           .data as NotificationData;
         if (data) {

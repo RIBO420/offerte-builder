@@ -9,6 +9,7 @@ import { LiveRegionProvider } from "@/components/ui/live-region";
 import { SkipLink } from "@/components/ui/skip-link";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { ChunkReloadHandler } from "@/components/chunk-reload-handler";
+import { MotionProvider } from "@/components/providers/motion-provider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -91,12 +92,14 @@ export default function RootLayout({
           >
             <ConvexClientProvider>
               <ErrorBoundary>
-                <LiveRegionProvider>
-                  <main id="main-content">
-                    {children}
-                  </main>
-                  <Toaster position="bottom-right" richColors />
-                </LiveRegionProvider>
+                <MotionProvider>
+                  <LiveRegionProvider>
+                    <main id="main-content">
+                      {children}
+                    </main>
+                    <Toaster position="bottom-right" richColors />
+                  </LiveRegionProvider>
+                </MotionProvider>
               </ErrorBoundary>
             </ConvexClientProvider>
           </ThemeProvider>

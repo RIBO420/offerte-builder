@@ -5,10 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { useReducedMotion } from "@/hooks/use-accessibility";
 import { useDebounce } from "@/hooks/use-debounce";
-import { RequireAdmin } from "@/components/require-admin";
+import { RequireRole } from "@/components/require-admin";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -161,7 +161,7 @@ const InkooporderRow = memo(function InkooporderRow({
   }, [inkooporder._id, onDelete]);
 
   return (
-    <motion.tr
+    <m.tr
       key={inkooporder._id}
       initial={reducedMotion ? false : { opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
@@ -222,17 +222,17 @@ const InkooporderRow = memo(function InkooporderRow({
           </DropdownMenuContent>
         </DropdownMenu>
       </TableCell>
-    </motion.tr>
+    </m.tr>
   );
 });
 
 export default function InkoopPage() {
   return (
-    <RequireAdmin>
+    <RequireRole allowedRoles={["directie", "projectleider", "materiaalman"]}>
       <Suspense fallback={<InkoopPageLoader />}>
         <InkoopPageContent />
       </Suspense>
-    </RequireAdmin>
+    </RequireRole>
   );
 }
 
@@ -353,14 +353,14 @@ function InkoopPageContent() {
     <>
       <PageHeader />
 
-      <motion.div
+      <m.div
         initial={reducedMotion ? false : { opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: reducedMotion ? 0 : 0.5, ease: "easeOut" }}
         className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
       >
         {/* Header */}
-        <motion.div
+        <m.div
           initial={reducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: reducedMotion ? 0 : 0.4, delay: reducedMotion ? 0 : 0.1 }}
@@ -387,10 +387,10 @@ function InkoopPageContent() {
               <p>Maak een nieuwe inkooporder aan</p>
             </TooltipContent>
           </Tooltip>
-        </motion.div>
+        </m.div>
 
         {/* Statistics Cards */}
-        <motion.div
+        <m.div
           initial={reducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: reducedMotion ? 0 : 0.4, delay: reducedMotion ? 0 : 0.15 }}
@@ -444,10 +444,10 @@ function InkoopPageContent() {
               </p>
             </CardContent>
           </Card>
-        </motion.div>
+        </m.div>
 
         {/* Filters */}
-        <motion.div
+        <m.div
           initial={reducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: reducedMotion ? 0 : 0.4, delay: reducedMotion ? 0 : 0.2 }}
@@ -489,10 +489,10 @@ function InkoopPageContent() {
               ))}
             </SelectContent>
           </Select>
-        </motion.div>
+        </m.div>
 
         {/* Tabs and Table */}
-        <motion.div
+        <m.div
           initial={reducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: reducedMotion ? 0 : 0.4, delay: reducedMotion ? 0 : 0.3 }}
@@ -542,7 +542,7 @@ function InkoopPageContent() {
             <TabsContent value={activeTab} className="space-y-6">
               <AnimatePresence mode="wait">
                 {isLoading ? (
-                  <motion.div
+                  <m.div
                     key="loading"
                     initial={reducedMotion ? false : { opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -551,9 +551,9 @@ function InkoopPageContent() {
                     className="flex items-center justify-center py-20"
                   >
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                  </motion.div>
+                  </m.div>
                 ) : filteredOrders.length > 0 ? (
-                  <motion.div
+                  <m.div
                     key="content"
                     initial={reducedMotion ? false : { opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -591,9 +591,9 @@ function InkoopPageContent() {
                         </Table>
                       </ScrollableTable>
                     </Card>
-                  </motion.div>
+                  </m.div>
                 ) : (
-                  <motion.div
+                  <m.div
                     key="empty"
                     initial={reducedMotion ? false : { opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -619,13 +619,13 @@ function InkoopPageContent() {
                         </Button>
                       </div>
                     </Card>
-                  </motion.div>
+                  </m.div>
                 )}
               </AnimatePresence>
             </TabsContent>
           </Tabs>
-        </motion.div>
-      </motion.div>
+        </m.div>
+      </m.div>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deleteOrderId} onOpenChange={() => setDeleteOrderId(null)}>

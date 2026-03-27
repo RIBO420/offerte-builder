@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
 import { requireNotViewer } from "./roles";
@@ -150,13 +150,13 @@ export const create = mutation({
     const userId = await requireAuthUserId(ctx);
 
     if (!args.naam.trim()) {
-      throw new Error("Naam is verplicht");
+      throw new ConvexError("Naam is verplicht");
     }
     if (!args.type.trim()) {
-      throw new Error("Type is verplicht");
+      throw new ConvexError("Type is verplicht");
     }
     if (!args.bodemvoorkeur.trim()) {
-      throw new Error("Bodemvoorkeur is verplicht");
+      throw new ConvexError("Bodemvoorkeur is verplicht");
     }
 
     const now = Date.now();
@@ -199,16 +199,16 @@ export const update = mutation({
 
     const plantsoort = await ctx.db.get(args.id);
     if (!plantsoort) {
-      throw new Error("Plantsoort niet gevonden");
+      throw new ConvexError("Plantsoort niet gevonden");
     }
 
     // Systeem defaults mogen niet bewerkt worden door gebruikers
     if (plantsoort.userId === undefined) {
-      throw new Error("Systeem plantsoorten kunnen niet worden bewerkt");
+      throw new ConvexError("Systeem plantsoorten kunnen niet worden bewerkt");
     }
 
     if (plantsoort.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot deze plantsoort");
+      throw new ConvexError("Geen toegang tot deze plantsoort");
     }
 
     const { id, ...updates } = args;
@@ -234,16 +234,16 @@ export const remove = mutation({
 
     const plantsoort = await ctx.db.get(args.id);
     if (!plantsoort) {
-      throw new Error("Plantsoort niet gevonden");
+      throw new ConvexError("Plantsoort niet gevonden");
     }
 
     // Systeem defaults mogen niet verwijderd worden door gebruikers
     if (plantsoort.userId === undefined) {
-      throw new Error("Systeem plantsoorten kunnen niet worden verwijderd");
+      throw new ConvexError("Systeem plantsoorten kunnen niet worden verwijderd");
     }
 
     if (plantsoort.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot deze plantsoort");
+      throw new ConvexError("Geen toegang tot deze plantsoort");
     }
 
     await ctx.db.patch(args.id, {

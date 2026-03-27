@@ -11,7 +11,7 @@
  * Compares actual costs with voorcalculatie (planned budget) for deviation analysis.
  */
 
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuth, requireAuthUserId, verifyOwnership } from "./auth";
 import { requireNotViewer } from "./roles";
@@ -416,10 +416,10 @@ export const create = mutation({
 
     // Validate required fields
     if (!args.omschrijving.trim()) {
-      throw new Error("Omschrijving is verplicht");
+      throw new ConvexError("Omschrijving is verplicht");
     }
     if (!args.datum.trim()) {
-      throw new Error("Datum is verplicht");
+      throw new ConvexError("Datum is verplicht");
     }
 
     // Validate numeric fields
@@ -433,7 +433,7 @@ export const create = mutation({
 
     if (args.type === "arbeid") {
       if (!args.medewerker) {
-        throw new Error("Medewerker is verplicht voor arbeidskosten");
+        throw new ConvexError("Medewerker is verplicht voor arbeidskosten");
       }
       const id = await ctx.db.insert("urenRegistraties", {
         projectId: args.projectId,
@@ -449,7 +449,7 @@ export const create = mutation({
 
     if (args.type === "machine") {
       if (!args.machineId) {
-        throw new Error("Machine is verplicht voor machinekosten");
+        throw new ConvexError("Machine is verplicht voor machinekosten");
       }
       const id = await ctx.db.insert("machineGebruik", {
         projectId: args.projectId,
@@ -463,7 +463,7 @@ export const create = mutation({
 
     if (args.type === "materiaal") {
       if (!args.productId) {
-        throw new Error("Product is verplicht voor materiaalkosten");
+        throw new ConvexError("Product is verplicht voor materiaalkosten");
       }
       // Get or create voorraad entry
       let voorraad = await ctx.db
@@ -504,7 +504,7 @@ export const create = mutation({
       return { id: id.toString(), type: "materiaal", totaal };
     }
 
-    throw new Error("Ongeldig kostentype");
+    throw new ConvexError("Ongeldig kostentype");
   },
 });
 
@@ -533,7 +533,7 @@ export const update = mutation({
     if (args.type === "arbeid") {
       const uren = await ctx.db.get(args.id as Id<"urenRegistraties">);
       if (!uren || uren.projectId !== args.projectId) {
-        throw new Error("Urenregistratie niet gevonden");
+        throw new ConvexError("Urenregistratie niet gevonden");
       }
 
       const updates: Record<string, unknown> = {};
@@ -550,7 +550,7 @@ export const update = mutation({
     if (args.type === "machine") {
       const gebruik = await ctx.db.get(args.id as Id<"machineGebruik">);
       if (!gebruik || gebruik.projectId !== args.projectId) {
-        throw new Error("Machinegebruik niet gevonden");
+        throw new ConvexError("Machinegebruik niet gevonden");
       }
 
       const machine = await ctx.db.get(gebruik.machineId);
@@ -571,7 +571,7 @@ export const update = mutation({
     if (args.type === "materiaal") {
       const mutatie = await ctx.db.get(args.id as Id<"voorraadMutaties">);
       if (!mutatie || mutatie.projectId !== args.projectId) {
-        throw new Error("Materiaalverbruik niet gevonden");
+        throw new ConvexError("Materiaalverbruik niet gevonden");
       }
 
       const updates: Record<string, unknown> = {};
@@ -599,7 +599,7 @@ export const update = mutation({
       return { id: args.id, type: "materiaal" };
     }
 
-    throw new Error("Ongeldig kostentype");
+    throw new ConvexError("Ongeldig kostentype");
   },
 });
 
@@ -623,7 +623,7 @@ export const remove = mutation({
     if (args.type === "arbeid") {
       const uren = await ctx.db.get(args.id as Id<"urenRegistraties">);
       if (!uren || uren.projectId !== args.projectId) {
-        throw new Error("Urenregistratie niet gevonden");
+        throw new ConvexError("Urenregistratie niet gevonden");
       }
       await ctx.db.delete(args.id as Id<"urenRegistraties">);
       return { id: args.id, type: "arbeid" };
@@ -632,7 +632,7 @@ export const remove = mutation({
     if (args.type === "machine") {
       const gebruik = await ctx.db.get(args.id as Id<"machineGebruik">);
       if (!gebruik || gebruik.projectId !== args.projectId) {
-        throw new Error("Machinegebruik niet gevonden");
+        throw new ConvexError("Machinegebruik niet gevonden");
       }
       await ctx.db.delete(args.id as Id<"machineGebruik">);
       return { id: args.id, type: "machine" };
@@ -641,7 +641,7 @@ export const remove = mutation({
     if (args.type === "materiaal") {
       const mutatie = await ctx.db.get(args.id as Id<"voorraadMutaties">);
       if (!mutatie || mutatie.projectId !== args.projectId) {
-        throw new Error("Materiaalverbruik niet gevonden");
+        throw new ConvexError("Materiaalverbruik niet gevonden");
       }
 
       // Restore voorraad
@@ -657,7 +657,7 @@ export const remove = mutation({
       return { id: args.id, type: "materiaal" };
     }
 
-    throw new Error("Ongeldig kostentype");
+    throw new ConvexError("Ongeldig kostentype");
   },
 });
 

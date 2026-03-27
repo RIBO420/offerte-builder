@@ -7,7 +7,7 @@ import { z } from "zod";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -151,6 +151,9 @@ export function ToolboxForm({ open, onOpenChange, initialData }: ToolboxFormProp
       <DialogContent className="sm:max-w-[520px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEditMode ? "Toolbox meeting bewerken" : "Nieuwe toolbox meeting"}</DialogTitle>
+          <DialogDescription className="sr-only">
+            Formulier voor het toevoegen of bewerken van een toolbox meeting
+          </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">

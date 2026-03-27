@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useFormValidationSyncNested } from "@/hooks/use-scope-form-sync";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -64,29 +65,8 @@ export function SpecialsForm({ data, onChange, onValidationChange }: SpecialsFor
     return () => subscription.unsubscribe();
   }, [watch, onChange]);
 
-  // Notify parent of validation state changes (only when errors object changes)
-  useEffect(() => {
-    if (onValidationChange) {
-      const errorMessages: Record<string, string> = {};
-      if (errors.items) {
-        if (errors.items.message) {
-          errorMessages["items"] = errors.items.message;
-        }
-        if (Array.isArray(errors.items)) {
-          errors.items.forEach((itemError, index) => {
-            if (itemError?.type?.message) {
-              errorMessages[`items.${index}.type`] = itemError.type.message;
-            }
-            if (itemError?.omschrijving?.message) {
-              errorMessages[`items.${index}.omschrijving`] = itemError.omschrijving.message;
-            }
-          });
-        }
-      }
-      onValidationChange(isValid, errorMessages);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(errors), isValid]);
+  // Notify parent of validation state changes
+  useFormValidationSyncNested(errors, isValid, onValidationChange);
 
   const addItem = () => {
     if (!newItemOmschrijving.trim()) return;

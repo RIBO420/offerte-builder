@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import {
   Card,
   CardContent,
@@ -52,7 +52,7 @@ export function NormurenTab({
   reducedMotion,
 }: NormurenTabProps) {
   return (
-    <motion.div
+    <m.div
       key="normuren"
       initial={reducedMotion ? false : { opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
@@ -95,7 +95,7 @@ export function NormurenTab({
 
             {isNormurenLoading ? (
               <div className="flex items-center justify-center py-8">
-                <motion.div
+                <m.div
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   className="flex flex-col items-center gap-4"
@@ -107,7 +107,7 @@ export function NormurenTab({
                     </div>
                   </div>
                   <p className="text-muted-foreground animate-pulse">Laden...</p>
-                </motion.div>
+                </m.div>
               </div>
             ) : filteredNormuren.length > 0 ? (
               <Table>
@@ -123,7 +123,7 @@ export function NormurenTab({
                 </TableHeader>
                 <TableBody>
                   {filteredNormuren.map((normuur, index) => (
-                    <motion.tr
+                    <m.tr
                       key={normuur._id}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -167,7 +167,7 @@ export function NormurenTab({
                           </Button>
                         </div>
                       </TableCell>
-                    </motion.tr>
+                    </m.tr>
                   ))}
                 </TableBody>
               </Table>
@@ -189,6 +189,6 @@ export function NormurenTab({
           </CardContent>
         </Card>
       </TabsContent>
-    </motion.div>
+    </m.div>
   );
 }

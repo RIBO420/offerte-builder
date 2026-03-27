@@ -3,9 +3,12 @@
  *
  * Dit scherm wordt getoond aan gebruikers die biometric login hebben ingeschakeld.
  * Het biedt een snelle manier om in te loggen met Face ID of Touch ID.
+ *
+ * Na succesvolle biometric verificatie wordt de Clerk sessie hersteld via
+ * clerk.setActive() met de opgeslagen session ID.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,7 +18,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
+import { Fingerprint, ShieldCheck, Mail } from 'lucide-react-native';
 import { useAuth, useClerk } from '@clerk/clerk-expo';
 import {
   authenticateWithBiometric,
@@ -33,42 +36,20 @@ export default function BiometricLoginScreen() {
   const [biometricType, setBiometricType] = useState<BiometricType>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const hasInitialized = useRef(false);
 
   // Altijd hooks aanroepen (React rules of hooks)
   const authHook = useAuth();
-  const clerkHook = useClerk();
+  const clerk = useClerk();
 
   // Gebruik resultaat alleen als auth geconfigureerd is
   const isSignedIn = AUTH_CONFIGURED ? authHook.isSignedIn : false;
 
-  useEffect(() => {
-    initializeBiometric();
-  }, []);
-
-  // Als al ingelogd, redirect naar tabs
-  useEffect(() => {
-    if (isSignedIn) {
-      router.replace('/(tabs)');
-    }
-  }, [isSignedIn]);
-
-  const initializeBiometric = async () => {
-    try {
-      const type = await getBiometricType();
-      setBiometricType(type);
-
-      // Start automatisch biometric authenticatie
-      if (type) {
-        handleBiometricLogin();
-      }
-    } catch (error) {
-      console.error('[BiometricLogin] Init error:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleBiometricLogin = async () => {
+  /**
+   * Restore Clerk session using stored session ID after biometric verification.
+   * Falls back to regular login if session is expired or invalid.
+   */
+  const handleBiometricLogin = useCallback(async () => {
     if (isAuthenticating) return;
 
     setIsAuthenticating(true);
@@ -76,37 +57,34 @@ export default function BiometricLoginScreen() {
     try {
       const result = await authenticateWithBiometric();
 
-      if (result.success && result.token && result.userId) {
-        console.log('[BiometricLogin] Biometric success, validating session...');
+      if (result.success && result.sessionId && result.userId) {
+        // Biometric verification succeeded — try to restore the Clerk session
+        try {
+          await clerk.setActive({ session: result.sessionId });
 
-        // De opgeslagen token is een Clerk session token
-        // We moeten checken of deze nog geldig is
-
-        // Probeer de sessie te herstellen via Clerk
-        // Note: In production zou je hier een token refresh flow implementeren
-        // Voor nu redirecten we naar de app en laten Clerk de session valideren
-
-        // Als de gebruiker al ingelogd is via Clerk (sessie nog geldig)
-        if (isSignedIn) {
+          // Session restored successfully — navigate to the app
           router.replace('/(tabs)');
           return;
-        }
+        } catch (sessionError: any) {
+          console.warn(
+            '[BiometricLogin] Session restore failed, session may be expired:',
+            sessionError?.message || sessionError
+          );
 
-        // Als de sessie verlopen is, moeten we opnieuw inloggen
-        // Dit gebeurt automatisch omdat biometric tokens kunnen verlopen
-        Alert.alert(
-          'Sessie Verlopen',
-          'Je sessie is verlopen. Log opnieuw in met magic link.',
-          [
-            {
-              text: 'OK',
-              onPress: async () => {
-                await disableBiometric();
-                router.replace('/(auth)/login');
+          // Session is expired or invalid — clean up and redirect to login
+          await disableBiometric();
+          Alert.alert(
+            'Sessie Verlopen',
+            'Je sessie is verlopen. Log opnieuw in.',
+            [
+              {
+                text: 'OK',
+                onPress: () => router.replace('/(auth)/login'),
               },
-            },
-          ]
-        );
+            ]
+          );
+          return;
+        }
       } else {
         // Biometric authenticatie gefaald
         if (result.error === 'Authenticatie geannuleerd') {
@@ -117,7 +95,7 @@ export default function BiometricLoginScreen() {
         if (result.error === 'Sessie verlopen. Log opnieuw in.') {
           Alert.alert(
             'Sessie Verlopen',
-            'Je sessie is verlopen. Log opnieuw in met magic link.',
+            'Je sessie is verlopen. Log opnieuw in.',
             [
               {
                 text: 'OK',
@@ -140,7 +118,37 @@ export default function BiometricLoginScreen() {
     } finally {
       setIsAuthenticating(false);
     }
-  };
+  }, [isAuthenticating, clerk, router]);
+
+  const initializeBiometric = useCallback(async () => {
+    try {
+      const type = await getBiometricType();
+      setBiometricType(type);
+
+      // Start automatisch biometric authenticatie
+      if (type) {
+        handleBiometricLogin();
+      }
+    } catch (error) {
+      console.error('[BiometricLogin] Init error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [handleBiometricLogin]);
+
+  useEffect(() => {
+    if (!hasInitialized.current) {
+      hasInitialized.current = true;
+      initializeBiometric();
+    }
+  }, [initializeBiometric]);
+
+  // Als al ingelogd, redirect naar tabs
+  useEffect(() => {
+    if (isSignedIn) {
+      router.replace('/(tabs)');
+    }
+  }, [isSignedIn, router]);
 
   const handleUseEmail = async () => {
     // Optioneel: vraag bevestiging voordat we biometric uitschakelen
@@ -169,7 +177,7 @@ export default function BiometricLoginScreen() {
   }
 
   const biometricLabel = biometricType === 'face' ? 'Face ID' : 'Touch ID';
-  const biometricIcon = biometricType === 'face' ? 'shield' : 'smartphone';
+  const BiometricIcon = biometricType === 'face' ? ShieldCheck : Fingerprint;
 
   return (
     <View style={styles.container}>
@@ -179,7 +187,7 @@ export default function BiometricLoginScreen() {
 
         {/* Large centered icon */}
         <View style={styles.iconContainer}>
-          <Feather name={biometricIcon} size={64} color="#4ADE80" />
+          <BiometricIcon size={64} color="#4ADE80" />
         </View>
 
         {/* Title */}
@@ -200,7 +208,7 @@ export default function BiometricLoginScreen() {
           {isAuthenticating ? (
             <ActivityIndicator size="small" color="#4ADE80" style={{ marginRight: 8 }} />
           ) : (
-            <Feather name={biometricIcon} size={20} color="#4ADE80" style={{ marginRight: 8 }} />
+            <BiometricIcon size={20} color="#4ADE80" style={{ marginRight: 8 }} />
           )}
           <Text style={styles.biometricButtonText}>
             {isAuthenticating ? 'Verificatie...' : `Gebruik ${biometricLabel}`}
@@ -209,6 +217,7 @@ export default function BiometricLoginScreen() {
 
         {/* Skip link */}
         <TouchableOpacity style={styles.skipButton} onPress={handleUseEmail}>
+          <Mail size={14} color="#6B8F6B" style={{ marginRight: 6 }} />
           <Text style={styles.skipText}>Gebruik email</Text>
         </TouchableOpacity>
       </View>
@@ -273,6 +282,8 @@ const styles = StyleSheet.create({
     color: '#4ADE80',
   },
   skipButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 12,
     paddingHorizontal: 16,
   },

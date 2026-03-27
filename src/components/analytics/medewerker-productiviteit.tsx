@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, memo, useMemo } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -69,7 +69,7 @@ function CustomTooltip({ active, payload }: {
   const colors = getEfficiencyColor(item.efficiëntieRatio);
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, x: -10, scale: 0.95 }}
       animate={{ opacity: 1, x: 0, scale: 1 }}
       className="relative overflow-hidden rounded-xl border border-white/10 bg-card/95 backdrop-blur-xl p-4 shadow-2xl shadow-black/20 min-w-[200px]"
@@ -103,7 +103,7 @@ function CustomTooltip({ active, payload }: {
           </div>
         </div>
       </div>
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -111,49 +111,49 @@ function CustomTooltip({ active, payload }: {
 function RankBadge({ rank }: { rank: number }) {
   if (rank === 1) {
     return (
-      <motion.div
+      <m.div
         initial={{ scale: 0, rotate: -180 }}
         animate={{ scale: 1, rotate: 0 }}
         transition={{ duration: 0.5, type: "spring", delay: 0.1 }}
         className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-yellow-500 shadow-lg shadow-amber-500/40"
       >
         <Award className="h-3.5 w-3.5 text-white" />
-      </motion.div>
+      </m.div>
     );
   }
   if (rank === 2) {
     return (
-      <motion.div
+      <m.div
         initial={{ scale: 0, rotate: -180 }}
         animate={{ scale: 1, rotate: 0 }}
         transition={{ duration: 0.5, type: "spring", delay: 0.15 }}
         className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-slate-300 to-slate-400 shadow-lg shadow-slate-500/30"
       >
         <Star className="h-3.5 w-3.5 text-white" />
-      </motion.div>
+      </m.div>
     );
   }
   if (rank === 3) {
     return (
-      <motion.div
+      <m.div
         initial={{ scale: 0, rotate: -180 }}
         animate={{ scale: 1, rotate: 0 }}
         transition={{ duration: 0.5, type: "spring", delay: 0.2 }}
         className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-amber-600 to-orange-700 shadow-lg shadow-orange-500/30"
       >
         <Zap className="h-3.5 w-3.5 text-white" />
-      </motion.div>
+      </m.div>
     );
   }
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3, delay: 0.1 + rank * 0.05 }}
       className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-muted-foreground text-sm font-medium"
     >
       {rank}
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -203,7 +203,7 @@ export const MedewerkerProductiviteit = memo(function MedewerkerProductiviteit({
       {/* Summary KPI Cards */}
       <div className="grid gap-4 md:grid-cols-3">
         {/* Total Hours Card */}
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
@@ -233,10 +233,10 @@ export const MedewerkerProductiviteit = memo(function MedewerkerProductiviteit({
               </div>
             </CardContent>
           </Card>
-        </motion.div>
+        </m.div>
 
         {/* Average Efficiency Card */}
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.15 }}
@@ -263,10 +263,10 @@ export const MedewerkerProductiviteit = memo(function MedewerkerProductiviteit({
               </div>
             </CardContent>
           </Card>
-        </motion.div>
+        </m.div>
 
         {/* Active Projects Card */}
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
@@ -290,11 +290,11 @@ export const MedewerkerProductiviteit = memo(function MedewerkerProductiviteit({
               </div>
             </CardContent>
           </Card>
-        </motion.div>
+        </m.div>
       </div>
 
       {/* Bar Chart */}
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.25, ease: [0.16, 1, 0.3, 1] }}
@@ -322,12 +322,12 @@ export const MedewerkerProductiviteit = memo(function MedewerkerProductiviteit({
               >
                 <defs>
                   <linearGradient id={`declarabel-${gradientId}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="rgb(34, 197, 94)" stopOpacity={1} />
-                    <stop offset="100%" stopColor="rgb(22, 163, 74)" stopOpacity={0.8} />
+                    <stop offset="0%" stopColor="hsl(var(--chart-1))" stopOpacity={1} />
+                    <stop offset="100%" stopColor="hsl(var(--chart-1))" stopOpacity={0.7} />
                   </linearGradient>
                   <linearGradient id={`nietDeclarabel-${gradientId}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="rgb(148, 163, 184)" stopOpacity={0.6} />
-                    <stop offset="100%" stopColor="rgb(100, 116, 139)" stopOpacity={0.4} />
+                    <stop offset="0%" stopColor="hsl(var(--muted-foreground))" stopOpacity={0.5} />
+                    <stop offset="100%" stopColor="hsl(var(--muted-foreground))" stopOpacity={0.3} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid
@@ -338,7 +338,7 @@ export const MedewerkerProductiviteit = memo(function MedewerkerProductiviteit({
                 />
                 <XAxis
                   dataKey="naam"
-                  tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                  tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
                   axisLine={{ stroke: "hsl(var(--border))", strokeOpacity: 0.5 }}
                   tickLine={false}
                 />
@@ -376,10 +376,10 @@ export const MedewerkerProductiviteit = memo(function MedewerkerProductiviteit({
             </ResponsiveContainer>
           </CardContent>
         </Card>
-      </motion.div>
+      </m.div>
 
       {/* Employee Table */}
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
@@ -464,7 +464,7 @@ export const MedewerkerProductiviteit = memo(function MedewerkerProductiviteit({
             </Table>
           </CardContent>
         </Card>
-      </motion.div>
+      </m.div>
     </div>
   );
 });

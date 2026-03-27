@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { useMutation } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { toast } from "sonner";
@@ -112,7 +112,7 @@ export function HerinneringenTab({
   ]);
 
   return (
-    <motion.div
+    <m.div
       key="herinneringen"
       initial={reducedMotion ? false : { opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -372,6 +372,6 @@ export function HerinneringenTab({
           Opslaan
         </Button>
       </div>
-    </motion.div>
+    </m.div>
   );
 }

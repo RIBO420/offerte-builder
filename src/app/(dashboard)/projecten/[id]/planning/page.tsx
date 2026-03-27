@@ -264,16 +264,28 @@ export default function PlanningPage({
   const availableScopes = Object.keys(takenTemplates);
 
   // Handle start execution (transition to in_uitvoering)
-  const handleStartExecution = async () => {
+  const handleStartExecution = async (skipKlicCheck = false) => {
     setIsStartingExecution(true);
     try {
-      await updateProjectStatus({ id: projectId, status: "in_uitvoering" });
+      await updateProjectStatus({ id: projectId, status: "in_uitvoering", skipKlicCheck });
       toast.success("Project gestart! Je wordt doorgestuurd naar de uitvoering.");
       router.push(`/projecten/${id}/uitvoering`);
     } catch (error) {
-      toast.error("Fout bij starten uitvoering", {
-        description: error instanceof Error ? error.message : "Onbekende fout",
-      });
+      const errorMsg = error instanceof Error ? error.message : "Onbekende fout";
+      // If KLIC error, offer to skip the check
+      if (errorMsg.includes("KLIC-melding")) {
+        toast.error("KLIC-melding niet bevestigd", {
+          description: "Wil je de KLIC-melding overslaan en toch starten?",
+          action: {
+            label: "Toch starten",
+            onClick: () => handleStartExecution(true),
+          },
+        });
+      } else {
+        toast.error("Fout bij starten uitvoering", {
+          description: errorMsg,
+        });
+      }
       setIsStartingExecution(false);
       setShowStartExecutionDialog(false);
     }
@@ -680,7 +692,7 @@ export default function PlanningPage({
                   <AlertDialogFooter>
                     <AlertDialogCancel disabled={isStartingExecution}>Annuleren</AlertDialogCancel>
                     <AlertDialogAction
-                      onClick={handleStartExecution}
+                      onClick={() => handleStartExecution()}
                       disabled={isStartingExecution}
                       className="bg-green-600 hover:bg-green-700"
                     >

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, memo } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import { Sparkline } from "@/components/ui/sparkline";
@@ -62,7 +62,7 @@ function GlassKpiCard({
   prefersReducedMotion?: boolean;
 }) {
   return (
-    <motion.div
+    <m.div
       initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={prefersReducedMotion ? { duration: 0 } : {
@@ -91,7 +91,7 @@ function GlassKpiCard({
 
         {children}
       </Card>
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -119,14 +119,14 @@ export const KpiCards = memo(function KpiCards({ kpis }: KpiCardsProps) {
           <CardTitle className="text-sm font-medium text-muted-foreground">
             Win Rate
           </CardTitle>
-          <motion.div
+          <m.div
             initial={prefersReducedMotion ? { opacity: 1 } : { rotate: -180, opacity: 0 }}
             animate={{ rotate: 0, opacity: 1 }}
             transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.6, delay: 0.2 }}
             className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 shadow-optimized"
           >
             <Target className="h-4 w-4 text-white" />
-          </motion.div>
+          </m.div>
         </CardHeader>
         <CardContent className="space-y-2">
           <div className="flex items-baseline gap-1">
@@ -147,7 +147,7 @@ export const KpiCards = memo(function KpiCards({ kpis }: KpiCardsProps) {
               data={winRateTrend}
               width={60}
               height={24}
-              color="rgb(34, 197, 94)"
+              color="hsl(var(--chart-1))"
               showArea
               className="opacity-70"
             />
@@ -166,14 +166,14 @@ export const KpiCards = memo(function KpiCards({ kpis }: KpiCardsProps) {
           <CardTitle className="text-sm font-medium text-muted-foreground">
             Gem. Offerte Waarde
           </CardTitle>
-          <motion.div
+          <m.div
             initial={prefersReducedMotion ? { opacity: 1 } : { rotate: -180, opacity: 0 }}
             animate={{ rotate: 0, opacity: 1 }}
             transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.6, delay: 0.3 }}
             className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-cyan-600 shadow-optimized"
           >
             <Euro className="h-4 w-4 text-white" />
-          </motion.div>
+          </m.div>
         </CardHeader>
         <CardContent className="space-y-2">
           <div className="text-3xl font-bold bg-gradient-to-r from-blue-500 to-cyan-500 bg-clip-text text-transparent">
@@ -192,7 +192,7 @@ export const KpiCards = memo(function KpiCards({ kpis }: KpiCardsProps) {
               data={gemiddeldeWaardeTrend}
               width={60}
               height={24}
-              color="rgb(59, 130, 246)"
+              color="hsl(var(--chart-2))"
               showArea
               className="opacity-70"
             />
@@ -211,14 +211,14 @@ export const KpiCards = memo(function KpiCards({ kpis }: KpiCardsProps) {
           <CardTitle className="text-sm font-medium text-muted-foreground">
             Totale Omzet
           </CardTitle>
-          <motion.div
+          <m.div
             initial={prefersReducedMotion ? { opacity: 1 } : { rotate: -180, opacity: 0 }}
             animate={{ rotate: 0, opacity: 1 }}
             transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.6, delay: 0.4 }}
             className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 shadow-optimized"
           >
             <TrendingUp className="h-4 w-4 text-white" />
-          </motion.div>
+          </m.div>
         </CardHeader>
         <CardContent className="space-y-2">
           <div className="text-3xl font-bold bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent">
@@ -237,7 +237,7 @@ export const KpiCards = memo(function KpiCards({ kpis }: KpiCardsProps) {
               data={totaleOmzetTrend}
               width={60}
               height={24}
-              color="rgb(245, 158, 11)"
+              color="hsl(var(--chart-4))"
               showArea
               className="opacity-70"
             />
@@ -256,14 +256,14 @@ export const KpiCards = memo(function KpiCards({ kpis }: KpiCardsProps) {
           <CardTitle className="text-sm font-medium text-muted-foreground">
             Aantal Offertes
           </CardTitle>
-          <motion.div
+          <m.div
             initial={prefersReducedMotion ? { opacity: 1 } : { rotate: -180, opacity: 0 }}
             animate={{ rotate: 0, opacity: 1 }}
             transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.6, delay: 0.5 }}
             className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-purple-500 to-violet-600 shadow-optimized"
           >
             <FileText className="h-4 w-4 text-white" />
-          </motion.div>
+          </m.div>
         </CardHeader>
         <CardContent className="space-y-2">
           <div className="text-3xl font-bold bg-gradient-to-r from-purple-500 to-violet-500 bg-clip-text text-transparent">
@@ -281,7 +281,7 @@ export const KpiCards = memo(function KpiCards({ kpis }: KpiCardsProps) {
               data={totaalOffertesTrend}
               width={60}
               height={24}
-              color="rgb(168, 85, 247)"
+              color="hsl(var(--chart-3))"
               showArea
               className="opacity-70"
             />

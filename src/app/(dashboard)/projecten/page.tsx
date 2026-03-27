@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback, Suspense } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { useReducedMotion } from "@/hooks/use-accessibility";
 import { useDebounce } from "@/hooks/use-debounce";
 import { PageHeader } from "@/components/page-header";
@@ -275,14 +275,14 @@ function ProjectenPageContent() {
     <>
       <PageHeader />
 
-      <motion.div
+      <m.div
         initial={reducedMotion ? false : { opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: reducedMotion ? 0 : 0.5, ease: "easeOut" }}
         className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
       >
         {/* Header */}
-        <motion.div
+        <m.div
           initial={reducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{
@@ -306,11 +306,11 @@ function ProjectenPageContent() {
             sheetName="Projecten"
             disabled={!exportData || exportData.length === 0}
           />
-        </motion.div>
+        </m.div>
 
         {/* Accepted offertes without project */}
         {offertesZonderProject.length > 0 && (
-          <motion.div
+          <m.div
             initial={reducedMotion ? false : { opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{
@@ -345,11 +345,11 @@ function ProjectenPageContent() {
                 </div>
               </CardContent>
             </Card>
-          </motion.div>
+          </m.div>
         )}
 
         {/* Stats */}
-        <motion.div
+        <m.div
           initial={reducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{
@@ -390,10 +390,10 @@ function ProjectenPageContent() {
               </Card>
             );
           })}
-        </motion.div>
+        </m.div>
 
         {/* Search */}
-        <motion.div
+        <m.div
           initial={reducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{
@@ -422,10 +422,10 @@ function ProjectenPageContent() {
               hasActiveFilters={hasActiveFilters}
             />
           </div>
-        </motion.div>
+        </m.div>
 
         {/* Projects list */}
-        <motion.div
+        <m.div
           initial={reducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{
@@ -454,7 +454,7 @@ function ProjectenPageContent() {
             <TabsContent value={activeTab} className="space-y-6">
               <AnimatePresence mode="wait">
                 {isLoading ? (
-                  <motion.div
+                  <m.div
                     key="loading"
                     initial={reducedMotion ? false : { opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -463,9 +463,9 @@ function ProjectenPageContent() {
                     className="py-4"
                   >
                     <ListSkeleton count={5} />
-                  </motion.div>
+                  </m.div>
                 ) : displayedProjecten.length > 0 ? (
-                  <motion.div
+                  <m.div
                     key="content"
                     initial={reducedMotion ? false : { opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -531,9 +531,9 @@ function ProjectenPageContent() {
                         </div>
                       )}
                     </Card>
-                  </motion.div>
+                  </m.div>
                 ) : searchQuery ? (
-                  <motion.div
+                  <m.div
                     key="no-results"
                     initial={reducedMotion ? false : { opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -543,9 +543,9 @@ function ProjectenPageContent() {
                     transition={{ duration: reducedMotion ? 0 : 0.3 }}
                   >
                     <NoSearchResults onAction={() => setSearchQuery("")} />
-                  </motion.div>
+                  </m.div>
                 ) : (
-                  <motion.div
+                  <m.div
                     key="empty"
                     initial={reducedMotion ? false : { opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -555,13 +555,13 @@ function ProjectenPageContent() {
                     transition={{ duration: reducedMotion ? 0 : 0.3 }}
                   >
                     <NoProjecten onAction={() => router.push("/offertes?status=geaccepteerd")} />
-                  </motion.div>
+                  </m.div>
                 )}
               </AnimatePresence>
             </TabsContent>
           </Tabs>
-        </motion.div>
-      </motion.div>
+        </m.div>
+      </m.div>
     </>
   );
 }

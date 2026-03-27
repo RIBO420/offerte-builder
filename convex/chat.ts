@@ -5,11 +5,11 @@
  * Supports team channels, project-specific chat, and one-on-one direct messages.
  */
 
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { requireAuth, requireAuthUserId } from "./auth";
-import { requireNotViewer } from "./roles";
+import { requireNotViewer, getCompanyUserId, isAdminRole, normalizeRole, getUserRole } from "./roles";
 import {
   validateFile,
   MAX_FILE_SIZE_BYTES,
@@ -45,7 +45,7 @@ export const sendTeamMessage = mutation({
     if (args.attachmentType) {
       const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"];
       if (!allowedTypes.includes(args.attachmentType.toLowerCase())) {
-        throw new Error(
+        throw new ConvexError(
           `Bestandstype "${args.attachmentType}" is niet toegestaan. Alleen afbeeldingen (JPEG, PNG, GIF, WebP) en PDF bestanden zijn toegestaan.`
         );
       }
@@ -53,17 +53,37 @@ export const sendTeamMessage = mutation({
 
     // Validate project channel has projectId
     if (args.channelType === "project" && !args.projectId) {
-      throw new Error("Project ID is verplicht voor project kanaal");
+      throw new ConvexError("Project ID is verplicht voor project kanaal");
     }
 
-    // Verify project ownership if projectId provided
+    // Resolve company owner ID (admin for medewerkers, self for directie)
+    const companyId = await getCompanyUserId(ctx);
+
+    // Verify project access if projectId provided
     if (args.projectId) {
       const project = await ctx.db.get(args.projectId);
       if (!project) {
-        throw new Error("Project niet gevonden");
+        throw new ConvexError("Project niet gevonden");
       }
-      if (project.userId.toString() !== user._id.toString()) {
-        throw new Error("Geen toegang tot dit project");
+      // Project must belong to the same company
+      if (project.userId.toString() !== companyId.toString()) {
+        throw new ConvexError("Geen toegang tot dit project");
+      }
+      // For non-directie/projectleider roles, check medewerker assignment
+      const role = normalizeRole(user.role);
+      if (role !== "directie" && role !== "projectleider") {
+        const linkedMedewerkerId = user.linkedMedewerkerId;
+        const assigned = project.toegewezenMedewerkerIds ?? [];
+        const isAssigned =
+          linkedMedewerkerId &&
+          assigned.some(
+            (id) => id.toString() === linkedMedewerkerId.toString()
+          );
+        if (!isAssigned) {
+          throw new ConvexError(
+            "Je bent niet toegewezen aan dit project"
+          );
+        }
       }
     }
 
@@ -78,7 +98,8 @@ export const sendTeamMessage = mutation({
       senderId: user._id,
       senderName: user.name || "Onbekend",
       senderClerkId: user.clerkId,
-      companyId: user._id, // For mobile app, user is the company owner
+      senderRole: normalizeRole(user.role),
+      companyId,
       channelType: args.channelType,
       projectId: args.projectId,
       channelName,
@@ -97,7 +118,7 @@ export const sendTeamMessage = mutation({
       messageId: messageId.toString(),
       senderClerkId: user.clerkId,
       senderName: user.name || "Onbekend",
-      companyId: user._id.toString(),
+      companyId: companyId.toString(),
       channelType: args.channelType,
       channelName,
       projectId: args.projectId?.toString(),
@@ -125,13 +146,14 @@ export const getTeamMessages = query({
   },
   handler: async (ctx, args) => {
     const user = await requireAuth(ctx);
+    const companyId = await getCompanyUserId(ctx);
     const limit = args.limit || 50;
 
-    // Build query
+    // Build query using company owner ID so all team members see the same messages
     let messagesQuery = ctx.db
       .query("team_messages")
       .withIndex("by_channel", (q) =>
-        q.eq("companyId", user._id).eq("channelType", args.channelType)
+        q.eq("companyId", companyId).eq("channelType", args.channelType)
       );
 
     // Filter by projectId if provided
@@ -151,8 +173,17 @@ export const getTeamMessages = query({
     // Get messages in descending order, then reverse for ascending display
     const messages = await messagesQuery.order("desc").take(limit);
 
+    // Enrich messages with sender role (for old messages without senderRole)
+    const enriched = await Promise.all(
+      messages.map(async (msg) => {
+        if (msg.senderRole) return msg;
+        const sender = await ctx.db.get(msg.senderId);
+        return { ...msg, senderRole: normalizeRole(sender?.role) };
+      })
+    );
+
     // Return in ascending order (oldest first)
-    return messages.reverse();
+    return enriched.reverse();
   },
 });
 
@@ -171,12 +202,13 @@ export const markTeamMessagesAsRead = mutation({
   },
   handler: async (ctx, args) => {
     const user = await requireAuth(ctx);
+    const companyId = await getCompanyUserId(ctx);
 
     // Get all messages in this channel that the user hasn't read
     let messagesQuery = ctx.db
       .query("team_messages")
       .withIndex("by_channel", (q) =>
-        q.eq("companyId", user._id).eq("channelType", args.channelType)
+        q.eq("companyId", companyId).eq("channelType", args.channelType)
       )
       .filter((q) => q.neq(q.field("senderId"), user._id)); // Don't include own messages
 
@@ -212,11 +244,13 @@ export const getChannels = query({
   args: {},
   handler: async (ctx) => {
     const user = await requireAuth(ctx);
+    const companyId = await getCompanyUserId(ctx);
+    const role = await getUserRole(ctx);
 
-    // Get all projects for this user (for project channels)
-    const projects = await ctx.db
+    // Get all non-archived projects for this company
+    const allProjects = await ctx.db
       .query("projecten")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_user", (q) => q.eq("userId", companyId))
       .filter((q) =>
         q.or(
           q.eq(q.field("isArchived"), false),
@@ -225,11 +259,30 @@ export const getChannels = query({
       )
       .collect();
 
-    // Default channels
+    // Determine which projects to show based on role
+    let visibleProjects = allProjects;
+
+    if (role !== "directie" && role !== "projectleider") {
+      // For medewerkers/voorman/etc: only show projects they are assigned to
+      const linkedMedewerkerId = user.linkedMedewerkerId;
+      if (linkedMedewerkerId) {
+        visibleProjects = allProjects.filter((project) => {
+          const assigned = project.toegewezenMedewerkerIds ?? [];
+          return assigned.some(
+            (id) => id.toString() === linkedMedewerkerId.toString()
+          );
+        });
+      } else {
+        // No linked medewerker — no project channels
+        visibleProjects = [];
+      }
+    }
+
+    // Default channels (team and broadcast are visible to everyone)
     const channels: Array<{
       type: "team" | "project" | "broadcast";
       name: string;
-      projectId: typeof projects[0]["_id"] | undefined;
+      projectId: typeof allProjects[0]["_id"] | undefined;
     }> = [
       { type: "team", name: "Team Chat", projectId: undefined },
       {
@@ -239,8 +292,8 @@ export const getChannels = query({
       },
     ];
 
-    // Add project channels
-    for (const project of projects) {
+    // Add project channels for visible projects
+    for (const project of visibleProjects) {
       channels.push({
         type: "project",
         name: project.naam,
@@ -272,7 +325,7 @@ export const sendDirectMessage = mutation({
     if (args.attachmentType) {
       const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"];
       if (!allowedTypes.includes(args.attachmentType.toLowerCase())) {
-        throw new Error(
+        throw new ConvexError(
           `Bestandstype "${args.attachmentType}" is niet toegestaan. Alleen afbeeldingen (JPEG, PNG, GIF, WebP) en PDF bestanden zijn toegestaan.`
         );
       }
@@ -281,7 +334,18 @@ export const sendDirectMessage = mutation({
     // Get recipient user
     const toUser = await ctx.db.get(args.toUserId);
     if (!toUser) {
-      throw new Error("Ontvanger niet gevonden");
+      throw new ConvexError("Ontvanger niet gevonden");
+    }
+
+    const companyId = await getCompanyUserId(ctx);
+
+    // Medewerkers mogen alleen directe berichten sturen naar directie
+    if (!isAdminRole(normalizeRole(user.role))) {
+      if (args.toUserId.toString() !== companyId.toString()) {
+        throw new ConvexError(
+          "Als medewerker kun je alleen berichten sturen naar de directie."
+        );
+      }
     }
 
     const messageId = await ctx.db.insert("direct_messages", {
@@ -289,7 +353,7 @@ export const sendDirectMessage = mutation({
       fromClerkId: user.clerkId,
       toUserId: args.toUserId,
       toClerkId: toUser.clerkId,
-      companyId: user._id, // For mobile app, user is the company owner
+      companyId,
       message: args.message,
       messageType: args.messageType || "text",
       attachmentStorageId: args.attachmentStorageId,
@@ -493,11 +557,12 @@ export const getUnreadCounts = query({
   args: {},
   handler: async (ctx) => {
     const user = await requireAuth(ctx);
+    const companyId = await getCompanyUserId(ctx);
 
     // Count unread team messages (messages not in readBy array)
     const teamMessages = await ctx.db
       .query("team_messages")
-      .withIndex("by_company", (q) => q.eq("companyId", user._id))
+      .withIndex("by_company", (q) => q.eq("companyId", companyId))
       .filter((q) => q.neq(q.field("senderId"), user._id)) // Exclude own messages
       .collect();
 
@@ -671,38 +736,59 @@ export const getUsersForDM = query({
   args: {},
   handler: async (ctx) => {
     const user = await requireAuth(ctx);
+    const companyId = await getCompanyUserId(ctx);
 
-    // Get all active medewerkers for this user
+    // Get all active medewerkers for this company
     const medewerkers = await ctx.db
       .query("medewerkers")
       .withIndex("by_user_actief", (q) =>
-        q.eq("userId", user._id).eq("isActief", true)
+        q.eq("userId", companyId).eq("isActief", true)
       )
       .collect();
 
-    // Return only medewerkers with Clerk accounts (can receive messages)
+    // Build list of DM-able users (exclude current user)
     const usersWithAccounts = [];
-    for (const medewerker of medewerkers) {
-      if (medewerker.clerkUserId) {
-        // Get the user record for this medewerker
-        const medewerkerUser = await ctx.db
-          .query("users")
-          .withIndex("by_clerk_id", (q) =>
-            q.eq("clerkId", medewerker.clerkUserId!)
-          )
-          .unique();
 
-        if (medewerkerUser) {
-          usersWithAccounts.push({
-            userId: medewerkerUser._id,
-            medewerkerId: medewerker._id,
-            naam: medewerker.naam,
-            email: medewerker.email,
-            functie: medewerker.functie,
-          });
+    // Include the company owner (directie) if current user is not the owner
+    if (companyId.toString() !== user._id.toString()) {
+      const companyOwner = await ctx.db.get(companyId);
+      if (companyOwner) {
+        usersWithAccounts.push({
+          userId: companyOwner._id,
+          medewerkerId: undefined,
+          naam: companyOwner.name || "Directie",
+          email: companyOwner.email,
+          functie: "Directie",
+        });
+      }
+    }
+
+    // Only directie can DM other medewerkers; medewerkers can only DM directie
+    if (isAdminRole(normalizeRole(user.role))) {
+      // Directie: include all medewerkers with Clerk accounts
+      for (const medewerker of medewerkers) {
+        if (medewerker.clerkUserId) {
+          const medewerkerUser = await ctx.db
+            .query("users")
+            .withIndex("by_clerk_id", (q) =>
+              q.eq("clerkId", medewerker.clerkUserId!)
+            )
+            .unique();
+
+          // Skip current user
+          if (medewerkerUser && medewerkerUser._id.toString() !== user._id.toString()) {
+            usersWithAccounts.push({
+              userId: medewerkerUser._id,
+              medewerkerId: medewerker._id,
+              naam: medewerker.naam,
+              email: medewerker.email,
+              functie: medewerker.functie,
+            });
+          }
         }
       }
     }
+    // Medewerkers: only the company owner (directie) is shown, already added above
 
     return usersWithAccounts;
   },
@@ -723,6 +809,7 @@ export const searchMessages = query({
   },
   handler: async (ctx, args) => {
     const user = await requireAuth(ctx);
+    const companyId = await getCompanyUserId(ctx);
     const limit = args.limit || 20;
 
     // Use the search index for team messages
@@ -730,7 +817,7 @@ export const searchMessages = query({
       .query("team_messages")
       .withSearchIndex("search_messages", (q) => {
         let search = q.search("message", args.searchQuery);
-        search = search.eq("companyId", user._id);
+        search = search.eq("companyId", companyId);
         if (args.channelType) {
           search = search.eq("channelType", args.channelType);
         }
@@ -753,18 +840,19 @@ export const deleteTeamMessage = mutation({
   },
   handler: async (ctx, args) => {
     const user = await requireNotViewer(ctx);
+    const companyId = await getCompanyUserId(ctx);
 
     const message = await ctx.db.get(args.messageId);
     if (!message) {
-      throw new Error("Bericht niet gevonden");
+      throw new ConvexError("Bericht niet gevonden");
     }
 
-    // Only sender or company owner can delete
+    // Only sender or company owner (directie) can delete
     if (
       message.senderId.toString() !== user._id.toString() &&
-      message.companyId.toString() !== user._id.toString()
+      message.companyId.toString() !== companyId.toString()
     ) {
-      throw new Error("Geen toegang om dit bericht te verwijderen");
+      throw new ConvexError("Geen toegang om dit bericht te verwijderen");
     }
 
     await ctx.db.delete(args.messageId);
@@ -784,12 +872,12 @@ export const deleteDirectMessage = mutation({
 
     const message = await ctx.db.get(args.messageId);
     if (!message) {
-      throw new Error("Bericht niet gevonden");
+      throw new ConvexError("Bericht niet gevonden");
     }
 
     // Only sender can delete
     if (message.fromUserId.toString() !== user._id.toString()) {
-      throw new Error("Alleen de afzender kan dit bericht verwijderen");
+      throw new ConvexError("Alleen de afzender kan dit bericht verwijderen");
     }
 
     await ctx.db.delete(args.messageId);
@@ -812,18 +900,18 @@ export const editTeamMessage = mutation({
 
     const message = await ctx.db.get(args.messageId);
     if (!message) {
-      throw new Error("Bericht niet gevonden");
+      throw new ConvexError("Bericht niet gevonden");
     }
 
     // Only sender can edit
     if (message.senderId.toString() !== user._id.toString()) {
-      throw new Error("Alleen de afzender kan dit bericht bewerken");
+      throw new ConvexError("Alleen de afzender kan dit bericht bewerken");
     }
 
     // Check time limit (e.g., 15 minutes)
     const EDIT_TIME_LIMIT = 15 * 60 * 1000; // 15 minutes in milliseconds
     if (Date.now() - message.createdAt > EDIT_TIME_LIMIT) {
-      throw new Error(
+      throw new ConvexError(
         "Bericht kan niet meer worden bewerkt (tijdslimiet verstreken)"
       );
     }
@@ -858,7 +946,7 @@ export const validateFileUpload = mutation({
     const validation = validateFile(args.fileName, args.mimeType, args.fileSize);
 
     if (!validation.valid) {
-      throw new Error(validation.error || "Bestand validatie mislukt");
+      throw new ConvexError(validation.error || "Bestand validatie mislukt");
     }
 
     return {
@@ -887,7 +975,7 @@ export const generateUploadUrl = mutation({
     const validation = validateFile(args.fileName, args.mimeType, args.fileSize);
 
     if (!validation.valid) {
-      throw new Error(validation.error || "Bestand validatie mislukt");
+      throw new ConvexError(validation.error || "Bestand validatie mislukt");
     }
 
     // Generate the upload URL
@@ -918,16 +1006,17 @@ export const registerChatAttachment = mutation({
     if (!validation.valid) {
       // Delete the uploaded file if validation fails
       await ctx.storage.delete(args.storageId);
-      throw new Error(validation.error || "Bestand validatie mislukt");
+      throw new ConvexError(validation.error || "Bestand validatie mislukt");
     }
 
     // Register the attachment
+    const companyId = await getCompanyUserId(ctx);
     const attachmentId = await ctx.db.insert("chat_attachments", {
       storageId: args.storageId,
       messageId: args.messageId,
       directMessageId: args.directMessageId,
       userId: user._id,
-      companyId: user._id,
+      companyId,
       fileName: args.fileName,
       fileType: args.fileType,
       fileSize: args.fileSize,

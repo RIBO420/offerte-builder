@@ -15,7 +15,7 @@ import {
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
-import { toast } from "sonner";
+import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import { KanbanColumn } from "./kanban-column";
 import { LeadCard } from "./lead-card";
 import { VerliesRedenDialog } from "./verlies-reden-dialog";
@@ -114,7 +114,7 @@ export function KanbanBoard({ leads, onLeadClick }: KanbanBoardProps) {
 
     // Block dragging FROM gewonnen
     if (sourceColumn === "gewonnen") {
-      toast.error("Een gewonnen lead kan niet terug naar een eerdere status");
+      showErrorToast("Een gewonnen lead kan niet terug naar een eerdere status");
       return;
     }
 
@@ -124,7 +124,7 @@ export function KanbanBoard({ leads, onLeadClick }: KanbanBoardProps) {
     try {
       if (targetColumn === "gewonnen") {
         await markGewonnen({ id: leadId });
-        toast.success("Lead gemarkeerd als gewonnen");
+        showSuccessToast("Lead gemarkeerd als gewonnen");
       } else if (targetColumn === "verloren") {
         // Open dialog instead of calling mutation directly
         setPendingVerliesLeadId(leadId);
@@ -136,7 +136,7 @@ export function KanbanBoard({ leads, onLeadClick }: KanbanBoardProps) {
         });
       }
     } catch (error) {
-      toast.error(
+      showErrorToast(
         error instanceof Error
           ? error.message
           : "Er ging iets mis bij het verplaatsen"
@@ -154,9 +154,9 @@ export function KanbanBoard({ leads, onLeadClick }: KanbanBoardProps) {
         pipelineStatus: "verloren",
         verliesReden: reden,
       });
-      toast.success("Lead gemarkeerd als verloren");
+      showSuccessToast("Lead gemarkeerd als verloren");
     } catch (error) {
-      toast.error(
+      showErrorToast(
         error instanceof Error
           ? error.message
           : "Er ging iets mis bij het markeren als verloren"

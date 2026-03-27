@@ -1,5 +1,5 @@
-import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { v, ConvexError } from "convex/values";
+import { mutation, query, internalMutation } from "./_generated/server";
 import { requireAuthUserId, getOwnedOfferte } from "./auth";
 import { requireNotViewer } from "./roles";
 
@@ -46,7 +46,10 @@ export const create = mutation({
     status: v.union(
       v.literal("verzonden"),
       v.literal("mislukt"),
-      v.literal("geopend")
+      v.literal("geopend"),
+      v.literal("delivered"),
+      v.literal("bounced"),
+      v.literal("complained")
     ),
     resendId: v.optional(v.string()),
     error: v.optional(v.string()),
@@ -74,6 +77,46 @@ export const create = mutation({
   },
 });
 
+// Create email log entry (internal — no auth required, for cron jobs/actions)
+export const createInternal = internalMutation({
+  args: {
+    offerteId: v.id("offertes"),
+    userId: v.id("users"),
+    type: v.union(
+      v.literal("offerte_verzonden"),
+      v.literal("herinnering"),
+      v.literal("bedankt"),
+      v.literal("factuur_verzonden"),
+      v.literal("factuur_herinnering")
+    ),
+    to: v.string(),
+    subject: v.string(),
+    status: v.union(
+      v.literal("verzonden"),
+      v.literal("mislukt"),
+      v.literal("geopend"),
+      v.literal("delivered"),
+      v.literal("bounced"),
+      v.literal("complained")
+    ),
+    resendId: v.optional(v.string()),
+    error: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.insert("email_logs", {
+      offerteId: args.offerteId,
+      userId: args.userId,
+      type: args.type,
+      to: args.to,
+      subject: args.subject,
+      status: args.status,
+      resendId: args.resendId,
+      error: args.error,
+      createdAt: Date.now(),
+    });
+  },
+});
+
 // Update email log status (with ownership verification)
 export const updateStatus = mutation({
   args: {
@@ -81,7 +124,10 @@ export const updateStatus = mutation({
     status: v.union(
       v.literal("verzonden"),
       v.literal("mislukt"),
-      v.literal("geopend")
+      v.literal("geopend"),
+      v.literal("delivered"),
+      v.literal("bounced"),
+      v.literal("complained")
     ),
     openedAt: v.optional(v.number()),
   },
@@ -92,10 +138,10 @@ export const updateStatus = mutation({
     // Get the log and verify ownership
     const log = await ctx.db.get(args.id);
     if (!log) {
-      throw new Error("Email log niet gevonden");
+      throw new ConvexError("Email log niet gevonden");
     }
     if (log.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot deze email log");
+      throw new ConvexError("Geen toegang tot deze email log");
     }
 
     const { id, ...updates } = args;
@@ -119,9 +165,97 @@ export const getOfferteEmailStats = query({
     return {
       total: logs.length,
       verzonden: logs.filter((l) => l.status === "verzonden").length,
+      delivered: logs.filter((l) => l.status === "delivered").length,
       geopend: logs.filter((l) => l.status === "geopend").length,
       mislukt: logs.filter((l) => l.status === "mislukt").length,
+      bounced: logs.filter((l) => l.status === "bounced").length,
       laatsteEmail: logs[0] ?? null,
     };
+  },
+});
+
+// ── Webhook mutations ────────────────────────────────────────────────────
+
+/**
+ * Update email log from Resend webhook event.
+ * Called by the /api/webhooks/resend route handler after signature verification.
+ * This mutation does not require user auth — security is handled by
+ * the webhook endpoint's Svix signature verification.
+ */
+export const updateFromWebhook = mutation({
+  args: {
+    resendId: v.string(),
+    eventType: v.union(
+      v.literal("email.delivered"),
+      v.literal("email.opened"),
+      v.literal("email.bounced"),
+      v.literal("email.clicked"),
+      v.literal("email.complained")
+    ),
+    timestamp: v.number(),
+  },
+  handler: async (ctx, args) => {
+    // Find the email log by resendId
+    const log = await ctx.db
+      .query("email_logs")
+      .withIndex("by_resendId", (q) => q.eq("resendId", args.resendId))
+      .first();
+
+    if (!log) {
+      // No matching log found — this can happen if the email was sent
+      // before we started tracking resendIds, or for non-offerte emails.
+      console.warn(
+        `[emailLogs/webhook] No email log found for resendId: ${args.resendId}`
+      );
+      return null;
+    }
+
+    switch (args.eventType) {
+      case "email.delivered": {
+        // Only update if not already in a more advanced state
+        if (log.status === "verzonden") {
+          await ctx.db.patch(log._id, {
+            status: "delivered",
+            deliveredAt: args.timestamp,
+          });
+        }
+        break;
+      }
+
+      case "email.opened": {
+        // Set openedAt only on first open, update status
+        await ctx.db.patch(log._id, {
+          status: "geopend",
+          // Only set openedAt if not already set (first open)
+          ...(log.openedAt ? {} : { openedAt: args.timestamp }),
+        });
+        break;
+      }
+
+      case "email.bounced": {
+        await ctx.db.patch(log._id, {
+          status: "bounced",
+          bouncedAt: args.timestamp,
+        });
+        break;
+      }
+
+      case "email.clicked": {
+        // Set clickedAt only on first click
+        await ctx.db.patch(log._id, {
+          ...(log.clickedAt ? {} : { clickedAt: args.timestamp }),
+        });
+        break;
+      }
+
+      case "email.complained": {
+        await ctx.db.patch(log._id, {
+          status: "complained",
+        });
+        break;
+      }
+    }
+
+    return log._id;
   },
 });

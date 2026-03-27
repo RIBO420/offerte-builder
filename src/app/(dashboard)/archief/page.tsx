@@ -2,9 +2,9 @@
 
 import { useState, useMemo, Suspense } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { useReducedMotion } from "@/hooks/use-accessibility";
-import { RequireAdmin } from "@/components/require-admin";
+import { RequireRole } from "@/components/require-admin";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -208,7 +208,7 @@ function ArchivedProjectCard({ project }: { project: ArchivedProject }) {
         <CollapsibleContent>
           <AnimatePresence>
             {isOpen && (
-              <motion.div
+              <m.div
                 initial={reducedMotion ? false : { opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={reducedMotion ? undefined : { opacity: 0, height: 0 }}
@@ -359,7 +359,7 @@ function ArchivedProjectCard({ project }: { project: ArchivedProject }) {
                     </div>
                   )}
                 </CardContent>
-              </motion.div>
+              </m.div>
             )}
           </AnimatePresence>
         </CollapsibleContent>
@@ -386,11 +386,11 @@ function EmptyArchive() {
 
 export default function ArchiefPage() {
   return (
-    <RequireAdmin>
+    <RequireRole allowedRoles={["directie", "projectleider"]}>
       <Suspense fallback={<ArchiefPageLoader />}>
         <ArchiefPageContent />
       </Suspense>
-    </RequireAdmin>
+    </RequireRole>
   );
 }
 
@@ -484,14 +484,14 @@ function ArchiefPageContent() {
         </Breadcrumb>
       </header>
 
-      <motion.div
+      <m.div
         initial={reducedMotion ? false : { opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: reducedMotion ? 0 : 0.5, ease: "easeOut" }}
         className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
       >
         {/* Header */}
-        <motion.div
+        <m.div
           initial={reducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{
@@ -505,10 +505,10 @@ function ArchiefPageContent() {
           <p className="text-muted-foreground">
             Voltooide projecten en hun documenten
           </p>
-        </motion.div>
+        </m.div>
 
         {/* Stats Cards */}
-        <motion.div
+        <m.div
           initial={reducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{
@@ -554,10 +554,10 @@ function ArchiefPageContent() {
               </div>
             </CardContent>
           </Card>
-        </motion.div>
+        </m.div>
 
         {/* Search */}
-        <motion.div
+        <m.div
           initial={reducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{
@@ -574,10 +574,10 @@ function ArchiefPageContent() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-        </motion.div>
+        </m.div>
 
         {/* Projects List */}
-        <motion.div
+        <m.div
           initial={reducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{
@@ -588,7 +588,7 @@ function ArchiefPageContent() {
         >
           <AnimatePresence mode="wait">
             {isLoading ? (
-              <motion.div
+              <m.div
                 key="loading"
                 initial={reducedMotion ? false : { opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -597,9 +597,9 @@ function ArchiefPageContent() {
                 className="flex items-center justify-center py-20"
               >
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              </motion.div>
+              </m.div>
             ) : filteredProjects.length > 0 ? (
-              <motion.div
+              <m.div
                 key="content"
                 initial={reducedMotion ? false : { opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -608,7 +608,7 @@ function ArchiefPageContent() {
                 className="space-y-4"
               >
                 {filteredProjects.map((project, index) => (
-                  <motion.div
+                  <m.div
                     key={project._id}
                     initial={reducedMotion ? false : { opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -618,11 +618,11 @@ function ArchiefPageContent() {
                     }}
                   >
                     <ArchivedProjectCard project={project} />
-                  </motion.div>
+                  </m.div>
                 ))}
-              </motion.div>
+              </m.div>
             ) : searchQuery ? (
-              <motion.div
+              <m.div
                 key="no-results"
                 initial={reducedMotion ? false : { opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -644,9 +644,9 @@ function ArchiefPageContent() {
                     </Button>
                   </CardContent>
                 </Card>
-              </motion.div>
+              </m.div>
             ) : (
-              <motion.div
+              <m.div
                 key="empty"
                 initial={reducedMotion ? false : { opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -654,11 +654,11 @@ function ArchiefPageContent() {
                 transition={{ duration: reducedMotion ? 0 : 0.3 }}
               >
                 <EmptyArchive />
-              </motion.div>
+              </m.div>
             )}
           </AnimatePresence>
-        </motion.div>
-      </motion.div>
+        </m.div>
+      </m.div>
     </>
   );
 }

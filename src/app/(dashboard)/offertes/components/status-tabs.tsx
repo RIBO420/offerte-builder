@@ -107,7 +107,8 @@ export function StatusTabs({
 
   // Initialize view mode from localStorage / screen width on mount
   useEffect(() => {
-    setTimeout(() => setViewMode(getDefaultViewMode()), 0);
+    const id = setTimeout(() => setViewMode(getDefaultViewMode()), 0);
+    return () => clearTimeout(id);
   }, []);
 
   const handleViewModeToggle = useCallback((mode: ViewMode) => {

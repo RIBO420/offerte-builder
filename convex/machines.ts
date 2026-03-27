@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
 import { requireNotViewer } from "./roles";
@@ -91,10 +91,10 @@ export const update = mutation({
     // Verify ownership
     const machine = await ctx.db.get(args.id);
     if (!machine) {
-      throw new Error("Machine niet gevonden");
+      throw new ConvexError("Machine niet gevonden");
     }
     if (machine.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot deze machine");
+      throw new ConvexError("Geen toegang tot deze machine");
     }
 
     const { id, ...updates } = args;
@@ -121,10 +121,10 @@ export const remove = mutation({
     // Verify ownership
     const machine = await ctx.db.get(args.id);
     if (!machine) {
-      throw new Error("Machine niet gevonden");
+      throw new ConvexError("Machine niet gevonden");
     }
     if (machine.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot deze machine");
+      throw new ConvexError("Geen toegang tot deze machine");
     }
 
     await ctx.db.patch(args.id, {
@@ -144,10 +144,10 @@ export const hardDelete = mutation({
     // Verify ownership
     const machine = await ctx.db.get(args.id);
     if (!machine) {
-      throw new Error("Machine niet gevonden");
+      throw new ConvexError("Machine niet gevonden");
     }
     if (machine.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot deze machine");
+      throw new ConvexError("Geen toegang tot deze machine");
     }
 
     await ctx.db.delete(args.id);

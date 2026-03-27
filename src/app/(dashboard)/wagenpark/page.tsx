@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo, Suspense } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useRouter, useSearchParams } from "next/navigation";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { useTabState } from "@/hooks/use-tab-state";
 import { Pagination } from "@/components/ui/pagination";
 import {
@@ -525,7 +525,7 @@ function WagenparkPageContent() {
         </Breadcrumb>
       </header>
 
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
@@ -734,7 +734,7 @@ function WagenparkPageContent() {
             )}
           </CardContent>
         </Card>
-      </motion.div>
+      </m.div>
 
       {/* Add Dialog */}
       <VoertuigForm

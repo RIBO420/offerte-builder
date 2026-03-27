@@ -5,6 +5,7 @@
  */
 
 import * as Sentry from "@sentry/nextjs";
+import { ConvexError } from "convex/values";
 
 // Custom error types for better categorization
 export class AppError extends Error {
@@ -252,6 +253,19 @@ export function createBackgroundErrorHandler(
 
 // Toast-friendly error handler for mutations
 export function getMutationErrorMessage(error: unknown): string {
+  // Handle ConvexError — thrown by server-side ConvexError(message)
+  // The client receives it with the message in the `data` property
+  if (error instanceof ConvexError) {
+    const data = error.data;
+    if (typeof data === "string") {
+      return data;
+    }
+    // If data is an object with a message field, extract it
+    if (data && typeof data === "object" && "message" in data && typeof (data as Record<string, unknown>).message === "string") {
+      return (data as Record<string, unknown>).message as string;
+    }
+  }
+
   // Convex errors often have a message property
   if (error instanceof Error) {
     // Check for Convex validation errors

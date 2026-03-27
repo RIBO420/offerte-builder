@@ -23,6 +23,9 @@ import {
   Clock,
   AlertCircle,
   Activity,
+  MailCheck,
+  MailX,
+  MousePointerClick,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -30,8 +33,11 @@ import { cn } from "@/lib/utils";
 
 type TimelineEventType =
   | "email_verzonden"
+  | "email_delivered"
   | "email_geopend"
   | "email_mislukt"
+  | "email_bounced"
+  | "email_clicked"
   | "offerte_bekeken"
   | "offerte_geaccepteerd"
   | "offerte_afgewezen"
@@ -55,6 +61,9 @@ interface EmailLog {
   status: string;
   createdAt: number;
   openedAt?: number;
+  deliveredAt?: number;
+  bouncedAt?: number;
+  clickedAt?: number;
 }
 
 interface OfferteVersion {
@@ -136,38 +145,80 @@ export function EngagementTimeline({
       // Email sent
       items.push({
         id: `email-sent-${log._id}`,
-        type: log.status === "mislukt" ? "email_mislukt" : "email_verzonden",
+        type: log.status === "mislukt" ? "email_mislukt" :
+              log.status === "bounced" ? "email_bounced" : "email_verzonden",
         description:
           log.status === "mislukt"
             ? `${typeLabel} verzenden mislukt naar ${log.to}`
-            : `${typeLabel} verstuurd naar ${log.to}`,
+            : log.status === "bounced"
+              ? `${typeLabel} kon niet worden afgeleverd bij ${log.to}`
+              : `${typeLabel} verstuurd naar ${log.to}`,
         timestamp: log.createdAt,
         icon:
-          log.status === "mislukt" ? (
+          log.status === "mislukt" || log.status === "bounced" ? (
             <AlertCircle className="h-3.5 w-3.5" />
           ) : (
             <Mail className="h-3.5 w-3.5" />
           ),
         iconColor:
-          log.status === "mislukt"
+          log.status === "mislukt" || log.status === "bounced"
             ? "text-red-500"
             : "text-blue-500",
         dotColor:
-          log.status === "mislukt"
+          log.status === "mislukt" || log.status === "bounced"
             ? "bg-red-500"
             : "bg-blue-500",
       });
 
+      // Email delivered
+      if (log.deliveredAt) {
+        items.push({
+          id: `email-delivered-${log._id}`,
+          type: "email_delivered",
+          description: `${typeLabel} afgeleverd`,
+          timestamp: log.deliveredAt,
+          icon: <MailCheck className="h-3.5 w-3.5" />,
+          iconColor: "text-green-500",
+          dotColor: "bg-green-500",
+        });
+      }
+
       // Email opened
-      if (log.status === "geopend" && log.openedAt) {
+      if (log.openedAt) {
         items.push({
           id: `email-opened-${log._id}`,
           type: "email_geopend",
-          description: "Email geopend",
+          description: `${typeLabel} geopend`,
           timestamp: log.openedAt,
           icon: <Eye className="h-3.5 w-3.5" />,
           iconColor: "text-purple-500",
           dotColor: "bg-purple-500",
+        });
+      }
+
+      // Email clicked
+      if (log.clickedAt) {
+        items.push({
+          id: `email-clicked-${log._id}`,
+          type: "email_clicked",
+          description: `Link in ${typeLabel.toLowerCase()} aangeklikt`,
+          timestamp: log.clickedAt,
+          icon: <MousePointerClick className="h-3.5 w-3.5" />,
+          iconColor: "text-indigo-500",
+          dotColor: "bg-indigo-500",
+        });
+      }
+
+      // Email bounced
+      if (log.bouncedAt) {
+        items.push({
+          id: `email-bounced-${log._id}`,
+          type: "email_bounced",
+          description: `${typeLabel} geweigerd door mailserver`,
+          timestamp: log.bouncedAt,
+          icon: <MailX className="h-3.5 w-3.5" />,
+          iconColor: "text-red-500",
+          dotColor: "bg-red-500",
         });
       }
     }

@@ -2,21 +2,21 @@
 
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { shimmer, staggerContainer, fadeInUp } from "./skeleton-animations";
 
 // Table Row Skeleton
 export function TableRowSkeleton({ columns = 8 }: { columns?: number }) {
   return (
-    <motion.tr className="border-b" variants={fadeInUp}>
+    <m.tr className="border-b" variants={fadeInUp}>
       {Array.from({ length: columns }).map((_, i) => (
         <td key={i} className="p-4">
-          <motion.div {...shimmer}>
+          <m.div {...shimmer}>
             <Skeleton className="h-5 w-full max-w-[120px]" />
-          </motion.div>
+          </m.div>
         </td>
       ))}
-    </motion.tr>
+    </m.tr>
   );
 }
 
@@ -40,7 +40,7 @@ export function OffertesTableSkeleton({ rows = 5 }: { rows?: number }) {
               <th className="p-4 w-[50px]"></th>
             </tr>
           </thead>
-          <motion.tbody
+          <m.tbody
             variants={staggerContainer}
             initial="initial"
             animate="animate"
@@ -48,7 +48,7 @@ export function OffertesTableSkeleton({ rows = 5 }: { rows?: number }) {
             {Array.from({ length: rows }).map((_, i) => (
               <TableRowSkeleton key={i} columns={9} />
             ))}
-          </motion.tbody>
+          </m.tbody>
         </table>
       </div>
     </Card>
@@ -71,7 +71,7 @@ export function TableSkeleton({ rows = 5, columns = 6 }: { rows?: number; column
               ))}
             </tr>
           </thead>
-          <motion.tbody
+          <m.tbody
             variants={staggerContainer}
             initial="initial"
             animate="animate"
@@ -79,7 +79,7 @@ export function TableSkeleton({ rows = 5, columns = 6 }: { rows?: number; column
             {Array.from({ length: rows }).map((_, i) => (
               <TableRowSkeleton key={i} columns={columns} />
             ))}
-          </motion.tbody>
+          </m.tbody>
         </table>
       </div>
     </Card>

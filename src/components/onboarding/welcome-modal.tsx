@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import {
   Dialog,
   DialogContent,
@@ -56,14 +56,14 @@ export function WelcomeModal({ open, onClose, userName }: WelcomeModalProps) {
         showCloseButton={false}
       >
         <DialogHeader className="text-center sm:text-center">
-          <motion.div
+          <m.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ type: "spring", delay: 0.1 }}
             className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-100 dark:bg-emerald-900/30"
           >
             <Sparkles className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
-          </motion.div>
+          </m.div>
           <DialogTitle className="text-2xl">
             Welkom{userName ? `, ${userName}` : ""}!
           </DialogTitle>
@@ -75,7 +75,7 @@ export function WelcomeModal({ open, onClose, userName }: WelcomeModalProps) {
 
         <div className="my-6 grid gap-3">
           {features.map((feature, index) => (
-            <motion.div
+            <m.div
               key={feature.title}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -91,7 +91,7 @@ export function WelcomeModal({ open, onClose, userName }: WelcomeModalProps) {
                   {feature.description}
                 </p>
               </div>
-            </motion.div>
+            </m.div>
           ))}
         </div>
 

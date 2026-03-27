@@ -338,7 +338,7 @@ export function VoertuigForm({
               />
 
               {/* Merk en Model */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <FormField
                   control={form.control}
                   name="merk"
@@ -409,7 +409,7 @@ export function VoertuigForm({
               />
 
               {/* Bouwjaar en Kleur */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <FormField
                   control={form.control}
                   name="bouwjaar"
@@ -601,7 +601,7 @@ export function VoertuigForm({
                 />
 
                 {/* Verzekeraar en Polisnummer */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-4 sm:grid-cols-2">
                   <FormField
                     control={form.control}
                     name="verzekeraar"

@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
 import { requireNotViewer } from "./roles";
@@ -87,10 +87,10 @@ export const update = mutation({
     // Verify ownership
     const normuur = await ctx.db.get(args.id);
     if (!normuur) {
-      throw new Error("Normuur niet gevonden");
+      throw new ConvexError("Normuur niet gevonden");
     }
     if (normuur.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot deze normuur");
+      throw new ConvexError("Geen toegang tot deze normuur");
     }
 
     const { id, ...updates } = args;
@@ -117,10 +117,10 @@ export const remove = mutation({
     // Verify ownership
     const normuur = await ctx.db.get(args.id);
     if (!normuur) {
-      throw new Error("Normuur niet gevonden");
+      throw new ConvexError("Normuur niet gevonden");
     }
     if (normuur.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot deze normuur");
+      throw new ConvexError("Geen toegang tot deze normuur");
     }
 
     await ctx.db.delete(args.id);

@@ -24,6 +24,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { restrictToVerticalAxis, restrictToParentElement } from "@dnd-kit/modifiers";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { DragAnnouncements } from "./drag-handle";
 
@@ -367,9 +368,40 @@ export function SortableList<T extends SortableItem>({
     </SortableContext>
   );
 
+  const overlayContent = (
+    <DragOverlay>
+      {activeItem && activeId !== null ? (
+        <div className="opacity-90 shadow-lg">
+          {renderDragOverlay
+            ? renderDragOverlay(activeItem)
+            : renderItem(
+                activeItem,
+                {
+                  setNodeRef: () => {},
+                  style: {},
+                  listeners: undefined,
+                  attributes: defaultAttributes,
+                  isDragging: true,
+                  isOver: false,
+                  id: activeId,
+                },
+                items.findIndex((item) => item.id === activeId)
+              )}
+        </div>
+      ) : null}
+    </DragOverlay>
+  );
+
+  // In inline/table mode, portal DragAnnouncements and DragOverlay to document.body
+  // to avoid invalid HTML nesting (div inside tbody)
+  const portalTarget = inline && typeof document !== "undefined" ? document.body : null;
+
   return (
     <>
-      <DragAnnouncements>{announcement}</DragAnnouncements>
+      {portalTarget
+        ? createPortal(<DragAnnouncements>{announcement}</DragAnnouncements>, portalTarget)
+        : <DragAnnouncements>{announcement}</DragAnnouncements>
+      }
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -379,28 +411,7 @@ export function SortableList<T extends SortableItem>({
         modifiers={[restrictToVerticalAxis, restrictToParentElement]}
       >
         {content}
-
-        <DragOverlay>
-          {activeItem && activeId !== null ? (
-            <div className="opacity-90 shadow-lg">
-              {renderDragOverlay
-                ? renderDragOverlay(activeItem)
-                : renderItem(
-                    activeItem,
-                    {
-                      setNodeRef: () => {},
-                      style: {},
-                      listeners: undefined,
-                      attributes: defaultAttributes,
-                      isDragging: true,
-                      isOver: false,
-                      id: activeId,
-                    },
-                    items.findIndex((item) => item.id === activeId)
-                  )}
-            </div>
-          ) : null}
-        </DragOverlay>
+        {portalTarget ? createPortal(overlayContent, portalTarget) : overlayContent}
       </DndContext>
     </>
   );

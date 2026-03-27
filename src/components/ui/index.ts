@@ -233,55 +233,27 @@ export { MargeIndicator } from "./marge-indicator";
 // Data Display
 export { AnimatedNumber } from "./animated-number";
 export { PriceDisplay } from "./price-display";
-export { HighlightOnChange } from "./highlight-on-change";
 export { Sparkline } from "./sparkline";
 export { DonutChart, DonutChartWithLegend, MiniDonut } from "./donut-chart";
 export { PriceBreakdownChart } from "./price-breakdown-chart";
-export { ScopeCostDistribution } from "./scope-cost-distribution";
 export { DataCard } from "./data-card";
-export { StatsGrid } from "./stats-grid";
 
 // Forms & Input
 export { NumberInput } from "./number-input";
-export { SmartInput } from "./smart-input";
-export { InputWithFeedback } from "./input-with-feedback";
 export { FormFieldFeedback } from "./form-field-feedback";
-export { ValidationSummary } from "./validation-summary";
 export { FormSection } from "./form-section";
 export { SignaturePadComponent as SignaturePad } from "./signature-pad";
 
 // Navigation & Layout
 export { SmartBreadcrumb } from "./smart-breadcrumb";
-export { WizardStepper } from "./wizard-stepper";
 export { ResponsiveTable } from "./responsive-table";
-export { FloatingActionBar } from "./floating-action-bar";
-export { PipelineView } from "./pipeline-view";
 
 // Mobile & Touch
-export { SwipeableRow } from "./swipeable-row";
-export { LongPressMenu } from "./long-press-menu";
 export { OfflineIndicator, useOnlineStatus } from "./offline-indicator";
 
 // Accessibility
 export { LiveRegion, LiveRegionProvider } from "./live-region";
 export { SkipLink } from "./skip-link";
-
-// Progress
-export { PDFProgressModal } from "./pdf-progress-modal";
-
-// Animations & Motion
-export {
-  MotionCard,
-  InteractiveCard,
-  StatCard,
-  motionCardVariants,
-} from "./motion-card";
-export {
-  MotionButton,
-  PrimaryActionButton,
-  MotionIconButton,
-  FloatingActionButton,
-} from "./motion-button";
 
 // Re-export page transitions from parent components folder
 // Note: PageTransition, ContentTransition, FadeIn are in @/components/page-transition

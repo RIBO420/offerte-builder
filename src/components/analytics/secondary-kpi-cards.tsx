@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import { Clock, Zap, Repeat, Users } from "lucide-react";
@@ -31,7 +31,7 @@ function GlassKpiCard({
   hoverGlow?: string;
 }) {
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 20, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{
@@ -56,7 +56,7 @@ function GlassKpiCard({
 
         {children}
       </Card>
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -78,14 +78,14 @@ export const SecondaryKpiCards = memo(function SecondaryKpiCards({ kpis }: Secon
           <CardTitle className="text-sm font-medium text-muted-foreground">
             Gem. Doorlooptijd
           </CardTitle>
-          <motion.div
+          <m.div
             initial={{ rotate: -180, opacity: 0 }}
             animate={{ rotate: 0, opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.6 }}
             className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-purple-500 to-fuchsia-600 shadow-lg shadow-purple-500/30"
           >
             <Clock className="h-4 w-4 text-white" />
-          </motion.div>
+          </m.div>
         </CardHeader>
         <CardContent className="space-y-2">
           <div className="flex items-baseline gap-1">
@@ -114,7 +114,7 @@ export const SecondaryKpiCards = memo(function SecondaryKpiCards({ kpis }: Secon
           <CardTitle className="text-sm font-medium text-muted-foreground">
             Reactietijd Klant
           </CardTitle>
-          <motion.div
+          <m.div
             initial={{ rotate: -180, opacity: 0 }}
             animate={{ rotate: 0, opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.7 }}
@@ -128,7 +128,7 @@ export const SecondaryKpiCards = memo(function SecondaryKpiCards({ kpis }: Secon
             )}
           >
             <Zap className="h-4 w-4 text-white" />
-          </motion.div>
+          </m.div>
         </CardHeader>
         <CardContent className="space-y-2">
           <div className="flex items-baseline gap-1">
@@ -164,14 +164,14 @@ export const SecondaryKpiCards = memo(function SecondaryKpiCards({ kpis }: Secon
           <CardTitle className="text-sm font-medium text-muted-foreground">
             Terugkerende Klanten
           </CardTitle>
-          <motion.div
+          <m.div
             initial={{ rotate: -180, opacity: 0 }}
             animate={{ rotate: 0, opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.8 }}
             className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-teal-500 to-cyan-600 shadow-lg shadow-teal-500/30"
           >
             <Repeat className="h-4 w-4 text-white" />
-          </motion.div>
+          </m.div>
         </CardHeader>
         <CardContent className="space-y-2">
           <div className="flex items-baseline gap-1">
@@ -200,7 +200,7 @@ export const SecondaryKpiCards = memo(function SecondaryKpiCards({ kpis }: Secon
           <CardTitle className="text-sm font-medium text-muted-foreground">
             Totale Conversie
           </CardTitle>
-          <motion.div
+          <m.div
             initial={{ rotate: -180, opacity: 0 }}
             animate={{ rotate: 0, opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.9 }}
@@ -214,7 +214,7 @@ export const SecondaryKpiCards = memo(function SecondaryKpiCards({ kpis }: Secon
             )}
           >
             <Users className="h-4 w-4 text-white" />
-          </motion.div>
+          </m.div>
         </CardHeader>
         <CardContent className="space-y-2">
           <div className="flex items-baseline gap-1">

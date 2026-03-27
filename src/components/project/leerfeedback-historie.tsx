@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import {
   Card,
   CardContent,
@@ -111,7 +111,7 @@ const HistorieRow = memo(function HistorieRow({
   };
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 10 }}
@@ -236,7 +236,7 @@ const HistorieRow = memo(function HistorieRow({
           </div>
         )}
       </div>
-    </motion.div>
+    </m.div>
   );
 });
 

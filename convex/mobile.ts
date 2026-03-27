@@ -8,10 +8,10 @@
  * - Offline sync support with idempotency
  */
 
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuth } from "./auth";
-import { requireAdmin, requireNotViewer } from "./roles";
+import { requireAdmin, requireNotViewer, normalizeRole, isAdminRole } from "./roles";
 
 // ============================================
 // CLOCK IN/OUT
@@ -42,7 +42,7 @@ export const clockIn = mutation({
       .first();
 
     if (activeSession) {
-      throw new Error("Je bent al ingeklokt");
+      throw new ConvexError("Je bent al ingeklokt");
     }
 
     // Also check for tracking status
@@ -54,7 +54,7 @@ export const clockIn = mutation({
       .first();
 
     if (trackingSession) {
-      throw new Error("Je bent al ingeklokt");
+      throw new ConvexError("Je bent al ingeklokt");
     }
 
     // Get medewerker info from user's Clerk ID if available
@@ -69,12 +69,12 @@ export const clockIn = mutation({
     if (args.projectId) {
       const project = await ctx.db.get(args.projectId);
       if (!project) {
-        throw new Error("Project niet gevonden");
+        throw new ConvexError("Project niet gevonden");
       }
       // Projects are owned by the company user, not the medewerker
       // Check if medewerker belongs to the same organization
       if (medewerker && medewerker.userId.toString() !== project.userId.toString()) {
-        throw new Error("Je hebt geen toegang tot dit project");
+        throw new ConvexError("Je hebt geen toegang tot dit project");
       }
     }
 
@@ -147,7 +147,7 @@ export const clockOut = mutation({
     }
 
     if (!activeSession) {
-      throw new Error("Je bent niet ingeklokt");
+      throw new ConvexError("Je bent niet ingeklokt");
     }
 
     // Calculate duration
@@ -227,7 +227,7 @@ export const startBreak = mutation({
     }
 
     if (!activeSession) {
-      throw new Error("Je bent niet ingeklokt");
+      throw new ConvexError("Je bent niet ingeklokt");
     }
 
     // Update session to break status
@@ -260,7 +260,7 @@ export const endBreak = mutation({
       .first();
 
     if (!breakSession) {
-      throw new Error("Je bent niet op pauze");
+      throw new ConvexError("Je bent niet op pauze");
     }
 
     // Update session back to tracking
@@ -751,7 +751,7 @@ export const updateLocation = mutation({
     }
 
     if (!activeSession) {
-      throw new Error("Geen actieve sessie gevonden");
+      throw new ConvexError("Geen actieve sessie gevonden");
     }
 
     // Insert location data
@@ -860,7 +860,7 @@ export const updateBiometricSetting = mutation({
       .first();
 
     if (!medewerker) {
-      throw new Error("Medewerker profiel niet gevonden");
+      throw new ConvexError("Medewerker profiel niet gevonden");
     }
 
     await ctx.db.patch(medewerker._id, {
@@ -888,19 +888,25 @@ export const getProjectDetailsForMedewerker = query({
       .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", user.clerkId))
       .first();
 
-    if (!medewerker) {
-      throw new Error("Medewerker profiel niet gevonden");
-    }
-
     // Get the project
     const project = await ctx.db.get(args.projectId);
     if (!project) {
-      throw new Error("Project niet gevonden");
+      throw new ConvexError("Project niet gevonden");
     }
 
-    // Verify project belongs to the medewerker's company
-    if (medewerker.userId.toString() !== project.userId.toString()) {
-      throw new Error("Je hebt geen toegang tot dit project");
+    // Admin (directie) users can access all projects even without medewerker record
+    const userIsAdmin = user.role === "directie";
+
+    if (!medewerker && !userIsAdmin) {
+      throw new ConvexError("Medewerker profiel niet gevonden");
+    }
+
+    // Verify project belongs to the medewerker's company (skip for admins who own the project)
+    if (medewerker && medewerker.userId.toString() !== project.userId.toString()) {
+      throw new ConvexError("Je hebt geen toegang tot dit project");
+    }
+    if (!medewerker && userIsAdmin && project.userId.toString() !== user._id.toString()) {
+      throw new ConvexError("Je hebt geen toegang tot dit project");
     }
 
     // Get voorcalculatie to check team membership
@@ -918,12 +924,12 @@ export const getProjectDetailsForMedewerker = query({
         .first();
     }
 
-    // Check if medewerker is in the team
+    // Check if medewerker is in the team (admins bypass team check)
     const teamleden = voorcalculatie?.teamleden ?? [];
-    const isInTeam = teamleden.includes(medewerker.naam);
+    const isInTeam = medewerker ? teamleden.includes(medewerker.naam) : false;
 
-    if (!isInTeam) {
-      throw new Error("Je bent niet toegewezen aan dit project");
+    if (!isInTeam && !userIsAdmin) {
+      throw new ConvexError("Je bent niet toegewezen aan dit project");
     }
 
     // Get offerte info (klant data only, no prices)
@@ -961,12 +967,14 @@ export const getProjectDetailsForMedewerker = query({
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .collect();
 
-    // Filter to this medewerker's hours
-    const mijnUren = allUrenRegistraties.filter(
-      (u) =>
-        u.medewerker === medewerker.naam ||
-        u.medewerkerClerkId === user.clerkId
-    );
+    // Filter to this medewerker's hours (admins see all hours)
+    const mijnUren = userIsAdmin && !medewerker
+      ? allUrenRegistraties
+      : allUrenRegistraties.filter(
+          (u) =>
+            u.medewerker === medewerker?.naam ||
+            u.medewerkerClerkId === user.clerkId
+        );
 
     // Calculate total hours for this medewerker
     const totaalUren = mijnUren.reduce((sum, u) => sum + u.uren, 0);
@@ -1035,8 +1043,8 @@ export const getCurrentUserRole = query({
       userId: user._id,
       email: user.email,
       name: user.name,
-      role: user.role || "admin", // Default to admin for backwards compatibility
-      isAdmin: !user.role || user.role === "admin",
+      role: normalizeRole(user.role),
+      isAdmin: isAdminRole(user.role),
       linkedMedewerkerId: user.linkedMedewerkerId,
     };
   },
@@ -1077,7 +1085,7 @@ export const adminListAllUsers = query({
         _id: u._id,
         email: u.email,
         name: u.name,
-        role: u.role || "admin", // Default to admin for backwards compatibility
+        role: normalizeRole(u.role),
         linkedMedewerkerId: u.linkedMedewerkerId,
         linkedMedewerker,
         createdAt: u.createdAt,
@@ -1128,19 +1136,30 @@ export const adminListMedewerkers = query({
 export const adminUpdateUserRole = mutation({
   args: {
     userId: v.id("users"),
-    role: v.union(v.literal("admin"), v.literal("medewerker"), v.literal("viewer")),
+    role: v.union(
+      v.literal("directie"),
+      v.literal("projectleider"),
+      v.literal("voorman"),
+      v.literal("medewerker"),
+      v.literal("klant"),
+      v.literal("onderaannemer_zzp"),
+      v.literal("materiaalman"),
+      // Legacy compat
+      v.literal("admin"),
+      v.literal("viewer")
+    ),
   },
   handler: async (ctx, args) => {
     const user = await requireAdmin(ctx);
 
     // Prevent changing own role
     if (args.userId.toString() === user._id.toString()) {
-      throw new Error("Je kunt je eigen rol niet wijzigen");
+      throw new ConvexError("Je kunt je eigen rol niet wijzigen");
     }
 
-    // Update the user's role
+    // Normalize and update the user's role
     await ctx.db.patch(args.userId, {
-      role: args.role,
+      role: normalizeRole(args.role),
     });
 
     return { success: true };
@@ -1162,10 +1181,10 @@ export const adminLinkUserToMedewerker = mutation({
     if (args.medewerkerId) {
       const medewerker = await ctx.db.get(args.medewerkerId);
       if (!medewerker) {
-        throw new Error("Medewerker niet gevonden");
+        throw new ConvexError("Medewerker niet gevonden");
       }
       if (medewerker.userId.toString() !== user._id.toString()) {
-        throw new Error("Je kunt alleen je eigen medewerkers koppelen");
+        throw new ConvexError("Je kunt alleen je eigen medewerkers koppelen");
       }
 
       // Check if medewerker is already linked to another user
@@ -1177,7 +1196,7 @@ export const adminLinkUserToMedewerker = mutation({
         .first();
 
       if (existingLink && existingLink._id.toString() !== args.userId.toString()) {
-        throw new Error("Deze medewerker is al aan een andere gebruiker gekoppeld");
+        throw new ConvexError("Deze medewerker is al aan een andere gebruiker gekoppeld");
       }
     }
 

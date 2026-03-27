@@ -2,7 +2,7 @@
 
 import { memo, useCallback } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -135,7 +135,7 @@ export const OfferteCard = memo(function OfferteCard({
   }, [offerte._id, onDelete]);
 
   return (
-    <motion.div
+    <m.div
       initial={reducedMotion ? false : { opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{
@@ -337,6 +337,6 @@ export const OfferteCard = memo(function OfferteCard({
           ) : null}
         </div>
       </Card>
-    </motion.div>
+    </m.div>
   );
 });

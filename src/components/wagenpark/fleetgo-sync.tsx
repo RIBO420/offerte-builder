@@ -26,7 +26,7 @@ import {
   Clock,
   Download,
 } from "lucide-react";
-import { toast } from "sonner";
+import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 
 // Mock type for FleetGo vehicle data
 export interface FleetGoVehicle {
@@ -89,8 +89,6 @@ export function FleetGoSync({
 
     try {
       // TODO: Replace with actual FleetGo API connection check
-      // const response = await fetch('/api/fleetgo/status');
-      // if (!response.ok) throw new Error('Connection failed');
 
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -106,7 +104,7 @@ export function FleetGoSync({
   // Mock sync function - replace with actual API call
   const handleSync = useCallback(async () => {
     if (!isApiKeyConfigured) {
-      toast.error("API key niet geconfigureerd");
+      showErrorToast("API key niet geconfigureerd");
       return;
     }
 
@@ -193,7 +191,7 @@ export function FleetGoSync({
     } catch (err) {
       setSyncStatus("error");
       setError("Fout bij ophalen voertuiggegevens van FleetGo.");
-      toast.error("Sync mislukt");
+      showErrorToast("Sync mislukt");
     }
   }, [isApiKeyConfigured]);
 
@@ -222,7 +220,7 @@ export function FleetGoSync({
   // Import selected vehicles
   const handleImport = useCallback(async () => {
     if (selectedVehicles.size === 0) {
-      toast.error("Selecteer minimaal 1 voertuig");
+      showErrorToast("Selecteer minimaal 1 voertuig");
       return;
     }
 
@@ -235,10 +233,10 @@ export function FleetGoSync({
         await onImport(vehiclesToImport);
       }
 
-      toast.success(`${vehiclesToImport.length} voertuig(en) geimporteerd`);
+      showSuccessToast(`${vehiclesToImport.length} voertuig(en) geimporteerd`);
       setIsOpen(false);
     } catch (err) {
-      toast.error("Fout bij importeren voertuigen");
+      showErrorToast("Fout bij importeren voertuigen");
     } finally {
       setIsImporting(false);
     }

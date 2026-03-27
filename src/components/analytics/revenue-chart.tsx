@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useId, memo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -49,7 +49,7 @@ function CustomTooltip({ active, payload, label }: {
   const isQuarterly = 'count' in data.payload;
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 10, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       className="relative overflow-hidden rounded-xl border border-border bg-popover/95 text-popover-foreground backdrop-blur-xl p-4 shadow-2xl"
@@ -84,7 +84,7 @@ function CustomTooltip({ active, payload, label }: {
           )}
         </div>
       </div>
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -123,7 +123,7 @@ export const RevenueChart = memo(function RevenueChart({ monthlyData, quarterlyD
   }
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
@@ -154,7 +154,7 @@ export const RevenueChart = memo(function RevenueChart({ monthlyData, quarterlyD
         </CardHeader>
         <CardContent>
           <AnimatePresence mode="wait">
-            <motion.div
+            <m.div
               key={view}
               initial={{ opacity: 0, x: view === "maand" ? -20 : 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -165,13 +165,13 @@ export const RevenueChart = memo(function RevenueChart({ monthlyData, quarterlyD
                 <BarChart data={data} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
                   <defs>
                     <linearGradient id={`gradient-${gradientId}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="rgb(245, 158, 11)" stopOpacity={1} />
-                      <stop offset="50%" stopColor="rgb(249, 115, 22)" stopOpacity={0.9} />
-                      <stop offset="100%" stopColor="rgb(234, 88, 12)" stopOpacity={0.7} />
+                      <stop offset="0%" stopColor="hsl(var(--chart-4))" stopOpacity={1} />
+                      <stop offset="50%" stopColor="hsl(var(--chart-4))" stopOpacity={0.85} />
+                      <stop offset="100%" stopColor="hsl(var(--chart-4))" stopOpacity={0.6} />
                     </linearGradient>
                     <linearGradient id={`glow-${gradientId}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="rgb(245, 158, 11)" stopOpacity={0.3} />
-                      <stop offset="100%" stopColor="rgb(245, 158, 11)" stopOpacity={0} />
+                      <stop offset="0%" stopColor="hsl(var(--chart-4))" stopOpacity={0.3} />
+                      <stop offset="100%" stopColor="hsl(var(--chart-4))" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid
@@ -206,10 +206,10 @@ export const RevenueChart = memo(function RevenueChart({ monthlyData, quarterlyD
                   />
                 </BarChart>
               </ResponsiveContainer>
-            </motion.div>
+            </m.div>
           </AnimatePresence>
         </CardContent>
       </Card>
-    </motion.div>
+    </m.div>
   );
 });

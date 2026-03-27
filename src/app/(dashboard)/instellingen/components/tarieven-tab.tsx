@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import {
   Card,
   CardContent,
@@ -35,7 +35,7 @@ export function TarievenTab({
   reducedMotion,
 }: TarievenTabProps) {
   return (
-    <motion.div
+    <m.div
       key="tarieven"
       initial={reducedMotion ? false : { opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
@@ -217,6 +217,6 @@ export function TarievenTab({
           </CardContent>
         </Card>
       </TabsContent>
-    </motion.div>
+    </m.div>
   );
 }

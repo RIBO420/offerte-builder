@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
-import { toast } from "sonner";
+import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import { formatDistanceToNow } from "date-fns";
 import { nl } from "@/lib/date-locale";
 import {
@@ -179,16 +179,16 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
     try {
       if (quickAction.nextStatus === "gewonnen") {
         await markGewonnen({ id: lead._id });
-        toast.success("Lead gemarkeerd als gewonnen");
+        showSuccessToast("Lead gemarkeerd als gewonnen");
       } else {
         await updatePipelineStatus({
           id: lead._id,
           pipelineStatus: quickAction.nextStatus,
         });
-        toast.success(`Status gewijzigd naar "${quickAction.label}"`);
+        showSuccessToast(`Status gewijzigd naar "${quickAction.label}"`);
       }
     } catch (error) {
-      toast.error(
+      showErrorToast(
         error instanceof Error
           ? error.message
           : "Er ging iets mis bij het wijzigen van de status"
@@ -204,9 +204,9 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
         id: lead._id,
         toegewezenAan: userId as Id<"users">,
       });
-      toast.success("Lead toegewezen");
+      showSuccessToast("Lead toegewezen");
     } catch (error) {
-      toast.error(
+      showErrorToast(
         error instanceof Error
           ? error.message
           : "Er ging iets mis bij het toewijzen"
@@ -225,9 +225,9 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
         beschrijving: notitie.trim(),
       });
       setNotitie("");
-      toast.success("Notitie opgeslagen");
+      showSuccessToast("Notitie opgeslagen");
     } catch (error) {
-      toast.error(
+      showErrorToast(
         error instanceof Error
           ? error.message
           : "Er ging iets mis bij het opslaan"

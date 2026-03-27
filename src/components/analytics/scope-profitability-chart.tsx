@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, memo, useMemo } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -56,24 +56,24 @@ function formatCurrencyNoDecimals(amount: number): string {
   return formatCurrency(amount, "nl-NL", false);
 }
 
-// Colors for revenue bars
+// Colors for revenue bars - using CSS custom properties for theme support
 const REVENUE_COLORS = [
-  "hsl(221.2, 83.2%, 53.3%)", // Blue
-  "hsl(230, 70%, 60%)",
-  "hsl(240, 60%, 65%)",
-  "hsl(250, 55%, 68%)",
-  "hsl(260, 50%, 70%)",
-  "hsl(270, 45%, 72%)",
-  "hsl(280, 40%, 74%)",
-  "hsl(290, 35%, 76%)",
+  "hsl(var(--chart-1))",
+  "hsl(var(--chart-2))",
+  "hsl(var(--chart-3))",
+  "hsl(var(--chart-4))",
+  "hsl(var(--chart-5))",
+  "hsl(var(--chart-1) / 0.7)",
+  "hsl(var(--chart-2) / 0.7)",
+  "hsl(var(--chart-3) / 0.7)",
 ];
 
-// Colors based on margin percentage
+// Colors based on margin percentage - using CSS custom properties for theme support
 function getMargeColor(percentage: number): string {
-  if (percentage >= 30) return "hsl(142.1, 76.2%, 36.3%)";
-  if (percentage >= 20) return "hsl(142.1, 76.2%, 46.3%)";
-  if (percentage >= 10) return "hsl(45, 93%, 47%)";
-  return "hsl(0, 72%, 51%)";
+  if (percentage >= 30) return "hsl(var(--chart-1))";
+  if (percentage >= 20) return "hsl(var(--chart-2))";
+  if (percentage >= 10) return "hsl(var(--chart-4))";
+  return "hsl(var(--chart-5))";
 }
 
 export const ScopeProfitabilityChart = memo(function ScopeProfitabilityChart({ data, totalRevenue = 0 }: ScopeProfitabilityChartProps) {
@@ -189,13 +189,13 @@ export const ScopeProfitabilityChart = memo(function ScopeProfitabilityChart({ d
               <XAxis
                 type="number"
                 tickFormatter={(value) => formatCurrencyCompact(value)}
-                tick={{ fontSize: 11 }}
+                tick={{ fontSize: 12 }}
                 className="fill-muted-foreground"
               />
               <YAxis
                 type="category"
                 dataKey="displayName"
-                tick={{ fontSize: 11 }}
+                tick={{ fontSize: 12 }}
                 className="fill-muted-foreground"
                 width={75}
               />
@@ -241,9 +241,9 @@ export const ScopeProfitabilityChart = memo(function ScopeProfitabilityChart({ d
                 type="monotone"
                 dataKey="margePercentage"
                 name="Marge %"
-                stroke="hsl(142.1, 76.2%, 36.3%)"
+                stroke="hsl(var(--chart-1))"
                 strokeWidth={2}
-                dot={{ fill: "hsl(142.1, 76.2%, 36.3%)", strokeWidth: 0, r: 4 }}
+                dot={{ fill: "hsl(var(--chart-1))", strokeWidth: 0, r: 4 }}
                 yAxisId="margin"
               />
               <YAxis
@@ -252,7 +252,7 @@ export const ScopeProfitabilityChart = memo(function ScopeProfitabilityChart({ d
                 orientation="right"
                 domain={[0, 50]}
                 tickFormatter={(v) => `${v}%`}
-                tick={{ fontSize: 11 }}
+                tick={{ fontSize: 12 }}
                 className="fill-muted-foreground"
                 width={40}
               />
@@ -267,13 +267,13 @@ export const ScopeProfitabilityChart = memo(function ScopeProfitabilityChart({ d
               <XAxis
                 type="number"
                 tickFormatter={(value) => formatCurrencyCompact(value)}
-                tick={{ fontSize: 11 }}
+                tick={{ fontSize: 12 }}
                 className="fill-muted-foreground"
               />
               <YAxis
                 type="category"
                 dataKey="displayName"
-                tick={{ fontSize: 11 }}
+                tick={{ fontSize: 12 }}
                 className="fill-muted-foreground"
                 width={75}
               />
@@ -302,13 +302,13 @@ export const ScopeProfitabilityChart = memo(function ScopeProfitabilityChart({ d
                 type="number"
                 domain={[0, 50]}
                 tickFormatter={(v) => `${v}%`}
-                tick={{ fontSize: 11 }}
+                tick={{ fontSize: 12 }}
                 className="fill-muted-foreground"
               />
               <YAxis
                 type="category"
                 dataKey="displayName"
-                tick={{ fontSize: 11 }}
+                tick={{ fontSize: 12 }}
                 className="fill-muted-foreground"
                 width={75}
               />

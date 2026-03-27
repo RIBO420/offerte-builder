@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useFormValidationSyncNested } from "@/hooks/use-scope-form-sync";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -374,24 +375,7 @@ export function BestratingForm({ data, onChange, onValidationChange }: Bestratin
   }, [watch, stableOnChange]);
 
   // Notify parent of validation state changes
-  useEffect(() => {
-    if (onValidationChange) {
-      const errorMessages: Record<string, string> = {};
-      const flattenErrors = (obj: typeof errors, prefix = "") => {
-        Object.entries(obj).forEach(([key, error]) => {
-          const path = prefix ? `${prefix}.${key}` : key;
-          if (error && typeof error === "object" && "message" in error) {
-            if (error.message) errorMessages[path] = error.message as string;
-          } else if (error && typeof error === "object") {
-            flattenErrors(error as typeof errors, path);
-          }
-        });
-      };
-      flattenErrors(errors);
-      onValidationChange(isValid, errorMessages);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(errors), isValid]);
+  useFormValidationSyncNested(errors, isValid, onValidationChange);
 
   // Handlers for bestratingtype
   const handleBestratingtypeChange = (value: Bestratingtype) => {

@@ -23,15 +23,12 @@ Sentry.init({
   debug: false,
 
   // Enable replay for session recordings - lower rates for production
+  // Replay integration is lazy-loaded below to save ~70KB from the initial bundle
   replaysOnErrorSampleRate: 1.0,
   replaysSessionSampleRate: isProduction ? 0.05 : 0.1,
 
   integrations: [
-    Sentry.replayIntegration({
-      // Additional replay configuration
-      maskAllText: true,
-      blockAllMedia: true,
-    }),
+    // Note: replayIntegration is lazy-loaded after init to reduce initial bundle size
     // Send console.log, console.warn, and console.error calls as logs to Sentry
     Sentry.consoleLoggingIntegration({ levels: ["warn", "error"] }),
   ],
@@ -48,3 +45,20 @@ Sentry.init({
     "AbortError",
   ],
 });
+
+// Lazy-load the replay integration to keep it out of the initial bundle (~70KB savings).
+// The SDK will still respect replaysSessionSampleRate and replaysOnErrorSampleRate.
+if (typeof window !== "undefined") {
+  Sentry.lazyLoadIntegration("replayIntegration")
+    .then((replay) => {
+      Sentry.addIntegration(replay({ maskAllText: true, blockAllMedia: true }));
+    })
+    .catch(() => {
+      // lazyLoadIntegration can fail in dev with Turbopack — fall back to direct import
+      import("@sentry/nextjs").then(({ replayIntegration }) => {
+        if (replayIntegration) {
+          Sentry.addIntegration(replayIntegration({ maskAllText: true, blockAllMedia: true }));
+        }
+      });
+    });
+}

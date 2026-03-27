@@ -440,7 +440,7 @@ export const toastSlideUp: Variants = {
 
 /**
  * Card lift animation preset
- * Apply to motion.div with whileHover and whileTap
+ * Apply to m.div with whileHover and whileTap
  */
 export const cardHoverLift = {
   rest: {
@@ -488,7 +488,7 @@ export const cardHoverGlow = {
 
 /**
  * Standard button tap animation
- * Use with whileTap on motion.button
+ * Use with whileTap on m.button
  */
 export const buttonTapFeedback = {
   scale: 0.98,

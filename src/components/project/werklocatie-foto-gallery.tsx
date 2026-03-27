@@ -27,7 +27,7 @@ import {
   Download,
   ZoomIn,
 } from "lucide-react";
-import { toast } from "sonner";
+import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 
 interface Foto {
   url: string;
@@ -97,7 +97,7 @@ export function WerklocatieFotoGallery({
         id: werklocatieId,
         fotoUrl: deleteConfirmUrl,
       });
-      toast.success("Foto verwijderd");
+      showSuccessToast("Foto verwijderd");
       setDeleteConfirmUrl(null);
       // Reset selected index if it was showing the deleted photo
       if (selectedIndex !== null) {
@@ -112,7 +112,7 @@ export function WerklocatieFotoGallery({
       }
     } catch (error) {
       console.error("Error deleting foto:", error);
-      toast.error("Er ging iets mis bij het verwijderen");
+      showErrorToast("Er ging iets mis bij het verwijderen");
     } finally {
       setIsDeleting(false);
     }

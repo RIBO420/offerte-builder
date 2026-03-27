@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import {
   Dialog,
   DialogContent,
@@ -42,7 +42,7 @@ export function NacalculatieSuccessDialog({
           {/* Success Animation */}
           <AnimatePresence>
             {open && (
-              <motion.div
+              <m.div
                 initial={{ scale: 0, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0, opacity: 0 }}
@@ -56,7 +56,7 @@ export function NacalculatieSuccessDialog({
               >
                 <div className="relative">
                   {/* Outer ring animation */}
-                  <motion.div
+                  <m.div
                     initial={{ scale: 0.8, opacity: 0 }}
                     animate={{ scale: 1.2, opacity: [0, 0.3, 0] }}
                     transition={{
@@ -68,7 +68,7 @@ export function NacalculatieSuccessDialog({
                     className="absolute inset-0 rounded-full bg-green-500"
                   />
                   {/* Success circle */}
-                  <motion.div
+                  <m.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{
@@ -79,16 +79,16 @@ export function NacalculatieSuccessDialog({
                     }}
                     className="relative h-20 w-20 rounded-full bg-green-100 dark:bg-green-900/50 flex items-center justify-center"
                   >
-                    <motion.div
+                    <m.div
                       initial={{ pathLength: 0, opacity: 0 }}
                       animate={{ pathLength: 1, opacity: 1 }}
                       transition={{ duration: 0.5, delay: 0.4 }}
                     >
                       <CheckCircle className="h-10 w-10 text-green-600 dark:text-green-400" />
-                    </motion.div>
-                  </motion.div>
+                    </m.div>
+                  </m.div>
                 </div>
-              </motion.div>
+              </m.div>
             )}
           </AnimatePresence>
 

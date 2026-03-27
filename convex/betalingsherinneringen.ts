@@ -7,7 +7,7 @@
  *   1e aanmaning (friendly), 2e aanmaning (formal), ingebrekestelling (legal)
  */
 
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query, internalMutation } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
 import { requireNotViewer } from "./roles";
@@ -139,14 +139,14 @@ export const verstuurHandmatig = mutation({
 
     // Get the factuur
     const factuur = await ctx.db.get(args.factuurId);
-    if (!factuur) throw new Error("Factuur niet gevonden");
+    if (!factuur) throw new ConvexError("Factuur niet gevonden");
     if (factuur.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot deze factuur");
+      throw new ConvexError("Geen toegang tot deze factuur");
     }
 
     // Only for verzonden or vervallen facturen
     if (factuur.status !== "verzonden" && factuur.status !== "vervallen") {
-      throw new Error("Herinneringen kunnen alleen verstuurd worden voor verzonden of vervallen facturen");
+      throw new ConvexError("Herinneringen kunnen alleen verstuurd worden voor verzonden of vervallen facturen");
     }
 
     // Calculate days overdue
@@ -216,14 +216,14 @@ export const verstuurAanmaning = mutation({
 
     // Get the factuur
     const factuur = await ctx.db.get(args.factuurId);
-    if (!factuur) throw new Error("Factuur niet gevonden");
+    if (!factuur) throw new ConvexError("Factuur niet gevonden");
     if (factuur.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot deze factuur");
+      throw new ConvexError("Geen toegang tot deze factuur");
     }
 
     // Only for verzonden or vervallen facturen
     if (factuur.status !== "verzonden" && factuur.status !== "vervallen") {
-      throw new Error("Aanmaningen kunnen alleen verstuurd worden voor verzonden of vervallen facturen");
+      throw new ConvexError("Aanmaningen kunnen alleen verstuurd worden voor verzonden of vervallen facturen");
     }
 
     // Calculate days overdue
@@ -241,13 +241,13 @@ export const verstuurAanmaning = mutation({
     if (args.type === "tweede_aanmaning") {
       const heeftEerste = ownedBestaande.some((h) => h.type === "eerste_aanmaning");
       if (!heeftEerste) {
-        throw new Error("Verstuur eerst een 1e aanmaning voordat u een 2e aanmaning kunt versturen");
+        throw new ConvexError("Verstuur eerst een 1e aanmaning voordat u een 2e aanmaning kunt versturen");
       }
     }
     if (args.type === "ingebrekestelling") {
       const heeftTweede = ownedBestaande.some((h) => h.type === "tweede_aanmaning");
       if (!heeftTweede) {
-        throw new Error("Verstuur eerst een 2e aanmaning voordat u een ingebrekestelling kunt versturen");
+        throw new ConvexError("Verstuur eerst een 2e aanmaning voordat u een ingebrekestelling kunt versturen");
       }
     }
 

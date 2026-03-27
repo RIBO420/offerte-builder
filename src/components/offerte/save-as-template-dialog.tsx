@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,11 +14,26 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Loader2, Save } from "lucide-react";
 import { useStandaardtuinen } from "@/hooks/use-standaardtuinen";
-import { toast } from "sonner";
+import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
+
+// Zod schema
+const templateSchema = z.object({
+  naam: z.string().min(1, "Vul een naam in voor de template"),
+  omschrijving: z.string().optional(),
+});
+
+type TemplateFormData = z.infer<typeof templateSchema>;
 
 interface SaveAsTemplateDialogProps {
   open: boolean;
@@ -35,31 +53,31 @@ export function SaveAsTemplateDialog({
 }: SaveAsTemplateDialogProps) {
   const { create } = useStandaardtuinen();
   const [isSaving, setIsSaving] = useState(false);
-  const [naam, setNaam] = useState("");
-  const [omschrijving, setOmschrijving] = useState("");
 
-  const handleSave = async () => {
-    if (!naam.trim()) {
-      toast.error("Vul een naam in voor de template");
-      return;
-    }
+  const form = useForm<TemplateFormData>({
+    resolver: zodResolver(templateSchema),
+    defaultValues: {
+      naam: "",
+      omschrijving: "",
+    },
+  });
 
+  const handleFormSubmit = async (data: TemplateFormData) => {
     setIsSaving(true);
     try {
       await create({
-        naam: naam.trim(),
-        omschrijving: omschrijving.trim() || undefined,
+        naam: data.naam.trim(),
+        omschrijving: data.omschrijving?.trim() || undefined,
         type: offerte.type,
         scopes: offerte.scopes || [],
         defaultWaarden: offerte.scopeData || {},
       });
 
-      toast.success("Template opgeslagen");
+      showSuccessToast("Template opgeslagen");
       onOpenChange(false);
-      setNaam("");
-      setOmschrijving("");
+      form.reset();
     } catch {
-      toast.error("Fout bij opslaan template");
+      showErrorToast("Fout bij opslaan template");
     } finally {
       setIsSaving(false);
     }
@@ -68,8 +86,7 @@ export function SaveAsTemplateDialog({
   const handleClose = () => {
     if (!isSaving) {
       onOpenChange(false);
-      setNaam("");
-      setOmschrijving("");
+      form.reset();
     }
   };
 
@@ -84,53 +101,71 @@ export function SaveAsTemplateDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="template-naam">Template Naam *</Label>
-            <Input
-              id="template-naam"
-              placeholder={`Bijv. "${offerte.klant.naam} tuin stijl"`}
-              value={naam}
-              onChange={(e) => setNaam(e.target.value)}
-              disabled={isSaving}
-            />
-          </div>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleFormSubmit)}>
+            <div className="space-y-4 py-4">
+              <FormField
+                control={form.control}
+                name="naam"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Template Naam *</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder={`Bijv. "${offerte.klant.naam} tuin stijl"`}
+                        disabled={isSaving}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-          <div className="space-y-2">
-            <Label htmlFor="template-omschrijving">Omschrijving</Label>
-            <Textarea
-              id="template-omschrijving"
-              placeholder="Optionele beschrijving van deze template..."
-              value={omschrijving}
-              onChange={(e) => setOmschrijving(e.target.value)}
-              disabled={isSaving}
-              rows={3}
-            />
-          </div>
+              <FormField
+                control={form.control}
+                name="omschrijving"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Omschrijving</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Optionele beschrijving van deze template..."
+                        disabled={isSaving}
+                        rows={3}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-          <div className="rounded-lg bg-muted p-3 text-sm">
-            <p className="font-medium mb-1">Wat wordt opgeslagen:</p>
-            <ul className="list-disc list-inside text-muted-foreground space-y-1">
-              <li>Type: {offerte.type === "aanleg" ? "Aanleg" : "Onderhoud"}</li>
-              <li>Scopes: {offerte.scopes?.length || 0} werkzaamheden</li>
-              <li>Alle scope instellingen en waarden</li>
-            </ul>
-          </div>
-        </div>
+              <div className="rounded-lg bg-muted p-3 text-sm">
+                <p className="font-medium mb-1">Wat wordt opgeslagen:</p>
+                <ul className="list-disc list-inside text-muted-foreground space-y-1">
+                  <li>Type: {offerte.type === "aanleg" ? "Aanleg" : "Onderhoud"}</li>
+                  <li>Scopes: {offerte.scopes?.length || 0} werkzaamheden</li>
+                  <li>Alle scope instellingen en waarden</li>
+                </ul>
+              </div>
+            </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={isSaving}>
-            Annuleren
-          </Button>
-          <Button onClick={handleSave} disabled={isSaving || !naam.trim()}>
-            {isSaving ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="mr-2 h-4 w-4" />
-            )}
-            Opslaan
-          </Button>
-        </DialogFooter>
+            <DialogFooter>
+              <Button variant="outline" onClick={handleClose} disabled={isSaving}>
+                Annuleren
+              </Button>
+              <Button type="submit" disabled={isSaving || !form.watch("naam")?.trim()}>
+                {isSaving ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="mr-2 h-4 w-4" />
+                )}
+                Opslaan
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );

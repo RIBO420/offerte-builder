@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, memo } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   BarChart,
@@ -55,19 +55,19 @@ function formatCurrency(amount: number): string {
 // Color scale based on margin percentage
 function getMargeColor(percentage: number): { color: string; gradient: string } {
   if (percentage >= 30) return {
-    color: "rgb(34, 197, 94)",
+    color: "hsl(var(--chart-1))",
     gradient: "from-emerald-500 to-green-500"
   };
   if (percentage >= 20) return {
-    color: "rgb(74, 222, 128)",
+    color: "hsl(var(--chart-2))",
     gradient: "from-green-400 to-emerald-400"
   };
   if (percentage >= 10) return {
-    color: "rgb(245, 158, 11)",
+    color: "hsl(var(--chart-4))",
     gradient: "from-amber-500 to-orange-500"
   };
   return {
-    color: "rgb(239, 68, 68)",
+    color: "hsl(var(--chart-5))",
     gradient: "from-red-500 to-rose-500"
   };
 }
@@ -89,7 +89,7 @@ function CustomTooltip({ active, payload }: {
   const colors = getMargeColor(item.margePercentage);
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, x: -10, scale: 0.95 }}
       animate={{ opacity: 1, x: 0, scale: 1 }}
       className="relative overflow-hidden rounded-xl border border-border bg-popover/95 text-popover-foreground backdrop-blur-xl p-4 shadow-2xl min-w-[200px]"
@@ -127,7 +127,7 @@ function CustomTooltip({ active, payload }: {
           </div>
         </div>
       </div>
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -161,7 +161,7 @@ export const ScopeMarginChart = memo(function ScopeMarginChart({ data }: ScopeMa
   );
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
@@ -194,20 +194,20 @@ export const ScopeMarginChart = memo(function ScopeMarginChart({ data }: ScopeMa
               <defs>
                 {/* Create gradients for each color tier */}
                 <linearGradient id={`gradient-high-${gradientId}`} x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor="rgb(34, 197, 94)" stopOpacity={1} />
-                  <stop offset="100%" stopColor="rgb(16, 185, 129)" stopOpacity={0.8} />
+                  <stop offset="0%" stopColor="hsl(var(--chart-1))" stopOpacity={1} />
+                  <stop offset="100%" stopColor="hsl(var(--chart-1))" stopOpacity={0.7} />
                 </linearGradient>
                 <linearGradient id={`gradient-medium-${gradientId}`} x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor="rgb(74, 222, 128)" stopOpacity={1} />
-                  <stop offset="100%" stopColor="rgb(52, 211, 153)" stopOpacity={0.8} />
+                  <stop offset="0%" stopColor="hsl(var(--chart-2))" stopOpacity={1} />
+                  <stop offset="100%" stopColor="hsl(var(--chart-2))" stopOpacity={0.7} />
                 </linearGradient>
                 <linearGradient id={`gradient-low-${gradientId}`} x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor="rgb(245, 158, 11)" stopOpacity={1} />
-                  <stop offset="100%" stopColor="rgb(251, 191, 36)" stopOpacity={0.8} />
+                  <stop offset="0%" stopColor="hsl(var(--chart-4))" stopOpacity={1} />
+                  <stop offset="100%" stopColor="hsl(var(--chart-4))" stopOpacity={0.7} />
                 </linearGradient>
                 <linearGradient id={`gradient-critical-${gradientId}`} x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor="rgb(239, 68, 68)" stopOpacity={1} />
-                  <stop offset="100%" stopColor="rgb(248, 113, 113)" stopOpacity={0.8} />
+                  <stop offset="0%" stopColor="hsl(var(--chart-5))" stopOpacity={1} />
+                  <stop offset="100%" stopColor="hsl(var(--chart-5))" stopOpacity={0.7} />
                 </linearGradient>
               </defs>
               <CartesianGrid
@@ -263,6 +263,6 @@ export const ScopeMarginChart = memo(function ScopeMarginChart({ data }: ScopeMa
           </ResponsiveContainer>
         </CardContent>
       </Card>
-    </motion.div>
+    </m.div>
   );
 });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import { nl } from "@/lib/date-locale";
 import { Button } from "@/components/ui/button";
@@ -188,7 +188,7 @@ export function EnhancedDateFilter({
             {/* Custom Date Picker */}
             <AnimatePresence mode="wait">
               {showCustomPicker && (
-                <motion.div
+                <m.div
                   initial={{ opacity: 0, width: 0 }}
                   animate={{ opacity: 1, width: "auto" }}
                   exit={{ opacity: 0, width: 0 }}
@@ -233,7 +233,7 @@ export function EnhancedDateFilter({
                       </div>
                     )}
                   </div>
-                </motion.div>
+                </m.div>
               )}
             </AnimatePresence>
           </div>
@@ -257,14 +257,14 @@ export function EnhancedDateFilter({
                   />
                 </div>
                 {comparisonEnabled && (
-                  <motion.p
+                  <m.p
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     exit={{ opacity: 0, height: 0 }}
                     className="text-xs text-muted-foreground mt-2"
                   >
                     Vergelijk met dezelfde periode vorig jaar/kwartaal/maand
-                  </motion.p>
+                  </m.p>
                 )}
               </div>
             </>
@@ -274,7 +274,7 @@ export function EnhancedDateFilter({
 
       {/* Comparison Badge */}
       {comparisonEnabled && (
-        <motion.div
+        <m.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.9 }}
@@ -283,7 +283,7 @@ export function EnhancedDateFilter({
             <ArrowLeftRight className="h-3 w-3" />
             Vergelijking aan
           </Badge>
-        </motion.div>
+        </m.div>
       )}
     </div>
   );

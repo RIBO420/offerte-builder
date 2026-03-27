@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { useReducedMotion } from "@/hooks/use-accessibility";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calculator, Clock, Sliders, Loader2, Link2, FileStack, Bell } from "lucide-react";
+import { Calculator, Clock, Sliders, Loader2, Link2, FileStack, Bell, Shield, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { useInstellingen } from "@/hooks/use-instellingen";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -30,6 +30,7 @@ import { NormuurDialog } from "./components/normuur-dialog";
 import { DeleteNormuurDialog } from "./components/delete-normuur-dialog";
 import { DeelfactuurTemplatesTab } from "./components/deelfactuur-templates-tab";
 import { HerinneringenTab } from "./components/herinneringen-tab";
+import { EmailTemplatesTab } from "./components/email-templates-tab";
 
 export default function InstellingenPage() {
   const reducedMotion = useReducedMotion();
@@ -255,7 +256,7 @@ export default function InstellingenPage() {
           </Breadcrumb>
         </header>
         <div className="flex flex-1 items-center justify-center">
-          <motion.div
+          <m.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             className="flex flex-col items-center gap-4"
@@ -267,7 +268,7 @@ export default function InstellingenPage() {
               </div>
             </div>
             <p className="text-muted-foreground animate-pulse">Laden...</p>
-          </motion.div>
+          </m.div>
         </div>
       </>
     );
@@ -291,7 +292,7 @@ export default function InstellingenPage() {
         </Breadcrumb>
       </header>
 
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
@@ -331,6 +332,14 @@ export default function InstellingenPage() {
             <TabsTrigger value="herinneringen" className="flex items-center gap-2">
               <Bell className="h-4 w-4" />
               Herinneringen
+            </TabsTrigger>
+            <TabsTrigger value="email-templates" className="flex items-center gap-2">
+              <Mail className="h-4 w-4" />
+              E-mail Templates
+            </TabsTrigger>
+            <TabsTrigger value="beveiliging" className="flex items-center gap-2">
+              <Shield className="h-4 w-4" />
+              Beveiliging
             </TabsTrigger>
           </TabsList>
 
@@ -396,9 +405,81 @@ export default function InstellingenPage() {
                 herinneringInstellingen={instellingen?.herinneringInstellingen ?? undefined}
               />
             )}
+
+            {activeTab === "email-templates" && (
+              <EmailTemplatesTab reducedMotion={reducedMotion} />
+            )}
+
+            {activeTab === "beveiliging" && (
+              <m.div
+                key="beveiliging"
+                initial={reducedMotion ? {} : { opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reducedMotion ? {} : { opacity: 0, y: -10 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-6"
+              >
+                {/* 2FA Info Card */}
+                <div className="rounded-lg border bg-card p-6 shadow-sm">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900">
+                      <Shield className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold">Twee-factor authenticatie (2FA)</h3>
+                      <p className="text-sm text-muted-foreground">Extra beveiliging voor admin accounts</p>
+                    </div>
+                  </div>
+                  <div className="rounded-lg bg-muted/50 p-4 space-y-2">
+                    <p className="text-sm">
+                      Twee-factor authenticatie (2FA) is beschikbaar voor alle gebruikers.
+                      Dit wordt sterk aanbevolen voor admin accounts.
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Gebruikers kunnen 2FA inschakelen via hun profielpagina. Ga naar{" "}
+                      <a href="/profiel" className="text-primary underline hover:no-underline">Profiel</a>{" "}
+                      om je eigen 2FA in te stellen.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Session Timeout Info Card */}
+                <div className="rounded-lg border bg-card p-6 shadow-sm">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900">
+                      <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold">Sessie timeout</h3>
+                      <p className="text-sm text-muted-foreground">Automatische uitlog bij inactiviteit</p>
+                    </div>
+                  </div>
+                  <div className="rounded-lg bg-muted/50 p-4 space-y-2">
+                    <p className="text-sm">
+                      Sessies verlopen automatisch na 30 minuten inactiviteit. Dit beschermt accounts
+                      wanneer gebruikers vergeten uit te loggen.
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      De sessie-instellingen worden centraal beheerd via het Clerk dashboard.
+                      Neem contact op met de beheerder als de timeout aangepast moet worden.
+                    </p>
+                  </div>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-md border p-3">
+                      <p className="text-xs font-medium text-muted-foreground">Sessie timeout</p>
+                      <p className="text-lg font-semibold">30 minuten</p>
+                    </div>
+                    <div className="rounded-md border p-3">
+                      <p className="text-xs font-medium text-muted-foreground">Token verversing</p>
+                      <p className="text-lg font-semibold">Elke 5 minuten</p>
+                    </div>
+                  </div>
+                </div>
+              </m.div>
+            )}
           </AnimatePresence>
         </Tabs>
-      </motion.div>
+      </m.div>
 
       {/* Normuur Dialog */}
       <NormuurDialog

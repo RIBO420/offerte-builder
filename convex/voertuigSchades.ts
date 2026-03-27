@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
 import { requireNotViewer } from "./roles";
@@ -135,10 +135,10 @@ export const create = mutation({
     // Verify ownership of the vehicle
     const voertuig = await ctx.db.get(args.voertuigId);
     if (!voertuig) {
-      throw new Error("Voertuig niet gevonden");
+      throw new ConvexError("Voertuig niet gevonden");
     }
     if (voertuig.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit voertuig");
+      throw new ConvexError("Geen toegang tot dit voertuig");
     }
 
     return await ctx.db.insert("voertuigSchades", {
@@ -182,10 +182,10 @@ export const update = mutation({
     // Verify ownership
     const schade = await ctx.db.get(args.id);
     if (!schade) {
-      throw new Error("Schademelding niet gevonden");
+      throw new ConvexError("Schademelding niet gevonden");
     }
     if (schade.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot deze schademelding");
+      throw new ConvexError("Geen toegang tot deze schademelding");
     }
 
     // Build update object explicitly
@@ -235,10 +235,10 @@ export const updateStatus = mutation({
     // Verify ownership
     const schade = await ctx.db.get(args.id);
     if (!schade) {
-      throw new Error("Schademelding niet gevonden");
+      throw new ConvexError("Schademelding niet gevonden");
     }
     if (schade.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot deze schademelding");
+      throw new ConvexError("Geen toegang tot deze schademelding");
     }
 
     await ctx.db.patch(args.id, {
@@ -260,10 +260,10 @@ export const remove = mutation({
     // Verify ownership
     const schade = await ctx.db.get(args.id);
     if (!schade) {
-      throw new Error("Schademelding niet gevonden");
+      throw new ConvexError("Schademelding niet gevonden");
     }
     if (schade.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot deze schademelding");
+      throw new ConvexError("Geen toegang tot deze schademelding");
     }
 
     await ctx.db.delete(args.id);

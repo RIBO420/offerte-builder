@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
 import { requireNotViewer } from "./roles";
@@ -133,10 +133,10 @@ export const create = mutation({
     for (const medewerkerId of args.leden) {
       const medewerker = await ctx.db.get(medewerkerId);
       if (!medewerker) {
-        throw new Error(`Medewerker niet gevonden: ${medewerkerId}`);
+        throw new ConvexError(`Medewerker niet gevonden: ${medewerkerId}`);
       }
       if (medewerker.userId.toString() !== userId.toString()) {
-        throw new Error("Geen toegang tot deze medewerker");
+        throw new ConvexError("Geen toegang tot deze medewerker");
       }
     }
 
@@ -168,10 +168,10 @@ export const update = mutation({
     // Verifieer eigenaarschap
     const team = await ctx.db.get(args.id);
     if (!team) {
-      throw new Error("Team niet gevonden");
+      throw new ConvexError("Team niet gevonden");
     }
     if (team.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit team");
+      throw new ConvexError("Geen toegang tot dit team");
     }
 
     // Als leden worden bijgewerkt, verifieer eigenaarschap
@@ -179,10 +179,10 @@ export const update = mutation({
       for (const medewerkerId of args.leden) {
         const medewerker = await ctx.db.get(medewerkerId);
         if (!medewerker) {
-          throw new Error(`Medewerker niet gevonden: ${medewerkerId}`);
+          throw new ConvexError(`Medewerker niet gevonden: ${medewerkerId}`);
         }
         if (medewerker.userId.toString() !== userId.toString()) {
-          throw new Error("Geen toegang tot deze medewerker");
+          throw new ConvexError("Geen toegang tot deze medewerker");
         }
       }
     }
@@ -222,24 +222,24 @@ export const addLid = mutation({
     // Verifieer team eigenaarschap
     const team = await ctx.db.get(args.teamId);
     if (!team) {
-      throw new Error("Team niet gevonden");
+      throw new ConvexError("Team niet gevonden");
     }
     if (team.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit team");
+      throw new ConvexError("Geen toegang tot dit team");
     }
 
     // Verifieer medewerker eigenaarschap
     const medewerker = await ctx.db.get(args.medewerkerId);
     if (!medewerker) {
-      throw new Error("Medewerker niet gevonden");
+      throw new ConvexError("Medewerker niet gevonden");
     }
     if (medewerker.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot deze medewerker");
+      throw new ConvexError("Geen toegang tot deze medewerker");
     }
 
     // Check of medewerker al lid is
     if (team.leden.includes(args.medewerkerId)) {
-      throw new Error("Medewerker is al lid van dit team");
+      throw new ConvexError("Medewerker is al lid van dit team");
     }
 
     // Voeg medewerker toe
@@ -265,10 +265,10 @@ export const removeLid = mutation({
     // Verifieer team eigenaarschap
     const team = await ctx.db.get(args.teamId);
     if (!team) {
-      throw new Error("Team niet gevonden");
+      throw new ConvexError("Team niet gevonden");
     }
     if (team.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit team");
+      throw new ConvexError("Geen toegang tot dit team");
     }
 
     // Verwijder medewerker uit de lijst
@@ -293,10 +293,10 @@ export const remove = mutation({
     // Verifieer eigenaarschap
     const team = await ctx.db.get(args.id);
     if (!team) {
-      throw new Error("Team niet gevonden");
+      throw new ConvexError("Team niet gevonden");
     }
     if (team.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit team");
+      throw new ConvexError("Geen toegang tot dit team");
     }
 
     await ctx.db.patch(args.id, {
@@ -318,10 +318,10 @@ export const hardDelete = mutation({
     // Verifieer eigenaarschap
     const team = await ctx.db.get(args.id);
     if (!team) {
-      throw new Error("Team niet gevonden");
+      throw new ConvexError("Team niet gevonden");
     }
     if (team.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit team");
+      throw new ConvexError("Geen toegang tot dit team");
     }
 
     await ctx.db.delete(args.id);

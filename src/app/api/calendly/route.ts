@@ -123,48 +123,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     switch (event) {
       case "invitee.created": {
-        console.log("[Calendly Webhook] Nieuwe afspraak aangemaakt:", {
-          eventType: event_type.name,
-          klantNaam: invitee.name,
-          klantEmail: invitee.email,
-          startTijd: scheduled_event.start_time,
-          eindTijd: scheduled_event.end_time,
-          locatieType: scheduled_event.location.type,
-        });
-
-        // TODO: Sla de afspraak op in Convex, bijv.:
-        // await convex.mutation(api.afspraken.aanmaken, {
-        //   klantNaam: invitee.name,
-        //   klantEmail: invitee.email,
-        //   eventTypeNaam: event_type.name,
-        //   startTijd: scheduled_event.start_time,
-        //   eindTijd: scheduled_event.end_time,
-        // });
-
+        // TODO: Sla de afspraak op in Convex (api.afspraken.aanmaken)
         break;
       }
 
       case "invitee.canceled": {
-        console.log("[Calendly Webhook] Afspraak geannuleerd:", {
-          eventType: event_type.name,
-          klantNaam: invitee.name,
-          klantEmail: invitee.email,
-          startTijd: scheduled_event.start_time,
-        });
-
-        // TODO: Markeer de afspraak als geannuleerd in Convex, bijv.:
-        // await convex.mutation(api.afspraken.annuleren, {
-        //   klantEmail: invitee.email,
-        //   startTijd: scheduled_event.start_time,
-        // });
-
+        // TODO: Markeer de afspraak als geannuleerd in Convex (api.afspraken.annuleren)
         break;
       }
 
       default: {
         // Onbekend event type — negeer stilzwijgend om forward-compatibiliteit te garanderen
-        const onbekendEvent = event as string;
-        console.log(`[Calendly Webhook] Onbekend event genegeerd: ${onbekendEvent}`);
         break;
       }
     }

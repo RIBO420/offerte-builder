@@ -11,6 +11,7 @@ import * as SecureStore from 'expo-secure-store';
 // Keys voor SecureStore
 const BIOMETRIC_ENABLED_KEY = 'biometric_enabled';
 const SESSION_TOKEN_KEY = 'biometric_session_token';
+const SESSION_ID_KEY = 'biometric_session_id';
 const USER_ID_KEY = 'biometric_user_id';
 
 export type BiometricType = 'face' | 'fingerprint' | null;
@@ -18,6 +19,7 @@ export type BiometricType = 'face' | 'fingerprint' | null;
 export interface BiometricAuthResult {
   success: boolean;
   token?: string;
+  sessionId?: string;
   userId?: string;
   error?: string;
 }
@@ -31,14 +33,12 @@ export async function isBiometricAvailable(): Promise<boolean> {
     // Check of device hardware heeft voor biometrics
     const hasHardware = await LocalAuthentication.hasHardwareAsync();
     if (!hasHardware) {
-      console.log('[Biometric] Geen biometric hardware gevonden');
       return false;
     }
 
     // Check of er biometrics zijn geregistreerd (Face ID of Touch ID ingesteld)
     const isEnrolled = await LocalAuthentication.isEnrolledAsync();
     if (!isEnrolled) {
-      console.log('[Biometric] Geen biometrics geregistreerd op device');
       return false;
     }
 
@@ -88,13 +88,15 @@ export async function isBiometricEnabled(): Promise<boolean> {
 }
 
 /**
- * Activeer biometric login en sla session token veilig op
+ * Activeer biometric login en sla session gegevens veilig op
  *
- * @param sessionToken - De huidige session token van Clerk
+ * @param sessionId - De huidige Clerk session ID (voor restore via clerk.setActive)
+ * @param sessionToken - De huidige session token van Clerk (als backup identifier)
  * @param userId - De Clerk user ID voor identificatie
  * @returns true als activatie succesvol was
  */
 export async function setupBiometric(
+  sessionId: string,
   sessionToken: string,
   userId: string
 ): Promise<boolean> {
@@ -102,11 +104,15 @@ export async function setupBiometric(
     // Check eerst of biometrics beschikbaar is
     const available = await isBiometricAvailable();
     if (!available) {
-      console.log('[Biometric] Setup mislukt: biometrics niet beschikbaar');
       return false;
     }
 
-    // Sla de session token veilig op met biometric bescherming
+    // Sla de session ID op — dit is de key voor clerk.setActive()
+    await SecureStore.setItemAsync(SESSION_ID_KEY, sessionId, {
+      keychainAccessible: SecureStore.WHEN_UNLOCKED,
+    });
+
+    // Sla de session token op als backup identifier
     await SecureStore.setItemAsync(SESSION_TOKEN_KEY, sessionToken, {
       keychainAccessible: SecureStore.WHEN_UNLOCKED,
     });
@@ -119,7 +125,6 @@ export async function setupBiometric(
     // Markeer biometric als enabled
     await SecureStore.setItemAsync(BIOMETRIC_ENABLED_KEY, 'true');
 
-    console.log('[Biometric] Setup succesvol voltooid');
     return true;
   } catch (error) {
     console.error('[Biometric] Fout bij setup:', error);
@@ -132,10 +137,10 @@ export async function setupBiometric(
  */
 export async function disableBiometric(): Promise<void> {
   try {
+    await SecureStore.deleteItemAsync(SESSION_ID_KEY);
     await SecureStore.deleteItemAsync(SESSION_TOKEN_KEY);
     await SecureStore.deleteItemAsync(USER_ID_KEY);
     await SecureStore.deleteItemAsync(BIOMETRIC_ENABLED_KEY);
-    console.log('[Biometric] Uitgeschakeld en tokens verwijderd');
   } catch (error) {
     console.error('[Biometric] Fout bij uitschakelen:', error);
   }
@@ -188,12 +193,13 @@ export async function authenticateWithBiometric(): Promise<BiometricAuthResult> 
       return { success: false, error };
     }
 
-    // Haal opgeslagen session token op
+    // Haal opgeslagen session gegevens op
+    const sessionId = await SecureStore.getItemAsync(SESSION_ID_KEY);
     const token = await SecureStore.getItemAsync(SESSION_TOKEN_KEY);
     const userId = await SecureStore.getItemAsync(USER_ID_KEY);
 
-    if (!token || !userId) {
-      // Token is verlopen of verwijderd, disable biometric
+    if (!sessionId || !userId) {
+      // Sessie gegevens zijn verlopen of verwijderd, disable biometric
       await disableBiometric();
       return {
         success: false,
@@ -201,10 +207,10 @@ export async function authenticateWithBiometric(): Promise<BiometricAuthResult> 
       };
     }
 
-    console.log('[Biometric] Authenticatie succesvol');
     return {
       success: true,
-      token,
+      sessionId,
+      token: token ?? undefined,
       userId,
     };
   } catch (error: any) {
@@ -217,23 +223,29 @@ export async function authenticateWithBiometric(): Promise<BiometricAuthResult> 
 }
 
 /**
- * Update de opgeslagen session token (bijv. na token refresh)
+ * Update de opgeslagen session gegevens (bijv. na token refresh)
  *
+ * @param newSessionId - De nieuwe session ID
  * @param newToken - De nieuwe session token
  */
-export async function updateBiometricToken(newToken: string): Promise<void> {
+export async function updateBiometricSession(
+  newSessionId: string,
+  newToken: string
+): Promise<void> {
   try {
     const isEnabled = await isBiometricEnabled();
     if (!isEnabled) {
       return;
     }
 
+    await SecureStore.setItemAsync(SESSION_ID_KEY, newSessionId, {
+      keychainAccessible: SecureStore.WHEN_UNLOCKED,
+    });
     await SecureStore.setItemAsync(SESSION_TOKEN_KEY, newToken, {
       keychainAccessible: SecureStore.WHEN_UNLOCKED,
     });
-    console.log('[Biometric] Token bijgewerkt');
   } catch (error) {
-    console.error('[Biometric] Fout bij bijwerken token:', error);
+    console.error('[Biometric] Fout bij bijwerken sessie:', error);
   }
 }
 

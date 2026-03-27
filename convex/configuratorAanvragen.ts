@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
 import { requireAuth, requireAuthUserId } from "./auth";
 import { requireNotViewer } from "./roles";
@@ -261,25 +261,25 @@ export const create = mutation({
   handler: async (ctx, args) => {
     // Valideer verplichte velden
     if (!args.klantNaam.trim()) {
-      throw new Error("Naam is verplicht");
+      throw new ConvexError("Naam is verplicht");
     }
     if (!args.klantEmail.trim()) {
-      throw new Error("E-mailadres is verplicht");
+      throw new ConvexError("E-mailadres is verplicht");
     }
     if (!args.klantTelefoon.trim()) {
-      throw new Error("Telefoonnummer is verplicht");
+      throw new ConvexError("Telefoonnummer is verplicht");
     }
     if (!args.klantAdres.trim()) {
-      throw new Error("Adres is verplicht");
+      throw new ConvexError("Adres is verplicht");
     }
     if (!args.klantPostcode.trim()) {
-      throw new Error("Postcode is verplicht");
+      throw new ConvexError("Postcode is verplicht");
     }
     if (!args.klantPlaats.trim()) {
-      throw new Error("Plaats is verplicht");
+      throw new ConvexError("Plaats is verplicht");
     }
     if (args.indicatiePrijs < 0) {
-      throw new Error("Indicatieprijs mag niet negatief zijn");
+      throw new ConvexError("Indicatieprijs mag niet negatief zijn");
     }
 
     // Genereer uniek referentienummer: CFG-YYYYMMDD-XXXX
@@ -350,7 +350,7 @@ export const updateStatus = mutation({
 
     const aanvraag = await ctx.db.get(args.id);
     if (!aanvraag) {
-      throw new Error("Aanvraag niet gevonden");
+      throw new ConvexError("Aanvraag niet gevonden");
     }
 
     await ctx.db.patch(args.id, {
@@ -377,13 +377,13 @@ export const toewijzen = mutation({
 
     const aanvraag = await ctx.db.get(args.id);
     if (!aanvraag) {
-      throw new Error("Aanvraag niet gevonden");
+      throw new ConvexError("Aanvraag niet gevonden");
     }
 
     // Controleer of de gebruiker bestaat
     const medewerker = await ctx.db.get(args.toegewezenAan);
     if (!medewerker) {
-      throw new Error("Medewerker niet gevonden");
+      throw new ConvexError("Medewerker niet gevonden");
     }
 
     await ctx.db.patch(args.id, {
@@ -418,11 +418,11 @@ export const addNotitie = mutation({
 
     const aanvraag = await ctx.db.get(args.id);
     if (!aanvraag) {
-      throw new Error("Aanvraag niet gevonden");
+      throw new ConvexError("Aanvraag niet gevonden");
     }
 
     if (!args.notitie.trim()) {
-      throw new Error("Notitie mag niet leeg zijn");
+      throw new ConvexError("Notitie mag niet leeg zijn");
     }
 
     await ctx.db.patch(args.id, {
@@ -454,11 +454,11 @@ export const setPrijs = mutation({
 
     const aanvraag = await ctx.db.get(args.id);
     if (!aanvraag) {
-      throw new Error("Aanvraag niet gevonden");
+      throw new ConvexError("Aanvraag niet gevonden");
     }
 
     if (args.definitievePrijs < 0) {
-      throw new Error("Definitieve prijs mag niet negatief zijn");
+      throw new ConvexError("Definitieve prijs mag niet negatief zijn");
     }
 
     await ctx.db.patch(args.id, {
@@ -503,18 +503,18 @@ export const updatePipelineStatus = mutation({
 
     const lead = await ctx.db.get(args.id);
     if (!lead) {
-      throw new Error("Lead niet gevonden");
+      throw new ConvexError("Lead niet gevonden");
     }
 
     const currentStatus = lead.pipelineStatus ?? mapOldStatus(lead.status);
 
     // Transitieregels
     if (currentStatus === "gewonnen" && args.pipelineStatus !== "gewonnen") {
-      throw new Error("Een gewonnen lead kan niet terug naar een eerdere status");
+      throw new ConvexError("Een gewonnen lead kan niet terug naar een eerdere status");
     }
 
     if (args.pipelineStatus === "verloren" && !args.verliesReden?.trim()) {
-      throw new Error("Een verliesreden is verplicht bij status 'verloren'");
+      throw new ConvexError("Een verliesreden is verplicht bij status 'verloren'");
     }
 
     const patchData: Record<string, unknown> = {
@@ -556,11 +556,11 @@ export const markGewonnen = mutation({
 
     const lead = await ctx.db.get(args.id);
     if (!lead) {
-      throw new Error("Lead niet gevonden");
+      throw new ConvexError("Lead niet gevonden");
     }
 
     if (!lead.klantNaam?.trim()) {
-      throw new Error("Klantnaam is verplicht om een lead als gewonnen te markeren");
+      throw new ConvexError("Klantnaam is verplicht om een lead als gewonnen te markeren");
     }
 
     // Zoek bestaande klant op basis van e-mailadres
@@ -637,7 +637,7 @@ export const createHandmatig = mutation({
     const currentUser = await requireNotViewer(ctx);
 
     if (!args.klantNaam.trim()) {
-      throw new Error("Klantnaam is verplicht");
+      throw new ConvexError("Klantnaam is verplicht");
     }
 
     // Genereer uniek referentienummer: TOP-MAN-YYYY-NNNNN
@@ -697,10 +697,10 @@ export const createFromWebsite = internalMutation({
   },
   handler: async (ctx, args) => {
     if (!args.klantNaam.trim()) {
-      throw new Error("Naam is verplicht");
+      throw new ConvexError("Naam is verplicht");
     }
     if (!args.klantEmail.trim()) {
-      throw new Error("E-mailadres is verplicht");
+      throw new ConvexError("E-mailadres is verplicht");
     }
 
     const now = Date.now();

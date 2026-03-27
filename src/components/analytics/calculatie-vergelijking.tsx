@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, memo, useMemo } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -100,7 +100,7 @@ function CustomTooltip({ active, payload }: {
   const item = payload[0].payload;
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, x: -10, scale: 0.95 }}
       animate={{ opacity: 1, x: 0, scale: 1 }}
       className="relative overflow-hidden rounded-xl border border-white/10 bg-card/95 backdrop-blur-xl p-4 shadow-2xl shadow-black/20 min-w-[220px]"
@@ -131,7 +131,7 @@ function CustomTooltip({ active, payload }: {
           </div>
         </div>
       </div>
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -147,7 +147,7 @@ function AccuracyScoreDisplay({
   const change = previousScore !== undefined ? score - previousScore : undefined;
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.5, delay: 0.1 }}
@@ -200,7 +200,7 @@ function AccuracyScoreDisplay({
           </div>
         </CardContent>
       </Card>
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -252,7 +252,7 @@ export const CalculatieVergelijking = memo(function CalculatieVergelijking({
       <AccuracyScoreDisplay score={accuracyScore} previousScore={previousAccuracyScore} />
 
       {/* Chart */}
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
@@ -286,12 +286,12 @@ export const CalculatieVergelijking = memo(function CalculatieVergelijking({
               >
                 <defs>
                   <linearGradient id={`voorcalc-${gradientId}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="rgb(59, 130, 246)" stopOpacity={1} />
-                    <stop offset="100%" stopColor="rgb(37, 99, 235)" stopOpacity={0.8} />
+                    <stop offset="0%" stopColor="hsl(var(--chart-1))" stopOpacity={1} />
+                    <stop offset="100%" stopColor="hsl(var(--chart-1))" stopOpacity={0.7} />
                   </linearGradient>
                   <linearGradient id={`nacalc-${gradientId}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="rgb(34, 197, 94)" stopOpacity={1} />
-                    <stop offset="100%" stopColor="rgb(22, 163, 74)" stopOpacity={0.8} />
+                    <stop offset="0%" stopColor="hsl(var(--chart-2))" stopOpacity={1} />
+                    <stop offset="100%" stopColor="hsl(var(--chart-2))" stopOpacity={0.7} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid
@@ -302,7 +302,7 @@ export const CalculatieVergelijking = memo(function CalculatieVergelijking({
                 />
                 <XAxis
                   dataKey="displayName"
-                  tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                  tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
                   axisLine={{ stroke: "hsl(var(--border))", strokeOpacity: 0.5 }}
                   tickLine={false}
                   angle={-45}
@@ -341,10 +341,10 @@ export const CalculatieVergelijking = memo(function CalculatieVergelijking({
             </ResponsiveContainer>
           </CardContent>
         </Card>
-      </motion.div>
+      </m.div>
 
       {/* Breakdown Table */}
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
@@ -414,7 +414,7 @@ export const CalculatieVergelijking = memo(function CalculatieVergelijking({
             </Table>
           </CardContent>
         </Card>
-      </motion.div>
+      </m.div>
     </div>
   );
 });

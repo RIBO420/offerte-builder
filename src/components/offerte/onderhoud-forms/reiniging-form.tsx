@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useFormValidationSync } from "@/hooks/use-scope-form-sync";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -283,19 +284,7 @@ export function ReinigingForm({
   }, [watch, onChange]);
 
   // Validatiestatus doorgeven aan parent
-  useEffect(() => {
-    if (onValidationChange) {
-      const errorMessages: Record<string, string> = {};
-      Object.entries(errors).forEach(([key, error]) => {
-        const fieldError = error as { message?: string } | undefined;
-        if (fieldError?.message) {
-          errorMessages[key] = fieldError.message;
-        }
-      });
-      onValidationChange(isValid, errorMessages);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(errors), isValid]);
+  useFormValidationSync(errors, isValid, onValidationChange);
 
   const watchedValues = watch();
   const terrasTypeTooltip = watchedValues.terrasType

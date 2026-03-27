@@ -3,8 +3,8 @@
 import { useState, useCallback, useMemo } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useTableSort } from "@/hooks/use-table-sort";
-import { motion } from "framer-motion";
-import { RequireAdmin } from "@/components/require-admin";
+import { m } from "framer-motion";
+import { RequireRole } from "@/components/require-admin";
 import { PageHeader } from "@/components/page-header";
 import {
   Card,
@@ -357,7 +357,7 @@ function LeveranciersPageContent() {
       <>
         <PageHeader />
         <div className="flex flex-1 items-center justify-center">
-          <motion.div
+          <m.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             className="flex flex-col items-center gap-4"
@@ -369,7 +369,7 @@ function LeveranciersPageContent() {
               </div>
             </div>
             <p className="text-muted-foreground animate-pulse">Laden...</p>
-          </motion.div>
+          </m.div>
         </div>
       </>
     );
@@ -379,7 +379,7 @@ function LeveranciersPageContent() {
     <>
       <PageHeader />
 
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
@@ -505,7 +505,7 @@ function LeveranciersPageContent() {
             )}
           </CardContent>
         </Card>
-      </motion.div>
+      </m.div>
 
       {/* Add Dialog */}
       <LeverancierForm
@@ -557,8 +557,8 @@ function LeveranciersPageContent() {
 
 export default function LeveranciersPage() {
   return (
-    <RequireAdmin>
+    <RequireRole allowedRoles={["directie", "projectleider", "materiaalman"]}>
       <LeveranciersPageContent />
-    </RequireAdmin>
+    </RequireRole>
   );
 }

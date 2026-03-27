@@ -60,7 +60,7 @@ class AppErrorBoundary extends React.Component<
     // Placeholder for future crash reporting integration (e.g. Sentry)
     // For now, log to console
     if (this.state.error) {
-      console.log('[AppErrorBoundary] User reported error:', this.state.error.message);
+      console.warn('[AppErrorBoundary] User reported error:', this.state.error.message);
     }
     // Could open a mailto link or support form in the future
   };

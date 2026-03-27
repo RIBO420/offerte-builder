@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import {
   Card,
   CardHeader,
@@ -54,7 +54,7 @@ export function OnboardingChecklist({
   // Show completion celebration if all steps are done
   if (isComplete) {
     return (
-      <motion.div
+      <m.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
@@ -62,14 +62,14 @@ export function OnboardingChecklist({
         <Card className="border-emerald-200 dark:border-emerald-900/50 bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-950/30 dark:to-green-950/30">
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
-              <motion.div
+              <m.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ type: "spring", delay: 0.2 }}
                 className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500 text-white"
               >
                 <PartyPopper className="h-6 w-6" />
-              </motion.div>
+              </m.div>
               <div className="flex-1">
                 <h3 className="font-semibold text-emerald-900 dark:text-emerald-100">
                   Gefeliciteerd!
@@ -90,7 +90,7 @@ export function OnboardingChecklist({
             </div>
           </CardContent>
         </Card>
-      </motion.div>
+      </m.div>
     );
   }
 
@@ -151,7 +151,7 @@ export function OnboardingChecklist({
             <div className="space-y-2">
               <AnimatePresence mode="popLayout">
                 {steps.map((step, index) => (
-                  <motion.div
+                  <m.div
                     key={step.id}
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -212,7 +212,7 @@ export function OnboardingChecklist({
                         <ArrowRight className="h-4 w-4 text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                       )}
                     </Link>
-                  </motion.div>
+                  </m.div>
                 ))}
               </AnimatePresence>
             </div>

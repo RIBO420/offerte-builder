@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import {
   Card,
   CardContent,
@@ -155,12 +155,12 @@ export default function DashboardPage() {
 
       <div className="flex flex-1 flex-col gap-6 p-6 md:p-8 max-w-5xl">
         {/* Welcome Section */}
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
             Welkom{clerkUser?.firstName ? `, ${clerkUser.firstName}` : ""}
           </h1>
           <p className="text-muted-foreground mt-1">
@@ -170,11 +170,11 @@ export default function DashboardPage() {
               <>{projectStats?.totaal || 0} projecten</>
             )}
           </p>
-        </motion.div>
+        </m.div>
 
         {/* Onboarding Checklist */}
         {shouldShowChecklist && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: 0.05 }}
@@ -187,7 +187,7 @@ export default function DashboardPage() {
               isComplete={onboardingComplete}
               onDismiss={dismissOnboarding}
             />
-          </motion.div>
+          </m.div>
         )}
 
         {/* Medewerker Dashboard */}
@@ -200,7 +200,7 @@ export default function DashboardPage() {
             <WarningsFeed />
 
             {/* Primary CTA - Uren Registreren */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: 0.1 }}
@@ -228,10 +228,10 @@ export default function DashboardPage() {
                   </div>
                 </CardContent>
               </Card>
-            </motion.div>
+            </m.div>
 
             {/* Mijn Projecten Section */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: 0.15 }}
@@ -310,10 +310,10 @@ export default function DashboardPage() {
                   </div>
                 </Card>
               )}
-            </motion.div>
+            </m.div>
 
             {/* Quick Links Section for Medewerkers */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: 0.2 }}
@@ -358,7 +358,7 @@ export default function DashboardPage() {
                   </Card>
                 </Link>
               </div>
-            </motion.div>
+            </m.div>
           </>
         )}
 
@@ -376,7 +376,7 @@ export default function DashboardPage() {
 
             {/* Action Required - Moved to top, more prominent */}
             {hasActionRequired && (
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: 0.1 }}
@@ -429,11 +429,11 @@ export default function DashboardPage() {
                     </div>
                   </CardContent>
                 </Card>
-              </motion.div>
+              </m.div>
             )}
 
             {/* Quick Start - Big Buttons for New Offertes */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: hasActionRequired ? 0.15 : 0.1 }}
@@ -476,10 +476,10 @@ export default function DashboardPage() {
                   </Card>
                 </Link>
               </div>
-            </motion.div>
+            </m.div>
 
             {/* Key Metrics - 3 Cards Only */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: hasActionRequired ? 0.2 : 0.15 }}
@@ -529,10 +529,10 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </Card>
-            </motion.div>
+            </m.div>
 
             {/* Analytics Widgets - Conversion Rate & Project Status */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: hasActionRequired ? 0.25 : 0.2 }}
@@ -628,10 +628,10 @@ export default function DashboardPage() {
                   </div>
                 </Card>
               </div>
-            </motion.div>
+            </m.div>
 
             {/* Project Status Distribution & Recent Activity */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: hasActionRequired ? 0.3 : 0.25 }}
@@ -739,10 +739,10 @@ export default function DashboardPage() {
                   </CardContent>
                 </Card>
               </div>
-            </motion.div>
+            </m.div>
 
             {/* Inkoop & Voorraad Widgets */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: hasActionRequired ? 0.35 : 0.3 }}
@@ -753,11 +753,11 @@ export default function DashboardPage() {
                 <InkoopordersCard />
                 <QCStatusCard />
               </div>
-            </motion.div>
+            </m.div>
 
             {/* Active Projects - Only if there are any */}
             {hasActiveProjects && (
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: hasActionRequired ? 0.4 : 0.35 }}
@@ -818,12 +818,12 @@ export default function DashboardPage() {
                     </Link>
                   ))}
                 </div>
-              </motion.div>
+              </m.div>
             )}
 
             {/* Empty state - Only if no projects and no action required */}
             {!hasActionRequired && !hasActiveProjects && !isLoading && (
-              <motion.div
+              <m.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.3, delay: 0.35 }}
@@ -848,7 +848,7 @@ export default function DashboardPage() {
                     </Link>
                   </Button>
                 </div>
-              </motion.div>
+              </m.div>
             )}
           </>
         )}

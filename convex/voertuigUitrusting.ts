@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
 import { requireNotViewer } from "./roles";
@@ -171,10 +171,10 @@ export const create = mutation({
     // Verify ownership of the vehicle
     const voertuig = await ctx.db.get(args.voertuigId);
     if (!voertuig) {
-      throw new Error("Voertuig niet gevonden");
+      throw new ConvexError("Voertuig niet gevonden");
     }
     if (voertuig.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit voertuig");
+      throw new ConvexError("Geen toegang tot dit voertuig");
     }
 
     return await ctx.db.insert("voertuigUitrusting", {
@@ -215,20 +215,20 @@ export const update = mutation({
     // Verify ownership
     const uitrusting = await ctx.db.get(args.id);
     if (!uitrusting) {
-      throw new Error("Uitrusting niet gevonden");
+      throw new ConvexError("Uitrusting niet gevonden");
     }
     if (uitrusting.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot deze uitrusting");
+      throw new ConvexError("Geen toegang tot deze uitrusting");
     }
 
     // If moving to a different vehicle, verify ownership of new vehicle
     if (args.voertuigId && args.voertuigId !== uitrusting.voertuigId) {
       const newVoertuig = await ctx.db.get(args.voertuigId);
       if (!newVoertuig) {
-        throw new Error("Nieuw voertuig niet gevonden");
+        throw new ConvexError("Nieuw voertuig niet gevonden");
       }
       if (newVoertuig.userId.toString() !== userId.toString()) {
-        throw new Error("Geen toegang tot dit voertuig");
+        throw new ConvexError("Geen toegang tot dit voertuig");
       }
     }
 
@@ -277,10 +277,10 @@ export const updateStatus = mutation({
     // Verify ownership
     const uitrusting = await ctx.db.get(args.id);
     if (!uitrusting) {
-      throw new Error("Uitrusting niet gevonden");
+      throw new ConvexError("Uitrusting niet gevonden");
     }
     if (uitrusting.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot deze uitrusting");
+      throw new ConvexError("Geen toegang tot deze uitrusting");
     }
 
     await ctx.db.patch(args.id, {
@@ -302,10 +302,10 @@ export const remove = mutation({
     // Verify ownership
     const uitrusting = await ctx.db.get(args.id);
     if (!uitrusting) {
-      throw new Error("Uitrusting niet gevonden");
+      throw new ConvexError("Uitrusting niet gevonden");
     }
     if (uitrusting.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot deze uitrusting");
+      throw new ConvexError("Geen toegang tot deze uitrusting");
     }
 
     await ctx.db.delete(args.id);
@@ -383,19 +383,19 @@ export const moveToVoertuig = mutation({
     // Verify ownership of equipment
     const uitrusting = await ctx.db.get(args.id);
     if (!uitrusting) {
-      throw new Error("Uitrusting niet gevonden");
+      throw new ConvexError("Uitrusting niet gevonden");
     }
     if (uitrusting.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot deze uitrusting");
+      throw new ConvexError("Geen toegang tot deze uitrusting");
     }
 
     // Verify ownership of new vehicle
     const newVoertuig = await ctx.db.get(args.newVoertuigId);
     if (!newVoertuig) {
-      throw new Error("Voertuig niet gevonden");
+      throw new ConvexError("Voertuig niet gevonden");
     }
     if (newVoertuig.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit voertuig");
+      throw new ConvexError("Geen toegang tot dit voertuig");
     }
 
     await ctx.db.patch(args.id, {

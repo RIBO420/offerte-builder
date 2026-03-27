@@ -24,7 +24,7 @@ export const tokenCache = {
     try {
       const item = await SecureStore.getItemAsync(key);
       if (item) {
-        console.log(`[TokenCache] Token opgehaald voor key: ${key.substring(0, 10)}...`);
+        // Token retrieved successfully
       }
       return item;
     } catch (error) {
@@ -41,7 +41,6 @@ export const tokenCache = {
         // iOS only: token is alleen toegankelijk als device unlocked is
         keychainAccessible: SecureStore.WHEN_UNLOCKED,
       });
-      console.log(`[TokenCache] Token opgeslagen voor key: ${key.substring(0, 10)}...`);
     } catch (error) {
       console.error('[TokenCache] Fout bij opslaan token:', error);
     }
@@ -50,7 +49,6 @@ export const tokenCache = {
   async clearToken(key: string): Promise<void> {
     try {
       await SecureStore.deleteItemAsync(key);
-      console.log(`[TokenCache] Token verwijderd voor key: ${key.substring(0, 10)}...`);
     } catch (error) {
       console.error('[TokenCache] Fout bij verwijderen token:', error);
     }

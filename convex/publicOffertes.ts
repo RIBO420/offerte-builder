@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { generateSecureToken, getOwnedOfferte, isShareTokenValid, requireAuthUserId } from "./auth";
 import { requireNotViewer } from "./roles";
@@ -57,7 +57,7 @@ export const getByToken = query({
     // Rate limiting: max 30 requests per minute per token
     const rateLimitResult = checkPublicOfferteRateLimit(args.token);
     if (!rateLimitResult.allowed) {
-      throw new Error(rateLimitResult.message || "Te veel verzoeken. Probeer het later opnieuw.");
+      throw new ConvexError(rateLimitResult.message || "Te veel verzoeken. Probeer het later opnieuw.");
     }
 
     const offerte = await ctx.db
@@ -135,7 +135,7 @@ export const markAsViewed = mutation({
     // Rate limiting: max 30 requests per minute per token
     const rateLimitResult = checkPublicOfferteRateLimit(args.token);
     if (!rateLimitResult.allowed) {
-      throw new Error(rateLimitResult.message || "Te veel verzoeken. Probeer het later opnieuw.");
+      throw new ConvexError(rateLimitResult.message || "Te veel verzoeken. Probeer het later opnieuw.");
     }
 
     const offerte = await ctx.db
@@ -145,7 +145,7 @@ export const markAsViewed = mutation({
 
     // Validate token and check expiry
     if (!isShareTokenValid(offerte, args.token)) {
-      throw new Error("Ongeldige of verlopen link");
+      throw new ConvexError("Ongeldige of verlopen link");
     }
 
     // Only update and notify if first view (not already viewed or responded)
@@ -184,7 +184,7 @@ export const respond = mutation({
     // Rate limiting: max 30 requests per minute per token
     const rateLimitResult = checkPublicOfferteRateLimit(args.token);
     if (!rateLimitResult.allowed) {
-      throw new Error(rateLimitResult.message || "Te veel verzoeken. Probeer het later opnieuw.");
+      throw new ConvexError(rateLimitResult.message || "Te veel verzoeken. Probeer het later opnieuw.");
     }
 
     const offerte = await ctx.db
@@ -194,7 +194,7 @@ export const respond = mutation({
 
     // Validate token and check expiry
     if (!isShareTokenValid(offerte, args.token)) {
-      throw new Error("Ongeldige of verlopen link");
+      throw new ConvexError("Ongeldige of verlopen link");
     }
 
     // Check if already responded with accept/reject
@@ -202,22 +202,22 @@ export const respond = mutation({
       offerte!.customerResponse?.status === "geaccepteerd" ||
       offerte!.customerResponse?.status === "afgewezen"
     ) {
-      throw new Error("Offerte is al beantwoord");
+      throw new ConvexError("Offerte is al beantwoord");
     }
 
     // Require signature for acceptance
     if (args.status === "geaccepteerd" && !args.signature) {
-      throw new Error("Handtekening is verplicht bij accepteren");
+      throw new ConvexError("Handtekening is verplicht bij accepteren");
     }
 
     // Basic signature validation (simplified)
     if (args.signature) {
       if (!args.signature.startsWith("data:image/")) {
-        throw new Error("Ongeldige handtekening formaat");
+        throw new ConvexError("Ongeldige handtekening formaat");
       }
       // Max 500KB signature
       if (args.signature.length > 500000) {
-        throw new Error("Handtekening bestand te groot");
+        throw new ConvexError("Handtekening bestand te groot");
       }
     }
 
@@ -306,7 +306,7 @@ export const submitQuestion = mutation({
     // Rate limiting: max 30 requests per minute per token
     const rateLimitResult = checkPublicOfferteRateLimit(args.token);
     if (!rateLimitResult.allowed) {
-      throw new Error(rateLimitResult.message || "Te veel verzoeken. Probeer het later opnieuw.");
+      throw new ConvexError(rateLimitResult.message || "Te veel verzoeken. Probeer het later opnieuw.");
     }
 
     const offerte = await ctx.db
@@ -316,7 +316,7 @@ export const submitQuestion = mutation({
 
     // Validate token and check expiry
     if (!isShareTokenValid(offerte, args.token)) {
-      throw new Error("Ongeldige of verlopen link");
+      throw new ConvexError("Ongeldige of verlopen link");
     }
 
     const now = Date.now();

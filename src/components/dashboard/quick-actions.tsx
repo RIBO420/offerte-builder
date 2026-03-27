@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import Link from "next/link";
 import { 
   Plus, 
@@ -75,7 +75,7 @@ export function QuickActions() {
       {/* Quick Start Cards */}
       <div className="grid gap-4 md:grid-cols-2">
         {quickActions.map((action, index) => (
-          <motion.div
+          <m.div
             key={action.title}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -85,12 +85,12 @@ export function QuickActions() {
               <Card className="group relative overflow-hidden border-dashed hover:border-emerald-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-emerald-500/10 cursor-pointer bg-white/5 backdrop-blur-sm">
                 <CardContent className="p-5">
                   <div className="flex items-start gap-4">
-                    <motion.div
+                    <m.div
                       whileHover={{ scale: 1.1, rotate: 5 }}
                       className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${action.bgColor} ${action.color}`}
                     >
                       <action.icon className="h-6 w-6" />
-                    </motion.div>
+                    </m.div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold group-hover:text-emerald-400 transition-colors">
@@ -115,14 +115,14 @@ export function QuickActions() {
                 </CardContent>
               </Card>
             </Link>
-          </motion.div>
+          </m.div>
         ))}
       </div>
 
       {/* Quick Stats Filter */}
       <div className="flex flex-wrap gap-2">
         {statsActions.map((action, index) => (
-          <motion.div
+          <m.div
             key={action.title}
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -141,7 +141,7 @@ export function QuickActions() {
                 <ArrowRight className="ml-2 h-3 w-3 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
               </Button>
             </Link>
-          </motion.div>
+          </m.div>
         ))}
       </div>
     </div>
@@ -161,7 +161,7 @@ export function RecentActivity() {
       <h4 className="text-sm font-medium text-muted-foreground">Recente activiteit</h4>
       <div className="space-y-2">
         {activities.map((activity, index) => (
-          <motion.div
+          <m.div
             key={index}
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -178,7 +178,7 @@ export function RecentActivity() {
               <span className="text-muted-foreground"> • {activity.item}</span>
             </div>
             <span className="text-xs text-muted-foreground whitespace-nowrap">{activity.time}</span>
-          </motion.div>
+          </m.div>
         ))}
       </div>
     </div>
@@ -198,14 +198,14 @@ export function ProTips() {
       <div className="space-y-2">
         {tips.map((tip, index) => (
           <Link key={index} href={tip.link}>
-            <motion.div
+            <m.div
               whileHover={{ x: 4 }}
               className="flex items-center gap-3 p-3 rounded-lg bg-emerald-500/5 hover:bg-emerald-500/10 border border-emerald-500/10 hover:border-emerald-500/20 transition-all text-sm cursor-pointer"
             >
               <tip.icon className="h-4 w-4 text-emerald-400" />
               <span className="text-foreground">{tip.text}</span>
               <ArrowRight className="ml-auto h-3 w-3 text-emerald-400" />
-            </motion.div>
+            </m.div>
           </Link>
         ))}
       </div>

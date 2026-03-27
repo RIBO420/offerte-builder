@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { requireAuth } from "./auth";
@@ -25,7 +25,7 @@ export const list = query({
 
     let registraties;
 
-    if (role === "admin") {
+    if (role === "directie") {
       registraties = await ctx.db
         .query("verzuimregistraties")
         .withIndex("by_user", (q) => q.eq("userId", user._id))
@@ -80,7 +80,7 @@ export const countActief = query({
   handler: async (ctx) => {
     const user = await requireAuth(ctx);
     const role = await getUserRole(ctx);
-    if (role !== "admin") return 0;
+    if (role !== "directie") return 0;
 
     const all = await ctx.db
       .query("verzuimregistraties")
@@ -96,7 +96,7 @@ export const getStats = query({
   handler: async (ctx, args) => {
     const user = await requireAuth(ctx);
     const role = await getUserRole(ctx);
-    if (role !== "admin") return null;
+    if (role !== "directie") return null;
 
     const jaar = args.jaar ?? new Date().getFullYear();
     const jaarStr = String(jaar);
@@ -158,7 +158,7 @@ export const checkFrequentVerzuim = query({
   handler: async (ctx) => {
     const user = await requireAuth(ctx);
     const role = await getUserRole(ctx);
-    if (role !== "admin") return [];
+    if (role !== "directie") return [];
 
     const drieMandenGeleden = new Date();
     drieMandenGeleden.setMonth(drieMandenGeleden.getMonth() - 3);
@@ -211,7 +211,7 @@ export const ziekmelden = mutation({
     await requireNotViewer(ctx);
 
     const medewerker = await ctx.db.get(args.medewerkerId);
-    if (!medewerker) throw new Error("Medewerker niet gevonden");
+    if (!medewerker) throw new ConvexError("Medewerker niet gevonden");
 
     const bestaand = await ctx.db
       .query("verzuimregistraties")
@@ -220,7 +220,7 @@ export const ziekmelden = mutation({
 
     const actief = bestaand.find((r) => !r.herstelDatum);
     if (actief) {
-      throw new Error("Deze medewerker heeft al een actieve ziekmelding");
+      throw new ConvexError("Deze medewerker heeft al een actieve ziekmelding");
     }
 
     const now = Date.now();
@@ -246,9 +246,9 @@ export const herstelmelden = mutation({
     await requireNotViewer(ctx);
 
     const registratie = await ctx.db.get(args.id);
-    if (!registratie) throw new Error("Verzuimregistratie niet gevonden");
-    if (registratie.herstelDatum) throw new Error("Deze medewerker is al hersteld gemeld");
-    if (args.herstelDatum < registratie.startDatum) throw new Error("Hersteldatum moet na startdatum liggen");
+    if (!registratie) throw new ConvexError("Verzuimregistratie niet gevonden");
+    if (registratie.herstelDatum) throw new ConvexError("Deze medewerker is al hersteld gemeld");
+    if (args.herstelDatum < registratie.startDatum) throw new ConvexError("Hersteldatum moet na startdatum liggen");
 
     const updateData: Record<string, unknown> = {
       herstelDatum: args.herstelDatum,
@@ -277,7 +277,7 @@ export const addVerzuimgesprek = mutation({
     await requireAdmin(ctx);
 
     const registratie = await ctx.db.get(args.id);
-    if (!registratie) throw new Error("Verzuimregistratie niet gevonden");
+    if (!registratie) throw new ConvexError("Verzuimregistratie niet gevonden");
 
     await ctx.db.patch(args.id, {
       verzuimgesprek: {
@@ -301,7 +301,7 @@ export const update = mutation({
     await requireNotViewer(ctx);
 
     const registratie = await ctx.db.get(args.id);
-    if (!registratie) throw new Error("Verzuimregistratie niet gevonden");
+    if (!registratie) throw new ConvexError("Verzuimregistratie niet gevonden");
 
     const updateData: Record<string, unknown> = { updatedAt: Date.now() };
     if (args.reden !== undefined) updateData.reden = args.reden;
@@ -317,7 +317,7 @@ export const remove = mutation({
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
     const registratie = await ctx.db.get(args.id);
-    if (!registratie) throw new Error("Verzuimregistratie niet gevonden");
+    if (!registratie) throw new ConvexError("Verzuimregistratie niet gevonden");
     await ctx.db.delete(args.id);
   },
 });

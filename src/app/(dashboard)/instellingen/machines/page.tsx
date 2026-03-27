@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import {
   Card,
   CardContent,
@@ -314,7 +314,7 @@ export default function MachinesPage() {
         </Breadcrumb>
       </header>
 
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
@@ -425,7 +425,7 @@ export default function MachinesPage() {
         {isLoading ? (
           <Card>
             <CardContent className="flex items-center justify-center py-12">
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className="flex flex-col items-center gap-4"
@@ -437,7 +437,7 @@ export default function MachinesPage() {
                   </div>
                 </div>
                 <p className="text-muted-foreground animate-pulse">Laden...</p>
-              </motion.div>
+              </m.div>
             </CardContent>
           </Card>
         ) : machines.length > 0 ? (
@@ -490,7 +490,7 @@ export default function MachinesPage() {
             </CardContent>
           </Card>
         )}
-      </motion.div>
+      </m.div>
 
       {/* Machine Form Dialog */}
       <MachineForm

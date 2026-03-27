@@ -2,7 +2,7 @@
 
 import { use } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { useReducedMotion } from "@/hooks/use-accessibility";
 import {
   Card,
@@ -162,14 +162,14 @@ export default function VoorcalculatiePage({
         </Breadcrumb>
       </header>
 
-      <motion.div
+      <m.div
         initial={reducedMotion ? false : { opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: reducedMotion ? 0 : 0.5, ease: "easeOut" }}
         className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
       >
         {/* Header */}
-        <motion.div
+        <m.div
           initial={reducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{
@@ -211,10 +211,10 @@ export default function VoorcalculatiePage({
               <ExternalLink className="ml-2 h-3 w-3" />
             </Link>
           </Button>
-        </motion.div>
+        </m.div>
 
         {/* Info Banner */}
-        <motion.div
+        <m.div
           initial={reducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{
@@ -237,7 +237,7 @@ export default function VoorcalculatiePage({
               </div>
             </CardContent>
           </Card>
-        </motion.div>
+        </m.div>
 
         {/* Progress Stepper - Shows actual project status from database */}
         <Card className="p-4 md:p-6">
@@ -254,7 +254,7 @@ export default function VoorcalculatiePage({
         {voorcalculatie ? (
           <>
             {/* Summary Stats */}
-            <motion.div
+            <m.div
               initial={reducedMotion ? false : { opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{
@@ -318,10 +318,10 @@ export default function VoorcalculatiePage({
                   </div>
                 </CardContent>
               </Card>
-            </motion.div>
+            </m.div>
 
             {/* Uren Overzicht */}
-            <motion.div
+            <m.div
               initial={reducedMotion ? false : { opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{
@@ -350,10 +350,10 @@ export default function VoorcalculatiePage({
                   </CardContent>
                 </Card>
               )}
-            </motion.div>
+            </m.div>
           </>
         ) : (
-          <motion.div
+          <m.div
             initial={reducedMotion ? false : { opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{
@@ -379,9 +379,9 @@ export default function VoorcalculatiePage({
                 </Button>
               </CardContent>
             </Card>
-          </motion.div>
+          </m.div>
         )}
-      </motion.div>
+      </m.div>
     </>
   );
 }

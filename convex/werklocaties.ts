@@ -6,7 +6,7 @@
  * Contains location details, access information, utilities, safety notes, and photos.
  */
 
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuth, requireAuthUserId, verifyOwnership } from "./auth";
 import { requireNotViewer } from "./roles";
@@ -104,10 +104,10 @@ export const create = mutation({
     // Verify project ownership
     const project = await ctx.db.get(args.projectId);
     if (!project) {
-      throw new Error("Project niet gevonden");
+      throw new ConvexError("Project niet gevonden");
     }
     if (project.userId.toString() !== userId.toString()) {
-      throw new Error("Je hebt geen toegang tot dit project");
+      throw new ConvexError("Je hebt geen toegang tot dit project");
     }
 
     // Check if werklocatie already exists for this project
@@ -117,7 +117,7 @@ export const create = mutation({
       .unique();
 
     if (existingWerklocatie) {
-      throw new Error(
+      throw new ConvexError(
         "Er bestaat al een werklocatie voor dit project. Gebruik update om deze aan te passen."
       );
     }
@@ -292,10 +292,10 @@ export const createFromOfferte = mutation({
     // Get the project
     const project = await ctx.db.get(args.projectId);
     if (!project) {
-      throw new Error("Project niet gevonden");
+      throw new ConvexError("Project niet gevonden");
     }
     if (project.userId.toString() !== userId.toString()) {
-      throw new Error("Je hebt geen toegang tot dit project");
+      throw new ConvexError("Je hebt geen toegang tot dit project");
     }
 
     // Check if werklocatie already exists
@@ -305,7 +305,7 @@ export const createFromOfferte = mutation({
       .unique();
 
     if (existingWerklocatie) {
-      throw new Error(
+      throw new ConvexError(
         "Er bestaat al een werklocatie voor dit project. Gebruik update om deze aan te passen."
       );
     }
@@ -313,7 +313,7 @@ export const createFromOfferte = mutation({
     // Get the offerte to access klant data
     const offerte = await ctx.db.get(project.offerteId);
     if (!offerte) {
-      throw new Error("Offerte niet gevonden voor dit project");
+      throw new ConvexError("Offerte niet gevonden voor dit project");
     }
 
     // Use override values or fall back to offerte klant data

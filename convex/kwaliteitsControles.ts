@@ -5,7 +5,7 @@
  * inspections, photos, and approval workflows per project/scope.
  */
 
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId, verifyOwnership } from "./auth";
 import { requireNotViewer } from "./roles";
@@ -288,7 +288,7 @@ export const updateChecklistItem = mutation({
     const controle = await ctx.db.get(args.id);
 
     if (!controle) {
-      throw new Error("Kwaliteitscontrole niet gevonden");
+      throw new ConvexError("Kwaliteitscontrole niet gevonden");
     }
 
     // Verify ownership via project
@@ -343,7 +343,7 @@ export const addFoto = mutation({
     const controle = await ctx.db.get(args.id);
 
     if (!controle) {
-      throw new Error("Kwaliteitscontrole niet gevonden");
+      throw new ConvexError("Kwaliteitscontrole niet gevonden");
     }
 
     // Verify ownership via project
@@ -382,7 +382,7 @@ export const removeFoto = mutation({
     const controle = await ctx.db.get(args.id);
 
     if (!controle) {
-      throw new Error("Kwaliteitscontrole niet gevonden");
+      throw new ConvexError("Kwaliteitscontrole niet gevonden");
     }
 
     // Verify ownership via project
@@ -422,7 +422,7 @@ export const updateStatus = mutation({
     const controle = await ctx.db.get(args.id);
 
     if (!controle) {
-      throw new Error("Kwaliteitscontrole niet gevonden");
+      throw new ConvexError("Kwaliteitscontrole niet gevonden");
     }
 
     // Verify ownership via project
@@ -459,7 +459,7 @@ export const approve = mutation({
     const controle = await ctx.db.get(args.id);
 
     if (!controle) {
-      throw new Error("Kwaliteitscontrole niet gevonden");
+      throw new ConvexError("Kwaliteitscontrole niet gevonden");
     }
 
     // Verify ownership via project
@@ -469,7 +469,7 @@ export const approve = mutation({
     const allChecked = controle.checklistItems.every((item) => item.isAfgevinkt);
 
     if (!allChecked) {
-      throw new Error(
+      throw new ConvexError(
         "Niet alle checklist items zijn afgevinkt. Vink eerst alle items af voordat je goedkeurt."
       );
     }
@@ -502,7 +502,7 @@ export const reject = mutation({
     const controle = await ctx.db.get(args.id);
 
     if (!controle) {
-      throw new Error("Kwaliteitscontrole niet gevonden");
+      throw new ConvexError("Kwaliteitscontrole niet gevonden");
     }
 
     // Verify ownership via project
@@ -533,7 +533,7 @@ export const addChecklistItem = mutation({
     const controle = await ctx.db.get(args.id);
 
     if (!controle) {
-      throw new Error("Kwaliteitscontrole niet gevonden");
+      throw new ConvexError("Kwaliteitscontrole niet gevonden");
     }
 
     // Verify ownership via project
@@ -569,7 +569,7 @@ export const removeChecklistItem = mutation({
     const controle = await ctx.db.get(args.id);
 
     if (!controle) {
-      throw new Error("Kwaliteitscontrole niet gevonden");
+      throw new ConvexError("Kwaliteitscontrole niet gevonden");
     }
 
     // Verify ownership via project
@@ -600,7 +600,7 @@ export const remove = mutation({
     const controle = await ctx.db.get(args.id);
 
     if (!controle) {
-      throw new Error("Kwaliteitscontrole niet gevonden");
+      throw new ConvexError("Kwaliteitscontrole niet gevonden");
     }
 
     // Verify ownership via project

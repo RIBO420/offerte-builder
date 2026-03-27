@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useState, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import {
   Card,
   CardContent,
@@ -249,7 +249,7 @@ export const AfwijkingenTabel = memo(function AfwijkingenTabel({
                   const colors = getDeviationColor(afwijking.status);
 
                   return (
-                    <motion.tr
+                    <m.tr
                       key={afwijking.scope}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -298,7 +298,7 @@ export const AfwijkingenTabel = memo(function AfwijkingenTabel({
                           {formatDeviation(afwijking.afwijkingPercentage)}
                         </Badge>
                       </TableCell>
-                    </motion.tr>
+                    </m.tr>
                   );
                 })}
               </AnimatePresence>

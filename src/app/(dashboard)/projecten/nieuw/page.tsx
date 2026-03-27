@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { useReducedMotion } from "@/hooks/use-accessibility";
 import {
   Card,
@@ -184,14 +184,14 @@ function NieuwProjectPageContent() {
         </Breadcrumb>
       </header>
 
-      <motion.div
+      <m.div
         initial={reducedMotion ? false : { opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: reducedMotion ? 0 : 0.5, ease: "easeOut" }}
         className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
       >
         {/* Header */}
-        <motion.div
+        <m.div
           initial={reducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{
@@ -218,11 +218,11 @@ function NieuwProjectPageContent() {
               </p>
             </div>
           </div>
-        </motion.div>
+        </m.div>
 
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Left Column - Offerte Info */}
-          <motion.div
+          <m.div
             initial={reducedMotion ? false : { opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{
@@ -302,10 +302,10 @@ function NieuwProjectPageContent() {
                 </CardContent>
               </Card>
             )}
-          </motion.div>
+          </m.div>
 
           {/* Right Column - Project Form */}
-          <motion.div
+          <m.div
             initial={reducedMotion ? false : { opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{
@@ -375,9 +375,9 @@ function NieuwProjectPageContent() {
                 </div>
               </CardContent>
             </Card>
-          </motion.div>
+          </m.div>
         </div>
-      </motion.div>
+      </m.div>
     </>
   );
 }

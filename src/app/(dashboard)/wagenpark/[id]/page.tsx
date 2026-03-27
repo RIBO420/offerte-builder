@@ -3,7 +3,7 @@
 import { use, useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import {
   Card,
   CardContent,
@@ -212,14 +212,14 @@ export default function VoertuigDetailPage({
           </Breadcrumb>
         </header>
         <div className="flex flex-1 items-center justify-center">
-          <motion.div
+          <m.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             className="flex flex-col items-center gap-4"
           >
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             <p className="text-muted-foreground">Laden...</p>
-          </motion.div>
+          </m.div>
         </div>
       </>
     );
@@ -283,7 +283,7 @@ export default function VoertuigDetailPage({
         </Breadcrumb>
       </header>
 
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
@@ -726,7 +726,7 @@ export default function VoertuigDetailPage({
             />
           </TabsContent>
         </Tabs>
-      </motion.div>
+      </m.div>
 
       {/* Onderhoud Form Dialog */}
       <OnderhoudForm

@@ -123,25 +123,23 @@ export function useAppAuth(): UseAuthReturn {
       // Check of biometrics beschikbaar is
       const available = await isBiometricAvailable();
       if (!available) {
-        console.log('[useAuth] Biometric niet beschikbaar op dit device');
         return false;
       }
 
       // Haal huidige token op
       const token = await getToken();
-      if (!token || !userId) {
-        console.log('[useAuth] Geen token of userId beschikbaar voor biometric setup');
+      if (!token || !userId || !sessionId) {
         return false;
       }
 
-      // Setup biometric met huidige sessie
-      const success = await setupBiometric(token, userId);
+      // Setup biometric met huidige sessie — session ID is nodig voor restore
+      const success = await setupBiometric(sessionId, token, userId);
       return success;
     } catch (error) {
       console.error('[useAuth] Fout bij activeren biometric:', error);
       return false;
     }
-  }, [getToken, userId]);
+  }, [getToken, userId, sessionId]);
 
   /**
    * Deactiveer biometric login

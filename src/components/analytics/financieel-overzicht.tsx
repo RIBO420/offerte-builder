@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, memo, useMemo } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -74,16 +74,16 @@ function formatCurrencyNoDecimals(amount: number): string {
   return formatCurrency(amount, "nl-NL", false);
 }
 
-// Default colors for cost categories
+// Default colors for cost categories - using CSS custom properties for theme support
 const defaultColors = [
-  "#10b981", // emerald-500
-  "#3b82f6", // blue-500
-  "#f59e0b", // amber-500
-  "#8b5cf6", // violet-500
-  "#ec4899", // pink-500
-  "#06b6d4", // cyan-500
-  "#84cc16", // lime-500
-  "#f97316", // orange-500
+  "hsl(var(--chart-1))",
+  "hsl(var(--chart-2))",
+  "hsl(var(--chart-4))",
+  "hsl(var(--chart-3))",
+  "hsl(var(--chart-5))",
+  "hsl(var(--chart-1) / 0.7)",
+  "hsl(var(--chart-2) / 0.7)",
+  "hsl(var(--chart-4) / 0.7)",
 ];
 
 // Custom tooltip for pie chart
@@ -96,7 +96,7 @@ function PieTooltip({ active, payload }: {
   const item = payload[0].payload;
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       className="relative overflow-hidden rounded-xl border border-white/10 bg-card/95 backdrop-blur-xl p-4 shadow-2xl shadow-black/20 min-w-[160px]"
@@ -118,7 +118,7 @@ function PieTooltip({ active, payload }: {
           </div>
         </div>
       </div>
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -132,7 +132,7 @@ function BarTooltip({ active, payload }: {
   const item = payload[0].payload;
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       className="relative overflow-hidden rounded-xl border border-white/10 bg-card/95 backdrop-blur-xl p-4 shadow-2xl shadow-black/20 min-w-[180px]"
@@ -163,7 +163,7 @@ function BarTooltip({ active, payload }: {
           </div>
         </div>
       </div>
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -200,7 +200,7 @@ function FinancialKpiCard({
   const isPositiveChange = change !== undefined ? (positiveIsGood ? change >= 0 : change <= 0) : true;
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay }}
@@ -240,7 +240,7 @@ function FinancialKpiCard({
           </div>
         </CardContent>
       </Card>
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -379,7 +379,7 @@ export const FinancieelOverzicht = memo(function FinancieelOverzicht({
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Cost Breakdown Pie Chart */}
         {coloredBreakdown.length > 0 && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
@@ -454,12 +454,12 @@ export const FinancieelOverzicht = memo(function FinancieelOverzicht({
                 </div>
               </CardContent>
             </Card>
-          </motion.div>
+          </m.div>
         )}
 
         {/* Monthly Overview Bar Chart */}
         {maandelijksOverzicht.length > 0 && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
@@ -487,12 +487,12 @@ export const FinancieelOverzicht = memo(function FinancieelOverzicht({
                   >
                     <defs>
                       <linearGradient id={`omzet-${gradientId}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="rgb(34, 197, 94)" stopOpacity={1} />
-                        <stop offset="100%" stopColor="rgb(22, 163, 74)" stopOpacity={0.8} />
+                        <stop offset="0%" stopColor="hsl(var(--chart-1))" stopOpacity={1} />
+                        <stop offset="100%" stopColor="hsl(var(--chart-1))" stopOpacity={0.7} />
                       </linearGradient>
                       <linearGradient id={`kosten-${gradientId}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="rgb(239, 68, 68)" stopOpacity={0.7} />
-                        <stop offset="100%" stopColor="rgb(220, 38, 38)" stopOpacity={0.5} />
+                        <stop offset="0%" stopColor="hsl(var(--chart-5))" stopOpacity={0.7} />
+                        <stop offset="100%" stopColor="hsl(var(--chart-5))" stopOpacity={0.4} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid
@@ -503,13 +503,13 @@ export const FinancieelOverzicht = memo(function FinancieelOverzicht({
                     />
                     <XAxis
                       dataKey="maand"
-                      tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                      tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
                       axisLine={{ stroke: "hsl(var(--border))", strokeOpacity: 0.5 }}
                       tickLine={false}
                     />
                     <YAxis
                       tickFormatter={(value) => formatCurrencyCompact(value)}
-                      tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                      tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
                       axisLine={false}
                       tickLine={false}
                     />
@@ -539,13 +539,13 @@ export const FinancieelOverzicht = memo(function FinancieelOverzicht({
                 </ResponsiveContainer>
               </CardContent>
             </Card>
-          </motion.div>
+          </m.div>
         )}
       </div>
 
       {/* Monthly Summary Table */}
       {maandelijksOverzicht.length > 0 && (
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.35 }}
@@ -628,7 +628,7 @@ export const FinancieelOverzicht = memo(function FinancieelOverzicht({
               </Table>
             </CardContent>
           </Card>
-        </motion.div>
+        </m.div>
       )}
     </div>
   );

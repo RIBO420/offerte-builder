@@ -11,12 +11,16 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
-import { useSignIn, useAuth } from '@clerk/clerk-expo';
+import { RefreshCw, Zap } from 'lucide-react-native';
+import { useSignIn, useAuth, useSSO } from '@clerk/clerk-expo';
 import * as Linking from 'expo-linking';
+import * as WebBrowser from 'expo-web-browser';
 import { isAuthConfigured } from '../../lib/env';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../../theme/colors';
+
+// Complete any pending auth sessions (required for OAuth redirect flow)
+WebBrowser.maybeCompleteAuthSession();
 
 // Email validation regex
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -39,6 +43,7 @@ export default function LoginScreen() {
   // Altijd hooks aanroepen (React rules of hooks)
   const signInHook = useSignIn();
   const authHook = useAuth();
+  const { startSSOFlow } = useSSO();
 
   // Gebruik resultaat alleen als auth geconfigureerd is
   const signIn = AUTH_CONFIGURED ? signInHook.signIn : null;
@@ -51,7 +56,7 @@ export default function LoginScreen() {
     if (isSignedIn) {
       router.replace('/(tabs)');
     }
-  }, [isSignedIn]);
+  }, [isSignedIn, router]);
 
   // Valideer email bij elke wijziging
   const validateEmail = useCallback((value: string) => {
@@ -134,6 +139,46 @@ export default function LoginScreen() {
     }
   };
 
+  const handleGoogleLogin = async () => {
+    if (!AUTH_CONFIGURED) {
+      Alert.alert('Development Mode', 'Clerk authenticatie is niet geconfigureerd.');
+      return;
+    }
+
+    setLoginState('sending');
+    setErrorMessage(null);
+
+    try {
+      const redirectUrl = Linking.createURL('callback', { scheme: 'toptuinen' });
+
+      const { createdSessionId, setActive: ssoSetActive } = await startSSOFlow({
+        strategy: 'oauth_google',
+        redirectUrl,
+      });
+
+      if (createdSessionId && ssoSetActive) {
+        await ssoSetActive({ session: createdSessionId });
+        router.replace('/(auth)/biometric');
+      } else {
+        setLoginState('idle');
+        setErrorMessage('Google login niet compleet. Probeer opnieuw.');
+      }
+    } catch (error: any) {
+      console.error('[Login] Google OAuth error:', error);
+      setLoginState('idle');
+
+      if (error.message?.includes('cancelled') || error.message?.includes('dismiss')) {
+        // User cancelled - no error message needed
+        return;
+      }
+
+      const clerkError = error.errors?.[0];
+      setErrorMessage(
+        clerkError?.message || error.message || 'Google login mislukt. Probeer opnieuw.'
+      );
+    }
+  };
+
   const handleSendCode = async () => {
     if (!validateEmail(email)) {
       Alert.alert('Fout', 'Voer een geldig e-mailadres in');
@@ -158,8 +203,6 @@ export default function LoginScreen() {
       const { supportedFirstFactors } = await signIn.create({
         identifier: email.trim().toLowerCase(),
       });
-
-      console.log('[Login] Supported factors:', supportedFirstFactors?.map(f => f.strategy));
 
       // Probeer eerst email_code (meest ondersteund)
       const emailCodeFactor = supportedFirstFactors?.find(
@@ -189,8 +232,6 @@ export default function LoginScreen() {
         const redirectUrl = Linking.createURL('callback', {
           scheme: 'toptuinen',
         });
-
-        console.log('[Login] Redirect URL:', redirectUrl);
 
         // Start email link flow
         const { startEmailLinkFlow } = signIn.createEmailLinkFlow();
@@ -268,8 +309,6 @@ export default function LoginScreen() {
         strategy: 'email_code',
         code: code,
       });
-
-      console.log('[Login] Verify result:', result.status);
 
       if (result.status === 'complete') {
         await setActive({ session: result.createdSessionId });
@@ -398,7 +437,7 @@ export default function LoginScreen() {
                   handleSendCode();
                 }}
               >
-                <Feather name="refresh-cw" size={14} color="#6B8F6B" />
+                <RefreshCw size={14} color="#6B8F6B" />
                 <Text style={styles.resendText}>Nieuwe code versturen</Text>
               </TouchableOpacity>
 
@@ -487,6 +526,25 @@ export default function LoginScreen() {
             We sturen een 6-cijferige code naar je e-mailadres.
           </Text>
 
+          {/* Divider */}
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>of</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* Google OAuth login */}
+          <TouchableOpacity
+            style={styles.googleButton}
+            onPress={handleGoogleLogin}
+            disabled={loginState === 'sending'}
+          >
+            <Text style={styles.googleIcon}>G</Text>
+            <Text style={styles.googleButtonText}>
+              Inloggen met Google
+            </Text>
+          </TouchableOpacity>
+
           {/* Dev mode: password login */}
           {__DEV__ && (
             <TouchableOpacity
@@ -494,7 +552,7 @@ export default function LoginScreen() {
               onPress={handleDevLogin}
               disabled={loginState === 'sending'}
             >
-              <Feather name="zap" size={18} color="#F97316" />
+              <Zap size={18} color="#F97316" />
               <Text style={styles.devButtonText}>
                 Dev Login (medewerker)
               </Text>
@@ -649,6 +707,42 @@ const styles = StyleSheet.create({
   changeEmailText: {
     fontSize: 13,
     color: '#888',
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginVertical: 4,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#222',
+  },
+  dividerText: {
+    fontSize: 13,
+    color: '#666',
+  },
+  googleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1A1A1A',
+    borderWidth: 1,
+    borderColor: '#333',
+    borderRadius: 12,
+    paddingVertical: 14,
+    gap: 10,
+  },
+  googleIcon: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#4285F4',
+  },
+  googleButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#E8E8E8',
   },
   devButton: {
     flexDirection: 'row',

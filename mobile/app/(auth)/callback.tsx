@@ -6,7 +6,7 @@
  * leidt de gebruiker door naar de biometric setup of het dashboard.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSignIn, useSignUp, useAuth } from '@clerk/clerk-expo';
-import { Feather } from '@expo/vector-icons';
+import { CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react-native';
 import { isAuthConfigured } from '../../lib/env';
 
 type CallbackStatus = 'verifying' | 'success' | 'error';
@@ -30,6 +30,11 @@ export default function CallbackScreen() {
   const [status, setStatus] = useState<CallbackStatus>('verifying');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Refs for interval/timeout cleanup
+  const intervalRef = useRef<ReturnType<typeof setInterval>>(undefined);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const statusRef = useRef<CallbackStatus>('verifying');
+
   // Altijd hooks aanroepen (React rules of hooks)
   const signInHook = useSignIn();
   const signUpHook = useSignUp();
@@ -42,10 +47,21 @@ export default function CallbackScreen() {
   const setActiveSignUp = AUTH_CONFIGURED ? signUpHook.setActive : null;
   const isSignedIn = AUTH_CONFIGURED ? authHook.isSignedIn : false;
 
-  const handleCallback = async () => {
-    try {
-      console.log('[Callback] Params:', params);
+  // Keep status ref in sync for use inside interval/timeout callbacks
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
 
+  // Clean up interval and timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
+
+  const handleCallback = useCallback(async () => {
+    try {
       if (!AUTH_CONFIGURED) {
         setStatus('error');
         setErrorMessage('Authenticatie is niet geconfigureerd');
@@ -60,7 +76,6 @@ export default function CallbackScreen() {
         // Sign in is complete
         if (signIn.createdSessionId && setActiveSignIn) {
           await setActiveSignIn({ session: signIn.createdSessionId });
-          console.log('[Callback] Sign in complete, session activated');
           setStatus('success');
           return;
         }
@@ -70,7 +85,6 @@ export default function CallbackScreen() {
         // Sign up is complete (nieuwe gebruiker)
         if (signUp.createdSessionId && setActiveSignUp) {
           await setActiveSignUp({ session: signUp.createdSessionId });
-          console.log('[Callback] Sign up complete, session activated');
           setStatus('success');
           return;
         }
@@ -80,19 +94,24 @@ export default function CallbackScreen() {
       // De magic link flow in Clerk v2 werkt asynchroon
       // Het kan even duren voordat de status bijgewerkt is
 
+      // Clear any previous interval/timeout
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
       // Wacht even en check opnieuw
-      const checkSessionInterval = setInterval(async () => {
+      intervalRef.current = setInterval(async () => {
         if (signIn?.status === 'complete' && signIn.createdSessionId && setActiveSignIn) {
-          clearInterval(checkSessionInterval);
+          if (intervalRef.current) clearInterval(intervalRef.current);
+          if (timeoutRef.current) clearTimeout(timeoutRef.current);
           await setActiveSignIn({ session: signIn.createdSessionId });
           setStatus('success');
         }
       }, 500);
 
       // Timeout na 30 seconden
-      setTimeout(() => {
-        clearInterval(checkSessionInterval);
-        if (status === 'verifying') {
+      timeoutRef.current = setTimeout(() => {
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        if (statusRef.current === 'verifying') {
           setStatus('error');
           setErrorMessage(
             'De verificatie duurde te lang. De link is mogelijk verlopen. ' +
@@ -131,11 +150,13 @@ export default function CallbackScreen() {
         );
       }
     }
-  };
+  }, [signIn, signUp, setActiveSignIn, setActiveSignUp, router]);
 
   useEffect(() => {
-    setTimeout(() => handleCallback(), 0);
-  }, []);
+    // Schedule on next tick to avoid state updates during render
+    const startTimer = setTimeout(() => handleCallback(), 0);
+    return () => clearTimeout(startTimer);
+  }, [handleCallback]);
 
   // Als al ingelogd, redirect naar biometric setup
   useEffect(() => {
@@ -146,7 +167,7 @@ export default function CallbackScreen() {
       }, 1500);
       return () => clearTimeout(timer);
     }
-  }, [isSignedIn, status]);
+  }, [isSignedIn, status, router]);
 
   const handleRetry = () => {
     router.replace('/(auth)/login');
@@ -173,7 +194,7 @@ export default function CallbackScreen() {
       <View style={styles.container}>
         <View style={styles.content}>
           <View style={styles.successIcon}>
-            <Feather name="check-circle" size={64} color="#4ADE80" />
+            <CheckCircle size={64} color="#4ADE80" />
           </View>
           <Text style={styles.successText}>Ingelogd!</Text>
           <Text style={styles.hintText}>
@@ -189,7 +210,7 @@ export default function CallbackScreen() {
     <View style={styles.container}>
       <View style={styles.content}>
         <View style={styles.errorIcon}>
-          <Feather name="alert-circle" size={64} color="#EF4444" />
+          <AlertCircle size={64} color="#EF4444" />
         </View>
         <Text style={styles.errorText}>Verificatie mislukt</Text>
         <Text style={styles.errorMessage}>
@@ -198,7 +219,7 @@ export default function CallbackScreen() {
 
         <View style={styles.actions}>
           <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
-            <Feather name="arrow-left" size={20} color="#4ADE80" />
+            <ArrowLeft size={20} color="#4ADE80" />
             <Text style={styles.retryButtonText}>
               Terug naar inloggen
             </Text>

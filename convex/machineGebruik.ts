@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
 import { requireNotViewer } from "./roles";
@@ -12,7 +12,7 @@ export const list = query({
     // Verify project ownership
     const project = await ctx.db.get(args.projectId);
     if (!project || project.userId.toString() !== userId.toString()) {
-      throw new Error("Project niet gevonden of geen toegang");
+      throw new ConvexError("Project niet gevonden of geen toegang");
     }
 
     const usage = await ctx.db
@@ -50,7 +50,7 @@ export const getTotals = query({
     // Verify project ownership
     const project = await ctx.db.get(args.projectId);
     if (!project || project.userId.toString() !== userId.toString()) {
-      throw new Error("Project niet gevonden of geen toegang");
+      throw new ConvexError("Project niet gevonden of geen toegang");
     }
 
     const usage = await ctx.db
@@ -112,13 +112,13 @@ export const add = mutation({
     // Verify project ownership
     const project = await ctx.db.get(args.projectId);
     if (!project || project.userId.toString() !== userId.toString()) {
-      throw new Error("Project niet gevonden of geen toegang");
+      throw new ConvexError("Project niet gevonden of geen toegang");
     }
 
     // Verify machine ownership and get tarief
     const machine = await ctx.db.get(args.machineId);
     if (!machine || machine.userId.toString() !== userId.toString()) {
-      throw new Error("Machine niet gevonden of geen toegang");
+      throw new ConvexError("Machine niet gevonden of geen toegang");
     }
 
     // Calculate costs based on tarief type
@@ -156,12 +156,12 @@ export const update = mutation({
     // Get entry and verify ownership through project
     const entry = await ctx.db.get(args.id);
     if (!entry) {
-      throw new Error("Machine gebruik niet gevonden");
+      throw new ConvexError("Machine gebruik niet gevonden");
     }
 
     const project = await ctx.db.get(entry.projectId);
     if (!project || project.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit machine gebruik");
+      throw new ConvexError("Geen toegang tot dit machine gebruik");
     }
 
     const updates: Record<string, unknown> = {};
@@ -201,12 +201,12 @@ export const remove = mutation({
     // Get entry and verify ownership through project
     const entry = await ctx.db.get(args.id);
     if (!entry) {
-      throw new Error("Machine gebruik niet gevonden");
+      throw new ConvexError("Machine gebruik niet gevonden");
     }
 
     const project = await ctx.db.get(entry.projectId);
     if (!project || project.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit machine gebruik");
+      throw new ConvexError("Geen toegang tot dit machine gebruik");
     }
 
     await ctx.db.delete(args.id);

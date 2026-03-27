@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
 import { requireNotViewer } from "./roles";
@@ -262,10 +262,10 @@ export const create = mutation({
     // Verify product ownership
     const product = await ctx.db.get(args.productId);
     if (!product) {
-      throw new Error("Product niet gevonden");
+      throw new ConvexError("Product niet gevonden");
     }
     if (product.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit product");
+      throw new ConvexError("Geen toegang tot dit product");
     }
 
     // Validate numeric fields
@@ -293,7 +293,7 @@ export const create = mutation({
       .unique();
 
     if (existingVoorraad) {
-      throw new Error("Er bestaat al een voorraad item voor dit product");
+      throw new ConvexError("Er bestaat al een voorraad item voor dit product");
     }
 
     const voorraadId = await ctx.db.insert("voorraad", {
@@ -340,10 +340,10 @@ export const update = mutation({
     // Verify ownership
     const voorraad = await ctx.db.get(args.id);
     if (!voorraad) {
-      throw new Error("Voorraad item niet gevonden");
+      throw new ConvexError("Voorraad item niet gevonden");
     }
     if (voorraad.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit voorraad item");
+      throw new ConvexError("Geen toegang tot dit voorraad item");
     }
 
     const filteredUpdates: Record<string, unknown> = {
@@ -401,17 +401,17 @@ export const adjustStock = mutation({
     // Verify voorraad ownership
     const voorraad = await ctx.db.get(args.voorraadId);
     if (!voorraad) {
-      throw new Error("Voorraad item niet gevonden");
+      throw new ConvexError("Voorraad item niet gevonden");
     }
     if (voorraad.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit voorraad item");
+      throw new ConvexError("Geen toegang tot dit voorraad item");
     }
 
     // Verify project ownership if provided
     if (args.projectId) {
       const project = await ctx.db.get(args.projectId);
       if (!project || project.userId.toString() !== userId.toString()) {
-        throw new Error("Project niet gevonden of geen toegang");
+        throw new ConvexError("Project niet gevonden of geen toegang");
       }
     }
 
@@ -419,7 +419,7 @@ export const adjustStock = mutation({
     if (args.inkooporderId) {
       const inkooporder = await ctx.db.get(args.inkooporderId);
       if (!inkooporder || inkooporder.userId.toString() !== userId.toString()) {
-        throw new Error("Inkooporder niet gevonden of geen toegang");
+        throw new ConvexError("Inkooporder niet gevonden of geen toegang");
       }
     }
 
@@ -448,7 +448,7 @@ export const adjustStock = mutation({
 
     // Prevent negative stock (optional business rule)
     if (newHoeveelheid < 0) {
-      throw new Error(
+      throw new ConvexError(
         `Onvoldoende voorraad. Huidige voorraad: ${voorraad.hoeveelheid}, gevraagde afname: ${Math.abs(changeAmount)}`
       );
     }
@@ -493,10 +493,10 @@ export const remove = mutation({
     // Verify ownership
     const voorraad = await ctx.db.get(args.id);
     if (!voorraad) {
-      throw new Error("Voorraad item niet gevonden");
+      throw new ConvexError("Voorraad item niet gevonden");
     }
     if (voorraad.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit voorraad item");
+      throw new ConvexError("Geen toegang tot dit voorraad item");
     }
 
     // Also delete all related mutaties

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { Checkbox } from "@/components/ui/checkbox";
 import { NoOffertes, NoSearchResults } from "@/components/empty-states";
 import { OffertesTableSkeleton } from "@/components/skeletons";
@@ -45,7 +45,7 @@ export function OfferteCardGrid({
   return (
     <AnimatePresence mode="wait">
       {isLoading ? (
-        <motion.div
+        <m.div
           key="loading"
           initial={reducedMotion ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -53,9 +53,9 @@ export function OfferteCardGrid({
           transition={{ duration: reducedMotion ? 0 : 0.2 }}
         >
           <OffertesTableSkeleton rows={5} />
-        </motion.div>
+        </m.div>
       ) : sortedOffertes.length > 0 ? (
-        <motion.div
+        <m.div
           key="content"
           initial={reducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -94,9 +94,9 @@ export function OfferteCardGrid({
               />
             ))}
           </div>
-        </motion.div>
+        </m.div>
       ) : searchQuery ? (
-        <motion.div
+        <m.div
           key="no-results"
           initial={reducedMotion ? false : { opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -104,9 +104,9 @@ export function OfferteCardGrid({
           transition={{ duration: reducedMotion ? 0 : 0.3 }}
         >
           <NoSearchResults onAction={() => setSearchQuery("")} />
-        </motion.div>
+        </m.div>
       ) : (
-        <motion.div
+        <m.div
           key="empty"
           initial={reducedMotion ? false : { opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -114,7 +114,7 @@ export function OfferteCardGrid({
           transition={{ duration: reducedMotion ? 0 : 0.3 }}
         >
           <NoOffertes onAction={() => router.push("/offertes/nieuw/aanleg")} />
-        </motion.div>
+        </m.div>
       )}
     </AnimatePresence>
   );

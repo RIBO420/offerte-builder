@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useScroll, useTransform } from "framer-motion";
+import { m, useScroll, useTransform } from "framer-motion";
 import { useRef, useMemo } from "react";
 import { Trees, Shovel, Leaf, Hammer, Fence, Droplets } from "lucide-react";
 import { useReducedMotion } from "@/hooks/use-accessibility";
@@ -27,7 +27,7 @@ function FloatingIcon({
   // Reduced motion: just fade in, no floating animation
   if (prefersReducedMotion) {
     return (
-      <motion.div
+      <m.div
         className="absolute"
         style={{ left: x, top: y }}
         initial={{ opacity: 0 }}
@@ -40,12 +40,12 @@ function FloatingIcon({
         >
           <Icon className="h-5 w-5 text-white" />
         </div>
-      </motion.div>
+      </m.div>
     );
   }
 
   return (
-    <motion.div
+    <m.div
       className="absolute will-change-transform"
       style={{ left: x, top: y }}
       initial={{ opacity: 0, scale: 0 }}
@@ -74,7 +74,7 @@ function FloatingIcon({
           style={{ filter: "blur(12px)" }}
         />
       </div>
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -101,7 +101,7 @@ function Particles({ prefersReducedMotion = false }: { prefersReducedMotion?: bo
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
       {particles.map((particle) => (
-        <motion.div
+        <m.div
           key={particle.id}
           className="absolute rounded-full bg-emerald-400/30 will-change-transform"
           style={{
@@ -147,14 +147,14 @@ function Garden3D({ prefersReducedMotion = false }: { prefersReducedMotion?: boo
   );
 
   return (
-    <motion.div
+    <m.div
       ref={ref}
       className="relative w-full h-full"
       style={{
         perspective: prefersReducedMotion ? "none" : 1000,
       }}
     >
-      <motion.div
+      <m.div
         className="relative w-full h-full"
         style={{
           rotateY: prefersReducedMotion ? 0 : rotateY,
@@ -163,7 +163,7 @@ function Garden3D({ prefersReducedMotion = false }: { prefersReducedMotion?: boo
         }}
       >
         {/* Main garden plane */}
-        <motion.div
+        <m.div
           className="absolute inset-0 rounded-3xl overflow-hidden contain-paint"
           style={{
             background: "linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(34, 197, 94, 0.05) 100%)",
@@ -241,7 +241,7 @@ function Garden3D({ prefersReducedMotion = false }: { prefersReducedMotion?: boo
               filter: "blur(30px)",
             }}
           />
-        </motion.div>
+        </m.div>
 
         {/* Reflection/gloss effect */}
         <div
@@ -250,8 +250,8 @@ function Garden3D({ prefersReducedMotion = false }: { prefersReducedMotion?: boo
             background: "linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 50%, transparent 100%)",
           }}
         />
-      </motion.div>
-    </motion.div>
+      </m.div>
+    </m.div>
   );
 }
 
@@ -298,7 +298,7 @@ export function AnimatedHero() {
           </>
         ) : (
           <>
-            <motion.div
+            <m.div
               className="absolute top-20 left-1/4 w-96 h-96 rounded-full will-change-transform"
               style={{
                 background: "radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, transparent 70%)",
@@ -314,7 +314,7 @@ export function AnimatedHero() {
                 ease: "easeInOut",
               }}
             />
-            <motion.div
+            <m.div
               className="absolute bottom-20 right-1/4 w-96 h-96 rounded-full will-change-transform"
               style={{
                 background: "radial-gradient(circle, rgba(34, 197, 94, 0.15) 0%, transparent 70%)",
@@ -339,14 +339,14 @@ export function AnimatedHero() {
       <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-20" style={{ paddingTop: "calc(8rem + env(safe-area-inset-top))" }}>
         <div className="grid lg:grid-cols-2 gap-12 items-center min-h-[80vh]">
           {/* Left: Text content */}
-          <motion.div
+          <m.div
             initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, x: -50 }}
             animate={{ opacity: 1, x: 0 }}
             transition={prefersReducedMotion ? { duration: 0 } : transitions.entrance}
             className="space-y-8"
           >
             {/* Badge */}
-            <motion.div
+            <m.div
               initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.5, delay: 0.2 }}
@@ -359,10 +359,10 @@ export function AnimatedHero() {
                 </span>
                 Speciaal voor hoveniers
               </span>
-            </motion.div>
+            </m.div>
 
             {/* Headline */}
-            <motion.h1
+            <m.h1
               initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.6, delay: 0.3 }}
@@ -374,10 +374,10 @@ export function AnimatedHero() {
               <GradientText>niets</GradientText>
               <br />
               <GradientText>vergeten</GradientText> kan
-            </motion.h1>
+            </m.h1>
 
             {/* Subhead */}
-            <motion.p
+            <m.p
               initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.5, delay: 0.5 }}
@@ -385,10 +385,10 @@ export function AnimatedHero() {
             >
               De eerste scope-gedreven offerte tool voor hoveniers. 
               Bereken automatisch alle werkzaamheden met 100+ normuren.
-            </motion.p>
+            </m.p>
 
             {/* CTAs */}
-            <motion.div
+            <m.div
               initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.5, delay: 0.7 }}
@@ -421,10 +421,10 @@ export function AnimatedHero() {
                 </svg>
                 Bekijk demo
               </a>
-            </motion.div>
+            </m.div>
 
             {/* Trust indicators */}
-            <motion.div
+            <m.div
               initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.5, delay: 0.9 }}
@@ -442,18 +442,18 @@ export function AnimatedHero() {
                 <span className="text-emerald-400 font-semibold">500+</span>
                 <span className="text-muted-foreground"> hoveniers vertrouwen ons</span>
               </div>
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
 
           {/* Right: 3D Visualization */}
-          <motion.div
+          <m.div
             initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.8, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
             className="relative h-[300px] sm:h-[400px] md:h-[500px] lg:h-[600px]"
           >
             <Garden3D prefersReducedMotion={prefersReducedMotion} />
-          </motion.div>
+          </m.div>
         </div>
       </div>
 

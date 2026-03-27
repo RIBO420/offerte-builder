@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import {
   Card,
   CardContent,
@@ -65,7 +65,7 @@ export function FactorenTab({
   reducedMotion,
 }: FactorenTabProps) {
   return (
-    <motion.div
+    <m.div
       key="factoren"
       initial={reducedMotion ? false : { opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
@@ -100,7 +100,7 @@ export function FactorenTab({
 
             {isFactorenLoading ? (
               <div className="flex items-center justify-center py-8">
-                <motion.div
+                <m.div
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   className="flex flex-col items-center gap-4"
@@ -112,7 +112,7 @@ export function FactorenTab({
                     </div>
                   </div>
                   <p className="text-muted-foreground animate-pulse">Laden...</p>
-                </motion.div>
+                </m.div>
               </div>
             ) : filteredFactoren.length > 0 ? (
               <Table>
@@ -127,7 +127,7 @@ export function FactorenTab({
                 </TableHeader>
                 <TableBody>
                   {filteredFactoren.map((factor, index) => (
-                    <motion.tr
+                    <m.tr
                       key={factor._id}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -227,7 +227,7 @@ export function FactorenTab({
                           )}
                         </div>
                       </TableCell>
-                    </motion.tr>
+                    </m.tr>
                   ))}
                 </TableBody>
               </Table>
@@ -242,6 +242,6 @@ export function FactorenTab({
           </CardContent>
         </Card>
       </TabsContent>
-    </motion.div>
+    </m.div>
   );
 }

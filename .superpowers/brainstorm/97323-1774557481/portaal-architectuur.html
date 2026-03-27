@@ -1,0 +1,90 @@
+<h2>Klantenportaal — Architectuur</h2>
+<p class="subtitle">Hoe het portaal past in de bestaande app</p>
+
+<div class="section">
+  <h3>Route Structuur</h3>
+  <div class="mockup">
+    <div class="mockup-header">src/app/ directory</div>
+    <div class="mockup-body" style="font-family: monospace; font-size: 13px; line-height: 2;">
+      <div>src/app/</div>
+      <div style="padding-left: 20px;">
+        <div style="color: #888;">(auth)/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;← Clerk sign-in/sign-up (medewerkers)</div>
+        <div style="color: #888;">(dashboard)/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;← Interne backoffice (medewerkers)</div>
+        <div style="color: #888;">(public)/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;← Openbare pagina's (configurator, landing)</div>
+        <div style="color: #4ADE80; font-weight: bold;">(portaal)/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;← NIEUW: Klantenportaal</div>
+        <div style="padding-left: 20px; color: #4ADE80;">
+          <div>layout.tsx &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;← Top Tuinen branded layout</div>
+          <div>overzicht/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;← Dashboard/home voor klant</div>
+          <div>offertes/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;← Offertes bekijken, accepteren</div>
+          <div>projecten/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;← Projectvoortgang volgen</div>
+          <div>facturen/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;← Facturen & betaalstatus</div>
+          <div>chat/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;← Berichten met Top Tuinen</div>
+          <div>documenten/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;← PDF downloads</div>
+          <div>profiel/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;← Account & 2FA instellingen</div>
+        </div>
+        <div style="color: #F59E0B; font-weight: bold;">(portaal-auth)/ &nbsp;&nbsp;← NIEUW: Klant sign-in/sign-up</div>
+        <div style="padding-left: 20px; color: #F59E0B;">
+          <div>inloggen/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;← Klant login pagina</div>
+          <div>registreren/ &nbsp;&nbsp;&nbsp;&nbsp;← Klant registratie</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Auth & Middleware Flow</h3>
+  <div class="mockup">
+    <div class="mockup-header">Request Flow</div>
+    <div class="mockup-body" style="font-family: monospace; font-size: 13px; line-height: 2.2;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="background: #333; padding: 4px 12px; border-radius: 6px;">Request</span>
+        <span style="color: #666;">→</span>
+        <span style="background: #333; padding: 4px 12px; border-radius: 6px;">proxy.ts (Clerk middleware)</span>
+        <span style="color: #666;">→</span>
+        <span style="color: #888;">route check</span>
+      </div>
+      <div style="padding-left: 40px; margin-top: 10px;">
+        <div style="color: #4ADE80;">
+          /portaal/* → check: is Clerk user + heeft "klant" rol → ✓ door | ✗ redirect /portaal/inloggen
+        </div>
+        <div style="color: #60A5FA;">
+          /dashboard/* → check: is Clerk user + heeft medewerker/admin rol → ✓ door | ✗ redirect /sign-in
+        </div>
+        <div style="color: #888;">
+          /public/* → geen auth check, altijd door
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Clerk Rollen</h3>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+    <div class="mockup">
+      <div class="mockup-header">Bestaand (medewerkers)</div>
+      <div class="mockup-body" style="font-size: 13px; line-height: 2;">
+        <div>• directie</div>
+        <div>• projectleider</div>
+        <div>• voorman</div>
+        <div>• medewerker</div>
+        <div>• materiaalman</div>
+        <div>• onderaannemer_zzp</div>
+        <div style="color: #666;">• viewer</div>
+      </div>
+    </div>
+    <div class="mockup">
+      <div class="mockup-header" style="border-color: #4ADE80;">Nieuw (klanten)</div>
+      <div class="mockup-body" style="font-size: 13px; line-height: 2;">
+        <div style="color: #4ADE80; font-weight: bold;">• klant</div>
+        <div style="color: #888; margin-top: 8px; font-size: 12px;">
+          Ziet alleen eigen offertes, projecten,<br>
+          facturen en chatgesprekken.<br><br>
+          Convex queries filteren op klantId<br>
+          gekoppeld aan Clerk userId.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

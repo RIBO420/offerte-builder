@@ -58,7 +58,7 @@ import {
   FolderKanban,
   Package,
 } from "lucide-react";
-import { toast } from "sonner";
+import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { nl } from "@/lib/date-locale";
@@ -212,7 +212,7 @@ export function InkooporderForm({
           notities: data.notities,
           verwachteLevertijd: data.verwachteLevertijd?.getTime(),
         });
-        toast.success("Inkooporder aangemaakt");
+        showSuccessToast("Inkooporder aangemaakt");
         router.push(`/inkoop/${id}`);
       } else if (mode === "edit" && inkooporderId) {
         await updateInkooporder({
@@ -223,12 +223,12 @@ export function InkooporderForm({
           notities: data.notities,
           verwachteLevertijd: data.verwachteLevertijd?.getTime(),
         });
-        toast.success("Inkooporder bijgewerkt");
+        showSuccessToast("Inkooporder bijgewerkt");
         router.push(`/inkoop/${inkooporderId}`);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Er ging iets mis";
-      toast.error(errorMessage);
+      showErrorToast(errorMessage);
     } finally {
       setIsSubmitting(false);
     }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
@@ -199,7 +199,7 @@ export function DemoCalculator() {
                     const isSelected = selectedScope === scope.id;
 
                     return (
-                      <motion.button
+                      <m.button
                         key={scope.id}
                         onClick={() => handleScopeChange(scope.id)}
                         className={`relative flex items-center gap-2 p-3 rounded-lg border text-left transition-all ${
@@ -223,13 +223,13 @@ export function DemoCalculator() {
                           {scope.label}
                         </span>
                         {isSelected && (
-                          <motion.div
+                          <m.div
                             layoutId="selectedScope"
                             className={`absolute inset-0 border-2 rounded-lg ${scope.borderColor}`}
                             transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                           />
                         )}
-                      </motion.button>
+                      </m.button>
                     );
                   })}
                 </div>
@@ -241,14 +241,14 @@ export function DemoCalculator() {
                   <label className="text-sm font-medium text-muted-foreground">
                     Hoeveelheid
                   </label>
-                  <motion.span
+                  <m.span
                     key={amount}
                     initial={{ scale: 1.2, color: "#10b981" }}
                     animate={{ scale: 1, color: "inherit" }}
                     className="text-lg font-bold tabular-nums"
                   >
                     {amount} {currentScope.unit}
-                  </motion.span>
+                  </m.span>
                 </div>
                 <Slider
                   value={[amount]}
@@ -297,7 +297,7 @@ export function DemoCalculator() {
             <div className="relative">
               <AnimatePresence mode="wait">
                 {!showResult ? (
-                  <motion.div
+                  <m.div
                     key="placeholder"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -314,9 +314,9 @@ export function DemoCalculator() {
                       <br />
                       indicatie te zien
                     </p>
-                  </motion.div>
+                  </m.div>
                 ) : (
-                  <motion.div
+                  <m.div
                     key="result"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -328,14 +328,14 @@ export function DemoCalculator() {
                       className={`p-6 rounded-xl bg-gradient-to-br ${currentScope.color} text-white`}
                     >
                       <p className="text-white/80 text-sm mb-1">Geschatte investering</p>
-                      <motion.p
+                      <m.p
                         key={estimate.totaal}
                         initial={{ scale: 0.8, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         className="text-4xl font-bold tabular-nums"
                       >
                         {formatPrice(estimate.totaal)}
-                      </motion.p>
+                      </m.p>
                       <p className="text-white/70 text-xs mt-2">
                         Inclusief materialen en arbeid
                       </p>
@@ -348,28 +348,28 @@ export function DemoCalculator() {
                           <div className="w-2 h-2 rounded-full bg-blue-500" />
                           <span className="text-sm">Materialen</span>
                         </div>
-                        <motion.span
+                        <m.span
                           key={estimate.materialen}
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           className="font-semibold tabular-nums"
                         >
                           {formatPrice(estimate.materialen)}
-                        </motion.span>
+                        </m.span>
                       </div>
                       <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                         <div className="flex items-center gap-2">
                           <div className="w-2 h-2 rounded-full bg-orange-500" />
                           <span className="text-sm">Arbeid</span>
                         </div>
-                        <motion.span
+                        <m.span
                           key={estimate.arbeid}
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           className="font-semibold tabular-nums"
                         >
                           {formatPrice(estimate.arbeid)}
-                        </motion.span>
+                        </m.span>
                       </div>
                     </div>
 
@@ -403,7 +403,7 @@ export function DemoCalculator() {
                     <p className="text-xs text-center text-muted-foreground">
                       Gratis proefperiode van 14 dagen
                     </p>
-                  </motion.div>
+                  </m.div>
                 )}
               </AnimatePresence>
             </div>

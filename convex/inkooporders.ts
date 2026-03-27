@@ -5,7 +5,7 @@
  * Inkooporders worden aangemaakt voor leveranciers, optioneel gekoppeld aan projecten.
  */
 
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuth, requireAuthUserId, verifyOwnership } from "./auth";
 import { requireNotViewer } from "./roles";
@@ -313,12 +313,12 @@ export const create = mutation({
 
     // Valideer regels
     if (args.regels.length === 0) {
-      throw new Error("Voeg minimaal 1 regel toe");
+      throw new ConvexError("Voeg minimaal 1 regel toe");
     }
 
     for (const regel of args.regels) {
       if (!regel.omschrijving.trim()) {
-        throw new Error("Omschrijving is verplicht voor alle regels");
+        throw new ConvexError("Omschrijving is verplicht voor alle regels");
       }
       validatePositive(regel.hoeveelheid, "Hoeveelheid");
       validatePositive(regel.prijsPerEenheid, "Prijs per eenheid");
@@ -372,7 +372,7 @@ export const update = mutation({
 
     // Alleen bewerken in concept status
     if (inkooporder.status !== "concept") {
-      throw new Error("Inkooporder kan alleen bewerkt worden in concept status");
+      throw new ConvexError("Inkooporder kan alleen bewerkt worden in concept status");
     }
 
     const updates: Record<string, unknown> = { updatedAt: now };
@@ -439,7 +439,7 @@ export const updateStatus = mutation({
     };
 
     if (!geldigeOvergangen[oudeStatus]?.includes(args.status)) {
-      throw new Error(
+      throw new ConvexError(
         `Ongeldige statuswijziging: ${oudeStatus} -> ${args.status}`
       );
     }
@@ -485,7 +485,7 @@ export const remove = mutation({
 
     // Alleen verwijderen in concept status
     if (inkooporder.status !== "concept") {
-      throw new Error(
+      throw new ConvexError(
         "Inkooporder kan alleen verwijderd worden in concept status"
       );
     }

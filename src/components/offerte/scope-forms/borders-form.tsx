@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
+import { useFormValidationSync, useFormDataSync } from "@/hooks/use-scope-form-sync";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -122,25 +123,13 @@ export function BordersForm({ data, onChange, onValidationChange }: BordersFormP
   }, [watch, onChange, buildCompleteData]);
 
   // Sync optional fields changes to parent
-  useEffect(() => {
-    const currentValues = form.getValues();
-    onChange(buildCompleteData(currentValues));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orientatie, bodemVerbeteringType, bodemMix, bemestingsschema]);
+  useFormDataSync(
+    () => { onChange(buildCompleteData(form.getValues())); },
+    [orientatie, bodemVerbeteringType, bodemMix, bemestingsschema]
+  );
 
-  // Notify parent of validation state changes (only when errors object changes)
-  useEffect(() => {
-    if (onValidationChange) {
-      const errorMessages: Record<string, string> = {};
-      Object.entries(errors).forEach(([key, error]) => {
-        if (error?.message) {
-          errorMessages[key] = error.message;
-        }
-      });
-      onValidationChange(isValid, errorMessages);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(errors), isValid]);
+  // Notify parent of validation state changes
+  useFormValidationSync(errors, isValid, onValidationChange);
 
   const watchedValues = watch();
   const plantCount = watchedValues.oppervlakte > 0

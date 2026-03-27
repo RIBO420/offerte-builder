@@ -14,7 +14,7 @@ export default function InstellingenLoading() {
         <Skeleton className="h-4 w-24" />
       </div>
 
-      <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
+      <div className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
         {/* Title */}
         <div>
           <Skeleton className="h-8 w-44 mb-2" />

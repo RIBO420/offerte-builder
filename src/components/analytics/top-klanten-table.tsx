@@ -2,7 +2,7 @@
 
 import { memo } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -42,49 +42,49 @@ function formatCurrencyNoDecimals(amount: number): string {
 function RankBadge({ rank }: { rank: number }) {
   if (rank === 1) {
     return (
-      <motion.div
+      <m.div
         initial={{ scale: 0, rotate: -180 }}
         animate={{ scale: 1, rotate: 0 }}
         transition={{ duration: 0.5, type: "spring", delay: 0.1 }}
         className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-yellow-500 shadow-lg shadow-amber-500/40"
       >
         <Trophy className="h-3.5 w-3.5 text-white" />
-      </motion.div>
+      </m.div>
     );
   }
   if (rank === 2) {
     return (
-      <motion.div
+      <m.div
         initial={{ scale: 0, rotate: -180 }}
         animate={{ scale: 1, rotate: 0 }}
         transition={{ duration: 0.5, type: "spring", delay: 0.2 }}
         className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-slate-300 to-slate-400 shadow-lg shadow-slate-500/30"
       >
         <Medal className="h-3.5 w-3.5 text-white" />
-      </motion.div>
+      </m.div>
     );
   }
   if (rank === 3) {
     return (
-      <motion.div
+      <m.div
         initial={{ scale: 0, rotate: -180 }}
         animate={{ scale: 1, rotate: 0 }}
         transition={{ duration: 0.5, type: "spring", delay: 0.3 }}
         className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-amber-600 to-orange-700 shadow-lg shadow-orange-500/30"
       >
         <Award className="h-3.5 w-3.5 text-white" />
-      </motion.div>
+      </m.div>
     );
   }
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3, delay: 0.1 + rank * 0.05 }}
       className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-muted-foreground text-sm font-medium"
     >
       {rank}
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -110,7 +110,7 @@ export const TopKlantenTable = memo(function TopKlantenTable({ klanten }: TopKla
   }
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
@@ -207,6 +207,6 @@ export const TopKlantenTable = memo(function TopKlantenTable({ klanten }: TopKla
           </Table>
         </CardContent>
       </Card>
-    </motion.div>
+    </m.div>
   );
 });

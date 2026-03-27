@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
 import { requireNotViewer } from "./roles";
@@ -77,10 +77,10 @@ export const create = mutation({
     const userId = await requireAuthUserId(ctx);
 
     if (!args.naam.trim()) {
-      throw new Error("Naam is verplicht");
+      throw new ConvexError("Naam is verplicht");
     }
     if (!args.beschrijving.trim()) {
-      throw new Error("Beschrijving is verplicht");
+      throw new ConvexError("Beschrijving is verplicht");
     }
 
     const now = Date.now();
@@ -125,10 +125,10 @@ export const update = mutation({
 
     const pakket = await ctx.db.get(args.id);
     if (!pakket) {
-      throw new Error("Garantiepakket niet gevonden");
+      throw new ConvexError("Garantiepakket niet gevonden");
     }
     if (pakket.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit garantiepakket");
+      throw new ConvexError("Geen toegang tot dit garantiepakket");
     }
 
     const { id, ...updates } = args;
@@ -154,10 +154,10 @@ export const remove = mutation({
 
     const pakket = await ctx.db.get(args.id);
     if (!pakket) {
-      throw new Error("Garantiepakket niet gevonden");
+      throw new ConvexError("Garantiepakket niet gevonden");
     }
     if (pakket.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit garantiepakket");
+      throw new ConvexError("Geen toegang tot dit garantiepakket");
     }
 
     await ctx.db.patch(args.id, {

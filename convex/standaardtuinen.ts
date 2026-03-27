@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
 import { requireNotViewer } from "./roles";
@@ -361,10 +361,10 @@ export const update = mutation({
     const userId = await requireAuthUserId(ctx);
 
     const template = await ctx.db.get(id);
-    if (!template) throw new Error("Template niet gevonden");
-    if (!template.userId) throw new Error("Systeemtemplates kunnen niet worden bewerkt");
+    if (!template) throw new ConvexError("Template niet gevonden");
+    if (!template.userId) throw new ConvexError("Systeemtemplates kunnen niet worden bewerkt");
     if (template.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit template");
+      throw new ConvexError("Geen toegang tot dit template");
     }
 
     const filteredUpdates: Record<string, unknown> = {};
@@ -386,10 +386,10 @@ export const remove = mutation({
     const userId = await requireAuthUserId(ctx);
 
     const template = await ctx.db.get(id);
-    if (!template) throw new Error("Template niet gevonden");
-    if (!template.userId) throw new Error("Systeemtemplates kunnen niet worden verwijderd");
+    if (!template) throw new ConvexError("Template niet gevonden");
+    if (!template.userId) throw new ConvexError("Systeemtemplates kunnen niet worden verwijderd");
     if (template.userId.toString() !== userId.toString()) {
-      throw new Error("Geen toegang tot dit template");
+      throw new ConvexError("Geen toegang tot dit template");
     }
 
     return await ctx.db.delete(id);
@@ -423,7 +423,7 @@ export const createOfferteFromTemplate = mutation({
     const userId = await requireAuthUserId(ctx);
 
     const template = await ctx.db.get(args.templateId);
-    if (!template) throw new Error("Template niet gevonden");
+    if (!template) throw new ConvexError("Template niet gevonden");
 
     const now = Date.now();
 

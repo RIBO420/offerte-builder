@@ -22,15 +22,8 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase): Promise<void> {
   const currentVersion = result?.user_version ?? 0;
 
   if (currentVersion >= DATABASE_VERSION) {
-    console.log(
-      `[Migrations] Database is up to date (version ${currentVersion})`
-    );
     return;
   }
-
-  console.log(
-    `[Migrations] Upgrading database from version ${currentVersion} to ${DATABASE_VERSION}`
-  );
 
   // Version 0 -> 1: Initial schema
   if (currentVersion < 1) {
@@ -45,7 +38,6 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase): Promise<void> {
   // Update version
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
 
-  console.log(`[Migrations] Database upgraded to version ${DATABASE_VERSION}`);
 }
 
 /**
@@ -53,7 +45,6 @@ export async function migrateDbIfNeeded(db: SQLiteDatabase): Promise<void> {
  * Creates all base tables for offline storage and sync.
  */
 async function migrateToVersion1(db: SQLiteDatabase): Promise<void> {
-  console.log('[Migrations] Running migration to version 1');
 
   await db.execAsync(`
     -- ============================================
@@ -161,7 +152,6 @@ async function migrateToVersion1(db: SQLiteDatabase): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_location_recorded ON location_cache(recorded_at);
   `);
 
-  console.log('[Migrations] Version 1 migration completed');
 }
 
 /**

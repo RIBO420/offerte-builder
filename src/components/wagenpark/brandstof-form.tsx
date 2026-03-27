@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { motion, AnimatePresence } from "framer-motion";
+import { m, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -208,7 +208,7 @@ export function BrandstofForm({
     <div className="space-y-6">
       {/* Statistics */}
       {stats && stats.aantalTankbeurten > 0 && (
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           className="grid gap-4 sm:grid-cols-4"
@@ -264,7 +264,7 @@ export function BrandstofForm({
               </div>
             </CardContent>
           </Card>
-        </motion.div>
+        </m.div>
       )}
 
       {/* Entry Form & Records */}
@@ -288,7 +288,7 @@ export function BrandstofForm({
 
         <AnimatePresence>
           {isAdding && (
-            <motion.div
+            <m.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
@@ -422,7 +422,7 @@ export function BrandstofForm({
                   </form>
                 </Form>
               </CardContent>
-            </motion.div>
+            </m.div>
           )}
         </AnimatePresence>
 

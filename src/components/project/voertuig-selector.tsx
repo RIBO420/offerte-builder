@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Truck, Loader2 } from "lucide-react";
 import { KentekenBadge } from "@/components/ui/kenteken-plaat";
-import { toast } from "sonner";
+import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 
 // Type for voertuig from database
 interface Voertuig {
@@ -73,9 +73,9 @@ export function VoertuigSelector({
             id: projectId,
             voertuigIds: newSelection,
           });
-          toast.success("Voertuigen bijgewerkt");
+          showSuccessToast("Voertuigen bijgewerkt");
         } catch (error) {
-          toast.error("Fout bij opslaan voertuigen", {
+          showErrorToast("Fout bij opslaan voertuigen", {
             description: error instanceof Error ? error.message : "Onbekende fout",
           });
         } finally {

@@ -4,17 +4,14 @@ import { useEffect } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import dynamic from "next/dynamic";
+import { m } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { DemoCalculator } from "@/components/landing/demo-calculator";
 import { AnimatedHero } from "@/components/landing/animated-hero";
 import { Navigation } from "@/components/landing/navigation";
 import { ScrollProgress } from "@/components/landing/scroll-progress";
-import { GlassCard, StatCard } from "@/components/landing/glass-card";
-import { BeforeAfterComparison } from "@/components/landing/before-after";
-import { FAQSection } from "@/components/landing/faq-section";
-import { StoryCard } from "@/components/landing/story-card";
+import { StatCard } from "@/components/landing/glass-card";
 import {
   Shovel,
   Trees,
@@ -47,6 +44,51 @@ import {
   GraduationCap,
   Layers,
 } from "lucide-react";
+
+// Lazy-load heavy below-the-fold components to reduce initial bundle size
+const DemoCalculator = dynamic(
+  () => import("@/components/landing/demo-calculator").then((mod) => mod.DemoCalculator),
+  {
+    loading: () => (
+      <div className="h-96 animate-pulse rounded-2xl bg-white/5 border border-white/10" />
+    ),
+  }
+);
+
+const BeforeAfterComparison = dynamic(
+  () => import("@/components/landing/before-after").then((mod) => mod.BeforeAfterComparison),
+  {
+    loading: () => (
+      <div className="py-24">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="h-64 animate-pulse rounded-2xl bg-white/5 border border-white/10" />
+        </div>
+      </div>
+    ),
+  }
+);
+
+const FAQSection = dynamic(
+  () => import("@/components/landing/faq-section").then((mod) => mod.FAQSection),
+  {
+    loading: () => (
+      <div className="py-24">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="h-64 animate-pulse rounded-2xl bg-white/5 border border-white/10" />
+        </div>
+      </div>
+    ),
+  }
+);
+
+const StoryCard = dynamic(
+  () => import("@/components/landing/story-card").then((mod) => mod.StoryCard),
+  {
+    loading: () => (
+      <div className="h-48 animate-pulse rounded-2xl bg-white/5 border border-white/10" />
+    ),
+  }
+);
 
 // Animation variants
 const fadeInUp = {
@@ -251,7 +293,7 @@ export default function LandingPage() {
       <section id="probeer-het-zelf" className="py-24 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-500/5 to-transparent" />
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -268,19 +310,19 @@ export default function LandingPage() {
             <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
               Geen verplichtingen. Bereken binnen 10 seconden een indicatie voor je project.
             </p>
-          </motion.div>
+          </m.div>
 
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6, delay: 0.2 }}
           >
             <DemoCalculator />
-          </motion.div>
+          </m.div>
 
           {/* Trust badges */}
-          <motion.div
+          <m.div
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
@@ -299,14 +341,14 @@ export default function LandingPage() {
               <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
               <span>Altijd annuleren</span>
             </div>
-          </motion.div>
+          </m.div>
         </div>
       </section>
 
       {/* Story Features */}
       <section id="features" className="py-24 relative">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -323,7 +365,7 @@ export default function LandingPage() {
             <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
               We kennen de struggles van het vak. Daarom bouwden we een systeem dat echt werkt.
             </p>
-          </motion.div>
+          </m.div>
 
           <div className="space-y-24">
             {featuresWithStories.map((story, index) => (
@@ -347,7 +389,7 @@ export default function LandingPage() {
       {/* Business Modules Showcase */}
       <section id="modules" className="py-24 bg-gradient-to-b from-transparent via-white/[0.02] to-transparent">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -364,9 +406,9 @@ export default function LandingPage() {
             <p className="mt-4 text-muted-foreground max-w-2xl mx-auto">
               Van offerte tot factuur, van planning tot voorraad. Alles wat je hoveniersbedrijf nodig heeft.
             </p>
-          </motion.div>
+          </m.div>
 
-          <motion.div
+          <m.div
             variants={staggerContainer}
             initial="initial"
             whileInView="animate"
@@ -376,7 +418,7 @@ export default function LandingPage() {
             {businessModules.map((module, index) => {
               const Icon = module.icon;
               return (
-                <motion.div
+                <m.div
                   key={module.label}
                   initial={{ opacity: 0, scale: 0.8 }}
                   whileInView={{ opacity: 1, scale: 1 }}
@@ -394,17 +436,17 @@ export default function LandingPage() {
                     <span className="font-medium text-sm text-center">{module.label}</span>
                     <span className="text-xs text-muted-foreground text-center">{module.description}</span>
                   </div>
-                </motion.div>
+                </m.div>
               );
             })}
-          </motion.div>
+          </m.div>
         </div>
       </section>
 
       {/* Scopes Showcase */}
       <section className="py-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -417,9 +459,9 @@ export default function LandingPage() {
             <p className="mt-4 text-muted-foreground max-w-2xl mx-auto">
               Van grondwerk tot onderhoud, ons systeem dekt alle aspecten van hovenierswerk
             </p>
-          </motion.div>
+          </m.div>
 
-          <motion.div
+          <m.div
             variants={staggerContainer}
             initial="initial"
             whileInView="animate"
@@ -429,7 +471,7 @@ export default function LandingPage() {
             {scopes.map((scope, index) => {
               const Icon = scope.icon;
               return (
-                <motion.div
+                <m.div
                   key={scope.label}
                   initial={{ opacity: 0, scale: 0.8 }}
                   whileInView={{ opacity: 1, scale: 1 }}
@@ -446,17 +488,17 @@ export default function LandingPage() {
                     </div>
                     <span className="font-medium text-sm pr-2">{scope.label}</span>
                   </div>
-                </motion.div>
+                </m.div>
               );
             })}
-          </motion.div>
+          </m.div>
         </div>
       </section>
 
       {/* How it Works */}
       <section id="hoe-het-werkt" className="py-24 bg-gradient-to-b from-transparent via-white/[0.02] to-transparent">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -473,7 +515,7 @@ export default function LandingPage() {
             <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
               Van eerste klantcontact tot betaalde factuur, alles in één systeem
             </p>
-          </motion.div>
+          </m.div>
 
           <div className="grid gap-6 md:grid-cols-3 lg:grid-cols-6">
             {[
@@ -508,7 +550,7 @@ export default function LandingPage() {
                 description: "Complete projecthistorie voor altijd beschikbaar",
               },
             ].map((item, index) => (
-              <motion.div
+              <m.div
                 key={item.step}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -524,7 +566,7 @@ export default function LandingPage() {
                 {index < 5 && (
                   <div className="hidden lg:block absolute top-6 left-full w-full h-px bg-gradient-to-r from-emerald-500/30 to-transparent" />
                 )}
-              </motion.div>
+              </m.div>
             ))}
           </div>
         </div>
@@ -539,7 +581,7 @@ export default function LandingPage() {
       {/* Core Principle Banner */}
       <section className="py-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <motion.div
+          <m.div
             initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
@@ -558,19 +600,19 @@ export default function LandingPage() {
             </div>
 
             {/* Floating orbs */}
-            <motion.div
+            <m.div
               className="absolute top-10 left-10 w-32 h-32 rounded-full bg-white/10 blur-3xl"
               animate={{ x: [0, 30, 0], y: [0, 20, 0] }}
               transition={{ duration: 8, repeat: Infinity }}
             />
-            <motion.div
+            <m.div
               className="absolute bottom-10 right-10 w-40 h-40 rounded-full bg-white/10 blur-3xl"
               animate={{ x: [0, -20, 0], y: [0, -30, 0] }}
               transition={{ duration: 10, repeat: Infinity }}
             />
 
             <div className="relative">
-              <motion.div
+              <m.div
                 initial={{ scale: 0 }}
                 whileInView={{ scale: 1 }}
                 viewport={{ once: true }}
@@ -578,7 +620,7 @@ export default function LandingPage() {
                 className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm"
               >
                 <CheckCircle className="h-8 w-8 text-white" />
-              </motion.div>
+              </m.div>
               <blockquote className="mx-auto max-w-3xl text-2xl font-semibold leading-relaxed sm:text-3xl">
                 &ldquo;Als iets nodig is om het werk uit te voeren, mag het nooit stilzwijgend ontbreken in de offerte.&rdquo;
               </blockquote>
@@ -586,14 +628,14 @@ export default function LandingPage() {
                 Dit is de absolute kernregel van ons systeem
               </p>
             </div>
-          </motion.div>
+          </m.div>
         </div>
       </section>
 
       {/* Testimonials */}
       <section className="py-24 bg-gradient-to-b from-transparent via-white/[0.02] to-transparent">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -610,11 +652,11 @@ export default function LandingPage() {
             <p className="mt-4 text-lg text-muted-foreground">
               Ervaringen van collega&apos;s die al werken met Offerte Builder
             </p>
-          </motion.div>
+          </m.div>
 
           <div className="grid gap-6 md:grid-cols-3">
             {testimonials.map((testimonial, index) => (
-              <motion.div
+              <m.div
                 key={index}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -643,7 +685,7 @@ export default function LandingPage() {
                     </div>
                   </CardContent>
                 </Card>
-              </motion.div>
+              </m.div>
             ))}
           </div>
         </div>
@@ -652,7 +694,7 @@ export default function LandingPage() {
       {/* Pricing */}
       <section id="prijzen" className="py-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -669,10 +711,10 @@ export default function LandingPage() {
             <p className="mt-4 text-lg text-muted-foreground">
               Geen verborgen kosten, geen verrassingen
             </p>
-          </motion.div>
+          </m.div>
 
           <div className="mx-auto max-w-sm">
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -735,7 +777,7 @@ export default function LandingPage() {
                   </p>
                 </CardContent>
               </Card>
-            </motion.div>
+            </m.div>
           </div>
         </div>
       </section>
@@ -743,7 +785,7 @@ export default function LandingPage() {
       {/* CTA Section */}
       <section className="py-24 bg-gradient-to-b from-transparent via-emerald-500/5 to-transparent">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -771,7 +813,7 @@ export default function LandingPage() {
                 <Link href="/sign-in">Ik heb al een account</Link>
               </Button>
             </div>
-          </motion.div>
+          </m.div>
         </div>
       </section>
 
