@@ -12,9 +12,38 @@ const isPublicRoute = createRouteMatcher([
   "/manifest.json",
 ]);
 
+const isPortaalAuthRoute = createRouteMatcher([
+  "/portaal/inloggen(.*)",
+  "/portaal/registreren(.*)",
+]);
+
+const isPortaalRoute = createRouteMatcher([
+  "/portaal(.*)",
+]);
+
 export default clerkMiddleware(async (auth, req) => {
-  if (!isPublicRoute(req)) {
-    await auth.protect();
+  // Public routes and portal auth — no auth required
+  if (isPublicRoute(req) || isPortaalAuthRoute(req)) {
+    return;
+  }
+
+  // All other routes require authentication
+  const session = await auth.protect();
+
+  // Check role from Clerk session claims
+  const role = (session.sessionClaims?.metadata as { role?: string })?.role;
+
+  // Portal routes — require klant role
+  if (isPortaalRoute(req)) {
+    if (role !== "klant") {
+      return Response.redirect(new URL("/dashboard", req.url));
+    }
+    return;
+  }
+
+  // Dashboard/other authenticated routes — klant should go to portal
+  if (role === "klant") {
+    return Response.redirect(new URL("/portaal/overzicht", req.url));
   }
 });
 
