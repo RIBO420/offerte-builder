@@ -1,7 +1,8 @@
-import { v } from "convex/values";
-import { mutation, query, internalMutation } from "./_generated/server";
+import { v, ConvexError } from "convex/values";
+import { mutation, query, internalMutation, internalAction } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { getAuthenticatedUser, requireAuth } from "./auth";
-import { requireAdmin } from "./roles";
+import { requireAdmin, normalizeRole, isAdminRole } from "./roles";
 import { Id } from "./_generated/dataModel";
 import { MutationCtx } from "./_generated/server";
 
@@ -263,9 +264,9 @@ export const upsert = mutation({
         bedrijfsnaam: args.bedrijfsnaam,
       };
 
-      // Upgrade to admin if email is in admin list and not already admin
-      if (isAdminEmail(args.email) && existing.role !== "admin") {
-        (updates as Record<string, string>).role = "admin";
+      // Upgrade to directie if email is in admin list and not already directie/admin
+      if (isAdminEmail(args.email) && !isAdminRole(existing.role)) {
+        (updates as Record<string, string>).role = "directie";
       }
 
       await ctx.db.patch(existing._id, updates);
@@ -277,10 +278,10 @@ export const upsert = mutation({
     const isFirstUser = existingUsers === null;
 
     // Determine role for new user
-    // First user is always admin, or if email is in admin list
-    // New users get "medewerker" role by default unless they match admin criteria
-    const role: "admin" | "medewerker" =
-      isFirstUser || isAdminEmail(args.email) ? "admin" : "medewerker";
+    // First user is always directie, or if email is in admin list
+    // New users get "medewerker" role by default unless they match directie criteria
+    const role: "directie" | "medewerker" =
+      isFirstUser || isAdminEmail(args.email) ? "directie" : "medewerker";
 
     // Create new user with appropriate role
     const userId = await ctx.db.insert("users", {
@@ -356,7 +357,7 @@ export const initializeDefaults = mutation({
     await initializeSystemCorrectieFactoren(ctx);
 
     // Ensure user has a role set
-    // If no role is set, check if this is the only user (make admin) or set to "viewer"
+    // If no role is set, check if this is the only user (make directie) or set to "medewerker"
     let roleUpdated = false;
     if (!user.role) {
       // Count existing users to determine if this should be admin
@@ -365,7 +366,7 @@ export const initializeDefaults = mutation({
       const shouldBeAdmin = isOnlyUser || isAdminEmail(user.email);
 
       await ctx.db.patch(userId, {
-        role: shouldBeAdmin ? "admin" : "medewerker",
+        role: shouldBeAdmin ? "directie" : "medewerker",
       });
       roleUpdated = true;
     }
@@ -1017,38 +1018,43 @@ export const makeCurrentUserAdmin = internalMutation({
       };
     }
 
-    // Check if user is already an admin
-    if (user.role === "admin") {
+    // Check if user is already directie (admin)
+    if (isAdminRole(user.role)) {
       return {
         success: true,
-        message: "Gebruiker is al een admin.",
+        message: "Gebruiker is al een admin (directie).",
         wasAlreadyAdmin: true,
       };
     }
 
-    // Safety check: Only allow if no admins exist yet
+    // Safety check: Only allow if no admins/directie exist yet
     const existingAdmins = await ctx.db
       .query("users")
-      .filter((q) => q.eq(q.field("role"), "admin"))
+      .filter((q) =>
+        q.or(
+          q.eq(q.field("role"), "directie"),
+          q.eq(q.field("role"), "admin")
+        )
+      )
       .collect();
 
     if (existingAdmins.length > 0) {
       return {
         success: false,
         message:
-          "Er bestaat al een admin. Gebruik setUserRole via een bestaande admin om rechten te geven.",
+          "Er bestaat al een admin (directie). Gebruik setUserRole via een bestaande admin om rechten te geven.",
         existingAdminCount: existingAdmins.length,
       };
     }
 
-    // Make the user an admin
+    // Make the user directie
     await ctx.db.patch(user._id, {
-      role: "admin",
+      role: "directie",
     });
 
     return {
       success: true,
-      message: "Gebruiker is nu een admin!",
+      message: "Gebruiker is nu directie (admin)!",
       userId: user._id,
       email: user.email,
     };
@@ -1066,21 +1072,33 @@ export const makeCurrentUserAdmin = internalMutation({
  * npx convex run users:setUserRole '{"userEmail": "user@example.com", "role": "admin"}'
  * ```
  *
- * Valid roles: "admin", "viewer", "medewerker"
+ * Valid roles: "directie", "projectleider", "voorman", "medewerker", "klant", "onderaannemer_zzp", "materiaalman"
+ * Legacy roles "admin" and "viewer" are accepted and normalized automatically.
  */
 export const setUserRole = mutation({
   args: {
     userEmail: v.string(),
-    role: v.union(v.literal("admin"), v.literal("viewer"), v.literal("medewerker")),
+    role: v.union(
+      v.literal("directie"),
+      v.literal("projectleider"),
+      v.literal("voorman"),
+      v.literal("medewerker"),
+      v.literal("klant"),
+      v.literal("onderaannemer_zzp"),
+      v.literal("materiaalman"),
+      // Legacy compat
+      v.literal("admin"),
+      v.literal("viewer")
+    ),
   },
   handler: async (ctx, args) => {
     const currentUser = await requireAuth(ctx);
 
-    // Only admins can change roles
-    if (currentUser.role !== "admin") {
+    // Only directie/admin can change roles
+    if (!isAdminRole(currentUser.role)) {
       return {
         success: false,
-        message: "Alleen admins kunnen gebruikersrollen wijzigen.",
+        message: "Alleen directie kan gebruikersrollen wijzigen.",
       };
     }
 
@@ -1097,30 +1115,33 @@ export const setUserRole = mutation({
       };
     }
 
-    // Prevent removing your own admin rights
+    // Normalize the requested role (admin -> directie, viewer -> klant)
+    const newRole = normalizeRole(args.role);
+
+    // Prevent removing your own directie rights
     if (
       targetUser._id.toString() === currentUser._id.toString() &&
-      args.role !== "admin"
+      newRole !== "directie"
     ) {
       return {
         success: false,
-        message: "Je kunt je eigen admin-rechten niet verwijderen.",
+        message: "Je kunt je eigen directie-rechten niet verwijderen.",
       };
     }
 
-    const oldRole = targetUser.role || "viewer";
+    const oldRole = normalizeRole(targetUser.role);
 
-    // Update the role
+    // Update the role (always save normalized)
     await ctx.db.patch(targetUser._id, {
-      role: args.role,
+      role: newRole,
     });
 
     return {
       success: true,
-      message: `Rol van ${args.userEmail} gewijzigd van "${oldRole}" naar "${args.role}".`,
+      message: `Rol van ${args.userEmail} gewijzigd van "${oldRole}" naar "${newRole}".`,
       userId: targetUser._id,
       oldRole,
-      newRole: args.role,
+      newRole,
     };
   },
 });
@@ -1135,9 +1156,10 @@ export const getCurrentUserRole = query({
     if (!user) {
       return { isAuthenticated: false, role: null };
     }
+    const role = normalizeRole(user.role);
     return {
       isAuthenticated: true,
-      role: user.role || "medewerker", // Default to "medewerker" for security
+      role,
       userId: user._id,
       email: user.email,
       name: user.name,
@@ -1157,9 +1179,8 @@ export const listUsersWithDetails = query({
       return [];
     }
 
-    // Check if user is admin (default to medewerker for security)
-    const role = currentUser.role ?? "medewerker";
-    if (role !== "admin") {
+    // Check if user is directie (admin)
+    if (!isAdminRole(currentUser.role)) {
       return [];
     }
 
@@ -1178,7 +1199,7 @@ export const listUsersWithDetails = query({
           clerkId: user.clerkId,
           email: user.email,
           name: user.name,
-          role: user.role ?? "medewerker", // Default to medewerker for security
+          role: normalizeRole(user.role),
           linkedMedewerkerId: user.linkedMedewerkerId,
           linkedMedewerkerNaam: linkedMedewerker?.naam ?? null,
           createdAt: user.createdAt,
@@ -1193,7 +1214,7 @@ export const listUsersWithDetails = query({
 /**
  * Link or unlink a user to a medewerker profile - Admin only
  * When linking: sets user role to "medewerker" and updates medewerker.clerkUserId
- * When unlinking: sets user role to "viewer" and clears medewerker.clerkUserId
+ * When unlinking: sets user role to "klant" and clears medewerker.clerkUserId
  */
 export const linkUserToMedewerker = mutation({
   args: {
@@ -1203,16 +1224,15 @@ export const linkUserToMedewerker = mutation({
   handler: async (ctx, args) => {
     const currentUser = await requireAuth(ctx);
 
-    // Check if current user is admin (default to medewerker for security)
-    const role = currentUser.role ?? "medewerker";
-    if (role !== "admin") {
-      throw new Error("Alleen admins kunnen gebruikers koppelen aan medewerkers");
+    // Check if current user is directie (admin)
+    if (!isAdminRole(currentUser.role)) {
+      throw new ConvexError("Alleen directie kan gebruikers koppelen aan medewerkers");
     }
 
     // Get the target user to access their clerkId
     const targetUser = await ctx.db.get(args.userId);
     if (!targetUser) {
-      throw new Error("Gebruiker niet gevonden");
+      throw new ConvexError("Gebruiker niet gevonden");
     }
 
     // If unlinking, first clear the old medewerker's clerkUserId
@@ -1227,7 +1247,7 @@ export const linkUserToMedewerker = mutation({
       // Linking: verify medewerker exists and set clerkUserId
       const medewerker = await ctx.db.get(args.medewerkerId);
       if (!medewerker) {
-        throw new Error("Medewerker niet gevonden");
+        throw new ConvexError("Medewerker niet gevonden");
       }
 
       // Update medewerker with the user's clerkId
@@ -1239,10 +1259,10 @@ export const linkUserToMedewerker = mutation({
         role: "medewerker",
       });
     } else {
-      // Unlinking: set role to "viewer" and clear linkedMedewerkerId
+      // Unlinking: set role to "klant" and clear linkedMedewerkerId
       await ctx.db.patch(args.userId, {
         linkedMedewerkerId: undefined,
-        role: "viewer",
+        role: "klant",
       });
     }
 
@@ -1262,9 +1282,8 @@ export const getAvailableMedewerkersForLinking = query({
       return [];
     }
 
-    // Check if user is admin (default to medewerker for security)
-    const role = currentUser.role ?? "medewerker";
-    if (role !== "admin") {
+    // Check if user is directie (admin)
+    if (!isAdminRole(currentUser.role)) {
       return [];
     }
 
@@ -1294,23 +1313,36 @@ export const getAvailableMedewerkersForLinking = query({
 export const updateUserRole = mutation({
   args: {
     userId: v.id("users"),
-    role: v.union(v.literal("admin"), v.literal("medewerker"), v.literal("viewer")),
+    role: v.union(
+      v.literal("directie"),
+      v.literal("projectleider"),
+      v.literal("voorman"),
+      v.literal("medewerker"),
+      v.literal("klant"),
+      v.literal("onderaannemer_zzp"),
+      v.literal("materiaalman"),
+      // Legacy compat
+      v.literal("admin"),
+      v.literal("viewer")
+    ),
   },
   handler: async (ctx, args) => {
     const currentUser = await requireAuth(ctx);
 
-    // Check if current user is admin (default to medewerker for security)
-    const currentRole = currentUser.role ?? "medewerker";
-    if (currentRole !== "admin") {
-      throw new Error("Alleen admins kunnen gebruikersrollen wijzigen");
+    // Check if current user is directie (admin)
+    if (!isAdminRole(currentUser.role)) {
+      throw new ConvexError("Alleen directie kan gebruikersrollen wijzigen");
     }
 
-    // Prevent removing own admin role
-    if (currentUser._id === args.userId && args.role !== "admin") {
-      throw new Error("Je kunt je eigen admin rechten niet verwijderen");
+    // Normalize the requested role
+    const newRole = normalizeRole(args.role);
+
+    // Prevent removing own directie role
+    if (currentUser._id === args.userId && newRole !== "directie") {
+      throw new ConvexError("Je kunt je eigen directie rechten niet verwijderen");
     }
 
-    await ctx.db.patch(args.userId, { role: args.role });
+    await ctx.db.patch(args.userId, { role: newRole });
     return { success: true };
   },
 });
@@ -1341,14 +1373,14 @@ export const adminMigrateExistingUsersToAdmin = mutation({
 
     for (const user of users) {
       if (!user.role) {
-        await ctx.db.patch(user._id, { role: "admin" });
+        await ctx.db.patch(user._id, { role: "directie" });
         updatedCount++;
       }
     }
 
     return {
       success: true,
-      message: `${updatedCount} users updated to admin role`,
+      message: `${updatedCount} users updated to directie role`,
       updatedCount,
     };
   },
@@ -1364,7 +1396,18 @@ export const adminMigrateExistingUsersToAdmin = mutation({
 export const cliSetUserRole = mutation({
   args: {
     email: v.string(),
-    role: v.union(v.literal("admin"), v.literal("medewerker"), v.literal("viewer")),
+    role: v.union(
+      v.literal("directie"),
+      v.literal("projectleider"),
+      v.literal("voorman"),
+      v.literal("medewerker"),
+      v.literal("klant"),
+      v.literal("onderaannemer_zzp"),
+      v.literal("materiaalman"),
+      // Legacy compat
+      v.literal("admin"),
+      v.literal("viewer")
+    ),
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
@@ -1381,16 +1424,17 @@ export const cliSetUserRole = mutation({
       };
     }
 
-    const oldRole = user.role || "none";
-    await ctx.db.patch(user._id, { role: args.role });
+    const oldRole = normalizeRole(user.role);
+    const newRole = normalizeRole(args.role);
+    await ctx.db.patch(user._id, { role: newRole });
 
     return {
       success: true,
-      message: `Role for ${args.email} changed from "${oldRole}" to "${args.role}"`,
+      message: `Role for ${args.email} changed from "${oldRole}" to "${newRole}"`,
       userId: user._id,
       email: args.email,
       oldRole,
-      newRole: args.role,
+      newRole,
     };
   },
 });
@@ -1498,7 +1542,7 @@ export const exportPersonalData = query({
       .collect();
 
     // 13. Medewerkers (employees) - only for admin users
-    const medewerkers = user.role === "admin"
+    const medewerkers = isAdminRole(user.role)
       ? await ctx.db
           .query("medewerkers")
           .withIndex("by_user", (q) => q.eq("userId", userId))
@@ -1680,7 +1724,7 @@ export const exportPersonalData = query({
         isActief: m.isActief,
       })),
       medewerkers:
-        user.role === "admin"
+        isAdminRole(user.role)
           ? medewerkers.map((m) => ({
               id: m._id,
               naam: m.naam,
@@ -1772,7 +1816,7 @@ export const exportPersonalData = query({
         totalFacturen: facturen.length,
         totalUrenRegistraties: urenRegistraties.length,
         totalProducten: producten.length,
-        totalMedewerkers: user.role === "admin" ? medewerkers.length : 0,
+        totalMedewerkers: isAdminRole(user.role) ? medewerkers.length : 0,
       },
     };
   },
@@ -1792,10 +1836,15 @@ export const requestDataDeletion = mutation({
   handler: async (ctx, args) => {
     const user = await requireAuth(ctx);
 
-    // Get all admin users to notify
+    // Get all directie (admin) users to notify
     const adminUsers = await ctx.db
       .query("users")
-      .filter((q) => q.eq(q.field("role"), "admin"))
+      .filter((q) =>
+        q.or(
+          q.eq(q.field("role"), "directie"),
+          q.eq(q.field("role"), "admin") // Legacy compat
+        )
+      )
       .collect();
 
     // Create a notification for each admin
@@ -1836,5 +1885,123 @@ export const requestDataDeletion = mutation({
       requestedAt: now,
       adminNotified: adminUsers.length > 0,
     };
+  },
+});
+
+// ============================================
+// KLANTENPORTAAL: ACCOUNT LINKING
+// ============================================
+
+/**
+ * Link a newly registered klant user to their klant profile via invitation token.
+ * Called after the klant registers through Clerk using the invitation link.
+ *
+ * Flow:
+ * 1. Klant receives invitation link with token
+ * 2. Klant registers via Clerk
+ * 3. Frontend calls this mutation with the token
+ * 4. This mutation links the user to the klant record
+ */
+export const linkKlantAccount = mutation({
+  args: {
+    invitationToken: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Require the just-registered user to be authenticated
+    const user = await requireAuth(ctx);
+
+    // Find klant by invitation token
+    const klant = await ctx.db
+      .query("klanten")
+      .withIndex("by_invitation_token", (q) =>
+        q.eq("invitationToken", args.invitationToken)
+      )
+      .unique();
+
+    if (!klant) {
+      throw new ConvexError("Ongeldige uitnodigingslink. Neem contact op met het bedrijf.");
+    }
+
+    // Validate token not expired
+    if (klant.invitationExpiresAt && klant.invitationExpiresAt < Date.now()) {
+      throw new ConvexError(
+        "De uitnodigingslink is verlopen. Vraag het bedrijf om een nieuwe uitnodiging."
+      );
+    }
+
+    // Validate klant doesn't already have a linked Clerk user
+    if (klant.clerkUserId) {
+      throw new ConvexError(
+        "Dit klantaccount is al gekoppeld aan een gebruiker."
+      );
+    }
+
+    // Verify email match (if both have email)
+    if (klant.email && user.email) {
+      if (klant.email.toLowerCase() !== user.email.toLowerCase()) {
+        throw new ConvexError(
+          "Het e-mailadres waarmee je bent geregistreerd komt niet overeen met het e-mailadres van de klant. Registreer met het juiste e-mailadres."
+        );
+      }
+    }
+
+    const now = Date.now();
+
+    // Link accounts: update klant record
+    await ctx.db.patch(klant._id, {
+      clerkUserId: user.clerkId,
+      invitationToken: undefined,
+      invitationExpiresAt: undefined,
+      lastLoginAt: now,
+      updatedAt: now,
+    });
+
+    // Update user with klant role and linked klant ID
+    await ctx.db.patch(user._id, {
+      role: "klant",
+      linkedKlantId: klant._id,
+    });
+
+    // Schedule Clerk metadata update to set role in Clerk's public metadata
+    await ctx.scheduler.runAfter(0, internal.users.setClerkMetadata, {
+      clerkUserId: user.clerkId,
+      metadata: { role: "klant" },
+    });
+
+    return {
+      success: true,
+      klantId: klant._id,
+      klantNaam: klant.naam,
+    };
+  },
+});
+
+/**
+ * Internal action to update Clerk user public metadata.
+ * Uses Clerk REST API directly (Convex cannot use @clerk/nextjs).
+ * Scheduled by linkKlantAccount after successful account linking.
+ */
+export const setClerkMetadata = internalAction({
+  args: {
+    clerkUserId: v.string(),
+    metadata: v.object({ role: v.string() }),
+  },
+  handler: async (_ctx, args) => {
+    const response = await fetch(
+      `https://api.clerk.com/v1/users/${args.clerkUserId}`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          public_metadata: args.metadata,
+        }),
+      }
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to update Clerk metadata: ${response.statusText}`);
+    }
   },
 });

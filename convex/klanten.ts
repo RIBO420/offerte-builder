@@ -1,6 +1,6 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAuth, requireAuthUserId, getOwnedKlant } from "./auth";
+import { requireAuth, requireAuthUserId, getOwnedKlant, generateSecureToken } from "./auth";
 import { requireNotViewer, requireAdmin } from "./roles";
 import {
   sanitizeEmail,
@@ -136,13 +136,13 @@ export const create = mutation({
 
     // Validate required fields
     if (!args.naam.trim()) {
-      throw new Error("Naam is verplicht");
+      throw new ConvexError("Naam is verplicht");
     }
     if (!args.adres.trim()) {
-      throw new Error("Adres is verplicht");
+      throw new ConvexError("Adres is verplicht");
     }
     if (!args.plaats.trim()) {
-      throw new Error("Plaats is verplicht");
+      throw new ConvexError("Plaats is verplicht");
     }
 
     // Validate and sanitize fields
@@ -198,14 +198,14 @@ export const update = mutation({
     // Validate and sanitize each field if provided
     if (args.naam !== undefined) {
       if (!args.naam.trim()) {
-        throw new Error("Naam is verplicht");
+        throw new ConvexError("Naam is verplicht");
       }
       filteredUpdates.naam = args.naam.trim();
     }
 
     if (args.adres !== undefined) {
       if (!args.adres.trim()) {
-        throw new Error("Adres is verplicht");
+        throw new ConvexError("Adres is verplicht");
       }
       filteredUpdates.adres = args.adres.trim();
     }
@@ -216,7 +216,7 @@ export const update = mutation({
 
     if (args.plaats !== undefined) {
       if (!args.plaats.trim()) {
-        throw new Error("Plaats is verplicht");
+        throw new ConvexError("Plaats is verplicht");
       }
       filteredUpdates.plaats = args.plaats.trim();
     }
@@ -265,7 +265,7 @@ export const remove = mutation({
       .take(1);
 
     if (linkedOffertes.length > 0) {
-      throw new Error(
+      throw new ConvexError(
         "Deze klant heeft gekoppelde offertes en kan niet worden verwijderd. Verwijder eerst de offertes."
       );
     }
@@ -517,17 +517,17 @@ export const gdprAnonymize = mutation({
 
     const klant = await ctx.db.get(args.id);
     if (!klant) {
-      throw new Error("Klant niet gevonden");
+      throw new ConvexError("Klant niet gevonden");
     }
 
     // Verify ownership (admin must belong to same company)
     if (klant.userId.toString() !== adminUser._id.toString()) {
-      throw new Error("Je hebt geen toegang tot deze klant");
+      throw new ConvexError("Je hebt geen toegang tot deze klant");
     }
 
     // Check if already anonymized
     if (klant.gdprAnonymized) {
-      throw new Error("Deze klant is al geanonimiseerd");
+      throw new ConvexError("Deze klant is al geanonimiseerd");
     }
 
     // Check for blockers: active projects and open invoices
@@ -549,7 +549,7 @@ export const gdprAnonymize = mutation({
           project.status !== "gefactureerd" &&
           project.status !== "nacalculatie_compleet"
         ) {
-          throw new Error(
+          throw new ConvexError(
             `Kan niet anonimiseren: project "${project.naam}" is nog actief (status: ${project.status}). Rond eerst alle projecten af.`
           );
         }
@@ -561,7 +561,7 @@ export const gdprAnonymize = mutation({
 
         for (const factuur of facturen) {
           if (factuur.status !== "betaald" && factuur.status !== "vervallen") {
-            throw new Error(
+            throw new ConvexError(
               `Kan niet anonimiseren: factuur ${factuur.factuurnummer} is nog openstaand (status: ${factuur.status}). Zorg dat alle facturen betaald of vervallen zijn.`
             );
           }
@@ -603,6 +603,145 @@ export const gdprAnonymize = mutation({
     }
 
     return { success: true, anonymizedAt: now };
+  },
+});
+
+// ============ KLANT CSV IMPORT ============
+
+/**
+ * Import multiple klanten from CSV data.
+ * Checks for duplicates based on email or naam+postcode combo.
+ */
+export const importKlanten = mutation({
+  args: {
+    klanten: v.array(
+      v.object({
+        naam: v.string(),
+        email: v.optional(v.string()),
+        telefoon: v.optional(v.string()),
+        adres: v.string(),
+        postcode: v.string(),
+        plaats: v.string(),
+        klantType: v.optional(
+          v.union(
+            v.literal("particulier"),
+            v.literal("zakelijk"),
+            v.literal("vve"),
+            v.literal("gemeente"),
+            v.literal("overig")
+          )
+        ),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
+    const userId = await requireAuthUserId(ctx);
+    const now = Date.now();
+
+    // Fetch all existing klanten for duplicate checking
+    const existingKlanten = await ctx.db
+      .query("klanten")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    let imported = 0;
+    let skipped = 0;
+    const errors: string[] = [];
+
+    for (let i = 0; i < args.klanten.length; i++) {
+      const klant = args.klanten[i];
+      const rowNum = i + 1;
+
+      try {
+        // Validate required fields
+        if (!klant.naam.trim()) {
+          errors.push(`Rij ${rowNum}: Naam is verplicht`);
+          continue;
+        }
+
+        if (!klant.postcode.trim()) {
+          errors.push(`Rij ${rowNum}: Postcode is verplicht`);
+          continue;
+        }
+
+        if (!klant.plaats.trim()) {
+          errors.push(`Rij ${rowNum}: Plaats is verplicht`);
+          continue;
+        }
+
+        // Check for duplicates
+        const isDuplicate = existingKlanten.some((existing) => {
+          // Check email match
+          if (
+            klant.email &&
+            existing.email &&
+            klant.email.trim().toLowerCase() === existing.email.toLowerCase()
+          ) {
+            return true;
+          }
+
+          // Check naam + postcode combo
+          if (
+            klant.naam.trim().toLowerCase() === existing.naam.toLowerCase() &&
+            klant.postcode.replace(/\s/g, "").toLowerCase() ===
+              existing.postcode.replace(/\s/g, "").toLowerCase()
+          ) {
+            return true;
+          }
+
+          return false;
+        });
+
+        if (isDuplicate) {
+          skipped++;
+          continue;
+        }
+
+        // Sanitize fields
+        const postcode = validateRequiredPostcode(klant.postcode);
+        const email = sanitizeEmail(klant.email);
+        const telefoon = sanitizePhone(klant.telefoon);
+
+        const newId = await ctx.db.insert("klanten", {
+          userId,
+          naam: klant.naam.trim(),
+          adres: klant.adres.trim(),
+          postcode,
+          plaats: klant.plaats.trim(),
+          email,
+          telefoon,
+          pipelineStatus: "lead",
+          klantType: klant.klantType ?? "particulier",
+          createdAt: now,
+          updatedAt: now,
+        });
+
+        // Add to existing list for further duplicate checking within same batch
+        existingKlanten.push({
+          _id: newId,
+          _creationTime: now,
+          userId,
+          naam: klant.naam.trim(),
+          adres: klant.adres.trim(),
+          postcode,
+          plaats: klant.plaats.trim(),
+          email,
+          telefoon,
+          pipelineStatus: "lead" as const,
+          klantType: klant.klantType ?? "particulier",
+          createdAt: now,
+          updatedAt: now,
+        });
+
+        imported++;
+      } catch (e) {
+        const message = e instanceof Error ? e.message : "Onbekende fout";
+        errors.push(`Rij ${rowNum} (${klant.naam}): ${message}`);
+      }
+    }
+
+    return { imported, skipped, errors };
   },
 });
 
@@ -781,6 +920,87 @@ export const unsnoozeReminder = mutation({
 
     await ctx.db.patch(args.id, {
       reminderSnoozed: false,
+      updatedAt: Date.now(),
+    });
+
+    return { success: true };
+  },
+});
+
+// ============ KLANTENPORTAAL ACTIVATION ============
+
+/**
+ * Activate the klantenportaal for a klant.
+ * Generates an invitation token that can be sent to the klant.
+ * The token is valid for 7 days.
+ */
+export const activatePortal = mutation({
+  args: { id: v.id("klanten") },
+  handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
+    const user = await requireAuth(ctx);
+
+    // Get klant and verify ownership
+    const klant = await ctx.db.get(args.id);
+    if (!klant) {
+      throw new ConvexError("Klant niet gevonden");
+    }
+    if (klant.userId.toString() !== user._id.toString()) {
+      throw new ConvexError("Je hebt geen toegang tot deze klant");
+    }
+
+    // Validate klant has email
+    if (!klant.email) {
+      throw new ConvexError(
+        "Klant heeft geen e-mailadres. Voeg eerst een e-mailadres toe voordat je portaal-toegang activeert."
+      );
+    }
+
+    // Validate klant doesn't already have portal access
+    if (klant.portalEnabled) {
+      throw new ConvexError("Klant heeft al portaal-toegang");
+    }
+
+    // Generate secure invitation token
+    const token = generateSecureToken(48);
+    const now = Date.now();
+    const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+    const expiresAt = now + SEVEN_DAYS_MS;
+
+    await ctx.db.patch(args.id, {
+      portalEnabled: true,
+      invitationToken: token,
+      invitationExpiresAt: expiresAt,
+      updatedAt: now,
+    });
+
+    return { token, expiresAt };
+  },
+});
+
+/**
+ * Deactivate the klantenportaal for a klant.
+ * Clears portal access and invitation token.
+ */
+export const deactivatePortal = mutation({
+  args: { id: v.id("klanten") },
+  handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
+    const user = await requireAuth(ctx);
+
+    // Get klant and verify ownership
+    const klant = await ctx.db.get(args.id);
+    if (!klant) {
+      throw new ConvexError("Klant niet gevonden");
+    }
+    if (klant.userId.toString() !== user._id.toString()) {
+      throw new ConvexError("Je hebt geen toegang tot deze klant");
+    }
+
+    await ctx.db.patch(args.id, {
+      portalEnabled: false,
+      invitationToken: undefined,
+      invitationExpiresAt: undefined,
       updatedAt: Date.now(),
     });
 
