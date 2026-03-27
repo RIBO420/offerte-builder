@@ -1,20 +1,13 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { Id } from "../../../../../convex/_generated/dataModel";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -27,25 +20,18 @@ import {
 } from "@/components/ui/breadcrumb";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
-  AlertTriangle,
-  ArrowLeft,
-  Calendar,
-  Clock,
-  Users,
-  ListTodo,
-  ClipboardCheck,
-  FileText,
-  ChevronRight,
-  Calculator,
-  Euro,
-} from "lucide-react";
-import { ProjectProgressStepper, type ProjectStatus } from "@/components/project/project-progress-stepper";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { AlertTriangle, ArrowLeft, FileText } from "lucide-react";
+import { ThinProgressBar, type ProjectStatus } from "@/components/project/thin-progress-bar";
+import { ProjectFocusCards } from "@/components/project/project-focus-cards";
+import { ModulePills } from "@/components/project/module-pills";
 import { WerklocatieCard } from "@/components/project/werklocatie-card";
 import { ProjectDetailSkeleton } from "@/components/skeletons";
 
-// Project status colors - voorcalculatie is now at offerte level
-// Note: voorcalculatie kept for backwards compatibility with existing projects
-// WCAG AA compliant colors (4.5:1 contrast ratio)
 const statusColors: Record<string, string> = {
   voorcalculatie: "bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
   gepland: "bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
@@ -54,8 +40,6 @@ const statusColors: Record<string, string> = {
   nacalculatie_compleet: "bg-purple-200 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
 };
 
-// Project status labels - voorcalculatie is now at offerte level
-// Note: voorcalculatie kept for backwards compatibility with existing projects
 const statusLabels: Record<string, string> = {
   voorcalculatie: "Voorcalculatie",
   gepland: "Gepland",
@@ -80,14 +64,13 @@ export default function ProjectDetailPage({
   const { id } = use(params);
   const router = useRouter();
   const projectId = id as Id<"projecten">;
+  const [werklocatieOpen, setWerklocatieOpen] = useState(false);
 
-  // Budget status check
   const budgetStatus = useQuery(
     api.projectKosten.getBudgetStatus,
     projectId ? { projectId } : "skip"
   );
 
-  // Get project with all details
   const projectDetails = useQuery(
     api.projecten.getWithDetails,
     projectId ? { id: projectId } : "skip"
@@ -121,6 +104,7 @@ export default function ProjectDetailPage({
     );
   }
 
+  // Not found
   if (!projectDetails) {
     return (
       <>
@@ -157,11 +141,6 @@ export default function ProjectDetailPage({
 
   const { project, offerte, voorcalculatie, planningTaken, nacalculatie } = projectDetails;
 
-  // Calculate planning progress
-  const planningVoortgang = planningTaken.length > 0
-    ? Math.round((planningTaken.filter((t) => t.status === "afgerond").length / planningTaken.length) * 100)
-    : 0;
-
   return (
     <>
       <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
@@ -184,407 +163,123 @@ export default function ProjectDetailPage({
         </Breadcrumb>
       </header>
 
-      <div className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
+      <div className="flex flex-1 flex-col gap-5 p-4 md:p-8">
         {/* Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" asChild aria-label="Terug naar projecten">
-              <Link href="/projecten">
-                <ArrowLeft className="h-4 w-4" />
-              </Link>
-            </Button>
-            <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
-                  {project.naam}
-                </h1>
-                <Badge className={statusColors[project.status]}>
-                  {statusLabels[project.status]}
-                </Badge>
-              </div>
-              <p className="text-muted-foreground">
-                Aangemaakt op {formatDate(project.createdAt)}
-              </p>
+        <div className="flex items-start gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="mt-0.5 h-8 w-8 shrink-0"
+            asChild
+            aria-label="Terug naar projecten"
+          >
+            <Link href="/projecten">
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+          </Button>
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
+                {project.naam}
+              </h1>
+              <Badge className={statusColors[project.status]}>
+                {statusLabels[project.status]}
+              </Badge>
             </div>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {offerte && <>{offerte.offerteNummer} &middot; {offerte.klant.naam} &middot; </>}
+              Aangemaakt {formatDate(project.createdAt)}
+            </p>
           </div>
         </div>
 
-        {/* Project Progress Stepper */}
-        <Card className="p-4 md:p-6">
-          <ProjectProgressStepper
-            projectId={id}
-            projectStatus={project.status as ProjectStatus}
-            hasPlanning={planningTaken.length > 0}
-            hasUrenRegistraties={projectDetails.totaalGeregistreerdeUren > 0}
-            hasNacalculatie={!!nacalculatie}
-          />
-        </Card>
+        {/* Thin Progress Stepper */}
+        <ThinProgressBar
+          projectId={id}
+          projectStatus={project.status as ProjectStatus}
+        />
 
-        {/* Budget Warning Banner */}
+        {/* Budget Warning Banner (conditional) */}
         {budgetStatus?.drempel80 && (
-          <Card className={`border-2 ${budgetStatus.drempel100 ? "border-red-500 bg-red-50/50 dark:bg-red-950/20" : "border-amber-500 bg-amber-50/50 dark:bg-amber-950/20"}`}>
-            <CardContent className="flex items-center gap-3 p-4">
-              <AlertTriangle className={`h-5 w-5 shrink-0 ${budgetStatus.drempel100 ? "text-red-600" : "text-amber-600"}`} />
-              <div className="flex-1">
-                <p className={`font-medium ${budgetStatus.drempel100 ? "text-red-700 dark:text-red-400" : "text-amber-700 dark:text-amber-400"}`}>
-                  {budgetStatus.drempel100
-                    ? `Budget overschreden — ${budgetStatus.percentage}% verbruikt`
-                    : `Budget waarschuwing — ${budgetStatus.percentage}% verbruikt`}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Werkelijke kosten: €{budgetStatus.werkelijkeKosten.toLocaleString("nl-NL", { minimumFractionDigits: 2 })} van €{budgetStatus.budget.toLocaleString("nl-NL", { minimumFractionDigits: 2 })} budget
-                </p>
-              </div>
-              <Progress
-                value={Math.min(budgetStatus.percentage, 100)}
-                className={`h-2 w-24 ${budgetStatus.drempel100 ? "[&>div]:bg-red-500" : "[&>div]:bg-amber-500"}`}
-              />
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Quick Stats */}
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription className="flex items-center gap-1">
-                Voorcalculatie
-                <span className="text-xs text-muted-foreground/70">(van offerte)</span>
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {voorcalculatie ? (
-                <div className="space-y-1">
-                  <p className="text-2xl font-bold">
-                    {voorcalculatie.geschatteDagen.toFixed(1)} dagen
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {voorcalculatie.normUrenTotaal} uur totaal
-                  </p>
-                </div>
-              ) : (
-                <p className="text-muted-foreground">Niet beschikbaar</p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Team</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {voorcalculatie ? (
-                <div className="flex items-center gap-2">
-                  <Users className="h-5 w-5 text-muted-foreground" />
-                  <span className="text-2xl font-bold">
-                    {voorcalculatie.teamGrootte}
-                  </span>
-                  <span className="text-muted-foreground">personen</span>
-                </div>
-              ) : (
-                <p className="text-muted-foreground">-</p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Planning</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-2xl font-bold">{planningVoortgang}%</span>
-                  <span className="text-sm text-muted-foreground">
-                    {planningTaken.filter((t) => t.status === "afgerond").length}/{planningTaken.length} taken
-                  </span>
-                </div>
-                <Progress value={planningVoortgang} className="h-2" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Geregistreerde uren</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                <Clock className="h-5 w-5 text-muted-foreground" />
-                <span className="text-2xl font-bold">
-                  {projectDetails.totaalGeregistreerdeUren.toFixed(1)}
-                </span>
-                <span className="text-muted-foreground">uur</span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Module Cards */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {/* Voorcalculatie Reference Card - Data comes from offerte */}
-          <Card className="hover:shadow-lg transition-shadow bg-muted/30">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calculator className="h-5 w-5" />
-                Voorcalculatie
-                <Badge variant="outline" className="ml-auto text-xs font-normal">
-                  van offerte
-                </Badge>
-              </CardTitle>
-              <CardDescription>
-                Uren- en dagenschatting (uit offerte)
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {voorcalculatie ? (
-                <div className="grid grid-cols-2 gap-4 text-center">
-                  <div>
-                    <p className="text-2xl font-bold">
-                      {voorcalculatie.geschatteDagen.toFixed(1)}
-                    </p>
-                    <p className="text-sm text-muted-foreground">dagen</p>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">
-                      {voorcalculatie.teamGrootte}
-                    </p>
-                    <p className="text-sm text-muted-foreground">personen</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-2">
-                  <p className="text-sm text-muted-foreground">
-                    Geen voorcalculatie in offerte
-                  </p>
-                </div>
-              )}
-              {offerte && (
-                <Button asChild variant="outline" className="w-full">
-                  <Link href={`/offertes/${offerte._id}`}>
-                    Bekijk in Offerte
-                    <ChevronRight className="ml-2 h-4 w-4" />
-                  </Link>
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Planning Module */}
-          <Card className={`hover:shadow-lg transition-shadow ${project.status === 'gepland' ? 'ring-2 ring-primary' : ''}`}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ListTodo className="h-5 w-5" />
-                Planning
-              </CardTitle>
-              <CardDescription>
-                Beheer taken en bekijk projectplanning
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Voortgang</span>
-                  <span>{planningVoortgang}%</span>
-                </div>
-                <Progress value={planningVoortgang} className="h-2" />
-              </div>
-              <div className="flex justify-between text-sm text-muted-foreground">
-                <span>{planningTaken.length} taken</span>
-                <span>
-                  {planningTaken.filter((t) => t.status === "afgerond").length} afgerond
-                </span>
-              </div>
-              {project.status === 'gepland' && planningTaken.length === 0 && (
-                <p className="text-xs text-primary font-medium text-center">
-                  Start hier met planning
-                </p>
-              )}
-              <Button asChild className="w-full" variant={project.status === 'gepland' ? 'default' : 'outline'}>
-                <Link href={`/projecten/${id}/planning`}>
-                  Naar Planning
-                  <ChevronRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Uren Registratie Module */}
-          <Card className={`hover:shadow-lg transition-shadow ${project.status === 'in_uitvoering' ? 'ring-2 ring-primary' : ''}`}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                Uren Registratie
-              </CardTitle>
-              <CardDescription>
-                Registreer en importeer gewerkte uren
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 text-center">
-                <div>
-                  <p className="text-2xl font-bold">
-                    {projectDetails.totaalGeregistreerdeUren.toFixed(1)}
-                  </p>
-                  <p className="text-sm text-muted-foreground">Geregistreerd</p>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">
-                    {voorcalculatie?.normUrenTotaal?.toFixed(1) || "-"}
-                  </p>
-                  <p className="text-sm text-muted-foreground">Begroot</p>
-                </div>
-              </div>
-              <Button
-                asChild
-                className="w-full"
-                variant={project.status === 'in_uitvoering' ? 'default' : 'outline'}
+          <div
+            className={`flex items-center gap-3 rounded-lg border p-3 ${
+              budgetStatus.drempel100
+                ? "border-red-500/50 bg-red-950/20"
+                : "border-amber-500/50 bg-amber-950/20"
+            }`}
+          >
+            <AlertTriangle
+              className={`h-4 w-4 shrink-0 ${
+                budgetStatus.drempel100 ? "text-red-500" : "text-amber-500"
+              }`}
+            />
+            <div className="flex-1 min-w-0">
+              <p
+                className={`text-sm font-medium ${
+                  budgetStatus.drempel100 ? "text-red-400" : "text-amber-400"
+                }`}
               >
-                <Link href={`/projecten/${id}/uitvoering`}>
-                  Naar Uitvoering
-                  <ChevronRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Kosten Tracking Module */}
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Euro className="h-5 w-5" />
-                Kosten Tracking
-              </CardTitle>
-              <CardDescription>
-                Real-time kosten overzicht vs budget
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Volg materiaal-, arbeids- en machinekosten live tijdens het project.
+                {budgetStatus.drempel100
+                  ? `Budget overschreden — ${budgetStatus.percentage}% verbruikt`
+                  : `Budget waarschuwing — ${budgetStatus.percentage}% verbruikt`}
               </p>
-              <Button
-                asChild
-                className="w-full"
-                variant="outline"
-              >
-                <Link href={`/projecten/${id}/kosten`}>
-                  Naar Kosten
-                  <ChevronRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Nacalculatie Module */}
-          <Card className={`hover:shadow-lg transition-shadow ${project.status === 'afgerond' || project.status === 'nacalculatie_compleet' ? 'ring-2 ring-primary' : ''}`}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calculator className="h-5 w-5" />
-                Nacalculatie
-              </CardTitle>
-              <CardDescription>
-                Vergelijk werkelijk vs. begroot
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {nacalculatie ? (
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Afwijking uren</span>
-                    <span
-                      className={
-                        nacalculatie.afwijkingPercentage > 0
-                          ? "text-red-600"
-                          : nacalculatie.afwijkingPercentage < 0
-                            ? "text-green-600"
-                            : ""
-                      }
-                    >
-                      {nacalculatie.afwijkingPercentage > 0 ? "+" : ""}
-                      {nacalculatie.afwijkingPercentage.toFixed(1)}%
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Nog geen nacalculatie beschikbaar
-                </p>
-              )}
-              <Button
-                asChild
-                className="w-full"
-                variant={project.status === 'afgerond' || project.status === 'nacalculatie_compleet' ? 'default' : 'outline'}
-              >
-                <Link href={`/projecten/${id}/nacalculatie`}>
-                  Naar Nacalculatie
-                  <ChevronRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Factuur Module - Show when nacalculatie is complete */}
-          {project.status === 'nacalculatie_compleet' && (
-            <Card className="hover:shadow-lg transition-shadow ring-2 ring-green-500 border-green-200 bg-green-50/50 dark:bg-green-950/20 dark:border-green-800">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-green-600" />
-                  Factuur
-                </CardTitle>
-                <CardDescription>
-                  Genereer en verstuur de factuur
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm text-green-700 dark:text-green-300">
-                  De nacalculatie is afgerond. Genereer nu de factuur voor dit project.
-                </p>
-                <Button
-                  asChild
-                  className="w-full bg-green-600 hover:bg-green-700 text-white"
-                >
-                  <Link href={`/projecten/${id}/factuur`}>
-                    <FileText className="mr-2 h-4 w-4" />
-                    Naar Factuur
-                    <ChevronRight className="ml-2 h-4 w-4" />
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-
-        {/* Werklocatie Card */}
-        <WerklocatieCard projectId={projectId} />
-
-        {/* Linked Offerte */}
-        {offerte && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Gekoppelde Offerte
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">{offerte.offerteNummer}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {offerte.klant.naam} - {offerte.type}
-                  </p>
-                </div>
-                <Button asChild variant="outline">
-                  <Link href={`/offertes/${offerte._id}`}>
-                    Bekijk Offerte
-                  </Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+              <p className="text-xs text-muted-foreground">
+                &euro;{budgetStatus.werkelijkeKosten.toLocaleString("nl-NL", { minimumFractionDigits: 2 })}
+                {" van "}
+                &euro;{budgetStatus.budget.toLocaleString("nl-NL", { minimumFractionDigits: 2 })} budget
+              </p>
+            </div>
+            <Progress
+              value={Math.min(budgetStatus.percentage, 100)}
+              className={`h-1.5 w-20 ${
+                budgetStatus.drempel100
+                  ? "[&>div]:bg-red-500"
+                  : "[&>div]:bg-amber-500"
+              }`}
+            />
+          </div>
         )}
+
+        {/* Focus Cards */}
+        <ProjectFocusCards
+          geregistreerdeUren={projectDetails.totaalGeregistreerdeUren}
+          normUrenTotaal={voorcalculatie?.normUrenTotaal ?? null}
+          geschatteDagen={voorcalculatie?.geschatteDagen ?? null}
+          teamGrootte={voorcalculatie?.teamGrootte ?? null}
+          totaleTaken={planningTaken.length}
+          afgerondeTaken={planningTaken.filter((t) => t.status === "afgerond").length}
+        />
+
+        {/* Module Pills */}
+        <ModulePills
+          projectId={id}
+          projectStatus={project.status as ProjectStatus}
+          offerteId={offerte?._id ?? null}
+          offerteNummer={offerte?.offerteNummer ?? null}
+          hasWerklocatie={false}
+          werklocatieLabel="Bekijk locatie"
+          planningTaken={{
+            total: planningTaken.length,
+            done: planningTaken.filter((t) => t.status === "afgerond").length,
+          }}
+          geregistreerdeUren={projectDetails.totaalGeregistreerdeUren}
+          normUrenTotaal={voorcalculatie?.normUrenTotaal ?? null}
+          nacalculatieAfwijking={nacalculatie?.afwijkingPercentage ?? null}
+          onWerklocatieClick={() => setWerklocatieOpen(true)}
+        />
       </div>
+
+      {/* Werklocatie Sheet */}
+      <Sheet open={werklocatieOpen} onOpenChange={setWerklocatieOpen}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Werklocatie</SheetTitle>
+          </SheetHeader>
+          <div className="mt-4">
+            <WerklocatieCard projectId={projectId} />
+          </div>
+        </SheetContent>
+      </Sheet>
     </>
   );
 }
