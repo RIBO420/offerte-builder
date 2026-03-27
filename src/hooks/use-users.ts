@@ -53,6 +53,7 @@ export function useUsers() {
 
   const updateRoleMutation = useMutation(api.users.updateUserRole);
   const linkMedewerkerMutation = useMutation(api.users.linkUserToMedewerker);
+  const deleteUserMutation = useMutation(api.users.deleteUser);
 
   const isLoading = user && users === undefined;
 
@@ -67,12 +68,17 @@ export function useUsers() {
     return await linkMedewerkerMutation({ userId, medewerkerId });
   };
 
+  const deleteUser = async (userId: Id<"users">) => {
+    return await deleteUserMutation({ userId });
+  };
+
   return {
     users: (users ?? []) as UserWithDetails[],
     availableMedewerkers: (availableMedewerkers ?? []) as MedewerkerForLinking[],
     isLoading,
     updateRole,
     linkToMedewerker,
+    deleteUser,
   };
 }
 

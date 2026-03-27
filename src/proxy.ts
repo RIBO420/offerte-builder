@@ -15,6 +15,7 @@ const isPublicRoute = createRouteMatcher([
 const isPortaalAuthRoute = createRouteMatcher([
   "/portaal/inloggen(.*)",
   "/portaal/registreren(.*)",
+  "/portaal/koppelen(.*)",
 ]);
 
 const isPortaalRoute = createRouteMatcher([
@@ -33,10 +34,10 @@ export default clerkMiddleware(async (auth, req) => {
   // Read role from session claims (configured via Clerk session_token_template)
   const role = (session.sessionClaims?.metadata as { role?: string })?.role;
 
-  // Portal routes — require klant role
+  // Portal routes — allow klant role and new users (no role yet, e.g. just registered)
   if (isPortaalRoute(req)) {
-    if (role !== "klant") {
-      // Non-klant users (or users without role) → redirect to dashboard
+    if (role && role !== "klant") {
+      // Users with explicit non-klant role (admin, medewerker) → redirect to dashboard
       return Response.redirect(new URL("/dashboard", req.url));
     }
     return;

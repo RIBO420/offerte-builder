@@ -48,6 +48,16 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Users,
   Search,
   Loader2,
@@ -64,6 +74,7 @@ import {
   UserRound,
   Handshake,
   Package,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useUsers, useIsAdmin, UserWithDetails, UserRole } from "@/hooks/use-users";
@@ -108,14 +119,16 @@ const itemVariants = {
 export default function GebruikersPage() {
   const router = useRouter();
   const isAdmin = useIsAdmin();
-  const { users, availableMedewerkers, isLoading, updateRole, linkToMedewerker } = useUsers();
+  const { users, availableMedewerkers, isLoading, updateRole, linkToMedewerker, deleteUser } = useUsers();
 
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [showLinkDialog, setShowLinkDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserWithDetails | null>(null);
   const [selectedMedewerkerId, setSelectedMedewerkerId] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Filter users based on search (use debounced value) - MUST be before any conditional returns
   const displayedUsers = useMemo(() => {
@@ -203,6 +216,29 @@ export default function GebruikersPage() {
       setIsSubmitting(false);
     }
   }, [selectedUser, selectedMedewerkerId, linkToMedewerker]);
+
+  // Handle delete user
+  const handleDeleteClick = useCallback((user: UserWithDetails) => {
+    setSelectedUser(user);
+    setShowDeleteDialog(true);
+  }, []);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!selectedUser) return;
+    setIsDeleting(true);
+    try {
+      await deleteUser(selectedUser._id);
+      toast.success(`Gebruiker ${selectedUser.name} verwijderd uit systeem en Clerk`);
+      setShowDeleteDialog(false);
+      setSelectedUser(null);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Fout bij verwijderen gebruiker"
+      );
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [selectedUser, deleteUser]);
 
   // Redirect non-admins using useEffect (AFTER all hooks to follow React rules)
   useEffect(() => {
@@ -488,22 +524,33 @@ export default function GebruikersPage() {
                             </TableCell>
                             <TableCell>{formatDate(user.createdAt)}</TableCell>
                             <TableCell className="text-right">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleOpenLinkDialog(user)}
-                                title={
-                                  user.linkedMedewerkerId
-                                    ? "Koppeling wijzigen"
-                                    : "Koppelen aan medewerker"
-                                }
-                              >
-                                {user.linkedMedewerkerId ? (
-                                  <Link2 className="h-4 w-4" />
-                                ) : (
-                                  <Link2Off className="h-4 w-4" />
-                                )}
-                              </Button>
+                              <div className="flex items-center justify-end gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleOpenLinkDialog(user)}
+                                  title={
+                                    user.linkedMedewerkerId
+                                      ? "Koppeling wijzigen"
+                                      : "Koppelen aan medewerker"
+                                  }
+                                >
+                                  {user.linkedMedewerkerId ? (
+                                    <Link2 className="h-4 w-4" />
+                                  ) : (
+                                    <Link2Off className="h-4 w-4" />
+                                  )}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteClick(user)}
+                                  title="Gebruiker verwijderen"
+                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         );
@@ -610,6 +657,30 @@ export default function GebruikersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete User Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Gebruiker verwijderen</AlertDialogTitle>
+            <AlertDialogDescription>
+              Weet je zeker dat je <strong>{selectedUser?.name}</strong> ({selectedUser?.email}) wilt verwijderen?
+              Dit verwijdert de gebruiker uit het systeem én uit Clerk. Deze actie kan niet ongedaan worden gemaakt.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Annuleren</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Verwijderen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

@@ -1,13 +1,17 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useQuery, useConvexAuth } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { PortaalKpiCards } from "@/components/portaal/portaal-kpi-cards";
 import { PortaalActivityFeed } from "@/components/portaal/portaal-activity-feed";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function PortaalOverzichtPage() {
-  const overzicht = useQuery(api.portaal.getOverzicht);
+  const { isAuthenticated } = useConvexAuth();
+  const overzicht = useQuery(
+    api.portaal.getOverzicht,
+    isAuthenticated ? undefined : "skip"
+  );
 
   if (!overzicht) {
     return (

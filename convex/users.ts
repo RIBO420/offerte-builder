@@ -1981,6 +1981,77 @@ export const linkKlantAccount = mutation({
  * Uses Clerk REST API directly (Convex cannot use @clerk/nextjs).
  * Scheduled by linkKlantAccount after successful account linking.
  */
+/**
+ * Delete a user from Convex and Clerk. Admin only.
+ * Removes the Convex user record and schedules Clerk user deletion.
+ */
+export const deleteUser = mutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const admin = await requireAuth(ctx);
+    const adminRole = normalizeRole(admin.role);
+    if (adminRole !== "directie") {
+      throw new ConvexError("Alleen directie kan gebruikers verwijderen");
+    }
+
+    // Prevent self-deletion
+    if (admin._id === args.userId) {
+      throw new ConvexError("Je kunt jezelf niet verwijderen");
+    }
+
+    const userToDelete = await ctx.db.get(args.userId);
+    if (!userToDelete) {
+      throw new ConvexError("Gebruiker niet gevonden");
+    }
+
+    // If user is linked to a klant, clear the klant's clerkUserId
+    if (userToDelete.linkedKlantId) {
+      const klant = await ctx.db.get(userToDelete.linkedKlantId);
+      if (klant) {
+        await ctx.db.patch(klant._id, {
+          clerkUserId: undefined,
+          portalEnabled: false,
+          invitationToken: undefined,
+          invitationExpiresAt: undefined,
+        });
+      }
+    }
+
+    // Delete the Convex user record
+    await ctx.db.delete(args.userId);
+
+    // Schedule Clerk user deletion
+    await ctx.scheduler.runAfter(0, internal.users.deleteClerkUser, {
+      clerkUserId: userToDelete.clerkId,
+    });
+
+    return { success: true, deletedEmail: userToDelete.email };
+  },
+});
+
+/**
+ * Internal action to delete a user from Clerk via REST API.
+ */
+export const deleteClerkUser = internalAction({
+  args: { clerkUserId: v.string() },
+  handler: async (_ctx, args) => {
+    const response = await fetch(
+      `https://api.clerk.com/v1/users/${args.clerkUserId}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}`,
+        },
+      }
+    );
+    if (!response.ok) {
+      console.error(
+        `[users/deleteClerkUser] Failed to delete Clerk user ${args.clerkUserId}: ${response.statusText}`
+      );
+    }
+  },
+});
+
 export const setClerkMetadata = internalAction({
   args: {
     clerkUserId: v.string(),

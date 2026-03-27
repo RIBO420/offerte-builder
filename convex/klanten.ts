@@ -1,5 +1,6 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query, internalQuery } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { requireAuth, requireAuthUserId, getOwnedKlant, generateSecureToken } from "./auth";
 import { requireNotViewer, requireAdmin } from "./roles";
 import {
@@ -972,6 +973,12 @@ export const activatePortal = mutation({
       invitationToken: token,
       invitationExpiresAt: expiresAt,
       updatedAt: now,
+    });
+
+    // Send invitation email via scheduler
+    await ctx.scheduler.runAfter(0, internal.portaalEmail.sendInvitation, {
+      klantId: args.id,
+      token,
     });
 
     return { token, expiresAt };
