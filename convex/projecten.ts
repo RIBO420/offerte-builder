@@ -6,11 +6,11 @@
  * Workflow: gepland → in_uitvoering → afgerond → nacalculatie_compleet
  */
 
-import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { v, ConvexError } from "convex/values";
+import { mutation, query, internalQuery } from "./_generated/server";
 import { requireAuth, requireAuthUserId, verifyOwnership } from "./auth";
 import { Id } from "./_generated/dataModel";
-import { getUserRole, getLinkedMedewerker, requireNotViewer } from "./roles";
+import { getUserRole, getLinkedMedewerker, requireNotViewer, requireDirectieOrProjectleider, getCompanyUserId } from "./roles";
 import { upgradeKlantPipeline } from "./pipelineHelpers";
 
 // Status validator for project status
@@ -56,15 +56,15 @@ export const create = mutation({
     // Verify the offerte exists and belongs to the user
     const offerte = await ctx.db.get(args.offerteId);
     if (!offerte) {
-      throw new Error("Offerte niet gevonden");
+      throw new ConvexError("Offerte niet gevonden");
     }
     if (offerte.userId.toString() !== userId.toString()) {
-      throw new Error("Je hebt geen toegang tot deze offerte");
+      throw new ConvexError("Je hebt geen toegang tot deze offerte");
     }
 
     // Validate: Offerte must be accepted before creating a project
     if (offerte.status !== "geaccepteerd") {
-      throw new Error(
+      throw new ConvexError(
         `Kan geen project aanmaken: offerte heeft status "${offerte.status}". ` +
         "De offerte moet eerst geaccepteerd zijn door de klant."
       );
@@ -77,7 +77,7 @@ export const create = mutation({
       .unique();
 
     if (!offerteVoorcalculatie) {
-      throw new Error(
+      throw new ConvexError(
         "Kan geen project aanmaken: er is nog geen voorcalculatie voor deze offerte. " +
         "Maak eerst een voorcalculatie aan bij de offerte."
       );
@@ -90,7 +90,7 @@ export const create = mutation({
       .unique();
 
     if (existingProject) {
-      throw new Error("Er bestaat al een project voor deze offerte");
+      throw new ConvexError("Er bestaat al een project voor deze offerte");
     }
 
     // Use provided name or derive from offerte
@@ -277,6 +277,7 @@ export const updateStatus = mutation({
   args: {
     id: v.id("projecten"),
     status: projectStatusValidator,
+    skipKlicCheck: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
@@ -298,13 +299,38 @@ export const updateStatus = mutation({
 
     // Check if the transition is valid
     if (!validTransitions[currentStatus]?.includes(newStatus)) {
-      throw new Error(
+      throw new ConvexError(
         `Ongeldige status transitie: kan niet van "${currentStatus}" naar "${newStatus}" gaan. ` +
         `Toegestane transities vanuit "${currentStatus}": ${validTransitions[currentStatus]?.join(", ") || "geen"}.`
       );
     }
 
     // Validate prerequisites for specific transitions
+
+    // PRJ-W01: KLIC-melding check for aanleg projects with grondwerk scope
+    // Directie can override this check with skipKlicCheck flag
+    if (currentStatus === "gepland" && newStatus === "in_uitvoering") {
+      const offerte = await ctx.db.get(project.offerteId);
+      if (
+        offerte &&
+        offerte.type === "aanleg" &&
+        offerte.scopes?.includes("grondwerk") &&
+        !project.klicMeldingGedaan &&
+        !args.skipKlicCheck
+      ) {
+        throw new ConvexError(
+          "Kan project niet starten: KLIC-melding is nog niet gedaan. " +
+          "Bij aanlegprojecten met graafwerk is een KLIC-melding wettelijk verplicht. " +
+          "Bevestig de KLIC-melding voordat je het project start."
+        );
+      }
+
+      // If directie skips the check, mark KLIC as done
+      if (args.skipKlicCheck && !project.klicMeldingGedaan) {
+        await ctx.db.patch(args.id, { klicMeldingGedaan: true });
+      }
+    }
+
     if (currentStatus === "in_uitvoering" && newStatus === "afgerond") {
       // Check if there are registered hours
       const urenRegistraties = await ctx.db
@@ -313,7 +339,7 @@ export const updateStatus = mutation({
         .first();
 
       if (!urenRegistraties) {
-        throw new Error(
+        throw new ConvexError(
           "Kan project niet afronden: er zijn nog geen uren geregistreerd. " +
           "Registreer eerst de gewerkte uren."
         );
@@ -328,7 +354,7 @@ export const updateStatus = mutation({
         .unique();
 
       if (!nacalculatie) {
-        throw new Error(
+        throw new ConvexError(
           "Kan project niet als 'nacalculatie compleet' markeren: er is nog geen nacalculatie aangemaakt. " +
           "Maak eerst een nacalculatie aan."
         );
@@ -369,6 +395,28 @@ export const archive = mutation({
     await ctx.db.patch(args.id, {
       isArchived: true,
       archivedAt: Date.now(),
+    });
+
+    return args.id;
+  },
+});
+
+/**
+ * Set the KLIC-melding status for a project (PRJ-W01).
+ * Required for aanleg projects with grondwerk scope before starting execution.
+ */
+export const setKlicMelding = mutation({
+  args: {
+    id: v.id("projecten"),
+    klicMeldingGedaan: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
+    await getOwnedProject(ctx, args.id);
+
+    await ctx.db.patch(args.id, {
+      klicMeldingGedaan: args.klicMeldingGedaan,
+      updatedAt: Date.now(),
     });
 
     return args.id;
@@ -493,7 +541,7 @@ export const restore = mutation({
 
     // Check if actually deleted
     if (!project.deletedAt) {
-      throw new Error("Dit project is niet verwijderd");
+      throw new ConvexError("Dit project is niet verwijderd");
     }
 
     const now = Date.now();
@@ -707,7 +755,7 @@ export const listForPlanning = query({
     let queryUserId: Id<"users">;
     let medewerkerNaam: string | null = null;
 
-    if (role === "admin") {
+    if (role === "directie") {
       queryUserId = user._id;
     } else {
       // Medewerker sees assigned projects
@@ -766,7 +814,7 @@ export const listForPlanning = query({
 
     // Filter projects based on role
     let filteredProjects: { project: typeof activeProjects[0]; voorcalc: typeof voorcalculatiesByProject[0] }[];
-    if (role === "admin") {
+    if (role === "directie") {
       filteredProjects = activeProjects.map((p, i) => ({ project: p, voorcalc: getVoorcalculatie(i) }));
     } else {
       // For medewerker, filter to projects where they are in the team
@@ -1068,5 +1116,95 @@ export const getActiveProjectsWithProgress = query({
     });
 
     return results;
+  },
+});
+
+/**
+ * Assign medewerkers to a project.
+ * Only directie and projectleider roles can assign medewerkers.
+ * Replaces the full list of assigned medewerkers (set-based, not additive).
+ */
+export const assignMedewerkers = mutation({
+  args: {
+    projectId: v.id("projecten"),
+    medewerkerIds: v.array(v.id("medewerkers")),
+  },
+  handler: async (ctx, args) => {
+    // Only directie or projectleider can assign medewerkers
+    await requireDirectieOrProjectleider(ctx);
+
+    // Verify project ownership
+    const project = await getOwnedProject(ctx, args.projectId);
+
+    // Validate that all medewerker IDs exist and belong to the same company
+    for (const medewerkerId of args.medewerkerIds) {
+      const medewerker = await ctx.db.get(medewerkerId);
+      if (!medewerker) {
+        throw new ConvexError(`Medewerker niet gevonden: ${medewerkerId}`);
+      }
+      if (medewerker.userId.toString() !== project.userId.toString()) {
+        throw new ConvexError(
+          `Medewerker "${medewerker.naam}" behoort niet tot dit bedrijf`
+        );
+      }
+    }
+
+    const now = Date.now();
+    await ctx.db.patch(args.projectId, {
+      toegewezenMedewerkerIds: args.medewerkerIds,
+      updatedAt: now,
+    });
+
+    return args.projectId;
+  },
+});
+
+/**
+ * Get assigned medewerkers for a project with full medewerker details.
+ */
+export const getAssignedMedewerkers = query({
+  args: { projectId: v.id("projecten") },
+  handler: async (ctx, args) => {
+    const project = await ctx.db.get(args.projectId);
+    if (!project) return [];
+
+    // Verify ownership via company
+    const companyId = await getCompanyUserId(ctx);
+    if (project.userId.toString() !== companyId.toString()) {
+      return [];
+    }
+
+    if (
+      !project.toegewezenMedewerkerIds ||
+      project.toegewezenMedewerkerIds.length === 0
+    ) {
+      return [];
+    }
+
+    // Fetch all assigned medewerkers
+    const medewerkers = await Promise.all(
+      project.toegewezenMedewerkerIds.map((id) => ctx.db.get(id))
+    );
+
+    // Filter out null values (deleted medewerkers) and return relevant fields
+    return medewerkers
+      .filter((m) => m !== null)
+      .map((m) => ({
+        _id: m!._id,
+        naam: m!.naam,
+        email: m!.email,
+        functie: m!.functie,
+        isActief: m!.isActief,
+      }));
+  },
+});
+
+// ── Internal queries (for use by other Convex functions) ────────────────
+
+/** Get a project by ID without auth checks. For internal use only. */
+export const getByIdInternal = internalQuery({
+  args: { projectId: v.id("projecten") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.projectId);
   },
 });

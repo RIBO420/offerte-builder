@@ -5,8 +5,8 @@
  * Facturen worden gegenereerd vanuit projecten na nacalculatie.
  */
 
-import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { v, ConvexError } from "convex/values";
+import { mutation, query, internalQuery } from "./_generated/server";
 import { requireAuth, requireAuthUserId, verifyOwnership } from "./auth";
 import { requireNotViewer } from "./roles";
 import { Id } from "./_generated/dataModel";
@@ -90,13 +90,13 @@ export const generate = mutation({
       .unique();
 
     if (bestaandeFactuur) {
-      throw new Error("Er bestaat al een factuur voor dit project");
+      throw new ConvexError("Er bestaat al een factuur voor dit project");
     }
 
     // Haal offerte op
     const offerte = await ctx.db.get(project.offerteId);
     if (!offerte) {
-      throw new Error("Offerte niet gevonden voor dit project");
+      throw new ConvexError("Offerte niet gevonden voor dit project");
     }
 
     // Haal nacalculatie op (optioneel, voor correcties)
@@ -112,7 +112,7 @@ export const generate = mutation({
       .unique();
 
     if (!instellingen) {
-      throw new Error("Instellingen niet gevonden. Configureer eerst je bedrijfsgegevens.");
+      throw new ConvexError("Instellingen niet gevonden. Configureer eerst je bedrijfsgegevens.");
     }
 
     // Genereer factuurnummer
@@ -363,7 +363,7 @@ export const update = mutation({
 
     // Alleen bewerken in concept status
     if (factuur.status !== "concept") {
-      throw new Error("Factuur kan alleen bewerkt worden in concept status");
+      throw new ConvexError("Factuur kan alleen bewerkt worden in concept status");
     }
 
     const updates: Record<string, unknown> = { updatedAt: now };
@@ -437,7 +437,7 @@ export const updateStatus = mutation({
     };
 
     if (!geldigeOvergangen[oudeStatus]?.includes(args.status)) {
-      throw new Error(
+      throw new ConvexError(
         `Ongeldige statuswijziging: ${oudeStatus} → ${args.status}`
       );
     }
@@ -489,7 +489,7 @@ export const markAsPaid = mutation({
 
     // Alleen verzonden facturen kunnen als betaald worden gemarkeerd
     if (factuur.status !== "verzonden") {
-      throw new Error("Alleen verzonden facturen kunnen als betaald worden gemarkeerd");
+      throw new ConvexError("Alleen verzonden facturen kunnen als betaald worden gemarkeerd");
     }
 
     await ctx.db.patch(args.id, {
@@ -545,7 +545,7 @@ export const markAsPaidAndArchiveProject = mutation({
 
     // Alleen verzonden facturen kunnen als betaald worden gemarkeerd
     if (factuur.status !== "verzonden") {
-      throw new Error("Alleen verzonden facturen kunnen als betaald worden gemarkeerd");
+      throw new ConvexError("Alleen verzonden facturen kunnen als betaald worden gemarkeerd");
     }
 
     // Update factuur status to "betaald"
@@ -558,12 +558,12 @@ export const markAsPaidAndArchiveProject = mutation({
     // Get the linked project
     const project = await ctx.db.get(factuur.projectId);
     if (!project) {
-      throw new Error("Project niet gevonden");
+      throw new ConvexError("Project niet gevonden");
     }
 
     // Verify ownership of project
     if (project.userId.toString() !== factuur.userId.toString()) {
-      throw new Error("Geen toegang tot dit project");
+      throw new ConvexError("Geen toegang tot dit project");
     }
 
     // Update project status to "gefactureerd" and archive it
@@ -577,12 +577,12 @@ export const markAsPaidAndArchiveProject = mutation({
     // Get the linked offerte via project.offerteId
     const offerte = await ctx.db.get(project.offerteId);
     if (!offerte) {
-      throw new Error("Offerte niet gevonden");
+      throw new ConvexError("Offerte niet gevonden");
     }
 
     // Verify ownership of offerte
     if (offerte.userId.toString() !== factuur.userId.toString()) {
-      throw new Error("Geen toegang tot deze offerte");
+      throw new ConvexError("Geen toegang tot deze offerte");
     }
 
     // Archive the offerte
@@ -812,7 +812,7 @@ export const createCreditnota = mutation({
 
     // Alleen verzonden, betaald of vervallen facturen kunnen gecrediteerd worden
     if (!["verzonden", "betaald", "vervallen"].includes(factuur.status)) {
-      throw new Error(
+      throw new ConvexError(
         "Alleen verzonden, betaalde of vervallen facturen kunnen gecrediteerd worden"
       );
     }
@@ -826,7 +826,7 @@ export const createCreditnota = mutation({
       .first();
 
     if (bestaandeCreditnota) {
-      throw new Error(
+      throw new ConvexError(
         "Er bestaat al een creditnota voor deze factuur"
       );
     }
@@ -838,7 +838,7 @@ export const createCreditnota = mutation({
       .unique();
 
     if (!instellingen) {
-      throw new Error(
+      throw new ConvexError(
         "Instellingen niet gevonden. Configureer eerst je bedrijfsgegevens."
       );
     }
@@ -856,7 +856,7 @@ export const createCreditnota = mutation({
         args.regelIds!.includes(r.id)
       );
       if (creditRegels.length === 0) {
-        throw new Error("Geen geldige regels geselecteerd voor creditnota");
+        throw new ConvexError("Geen geldige regels geselecteerd voor creditnota");
       }
     }
 
@@ -991,5 +991,15 @@ export const getWithDetails = query({
       nacalculatie,
       voorcalculatie,
     };
+  },
+});
+
+// ── Internal queries (for use by other Convex functions) ────────────────
+
+/** Get a factuur by ID without auth checks. For internal use only. */
+export const getByIdInternal = internalQuery({
+  args: { factuurId: v.id("facturen") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.factuurId);
   },
 });

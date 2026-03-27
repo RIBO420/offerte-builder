@@ -1,5 +1,5 @@
-import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { v, ConvexError } from "convex/values";
+import { mutation, query, internalQuery } from "./_generated/server";
 import {
   requireAuth,
   requireAuthUserId,
@@ -954,7 +954,7 @@ export const updateStatus = mutation({
     };
 
     if (!validTransitions[oldStatus]?.includes(args.status)) {
-      throw new Error(
+      throw new ConvexError(
         `Ongeldige statuswijziging: ${oldStatus} → ${args.status}`
       );
     }
@@ -967,7 +967,7 @@ export const updateStatus = mutation({
         .first();
 
       if (!voorcalculatie) {
-        throw new Error(
+        throw new ConvexError(
           "Voorcalculatie moet eerst worden ingevuld voordat de offerte kan worden verzonden"
         );
       }
@@ -1105,7 +1105,7 @@ export const restore = mutation({
 
     // Check if actually deleted
     if (!offerte.deletedAt) {
-      throw new Error("Deze offerte is niet verwijderd");
+      throw new ConvexError("Deze offerte is niet verwijderd");
     }
 
     const now = Date.now();
@@ -1313,7 +1313,7 @@ export const bulkUpdateStatus = mutation({
           .first();
 
         if (!voorcalculatie) {
-          throw new Error(
+          throw new ConvexError(
             "Voorcalculatie moet eerst worden ingevuld voordat de offerte kan worden verzonden"
           );
         }
@@ -1433,5 +1433,15 @@ export const getAcceptedOffertesWithoutProject = query({
         totaal: o.totalen.totaalInclBtw,
         datum: o.createdAt,
       }));
+  },
+});
+
+// ── Internal queries (for use by other Convex functions) ────────────────
+
+/** Get an offerte by ID without auth checks. For internal use only. */
+export const getByIdInternal = internalQuery({
+  args: { offerteId: v.id("offertes") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.offerteId);
   },
 });

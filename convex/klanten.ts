@@ -1,5 +1,5 @@
 import { v, ConvexError } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalQuery } from "./_generated/server";
 import { requireAuth, requireAuthUserId, getOwnedKlant, generateSecureToken } from "./auth";
 import { requireNotViewer, requireAdmin } from "./roles";
 import {
@@ -1005,5 +1005,15 @@ export const deactivatePortal = mutation({
     });
 
     return { success: true };
+  },
+});
+
+// ── Internal queries (for use by other Convex functions) ────────────────
+
+/** Get a klant by ID without auth checks. For internal use only. */
+export const getByIdInternal = internalQuery({
+  args: { klantId: v.id("klanten") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.klantId);
   },
 });
