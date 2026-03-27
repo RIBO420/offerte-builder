@@ -20,7 +20,6 @@ interface OfferteWorkflowStepperProps {
   hasVoorcalculatie: boolean;
   offerteId?: string;
   showNextStepAction?: boolean;
-  onSendOfferte?: () => void;
 }
 
 interface Step {
@@ -69,7 +68,6 @@ export const OfferteWorkflowStepper = memo(function OfferteWorkflowStepper({
   hasVoorcalculatie,
   offerteId,
   showNextStepAction = false,
-  onSendOfferte,
 }: OfferteWorkflowStepperProps) {
   // Determine step states
   const stepStates = useMemo((): StepWithState[] => {
@@ -124,18 +122,14 @@ export const OfferteWorkflowStepper = memo(function OfferteWorkflowStepper({
     if (currentStatus === "concept" && hasVoorcalculatie) {
       return {
         title: "Voorcalculatie ingevuld",
-        description: "De voorcalculatie is gereed. Je kunt de offerte nu verzenden naar de klant.",
-        actionLabel: "Verzend offerte",
-        onAction: onSendOfferte,
+        description: "De voorcalculatie is gereed. Wijzig de status naar 'Verzonden' wanneer de offerte naar de klant is gestuurd.",
         variant: "success" as const,
       };
     }
     if (currentStatus === "voorcalculatie") {
       return {
         title: "Klaar om te verzenden",
-        description: "De voorcalculatie is afgerond. Verzend de offerte naar de klant via email of deel een link.",
-        actionLabel: "Verzend offerte",
-        onAction: onSendOfferte,
+        description: "De voorcalculatie is afgerond. Wijzig de status naar 'Verzonden' wanneer de offerte naar de klant is gestuurd.",
         variant: "success" as const,
       };
     }
@@ -156,7 +150,7 @@ export const OfferteWorkflowStepper = memo(function OfferteWorkflowStepper({
       };
     }
     return null;
-  }, [currentStatus, hasVoorcalculatie, offerteId, onSendOfferte]);
+  }, [currentStatus, hasVoorcalculatie, offerteId]);
 
   return (
     <div className="w-full space-y-6">
@@ -195,35 +189,21 @@ export const OfferteWorkflowStepper = memo(function OfferteWorkflowStepper({
               {nextStepInfo.description}
             </p>
           </div>
-          {nextStepInfo.actionLabel && (nextStepInfo.actionHref || nextStepInfo.onAction) && (
+          {nextStepInfo.actionLabel && nextStepInfo.actionHref && (
             <div className="shrink-0 pl-6 sm:pl-0">
-              {nextStepInfo.actionHref ? (
-                <Button
-                  asChild
-                  size="sm"
-                  className={cn(
-                    nextStepInfo.variant === "primary" && "bg-blue-600 hover:bg-blue-700",
-                    nextStepInfo.variant === "success" && "bg-green-600 hover:bg-green-700"
-                  )}
-                >
-                  <Link href={nextStepInfo.actionHref}>
-                    {nextStepInfo.actionLabel}
-                    <ChevronRight className="ml-1 h-4 w-4" />
-                  </Link>
-                </Button>
-              ) : (
-                <Button
-                  size="sm"
-                  onClick={nextStepInfo.onAction}
-                  className={cn(
-                    nextStepInfo.variant === "primary" && "bg-blue-600 hover:bg-blue-700",
-                    nextStepInfo.variant === "success" && "bg-green-600 hover:bg-green-700"
-                  )}
-                >
+              <Button
+                asChild
+                size="sm"
+                className={cn(
+                  nextStepInfo.variant === "primary" && "bg-blue-600 hover:bg-blue-700",
+                  nextStepInfo.variant === "success" && "bg-green-600 hover:bg-green-700"
+                )}
+              >
+                <Link href={nextStepInfo.actionHref}>
                   {nextStepInfo.actionLabel}
                   <ChevronRight className="ml-1 h-4 w-4" />
-                </Button>
-              )}
+                </Link>
+              </Button>
             </div>
           )}
         </div>

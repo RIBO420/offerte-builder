@@ -7,6 +7,5 @@ export { NotitiesCard } from "./notities-card";
 export { TotalenCard } from "./totalen-card";
 export { TijdlijnCard } from "./tijdlijn-card";
 export { ProjectCard } from "./project-card";
-export { KlantInteractieCard } from "./klant-interactie-card";
 export { DeleteDialog } from "./delete-dialog";
 export { StatusChangeDialog } from "./status-change-dialog";

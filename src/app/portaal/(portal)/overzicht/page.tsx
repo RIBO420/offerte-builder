@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useConvexAuth } from "convex/react";
-import { api } from "../../../../convex/_generated/api";
+import { api } from "../../../../../convex/_generated/api";
 import { PortaalKpiCards } from "@/components/portaal/portaal-kpi-cards";
 import { PortaalActivityFeed } from "@/components/portaal/portaal-activity-feed";
 import { Skeleton } from "@/components/ui/skeleton";

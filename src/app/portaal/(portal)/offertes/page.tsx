@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "convex/react";
-import { api } from "../../../../convex/_generated/api";
+import { api } from "../../../../../convex/_generated/api";
 import { PortaalOfferteCard } from "@/components/portaal/portaal-offerte-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FileText, Inbox } from "lucide-react";

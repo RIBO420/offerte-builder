@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import { useQuery } from "convex/react";
-import { api } from "../../../../convex/_generated/api";
+import { api } from "../../../../../convex/_generated/api";
 import { PortaalChatThreadList } from "@/components/portaal/portaal-chat-thread-list";
 import { PortaalChatMessages } from "@/components/portaal/portaal-chat-messages";
 import { cn } from "@/lib/utils";
-import type { Id } from "../../../../convex/_generated/dataModel";
+import type { Id } from "../../../../../convex/_generated/dataModel";
 
 export default function PortaalChatPage() {
   const [activeThreadId, setActiveThreadId] = useState<Id<"chat_threads"> | null>(null);

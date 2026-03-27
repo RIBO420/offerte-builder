@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useConvexAuth } from "convex/react";
-import { api } from "../../../convex/_generated/api";
+import { api } from "../../../../convex/_generated/api";
 import { PortaalThemeProvider } from "@/components/portaal/portaal-theme-provider";
 import { PortaalHeader } from "@/components/portaal/portaal-header";
 import { PortaalNav } from "@/components/portaal/portaal-nav";

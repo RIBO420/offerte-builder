@@ -6,17 +6,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Mail } from "lucide-react";
 import { formatDate } from "./utils";
 
 interface TijdlijnCardProps {
   createdAt: number;
   updatedAt: number;
   verzondenAt?: number;
-  emailStats: { total: number; verzonden: number } | null | undefined;
 }
 
-export function TijdlijnCard({ createdAt, updatedAt, verzondenAt, emailStats }: TijdlijnCardProps) {
+export function TijdlijnCard({ createdAt, updatedAt, verzondenAt }: TijdlijnCardProps) {
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -35,15 +33,6 @@ export function TijdlijnCard({ createdAt, updatedAt, verzondenAt, emailStats }: 
           <div className="flex justify-between">
             <span className="text-muted-foreground">Verzonden</span>
             <span>{formatDate(verzondenAt)}</span>
-          </div>
-        )}
-        {emailStats && emailStats.total > 0 && (
-          <div className="flex justify-between">
-            <span className="text-muted-foreground flex items-center gap-1">
-              <Mail className="h-3.5 w-3.5" />
-              Emails verzonden
-            </span>
-            <span>{emailStats.verzonden}</span>
           </div>
         )}
       </CardContent>

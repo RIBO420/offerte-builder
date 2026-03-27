@@ -36,7 +36,6 @@ import {
   Trash2,
   BookmarkPlus,
   History,
-  Link2,
   Calculator,
   FilePlus2,
   ShieldAlert,
@@ -69,8 +68,6 @@ interface OfferteHeaderProps {
   onStatusChange: (status: "concept" | "voorcalculatie" | "verzonden" | "geaccepteerd" | "afgewezen") => void;
   onDuplicate: () => void;
   onShowTemplateDialog: () => void;
-  onShowEmailDialog: () => void;
-  onShowShareDialog: () => void;
   onShowDeleteDialog: () => void;
 }
 
@@ -105,8 +102,6 @@ export function OfferteHeader({
   onStatusChange,
   onDuplicate,
   onShowTemplateDialog,
-  onShowEmailDialog,
-  onShowShareDialog,
   onShowDeleteDialog,
 }: OfferteHeaderProps) {
   const router = useRouter();
@@ -238,22 +233,6 @@ export function OfferteHeader({
             </Link>
           </Button>
         )}
-
-        <Button
-          variant="outline"
-          onClick={onShowEmailDialog}
-        >
-          <Send className="mr-2 h-4 w-4" />
-          Email
-        </Button>
-
-        <Button
-          variant="outline"
-          onClick={onShowShareDialog}
-        >
-          <Link2 className="mr-2 h-4 w-4" />
-          Delen
-        </Button>
 
         <PDFDownloadButton
           offerte={offerte}

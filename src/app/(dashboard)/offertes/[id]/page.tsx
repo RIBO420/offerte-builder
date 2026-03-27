@@ -20,14 +20,11 @@ import { FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/format";
 import { SaveAsTemplateDialog } from "@/components/offerte/save-as-template-dialog";
-import { SendEmailDialog } from "@/components/offerte/send-email-dialog";
-import { ShareOfferteDialog } from "@/components/offerte/share-offerte-dialog";
 import { OfferteWorkflowStepper } from "@/components/offerte/offerte-workflow-stepper";
 import { EngagementTimeline } from "@/components/offerte/engagement-timeline";
 import { useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { useOffertes } from "@/hooks/use-offertes";
-import { useEmailLogs } from "@/hooks/use-email";
 import { useInstellingen } from "@/hooks/use-instellingen";
 import { OfferteDetailSkeleton } from "@/components/skeletons";
 import { STATUS_CONFIG } from "@/lib/constants/statuses";
@@ -45,7 +42,6 @@ import {
   TotalenCard,
   TijdlijnCard,
   ProjectCard,
-  KlantInteractieCard,
   DeleteDialog,
   StatusChangeDialog,
 } from "./components";
@@ -70,8 +66,6 @@ export default function OfferteDetailPage({
   const { updateStatus, delete: deleteOfferte, restore: restoreOfferte, duplicate } = useOffertes();
   const { getNextNummer, instellingen } = useInstellingen();
 
-  const { logs: emailLogs, stats: emailStats } = useEmailLogs(id as Id<"offertes">);
-
   // Fetch version history for engagement timeline
   const offerteVersions = useQuery(
     api.offerteVersions.listByOfferte,
@@ -86,8 +80,6 @@ export default function OfferteDetailPage({
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
-  const [showEmailDialog, setShowEmailDialog] = useState(false);
-  const [showShareDialog, setShowShareDialog] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [statusChangeConfirm, setStatusChangeConfirm] = useState<{
     open: boolean;
@@ -131,8 +123,23 @@ export default function OfferteDetailPage({
     } catch (error) {
       // 4. Rollback on error
       setOptimisticStatus(null);
-      const errorMessage = error instanceof Error ? error.message : "Fout bij wijzigen status";
-      toast.error(errorMessage);
+      // Extract message from ConvexError (data property) or regular Error
+      const convexData = (error as { data?: string })?.data;
+      const errorMessage = typeof convexData === "string"
+        ? convexData
+        : error instanceof Error ? error.message : "Fout bij wijzigen status";
+
+      // Show contextual toast for voorcalculatie requirement
+      if (errorMessage.toLowerCase().includes("voorcalculatie")) {
+        toast.error(errorMessage, {
+          action: {
+            label: "Naar voorcalculatie",
+            onClick: () => router.push(`/offertes/${id}/voorcalculatie`),
+          },
+        });
+      } else {
+        toast.error(errorMessage);
+      }
     } finally {
       setIsUpdating(false);
     }
@@ -297,8 +304,6 @@ export default function OfferteDetailPage({
             onStatusChange={handleStatusChange}
             onDuplicate={handleDuplicate}
             onShowTemplateDialog={() => setShowTemplateDialog(true)}
-            onShowEmailDialog={() => setShowEmailDialog(true)}
-            onShowShareDialog={() => setShowShareDialog(true)}
             onShowDeleteDialog={() => setShowDeleteDialog(true)}
           />
         </m.div>
@@ -315,7 +320,6 @@ export default function OfferteDetailPage({
               hasVoorcalculatie={!!voorcalculatie}
               offerteId={id}
               showNextStepAction={true}
-              onSendOfferte={() => setShowEmailDialog(true)}
             />
           </Card>
         </m.div>
@@ -356,10 +360,9 @@ export default function OfferteDetailPage({
               createdAt={offerte.createdAt}
               updatedAt={offerte.updatedAt}
               verzondenAt={offerte.verzondenAt}
-              emailStats={emailStats}
             />
             <EngagementTimeline
-              emailLogs={emailLogs}
+              emailLogs={[]}
               versions={offerteVersions ?? []}
               customerResponse={offerte.customerResponse}
               createdAt={offerte.createdAt}
@@ -368,12 +371,6 @@ export default function OfferteDetailPage({
               id={id}
               offerteStatus={offerte.status}
               existingProject={existingProject}
-            />
-            <KlantInteractieCard
-              offerteId={offerte._id}
-              klantNaam={offerte.klant.naam}
-              shareToken={offerte.shareToken}
-              customerResponse={offerte.customerResponse}
             />
           </div>
         </m.div>
@@ -410,33 +407,6 @@ export default function OfferteDetailPage({
         }}
       />
 
-      {/* Send email dialog */}
-      <SendEmailDialog
-        open={showEmailDialog}
-        onOpenChange={setShowEmailDialog}
-        offerte={{
-          _id: offerte._id,
-          offerteNummer: offerte.offerteNummer,
-          type: offerte.type,
-          klant: offerte.klant,
-          scopes: offerte.scopes,
-          totalen: offerte.totalen,
-        }}
-        bedrijfsgegevens={instellingen?.bedrijfsgegevens}
-      />
-
-      {/* Share offerte dialog */}
-      <ShareOfferteDialog
-        open={showShareDialog}
-        onOpenChange={setShowShareDialog}
-        offerte={{
-          _id: offerte._id,
-          offerteNummer: offerte.offerteNummer,
-          shareToken: offerte.shareToken,
-          shareExpiresAt: offerte.shareExpiresAt,
-          customerResponse: offerte.customerResponse,
-        }}
-      />
     </>
   );
 }
