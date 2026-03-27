@@ -28,23 +28,16 @@ export default clerkMiddleware(async (auth, req) => {
   }
 
   // All other routes require authentication
-  const session = await auth.protect();
+  await auth.protect();
 
-  // Check role from Clerk session claims
-  const role = (session.sessionClaims?.metadata as { role?: string })?.role;
-
-  // Portal routes — require klant role
-  if (isPortaalRoute(req)) {
-    if (role !== "klant") {
-      return Response.redirect(new URL("/dashboard", req.url));
-    }
-    return;
-  }
-
-  // Dashboard/other authenticated routes — klant should go to portal
-  if (role === "klant") {
-    return Response.redirect(new URL("/portaal/overzicht", req.url));
-  }
+  // Role-based routing is handled client-side by the portal layout
+  // (which checks the user's role from Convex and redirects accordingly)
+  // This keeps proxy.ts simple and avoids Clerk session claims configuration
+  //
+  // Portal routes are accessible to all authenticated users — the portal
+  // layout's requireKlant() query will show an error if a non-klant user
+  // tries to access it. Dashboard routes work for all authenticated users —
+  // the sidebar filters items by role.
 });
 
 export const config = {

@@ -744,7 +744,7 @@ function KlantenPageContent() {
     [handleEdit, handleDeleteClick, herinneringSet, handleActivatePortal, handleDeactivatePortal]
   );
 
-  const KlantForm = () => (
+  const klantFormJsx = (
     <div className="grid gap-4">
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
@@ -943,7 +943,7 @@ function KlantenPageContent() {
                 Voeg een nieuwe klant toe aan je klantenbestand.
               </DialogDescription>
             </DialogHeader>
-            <KlantForm />
+            {klantFormJsx}
             <DialogFooter>
               <Button
                 variant="outline"
@@ -1095,7 +1095,7 @@ function KlantenPageContent() {
               Pas de gegevens van {selectedKlant?.naam} aan.
             </DialogDescription>
           </DialogHeader>
-          <KlantForm />
+          {klantFormJsx}
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEditDialog(false)}>
               Annuleren
