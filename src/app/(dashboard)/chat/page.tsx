@@ -422,13 +422,13 @@ function KlantTab({ currentUserClerkId, userRole }: { currentUserClerkId: string
   return (
     <div className="flex flex-1 min-h-0">
       {/* Thread list sidebar */}
-      <div className="w-72 border-r flex flex-col min-h-0">
+      <div className="w-72 border-r flex flex-col overflow-hidden">
         <div className="p-3 border-b shrink-0">
           <span className="text-sm font-medium text-muted-foreground">
             Klanten ({threads.length})
           </span>
         </div>
-        <ScrollArea className="flex-1">
+        <div className="flex-1 overflow-y-auto">
           <div className="divide-y">
             {threads.map((thread) => (
               <div
@@ -479,7 +479,7 @@ function KlantTab({ currentUserClerkId, userRole }: { currentUserClerkId: string
               </div>
             ))}
           </div>
-        </ScrollArea>
+        </div>
       </div>
 
       {/* Messages area */}
