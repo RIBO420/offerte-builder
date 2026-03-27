@@ -487,6 +487,86 @@ export function FacturenPageSkeleton() {
   );
 }
 
+// Admin dashboard skeleton - matches new dashboard layout (financieel grid + bento layout)
+export function AdminDashboardSkeleton() {
+  return (
+    <div className="space-y-6" role="status" aria-live="polite" aria-busy="true">
+      <span className="sr-only">Dashboard laden...</span>
+
+      {/* Welcome bar */}
+      <div className="flex items-center justify-between">
+        <div>
+          <Skeleton className="h-8 w-56 mb-2" />
+          <Skeleton className="h-4 w-40" />
+        </div>
+        <div className="flex gap-2">
+          <Skeleton className="h-9 w-32 rounded-lg" />
+          <Skeleton className="h-9 w-36 rounded-lg" />
+        </div>
+      </div>
+
+      {/* Financieel grid: 3x2 */}
+      <div className="grid grid-cols-3 gap-2">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="rounded-xl border border-border/50 p-4 space-y-3">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-7 w-32" />
+            <Skeleton className="h-2.5 w-20" />
+          </div>
+        ))}
+      </div>
+
+      {/* Bento grid */}
+      <div className="space-y-2">
+        {/* Row 1: large (2fr) + small (1fr) */}
+        <div className="grid grid-cols-[2fr_1fr] gap-2">
+          <div className="rounded-xl border border-border/50 p-4 space-y-3 min-h-[140px]">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-7 w-32" />
+            <Skeleton className="h-2.5 w-20" />
+          </div>
+          <div className="rounded-xl border border-border/50 p-4 space-y-3 min-h-[140px]">
+            <Skeleton className="h-3 w-20" />
+            <Skeleton className="h-7 w-24" />
+            <Skeleton className="h-2.5 w-16" />
+          </div>
+        </div>
+
+        {/* Row 2: two equal cards */}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-xl border border-border/50 p-4 space-y-3 min-h-[120px]">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-7 w-32" />
+            <Skeleton className="h-2.5 w-20" />
+          </div>
+          <div className="rounded-xl border border-border/50 p-4 space-y-3 min-h-[120px]">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-7 w-32" />
+            <Skeleton className="h-2.5 w-20" />
+          </div>
+        </div>
+
+        {/* Row 3: two equal smaller cards */}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-xl border border-border/50 p-4 space-y-3 min-h-[96px]">
+            <Skeleton className="h-3 w-20" />
+            <Skeleton className="h-6 w-28" />
+            <Skeleton className="h-2.5 w-16" />
+          </div>
+          <div className="rounded-xl border border-border/50 p-4 space-y-3 min-h-[96px]">
+            <Skeleton className="h-3 w-20" />
+            <Skeleton className="h-6 w-28" />
+            <Skeleton className="h-2.5 w-16" />
+          </div>
+        </div>
+      </div>
+
+      {/* Vloot badge: single thin line */}
+      <Skeleton className="h-3 w-48" />
+    </div>
+  );
+}
+
 // Generic loading spinner with message
 export function LoadingSpinner({ message = "Laden..." }: { message?: string }) {
   return (
