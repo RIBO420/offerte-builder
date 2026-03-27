@@ -24,6 +24,7 @@ import type * as chatThreads from "../chatThreads.js";
 import type * as configuratorAanvragen from "../configuratorAanvragen.js";
 import type * as correctiefactoren from "../correctiefactoren.js";
 import type * as crons from "../crons.js";
+import type * as dashboard from "../dashboard.js";
 import type * as directieDashboard from "../directieDashboard.js";
 import type * as emailLogs from "../emailLogs.js";
 import type * as emailTemplates from "../emailTemplates.js";
@@ -115,6 +116,7 @@ declare const fullApi: ApiFromModules<{
   configuratorAanvragen: typeof configuratorAanvragen;
   correctiefactoren: typeof correctiefactoren;
   crons: typeof crons;
+  dashboard: typeof dashboard;
   directieDashboard: typeof directieDashboard;
   emailLogs: typeof emailLogs;
   emailTemplates: typeof emailTemplates;
