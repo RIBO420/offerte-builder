@@ -227,8 +227,8 @@ export function useOnboarding() {
   // Determine if we should show onboarding components
   // Only show after hydration (check window is available)
   const isClient = typeof window !== "undefined";
-  const shouldShowWelcome = isClient && !welcomeShown && !!user;
-  const shouldShowChecklist = isClient && !dismissed && !isComplete && !!user;
+  const shouldShowWelcome = isClient && !welcomeShown && !isLoading && !!user;
+  const shouldShowChecklist = isClient && !dismissed && !isComplete && !isLoading && !!user;
 
   return {
     // State
