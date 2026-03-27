@@ -24,27 +24,33 @@ import {
 
 export default defineSchema({
   // Gebruikers (via Clerk, alleen referentie)
-  // Role-based access control (RBAC):
-  // - admin: Full access to all features, can manage users, medewerkers, and all data
-  // - medewerker: Limited access, can only see own data, linked to a medewerker profile
-  // - viewer: Read-only access to allowed features
+  // Role-based access control (RBAC) — 7-role model:
+  // - directie: Full access (replaces old "admin")
+  // - projectleider: Manage projects, offertes, klanten, planning
+  // - voorman: Manage field work, uren, toolbox
+  // - medewerker: Own uren, verlof, chat, assigned projects
+  // - klant: Read own offertes/facturen/projects (replaces old "viewer")
+  // - onderaannemer_zzp: Own uren, assigned projects, own facturen
+  // - materiaalman: Manage voorraad, wagenpark, inkoop
   users: defineTable({
     clerkId: v.string(),
     email: v.string(),
     name: v.string(),
     bedrijfsnaam: v.optional(v.string()),
-    // Role-based access control - defaults to 'viewer' for safety
+    // Role-based access control - defaults to 'medewerker' for safety
     role: v.optional(userRoleValidator),
     // Link to medewerkers table (for medewerker role)
     // This allows a user to be connected to their medewerker profile
     // enabling them to see only their own time registrations, projects, etc.
     linkedMedewerkerId: v.optional(v.id("medewerkers")),
+    linkedKlantId: v.optional(v.id("klanten")),
     createdAt: v.number(),
   })
     .index("by_clerk_id", ["clerkId"])
     .index("by_email", ["email"])
     .index("by_role", ["role"])
-    .index("by_linked_medewerker", ["linkedMedewerkerId"]),
+    .index("by_linked_medewerker", ["linkedMedewerkerId"])
+    .index("by_linked_klant", ["linkedKlantId"]),
 
   // Klanten
   klanten: defineTable({
@@ -82,12 +88,21 @@ export default defineSchema({
     gdprAnonymized: v.optional(v.boolean()),
     gdprAnonymizedAt: v.optional(v.number()),
     gdprAnonymizedBy: v.optional(v.id("users")),
+    // Klantenportaal fields
+    clerkUserId: v.optional(v.string()),
+    portalEnabled: v.optional(v.boolean()),
+    lastLoginAt: v.optional(v.number()),
+    invitationToken: v.optional(v.string()),
+    invitationExpiresAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
     .index("by_pipeline_status", ["userId", "pipelineStatus"])
     .index("by_klant_type", ["userId", "klantType"])
+    .index("by_clerk_user_id", ["clerkUserId"])
+    .index("by_email", ["email"])
+    .index("by_invitation_token", ["invitationToken"])
     .searchIndex("search_klanten", {
       searchField: "naam",
       filterFields: ["userId"],
@@ -391,7 +406,10 @@ export default defineSchema({
     status: v.union(
       v.literal("verzonden"),
       v.literal("mislukt"),
-      v.literal("geopend")
+      v.literal("geopend"),
+      v.literal("delivered"),
+      v.literal("bounced"),
+      v.literal("complained")
     ),
     resendId: v.optional(v.string()), // Resend message ID for tracking
     error: v.optional(v.string()),
@@ -399,10 +417,14 @@ export default defineSchema({
     cc: v.optional(v.string()), // CC emailadres
     createdAt: v.number(),
     openedAt: v.optional(v.number()),
+    deliveredAt: v.optional(v.number()),
+    bouncedAt: v.optional(v.number()),
+    clickedAt: v.optional(v.number()),
   })
     .index("by_offerte", ["offerteId"])
     .index("by_user", ["userId"])
-    .index("by_status", ["status"]),
+    .index("by_status", ["status"])
+    .index("by_resendId", ["resendId"]),
 
   // Offerte versies (versiegeschiedenis)
   offerte_versions: defineTable({
@@ -485,6 +507,7 @@ export default defineSchema({
   projecten: defineTable({
     userId: v.id("users"),
     offerteId: v.id("offertes"),
+    klantId: v.optional(v.id("klanten")),
     naam: v.string(),
     status: v.union(
       v.literal("voorcalculatie"), // DEPRECATED - will be migrated to gepland
@@ -494,6 +517,8 @@ export default defineSchema({
       v.literal("nacalculatie_compleet"),
       v.literal("gefactureerd")
     ),
+    // Toegewezen medewerkers voor dit project (team assignment)
+    toegewezenMedewerkerIds: v.optional(v.array(v.id("medewerkers"))),
     // Toegewezen voertuigen voor dit project (fleet management)
     toegewezenVoertuigen: v.optional(v.array(v.id("voertuigen"))),
 
@@ -503,6 +528,10 @@ export default defineSchema({
       percentage: v.number(),
       label: v.string(),
     }))),
+
+    // KLIC-melding check for aanleg projects with grondwerk scope (PRJ-W01)
+    // Legally required before starting excavation work
+    klicMeldingGedaan: v.optional(v.boolean()),
 
     // Archiving
     isArchived: v.optional(v.boolean()),
@@ -520,7 +549,8 @@ export default defineSchema({
     .index("by_offerte", ["offerteId"])
     // Compound indexes for archived/deleted filtering (projecten.ts: list, search, stats)
     .index("by_user_archived", ["userId", "isArchived"])
-    .index("by_user_deleted", ["userId", "deletedAt"]),
+    .index("by_user_deleted", ["userId", "deletedAt"])
+    .index("by_klant", ["klantId"]),
 
   // Voorcalculaties - Pre-calculation data
   // Can be linked to either an offerte (before sending) or a project (for legacy/reference)
@@ -803,6 +833,7 @@ export default defineSchema({
   facturen: defineTable({
     projectId: v.id("projecten"),
     userId: v.id("users"),
+    klantId: v.optional(v.id("klanten")),
     factuurnummer: v.string(),
     status: v.union(
       v.literal("concept"),
@@ -893,6 +924,16 @@ export default defineSchema({
     betaaldAt: v.optional(v.number()),
     notities: v.optional(v.string()),
 
+    // Boekhouding sync tracking (MOD-014)
+    externalBookkeepingId: v.optional(v.string()), // ID in extern boekhoudsysteem
+    boekhoudSyncStatus: v.optional(v.union(
+      v.literal("not_synced"),
+      v.literal("pending"),
+      v.literal("synced"),
+      v.literal("error"),
+    )),
+    boekhoudSyncAt: v.optional(v.number()), // Laatste sync timestamp
+
     // Archiving
     isArchived: v.optional(v.boolean()),
     archivedAt: v.optional(v.number()),
@@ -906,7 +947,10 @@ export default defineSchema({
     .index("by_status", ["status"])
     .index("by_referentieFactuur", ["referentieFactuurId"])
     // Compound index for user-scoped status queries (betalingsherinneringen.ts, users.ts)
-    .index("by_user_status", ["userId", "status"]),
+    .index("by_user_status", ["userId", "status"])
+    // Index for boekhouding sync queries (boekhouding.ts: getSyncStatus, markForSync)
+    .index("by_user_boekhoudSync", ["userId", "boekhoudSyncStatus"])
+    .index("by_klant", ["klantId"]),
 
   // Betalingsherinneringen & Aanmaningen (FAC-006, FAC-007)
   betalingsherinneringen: defineTable({
@@ -1136,6 +1180,7 @@ export default defineSchema({
     senderId: v.id("users"),
     senderName: v.string(),
     senderClerkId: v.string(),
+    senderRole: v.optional(v.string()),
     companyId: v.id("users"),
 
     channelType: v.union(
@@ -2137,6 +2182,8 @@ export default defineSchema({
       v.literal("cancelled")
     ),
     sentAt: v.optional(v.number()),
+    emailSentAt: v.optional(v.number()), // When the reminder email was sent to the client
+    emailError: v.optional(v.string()), // Error message if email sending failed
   })
     .index("by_offerte", ["offerteId"])
     .index("by_user", ["userId"])
@@ -2198,4 +2245,444 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_datum", ["userId", "datum"])
     .index("by_project", ["projectId"]),
+
+  // ============================================
+  // ONDERHOUDSCONTRACTEN & SLA (MOD-009)
+  // ============================================
+
+  // Onderhoudscontracten — recurring maintenance contracts per klant
+  onderhoudscontracten: defineTable({
+    userId: v.id("users"),
+    klantId: v.id("klanten"),
+
+    // Contractidentificatie
+    contractNummer: v.string(), // e.g. "OHC-2026-001"
+    naam: v.string(), // Descriptive name
+
+    // Locatiegegevens (kan afwijken van klantadres)
+    locatie: v.object({
+      adres: v.string(),
+      postcode: v.string(),
+      plaats: v.string(),
+      notities: v.optional(v.string()),
+    }),
+
+    // Looptijd
+    startDatum: v.string(), // YYYY-MM-DD
+    eindDatum: v.string(), // YYYY-MM-DD
+    opzegtermijnDagen: v.number(),
+
+    // Financieel
+    tariefPerTermijn: v.number(), // Bedrag excl. BTW per betalingstermijn
+    betalingsfrequentie: v.union(
+      v.literal("maandelijks"),
+      v.literal("per_kwartaal"),
+      v.literal("halfjaarlijks"),
+      v.literal("jaarlijks")
+    ),
+    jaarlijksTarief: v.number(), // Berekend totaaltarief per jaar excl. BTW
+
+    // Indexatie
+    indexatiePercentage: v.optional(v.number()),
+    laatsteIndexatieDatum: v.optional(v.string()),
+
+    // Status
+    status: v.union(
+      v.literal("concept"),
+      v.literal("actief"),
+      v.literal("verlopen"),
+      v.literal("opgezegd")
+    ),
+
+    // Verlenging
+    autoVerlenging: v.boolean(),
+    verlengingsPeriodeInMaanden: v.optional(v.number()),
+
+    // Opmerkingen
+    notities: v.optional(v.string()),
+    voorwaarden: v.optional(v.string()),
+
+    // Soft delete & archiving
+    isArchived: v.optional(v.boolean()),
+    archivedAt: v.optional(v.number()),
+    deletedAt: v.optional(v.number()),
+
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_klant", ["klantId"])
+    .index("by_status", ["status"])
+    .index("by_user_status", ["userId", "status"])
+    .index("by_einddatum", ["eindDatum"])
+    .index("by_contractnummer", ["contractNummer"]),
+
+  // ContractWerkzaamheden — work items per contract, grouped by season
+  contractWerkzaamheden: defineTable({
+    contractId: v.id("onderhoudscontracten"),
+
+    // Werkzaamheid
+    omschrijving: v.string(),
+    scope: v.optional(v.string()), // Link to onderhoud scope type
+
+    // Seizoen & frequentie
+    seizoen: v.union(
+      v.literal("voorjaar"),
+      v.literal("zomer"),
+      v.literal("herfst"),
+      v.literal("winter")
+    ),
+    frequentie: v.number(), // Times per season
+    frequentieEenheid: v.optional(v.union(
+      v.literal("per_seizoen"),
+      v.literal("per_maand"),
+      v.literal("per_week")
+    )),
+
+    // Ureninschatting
+    geschatteUrenPerBeurt: v.number(),
+    geschatteUrenTotaal: v.number(), // geschatteUrenPerBeurt * frequentie
+
+    // Volgorde
+    volgorde: v.number(),
+
+    createdAt: v.number(),
+    updatedAt: v.optional(v.number()),
+  })
+    .index("by_contract", ["contractId"])
+    .index("by_contract_seizoen", ["contractId", "seizoen"]),
+
+  // ContractFacturen — invoice schedule per contract term
+  contractFacturen: defineTable({
+    contractId: v.id("onderhoudscontracten"),
+    factuurId: v.optional(v.id("facturen")),
+    userId: v.id("users"),
+
+    // Termijninformatie
+    termijnNummer: v.number(),
+    periodeStart: v.string(), // YYYY-MM-DD
+    periodeEinde: v.string(), // YYYY-MM-DD
+    bedrag: v.number(), // Bedrag excl. BTW
+
+    // Status
+    status: v.union(
+      v.literal("gepland"),
+      v.literal("gefactureerd"),
+      v.literal("betaald")
+    ),
+
+    createdAt: v.number(),
+  })
+    .index("by_contract", ["contractId"])
+    .index("by_factuur", ["factuurId"])
+    .index("by_user", ["userId"])
+    .index("by_status", ["status"])
+    .index("by_contract_status", ["contractId", "status"]),
+
+  // ============================================
+  // Garantiebeheer & Servicemeldingen (MOD-010)
+  // ============================================
+
+  // Garanties — Operationele garantie-tracking per opgeleverd project
+  // Different from garantiePakketten (offerte-level guarantee tiers for upsell)
+  // This tracks actual warranty periods after project delivery
+  garanties: defineTable({
+    userId: v.id("users"),
+    projectId: v.id("projecten"),
+    klantId: v.id("klanten"),
+
+    // Garantieperiode
+    startDatum: v.string(), // YYYY-MM-DD (= opleverdatum project)
+    eindDatum: v.string(), // YYYY-MM-DD (= startDatum + garantiePeriode)
+    garantiePeriodeInMaanden: v.number(), // Standaard 12
+
+    // Status
+    status: v.union(
+      v.literal("actief"),
+      v.literal("verlopen"),
+    ),
+
+    // Voorwaarden
+    voorwaarden: v.optional(v.string()),
+
+    // Notities
+    notities: v.optional(v.string()),
+
+    // Soft delete
+    deletedAt: v.optional(v.number()),
+
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_project", ["projectId"])
+    .index("by_klant", ["klantId"])
+    .index("by_status", ["status"])
+    .index("by_user_status", ["userId", "status"])
+    .index("by_einddatum", ["eindDatum"]),
+
+  // Servicemeldingen — Klachten en serviceverzoeken van klanten
+  servicemeldingen: defineTable({
+    userId: v.id("users"),
+    klantId: v.id("klanten"),
+    projectId: v.optional(v.id("projecten")),
+    garantieId: v.optional(v.id("garanties")),
+
+    // Inhoud
+    beschrijving: v.string(),
+
+    // Garantie of betaald
+    isGarantie: v.boolean(),
+
+    // Status workflow: nieuw -> in_behandeling -> ingepland -> afgehandeld
+    status: v.union(
+      v.literal("nieuw"),
+      v.literal("in_behandeling"),
+      v.literal("ingepland"),
+      v.literal("afgehandeld"),
+    ),
+
+    // Prioriteit
+    prioriteit: v.union(
+      v.literal("laag"),
+      v.literal("normaal"),
+      v.literal("hoog"),
+      v.literal("urgent"),
+    ),
+
+    // Foto's
+    fotos: v.optional(v.array(v.string())),
+
+    // Contact info
+    contactInfo: v.optional(v.string()),
+
+    // Kosten (bij niet-garantie serviceverzoeken)
+    kosten: v.number(), // 0 if garantie
+
+    // Soft delete
+    deletedAt: v.optional(v.number()),
+
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_klant", ["klantId"])
+    .index("by_project", ["projectId"])
+    .index("by_garantie", ["garantieId"])
+    .index("by_status", ["status"])
+    .index("by_user_status", ["userId", "status"])
+    .index("by_prioriteit", ["userId", "prioriteit"]),
+
+  // ServiceAfspraken — Ingeplande servicebezoeken gekoppeld aan een melding
+  serviceAfspraken: defineTable({
+    meldingId: v.id("servicemeldingen"),
+    userId: v.id("users"),
+
+    // Planning
+    datum: v.string(), // YYYY-MM-DD
+    medewerkerIds: v.array(v.id("medewerkers")),
+
+    // Details
+    notities: v.optional(v.string()),
+
+    // Status
+    status: v.union(
+      v.literal("gepland"),
+      v.literal("uitgevoerd"),
+      v.literal("geannuleerd"),
+    ),
+
+    createdAt: v.number(),
+    updatedAt: v.optional(v.number()),
+  })
+    .index("by_melding", ["meldingId"])
+    .index("by_user", ["userId"])
+    .index("by_datum", ["datum"])
+    .index("by_status", ["status"]),
+
+  // ============================================
+  // E-MAIL TEMPLATES (EML-001)
+  // ============================================
+
+  // Database-driven email templates replacing hardcoded src/emails/ templates
+  // Supports variable interpolation: {{klantNaam}}, {{offerteNummer}}, etc.
+  emailTemplates: defineTable({
+    userId: v.id("users"),
+    naam: v.string(),                    // Template name
+    trigger: v.string(),                 // When to use: offerte_verzonden, factuur_verzonden, herinnering_1, herinnering_2, herinnering_3, aanmaning_1, aanmaning_2, ingebrekestelling, oplevering, contract_verlenging
+    onderwerp: v.string(),               // Email subject line (supports variables)
+    inhoud: v.string(),                  // Email body (HTML, supports variables)
+    variabelen: v.array(v.string()),     // Available variables for this template
+    actief: v.boolean(),                 // Is this template active?
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_trigger", ["userId", "trigger"])
+    .index("by_actief", ["userId", "actief"]),
+
+  // ============================================
+  // BOEKHOUDKOPPELING (MOD-014)
+  // ============================================
+
+  // BoekhoudInstellingen - Provider configuratie per bedrijf
+  // Bevat provider credentials, sync-instellingen en grootboekmappings
+  boekhoudInstellingen: defineTable({
+    userId: v.id("users"),
+
+    // Provider selectie
+    provider: v.union(
+      v.literal("moneybird"),
+      v.literal("exact_online"),
+      v.literal("twinfield"),
+      v.literal("geen"), // Niet gekoppeld
+    ),
+
+    // OAuth / API credentials (encrypted at rest by Convex)
+    apiKey: v.optional(v.string()),         // API key (for simple auth)
+    accessToken: v.optional(v.string()),    // OAuth access token
+    refreshToken: v.optional(v.string()),   // OAuth refresh token
+    tokenExpiresAt: v.optional(v.number()), // Token expiry timestamp
+
+    // Bedrijfs-ID bij provider
+    externalBedrijfsId: v.optional(v.string()), // Division/administration ID
+
+    // Synchronisatie-instellingen
+    autoSync: v.boolean(), // Automatisch facturen pushen bij verzenden
+    syncRichting: v.union(
+      v.literal("push"),          // Alleen van ons naar boekhouding
+      v.literal("pull"),          // Alleen van boekhouding naar ons
+      v.literal("bidirectioneel"), // Beide richtingen
+    ),
+
+    // Grootboekrekening mappings
+    grootboekMappings: v.optional(v.array(v.object({
+      interneCategorie: v.string(),       // "omzet_aanleg", "omzet_onderhoud", "materialen", etc.
+      externGrootboekId: v.string(),      // ID bij provider
+      externGrootboekNaam: v.string(),    // Naam voor weergave
+      externGrootboekNummer: v.optional(v.string()), // Rekeningnummer
+    }))),
+
+    // BTW-codes mapping
+    btwMappings: v.optional(v.array(v.object({
+      internPercentage: v.number(),  // 21, 9, 0
+      externBtwId: v.string(),       // BTW-code ID bij provider
+      externBtwNaam: v.string(),
+    }))),
+
+    // Status
+    isActief: v.boolean(),
+    laatsteSyncAt: v.optional(v.number()),
+    laatsteSyncStatus: v.optional(v.union(
+      v.literal("success"),
+      v.literal("error"),
+      v.literal("partial"),
+    )),
+
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_provider", ["provider"]),
+
+  // BoekhoudSync - Synchronisatielogboek per factuur/transactie
+  // Audit trail voor alle sync-operaties naar externe boekhoudpakketten
+  boekhoudSync: defineTable({
+    userId: v.id("users"),
+
+    // Interne referentie
+    factuurId: v.optional(v.id("facturen")),
+    inkooporderId: v.optional(v.id("inkooporders")),
+    entityType: v.union(
+      v.literal("factuur"),
+      v.literal("creditnota"),
+      v.literal("betaling"),
+      v.literal("inkoopfactuur"),
+      v.literal("contact"), // Klant sync
+    ),
+
+    // Externe referentie
+    externalId: v.optional(v.string()),    // ID bij de boekhouding provider
+    externalUrl: v.optional(v.string()),   // Deep link naar de provider UI
+
+    // Sync status
+    syncStatus: v.union(
+      v.literal("pending"),    // Wacht op sync
+      v.literal("syncing"),    // Bezig met synchroniseren
+      v.literal("synced"),     // Succesvol gesynchroniseerd
+      v.literal("error"),      // Fout bij synchronisatie
+      v.literal("skipped"),    // Overgeslagen
+    ),
+    syncRichting: v.union(v.literal("push"), v.literal("pull")),
+
+    // Provider
+    provider: v.string(), // moneybird, exact_online, twinfield
+
+    // Error tracking
+    errorMessage: v.optional(v.string()),
+    errorCode: v.optional(v.string()),
+    retryCount: v.optional(v.number()),
+    nextRetryAt: v.optional(v.number()),
+
+    // Timestamps
+    lastSyncAt: v.optional(v.number()),
+    lastSuccessAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_factuur", ["factuurId"])
+    .index("by_external", ["externalId"])
+    .index("by_status", ["syncStatus"])
+    .index("by_user_status", ["userId", "syncStatus"])
+    .index("by_entity_type", ["userId", "entityType"]),
+
+  // ============================================
+  // Unified Chat (Klantenportaal)
+  // ============================================
+
+  // Unified chat threads — replaces offerte_messages, team_messages, direct_messages
+  chat_threads: defineTable({
+    type: v.union(
+      v.literal("klant"),
+      v.literal("team"),
+      v.literal("direct"),
+      v.literal("project")
+    ),
+    klantId: v.optional(v.id("klanten")),
+    offerteId: v.optional(v.id("offertes")),
+    projectId: v.optional(v.id("projecten")),
+    channelName: v.optional(v.string()),
+    participants: v.array(v.string()),
+    lastMessageAt: v.optional(v.number()),
+    lastMessagePreview: v.optional(v.string()),
+    unreadByBedrijf: v.optional(v.number()),
+    unreadByKlant: v.optional(v.number()),
+    companyUserId: v.id("users"),
+    createdAt: v.number(),
+  })
+    .index("by_company", ["companyUserId"])
+    .index("by_klant", ["klantId"])
+    .index("by_offerte", ["offerteId"])
+    .index("by_project", ["projectId"])
+    .index("by_company_type", ["companyUserId", "type"])
+    .index("by_company_last_message", ["companyUserId", "lastMessageAt"]),
+
+  // Unified chat messages
+  chat_messages: defineTable({
+    threadId: v.id("chat_threads"),
+    senderType: v.union(
+      v.literal("bedrijf"),
+      v.literal("klant"),
+      v.literal("medewerker")
+    ),
+    senderUserId: v.string(),
+    senderName: v.string(),
+    message: v.string(),
+    attachmentStorageIds: v.optional(v.array(v.id("_storage"))),
+    isRead: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_thread", ["threadId", "createdAt"])
+    .index("by_thread_unread", ["threadId", "isRead"]),
 });

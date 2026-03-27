@@ -5,7 +5,7 @@
  * They mirror the Zod schemas used in the frontend.
  */
 
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 
 // ==================== COMMON TYPES ====================
 
@@ -377,18 +377,54 @@ export const scopeDataValidator = v.union(
   onderhoudScopeDataValidator
 );
 
+// ==================== CHAT VALIDATORS ====================
+
+export const chatThreadTypeValidator = v.union(
+  v.literal("klant"),
+  v.literal("team"),
+  v.literal("direct"),
+  v.literal("project")
+);
+
+export const chatSenderTypeValidator = v.union(
+  v.literal("bedrijf"),
+  v.literal("klant"),
+  v.literal("medewerker")
+);
+
 // ==================== USER ROLE VALIDATORS ====================
 
 /**
  * User roles for role-based access control (RBAC)
  *
- * - admin: Full access to all features, can manage users, medewerkers, and all data
- * - medewerker: Limited access, can only see own data, linked to a medewerker profile
- * - viewer: Read-only access to allowed features
+ * 7-role model for Top Tuinen:
+ * - directie:          Full access to everything (replaces old "admin")
+ * - projectleider:     Manage projects, offertes, klanten, planning, read rapportages
+ * - voorman:           Manage field work: uren, planning read, project read, toolbox manage
+ * - medewerker:        Own uren, own verlof, chat, read assigned projects
+ * - klant:             Read own offertes, own facturen, own projects (future portal) (replaces old "viewer")
+ * - onderaannemer_zzp: Own uren, read assigned projects, own facturen
+ * - materiaalman:      Manage voorraad, wagenpark, read inkoop
+ *
+ * MIGRATION NOTE:
+ * - Old "admin" role maps to "directie"
+ * - Old "viewer" role maps to "klant"
+ * - Old "medewerker" role stays as "medewerker"
+ * - The old role strings ("admin", "viewer") are kept in the validator for backward
+ *   compatibility with existing database records. Run the migrateOldRolesToNew migration
+ *   in convex/roles.ts to convert existing records, then remove the legacy literals.
  */
 export const userRoleValidator = v.union(
-  v.literal("admin"),
+  // New 7-role model
+  v.literal("directie"),
+  v.literal("projectleider"),
+  v.literal("voorman"),
   v.literal("medewerker"),
+  v.literal("klant"),
+  v.literal("onderaannemer_zzp"),
+  v.literal("materiaalman"),
+  // Legacy roles (backward compatibility — remove after migration)
+  v.literal("admin"),
   v.literal("viewer")
 );
 
@@ -502,7 +538,7 @@ export const VALIDATION_MESSAGES = {
  */
 export function validatePrijsPerEenheid(value: number): number {
   if (value < 0) {
-    throw new Error("Prijs per eenheid mag niet negatief zijn");
+    throw new ConvexError("Prijs per eenheid mag niet negatief zijn");
   }
   return value;
 }
@@ -513,7 +549,7 @@ export function validatePrijsPerEenheid(value: number): number {
  */
 export function validateHoeveelheid(value: number): number {
   if (value < 0) {
-    throw new Error("Hoeveelheid mag niet negatief zijn");
+    throw new ConvexError("Hoeveelheid mag niet negatief zijn");
   }
   return value;
 }
@@ -524,7 +560,7 @@ export function validateHoeveelheid(value: number): number {
  */
 export function validateMargePercentage(value: number): number {
   if (value < 0 || value > 100) {
-    throw new Error("Marge percentage moet tussen 0 en 100 liggen");
+    throw new ConvexError("Marge percentage moet tussen 0 en 100 liggen");
   }
   return value;
 }
@@ -543,7 +579,7 @@ export function validateOptionalMargePercentage(value: number | undefined | null
  */
 export function validateFinancialAmount(value: number, fieldName: string = "Bedrag"): number {
   if (value < 0) {
-    throw new Error(`${fieldName} mag niet negatief zijn`);
+    throw new ConvexError(`${fieldName} mag niet negatief zijn`);
   }
   return value;
 }
@@ -589,7 +625,7 @@ export function sanitizePhone(value: string | undefined | null): string | undefi
   const cleaned = sanitized.replace(/[\s\-\(\)]/g, "");
 
   if (!PHONE_PATTERN.test(cleaned)) {
-    throw new Error(VALIDATION_MESSAGES.telefoon);
+    throw new ConvexError(VALIDATION_MESSAGES.telefoon);
   }
   return cleaned;
 }
@@ -603,7 +639,7 @@ export function sanitizeEmail(value: string | undefined | null): string | undefi
   if (!sanitized) return undefined;
 
   if (!validateOptionalEmail(sanitized)) {
-    throw new Error(VALIDATION_MESSAGES.email);
+    throw new ConvexError(VALIDATION_MESSAGES.email);
   }
   return sanitized.toLowerCase();
 }
@@ -620,7 +656,7 @@ export function sanitizePostcode(value: string | undefined | null): string | und
   const normalized = sanitized.toUpperCase().replace(/^(\d{4})\s?([A-Z]{2})$/, "$1 $2");
 
   if (!POSTCODE_PATTERN.test(normalized)) {
-    throw new Error(VALIDATION_MESSAGES.postcode);
+    throw new ConvexError(VALIDATION_MESSAGES.postcode);
   }
   return normalized;
 }
@@ -631,13 +667,13 @@ export function sanitizePostcode(value: string | undefined | null): string | und
  */
 export function validateRequiredPostcode(value: string | undefined | null): string {
   if (!value || value.trim() === "") {
-    throw new Error(VALIDATION_MESSAGES.required);
+    throw new ConvexError(VALIDATION_MESSAGES.required);
   }
 
   const normalized = value.toUpperCase().replace(/^(\d{4})\s?([A-Z]{2})$/, "$1 $2");
 
   if (!POSTCODE_PATTERN.test(normalized)) {
-    throw new Error(VALIDATION_MESSAGES.postcode);
+    throw new ConvexError(VALIDATION_MESSAGES.postcode);
   }
   return normalized;
 }
@@ -654,7 +690,7 @@ export function sanitizeKvkNummer(value: string | undefined | null): string | un
   const cleaned = sanitized.replace(/[\s\.]/g, "");
 
   if (!KVK_PATTERN.test(cleaned)) {
-    throw new Error(VALIDATION_MESSAGES.kvkNummer);
+    throw new ConvexError(VALIDATION_MESSAGES.kvkNummer);
   }
   return cleaned;
 }
@@ -670,7 +706,7 @@ export function sanitizeBtwNummer(value: string | undefined | null): string | un
   const normalized = sanitized.toUpperCase().replace(/[\s\.]/g, "");
 
   if (!BTW_PATTERN.test(normalized)) {
-    throw new Error(VALIDATION_MESSAGES.btwNummer);
+    throw new ConvexError(VALIDATION_MESSAGES.btwNummer);
   }
   return normalized;
 }
@@ -686,7 +722,7 @@ export function sanitizeIban(value: string | undefined | null): string | undefin
   const normalized = sanitized.toUpperCase().replace(/\s/g, "");
 
   if (!IBAN_PATTERN.test(normalized)) {
-    throw new Error(VALIDATION_MESSAGES.iban);
+    throw new ConvexError(VALIDATION_MESSAGES.iban);
   }
   return normalized;
 }
@@ -697,7 +733,7 @@ export function sanitizeIban(value: string | undefined | null): string | undefin
  */
 export function validatePositive(value: number, fieldName: string = "Waarde"): number {
   if (value <= 0) {
-    throw new Error(`${fieldName} moet groter zijn dan 0`);
+    throw new ConvexError(`${fieldName} moet groter zijn dan 0`);
   }
   return value;
 }
@@ -708,7 +744,7 @@ export function validatePositive(value: number, fieldName: string = "Waarde"): n
  */
 export function validateNonNegative(value: number, fieldName: string = "Waarde"): number {
   if (value < 0) {
-    throw new Error(`${fieldName} mag niet negatief zijn`);
+    throw new ConvexError(`${fieldName} mag niet negatief zijn`);
   }
   return value;
 }
