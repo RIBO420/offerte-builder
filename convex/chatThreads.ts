@@ -43,7 +43,21 @@ export const listThreads = query({
         .collect();
     }
 
-    return threads.sort(
+    // Enrich threads with klant name if missing channelName
+    const enriched = await Promise.all(
+      threads.map(async (thread) => {
+        if (thread.channelName) return thread;
+        if (thread.klantId) {
+          const klant = await ctx.db.get(thread.klantId);
+          if (klant) {
+            return { ...thread, channelName: klant.naam };
+          }
+        }
+        return thread;
+      })
+    );
+
+    return enriched.sort(
       (a, b) => (b.lastMessageAt ?? 0) - (a.lastMessageAt ?? 0)
     );
   },
