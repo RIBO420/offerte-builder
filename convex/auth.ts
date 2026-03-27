@@ -8,6 +8,7 @@
 
 import { QueryCtx, MutationCtx } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
+import { normalizeRole } from "./roles";
 
 export class AuthError extends Error {
   constructor(message: string = "Niet geautoriseerd") {
@@ -96,6 +97,27 @@ export async function getOwnedKlant(
 ) {
   const klant = await ctx.db.get(klantId);
   return verifyOwnership(ctx, klant, "klant");
+}
+
+/**
+ * Require the authenticated user to be a klant with a linked klant profile.
+ * Returns both the user and klant records.
+ * Use this in portal queries/mutations that are klant-only.
+ */
+export async function requireKlant(ctx: QueryCtx | MutationCtx) {
+  const user = await requireAuth(ctx);
+  const role = normalizeRole(user.role);
+  if (role !== "klant") {
+    throw new AuthError("Deze functie is alleen beschikbaar voor klanten");
+  }
+  if (!user.linkedKlantId) {
+    throw new AuthError("Uw account is niet gekoppeld aan een klantprofiel");
+  }
+  const klant = await ctx.db.get(user.linkedKlantId);
+  if (!klant) {
+    throw new AuthError("Klantprofiel niet gevonden");
+  }
+  return { user, klant };
 }
 
 /**
