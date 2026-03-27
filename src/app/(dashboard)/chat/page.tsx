@@ -31,6 +31,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Users,
   Megaphone,
   MessageCircle,
@@ -39,7 +49,9 @@ import {
   Loader2,
   PenSquare,
   ArrowLeft,
+  Trash2,
 } from "lucide-react";
+import { toast } from "sonner";
 
 type ChatTab = "team" | "mededelingen" | "dm" | "project" | "klant";
 
@@ -354,10 +366,12 @@ function DMConversation({
 
 // ── Klant Tab Content ────────────────────────────────────────────────
 
-function KlantTab({ currentUserClerkId }: { currentUserClerkId: string }) {
-  const threads = useQuery(api.chatThreads.listThreads);
+function KlantTab({ currentUserClerkId, userRole }: { currentUserClerkId: string; userRole?: string }) {
+  const threads = useQuery(api.chatThreads.listThreads, {});
+  const deleteThread = useMutation(api.chatThreads.deleteThread);
   const [selectedThreadId, setSelectedThreadId] =
     useState<Id<"chat_threads"> | null>(null);
+  const [threadToDelete, setThreadToDelete] = useState<{ _id: Id<"chat_threads">; name: string } | null>(null);
 
   const selectedThread = useMemo(() => {
     if (!selectedThreadId || !threads) return null;
@@ -370,6 +384,23 @@ function KlantTab({ currentUserClerkId }: { currentUserClerkId: string }) {
       setSelectedThreadId(threads[0]._id);
     }
   }, [threads, selectedThread]);
+
+  const handleDeleteThread = useCallback(async () => {
+    if (!threadToDelete) return;
+    try {
+      await deleteThread({ threadId: threadToDelete._id });
+      toast.success("Gesprek verwijderd");
+      if (selectedThreadId === threadToDelete._id) {
+        setSelectedThreadId(null);
+      }
+    } catch {
+      toast.error("Fout bij verwijderen gesprek");
+    } finally {
+      setThreadToDelete(null);
+    }
+  }, [threadToDelete, deleteThread, selectedThreadId]);
+
+  const canDelete = userRole === "directie" || userRole === "admin";
 
   if (threads === undefined) {
     return (
@@ -391,8 +422,8 @@ function KlantTab({ currentUserClerkId }: { currentUserClerkId: string }) {
   return (
     <div className="flex flex-1 min-h-0">
       {/* Thread list sidebar */}
-      <div className="w-64 border-r flex flex-col min-h-0">
-        <div className="p-3 border-b">
+      <div className="w-72 border-r flex flex-col min-h-0">
+        <div className="p-3 border-b shrink-0">
           <span className="text-sm font-medium text-muted-foreground">
             Klanten ({threads.length})
           </span>
@@ -400,29 +431,52 @@ function KlantTab({ currentUserClerkId }: { currentUserClerkId: string }) {
         <ScrollArea className="flex-1">
           <div className="divide-y">
             {threads.map((thread) => (
-              <button
+              <div
                 key={thread._id}
-                className={`flex items-center gap-2 w-full p-3 text-left hover:bg-accent/50 transition-colors ${
+                className={`flex items-center gap-2 w-full p-3 hover:bg-accent/50 transition-colors cursor-pointer ${
                   selectedThreadId === thread._id ? "bg-accent" : ""
                 }`}
                 onClick={() => setSelectedThreadId(thread._id)}
               >
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-medium text-xs">
+                  {(thread.channelName || "K")
+                    .split(" ")
+                    .map((w: string) => w[0])
+                    .join("")
+                    .slice(0, 2)
+                    .toUpperCase()}
+                </div>
                 <div className="flex-1 min-w-0">
                   <span className="text-sm font-medium truncate block">
                     {thread.channelName || "Klant"}
                   </span>
-                  {thread.lastMessageAt && (
-                    <span className="text-xs text-muted-foreground">
-                      {formatTime(thread.lastMessageAt)}
-                    </span>
+                  {thread.lastMessagePreview && (
+                    <p className="text-xs text-muted-foreground truncate">
+                      {thread.lastMessagePreview}
+                    </p>
                   )}
                 </div>
-                {(thread.unreadByBedrijf ?? 0) > 0 && (
-                  <Badge variant="destructive" className="h-5 min-w-5 text-xs">
-                    {thread.unreadByBedrijf}
-                  </Badge>
-                )}
-              </button>
+                <div className="flex items-center gap-1 shrink-0">
+                  {(thread.unreadByBedrijf ?? 0) > 0 && (
+                    <Badge variant="destructive" className="h-5 min-w-5 text-xs">
+                      {thread.unreadByBedrijf}
+                    </Badge>
+                  )}
+                  {canDelete && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 hover:opacity-100"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setThreadToDelete({ _id: thread._id, name: thread.channelName || "Klant" });
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
+              </div>
             ))}
           </div>
         </ScrollArea>
@@ -432,6 +486,7 @@ function KlantTab({ currentUserClerkId }: { currentUserClerkId: string }) {
       {selectedThread ? (
         <KlantThreadMessages
           threadId={selectedThread._id}
+          threadName={selectedThread.channelName || "Klant"}
           currentUserClerkId={currentUserClerkId}
         />
       ) : (
@@ -439,15 +494,39 @@ function KlantTab({ currentUserClerkId }: { currentUserClerkId: string }) {
           <p className="text-sm">Selecteer een gesprek</p>
         </div>
       )}
+
+      {/* Delete confirmation */}
+      <AlertDialog open={!!threadToDelete} onOpenChange={() => setThreadToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Gesprek verwijderen</AlertDialogTitle>
+            <AlertDialogDescription>
+              Weet je zeker dat je het gesprek met <strong>{threadToDelete?.name}</strong> wilt verwijderen?
+              Alle berichten worden permanent verwijderd.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuleren</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteThread}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Verwijderen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
 
 function KlantThreadMessages({
   threadId,
+  threadName,
   currentUserClerkId,
 }: {
   threadId: Id<"chat_threads">;
+  threadName: string;
   currentUserClerkId: string;
 }) {
   const messages = useQuery(api.chatThreads.listMessages, { threadId });
@@ -460,7 +539,7 @@ function KlantThreadMessages({
 
   const handleSend = useCallback(
     (message: string) => {
-      sendMessage({ threadId, content: message }).catch(() => {});
+      sendMessage({ threadId, message }).catch(() => {});
     },
     [sendMessage, threadId]
   );
@@ -469,9 +548,9 @@ function KlantThreadMessages({
     () =>
       (messages ?? []).map((m) => ({
         _id: m._id,
-        senderId: m.senderClerkId || "",
+        senderId: m.senderUserId || "",
         senderName: m.senderName || "Klant",
-        message: m.content,
+        message: m.message,
         messageType: "text" as const,
         createdAt: m.createdAt,
       })),
@@ -480,6 +559,10 @@ function KlantThreadMessages({
 
   return (
     <div className="flex flex-1 flex-col min-h-0">
+      <div className="flex items-center gap-2 p-3 border-b shrink-0">
+        <UserRound className="h-4 w-4 text-muted-foreground" />
+        <span className="font-medium text-sm">{threadName}</span>
+      </div>
       <div className="flex-1 min-h-0 overflow-hidden">
         <ChatMessageList
           messages={mappedMessages}
@@ -488,8 +571,8 @@ function KlantThreadMessages({
           emptyMessage="Nog geen berichten met deze klant"
         />
       </div>
-      <div className="border-t p-3">
-        <ChatInput onSend={handleSend} placeholder="Bericht naar klant..." />
+      <div className="border-t p-3 shrink-0">
+        <ChatInput onSend={handleSend} placeholder={`Bericht naar ${threadName}...`} />
       </div>
     </div>
   );
@@ -585,7 +668,8 @@ export default function ChatPage() {
       <m.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="flex flex-1 flex-col min-h-0 overflow-hidden"
+        className="flex flex-col overflow-hidden"
+        style={{ height: "calc(100vh - 4rem)" }}
       >
         {/* Tab bar */}
         <div className="flex items-center gap-1 px-4 py-2 border-b overflow-x-auto">
@@ -687,7 +771,7 @@ export default function ChatPage() {
             />
           )}
           {activeTab === "klant" && (
-            <KlantTab currentUserClerkId={currentUserClerkId} />
+            <KlantTab currentUserClerkId={currentUserClerkId} userRole={userRole} />
           )}
         </div>
       </m.div>

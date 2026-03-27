@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { requireAuth, requireKlant } from "./auth";
@@ -291,5 +291,39 @@ export const getOrCreateKlantThread = mutation({
     });
 
     return threadId;
+  },
+});
+
+/**
+ * Delete a chat thread and all its messages. Admin/directie only.
+ */
+export const deleteThread = mutation({
+  args: { threadId: v.id("chat_threads") },
+  handler: async (ctx, args) => {
+    const user = await requireAuth(ctx);
+    const role = normalizeRole(user.role);
+    if (role !== "directie") {
+      throw new ConvexError("Alleen directie kan gesprekken verwijderen");
+    }
+
+    const thread = await ctx.db.get(args.threadId);
+    if (!thread) {
+      throw new ConvexError("Gesprek niet gevonden");
+    }
+
+    // Delete all messages in the thread
+    const messages = await ctx.db
+      .query("chat_messages")
+      .withIndex("by_thread", (q) => q.eq("threadId", args.threadId))
+      .collect();
+
+    for (const message of messages) {
+      await ctx.db.delete(message._id);
+    }
+
+    // Delete the thread itself
+    await ctx.db.delete(args.threadId);
+
+    return { success: true };
   },
 });
