@@ -8,6 +8,7 @@
 
 import { v, ConvexError } from "convex/values";
 import { mutation, query, internalQuery } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { requireAuth, requireAuthUserId, verifyOwnership } from "./auth";
 import { Id } from "./_generated/dataModel";
 import { getUserRole, getLinkedMedewerker, requireNotViewer, requireDirectieOrProjectleider, getCompanyUserId } from "./roles";
@@ -373,6 +374,14 @@ export const updateStatus = mutation({
       if (offerte?.klantId) {
         await upgradeKlantPipeline(ctx, offerte.klantId, "opgeleverd");
       }
+    }
+
+    // Notify klant via portal email about project status change
+    if (project.klantId) {
+      await ctx.scheduler.runAfter(0, internal.portaalEmail.sendProjectNotification, {
+        projectId: project._id,
+        newStatus: args.status,
+      });
     }
 
     return args.id;

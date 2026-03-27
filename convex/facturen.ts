@@ -7,6 +7,7 @@
 
 import { v, ConvexError } from "convex/values";
 import { mutation, query, internalQuery } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { requireAuth, requireAuthUserId, verifyOwnership } from "./auth";
 import { requireNotViewer } from "./roles";
 import { Id } from "./_generated/dataModel";
@@ -465,6 +466,13 @@ export const updateStatus = mutation({
         await ctx.db.patch(factuur.projectId, {
           status: "gefactureerd",
           updatedAt: now,
+        });
+      }
+
+      // Notify klant via portal email when factuur is sent
+      if (args.status === "verzonden" && project?.klantId) {
+        await ctx.scheduler.runAfter(0, internal.portaalEmail.sendFactuurNotification, {
+          factuurId: args.id,
         });
       }
     }

@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { requireAuth, requireKlant } from "./auth";
 import { getCompanyUserId, normalizeRole } from "./roles";
 import { chatThreadTypeValidator, chatSenderTypeValidator } from "./validators";
@@ -192,6 +193,13 @@ export const sendMessage = mutation({
     }
 
     await ctx.db.patch(args.threadId, updateFields);
+
+    // Notify klant via portal email when bedrijf sends a message
+    if (thread.type === "klant" && senderType !== "klant" && thread.klantId) {
+      await ctx.scheduler.runAfter(0, internal.portaalEmail.sendMessageNotification, {
+        klantId: thread.klantId,
+      });
+    }
 
     return messageId;
   },

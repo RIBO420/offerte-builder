@@ -1070,6 +1070,13 @@ export const updateStatus = mutation({
           await upgradeKlantPipeline(ctx, offerte.klantId, "getekend");
         }
       }
+
+      // Notify klant via portal email if they have portal access
+      if (args.status === "verzonden" && offerte.klantId) {
+        await ctx.scheduler.runAfter(0, internal.portaalEmail.sendOfferteNotification, {
+          offerteId: offerte._id,
+        });
+      }
     }
 
     return args.id;
