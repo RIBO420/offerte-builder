@@ -1,490 +1,695 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect, useMemo } from "react";
-import { m } from "framer-motion";
-import { PageHeader } from "@/components/page-header";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  MessageSquare,
-  Send,
-  Loader2,
-  Users,
-  User,
-  Building2,
-} from "lucide-react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { Id } from "../../../../convex/_generated/dataModel";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { ChatMessageList } from "@/components/chat/chat-message-list";
+import { ChatInput } from "@/components/chat/chat-input";
+import { ChatTabBadge } from "@/components/chat/chat-tabs-badge";
+import { NewDMDialog } from "@/components/chat/new-dm-dialog";
+import { m } from "framer-motion";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Users,
+  Megaphone,
+  MessageCircle,
+  FolderOpen,
+  UserRound,
+  Loader2,
+  PenSquare,
+  ArrowLeft,
+} from "lucide-react";
 
-type ThreadFilter = "alle" | "klant" | "team" | "direct";
+type ChatTab = "team" | "mededelingen" | "dm" | "project" | "klant";
 
-function formatTime(timestamp: number): string {
-  const date = new Date(timestamp);
-  const now = new Date();
-  const isToday =
-    date.getDate() === now.getDate() &&
-    date.getMonth() === now.getMonth() &&
-    date.getFullYear() === now.getFullYear();
+// ── Page Header ──────────────────────────────────────────────────────
 
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const isYesterday =
-    date.getDate() === yesterday.getDate() &&
-    date.getMonth() === yesterday.getMonth() &&
-    date.getFullYear() === yesterday.getFullYear();
-
-  const time = date.toLocaleTimeString("nl-NL", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-
-  if (isToday) return time;
-  if (isYesterday) return `Gisteren ${time}`;
-  return `${date.toLocaleDateString("nl-NL", { day: "numeric", month: "short" })} ${time}`;
-}
-
-// Thread type badge component
-function ThreadTypeBadge({ type }: { type: string }) {
-  if (type === "klant") {
-    return (
-      <Badge className="text-[10px] bg-green-600 hover:bg-green-600 text-white">
-        KLANT
-      </Badge>
-    );
-  }
-  if (type === "team") {
-    return (
-      <Badge className="text-[10px] bg-blue-600 hover:bg-blue-600 text-white">
-        TEAM
-      </Badge>
-    );
-  }
-  // "direct" and "project" threads don't get a badge
-  return null;
-}
-
-// Thread icon by type
-function ThreadIcon({ type }: { type: string }) {
-  if (type === "klant") return <Building2 className="h-4 w-4 shrink-0" />;
-  if (type === "team") return <Users className="h-4 w-4 shrink-0" />;
-  return <User className="h-4 w-4 shrink-0" />;
-}
-
-// Thread display name — shows context for klant threads
-function getThreadDisplayName(thread: {
-  type: string;
-  channelName?: string;
-  klantId?: Id<"klanten">;
-  offerteId?: Id<"offertes">;
-  projectId?: Id<"projecten">;
-  participants?: string[];
-}): string {
-  if (thread.channelName) return thread.channelName;
-  if (thread.type === "team") return "Team";
-  if (thread.type === "direct") return "Direct bericht";
-  if (thread.type === "klant") return "Klantgesprek";
-  return "Gesprek";
-}
-
-interface ThreadListItem {
-  _id: Id<"chat_threads">;
-  type: string;
-  channelName?: string;
-  klantId?: Id<"klanten">;
-  offerteId?: Id<"offertes">;
-  projectId?: Id<"projecten">;
-  participants: string[];
-  lastMessageAt?: number;
-  lastMessagePreview?: string;
-  unreadByBedrijf?: number;
-  unreadByKlant?: number;
-  companyUserId: Id<"users">;
-  createdAt: number;
-}
-
-function ThreadList({
-  threads,
-  selectedThreadId,
-  onSelectThread,
-}: {
-  threads: ThreadListItem[];
-  selectedThreadId: Id<"chat_threads"> | null;
-  onSelectThread: (thread: ThreadListItem) => void;
-}) {
-  if (threads.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-8 text-center px-4">
-        <MessageSquare className="h-8 w-8 text-muted-foreground/30 mb-2" />
-        <p className="text-sm text-muted-foreground">
-          Geen gesprekken gevonden
-        </p>
-      </div>
-    );
-  }
-
+function PageHeader() {
   return (
-    <div className="flex flex-col gap-1 p-2">
-      {threads.map((thread) => {
-        const isActive = selectedThreadId === thread._id;
-        const unread = thread.unreadByBedrijf ?? 0;
-        const displayName = getThreadDisplayName(thread);
-
-        return (
-          <button
-            key={thread._id}
-            onClick={() => onSelectThread(thread)}
-            className={`flex items-start gap-2 rounded-md px-2 py-2 text-sm transition-colors w-full text-left ${
-              isActive
-                ? "bg-primary/10 text-primary font-medium"
-                : "hover:bg-muted text-foreground"
-            }`}
-          >
-            <ThreadIcon type={thread.type} />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5 mb-0.5">
-                <span className="truncate text-sm font-medium">
-                  {displayName}
-                </span>
-                <ThreadTypeBadge type={thread.type} />
-              </div>
-              {thread.lastMessagePreview && (
-                <p className="truncate text-xs text-muted-foreground">
-                  {thread.lastMessagePreview}
-                </p>
-              )}
-              {thread.lastMessageAt && (
-                <p className="text-[10px] text-muted-foreground mt-0.5">
-                  {formatTime(thread.lastMessageAt)}
-                </p>
-              )}
-            </div>
-            {unread > 0 && (
-              <Badge
-                variant="default"
-                className="h-5 min-w-5 px-1 text-xs bg-blue-600 hover:bg-blue-600 shrink-0"
-              >
-                {unread}
-              </Badge>
-            )}
-          </button>
-        );
-      })}
-    </div>
+    <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+      <SidebarTrigger className="-ml-1" />
+      <Separator orientation="vertical" className="mr-2 h-4" />
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Chat</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+    </header>
   );
 }
 
-function ThreadMessageArea({
-  threadId,
-  thread,
+// ── Team / Mededelingen / Project Tab Content ────────────────────────
+
+function ChannelTab({
+  channelType,
+  projectId,
   currentUserClerkId,
+  userRole,
+  emptyMessage,
 }: {
-  threadId: Id<"chat_threads">;
-  thread: ThreadListItem;
+  channelType: "team" | "project" | "broadcast";
+  projectId?: Id<"projecten">;
   currentUserClerkId: string;
+  userRole?: string;
+  emptyMessage: string;
 }) {
-  const [newMessage, setNewMessage] = useState("");
-  const [isSending, setIsSending] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const messages = useQuery(api.chatThreads.listMessages, {
-    threadId,
-  });
-
-  const sendMessage = useMutation(api.chatThreads.sendMessage);
-  const markAsRead = useMutation(api.chatThreads.markAsRead);
-
-  // Mark messages as read when viewing
-  useEffect(() => {
-    if (messages && messages.length > 0) {
-      markAsRead({ threadId });
-    }
-  }, [messages, markAsRead, threadId]);
-
-  // Scroll to bottom on new messages
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  const handleSend = useCallback(async () => {
-    const trimmed = newMessage.trim();
-    if (!trimmed) return;
-
-    setIsSending(true);
-    setNewMessage("");
-    try {
-      await sendMessage({
-        threadId,
-        message: trimmed,
-      });
-    } catch {
-      setNewMessage(trimmed);
-    } finally {
-      setIsSending(false);
-    }
-  }, [newMessage, sendMessage, threadId]);
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        handleSend();
-      }
-    },
-    [handleSend]
-  );
-
-  if (messages === undefined) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  const displayName = getThreadDisplayName(thread);
-
-  return (
-    <div className="flex flex-col flex-1 min-h-0">
-      {/* Messages */}
-      <ScrollArea className="flex-1 px-4">
-        <div className="space-y-4 py-4">
-          {messages.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <MessageSquare className="h-10 w-10 text-muted-foreground/30 mb-3" />
-              <p className="text-sm text-muted-foreground">
-                Nog geen berichten in dit gesprek.
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Stuur het eerste bericht!
-              </p>
-            </div>
-          )}
-          {messages.map((msg) => {
-            const isOwn = msg.senderUserId === currentUserClerkId;
-
-            return (
-              <div
-                key={msg._id}
-                className={`flex gap-3 ${isOwn ? "flex-row-reverse" : ""}`}
-              >
-                <div
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-medium ${
-                    isOwn
-                      ? "bg-primary text-primary-foreground"
-                      : msg.senderType === "klant"
-                        ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                        : "bg-muted text-muted-foreground"
-                  }`}
-                >
-                  {msg.senderName
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")
-                    .slice(0, 2)
-                    .toUpperCase()}
-                </div>
-                <div
-                  className={`max-w-[70%] ${isOwn ? "text-right" : ""}`}
-                >
-                  <div className="flex items-baseline gap-2 mb-0.5">
-                    <span className={`text-xs font-medium ${isOwn ? "order-2" : ""}`}>
-                      {isOwn ? "Jij" : msg.senderName}
-                    </span>
-                    {msg.senderType === "klant" && !isOwn && (
-                      <Badge className="text-[9px] px-1 py-0 h-4 bg-green-600 hover:bg-green-600 text-white">
-                        KLANT
-                      </Badge>
-                    )}
-                    <span className={`text-[10px] text-muted-foreground ${isOwn ? "order-1" : ""}`}>
-                      {formatTime(msg.createdAt)}
-                    </span>
-                  </div>
-                  <div
-                    className={`inline-block rounded-lg px-3 py-2 text-sm ${
-                      isOwn
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted"
-                    }`}
-                  >
-                    {msg.message}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-          <div ref={messagesEndRef} />
-        </div>
-      </ScrollArea>
-
-      {/* Input */}
-      <div className="border-t p-4">
-        <div className="flex gap-2">
-          <Input
-            placeholder={`Bericht in ${displayName}...`}
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={isSending}
-          />
-          <Button
-            onClick={handleSend}
-            disabled={!newMessage.trim() || isSending}
-            size="icon"
-          >
-            {isSending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export default function ChatPage() {
-  const { user } = useCurrentUser();
-  const [filter, setFilter] = useState<ThreadFilter>("alle");
-  const [selectedThreadId, setSelectedThreadId] = useState<Id<"chat_threads"> | null>(null);
-
-  // Query threads with filter
-  const threads = useQuery(
-    api.chatThreads.listThreads,
-    user?._id
-      ? filter !== "alle"
-        ? { filter: filter as "klant" | "team" | "direct" }
-        : {}
+  const messages = useQuery(
+    api.chat.getTeamMessages,
+    projectId !== undefined || channelType !== "project"
+      ? { channelType, projectId }
       : "skip"
   );
+  const sendMessage = useMutation(api.chat.sendTeamMessage);
+  const markAsRead = useMutation(api.chat.markTeamMessagesAsRead);
 
-  const currentUserClerkId = useMemo(() => {
-    if (!user) return "";
-    return (user as { clerkId?: string }).clerkId ?? "";
-  }, [user]);
+  // Mark messages as read when tab is viewed
+  useEffect(() => {
+    if (messages && messages.length > 0) {
+      markAsRead({ channelType, projectId }).catch(() => {});
+    }
+  }, [messages, channelType, projectId, markAsRead]);
 
-  // Track the selected thread object for display
+  const handleSend = useCallback(
+    (message: string) => {
+      sendMessage({
+        channelType,
+        projectId,
+        message,
+        messageType: channelType === "broadcast" ? "announcement" : "text",
+      }).catch(() => {});
+    },
+    [sendMessage, channelType, projectId]
+  );
+
+  const mappedMessages = useMemo(
+    () =>
+      (messages ?? []).map((m) => ({
+        _id: m._id,
+        senderId: m.senderClerkId,
+        senderName: m.senderName,
+        senderRole: m.senderRole,
+        message: m.message,
+        messageType: m.messageType,
+        createdAt: m.createdAt,
+        editedAt: m.editedAt,
+        readBy: m.readBy,
+      })),
+    [messages]
+  );
+
+  // Broadcast: only directie can send
+  const canSend =
+    channelType !== "broadcast" ||
+    userRole === "directie" ||
+    userRole === "admin";
+
+  // Project tab without selection
+  if (channelType === "project" && !projectId) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center text-muted-foreground gap-2">
+        <FolderOpen className="h-10 w-10 opacity-50" />
+        <p>Selecteer een project om berichten te zien</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-1 flex-col min-h-0">
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <ChatMessageList
+          messages={mappedMessages}
+          currentUserClerkId={currentUserClerkId}
+          isLoading={messages === undefined}
+          emptyMessage={emptyMessage}
+        />
+      </div>
+      {canSend && (
+        <div className="border-t p-3">
+          <ChatInput
+            onSend={handleSend}
+            placeholder={
+              channelType === "broadcast"
+                ? "Schrijf een mededeling..."
+                : channelType === "project"
+                  ? "Bericht naar projectteam..."
+                  : "Bericht naar team..."
+            }
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── DM Tab Content ───────────────────────────────────────────────────
+
+function DMTab({ currentUserClerkId }: { currentUserClerkId: string }) {
+  const conversations = useQuery(api.chat.getDMConversations);
+  const [selectedUserId, setSelectedUserId] = useState<Id<"users"> | null>(
+    null
+  );
+  const [showNewDM, setShowNewDM] = useState(false);
+
+  const handleSelectUser = useCallback((userId: Id<"users">) => {
+    setSelectedUserId(userId);
+  }, []);
+
+  // Conversation list view
+  if (!selectedUserId) {
+    return (
+      <div className="flex flex-1 flex-col min-h-0">
+        <div className="flex items-center justify-between p-3 border-b">
+          <span className="text-sm font-medium text-muted-foreground">
+            Gesprekken
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowNewDM(true)}
+            title="Nieuw gesprek"
+          >
+            <PenSquare className="h-4 w-4" />
+          </Button>
+        </div>
+        <ScrollArea className="flex-1">
+          {conversations === undefined ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : conversations.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2 px-4">
+              <MessageCircle className="h-10 w-10 opacity-50" />
+              <p className="text-sm text-center">
+                Nog geen gesprekken. Start een nieuw gesprek.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowNewDM(true)}
+              >
+                <PenSquare className="h-4 w-4 mr-2" />
+                Nieuw gesprek
+              </Button>
+            </div>
+          ) : (
+            <div className="divide-y">
+              {conversations.map((conv) => (
+                <button
+                  key={conv.partnerId}
+                  className="flex items-center gap-3 w-full p-3 text-left hover:bg-accent/50 transition-colors"
+                  onClick={() =>
+                    setSelectedUserId(conv.partnerId as Id<"users">)
+                  }
+                >
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-medium text-sm">
+                    {conv.partnerName
+                      .split(" ")
+                      .map((w: string) => w[0])
+                      .join("")
+                      .slice(0, 2)
+                      .toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-sm truncate">
+                        {conv.partnerName}
+                      </span>
+                      <span className="text-xs text-muted-foreground shrink-0 ml-2">
+                        {formatTime(conv.lastMessageAt)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {conv.lastMessage}
+                    </p>
+                  </div>
+                  {conv.unreadCount > 0 && (
+                    <Badge
+                      variant="destructive"
+                      className="shrink-0 h-5 min-w-5 flex items-center justify-center text-xs"
+                    >
+                      {conv.unreadCount > 99 ? "99+" : conv.unreadCount}
+                    </Badge>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </ScrollArea>
+        <NewDMDialog
+          open={showNewDM}
+          onOpenChange={setShowNewDM}
+          onSelectUser={handleSelectUser}
+        />
+      </div>
+    );
+  }
+
+  // Individual DM conversation view
+  return (
+    <DMConversation
+      withUserId={selectedUserId}
+      currentUserClerkId={currentUserClerkId}
+      onBack={() => setSelectedUserId(null)}
+      conversations={conversations}
+    />
+  );
+}
+
+function DMConversation({
+  withUserId,
+  currentUserClerkId,
+  onBack,
+  conversations,
+}: {
+  withUserId: Id<"users">;
+  currentUserClerkId: string;
+  onBack: () => void;
+  conversations?: Array<{ partnerId: string; partnerName: string }>;
+}) {
+  const messages = useQuery(api.chat.getDirectMessages, { withUserId });
+  const sendMessage = useMutation(api.chat.sendDirectMessage);
+  const markAsRead = useMutation(api.chat.markDMAsRead);
+
+  const partnerName = useMemo(() => {
+    const conv = conversations?.find((c) => c.partnerId === withUserId);
+    return conv?.partnerName ?? "Gesprek";
+  }, [conversations, withUserId]);
+
+  // Mark as read when viewing
+  useEffect(() => {
+    if (messages && messages.length > 0) {
+      markAsRead({ fromUserId: withUserId }).catch(() => {});
+    }
+  }, [messages, withUserId, markAsRead]);
+
+  const handleSend = useCallback(
+    (message: string) => {
+      sendMessage({ toUserId: withUserId, message }).catch(() => {});
+    },
+    [sendMessage, withUserId]
+  );
+
+  const mappedMessages = useMemo(
+    () =>
+      (messages ?? []).map((m) => ({
+        _id: m._id,
+        senderId: m.fromClerkId,
+        senderName: m.fromClerkId === currentUserClerkId ? "Jij" : partnerName,
+        message: m.message,
+        messageType: m.messageType as "text" | "image" | "announcement",
+        createdAt: m.createdAt,
+      })),
+    [messages, currentUserClerkId, partnerName]
+  );
+
+  return (
+    <div className="flex flex-1 flex-col min-h-0">
+      <div className="flex items-center gap-2 p-3 border-b">
+        <Button variant="ghost" size="sm" onClick={onBack}>
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <span className="font-medium text-sm">{partnerName}</span>
+      </div>
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <ChatMessageList
+          messages={mappedMessages}
+          currentUserClerkId={currentUserClerkId}
+          isLoading={messages === undefined}
+          emptyMessage="Nog geen berichten. Stuur het eerste bericht!"
+        />
+      </div>
+      <div className="border-t p-3">
+        <ChatInput onSend={handleSend} placeholder="Typ een bericht..." />
+      </div>
+    </div>
+  );
+}
+
+// ── Klant Tab Content ────────────────────────────────────────────────
+
+function KlantTab({ currentUserClerkId }: { currentUserClerkId: string }) {
+  const threads = useQuery(api.chatThreads.listThreads);
+  const [selectedThreadId, setSelectedThreadId] =
+    useState<Id<"chat_threads"> | null>(null);
+
   const selectedThread = useMemo(() => {
     if (!selectedThreadId || !threads) return null;
     return threads.find((t) => t._id === selectedThreadId) ?? null;
   }, [selectedThreadId, threads]);
 
-  // Auto-select first thread when list changes and nothing is selected
+  // Auto-select first thread
   useEffect(() => {
     if (threads && threads.length > 0 && !selectedThread) {
       setSelectedThreadId(threads[0]._id);
     }
   }, [threads, selectedThread]);
 
-  const handleSelectThread = useCallback((thread: ThreadListItem) => {
-    setSelectedThreadId(thread._id);
-  }, []);
+  if (threads === undefined) {
+    return (
+      <div className="flex items-center justify-center flex-1">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
-  const handleFilterChange = useCallback((value: string) => {
-    setFilter(value as ThreadFilter);
-    setSelectedThreadId(null); // Reset selection when filter changes
-  }, []);
+  if (threads.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center flex-1 text-muted-foreground gap-2">
+        <UserRound className="h-10 w-10 opacity-50" />
+        <p className="text-sm">Geen klantgesprekken</p>
+      </div>
+    );
+  }
 
-  const isLoading = !threads;
+  return (
+    <div className="flex flex-1 min-h-0">
+      {/* Thread list sidebar */}
+      <div className="w-64 border-r flex flex-col min-h-0">
+        <div className="p-3 border-b">
+          <span className="text-sm font-medium text-muted-foreground">
+            Klanten ({threads.length})
+          </span>
+        </div>
+        <ScrollArea className="flex-1">
+          <div className="divide-y">
+            {threads.map((thread) => (
+              <button
+                key={thread._id}
+                className={`flex items-center gap-2 w-full p-3 text-left hover:bg-accent/50 transition-colors ${
+                  selectedThreadId === thread._id ? "bg-accent" : ""
+                }`}
+                onClick={() => setSelectedThreadId(thread._id)}
+              >
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm font-medium truncate block">
+                    {thread.channelName || "Klant"}
+                  </span>
+                  {thread.lastMessageAt && (
+                    <span className="text-xs text-muted-foreground">
+                      {formatTime(thread.lastMessageAt)}
+                    </span>
+                  )}
+                </div>
+                {(thread.unreadByBedrijf ?? 0) > 0 && (
+                  <Badge variant="destructive" className="h-5 min-w-5 text-xs">
+                    {thread.unreadByBedrijf}
+                  </Badge>
+                )}
+              </button>
+            ))}
+          </div>
+        </ScrollArea>
+      </div>
+
+      {/* Messages area */}
+      {selectedThread ? (
+        <KlantThreadMessages
+          threadId={selectedThread._id}
+          currentUserClerkId={currentUserClerkId}
+        />
+      ) : (
+        <div className="flex-1 flex items-center justify-center text-muted-foreground">
+          <p className="text-sm">Selecteer een gesprek</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function KlantThreadMessages({
+  threadId,
+  currentUserClerkId,
+}: {
+  threadId: Id<"chat_threads">;
+  currentUserClerkId: string;
+}) {
+  const messages = useQuery(api.chatThreads.listMessages, { threadId });
+  const sendMessage = useMutation(api.chatThreads.sendMessage);
+  const markAsRead = useMutation(api.chatThreads.markAsRead);
+
+  useEffect(() => {
+    markAsRead({ threadId }).catch(() => {});
+  }, [threadId, markAsRead]);
+
+  const handleSend = useCallback(
+    (message: string) => {
+      sendMessage({ threadId, content: message }).catch(() => {});
+    },
+    [sendMessage, threadId]
+  );
+
+  const mappedMessages = useMemo(
+    () =>
+      (messages ?? []).map((m) => ({
+        _id: m._id,
+        senderId: m.senderClerkId || "",
+        senderName: m.senderName || "Klant",
+        message: m.content,
+        messageType: "text" as const,
+        createdAt: m.createdAt,
+      })),
+    [messages]
+  );
+
+  return (
+    <div className="flex flex-1 flex-col min-h-0">
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <ChatMessageList
+          messages={mappedMessages}
+          currentUserClerkId={currentUserClerkId}
+          isLoading={messages === undefined}
+          emptyMessage="Nog geen berichten met deze klant"
+        />
+      </div>
+      <div className="border-t p-3">
+        <ChatInput onSend={handleSend} placeholder="Bericht naar klant..." />
+      </div>
+    </div>
+  );
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────
+
+function formatTime(timestamp: number): string {
+  const now = Date.now();
+  const diffMs = now - timestamp;
+  const diffMin = Math.floor(diffMs / 60000);
+
+  if (diffMin < 1) return "zojuist";
+  if (diffMin < 60) return `${diffMin}m`;
+
+  const date = new Date(timestamp);
+  const today = new Date();
+  const isToday =
+    date.getDate() === today.getDate() &&
+    date.getMonth() === today.getMonth() &&
+    date.getFullYear() === today.getFullYear();
+
+  if (isToday) {
+    return date.toLocaleTimeString("nl-NL", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
+  return date.toLocaleDateString("nl-NL", {
+    day: "numeric",
+    month: "short",
+  });
+}
+
+// ── Main Chat Page ───────────────────────────────────────────────────
+
+export default function ChatPage() {
+  const { user } = useCurrentUser();
+  const [activeTab, setActiveTab] = useState<ChatTab>("team");
+  const [selectedProjectId, setSelectedProjectId] =
+    useState<Id<"projecten"> | undefined>(undefined);
+
+  const currentUserClerkId = useMemo(() => {
+    if (!user) return "";
+    return (user as { clerkId?: string }).clerkId ?? "";
+  }, [user]);
+
+  const userRole = useMemo(() => {
+    if (!user) return undefined;
+    return (user as { role?: string }).role;
+  }, [user]);
+
+  // Unread counts
+  const unreadCounts = useQuery(
+    api.chat.getUnreadCounts,
+    user ? {} : "skip"
+  );
+
+  // Klant thread unread count
+  const klantThreads = useQuery(
+    api.chatThreads.listThreads,
+    user ? {} : "skip"
+  );
+  const klantUnread = useMemo(() => {
+    if (!klantThreads) return 0;
+    return klantThreads.reduce(
+      (sum, t) => sum + (t.unreadByBedrijf ?? 0),
+      0
+    );
+  }, [klantThreads]);
+
+  // Projects list for project selector
+  const projecten = useQuery(
+    api.projecten.list,
+    user ? {} : "skip"
+  );
+
+  if (!user) {
+    return (
+      <>
+        <PageHeader />
+        <div className="flex flex-1 items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
       <PageHeader />
       <m.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="flex flex-1 flex-col min-h-0 overflow-hidden"
       >
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
-            Chat
-          </h1>
-          <p className="text-muted-foreground">
-            Communiceer met klanten, team en collega&apos;s
-          </p>
+        {/* Tab bar */}
+        <div className="flex items-center gap-1 px-4 py-2 border-b overflow-x-auto">
+          <ChatTabBadge
+            label="Team"
+            icon={<Users className="h-4 w-4" />}
+            count={unreadCounts?.team}
+            isActive={activeTab === "team"}
+            onClick={() => setActiveTab("team")}
+          />
+          <ChatTabBadge
+            label="Mededelingen"
+            icon={<Megaphone className="h-4 w-4" />}
+            count={unreadCounts?.broadcast}
+            isActive={activeTab === "mededelingen"}
+            onClick={() => setActiveTab("mededelingen")}
+          />
+          <ChatTabBadge
+            label="DM"
+            icon={<MessageCircle className="h-4 w-4" />}
+            count={unreadCounts?.dm}
+            isActive={activeTab === "dm"}
+            onClick={() => setActiveTab("dm")}
+          />
+          <ChatTabBadge
+            label="Projecten"
+            icon={<FolderOpen className="h-4 w-4" />}
+            count={unreadCounts?.project}
+            isActive={activeTab === "project"}
+            onClick={() => setActiveTab("project")}
+          />
+          <ChatTabBadge
+            label="Klanten"
+            icon={<UserRound className="h-4 w-4" />}
+            count={klantUnread}
+            isActive={activeTab === "klant"}
+            onClick={() => setActiveTab("klant")}
+          />
+
+          {/* Project selector (visible when project tab is active) */}
+          {activeTab === "project" && (
+            <div className="ml-auto">
+              <Select
+                value={selectedProjectId ?? "none"}
+                onValueChange={(v) =>
+                  setSelectedProjectId(
+                    v === "none" ? undefined : (v as Id<"projecten">)
+                  )
+                }
+              >
+                <SelectTrigger className="w-[200px] h-8 text-xs">
+                  <SelectValue placeholder="Kies project..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">
+                    <span className="text-muted-foreground">
+                      Kies project...
+                    </span>
+                  </SelectItem>
+                  {(projecten ?? []).map((p: { _id: string; naam: string }) => (
+                    <SelectItem key={p._id} value={p._id}>
+                      {p.naam}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
 
-        {/* Filter Tabs */}
-        <Tabs value={filter} onValueChange={handleFilterChange}>
-          <TabsList>
-            <TabsTrigger value="alle">Alle</TabsTrigger>
-            <TabsTrigger value="klant">Klanten</TabsTrigger>
-            <TabsTrigger value="team">Team</TabsTrigger>
-            <TabsTrigger value="direct">Direct</TabsTrigger>
-          </TabsList>
-        </Tabs>
-
-        {isLoading ? (
-          <div className="flex flex-1 items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : (
-          <Card className="flex-1 flex flex-col md:flex-row overflow-hidden" style={{ minHeight: "500px" }}>
-            {/* Sidebar - Thread list */}
-            <div className="w-full md:w-72 md:border-r shrink-0">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4" />
-                  Gesprekken
-                  {threads.length > 0 && (
-                    <Badge variant="secondary" className="text-xs">
-                      {threads.length}
-                    </Badge>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <ScrollArea className="max-h-48 md:max-h-none md:h-[calc(100%-60px)]">
-                <ThreadList
-                  threads={threads as ThreadListItem[]}
-                  selectedThreadId={selectedThreadId}
-                  onSelectThread={handleSelectThread}
-                />
-              </ScrollArea>
-            </div>
-
-            {/* Main content - Messages */}
-            <div className="flex-1 flex flex-col min-h-0">
-              {selectedThread ? (
-                <>
-                  {/* Thread header */}
-                  <div className="border-b px-4 py-3 flex items-center gap-2">
-                    <ThreadIcon type={selectedThread.type} />
-                    <span className="font-medium text-sm">
-                      {getThreadDisplayName(selectedThread)}
-                    </span>
-                    <ThreadTypeBadge type={selectedThread.type} />
-                  </div>
-                  <ThreadMessageArea
-                    threadId={selectedThread._id}
-                    thread={selectedThread as ThreadListItem}
-                    currentUserClerkId={currentUserClerkId}
-                  />
-                </>
-              ) : (
-                <div className="flex flex-1 items-center justify-center">
-                  <div className="text-center">
-                    <MessageSquare className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-                    <p className="text-sm text-muted-foreground">
-                      Selecteer een gesprek om te beginnen
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </Card>
-        )}
+        {/* Tab content */}
+        <div className="flex flex-1 min-h-0">
+          {activeTab === "team" && (
+            <ChannelTab
+              channelType="team"
+              currentUserClerkId={currentUserClerkId}
+              userRole={userRole}
+              emptyMessage="Nog geen teamberichten. Start het gesprek!"
+            />
+          )}
+          {activeTab === "mededelingen" && (
+            <ChannelTab
+              channelType="broadcast"
+              currentUserClerkId={currentUserClerkId}
+              userRole={userRole}
+              emptyMessage="Nog geen mededelingen"
+            />
+          )}
+          {activeTab === "dm" && (
+            <DMTab currentUserClerkId={currentUserClerkId} />
+          )}
+          {activeTab === "project" && (
+            <ChannelTab
+              channelType="project"
+              projectId={selectedProjectId}
+              currentUserClerkId={currentUserClerkId}
+              userRole={userRole}
+              emptyMessage="Nog geen berichten in dit project"
+            />
+          )}
+          {activeTab === "klant" && (
+            <KlantTab currentUserClerkId={currentUserClerkId} />
+          )}
+        </div>
       </m.div>
     </>
   );
