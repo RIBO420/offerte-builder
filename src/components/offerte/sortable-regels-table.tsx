@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -115,7 +115,6 @@ interface SortableRegelRowProps {
  * Dubbelklik om te bewerken. Enter bevestigt, Escape annuleert, Tab gaat naar het volgende veld.
  */
 function InlineEditableCell({
-  regelId,
   field,
   value,
   displayValue,
@@ -128,7 +127,6 @@ function InlineEditableCell({
   className,
   children,
 }: {
-  regelId: string;
   field: EditingCell["field"];
   value: string | number;
   displayValue?: React.ReactNode;
@@ -238,6 +236,17 @@ function SortableRegelRow({
 }: SortableRegelRowProps) {
   const handmatig = isHandmatigRegel(regel);
 
+  const rowClassName = useMemo(
+    () =>
+      cn(
+        "transition-colors",
+        sortableProps.isDragging && "bg-accent/50",
+        sortableProps.isOver && "bg-accent/30",
+        handmatig && "border-l-2 border-l-amber-400"
+      ),
+    [sortableProps.isDragging, sortableProps.isOver, handmatig]
+  );
+
   const isEditingField = (field: EditingCell["field"]) =>
     editingCell?.regelId === regel.id && editingCell?.field === field;
 
@@ -270,12 +279,7 @@ function SortableRegelRow({
     <TableRow
       ref={sortableProps.setNodeRef}
       style={sortableProps.style}
-      className={cn(
-        "transition-colors",
-        sortableProps.isDragging && "bg-accent/50",
-        sortableProps.isOver && "bg-accent/30",
-        handmatig && "border-l-2 border-l-amber-400"
-      )}
+      className={rowClassName}
     >
       <TableCell className="w-12">
         <DragHandle
@@ -289,7 +293,6 @@ function SortableRegelRow({
         <div>
           <div className="flex items-center gap-1.5">
             <InlineEditableCell
-              regelId={regel.id}
               field="omschrijving"
               value={regel.omschrijving}
               isEditing={isEditingField("omschrijving")}
@@ -350,7 +353,6 @@ function SortableRegelRow({
       <TableCell className="text-right">
         <div className="flex items-center justify-end gap-1">
           <InlineEditableCell
-            regelId={regel.id}
             field="hoeveelheid"
             value={regel.hoeveelheid}
             isEditing={isEditingField("hoeveelheid")}
@@ -366,7 +368,6 @@ function SortableRegelRow({
       </TableCell>
       <TableCell className="text-right">
         <InlineEditableCell
-          regelId={regel.id}
           field="prijsPerEenheid"
           value={regel.prijsPerEenheid}
           isEditing={isEditingField("prijsPerEenheid")}

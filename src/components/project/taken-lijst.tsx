@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -54,8 +54,6 @@ import { Id } from "../../../convex/_generated/dataModel";
 import { cn } from "@/lib/utils";
 import {
   SortableList,
-  SortableItemWrapper,
-  arrayMove,
   type SortableItemProps,
 } from "@/components/ui/sortable-list";
 import { DragHandle } from "@/components/ui/drag-handle";
@@ -104,7 +102,6 @@ interface SortableTaakRowProps {
   taak: PlanningTaak;
   sortableProps: SortableItemProps;
   index: number;
-  totalInScope: number;
   onUpdateStatus: (taskId: Id<"planningTaken">, status: TaakStatus) => Promise<void>;
   onEdit?: (task: PlanningTaak) => void;
   onDelete: (taskId: Id<"planningTaken">) => void;
@@ -115,12 +112,21 @@ function SortableTaakRow({
   taak,
   sortableProps,
   index,
-  totalInScope,
   onUpdateStatus,
   onEdit,
   onDelete,
   isLoading,
 }: SortableTaakRowProps) {
+  const rowClassName = useMemo(
+    () =>
+      cn(
+        "transition-colors",
+        sortableProps.isDragging && "bg-accent/50",
+        sortableProps.isOver && "bg-accent/30"
+      ),
+    [sortableProps.isDragging, sortableProps.isOver]
+  );
+
   const handleStatusCycle = async () => {
     const nextStatus: Record<TaakStatus, TaakStatus> = {
       gepland: "gestart",
@@ -134,11 +140,7 @@ function SortableTaakRow({
     <TableRow
       ref={sortableProps.setNodeRef}
       style={sortableProps.style}
-      className={cn(
-        "transition-colors",
-        sortableProps.isDragging && "bg-accent/50",
-        sortableProps.isOver && "bg-accent/30"
-      )}
+      className={rowClassName}
     >
       <TableCell className="w-12">
         <DragHandle
@@ -344,7 +346,6 @@ export function TakenLijst({
                         taak={item as PlanningTaak}
                         sortableProps={sortableProps}
                         index={index}
-                        totalInScope={scopeTaken.length}
                         onUpdateStatus={onUpdateStatus}
                         onEdit={onEdit}
                         onDelete={setDeleteTaskId}

@@ -474,16 +474,22 @@ export function SortableItemWrapper({
   sortableProps: SortableItemProps;
   className?: string;
 }) {
-  return (
-    <div
-      ref={sortableProps.setNodeRef}
-      style={sortableProps.style}
-      className={cn(
+  const wrapperClassName = React.useMemo(
+    () =>
+      cn(
         "transition-colors",
         sortableProps.isDragging && "bg-accent/50 rounded-md",
         sortableProps.isOver && "bg-accent/30",
         className
-      )}
+      ),
+    [sortableProps.isDragging, sortableProps.isOver, className]
+  );
+
+  return (
+    <div
+      ref={sortableProps.setNodeRef}
+      style={sortableProps.style}
+      className={wrapperClassName}
     >
       {children}
     </div>

@@ -32,6 +32,7 @@ function NavigationProgressInner() {
       prevSearchRef.current = currentSearch;
 
       // Route has completed — animate to 100% then fade out
+      // eslint-disable-next-line react-compiler/react-compiler -- intentional sync setState reacting to route change
       setState("completing");
       clearTimer();
       timeoutRef.current = setTimeout(() => {
