@@ -102,7 +102,7 @@ export default function DashboardPage() {
             </BreadcrumbList>
           </Breadcrumb>
         </header>
-        <div className="flex flex-1 flex-col gap-6 p-6 md:p-8 max-w-5xl">
+        <div className="flex flex-1 flex-col gap-6 p-6 md:p-8 max-w-7xl">
           <DashboardSkeleton />
         </div>
       </>
@@ -130,7 +130,7 @@ export default function DashboardPage() {
         </Breadcrumb>
       </header>
 
-      <div className="flex flex-1 flex-col gap-6 p-6 md:p-8 max-w-5xl">
+      <div className="flex flex-1 flex-col gap-6 p-6 md:p-8 max-w-7xl">
         {/* Medewerker Dashboard */}
         {!isAdmin && (
           <>

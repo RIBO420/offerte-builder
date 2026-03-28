@@ -8,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Loader2, Euro, Receipt, TrendingUp, TrendingDown, FolderKanban, Clock, Target, AlertTriangle, ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
+import { Loader2, Receipt, TrendingUp, Clock, AlertTriangle, ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
 
 // ── Formatters ────────────────────────────────────────────────────────
 
@@ -57,18 +57,10 @@ export function DirectieDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Section: Financieel Overzicht */}
+      {/* Section: Financieel & Operationeel (unieke KPIs) */}
       <div>
         <h3 className="text-sm font-medium text-muted-foreground mb-3">Financieel Overzicht</h3>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <MetricCard
-            title="Totale Omzet"
-            value={fmt.format(fin.totaleOmzet)}
-            icon={Euro}
-            iconColor="text-green-500"
-            footer={<TrendBadge current={kw.revenueThisQ} previous={kw.revenuePrevQ} />}
-            footerLabel="vs vorig kwartaal"
-          />
+        <div className="grid gap-3 sm:grid-cols-3">
           <MetricCard
             title="Openstaand"
             value={fmt.format(fin.openstaandBedrag)}
@@ -93,35 +85,6 @@ export function DirectieDashboard() {
             footerLabel="vs vorig kwartaal"
           />
           <MetricCard
-            title="Gem. Offerte Waarde"
-            value={fmt.format(fin.gemOfferteWaarde)}
-            icon={Target}
-            iconColor="text-purple-500"
-            footer={
-              <span className="text-xs text-muted-foreground">
-                {ops.conversieRate.toFixed(0)}% conversie
-              </span>
-            }
-          />
-        </div>
-      </div>
-
-      {/* Section: Operationeel */}
-      <div>
-        <h3 className="text-sm font-medium text-muted-foreground mb-3">Operationeel</h3>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <MetricCard
-            title="Actieve Projecten"
-            value={String(ops.actieveProjecten)}
-            icon={FolderKanban}
-            iconColor="text-blue-500"
-            footer={
-              <span className="text-xs text-muted-foreground">
-                {ops.afgerondeProjecten} afgerond / {ops.totaalProjecten} totaal
-              </span>
-            }
-          />
-          <MetricCard
             title="Uren deze Maand"
             value={ops.urenDezeMaand.toFixed(0)}
             icon={Clock}
@@ -129,25 +92,6 @@ export function DirectieDashboard() {
             footer={
               <span className="text-xs text-muted-foreground">
                 Geregistreerd
-              </span>
-            }
-          />
-          <MetricCard
-            title="Openstaande Offertes"
-            value={String(ops.openOffertes)}
-            icon={TrendingDown}
-            iconColor="text-amber-500"
-            footer={<TrendBadge current={kw.offertesThisQ} previous={kw.offertesPrevQ} />}
-            footerLabel="offertes dit Q"
-          />
-          <MetricCard
-            title="Conversie Rate"
-            value={`${ops.conversieRate.toFixed(0)}%`}
-            icon={Target}
-            iconColor="text-green-500"
-            footer={
-              <span className="text-xs text-muted-foreground">
-                {kw.acceptedThisQ} geaccepteerd dit Q
               </span>
             }
           />

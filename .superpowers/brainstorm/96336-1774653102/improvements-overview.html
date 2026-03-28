@@ -1,0 +1,128 @@
+<h2>Dashboard Verbeterplan</h2>
+<p class="subtitle">Gecombineerde bevindingen van UI, UX en Performance research. Selecteer wat je wilt aanpakken.</p>
+
+<!-- TIER 1: Quick Wins -->
+<h3 style="margin-top:24px;">Tier 1 — Quick Wins (componenten bestaan al!)</h3>
+<p class="subtitle">Deze componenten zitten al in je codebase maar worden niet op het dashboard gebruikt.</p>
+
+<div class="options" data-multiselect>
+  <div class="option" data-choice="animated-numbers" onclick="toggleSelect(this)">
+    <div class="letter">1</div>
+    <div class="content">
+      <h3>AnimatedNumber op alle metrics</h3>
+      <p><code>src/components/ui/animated-number.tsx</code> bestaat al. Alle getallen tellen omhoog bij laden — de #1 "feel" upgrade. Linear en Vercel doen dit overal.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="sparklines" onclick="toggleSelect(this)">
+    <div class="letter">2</div>
+    <div class="content">
+      <h3>Sparklines in metric cards</h3>
+      <p><code>src/components/ui/sparkline.tsx</code> bestaat al. Tiny trend-lijntjes achter de getallen. Maakt in een oogopslag duidelijk of iets stijgt of daalt.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="datacard" onclick="toggleSelect(this)">
+    <div class="letter">3</div>
+    <div class="content">
+      <h3>DataCard + TrendIndicator gebruiken</h3>
+      <p><code>src/components/ui/data-card.tsx</code> en <code>trend-indicator.tsx</code> bestaan. Vervangt de hand-gerolde MetricCard en TrendBadge met consistente componenten.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="greeting" onclick="toggleSelect(this)">
+    <div class="letter">4</div>
+    <div class="content">
+      <h3>Tijdsgebonden begroeting</h3>
+      <p>"Goedemorgen, Ricardo" / "Goedemiddag" / "Goedenavond" op basis van het tijdstip. Kleine touch, groot verschil in gevoel.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="empty-states" onclick="toggleSelect(this)">
+    <div class="letter">5</div>
+    <div class="content">
+      <h3>EmptyState component overal gebruiken</h3>
+      <p><code>src/components/ui/empty-state.tsx</code> bestaat maar wordt niet op het dashboard gebruikt. Consistente lege states met illustratie + actie-button.</p>
+    </div>
+  </div>
+</div>
+
+<!-- TIER 2: UI Polish -->
+<h3 style="margin-top:32px;">Tier 2 — UI Polish</h3>
+<p class="subtitle">Visuele verbeteringen die het dashboard van goed naar premium tillen.</p>
+
+<div class="options" data-multiselect>
+  <div class="option" data-choice="hover-states" onclick="toggleSelect(this)">
+    <div class="letter">6</div>
+    <div class="content">
+      <h3>Card hover states met subtiele elevatie</h3>
+      <p>Alle data cards krijgen <code>hover:-translate-y-px hover:shadow-md</code>. Maakt het dashboard levend en interactief — Linear/Vercel pattern.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="color-coding" onclick="toggleSelect(this)">
+    <div class="letter">7</div>
+    <div class="content">
+      <h3>Contextuele kleurcodes op getallen</h3>
+      <p>Omzet in groen, openstaande bedragen in amber, vervallen in rood. Nu zijn alle getallen dezelfde kleur — minder scanbaar.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="stagger-fix" onclick="toggleSelect(this)">
+    <div class="letter">8</div>
+    <div class="content">
+      <h3>Betere stagger animaties</h3>
+      <p>Van handmatige delay berekeningen naar Framer Motion <code>staggerChildren: 0.04</code>. Snellere, vloeiendere cascade — huidige 0.1s gaps voelen traag.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="border-glow" onclick="toggleSelect(this)">
+    <div class="letter">9</div>
+    <div class="content">
+      <h3>Linear-style card borders in dark mode</h3>
+      <p>Subtiele <code>border-white/5</code> + inner glow shadow. Geeft depth zonder zware borders. Vervangt de huidige platte cards.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="bento" onclick="toggleSelect(this)">
+    <div class="letter">10</div>
+    <div class="content">
+      <h3>Bento grid layout voor analytics</h3>
+      <p>Pipeline card (meeste data) wordt groter, conversie rate kleiner. Niet alles even groot — visuele hierarchie via grootte.</p>
+    </div>
+  </div>
+</div>
+
+<!-- TIER 3: Performance -->
+<h3 style="margin-top:32px;">Tier 3 — Performance</h3>
+<p class="subtitle">Backend optimalisaties voor snellere laadtijden.</p>
+
+<div class="options" data-multiselect>
+  <div class="option" data-choice="consolidate-queries" onclick="toggleSelect(this)">
+    <div class="letter">11</div>
+    <div class="content">
+      <h3>3 queries consolideren naar 1</h3>
+      <p>Nu: <code>getFullDashboardData</code> + <code>getDirectieStats</code> + <code>getMateriaalmanStats</code> = 3 round-trips met data duplicatie (offertes 3x gefetched!). Eén mega-query is 3x sneller.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="fix-n1" onclick="toggleSelect(this)">
+    <div class="letter">12</div>
+    <div class="content">
+      <h3>N+1 query fixen in MateriaalmanDashboard</h3>
+      <p>Leverancier-namen worden 1-voor-1 opgehaald in een loop. Fix: pre-fetch alle leveranciers en gebruik een Map lookup.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="skeleton-fix" onclick="toggleSelect(this)">
+    <div class="letter">13</div>
+    <div class="content">
+      <h3>Cohesieve skeleton loading</h3>
+      <p>Nu: 1 skeleton + 2 losse spinners (DirectieDashboard, MateriaalmanDashboard). Fix: één vloeiende skeleton die alle secties afdekt.</p>
+    </div>
+  </div>
+</div>
+
+<div style="margin-top:24px; padding:16px; border-radius:8px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1);">
+  <p style="margin:0; font-size:14px;"><strong>Selecteer alles wat je wilt meenemen</strong> in het dashboard redesign. Je kunt meerdere items aanklikken. Laat me in de terminal weten welke je wilt.</p>
+</div>

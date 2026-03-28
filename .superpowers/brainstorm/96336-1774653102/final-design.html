@@ -1,0 +1,341 @@
+<h2>Dashboard — Definitief Design</h2>
+<p class="subtitle">Gebaseerd op Optie C + research bevindingen + referentie dashboard. Alle verbeteringen geintegreerd.</p>
+
+<div class="mockup">
+  <div class="mockup-header">Dashboard — Top Tuinen (Final Design)</div>
+  <div class="mockup-body" style="background:#09090b; color:#e5e5e5; padding:28px; font-family:system-ui,-apple-system,sans-serif; max-width:960px; margin:0 auto;">
+
+    <!-- SECTION 1: Welcome + Quick Start (inline) -->
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:28px;">
+      <div>
+        <div style="font-size:24px; font-weight:700; color:#fff; letter-spacing:-0.02em;">Goedemiddag, Ricardo</div>
+        <div style="font-size:13px; color:#737373; margin-top:3px;">12 offertes &bull; 7 projecten</div>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <div style="background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.2); color:#4ade80; padding:9px 16px; border-radius:10px; font-size:13px; font-weight:600; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; gap:6px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          Nieuwe Aanleg
+        </div>
+        <div style="background:rgba(34,197,94,0.05); border:1px solid rgba(34,197,94,0.12); color:#86efac; padding:9px 16px; border-radius:10px; font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 14V2M9 18.12L10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76l-3.74 7.48A1 1 0 0 1 12.6 22H12a2 2 0 0 1-2-2v-1.88z"/></svg>
+          Nieuw Onderhoud
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 2: Aandacht nodig (conditional) -->
+    <div style="background:rgba(245,158,11,0.06); border:1px solid rgba(245,158,11,0.15); border-left:3px solid #f59e0b; border-radius:12px; padding:14px 16px; margin-bottom:24px;">
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+        <div style="color:#fbbf24; font-size:14px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </div>
+        <div style="font-weight:600; color:#fbbf24; font-size:14px;">Aandacht nodig</div>
+        <div style="background:rgba(245,158,11,0.15); color:#fbbf24; font-size:11px; font-weight:600; padding:2px 8px; border-radius:6px; margin-left:4px;">3</div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06); border-radius:8px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-size:13px; font-weight:500; color:#e5e5e5;">Ricardo Bos &middot; OFF-2026-017</div>
+            <div style="font-size:11px; color:#737373;">Offerte geaccepteerd — wacht op project</div>
+          </div>
+          <div style="background:#f59e0b; color:#000; padding:5px 12px; border-radius:7px; font-size:11px; font-weight:700; cursor:pointer;">Start Project</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06); border-radius:8px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div style="font-size:13px; font-weight:500; color:#e5e5e5;">Project 123</div>
+            <div style="background:rgba(239,68,68,0.15); color:#f87171; font-size:10px; font-weight:600; padding:1px 6px; border-radius:4px;">hoog</div>
+          </div>
+          <div style="font-size:12px; color:#737373; cursor:pointer;">Bekijk &rarr;</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 3: Financieel & Operationeel (2x3 grid with sparklines) -->
+    <div style="margin-bottom:24px;">
+      <div style="font-size:12px; color:#737373; font-weight:500; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:10px;">Financieel & Operationeel</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
+
+        <!-- Totale Omzet — with sparkline -->
+        <div style="background:#171717; border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:16px; position:relative; overflow:hidden; transition:all 0.2s; cursor:default;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <div style="font-size:11px; color:#737373; font-weight:500;">Totale Omzet</div>
+            <div style="color:#22c55e; font-size:12px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 0 1 0 4H8"/><path d="M12 18V6"/></svg>
+            </div>
+          </div>
+          <div style="font-size:22px; font-weight:700; color:#22c55e; letter-spacing:-0.02em;">&#8364; 69.577</div>
+          <div style="font-size:11px; color:#22c55e; margin-top:2px; display:flex; align-items:center; gap:3px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17l9.2-9.2M17 17V7H7"/></svg>
+            100% vs vorig kwartaal
+          </div>
+          <!-- Sparkline -->
+          <svg style="position:absolute; bottom:0; left:0; right:0; opacity:0.15;" viewBox="0 0 200 40" preserveAspectRatio="none" height="32" width="100%">
+            <defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#22c55e" stop-opacity="0.4"/><stop offset="100%" stop-color="#22c55e" stop-opacity="0"/></linearGradient></defs>
+            <path d="M0 35 L20 30 L40 32 L60 25 L80 20 L100 22 L120 15 L140 10 L160 8 L180 5 L200 2 L200 40 L0 40Z" fill="url(#g1)"/>
+            <path d="M0 35 L20 30 L40 32 L60 25 L80 20 L100 22 L120 15 L140 10 L160 8 L180 5 L200 2" fill="none" stroke="#22c55e" stroke-width="1.5"/>
+          </svg>
+        </div>
+
+        <!-- Actieve Projecten -->
+        <div style="background:#171717; border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:16px; transition:all 0.2s; cursor:default;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <div style="font-size:11px; color:#737373; font-weight:500;">Actieve Projecten</div>
+            <div style="color:#f97316; font-size:12px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/></svg>
+            </div>
+          </div>
+          <div style="font-size:22px; font-weight:700; letter-spacing:-0.02em;">2</div>
+          <div style="font-size:11px; color:#737373; margin-top:2px;">7 afgerond / 14 totaal</div>
+        </div>
+
+        <!-- Openstaande Offertes -->
+        <div style="background:#171717; border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:16px; transition:all 0.2s; cursor:default;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <div style="font-size:11px; color:#737373; font-weight:500;">Openstaande Offertes</div>
+            <div style="color:#3b82f6; font-size:12px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </div>
+          </div>
+          <div style="font-size:22px; font-weight:700; letter-spacing:-0.02em;">0</div>
+          <div style="font-size:11px; color:#737373; margin-top:2px;">Geen wachtend op reactie</div>
+        </div>
+
+        <!-- Openstaand -->
+        <div style="background:#171717; border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:16px; transition:all 0.2s; cursor:default;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <div style="font-size:11px; color:#737373; font-weight:500;">Openstaand</div>
+            <div style="color:#eab308; font-size:12px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 0 1 0 4H8"/><path d="M12 17.5v-11"/></svg>
+            </div>
+          </div>
+          <div style="font-size:22px; font-weight:700; letter-spacing:-0.02em;">&#8364; 0</div>
+          <div style="font-size:11px; color:#22c55e; margin-top:2px;">Alles op tijd</div>
+        </div>
+
+        <!-- Gefactureerd dit Q — with sparkline -->
+        <div style="background:#171717; border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:16px; position:relative; overflow:hidden; transition:all 0.2s; cursor:default;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <div style="font-size:11px; color:#737373; font-weight:500;">Gefactureerd dit Q</div>
+            <div style="color:#3b82f6; font-size:12px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+            </div>
+          </div>
+          <div style="font-size:22px; font-weight:700; letter-spacing:-0.02em;">&#8364; 16.315</div>
+          <div style="font-size:11px; color:#22c55e; margin-top:2px; display:flex; align-items:center; gap:3px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17l9.2-9.2M17 17V7H7"/></svg>
+            100% vs vorig kwartaal
+          </div>
+          <svg style="position:absolute; bottom:0; left:0; right:0; opacity:0.12;" viewBox="0 0 200 40" preserveAspectRatio="none" height="32" width="100%">
+            <defs><linearGradient id="g2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3b82f6" stop-opacity="0.4"/><stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/></linearGradient></defs>
+            <path d="M0 38 L30 35 L60 30 L90 28 L120 20 L150 15 L180 8 L200 5 L200 40 L0 40Z" fill="url(#g2)"/>
+            <path d="M0 38 L30 35 L60 30 L90 28 L120 20 L150 15 L180 8 L200 5" fill="none" stroke="#3b82f6" stroke-width="1.5"/>
+          </svg>
+        </div>
+
+        <!-- Uren deze Maand -->
+        <div style="background:#171717; border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:16px; transition:all 0.2s; cursor:default;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <div style="font-size:11px; color:#737373; font-weight:500;">Uren deze Maand</div>
+            <div style="color:#f97316; font-size:12px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+          </div>
+          <div style="font-size:22px; font-weight:700; letter-spacing:-0.02em;">0</div>
+          <div style="font-size:11px; color:#737373; margin-top:2px;">Geregistreerd</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 4: Projecten & Pipeline (BENTO GRID) -->
+    <div style="margin-bottom:24px;">
+      <div style="font-size:12px; color:#737373; font-weight:500; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:10px;">Projecten & Pipeline</div>
+
+      <!-- Bento row 1: Pipeline (large) + Conversie Rate (small) -->
+      <div style="display:grid; grid-template-columns:2fr 1fr; gap:8px; margin-bottom:8px;">
+
+        <!-- Offerte Pipeline (LARGE — 2fr) -->
+        <div style="background:#171717; border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+            <div>
+              <div style="font-size:14px; font-weight:600; color:#fff;">Offerte Pipeline</div>
+              <div style="font-size:11px; color:#737373;">12 totaal</div>
+            </div>
+          </div>
+          <!-- Segmented progress bar -->
+          <div style="display:flex; height:8px; border-radius:4px; overflow:hidden; gap:2px; margin-bottom:14px;">
+            <div style="background:#64748b; flex:2;" title="Concept: 2"></div>
+            <div style="background:#f59e0b; flex:2;" title="Voorcalculatie: 2"></div>
+            <div style="background:#22c55e; flex:8;" title="Geaccepteerd: 8"></div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr 1fr; gap:8px;">
+            <div style="text-align:center;">
+              <div style="font-size:18px; font-weight:700;">2</div>
+              <div style="font-size:10px; color:#64748b;">Concept</div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-size:18px; font-weight:700; color:#f59e0b;">2</div>
+              <div style="font-size:10px; color:#737373;">Voorcalc.</div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-size:18px; font-weight:700;">0</div>
+              <div style="font-size:10px; color:#737373;">Verzonden</div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-size:18px; font-weight:700; color:#22c55e;">8</div>
+              <div style="font-size:10px; color:#737373;">Geaccept.</div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-size:18px; font-weight:700;">0</div>
+              <div style="font-size:10px; color:#737373;">Afgewezen</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Conversie Rate (SMALL — mini radial) -->
+        <div style="background:#171717; border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:16px; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+          <div style="font-size:11px; color:#737373; font-weight:500; margin-bottom:10px;">Conversie Rate</div>
+          <div style="position:relative; width:90px; height:90px;">
+            <svg viewBox="0 0 36 36" style="width:90px; height:90px; transform:rotate(-90deg);">
+              <circle cx="18" cy="18" r="14" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="3"/>
+              <circle cx="18" cy="18" r="14" fill="none" stroke="#22c55e" stroke-width="3" stroke-dasharray="88 0" stroke-linecap="round"/>
+            </svg>
+            <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center;">
+              <span style="font-size:20px; font-weight:700; color:#22c55e;">100%</span>
+            </div>
+          </div>
+          <div style="font-size:10px; color:#737373; margin-top:8px; text-align:center;">8 van 8 geaccepteerd</div>
+        </div>
+      </div>
+
+      <!-- Bento row 2: Project Status (donut) + Gem. Offerte Waarde + Recente Activiteit -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
+
+        <!-- Project Status donut -->
+        <div style="background:#171717; border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:16px;">
+          <div style="font-size:14px; font-weight:600; color:#fff; margin-bottom:12px;">Project Status</div>
+          <div style="display:flex; align-items:center; gap:20px;">
+            <div style="position:relative; width:110px; height:110px; flex-shrink:0;">
+              <svg viewBox="0 0 36 36" style="width:110px; height:110px; transform:rotate(-90deg);">
+                <circle cx="18" cy="18" r="14" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="4"/>
+                <circle cx="18" cy="18" r="14" fill="none" stroke="#3b82f6" stroke-width="4" stroke-dasharray="25 75"/>
+                <circle cx="18" cy="18" r="14" fill="none" stroke="#f97316" stroke-width="4" stroke-dasharray="25 75" stroke-dashoffset="-25"/>
+                <circle cx="18" cy="18" r="14" fill="none" stroke="#22c55e" stroke-width="4" stroke-dasharray="37 63" stroke-dashoffset="-50"/>
+              </svg>
+              <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+                <div style="font-size:22px; font-weight:700;">7</div>
+                <div style="font-size:9px; color:#737373;">Projecten</div>
+              </div>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:8px; flex:1;">
+              <div style="display:flex; align-items:center; justify-content:space-between;">
+                <div style="display:flex; align-items:center; gap:6px; font-size:12px;"><span style="width:8px; height:8px; border-radius:50%; background:#3b82f6; display:inline-block;"></span> Gepland</div>
+                <span style="font-size:13px; font-weight:600;">2</span>
+              </div>
+              <div style="display:flex; align-items:center; justify-content:space-between;">
+                <div style="display:flex; align-items:center; gap:6px; font-size:12px;"><span style="width:8px; height:8px; border-radius:50%; background:#f97316; display:inline-block;"></span> In Uitvoering</div>
+                <span style="font-size:13px; font-weight:600;">2</span>
+              </div>
+              <div style="display:flex; align-items:center; justify-content:space-between;">
+                <div style="display:flex; align-items:center; gap:6px; font-size:12px;"><span style="width:8px; height:8px; border-radius:50%; background:#22c55e; display:inline-block;"></span> Nacalculatie</div>
+                <span style="font-size:13px; font-weight:600;">3</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recente Activiteit -->
+        <div style="background:#171717; border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:16px;">
+          <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
+            <div style="font-size:14px; font-weight:600; color:#fff;">Recente Activiteit</div>
+            <div style="font-size:11px; color:#737373; cursor:pointer;">Bekijk alle &rarr;</div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <div style="display:flex; gap:10px; align-items:start;">
+              <div style="width:6px; height:6px; border-radius:50%; background:#22c55e; margin-top:6px; flex-shrink:0;"></div>
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:12px; font-weight:500;">Offerte geaccepteerd</div>
+                <div style="font-size:11px; color:#737373;">OFF-2026-019 &middot; Ricardo Bos</div>
+              </div>
+              <div style="font-size:12px; font-weight:600; color:#22c55e; flex-shrink:0;">&#8364; 1.862</div>
+            </div>
+            <div style="display:flex; gap:10px; align-items:start;">
+              <div style="width:6px; height:6px; border-radius:50%; background:#22c55e; margin-top:6px; flex-shrink:0;"></div>
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:12px; font-weight:500;">Offerte geaccepteerd</div>
+                <div style="font-size:11px; color:#737373;">OFF-2026-022 &middot; Ricardo Bos</div>
+              </div>
+              <div style="font-size:12px; font-weight:600; color:#22c55e; flex-shrink:0;">&#8364; 3.885</div>
+            </div>
+            <div style="display:flex; gap:10px; align-items:start;">
+              <div style="width:6px; height:6px; border-radius:50%; background:#22c55e; margin-top:6px; flex-shrink:0;"></div>
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:12px; font-weight:500;">Offerte geaccepteerd</div>
+                <div style="font-size:11px; color:#737373;">OFF-2026-020 &middot; Ricardo Bos</div>
+              </div>
+              <div style="font-size:12px; font-weight:600; color:#22c55e; flex-shrink:0;">&#8364; 1.377</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lopende Projecten -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+        <div style="background:#171717; border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:14px; transition:all 0.2s; cursor:pointer;">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+            <div style="background:rgba(249,115,22,0.1); width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fb923c" stroke-width="2"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>
+            </div>
+            <div style="flex:1; min-width:0;">
+              <div style="font-size:13px; font-weight:600;">PROJECTX</div>
+              <div style="font-size:11px; color:#737373;">Ricardo Bos</div>
+            </div>
+            <div style="font-size:14px; font-weight:700; color:#f97316;">10%</div>
+          </div>
+          <div style="background:rgba(249,115,22,0.1); border-radius:4px; height:4px; overflow:hidden;">
+            <div style="background:#f97316; height:100%; width:10%; border-radius:4px; transition:width 1s ease;"></div>
+          </div>
+          <div style="font-size:10px; color:#737373; margin-top:6px;">10 / 97.4 uur</div>
+        </div>
+        <div style="background:#171717; border:1px solid rgba(255,255,255,0.06); border-radius:12px; padding:14px; transition:all 0.2s; cursor:pointer;">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+            <div style="background:rgba(249,115,22,0.1); width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fb923c" stroke-width="2"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>
+            </div>
+            <div style="flex:1; min-width:0;">
+              <div style="font-size:13px; font-weight:600;">123</div>
+              <div style="font-size:11px; color:#737373;">Ricardo Bos</div>
+            </div>
+            <div style="font-size:14px; font-weight:700; color:#f97316;">0%</div>
+          </div>
+          <div style="background:rgba(249,115,22,0.1); border-radius:4px; height:4px; overflow:hidden;">
+            <div style="background:#f97316; height:100%; width:0%; border-radius:4px;"></div>
+          </div>
+          <div style="font-size:10px; color:#737373; margin-top:6px;">0 / 91.3 uur</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 5: Vloot badge (conditional — all OK) -->
+    <div style="background:#171717; border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:10px 16px; display:flex; align-items:center; gap:10px;">
+      <div style="width:6px; height:6px; border-radius:50%; background:#22c55e;"></div>
+      <div style="font-size:12px; color:#737373;">Vloot & Materieel — alles operationeel</div>
+      <div style="margin-left:auto; font-size:11px; color:#525252; cursor:pointer;">Details &rarr;</div>
+    </div>
+
+  </div>
+</div>
+
+<div style="margin-top:20px; padding:16px; border-radius:8px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1);">
+  <h3 style="margin:0 0 8px 0; font-size:14px;">Wat is nieuw t.o.v. de vorige versie:</h3>
+  <ul style="margin:0; padding-left:20px; font-size:13px; line-height:1.7; color:rgba(255,255,255,0.7);">
+    <li><strong>Sparklines</strong> achter Totale Omzet en Gefactureerd (gradient area charts)</li>
+    <li><strong>Contextuele kleuren</strong> — omzet groen, openstaand amber, project oranje</li>
+    <li><strong>Bento grid</strong> — Pipeline card is groter (2fr), Conversie Rate als mini-radial</li>
+    <li><strong>Segmented progress bar</strong> in Pipeline (kleur per status)</li>
+    <li><strong>Tijdsbegroeting</strong> — "Goedemiddag, Ricardo"</li>
+    <li><strong>Subtielere borders</strong> — rgba(255,255,255,0.06) i.p.v. harde borders</li>
+    <li><strong>Uppercase section headers</strong> met letter-spacing (referentie dashboard stijl)</li>
+    <li><strong>Compactere activiteit feed</strong> — dot indicators i.p.v. grote ronde icons</li>
+    <li><strong>Border-left accent</strong> op Aandacht nodig (i.p.v. gradient achtergrond)</li>
+  </ul>
+</div>

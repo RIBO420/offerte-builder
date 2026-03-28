@@ -1,0 +1,184 @@
+<h2>Project Overzicht — Voorgesteld Design</h2>
+<p class="subtitle">Bekijk het volledige mockup hieronder. Klopt dit met wat je in gedachten had?</p>
+
+<div class="mockup">
+  <div class="mockup-header">Project Overzichtspagina — Nieuw Design</div>
+  <div class="mockup-body" style="background:#09090b; padding:24px; color:#fff;">
+
+    <!-- Header -->
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+      <div style="width:28px; height:28px; border-radius:6px; border:1px solid #333; display:flex; align-items:center; justify-content:center; color:#888; font-size:12px;">←</div>
+      <div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:22px; font-weight:700; letter-spacing:-0.3px;">test project 2026 maart</span>
+          <span style="background:#1e3a5f; color:#60a5fa; padding:3px 10px; border-radius:6px; font-size:11px; font-weight:600;">Gepland</span>
+        </div>
+        <div style="font-size:12px; color:#666; margin-top:2px;">
+          TOPTUINEN2026-029 · Ricardo Bos · Aangemaakt 26 mrt 2026
+        </div>
+      </div>
+    </div>
+
+    <!-- Thin progress stepper -->
+    <div style="margin: 16px 0 20px 0;">
+      <div style="display:flex; gap:3px; margin-bottom:6px;">
+        <div style="flex:1; height:4px; background:#3b82f6; border-radius:2px;"></div>
+        <div style="flex:1; height:4px; background:#262626; border-radius:2px;"></div>
+        <div style="flex:1; height:4px; background:#262626; border-radius:2px;"></div>
+        <div style="flex:1; height:4px; background:#262626; border-radius:2px;"></div>
+        <div style="flex:1; height:4px; background:#262626; border-radius:2px;"></div>
+      </div>
+      <div style="display:flex; justify-content:space-between; font-size:9px; color:#555;">
+        <span style="color:#3b82f6; font-weight:600;">Gepland</span>
+        <span>In Uitvoering</span>
+        <span>Afgerond</span>
+        <span>Nacalculatie</span>
+        <span>Gefactureerd</span>
+      </div>
+    </div>
+
+    <!-- Budget Warning Banner (conditionally shown) -->
+    <div style="border:1px solid #92400e; background:#1c1305; border-radius:8px; padding:12px 16px; margin-bottom:16px; display:flex; align-items:center; gap:12px; display:none;">
+      <span style="color:#f59e0b; font-size:16px;">⚠</span>
+      <div style="flex:1;">
+        <div style="color:#fbbf24; font-weight:600; font-size:13px;">Budget waarschuwing — 85% verbruikt</div>
+        <div style="color:#92400e; font-size:11px;">€8.500 van €10.000 budget</div>
+      </div>
+      <div style="width:80px; height:6px; background:#333; border-radius:3px;"><div style="width:85%; height:100%; background:#f59e0b; border-radius:3px;"></div></div>
+    </div>
+
+    <!-- Two Focus Cards -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px;">
+
+      <!-- Uren Focus Card -->
+      <div style="border:1px solid #262626; border-radius:10px; padding:20px; background:#0a0a0a;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div style="width:28px; height:28px; border-radius:6px; background:#172554; display:flex; align-items:center; justify-content:center;">
+              <span style="color:#60a5fa; font-size:13px;">⏱</span>
+            </div>
+            <span style="color:#a1a1aa; font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.5px;">Uren Voortgang</span>
+          </div>
+          <span style="color:#555; font-size:11px;">0%</span>
+        </div>
+        <div style="display:flex; align-items:baseline; gap:6px; margin-bottom:4px;">
+          <span style="font-size:36px; font-weight:800; color:#fff; letter-spacing:-1px;">0.0</span>
+          <span style="font-size:16px; color:#555; font-weight:500;">/ 13.5 uur</span>
+        </div>
+        <div style="background:#262626; height:8px; border-radius:4px; margin-top:10px; overflow:hidden;">
+          <div style="width:0%; height:100%; background:linear-gradient(90deg, #3b82f6, #60a5fa); border-radius:4px;"></div>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-top:8px; font-size:10px; color:#555;">
+          <span>1.0 dagen geschat</span>
+          <span>2 teamleden</span>
+        </div>
+      </div>
+
+      <!-- Planning Focus Card -->
+      <div style="border:1px solid #262626; border-radius:10px; padding:20px; background:#0a0a0a;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div style="width:28px; height:28px; border-radius:6px; background:#14532d; display:flex; align-items:center; justify-content:center;">
+              <span style="color:#4ade80; font-size:13px;">✓</span>
+            </div>
+            <span style="color:#a1a1aa; font-size:12px; font-weight:500; text-transform:uppercase; letter-spacing:0.5px;">Planning Voortgang</span>
+          </div>
+          <span style="color:#555; font-size:11px;">0%</span>
+        </div>
+        <div style="display:flex; align-items:baseline; gap:6px; margin-bottom:4px;">
+          <span style="font-size:36px; font-weight:800; color:#fff; letter-spacing:-1px;">0</span>
+          <span style="font-size:16px; color:#555; font-weight:500;">/ 6 taken</span>
+        </div>
+        <div style="background:#262626; height:8px; border-radius:4px; margin-top:10px; overflow:hidden;">
+          <div style="width:0%; height:100%; background:linear-gradient(90deg, #22c55e, #4ade80); border-radius:4px;"></div>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-top:8px; font-size:10px; color:#555;">
+          <span>0 afgerond</span>
+          <span>6 open</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Module Pill Navigation -->
+    <div style="margin-bottom:8px;">
+      <div style="font-size:11px; color:#555; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px; font-weight:500;">Modules</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+
+        <!-- Active module (contextual based on status) -->
+        <div style="border:1px solid #2563eb; background:#0c1e3f; border-radius:8px; padding:10px 16px; display:flex; align-items:center; gap:8px; cursor:pointer;">
+          <span style="font-size:13px; color:#60a5fa;">📋</span>
+          <div>
+            <div style="color:#60a5fa; font-size:12px; font-weight:600;">Planning</div>
+            <div style="color:#3b82f6; font-size:10px;">0/6 taken · Start hier</div>
+          </div>
+          <span style="color:#3b82f6; font-size:12px; margin-left:4px;">→</span>
+        </div>
+
+        <!-- Regular modules -->
+        <div style="border:1px solid #262626; border-radius:8px; padding:10px 16px; display:flex; align-items:center; gap:8px; cursor:pointer;">
+          <span style="font-size:13px;">⏱</span>
+          <div>
+            <div style="color:#e4e4e7; font-size:12px; font-weight:500;">Uitvoering</div>
+            <div style="color:#555; font-size:10px;">0.0 / 13.5 uur</div>
+          </div>
+          <span style="color:#555; font-size:12px; margin-left:4px;">→</span>
+        </div>
+
+        <div style="border:1px solid #262626; border-radius:8px; padding:10px 16px; display:flex; align-items:center; gap:8px; cursor:pointer;">
+          <span style="font-size:13px;">€</span>
+          <div>
+            <div style="color:#e4e4e7; font-size:12px; font-weight:500;">Kosten</div>
+            <div style="color:#555; font-size:10px;">Live tracking</div>
+          </div>
+          <span style="color:#555; font-size:12px; margin-left:4px;">→</span>
+        </div>
+
+        <div style="border:1px solid #262626; border-radius:8px; padding:10px 16px; display:flex; align-items:center; gap:8px; cursor:pointer;">
+          <span style="font-size:13px;">📊</span>
+          <div>
+            <div style="color:#e4e4e7; font-size:12px; font-weight:500;">Nacalculatie</div>
+            <div style="color:#555; font-size:10px;">Niet beschikbaar</div>
+          </div>
+          <span style="color:#555; font-size:12px; margin-left:4px;">→</span>
+        </div>
+
+        <div style="border:1px solid #262626; border-radius:8px; padding:10px 16px; display:flex; align-items:center; gap:8px; cursor:pointer;">
+          <span style="font-size:13px;">📄</span>
+          <div>
+            <div style="color:#e4e4e7; font-size:12px; font-weight:500;">Offerte</div>
+            <div style="color:#555; font-size:10px;">TOPTUINEN2026-029</div>
+          </div>
+          <span style="color:#555; font-size:12px; margin-left:4px;">→</span>
+        </div>
+
+        <div style="border:1px solid #262626; border-radius:8px; padding:10px 16px; display:flex; align-items:center; gap:8px; cursor:pointer;">
+          <span style="font-size:13px;">📍</span>
+          <div>
+            <div style="color:#e4e4e7; font-size:12px; font-weight:500;">Werklocatie</div>
+            <div style="color:#555; font-size:10px;">Niet ingesteld</div>
+          </div>
+          <span style="color:#555; font-size:12px; margin-left:4px;">→</span>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="options" style="margin-top: 24px;">
+  <div class="option" data-choice="approve" onclick="toggleSelect(this)">
+    <div class="letter">✓</div>
+    <div class="content">
+      <h3>Ziet er goed uit, ga door</h3>
+      <p>Dit is wat ik wil — ga door met het spec document</p>
+    </div>
+  </div>
+  <div class="option" data-choice="tweak" onclick="toggleSelect(this)">
+    <div class="letter">~</div>
+    <div class="content">
+      <h3>Bijna, maar ik wil iets aanpassen</h3>
+      <p>Vertel me in de terminal wat je wilt wijzigen</p>
+    </div>
+  </div>
+</div>

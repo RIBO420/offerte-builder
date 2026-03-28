@@ -239,8 +239,8 @@ function ConversieRateCard({
   averageValue: number;
 }) {
   const pct = Math.min(100, Math.max(0, rate));
-  // r=14, circumference = 2 * PI * 14 ≈ 87.96
-  const circumference = 2 * Math.PI * 14;
+  // r=40, circumference = 2 * PI * 40 ≈ 251.33
+  const circumference = 2 * Math.PI * 40;
   const dashLength = (pct / 100) * circumference;
 
   return (
@@ -250,24 +250,24 @@ function ConversieRateCard({
       </span>
 
       {/* SVG radial chart */}
-      <svg width={100} height={100} viewBox="0 0 100 100">
+      <svg width={120} height={120} viewBox="0 0 100 100">
         {/* Track */}
         <circle
           cx={50}
           cy={50}
-          r={14}
+          r={40}
           fill="none"
-          stroke="rgba(255,255,255,0.04)"
-          strokeWidth={3.5}
+          stroke="rgba(255,255,255,0.06)"
+          strokeWidth={6}
         />
         {/* Fill */}
         <circle
           cx={50}
           cy={50}
-          r={14}
+          r={40}
           fill="none"
           stroke="#22c55e"
-          strokeWidth={3.5}
+          strokeWidth={6}
           strokeDasharray={`${dashLength} ${circumference - dashLength}`}
           strokeDashoffset={circumference * 0.25}
           strokeLinecap="round"
@@ -279,7 +279,7 @@ function ConversieRateCard({
           y={50}
           textAnchor="middle"
           dominantBaseline="central"
-          fontSize={22}
+          fontSize={18}
           fontWeight={800}
           fill="#22c55e"
         >

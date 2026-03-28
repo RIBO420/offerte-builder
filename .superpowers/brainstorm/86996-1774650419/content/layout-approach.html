@@ -1,0 +1,263 @@
+<h2>Project Overzicht — Layout Aanpak</h2>
+<p class="subtitle">Welke structuur voelt het meest overzichtelijk?</p>
+
+<div class="cards">
+  <!-- Option A -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding: 20px; background: #111;">
+      <div style="font-family: monospace; font-size: 11px; color: #888; line-height: 1.8;">
+        <!-- Header -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <div>
+            <span style="color:#fff; font-size:16px; font-weight:bold;">Project Naam</span>
+            <span style="background:#2563eb; color:#fff; padding:2px 8px; border-radius:4px; font-size:10px; margin-left:8px;">Gepland</span>
+          </div>
+        </div>
+
+        <!-- Stepper - compact inline -->
+        <div style="display:flex; gap:4px; margin-bottom:16px; font-size:9px;">
+          <span style="background:#2563eb; color:#fff; padding:2px 6px; border-radius:3px;">Gepland</span>
+          <span style="color:#444;">→</span>
+          <span style="color:#555; padding:2px 6px;">Uitvoering</span>
+          <span style="color:#444;">→</span>
+          <span style="color:#555; padding:2px 6px;">Afgerond</span>
+          <span style="color:#444;">→</span>
+          <span style="color:#555; padding:2px 6px;">Nacalc.</span>
+          <span style="color:#444;">→</span>
+          <span style="color:#555; padding:2px 6px;">Factuur</span>
+        </div>
+
+        <!-- Two column: left = big metrics, right = modules -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+          <!-- Left: Metrics dashboard -->
+          <div style="border:1px solid #333; border-radius:8px; padding:12px;">
+            <div style="color:#aaa; font-size:10px; margin-bottom:8px; text-transform:uppercase;">Voortgang & Budget</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+              <div style="text-align:center;">
+                <div style="color:#fff; font-size:20px; font-weight:bold;">0.0</div>
+                <div style="color:#666; font-size:9px;">/ 13.5 uur</div>
+                <div style="background:#333; height:4px; border-radius:2px; margin-top:4px;"><div style="width:0%; height:100%; background:#3b82f6; border-radius:2px;"></div></div>
+              </div>
+              <div style="text-align:center;">
+                <div style="color:#fff; font-size:20px; font-weight:bold;">0%</div>
+                <div style="color:#666; font-size:9px;">taken klaar</div>
+                <div style="background:#333; height:4px; border-radius:2px; margin-top:4px;"><div style="width:0%; height:100%; background:#22c55e; border-radius:2px;"></div></div>
+              </div>
+              <div style="text-align:center;">
+                <div style="color:#fff; font-size:20px; font-weight:bold;">1.0</div>
+                <div style="color:#666; font-size:9px;">dagen geschat</div>
+              </div>
+              <div style="text-align:center;">
+                <div style="color:#fff; font-size:20px; font-weight:bold;">2</div>
+                <div style="color:#666; font-size:9px;">teamleden</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Module nav grid -->
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+            <div style="border:1px solid #333; border-radius:6px; padding:8px; font-size:9px;">
+              <div style="color:#aaa;">📋 Planning</div>
+              <div style="color:#fff; font-weight:bold;">0/6</div>
+            </div>
+            <div style="border:1px solid #333; border-radius:6px; padding:8px; font-size:9px;">
+              <div style="color:#aaa;">⏱ Uren</div>
+              <div style="color:#fff; font-weight:bold;">0.0h</div>
+            </div>
+            <div style="border:1px solid #333; border-radius:6px; padding:8px; font-size:9px;">
+              <div style="color:#aaa;">€ Kosten</div>
+              <div style="color:#fff; font-weight:bold;">—</div>
+            </div>
+            <div style="border:1px solid #333; border-radius:6px; padding:8px; font-size:9px;">
+              <div style="color:#aaa;">📊 Nacalc.</div>
+              <div style="color:#fff; font-weight:bold;">—</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom: compact werklocatie + offerte -->
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px;">
+          <div style="border:1px solid #333; border-radius:6px; padding:8px; font-size:9px; color:#666;">
+            📍 Werklocatie — niet ingesteld
+          </div>
+          <div style="border:1px solid #333; border-radius:6px; padding:8px; font-size:9px; color:#aaa;">
+            📄 TOPTUINEN2026-029
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A: Two-Column Dashboard</h3>
+      <p>Links grote metrics met progress bars, rechts compacte module-tegels. Alles op één scherm, geen scrollen nodig.</p>
+    </div>
+  </div>
+
+  <!-- Option B -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding: 20px; background: #111;">
+      <div style="font-family: monospace; font-size: 11px; color: #888; line-height: 1.8;">
+        <!-- Header -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <div>
+            <span style="color:#fff; font-size:16px; font-weight:bold;">Project Naam</span>
+            <span style="background:#2563eb; color:#fff; padding:2px 8px; border-radius:4px; font-size:10px; margin-left:8px;">Gepland</span>
+          </div>
+          <div style="font-size:9px; color:#666;">TOPTUINEN2026-029 · 📍 Niet ingesteld</div>
+        </div>
+
+        <!-- Hero metric bar - horizontal -->
+        <div style="border:1px solid #333; border-radius:8px; padding:12px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; gap:24px;">
+            <div>
+              <div style="color:#666; font-size:9px;">UREN</div>
+              <div style="color:#fff; font-size:18px; font-weight:bold;">0.0 <span style="color:#555; font-size:12px;">/ 13.5</span></div>
+            </div>
+            <div>
+              <div style="color:#666; font-size:9px;">PLANNING</div>
+              <div style="color:#fff; font-size:18px; font-weight:bold;">0% <span style="color:#555; font-size:12px;">0/6</span></div>
+            </div>
+            <div>
+              <div style="color:#666; font-size:9px;">TEAM</div>
+              <div style="color:#fff; font-size:18px; font-weight:bold;">2 <span style="color:#555; font-size:12px;">pers.</span></div>
+            </div>
+            <div>
+              <div style="color:#666; font-size:9px;">DAGEN</div>
+              <div style="color:#fff; font-size:18px; font-weight:bold;">1.0</div>
+            </div>
+          </div>
+          <!-- Compact stepper -->
+          <div style="display:flex; gap:3px; font-size:8px;">
+            <span style="background:#2563eb; width:20px; height:4px; border-radius:2px; display:block;"></span>
+            <span style="background:#333; width:20px; height:4px; border-radius:2px; display:block;"></span>
+            <span style="background:#333; width:20px; height:4px; border-radius:2px; display:block;"></span>
+            <span style="background:#333; width:20px; height:4px; border-radius:2px; display:block;"></span>
+            <span style="background:#333; width:20px; height:4px; border-radius:2px; display:block;"></span>
+          </div>
+        </div>
+
+        <!-- Module strip - compact row -->
+        <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:6px;">
+          <div style="border:1px solid #2563eb; border-radius:6px; padding:10px; text-align:center;">
+            <div style="color:#2563eb; font-size:9px; font-weight:bold;">PLANNING</div>
+            <div style="color:#fff; font-weight:bold; margin:4px 0;">0/6</div>
+            <div style="color:#2563eb; font-size:8px;">Start hier →</div>
+          </div>
+          <div style="border:1px solid #333; border-radius:6px; padding:10px; text-align:center;">
+            <div style="color:#888; font-size:9px;">UREN</div>
+            <div style="color:#fff; font-weight:bold; margin:4px 0;">0.0h</div>
+            <div style="color:#555; font-size:8px;">Bekijk →</div>
+          </div>
+          <div style="border:1px solid #333; border-radius:6px; padding:10px; text-align:center;">
+            <div style="color:#888; font-size:9px;">KOSTEN</div>
+            <div style="color:#fff; font-weight:bold; margin:4px 0;">—</div>
+            <div style="color:#555; font-size:8px;">Bekijk →</div>
+          </div>
+          <div style="border:1px solid #333; border-radius:6px; padding:10px; text-align:center;">
+            <div style="color:#888; font-size:9px;">NACALC.</div>
+            <div style="color:#fff; font-weight:bold; margin:4px 0;">—</div>
+            <div style="color:#555; font-size:8px;">Bekijk →</div>
+          </div>
+          <div style="border:1px solid #333; border-radius:6px; padding:10px; text-align:center;">
+            <div style="color:#888; font-size:9px;">OFFERTE</div>
+            <div style="color:#fff; font-weight:bold; margin:4px 0;">1.0d</div>
+            <div style="color:#555; font-size:8px;">Bekijk →</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B: Horizontal Metric Bar + Strip</h3>
+      <p>Eén hero-balk met alle KPIs bovenaan, daaronder een compacte module-strip. Ultra-compact, geen kaarten die ruimte verspillen.</p>
+    </div>
+  </div>
+
+  <!-- Option C -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding: 20px; background: #111;">
+      <div style="font-family: monospace; font-size: 11px; color: #888; line-height: 1.8;">
+        <!-- Header with inline meta -->
+        <div style="margin-bottom:12px;">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+            <span style="color:#fff; font-size:16px; font-weight:bold;">Project Naam</span>
+            <span style="background:#2563eb; color:#fff; padding:2px 8px; border-radius:4px; font-size:10px;">Gepland</span>
+          </div>
+          <div style="font-size:9px; color:#666;">TOPTUINEN2026-029 · 2 teamleden · 1.0 dagen geschat</div>
+        </div>
+
+        <!-- Stepper as thin progress bar -->
+        <div style="display:flex; gap:2px; margin-bottom:16px;">
+          <div style="flex:1; height:3px; background:#2563eb; border-radius:2px;"></div>
+          <div style="flex:1; height:3px; background:#333; border-radius:2px;"></div>
+          <div style="flex:1; height:3px; background:#333; border-radius:2px;"></div>
+          <div style="flex:1; height:3px; background:#333; border-radius:2px;"></div>
+          <div style="flex:1; height:3px; background:#333; border-radius:2px;"></div>
+        </div>
+
+        <!-- Two big focus cards side by side -->
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+          <!-- Uren vs Budget -->
+          <div style="border:1px solid #333; border-radius:8px; padding:14px;">
+            <div style="color:#aaa; font-size:9px; text-transform:uppercase; margin-bottom:8px;">Uren Voortgang</div>
+            <div style="display:flex; align-items:baseline; gap:4px;">
+              <span style="color:#fff; font-size:28px; font-weight:bold;">0.0</span>
+              <span style="color:#555; font-size:14px;">/ 13.5 uur</span>
+            </div>
+            <div style="background:#333; height:6px; border-radius:3px; margin-top:8px;">
+              <div style="width:0%; height:100%; background:#3b82f6; border-radius:3px;"></div>
+            </div>
+            <div style="color:#555; font-size:9px; margin-top:4px;">0% verbruikt</div>
+          </div>
+
+          <!-- Planning voortgang -->
+          <div style="border:1px solid #333; border-radius:8px; padding:14px;">
+            <div style="color:#aaa; font-size:9px; text-transform:uppercase; margin-bottom:8px;">Planning Voortgang</div>
+            <div style="display:flex; align-items:baseline; gap:4px;">
+              <span style="color:#fff; font-size:28px; font-weight:bold;">0</span>
+              <span style="color:#555; font-size:14px;">/ 6 taken</span>
+            </div>
+            <div style="background:#333; height:6px; border-radius:3px; margin-top:8px;">
+              <div style="width:0%; height:100%; background:#22c55e; border-radius:3px;"></div>
+            </div>
+            <div style="color:#555; font-size:9px; margin-top:4px;">0% afgerond</div>
+          </div>
+        </div>
+
+        <!-- Compact module links row -->
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+          <div style="border:1px solid #2563eb; background:#2563eb15; border-radius:6px; padding:6px 12px; font-size:9px; color:#2563eb; cursor:pointer;">
+            📋 Planning →
+          </div>
+          <div style="border:1px solid #333; border-radius:6px; padding:6px 12px; font-size:9px; color:#888; cursor:pointer;">
+            ⏱ Uitvoering →
+          </div>
+          <div style="border:1px solid #333; border-radius:6px; padding:6px 12px; font-size:9px; color:#888; cursor:pointer;">
+            € Kosten →
+          </div>
+          <div style="border:1px solid #333; border-radius:6px; padding:6px 12px; font-size:9px; color:#888; cursor:pointer;">
+            📊 Nacalculatie →
+          </div>
+          <div style="border:1px solid #333; border-radius:6px; padding:6px 12px; font-size:9px; color:#888; cursor:pointer;">
+            📄 Offerte →
+          </div>
+          <div style="border:1px solid #333; border-radius:6px; padding:6px 12px; font-size:9px; color:#888; cursor:pointer;">
+            📍 Werklocatie →
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C: Focus Cards + Pill Nav</h3>
+      <p>Twee grote "focus cards" voor uren en planning (je kernmetrics), daaronder compacte pill-links naar modules. Maximale focus op "zijn we on track?"</p>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 24px;">
+  <h3>Alle drie elimineren:</h3>
+  <ul style="color: #999; font-size: 14px; line-height: 1.8;">
+    <li>De dubbele stats-rij (quick stats + module cards)</li>
+    <li>Oversized werklocatie empty state</li>
+    <li>Module cards als grote kaarten (worden compact)</li>
+    <li>Onnodige witruimte en scrolling</li>
+  </ul>
+</div>
