@@ -8,24 +8,15 @@ import { api } from "../../../../../convex/_generated/api";
 import { Id } from "../../../../../convex/_generated/dataModel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Home, AlertTriangle, ArrowLeft, FileText } from "lucide-react";
+import { AlertTriangle, ArrowLeft, FileText } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import { CopyButton } from "@/components/ui/copy-button";
 import { ThinProgressBar, type ProjectStatus } from "@/components/project/thin-progress-bar";
 import { ProjectFocusCards } from "@/components/project/project-focus-cards";
@@ -81,25 +72,7 @@ export default function ProjectDetailPage({
   if (projectDetails === undefined) {
     return (
       <>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbLink href="/projecten">Projecten</BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage>Project</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </header>
+        <PageHeader customLabels={{ [`/projecten/${id}`]: "Project" }} />
         <ProjectDetailSkeleton />
       </>
     );
@@ -109,25 +82,7 @@ export default function ProjectDetailPage({
   if (!projectDetails) {
     return (
       <>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbLink href="/projecten">Projecten</BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage>Niet gevonden</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </header>
+        <PageHeader customLabels={{ [`/projecten/${id}`]: "Niet gevonden" }} />
         <div className="flex flex-1 flex-col items-center justify-center gap-4">
           <FileText className="h-12 w-12 text-muted-foreground/50" />
           <h2 className="text-lg font-medium">Project niet gevonden</h2>
@@ -144,25 +99,7 @@ export default function ProjectDetailPage({
 
   return (
     <>
-      <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-        <SidebarTrigger className="-ml-1" />
-        <Separator orientation="vertical" className="mr-2 h-4" />
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/projecten">Projecten</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>{project.naam}</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      </header>
+      <PageHeader customLabels={{ [`/projecten/${id}`]: project.naam }} />
 
       <div className="flex flex-1 flex-col gap-5 p-4 md:p-8">
         {/* Header */}

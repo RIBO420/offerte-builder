@@ -1,43 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { Separator } from "@/components/ui/separator";
-import { SidebarTrigger } from "@/components/ui/sidebar";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
-import { Home, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import { RequireRole } from "@/components/require-admin";
 import { InkooporderForm } from "@/components/inkoop/inkooporder-form";
 
 export default function NieuweInkooporderPage() {
   return (
     <RequireRole allowedRoles={["directie", "projectleider", "materiaalman"]}>
-      <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-        <SidebarTrigger className="-ml-1" />
-        <Separator orientation="vertical" className="mr-2 h-4" />
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/inkoop">Inkoop</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>Nieuwe inkooporder</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      </header>
+      <PageHeader />
 
       <div className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
         {/* Header */}

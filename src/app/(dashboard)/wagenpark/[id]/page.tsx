@@ -14,15 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { SidebarTrigger } from "@/components/ui/sidebar";
+import { PageHeader } from "@/components/page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -57,7 +49,6 @@ import {
   Pencil,
   Trash2,
   AlertTriangle,
-  Home,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Id } from "../../../../../convex/_generated/dataModel";
@@ -193,25 +184,7 @@ export default function VoertuigDetailPage({
   if (isLoading) {
     return (
       <>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbLink href="/wagenpark">Wagenpark</BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage>Laden...</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </header>
+        <PageHeader />
         <div className="flex flex-1 items-center justify-center">
           <m.div
             initial={{ opacity: 0, scale: 0.9 }}
@@ -229,25 +202,7 @@ export default function VoertuigDetailPage({
   if (!voertuig) {
     return (
       <>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbLink href="/wagenpark">Wagenpark</BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage>Niet gevonden</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </header>
+        <PageHeader />
         <div className="flex flex-1 flex-col items-center justify-center gap-4">
           <Car className="h-12 w-12 text-muted-foreground/50" />
           <h2 className="text-lg font-medium">Voertuig niet gevonden</h2>
@@ -264,25 +219,7 @@ export default function VoertuigDetailPage({
 
   return (
     <>
-      <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-        <SidebarTrigger className="-ml-1" />
-        <Separator orientation="vertical" className="mr-2 h-4" />
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/wagenpark">Wagenpark</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>{voertuig.kenteken}</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      </header>
+      <PageHeader customLabels={{ [`/wagenpark/${id}`]: voertuig.kenteken }} />
 
       <m.div
         initial={{ opacity: 0, y: 20 }}

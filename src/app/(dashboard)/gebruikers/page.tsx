@@ -14,16 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { SidebarTrigger } from "@/components/ui/sidebar";
+import { PageHeader } from "@/components/page-header";
 import {
   Table,
   TableBody,
@@ -75,7 +66,6 @@ import {
   Handshake,
   Package,
   Trash2,
-  Home,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useUsers, useIsAdmin, UserWithDetails, UserRole } from "@/hooks/use-users";
@@ -265,21 +255,7 @@ export default function GebruikersPage() {
   if (isLoading) {
     return (
       <>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage>Gebruikers</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </header>
+        <PageHeader />
         <div className="flex flex-1 items-center justify-center">
           <m.div
             initial={{ opacity: 0, scale: 0.9 }}
@@ -301,21 +277,7 @@ export default function GebruikersPage() {
 
   return (
     <>
-      <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-        <SidebarTrigger className="-ml-1" />
-        <Separator orientation="vertical" className="mr-2 h-4" />
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>Gebruikers</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      </header>
+      <PageHeader />
 
       <m.div
         variants={containerVariants}

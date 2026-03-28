@@ -6,17 +6,8 @@ import { useQuery } from "convex/react";
 import { api } from "../../../../../../convex/_generated/api";
 import { Id } from "../../../../../../convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { SidebarTrigger } from "@/components/ui/sidebar";
-import { Home, ArrowLeft, Euro } from "lucide-react";
+import { ArrowLeft, Euro } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import { ProjectKostenDashboard } from "@/components/project/project-kosten-dashboard";
 import { ProjectKostenSkeleton } from "@/components/skeletons";
 
@@ -38,25 +29,7 @@ export default function ProjectKostenPage({
   if (projectDetails === undefined) {
     return (
       <>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbLink href="/projecten">Projecten</BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage>Kosten</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </header>
+        <PageHeader />
         <ProjectKostenSkeleton />
       </>
     );
@@ -65,25 +38,7 @@ export default function ProjectKostenPage({
   if (!projectDetails) {
     return (
       <>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbLink href="/projecten">Projecten</BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage>Niet gevonden</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </header>
+        <PageHeader customLabels={{ [`/projecten/${id}/kosten`]: "Niet gevonden" }} />
         <div className="flex flex-1 flex-col items-center justify-center gap-4">
           <Euro className="h-12 w-12 text-muted-foreground/50" />
           <h2 className="text-lg font-medium">Project niet gevonden</h2>
@@ -100,31 +55,7 @@ export default function ProjectKostenPage({
 
   return (
     <>
-      <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-        <SidebarTrigger className="-ml-1" />
-        <Separator orientation="vertical" className="mr-2 h-4" />
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/projecten">Projecten</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem className="hidden sm:inline-flex">
-              <BreadcrumbLink href={`/projecten/${id}`}>
-                {projectDetails.project?.naam || "Project"}
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator className="hidden sm:inline-flex" />
-            <BreadcrumbItem>
-              <BreadcrumbPage>Kosten</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      </header>
+      <PageHeader customLabels={{ [`/projecten/${id}`]: projectDetails.project?.naam || "Project" }} />
 
       <div className="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6">
         {/* Page Header */}

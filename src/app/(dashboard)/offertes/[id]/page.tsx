@@ -6,17 +6,8 @@ import { useRouter } from "next/navigation";
 import { m } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { SidebarTrigger } from "@/components/ui/sidebar";
-import { Home, FileText } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
+import { FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/format";
 import { SaveAsTemplateDialog } from "@/components/offerte/save-as-template-dialog";
@@ -178,25 +169,7 @@ export default function OfferteDetailPage({
   if (isLoading) {
     return (
       <>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbLink href="/offertes">Offertes</BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage>Laden...</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </header>
+        <PageHeader customLabels={{ [`/offertes/${id}`]: "Laden..." }} />
 
         <m.div
           initial={{ opacity: 0, y: 10 }}
@@ -213,25 +186,7 @@ export default function OfferteDetailPage({
   if (!offerte) {
     return (
       <>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbLink href="/offertes">Offertes</BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage>Niet gevonden</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </header>
+        <PageHeader customLabels={{ [`/offertes/${id}`]: "Niet gevonden" }} />
 
         <div className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
           <Card>
@@ -256,30 +211,11 @@ export default function OfferteDetailPage({
 
   return (
     <>
-      <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4">
-        <SidebarTrigger className="-ml-1" />
-        <Separator orientation="vertical" className="mr-2 h-4" />
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/offertes">Offertes</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>{offerte.offerteNummer}</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-        <div className="ml-auto flex items-center gap-2">
-          <Badge variant="secondary" className="text-sm md:text-lg font-semibold px-2 py-0.5 md:px-3 md:py-1 truncate max-w-[150px] md:max-w-none">
-            {formatCurrency(offerte.totalen.totaalInclBtw)} incl. BTW
-          </Badge>
-        </div>
-      </header>
+      <PageHeader customLabels={{ [`/offertes/${id}`]: offerte.offerteNummer }}>
+        <Badge variant="secondary" className="text-sm md:text-lg font-semibold px-2 py-0.5 md:px-3 md:py-1 truncate max-w-[150px] md:max-w-none">
+          {formatCurrency(offerte.totalen.totaalInclBtw)} incl. BTW
+        </Badge>
+      </PageHeader>
 
       <m.div
         initial={{ opacity: 0, y: 20 }}

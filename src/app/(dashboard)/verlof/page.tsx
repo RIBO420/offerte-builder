@@ -8,7 +8,6 @@ import { Id } from "../../../../convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -36,15 +35,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { SidebarTrigger } from "@/components/ui/sidebar";
+import { PageHeader } from "@/components/page-header";
 import {
   Plus,
   Check,
@@ -54,7 +45,6 @@ import {
   Calendar,
   List,
   Loader2,
-  Home,
 } from "lucide-react";
 import { useVerlof, useVerlofsaldo, type VerlofStatus, type VerlofType } from "@/hooks/use-verlof";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -92,17 +82,7 @@ const STATUS_LABELS: Record<string, string> = {
 function VerlofPageSkeleton() {
   return (
     <>
-      <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-        <SidebarTrigger className="-ml-1" />
-        <Separator orientation="vertical" className="mr-2 h-4" />
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem><BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink></BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem><BreadcrumbPage>Verlof</BreadcrumbPage></BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      </header>
+      <PageHeader />
       <div className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8 animate-pulse">
         <div className="h-8 bg-muted rounded w-1/4" />
         <div className="h-10 bg-muted rounded w-1/3" />
@@ -231,17 +211,7 @@ function VerlofPageContent() {
 
   return (
     <>
-      <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-        <SidebarTrigger className="-ml-1" />
-        <Separator orientation="vertical" className="mr-2 h-4" />
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem><BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink></BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem><BreadcrumbPage>Verlof</BreadcrumbPage></BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      </header>
+      <PageHeader />
 
       <m.div
         variants={containerVariants}

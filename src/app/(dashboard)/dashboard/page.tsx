@@ -17,16 +17,8 @@ import {
   Clock,
   Truck,
   Wrench,
-  Home,
 } from "lucide-react";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbList,
-  BreadcrumbPage,
-} from "@/components/ui/breadcrumb";
-import { Separator } from "@/components/ui/separator";
-import { SidebarTrigger } from "@/components/ui/sidebar";
+import { PageHeader } from "@/components/page-header";
 import { DashboardSkeleton, AdminDashboardSkeleton } from "@/components/ui/skeleton-card";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useFullDashboardData } from "@/hooks/use-offertes";
@@ -92,17 +84,7 @@ export default function DashboardPage() {
   if (isLoading && !offerteStats && !isAdmin) {
     return (
       <>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbPage><Home className="size-4" /></BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </header>
+        <PageHeader />
         <div className="flex flex-1 flex-col gap-6 p-6 md:p-8 max-w-7xl">
           <DashboardSkeleton />
         </div>
@@ -119,17 +101,7 @@ export default function DashboardPage() {
         userName={userName}
       />
 
-      <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-        <SidebarTrigger className="-ml-1" />
-        <Separator orientation="vertical" className="mr-2 h-4" />
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbPage><Home className="size-4" /></BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      </header>
+      <PageHeader />
 
       <div className="flex flex-1 flex-col gap-6 p-6 md:p-8 max-w-7xl">
         {/* Medewerker Dashboard */}

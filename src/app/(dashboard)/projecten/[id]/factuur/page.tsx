@@ -9,17 +9,8 @@ import { Doc, Id } from "../../../../../../convex/_generated/dataModel";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { SidebarTrigger } from "@/components/ui/sidebar";
-import { Home, ArrowLeft, FileText, Receipt } from "lucide-react";
+import { ArrowLeft, FileText, Receipt } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import { useReducedMotion } from "@/hooks/use-accessibility";
 import {
   WorkflowStepIndicator,
@@ -47,11 +38,10 @@ import {
 } from "./components";
 
 // ---------------------------------------------------------------------------
-// Breadcrumb Header (local helper — too small to extract to its own file)
+// Breadcrumb Header (local helper using PageHeader)
 // ---------------------------------------------------------------------------
 
 function FactuurBreadcrumb({
-  label,
   projectId,
   projectNaam,
 }: {
@@ -59,37 +49,11 @@ function FactuurBreadcrumb({
   projectId?: string;
   projectNaam?: string;
 }) {
-  return (
-    <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-      <SidebarTrigger className="-ml-1" />
-      <Separator orientation="vertical" className="mr-2 h-4" />
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbLink href="/projecten">Projecten</BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          {projectId && projectNaam ? (
-            <>
-              <BreadcrumbItem>
-                <BreadcrumbLink href={`/projecten/${projectId}`}>
-                  {projectNaam}
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-            </>
-          ) : null}
-          <BreadcrumbItem>
-            <BreadcrumbPage>{label}</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
-    </header>
-  );
+  const customLabels: Record<string, string> = {};
+  if (projectId && projectNaam) {
+    customLabels[`/projecten/${projectId}`] = projectNaam;
+  }
+  return <PageHeader customLabels={customLabels} />;
 }
 
 // ---------------------------------------------------------------------------

@@ -8,14 +8,12 @@ import { Id } from "../../../../convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
-import { SidebarTrigger } from "@/components/ui/sidebar";
-import { Home, Plus, HeartPulse, Heart, Trash2, Thermometer, Loader2 } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
+import { Plus, HeartPulse, Heart, Trash2, Thermometer, Loader2 } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useIsAdmin } from "@/hooks/use-users";
@@ -38,17 +36,7 @@ const itemVariants = {
 function VerzuimPageSkeleton() {
   return (
     <>
-      <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-        <SidebarTrigger className="-ml-1" />
-        <Separator orientation="vertical" className="mr-2 h-4" />
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem><BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink></BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem><BreadcrumbPage>Verzuim</BreadcrumbPage></BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      </header>
+      <PageHeader />
       <div className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8 animate-pulse">
         <div className="h-8 bg-muted rounded w-1/4" />
         <div className="grid grid-cols-4 gap-4">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-20 bg-muted rounded" />)}</div>
@@ -105,17 +93,7 @@ function VerzuimPageContent() {
 
   return (
     <>
-      <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-        <SidebarTrigger className="-ml-1" />
-        <Separator orientation="vertical" className="mr-2 h-4" />
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem><BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink></BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem><BreadcrumbPage>Verzuim</BreadcrumbPage></BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      </header>
+      <PageHeader />
 
       <m.div
         variants={containerVariants}

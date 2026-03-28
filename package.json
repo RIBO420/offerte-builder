@@ -69,10 +69,12 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@axe-core/react": "^4.11.1",
     "@playwright/test": "^1.58.1",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^20",
     "@types/papaparse": "^5.5.2",
     "@types/react": "^19",

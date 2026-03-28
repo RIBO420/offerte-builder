@@ -1,0 +1,99 @@
+name: Playwright E2E Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      browser:
+        description: "Browser to test with"
+        required: false
+        default: "chromium"
+        type: choice
+        options:
+          - chromium
+          - firefox
+          - webkit
+          - all
+
+concurrency:
+  group: playwright-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "22"
+
+jobs:
+  e2e-tests:
+    name: Playwright (${{ github.event.inputs.browser || 'chromium' }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        id: cache-node-modules
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            node-modules-${{ runner.os }}-
+
+      - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm ci
+
+      - name: Set browser target
+        id: browser
+        run: |
+          BROWSER="${{ github.event.inputs.browser || 'chromium' }}"
+          if [ "$BROWSER" = "all" ]; then
+            echo "install_args=--with-deps" >> "$GITHUB_OUTPUT"
+            echo "test_args=" >> "$GITHUB_OUTPUT"
+          else
+            echo "install_args=--with-deps $BROWSER" >> "$GITHUB_OUTPUT"
+            echo "test_args=--project=$BROWSER" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: cache-playwright
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ github.event.inputs.browser || 'chromium' }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+
+      - name: Install Playwright browsers
+        if: steps.cache-playwright.outputs.cache-hit != 'true'
+        run: npx playwright install ${{ steps.browser.outputs.install_args }}
+
+      - name: Install Playwright system dependencies
+        if: steps.cache-playwright.outputs.cache-hit == 'true'
+        run: npx playwright install-deps
+
+      - name: Run Playwright tests
+        run: npx playwright test ${{ steps.browser.outputs.test_args }}
+        env:
+          CI: true
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-${{ github.event.inputs.browser || 'chromium' }}
+          path: playwright-report/
+          retention-days: 14
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-${{ github.event.inputs.browser || 'chromium' }}
+          path: test-results/
+          retention-days: 14

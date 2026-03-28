@@ -10,16 +10,7 @@ import { ChatInput } from "@/components/chat/chat-input";
 import { ChatTabBadge } from "@/components/chat/chat-tabs-badge";
 import { NewDMDialog } from "@/components/chat/new-dm-dialog";
 import { m } from "framer-motion";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { SidebarTrigger } from "@/components/ui/sidebar";
-import { Separator } from "@/components/ui/separator";
+import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -50,34 +41,11 @@ import {
   PenSquare,
   ArrowLeft,
   Trash2,
-  Home,
 } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { toast } from "sonner";
 
 type ChatTab = "team" | "mededelingen" | "dm" | "project" | "klant";
-
-// ── Page Header ──────────────────────────────────────────────────────
-
-function PageHeader() {
-  return (
-    <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-      <SidebarTrigger className="-ml-1" />
-      <Separator orientation="vertical" className="mr-2 h-4" />
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>Chat</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
-    </header>
-  );
-}
 
 // ── Team / Mededelingen / Project Tab Content ────────────────────────
 

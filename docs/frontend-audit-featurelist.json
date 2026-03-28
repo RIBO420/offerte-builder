@@ -25,7 +25,7 @@
         "src/__tests__/setup.ts"
       ],
       "effort": "large",
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "FA-002",
@@ -47,7 +47,7 @@
         ".github/workflows/"
       ],
       "effort": "large",
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "FA-003",
@@ -383,7 +383,7 @@
         "vitest.config.ts"
       ],
       "effort": "medium",
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "FA-021",

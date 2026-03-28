@@ -5,19 +5,10 @@ import Link from "next/link";
 import { m, AnimatePresence } from "framer-motion";
 import { RequireRole } from "@/components/require-admin";
 import { useTabState } from "@/hooks/use-tab-state";
-import { SidebarTrigger } from "@/components/ui/sidebar";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { Separator } from "@/components/ui/separator";
+import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Home, Download, BarChart3, Loader2, Calculator, Users, FolderKanban } from "lucide-react";
+import { Download, BarChart3, Loader2, Calculator, Users, FolderKanban } from "lucide-react";
 import { useReducedMotion } from "@/hooks/use-accessibility";
 import { useAnalytics } from "@/hooks/use-analytics";
 import {
@@ -158,21 +149,7 @@ function RapportagesPageContent() {
   return (
     <>
       {/* Header */}
-      <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-        <SidebarTrigger className="-ml-1" />
-        <Separator orientation="vertical" className="mr-2 h-4" />
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>Rapportages</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      </header>
+      <PageHeader />
 
       <div className="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6">
         {/* Page Header */}

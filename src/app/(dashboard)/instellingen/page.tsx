@@ -3,18 +3,9 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { m, AnimatePresence } from "framer-motion";
 import { useReducedMotion } from "@/hooks/use-accessibility";
-import { Separator } from "@/components/ui/separator";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { SidebarTrigger } from "@/components/ui/sidebar";
+import { PageHeader } from "@/components/page-header";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Home, Calculator, Clock, Sliders, Loader2, Link2, FileStack, Bell, Shield, Mail } from "lucide-react";
+import { Calculator, Clock, Sliders, Loader2, Link2, FileStack, Bell, Shield, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { useInstellingen } from "@/hooks/use-instellingen";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -240,21 +231,7 @@ export default function InstellingenPage() {
   if (isLoading) {
     return (
       <>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 h-4" />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage>Instellingen</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </header>
+        <PageHeader />
         <div className="flex flex-1 items-center justify-center">
           <m.div
             initial={{ opacity: 0, scale: 0.9 }}
@@ -276,21 +253,7 @@ export default function InstellingenPage() {
 
   return (
     <>
-      <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-        <SidebarTrigger className="-ml-1" />
-        <Separator orientation="vertical" className="mr-2 h-4" />
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>Instellingen</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      </header>
+      <PageHeader />
 
       <m.div
         initial={{ opacity: 0, y: 20 }}

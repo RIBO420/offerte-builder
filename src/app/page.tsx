@@ -248,7 +248,7 @@ export default function LandingPage() {
   // Redirect authenticated users to the dashboard
   useEffect(() => {
     if (isLoaded && isSignedIn) {
-      router.replace("/offertes");
+      router.replace("/dashboard");
     }
   }, [isLoaded, isSignedIn, router]);
 
