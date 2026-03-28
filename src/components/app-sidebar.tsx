@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -20,11 +20,6 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -35,17 +30,13 @@ import {
   Archive,
   FileText,
   Home,
-  Plus,
   BookOpen,
-  Settings,
-  Shovel,
   Trees,
   Moon,
   Sun,
   Users,
   UsersRound,
   Clock,
-  ChevronRight,
   BarChart3,
   LogOut,
   User,
@@ -59,9 +50,7 @@ import {
   CalendarDays,
   Thermometer,
   ClipboardList,
-  Building2,
   ShoppingCart,
-  Package,
   DollarSign,
   CheckSquare,
   MessageSquare,
@@ -75,58 +64,47 @@ import { NotificationCenter } from "@/components/notification-center";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
-// Primary navigation - always visible (most used)
-const primaryNavItems = [
+// Sidebar: Werk group - daily operational items
+const werkItems = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
   { title: "Klanten", url: "/klanten", icon: Users },
   { title: "Projecten", url: "/projecten", icon: FolderKanban },
   { title: "Planning", url: "/planning", icon: Calendar },
   { title: "Uren", url: "/uren", icon: Clock },
-  { title: "Servicemeldingen", url: "/servicemeldingen", icon: Wrench },
+  { title: "Rapportages", url: "/rapportages", icon: BarChart3 },
   { title: "Chat", url: "/chat", icon: MessageSquare },
 ];
 
-// Offertes & Facturen section - admin only, collapsible
-const offertesItems = [
+// Sidebar: Financieel group
+const financieelItems = [
   { title: "Offertes", url: "/offertes", icon: FileText },
   { title: "Contracten", url: "/contracten", icon: ScrollText },
   { title: "Facturen", url: "/facturen", icon: Receipt },
+  { title: "Inkoop", url: "/inkoop", icon: ShoppingCart },
   { title: "Archief", url: "/archief", icon: Archive },
 ];
 
-// Organization section - admin only
-const organizationItems = [
+// Profile menu: Personeel group (admin/directie only) - used in SidebarFooter dropdown (Task 4)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const personeelMenuItems = [
   { title: "Medewerkers", url: "/medewerkers", icon: UsersRound },
-  { title: "Verlof", url: "/verlof", icon: CalendarDays },
-  { title: "Verzuim", url: "/verzuim", icon: Thermometer },
-  { title: "Toolbox", url: "/toolbox", icon: ClipboardList },
-  { title: "Wagenpark", url: "/wagenpark", icon: Truck },
-  { title: "Rapportages", url: "/rapportages", icon: BarChart3 },
-];
-
-// Beheer section - admin only
-const beheerItems = [
-  { title: "Prijsboek", url: "/prijsboek", icon: BookOpen },
-  { title: "Garanties", url: "/garanties", icon: ShieldCheck },
-  { title: "Machinepark", url: "/instellingen/machines", icon: Wrench },
-  { title: "Instellingen", url: "/instellingen", icon: Settings },
+  { title: "Verlof", url: "/verlof", icon: CalendarDays, indent: true },
+  { title: "Verzuim", url: "/verzuim", icon: Thermometer, indent: true },
   { title: "Gebruikersbeheer", url: "/gebruikers", icon: Shield },
 ];
 
-// Quick actions for new items
-const nieuweOfferteItems = [
-  { title: "Aanleg", url: "/offertes/nieuw/aanleg", icon: Shovel },
-  { title: "Onderhoud", url: "/offertes/nieuw/onderhoud", icon: Trees },
+// Profile menu: Assets & Data group (admin/directie only) - used in SidebarFooter dropdown (Task 4)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const assetsMenuItems = [
+  { title: "Wagenparkbeheer", url: "/wagenpark", icon: Truck },
+  { title: "Machinebeheer", url: "/instellingen/machines", icon: Wrench },
+  { title: "Prijsboek", url: "/prijsboek", icon: BookOpen },
+  { title: "Garanties", url: "/garanties", icon: ShieldCheck },
+  { title: "Servicemeldingen", url: "/servicemeldingen", icon: Wrench },
+  { title: "Toolbox", url: "/toolbox", icon: ClipboardList },
 ];
 
-// Inkoop section - admin only
-const inkoopItems = [
-  { title: "Leveranciers", url: "/leveranciers", icon: Building2 },
-  { title: "Inkooporders", url: "/inkoop", icon: ShoppingCart },
-  { title: "Voorraad", url: "/voorraad", icon: Package },
-];
-
-// Project sub-items (shown within project context)
+// Project sub-items (shown within project context) - unchanged
 const projectSubItems = [
   { title: "Kosten tracking", urlSuffix: "/kosten", icon: DollarSign },
   { title: "Kwaliteit", urlSuffix: "/kwaliteit", icon: CheckSquare },
@@ -166,103 +144,45 @@ export function AppSidebar() {
   // Helper: check if role is directie-level (includes legacy "admin")
   const isDirectieOrAdmin = role === "directie" || role === "admin";
 
-  // Helper: check if role can manage offertes/facturen
-  const canSeeOffertes = isDirectieOrAdmin || role === "projectleider";
-
-  // Helper: check if role can see inkoop section
-  const canSeeInkoop = isDirectieOrAdmin || role === "projectleider" || role === "materiaalman";
-
-  // Filter primary nav items based on 7-role model
-  const filteredPrimaryNavItems = useMemo(() => {
-    // directie/admin/projectleider: see everything
+  // Filter Werk items based on 7-role model
+  const filteredWerkItems = useMemo(() => {
     if (isDirectieOrAdmin || role === "projectleider") {
-      return primaryNavItems;
+      return werkItems;
     }
-    // voorman: Dashboard, Projecten, Planning, Uren, Servicemeldingen, Chat
     if (role === "voorman") {
-      return primaryNavItems.filter((item) =>
-        ["Dashboard", "Projecten", "Planning", "Uren", "Servicemeldingen", "Chat"].includes(item.title)
+      return werkItems.filter((item) =>
+        ["Dashboard", "Projecten", "Planning", "Uren", "Chat"].includes(item.title)
       );
     }
-    // materiaalman: Dashboard, Chat
     if (role === "materiaalman") {
-      return primaryNavItems.filter((item) =>
+      return werkItems.filter((item) =>
         ["Dashboard", "Chat"].includes(item.title)
       );
     }
-    // onderaannemer_zzp: Dashboard, Planning, Uren, Chat
     if (role === "onderaannemer_zzp") {
-      return primaryNavItems.filter((item) =>
+      return werkItems.filter((item) =>
         ["Dashboard", "Planning", "Uren", "Chat"].includes(item.title)
       );
     }
-    // medewerker: Dashboard, Uren, Chat
     if (role === "medewerker") {
-      return primaryNavItems.filter((item) =>
+      return werkItems.filter((item) =>
         ["Dashboard", "Uren", "Chat"].includes(item.title)
       );
     }
-    // klant/viewer: minimal (just Dashboard)
-    return primaryNavItems.filter((item) => item.title === "Dashboard");
+    // klant/viewer
+    return werkItems.filter((item) => item.title === "Dashboard");
   }, [role, isDirectieOrAdmin]);
 
-  // Filter organization items based on 7-role model
-  const filteredOrganizationItems = useMemo(() => {
-    // directie/admin/projectleider: see everything
+  // Filter Financieel items based on role
+  const filteredFinancieelItems = useMemo(() => {
     if (isDirectieOrAdmin || role === "projectleider") {
-      return organizationItems;
+      return financieelItems;
     }
-    // voorman: Wagenpark, Toolbox
-    if (role === "voorman") {
-      return organizationItems.filter((item) =>
-        ["Wagenpark", "Toolbox"].includes(item.title)
-      );
-    }
-    // materiaalman: Wagenpark, Rapportages
     if (role === "materiaalman") {
-      return organizationItems.filter((item) =>
-        ["Wagenpark", "Rapportages"].includes(item.title)
-      );
+      return financieelItems.filter((item) => item.title === "Inkoop");
     }
-    // medewerker: Verlof only
-    if (role === "medewerker") {
-      return organizationItems.filter((item) => item.title === "Verlof");
-    }
-    // onderaannemer_zzp: nothing in organization section
-    if (role === "onderaannemer_zzp") {
-      return [];
-    }
-    // klant/viewer: nothing
     return [];
   }, [role, isDirectieOrAdmin]);
-
-  // Check if any offerte/facturen section is active (for collapsible default state)
-  const isOfferteSectionActive = useMemo(() => {
-    return offertesItems.some(
-      (item) => pathname === item.url || pathname.startsWith(item.url + "/")
-    );
-  }, [pathname]);
-
-  // Check if organization section is active
-  const isOrganizationSectionActive = useMemo(() => {
-    return filteredOrganizationItems.some(
-      (item) => pathname === item.url || pathname.startsWith(item.url + "/")
-    );
-  }, [pathname, filteredOrganizationItems]);
-
-  // Check if inkoop section is active
-  const isInkoopSectionActive = useMemo(() => {
-    return inkoopItems.some(
-      (item) => pathname === item.url || pathname.startsWith(item.url + "/")
-    );
-  }, [pathname]);
-
-  // Check if beheer section is active
-  const isBeheerSectionActive = useMemo(() => {
-    return beheerItems.some(
-      (item) => pathname === item.url || pathname.startsWith(item.url + "/")
-    );
-  }, [pathname]);
 
   // Extract current project ID from pathname if on a project page
   const currentProjectId = useMemo(() => {
@@ -270,42 +190,10 @@ export function AppSidebar() {
     return match ? match[1] : null;
   }, [pathname]);
 
-  // Check if project sub-section is active
-  const isProjectSubSectionActive = useMemo(() => {
-    if (!currentProjectId) return false;
-    return projectSubItems.some(
-      (item) => pathname === `/projecten/${currentProjectId}${item.urlSuffix}`
-    );
-  }, [pathname, currentProjectId]);
-
   // Prevent hydration mismatch
   useEffect(() => {
     const id = setTimeout(() => setMounted(true), 0);
     return () => clearTimeout(id);
-  }, []);
-
-  // Accordion: determine which section should be open based on current path
-  const activeSectionFromPath = useMemo(() => {
-    if (isBeheerSectionActive) return "beheer";
-    if (isInkoopSectionActive) return "inkoop";
-    if (isOfferteSectionActive) return "offertes";
-    if (isProjectSubSectionActive) return "project";
-    if (isOrganizationSectionActive) return "organisatie";
-    return null;
-  }, [isBeheerSectionActive, isInkoopSectionActive, isOfferteSectionActive, isProjectSubSectionActive, isOrganizationSectionActive]);
-
-  const [openSection, setOpenSection] = useState<string | null>(activeSectionFromPath);
-
-  // Sync open section when navigating to a new path
-  useEffect(() => {
-    if (activeSectionFromPath) {
-      const id = setTimeout(() => setOpenSection(activeSectionFromPath), 0);
-      return () => clearTimeout(id);
-    }
-  }, [activeSectionFromPath]);
-
-  const toggleSection = useCallback((section: string) => {
-    setOpenSection((prev) => (prev === section ? null : section));
   }, []);
 
   const handleSignOut = () => {
@@ -339,11 +227,12 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        {/* Primary Navigation - Always visible, most used items */}
+        {/* Werk - daily operational items */}
         <SidebarGroup>
+          <SidebarGroupLabel>Werk</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {filteredPrimaryNavItems.map((item) => (
+              {filteredWerkItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
@@ -369,211 +258,61 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Offertes & Facturen - Directie + Projectleider, collapsible */}
-        {canSeeOffertes && (
+        {/* Financieel - quotes, invoices, procurement */}
+        {filteredFinancieelItems.length > 0 && (
           <>
             <SidebarSeparator />
-            <Collapsible open={openSection === "offertes"} onOpenChange={() => toggleSection("offertes")} className="group/collapsible">
-              <SidebarGroup>
-                <SidebarGroupLabel asChild>
-                  <CollapsibleTrigger className="flex w-full items-center justify-between">
-                    <span>Offertes & Facturen</span>
-                    <ChevronRight className="size-4 transition-transform group-data-[state=open]/collapsible:rotate-90" aria-hidden="true" />
-                  </CollapsibleTrigger>
-                </SidebarGroupLabel>
-                <CollapsibleContent>
-                  <SidebarGroupContent>
-                    <SidebarMenu>
-                      {offertesItems.map((item) => (
-                        <SidebarMenuItem key={item.title}>
-                          <SidebarMenuButton
-                            asChild
-                            isActive={pathname === item.url || pathname.startsWith(item.url + "/")}
-                            tooltip={item.title}
-                          >
-                            <Link href={item.url}>
-                              <item.icon />
-                              <span>{item.title}</span>
-                            </Link>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      ))}
-                      {/* Quick add buttons inline */}
-                      <SidebarMenuItem>
-                        <div className="flex gap-1 px-2 py-1">
-                          {nieuweOfferteItems.map((item) => (
-                            <SidebarMenuButton
-                              key={item.title}
-                              asChild
-                              size="sm"
-                              className="flex-1 justify-center"
-                              tooltip={`Nieuwe ${item.title} Offerte`}
-                            >
-                              <Link href={item.url}>
-                                <Plus className="size-3" aria-hidden="true" />
-                                <span className="text-xs">{item.title}</span>
-                              </Link>
-                            </SidebarMenuButton>
-                          ))}
-                        </div>
-                      </SidebarMenuItem>
-                    </SidebarMenu>
-                  </SidebarGroupContent>
-                </CollapsibleContent>
-              </SidebarGroup>
-            </Collapsible>
+            <SidebarGroup>
+              <SidebarGroupLabel>Financieel</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {filteredFinancieelItems.map((item) => (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={pathname === item.url || pathname.startsWith(item.url + "/")}
+                        tooltip={item.title}
+                      >
+                        <Link href={item.url}>
+                          <item.icon />
+                          <span>{item.title}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
           </>
         )}
 
-        {/* Inkoop - Directie, Projectleider, Materiaalman, collapsible */}
-        {canSeeInkoop && (
-          <>
-            <SidebarSeparator />
-            <Collapsible open={openSection === "inkoop"} onOpenChange={() => toggleSection("inkoop")} className="group/collapsible">
-              <SidebarGroup>
-                <SidebarGroupLabel asChild>
-                  <CollapsibleTrigger className="flex w-full items-center justify-between">
-                    <span>Inkoop</span>
-                    <ChevronRight className="size-4 transition-transform group-data-[state=open]/collapsible:rotate-90" aria-hidden="true" />
-                  </CollapsibleTrigger>
-                </SidebarGroupLabel>
-                <CollapsibleContent>
-                  <SidebarGroupContent>
-                    <SidebarMenu>
-                      {inkoopItems.map((item) => (
-                        <SidebarMenuItem key={item.title}>
-                          <SidebarMenuButton
-                            asChild
-                            isActive={pathname === item.url || pathname.startsWith(item.url + "/")}
-                            tooltip={item.title}
-                          >
-                            <Link href={item.url}>
-                              <item.icon />
-                              <span>{item.title}</span>
-                            </Link>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      ))}
-                    </SidebarMenu>
-                  </SidebarGroupContent>
-                </CollapsibleContent>
-              </SidebarGroup>
-            </Collapsible>
-          </>
-        )}
-
-        {/* Beheer - Directie only, collapsible */}
-        {isAdmin && (
-          <>
-            <SidebarSeparator />
-            <Collapsible open={openSection === "beheer"} onOpenChange={() => toggleSection("beheer")} className="group/collapsible">
-              <SidebarGroup>
-                <SidebarGroupLabel asChild>
-                  <CollapsibleTrigger className="flex w-full items-center justify-between">
-                    <span>Beheer</span>
-                    <ChevronRight className="size-4 transition-transform group-data-[state=open]/collapsible:rotate-90" aria-hidden="true" />
-                  </CollapsibleTrigger>
-                </SidebarGroupLabel>
-                <CollapsibleContent>
-                  <SidebarGroupContent>
-                    <SidebarMenu>
-                      {beheerItems.map((item) => (
-                        <SidebarMenuItem key={item.title}>
-                          <SidebarMenuButton
-                            asChild
-                            isActive={pathname === item.url || pathname.startsWith(item.url + "/")}
-                            tooltip={item.title}
-                          >
-                            <Link href={item.url}>
-                              <item.icon />
-                              <span>{item.title}</span>
-                            </Link>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      ))}
-                    </SidebarMenu>
-                  </SidebarGroupContent>
-                </CollapsibleContent>
-              </SidebarGroup>
-            </Collapsible>
-          </>
-        )}
-
-        {/* Project Sub-navigation - Only visible when on a project page */}
+        {/* Project Tools - context-sensitive, only on project pages */}
         {currentProjectId && (
           <>
             <SidebarSeparator />
-            <Collapsible open={openSection === "project"} onOpenChange={() => toggleSection("project")} className="group/collapsible">
-              <SidebarGroup>
-                <SidebarGroupLabel asChild>
-                  <CollapsibleTrigger className="flex w-full items-center justify-between">
-                    <span>Project Tools</span>
-                    <ChevronRight className="size-4 transition-transform group-data-[state=open]/collapsible:rotate-90" aria-hidden="true" />
-                  </CollapsibleTrigger>
-                </SidebarGroupLabel>
-                <CollapsibleContent>
-                  <SidebarGroupContent>
-                    <SidebarMenu>
-                      {projectSubItems.map((item) => (
-                        <SidebarMenuItem key={item.title}>
-                          <SidebarMenuButton
-                            asChild
-                            isActive={pathname === `/projecten/${currentProjectId}${item.urlSuffix}`}
-                            tooltip={item.title}
-                          >
-                            <Link href={`/projecten/${currentProjectId}${item.urlSuffix}`}>
-                              <item.icon />
-                              <span>{item.title}</span>
-                            </Link>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      ))}
-                    </SidebarMenu>
-                  </SidebarGroupContent>
-                </CollapsibleContent>
-              </SidebarGroup>
-            </Collapsible>
+            <SidebarGroup>
+              <SidebarGroupLabel>Project Tools</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {projectSubItems.map((item) => (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={pathname === `/projecten/${currentProjectId}${item.urlSuffix}`}
+                        tooltip={item.title}
+                      >
+                        <Link href={`/projecten/${currentProjectId}${item.urlSuffix}`}>
+                          <item.icon />
+                          <span>{item.title}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
           </>
         )}
-
-        {/* Organization - Collapsible, only shown if role has org items */}
-        {filteredOrganizationItems.length > 0 && (
-          <>
-            <SidebarSeparator />
-            <Collapsible open={openSection === "organisatie"} onOpenChange={() => toggleSection("organisatie")} className="group/collapsible">
-              <SidebarGroup>
-                <SidebarGroupLabel asChild>
-                  <CollapsibleTrigger className="flex w-full items-center justify-between">
-                    <span>{isDirectieOrAdmin || role === "projectleider" ? "Organisatie" : "Bedrijf"}</span>
-                    <ChevronRight className="size-4 transition-transform group-data-[state=open]/collapsible:rotate-90" />
-                  </CollapsibleTrigger>
-                </SidebarGroupLabel>
-                <CollapsibleContent>
-                  <SidebarGroupContent>
-                    <SidebarMenu>
-                      {filteredOrganizationItems.map((item) => (
-                        <SidebarMenuItem key={item.title}>
-                          <SidebarMenuButton
-                            asChild
-                            isActive={pathname === item.url || pathname.startsWith(item.url + "/")}
-                            tooltip={item.title}
-                          >
-                            <Link href={item.url}>
-                              <item.icon />
-                              <span>{item.title}</span>
-                            </Link>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      ))}
-                    </SidebarMenu>
-                  </SidebarGroupContent>
-                </CollapsibleContent>
-              </SidebarGroup>
-            </Collapsible>
-          </>
-        )}
-
-
       </SidebarContent>
 
       <SidebarFooter>
