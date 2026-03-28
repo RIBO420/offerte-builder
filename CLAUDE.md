@@ -40,10 +40,26 @@ npx expo start --ios --clear  # Start with Metro cache cleared
 npm install --legacy-peer-deps # Required flag due to Clerk peer dep conflicts
 ```
 
+### E2E Tests (Playwright)
+```bash
+npx playwright test                    # Run all E2E tests
+npx playwright test configurator      # Run only configurator tests (no auth needed)
+npx playwright test --headed           # Run with visible browser
+npx playwright install chromium        # Install browser (first time)
+```
+- Requires `npm run dev` + `npx convex dev` running
+- Auth tests need `E2E_CLERK_USER_EMAIL` + `E2E_CLERK_USER_PASSWORD` in `.env.local`
+- Uses `@clerk/testing` with `setupClerkTestingToken` to bypass bot detection
+- Test user needs `bypass_client_trust: true` in Clerk + `e2e-test@toptuinen.nl` in `ADMIN_EMAILS`
+
+### CI/CD (GitHub Actions)
+- `.github/workflows/ci.yml` — runs on push/PR to main: lint, typecheck, unit tests, E2E
+- `.github/workflows/playwright.yml` — on-demand E2E with browser selector
+
 ### Convex Backend
 ```bash
 npx convex dev       # Start Convex dev server (syncs schema + functions)
-npx convex deploy    # Deploy to production
+npx convex deploy --yes  # Deploy to production
 ```
 
 ## Key Domain Concepts
@@ -84,9 +100,20 @@ npx convex deploy    # Deploy to production
 - Auth via `convex/auth.config.ts` using Clerk provider
 - Role-based access: admin, medewerker, viewer (checked via `convex/users.ts`)
 
+## Testing
+
+- **Unit tests:** Vitest + @testing-library/react (1986 tests, 86% coverage)
+- **Test files:** `src/__tests__/` — hooks, components, convex logic, lib utilities
+- **Test helpers:** `src/__tests__/helpers/convex-mock.ts` — shared Convex mock utilities and factories
+- **E2E tests:** Playwright in `e2e/` — configurator, offerte wizards, klant CRUD, projecten, portaal
+- **E2E auth:** `e2e/helpers/auth.ts` — Clerk login, navigation helpers, wizard interaction helpers
+- **E2E setup:** `e2e/global-setup.ts` + `playwright.config.ts` loads `.env.local` via dotenv
+- **A11y tests:** `src/__tests__/a11y/` — axe-core checks on core UI components
+
 ## Important Notes
 
 - All npm installs in `/mobile` require `--legacy-peer-deps` flag
 - Mobile uses `react-native-reanimated` v4.1.1 (not legacy Animated API)
 - The web app uses Tailwind CSS v4 (not v3) — different config format than mobile
 - Mobile uses NativeWind (Tailwind for RN) with `tailwind.config.js` v3 syntax
+- NumberInput/AreaInput components render `<input type="text" inputmode="decimal">`, not `type="number"`
