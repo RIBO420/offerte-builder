@@ -20,6 +20,7 @@ const ADMIN_EMAILS: string[] = [
   // Add admin email addresses here, e.g.:
   // "admin@toptuinen.nl",
   // "owner@company.com",
+  "e2e-test@toptuinen.nl",
 ];
 
 /**

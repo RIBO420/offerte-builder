@@ -1,6 +1,12 @@
 import { defineConfig, devices } from '@playwright/test';
+import dotenv from 'dotenv';
+import path from 'path';
+
+// Load .env.local so E2E tests can read Clerk credentials
+dotenv.config({ path: path.resolve(__dirname, '.env.local') });
 
 export default defineConfig({
+  globalSetup: './e2e/global-setup.ts',
   testDir: './e2e',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
