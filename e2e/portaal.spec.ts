@@ -102,7 +102,7 @@ test.describe('Portaal — Registration Page', () => {
     await page.goto('/portaal/registreren');
 
     // Should show the Top Tuinen branding
-    await expect(page.locator('text=Top Tuinen')).toBeVisible();
+    await expect(page.getByText('Top Tuinen', { exact: true })).toBeVisible();
   });
 });
 

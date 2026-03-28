@@ -212,6 +212,10 @@ export async function fillKlantData(
 
 /**
  * Click the "Volgende" (Next) button in a wizard step.
+ *
+ * The button text varies by step:
+ * - Garantie step: "Volgende"
+ * - AanlegNavigation: "Volgende: Scope Details", "Volgende: Garantie", etc.
  */
 export async function clickVolgende(page: Page): Promise<void> {
   const button = page.locator('button:has-text("Volgende")').first();
@@ -219,19 +223,88 @@ export async function clickVolgende(page: Page): Promise<void> {
 }
 
 /**
- * Click the "Vorige" (Previous) button in a wizard step.
+ * Click the "Vorige" / "Terug" (Previous) button in a wizard step.
+ *
+ * The button text varies by step:
+ * - Garantie step: "Vorige"
+ * - AanlegNavigation: "Terug", "Terug naar Template", "Terug naar Scope Details", etc.
  */
 export async function clickVorige(page: Page): Promise<void> {
-  const button = page.locator('button:has-text("Vorige")').first();
+  const button = page.locator('button:has-text("Vorige")').or(
+    page.locator('button:has-text("Terug")')
+  ).first();
   await button.click();
 }
 
 /**
  * Select a scope by clicking on it (checkbox-style toggle).
+ *
+ * Aanleg wizard: wrapping div has role="checkbox" with scope name text inside.
+ * Onderhoud wizard: wrapping div contains a shadcn Checkbox + Label with scope name.
+ *
+ * This helper tries both patterns.
  */
 export async function selectScope(page: Page, scopeNaam: string): Promise<void> {
-  const scopeCard = page.locator(`[role="checkbox"]:has-text("${scopeNaam}")`);
-  await scopeCard.click();
+  // First try: aanleg pattern — div[role="checkbox"] that contains the scope name
+  const aanlegScope = page.locator(`[role="checkbox"]:has-text("${scopeNaam}")`);
+  if (await aanlegScope.first().isVisible().catch(() => false)) {
+    await aanlegScope.first().click();
+    return;
+  }
+
+  // Second try: onderhoud pattern — click the wrapping div that contains the scope label
+  const onderhoudScope = page.locator(`label:has-text("${scopeNaam}")`).first();
+  if (await onderhoudScope.isVisible().catch(() => false)) {
+    await onderhoudScope.click();
+    return;
+  }
+
+  // Fallback: click any element containing the scope name text
+  await page.getByText(scopeNaam, { exact: true }).first().click();
+}
+
+/**
+ * Fill all visible number inputs on the scope details step with a default value.
+ * This ensures scope validation passes so the "Volgende" button becomes enabled.
+ *
+ * Note: NumberInput/AreaInput components render type="text" with inputMode="decimal",
+ * not type="number". We target both patterns plus known scope input IDs.
+ */
+export async function fillAllNumberInputs(page: Page, value = '100'): Promise<void> {
+  // NumberInput renders type="text" with inputMode="decimal"
+  const numberInputs = page.locator('input[type="number"], input[inputmode="decimal"]');
+  const inputCount = await numberInputs.count();
+  for (let i = 0; i < inputCount; i++) {
+    const input = numberInputs.nth(i);
+    if (await input.isVisible()) {
+      const currentValue = await input.inputValue();
+      if (currentValue === '0' || currentValue === '') {
+        await input.fill(value);
+        await input.blur();
+      }
+    }
+  }
+  // Allow time for debounced onChange (300ms) + form state update
+  await page.waitForTimeout(500);
+}
+
+/**
+ * Click the "Volgende" button, waiting for it to become enabled first.
+ * This is useful after filling scope detail forms where validation
+ * may take a moment to update.
+ */
+export async function clickVolgendeWhenReady(page: Page): Promise<void> {
+  const button = page.locator('button:has-text("Volgende")').first();
+  // Wait for the button to become enabled (validation passes)
+  await button.waitFor({ state: 'visible', timeout: 10_000 });
+  // Some scope forms need time for validation to update
+  await page.waitForTimeout(500);
+  // If button is still disabled, try filling any remaining empty number inputs
+  if (await button.isDisabled()) {
+    await fillAllNumberInputs(page, '50');
+    await page.waitForTimeout(500);
+  }
+  await button.click();
 }
 
 /**

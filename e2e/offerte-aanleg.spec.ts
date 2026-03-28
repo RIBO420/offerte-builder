@@ -9,6 +9,8 @@ import {
   clickVorige,
   selectScope,
   getTestKlantData,
+  fillAllNumberInputs,
+  clickVolgendeWhenReady,
 } from './helpers/auth';
 
 // ---------------------------------------------------------------------------
@@ -44,8 +46,7 @@ test.describe('Aanleg Offerte Wizard', () => {
       await expect(page.getByRole('heading', { level: 1 })).toContainText('Nieuwe Aanleg Offerte');
 
       // Verify we are on step 1 of 5 (Snelstart)
-      await expect(page.getByText('Stap 1 van 5')).toBeVisible();
-      await expect(page.getByText('Snelstart')).toBeVisible();
+      await expect(page.getByText('Stap 1 van 5: Snelstart')).toBeVisible();
     });
 
     test('should allow skipping package selection to go to step 1', async ({ page }) => {
@@ -198,11 +199,13 @@ test.describe('Aanleg Offerte Wizard', () => {
       await clickVolgende(page);
 
       // Fill step 2 — fill oppervlakte for gras
-      const oppervlakteInput = page.locator('input[type="number"]').first();
-      if (await oppervlakteInput.isVisible()) {
-        await oppervlakteInput.fill('100');
-      }
-      await clickVolgende(page);
+      // NumberInput renders type="text" with inputMode="decimal", not type="number"
+      const oppervlakteInput = page.locator('#gras-oppervlakte');
+      await oppervlakteInput.fill('100');
+      await oppervlakteInput.blur();
+      await page.waitForTimeout(500); // wait for debounced onChange to propagate
+
+      await clickVolgendeWhenReady(page);
 
       // Should be on step 4 of 5 (Garantie)
       await expect(page.getByText('Stap 4 van 5')).toBeVisible();
@@ -232,18 +235,19 @@ test.describe('Aanleg Offerte Wizard', () => {
       await clickVolgende(page);
 
       // Fill step 2
-      const oppervlakteInput = page.locator('input[type="number"]').first();
-      if (await oppervlakteInput.isVisible()) {
-        await oppervlakteInput.fill('100');
-      }
-      await clickVolgende(page);
+      // NumberInput renders type="text" with inputMode="decimal", not type="number"
+      const oppervlakteInput = page.locator('#gras-oppervlakte');
+      await oppervlakteInput.fill('100');
+      await oppervlakteInput.blur();
+      await page.waitForTimeout(500); // wait for debounced onChange to propagate
+
+      await clickVolgendeWhenReady(page);
 
       // Skip step 3 (Garantie)
       await clickVolgende(page);
 
       // Should be on step 5 of 5 (Bevestigen)
-      await expect(page.getByText('Stap 5 van 5')).toBeVisible();
-      await expect(page.getByText('Bevestigen')).toBeVisible();
+      await expect(page.getByText('Stap 5 van 5: Bevestigen')).toBeVisible();
 
       // Review section should show the klant data
       await expect(page.getByText(klantData.naam)).toBeVisible();
@@ -269,13 +273,15 @@ test.describe('Aanleg Offerte Wizard', () => {
       const trigger = page.locator('#bereikbaarheid');
       await trigger.click();
 
-      // Should show the three options
-      await expect(page.getByText('Goed (factor 1.0)')).toBeVisible();
-      await expect(page.getByText('Beperkt (factor 1.2)')).toBeVisible();
-      await expect(page.getByText('Slecht (factor 1.5)')).toBeVisible();
+      // Should show the three options in the dropdown
+      // Use getByRole to target the select items specifically
+      const listbox = page.locator('[role="listbox"]');
+      await expect(listbox.getByText('Goed (factor 1.0)')).toBeVisible();
+      await expect(listbox.getByText('Beperkt (factor 1.2)')).toBeVisible();
+      await expect(listbox.getByText('Slecht (factor 1.5)')).toBeVisible();
 
       // Select "Beperkt"
-      await page.getByText('Beperkt (factor 1.2)').click();
+      await listbox.getByText('Beperkt (factor 1.2)').click();
     });
   });
 
