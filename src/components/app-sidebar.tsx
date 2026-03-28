@@ -22,7 +22,9 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -55,9 +57,9 @@ import {
   CheckSquare,
   MessageSquare,
   ScrollText,
+  Settings,
 } from "lucide-react";
 import { useTheme } from "next-themes";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useIsAdmin, useCurrentUserRole } from "@/hooks/use-users";
 import { NotificationCenter } from "@/components/notification-center";
@@ -84,8 +86,7 @@ const financieelItems = [
   { title: "Archief", url: "/archief", icon: Archive },
 ];
 
-// Profile menu: Personeel group (admin/directie only) - used in SidebarFooter dropdown (Task 4)
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// Profile menu: Personeel group (admin/directie only)
 const personeelMenuItems = [
   { title: "Medewerkers", url: "/medewerkers", icon: UsersRound },
   { title: "Verlof", url: "/verlof", icon: CalendarDays, indent: true },
@@ -93,8 +94,7 @@ const personeelMenuItems = [
   { title: "Gebruikersbeheer", url: "/gebruikers", icon: Shield },
 ];
 
-// Profile menu: Assets & Data group (admin/directie only) - used in SidebarFooter dropdown (Task 4)
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// Profile menu: Assets & Data group (admin/directie only)
 const assetsMenuItems = [
   { title: "Wagenparkbeheer", url: "/wagenpark", icon: Truck },
   { title: "Machinebeheer", url: "/instellingen/machines", icon: Wrench },
@@ -350,43 +350,96 @@ export function AppSidebar() {
                     </div>
                   </SidebarMenuButton>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-56">
-                  <div className="px-2 py-1.5">
+                <DropdownMenuContent align="start" side="top" className="w-64">
+                  {/* User info header */}
+                  <div className="px-3 py-2">
                     <p className="text-sm font-medium">{userDisplayName}</p>
                     {userEmail && (
                       <p className="text-xs text-muted-foreground">{userEmail}</p>
                     )}
                   </div>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/profiel" className="cursor-pointer">
-                      <User className="mr-2 h-4 w-4" aria-hidden="true" />
-                      Mijn Profiel
-                    </Link>
-                  </DropdownMenuItem>
+
+                  {/* Persoonlijk */}
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem asChild>
+                      <Link href="/profiel" className="cursor-pointer">
+                        <User className="mr-2 h-4 w-4" aria-hidden="true" />
+                        Profiel
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/instellingen" className="cursor-pointer">
+                        <Settings className="mr-2 h-4 w-4" aria-hidden="true" />
+                        Instellingen
+                      </Link>
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+
+                  {/* Personeel - admin/directie only */}
+                  {isDirectieOrAdmin && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuGroup>
+                        <DropdownMenuLabel>Personeel</DropdownMenuLabel>
+                        {personeelMenuItems.map((item) => (
+                          <DropdownMenuItem key={item.title} asChild>
+                            <Link
+                              href={item.url}
+                              className={`cursor-pointer ${item.indent ? "pl-8" : ""}`}
+                            >
+                              <item.icon className="mr-2 h-4 w-4" aria-hidden="true" />
+                              {item.title}
+                            </Link>
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuGroup>
+                    </>
+                  )}
+
+                  {/* Assets & Data - admin/directie only */}
+                  {isDirectieOrAdmin && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuGroup>
+                        <DropdownMenuLabel>Assets & Data</DropdownMenuLabel>
+                        {assetsMenuItems.map((item) => (
+                          <DropdownMenuItem key={item.title} asChild>
+                            <Link href={item.url} className="cursor-pointer">
+                              <item.icon className="mr-2 h-4 w-4" aria-hidden="true" />
+                              {item.title}
+                            </Link>
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuGroup>
+                    </>
+                  )}
+
+                  {/* Theme + Logout */}
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={handleSignOut}
-                    className="cursor-pointer text-destructive focus:text-destructive"
-                  >
-                    <LogOut className="mr-2 h-4 w-4" aria-hidden="true" />
-                    Uitloggen
-                  </DropdownMenuItem>
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem
+                      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                      className="cursor-pointer"
+                    >
+                      {mounted && theme === "dark" ? (
+                        <Sun className="mr-2 h-4 w-4" aria-hidden="true" />
+                      ) : (
+                        <Moon className="mr-2 h-4 w-4" aria-hidden="true" />
+                      )}
+                      {mounted ? (theme === "dark" ? "Lichte modus" : "Donkere modus") : "Thema"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={handleSignOut}
+                      className="cursor-pointer text-destructive focus:text-destructive"
+                    >
+                      <LogOut className="mr-2 h-4 w-4" aria-hidden="true" />
+                      Uitloggen
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <div className="flex items-center gap-1">
-                <NotificationCenter />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-11 sm:size-8 shrink-0"
-                  onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                  aria-label={mounted ? (theme === "dark" ? "Schakel naar lichte modus" : "Schakel naar donkere modus") : "Thema wisselen"}
-                >
-                  <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" aria-hidden="true" />
-                  <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" aria-hidden="true" />
-                </Button>
-              </div>
+              <NotificationCenter />
             </div>
           </SidebarMenuItem>
         </SidebarMenu>
