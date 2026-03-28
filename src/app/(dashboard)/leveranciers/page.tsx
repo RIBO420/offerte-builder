@@ -54,6 +54,7 @@ import {
 import { toast } from "sonner";
 import { useLeveranciers, useLeveranciersSearch, useLeveranciersMutations } from "@/hooks/use-leveranciers";
 import { LeverancierForm, LeverancierFormData } from "@/components/leveranciers/leverancier-form";
+import { InkoopTabs } from "@/components/inkoop/inkoop-tabs";
 import { Id } from "../../../../convex/_generated/dataModel";
 
 type Leverancier = {
@@ -385,6 +386,8 @@ function LeveranciersPageContent() {
         transition={{ duration: 0.4 }}
         className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
       >
+        <InkoopTabs />
+
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">

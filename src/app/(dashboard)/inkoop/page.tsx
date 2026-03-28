@@ -70,6 +70,7 @@ import {
 } from "@/components/ui/table";
 import { ScrollableTable } from "@/components/ui/responsive-table";
 import { toast } from "sonner";
+import { InkoopTabs } from "@/components/inkoop/inkoop-tabs";
 import { formatCurrency } from "@/lib/format/currency";
 
 const dateFormatter = new Intl.DateTimeFormat("nl-NL", {
@@ -359,6 +360,8 @@ function InkoopPageContent() {
         transition={{ duration: reducedMotion ? 0 : 0.5, ease: "easeOut" }}
         className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
       >
+        <InkoopTabs />
+
         {/* Header */}
         <m.div
           initial={reducedMotion ? false : { opacity: 0, y: 10 }}
