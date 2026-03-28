@@ -11,7 +11,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { Check, Save } from "lucide-react";
+import { Home, Check, Save } from "lucide-react";
 import { RestoreDraftDialog } from "@/components/offerte/restore-draft-dialog";
 import { WizardSteps, type WizardStep } from "@/components/offerte/wizard-steps";
 
@@ -158,7 +158,7 @@ export default function NieuweOnderhoudOffertePage() {
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
+              <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>

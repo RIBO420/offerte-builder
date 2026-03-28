@@ -25,7 +25,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { AlertTriangle, ArrowLeft, FileText } from "lucide-react";
+import { Home, AlertTriangle, ArrowLeft, FileText } from "lucide-react";
+import { CopyButton } from "@/components/ui/copy-button";
 import { ThinProgressBar, type ProjectStatus } from "@/components/project/thin-progress-bar";
 import { ProjectFocusCards } from "@/components/project/project-focus-cards";
 import { ModulePills } from "@/components/project/module-pills";
@@ -86,7 +87,7 @@ export default function ProjectDetailPage({
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
+                <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
@@ -114,7 +115,7 @@ export default function ProjectDetailPage({
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
+                <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
@@ -149,7 +150,7 @@ export default function ProjectDetailPage({
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
+              <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
@@ -186,10 +187,16 @@ export default function ProjectDetailPage({
                 {statusLabels[project.status]}
               </Badge>
             </div>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              {offerte && <>{offerte.offerteNummer} &middot; {offerte.klant.naam} &middot; </>}
-              Aangemaakt {formatDate(project.createdAt)}
-            </p>
+            <div className="mt-0.5 flex items-center gap-1 text-sm text-muted-foreground">
+              {offerte && (
+                <>
+                  <span>{offerte.offerteNummer}</span>
+                  <CopyButton value={offerte.offerteNummer} label="Kopieer offertenummer" />
+                  <span>&middot; {offerte.klant.naam} &middot;</span>
+                </>
+              )}
+              <span>Aangemaakt {formatDate(project.createdAt)}</span>
+            </div>
           </div>
         </div>
 

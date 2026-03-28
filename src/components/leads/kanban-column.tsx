@@ -13,7 +13,7 @@ import type { Lead } from "./lead-card";
 interface KanbanColumnProps {
   id: string;
   label: string;
-  color: string;
+  colorClass: string;
   leads: Lead[];
   onLeadClick?: (lead: Lead) => void;
   isLost?: boolean;
@@ -22,7 +22,7 @@ interface KanbanColumnProps {
 export function KanbanColumn({
   id,
   label,
-  color,
+  colorClass,
   leads,
   onLeadClick,
   isLost = false,
@@ -41,8 +41,7 @@ export function KanbanColumn({
       {/* Column header */}
       <div className="flex items-center gap-2 mb-3 px-1">
         <span
-          className="size-2.5 rounded-full shrink-0"
-          style={{ backgroundColor: color }}
+          className={cn("size-2.5 rounded-full shrink-0", colorClass)}
         />
         <span className="text-sm font-medium truncate">{label}</span>
         <Badge variant="secondary" className="ml-auto text-[10px] tabular-nums">

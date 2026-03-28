@@ -201,7 +201,7 @@ export function ProjectProgressStepper({
                 <div
                   className={cn(
                     "p-1 -m-1",
-                    future && "opacity-50"
+                    future && "opacity-60"
                   )}
                   aria-current={current ? "step" : undefined}
                 >

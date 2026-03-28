@@ -53,6 +53,7 @@ import {
   AlertCircle,
   FileText,
   Camera,
+  Home,
 } from "lucide-react";
 import { QCChecklistCard } from "@/components/project/qc-checklist-card";
 import { QCFotoUpload } from "@/components/project/qc-foto-upload";
@@ -160,7 +161,7 @@ export default function KwaliteitscontrolePage({
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
+                <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
@@ -188,7 +189,7 @@ export default function KwaliteitscontrolePage({
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
+                <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
@@ -269,7 +270,7 @@ export default function KwaliteitscontrolePage({
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
+              <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>

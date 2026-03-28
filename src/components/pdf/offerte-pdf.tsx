@@ -260,7 +260,7 @@ export function OffertePDF({ offerte, bedrijfsgegevens }: OffertePDFProps) {
           <View style={styles.headerLeft}>
             {/* Company Logo */}
             {logoSrc ? (
-              <Image style={styles.logo} src={logoSrc} />
+              <Image style={styles.logo} src={logoSrc} accessibilityLabel="Top Tuinen logo" />
             ) : (
               <View style={styles.logoTextContainer}>
                 <Text style={styles.logoTextTop}>TOP</Text>

@@ -171,13 +171,13 @@ export function JaarOverzicht({
       {/* Navigation */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={prevYear}>
+          <Button variant="outline" size="icon" onClick={prevYear} aria-label="Vorig jaar">
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <h2 className="text-lg font-semibold min-w-[100px] text-center">
             {year}
           </h2>
-          <Button variant="outline" size="icon" onClick={nextYear}>
+          <Button variant="outline" size="icon" onClick={nextYear} aria-label="Volgend jaar">
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>

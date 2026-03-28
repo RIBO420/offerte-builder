@@ -7,6 +7,7 @@ import { useInstellingen } from "@/hooks/use-instellingen";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useOfferteCalculation } from "@/hooks/use-offerte-calculation";
 import { useWizardAutosave } from "@/hooks/use-wizard-autosave";
+import { useBeforeUnload } from "@/hooks/use-before-unload";
 import { useKlanten } from "@/hooks/use-klanten";
 import { Id } from "../../../../../../../convex/_generated/dataModel";
 import type { OffertePackage } from "@/lib/constants/packages";
@@ -38,6 +39,10 @@ export function useOnderhoudWizard() {
     initialData: INITIAL_WIZARD_DATA,
     initialStep: 0,
   });
+
+  // Warn user about unsaved changes when they've started filling in data
+  const hasUnsavedChanges = currentStep > 0;
+  useBeforeUnload(hasUnsavedChanges);
 
   const totalSteps = 4;
   const [isSubmitting, setIsSubmitting] = useState(false);

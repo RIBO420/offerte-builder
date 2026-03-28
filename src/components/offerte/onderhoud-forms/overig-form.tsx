@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
+import { TextareaWithCount } from "@/components/ui/textarea-with-count";
 import { AreaInput, QuantityInput, HoursInput } from "@/components/ui/number-input";
 import {
   Form,
@@ -241,12 +241,13 @@ export function OverigForm({ data, onChange, onValidationChange }: OverigFormPro
                   <FormItem>
                     <FormLabel>Omschrijving</FormLabel>
                     <FormControl>
-                      <Textarea
+                      <TextareaWithCount
                         id="overig-notities"
                         value={field.value || ""}
                         onChange={field.onChange}
                         placeholder="Beschrijf extra werkzaamheden..."
                         rows={2}
+                        maxLength={500}
                       />
                     </FormControl>
                     <FormMessage />

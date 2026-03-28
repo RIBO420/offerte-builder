@@ -41,17 +41,24 @@ export const getWarnings = query({
     const nextWeek = dateStr(7 * DAY_MS);
     const now = Date.now();
 
-    const [planning, projecten, voertuigen, facturen, medewerkers] = await Promise.all([
-      ctx.db.query("weekPlanning").withIndex("by_datum", (q) => q.gte("datum", today)).collect(),
-      ctx.db.query("projecten").withIndex("by_user", (q) => q.eq("userId", userId)).collect(),
-      ctx.db.query("voertuigen").withIndex("by_user", (q) => q.eq("userId", userId)).collect(),
-      ctx.db.query("facturen").withIndex("by_user", (q) => q.eq("userId", userId)).collect(),
-      ctx.db.query("medewerkers").withIndex("by_user", (q) => q.eq("userId", userId)).collect(),
-    ]);
+    let planning, projecten, voertuigen, facturen, medewerkers;
+    try {
+      [planning, projecten, voertuigen, facturen, medewerkers] = await Promise.all([
+        ctx.db.query("weekPlanning").withIndex("by_datum", (q) => q.gte("datum", today)).collect(),
+        ctx.db.query("projecten").withIndex("by_user", (q) => q.eq("userId", userId)).collect(),
+        ctx.db.query("voertuigen").withIndex("by_user", (q) => q.eq("userId", userId)).collect(),
+        ctx.db.query("facturen").withIndex("by_user", (q) => q.eq("userId", userId)).collect(),
+        ctx.db.query("medewerkers").withIndex("by_user", (q) => q.eq("userId", userId)).collect(),
+      ]);
+    } catch {
+      return [];
+    }
 
     // Only look at planning within next week
     const weekPlanning = planning.filter((p) => p.datum <= nextWeek);
     const warnings: Warning[] = [];
+
+    try {
 
     // ── 1. Double-booked medewerkers ────────────────────────────────
 
@@ -159,7 +166,7 @@ export const getWarnings = query({
         type: "financieel",
         prioriteit: vervaldeFacturen.length >= 3 ? "hoog" : "middel",
         titel: `${vervaldeFacturen.length} vervallen facturen`,
-        beschrijving: `Totaal openstaand: €${Math.round(totaal).toLocaleString("nl-NL")}`,
+        beschrijving: `Totaal openstaand: €${Math.round(totaal)}`,
         actie: "Verstuur aanmaningen",
       });
     }
@@ -180,6 +187,11 @@ export const getWarnings = query({
         beschrijving: `${p.naam} is actief maar heeft geen planning deze week`,
         actie: "Plan medewerkers in",
       });
+    }
+
+    } catch {
+      // Return whatever warnings we collected before the error
+      return warnings;
     }
 
     // Sort: hoog first, then middel, then laag

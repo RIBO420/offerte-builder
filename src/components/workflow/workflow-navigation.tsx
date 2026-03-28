@@ -404,7 +404,7 @@ export const WorkflowNavigation = memo(function WorkflowNavigation({
                   <div
                     className={cn(
                       "rounded-lg",
-                      step.state === "disabled" && "opacity-50"
+                      step.state === "disabled" && "opacity-60"
                     )}
                     aria-current={step.state === "current" ? "step" : undefined}
                   >
@@ -528,7 +528,7 @@ export const WorkflowNavigation = memo(function WorkflowNavigation({
                     <div
                       className={cn(
                         "flex flex-col items-center p-2 -m-2",
-                        step.state === "disabled" && "opacity-50"
+                        step.state === "disabled" && "opacity-60"
                       )}
                       aria-current={
                         step.state === "current" ? "step" : undefined

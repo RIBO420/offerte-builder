@@ -130,7 +130,7 @@ function MobileBreadcrumb({
           <>
             <li className="inline-flex items-center">
               <Link
-                href="/"
+                href="/dashboard"
                 className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
               >
                 <ArrowLeft className="size-3.5" />
@@ -215,7 +215,7 @@ function DesktopBreadcrumb({
           <>
             <li className="inline-flex items-center">
               <Link
-                href="/"
+                href="/dashboard"
                 className="text-muted-foreground hover:text-foreground transition-colors"
                 aria-label="Home"
               >

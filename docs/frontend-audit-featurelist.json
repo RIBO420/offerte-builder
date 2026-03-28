@@ -1,0 +1,428 @@
+{
+  "audit": {
+    "date": "2026-03-28",
+    "scope": "Frontend: UI, UX, Tests, Error Handling, Accessibility",
+    "totalScore": "7.3/10"
+  },
+  "items": [
+    {
+      "id": "FA-001",
+      "title": "Unit test coverage uitbreiden",
+      "priority": "critical",
+      "category": "tests",
+      "description": "Coverage van 2.4% naar minimaal 40%. Focus op hooks, Convex functies en kritieke componenten.",
+      "subtasks": [
+        "Component tests toevoegen voor offerte forms (bestrating, grondwerk, houtwerk, water-elektra)",
+        "Hook tests toevoegen (use-auto-save, use-wizard-autosave, use-offerte-actions, use-dashboard)",
+        "Convex mutation tests met mock setup (offertes.ts, klanten.ts, projecten.ts, facturen.ts)",
+        "Import/export logica testen (klant-import-parser.ts, excel-export.ts)",
+        "Test utilities/helpers/factories aanmaken voor Convex mocking"
+      ],
+      "files": [
+        "src/__tests__/",
+        "src/lib/__tests__/",
+        "vitest.config.ts",
+        "src/__tests__/setup.ts"
+      ],
+      "effort": "large",
+      "status": "todo"
+    },
+    {
+      "id": "FA-002",
+      "title": "E2E test suite opzetten",
+      "priority": "critical",
+      "category": "tests",
+      "description": "Van 2 basic tests naar volledige E2E coverage van core user flows.",
+      "subtasks": [
+        "Playwright tests voor offerte aanmaak flow (aanleg + onderhoud)",
+        "Playwright tests voor klant CRUD",
+        "Playwright tests voor project lifecycle",
+        "Playwright tests voor portaal (klantenportaal)",
+        "Playwright tests voor configurator flows",
+        "CI/CD pipeline opzetten (GitHub Actions) voor automatische test runs"
+      ],
+      "files": [
+        "e2e/",
+        "playwright.config.ts",
+        ".github/workflows/"
+      ],
+      "effort": "large",
+      "status": "todo"
+    },
+    {
+      "id": "FA-003",
+      "title": "lang=\"nl\" toevoegen aan document root",
+      "priority": "critical",
+      "category": "accessibility",
+      "description": "HTML lang attribuut ontbreekt, beinvloedt screen reader uitspraak.",
+      "subtasks": [
+        "lang=\"nl\" toevoegen aan <html> tag in src/app/layout.tsx"
+      ],
+      "files": [
+        "src/app/layout.tsx"
+      ],
+      "effort": "trivial",
+      "status": "done"
+    },
+    {
+      "id": "FA-004",
+      "title": "Alt-tekst toevoegen aan alle afbeeldingen",
+      "priority": "high",
+      "category": "accessibility",
+      "description": "Meerdere Image componenten missen alt attributen.",
+      "subtasks": [
+        "Alt tekst toevoegen aan logo in offerte-pdf.tsx",
+        "Alt tekst toevoegen aan QC foto's in qc-foto-upload.tsx",
+        "Alt tekst toevoegen aan werklocatie-foto-gallery.tsx",
+        "Alt tekst toevoegen aan app-sidebar.tsx afbeelding"
+      ],
+      "files": [
+        "src/components/pdf/offerte-pdf.tsx",
+        "src/components/project/qc-foto-upload.tsx",
+        "src/components/project/werklocatie-foto-gallery.tsx",
+        "src/components/app-sidebar.tsx"
+      ],
+      "effort": "small",
+      "status": "done"
+    },
+    {
+      "id": "FA-005",
+      "title": "Optimistic updates implementeren",
+      "priority": "high",
+      "category": "ux",
+      "description": "Mutations wachten op server response. Optimistic updates verbeteren perceived performance.",
+      "subtasks": [
+        "useOptimistic toevoegen voor offerte status wijzigingen",
+        "useOptimistic toevoegen voor regel toevoegen/verwijderen",
+        "useOptimistic toevoegen voor klant updates",
+        "useOptimistic toevoegen voor project status changes"
+      ],
+      "files": [
+        "src/app/(dashboard)/offertes/[id]/page.tsx",
+        "src/app/(dashboard)/offertes/[id]/bewerken/page.tsx",
+        "src/app/(dashboard)/klanten/[id]/page.tsx",
+        "src/app/(dashboard)/projecten/[id]/page.tsx"
+      ],
+      "effort": "medium",
+      "status": "done"
+    },
+    {
+      "id": "FA-006",
+      "title": "Loading states toevoegen aan portaal routes",
+      "priority": "high",
+      "category": "ux",
+      "description": "Portaal pagina's en dynamische [id] routes missen loading.tsx bestanden.",
+      "subtasks": [
+        "loading.tsx toevoegen aan src/app/portaal/(portal)/offertes/",
+        "loading.tsx toevoegen aan src/app/portaal/(portal)/projecten/",
+        "loading.tsx toevoegen aan src/app/portaal/(portal)/facturen/",
+        "loading.tsx toevoegen aan src/app/portaal/(portal)/documenten/",
+        "loading.tsx toevoegen aan src/app/portaal/(portal)/berichten/",
+        "loading.tsx toevoegen aan src/app/(dashboard)/projecten/[id]/",
+        "loading.tsx toevoegen aan src/app/(dashboard)/offertes/[id]/"
+      ],
+      "files": [
+        "src/app/portaal/(portal)/",
+        "src/app/(dashboard)/projecten/[id]/",
+        "src/app/(dashboard)/offertes/[id]/"
+      ],
+      "effort": "medium",
+      "status": "done"
+    },
+    {
+      "id": "FA-007",
+      "title": "Page leave warning bij unsaved changes",
+      "priority": "high",
+      "category": "ux",
+      "description": "Wizard forms en edit pagina's waarschuwen niet bij verlaten met onopgeslagen wijzigingen.",
+      "subtasks": [
+        "useBeforeUnload hook aanmaken",
+        "Hook toevoegen aan aanleg wizard",
+        "Hook toevoegen aan onderhoud wizard",
+        "Hook toevoegen aan offerte bewerken pagina",
+        "Hook toevoegen aan medewerker form"
+      ],
+      "files": [
+        "src/hooks/",
+        "src/app/(dashboard)/offertes/nieuw/aanleg/",
+        "src/app/(dashboard)/offertes/nieuw/onderhoud/",
+        "src/app/(dashboard)/offertes/[id]/bewerken/"
+      ],
+      "effort": "small",
+      "status": "done"
+    },
+    {
+      "id": "FA-008",
+      "title": "Kleur contrast audit en fixes",
+      "priority": "high",
+      "category": "accessibility",
+      "description": "1078+ instances van muted/opacity text. WCAG AA compliance niet gevalideerd.",
+      "subtasks": [
+        "Geautomatiseerde contrast check draaien (axe-core of Lighthouse)",
+        "text-muted-foreground contrast ratio verifieren in light + dark mode",
+        "opacity-50 en opacity-40 tekst elementen identificeren en fixen",
+        "Contrast rapport genereren met bevindingen"
+      ],
+      "files": [
+        "src/app/globals.css",
+        "src/components/"
+      ],
+      "effort": "medium",
+      "status": "done"
+    },
+    {
+      "id": "FA-009",
+      "title": "Grote componenten opsplitsen",
+      "priority": "medium",
+      "category": "code-quality",
+      "description": "5 componenten zijn >700 regels en moeten gesplitst worden in sub-componenten.",
+      "subtasks": [
+        "[DONE] medewerker-form.tsx (871 regels) → BasicInfo, Skills, Certificates, Experience",
+        "[DONE] reiniging-form.tsx (848 regels) → TerrasreinigingSectie, HogedrukAkkoord, BladruimenSectie, OnkruidSectie, AlgereinigingSectie, Samenvatting",
+        "[DONE] bemesting-form.tsx (792 regels) → TypeSelector, TypeDetails, ProductSelector, Options, Summary",
+        "[DONE] bestrating-form.tsx (789→170 regels) → bestrating-constants, bestrating-fundering, bestrating-type-selector, bestrating-details-card, bestrating-onderbouw-card, bestrating-zone-kaart, bestrating-zones-card",
+        "[DONE] beschikbaarheids-kalender.tsx (722 regels) → WeekStrip, Legenda, GekleurdeKalenderDag, BeschikbaarheidsKalender"
+      ],
+      "files": [
+        "src/components/medewerkers/medewerker-form.tsx",
+        "src/components/offerte/onderhoud-forms/reiniging-form.tsx",
+        "src/components/offerte/onderhoud-forms/bemesting-form.tsx",
+        "src/components/offerte/scope-forms/bestrating-form.tsx",
+        "src/components/kalender/"
+      ],
+      "effort": "medium",
+      "status": "done"
+    },
+    {
+      "id": "FA-010",
+      "title": "ScopeFormTemplate voor code hergebruik",
+      "priority": "medium",
+      "category": "code-quality",
+      "description": "Scope forms hebben ~70% identieke structuur. Abstract template vermindert duplicatie.",
+      "subtasks": [
+        "ScopeFormTemplate component ontwerpen met gedeelde layout/logica",
+        "Aanleg scope forms migreren (bestrating, grondwerk, houtwerk, water-elektra, borders, gras, specials)",
+        "Onderhoud scope forms migreren (bemesting, reiniging, mollenbestrijding)"
+      ],
+      "files": [
+        "src/components/offerte/scope-forms/",
+        "src/components/offerte/onderhoud-forms/"
+      ],
+      "effort": "large",
+      "status": "todo"
+    },
+    {
+      "id": "FA-011",
+      "title": "Filter state deep-linken op alle lijstpagina's",
+      "priority": "medium",
+      "category": "ux",
+      "description": "Projecten en klanten pagina's verliezen filters bij navigatie.",
+      "subtasks": [
+        "useSearchParams toevoegen aan /projecten pagina",
+        "useSearchParams toevoegen aan /klanten pagina",
+        "Filter state synchronisatie testen met back/forward navigatie"
+      ],
+      "files": [
+        "src/app/(dashboard)/projecten/page.tsx",
+        "src/app/(dashboard)/klanten/page.tsx"
+      ],
+      "effort": "small",
+      "status": "done"
+    },
+    {
+      "id": "FA-012",
+      "title": "Copy-to-clipboard met feedback",
+      "priority": "medium",
+      "category": "ux",
+      "description": "Referentienummers en codes missen kopieer functionaliteit.",
+      "subtasks": [
+        "Herbruikbaar CopyButton component aanmaken",
+        "Toevoegen bij offerte nummers",
+        "Toevoegen bij klant referenties",
+        "Toevoegen bij factuur nummers",
+        "Toast: showSuccessToast('Gekopieerd naar klembord')"
+      ],
+      "files": [
+        "src/components/ui/"
+      ],
+      "effort": "small",
+      "status": "done"
+    },
+    {
+      "id": "FA-013",
+      "title": "aria-expanded toevoegen aan collapsible elementen",
+      "priority": "medium",
+      "category": "accessibility",
+      "description": "Custom collapsible/accordion patronen missen aria-expanded attribuut.",
+      "subtasks": [
+        "Audit van alle collapsible/accordion componenten",
+        "aria-expanded toevoegen waar het ontbreekt",
+        "Testen met screen reader"
+      ],
+      "files": [
+        "src/components/ui/collapsible.tsx",
+        "src/components/"
+      ],
+      "effort": "small",
+      "status": "done"
+    },
+    {
+      "id": "FA-014",
+      "title": "Hardcoded kleuren vervangen in kanban-board",
+      "priority": "medium",
+      "category": "ui",
+      "description": "Kanban board gebruikt hex waarden i.p.v. Tailwind semantic classes.",
+      "subtasks": [
+        "Hex kleuren (#3b82f6, #f59e0b, etc.) vervangen door Tailwind classes of CSS variabelen"
+      ],
+      "files": [
+        "src/components/leads/kanban-board.tsx"
+      ],
+      "effort": "trivial",
+      "status": "done"
+    },
+    {
+      "id": "FA-015",
+      "title": "Portaal drawer max-width safety",
+      "priority": "medium",
+      "category": "responsive",
+      "description": "Fixed w-72 kan overflown op zeer kleine schermen.",
+      "subtasks": [
+        "max-w-[calc(100vw-3rem)] toevoegen aan portaal drawer"
+      ],
+      "files": [
+        "src/components/portaal/portaal-nav.tsx"
+      ],
+      "effort": "trivial",
+      "status": "done"
+    },
+    {
+      "id": "FA-016",
+      "title": "Globale navigation loading bar",
+      "priority": "low",
+      "category": "ux",
+      "description": "Subtiele top-of-page progress bar bij route transitions.",
+      "subtasks": [
+        "NProgress of soortgelijke library integreren",
+        "Koppelen aan Next.js router events"
+      ],
+      "files": [
+        "src/app/(dashboard)/layout.tsx"
+      ],
+      "effort": "small",
+      "status": "done"
+    },
+    {
+      "id": "FA-017",
+      "title": "Character count op textarea's",
+      "priority": "low",
+      "category": "ux",
+      "description": "Notitie velden tonen geen max/huidige karakter telling.",
+      "subtasks": [
+        "CharacterCount component aanmaken",
+        "Toevoegen aan overig-form notities",
+        "Toevoegen aan beschrijving velden"
+      ],
+      "files": [
+        "src/components/ui/",
+        "src/components/offerte/scope-forms/"
+      ],
+      "effort": "small",
+      "status": "done"
+    },
+    {
+      "id": "FA-018",
+      "title": "Consistente EmptyState component gebruik",
+      "priority": "low",
+      "category": "ui",
+      "description": "Sommige pagina's gebruiken inline divs i.p.v. het centrale EmptyState component.",
+      "subtasks": [
+        "Verzuim pagina migreren naar EmptyState component",
+        "Chat pagina migreren naar EmptyState component",
+        "Instellingen pagina's auditen en migreren"
+      ],
+      "files": [
+        "src/app/(dashboard)/verzuim/",
+        "src/app/(dashboard)/chat/",
+        "src/components/empty-states.tsx"
+      ],
+      "effort": "small",
+      "status": "done"
+    },
+    {
+      "id": "FA-019",
+      "title": "aria-label audit voor icon-only buttons",
+      "priority": "low",
+      "category": "accessibility",
+      "description": "Veel icon-only buttons missen expliciete aria-labels.",
+      "subtasks": [
+        "Alle Button variant='ghost' size='icon' instanties auditen",
+        "Ontbrekende aria-labels toevoegen",
+        "Screen reader test uitvoeren"
+      ],
+      "files": [
+        "src/components/"
+      ],
+      "effort": "medium",
+      "status": "done"
+    },
+    {
+      "id": "FA-020",
+      "title": "Geautomatiseerde a11y testing opzetten",
+      "priority": "low",
+      "category": "accessibility",
+      "description": "Geen jest-axe of axe-core in test pipeline.",
+      "subtasks": [
+        "jest-axe of vitest-axe installeren",
+        "A11y tests toevoegen voor core componenten (Button, Card, Dialog, Form)",
+        "A11y tests toevoegen voor pagina layouts",
+        "Integreren in CI/CD pipeline"
+      ],
+      "files": [
+        "src/__tests__/",
+        "vitest.config.ts"
+      ],
+      "effort": "medium",
+      "status": "todo"
+    },
+    {
+      "id": "FA-021",
+      "title": "Connection status indicator",
+      "priority": "low",
+      "category": "ux",
+      "description": "Geen offline/reconnecting feedback voor Convex real-time verbinding.",
+      "subtasks": [
+        "ConnectionStatus component aanmaken",
+        "Convex connection state monitoren",
+        "Toast of banner tonen bij connectie verlies/herstel"
+      ],
+      "files": [
+        "src/components/ui/",
+        "src/app/(dashboard)/layout.tsx"
+      ],
+      "effort": "small",
+      "status": "done"
+    }
+  ],
+  "summary": {
+    "total": 21,
+    "critical": 3,
+    "high": 5,
+    "medium": 7,
+    "low": 6,
+    "effort_breakdown": {
+      "trivial": 3,
+      "small": 7,
+      "medium": 7,
+      "large": 3
+    },
+    "category_breakdown": {
+      "tests": 2,
+      "accessibility": 6,
+      "ux": 6,
+      "ui": 2,
+      "code-quality": 2,
+      "responsive": 1
+    }
+  }
+}

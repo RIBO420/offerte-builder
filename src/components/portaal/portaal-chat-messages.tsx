@@ -78,7 +78,7 @@ export function PortaalChatMessages({
   if (!threadId) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-6">
-        <MessageSquare className="h-10 w-10 text-gray-300 dark:text-gray-600 mb-3" />
+        <MessageSquare className="h-10 w-10 text-gray-400 dark:text-gray-500 mb-3" />
         <p className="text-sm text-gray-500 dark:text-gray-400">
           Selecteer een gesprek om berichten te bekijken.
         </p>
@@ -124,7 +124,7 @@ export function PortaalChatMessages({
       <ScrollArea className="flex-1 px-4 py-3">
         {messages.length === 0 ? (
           <div className="flex items-center justify-center h-full py-12">
-            <p className="text-sm text-gray-400 dark:text-gray-500">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
               Nog geen berichten in dit gesprek.
             </p>
           </div>
@@ -162,7 +162,7 @@ export function PortaalChatMessages({
                     <p
                       className={cn(
                         "text-[10px] mt-1",
-                        isKlant ? "text-gray-300" : "text-gray-400 dark:text-gray-500"
+                        isKlant ? "text-gray-300" : "text-gray-500 dark:text-gray-400"
                       )}
                     >
                       {new Date(msg.createdAt).toLocaleTimeString("nl-NL", {
@@ -195,6 +195,7 @@ export function PortaalChatMessages({
             disabled={!text.trim() || sending}
             className="bg-[#1a2e1a] hover:bg-[#2a3e2a] text-white dark:bg-[#4ADE80] dark:text-black dark:hover:bg-[#3bce70] shrink-0"
             size="icon"
+            aria-label="Bericht verzenden"
           >
             <Send className="h-4 w-4" />
           </Button>

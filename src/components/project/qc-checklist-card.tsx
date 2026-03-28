@@ -209,6 +209,7 @@ export function QCChecklistCard({
               variant="ghost"
               size="icon-sm"
               onClick={() => setIsExpanded(!isExpanded)}
+              aria-expanded={isExpanded}
               aria-label={isExpanded ? "Invouwen" : "Uitvouwen"}
             >
               {isExpanded ? (

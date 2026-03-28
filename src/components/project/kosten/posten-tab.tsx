@@ -125,6 +125,7 @@ const KostRow = React.memo(function KostRow({
               size="icon"
               className="h-8 w-8 text-muted-foreground hover:text-destructive"
               onClick={() => onDelete({ id: kost.id, type: kost.type })}
+              aria-label="Verwijderen"
             >
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -217,7 +218,7 @@ export function PostenTab({
                 </PopoverContent>
               </Popover>
               {hasActiveFilters && (
-                <Button variant="ghost" size="icon" onClick={onClearFilters}>
+                <Button variant="ghost" size="icon" onClick={onClearFilters} aria-label="Filters wissen">
                   <X className="h-4 w-4" />
                 </Button>
               )}

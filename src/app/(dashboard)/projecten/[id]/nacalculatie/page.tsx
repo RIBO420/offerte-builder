@@ -61,6 +61,7 @@ import {
   Target,
   BarChart3,
   HelpCircle,
+  Home,
 } from "lucide-react";
 import { exportNacalculatieToExcel } from "./export";
 import { getDeviationColor, formatDeviation } from "@/lib/nacalculatie-calculator";
@@ -247,7 +248,7 @@ export default function NacalculatiePage({
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
+                <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
@@ -278,7 +279,7 @@ export default function NacalculatiePage({
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
+              <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>

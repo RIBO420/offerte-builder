@@ -59,6 +59,7 @@ import {
   Award,
   AlertTriangle,
   Eye,
+  Home,
 } from "lucide-react";
 import { MedewerkersPageSkeleton } from "@/components/ui/skeleton-card";
 import { toast } from "sonner";
@@ -423,7 +424,7 @@ function MedewerkersPageContent() {
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
+                <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
@@ -447,7 +448,7 @@ function MedewerkersPageContent() {
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
+              <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>

@@ -71,7 +71,7 @@ export function PortaalNav({ unreadMessages, mobileOpen, onMobileClose }: Portaa
       )}
       <div
         className={cn(
-          "fixed top-0 left-0 h-full w-72 bg-[#1a2e1a] z-50 transform transition-transform duration-200 md:hidden",
+          "fixed top-0 left-0 h-full w-72 max-w-[calc(100vw-3rem)] bg-[#1a2e1a] z-50 transform transition-transform duration-200 md:hidden",
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >

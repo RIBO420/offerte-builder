@@ -17,7 +17,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Download, BarChart3, Loader2, Calculator, Users, FolderKanban } from "lucide-react";
+import { Home, Download, BarChart3, Loader2, Calculator, Users, FolderKanban } from "lucide-react";
 import { useReducedMotion } from "@/hooks/use-accessibility";
 import { useAnalytics } from "@/hooks/use-analytics";
 import {
@@ -164,7 +164,7 @@ function RapportagesPageContent() {
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
+              <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>

@@ -54,6 +54,7 @@ import {
   Calendar,
   List,
   Loader2,
+  Home,
 } from "lucide-react";
 import { useVerlof, useVerlofsaldo, type VerlofStatus, type VerlofType } from "@/hooks/use-verlof";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -96,7 +97,7 @@ function VerlofPageSkeleton() {
         <Separator orientation="vertical" className="mr-2 h-4" />
         <Breadcrumb>
           <BreadcrumbList>
-            <BreadcrumbItem><BreadcrumbLink href="/">Dashboard</BreadcrumbLink></BreadcrumbItem>
+            <BreadcrumbItem><BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink></BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem><BreadcrumbPage>Verlof</BreadcrumbPage></BreadcrumbItem>
           </BreadcrumbList>
@@ -235,7 +236,7 @@ function VerlofPageContent() {
         <Separator orientation="vertical" className="mr-2 h-4" />
         <Breadcrumb>
           <BreadcrumbList>
-            <BreadcrumbItem><BreadcrumbLink href="/">Dashboard</BreadcrumbLink></BreadcrumbItem>
+            <BreadcrumbItem><BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink></BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem><BreadcrumbPage>Verlof</BreadcrumbPage></BreadcrumbItem>
           </BreadcrumbList>
@@ -464,6 +465,7 @@ function VerlofPageContent() {
                                 }
                                 disabled={actionLoading === aanvraag._id}
                                 title="Goedkeuren"
+                                aria-label="Goedkeuren"
                               >
                                 {actionLoading === aanvraag._id ? (
                                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -481,6 +483,7 @@ function VerlofPageContent() {
                                   )
                                 }
                                 title="Afkeuren"
+                                aria-label="Afkeuren"
                               >
                                 <X className="h-4 w-4" />
                               </Button>
@@ -494,6 +497,7 @@ function VerlofPageContent() {
                                 className="h-8 w-8"
                                 onClick={() => setEditAanvraag(aanvraag)}
                                 title="Bewerken"
+                                aria-label="Bewerken"
                               >
                                 <Pencil className="h-4 w-4" />
                               </Button>
@@ -507,6 +511,7 @@ function VerlofPageContent() {
                                   )
                                 }
                                 title="Verwijderen"
+                                aria-label="Verwijderen"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>

@@ -1,15 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { m } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -19,35 +14,28 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { Form } from "@/components/ui/form";
 import { Loader2, User, Clock, GraduationCap, Award, FileText, MapPin, Phone } from "lucide-react";
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import { getMutationErrorMessage } from "@/lib/error-handling";
 import { Id } from "../../../convex/_generated/dataModel";
-import { SkillsSelector, Specialisatie } from "./skills-selector";
-import { CertificatenList, Certificaat } from "./certificaat-form";
-import { inputPatterns, formatInput, validateInput } from "@/lib/input-patterns";
+import { Specialisatie } from "./skills-selector";
+import { Certificaat } from "./certificaat-form";
+
+import { MedewerkerFormBasicInfo } from "./medewerker-form-basic-info";
+import { MedewerkerFormBeschikbaarheid } from "./medewerker-form-beschikbaarheid";
+import { MedewerkerFormSpecialisaties } from "./medewerker-form-specialisaties";
+import { MedewerkerFormCertificaten } from "./medewerker-form-certificaten";
+import { MedewerkerFormAdres } from "./medewerker-form-adres";
+import { MedewerkerFormNoodcontact } from "./medewerker-form-noodcontact";
+import { MedewerkerFormNotities } from "./medewerker-form-notities";
 
 export const FUNCTIE_OPTIONS = [
   "Hovenier",
@@ -335,17 +323,6 @@ export function MedewerkerForm({
     onOpenChange(false);
   }, [onOpenChange]);
 
-  const handleWerkdagToggle = useCallback(
-    (dag: number) => {
-      const current = form.getValues("werkdagen") ?? [];
-      const newDagen = current.includes(dag)
-        ? current.filter((d) => d !== dag)
-        : [...current, dag];
-      form.setValue("werkdagen", newDagen);
-    },
-    [form]
-  );
-
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -377,159 +354,7 @@ export function MedewerkerForm({
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="pb-4">
-                    <m.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="grid gap-4"
-                    >
-                      {/* Naam en Functie */}
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <FormField
-                          control={form.control}
-                          name="naam"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Naam *</FormLabel>
-                              <FormControl>
-                                <Input {...field} placeholder="Jan Jansen" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="functie"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Functie</FormLabel>
-                              <Select
-                                onValueChange={field.onChange}
-                                value={field.value}
-                              >
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Selecteer functie" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {FUNCTIE_OPTIONS.map((functie) => (
-                                    <SelectItem key={functie} value={functie}>
-                                      {functie}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-
-                      {/* Email en Telefoon */}
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <FormField
-                          control={form.control}
-                          name="email"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>E-mail</FormLabel>
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  type="email"
-                                  placeholder={inputPatterns.email.placeholder}
-                                  inputMode={inputPatterns.email.inputMode}
-                                  autoComplete={inputPatterns.email.autoComplete}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="telefoon"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Telefoon</FormLabel>
-                              <FormControl>
-                                <Input
-                                  value={field.value}
-                                  onChange={(e) => {
-                                    const formatted = formatInput("telefoon", e.target.value);
-                                    field.onChange(formatted);
-                                  }}
-                                  placeholder={inputPatterns.telefoon.placeholder}
-                                  inputMode={inputPatterns.telefoon.inputMode}
-                                  autoComplete={inputPatterns.telefoon.autoComplete}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-
-                      {/* Contract Type en Uurtarief */}
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <FormField
-                          control={form.control}
-                          name="contractType"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Contract type</FormLabel>
-                              <Select
-                                onValueChange={field.onChange}
-                                value={field.value}
-                              >
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Selecteer type" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {CONTRACT_TYPE_OPTIONS.map((type) => (
-                                    <SelectItem key={type.value} value={type.value}>
-                                      {type.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="uurtarief"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Uurtarief (optioneel)</FormLabel>
-                              <FormControl>
-                                <div className="relative">
-                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-                                    EUR
-                                  </span>
-                                  <Input
-                                    {...field}
-                                    type="number"
-                                    step="0.01"
-                                    min="0"
-                                    className="pl-12"
-                                    placeholder="45.00"
-                                  />
-                                </div>
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                    </m.div>
+                    <MedewerkerFormBasicInfo />
                   </AccordionContent>
                 </AccordionItem>
 
@@ -542,79 +367,7 @@ export function MedewerkerForm({
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="pb-4">
-                    <m.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="space-y-4"
-                    >
-                      {/* Werkdagen */}
-                      <div className="space-y-3">
-                        <Label>Werkdagen</Label>
-                        <div className="flex flex-wrap gap-2">
-                          {WERKDAGEN.map((dag) => (
-                            <div
-                              key={dag.key}
-                              className="flex items-center space-x-2"
-                            >
-                              <Checkbox
-                                id={`dag-${dag.key}`}
-                                checked={(form.watch("werkdagen") ?? []).includes(dag.key)}
-                                onCheckedChange={() => handleWerkdagToggle(dag.key)}
-                              />
-                              <Label
-                                htmlFor={`dag-${dag.key}`}
-                                className="text-sm font-normal cursor-pointer"
-                              >
-                                {dag.label}
-                              </Label>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Uren */}
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <FormField
-                          control={form.control}
-                          name="urenPerWeek"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Uren per week</FormLabel>
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  type="number"
-                                  min="0"
-                                  max="60"
-                                  placeholder="40"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="maxUrenPerDag"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Max uren per dag</FormLabel>
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  type="number"
-                                  min="0"
-                                  max="12"
-                                  placeholder="8"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                    </m.div>
+                    <MedewerkerFormBeschikbaarheid />
                   </AccordionContent>
                 </AccordionItem>
 
@@ -632,21 +385,7 @@ export function MedewerkerForm({
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="pb-4">
-                    <m.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                    >
-                      <Controller
-                        control={form.control}
-                        name="specialisaties"
-                        render={({ field }) => (
-                          <SkillsSelector
-                            value={field.value ?? []}
-                            onChange={field.onChange}
-                          />
-                        )}
-                      />
-                    </m.div>
+                    <MedewerkerFormSpecialisaties />
                   </AccordionContent>
                 </AccordionItem>
 
@@ -664,21 +403,7 @@ export function MedewerkerForm({
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="pb-4">
-                    <m.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                    >
-                      <Controller
-                        control={form.control}
-                        name="certificaten"
-                        render={({ field }) => (
-                          <CertificatenList
-                            certificaten={field.value ?? []}
-                            onChange={field.onChange}
-                          />
-                        )}
-                      />
-                    </m.div>
+                    <MedewerkerFormCertificaten />
                   </AccordionContent>
                 </AccordionItem>
 
@@ -691,63 +416,7 @@ export function MedewerkerForm({
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="pb-4">
-                    <m.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="grid gap-4"
-                    >
-                      <FormField
-                        control={form.control}
-                        name="straat"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Straat + huisnummer</FormLabel>
-                            <FormControl>
-                              <Input {...field} placeholder="Hoofdstraat 123" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <FormField
-                          control={form.control}
-                          name="postcode"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Postcode</FormLabel>
-                              <FormControl>
-                                <Input
-                                  value={field.value}
-                                  onChange={(e) => {
-                                    const formatted = formatInput("postcode", e.target.value);
-                                    field.onChange(formatted);
-                                  }}
-                                  placeholder={inputPatterns.postcode.placeholder}
-                                  inputMode={inputPatterns.postcode.inputMode}
-                                  autoComplete={inputPatterns.postcode.autoComplete}
-                                  maxLength={inputPatterns.postcode.maxLength}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="plaats"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Plaats</FormLabel>
-                              <FormControl>
-                                <Input {...field} placeholder="Amsterdam" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                    </m.div>
+                    <MedewerkerFormAdres />
                   </AccordionContent>
                 </AccordionItem>
 
@@ -760,62 +429,7 @@ export function MedewerkerForm({
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="pb-4">
-                    <m.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="grid gap-4"
-                    >
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <FormField
-                          control={form.control}
-                          name="noodcontactNaam"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Naam</FormLabel>
-                              <FormControl>
-                                <Input {...field} placeholder="Maria Jansen" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="noodcontactRelatie"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Relatie</FormLabel>
-                              <FormControl>
-                                <Input {...field} placeholder="Partner" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                      <FormField
-                        control={form.control}
-                        name="noodcontactTelefoon"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Telefoon</FormLabel>
-                            <FormControl>
-                              <Input
-                                value={field.value}
-                                onChange={(e) => {
-                                  const formatted = formatInput("telefoon", e.target.value);
-                                  field.onChange(formatted);
-                                }}
-                                placeholder={inputPatterns.telefoon.placeholder}
-                                inputMode={inputPatterns.telefoon.inputMode}
-                                autoComplete={inputPatterns.telefoon.autoComplete}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </m.div>
+                    <MedewerkerFormNoodcontact />
                   </AccordionContent>
                 </AccordionItem>
 
@@ -828,27 +442,7 @@ export function MedewerkerForm({
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="pb-4">
-                    <m.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                    >
-                      <FormField
-                        control={form.control}
-                        name="notities"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormControl>
-                              <Textarea
-                                {...field}
-                                placeholder="Extra informatie over de medewerker..."
-                                rows={4}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </m.div>
+                    <MedewerkerFormNotities />
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>

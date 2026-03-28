@@ -219,7 +219,7 @@ export default function PortaalOfferteDetailPage({
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-3">
-          <Button asChild variant="ghost" size="icon" className="shrink-0 mt-0.5">
+          <Button asChild variant="ghost" size="icon" className="shrink-0 mt-0.5" aria-label="Terug naar offertes">
             <Link href="/portaal/offertes">
               <ArrowLeft className="h-5 w-5" />
             </Link>

@@ -17,6 +17,7 @@ import {
   Clock,
   Truck,
   Wrench,
+  Home,
 } from "lucide-react";
 import {
   Breadcrumb,
@@ -97,7 +98,7 @@ export default function DashboardPage() {
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbPage>Dashboard</BreadcrumbPage>
+                <BreadcrumbPage><Home className="size-4" /></BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
@@ -124,7 +125,7 @@ export default function DashboardPage() {
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbPage>Dashboard</BreadcrumbPage>
+              <BreadcrumbPage><Home className="size-4" /></BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>

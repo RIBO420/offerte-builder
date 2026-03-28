@@ -326,7 +326,7 @@ export function AppSidebar() {
                       user?.imageUrl ? (
                         <Image
                           src={user.imageUrl}
-                          alt={userDisplayName}
+                          alt={`Profielfoto van ${userDisplayName}`}
                           width={32}
                           height={32}
                           className="size-8 rounded-full object-cover"

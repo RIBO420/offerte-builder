@@ -94,7 +94,7 @@ function FilterPresetSelectorComponent<T extends FilterState>({
           >
             <Bookmark className="h-4 w-4" />
             <span className="hidden sm:inline">Presets</span>
-            <ChevronDown className="h-3 w-3 opacity-50" />
+            <ChevronDown className="h-3 w-3 text-muted-foreground" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-64">
@@ -140,6 +140,7 @@ function FilterPresetSelectorComponent<T extends FilterState>({
                       e.stopPropagation();
                       setDeleteConfirmId(preset.id);
                     }}
+                    aria-label="Preset verwijderen"
                   >
                     <Trash2 className="h-3 w-3" />
                   </Button>

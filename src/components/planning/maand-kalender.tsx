@@ -93,7 +93,7 @@ const KalenderCel = React.memo(function KalenderCel({
         dagData && dagData.aantalTaken > 0
           ? "hover:bg-accent/50 cursor-pointer"
           : "hover:bg-muted/20 cursor-default",
-        !dagData && "opacity-40"
+        !dagData && "opacity-60"
       )}
     >
       <span
@@ -175,7 +175,7 @@ function DagDetailPanel({
               <CapaciteitIndicator bezetting={bezetting} variant="badge" />
             </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose}>
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Sluiten">
             <X className="h-4 w-4" />
           </Button>
         </div>
@@ -299,13 +299,13 @@ export function MaandKalender({
       {/* Navigation */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={prevMonth}>
+          <Button variant="outline" size="icon" onClick={prevMonth} aria-label="Vorige maand">
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <h2 className="text-lg font-semibold min-w-[200px] text-center">
             {MAAND_NAMEN[month - 1]} {year}
           </h2>
-          <Button variant="outline" size="icon" onClick={nextMonth}>
+          <Button variant="outline" size="icon" onClick={nextMonth} aria-label="Volgende maand">
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>

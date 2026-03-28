@@ -26,6 +26,7 @@ import { useOfferte, useOffertes } from "@/hooks/use-offertes";
 import { useInstellingen } from "@/hooks/use-instellingen";
 import { useOfferteCalculation } from "@/hooks/use-offerte-calculation";
 import { useOfferteEditorShortcuts } from "@/hooks/use-offerte-shortcuts";
+import { useBeforeUnload } from "@/hooks/use-before-unload";
 import { Id } from "../../../../../../convex/_generated/dataModel";
 import { toast } from "sonner";
 import { getModifierKey } from "@/hooks/use-keyboard-shortcuts";
@@ -77,6 +78,13 @@ export default function OfferteEditPage({
   const [editingRegel, setEditingRegel] = useState<Regel | null>(null);
   const [chatMessage, setChatMessage] = useState("");
   const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const [optimisticMessages, setOptimisticMessages] = useState<Array<{
+    _id: string;
+    sender: "klant" | "business";
+    message: string;
+    isRead: boolean;
+    createdAt: number;
+  }>>([]);
 
   useEffect(() => {
     if (offerte) {
@@ -84,6 +92,13 @@ export default function OfferteEditPage({
       setNotities(offerte.notities || "");
     }
   }, [offerte]);
+
+  // Warn user about unsaved changes before leaving
+  const hasUnsavedChanges =
+    !!offerte &&
+    (JSON.stringify(regels) !== JSON.stringify(offerte.regels || []) ||
+      notities !== (offerte.notities || ""));
+  useBeforeUnload(hasUnsavedChanges);
 
   // Keyboard shortcuts for offerte editor
   useOfferteEditorShortcuts({
@@ -127,14 +142,34 @@ export default function OfferteEditPage({
 
   const handleSendMessage = async () => {
     if (!chatMessage.trim() || !id) return;
+    const messageText = chatMessage.trim();
+    const optimisticId = `optimistic-${Date.now()}`;
+
+    // Optimistic: show message immediately and clear input
+    setOptimisticMessages((prev) => [
+      ...prev,
+      {
+        _id: optimisticId,
+        sender: "business" as const,
+        message: messageText,
+        isRead: true,
+        createdAt: Date.now(),
+      },
+    ]);
+    setChatMessage("");
     setIsSendingMessage(true);
+
     try {
       await sendMessage({
         offerteId: id as Id<"offertes">,
-        message: chatMessage.trim(),
+        message: messageText,
       });
-      setChatMessage("");
+      // Server confirmed — remove optimistic message (real data from Convex subscription takes over)
+      setOptimisticMessages((prev) => prev.filter((m) => m._id !== optimisticId));
     } catch {
+      // Rollback: remove optimistic message and restore input
+      setOptimisticMessages((prev) => prev.filter((m) => m._id !== optimisticId));
+      setChatMessage(messageText);
       toast.error("Fout bij verzenden bericht");
     } finally {
       setIsSendingMessage(false);
@@ -405,7 +440,10 @@ export default function OfferteEditPage({
             <WerkzaamhedenCard scopes={offerte.scopes || []} />
 
             <ChatCard
-              messages={messages as Array<{ _id: string; sender: "klant" | "business"; message: string; isRead: boolean; createdAt: number }> | undefined}
+              messages={[
+                ...((messages as Array<{ _id: string; sender: "klant" | "business"; message: string; isRead: boolean; createdAt: number }>) ?? []),
+                ...optimisticMessages,
+              ]}
               chatMessage={chatMessage}
               onChatMessageChange={setChatMessage}
               onSendMessage={handleSendMessage}

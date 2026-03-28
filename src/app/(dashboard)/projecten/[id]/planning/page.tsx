@@ -67,6 +67,7 @@ import {
   ArrowRight,
   ClipboardCheck,
   Sparkles,
+  Home,
 } from "lucide-react";
 import { toast } from "sonner";
 import { usePlanning, type TaakStatus } from "@/hooks/use-planning";
@@ -368,7 +369,7 @@ export default function PlanningPage({
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
+                <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
@@ -396,7 +397,7 @@ export default function PlanningPage({
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
+              <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>

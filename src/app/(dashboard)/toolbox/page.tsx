@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { Plus, ClipboardList, Trash2, Pencil, Users, Loader2 } from "lucide-react";
+import { Home, Plus, ClipboardList, Trash2, Pencil, Users, Loader2 } from "lucide-react";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useIsAdmin } from "@/hooks/use-users";
 import { ToolboxForm } from "@/components/toolbox/toolbox-form";
@@ -40,7 +40,7 @@ function ToolboxPageSkeleton() {
         <Separator orientation="vertical" className="mr-2 h-4" />
         <Breadcrumb>
           <BreadcrumbList>
-            <BreadcrumbItem><BreadcrumbLink href="/">Dashboard</BreadcrumbLink></BreadcrumbItem>
+            <BreadcrumbItem><BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink></BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem><BreadcrumbPage>Toolbox</BreadcrumbPage></BreadcrumbItem>
           </BreadcrumbList>
@@ -95,7 +95,7 @@ function ToolboxPageContent() {
         <Separator orientation="vertical" className="mr-2 h-4" />
         <Breadcrumb>
           <BreadcrumbList>
-            <BreadcrumbItem><BreadcrumbLink href="/">Dashboard</BreadcrumbLink></BreadcrumbItem>
+            <BreadcrumbItem><BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink></BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem><BreadcrumbPage>Toolbox</BreadcrumbPage></BreadcrumbItem>
           </BreadcrumbList>
@@ -151,8 +151,8 @@ function ToolboxPageContent() {
             </TableCell>
             <TableCell className="text-right">
               <div className="flex justify-end gap-1">
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditMeeting(meeting)} title="Bewerken"><Pencil className="h-4 w-4" /></Button>
-                {isAdmin && (<Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(meeting._id as Id<"toolboxMeetings">)} title="Verwijderen">{actionLoading === meeting._id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}</Button>)}
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditMeeting(meeting)} title="Bewerken" aria-label="Bewerken"><Pencil className="h-4 w-4" /></Button>
+                {isAdmin && (<Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(meeting._id as Id<"toolboxMeetings">)} title="Verwijderen" aria-label="Verwijderen">{actionLoading === meeting._id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}</Button>)}
               </div>
             </TableCell>
           </TableRow>))}</TableBody></Table></div>

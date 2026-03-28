@@ -44,7 +44,7 @@ export function StapIndicator({ huidigStap }: StapIndicatorProps) {
                     ? "bg-green-600 border-green-600 text-white"
                     : isActief
                     ? "border-green-600 text-green-700 bg-white"
-                    : "border-gray-200 text-gray-400 bg-white"
+                    : "border-gray-300 text-gray-500 bg-white"
                 )}
               >
                 {isKlaar ? <CheckCircle2 className="h-4 w-4" /> : stapNummer}

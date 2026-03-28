@@ -140,7 +140,7 @@ export function ScopeChangeModal({
                       strokeWidth={3}
                     />
                   ) : (
-                    <Icon className="h-4 w-4 text-muted-foreground opacity-50" />
+                    <Icon className="h-4 w-4 text-muted-foreground" />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">

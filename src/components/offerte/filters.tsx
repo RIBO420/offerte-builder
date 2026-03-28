@@ -354,6 +354,7 @@ export const ActiveFilters = memo(function ActiveFilters({
             size="icon"
             className="h-4 w-4 p-0 hover:bg-transparent"
             onClick={() => handleRemove(badge.filterKey)}
+            aria-label={`Filter ${badge.label} verwijderen`}
           >
             <X className="h-3 w-3" />
           </Button>

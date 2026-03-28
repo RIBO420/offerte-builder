@@ -265,6 +265,7 @@ export function TeamSelector({
                     size="icon"
                     onClick={handleAddTeamlid}
                     disabled={!newTeamlid.trim() || disabled}
+                    aria-label="Teamlid toevoegen"
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
@@ -275,6 +276,7 @@ export function TeamSelector({
                       setShowManualInput(false);
                       setNewTeamlid("");
                     }}
+                    aria-label="Annuleren"
                   >
                     <X className="h-4 w-4" />
                   </Button>

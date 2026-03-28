@@ -83,6 +83,7 @@ import {
   FileSpreadsheet,
   AlertCircle,
   CheckCircle,
+  Home,
 } from "lucide-react";
 import { useProducten } from "@/hooks/use-producten";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -470,7 +471,7 @@ function PrijsboekPageContent() {
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
+              <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>

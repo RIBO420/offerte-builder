@@ -193,7 +193,7 @@ export function WerklocatieFotoGallery({
                 >
                   <Image
                     src={foto.url}
-                    alt={foto.beschrijving || `Foto ${index + 1}`}
+                    alt={foto.beschrijving || `Werklocatie foto ${index + 1}${foto.type ? ` (${foto.type})` : ""}`}
                     fill
                     unoptimized
                     className="object-cover transition-transform group-hover:scale-105"
@@ -206,6 +206,7 @@ export function WerklocatieFotoGallery({
                       variant="secondary"
                       className="h-8 w-8"
                       onClick={() => setSelectedIndex(index)}
+                      aria-label="Foto vergroten"
                     >
                       <ZoomIn className="h-4 w-4" />
                     </Button>
@@ -214,6 +215,7 @@ export function WerklocatieFotoGallery({
                       variant="secondary"
                       className="h-8 w-8"
                       onClick={() => handleDownload(foto.url)}
+                      aria-label="Downloaden"
                     >
                       <Download className="h-4 w-4" />
                     </Button>
@@ -222,6 +224,7 @@ export function WerklocatieFotoGallery({
                       variant="destructive"
                       className="h-8 w-8"
                       onClick={() => setDeleteConfirmUrl(foto.url)}
+                      aria-label="Verwijderen"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -262,6 +265,7 @@ export function WerklocatieFotoGallery({
             variant="ghost"
             className="absolute top-4 right-4 text-white hover:bg-white/20"
             onClick={() => setSelectedIndex(null)}
+            aria-label="Sluiten"
           >
             <X className="h-6 w-6" />
           </Button>
@@ -276,6 +280,7 @@ export function WerklocatieFotoGallery({
                 e.stopPropagation();
                 handlePrevious();
               }}
+              aria-label="Vorige foto"
             >
               <ChevronLeft className="h-8 w-8" />
             </Button>
@@ -290,7 +295,7 @@ export function WerklocatieFotoGallery({
               src={filteredFotos[selectedIndex].url}
               alt={
                 filteredFotos[selectedIndex].beschrijving ||
-                `Foto ${selectedIndex + 1}`
+                `Werklocatie foto ${selectedIndex + 1}${filteredFotos[selectedIndex].type ? ` (${filteredFotos[selectedIndex].type})` : ""}`
               }
               width={1200}
               height={800}
@@ -324,6 +329,7 @@ export function WerklocatieFotoGallery({
                   onClick={() =>
                     handleDownload(filteredFotos[selectedIndex].url)
                   }
+                  aria-label="Downloaden"
                 >
                   <Download className="h-4 w-4" />
                 </Button>
@@ -334,6 +340,7 @@ export function WerklocatieFotoGallery({
                   onClick={() =>
                     setDeleteConfirmUrl(filteredFotos[selectedIndex].url)
                   }
+                  aria-label="Verwijderen"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -351,6 +358,7 @@ export function WerklocatieFotoGallery({
                 e.stopPropagation();
                 handleNext();
               }}
+              aria-label="Volgende foto"
             >
               <ChevronRight className="h-8 w-8" />
             </Button>

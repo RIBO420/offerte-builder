@@ -26,6 +26,7 @@ import {
   Wrench,
   Plus,
   TrendingUp,
+  Home,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
@@ -117,12 +118,17 @@ export default function UitvoeringPage() {
   );
   const [machineUren, setMachineUren] = useState<string>("");
 
+  // Optimistic update states
+  const [optimisticDeletedItemIds, setOptimisticDeletedItemIds] = useState<Set<string>>(new Set());
+  const [optimisticKlicMelding, setOptimisticKlicMelding] = useState<boolean | null>(null);
+
   const isLoading = isUserLoading || isUrenLoading || isMachineLoading;
 
-  // Group registrations by date
+  // Group registrations by date, excluding optimistically deleted items
   const groupedByDate = useMemo(() => {
+    const filtered = registraties.filter((reg) => !optimisticDeletedItemIds.has(reg._id));
     const groups: Record<string, typeof registraties> = {};
-    registraties.forEach((reg) => {
+    filtered.forEach((reg) => {
       if (!groups[reg.datum]) {
         groups[reg.datum] = [];
       }
@@ -130,7 +136,13 @@ export default function UitvoeringPage() {
     });
     // Sort dates descending
     return Object.entries(groups).sort(([a], [b]) => b.localeCompare(a));
-  }, [registraties]);
+  }, [registraties, optimisticDeletedItemIds]);
+
+  // Filter machine usage by optimistically deleted items
+  const filteredMachineUsage = useMemo(
+    () => machineUsage.filter((item) => !optimisticDeletedItemIds.has(item._id)),
+    [machineUsage, optimisticDeletedItemIds]
+  );
 
   // Get unique medewerkers for the form
   const existingMedewerkers = useMemo(
@@ -199,17 +211,34 @@ export default function UitvoeringPage() {
   const handleDelete = useCallback(async () => {
     if (!itemToDelete) return;
 
+    const deletedId = itemToDelete.id;
+    const deletedType = itemToDelete.type;
+
+    // Optimistic: hide the item immediately and close dialog
+    setOptimisticDeletedItemIds((prev) => new Set(prev).add(deletedId));
+    setShowDeleteDialog(false);
+    setItemToDelete(null);
+    toast.success(deletedType === "uren" ? "Registratie verwijderd" : "Machine gebruik verwijderd");
+
     try {
-      if (itemToDelete.type === "uren") {
-        await deleteUren({ id: itemToDelete.id as Id<"urenRegistraties"> });
-        toast.success("Registratie verwijderd");
+      if (deletedType === "uren") {
+        await deleteUren({ id: deletedId as Id<"urenRegistraties"> });
       } else {
-        await deleteMachineUsage({ id: itemToDelete.id as Id<"machineGebruik"> });
-        toast.success("Machine gebruik verwijderd");
+        await deleteMachineUsage({ id: deletedId as Id<"machineGebruik"> });
       }
-      setShowDeleteDialog(false);
-      setItemToDelete(null);
+      // Server confirmed — clear optimistic state (real data takes over)
+      setOptimisticDeletedItemIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(deletedId);
+        return newSet;
+      });
     } catch (error) {
+      // Rollback on error — item reappears
+      setOptimisticDeletedItemIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(deletedId);
+        return newSet;
+      });
       toast.error("Fout bij verwijderen");
       console.error(error);
     }
@@ -218,14 +247,23 @@ export default function UitvoeringPage() {
   // Handle finish project (transition to afgerond)
   const handleFinishProject = useCallback(async () => {
     setIsFinishing(true);
+
+    // Optimistic: show success and navigate immediately
+    toast.success("Project afgerond! Je wordt doorgestuurd naar de nacalculatie.");
+    router.push(`/projecten/${projectId}/nacalculatie`);
+
     try {
       await updateProjectStatus({ id: projectId, status: "afgerond" });
-      toast.success("Project afgerond! Je wordt doorgestuurd naar de nacalculatie.");
-      router.push(`/projecten/${projectId}/nacalculatie`);
     } catch (error) {
+      // Server rejected — notify user (they're already on nacalculatie page)
       toast.error("Fout bij afronden project", {
         description: error instanceof Error ? error.message : "Onbekende fout",
+        action: {
+          label: "Terug naar uitvoering",
+          onClick: () => router.push(`/projecten/${projectId}/uitvoering`),
+        },
       });
+    } finally {
       setIsFinishing(false);
       setShowFinishDialog(false);
     }
@@ -234,18 +272,25 @@ export default function UitvoeringPage() {
   // PRJ-W01: KLIC-melding check — required for aanleg projects with grondwerk
   const requiresKlicMelding =
     offerte?.type === "aanleg" && offerte?.scopes?.includes("grondwerk");
-  const klicMeldingGedaan = project?.klicMeldingGedaan === true;
+  const klicMeldingGedaan = optimisticKlicMelding ?? project?.klicMeldingGedaan === true;
 
   const handleKlicMeldingToggle = useCallback(
     async (checked: boolean) => {
+      // Optimistic: update checkbox immediately
+      setOptimisticKlicMelding(checked);
+      toast.success(
+        checked
+          ? "KLIC-melding als gedaan gemarkeerd"
+          : "KLIC-melding markering verwijderd"
+      );
+
       try {
         await setKlicMelding({ id: projectId, klicMeldingGedaan: checked });
-        toast.success(
-          checked
-            ? "KLIC-melding als gedaan gemarkeerd"
-            : "KLIC-melding markering verwijderd"
-        );
+        // Server confirmed — clear optimistic state (real data takes over)
+        setOptimisticKlicMelding(null);
       } catch (error) {
+        // Rollback on error
+        setOptimisticKlicMelding(null);
         toast.error("Fout bij opslaan KLIC-melding status");
         console.error(error);
       }
@@ -285,7 +330,7 @@ export default function UitvoeringPage() {
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
+              <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
@@ -449,7 +494,7 @@ export default function UitvoeringPage() {
           <TabsContent value="machines" className="space-y-4">
             <MachinesTab
               isLoading={isLoading}
-              machineUsage={machineUsage}
+              machineUsage={filteredMachineUsage}
               onShowMachineForm={() => setShowMachineForm(true)}
               onDeleteItem={handleDeleteItem}
             />

@@ -100,12 +100,12 @@ export default function PortaalProfielPage() {
             <div className="space-y-1.5">
               <Label className="text-xs text-gray-500 dark:text-gray-400">
                 E-mailadres{" "}
-                <span className="text-[10px] text-gray-400">(niet wijzigbaar)</span>
+                <span className="text-[10px] text-gray-500">(niet wijzigbaar)</span>
               </Label>
               <Input
                 value={overzicht.klantNaam ? `${overzicht.klantNaam.toLowerCase().replace(/\s+/g, ".")}@...` : ""}
                 disabled
-                className="bg-gray-100 dark:bg-[#0a0f0a] border-gray-200 dark:border-[#2a3e2a] text-sm text-gray-400 cursor-not-allowed"
+                className="bg-gray-100 dark:bg-[#0a0f0a] border-gray-200 dark:border-[#2a3e2a] text-sm text-gray-500 cursor-not-allowed"
               />
             </div>
           </div>
@@ -177,18 +177,18 @@ export default function PortaalProfielPage() {
                 <h2 className="text-[15px] font-semibold text-[#1a2e1a] dark:text-white">
                   Weergave
                 </h2>
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                   {theme === "light" ? "Licht thema actief" : "Donker thema actief"}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Sun className="h-3.5 w-3.5 text-gray-400" />
+              <Sun className="h-3.5 w-3.5 text-gray-500" />
               <Switch
                 checked={theme === "dark"}
                 onCheckedChange={toggleTheme}
               />
-              <Moon className="h-3.5 w-3.5 text-gray-400" />
+              <Moon className="h-3.5 w-3.5 text-gray-500" />
             </div>
           </div>
         </div>
@@ -203,7 +203,7 @@ export default function PortaalProfielPage() {
               Beveiliging
             </h2>
           </div>
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
             Beheer uw wachtwoord en tweefactorauthenticatie (2FA).
           </p>
         </div>

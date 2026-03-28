@@ -494,6 +494,7 @@ export function EmailTemplatesTab({ reducedMotion }: EmailTemplatesTabProps) {
                             handleOpenPreview(template as EmailTemplate)
                           }
                           title="Voorbeeld bekijken"
+                          aria-label="Voorbeeld bekijken"
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
@@ -504,6 +505,7 @@ export function EmailTemplatesTab({ reducedMotion }: EmailTemplatesTabProps) {
                             handleOpenEdit(template as EmailTemplate)
                           }
                           title="Bewerken"
+                          aria-label="Bewerken"
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -514,6 +516,7 @@ export function EmailTemplatesTab({ reducedMotion }: EmailTemplatesTabProps) {
                             handleOpenDelete(template as EmailTemplate)
                           }
                           title="Verwijderen"
+                          aria-label="Verwijderen"
                           className="text-destructive hover:text-destructive"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -632,6 +635,7 @@ export function EmailTemplatesTab({ reducedMotion }: EmailTemplatesTabProps) {
                           className="h-5 w-5"
                           onClick={() => handleInsertVariable(variable)}
                           title="Invoegen in inhoud"
+                          aria-label="Invoegen in inhoud"
                         >
                           <Plus className="h-3 w-3" />
                         </Button>
@@ -641,6 +645,7 @@ export function EmailTemplatesTab({ reducedMotion }: EmailTemplatesTabProps) {
                           className="h-5 w-5"
                           onClick={() => handleCopyVariable(variable)}
                           title="Kopieer naar klembord"
+                          aria-label="Kopieer naar klembord"
                         >
                           <Copy className="h-3 w-3" />
                         </Button>

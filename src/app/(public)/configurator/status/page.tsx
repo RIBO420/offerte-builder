@@ -278,7 +278,7 @@ function Timeline({ status }: { status: Status }) {
                     ? stap.key === "afgekeurd"
                       ? "text-red-700"
                       : "text-blue-700"
-                    : "text-gray-400"
+                    : "text-gray-500"
                 )}
               >
                 {stap.label}

@@ -176,6 +176,7 @@ export function ShortcutsHelp({ open: controlledOpen, onOpenChange }: ShortcutsH
               size="icon"
               className="absolute right-1 top-1/2 -translate-y-1/2 size-7"
               onClick={() => setSearch("")}
+              aria-label="Zoekveld wissen"
             >
               <X className="size-3" />
             </Button>

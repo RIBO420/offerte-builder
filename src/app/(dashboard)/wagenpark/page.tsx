@@ -58,6 +58,7 @@ import {
   Fuel,
   Calendar,
   Eye,
+  Home,
 } from "lucide-react";
 import { WagenparkPageSkeleton } from "@/components/ui/skeleton-card";
 import { toast } from "sonner";
@@ -491,7 +492,7 @@ function WagenparkPageContent() {
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
+                <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
@@ -515,7 +516,7 @@ function WagenparkPageContent() {
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
+              <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>

@@ -356,7 +356,7 @@ export function InkooporderForm({
                           ) : (
                             <span>Selecteer datum</span>
                           )}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          <CalendarIcon className="ml-auto h-4 w-4 text-muted-foreground" />
                         </Button>
                       </FormControl>
                     </PopoverTrigger>
@@ -556,6 +556,7 @@ export function InkooporderForm({
                           className="h-9 w-9"
                           onClick={() => remove(index)}
                           disabled={fields.length <= 1}
+                          aria-label="Regel verwijderen"
                         >
                           <Trash2 className="h-4 w-4 text-muted-foreground" />
                         </Button>

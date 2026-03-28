@@ -120,7 +120,7 @@ export default function PortaalProjectDetailPage({
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-start gap-3">
-        <Button asChild variant="ghost" size="icon" className="shrink-0 mt-0.5">
+        <Button asChild variant="ghost" size="icon" className="shrink-0 mt-0.5" aria-label="Terug naar projecten">
           <Link href="/portaal/projecten">
             <ArrowLeft className="h-5 w-5" />
           </Link>

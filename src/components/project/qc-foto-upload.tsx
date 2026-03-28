@@ -345,7 +345,7 @@ export function QCFotoUpload({
             <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-muted">
               <Image
                 src={previewFoto.url}
-                alt={previewFoto.beschrijving || "Foto"}
+                alt={previewFoto.beschrijving || "Kwaliteitscontrole foto voorbeeld"}
                 fill
                 unoptimized
                 priority={false}
@@ -381,7 +381,7 @@ function FotoThumbnail({
     <div className="group relative aspect-square overflow-hidden rounded-lg border bg-muted">
       <Image
         src={foto.url}
-        alt={foto.beschrijving || "Foto"}
+        alt={foto.beschrijving || `Kwaliteitscontrole ${foto.type === "voor" ? "voor" : "na"} foto`}
         fill
         unoptimized
         priority={false}

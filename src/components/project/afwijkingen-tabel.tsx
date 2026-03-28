@@ -94,7 +94,7 @@ const SortButton = memo(function SortButton({
           <ArrowDown className="ml-2 h-3 w-3" />
         )
       ) : (
-        <ArrowUpDown className="ml-2 h-3 w-3 opacity-50" />
+        <ArrowUpDown className="ml-2 h-3 w-3 text-muted-foreground" />
       )}
     </Button>
   );

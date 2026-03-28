@@ -207,6 +207,7 @@ export default function MeldingDetailPage({
               variant="ghost"
               size="icon"
               onClick={() => router.push("/servicemeldingen")}
+              aria-label="Terug naar servicemeldingen"
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>

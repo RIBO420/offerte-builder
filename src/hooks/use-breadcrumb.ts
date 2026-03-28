@@ -9,11 +9,40 @@ import type { BreadcrumbItem } from "@/components/ui/smart-breadcrumb";
  * Vertaalt URL segmenten naar leesbare Nederlandse labels
  */
 const ROUTE_LABELS: Record<string, string> = {
-  // Hoofdpagina's
-  offertes: "Offertes",
+  // Sidebar: Werk
+  dashboard: "Dashboard",
   klanten: "Klanten",
+  projecten: "Projecten",
+  planning: "Planning",
+  uren: "Uren",
+  rapportages: "Rapportages",
+  chat: "Chat",
+
+  // Sidebar: Financieel
+  offertes: "Offertes",
+  contracten: "Contracten",
+  facturen: "Facturen",
+  inkoop: "Inkoop",
+  archief: "Archief",
+
+  // Profiel-menu: Personeel
+  medewerkers: "Medewerkers",
+  verlof: "Verlof",
+  verzuim: "Verzuim",
+  gebruikers: "Gebruikersbeheer",
+
+  // Profiel-menu: Assets & Data
+  wagenpark: "Wagenpark",
   prijsboek: "Prijsboek",
+  garanties: "Garanties",
+  servicemeldingen: "Servicemeldingen",
+  toolbox: "Toolbox",
+  leveranciers: "Leveranciers",
+  voorraad: "Voorraad",
+
+  // Instellingen
   instellingen: "Instellingen",
+  machines: "Machines",
   profiel: "Profiel",
 
   // Sub-pagina's
@@ -22,6 +51,12 @@ const ROUTE_LABELS: Record<string, string> = {
   history: "Geschiedenis",
   preview: "Preview",
   details: "Details",
+  kosten: "Kosten",
+  kwaliteit: "Kwaliteit",
+
+  // Offerte types
+  aanleg: "Aanleg",
+  onderhoud: "Onderhoud",
 
   // Prijsboek sub-pagina's
   producten: "Producten",
@@ -123,7 +158,7 @@ export interface UseBreadcrumbOptions {
  */
 export function useBreadcrumb(options: UseBreadcrumbOptions = {}): BreadcrumbItem[] {
   const pathname = usePathname();
-  const { customLabels = {}, skipSegments = [] } = options;
+  const { customLabels = {}, skipSegments = ["dashboard"] } = options;
 
   const items = useMemo(() => {
     // Split pathname in segmenten en filter lege strings

@@ -50,7 +50,9 @@ import {
   PenSquare,
   ArrowLeft,
   Trash2,
+  Home,
 } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { toast } from "sonner";
 
 type ChatTab = "team" | "mededelingen" | "dm" | "project" | "klant";
@@ -65,7 +67,7 @@ function PageHeader() {
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
-            <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
+            <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
@@ -145,10 +147,12 @@ function ChannelTab({
   // Project tab without selection
   if (channelType === "project" && !projectId) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center text-muted-foreground gap-2">
-        <FolderOpen className="h-10 w-10 opacity-50" />
-        <p>Selecteer een project om berichten te zien</p>
-      </div>
+      <EmptyState
+        icon={<FolderOpen />}
+        title="Geen project geselecteerd"
+        description="Selecteer een project om berichten te zien."
+        className="flex-1"
+      />
     );
   }
 
@@ -216,20 +220,17 @@ function DMTab({ currentUserClerkId }: { currentUserClerkId: string }) {
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : conversations.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2 px-4">
-              <MessageCircle className="h-10 w-10 opacity-50" />
-              <p className="text-sm text-center">
-                Nog geen gesprekken. Start een nieuw gesprek.
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowNewDM(true)}
-              >
-                <PenSquare className="h-4 w-4 mr-2" />
-                Nieuw gesprek
-              </Button>
-            </div>
+            <EmptyState
+              icon={<MessageCircle />}
+              title="Nog geen gesprekken"
+              description="Start een nieuw gesprek met een collega."
+              action={{
+                label: "Nieuw gesprek",
+                onClick: () => setShowNewDM(true),
+                variant: "outline",
+              }}
+              className="py-12 px-4"
+            />
           ) : (
             <div className="divide-y">
               {conversations.map((conv) => (
@@ -412,10 +413,12 @@ function KlantTab({ currentUserClerkId, userRole }: { currentUserClerkId: string
 
   if (threads.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center flex-1 text-muted-foreground gap-2">
-        <UserRound className="h-10 w-10 opacity-50" />
-        <p className="text-sm">Geen klantgesprekken</p>
-      </div>
+      <EmptyState
+        icon={<UserRound />}
+        title="Geen klantgesprekken"
+        description="Er zijn nog geen gesprekken met klanten gestart."
+        className="flex-1"
+      />
     );
   }
 
@@ -490,9 +493,12 @@ function KlantTab({ currentUserClerkId, userRole }: { currentUserClerkId: string
           currentUserClerkId={currentUserClerkId}
         />
       ) : (
-        <div className="flex-1 flex items-center justify-center text-muted-foreground">
-          <p className="text-sm">Selecteer een gesprek</p>
-        </div>
+        <EmptyState
+          icon={<MessageCircle />}
+          title="Selecteer een gesprek"
+          description="Kies een klant uit de lijst om het gesprek te bekijken."
+          className="flex-1"
+        />
       )}
 
       {/* Delete confirmation */}

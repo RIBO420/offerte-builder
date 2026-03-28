@@ -203,6 +203,7 @@ export function FleetGoSettings({
                 size="icon"
                 className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
                 onClick={() => setShowApiKey(!showApiKey)}
+                aria-label={showApiKey ? "API-sleutel verbergen" : "API-sleutel tonen"}
               >
                 {showApiKey ? (
                   <EyeOff className="h-4 w-4 text-muted-foreground" />

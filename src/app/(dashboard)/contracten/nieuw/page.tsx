@@ -348,6 +348,7 @@ function NieuwContractContent() {
             variant="ghost"
             size="icon"
             onClick={() => router.push("/contracten")}
+            aria-label="Terug naar contracten"
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
@@ -678,6 +679,7 @@ function NieuwContractContent() {
                                   size="icon"
                                   className="h-9 w-9"
                                   onClick={() => handleRemoveWerkzaamheid(w.id)}
+                                  aria-label="Werkzaamheid verwijderen"
                                 >
                                   <Trash2 className="h-4 w-4 text-muted-foreground" />
                                 </Button>

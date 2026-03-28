@@ -35,16 +35,16 @@ type PipelineStatus =
 interface ColumnDef {
   id: PipelineStatus;
   label: string;
-  color: string;
+  colorClass: string;
   isLost?: boolean;
 }
 
 const columns: ColumnDef[] = [
-  { id: "nieuw", label: "Nieuw", color: "#3b82f6" },
-  { id: "contact_gehad", label: "Contact gehad", color: "#f59e0b" },
-  { id: "offerte_verstuurd", label: "Offerte verstuurd", color: "#8b5cf6" },
-  { id: "gewonnen", label: "Gewonnen", color: "#10b981" },
-  { id: "verloren", label: "Verloren", color: "#ef4444", isLost: true },
+  { id: "nieuw", label: "Nieuw", colorClass: "bg-blue-500" },
+  { id: "contact_gehad", label: "Contact gehad", colorClass: "bg-amber-500" },
+  { id: "offerte_verstuurd", label: "Offerte verstuurd", colorClass: "bg-violet-500" },
+  { id: "gewonnen", label: "Gewonnen", colorClass: "bg-emerald-500" },
+  { id: "verloren", label: "Verloren", colorClass: "bg-red-500", isLost: true },
 ];
 
 // ============================================
@@ -186,7 +186,7 @@ export function KanbanBoard({ leads, onLeadClick }: KanbanBoardProps) {
               key={col.id}
               id={col.id}
               label={col.label}
-              color={col.color}
+              colorClass={col.colorClass}
               leads={leads[col.id] ?? []}
               onLeadClick={onLeadClick}
               isLost={col.isLost}

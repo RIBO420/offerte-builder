@@ -286,6 +286,7 @@ export function UrenEntryForm({
                             field.onChange("");
                           }}
                           title="Handmatig invoeren"
+                          aria-label="Handmatig invoeren"
                         >
                           <Plus className="h-4 w-4" />
                         </Button>

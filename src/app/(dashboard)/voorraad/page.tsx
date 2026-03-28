@@ -51,6 +51,7 @@ import {
   Warehouse,
   TrendingDown,
   Euro,
+  Home,
 } from "lucide-react";
 import { toast } from "sonner";
 import { VoorraadAdjustDialog, type VoorraadItem, type MutatieType } from "@/components/voorraad/voorraad-adjust-dialog";
@@ -206,7 +207,7 @@ function VoorraadPageContent() {
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
+              <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>

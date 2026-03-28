@@ -170,9 +170,13 @@ const ALL_PIPELINE_STATUSES: PipelineStatus[] = [
 ];
 
 function KlantenPageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useCurrentUser();
   const { klanten, isLoading, create, update, remove } = useKlanten();
-  const [searchTerm, setSearchTerm] = useState("");
+
+  // Initialize filter state from URL search params
+  const [searchTerm, setSearchTerm] = useState(searchParams.get("q") || "");
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const { results: searchResults } = useKlantenSearch(debouncedSearchTerm);
 
@@ -217,8 +221,41 @@ function KlantenPageContent() {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [pipelineFilter, setPipelineFilter] = useState<PipelineStatus | "alle">("alle");
-  const [klantTypeFilter, setKlantTypeFilter] = useState<KlantType | "alle">("alle");
+  const [pipelineFilter, setPipelineFilter] = useState<PipelineStatus | "alle">(
+    (searchParams.get("pipeline") as PipelineStatus | "alle") || "alle"
+  );
+  const [klantTypeFilter, setKlantTypeFilter] = useState<KlantType | "alle">(
+    (searchParams.get("type") as KlantType | "alle") || "alle"
+  );
+
+  // Update URL when filters change (preserves the top-level ?tab= param)
+  const updateUrlParams = useCallback((newPipeline: string, newType: string, newSearch: string) => {
+    const params = new URLSearchParams();
+    // Preserve the tab param from the parent KlantenPageWithTabs
+    const currentTab = searchParams.get("tab");
+    if (currentTab && currentTab !== "klanten") params.set("tab", currentTab);
+    if (newPipeline !== "alle") params.set("pipeline", newPipeline);
+    if (newType !== "alle") params.set("type", newType);
+    if (newSearch) params.set("q", newSearch);
+
+    const queryString = params.toString();
+    router.replace(queryString ? `?${queryString}` : "/klanten", { scroll: false });
+  }, [router, searchParams]);
+
+  const handlePipelineFilterChange = useCallback((value: PipelineStatus | "alle") => {
+    setPipelineFilter(value);
+    updateUrlParams(value, klantTypeFilter, searchTerm);
+  }, [updateUrlParams, klantTypeFilter, searchTerm]);
+
+  const handleKlantTypeFilterChange = useCallback((value: KlantType | "alle") => {
+    setKlantTypeFilter(value);
+    updateUrlParams(pipelineFilter, value, searchTerm);
+  }, [updateUrlParams, pipelineFilter, searchTerm]);
+
+  const handleSearchTermChange = useCallback((value: string) => {
+    setSearchTerm(value);
+    updateUrlParams(pipelineFilter, klantTypeFilter, value);
+  }, [updateUrlParams, pipelineFilter, klantTypeFilter]);
 
   // Portal mutations
   const activatePortalMutation = useMutation(api.klanten.activatePortal);
@@ -971,7 +1008,7 @@ function KlantenPageContent() {
               ? "bg-primary text-primary-foreground hover:bg-primary/90"
               : "bg-muted text-muted-foreground hover:bg-muted/80"
           }`}
-          onClick={() => setPipelineFilter("alle")}
+          onClick={() => handlePipelineFilterChange("alle")}
         >
           Alle ({klantenWithOptimisticUpdates.length})
         </Badge>
@@ -987,7 +1024,7 @@ function KlantenPageContent() {
                   ? PIPELINE_COLORS[status]
                   : "bg-muted text-muted-foreground hover:bg-muted/80"
               }`}
-              onClick={() => setPipelineFilter(status)}
+              onClick={() => handlePipelineFilterChange(status)}
             >
               {PIPELINE_LABELS[status]} ({count})
             </Badge>
@@ -1005,7 +1042,7 @@ function KlantenPageContent() {
                 ? "bg-primary text-primary-foreground hover:bg-primary/90"
                 : "bg-muted text-muted-foreground hover:bg-muted/80"
             }`}
-            onClick={() => setKlantTypeFilter("alle")}
+            onClick={() => handleKlantTypeFilterChange("alle")}
           >
             Alle
           </Badge>
@@ -1021,7 +1058,7 @@ function KlantenPageContent() {
                     ? KLANT_TYPE_COLORS[type]
                     : "bg-muted text-muted-foreground hover:bg-muted/80"
                 }`}
-                onClick={() => setKlantTypeFilter(type)}
+                onClick={() => handleKlantTypeFilterChange(type)}
               >
                 {KLANT_TYPE_LABELS[type]} ({count})
               </Badge>
@@ -1047,7 +1084,7 @@ function KlantenPageContent() {
               <Input
                 placeholder="Zoek klanten..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => handleSearchTermChange(e.target.value)}
                 className="pl-8"
               />
             </div>

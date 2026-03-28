@@ -74,6 +74,7 @@ export function ValidationSummary({ validations, className }: ValidationSummaryP
                   hasErrors && "cursor-pointer hover:bg-muted/50"
                 )}
                 disabled={!hasErrors}
+                aria-expanded={hasErrors ? isExpanded : undefined}
               >
                 <div className="flex items-center gap-2">
                   {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}

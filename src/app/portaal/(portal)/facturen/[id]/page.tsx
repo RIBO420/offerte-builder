@@ -127,7 +127,7 @@ export default function PortaalFactuurDetailPage({
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-start gap-3">
-        <Button asChild variant="ghost" size="icon" className="shrink-0 mt-0.5">
+        <Button asChild variant="ghost" size="icon" className="shrink-0 mt-0.5" aria-label="Terug naar facturen">
           <Link href="/portaal/facturen">
             <ArrowLeft className="h-5 w-5" />
           </Link>

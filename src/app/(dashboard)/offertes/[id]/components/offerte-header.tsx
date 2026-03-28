@@ -41,6 +41,7 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { CopyButton } from "@/components/ui/copy-button";
 import { DynamicPDFDownloadButton as PDFDownloadButton } from "@/components/pdf";
 import type { OfferteStatus } from "@/lib/constants/statuses";
 import { formatDate } from "./utils";
@@ -138,6 +139,7 @@ export function OfferteHeader({
               <h1 className="text-2xl font-bold tracking-tight">
                 {offerte.offerteNummer}
               </h1>
+              <CopyButton value={offerte.offerteNummer} label="Kopieer offertenummer" />
               <StatusBadge status={displayStatus as OfferteStatus} />
             </div>
             <p className="text-muted-foreground">

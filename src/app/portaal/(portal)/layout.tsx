@@ -7,6 +7,7 @@ import { PortaalThemeProvider } from "@/components/portaal/portaal-theme-provide
 import { PortaalHeader } from "@/components/portaal/portaal-header";
 import { PortaalNav } from "@/components/portaal/portaal-nav";
 import { Loader2 } from "lucide-react";
+import { NavigationProgress } from "@/components/ui/navigation-progress";
 
 export default function PortaalLayout({ children }: { children: React.ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -46,6 +47,7 @@ export default function PortaalLayout({ children }: { children: React.ReactNode 
 
   return (
     <PortaalThemeProvider>
+      <NavigationProgress />
       <div className="min-h-screen bg-[#f8faf8] dark:bg-[#0a0f0a]">
         <PortaalHeader
           klantNaam={overzicht?.klantNaam}

@@ -14,12 +14,13 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { ChevronLeft, ChevronRight, Loader2, Check, Save, CheckCircle2, AlertCircle } from "lucide-react";
+import { Home, ChevronLeft, ChevronRight, Loader2, Check, Save, CheckCircle2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useOffertes } from "@/hooks/use-offertes";
 import { useInstellingen } from "@/hooks/use-instellingen";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useOfferteCalculation } from "@/hooks/use-offerte-calculation";
+import { useBeforeUnload } from "@/hooks/use-before-unload";
 import { TemplateSelector } from "@/components/offerte/template-selector";
 import { PackageSelector } from "@/components/offerte/package-selector";
 import { GarantiePakketSelector } from "@/components/offerte/garantie-pakket-selector";
@@ -108,16 +109,7 @@ export default function NieuweAanlegOffertePage() {
   }, [serializedWizardData]);
 
   // Warn user about unsaved changes before leaving
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (hasUnsavedChanges) {
-        e.preventDefault();
-      }
-    };
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [hasUnsavedChanges]);
+  useBeforeUnload(hasUnsavedChanges);
 
   // Format last saved time as HH:MM
   const formatTime = useCallback((date: Date | null): string => {
@@ -353,7 +345,7 @@ export default function NieuweAanlegOffertePage() {
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
+                <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
@@ -421,7 +413,7 @@ export default function NieuweAanlegOffertePage() {
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
+              <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>

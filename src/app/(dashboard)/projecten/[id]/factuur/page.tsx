@@ -19,7 +19,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { ArrowLeft, FileText, Receipt } from "lucide-react";
+import { Home, ArrowLeft, FileText, Receipt } from "lucide-react";
 import { useReducedMotion } from "@/hooks/use-accessibility";
 import {
   WorkflowStepIndicator,
@@ -66,7 +66,7 @@ function FactuurBreadcrumb({
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
-            <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
+            <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>

@@ -166,7 +166,7 @@ export function KlantSelector({
                   Zoek of selecteer een klant...
                 </span>
               )}
-              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-[400px] p-0" align="start">

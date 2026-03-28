@@ -118,11 +118,11 @@ export const getAdminDashboardData = query({
 
     for (const offerte of offertes) {
       offerteStats[offerte.status as keyof typeof offerteStats]++;
-      offerteStats.totaalWaarde += offerte.totalen.totaalInclBtw;
+      offerteStats.totaalWaarde += offerte.totalen?.totaalInclBtw ?? 0;
 
       if (offerte.status === "geaccepteerd") {
-        offerteStats.geaccepteerdWaarde += offerte.totalen.totaalInclBtw;
-        totalAcceptedValue += offerte.totalen.totaalInclBtw;
+        offerteStats.geaccepteerdWaarde += offerte.totalen?.totaalInclBtw ?? 0;
+        totalAcceptedValue += offerte.totalen?.totaalInclBtw ?? 0;
         totalAcceptedCount++;
       }
 
@@ -157,13 +157,13 @@ export const getAdminDashboardData = query({
       offerteNummer: o.offerteNummer,
       klantNaam: o.klant?.naam ?? "Onbekende klant",
       status: o.status,
-      totaal: o.totalen.totaalInclBtw,
+      totaal: o.totalen?.totaalInclBtw ?? 0,
       updatedAt: o.updatedAt,
     }));
 
     // === ACCEPTED WITHOUT PROJECT ===
     const offertesWithProject = new Set(
-      projects.map((p) => p.offerteId.toString())
+      projects.filter((p) => p.offerteId).map((p) => p.offerteId!.toString())
     );
     const acceptedWithoutProject = offertes
       .filter(
@@ -175,8 +175,8 @@ export const getAdminDashboardData = query({
       .map((o) => ({
         _id: o._id,
         offerteNummer: o.offerteNummer,
-        klantNaam: o.klant.naam,
-        totaal: o.totalen.totaalInclBtw,
+        klantNaam: o.klant?.naam ?? "Onbekende klant",
+        totaal: o.totalen?.totaalInclBtw ?? 0,
         datum: o.createdAt,
       }));
 
@@ -314,7 +314,7 @@ export const getAdminDashboardData = query({
     const recentFacturen = allFacturen.slice(0, 5).map((factuur) => ({
       _id: factuur._id,
       factuurnummer: factuur.factuurnummer,
-      klantNaam: factuur.klant.naam,
+      klantNaam: factuur.klant?.naam ?? "Onbekende klant",
       totaalInclBtw: factuur.totaalInclBtw,
       status: factuur.status,
       factuurdatum: factuur.factuurdatum,

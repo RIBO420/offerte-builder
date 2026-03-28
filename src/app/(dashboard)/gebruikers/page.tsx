@@ -75,6 +75,7 @@ import {
   Handshake,
   Package,
   Trash2,
+  Home,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useUsers, useIsAdmin, UserWithDetails, UserRole } from "@/hooks/use-users";
@@ -270,7 +271,7 @@ export default function GebruikersPage() {
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
+                <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
@@ -306,7 +307,7 @@ export default function GebruikersPage() {
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
+              <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>

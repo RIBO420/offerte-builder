@@ -53,12 +53,14 @@ import {
   StickyNote,
   Tag,
   ShieldAlert,
+  Home,
 } from "lucide-react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { useKlantWithOffertes } from "@/hooks/use-klanten";
 import { useIsAdmin } from "@/hooks/use-users";
 import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
+import { CopyButton } from "@/components/ui/copy-button";
 import { Id } from "../../../../../convex/_generated/dataModel";
 import { KlantReminderBanner } from "@/components/klant-reminder-banner";
 import { formatCurrency } from "@/lib/format/currency";
@@ -173,7 +175,7 @@ export default function KlantDetailPage({
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
+                <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
@@ -202,7 +204,7 @@ export default function KlantDetailPage({
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
+                <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
@@ -255,7 +257,7 @@ export default function KlantDetailPage({
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
+              <BreadcrumbLink href="/dashboard"><Home className="size-4" /></BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
@@ -389,9 +391,12 @@ export default function KlantDetailPage({
                   <Phone className="h-4 w-4 mt-0.5 text-muted-foreground" />
                   <div>
                     <p className="text-sm font-medium">Telefoon</p>
-                    <p className="text-sm text-muted-foreground">
-                      {klant.telefoon}
-                    </p>
+                    <div className="flex items-center gap-1">
+                      <p className="text-sm text-muted-foreground">
+                        {klant.telefoon}
+                      </p>
+                      <CopyButton value={klant.telefoon} label="Kopieer telefoonnummer" />
+                    </div>
                   </div>
                 </div>
               )}
@@ -401,9 +406,12 @@ export default function KlantDetailPage({
                   <Mail className="h-4 w-4 mt-0.5 text-muted-foreground" />
                   <div>
                     <p className="text-sm font-medium">E-mail</p>
-                    <p className="text-sm text-muted-foreground">
-                      {klant.email}
-                    </p>
+                    <div className="flex items-center gap-1">
+                      <p className="text-sm text-muted-foreground">
+                        {klant.email}
+                      </p>
+                      <CopyButton value={klant.email} label="Kopieer e-mailadres" />
+                    </div>
                   </div>
                 </div>
               )}

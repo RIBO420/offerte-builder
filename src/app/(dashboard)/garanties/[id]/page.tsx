@@ -123,6 +123,7 @@ export default function GarantieDetailPage({
               variant="ghost"
               size="icon"
               onClick={() => router.push("/garanties")}
+              aria-label="Terug naar garanties"
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>

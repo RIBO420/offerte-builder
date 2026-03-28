@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { m, AnimatePresence } from "framer-motion";
 import { useReducedMotion } from "@/hooks/use-accessibility";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -125,12 +125,14 @@ function ProjectenPageLoader() {
 
 function ProjectenPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const reducedMotion = useReducedMotion();
   const { user, isLoading: isUserLoading } = useCurrentUser();
 
-  const [searchQuery, setSearchQuery] = useState("");
+  // Initialize filter state from URL search params
+  const [searchQuery, setSearchQuery] = useState(searchParams.get("q") || "");
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
-  const [activeTab, setActiveTab] = useState("alle");
+  const [activeTab, setActiveTab] = useState(searchParams.get("status") || "alle");
 
   // Cursor-based pagination state
   const [cursor, setCursor] = useState<string | undefined>(undefined);
@@ -216,12 +218,29 @@ function ProjectenPageContent() {
     }
   }, [paginatedData, allItems]);
 
+  // Update URL when filters change
+  const updateUrlParams = useCallback((newStatus: string, newSearch: string) => {
+    const params = new URLSearchParams();
+    if (newStatus !== "alle") params.set("status", newStatus);
+    if (newSearch) params.set("q", newSearch);
+
+    const queryString = params.toString();
+    router.replace(queryString ? `?${queryString}` : "/projecten", { scroll: false });
+  }, [router]);
+
   // Reset cursor when changing tabs (status filter changes)
   const handleTabChange = useCallback((newTab: string) => {
     setActiveTab(newTab);
     setCursor(undefined);
     setPreviousItems([]);
-  }, []);
+    updateUrlParams(newTab, searchQuery);
+  }, [updateUrlParams, searchQuery]);
+
+  // Sync search to URL
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchQuery(value);
+    updateUrlParams(activeTab, value);
+  }, [updateUrlParams, activeTab]);
 
   const handleNavigate = useCallback(
     (projectId: string) => {
@@ -232,21 +251,20 @@ function ProjectenPageContent() {
 
   // Handle preset selection
   const handlePresetSelect = useCallback((presetFilters: ProjectenFilterState) => {
+    let newTab = "alle";
     if (presetFilters.status) {
       const statuses = presetFilters.status.split(",");
       if (statuses.length === 1) {
-        setActiveTab(statuses[0]);
-      } else {
-        // For multiple statuses, stay on "alle" but we could filter client-side
-        setActiveTab("alle");
+        newTab = statuses[0];
       }
-    } else {
-      setActiveTab("alle");
     }
-    if (presetFilters.searchQuery) {
-      setSearchQuery(presetFilters.searchQuery);
-    }
-  }, []);
+    setActiveTab(newTab);
+    const newSearch = presetFilters.searchQuery || "";
+    setSearchQuery(newSearch);
+    setCursor(undefined);
+    setPreviousItems([]);
+    updateUrlParams(newTab, newSearch);
+  }, [updateUrlParams]);
 
   // Current filters for preset
   const currentFiltersForPreset = useMemo((): ProjectenFilterState => ({
@@ -408,7 +426,7 @@ function ProjectenPageContent() {
                 placeholder="Zoeken..."
                 className="pl-8 w-full"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
               />
             </div>
             <FilterPresetSelector<ProjectenFilterState>
@@ -542,7 +560,7 @@ function ProjectenPageContent() {
                     }
                     transition={{ duration: reducedMotion ? 0 : 0.3 }}
                   >
-                    <NoSearchResults onAction={() => setSearchQuery("")} />
+                    <NoSearchResults onAction={() => handleSearchChange("")} />
                   </m.div>
                 ) : (
                   <m.div

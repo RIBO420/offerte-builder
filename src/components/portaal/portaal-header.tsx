@@ -21,6 +21,7 @@ export function PortaalHeader({ klantNaam, onMenuToggle }: PortaalHeaderProps) {
           size="icon"
           className="md:hidden text-white hover:bg-[#2a3e2a]"
           onClick={onMenuToggle}
+          aria-label="Menu openen"
         >
           <Menu className="h-5 w-5" />
         </Button>
@@ -39,6 +40,7 @@ export function PortaalHeader({ klantNaam, onMenuToggle }: PortaalHeaderProps) {
           size="icon"
           onClick={toggleTheme}
           className="text-gray-300 hover:text-white hover:bg-[#2a3e2a]"
+          aria-label={theme === "light" ? "Donker thema activeren" : "Licht thema activeren"}
         >
           {theme === "light" ? (
             <Moon className="h-4 w-4" />

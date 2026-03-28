@@ -136,13 +136,13 @@ export function KwartaalOverzicht({
       {/* Navigation */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={prevQuarter}>
+          <Button variant="outline" size="icon" onClick={prevQuarter} aria-label="Vorig kwartaal">
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <h2 className="text-lg font-semibold min-w-[200px] text-center">
             {KWARTAAL_LABELS[quarter - 1]} {year}
           </h2>
-          <Button variant="outline" size="icon" onClick={nextQuarter}>
+          <Button variant="outline" size="icon" onClick={nextQuarter} aria-label="Volgend kwartaal">
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>

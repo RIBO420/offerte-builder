@@ -202,6 +202,7 @@ export function DeelfactuurTemplatesTab({ reducedMotion }: DeelfactuurTemplatesT
                           e.stopPropagation();
                           setDeleteId(template.id);
                         }}
+                        aria-label="Template verwijderen"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
@@ -285,6 +286,7 @@ export function DeelfactuurTemplatesTab({ reducedMotion }: DeelfactuurTemplatesT
                       className="h-9 w-9 shrink-0"
                       onClick={() => removeStap(index)}
                       disabled={stappen.length <= 1}
+                      aria-label="Stap verwijderen"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
