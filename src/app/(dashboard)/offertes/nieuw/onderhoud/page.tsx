@@ -1,10 +1,12 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { m } from "framer-motion";
 import { PageHeader } from "@/components/page-header";
 import { Check, Save } from "lucide-react";
 import { RestoreDraftDialog } from "@/components/offerte/restore-draft-dialog";
 import { WizardSteps, type WizardStep } from "@/components/offerte/wizard-steps";
+import { Id } from "../../../../../../convex/_generated/dataModel";
 
 import {
   LoadingState,
@@ -18,6 +20,9 @@ import {
 } from "./components";
 
 export default function NieuweOnderhoudOffertePage() {
+  const searchParams = useSearchParams();
+  const leadIdParam = searchParams.get("leadId");
+
   const wizard = useOnderhoudWizard();
 
   const {
@@ -46,6 +51,7 @@ export default function NieuweOnderhoudOffertePage() {
     setShowTemplates,
     setShowSuccessDialog,
     setSelectedKlantId,
+    setSelectedLeadId,
     setBereikbaarheid,
     setAchterstalligheid,
     setTuinOppervlakte,
@@ -204,6 +210,8 @@ export default function NieuweOnderhoudOffertePage() {
             klantData={klantData}
             setKlantData={setKlantData}
             setSelectedKlantId={setSelectedKlantId}
+            setSelectedLeadId={setSelectedLeadId}
+            initialLeadId={leadIdParam as Id<"configuratorAanvragen"> | undefined}
             tuinOppervlakte={tuinOppervlakte}
             setTuinOppervlakte={setTuinOppervlakte}
             bereikbaarheid={bereikbaarheid}

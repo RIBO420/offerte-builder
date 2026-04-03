@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useQuery } from "convex/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,10 +19,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Check, ChevronsUpDown, User, Plus, FileText, Clock, Euro } from "lucide-react";
+import { Check, ChevronsUpDown, User, Plus, FileText, Clock, Euro, Megaphone } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useKlantenSearch, useKlanten } from "@/hooks/use-klanten";
 import { useKlantenWithStats } from "@/hooks/use-smart-analytics";
+import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
 
 type Klant = {
@@ -87,12 +89,16 @@ interface KlantSelectorProps {
   value: KlantData;
   onChange: (data: KlantData) => void;
   onKlantSelect?: (klantId: Id<"klanten"> | null) => void;
+  onLeadSelect?: (leadId: Id<"configuratorAanvragen">) => void;
+  initialLeadId?: Id<"configuratorAanvragen">;
 }
 
 export function KlantSelector({
   value,
   onChange,
   onKlantSelect,
+  onLeadSelect,
+  initialLeadId,
 }: KlantSelectorProps) {
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -102,6 +108,39 @@ export function KlantSelector({
   const [selectedKlantId, setSelectedKlantId] = useState<Id<"klanten"> | null>(
     null
   );
+  const [selectedLeadId, setSelectedLeadId] = useState<Id<"configuratorAanvragen"> | null>(null);
+
+  // Fetch leads for the selector
+  const leads = useQuery(api.configuratorAanvragen.listForOfferteSelector);
+
+  // Load initial lead data when initialLeadId is provided
+  const initialLead = useQuery(
+    api.configuratorAanvragen.getById,
+    initialLeadId ? { id: initialLeadId } : "skip"
+  );
+
+  useEffect(() => {
+    if (initialLead && initialLeadId && !selectedLeadId && !selectedKlantId && !value.naam) {
+      // Pre-fill with lead data
+      const adres = initialLead.klantHuisnummer || initialLead.klantAdres || "";
+      onChange({
+        naam: initialLead.klantNaam || "",
+        adres,
+        postcode: initialLead.klantPostcode || "",
+        plaats: initialLead.klantPlaats || "",
+        email: initialLead.klantEmail || "",
+        telefoon: initialLead.klantTelefoon || "",
+      });
+      setSelectedLeadId(initialLeadId);
+      onLeadSelect?.(initialLeadId);
+
+      // If the lead has a gekoppeldKlantId, select that klant
+      if (initialLead.gekoppeldKlantId) {
+        setSelectedKlantId(initialLead.gekoppeldKlantId);
+        onKlantSelect?.(initialLead.gekoppeldKlantId);
+      }
+    }
+  }, [initialLead, initialLeadId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const typedRecentKlanten = recentKlanten as Klant[];
   const typedSearchResults = searchResults as Klant[];
@@ -130,8 +169,44 @@ export function KlantSelector({
     setSearchTerm("");
   };
 
+  const handleSelectLead = (lead: {
+    _id: Id<"configuratorAanvragen">;
+    klantNaam: string;
+    klantEmail: string;
+    klantTelefoon: string;
+    klantAdres: string;
+    klantPostcode: string;
+    klantHuisnummer?: string;
+    klantPlaats: string;
+    gekoppeldKlantId?: Id<"klanten">;
+  }) => {
+    const adres = lead.klantHuisnummer || lead.klantAdres || "";
+    setSelectedLeadId(lead._id);
+    onChange({
+      naam: lead.klantNaam || "",
+      adres,
+      postcode: lead.klantPostcode || "",
+      plaats: lead.klantPlaats || "",
+      email: lead.klantEmail || "",
+      telefoon: lead.klantTelefoon || "",
+    });
+    onLeadSelect?.(lead._id);
+
+    // If the lead has a gekoppeldKlantId, also select that klant
+    if (lead.gekoppeldKlantId) {
+      setSelectedKlantId(lead.gekoppeldKlantId);
+      onKlantSelect?.(lead.gekoppeldKlantId);
+    } else {
+      setSelectedKlantId(null);
+      onKlantSelect?.(null);
+    }
+    setOpen(false);
+    setSearchTerm("");
+  };
+
   const handleClearSelection = () => {
     setSelectedKlantId(null);
+    setSelectedLeadId(null);
     onChange({
       naam: "",
       adres: "",
@@ -147,7 +222,7 @@ export function KlantSelector({
     <div className="space-y-4">
       {/* Klant Zoeken */}
       <div className="space-y-2">
-        <Label>Bestaande klant selecteren</Label>
+        <Label>Bestaande klant of lead selecteren</Label>
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
             <Button
@@ -156,14 +231,22 @@ export function KlantSelector({
               aria-expanded={open}
               className="w-full justify-between"
             >
-              {selectedKlantId && value.naam ? (
+              {selectedLeadId && value.naam && !selectedKlantId ? (
+                <span className="flex items-center gap-2">
+                  <Megaphone className="h-4 w-4" />
+                  {value.naam}
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300">
+                    Lead
+                  </Badge>
+                </span>
+              ) : selectedKlantId && value.naam ? (
                 <span className="flex items-center gap-2">
                   <User className="h-4 w-4" />
                   {value.naam}
                 </span>
               ) : (
                 <span className="text-muted-foreground">
-                  Zoek of selecteer een klant...
+                  Zoek of selecteer een klant of lead...
                 </span>
               )}
               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
@@ -274,11 +357,57 @@ export function KlantSelector({
                     ))}
                   </CommandGroup>
                 )}
+                {/* Leads sectie */}
+                {leads && leads.length > 0 && (
+                  <CommandGroup heading="Leads">
+                    {leads
+                      .filter((lead) =>
+                        !searchTerm || lead.klantNaam.toLowerCase().includes(searchTerm.toLowerCase())
+                      )
+                      .map((lead) => (
+                        <CommandItem
+                          key={lead._id}
+                          value={`lead-${lead.klantNaam}`}
+                          onSelect={() => handleSelectLead(lead)}
+                          className="flex-col items-start py-3"
+                        >
+                          <div className="flex w-full items-center gap-2">
+                            <Check
+                              className={cn(
+                                "h-4 w-4 shrink-0",
+                                selectedLeadId === lead._id
+                                  ? "opacity-100"
+                                  : "opacity-0"
+                              )}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <Megaphone className="h-3.5 w-3.5 shrink-0 text-orange-500" />
+                                <span className="font-medium truncate" title={lead.klantNaam}>
+                                  {lead.klantNaam}
+                                </span>
+                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0 bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300">
+                                  Lead
+                                </Badge>
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0 capitalize">
+                                  {lead.pipelineStatus === "contact_gehad" ? "Contact gehad" : "Nieuw"}
+                                </Badge>
+                              </div>
+                              <span className="text-xs text-muted-foreground">
+                                {lead.klantPlaats}{lead.klantPostcode && ` · ${lead.klantPostcode}`}
+                                {lead.klantEmail && ` · ${lead.klantEmail}`}
+                              </span>
+                            </div>
+                          </div>
+                        </CommandItem>
+                      ))}
+                  </CommandGroup>
+                )}
               </CommandList>
             </Command>
           </PopoverContent>
         </Popover>
-        {selectedKlantId && (
+        {(selectedKlantId || selectedLeadId) && (
           <Button
             variant="ghost"
             size="sm"
@@ -301,7 +430,7 @@ export function KlantSelector({
             value={value.naam}
             onChange={(e) => {
               onChange({ ...value, naam: e.target.value });
-              if (selectedKlantId) handleClearSelection();
+              if (selectedKlantId || selectedLeadId) handleClearSelection();
             }}
           />
         </div>
@@ -313,7 +442,7 @@ export function KlantSelector({
             value={value.telefoon}
             onChange={(e) => {
               onChange({ ...value, telefoon: e.target.value });
-              if (selectedKlantId) handleClearSelection();
+              if (selectedKlantId || selectedLeadId) handleClearSelection();
             }}
           />
         </div>
@@ -327,7 +456,7 @@ export function KlantSelector({
           value={value.adres}
           onChange={(e) => {
             onChange({ ...value, adres: e.target.value });
-            if (selectedKlantId) handleClearSelection();
+            if (selectedKlantId || selectedLeadId) handleClearSelection();
           }}
         />
       </div>
@@ -341,7 +470,7 @@ export function KlantSelector({
             value={value.postcode}
             onChange={(e) => {
               onChange({ ...value, postcode: e.target.value });
-              if (selectedKlantId) handleClearSelection();
+              if (selectedKlantId || selectedLeadId) handleClearSelection();
             }}
           />
         </div>
@@ -353,7 +482,7 @@ export function KlantSelector({
             value={value.plaats}
             onChange={(e) => {
               onChange({ ...value, plaats: e.target.value });
-              if (selectedKlantId) handleClearSelection();
+              if (selectedKlantId || selectedLeadId) handleClearSelection();
             }}
           />
         </div>
@@ -368,7 +497,7 @@ export function KlantSelector({
           value={value.email}
           onChange={(e) => {
             onChange({ ...value, email: e.target.value });
-            if (selectedKlantId) handleClearSelection();
+            if (selectedKlantId || selectedLeadId) handleClearSelection();
           }}
         />
       </div>

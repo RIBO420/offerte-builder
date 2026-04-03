@@ -92,6 +92,42 @@ export const countByStatus = query({
   },
 });
 
+/**
+ * Haal leads op die geschikt zijn voor selectie in de offerte wizard.
+ * Toont leads met pipelineStatus "nieuw" of "contact_gehad" (die nog geen offerte hebben).
+ */
+export const listForOfferteSelector = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAuthUserId(ctx);
+    const allLeads = await ctx.db
+      .query("configuratorAanvragen")
+      .order("desc")
+      .collect();
+
+    return allLeads
+      .filter((lead) => {
+        const pipelineStatus = lead.pipelineStatus ?? lead.status;
+        return pipelineStatus === "nieuw" || pipelineStatus === "contact_gehad";
+      })
+      .map((lead) => ({
+        _id: lead._id,
+        klantNaam: lead.klantNaam,
+        klantEmail: lead.klantEmail,
+        klantTelefoon: lead.klantTelefoon,
+        klantAdres: lead.klantAdres,
+        klantPostcode: lead.klantPostcode,
+        klantHuisnummer: lead.klantHuisnummer,
+        klantPlaats: lead.klantPlaats,
+        referentie: lead.referentie,
+        type: lead.type,
+        pipelineStatus: lead.pipelineStatus ?? lead.status,
+        gekoppeldKlantId: lead.gekoppeldKlantId,
+        createdAt: lead.createdAt,
+      }));
+  },
+});
+
 // ============================================
 // Pipeline / CRM Helpers
 // ============================================

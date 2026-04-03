@@ -194,9 +194,11 @@ export function KanbanBoard({ leads, onLeadClick }: KanbanBoardProps) {
           ))}
         </div>
 
-        <DragOverlay>
+        <DragOverlay dropAnimation={null}>
           {activeLead ? (
-            <LeadCard lead={activeLead} isDragOverlay />
+            <div style={{ width: 256 }}>
+              <LeadCard lead={activeLead} isDragOverlay />
+            </div>
           ) : null}
         </DragOverlay>
       </DndContext>

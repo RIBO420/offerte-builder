@@ -54,6 +54,7 @@ export function useOffertes() {
       scopeData?: Record<string, unknown>;
       notities?: string;
       klantId?: Id<"klanten">;
+      leadId?: Id<"configuratorAanvragen">;
     }) => {
       if (!user?._id) throw new Error("User not found");
       return createOfferte(data);
@@ -123,6 +124,7 @@ export function useOffertesListOnly() {
       scopeData?: Record<string, unknown>;
       notities?: string;
       klantId?: Id<"klanten">;
+      leadId?: Id<"configuratorAanvragen">;
     }) => {
       if (!user?._id) throw new Error("User not found");
       return createOfferte(data);

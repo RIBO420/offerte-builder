@@ -309,6 +309,52 @@ export const getOrCreateKlantThread = mutation({
 });
 
 /**
+ * Create a standalone klant thread (not linked to offerte or project).
+ * If a standalone thread for this klant already exists, return it.
+ */
+export const createKlantThread = mutation({
+  args: {
+    klantId: v.id("klanten"),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireAuth(ctx);
+    const companyUserId = await getCompanyUserId(ctx);
+
+    // Verify klant belongs to company
+    const klant = await ctx.db.get(args.klantId);
+    if (!klant) throw new ConvexError("Klant niet gevonden");
+    if (klant.userId.toString() !== companyUserId.toString()) {
+      throw new ConvexError("Geen toegang tot deze klant");
+    }
+
+    // Check if a standalone thread (without offerte/project) already exists
+    const existingThreads = await ctx.db
+      .query("chat_threads")
+      .withIndex("by_klant", (q) => q.eq("klantId", args.klantId))
+      .collect();
+
+    const standaloneThread = existingThreads.find(
+      (t) => t.type === "klant" && !t.offerteId && !t.projectId
+    );
+
+    if (standaloneThread) {
+      return standaloneThread._id;
+    }
+
+    // Create new standalone klant thread
+    const threadId = await ctx.db.insert("chat_threads", {
+      type: "klant",
+      klantId: args.klantId,
+      participants: [user.clerkId],
+      companyUserId,
+      createdAt: Date.now(),
+    });
+
+    return threadId;
+  },
+});
+
+/**
  * Delete a chat thread and all its messages. Admin/directie only.
  */
 export const deleteThread = mutation({

@@ -9,6 +9,7 @@ import { ChatMessageList } from "@/components/chat/chat-message-list";
 import { ChatInput } from "@/components/chat/chat-input";
 import { ChatTabBadge } from "@/components/chat/chat-tabs-badge";
 import { NewDMDialog } from "@/components/chat/new-dm-dialog";
+import { NewKlantChatDialog } from "@/components/chat/new-klant-chat-dialog";
 import { m } from "framer-motion";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -341,6 +342,7 @@ function KlantTab({ currentUserClerkId, userRole }: { currentUserClerkId: string
   const [selectedThreadId, setSelectedThreadId] =
     useState<Id<"chat_threads"> | null>(null);
   const [threadToDelete, setThreadToDelete] = useState<{ _id: Id<"chat_threads">; name: string } | null>(null);
+  const [showNewKlantChat, setShowNewKlantChat] = useState(false);
 
   const selectedThread = useMemo(() => {
     if (!selectedThreadId || !threads) return null;
@@ -353,6 +355,10 @@ function KlantTab({ currentUserClerkId, userRole }: { currentUserClerkId: string
       setSelectedThreadId(threads[0]._id);
     }
   }, [threads, selectedThread]);
+
+  const handleThreadCreated = useCallback((threadId: Id<"chat_threads">) => {
+    setSelectedThreadId(threadId);
+  }, []);
 
   const handleDeleteThread = useCallback(async () => {
     if (!threadToDelete) return;
@@ -381,12 +387,24 @@ function KlantTab({ currentUserClerkId, userRole }: { currentUserClerkId: string
 
   if (threads.length === 0) {
     return (
-      <EmptyState
-        icon={<UserRound />}
-        title="Geen klantgesprekken"
-        description="Er zijn nog geen gesprekken met klanten gestart."
-        className="flex-1"
-      />
+      <>
+        <EmptyState
+          icon={<UserRound />}
+          title="Geen klantgesprekken"
+          description="Er zijn nog geen gesprekken met klanten gestart."
+          action={{
+            label: "Nieuw gesprek",
+            onClick: () => setShowNewKlantChat(true),
+            variant: "outline",
+          }}
+          className="flex-1"
+        />
+        <NewKlantChatDialog
+          open={showNewKlantChat}
+          onOpenChange={setShowNewKlantChat}
+          onThreadCreated={handleThreadCreated}
+        />
+      </>
     );
   }
 
@@ -394,10 +412,18 @@ function KlantTab({ currentUserClerkId, userRole }: { currentUserClerkId: string
     <div className="flex flex-1 min-h-0">
       {/* Thread list sidebar */}
       <div className="w-72 border-r flex flex-col overflow-hidden">
-        <div className="p-3 border-b shrink-0">
+        <div className="flex items-center justify-between p-3 border-b shrink-0">
           <span className="text-sm font-medium text-muted-foreground">
             Klanten ({threads.length})
           </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowNewKlantChat(true)}
+            title="Nieuw klantgesprek"
+          >
+            <PenSquare className="h-4 w-4" />
+          </Button>
         </div>
         <div className="flex-1 overflow-y-auto">
           <div className="divide-y">
@@ -490,6 +516,13 @@ function KlantTab({ currentUserClerkId, userRole }: { currentUserClerkId: string
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* New klant chat dialog */}
+      <NewKlantChatDialog
+        open={showNewKlantChat}
+        onOpenChange={setShowNewKlantChat}
+        onThreadCreated={handleThreadCreated}
+      />
     </div>
   );
 }

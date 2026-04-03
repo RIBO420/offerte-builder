@@ -29,6 +29,7 @@ export type OnderhoudScopeData = {
 export interface WizardData {
   selectedTemplateId: string | null;
   selectedKlantId: string | null;
+  selectedLeadId: string | null;
   selectedScopes: OnderhoudScope[];
   bereikbaarheid: Bereikbaarheid;
   achterstalligheid: Achterstalligheid;

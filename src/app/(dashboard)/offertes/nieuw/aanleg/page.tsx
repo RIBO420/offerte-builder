@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { m } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +38,9 @@ import {
 } from "./hooks/useAanlegWizard";
 
 export default function NieuweAanlegOffertePage() {
+  const searchParams = useSearchParams();
+  const leadIdParam = searchParams.get("leadId");
+
   const { isLoading: isUserLoading } = useCurrentUser();
   const { create, updateRegels } = useOffertes();
   const { getNextNummer, isLoading: isSettingsLoading, instellingen } = useInstellingen();
@@ -219,6 +223,13 @@ export default function NieuweAanlegOffertePage() {
         });
       }
 
+      // Determine leadId from wizard state or URL param
+      const leadId = wizard.selectedLeadId
+        ? (wizard.selectedLeadId as Id<"configuratorAanvragen">)
+        : leadIdParam
+          ? (leadIdParam as Id<"configuratorAanvragen">)
+          : undefined;
+
       const offerteId = await create({
         type: "aanleg",
         offerteNummer,
@@ -236,6 +247,7 @@ export default function NieuweAanlegOffertePage() {
         scopes: wizard.selectedScopes,
         scopeData: filteredScopeData,
         klantId,
+        leadId,
       });
 
       // Calculate and save regels
@@ -476,6 +488,8 @@ export default function NieuweAanlegOffertePage() {
             klantvriendelijkheid={wizard.klantvriendelijkheid}
             onKlantDataChange={wizard.setKlantData}
             onKlantSelect={wizard.setSelectedKlantId}
+            onLeadSelect={wizard.setSelectedLeadId}
+            initialLeadId={leadIdParam as Id<"configuratorAanvragen"> | undefined}
             onBereikbaarheidChange={wizard.setBereikbaarheid}
             onToggleScope={wizard.toggleScope}
             onKlantvriendelijkheidChange={wizard.setKlantvriendelijkheid}

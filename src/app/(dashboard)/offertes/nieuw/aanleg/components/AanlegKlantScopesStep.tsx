@@ -37,6 +37,7 @@ import type { Bereikbaarheid } from "@/types/offerte";
 import type { AanlegScope } from "../hooks/useAanlegWizard";
 import { SCOPES } from "../hooks/useAanlegWizard";
 import { AanlegNavigation } from "./AanlegNavigation";
+import { Id } from "../../../../../../../convex/_generated/dataModel";
 
 // Scope icons mapping
 const SCOPE_ICONS = {
@@ -69,6 +70,8 @@ interface AanlegKlantScopesStepProps {
   klantvriendelijkheid?: number;
   onKlantDataChange: (data: KlantData) => void;
   onKlantSelect: (klantId: string | null) => void;
+  onLeadSelect?: (leadId: string | null) => void;
+  initialLeadId?: Id<"configuratorAanvragen">;
   onBereikbaarheidChange: (value: Bereikbaarheid) => void;
   onToggleScope: (scopeId: AanlegScope) => void;
   onKlantvriendelijkheidChange?: (value: number) => void;
@@ -95,6 +98,8 @@ export function AanlegKlantScopesStep({
   klantvriendelijkheid = 3,
   onKlantDataChange,
   onKlantSelect,
+  onLeadSelect,
+  initialLeadId,
   onBereikbaarheidChange,
   onToggleScope,
   onKlantvriendelijkheidChange,
@@ -117,6 +122,8 @@ export function AanlegKlantScopesStep({
               value={klantData}
               onChange={onKlantDataChange}
               onKlantSelect={(klantId) => onKlantSelect(klantId as string | null)}
+              onLeadSelect={(leadId) => onLeadSelect?.(leadId as string)}
+              initialLeadId={initialLeadId}
             />
           </CardContent>
         </Card>

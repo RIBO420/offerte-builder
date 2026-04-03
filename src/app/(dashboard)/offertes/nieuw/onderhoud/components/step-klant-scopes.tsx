@@ -31,6 +31,7 @@ import { KlantSelector } from "@/components/offerte/klant-selector";
 import type { Bereikbaarheid, Achterstalligheid } from "@/types/offerte";
 import { SCOPES } from "./constants";
 import type { OnderhoudScope } from "./types";
+import { Id } from "../../../../../../../convex/_generated/dataModel";
 
 interface StepKlantScopesProps {
   klantData: {
@@ -43,6 +44,8 @@ interface StepKlantScopesProps {
   };
   setKlantData: (data: StepKlantScopesProps["klantData"]) => void;
   setSelectedKlantId: (id: string | null) => void;
+  setSelectedLeadId?: (id: string | null) => void;
+  initialLeadId?: Id<"configuratorAanvragen">;
   tuinOppervlakte: string;
   setTuinOppervlakte: (value: string) => void;
   bereikbaarheid: Bereikbaarheid;
@@ -61,6 +64,8 @@ export function StepKlantScopes({
   klantData,
   setKlantData,
   setSelectedKlantId,
+  setSelectedLeadId,
+  initialLeadId,
   tuinOppervlakte,
   setTuinOppervlakte,
   bereikbaarheid,
@@ -90,6 +95,8 @@ export function StepKlantScopes({
               value={klantData}
               onChange={setKlantData}
               onKlantSelect={(klantId) => setSelectedKlantId(klantId as string | null)}
+              onLeadSelect={(leadId) => setSelectedLeadId?.(leadId as string)}
+              initialLeadId={initialLeadId}
             />
           </CardContent>
         </Card>

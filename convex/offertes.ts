@@ -531,6 +531,7 @@ export const create = mutation({
     scopeData: v.optional(v.any()),
     notities: v.optional(v.string()),
     klantId: v.optional(v.id("klanten")),
+    leadId: v.optional(v.id("configuratorAanvragen")),
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
@@ -544,6 +545,7 @@ export const create = mutation({
       offerteNummer: args.offerteNummer,
       klant: args.klant,
       klantId: args.klantId,
+      leadId: args.leadId,
       algemeenParams: args.algemeenParams,
       scopes: args.scopes,
       scopeData: args.scopeData,
@@ -593,6 +595,24 @@ export const create = mutation({
       await ctx.scheduler.runAfter(0, internal.notifications.notifyOfferteCreated, {
         offerteId,
         createdByUserId: userId,
+      });
+    }
+
+    // Update lead pipeline status and log activity when linked to a lead
+    if (args.leadId) {
+      await ctx.db.patch(args.leadId, {
+        pipelineStatus: "offerte_verstuurd",
+        updatedAt: now,
+        // Koppel klant aan lead als er een klantId is
+        ...(args.klantId ? { gekoppeldKlantId: args.klantId } : {}),
+      });
+
+      await ctx.db.insert("leadActiviteiten", {
+        leadId: args.leadId,
+        type: "offerte_gekoppeld",
+        beschrijving: `Offerte ${args.offerteNummer} aangemaakt`,
+        gebruikerId: userId,
+        createdAt: now,
       });
     }
 

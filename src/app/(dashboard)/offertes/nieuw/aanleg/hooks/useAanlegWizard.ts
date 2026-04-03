@@ -84,6 +84,7 @@ export const DEFAULT_SPECIALS: SpecialsData = {
 export interface WizardData {
   selectedTemplateId: string | null;
   selectedKlantId: string | null;
+  selectedLeadId: string | null;
   selectedScopes: AanlegScope[];
   bereikbaarheid: Bereikbaarheid;
   klantData: {
@@ -103,6 +104,7 @@ export interface WizardData {
 export const INITIAL_WIZARD_DATA: WizardData = {
   selectedTemplateId: null,
   selectedKlantId: null,
+  selectedLeadId: null,
   selectedScopes: [],
   bereikbaarheid: "goed",
   klantData: {
@@ -185,6 +187,7 @@ export interface UseAanlegWizardReturn {
   // Extracted data from wizard state
   selectedTemplateId: string | null;
   selectedKlantId: string | null;
+  selectedLeadId: string | null;
   selectedScopes: AanlegScope[];
   bereikbaarheid: Bereikbaarheid;
   klantData: WizardData["klantData"];
@@ -198,6 +201,7 @@ export interface UseAanlegWizardReturn {
   setCurrentStep: (step: number) => void;
   setSelectedTemplateId: (id: string | null) => void;
   setSelectedKlantId: (id: string | null) => void;
+  setSelectedLeadId: (id: string | null) => void;
   setSelectedScopes: (scopes: AanlegScope[] | ((prev: AanlegScope[]) => AanlegScope[])) => void;
   setBereikbaarheid: (value: Bereikbaarheid) => void;
   setKlantData: (data: WizardData["klantData"]) => void;
@@ -294,7 +298,7 @@ export function useAanlegWizard(): UseAanlegWizardReturn {
   }), []);
 
   // Extract data from wizard state for easier access
-  const { selectedTemplateId, selectedKlantId, selectedScopes, bereikbaarheid, klantData, scopeData, tuintypologie, klantvriendelijkheid, garantiePakketId } = wizardData;
+  const { selectedTemplateId, selectedKlantId, selectedLeadId, selectedScopes, bereikbaarheid, klantData, scopeData, tuintypologie, klantvriendelijkheid, garantiePakketId } = wizardData;
 
   // Helper functions to update wizard data - using functional updates to prevent stale state
   const setSelectedTemplateId = useCallback((id: string | null) => {
@@ -303,6 +307,10 @@ export function useAanlegWizard(): UseAanlegWizardReturn {
 
   const setSelectedKlantId = useCallback((id: string | null) => {
     setWizardData((prev) => ({ ...prev, selectedKlantId: id }));
+  }, [setWizardData]);
+
+  const setSelectedLeadId = useCallback((id: string | null) => {
+    setWizardData((prev) => ({ ...prev, selectedLeadId: id }));
   }, [setWizardData]);
 
   const setSelectedScopes = useCallback((scopes: AanlegScope[] | ((prev: AanlegScope[]) => AanlegScope[])) => {
@@ -418,6 +426,7 @@ export function useAanlegWizard(): UseAanlegWizardReturn {
     // Extracted data from wizard state
     selectedTemplateId,
     selectedKlantId,
+    selectedLeadId,
     selectedScopes,
     bereikbaarheid,
     klantData,
@@ -431,6 +440,7 @@ export function useAanlegWizard(): UseAanlegWizardReturn {
     setCurrentStep,
     setSelectedTemplateId,
     setSelectedKlantId,
+    setSelectedLeadId,
     setSelectedScopes,
     setBereikbaarheid,
     setKlantData,

@@ -149,6 +149,7 @@ export const DEFAULT_MOLLENBESTRIJDING: MollenbestrijdingData = {
 export const INITIAL_WIZARD_DATA: WizardData = {
   selectedTemplateId: null,
   selectedKlantId: null,
+  selectedLeadId: null,
   selectedScopes: [],
   bereikbaarheid: "goed",
   achterstalligheid: "laag",

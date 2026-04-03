@@ -128,7 +128,7 @@ export function LeadCard({ lead, onClick, isDragOverlay = false }: LeadCardProps
         "rounded-lg border bg-card p-3 cursor-grab active:cursor-grabbing transition-shadow",
         isHandmatig && "border-l-4 border-l-purple-500",
         isDragging && "opacity-0",
-        isDragOverlay && "shadow-xl rotate-2",
+        isDragOverlay && "shadow-xl",
         !isDragOverlay && "hover:shadow-md"
       )}
     >

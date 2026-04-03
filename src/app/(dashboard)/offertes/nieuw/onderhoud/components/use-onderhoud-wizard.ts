@@ -96,7 +96,7 @@ export function useOnderhoudWizard() {
   }), []);
 
   // Extract data from wizard state for easier access
-  const { selectedTemplateId, selectedKlantId, selectedScopes, bereikbaarheid, achterstalligheid, tuinOppervlakte, klantData, scopeData } = wizardData;
+  const { selectedTemplateId, selectedKlantId, selectedLeadId, selectedScopes, bereikbaarheid, achterstalligheid, tuinOppervlakte, klantData, scopeData } = wizardData;
 
   // Helper functions to update wizard data
   const setSelectedTemplateId = (id: string | null) => {
@@ -105,6 +105,10 @@ export function useOnderhoudWizard() {
 
   const setSelectedKlantId = (id: string | null) => {
     setWizardData((prev) => ({ ...prev, selectedKlantId: id }));
+  };
+
+  const setSelectedLeadId = (id: string | null) => {
+    setWizardData((prev) => ({ ...prev, selectedLeadId: id }));
   };
 
   const setSelectedScopes = (scopes: OnderhoudScope[] | ((prev: OnderhoudScope[]) => OnderhoudScope[])) => {
@@ -229,6 +233,11 @@ export function useOnderhoudWizard() {
         });
       }
 
+      // Determine leadId from wizard state
+      const leadId = selectedLeadId
+        ? (selectedLeadId as Id<"configuratorAanvragen">)
+        : undefined;
+
       const offerteId = await create({
         type: "onderhoud",
         offerteNummer,
@@ -247,6 +256,7 @@ export function useOnderhoudWizard() {
         scopes: selectedScopes,
         scopeData: filteredScopeData,
         klantId,
+        leadId,
       });
 
       const calculationResult = calculate({
@@ -371,6 +381,7 @@ export function useOnderhoudWizard() {
     // Derived data
     selectedTemplateId,
     selectedKlantId,
+    selectedLeadId,
     selectedScopes,
     bereikbaarheid,
     achterstalligheid,
@@ -385,6 +396,7 @@ export function useOnderhoudWizard() {
     setShowTemplates,
     setShowSuccessDialog,
     setSelectedKlantId,
+    setSelectedLeadId,
     setBereikbaarheid,
     setAchterstalligheid,
     setTuinOppervlakte,
