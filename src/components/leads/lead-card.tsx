@@ -1,6 +1,7 @@
 "use client";
 
 import { useDraggable } from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
@@ -77,15 +78,21 @@ const priceFormatter = new Intl.NumberFormat("nl-NL", {
 interface LeadCardProps {
   lead: Lead;
   onClick?: (lead: Lead) => void;
-  isDragOverlay?: boolean;
 }
 
-export function LeadCard({ lead, onClick, isDragOverlay = false }: LeadCardProps) {
-  const { attributes, listeners, setNodeRef, isDragging } =
+export function LeadCard({ lead, onClick }: LeadCardProps) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
       id: lead._id,
       data: { lead },
     });
+
+  const style = transform
+    ? {
+        transform: CSS.Translate.toString(transform),
+        zIndex: 50,
+      }
+    : undefined;
 
   const isWebsite = lead.bron === "website_contact";
   const isHandmatig =
@@ -120,16 +127,16 @@ export function LeadCard({ lead, onClick, isDragOverlay = false }: LeadCardProps
 
   return (
     <div
-      ref={isDragOverlay ? undefined : setNodeRef}
-      {...(isDragOverlay ? {} : attributes)}
-      {...(isDragOverlay ? {} : listeners)}
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
       onClick={() => onClick?.(lead)}
       className={cn(
         "rounded-lg border bg-card p-3 cursor-grab active:cursor-grabbing transition-shadow",
         isHandmatig && "border-l-4 border-l-purple-500",
-        isDragging && "opacity-0",
-        isDragOverlay && "shadow-xl",
-        !isDragOverlay && "hover:shadow-md"
+        isDragging && "shadow-xl relative",
+        !isDragging && "hover:shadow-md"
       )}
     >
       <div className="flex items-start justify-between gap-2 mb-1.5">

@@ -3,7 +3,6 @@
 import { useState, useCallback } from "react";
 import {
   DndContext,
-  DragOverlay,
   PointerSensor,
   KeyboardSensor,
   useSensor,
@@ -17,7 +16,6 @@ import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import { KanbanColumn } from "./kanban-column";
-import { LeadCard } from "./lead-card";
 import { VerliesRedenDialog } from "./verlies-reden-dialog";
 import type { Lead } from "./lead-card";
 
@@ -57,7 +55,6 @@ interface KanbanBoardProps {
 }
 
 export function KanbanBoard({ leads, onLeadClick }: KanbanBoardProps) {
-  const [activeId, setActiveId] = useState<string | null>(null);
   const [verliesDialogOpen, setVerliesDialogOpen] = useState(false);
   const [pendingVerliesLeadId, setPendingVerliesLeadId] =
     useState<Id<"configuratorAanvragen"> | null>(null);
@@ -74,13 +71,6 @@ export function KanbanBoard({ leads, onLeadClick }: KanbanBoardProps) {
   const keyboardSensor = useSensor(KeyboardSensor);
   const sensors = useSensors(pointerSensor, keyboardSensor);
 
-  // Find active lead for DragOverlay
-  const activeLead = activeId
-    ? Object.values(leads)
-        .flat()
-        .find((l) => l._id === activeId) ?? null
-    : null;
-
   // Find which column a lead currently belongs to
   const findLeadColumn = useCallback(
     (leadId: string): PipelineStatus | null => {
@@ -95,12 +85,11 @@ export function KanbanBoard({ leads, onLeadClick }: KanbanBoardProps) {
   );
 
   // Drag handlers
-  function handleDragStart(event: DragStartEvent) {
-    setActiveId(String(event.active.id));
+  function handleDragStart(_event: DragStartEvent) {
+    // No-op: we don't use DragOverlay, the card moves itself via useDraggable transform
   }
 
   async function handleDragEnd(event: DragEndEvent) {
-    setActiveId(null);
 
     const { active, over } = event;
     if (!over) return;
@@ -194,13 +183,6 @@ export function KanbanBoard({ leads, onLeadClick }: KanbanBoardProps) {
           ))}
         </div>
 
-        <DragOverlay dropAnimation={null}>
-          {activeLead ? (
-            <div style={{ width: 256 }}>
-              <LeadCard lead={activeLead} isDragOverlay />
-            </div>
-          ) : null}
-        </DragOverlay>
       </DndContext>
 
       <VerliesRedenDialog
