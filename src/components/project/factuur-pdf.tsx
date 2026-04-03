@@ -2,11 +2,14 @@
 
 import {
   Document,
+  Image,
   Page,
   Text,
   View,
   StyleSheet,
 } from "@react-pdf/renderer";
+import { getDefaultTheme } from "@/components/pdf/pdf-theme";
+import type { PdfTheme } from "@/components/pdf/pdf-theme";
 import type { Bedrijfsgegevens } from "@/types/offerte";
 
 // Factuur line item
@@ -54,335 +57,368 @@ interface Factuur {
 interface FactuurPDFProps {
   factuur: Factuur;
   bedrijfsgegevens?: Bedrijfsgegevens;
+  theme?: PdfTheme;
+  voorwaarden?: string;
 }
 
-// Factuur-specific styles
-const styles = StyleSheet.create({
-  page: {
-    padding: 40,
-    fontSize: 10,
-    fontFamily: "Helvetica",
-    color: "#1a1a1a",
-  },
-  // Header section
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 30,
-  },
-  companyInfo: {
-    flexDirection: "column",
-    maxWidth: 250,
-  },
-  logoPlaceholder: {
-    width: 80,
-    height: 40,
-    backgroundColor: "#f0f0f0",
-    marginBottom: 10,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  logoText: {
-    fontSize: 8,
-    color: "#999999",
-  },
-  companyName: {
-    fontSize: 16,
-    fontFamily: "Helvetica-Bold",
-    color: "#16a34a",
-    marginBottom: 4,
-  },
-  companyDetail: {
-    fontSize: 9,
-    color: "#666666",
-    marginBottom: 2,
-  },
-  companyNumbers: {
-    marginTop: 8,
-  },
-  // Title section
-  titleSection: {
-    marginBottom: 25,
-  },
-  factuurTitle: {
-    fontSize: 24,
-    fontFamily: "Helvetica-Bold",
-    color: "#1a1a1a",
-    letterSpacing: 2,
-  },
-  // Factuur meta info (right side)
-  factuurMeta: {
-    marginBottom: 25,
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  metaBlock: {
-    width: "48%",
-  },
-  metaRow: {
-    flexDirection: "row",
-    marginBottom: 4,
-  },
-  metaLabel: {
-    width: 100,
-    fontSize: 9,
-    color: "#666666",
-  },
-  metaValue: {
-    flex: 1,
-    fontSize: 10,
-    fontFamily: "Helvetica-Bold",
-  },
-  // Client address block
-  addressSection: {
-    marginBottom: 25,
-    paddingBottom: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e5e5",
-  },
-  addressTitle: {
-    fontSize: 9,
-    fontFamily: "Helvetica-Bold",
-    color: "#666666",
-    marginBottom: 6,
-    textTransform: "uppercase",
-  },
-  addressText: {
-    fontSize: 10,
-    marginBottom: 2,
-    lineHeight: 1.4,
-  },
-  addressName: {
-    fontSize: 11,
-    fontFamily: "Helvetica-Bold",
-    marginBottom: 4,
-  },
-  // Line items table
-  table: {
-    marginBottom: 20,
-  },
-  tableHeader: {
-    flexDirection: "row",
-    backgroundColor: "#16a34a",
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-  },
-  tableHeaderCell: {
-    fontSize: 9,
-    fontFamily: "Helvetica-Bold",
-    color: "#ffffff",
-  },
-  tableRow: {
-    flexDirection: "row",
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-  },
-  tableRowAlt: {
-    flexDirection: "row",
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    backgroundColor: "#fafafa",
-  },
-  tableCell: {
-    fontSize: 9,
-  },
-  tableCellRight: {
-    fontSize: 9,
-    textAlign: "right",
-  },
-  colOmschrijving: {
-    flex: 4,
-  },
-  colAantal: {
-    flex: 1,
-    textAlign: "right",
-  },
-  colEenheid: {
-    flex: 1,
-    textAlign: "center",
-  },
-  colPrijs: {
-    flex: 1.5,
-    textAlign: "right",
-  },
-  colTotaal: {
-    flex: 1.5,
-    textAlign: "right",
-  },
-  // Corrections section
-  correctiesSection: {
-    marginBottom: 15,
-    padding: 12,
-    backgroundColor: "#fff9e6",
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: "#f0e6b3",
-  },
-  correctiesTitle: {
-    fontSize: 10,
-    fontFamily: "Helvetica-Bold",
-    marginBottom: 8,
-    color: "#996600",
-  },
-  correctieRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 4,
-  },
-  correctieOmschrijving: {
-    fontSize: 9,
-    flex: 1,
-  },
-  correctieBedrag: {
-    fontSize: 9,
-    width: 80,
-    textAlign: "right",
-  },
-  correctieBedragPositive: {
-    fontSize: 9,
-    width: 80,
-    textAlign: "right",
-    color: "#16a34a",
-  },
-  correctieBedragNegative: {
-    fontSize: 9,
-    width: 80,
-    textAlign: "right",
-    color: "#dc2626",
-  },
-  // Totals section
-  totalsSection: {
-    marginTop: 10,
-    marginLeft: "auto",
-    width: 250,
-  },
-  totalsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 6,
-    paddingHorizontal: 8,
-  },
-  totalsLabel: {
-    fontSize: 10,
-    color: "#666666",
-  },
-  totalsValue: {
-    fontSize: 10,
-    textAlign: "right",
-  },
-  totalsDivider: {
-    borderTopWidth: 1,
-    borderTopColor: "#e5e5e5",
-    marginVertical: 8,
-  },
-  totalsFinalRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: 8,
-    paddingVertical: 10,
-    backgroundColor: "#16a34a",
-    borderRadius: 4,
-  },
-  totalsFinalLabel: {
-    fontSize: 12,
-    fontFamily: "Helvetica-Bold",
-    color: "#ffffff",
-  },
-  totalsFinalValue: {
-    fontSize: 12,
-    fontFamily: "Helvetica-Bold",
-    color: "#ffffff",
-    textAlign: "right",
-  },
-  // Payment section
-  paymentSection: {
-    marginTop: 30,
-    padding: 15,
-    backgroundColor: "#f0f9f0",
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: "#16a34a",
-  },
-  paymentTitle: {
-    fontSize: 11,
-    fontFamily: "Helvetica-Bold",
-    marginBottom: 10,
-    color: "#16a34a",
-  },
-  paymentRow: {
-    flexDirection: "row",
-    marginBottom: 4,
-  },
-  paymentLabel: {
-    width: 120,
-    fontSize: 9,
-    color: "#666666",
-  },
-  paymentValue: {
-    flex: 1,
-    fontSize: 10,
-    fontFamily: "Helvetica-Bold",
-  },
-  paymentIban: {
-    fontSize: 12,
-    fontFamily: "Helvetica-Bold",
-    color: "#16a34a",
-    letterSpacing: 1,
-  },
-  paymentInstructions: {
-    marginTop: 10,
-    fontSize: 9,
-    color: "#666666",
-    lineHeight: 1.4,
-  },
-  // Notes section
-  notesSection: {
-    marginTop: 20,
-    padding: 12,
-    backgroundColor: "#f9f9f9",
-    borderRadius: 4,
-  },
-  notesTitle: {
-    fontSize: 10,
-    fontFamily: "Helvetica-Bold",
-    marginBottom: 6,
-    color: "#666666",
-  },
-  notesText: {
-    fontSize: 9,
-    color: "#666666",
-    lineHeight: 1.4,
-  },
-  // Footer
-  footer: {
-    position: "absolute",
-    bottom: 25,
-    left: 40,
-    right: 40,
-    paddingTop: 15,
-    borderTopWidth: 1,
-    borderTopColor: "#e5e5e5",
-  },
-  footerRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    marginBottom: 4,
-  },
-  footerText: {
-    fontSize: 8,
-    color: "#999999",
-    textAlign: "center",
-  },
-  footerDivider: {
-    fontSize: 8,
-    color: "#cccccc",
-    marginHorizontal: 8,
-  },
-});
+// Factuur-specific styles derived from theme tokens
+function createFactuurStyles(t: PdfTheme) {
+  return StyleSheet.create({
+    page: {
+      padding: t.spacing.pagePadding,
+      fontSize: t.typography.bodySize,
+      fontFamily: t.typography.fontFamily,
+      color: t.colors.text,
+    },
+    // Header section
+    header: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginBottom: t.spacing.sectionGap + 10,
+    },
+    companyInfo: {
+      flexDirection: "column",
+      maxWidth: 250,
+    },
+    logoPlaceholder: {
+      width: 80,
+      height: 40,
+      backgroundColor: t.colors.tableHeaderBg,
+      marginBottom: 10,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    logoText: {
+      fontSize: 8,
+      color: t.colors.muted,
+    },
+    logo: {
+      width: t.header.logoSize,
+      height: t.header.logoSize,
+      marginBottom: 10,
+    },
+    logoTextContainer: {
+      width: t.header.logoSize,
+      height: t.header.logoSize,
+      marginBottom: 10,
+      backgroundColor: t.colors.primary,
+      borderRadius: 6,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    logoTextTop: {
+      fontSize: Math.round(t.header.logoSize / 6),
+      fontFamily: "Helvetica-Bold",
+      color: "#ffffff",
+      textAlign: "center",
+    },
+    logoTextTuinen: {
+      fontSize: Math.round(t.header.logoSize / 8.5),
+      fontFamily: "Helvetica-Bold",
+      color: "#ffffff",
+      textAlign: "center",
+      letterSpacing: 2,
+    },
+    companyName: {
+      fontSize: t.typography.headerSize - 2,
+      fontFamily: "Helvetica-Bold",
+      color: t.colors.primary,
+      marginBottom: 4,
+    },
+    companyDetail: {
+      fontSize: t.typography.smallSize,
+      color: t.colors.muted,
+      marginBottom: 2,
+    },
+    companyNumbers: {
+      marginTop: 8,
+    },
+    // Title section
+    titleSection: {
+      marginBottom: t.spacing.sectionGap + 5,
+    },
+    factuurTitle: {
+      fontSize: 24,
+      fontFamily: "Helvetica-Bold",
+      color: t.colors.text,
+      letterSpacing: 2,
+    },
+    // Factuur meta info (right side)
+    factuurMeta: {
+      marginBottom: t.spacing.sectionGap + 5,
+      flexDirection: "row",
+      justifyContent: "space-between",
+    },
+    metaBlock: {
+      width: "48%",
+    },
+    metaRow: {
+      flexDirection: "row",
+      marginBottom: t.spacing.itemGap,
+    },
+    metaLabel: {
+      width: 100,
+      fontSize: t.typography.smallSize,
+      color: t.colors.muted,
+    },
+    metaValue: {
+      flex: 1,
+      fontSize: t.typography.bodySize,
+      fontFamily: "Helvetica-Bold",
+    },
+    // Client address block
+    addressSection: {
+      marginBottom: t.spacing.sectionGap + 5,
+      paddingBottom: 15,
+      borderBottomWidth: 1,
+      borderBottomColor: t.colors.border,
+    },
+    addressTitle: {
+      fontSize: t.typography.smallSize,
+      fontFamily: "Helvetica-Bold",
+      color: t.colors.muted,
+      marginBottom: 6,
+      textTransform: "uppercase",
+    },
+    addressText: {
+      fontSize: t.typography.bodySize,
+      marginBottom: 2,
+      lineHeight: 1.4,
+    },
+    addressName: {
+      fontSize: t.typography.titleSize - 1,
+      fontFamily: "Helvetica-Bold",
+      marginBottom: 4,
+    },
+    // Line items table
+    table: {
+      marginBottom: t.spacing.sectionGap,
+    },
+    tableHeader: {
+      flexDirection: "row",
+      backgroundColor: t.table.headerStyle === "dark" ? t.colors.tableHeaderBg : t.table.headerStyle === "filled" ? t.colors.primary : "transparent",
+      borderBottomWidth: t.table.headerStyle === "underlined" ? 2 : 0,
+      borderBottomColor: t.table.headerStyle === "underlined" ? t.colors.secondary : "transparent",
+      paddingVertical: 10,
+      paddingHorizontal: 8,
+    },
+    tableHeaderCell: {
+      fontSize: t.typography.smallSize,
+      fontFamily: "Helvetica-Bold",
+      color: t.table.headerStyle === "underlined" ? t.colors.text : "#ffffff",
+    },
+    tableRow: {
+      flexDirection: "row",
+      borderBottomWidth: t.table.showBorders ? 1 : 0,
+      borderBottomColor: t.colors.border,
+      paddingVertical: 10,
+      paddingHorizontal: 8,
+    },
+    tableRowAlt: {
+      flexDirection: "row",
+      borderBottomWidth: t.table.showBorders ? 1 : 0,
+      borderBottomColor: t.colors.border,
+      paddingVertical: 10,
+      paddingHorizontal: 8,
+      backgroundColor: t.table.alternateRows ? t.colors.tableAltRowBg : "transparent",
+    },
+    tableCell: {
+      fontSize: t.typography.smallSize,
+    },
+    tableCellRight: {
+      fontSize: t.typography.smallSize,
+      textAlign: "right",
+    },
+    colOmschrijving: {
+      flex: 4,
+    },
+    colAantal: {
+      flex: 1,
+      textAlign: "right",
+    },
+    colEenheid: {
+      flex: 1,
+      textAlign: "center",
+    },
+    colPrijs: {
+      flex: 1.5,
+      textAlign: "right",
+    },
+    colTotaal: {
+      flex: 1.5,
+      textAlign: "right",
+    },
+    // Corrections section
+    correctiesSection: {
+      marginBottom: 15,
+      padding: 12,
+      backgroundColor: "#fff9e6",
+      borderRadius: 4,
+      borderWidth: 1,
+      borderColor: "#f0e6b3",
+    },
+    correctiesTitle: {
+      fontSize: t.typography.bodySize,
+      fontFamily: "Helvetica-Bold",
+      marginBottom: 8,
+      color: "#996600",
+    },
+    correctieRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginBottom: t.spacing.itemGap,
+    },
+    correctieOmschrijving: {
+      fontSize: t.typography.smallSize,
+      flex: 1,
+    },
+    correctieBedrag: {
+      fontSize: t.typography.smallSize,
+      width: 80,
+      textAlign: "right",
+    },
+    correctieBedragPositive: {
+      fontSize: t.typography.smallSize,
+      width: 80,
+      textAlign: "right",
+      color: t.colors.primary,
+    },
+    correctieBedragNegative: {
+      fontSize: t.typography.smallSize,
+      width: 80,
+      textAlign: "right",
+      color: "#dc2626",
+    },
+    // Totals section
+    totalsSection: {
+      marginTop: 10,
+      marginLeft: "auto",
+      width: 250,
+    },
+    totalsRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginBottom: 6,
+      paddingHorizontal: 8,
+    },
+    totalsLabel: {
+      fontSize: t.typography.bodySize,
+      color: t.colors.muted,
+    },
+    totalsValue: {
+      fontSize: t.typography.bodySize,
+      textAlign: "right",
+    },
+    totalsDivider: {
+      borderTopWidth: 1,
+      borderTopColor: t.colors.border,
+      marginVertical: 8,
+    },
+    totalsFinalRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      paddingHorizontal: 8,
+      paddingVertical: 10,
+      backgroundColor: t.colors.primary,
+      borderRadius: 4,
+    },
+    totalsFinalLabel: {
+      fontSize: t.typography.titleSize,
+      fontFamily: "Helvetica-Bold",
+      color: "#ffffff",
+    },
+    totalsFinalValue: {
+      fontSize: t.typography.titleSize,
+      fontFamily: "Helvetica-Bold",
+      color: "#ffffff",
+      textAlign: "right",
+    },
+    // Payment section
+    paymentSection: {
+      marginTop: t.spacing.sectionGap + 10,
+      padding: 15,
+      backgroundColor: t.colors.background,
+      borderRadius: 4,
+      borderWidth: 1,
+      borderColor: t.colors.primary,
+    },
+    paymentTitle: {
+      fontSize: t.typography.titleSize - 1,
+      fontFamily: "Helvetica-Bold",
+      marginBottom: 10,
+      color: t.colors.primary,
+    },
+    paymentRow: {
+      flexDirection: "row",
+      marginBottom: t.spacing.itemGap,
+    },
+    paymentLabel: {
+      width: 120,
+      fontSize: t.typography.smallSize,
+      color: t.colors.muted,
+    },
+    paymentValue: {
+      flex: 1,
+      fontSize: t.typography.bodySize,
+      fontFamily: "Helvetica-Bold",
+    },
+    paymentIban: {
+      fontSize: t.typography.titleSize,
+      fontFamily: "Helvetica-Bold",
+      color: t.colors.primary,
+      letterSpacing: 1,
+    },
+    paymentInstructions: {
+      marginTop: 10,
+      fontSize: t.typography.smallSize,
+      color: t.colors.muted,
+      lineHeight: 1.4,
+    },
+    // Notes section
+    notesSection: {
+      marginTop: t.spacing.sectionGap,
+      padding: 12,
+      backgroundColor: "#f9f9f9",
+      borderRadius: 4,
+    },
+    notesTitle: {
+      fontSize: t.typography.bodySize,
+      fontFamily: "Helvetica-Bold",
+      marginBottom: 6,
+      color: t.colors.muted,
+    },
+    notesText: {
+      fontSize: t.typography.smallSize,
+      color: t.colors.muted,
+      lineHeight: 1.4,
+    },
+    // Footer
+    footer: {
+      position: "absolute",
+      bottom: 25,
+      left: t.spacing.pagePadding,
+      right: t.spacing.pagePadding,
+      paddingTop: 15,
+      borderTopWidth: t.footer.showLine ? 1 : 0,
+      borderTopColor: t.colors.border,
+    },
+    footerRow: {
+      flexDirection: "row",
+      justifyContent: "center",
+      marginBottom: 4,
+    },
+    footerText: {
+      fontSize: 8,
+      color: t.colors.muted,
+      textAlign: "center",
+    },
+    footerDivider: {
+      fontSize: 8,
+      color: t.colors.border,
+      marginHorizontal: 8,
+    },
+  });
+}
 
 // Helper functions
 const formatCurrency = (amount: number): string => {
@@ -400,10 +436,16 @@ const formatDate = (timestamp: number): string => {
   }).format(new Date(timestamp));
 };
 
-export function FactuurPDF({ factuur, bedrijfsgegevens }: FactuurPDFProps) {
-  const companyName = bedrijfsgegevens?.naam || "Top Tuinen";
+export function FactuurPDF({ factuur, bedrijfsgegevens, theme, voorwaarden }: FactuurPDFProps) {
+  const t = theme ?? getDefaultTheme();
+  const styles = createFactuurStyles(t);
+
+  const companyName = bedrijfsgegevens?.naam || t.branding.bedrijfsnaam;
   const hasCorrections = factuur.correcties && factuur.correcties.length > 0;
   const totalCorrections = factuur.correcties?.reduce((sum, c) => sum + c.bedrag, 0) || 0;
+
+  // Resolve logo source: theme branding → bedrijfsgegevens → null
+  const logoSrc = t.branding.logoUrl || bedrijfsgegevens?.logo || null;
 
   return (
     <Document>
@@ -411,10 +453,15 @@ export function FactuurPDF({ factuur, bedrijfsgegevens }: FactuurPDFProps) {
         {/* Header with company info */}
         <View style={styles.header}>
           <View style={styles.companyInfo}>
-            {/* Logo placeholder */}
-            <View style={styles.logoPlaceholder}>
-              <Text style={styles.logoText}>LOGO</Text>
-            </View>
+            {/* Company Logo */}
+            {logoSrc ? (
+              <Image style={styles.logo} src={logoSrc} />
+            ) : (
+              <View style={styles.logoTextContainer}>
+                <Text style={styles.logoTextTop}>TOP</Text>
+                <Text style={styles.logoTextTuinen}>TUINEN</Text>
+              </View>
+            )}
             <Text style={styles.companyName}>{companyName}</Text>
             {bedrijfsgegevens && (
               <>
@@ -648,6 +695,14 @@ export function FactuurPDF({ factuur, bedrijfsgegevens }: FactuurPDFProps) {
           <View style={styles.notesSection}>
             <Text style={styles.notesTitle}>Opmerkingen</Text>
             <Text style={styles.notesText}>{factuur.notities}</Text>
+          </View>
+        )}
+
+        {/* Voorwaarden */}
+        {voorwaarden && (
+          <View style={styles.notesSection}>
+            <Text style={styles.notesTitle}>Voorwaarden</Text>
+            <Text style={styles.notesText}>{voorwaarden}</Text>
           </View>
         )}
 

@@ -7,6 +7,8 @@ import {
   View,
   StyleSheet,
 } from "@react-pdf/renderer";
+import { getDefaultTheme } from "./pdf-theme";
+import type { PdfTheme } from "./pdf-theme";
 
 type AanmaningType = "eerste_aanmaning" | "tweede_aanmaning" | "ingebrekestelling";
 
@@ -39,6 +41,7 @@ interface AanmaningPDFData {
 
 interface AanmaningPDFProps {
   aanmaning: AanmaningPDFData;
+  theme?: PdfTheme;
 }
 
 function formatCurrency(amount: number): string {
@@ -105,159 +108,163 @@ const typeConfig: Record<AanmaningType, {
   },
 };
 
-const styles = StyleSheet.create({
-  page: {
-    padding: 50,
-    fontSize: 10,
-    fontFamily: "Helvetica",
-    color: "#1a1a1a",
-  },
-  headerBar: {
-    height: 6,
-    marginBottom: 30,
-  },
-  // Sender info (top right)
-  senderSection: {
-    marginBottom: 30,
-  },
-  senderName: {
-    fontSize: 14,
-    fontFamily: "Helvetica-Bold",
-    color: "#16a34a",
-    marginBottom: 4,
-  },
-  senderDetail: {
-    fontSize: 9,
-    color: "#6b7280",
-    lineHeight: 1.4,
-  },
-  // Recipient
-  recipientSection: {
-    marginBottom: 30,
-  },
-  recipientName: {
-    fontSize: 11,
-    fontFamily: "Helvetica-Bold",
-    marginBottom: 2,
-  },
-  recipientDetail: {
-    fontSize: 10,
-    color: "#374151",
-    lineHeight: 1.5,
-  },
-  // Date + reference
-  dateSection: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 20,
-  },
-  dateText: {
-    fontSize: 9,
-    color: "#6b7280",
-  },
-  // Title
-  title: {
-    fontSize: 18,
-    fontFamily: "Helvetica-Bold",
-    marginBottom: 20,
-  },
-  // Body
-  bodyText: {
-    fontSize: 10,
-    lineHeight: 1.6,
-    marginBottom: 12,
-    color: "#374151",
-  },
-  // Invoice details box
-  detailsBox: {
-    borderRadius: 4,
-    padding: 16,
-    marginVertical: 16,
-    border: "1 solid #e5e7eb",
-  },
-  detailRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 6,
-  },
-  detailLabel: {
-    fontSize: 9,
-    color: "#6b7280",
-  },
-  detailValue: {
-    fontSize: 9,
-    fontFamily: "Helvetica-Bold",
-  },
-  detailDivider: {
-    borderBottom: "0.5 solid #e5e7eb",
-    marginVertical: 8,
-  },
-  totalRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingTop: 8,
-    borderTop: "1 solid #d1d5db",
-    marginTop: 4,
-  },
-  totalLabel: {
-    fontSize: 11,
-    fontFamily: "Helvetica-Bold",
-  },
-  totalValue: {
-    fontSize: 13,
-    fontFamily: "Helvetica-Bold",
-    color: "#dc2626",
-  },
-  // Payment
-  paymentBox: {
-    backgroundColor: "#f9fafb",
-    borderRadius: 4,
-    padding: 12,
-    marginVertical: 16,
-  },
-  paymentTitle: {
-    fontSize: 9,
-    fontFamily: "Helvetica-Bold",
-    marginBottom: 6,
-    color: "#374151",
-  },
-  paymentDetail: {
-    fontSize: 9,
-    color: "#374151",
-    lineHeight: 1.5,
-  },
-  // Signature
-  signatureSection: {
-    marginTop: 30,
-  },
-  signatureText: {
-    fontSize: 10,
-    color: "#374151",
-    lineHeight: 1.6,
-  },
-  signatureName: {
-    fontSize: 10,
-    fontFamily: "Helvetica-Bold",
-    marginTop: 4,
-  },
-  // Footer
-  footer: {
-    position: "absolute",
-    bottom: 30,
-    left: 50,
-    right: 50,
-    borderTop: "1 solid #e5e7eb",
-    paddingTop: 10,
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  footerText: {
-    fontSize: 7,
-    color: "#9ca3af",
-  },
-});
+function createAanmaningStyles(t: PdfTheme) {
+  return StyleSheet.create({
+    page: {
+      padding: t.spacing.pagePadding + 10,
+      fontSize: t.typography.bodySize,
+      fontFamily: t.typography.fontFamily,
+      color: t.colors.text,
+    },
+    headerBar: {
+      height: t.header.showColorBar ? t.header.colorBarHeight + 4 : 6,
+      marginBottom: t.spacing.sectionGap + 10,
+    },
+    // Sender info (top right)
+    senderSection: {
+      marginBottom: t.spacing.sectionGap + 10,
+    },
+    senderName: {
+      fontSize: 14,
+      fontFamily: "Helvetica-Bold",
+      color: t.colors.primary,
+      marginBottom: 4,
+    },
+    senderDetail: {
+      fontSize: t.typography.smallSize,
+      color: t.colors.muted,
+      lineHeight: 1.4,
+    },
+    // Recipient
+    recipientSection: {
+      marginBottom: t.spacing.sectionGap + 10,
+    },
+    recipientName: {
+      fontSize: t.typography.titleSize - 1,
+      fontFamily: "Helvetica-Bold",
+      marginBottom: 2,
+    },
+    recipientDetail: {
+      fontSize: t.typography.bodySize,
+      color: t.colors.text,
+      lineHeight: 1.5,
+    },
+    // Date + reference
+    dateSection: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginBottom: t.spacing.sectionGap,
+    },
+    dateText: {
+      fontSize: t.typography.smallSize,
+      color: t.colors.muted,
+    },
+    // Title
+    title: {
+      fontSize: t.typography.headerSize,
+      fontFamily: "Helvetica-Bold",
+      marginBottom: t.spacing.sectionGap,
+    },
+    // Body
+    bodyText: {
+      fontSize: t.typography.bodySize,
+      lineHeight: 1.6,
+      marginBottom: 12,
+      color: t.colors.text,
+    },
+    // Invoice details box
+    detailsBox: {
+      borderRadius: 4,
+      padding: 16,
+      marginVertical: 16,
+      border: `1 solid ${t.colors.border}`,
+    },
+    detailRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginBottom: 6,
+    },
+    detailLabel: {
+      fontSize: t.typography.smallSize,
+      color: t.colors.muted,
+    },
+    detailValue: {
+      fontSize: t.typography.smallSize,
+      fontFamily: "Helvetica-Bold",
+    },
+    detailDivider: {
+      borderBottom: `0.5 solid ${t.colors.border}`,
+      marginVertical: 8,
+    },
+    totalRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      paddingTop: 8,
+      borderTop: `1 solid ${t.colors.border}`,
+      marginTop: 4,
+    },
+    totalLabel: {
+      fontSize: t.typography.titleSize - 1,
+      fontFamily: "Helvetica-Bold",
+    },
+    totalValue: {
+      fontSize: t.typography.titleSize + 1,
+      fontFamily: "Helvetica-Bold",
+      color: "#dc2626",
+    },
+    // Payment
+    paymentBox: {
+      backgroundColor: t.colors.tableAltRowBg,
+      borderRadius: 4,
+      padding: 12,
+      marginVertical: 16,
+    },
+    paymentTitle: {
+      fontSize: t.typography.smallSize,
+      fontFamily: "Helvetica-Bold",
+      marginBottom: 6,
+      color: t.colors.text,
+    },
+    paymentDetail: {
+      fontSize: t.typography.smallSize,
+      color: t.colors.text,
+      lineHeight: 1.5,
+    },
+    // Signature
+    signatureSection: {
+      marginTop: t.spacing.sectionGap + 10,
+    },
+    signatureText: {
+      fontSize: t.typography.bodySize,
+      color: t.colors.text,
+      lineHeight: 1.6,
+    },
+    signatureName: {
+      fontSize: t.typography.bodySize,
+      fontFamily: "Helvetica-Bold",
+      marginTop: 4,
+    },
+    // Footer
+    footer: {
+      position: "absolute",
+      bottom: 30,
+      left: t.spacing.pagePadding + 10,
+      right: t.spacing.pagePadding + 10,
+      borderTop: t.footer.showLine ? `1 solid ${t.colors.border}` : "none",
+      paddingTop: 10,
+      flexDirection: "row",
+      justifyContent: "space-between",
+    },
+    footerText: {
+      fontSize: 7,
+      color: t.colors.muted,
+    },
+  });
+}
 
-export function AanmaningPDF({ aanmaning }: AanmaningPDFProps) {
+export function AanmaningPDF({ aanmaning, theme }: AanmaningPDFProps) {
+  const t = theme ?? getDefaultTheme();
+  const styles = createAanmaningStyles(t);
   const config = typeConfig[aanmaning.type];
 
   return (

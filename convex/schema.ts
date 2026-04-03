@@ -365,6 +365,20 @@ export default defineSchema({
     // Algemene voorwaarden PDF (EML-003)
     voorwaardenPdfId: v.optional(v.id("_storage")),
     voorwaardenPdfNaam: v.optional(v.string()),
+    // PDF Branding & Template settings
+    pdfLogoStorageId: v.optional(v.id("_storage")),
+    pdfPrimaireKleur: v.optional(v.string()),
+    pdfSecundaireKleur: v.optional(v.string()),
+    pdfTemplateStijl: v.optional(v.union(
+      v.literal("klassiek"),
+      v.literal("minimalistisch"),
+      v.literal("bold")
+    )),
+    pdfVoorwaarden: v.optional(v.object({
+      offerte: v.optional(v.string()),
+      factuur: v.optional(v.string()),
+      contract: v.optional(v.string()),
+    })),
   }).index("by_user", ["userId"]),
 
   // Standaardtuinen (templates)

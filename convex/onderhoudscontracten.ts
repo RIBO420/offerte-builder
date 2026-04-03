@@ -923,6 +923,91 @@ export const cancelContract = mutation({
 });
 
 /**
+ * Get contract data formatted for PDF generation.
+ * Returns contract + klant + werkzaamheden grouped by seizoen + facturen.
+ */
+export const getForPdf = query({
+  args: { id: v.id("onderhoudscontracten") },
+  handler: async (ctx, args) => {
+    await requireAuth(ctx);
+
+    const contract = await ctx.db.get(args.id);
+    if (!contract || contract.deletedAt) {
+      throw new ConvexError("Contract niet gevonden");
+    }
+
+    // Get klant
+    const klant = await ctx.db.get(contract.klantId);
+
+    // Get werkzaamheden sorted by volgorde
+    const werkzaamheden = await ctx.db
+      .query("contractWerkzaamheden")
+      .withIndex("by_contract", (q) => q.eq("contractId", args.id))
+      .collect();
+
+    const sortedWerkzaamheden = werkzaamheden.sort(
+      (a, b) => a.volgorde - b.volgorde
+    );
+
+    // Group werkzaamheden by seizoen
+    const werkzaamhedenPerSeizoen: Record<
+      string,
+      typeof sortedWerkzaamheden
+    > = {};
+    for (const w of sortedWerkzaamheden) {
+      if (!werkzaamhedenPerSeizoen[w.seizoen]) {
+        werkzaamhedenPerSeizoen[w.seizoen] = [];
+      }
+      werkzaamhedenPerSeizoen[w.seizoen].push(w);
+    }
+
+    // Get facturen sorted by termijnNummer
+    const facturen = await ctx.db
+      .query("contractFacturen")
+      .withIndex("by_contract", (q) => q.eq("contractId", args.id))
+      .collect();
+
+    const sortedFacturen = facturen.sort(
+      (a, b) => a.termijnNummer - b.termijnNummer
+    );
+
+    return {
+      contract: {
+        _id: contract._id,
+        contractNummer: contract.contractNummer,
+        naam: contract.naam,
+        status: contract.status,
+        locatie: contract.locatie,
+        startDatum: contract.startDatum,
+        eindDatum: contract.eindDatum,
+        opzegtermijnDagen: contract.opzegtermijnDagen,
+        tariefPerTermijn: contract.tariefPerTermijn,
+        betalingsfrequentie: contract.betalingsfrequentie,
+        jaarlijksTarief: contract.jaarlijksTarief,
+        indexatiePercentage: contract.indexatiePercentage,
+        autoVerlenging: contract.autoVerlenging,
+        verlengingsPeriodeInMaanden: contract.verlengingsPeriodeInMaanden,
+        notities: contract.notities,
+        voorwaarden: contract.voorwaarden,
+        createdAt: contract.createdAt,
+      },
+      klant: klant
+        ? {
+            naam: klant.naam,
+            adres: klant.adres,
+            postcode: klant.postcode,
+            plaats: klant.plaats,
+            email: klant.email,
+            telefoon: klant.telefoon,
+          }
+        : null,
+      werkzaamhedenPerSeizoen,
+      facturen: sortedFacturen,
+    };
+  },
+});
+
+/**
  * Soft delete a contract.
  */
 export const remove = mutation({

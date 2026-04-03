@@ -7,7 +7,9 @@ import {
   Text,
   View,
 } from "@react-pdf/renderer";
-import { styles, formatCurrency, formatDate } from "./pdf-styles";
+import { formatCurrency, formatDate } from "./pdf-styles";
+import { getDefaultTheme } from "./pdf-theme";
+import type { PdfTheme } from "./pdf-theme";
 import type { Bedrijfsgegevens } from "@/types/offerte";
 
 // Define offerte type inline to avoid import issues with Convex
@@ -64,6 +66,8 @@ interface Offerte {
 interface OffertePDFProps {
   offerte: Offerte;
   bedrijfsgegevens?: Bedrijfsgegevens;
+  theme?: PdfTheme;
+  voorwaarden?: string;
 }
 
 const scopeLabels: Record<string, string> = {
@@ -224,8 +228,11 @@ function formatLineItems(summary: ScopeSummary): string {
   return parts.length > 0 ? parts.join(', ') : 'Inclusief materiaal en arbeid';
 }
 
-export function OffertePDF({ offerte, bedrijfsgegevens }: OffertePDFProps) {
-  const companyName = bedrijfsgegevens?.naam || "Top Tuinen";
+export function OffertePDF({ offerte, bedrijfsgegevens, theme, voorwaarden }: OffertePDFProps) {
+  const t = theme ?? getDefaultTheme();
+  const s = t.styles;
+
+  const companyName = bedrijfsgegevens?.naam || t.branding.bedrijfsnaam;
   const companyAddress = bedrijfsgegevens
     ? `${bedrijfsgegevens.adres}, ${bedrijfsgegevens.postcode} ${bedrijfsgegevens.plaats}`
     : "";
@@ -235,8 +242,8 @@ export function OffertePDF({ offerte, bedrijfsgegevens }: OffertePDFProps) {
     offerte.status
   );
 
-  // Resolve logo source: bedrijfsgegevens.logo URL or fallback to text-based logo
-  const logoSrc = bedrijfsgegevens?.logo || null;
+  // Resolve logo source: theme branding → bedrijfsgegevens → null
+  const logoSrc = t.branding.logoUrl || bedrijfsgegevens?.logo || null;
 
   // Summarize regels by scope for customer-friendly view
   // Separate standard and optional regels
@@ -247,109 +254,109 @@ export function OffertePDF({ offerte, bedrijfsgegevens }: OffertePDFProps) {
 
   return (
     <Document>
-      <Page size="A4" style={styles.page}>
+      <Page size="A4" style={s.page}>
         {/* CONCEPT Watermark */}
         {showConceptWatermark && (
-          <Text style={styles.watermark} fixed>
+          <Text style={s.watermark} fixed>
             CONCEPT
           </Text>
         )}
 
         {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
+        <View style={s.header}>
+          <View style={s.headerLeft}>
             {/* Company Logo */}
             {logoSrc ? (
-              <Image style={styles.logo} src={logoSrc} />
+              <Image style={s.logo} src={logoSrc} />
             ) : (
-              <View style={styles.logoTextContainer}>
-                <Text style={styles.logoTextTop}>TOP</Text>
-                <Text style={styles.logoTextTuinen}>TUINEN</Text>
+              <View style={s.logoTextContainer}>
+                <Text style={s.logoTextTop}>TOP</Text>
+                <Text style={s.logoTextTuinen}>TUINEN</Text>
               </View>
             )}
-            <View style={styles.companyInfo}>
-              <Text style={styles.companyName}>{companyName}</Text>
+            <View style={s.companyInfo}>
+              <Text style={s.companyName}>{companyName}</Text>
               {companyAddress && (
-                <Text style={styles.companyDetail}>{companyAddress}</Text>
+                <Text style={s.companyDetail}>{companyAddress}</Text>
               )}
               {bedrijfsgegevens?.telefoon && (
-                <Text style={styles.companyDetail}>
+                <Text style={s.companyDetail}>
                   Tel: {bedrijfsgegevens.telefoon}
                 </Text>
               )}
               {bedrijfsgegevens?.email && (
-                <Text style={styles.companyDetail}>{bedrijfsgegevens.email}</Text>
+                <Text style={s.companyDetail}>{bedrijfsgegevens.email}</Text>
               )}
               {bedrijfsgegevens?.kvk && (
-                <Text style={styles.companyDetail}>
+                <Text style={s.companyDetail}>
                   KvK: {bedrijfsgegevens.kvk}
                 </Text>
               )}
             </View>
           </View>
-          <View style={styles.offerteInfo}>
-            <Text style={styles.offerteNummer}>{offerte.offerteNummer}</Text>
-            <Text style={styles.offerteType}>
+          <View style={s.offerteInfo}>
+            <Text style={s.offerteNummer}>{offerte.offerteNummer}</Text>
+            <Text style={s.offerteType}>
               {offerte.type === "aanleg" ? "Aanlegofferte" : "Onderhoudsofferte"}
             </Text>
-            <Text style={styles.offerteDate}>
+            <Text style={s.offerteDate}>
               {formatDate(offerte.createdAt)}
             </Text>
           </View>
         </View>
 
         {/* Klantgegevens */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Klantgegevens</Text>
-          <View style={styles.row}>
-            <Text style={styles.label}>Naam:</Text>
-            <Text style={styles.value}>{offerte.klant.naam}</Text>
+        <View style={s.section}>
+          <Text style={s.sectionTitle}>Klantgegevens</Text>
+          <View style={s.row}>
+            <Text style={s.label}>Naam:</Text>
+            <Text style={s.value}>{offerte.klant.naam}</Text>
           </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>Adres:</Text>
-            <Text style={styles.value}>
+          <View style={s.row}>
+            <Text style={s.label}>Adres:</Text>
+            <Text style={s.value}>
               {offerte.klant.adres}, {offerte.klant.postcode}{" "}
               {offerte.klant.plaats}
             </Text>
           </View>
           {offerte.klant.telefoon && (
-            <View style={styles.row}>
-              <Text style={styles.label}>Telefoon:</Text>
-              <Text style={styles.value}>{offerte.klant.telefoon}</Text>
+            <View style={s.row}>
+              <Text style={s.label}>Telefoon:</Text>
+              <Text style={s.value}>{offerte.klant.telefoon}</Text>
             </View>
           )}
           {offerte.klant.email && (
-            <View style={styles.row}>
-              <Text style={styles.label}>E-mail:</Text>
-              <Text style={styles.value}>{offerte.klant.email}</Text>
+            <View style={s.row}>
+              <Text style={s.label}>E-mail:</Text>
+              <Text style={s.value}>{offerte.klant.email}</Text>
             </View>
           )}
         </View>
 
         {/* Project informatie */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Project Informatie</Text>
-          <View style={styles.row}>
-            <Text style={styles.label}>Bereikbaarheid:</Text>
-            <Text style={styles.value}>
+        <View style={s.section}>
+          <Text style={s.sectionTitle}>Project Informatie</Text>
+          <View style={s.row}>
+            <Text style={s.label}>Bereikbaarheid:</Text>
+            <Text style={s.value}>
               {bereikbaarheidLabels[offerte.algemeenParams.bereikbaarheid] ||
                 offerte.algemeenParams.bereikbaarheid}
             </Text>
           </View>
           {offerte.algemeenParams.achterstalligheid && (
-            <View style={styles.row}>
-              <Text style={styles.label}>Achterstalligheid:</Text>
-              <Text style={styles.value}>
+            <View style={s.row}>
+              <Text style={s.label}>Achterstalligheid:</Text>
+              <Text style={s.value}>
                 {offerte.algemeenParams.achterstalligheid}
               </Text>
             </View>
           )}
           {offerte.scopes && offerte.scopes.length > 0 && (
-            <View style={styles.row}>
-              <Text style={styles.label}>Werkzaamheden:</Text>
-              <Text style={styles.value}>
+            <View style={s.row}>
+              <Text style={s.label}>Werkzaamheden:</Text>
+              <Text style={s.value}>
                 {offerte.scopes
-                  .map((s) => scopeLabels[s] || s)
+                  .map((sc) => scopeLabels[sc] || sc)
                   .join(", ")}
               </Text>
             </View>
@@ -358,32 +365,32 @@ export function OffertePDF({ offerte, bedrijfsgegevens }: OffertePDFProps) {
 
         {/* Werkzaamheden - Customer-friendly summarized view */}
         {scopeSummaries.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Werkzaamheden</Text>
-            <View style={styles.table}>
-              <View style={styles.tableHeader}>
-                <Text style={[styles.tableHeaderCell, { flex: 2 }]}>
+          <View style={s.section}>
+            <Text style={s.sectionTitle}>Werkzaamheden</Text>
+            <View style={s.table}>
+              <View style={s.tableHeader}>
+                <Text style={[s.tableHeaderCell, { flex: 2 }]}>
                   Onderdeel
                 </Text>
-                <Text style={[styles.tableHeaderCell, { flex: 4 }]}>
+                <Text style={[s.tableHeaderCell, { flex: 4 }]}>
                   Omschrijving
                 </Text>
-                <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: "right" }]}>
+                <Text style={[s.tableHeaderCell, { flex: 1, textAlign: "right" }]}>
                   Bedrag
                 </Text>
               </View>
               {scopeSummaries.map((summary, index) => (
                 <View
                   key={summary.scope}
-                  style={index % 2 === 0 ? styles.tableRow : styles.tableRowAlt}
+                  style={index % 2 === 0 ? s.tableRow : s.tableRowAlt}
                 >
-                  <Text style={[styles.tableCell, { flex: 2, fontWeight: 600 }]}>
+                  <Text style={[s.tableCell, { flex: 2, fontWeight: 600 }]}>
                     {summary.scopeLabel}
                   </Text>
-                  <Text style={[styles.tableCell, { flex: 4, fontSize: 9, color: "#666" }]}>
+                  <Text style={[s.tableCell, { flex: 4, fontSize: t.typography.smallSize, color: t.colors.muted }]}>
                     {formatLineItems(summary)}
                   </Text>
-                  <Text style={[styles.tableCellRight, { flex: 1 }]}>
+                  <Text style={[s.tableCellRight, { flex: 1 }]}>
                     {formatCurrency(summary.totaal)}
                   </Text>
                 </View>
@@ -394,35 +401,35 @@ export function OffertePDF({ offerte, bedrijfsgegevens }: OffertePDFProps) {
 
         {/* Optionele posten */}
         {optionalScopeSummaries.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Optionele werkzaamheden</Text>
-            <Text style={{ fontSize: 9, color: "#666", marginBottom: 6 }}>
+          <View style={s.section}>
+            <Text style={s.sectionTitle}>Optionele werkzaamheden</Text>
+            <Text style={{ fontSize: t.typography.smallSize, color: t.colors.muted, marginBottom: 6 }}>
               Onderstaande posten zijn optioneel en niet inbegrepen in het totaalbedrag.
             </Text>
-            <View style={styles.table}>
-              <View style={styles.tableHeader}>
-                <Text style={[styles.tableHeaderCell, { flex: 2 }]}>
+            <View style={s.table}>
+              <View style={s.tableHeader}>
+                <Text style={[s.tableHeaderCell, { flex: 2 }]}>
                   Onderdeel
                 </Text>
-                <Text style={[styles.tableHeaderCell, { flex: 4 }]}>
+                <Text style={[s.tableHeaderCell, { flex: 4 }]}>
                   Omschrijving
                 </Text>
-                <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: "right" }]}>
+                <Text style={[s.tableHeaderCell, { flex: 1, textAlign: "right" }]}>
                   Bedrag
                 </Text>
               </View>
               {optionalScopeSummaries.map((summary, index) => (
                 <View
                   key={summary.scope}
-                  style={index % 2 === 0 ? styles.tableRow : styles.tableRowAlt}
+                  style={index % 2 === 0 ? s.tableRow : s.tableRowAlt}
                 >
-                  <Text style={[styles.tableCell, { flex: 2, fontWeight: 600 }]}>
+                  <Text style={[s.tableCell, { flex: 2, fontWeight: 600 }]}>
                     {summary.scopeLabel}
                   </Text>
-                  <Text style={[styles.tableCell, { flex: 4, fontSize: 9, color: "#666" }]}>
+                  <Text style={[s.tableCell, { flex: 4, fontSize: t.typography.smallSize, color: t.colors.muted }]}>
                     {formatLineItems(summary)}
                   </Text>
-                  <Text style={[styles.tableCellRight, { flex: 1 }]}>
+                  <Text style={[s.tableCellRight, { flex: 1 }]}>
                     {formatCurrency(summary.totaal)}
                   </Text>
                 </View>
@@ -432,22 +439,22 @@ export function OffertePDF({ offerte, bedrijfsgegevens }: OffertePDFProps) {
         )}
 
         {/* Totalen - Customer-friendly view (no internal costs breakdown) */}
-        <View style={styles.totalsSection}>
-          <View style={styles.totalsRow}>
-            <Text style={styles.totalsLabel}>Totaal excl. BTW:</Text>
-            <Text style={styles.totalsValue}>
+        <View style={s.totalsSection}>
+          <View style={s.totalsRow}>
+            <Text style={s.totalsLabel}>Totaal excl. BTW:</Text>
+            <Text style={s.totalsValue}>
               {formatCurrency(offerte.totalen.totaalExBtw)}
             </Text>
           </View>
-          <View style={styles.totalsRow}>
-            <Text style={styles.totalsLabel}>BTW (21%):</Text>
-            <Text style={styles.totalsValue}>
+          <View style={s.totalsRow}>
+            <Text style={s.totalsLabel}>BTW (21%):</Text>
+            <Text style={s.totalsValue}>
               {formatCurrency(offerte.totalen.btw)}
             </Text>
           </View>
-          <View style={styles.totalsFinalRow}>
-            <Text style={styles.totalsFinalLabel}>Totaal incl. BTW:</Text>
-            <Text style={styles.totalsFinalValue}>
+          <View style={s.totalsFinalRow}>
+            <Text style={s.totalsFinalLabel}>Totaal incl. BTW:</Text>
+            <Text style={s.totalsFinalValue}>
               {formatCurrency(offerte.totalen.totaalInclBtw)}
             </Text>
           </View>
@@ -455,14 +462,22 @@ export function OffertePDF({ offerte, bedrijfsgegevens }: OffertePDFProps) {
 
         {/* Notities */}
         {offerte.notities && (
-          <View style={styles.notesSection}>
-            <Text style={styles.notesTitle}>Opmerkingen</Text>
-            <Text style={styles.notesText}>{offerte.notities}</Text>
+          <View style={s.notesSection}>
+            <Text style={s.notesTitle}>Opmerkingen</Text>
+            <Text style={s.notesText}>{offerte.notities}</Text>
+          </View>
+        )}
+
+        {/* Voorwaarden */}
+        {voorwaarden && (
+          <View style={s.notesSection}>
+            <Text style={s.notesTitle}>Voorwaarden</Text>
+            <Text style={s.notesText}>{voorwaarden}</Text>
           </View>
         )}
 
         {/* Footer */}
-        <View style={styles.footer}>
+        <View style={s.footer}>
           <Text>
             {companyName}
             {bedrijfsgegevens?.kvk && ` • KvK: ${bedrijfsgegevens.kvk}`}

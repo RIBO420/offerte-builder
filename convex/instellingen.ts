@@ -360,6 +360,55 @@ export const deleteDeelfactuurTemplate = mutation({
   },
 });
 
+// ── PDF Branding & Template Settings ─────────────────────────────────
+
+/** Update PDF branding settings (logo, colors, template style, voorwaarden) */
+export const updatePdfBranding = mutation({
+  args: {
+    pdfLogoStorageId: v.optional(v.union(v.id("_storage"), v.null())),
+    pdfPrimaireKleur: v.optional(v.string()),
+    pdfSecundaireKleur: v.optional(v.string()),
+    pdfTemplateStijl: v.optional(v.union(
+      v.literal("klassiek"),
+      v.literal("minimalistisch"),
+      v.literal("bold")
+    )),
+    pdfVoorwaarden: v.optional(v.object({
+      offerte: v.optional(v.string()),
+      factuur: v.optional(v.string()),
+      contract: v.optional(v.string()),
+    })),
+  },
+  handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
+    const userId = await requireAuthUserId(ctx);
+
+    const settings = await ctx.db
+      .query("instellingen")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique();
+
+    if (!settings) {
+      throw new ConvexError("Instellingen niet gevonden. Maak eerst standaardinstellingen aan.");
+    }
+
+    const updates: Record<string, unknown> = {};
+    if (args.pdfLogoStorageId !== undefined)
+      updates.pdfLogoStorageId = args.pdfLogoStorageId === null ? undefined : args.pdfLogoStorageId;
+    if (args.pdfPrimaireKleur !== undefined)
+      updates.pdfPrimaireKleur = args.pdfPrimaireKleur;
+    if (args.pdfSecundaireKleur !== undefined)
+      updates.pdfSecundaireKleur = args.pdfSecundaireKleur;
+    if (args.pdfTemplateStijl !== undefined)
+      updates.pdfTemplateStijl = args.pdfTemplateStijl;
+    if (args.pdfVoorwaarden !== undefined)
+      updates.pdfVoorwaarden = args.pdfVoorwaarden;
+
+    await ctx.db.patch(settings._id, updates);
+    return settings._id;
+  },
+});
+
 /** Internal: get voorwaarden URL for a specific user (for automated emails) */
 export const getVoorwaardenForUser = internalQuery({
   args: { userId: v.id("users") },

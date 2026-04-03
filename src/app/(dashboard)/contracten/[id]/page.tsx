@@ -55,6 +55,10 @@ import {
   Sun,
   CloudRain,
   Snowflake,
+  Download,
+  Loader2,
+  AlertCircle,
+  FileText,
 } from "lucide-react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
@@ -135,6 +139,104 @@ function formatDateShort(dateStr: string): string {
     month: "short",
     year: "numeric",
   }).format(date);
+}
+
+// ── Contract PDF Download Button ────────────────────────────────────
+
+function ContractPdfDownloadButton({
+  contractId,
+}: {
+  contractId: Id<"onderhoudscontracten">;
+}) {
+  const { user } = useCurrentUser();
+  const pdfData = useQuery(
+    api.onderhoudscontracten.getForPdf,
+    user?._id ? { id: contractId } : "skip"
+  );
+
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [hasError, setHasError] = useState(false);
+
+  const handleDownload = useCallback(async () => {
+    if (!pdfData) return;
+
+    setIsGenerating(true);
+    setHasError(false);
+
+    try {
+      // Dynamic import to avoid loading react-pdf in the main bundle
+      const [{ pdf }, { ContractPDF }, { getDefaultTheme }] = await Promise.all(
+        [
+          import("@react-pdf/renderer"),
+          import("@/components/pdf/contract-pdf"),
+          import("@/components/pdf/pdf-theme"),
+        ]
+      );
+
+      const theme = getDefaultTheme();
+
+      const blob = await pdf(
+        ContractPDF({
+          contract: {
+            ...pdfData.contract,
+            _id: pdfData.contract._id as unknown as string,
+          },
+          klant: pdfData.klant,
+          werkzaamhedenPerSeizoen: pdfData.werkzaamhedenPerSeizoen,
+          facturen: pdfData.facturen.map((f) => ({
+            ...f,
+            _id: f._id as unknown as string,
+          })),
+          theme,
+        })
+      ).toBlob();
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const klantNaam = pdfData.klant?.naam?.replace(/\s+/g, "-") ?? "klant";
+      link.download = `${pdfData.contract.contractNummer}-${klantNaam}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast.success("Contract PDF gedownload", {
+        description: `${pdfData.contract.contractNummer} is succesvol gedownload.`,
+      });
+    } catch (error) {
+      console.error("PDF generation error:", error);
+      setHasError(true);
+      toast.error("PDF kon niet worden gegenereerd", {
+        description:
+          error instanceof Error ? error.message : "Onbekende fout opgetreden",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [pdfData]);
+
+  return (
+    <Button
+      variant={hasError ? "destructive" : "outline"}
+      className="w-full justify-start"
+      onClick={handleDownload}
+      disabled={isGenerating || !pdfData}
+    >
+      {isGenerating ? (
+        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+      ) : hasError ? (
+        <AlertCircle className="h-4 w-4 mr-2" />
+      ) : (
+        <FileText className="h-4 w-4 mr-2" />
+      )}
+      {isGenerating
+        ? "PDF genereren..."
+        : hasError
+          ? "Opnieuw proberen"
+          : "Contract PDF downloaden"}
+    </Button>
+  );
 }
 
 export default function ContractDetailPage() {
@@ -797,6 +899,8 @@ function ContractDetailContent() {
                 <CardTitle className="text-base">Acties</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
+                <ContractPdfDownloadButton contractId={contract._id} />
+
                 {(contract.status === "actief" ||
                   contract.status === "verlopen") && (
                   <Dialog

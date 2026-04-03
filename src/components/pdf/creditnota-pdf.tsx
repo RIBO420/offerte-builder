@@ -7,6 +7,8 @@ import {
   View,
   StyleSheet,
 } from "@react-pdf/renderer";
+import { getDefaultTheme } from "./pdf-theme";
+import type { PdfTheme } from "./pdf-theme";
 
 interface CreditnotaRegel {
   id: string;
@@ -56,6 +58,7 @@ interface CreditnotaData {
 
 interface CreditnotaPDFProps {
   creditnota: CreditnotaData;
+  theme?: PdfTheme;
 }
 
 function formatCurrency(amount: number): string {
@@ -73,227 +76,232 @@ function formatDate(timestamp: number): string {
   }).format(new Date(timestamp));
 }
 
-const styles = StyleSheet.create({
-  page: {
-    padding: 40,
-    fontSize: 10,
-    fontFamily: "Helvetica",
-    color: "#1a1a1a",
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 30,
-  },
-  companyInfo: {
-    flexDirection: "column",
-    maxWidth: 250,
-  },
-  companyName: {
-    fontSize: 18,
-    fontFamily: "Helvetica-Bold",
-    color: "#16a34a",
-    marginBottom: 6,
-  },
-  companyDetail: {
-    fontSize: 9,
-    color: "#6b7280",
-    lineHeight: 1.4,
-  },
-  titleSection: {
-    alignItems: "flex-end",
-  },
-  title: {
-    fontSize: 28,
-    fontFamily: "Helvetica-Bold",
-    color: "#dc2626",
-    marginBottom: 8,
-  },
-  metaRow: {
-    flexDirection: "row",
-    marginBottom: 3,
-  },
-  metaLabel: {
-    fontSize: 9,
-    color: "#6b7280",
-    width: 120,
-    textAlign: "right",
-  },
-  metaValue: {
-    fontSize: 9,
-    fontFamily: "Helvetica-Bold",
-    marginLeft: 8,
-  },
-  // Reden / referentie
-  reasonBox: {
-    backgroundColor: "#fef2f2",
-    border: "1 solid #fecaca",
-    borderRadius: 4,
-    padding: 12,
-    marginBottom: 20,
-  },
-  reasonLabel: {
-    fontSize: 9,
-    fontFamily: "Helvetica-Bold",
-    color: "#dc2626",
-    marginBottom: 4,
-  },
-  reasonText: {
-    fontSize: 9,
-    color: "#374151",
-    lineHeight: 1.4,
-  },
-  // Client info
-  clientSection: {
-    marginBottom: 24,
-    padding: 12,
-    backgroundColor: "#f9fafb",
-    borderRadius: 4,
-  },
-  clientLabel: {
-    fontSize: 8,
-    fontFamily: "Helvetica-Bold",
-    color: "#6b7280",
-    textTransform: "uppercase",
-    marginBottom: 6,
-    letterSpacing: 0.5,
-  },
-  clientName: {
-    fontSize: 11,
-    fontFamily: "Helvetica-Bold",
-    marginBottom: 2,
-  },
-  clientDetail: {
-    fontSize: 9,
-    color: "#374151",
-    lineHeight: 1.4,
-  },
-  // Table
-  table: {
-    marginBottom: 20,
-  },
-  tableHeader: {
-    flexDirection: "row",
-    backgroundColor: "#f3f4f6",
-    borderBottom: "1 solid #d1d5db",
-    padding: "8 12",
-  },
-  tableRow: {
-    flexDirection: "row",
-    borderBottom: "0.5 solid #e5e7eb",
-    padding: "8 12",
-  },
-  colDescription: { flex: 4 },
-  colQuantity: { flex: 1, textAlign: "right" },
-  colUnit: { flex: 1, textAlign: "center" },
-  colPrice: { flex: 1.5, textAlign: "right" },
-  colTotal: { flex: 1.5, textAlign: "right" },
-  headerText: {
-    fontSize: 8,
-    fontFamily: "Helvetica-Bold",
-    color: "#374151",
-    textTransform: "uppercase",
-    letterSpacing: 0.3,
-  },
-  cellText: {
-    fontSize: 9,
-    color: "#1f2937",
-  },
-  cellTextBold: {
-    fontSize: 9,
-    fontFamily: "Helvetica-Bold",
-    color: "#dc2626",
-  },
-  // Correcties
-  correctiesSection: {
-    marginBottom: 20,
-    borderTop: "1 solid #e5e7eb",
-    paddingTop: 12,
-  },
-  correctiesSectionTitle: {
-    fontSize: 10,
-    fontFamily: "Helvetica-Bold",
-    color: "#374151",
-    marginBottom: 8,
-  },
-  correctieRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 4,
-  },
-  correctieText: {
-    fontSize: 9,
-    color: "#6b7280",
-  },
-  correctieBedrag: {
-    fontSize: 9,
-    fontFamily: "Helvetica-Bold",
-    color: "#dc2626",
-  },
-  // Totals
-  totalsSection: {
-    marginTop: 10,
-    paddingTop: 12,
-    borderTop: "2 solid #1f2937",
-  },
-  totalRow: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    marginBottom: 6,
-  },
-  totalLabel: {
-    fontSize: 10,
-    color: "#6b7280",
-    marginRight: 20,
-    width: 150,
-    textAlign: "right",
-  },
-  totalValue: {
-    fontSize: 10,
-    fontFamily: "Helvetica-Bold",
-    width: 100,
-    textAlign: "right",
-    color: "#dc2626",
-  },
-  grandTotalRow: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    paddingTop: 8,
-    borderTop: "1 solid #e5e7eb",
-    marginTop: 4,
-  },
-  grandTotalLabel: {
-    fontSize: 12,
-    fontFamily: "Helvetica-Bold",
-    marginRight: 20,
-    width: 150,
-    textAlign: "right",
-  },
-  grandTotalValue: {
-    fontSize: 14,
-    fontFamily: "Helvetica-Bold",
-    color: "#dc2626",
-    width: 100,
-    textAlign: "right",
-  },
-  // Footer
-  footer: {
-    position: "absolute",
-    bottom: 30,
-    left: 40,
-    right: 40,
-    borderTop: "1 solid #e5e7eb",
-    paddingTop: 12,
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  footerText: {
-    fontSize: 7,
-    color: "#9ca3af",
-  },
-});
+function createCreditnotaStyles(t: PdfTheme) {
+  return StyleSheet.create({
+    page: {
+      padding: t.spacing.pagePadding,
+      fontSize: t.typography.bodySize,
+      fontFamily: t.typography.fontFamily,
+      color: t.colors.text,
+    },
+    header: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginBottom: t.spacing.sectionGap + 10,
+    },
+    companyInfo: {
+      flexDirection: "column",
+      maxWidth: 250,
+    },
+    companyName: {
+      fontSize: t.typography.headerSize,
+      fontFamily: "Helvetica-Bold",
+      color: t.colors.primary,
+      marginBottom: 6,
+    },
+    companyDetail: {
+      fontSize: t.typography.smallSize,
+      color: t.colors.muted,
+      lineHeight: 1.4,
+    },
+    titleSection: {
+      alignItems: "flex-end",
+    },
+    title: {
+      fontSize: 28,
+      fontFamily: "Helvetica-Bold",
+      color: "#dc2626",
+      marginBottom: 8,
+    },
+    metaRow: {
+      flexDirection: "row",
+      marginBottom: 3,
+    },
+    metaLabel: {
+      fontSize: t.typography.smallSize,
+      color: t.colors.muted,
+      width: 120,
+      textAlign: "right",
+    },
+    metaValue: {
+      fontSize: t.typography.smallSize,
+      fontFamily: "Helvetica-Bold",
+      marginLeft: 8,
+    },
+    // Reden / referentie
+    reasonBox: {
+      backgroundColor: "#fef2f2",
+      border: "1 solid #fecaca",
+      borderRadius: 4,
+      padding: 12,
+      marginBottom: t.spacing.sectionGap,
+    },
+    reasonLabel: {
+      fontSize: t.typography.smallSize,
+      fontFamily: "Helvetica-Bold",
+      color: "#dc2626",
+      marginBottom: 4,
+    },
+    reasonText: {
+      fontSize: t.typography.smallSize,
+      color: t.colors.text,
+      lineHeight: 1.4,
+    },
+    // Client info
+    clientSection: {
+      marginBottom: t.spacing.sectionGap + 4,
+      padding: 12,
+      backgroundColor: t.colors.tableAltRowBg,
+      borderRadius: 4,
+    },
+    clientLabel: {
+      fontSize: 8,
+      fontFamily: "Helvetica-Bold",
+      color: t.colors.muted,
+      textTransform: "uppercase",
+      marginBottom: 6,
+      letterSpacing: 0.5,
+    },
+    clientName: {
+      fontSize: t.typography.titleSize - 1,
+      fontFamily: "Helvetica-Bold",
+      marginBottom: 2,
+    },
+    clientDetail: {
+      fontSize: t.typography.smallSize,
+      color: t.colors.text,
+      lineHeight: 1.4,
+    },
+    // Table
+    table: {
+      marginBottom: t.spacing.sectionGap,
+    },
+    tableHeader: {
+      flexDirection: "row",
+      backgroundColor: t.colors.tableHeaderBg,
+      borderBottom: `1 solid ${t.colors.border}`,
+      padding: "8 12",
+    },
+    tableRow: {
+      flexDirection: "row",
+      borderBottom: `0.5 solid ${t.colors.border}`,
+      padding: "8 12",
+    },
+    colDescription: { flex: 4 },
+    colQuantity: { flex: 1, textAlign: "right" },
+    colUnit: { flex: 1, textAlign: "center" },
+    colPrice: { flex: 1.5, textAlign: "right" },
+    colTotal: { flex: 1.5, textAlign: "right" },
+    headerText: {
+      fontSize: 8,
+      fontFamily: "Helvetica-Bold",
+      color: t.colors.tableHeaderText,
+      textTransform: "uppercase",
+      letterSpacing: 0.3,
+    },
+    cellText: {
+      fontSize: t.typography.smallSize,
+      color: t.colors.text,
+    },
+    cellTextBold: {
+      fontSize: t.typography.smallSize,
+      fontFamily: "Helvetica-Bold",
+      color: "#dc2626",
+    },
+    // Correcties
+    correctiesSection: {
+      marginBottom: t.spacing.sectionGap,
+      borderTop: `1 solid ${t.colors.border}`,
+      paddingTop: 12,
+    },
+    correctiesSectionTitle: {
+      fontSize: t.typography.bodySize,
+      fontFamily: "Helvetica-Bold",
+      color: t.colors.text,
+      marginBottom: 8,
+    },
+    correctieRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginBottom: t.spacing.itemGap,
+    },
+    correctieText: {
+      fontSize: t.typography.smallSize,
+      color: t.colors.muted,
+    },
+    correctieBedrag: {
+      fontSize: t.typography.smallSize,
+      fontFamily: "Helvetica-Bold",
+      color: "#dc2626",
+    },
+    // Totals
+    totalsSection: {
+      marginTop: 10,
+      paddingTop: 12,
+      borderTop: `2 solid ${t.colors.text}`,
+    },
+    totalRow: {
+      flexDirection: "row",
+      justifyContent: "flex-end",
+      marginBottom: 6,
+    },
+    totalLabel: {
+      fontSize: t.typography.bodySize,
+      color: t.colors.muted,
+      marginRight: 20,
+      width: 150,
+      textAlign: "right",
+    },
+    totalValue: {
+      fontSize: t.typography.bodySize,
+      fontFamily: "Helvetica-Bold",
+      width: 100,
+      textAlign: "right",
+      color: "#dc2626",
+    },
+    grandTotalRow: {
+      flexDirection: "row",
+      justifyContent: "flex-end",
+      paddingTop: 8,
+      borderTop: `1 solid ${t.colors.border}`,
+      marginTop: 4,
+    },
+    grandTotalLabel: {
+      fontSize: t.typography.titleSize,
+      fontFamily: "Helvetica-Bold",
+      marginRight: 20,
+      width: 150,
+      textAlign: "right",
+    },
+    grandTotalValue: {
+      fontSize: t.typography.titleSize + 2,
+      fontFamily: "Helvetica-Bold",
+      color: "#dc2626",
+      width: 100,
+      textAlign: "right",
+    },
+    // Footer
+    footer: {
+      position: "absolute",
+      bottom: 30,
+      left: t.spacing.pagePadding,
+      right: t.spacing.pagePadding,
+      borderTop: t.footer.showLine ? `1 solid ${t.colors.border}` : "none",
+      paddingTop: 12,
+      flexDirection: "row",
+      justifyContent: "space-between",
+    },
+    footerText: {
+      fontSize: 7,
+      color: t.colors.muted,
+    },
+  });
+}
 
-export function CreditnotaPDF({ creditnota }: CreditnotaPDFProps) {
+export function CreditnotaPDF({ creditnota, theme }: CreditnotaPDFProps) {
+  const t = theme ?? getDefaultTheme();
+  const styles = createCreditnotaStyles(t);
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>

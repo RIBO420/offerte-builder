@@ -1,5 +1,9 @@
 import { StyleSheet } from "@react-pdf/renderer";
 
+// Re-export utility functions from pdf-theme for backward compatibility.
+// New code should import directly from pdf-theme.ts.
+export { formatCurrency, formatDate } from "./pdf-theme";
+
 export const styles = StyleSheet.create({
   page: {
     padding: 40,
@@ -277,17 +281,3 @@ export const styles = StyleSheet.create({
   },
 });
 
-export const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat("nl-NL", {
-    style: "currency",
-    currency: "EUR",
-  }).format(amount);
-};
-
-export const formatDate = (timestamp: number): string => {
-  return new Intl.DateTimeFormat("nl-NL", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(new Date(timestamp));
-};

@@ -5,7 +5,7 @@ import { m, AnimatePresence } from "framer-motion";
 import { useReducedMotion } from "@/hooks/use-accessibility";
 import { PageHeader } from "@/components/page-header";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calculator, Clock, Sliders, Loader2, Link2, FileStack, Bell, Shield, Mail } from "lucide-react";
+import { Calculator, Clock, Sliders, Loader2, Link2, FileStack, Bell, Shield, Mail, Paintbrush } from "lucide-react";
 import { toast } from "sonner";
 import { useInstellingen } from "@/hooks/use-instellingen";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -22,6 +22,7 @@ import { DeleteNormuurDialog } from "./components/delete-normuur-dialog";
 import { DeelfactuurTemplatesTab } from "./components/deelfactuur-templates-tab";
 import { HerinneringenTab } from "./components/herinneringen-tab";
 import { EmailTemplatesTab } from "./components/email-templates-tab";
+import { HuisstijlTab } from "./components/huisstijl-tab";
 
 export default function InstellingenPage() {
   const reducedMotion = useReducedMotion();
@@ -300,6 +301,10 @@ export default function InstellingenPage() {
               <Mail className="h-4 w-4" />
               E-mail Templates
             </TabsTrigger>
+            <TabsTrigger value="huisstijl" className="flex items-center gap-2">
+              <Paintbrush className="h-4 w-4" />
+              Huisstijl & PDF
+            </TabsTrigger>
             <TabsTrigger value="beveiliging" className="flex items-center gap-2">
               <Shield className="h-4 w-4" />
               Beveiliging
@@ -371,6 +376,13 @@ export default function InstellingenPage() {
 
             {activeTab === "email-templates" && (
               <EmailTemplatesTab reducedMotion={reducedMotion} />
+            )}
+
+            {activeTab === "huisstijl" && (
+              <HuisstijlTab
+                reducedMotion={reducedMotion}
+                instellingen={instellingen ?? null}
+              />
             )}
 
             {activeTab === "beveiliging" && (
