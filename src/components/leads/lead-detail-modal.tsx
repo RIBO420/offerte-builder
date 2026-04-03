@@ -189,6 +189,24 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
       : "skip"
   );
 
+  const handleVerwijder = useCallback(async () => {
+    if (!lead) return;
+    setIsDeleting(true);
+    try {
+      await verwijderLead({ id: lead._id });
+      showSuccessToast("Lead verwijderd");
+      onClose();
+    } catch (error) {
+      showErrorToast(
+        error instanceof Error
+          ? error.message
+          : "Er ging iets mis bij het verwijderen"
+      );
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [lead, verwijderLead, onClose]);
+
   if (!lead) return null;
 
   const pipelineStatus: PipelineStatus =
@@ -264,24 +282,6 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
       setIsSavingNote(false);
     }
   }
-
-  const handleVerwijder = useCallback(async () => {
-    if (!lead) return;
-    setIsDeleting(true);
-    try {
-      await verwijderLead({ id: lead._id });
-      showSuccessToast("Lead verwijderd");
-      onClose();
-    } catch (error) {
-      showErrorToast(
-        error instanceof Error
-          ? error.message
-          : "Er ging iets mis bij het verwijderen"
-      );
-    } finally {
-      setIsDeleting(false);
-    }
-  }, [lead, verwijderLead, onClose]);
 
   // Build Google Maps link
   const adresParts = [
