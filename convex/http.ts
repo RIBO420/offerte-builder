@@ -18,29 +18,41 @@ const PHONE_REGEX = /^[\+]?[(]?[0-9]{1,4}[)]?[-\s./0-9]*$/;
 // Dutch postcode validation: 4 digits + 2 letters, optional space
 const POSTCODE_REGEX = /^\d{4}\s?[A-Za-z]{2}$/;
 
-// Geldige waarden voor dropdown-velden
+// Slug → display label mappings (website stuurt slugs, we slaan labels op)
+const TUINOPPERVLAK_MAP: Record<string, string> = {
+  "kleiner-dan-50": "Kleiner dan 50 m²",
+  "50-150": "50 – 150 m²",
+  "150-300": "150 – 300 m²",
+  "groter-dan-300": "Groter dan 300 m²",
+  "weet-ik-niet": "Weet ik niet",
+  // Accepteer ook display labels direct
+  "Kleiner dan 50 m²": "Kleiner dan 50 m²",
+  "50 – 150 m²": "50 – 150 m²",
+  "150 – 300 m²": "150 – 300 m²",
+  "Groter dan 300 m²": "Groter dan 300 m²",
+  "Weet ik niet": "Weet ik niet",
+};
+const HEEFT_ONTWERP_MAP: Record<string, string> = {
+  ja: "Ja", nee: "Nee", "weet-ik-niet": "Weet ik niet",
+  Ja: "Ja", Nee: "Nee",
+};
+const ONDERHOUD_FREQUENTIE_MAP: Record<string, string> = {
+  eenmalig: "Eenmalig", maandelijks: "Maandelijks",
+  seizoensgebonden: "Seizoensgebonden", "weet-ik-niet": "Weet ik niet",
+  Eenmalig: "Eenmalig", Maandelijks: "Maandelijks",
+  Seizoensgebonden: "Seizoensgebonden",
+};
+const REINIGING_OPTIES_MAP: Record<string, string> = {
+  terras: "Terras", oprit: "Oprit", gevels: "Gevels", anders: "Anders",
+  Terras: "Terras", Oprit: "Oprit", Gevels: "Gevels", Anders: "Anders",
+};
+const HOE_GEVONDEN_MAP: Record<string, string> = {
+  google: "Google", "social-media": "Social media",
+  "via-via": "Via via / mond-tot-mond", anders: "Anders",
+  Google: "Google", "Social media": "Social media",
+  "Via via / mond-tot-mond": "Via via / mond-tot-mond", Anders: "Anders",
+};
 const GELDIGE_ONDERWERPEN = ["tuinonderhoud", "tuinaanleg", "reiniging"];
-const GELDIGE_TUINOPPERVLAKKEN = [
-  "Kleiner dan 50 m²",
-  "50 – 150 m²",
-  "150 – 300 m²",
-  "Groter dan 300 m²",
-  "Weet ik niet",
-];
-const GELDIGE_HEEFT_ONTWERP = ["Ja", "Nee", "Weet ik niet"];
-const GELDIGE_ONDERHOUD_FREQUENTIE = [
-  "Eenmalig",
-  "Maandelijks",
-  "Seizoensgebonden",
-  "Weet ik niet",
-];
-const GELDIGE_REINIGING_OPTIES = ["Terras", "Oprit", "Gevels", "Anders"];
-const GELDIGE_HOE_GEVONDEN = [
-  "Google",
-  "Social media",
-  "Via via / mond-tot-mond",
-  "Anders",
-];
 
 /**
  * POST /contact-lead
@@ -86,9 +98,9 @@ http.route({
       const body = await request.json();
 
       // Valideer verplichte velden
-      if (!body.name || !body.email || !body.subject || !body.message) {
+      if (!body.name || !body.email || !body.subject) {
         return new Response(
-          JSON.stringify({ error: "Verplichte velden ontbreken (name, email, subject, message)" }),
+          JSON.stringify({ error: "Verplichte velden ontbreken (name, email, subject)" }),
           { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
         );
       }
@@ -135,50 +147,62 @@ http.route({
         );
       }
 
-      // Valideer optionele velden
-      const tuinoppervlak = body.tuinoppervlak ? String(body.tuinoppervlak) : undefined;
-      if (tuinoppervlak && !GELDIGE_TUINOPPERVLAKKEN.includes(tuinoppervlak)) {
-        return new Response(
-          JSON.stringify({ error: "Ongeldige tuinoppervlak waarde" }),
-          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-        );
-      }
-
-      const heeftOntwerp = body.heeftOntwerp ? String(body.heeftOntwerp) : undefined;
-      if (heeftOntwerp && !GELDIGE_HEEFT_ONTWERP.includes(heeftOntwerp)) {
-        return new Response(
-          JSON.stringify({ error: "Ongeldige heeftOntwerp waarde" }),
-          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-        );
-      }
-
-      const onderhoudFrequentie = body.onderhoudFrequentie ? String(body.onderhoudFrequentie) : undefined;
-      if (onderhoudFrequentie && !GELDIGE_ONDERHOUD_FREQUENTIE.includes(onderhoudFrequentie)) {
-        return new Response(
-          JSON.stringify({ error: "Ongeldige onderhoudFrequentie waarde" }),
-          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-        );
-      }
-
-      let reinigingOpties: string[] | undefined;
-      if (body.reinigingOpties && Array.isArray(body.reinigingOpties)) {
-        const opties = (body.reinigingOpties as unknown[]).map(String);
-        reinigingOpties = opties;
-        const ongeldig = opties.find((o) => !GELDIGE_REINIGING_OPTIES.includes(o));
-        if (ongeldig) {
+      // Valideer en map optionele velden (slug → display label)
+      let tuinoppervlak: string | undefined;
+      if (body.tuinoppervlak) {
+        tuinoppervlak = TUINOPPERVLAK_MAP[String(body.tuinoppervlak)];
+        if (!tuinoppervlak) {
           return new Response(
-            JSON.stringify({ error: `Ongeldige reinigingsoptie: ${ongeldig}` }),
+            JSON.stringify({ error: "Ongeldige tuinoppervlak waarde" }),
             { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
           );
         }
       }
 
-      const hoeGevonden = body.hoeGevonden ? String(body.hoeGevonden) : undefined;
-      if (hoeGevonden && !GELDIGE_HOE_GEVONDEN.includes(hoeGevonden)) {
-        return new Response(
-          JSON.stringify({ error: "Ongeldige hoeGevonden waarde" }),
-          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-        );
+      let heeftOntwerp: string | undefined;
+      if (body.heeftOntwerp) {
+        heeftOntwerp = HEEFT_ONTWERP_MAP[String(body.heeftOntwerp)];
+        if (!heeftOntwerp) {
+          return new Response(
+            JSON.stringify({ error: "Ongeldige heeftOntwerp waarde" }),
+            { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+          );
+        }
+      }
+
+      let onderhoudFrequentie: string | undefined;
+      if (body.onderhoudFrequentie) {
+        onderhoudFrequentie = ONDERHOUD_FREQUENTIE_MAP[String(body.onderhoudFrequentie)];
+        if (!onderhoudFrequentie) {
+          return new Response(
+            JSON.stringify({ error: "Ongeldige onderhoudFrequentie waarde" }),
+            { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+          );
+        }
+      }
+
+      let reinigingOpties: string[] | undefined;
+      if (body.reinigingOpties && Array.isArray(body.reinigingOpties)) {
+        const mapped = (body.reinigingOpties as unknown[]).map((o) => REINIGING_OPTIES_MAP[String(o)]);
+        const ongeldig = mapped.findIndex((m) => !m);
+        if (ongeldig !== -1) {
+          return new Response(
+            JSON.stringify({ error: `Ongeldige reinigingsoptie: ${body.reinigingOpties[ongeldig]}` }),
+            { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+          );
+        }
+        reinigingOpties = mapped as string[];
+      }
+
+      let hoeGevonden: string | undefined;
+      if (body.hoeGevonden) {
+        hoeGevonden = HOE_GEVONDEN_MAP[String(body.hoeGevonden)];
+        if (!hoeGevonden) {
+          return new Response(
+            JSON.stringify({ error: "Ongeldige hoeGevonden waarde" }),
+            { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+          );
+        }
       }
 
       // Maak lead aan via interne mutation
@@ -189,7 +213,7 @@ http.route({
           klantEmail: email,
           klantTelefoon: phone,
           onderwerp,
-          bericht: String(body.message),
+          bericht: body.message ? String(body.message) : "",
           aantalFotos: body.attachmentCount ? Number(body.attachmentCount) : undefined,
           postcode,
           huisnummer: body.huisnummer ? String(body.huisnummer).trim() : undefined,
