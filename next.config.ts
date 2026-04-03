@@ -71,7 +71,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' https: data: blob:",
               "font-src 'self' data:",
-              "connect-src 'self' https://clerk.toptuinen.app https://*.convex.cloud https://*.clerk.accounts.dev https://*.clerk.dev https://api.clerk.dev wss://*.convex.cloud",
+              "connect-src 'self' data: blob: https://clerk.toptuinen.app https://*.convex.cloud https://*.clerk.accounts.dev https://*.clerk.dev https://api.clerk.dev wss://*.convex.cloud",
               "frame-src 'self' https://clerk.toptuinen.app https://*.clerk.accounts.dev https://*.clerk.dev https://challenges.cloudflare.com",
               "worker-src 'self' blob:",
               "frame-ancestors 'none'",
