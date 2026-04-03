@@ -246,8 +246,12 @@ export function FactuurActionButtons({
     case "definitief":
       return (
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" className="gap-2" onClick={handlers.handleDownloadPdf}>
-            <Download className="h-4 w-4" />
+          <Button variant="outline" className="gap-2" onClick={handlers.handlePreviewPdf} disabled={handlers.isDownloadingPdf}>
+            {handlers.isDownloadingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
+            Bekijk PDF
+          </Button>
+          <Button variant="outline" className="gap-2" onClick={handlers.handleDownloadPdf} disabled={handlers.isDownloadingPdf}>
+            {handlers.isDownloadingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
             Download PDF
           </Button>
           <Button className="gap-2 bg-green-600 hover:bg-green-700" onClick={handlers.handleSendFactuur} disabled={handlers.isSending}>
@@ -264,8 +268,12 @@ export function FactuurActionButtons({
     case "verzonden":
       return (
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" className="gap-2" onClick={handlers.handleDownloadPdf}>
-            <Download className="h-4 w-4" />
+          <Button variant="outline" className="gap-2" onClick={handlers.handlePreviewPdf} disabled={handlers.isDownloadingPdf}>
+            {handlers.isDownloadingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
+            Bekijk PDF
+          </Button>
+          <Button variant="outline" className="gap-2" onClick={handlers.handleDownloadPdf} disabled={handlers.isDownloadingPdf}>
+            {handlers.isDownloadingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
             Download PDF
           </Button>
           <Button variant="outline" className="gap-2" onClick={handlers.handleSendReminder} disabled={handlers.isSending}>
@@ -317,8 +325,12 @@ export function FactuurActionButtons({
     case "betaald":
       return (
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" className="gap-2" onClick={handlers.handleDownloadPdf}>
-            <Download className="h-4 w-4" />
+          <Button variant="outline" className="gap-2" onClick={handlers.handlePreviewPdf} disabled={handlers.isDownloadingPdf}>
+            {handlers.isDownloadingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
+            Bekijk PDF
+          </Button>
+          <Button variant="outline" className="gap-2" onClick={handlers.handleDownloadPdf} disabled={handlers.isDownloadingPdf}>
+            {handlers.isDownloadingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
             Download PDF
           </Button>
           {!creditnota && (
@@ -343,8 +355,12 @@ export function FactuurActionButtons({
     case "vervallen":
       return (
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" className="gap-2" onClick={handlers.handleDownloadPdf}>
-            <Download className="h-4 w-4" />
+          <Button variant="outline" className="gap-2" onClick={handlers.handlePreviewPdf} disabled={handlers.isDownloadingPdf}>
+            {handlers.isDownloadingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
+            Bekijk PDF
+          </Button>
+          <Button variant="outline" className="gap-2" onClick={handlers.handleDownloadPdf} disabled={handlers.isDownloadingPdf}>
+            {handlers.isDownloadingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
             Download PDF
           </Button>
           <Button variant="outline" className="gap-2" onClick={handlers.handleSendReminder} disabled={handlers.isSending}>

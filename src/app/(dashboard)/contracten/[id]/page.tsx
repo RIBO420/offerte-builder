@@ -56,6 +56,7 @@ import {
   CloudRain,
   Snowflake,
   Download,
+  Eye,
   Loader2,
   AlertCircle,
   FileText,
@@ -157,7 +158,37 @@ function ContractPdfDownloadButton({
   );
 
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
   const [hasError, setHasError] = useState(false);
+
+  const buildPdfElement = useCallback(
+    async () => {
+      const [{ pdf }, { ContractPDF }] = await Promise.all([
+        import("@react-pdf/renderer"),
+        import("@/components/pdf/contract-pdf"),
+      ]);
+
+      const element = (
+        <ContractPDF
+          contract={{
+            ...pdfData!.contract,
+            _id: pdfData!.contract._id as unknown as string,
+          }}
+          klant={pdfData!.klant}
+          werkzaamhedenPerSeizoen={pdfData!.werkzaamhedenPerSeizoen}
+          facturen={pdfData!.facturen.map((f) => ({
+            ...f,
+            _id: f._id as unknown as string,
+          }))}
+          theme={pdfTheme}
+          voorwaarden={pdfVoorwaarden?.contract}
+        />
+      );
+
+      return pdf(element).toBlob();
+    },
+    [pdfData, pdfTheme, pdfVoorwaarden]
+  );
 
   const handleDownload = useCallback(async () => {
     if (!pdfData) return;
@@ -166,28 +197,7 @@ function ContractPdfDownloadButton({
     setHasError(false);
 
     try {
-      // Dynamic import to avoid loading react-pdf in the main bundle
-      const [{ pdf }, { ContractPDF }] = await Promise.all([
-        import("@react-pdf/renderer"),
-        import("@/components/pdf/contract-pdf"),
-      ]);
-
-      const blob = await pdf(
-        ContractPDF({
-          contract: {
-            ...pdfData.contract,
-            _id: pdfData.contract._id as unknown as string,
-          },
-          klant: pdfData.klant,
-          werkzaamhedenPerSeizoen: pdfData.werkzaamhedenPerSeizoen,
-          facturen: pdfData.facturen.map((f) => ({
-            ...f,
-            _id: f._id as unknown as string,
-          })),
-          theme: pdfTheme,
-          voorwaarden: pdfVoorwaarden?.contract,
-        })
-      ).toBlob();
+      const blob = await buildPdfElement();
 
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -212,28 +222,69 @@ function ContractPdfDownloadButton({
     } finally {
       setIsGenerating(false);
     }
-  }, [pdfData, pdfTheme, pdfVoorwaarden]);
+  }, [pdfData, buildPdfElement]);
+
+  const handlePreview = useCallback(async () => {
+    if (!pdfData) return;
+
+    setIsPreviewing(true);
+    setHasError(false);
+
+    try {
+      const blob = await buildPdfElement();
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+      // Revoke after a delay to allow the browser to open the tab
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    } catch (error) {
+      console.error("PDF preview error:", error);
+      setHasError(true);
+      toast.error("PDF preview kon niet worden geopend", {
+        description:
+          error instanceof Error ? error.message : "Onbekende fout opgetreden",
+      });
+    } finally {
+      setIsPreviewing(false);
+    }
+  }, [pdfData, buildPdfElement]);
+
+  const isBusy = isGenerating || isPreviewing;
 
   return (
-    <Button
-      variant={hasError ? "destructive" : "outline"}
-      className="w-full justify-start"
-      onClick={handleDownload}
-      disabled={isGenerating || !pdfData}
-    >
-      {isGenerating ? (
-        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-      ) : hasError ? (
-        <AlertCircle className="h-4 w-4 mr-2" />
-      ) : (
-        <FileText className="h-4 w-4 mr-2" />
-      )}
-      {isGenerating
-        ? "PDF genereren..."
-        : hasError
-          ? "Opnieuw proberen"
-          : "Contract PDF downloaden"}
-    </Button>
+    <div className="flex gap-2">
+      <Button
+        variant="outline"
+        className="flex-1 justify-start"
+        onClick={handlePreview}
+        disabled={isBusy || !pdfData}
+      >
+        {isPreviewing ? (
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+        ) : (
+          <Eye className="h-4 w-4 mr-2" />
+        )}
+        {isPreviewing ? "Openen..." : "Bekijk PDF"}
+      </Button>
+      <Button
+        variant={hasError ? "destructive" : "outline"}
+        className="flex-1 justify-start"
+        onClick={handleDownload}
+        disabled={isBusy || !pdfData}
+      >
+        {isGenerating ? (
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+        ) : hasError ? (
+          <AlertCircle className="h-4 w-4 mr-2" />
+        ) : (
+          <Download className="h-4 w-4 mr-2" />
+        )}
+        {isGenerating
+          ? "PDF genereren..."
+          : hasError
+            ? "Opnieuw proberen"
+            : "PDF downloaden"}
+      </Button>
+    </div>
   );
 }
 

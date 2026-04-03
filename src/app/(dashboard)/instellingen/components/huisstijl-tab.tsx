@@ -32,6 +32,7 @@ import {
   FileText,
   LayoutTemplate,
   Check,
+  Eye,
 } from "lucide-react";
 import type { TemplateStijl } from "@/components/pdf/pdf-theme";
 
@@ -95,6 +96,36 @@ const TEMPLATE_STIJLEN: {
   },
 ];
 
+const DUMMY_OFFERTE = {
+  offerteNummer: "OFF-2026-001",
+  type: "aanleg" as const,
+  status: "concept",
+  klant: {
+    naam: "Familie de Vries",
+    adres: "Eikenstraat 15",
+    postcode: "3581 KL",
+    plaats: "Utrecht",
+    email: "devries@example.nl",
+    telefoon: "06-12345678",
+  },
+  algemeenParams: { bereikbaarheid: "goed" },
+  scopes: ["bestrating", "borders", "gras"],
+  regels: [
+    { id: "1", scope: "bestrating", omschrijving: "Tegels 60x60 antraciet", eenheid: "m²", hoeveelheid: 45, prijsPerEenheid: 35, totaal: 1575, type: "materiaal" as const },
+    { id: "2", scope: "bestrating", omschrijving: "Legwerk bestrating", eenheid: "m²", hoeveelheid: 45, prijsPerEenheid: 25, totaal: 1125, type: "arbeid" as const },
+    { id: "3", scope: "borders", omschrijving: "Lavendel", eenheid: "stuk", hoeveelheid: 30, prijsPerEenheid: 8.50, totaal: 255, type: "materiaal" as const },
+    { id: "4", scope: "gras", omschrijving: "Graszoden", eenheid: "m²", hoeveelheid: 60, prijsPerEenheid: 12, totaal: 720, type: "materiaal" as const },
+  ],
+  totalen: {
+    materiaalkosten: 2550, arbeidskosten: 1125, totaalUren: 45,
+    subtotaal: 3675, marge: 735, margePercentage: 20,
+    totaalExBtw: 4410, btw: 926.10, totaalInclBtw: 5336.10,
+  },
+  notities: "Voorbeeld offerte ter illustratie van de gekozen template stijl.",
+  createdAt: Date.now(),
+  updatedAt: Date.now(),
+};
+
 // ── Component ───────────────────────────────────────────────────────
 
 export function HuisstijlTab({
@@ -129,6 +160,7 @@ export function HuisstijlTab({
     factuur: "",
     contract: "",
   });
+  const [previewingStijl, setPreviewingStijl] = useState<TemplateStijl | null>(null);
 
   // ── Sync from server ────────────────────────────────────────────
 
@@ -318,6 +350,52 @@ export function HuisstijlTab({
       }
     },
     [voorwaarden, instellingen?.pdfVoorwaarden, saveBranding]
+  );
+
+  // ── Preview PDF genereren ───────────────────────────────────────
+
+  const handlePreviewTemplate = useCallback(
+    async (stijl: TemplateStijl) => {
+      setPreviewingStijl(stijl);
+      try {
+        // Dynamic imports to avoid loading ~500KB eagerly
+        const [{ pdf }, { OffertePDF }, { createPdfTheme }] = await Promise.all([
+          import("@react-pdf/renderer"),
+          import("@/components/pdf/offerte-pdf"),
+          import("@/components/pdf/pdf-theme"),
+        ]);
+
+        const theme = createPdfTheme(
+          {
+            logoUrl: logoUrl ?? null,
+            primaireKleur,
+            secundaireKleur,
+            bedrijfsnaam: "Top Tuinen",
+            bedrijfsgegevens: {},
+          },
+          stijl
+        );
+
+        const blob = await pdf(
+          <OffertePDF
+            offerte={DUMMY_OFFERTE}
+            theme={theme}
+            voorwaarden={voorwaarden.offerte || undefined}
+          />
+        ).toBlob();
+
+        const url = URL.createObjectURL(blob);
+        window.open(url, "_blank");
+
+        // Clean up the blob URL after a short delay to allow the tab to load
+        setTimeout(() => URL.revokeObjectURL(url), 10_000);
+      } catch {
+        toast.error("Fout bij genereren van voorbeeld PDF");
+      } finally {
+        setPreviewingStijl(null);
+      }
+    },
+    [logoUrl, primaireKleur, secundaireKleur, voorwaarden.offerte]
   );
 
   // ── Render ──────────────────────────────────────────────────────
@@ -512,28 +590,44 @@ export function HuisstijlTab({
           <div className="grid gap-4 sm:grid-cols-3">
             {TEMPLATE_STIJLEN.map((stijl) => {
               const isActive = templateStijl === stijl.value;
+              const isPreviewing = previewingStijl === stijl.value;
               return (
-                <button
-                  key={stijl.value}
-                  type="button"
-                  onClick={() => handleTemplateStijlChange(stijl.value)}
-                  disabled={isSaving}
-                  className={`relative flex flex-col items-start rounded-lg border-2 p-4 text-left transition-all hover:shadow-sm ${
-                    isActive
-                      ? "border-primary bg-primary/5 shadow-sm"
-                      : "border-border hover:border-primary/30"
-                  }`}
-                >
-                  {isActive && (
-                    <div className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                      <Check className="h-3 w-3" />
-                    </div>
-                  )}
-                  <h4 className="font-semibold">{stijl.naam}</h4>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {stijl.beschrijving}
-                  </p>
-                </button>
+                <div key={stijl.value} className="flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleTemplateStijlChange(stijl.value)}
+                    disabled={isSaving}
+                    className={`relative flex flex-1 flex-col items-start rounded-lg border-2 p-4 text-left transition-all hover:shadow-sm ${
+                      isActive
+                        ? "border-primary bg-primary/5 shadow-sm"
+                        : "border-border hover:border-primary/30"
+                    }`}
+                  >
+                    {isActive && (
+                      <div className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                        <Check className="h-3 w-3" />
+                      </div>
+                    )}
+                    <h4 className="font-semibold">{stijl.naam}</h4>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {stijl.beschrijving}
+                    </p>
+                  </button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePreviewTemplate(stijl.value)}
+                    disabled={previewingStijl !== null}
+                    className="w-full"
+                  >
+                    {isPreviewing ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Eye className="mr-2 h-4 w-4" />
+                    )}
+                    {isPreviewing ? "Genereren..." : "Bekijk voorbeeld"}
+                  </Button>
+                </div>
               );
             })}
           </div>

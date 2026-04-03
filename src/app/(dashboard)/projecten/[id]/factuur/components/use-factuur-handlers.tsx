@@ -246,14 +246,16 @@ export function useFactuurHandlers(
 
       const factuurData = buildFactuurPdfData(factuur);
 
-      const blob = await pdf(
-        FactuurPDF({
-          factuur: factuurData,
-          bedrijfsgegevens: options?.bedrijfsgegevens,
-          theme: options?.theme,
-          voorwaarden: options?.voorwaarden,
-        })
-      ).toBlob();
+      const element = (
+        <FactuurPDF
+          factuur={factuurData}
+          bedrijfsgegevens={options?.bedrijfsgegevens}
+          theme={options?.theme}
+          voorwaarden={options?.voorwaarden}
+        />
+      );
+
+      const blob = await pdf(element).toBlob();
 
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -294,14 +296,16 @@ export function useFactuurHandlers(
 
       const factuurData = buildFactuurPdfData(factuur);
 
-      const blob = await pdf(
-        FactuurPDF({
-          factuur: factuurData,
-          bedrijfsgegevens: options?.bedrijfsgegevens,
-          theme: options?.theme,
-          voorwaarden: options?.voorwaarden,
-        })
-      ).toBlob();
+      const element = (
+        <FactuurPDF
+          factuur={factuurData}
+          bedrijfsgegevens={options?.bedrijfsgegevens}
+          theme={options?.theme}
+          voorwaarden={options?.voorwaarden}
+        />
+      );
+
+      const blob = await pdf(element).toBlob();
 
       const url = URL.createObjectURL(blob);
       window.open(url, "_blank");

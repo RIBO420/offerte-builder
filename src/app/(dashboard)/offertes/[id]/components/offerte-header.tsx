@@ -246,6 +246,17 @@ export function OfferteHeader({
           bedrijfsgegevens={instellingen?.bedrijfsgegevens}
           theme={pdfTheme}
           voorwaarden={pdfVoorwaarden}
+          showPreview
+          variant="outline"
+          size="sm"
+        />
+        <PDFDownloadButton
+          offerte={offerte}
+          bedrijfsgegevens={instellingen?.bedrijfsgegevens}
+          theme={pdfTheme}
+          voorwaarden={pdfVoorwaarden}
+          variant="outline"
+          size="sm"
         />
 
         <DropdownMenu>
