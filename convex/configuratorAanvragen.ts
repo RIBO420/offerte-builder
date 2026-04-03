@@ -468,6 +468,45 @@ export const setPrijs = mutation({
   },
 });
 
+/**
+ * Werk de geschatte waarde en/of definitieve prijs bij voor een lead (authenticated).
+ */
+export const updatePrijzen = mutation({
+  args: {
+    id: v.id("configuratorAanvragen"),
+    geschatteWaarde: v.optional(v.number()),
+    definitievePrijs: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
+
+    const aanvraag = await ctx.db.get(args.id);
+    if (!aanvraag) {
+      throw new ConvexError("Lead niet gevonden");
+    }
+
+    if (args.geschatteWaarde !== undefined && args.geschatteWaarde < 0) {
+      throw new ConvexError("Geschatte waarde mag niet negatief zijn");
+    }
+    if (args.definitievePrijs !== undefined && args.definitievePrijs < 0) {
+      throw new ConvexError("Definitieve prijs mag niet negatief zijn");
+    }
+
+    const patchData: Record<string, unknown> = {
+      updatedAt: Date.now(),
+    };
+
+    if (args.geschatteWaarde !== undefined) {
+      patchData.geschatteWaarde = args.geschatteWaarde;
+    }
+    if (args.definitievePrijs !== undefined) {
+      patchData.definitievePrijs = args.definitievePrijs;
+    }
+
+    await ctx.db.patch(args.id, patchData);
+  },
+});
+
 // ============================================
 // Pipeline Mutations
 // ============================================

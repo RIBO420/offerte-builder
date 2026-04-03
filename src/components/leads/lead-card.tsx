@@ -1,7 +1,6 @@
 "use client";
 
 import { useDraggable } from "@dnd-kit/core";
-import { CSS } from "@dnd-kit/utilities";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
@@ -82,17 +81,11 @@ interface LeadCardProps {
 }
 
 export function LeadCard({ lead, onClick, isDragOverlay = false }: LeadCardProps) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } =
+  const { attributes, listeners, setNodeRef, isDragging } =
     useDraggable({
       id: lead._id,
       data: { lead },
     });
-
-  const style = transform
-    ? {
-        transform: CSS.Translate.toString(transform),
-      }
-    : undefined;
 
   const isWebsite = lead.bron === "website_contact";
   const isHandmatig =
@@ -128,14 +121,13 @@ export function LeadCard({ lead, onClick, isDragOverlay = false }: LeadCardProps
   return (
     <div
       ref={isDragOverlay ? undefined : setNodeRef}
-      style={isDragOverlay ? undefined : style}
       {...(isDragOverlay ? {} : attributes)}
       {...(isDragOverlay ? {} : listeners)}
       onClick={() => onClick?.(lead)}
       className={cn(
         "rounded-lg border bg-card p-3 cursor-grab active:cursor-grabbing transition-shadow",
         isHandmatig && "border-l-4 border-l-purple-500",
-        isDragging && "opacity-30",
+        isDragging && "opacity-0",
         isDragOverlay && "shadow-xl rotate-2",
         !isDragOverlay && "hover:shadow-md"
       )}

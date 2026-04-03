@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
@@ -24,6 +24,10 @@ import {
   SprayCan,
   ImageIcon,
   Trash2,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Pencil,
 } from "lucide-react";
 import {
   Dialog,
@@ -34,6 +38,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -153,6 +158,234 @@ const priceFormatter = new Intl.NumberFormat("nl-NL", {
 });
 
 // ============================================
+// FotoLightbox component
+// ============================================
+
+interface FotoLightboxProps {
+  fotos: { storageId: Id<"_storage">; url: string }[];
+  initialIndex: number;
+  onClose: () => void;
+}
+
+function FotoLightbox({ fotos, initialIndex, onClose }: FotoLightboxProps) {
+  const [currentIndex, setCurrentIndex] = useState(initialIndex);
+
+  const goToNext = useCallback(() => {
+    setCurrentIndex((prev) => (prev + 1) % fotos.length);
+  }, [fotos.length]);
+
+  const goToPrev = useCallback(() => {
+    setCurrentIndex((prev) => (prev - 1 + fotos.length) % fotos.length);
+  }, [fotos.length]);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        onClose();
+      } else if (e.key === "ArrowRight") {
+        goToNext();
+      } else if (e.key === "ArrowLeft") {
+        goToPrev();
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [onClose, goToNext, goToPrev]);
+
+  const currentFoto = fotos[currentIndex];
+  if (!currentFoto) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm"
+      onClick={onClose}
+      role="dialog"
+      aria-label={`Foto ${currentIndex + 1} van ${fotos.length}`}
+      aria-modal="true"
+    >
+      {/* Teller */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 text-white text-sm font-medium bg-black/50 px-3 py-1.5 rounded-full">
+        {currentIndex + 1} / {fotos.length}
+      </div>
+
+      {/* Sluit-knop */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
+        className="absolute top-4 right-4 text-white/80 hover:text-white bg-black/50 hover:bg-black/70 rounded-full p-2 transition-colors"
+        aria-label="Sluiten"
+      >
+        <X className="size-5" />
+      </button>
+
+      {/* Vorige-knop */}
+      {fotos.length > 1 && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            goToPrev();
+          }}
+          className="absolute left-4 top-1/2 -translate-y-1/2 text-white/80 hover:text-white bg-black/50 hover:bg-black/70 rounded-full p-2 transition-colors"
+          aria-label="Vorige foto"
+        >
+          <ChevronLeft className="size-6" />
+        </button>
+      )}
+
+      {/* Foto */}
+      <img
+        src={currentFoto.url}
+        alt={`Foto ${currentIndex + 1} van ${fotos.length}`}
+        className="max-h-[85vh] max-w-[90vw] object-contain rounded-lg select-none"
+        onClick={(e) => e.stopPropagation()}
+        draggable={false}
+      />
+
+      {/* Volgende-knop */}
+      {fotos.length > 1 && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            goToNext();
+          }}
+          className="absolute right-4 top-1/2 -translate-y-1/2 text-white/80 hover:text-white bg-black/50 hover:bg-black/70 rounded-full p-2 transition-colors"
+          aria-label="Volgende foto"
+        >
+          <ChevronRight className="size-6" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ============================================
+// EditablePriceField component
+// ============================================
+
+/**
+ * Parse een Nederlandse prijsstring naar een getal.
+ * Accepteert formaten als "1.234", "1234", "1.234,56", "€ 1.234" etc.
+ */
+function parseDutchPrice(value: string): number | null {
+  // Strip alles behalve cijfers, punt en komma
+  const cleaned = value.replace(/[^0-9.,]/g, "");
+  if (!cleaned) return null;
+
+  // NL-format: punt = duizendtallen, komma = decimaal
+  // Verwijder duizendtallen-punten en vervang komma door punt
+  const normalized = cleaned.replace(/\./g, "").replace(",", ".");
+  const num = parseFloat(normalized);
+  return isNaN(num) ? null : num;
+}
+
+function EditablePriceField({
+  label,
+  value,
+  onSave,
+}: {
+  label: string;
+  value: number | undefined;
+  onSave: (value: number) => Promise<void>;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [inputValue, setInputValue] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function startEditing() {
+    setInputValue(value ? String(value).replace(".", ",") : "");
+    setIsEditing(true);
+  }
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  async function handleSave() {
+    const parsed = parseDutchPrice(inputValue);
+    if (parsed === null && inputValue.trim() !== "") {
+      showErrorToast("Ongeldige prijs");
+      return;
+    }
+
+    const newValue = parsed ?? 0;
+    // Alleen opslaan als de waarde verschilt
+    if (newValue === (value ?? 0)) {
+      setIsEditing(false);
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await onSave(newValue);
+      setIsEditing(false);
+    } catch (error) {
+      showErrorToast(
+        error instanceof Error
+          ? error.message
+          : "Er ging iets mis bij het opslaan"
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleSave();
+    } else if (e.key === "Escape") {
+      setIsEditing(false);
+    }
+  }
+
+  if (isEditing) {
+    return (
+      <div className="flex-1 rounded-lg border border-primary bg-muted/30 px-3 py-2">
+        <p className="text-[11px] text-muted-foreground mb-1">{label}</p>
+        <div className="flex items-center gap-1">
+          <span className="text-sm text-muted-foreground">€</span>
+          <Input
+            ref={inputRef}
+            type="text"
+            inputMode="decimal"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onBlur={handleSave}
+            onKeyDown={handleKeyDown}
+            disabled={isSaving}
+            className="h-6 px-1 py-0 text-sm font-semibold border-0 bg-transparent shadow-none focus-visible:ring-0"
+            placeholder="0"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={startEditing}
+      className="flex-1 rounded-lg border bg-muted/30 px-3 py-2 text-left hover:border-primary/50 hover:bg-muted/50 transition-colors group cursor-pointer"
+    >
+      <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+        {label}
+        <Pencil className="size-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+      </p>
+      <p className="text-sm font-semibold">
+        {value ? priceFormatter.format(value) : "-"}
+      </p>
+    </button>
+  );
+}
+
+// ============================================
 // LeadDetailModal component
 // ============================================
 
@@ -166,6 +399,7 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
   const [notitie, setNotitie] = useState("");
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   // Mutations
   const updatePipelineStatus = useMutation(
@@ -175,6 +409,7 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
   const markGewonnen = useMutation(api.configuratorAanvragen.markGewonnen);
   const toewijzen = useMutation(api.configuratorAanvragen.toewijzen);
   const createActiviteit = useMutation(api.leadActiviteiten.create);
+  const updatePrijzen = useMutation(api.configuratorAanvragen.updatePrijzen);
 
   // Queries (only run when modal is open and lead is set)
   const activiteiten = useQuery(
@@ -578,21 +813,20 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
                 </h3>
                 <div className="grid grid-cols-3 gap-2">
                   {fotoUrls
-                    ? fotoUrls.map(({ storageId, url }) =>
+                    ? fotoUrls.map(({ storageId, url }, index) =>
                         url ? (
-                          <a
+                          <button
                             key={storageId}
-                            href={url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block aspect-square rounded-lg border overflow-hidden hover:ring-2 hover:ring-primary transition-all"
+                            type="button"
+                            onClick={() => setLightboxIndex(index)}
+                            className="block aspect-square rounded-lg border overflow-hidden hover:ring-2 hover:ring-primary transition-all cursor-pointer"
                           >
                             <img
                               src={url}
-                              alt="Bijlage"
+                              alt={`Foto ${index + 1}`}
                               className="size-full object-cover"
                             />
-                          </a>
+                          </button>
                         ) : null
                       )
                     : Array.from({ length: lead.fotoIds.length }).map((_, i) => (
@@ -602,6 +836,16 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
                         />
                       ))}
                 </div>
+                {/* Foto lightbox */}
+                {lightboxIndex !== null && fotoUrls && (
+                  <FotoLightbox
+                    fotos={fotoUrls.filter(
+                      (f): f is { storageId: Id<"_storage">; url: string } => f.url !== null
+                    )}
+                    initialIndex={lightboxIndex}
+                    onClose={() => setLightboxIndex(null)}
+                  />
+                )}
               </section>
             )}
 
@@ -617,16 +861,28 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
                     {priceFormatter.format(lead.indicatiePrijs)}
                   </p>
                 </div>
-                <div className="flex-1 rounded-lg border bg-muted/30 px-3 py-2">
-                  <p className="text-[11px] text-muted-foreground">
-                    Definitieve prijs
-                  </p>
-                  <p className="text-sm font-semibold">
-                    {lead.definitievePrijs
-                      ? priceFormatter.format(lead.definitievePrijs)
-                      : "-"}
-                  </p>
-                </div>
+                <EditablePriceField
+                  label="Geschatte waarde"
+                  value={lead.geschatteWaarde}
+                  onSave={async (value) => {
+                    await updatePrijzen({
+                      id: lead._id,
+                      geschatteWaarde: value,
+                    });
+                    showSuccessToast("Geschatte waarde opgeslagen");
+                  }}
+                />
+                <EditablePriceField
+                  label="Definitieve prijs"
+                  value={lead.definitievePrijs}
+                  onSave={async (value) => {
+                    await updatePrijzen({
+                      id: lead._id,
+                      definitievePrijs: value,
+                    });
+                    showSuccessToast("Definitieve prijs opgeslagen");
+                  }}
+                />
               </div>
             </section>
 
