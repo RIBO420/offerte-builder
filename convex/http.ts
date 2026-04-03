@@ -215,6 +215,7 @@ http.route({
           onderwerp,
           bericht: body.message ? String(body.message) : "",
           aantalFotos: body.attachmentCount ? Number(body.attachmentCount) : undefined,
+          fotoIds: Array.isArray(body.fotoIds) ? body.fotoIds : undefined,
           postcode,
           huisnummer: body.huisnummer ? String(body.huisnummer).trim() : undefined,
           plaats: body.plaats ? String(body.plaats).trim() : undefined,
@@ -247,6 +248,67 @@ http.route({
   handler: httpAction(async () => {
     const allowedOrigin = getAllowedOrigin();
 
+    return new Response(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": allowedOrigin,
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      },
+    });
+  }),
+});
+
+/**
+ * POST /generate-upload-url
+ *
+ * Genereert een Convex Storage upload URL voor de website.
+ * Beveiligd met hetzelfde shared secret als /contact-lead.
+ */
+http.route({
+  path: "/generate-upload-url",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const allowedOrigin = getAllowedOrigin();
+    const corsHeaders = {
+      "Access-Control-Allow-Origin": allowedOrigin,
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    };
+
+    // Valideer shared secret
+    const authHeader = request.headers.get("Authorization");
+    const expectedSecret = process.env.WEBSITE_WEBHOOK_SECRET;
+
+    if (!expectedSecret || authHeader !== `Bearer ${expectedSecret}`) {
+      return new Response(
+        JSON.stringify({ error: "Niet geautoriseerd" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    try {
+      const uploadUrl = await ctx.storage.generateUploadUrl();
+      return new Response(
+        JSON.stringify({ uploadUrl }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    } catch (error) {
+      console.error("Fout bij genereren upload URL:", error);
+      return new Response(
+        JSON.stringify({ error: "Interne serverfout" }),
+        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+  }),
+});
+
+// CORS preflight handler voor /generate-upload-url
+http.route({
+  path: "/generate-upload-url",
+  method: "OPTIONS",
+  handler: httpAction(async () => {
+    const allowedOrigin = getAllowedOrigin();
     return new Response(null, {
       status: 204,
       headers: {

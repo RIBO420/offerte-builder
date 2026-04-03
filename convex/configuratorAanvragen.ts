@@ -703,6 +703,7 @@ export const createFromWebsite = internalMutation({
     onderhoudFrequentie: v.optional(v.string()),
     reinigingOpties: v.optional(v.array(v.string())),
     hoeGevonden: v.optional(v.string()),
+    fotoIds: v.optional(v.array(v.id("_storage"))),
   },
   handler: async (ctx, args) => {
     if (!args.klantNaam.trim()) {
@@ -756,17 +757,20 @@ export const createFromWebsite = internalMutation({
         reinigingOpties: args.reinigingOpties,
         hoeGevonden: args.hoeGevonden,
       },
+      fotoIds: args.fotoIds,
       indicatiePrijs: 0,
       omschrijving,
       createdAt: now,
       updatedAt: now,
     });
 
+    const aantalFotos = args.fotoIds?.length ?? args.aantalFotos ?? 0;
+
     // Log activiteit
     await ctx.db.insert("leadActiviteiten", {
       leadId: id,
       type: "aangemaakt",
-      beschrijving: `Lead aangemaakt via website contactformulier (${onderwerpLabel})`,
+      beschrijving: `Lead aangemaakt via website contactformulier (${onderwerpLabel})${aantalFotos > 0 ? ` met ${aantalFotos} foto('s)` : ""}`,
       createdAt: now,
     });
 

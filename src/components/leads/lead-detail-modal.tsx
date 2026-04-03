@@ -22,6 +22,7 @@ import {
   Paintbrush,
   CalendarClock,
   SprayCan,
+  ImageIcon,
 } from "lucide-react";
 import {
   Dialog,
@@ -167,6 +168,12 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
     lead ? { leadId: lead._id } : "skip"
   );
   const users = useQuery(api.users.listUsersWithDetails, lead ? {} : "skip");
+  const fotoUrls = useQuery(
+    api.fotoStorage.getUrls,
+    lead && lead.fotoIds && lead.fotoIds.length > 0
+      ? { storageIds: lead.fotoIds }
+      : "skip"
+  );
 
   if (!lead) return null;
 
@@ -498,7 +505,43 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
               </section>
             )}
 
-            {/* 3. Prijzen */}
+            {/* 5. Foto's */}
+            {lead.fotoIds && lead.fotoIds.length > 0 && (
+              <section>
+                <h3 className="text-sm font-semibold mb-3 flex items-center gap-1.5">
+                  <ImageIcon className="size-4" />
+                  Foto&apos;s ({lead.fotoIds.length})
+                </h3>
+                <div className="grid grid-cols-3 gap-2">
+                  {fotoUrls
+                    ? fotoUrls.map(({ storageId, url }) =>
+                        url ? (
+                          <a
+                            key={storageId}
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block aspect-square rounded-lg border overflow-hidden hover:ring-2 hover:ring-primary transition-all"
+                          >
+                            <img
+                              src={url}
+                              alt="Bijlage"
+                              className="size-full object-cover"
+                            />
+                          </a>
+                        ) : null
+                      )
+                    : Array.from({ length: lead.fotoIds.length }).map((_, i) => (
+                        <div
+                          key={i}
+                          className="aspect-square rounded-lg border bg-muted/30 animate-pulse"
+                        />
+                      ))}
+                </div>
+              </section>
+            )}
+
+            {/* 6. Prijzen */}
             <section>
               <h3 className="text-sm font-semibold mb-3">Prijzen</h3>
               <div className="flex gap-4">
