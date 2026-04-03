@@ -17,6 +17,7 @@ interface KanbanColumnProps {
   leads: Lead[];
   onLeadClick?: (lead: Lead) => void;
   isLost?: boolean;
+  isDragging?: boolean;
 }
 
 export function KanbanColumn({
@@ -26,6 +27,7 @@ export function KanbanColumn({
   leads,
   onLeadClick,
   isLost = false,
+  isDragging = false,
 }: KanbanColumnProps) {
   const { isOver, setNodeRef } = useDroppable({ id });
 
@@ -50,7 +52,7 @@ export function KanbanColumn({
       </div>
 
       {/* Lead cards */}
-      <div className="flex flex-col gap-2 flex-1 overflow-y-auto min-h-[120px]">
+      <div className={cn("flex flex-col gap-2 flex-1 min-h-[120px]", isDragging ? "overflow-visible" : "overflow-y-auto")}>
         {leads.map((lead) => (
           <LeadCard key={lead._id} lead={lead} onClick={onLeadClick} />
         ))}

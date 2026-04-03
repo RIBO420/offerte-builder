@@ -15,6 +15,7 @@ import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
+import { cn } from "@/lib/utils";
 import { KanbanColumn } from "./kanban-column";
 import { VerliesRedenDialog } from "./verlies-reden-dialog";
 import type { Lead } from "./lead-card";
@@ -55,6 +56,7 @@ interface KanbanBoardProps {
 }
 
 export function KanbanBoard({ leads, onLeadClick }: KanbanBoardProps) {
+  const [isDragging, setIsDragging] = useState(false);
   const [verliesDialogOpen, setVerliesDialogOpen] = useState(false);
   const [pendingVerliesLeadId, setPendingVerliesLeadId] =
     useState<Id<"configuratorAanvragen"> | null>(null);
@@ -86,10 +88,11 @@ export function KanbanBoard({ leads, onLeadClick }: KanbanBoardProps) {
 
   // Drag handlers
   function handleDragStart(_event: DragStartEvent) {
-    // No-op: we don't use DragOverlay, the card moves itself via useDraggable transform
+    setIsDragging(true);
   }
 
   async function handleDragEnd(event: DragEndEvent) {
+    setIsDragging(false);
 
     const { active, over } = event;
     if (!over) return;
@@ -169,7 +172,7 @@ export function KanbanBoard({ leads, onLeadClick }: KanbanBoardProps) {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex gap-4 overflow-x-auto pb-4">
+        <div className={cn("flex gap-4 pb-4", isDragging ? "overflow-visible" : "overflow-x-auto")}>
           {columns.map((col) => (
             <KanbanColumn
               key={col.id}
@@ -179,6 +182,7 @@ export function KanbanBoard({ leads, onLeadClick }: KanbanBoardProps) {
               leads={leads[col.id] ?? []}
               onLeadClick={onLeadClick}
               isLost={col.isLost}
+              isDragging={isDragging}
             />
           ))}
         </div>
