@@ -614,6 +614,46 @@ export const markGewonnen = mutation({
 });
 
 /**
+ * Verwijder een lead en bijbehorende activiteiten en foto's (authenticated, admin).
+ */
+export const verwijder = mutation({
+  args: {
+    id: v.id("configuratorAanvragen"),
+  },
+  handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
+
+    const lead = await ctx.db.get(args.id);
+    if (!lead) {
+      throw new ConvexError("Lead niet gevonden");
+    }
+
+    // Verwijder foto's uit storage
+    if (lead.fotoIds && lead.fotoIds.length > 0) {
+      for (const storageId of lead.fotoIds) {
+        try {
+          await ctx.storage.delete(storageId);
+        } catch {
+          // Negeer als bestand al verwijderd is
+        }
+      }
+    }
+
+    // Verwijder alle activiteiten van deze lead
+    const activiteiten = await ctx.db
+      .query("leadActiviteiten")
+      .withIndex("by_lead", (q) => q.eq("leadId", args.id))
+      .collect();
+    for (const activiteit of activiteiten) {
+      await ctx.db.delete(activiteit._id);
+    }
+
+    // Verwijder de lead zelf
+    await ctx.db.delete(args.id);
+  },
+});
+
+/**
  * Maak een handmatige lead aan (authenticated).
  */
 export const createHandmatig = mutation({

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
@@ -23,6 +23,7 @@ import {
   CalendarClock,
   SprayCan,
   ImageIcon,
+  Trash2,
 } from "lucide-react";
 import {
   Dialog,
@@ -41,6 +42,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import type { Lead } from "./lead-card";
 
 // ============================================
@@ -153,11 +165,13 @@ interface LeadDetailModalProps {
 export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
   const [notitie, setNotitie] = useState("");
   const [isSavingNote, setIsSavingNote] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Mutations
   const updatePipelineStatus = useMutation(
     api.configuratorAanvragen.updatePipelineStatus
   );
+  const verwijderLead = useMutation(api.configuratorAanvragen.verwijder);
   const markGewonnen = useMutation(api.configuratorAanvragen.markGewonnen);
   const toewijzen = useMutation(api.configuratorAanvragen.toewijzen);
   const createActiviteit = useMutation(api.leadActiviteiten.create);
@@ -251,6 +265,24 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
     }
   }
 
+  const handleVerwijder = useCallback(async () => {
+    if (!lead) return;
+    setIsDeleting(true);
+    try {
+      await verwijderLead({ id: lead._id });
+      showSuccessToast("Lead verwijderd");
+      onClose();
+    } catch (error) {
+      showErrorToast(
+        error instanceof Error
+          ? error.message
+          : "Er ging iets mis bij het verwijderen"
+      );
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [lead, verwijderLead, onClose]);
+
   // Build Google Maps link
   const adresParts = [
     lead.klantHuisnummer,
@@ -305,21 +337,53 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
             >
               {typeConfig.label}
             </Badge>
-            {quickAction && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleQuickAction}
-                className="ml-auto"
-              >
-                {pipelineStatus === "verloren" ? (
-                  <RotateCcw className="size-3.5 mr-1.5" />
-                ) : (
-                  <ArrowRight className="size-3.5 mr-1.5" />
-                )}
-                {quickAction.label}
-              </Button>
-            )}
+            <div className="ml-auto flex items-center gap-1.5">
+              {quickAction && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleQuickAction}
+                >
+                  {pipelineStatus === "verloren" ? (
+                    <RotateCcw className="size-3.5 mr-1.5" />
+                  ) : (
+                    <ArrowRight className="size-3.5 mr-1.5" />
+                  )}
+                  {quickAction.label}
+                </Button>
+              )}
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-muted-foreground hover:text-destructive"
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Lead verwijderen?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Weet je zeker dat je de lead van {lead.klantNaam} wilt
+                      verwijderen? Dit verwijdert ook alle activiteiten en
+                      foto&apos;s. Deze actie kan niet ongedaan worden gemaakt.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Annuleren</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleVerwijder}
+                      disabled={isDeleting}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      {isDeleting ? "Verwijderen..." : "Verwijderen"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </div>
           <DialogDescription className="sr-only">
             Details en activiteiten voor lead {lead.klantNaam}
