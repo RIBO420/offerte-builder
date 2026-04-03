@@ -694,6 +694,15 @@ export const createFromWebsite = internalMutation({
     onderwerp: v.string(),
     bericht: v.string(),
     aantalFotos: v.optional(v.number()),
+    // Nieuwe contactformulier velden
+    postcode: v.optional(v.string()),
+    huisnummer: v.optional(v.string()),
+    plaats: v.optional(v.string()),
+    tuinoppervlak: v.optional(v.string()),
+    heeftOntwerp: v.optional(v.string()),
+    onderhoudFrequentie: v.optional(v.string()),
+    reinigingOpties: v.optional(v.array(v.string())),
+    hoeGevonden: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     if (!args.klantNaam.trim()) {
@@ -717,6 +726,7 @@ export const createFromWebsite = internalMutation({
     const onderwerpLabels: Record<string, string> = {
       tuinonderhoud: "Tuinonderhoud",
       tuinaanleg: "Tuinaanleg",
+      reiniging: "Reiniging",
       zakelijk: "Zakelijk",
       anders: "Anders",
     };
@@ -733,12 +743,18 @@ export const createFromWebsite = internalMutation({
       klantEmail: args.klantEmail.trim().toLowerCase(),
       klantTelefoon: args.klantTelefoon?.trim() ?? "",
       klantAdres: "",
-      klantPostcode: "",
-      klantPlaats: "",
+      klantPostcode: args.postcode?.trim() ?? "",
+      klantHuisnummer: args.huisnummer?.trim(),
+      klantPlaats: args.plaats?.trim() ?? "",
       specificaties: {
         onderwerp: args.onderwerp,
         bericht: args.bericht,
         aantalFotos: args.aantalFotos ?? 0,
+        tuinoppervlak: args.tuinoppervlak,
+        heeftOntwerp: args.heeftOntwerp,
+        onderhoudFrequentie: args.onderhoudFrequentie,
+        reinigingOpties: args.reinigingOpties,
+        hoeGevonden: args.hoeGevonden,
       },
       indicatiePrijs: 0,
       omschrijving,

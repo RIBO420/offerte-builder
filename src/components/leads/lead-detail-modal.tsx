@@ -15,6 +15,13 @@ import {
   RotateCcw,
   FilePlus,
   User,
+  Home,
+  TreePine,
+  Search,
+  Ruler,
+  Paintbrush,
+  CalendarClock,
+  SprayCan,
 } from "lucide-react";
 import {
   Dialog,
@@ -238,15 +245,36 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
   }
 
   // Build Google Maps link
-  const adresString = [lead.klantAdres, lead.klantPostcode, lead.klantPlaats]
-    .filter(Boolean)
-    .join(", ");
+  const adresParts = [
+    lead.klantHuisnummer,
+    lead.klantPostcode,
+    lead.klantPlaats,
+  ].filter(Boolean);
+  const adresString = adresParts.join(", ");
   const mapsUrl = adresString
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(adresString)}`
     : null;
 
   // Specificaties rendering
   const specs = lead.specificaties as Record<string, unknown> | undefined;
+
+  // Contact-specifieke velden
+  const isContact = lead.type === "contact";
+  const onderwerp = specs?.onderwerp as string | undefined;
+  const bericht = specs?.bericht as string | undefined;
+  const tuinoppervlak = specs?.tuinoppervlak as string | undefined;
+  const heeftOntwerp = specs?.heeftOntwerp as string | undefined;
+  const onderhoudFrequentie = specs?.onderhoudFrequentie as string | undefined;
+  const reinigingOpties = specs?.reinigingOpties as string[] | undefined;
+  const hoeGevonden = specs?.hoeGevonden as string | undefined;
+
+  const onderwerpLabels: Record<string, string> = {
+    tuinonderhoud: "Tuinonderhoud",
+    tuinaanleg: "Tuinaanleg",
+    reiniging: "Reiniging",
+    zakelijk: "Zakelijk",
+    anders: "Anders",
+  };
 
   // Find assigned user
   const assignedUser = users?.find((u) => u._id === lead.toegewezenAan);
@@ -317,29 +345,116 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
                     <span>{lead.klantTelefoon}</span>
                   </a>
                 )}
-                {adresString && (
-                  <a
-                    href={mapsUrl ?? "#"}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <MapPin className="size-4 shrink-0" />
-                    <span>{adresString}</span>
-                  </a>
+                {!lead.klantEmail && !lead.klantTelefoon && (
+                  <p className="text-sm text-muted-foreground">
+                    Geen contactgegevens beschikbaar
+                  </p>
                 )}
-                {!lead.klantEmail &&
-                  !lead.klantTelefoon &&
-                  !adresString && (
-                    <p className="text-sm text-muted-foreground">
-                      Geen contactgegevens beschikbaar
-                    </p>
-                  )}
               </div>
             </section>
 
-            {/* 2. Specificaties */}
-            {specs && Object.keys(specs).length > 0 && (
+            {/* 2. Locatie */}
+            {(lead.klantPostcode || lead.klantHuisnummer || lead.klantPlaats || lead.klantAdres) && (
+              <section>
+                <h3 className="text-sm font-semibold mb-3">Locatie</h3>
+                <div className="space-y-2">
+                  {lead.klantHuisnummer && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Home className="size-4 shrink-0" />
+                      <span>Huisnummer {lead.klantHuisnummer}</span>
+                    </div>
+                  )}
+                  {(lead.klantPostcode || lead.klantPlaats) && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <MapPin className="size-4 shrink-0" />
+                      <span>
+                        {[lead.klantPostcode, lead.klantPlaats].filter(Boolean).join(", ")}
+                      </span>
+                    </div>
+                  )}
+                  {lead.klantAdres && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <MapPin className="size-4 shrink-0" />
+                      <span>{lead.klantAdres}</span>
+                    </div>
+                  )}
+                  {mapsUrl && (
+                    <a
+                      href={mapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline mt-1"
+                    >
+                      <MapPin className="size-3" />
+                      Bekijk op Google Maps
+                    </a>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {/* 3. Projectinfo (contact leads) */}
+            {isContact && onderwerp && (
+              <section>
+                <h3 className="text-sm font-semibold mb-3">Projectinfo</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-lg border bg-muted/30 px-3 py-2">
+                    <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                      <TreePine className="size-3" />
+                      Onderwerp
+                    </p>
+                    <p className="text-sm font-medium">
+                      {onderwerpLabels[onderwerp] ?? onderwerp}
+                    </p>
+                  </div>
+                  {tuinoppervlak && (
+                    <div className="rounded-lg border bg-muted/30 px-3 py-2">
+                      <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                        <Ruler className="size-3" />
+                        Tuinoppervlak
+                      </p>
+                      <p className="text-sm font-medium">{tuinoppervlak}</p>
+                    </div>
+                  )}
+                  {onderwerp === "tuinaanleg" && heeftOntwerp && (
+                    <div className="rounded-lg border bg-muted/30 px-3 py-2">
+                      <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                        <Paintbrush className="size-3" />
+                        Heeft ontwerp
+                      </p>
+                      <p className="text-sm font-medium">{heeftOntwerp}</p>
+                    </div>
+                  )}
+                  {onderwerp === "tuinonderhoud" && onderhoudFrequentie && (
+                    <div className="rounded-lg border bg-muted/30 px-3 py-2">
+                      <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                        <CalendarClock className="size-3" />
+                        Frequentie
+                      </p>
+                      <p className="text-sm font-medium">{onderhoudFrequentie}</p>
+                    </div>
+                  )}
+                  {onderwerp === "reiniging" && reinigingOpties && reinigingOpties.length > 0 && (
+                    <div className="rounded-lg border bg-muted/30 px-3 py-2 col-span-2">
+                      <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                        <SprayCan className="size-3" />
+                        Reiniging van
+                      </p>
+                      <p className="text-sm font-medium">{reinigingOpties.join(", ")}</p>
+                    </div>
+                  )}
+                </div>
+                {bericht && (
+                  <div className="mt-3 rounded-lg border bg-muted/30 px-3 py-2">
+                    <p className="text-[11px] text-muted-foreground mb-1">Bericht</p>
+                    <p className="text-sm whitespace-pre-wrap">{bericht}</p>
+                  </div>
+                )}
+              </section>
+            )}
+
+            {/* 3b. Specificaties (niet-contact leads) */}
+            {!isContact && specs && Object.keys(specs).length > 0 && (
               <section>
                 <h3 className="text-sm font-semibold mb-3">Specificaties</h3>
                 <div className="grid grid-cols-2 gap-2">
@@ -357,24 +472,29 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
                     </div>
                   ))}
                 </div>
-                {lead.bron && (
-                  <div className="mt-2 rounded-lg border bg-muted/30 px-3 py-2">
-                    <p className="text-[11px] text-muted-foreground">Bron</p>
-                    <p className="text-sm font-medium capitalize">
-                      {lead.bron.replace(/_/g, " ")}
-                    </p>
-                  </div>
-                )}
               </section>
             )}
 
-            {/* Show bron separately if no specs */}
-            {(!specs || Object.keys(specs).length === 0) && lead.bron && (
+            {/* 4. Marketingbron */}
+            {(hoeGevonden || lead.bron) && (
               <section>
                 <h3 className="text-sm font-semibold mb-3">Bron</h3>
-                <p className="text-sm capitalize">
-                  {lead.bron.replace(/_/g, " ")}
-                </p>
+                <div className="space-y-2">
+                  {hoeGevonden && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Search className="size-4 shrink-0" />
+                      <span>Gevonden via: {hoeGevonden}</span>
+                    </div>
+                  )}
+                  {lead.bron && (
+                    <div className="rounded-lg border bg-muted/30 px-3 py-2">
+                      <p className="text-[11px] text-muted-foreground">Leadbron</p>
+                      <p className="text-sm font-medium capitalize">
+                        {lead.bron.replace(/_/g, " ")}
+                      </p>
+                    </div>
+                  )}
+                </div>
               </section>
             )}
 

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { nl } from "@/lib/date-locale";
+import { MapPin } from "lucide-react";
 import type { Doc } from "../../../convex/_generated/dataModel";
 
 // ============================================
@@ -111,6 +112,19 @@ export function LeadCard({ lead, onClick, isDragOverlay = false }: LeadCardProps
     locale: nl,
   });
 
+  // Onderwerp label voor contact-leads
+  const specs = lead.type === "contact"
+    ? (lead.specificaties as { onderwerp?: string } | undefined)
+    : undefined;
+  const onderwerpLabels: Record<string, string> = {
+    tuinonderhoud: "Onderhoud",
+    tuinaanleg: "Aanleg",
+    reiniging: "Reiniging",
+  };
+  const onderwerpLabel = specs?.onderwerp
+    ? onderwerpLabels[specs.onderwerp] ?? specs.onderwerp
+    : undefined;
+
   return (
     <div
       ref={isDragOverlay ? undefined : setNodeRef}
@@ -126,7 +140,7 @@ export function LeadCard({ lead, onClick, isDragOverlay = false }: LeadCardProps
         !isDragOverlay && "hover:shadow-md"
       )}
     >
-      <div className="flex items-start justify-between gap-2 mb-2">
+      <div className="flex items-start justify-between gap-2 mb-1.5">
         <p className="font-medium text-sm leading-tight truncate">
           {lead.klantNaam}
         </p>
@@ -137,6 +151,20 @@ export function LeadCard({ lead, onClick, isDragOverlay = false }: LeadCardProps
           {badgeConfig.label}
         </Badge>
       </div>
+
+      {(lead.klantPlaats || onderwerpLabel) && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1.5">
+          {lead.klantPlaats && (
+            <span className="flex items-center gap-0.5 truncate">
+              <MapPin className="size-3 shrink-0" />
+              {lead.klantPlaats}
+            </span>
+          )}
+          {onderwerpLabel && (
+            <span className="truncate">{onderwerpLabel}</span>
+          )}
+        </div>
+      )}
 
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span className="font-semibold text-foreground">

@@ -1999,6 +1999,7 @@ export default defineSchema({
     klantTelefoon: v.string(),
     klantAdres: v.string(),
     klantPostcode: v.string(),
+    klantHuisnummer: v.optional(v.string()),
     klantPlaats: v.string(),
     // Type-specifieke data per aanvraagtype:
     // - gazon: oppervlakte, typeGras, ondergrond, drainage, opsluitbanden, etc.
@@ -2047,6 +2048,11 @@ export default defineSchema({
         onderwerp: v.string(),
         bericht: v.string(),
         aantalFotos: v.optional(v.number()),
+        tuinoppervlak: v.optional(v.string()),
+        heeftOntwerp: v.optional(v.string()),
+        onderhoudFrequentie: v.optional(v.string()),
+        reinigingOpties: v.optional(v.array(v.string())),
+        hoeGevonden: v.optional(v.string()),
       }),
       // Empty object for handmatige leads
       v.object({})
