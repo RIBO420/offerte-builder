@@ -4,6 +4,7 @@ import { useCallback, useState, useEffect, useRef } from "react";
 import { pdf } from "@react-pdf/renderer";
 import { OffertePDF } from "@/components/pdf/offerte-pdf";
 import type { Bedrijfsgegevens } from "@/types/offerte";
+import type { PdfTheme } from "@/components/pdf/pdf-theme";
 
 export type PDFGenerationStep =
   | "preparing"
@@ -67,6 +68,10 @@ interface UsePDFGenerationOptions {
   uploadToStorage?: (blob: Blob, filename: string) => Promise<string>;
   /** Company info for PDF header/footer */
   bedrijfsgegevens?: Bedrijfsgegevens;
+  /** PDF theme (colors, fonts, layout). Falls back to default if not provided */
+  theme?: PdfTheme;
+  /** Voorwaarden text to include in the PDF */
+  voorwaarden?: string;
 }
 
 interface UsePDFGenerationReturn {
@@ -82,7 +87,7 @@ interface UsePDFGenerationReturn {
 export function usePDFGeneration(
   options: UsePDFGenerationOptions = {}
 ): UsePDFGenerationReturn {
-  const { onSuccess, onError, uploadToStorage, bedrijfsgegevens } = options;
+  const { onSuccess, onError, uploadToStorage, bedrijfsgegevens, theme, voorwaarden } = options;
 
   const [currentStep, setCurrentStep] = useState<PDFGenerationStep>("preparing");
   const [progress, setProgress] = useState(0);
@@ -138,11 +143,6 @@ export function usePDFGeneration(
         setCurrentStep("generating");
         setProgress(10);
 
-        const pdfComponent = OffertePDF({
-          offerte,
-          bedrijfsgegevens,
-        });
-
         // Simulate progress during PDF generation
         const progressInterval = setInterval(() => {
           setProgress((prev) => {
@@ -154,7 +154,14 @@ export function usePDFGeneration(
           });
         }, 200);
 
-        const blob = await pdf(pdfComponent).toBlob();
+        const blob = await pdf(
+          <OffertePDF
+            offerte={offerte}
+            bedrijfsgegevens={bedrijfsgegevens}
+            theme={theme}
+            voorwaarden={voorwaarden}
+          />
+        ).toBlob();
 
         clearInterval(progressInterval);
         setProgress(90);
@@ -194,7 +201,7 @@ export function usePDFGeneration(
         setIsGenerating(false);
       }
     },
-    [bedrijfsgegevens, cleanupBlobUrl, onError, onSuccess, reset, uploadToStorage]
+    [bedrijfsgegevens, theme, voorwaarden, cleanupBlobUrl, onError, onSuccess, reset, uploadToStorage]
   );
 
   return {

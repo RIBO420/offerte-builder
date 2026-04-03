@@ -8,3 +8,7 @@ export type { PdfBranding, PdfTheme, TemplateStijl } from "./pdf-theme";
 
 // Dynamic exports for code-splitting (preferred)
 export { DynamicPDFDownloadButton, loadPDFGeneration } from "./dynamic";
+
+// Re-export FactuurPDF from project components for convenience
+export { FactuurPDF } from "../project/factuur-pdf";
+export type { Factuur as FactuurPDFData, FactuurPDFProps } from "../project/factuur-pdf";

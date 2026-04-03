@@ -9,6 +9,7 @@ import { PdfPreviewModal } from "@/components/offerte/pdf-preview-modal";
 import { handleError, getMutationErrorMessage } from "@/lib/error-handling";
 import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import type { Bedrijfsgegevens } from "@/types/offerte";
+import type { PdfTheme } from "./pdf-theme";
 
 interface OfferteRegel {
   id: string;
@@ -61,6 +62,8 @@ interface Offerte {
 interface PDFDownloadButtonProps {
   offerte: Offerte;
   bedrijfsgegevens?: Bedrijfsgegevens;
+  theme?: PdfTheme;
+  voorwaarden?: string;
   variant?: "default" | "outline" | "secondary" | "ghost";
   size?: "default" | "sm" | "lg" | "icon";
   showPreview?: boolean;
@@ -69,6 +72,8 @@ interface PDFDownloadButtonProps {
 export function PDFDownloadButton({
   offerte,
   bedrijfsgegevens,
+  theme,
+  voorwaarden,
   variant = "outline",
   size = "default",
   showPreview = false,
@@ -82,7 +87,7 @@ export function PDFDownloadButton({
     setHasError(false);
     try {
       const blob = await pdf(
-        <OffertePDF offerte={offerte} bedrijfsgegevens={bedrijfsgegevens} />
+        <OffertePDF offerte={offerte} bedrijfsgegevens={bedrijfsgegevens} theme={theme} voorwaarden={voorwaarden} />
       ).toBlob();
 
       const url = URL.createObjectURL(blob);
@@ -135,6 +140,8 @@ export function PDFDownloadButton({
         <PdfPreviewModal
           offerte={offerte}
           bedrijfsgegevens={bedrijfsgegevens}
+          theme={theme}
+          voorwaarden={voorwaarden}
           open={previewOpen}
           onOpenChange={setPreviewOpen}
         />

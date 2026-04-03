@@ -17,6 +17,7 @@ import { useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { useOffertes } from "@/hooks/use-offertes";
 import { useInstellingen } from "@/hooks/use-instellingen";
+import { usePdfTheme } from "@/hooks/use-pdf-theme";
 import { OfferteDetailSkeleton } from "@/components/skeletons";
 import { STATUS_CONFIG } from "@/lib/constants/statuses";
 import { Id } from "../../../../../convex/_generated/dataModel";
@@ -56,6 +57,7 @@ export default function OfferteDetailPage({
 
   const { updateStatus, delete: deleteOfferte, restore: restoreOfferte, duplicate } = useOffertes();
   const { getNextNummer, instellingen } = useInstellingen();
+  const { theme: pdfTheme, voorwaarden: pdfVoorwaarden } = usePdfTheme();
 
   // Fetch version history for engagement timeline
   const offerteVersions = useQuery(
@@ -236,6 +238,8 @@ export default function OfferteDetailPage({
             isUpdating={isUpdating}
             voorcalculatie={voorcalculatie}
             instellingen={instellingen}
+            pdfTheme={pdfTheme}
+            pdfVoorwaarden={pdfVoorwaarden?.offerte}
             offerteVersions={offerteVersions ?? undefined}
             onStatusChange={handleStatusChange}
             onDuplicate={handleDuplicate}

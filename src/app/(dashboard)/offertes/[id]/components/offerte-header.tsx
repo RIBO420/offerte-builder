@@ -44,6 +44,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { CopyButton } from "@/components/ui/copy-button";
 import { DynamicPDFDownloadButton as PDFDownloadButton } from "@/components/pdf";
 import type { OfferteStatus } from "@/lib/constants/statuses";
+import type { PdfTheme } from "@/components/pdf/pdf-theme";
 import { formatDate } from "./utils";
 
 interface OfferteVersion {
@@ -65,6 +66,8 @@ interface OfferteHeaderProps {
   voorcalculatie: unknown;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   instellingen: any;
+  pdfTheme?: PdfTheme;
+  pdfVoorwaarden?: string;
   offerteVersions?: OfferteVersion[];
   onStatusChange: (status: "concept" | "voorcalculatie" | "verzonden" | "geaccepteerd" | "afgewezen") => void;
   onDuplicate: () => void;
@@ -99,6 +102,8 @@ export function OfferteHeader({
   isUpdating,
   voorcalculatie,
   instellingen,
+  pdfTheme,
+  pdfVoorwaarden,
   offerteVersions,
   onStatusChange,
   onDuplicate,
@@ -239,6 +244,8 @@ export function OfferteHeader({
         <PDFDownloadButton
           offerte={offerte}
           bedrijfsgegevens={instellingen?.bedrijfsgegevens}
+          theme={pdfTheme}
+          voorwaarden={pdfVoorwaarden}
         />
 
         <DropdownMenu>

@@ -3,8 +3,10 @@
 import { useCallback, useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../../../../../../convex/_generated/api";
-import { Id } from "../../../../../../../convex/_generated/dataModel";
+import { Id, Doc } from "../../../../../../../convex/_generated/dataModel";
 import { toast } from "sonner";
+import type { PdfTheme } from "@/components/pdf/pdf-theme";
+import type { Bedrijfsgegevens } from "@/types/offerte";
 
 export interface FactuurHandlersState {
   isGenerating: boolean;
@@ -33,11 +35,18 @@ export interface FactuurHandlersState {
   handleCreateCreditnota: () => Promise<void>;
   handleDownloadPdf: () => void;
   handlePreviewPdf: () => void;
+  isDownloadingPdf: boolean;
 }
 
 export function useFactuurHandlers(
   projectId: Id<"projecten">,
-  factuurId: Id<"facturen"> | undefined
+  factuurId: Id<"facturen"> | undefined,
+  options?: {
+    factuur?: Doc<"facturen"> | null;
+    bedrijfsgegevens?: Bedrijfsgegevens;
+    theme?: PdfTheme;
+    voorwaarden?: string;
+  }
 ): FactuurHandlersState {
   // Loading states
   const [isGenerating, setIsGenerating] = useState(false);
@@ -187,13 +196,127 @@ export function useFactuurHandlers(
     }
   }, [factuurId, creditnotaReden, createCreditnotaMutation]);
 
-  const handleDownloadPdf = useCallback(() => {
-    toast.info("PDF download functionaliteit wordt binnenkort toegevoegd");
-  }, []);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
-  const handlePreviewPdf = useCallback(() => {
-    toast.info("PDF preview functionaliteit wordt binnenkort toegevoegd");
-  }, []);
+  /**
+   * Map Convex factuur Doc to FactuurPDF component props.
+   * Convex uses `hoeveelheid` / `btwBedrag` while the PDF component expects `aantal` / `btw`.
+   */
+  function buildFactuurPdfData(factuur: Doc<"facturen">) {
+    return {
+      factuurnummer: factuur.factuurnummer,
+      factuurdatum: factuur.factuurdatum,
+      vervaldatum: factuur.vervaldatum,
+      klant: factuur.klant,
+      regels: factuur.regels.map((r) => ({
+        id: r.id,
+        omschrijving: r.omschrijving,
+        aantal: r.hoeveelheid,
+        eenheid: r.eenheid,
+        prijsPerEenheid: r.prijsPerEenheid,
+        totaal: r.totaal,
+      })),
+      correcties: factuur.correcties?.map((c, i) => ({
+        id: `correctie-${i}`,
+        omschrijving: c.omschrijving,
+        bedrag: c.bedrag,
+      })),
+      subtotaal: factuur.subtotaal,
+      btwPercentage: factuur.btwPercentage,
+      btw: factuur.btwBedrag,
+      totaalInclBtw: factuur.totaalInclBtw,
+      notities: factuur.notities,
+    };
+  }
+
+  const handleDownloadPdf = useCallback(async () => {
+    const factuur = options?.factuur;
+    if (!factuur) {
+      toast.error("Factuurgegevens niet beschikbaar");
+      return;
+    }
+
+    setIsDownloadingPdf(true);
+    try {
+      // Dynamic imports to avoid loading react-pdf in the main bundle
+      const [{ pdf }, { FactuurPDF }] = await Promise.all([
+        import("@react-pdf/renderer"),
+        import("@/components/project/factuur-pdf"),
+      ]);
+
+      const factuurData = buildFactuurPdfData(factuur);
+
+      const blob = await pdf(
+        FactuurPDF({
+          factuur: factuurData,
+          bedrijfsgegevens: options?.bedrijfsgegevens,
+          theme: options?.theme,
+          voorwaarden: options?.voorwaarden,
+        })
+      ).toBlob();
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const klantNaam = factuur.klant.naam.replace(/\s+/g, "-");
+      link.download = `${factuur.factuurnummer}-${klantNaam}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast.success("Factuur PDF gedownload", {
+        description: `${factuur.factuurnummer} is succesvol gedownload.`,
+      });
+    } catch (error) {
+      console.error("PDF generation error:", error);
+      toast.error("PDF kon niet worden gegenereerd", {
+        description: error instanceof Error ? error.message : "Onbekende fout opgetreden",
+      });
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  }, [options?.factuur, options?.bedrijfsgegevens, options?.theme, options?.voorwaarden]);
+
+  const handlePreviewPdf = useCallback(async () => {
+    const factuur = options?.factuur;
+    if (!factuur) {
+      toast.error("Factuurgegevens niet beschikbaar");
+      return;
+    }
+
+    setIsDownloadingPdf(true);
+    try {
+      const [{ pdf }, { FactuurPDF }] = await Promise.all([
+        import("@react-pdf/renderer"),
+        import("@/components/project/factuur-pdf"),
+      ]);
+
+      const factuurData = buildFactuurPdfData(factuur);
+
+      const blob = await pdf(
+        FactuurPDF({
+          factuur: factuurData,
+          bedrijfsgegevens: options?.bedrijfsgegevens,
+          theme: options?.theme,
+          voorwaarden: options?.voorwaarden,
+        })
+      ).toBlob();
+
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+
+      // Revoke after a delay to allow the browser to open the tab
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    } catch (error) {
+      console.error("PDF preview error:", error);
+      toast.error("PDF preview kon niet worden geopend", {
+        description: error instanceof Error ? error.message : "Onbekende fout opgetreden",
+      });
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  }, [options?.factuur, options?.bedrijfsgegevens, options?.theme, options?.voorwaarden]);
 
   return {
     isGenerating,
@@ -201,6 +324,7 @@ export function useFactuurHandlers(
     isSending,
     isCreatingCreditnota,
     isSendingAanmaning,
+    isDownloadingPdf,
     creditnotaReden,
     setCreditnotaReden,
     aanmaningNotities,

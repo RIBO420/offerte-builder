@@ -16,6 +16,7 @@ import { OffertePDF } from "@/components/pdf/offerte-pdf";
 import { handleError } from "@/lib/error-handling";
 import { toast } from "sonner";
 import type { Bedrijfsgegevens } from "@/types/offerte";
+import type { PdfTheme } from "@/components/pdf/pdf-theme";
 
 interface OfferteRegel {
   id: string;
@@ -68,6 +69,8 @@ interface Offerte {
 interface PdfPreviewModalProps {
   offerte: Offerte;
   bedrijfsgegevens?: Bedrijfsgegevens;
+  theme?: PdfTheme;
+  voorwaarden?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -75,6 +78,8 @@ interface PdfPreviewModalProps {
 export function PdfPreviewModal({
   offerte,
   bedrijfsgegevens,
+  theme,
+  voorwaarden,
   open,
   onOpenChange,
 }: PdfPreviewModalProps) {
@@ -87,7 +92,7 @@ export function PdfPreviewModal({
     setError(null);
     try {
       const blob = await pdf(
-        <OffertePDF offerte={offerte} bedrijfsgegevens={bedrijfsgegevens} />
+        <OffertePDF offerte={offerte} bedrijfsgegevens={bedrijfsgegevens} theme={theme} voorwaarden={voorwaarden} />
       ).toBlob();
 
       const url = URL.createObjectURL(blob);

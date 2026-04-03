@@ -63,6 +63,7 @@ import {
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { usePdfTheme } from "@/hooks/use-pdf-theme";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import type { Id } from "../../../../../convex/_generated/dataModel";
@@ -149,6 +150,7 @@ function ContractPdfDownloadButton({
   contractId: Id<"onderhoudscontracten">;
 }) {
   const { user } = useCurrentUser();
+  const { theme: pdfTheme, voorwaarden: pdfVoorwaarden } = usePdfTheme();
   const pdfData = useQuery(
     api.onderhoudscontracten.getForPdf,
     user?._id ? { id: contractId } : "skip"
@@ -165,15 +167,10 @@ function ContractPdfDownloadButton({
 
     try {
       // Dynamic import to avoid loading react-pdf in the main bundle
-      const [{ pdf }, { ContractPDF }, { getDefaultTheme }] = await Promise.all(
-        [
-          import("@react-pdf/renderer"),
-          import("@/components/pdf/contract-pdf"),
-          import("@/components/pdf/pdf-theme"),
-        ]
-      );
-
-      const theme = getDefaultTheme();
+      const [{ pdf }, { ContractPDF }] = await Promise.all([
+        import("@react-pdf/renderer"),
+        import("@/components/pdf/contract-pdf"),
+      ]);
 
       const blob = await pdf(
         ContractPDF({
@@ -187,7 +184,8 @@ function ContractPdfDownloadButton({
             ...f,
             _id: f._id as unknown as string,
           })),
-          theme,
+          theme: pdfTheme,
+          voorwaarden: pdfVoorwaarden?.contract,
         })
       ).toBlob();
 
@@ -214,7 +212,7 @@ function ContractPdfDownloadButton({
     } finally {
       setIsGenerating(false);
     }
-  }, [pdfData]);
+  }, [pdfData, pdfTheme, pdfVoorwaarden]);
 
   return (
     <Button

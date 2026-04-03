@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "convex/react";
 import { api } from "../../../../../../convex/_generated/api";
 import { Doc, Id } from "../../../../../../convex/_generated/dataModel";
+import { usePdfTheme } from "@/hooks/use-pdf-theme";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -323,8 +324,16 @@ export default function FactuurPage({
     factuur ? { factuurId: factuur._id } : "skip"
   );
 
+  // PDF theme from instellingen
+  const { theme: pdfTheme, voorwaarden: pdfVoorwaarden } = usePdfTheme();
+
   // All mutation handlers in a custom hook
-  const handlers = useFactuurHandlers(projectId, factuur?._id);
+  const handlers = useFactuurHandlers(projectId, factuur?._id, {
+    factuur,
+    bedrijfsgegevens: factuur?.bedrijf as import("@/types/offerte").Bedrijfsgegevens | undefined,
+    theme: pdfTheme,
+    voorwaarden: pdfVoorwaarden?.factuur,
+  });
 
   // Loading state
   if (projectDetails === undefined || factuur === undefined) {
