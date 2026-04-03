@@ -67,7 +67,7 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' https://clerk.toptuinen.app https://*.clerk.accounts.dev https://*.clerk.dev https://cdn.sentry-cdn.com https://challenges.cloudflare.com",
+              "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://clerk.toptuinen.app https://*.clerk.accounts.dev https://*.clerk.dev https://cdn.sentry-cdn.com https://browser.sentry-cdn.com https://challenges.cloudflare.com",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' https: data: blob:",
               "font-src 'self' data:",
