@@ -19,7 +19,7 @@ export default function AuthNotFound() {
         </p>
 
         <Button asChild>
-          <Link href="/sign-in">
+          <Link href="/">
             <LogIn className="mr-2 h-4 w-4" />
             Ga naar de inlogpagina
           </Link>

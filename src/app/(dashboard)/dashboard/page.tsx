@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { m } from "framer-motion";
-import { useQuery } from "convex/react";
+import { useQuery, useConvexAuth } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import {
   Card,
@@ -47,7 +47,7 @@ const itemVariants = {
 };
 
 export default function DashboardPage() {
-  const { clerkUser } = useCurrentUser();
+  const { clerkUser, user, isLoading: isUserLoading } = useCurrentUser();
   const isAdmin = useIsAdmin();
 
   // Medewerker data — still uses the old batched query
@@ -61,8 +61,11 @@ export default function DashboardPage() {
   // Admin data — consolidated single query
   const adminData = useAdminDashboardData();
 
-  // Proactive warnings (used by admin AandachtNodig)
-  const warnings = useQuery(api.proactiveWarnings.getWarnings) ?? [];
+  // Proactive warnings (used by admin AandachtNodig) — wait for Convex auth so we
+  // don't fire this during the brief Clerk→Convex token handshake on first load.
+  const { isAuthenticated } = useConvexAuth();
+  const warnings =
+    useQuery(api.proactiveWarnings.getWarnings, isAuthenticated ? {} : "skip") ?? [];
 
   // Onboarding state
   const {
@@ -79,6 +82,20 @@ export default function DashboardPage() {
   } = useOnboarding();
 
   const hasActiveProjects = activeProjects && activeProjects.length > 0;
+
+  // Wait until the user's role is known before choosing a dashboard variant.
+  // useIsAdmin() returns false while loading, so without this gate the medewerker
+  // view flashes for admins/directie before the role resolves.
+  if (isUserLoading || !user) {
+    return (
+      <>
+        <PageHeader />
+        <div className="flex flex-1 flex-col gap-6 p-6 md:p-8 max-w-7xl">
+          <DashboardSkeleton />
+        </div>
+      </>
+    );
+  }
 
   // Show skeleton while primary data is loading (medewerker only — admin handles its own)
   if (isLoading && !offerteStats && !isAdmin) {

@@ -42,7 +42,7 @@ export default function AuthError({
 
   // For session errors, redirect to sign-in after showing the message
   const handleSignIn = () => {
-    router.push("/sign-in");
+    router.push("/");
   };
 
   return (
@@ -106,7 +106,7 @@ export default function AuthError({
                   Opnieuw proberen
                 </Button>
                 <Button variant="outline" asChild className="w-full">
-                  <Link href="/sign-in">
+                  <Link href="/">
                     <LogIn className="mr-2 h-4 w-4" />
                     Naar inlogpagina
                   </Link>

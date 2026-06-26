@@ -1,5 +1,7 @@
 "use client";
 
+import { useConvexAuth } from "convex/react";
+import { Loader2 } from "lucide-react";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SkipLink } from "@/components/ui/skip-link";
@@ -15,13 +17,10 @@ import { PageTransition } from "@/components/page-transition";
 import { NavigationProgress } from "@/components/ui/navigation-progress";
 import { usePrefetchAllCommonData } from "@/hooks/use-prefetch";
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  // Prefetch common data to warm caches for faster navigation
-  // This runs once when the dashboard layout mounts and keeps data fresh
+function DashboardShell({ children }: { children: React.ReactNode }) {
+  // Prefetch common data to warm caches for faster navigation. This lives in the
+  // authenticated branch so its queries only fire once Convex auth is ready —
+  // otherwise they race the Clerk→Convex token handshake and throw AuthError.
   usePrefetchAllCommonData();
 
   return (
@@ -48,4 +47,25 @@ export default function DashboardLayout({
       </ShortcutsProvider>
     </CommandProvider>
   );
+}
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { isAuthenticated, isLoading } = useConvexAuth();
+
+  // Wait for the Clerk→Convex token handshake before mounting any authenticated
+  // dashboard query. Middleware already guarantees the user is signed in here,
+  // so this only covers the brief loading window right after login.
+  if (isLoading || !isAuthenticated) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+      </div>
+    );
+  }
+
+  return <DashboardShell>{children}</DashboardShell>;
 }

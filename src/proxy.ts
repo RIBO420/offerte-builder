@@ -2,8 +2,6 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 const isPublicRoute = createRouteMatcher([
   "/",
-  "/sign-in(.*)",
-  "/sign-up(.*)",
   "/sso-callback(.*)",
   "/api/webhooks(.*)",
   "/configurator(.*)",
@@ -11,24 +9,23 @@ const isPublicRoute = createRouteMatcher([
   "/manifest.json",
 ]);
 
-const isPortaalAuthRoute = createRouteMatcher([
-  "/portaal/inloggen(.*)",
-  "/portaal/registreren(.*)",
-  "/portaal/koppelen(.*)",
-]);
-
 const isPortaalRoute = createRouteMatcher([
   "/portaal(.*)",
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
-  // Public routes and portal auth — no auth required
-  if (isPublicRoute(req) || isPortaalAuthRoute(req)) {
+  // Public routes — no auth required. The single login lives at "/".
+  // Klant account-linking (/portaal/koppelen) is a protected route so Clerk
+  // redirects unauthenticated invitees to "/" and returns them after login.
+  if (isPublicRoute(req)) {
     return;
   }
 
-  // All other routes require authentication
-  const session = await auth.protect();
+  // All other routes require authentication. Unauthenticated users are sent to
+  // our own single login at "/" (not the Clerk-hosted account portal).
+  const session = await auth.protect({
+    unauthenticatedUrl: new URL("/", req.url).toString(),
+  });
 
   // Read role from session claims (configured via Clerk session_token_template)
   const role = (session.sessionClaims?.metadata as { role?: string })?.role;

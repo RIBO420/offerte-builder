@@ -197,7 +197,7 @@ export function AppSidebar() {
   }, []);
 
   const handleSignOut = () => {
-    signOut({ redirectUrl: "/sign-in" });
+    signOut({ redirectUrl: "/" });
   };
 
   const userInitials = getInitials(user?.fullName || user?.firstName);

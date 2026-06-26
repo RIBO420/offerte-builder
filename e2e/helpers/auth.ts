@@ -42,7 +42,8 @@ export async function login(page: Page): Promise<void> {
   // Bypass Clerk bot detection for automated tests
   await setupClerkTestingToken({ page });
 
-  await page.goto('/sign-in');
+  // The single login form lives at the app root "/".
+  await page.goto('/');
 
   // Clerk renders its own form (Dutch locale) — wait for the email input
   const emailInput = page.getByLabel('E-mailadres');
@@ -57,10 +58,13 @@ export async function login(page: Page): Promise<void> {
   const loginButton = page.getByRole('button', { name: 'Inloggen' });
   await loginButton.click();
 
-  // Wait for redirect away from sign-in — the dashboard should load
-  await page.waitForURL((url) => !url.pathname.includes('sign-in'), {
-    timeout: 15_000,
-  });
+  // Wait for redirect into the authenticated app — the login form lives at "/",
+  // so wait for the dashboard (or klant portal) instead of "away from /sign-in".
+  await page.waitForURL(
+    (url) =>
+      url.pathname.includes('dashboard') || url.pathname.includes('portaal'),
+    { timeout: 15_000 },
+  );
 }
 
 /**

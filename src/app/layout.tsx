@@ -77,7 +77,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider localization={nlNL}>
+    <ClerkProvider localization={nlNL} signInUrl="/">
       <html lang="nl" data-scroll-behavior="smooth" suppressHydrationWarning>
         <body
           className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}

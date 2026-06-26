@@ -1,6 +1,9 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query, internalQuery } from "./_generated/server";
-import { internal } from "./_generated/api";
+// `internal` wordt momenteel niet gebruikt — de automatische uitnodigingsmail
+// in `activatePortal` is tijdelijk uitgeschakeld. Zet deze import terug zodra
+// `internal.portaalEmail.sendInvitation` weer wordt aangeroepen.
+// import { internal } from "./_generated/api";
 import { requireAuth, requireAuthUserId, getOwnedKlant, generateSecureToken } from "./auth";
 import { requireNotViewer, requireAdmin } from "./roles";
 import {
@@ -975,11 +978,14 @@ export const activatePortal = mutation({
       updatedAt: now,
     });
 
-    // Send invitation email via scheduler
-    await ctx.scheduler.runAfter(0, internal.portaalEmail.sendInvitation, {
-      klantId: args.id,
-      token,
-    });
+    // TODO(top-tuinen): Automatische uitnodigingsmail tijdelijk uitgeschakeld.
+    // Het portaal wordt nog wél geactiveerd en het invitation-token wordt
+    // gegenereerd, maar er gaat (voor nu) géén e-mail automatisch naar de klant.
+    // Zet onderstaande regels terug om de mail weer in te schakelen.
+    // await ctx.scheduler.runAfter(0, internal.portaalEmail.sendInvitation, {
+    //   klantId: args.id,
+    //   token,
+    // });
 
     return { token, expiresAt };
   },

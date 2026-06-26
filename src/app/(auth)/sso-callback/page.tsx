@@ -54,7 +54,7 @@ export default function SSOCallbackPage() {
               </Button>
               <div className="flex gap-2 w-full">
                 <Button asChild variant="outline" className="flex-1">
-                  <Link href="/sign-in">Terug naar inloggen</Link>
+                  <Link href="/">Terug naar inloggen</Link>
                 </Button>
                 <Button asChild variant="ghost" className="flex-1">
                   <Link href="/">Naar home</Link>
@@ -121,7 +121,7 @@ export function SSOCallbackError() {
           </p>
           <div className="flex flex-col gap-3 w-full">
             <Button asChild className="w-full">
-              <Link href="/sign-in">
+              <Link href="/">
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Opnieuw inloggen
               </Link>

@@ -264,7 +264,7 @@ function KlantenPageContent() {
   const handleActivatePortal = useCallback(async (klant: Klant) => {
     try {
       await activatePortalMutation({ id: klant._id });
-      toast.success(`Portaal geactiveerd voor ${klant.naam}. Een uitnodiging wordt verstuurd.`);
+      toast.success(`Portaal geactiveerd voor ${klant.naam}.`);
     } catch (error) {
       if (error instanceof Error) {
         toast.error(error.message);

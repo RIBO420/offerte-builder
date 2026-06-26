@@ -53,7 +53,7 @@ export function PortaalHeader({ klantNaam, onMenuToggle }: PortaalHeaderProps) {
             {klantNaam}
           </span>
         )}
-        <UserButton afterSignOutUrl="/portaal/inloggen" />
+        <UserButton afterSignOutUrl="/" />
       </div>
     </header>
   );

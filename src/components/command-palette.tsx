@@ -233,7 +233,7 @@ export function CommandPalette({ additionalItems = [] }: CommandPaletteProps) {
 
   // Handle sign out
   const handleSignOut = useCallback(() => {
-    signOut({ redirectUrl: "/sign-in" });
+    signOut({ redirectUrl: "/" });
   }, [signOut]);
 
   // Handle theme toggle

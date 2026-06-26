@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useQuery, useConvexAuth } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import {
   Card,
@@ -43,7 +43,13 @@ const PRIORITY_STYLES: Record<string, { badge: string; border: string }> = {
 };
 
 export function WarningsFeed() {
-  const warnings = useQuery(api.proactiveWarnings.getWarnings);
+  // Skip until Convex is authenticated to avoid an AuthError during the
+  // Clerk→Convex token handshake right after login.
+  const { isAuthenticated } = useConvexAuth();
+  const warnings = useQuery(
+    api.proactiveWarnings.getWarnings,
+    isAuthenticated ? {} : "skip",
+  );
 
   if (!warnings || warnings.length === 0) return null;
 
