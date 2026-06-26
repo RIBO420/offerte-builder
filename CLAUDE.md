@@ -19,6 +19,18 @@ Top Tuinen Offerte Calculator — a monorepo for a Dutch landscaping company (To
 - **Clerk** handles auth for both platforms (same project, different SDKs: `@clerk/nextjs` for web, `@clerk/clerk-expo` for mobile)
 - Web and mobile do NOT share UI components (different frameworks), but share the Convex backend
 
+## Authentication & Routing (web)
+
+- **Single login terminal:** the app root `/` (`src/app/page.tsx`) IS the login form (custom Clerk `useSignIn`). There are NO `/sign-in` or `/sign-up` routes. Self-service sign-up is disabled in Clerk — staff accounts are created internally; klanten via invitation only.
+- **Middleware:** `src/proxy.ts` (Next.js 16 renamed `middleware` → `proxy`). Unauthenticated requests on protected routes go to `/`; authenticated **klanten** are routed to `/portaal/overzicht`, staff to `/dashboard`.
+- **Role-based home:** routing uses the **Convex** user role (set immediately by `users.linkKlantAccount`), not the Clerk session claim (which can lag right after sign-up). The login page (`src/app/page.tsx`) and `src/app/(dashboard)/layout.tsx` both redirect klanten to the portal; the dashboard layout also blocks klanten from staff pages.
+- **Klant onboarding (invitation flow):**
+  1. Admin clicks "Verstuur uitnodiging" on the klanten page → `klanten.sendPortalInvitation` → schedules `portaalEmail.sendClerkInvitation` (Clerk REST `POST /v1/invitations`, `notify:true`). Clerk emails a "set password" link (NOT Resend).
+  2. Link → `/portaal/registreren` (Clerk `<SignUp>` via invitation ticket — works even with sign-up restricted) → set password → `/portaal/koppelen` links the Clerk user to the klant record (`users.linkKlantAccount` sets `role:"klant"` and syncs it to Clerk publicMetadata via `users.setClerkMetadata`).
+  3. Klant then logs in on `/` like everyone and lands on the portal.
+- `/portaal/registreren` is the only public `/portaal` route (invitation accept); all other `/portaal/*` requires auth.
+- **Clerk/Convex prerequisites:** Clerk sign-up mode = "Restricted" + Email enabled as identifier; `CLERK_SECRET_KEY` set in the **Convex** env (used by `sendClerkInvitation` + `setClerkMetadata`). Invite redirect base = `NEXT_PUBLIC_APP_URL` / `SITE_URL` (Convex env; prod = `https://toptuinen.app`).
+
 ## Commands
 
 ### Web App
@@ -97,8 +109,8 @@ npx convex deploy --yes  # Deploy to production
 
 - Schema defined in `convex/schema.ts` with Zod-like validators
 - Functions organized by domain: `convex/offertes.ts`, `convex/klanten.ts`, `convex/projecten.ts`, etc.
-- Auth via `convex/auth.config.ts` using Clerk provider
-- Role-based access: admin, medewerker, viewer (checked via `convex/users.ts`)
+- Auth via `convex/auth.config.ts` using Clerk provider; helpers in `convex/auth.ts` (`requireAuth`, `requireAuthUserId`, `requireKlant`, etc.)
+- **Role-based access (7-role model, see `convex/roles.ts` / `convex/validators.ts`):** `directie` (= admin), `projectleider`, `voorman`, `medewerker`, `klant`, `onderaannemer_zzp`, `materiaalman`. Legacy mapping: `admin`→`directie`, `viewer`→`klant`. `klant` users live in `/portaal`; staff in `/dashboard`.
 
 ## Testing
 
