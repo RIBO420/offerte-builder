@@ -16,6 +16,7 @@ interface KanbanColumnProps {
   colorClass: string;
   leads: Lead[];
   onLeadClick?: (lead: Lead) => void;
+  onLeadDelete?: (lead: Lead) => void;
   isLost?: boolean;
   isDragging?: boolean;
 }
@@ -26,6 +27,7 @@ export function KanbanColumn({
   colorClass,
   leads,
   onLeadClick,
+  onLeadDelete,
   isLost = false,
   isDragging = false,
 }: KanbanColumnProps) {
@@ -54,7 +56,12 @@ export function KanbanColumn({
       {/* Lead cards */}
       <div className={cn("flex flex-col gap-2 flex-1 min-h-[120px]", isDragging ? "overflow-visible" : "overflow-y-auto")}>
         {leads.map((lead) => (
-          <LeadCard key={lead._id} lead={lead} onClick={onLeadClick} />
+          <LeadCard
+            key={lead._id}
+            lead={lead}
+            onClick={onLeadClick}
+            onDelete={onLeadDelete}
+          />
         ))}
         {leads.length === 0 && (
           <div className="flex items-center justify-center h-24 text-xs text-muted-foreground rounded-lg border border-dashed">

@@ -19,6 +19,16 @@ import { cn } from "@/lib/utils";
 import { KanbanColumn } from "./kanban-column";
 import { VerliesRedenDialog } from "./verlies-reden-dialog";
 import type { Lead } from "./lead-card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // ============================================
 // Column definitions
@@ -65,6 +75,10 @@ export function KanbanBoard({ leads, onLeadClick }: KanbanBoardProps) {
     api.configuratorAanvragen.updatePipelineStatus
   );
   const markGewonnen = useMutation(api.configuratorAanvragen.markGewonnen);
+  const verwijderLead = useMutation(api.configuratorAanvragen.verwijder);
+
+  const [pendingDeleteLead, setPendingDeleteLead] = useState<Lead | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Sensors
   const pointerSensor = useSensor(PointerSensor, {
@@ -164,6 +178,29 @@ export function KanbanBoard({ leads, onLeadClick }: KanbanBoardProps) {
     setPendingVerliesLeadId(null);
   }
 
+  // Quick-delete a lead (e.g. test leads or mistakes) straight from its card.
+  const handleDeleteRequest = useCallback((lead: Lead) => {
+    setPendingDeleteLead(lead);
+  }, []);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!pendingDeleteLead) return;
+    setIsDeleting(true);
+    try {
+      await verwijderLead({ id: pendingDeleteLead._id });
+      showSuccessToast("Lead verwijderd");
+      setPendingDeleteLead(null);
+    } catch (error) {
+      showErrorToast(
+        error instanceof Error
+          ? error.message
+          : "Er ging iets mis bij het verwijderen"
+      );
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [pendingDeleteLead, verwijderLead]);
+
   return (
     <>
       <DndContext
@@ -181,6 +218,7 @@ export function KanbanBoard({ leads, onLeadClick }: KanbanBoardProps) {
               colorClass={col.colorClass}
               leads={leads[col.id] ?? []}
               onLeadClick={onLeadClick}
+              onLeadDelete={handleDeleteRequest}
               isLost={col.isLost}
               isDragging={isDragging}
             />
@@ -194,6 +232,38 @@ export function KanbanBoard({ leads, onLeadClick }: KanbanBoardProps) {
         onClose={handleVerliesClose}
         onBevestig={handleVerliesBevestig}
       />
+
+      <AlertDialog
+        open={pendingDeleteLead !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingDeleteLead(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Lead verwijderen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Weet je zeker dat je de lead van{" "}
+              <span className="font-medium">{pendingDeleteLead?.klantNaam}</span>{" "}
+              wilt verwijderen? Dit verwijdert ook alle bijbehorende
+              activiteiten en kan niet ongedaan worden gemaakt.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Annuleren</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteConfirm();
+              }}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? "Verwijderen..." : "Verwijderen"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { nl } from "@/lib/date-locale";
-import { MapPin } from "lucide-react";
+import { MapPin, Trash2 } from "lucide-react";
 import type { Doc } from "../../../convex/_generated/dataModel";
 
 // ============================================
@@ -78,9 +78,10 @@ const priceFormatter = new Intl.NumberFormat("nl-NL", {
 interface LeadCardProps {
   lead: Lead;
   onClick?: (lead: Lead) => void;
+  onDelete?: (lead: Lead) => void;
 }
 
-export function LeadCard({ lead, onClick }: LeadCardProps) {
+export function LeadCard({ lead, onClick, onDelete }: LeadCardProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
       id: lead._id,
@@ -133,12 +134,27 @@ export function LeadCard({ lead, onClick }: LeadCardProps) {
       {...listeners}
       onClick={() => onClick?.(lead)}
       className={cn(
-        "rounded-lg border bg-card p-3 cursor-grab active:cursor-grabbing transition-shadow",
+        "group relative rounded-lg border bg-card p-3 cursor-grab active:cursor-grabbing transition-shadow",
         isHandmatig && "border-l-4 border-l-purple-500",
-        isDragging && "shadow-xl relative",
+        isDragging && "shadow-xl",
         !isDragging && "hover:shadow-md"
       )}
     >
+      {onDelete && (
+        <button
+          type="button"
+          aria-label={`Lead ${lead.klantNaam} verwijderen`}
+          title="Lead verwijderen"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(lead);
+          }}
+          className="absolute -right-2 -top-2 z-10 hidden size-6 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm transition-colors hover:border-destructive/50 hover:text-destructive group-hover:flex focus-visible:flex"
+        >
+          <Trash2 className="size-3.5" />
+        </button>
+      )}
       <div className="flex items-start justify-between gap-2 mb-1.5">
         <p className="font-medium text-sm leading-tight truncate">
           {lead.klantNaam}
