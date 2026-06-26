@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { useSignIn, useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
+import { useQuery, useConvexAuth } from "convex/react";
+import { api } from "../../convex/_generated/api";
 import { Trees, Loader2 } from "lucide-react";
 import { m } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -27,12 +29,22 @@ export default function SignInPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-  // Redirect to dashboard if user is already signed in
+  // Route signed-in users to their home: klanten → klantenportaal, staff → dashboard.
+  // We read the role from Convex (set immediately on account linking) instead of the
+  // Clerk session claim, which can lag right after sign-up and would otherwise drop
+  // a klant on the staff dashboard.
+  const { isAuthenticated: convexAuthenticated } = useConvexAuth();
+  const currentUser = useQuery(
+    api.users.current,
+    convexAuthenticated ? {} : "skip"
+  );
   useEffect(() => {
-    if (isSignedIn) {
-      router.replace("/dashboard");
-    }
-  }, [isSignedIn, router]);
+    if (!isSignedIn || !convexAuthenticated) return;
+    if (currentUser === undefined) return; // role still loading
+    router.replace(
+      currentUser?.role === "klant" ? "/portaal/overzicht" : "/dashboard"
+    );
+  }, [isSignedIn, convexAuthenticated, currentUser, router]);
 
   // Don't render the sign-in form if already signed in
   if (isSignedIn) {
@@ -58,7 +70,7 @@ export default function SignInPage() {
 
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
-        router.push("/dashboard");
+        // Destination is handled by the role-aware effect once the session activates.
       } else {
         setError("Er is iets misgegaan. Probeer het opnieuw.");
       }

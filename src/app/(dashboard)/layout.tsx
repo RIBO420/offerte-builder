@@ -1,6 +1,9 @@
 "use client";
 
-import { useConvexAuth } from "convex/react";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useConvexAuth, useQuery } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 import { Loader2 } from "lucide-react";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -55,11 +58,23 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const { isAuthenticated, isLoading } = useConvexAuth();
+  const router = useRouter();
 
-  // Wait for the Clerk→Convex token handshake before mounting any authenticated
-  // dashboard query. Middleware already guarantees the user is signed in here,
-  // so this only covers the brief loading window right after login.
-  if (isLoading || !isAuthenticated) {
+  // Keep klanten out of the staff dashboard — they belong in the klantenportaal.
+  // Uses the Convex role (reliable) rather than the Clerk session claim.
+  const currentUser = useQuery(api.users.current, isAuthenticated ? {} : "skip");
+  const isKlant = currentUser?.role === "klant";
+
+  useEffect(() => {
+    if (isKlant) {
+      router.replace("/portaal/overzicht");
+    }
+  }, [isKlant, router]);
+
+  // Wait for the Clerk→Convex token handshake (and the role lookup) before mounting
+  // any authenticated dashboard query. Middleware already guarantees the user is
+  // signed in here, so this only covers the brief loading window right after login.
+  if (isLoading || !isAuthenticated || currentUser === undefined || isKlant) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
