@@ -1,9 +1,6 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query, internalQuery } from "./_generated/server";
-// `internal` wordt momenteel niet gebruikt — de automatische uitnodigingsmail
-// in `activatePortal` is tijdelijk uitgeschakeld. Zet deze import terug zodra
-// `internal.portaalEmail.sendInvitation` weer wordt aangeroepen.
-// import { internal } from "./_generated/api";
+import { internal } from "./_generated/api";
 import { requireAuth, requireAuthUserId, getOwnedKlant, generateSecureToken } from "./auth";
 import { requireNotViewer, requireAdmin } from "./roles";
 import {
@@ -988,6 +985,59 @@ export const activatePortal = mutation({
     // });
 
     return { token, expiresAt };
+  },
+});
+
+/**
+ * Manually send a Clerk password-setup invitation to a klant.
+ *
+ * Ensures portal access is enabled and a fresh invitation token exists, then
+ * triggers a Clerk invitation email so the klant can set a password and create
+ * their portal account. Triggered on demand (button), not automatically.
+ */
+export const sendPortalInvitation = mutation({
+  args: { id: v.id("klanten") },
+  handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
+    const user = await requireAuth(ctx);
+
+    const klant = await ctx.db.get(args.id);
+    if (!klant) {
+      throw new ConvexError("Klant niet gevonden");
+    }
+    if (klant.userId.toString() !== user._id.toString()) {
+      throw new ConvexError("Je hebt geen toegang tot deze klant");
+    }
+    if (!klant.email) {
+      throw new ConvexError(
+        "Klant heeft geen e-mailadres. Voeg eerst een e-mailadres toe voordat je een uitnodiging verstuurt."
+      );
+    }
+    if (klant.clerkUserId) {
+      throw new ConvexError(
+        "Deze klant heeft al een gekoppeld account en kan inloggen op de hoofdpagina."
+      );
+    }
+
+    // Ensure portal access + a fresh invitation token (valid 7 days)
+    const token = klant.invitationToken ?? generateSecureToken(48);
+    const now = Date.now();
+    const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+
+    await ctx.db.patch(args.id, {
+      portalEnabled: true,
+      invitationToken: token,
+      invitationExpiresAt: now + SEVEN_DAYS_MS,
+      updatedAt: now,
+    });
+
+    // Send the Clerk "set your password" invitation email
+    await ctx.scheduler.runAfter(0, internal.portaalEmail.sendClerkInvitation, {
+      email: klant.email,
+      token,
+    });
+
+    return { success: true };
   },
 });
 

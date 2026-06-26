@@ -27,6 +27,46 @@ function getPortalUrl(): string {
   );
 }
 
+/**
+ * Send a Clerk invitation so a klant can set a password and create their
+ * portal account. Clerk emails the recipient a "set your password" link
+ * automatically (notify: true). The redirect lands on /portaal/registreren,
+ * which completes the invitation ticket and then links the account.
+ *
+ * Works even when public sign-up is disabled in Clerk — invitation tickets
+ * bypass the sign-up restriction.
+ */
+export const sendClerkInvitation = internalAction({
+  args: {
+    email: v.string(),
+    token: v.string(),
+  },
+  handler: async (_ctx, args) => {
+    const redirectUrl = `${getPortalUrl()}/portaal/registreren?token=${args.token}`;
+
+    const response = await fetch("https://api.clerk.com/v1/invitations", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email_address: args.email,
+        redirect_url: redirectUrl,
+        notify: true,
+        ignore_existing: true,
+      }),
+    });
+
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(
+        `Clerk invitation mislukt (${response.status}): ${body}`
+      );
+    }
+  },
+});
+
 /** Get company details from instellingen, with sensible defaults */
 async function getBedrijfsgegevens(
   ctx: ActionCtx,

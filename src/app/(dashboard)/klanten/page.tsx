@@ -50,6 +50,7 @@ import {
   Search,
   Loader2,
   Mail,
+  Send,
   Phone,
   MapPin,
   Pencil,
@@ -260,6 +261,9 @@ function KlantenPageContent() {
   // Portal mutations
   const activatePortalMutation = useMutation(api.klanten.activatePortal);
   const deactivatePortalMutation = useMutation(api.klanten.deactivatePortal);
+  const sendPortalInvitationMutation = useMutation(
+    api.klanten.sendPortalInvitation
+  );
 
   const handleActivatePortal = useCallback(async (klant: Klant) => {
     try {
@@ -286,6 +290,21 @@ function KlantenPageContent() {
       }
     }
   }, [deactivatePortalMutation]);
+
+  const handleSendPortalInvitation = useCallback(async (klant: Klant) => {
+    try {
+      await sendPortalInvitationMutation({ id: klant._id });
+      toast.success(
+        `Wachtwoord-uitnodiging verstuurd naar ${klant.email}.`
+      );
+    } catch (error) {
+      if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error("Fout bij versturen uitnodiging");
+      }
+    }
+  }, [sendPortalInvitationMutation]);
 
   // Import state
   const importKlantenMutation = useMutation(api.klanten.importKlanten);
@@ -749,6 +768,31 @@ function KlantenPageContent() {
                   </TooltipContent>
                 </Tooltip>
               )}
+              {/* Send password-setup invitation (only until the klant is linked) */}
+              {!klant.clerkUserId && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 sm:h-8 sm:w-8"
+                      aria-label="Wachtwoord-uitnodiging versturen"
+                      disabled={!klant.email}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSendPortalInvitation(klant);
+                      }}
+                    >
+                      <Send className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {klant.email
+                      ? "Wachtwoord-uitnodiging versturen"
+                      : "Voeg eerst een e-mailadres toe"}
+                  </TooltipContent>
+                </Tooltip>
+              )}
               <Button
                 variant="ghost"
                 size="icon"
@@ -778,7 +822,7 @@ function KlantenPageContent() {
         ),
       },
     ],
-    [handleEdit, handleDeleteClick, herinneringSet, handleActivatePortal, handleDeactivatePortal]
+    [handleEdit, handleDeleteClick, herinneringSet, handleActivatePortal, handleDeactivatePortal, handleSendPortalInvitation]
   );
 
   const klantFormJsx = (

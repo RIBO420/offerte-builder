@@ -7,6 +7,9 @@ const isPublicRoute = createRouteMatcher([
   "/configurator(.*)",
   "/monitoring",
   "/manifest.json",
+  // Klant invitation accept page — reached via a Clerk invitation ticket while
+  // logged out, so it must be public (sets password, then links the account).
+  "/portaal/registreren(.*)",
 ]);
 
 const isPortaalRoute = createRouteMatcher([
