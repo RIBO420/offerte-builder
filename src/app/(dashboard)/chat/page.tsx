@@ -45,6 +45,7 @@ import {
 } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { toast } from "sonner";
+import { isKantoorRol } from "@/lib/rollen";
 
 type ChatTab = "team" | "mededelingen" | "dm" | "project" | "klant";
 
@@ -633,16 +634,20 @@ export default function ChatPage() {
     return (user as { role?: string }).role;
   }, [user]);
 
+  // PRD §1.2: alleen kantoor mag naar de klant versturen — voor andere
+  // rollen bestaat de Klanten-tab (en dus de verstuurknop) niet in de UI
+  const isKantoor = isKantoorRol(userRole);
+
   // Unread counts
   const unreadCounts = useQuery(
     api.chat.getUnreadCounts,
     user ? {} : "skip"
   );
 
-  // Klant thread unread count
+  // Klant thread unread count (alleen relevant/opvraagbaar voor kantoor)
   const klantThreads = useQuery(
     api.chatThreads.listThreads,
-    user ? {} : "skip"
+    user && isKantoor ? {} : "skip"
   );
   const klantUnread = useMemo(() => {
     if (!klantThreads) return 0;
@@ -708,13 +713,15 @@ export default function ChatPage() {
             isActive={activeTab === "project"}
             onClick={() => setActiveTab("project")}
           />
-          <ChatTabBadge
-            label="Klanten"
-            icon={<UserRound className="h-4 w-4" />}
-            count={klantUnread}
-            isActive={activeTab === "klant"}
-            onClick={() => setActiveTab("klant")}
-          />
+          {isKantoor && (
+            <ChatTabBadge
+              label="Klanten"
+              icon={<UserRound className="h-4 w-4" />}
+              count={klantUnread}
+              isActive={activeTab === "klant"}
+              onClick={() => setActiveTab("klant")}
+            />
+          )}
 
           {/* Project selector (visible when project tab is active) */}
           {activeTab === "project" && (
@@ -777,7 +784,7 @@ export default function ChatPage() {
               emptyMessage="Nog geen berichten in dit project"
             />
           )}
-          {activeTab === "klant" && (
+          {activeTab === "klant" && isKantoor && (
             <KlantTab currentUserClerkId={currentUserClerkId} userRole={userRole} />
           )}
         </div>

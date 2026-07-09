@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { MessageSquare, Send, Loader2 } from "lucide-react";
+import { useIsKantoor } from "@/hooks/use-users";
 import { cn } from "@/lib/utils";
 import { formatDateTime } from "./utils";
 
@@ -39,6 +40,9 @@ export function ChatCard({
   isSendingMessage,
 }: ChatCardProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  // PRD §1.2: alleen kantoor mag berichten naar de klant versturen —
+  // voor andere rollen bestaat de verstuur-invoer niet (meelezen mag wel)
+  const isKantoor = useIsKantoor();
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -100,6 +104,7 @@ export function ChatCard({
             </div>
           )}
         </ScrollArea>
+        {isKantoor && (
         <div className="flex gap-2">
           <Input
             placeholder="Typ een bericht..."
@@ -127,6 +132,7 @@ export function ChatCard({
             )}
           </Button>
         </div>
+        )}
       </CardContent>
     </Card>
   );

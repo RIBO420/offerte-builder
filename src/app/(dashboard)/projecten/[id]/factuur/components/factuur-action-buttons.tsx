@@ -41,6 +41,7 @@ import {
   Gavel,
 } from "lucide-react";
 import type { FactuurHandlersState } from "./use-factuur-handlers";
+import { useIsKantoor } from "@/hooks/use-users";
 
 interface AanmaningDropdownProps {
   aanmaningStatus: {
@@ -202,6 +203,10 @@ export function FactuurActionButtons({
   aanmaningStatus,
   creditnota,
 }: FactuurActionButtonsProps) {
+  // PRD §1.2: alleen kantoor mag naar de klant versturen — voor andere
+  // rollen bestaan de verstuur-/herinnering-/aanmaningknoppen niet
+  const isKantoor = useIsKantoor();
+
   switch (factuurStatus) {
     case "concept":
       return (
@@ -254,14 +259,16 @@ export function FactuurActionButtons({
             {handlers.isDownloadingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
             Download PDF
           </Button>
-          <Button className="gap-2 bg-green-600 hover:bg-green-700" onClick={handlers.handleSendFactuur} disabled={handlers.isSending}>
-            {handlers.isSending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-            Verstuur Factuur
-          </Button>
+          {isKantoor && (
+            <Button className="gap-2 bg-green-600 hover:bg-green-700" onClick={handlers.handleSendFactuur} disabled={handlers.isSending}>
+              {handlers.isSending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+              Verstuur Factuur
+            </Button>
+          )}
         </div>
       );
 
@@ -276,18 +283,22 @@ export function FactuurActionButtons({
             {handlers.isDownloadingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
             Download PDF
           </Button>
-          <Button variant="outline" className="gap-2" onClick={handlers.handleSendReminder} disabled={handlers.isSending}>
-            {handlers.isSending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Bell className="h-4 w-4" />
-            )}
-            Herinnering Sturen
-          </Button>
-          <AanmaningDropdown
-            aanmaningStatus={aanmaningStatus}
-            onSelectType={handlers.setSelectedAanmaningType}
-          />
+          {isKantoor && (
+            <Button variant="outline" className="gap-2" onClick={handlers.handleSendReminder} disabled={handlers.isSending}>
+              {handlers.isSending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Bell className="h-4 w-4" />
+              )}
+              Herinnering Sturen
+            </Button>
+          )}
+          {isKantoor && (
+            <AanmaningDropdown
+              aanmaningStatus={aanmaningStatus}
+              onSelectType={handlers.setSelectedAanmaningType}
+            />
+          )}
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button className="gap-2 bg-green-600 hover:bg-green-700">
@@ -363,18 +374,22 @@ export function FactuurActionButtons({
             {handlers.isDownloadingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
             Download PDF
           </Button>
-          <Button variant="outline" className="gap-2" onClick={handlers.handleSendReminder} disabled={handlers.isSending}>
-            {handlers.isSending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Bell className="h-4 w-4" />
-            )}
-            Herinnering Sturen
-          </Button>
-          <AanmaningDropdown
-            aanmaningStatus={aanmaningStatus}
-            onSelectType={handlers.setSelectedAanmaningType}
-          />
+          {isKantoor && (
+            <Button variant="outline" className="gap-2" onClick={handlers.handleSendReminder} disabled={handlers.isSending}>
+              {handlers.isSending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Bell className="h-4 w-4" />
+              )}
+              Herinnering Sturen
+            </Button>
+          )}
+          {isKantoor && (
+            <AanmaningDropdown
+              aanmaningStatus={aanmaningStatus}
+              onSelectType={handlers.setSelectedAanmaningType}
+            />
+          )}
           {!creditnota && (
             <CreditnotaButton
               factuurnummer={factuurnummer}

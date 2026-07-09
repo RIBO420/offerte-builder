@@ -4,6 +4,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useCurrentUser } from "./use-current-user";
 import { Id } from "../../convex/_generated/dataModel";
+import { isKantoorRol } from "@/lib/rollen";
 
 export type UserRole =
   | "directie"
@@ -109,4 +110,15 @@ export function useCurrentUserRole(): UserRole | null {
 
   // Default to medewerker for security (secure default)
   return (user.role ?? "medewerker") as UserRole;
+}
+
+/**
+ * Hook: heeft de huidige gebruiker een kantoor-rol (directie/projectleider)?
+ * Alleen kantoor heeft de capability "versturen naar klant" (PRD §1.2) —
+ * verstuurknoppen worden voor andere rollen NIET gerenderd.
+ * False tijdens laden (secure default).
+ */
+export function useIsKantoor(): boolean {
+  const role = useCurrentUserRole();
+  return isKantoorRol(role);
 }

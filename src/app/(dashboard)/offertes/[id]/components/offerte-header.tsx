@@ -33,7 +33,7 @@ import {
   XCircle,
   Clock,
   Copy,
-  Trash2,
+  Archive,
   BookmarkPlus,
   History,
   Calculator,
@@ -46,6 +46,7 @@ import { DynamicPDFDownloadButton as PDFDownloadButton } from "@/components/pdf"
 import type { OfferteStatus } from "@/lib/constants/statuses";
 import type { PdfTheme } from "@/components/pdf/pdf-theme";
 import { formatDate } from "./utils";
+import { useIsKantoor } from "@/hooks/use-users";
 
 interface OfferteVersion {
   _id: string;
@@ -112,6 +113,8 @@ export function OfferteHeader({
 }: OfferteHeaderProps) {
   const router = useRouter();
   const [showNieuweVersieDialog, setShowNieuweVersieDialog] = useState(false);
+  // PRD §1.2: alleen kantoor mag de offerte naar de klant versturen
+  const isKantoor = useIsKantoor();
 
   const isGeaccepteerd = offerte?.status === "geaccepteerd";
 
@@ -198,13 +201,17 @@ export function OfferteHeader({
               <Calculator className="mr-2 h-4 w-4" />
               Voorcalculatie
             </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => onStatusChange("verzonden")}
-              disabled={offerte?.status !== "voorcalculatie"}
-            >
-              <Send className="mr-2 h-4 w-4" />
-              Verzonden
-            </DropdownMenuItem>
+            {/* PRD §1.2: versturen naar klant is kantoor-only — de optie
+                bestaat niet voor andere rollen (niet disabled, niet gerenderd) */}
+            {isKantoor && (
+              <DropdownMenuItem
+                onClick={() => onStatusChange("verzonden")}
+                disabled={offerte?.status !== "voorcalculatie"}
+              >
+                <Send className="mr-2 h-4 w-4" />
+                Verzonden
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => onStatusChange("geaccepteerd")}
@@ -285,8 +292,8 @@ export function OfferteHeader({
               onClick={onShowDeleteDialog}
               className="text-destructive"
             >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Verwijderen
+              <Archive className="mr-2 h-4 w-4" />
+              Archiveren
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
