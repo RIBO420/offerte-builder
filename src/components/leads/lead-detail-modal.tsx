@@ -23,7 +23,7 @@ import {
   CalendarClock,
   SprayCan,
   ImageIcon,
-  Trash2,
+  Archive,
   X,
   ChevronLeft,
   ChevronRight,
@@ -405,7 +405,8 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
   const updatePipelineStatus = useMutation(
     api.configuratorAanvragen.updatePipelineStatus
   );
-  const verwijderLead = useMutation(api.configuratorAanvragen.verwijder);
+  // §5.2: archiveren i.p.v. hard delete; hard delete alleen via de GDPR-flow
+  const archiveerLead = useMutation(api.configuratorAanvragen.archiveer);
   const markGewonnen = useMutation(api.configuratorAanvragen.markGewonnen);
   const toewijzen = useMutation(api.configuratorAanvragen.toewijzen);
   const createActiviteit = useMutation(api.leadActiviteiten.create);
@@ -428,19 +429,19 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
     if (!lead) return;
     setIsDeleting(true);
     try {
-      await verwijderLead({ id: lead._id });
-      showSuccessToast("Lead verwijderd");
+      await archiveerLead({ id: lead._id });
+      showSuccessToast("Lead gearchiveerd");
       onClose();
     } catch (error) {
       showErrorToast(
         error instanceof Error
           ? error.message
-          : "Er ging iets mis bij het verwijderen"
+          : "Er ging iets mis bij het archiveren"
       );
     } finally {
       setIsDeleting(false);
     }
-  }, [lead, verwijderLead, onClose]);
+  }, [lead, archiveerLead, onClose]);
 
   if (!lead) return null;
 
@@ -595,16 +596,16 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
                     variant="ghost"
                     className="text-muted-foreground hover:text-destructive"
                   >
-                    <Trash2 className="size-4" />
+                    <Archive className="size-4" />
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Lead verwijderen?</AlertDialogTitle>
+                    <AlertDialogTitle>Lead archiveren?</AlertDialogTitle>
                     <AlertDialogDescription>
                       Weet je zeker dat je de lead van {lead.klantNaam} wilt
-                      verwijderen? Dit verwijdert ook alle activiteiten en
-                      foto&apos;s. Deze actie kan niet ongedaan worden gemaakt.
+                      archiveren? Activiteiten en foto&apos;s blijven bewaard
+                      en de lead kan worden hersteld.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -612,9 +613,8 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
                     <AlertDialogAction
                       onClick={handleVerwijder}
                       disabled={isDeleting}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     >
-                      {isDeleting ? "Verwijderen..." : "Verwijderen"}
+                      {isDeleting ? "Archiveren..." : "Archiveren"}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>

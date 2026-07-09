@@ -36,6 +36,7 @@ import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { formatCurrency } from "@/lib/format/currency";
+import { GearchiveerdeItems } from "./components/gearchiveerde-items";
 
 function formatDate(timestamp: number): string {
   return new Intl.DateTimeFormat("nl-NL", {
@@ -621,6 +622,18 @@ function ArchiefPageContent() {
               </m.div>
             )}
           </AnimatePresence>
+        </m.div>
+
+        {/* §5.2: Herstel-sectie voor gearchiveerde items */}
+        <m.div
+          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{
+            duration: reducedMotion ? 0 : 0.4,
+            delay: reducedMotion ? 0 : 0.3,
+          }}
+        >
+          <GearchiveerdeItems />
         </m.div>
       </m.div>
     </>

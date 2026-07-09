@@ -28,19 +28,16 @@ export function BulkDeleteDialog({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Offertes verwijderen</AlertDialogTitle>
+          <AlertDialogTitle>Offertes archiveren</AlertDialogTitle>
           <AlertDialogDescription>
-            Weet je zeker dat je {selectedCount} offerte(s) wilt verwijderen?
-            Deze actie kan niet ongedaan worden gemaakt.
+            Weet je zeker dat je {selectedCount} offerte(s) wilt archiveren?
+            Je kunt ze via het archief herstellen.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Annuleren</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={onConfirm}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-          >
-            Verwijderen
+          <AlertDialogAction onClick={onConfirm}>
+            Archiveren
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

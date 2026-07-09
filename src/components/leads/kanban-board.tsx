@@ -75,7 +75,8 @@ export function KanbanBoard({ leads, onLeadClick }: KanbanBoardProps) {
     api.configuratorAanvragen.updatePipelineStatus
   );
   const markGewonnen = useMutation(api.configuratorAanvragen.markGewonnen);
-  const verwijderLead = useMutation(api.configuratorAanvragen.verwijder);
+  // §5.2: archiveren i.p.v. hard delete; hard delete alleen via de GDPR-flow
+  const archiveerLead = useMutation(api.configuratorAanvragen.archiveer);
 
   const [pendingDeleteLead, setPendingDeleteLead] = useState<Lead | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -178,7 +179,7 @@ export function KanbanBoard({ leads, onLeadClick }: KanbanBoardProps) {
     setPendingVerliesLeadId(null);
   }
 
-  // Quick-delete a lead (e.g. test leads or mistakes) straight from its card.
+  // Quick-archive a lead (e.g. test leads or mistakes) straight from its card (§5.2).
   const handleDeleteRequest = useCallback((lead: Lead) => {
     setPendingDeleteLead(lead);
   }, []);
@@ -187,19 +188,19 @@ export function KanbanBoard({ leads, onLeadClick }: KanbanBoardProps) {
     if (!pendingDeleteLead) return;
     setIsDeleting(true);
     try {
-      await verwijderLead({ id: pendingDeleteLead._id });
-      showSuccessToast("Lead verwijderd");
+      await archiveerLead({ id: pendingDeleteLead._id });
+      showSuccessToast("Lead gearchiveerd");
       setPendingDeleteLead(null);
     } catch (error) {
       showErrorToast(
         error instanceof Error
           ? error.message
-          : "Er ging iets mis bij het verwijderen"
+          : "Er ging iets mis bij het archiveren"
       );
     } finally {
       setIsDeleting(false);
     }
-  }, [pendingDeleteLead, verwijderLead]);
+  }, [pendingDeleteLead, archiveerLead]);
 
   return (
     <>
@@ -241,12 +242,12 @@ export function KanbanBoard({ leads, onLeadClick }: KanbanBoardProps) {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Lead verwijderen?</AlertDialogTitle>
+            <AlertDialogTitle>Lead archiveren?</AlertDialogTitle>
             <AlertDialogDescription>
               Weet je zeker dat je de lead van{" "}
               <span className="font-medium">{pendingDeleteLead?.klantNaam}</span>{" "}
-              wilt verwijderen? Dit verwijdert ook alle bijbehorende
-              activiteiten en kan niet ongedaan worden gemaakt.
+              wilt archiveren? De lead verdwijnt van het bord; activiteiten en
+              foto&apos;s blijven bewaard en de lead kan worden hersteld.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -257,9 +258,8 @@ export function KanbanBoard({ leads, onLeadClick }: KanbanBoardProps) {
                 handleDeleteConfirm();
               }}
               disabled={isDeleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isDeleting ? "Verwijderen..." : "Verwijderen"}
+              {isDeleting ? "Archiveren..." : "Archiveren"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

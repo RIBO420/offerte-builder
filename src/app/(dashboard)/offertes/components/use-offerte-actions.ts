@@ -62,10 +62,11 @@ export function useOfferteActions() {
       });
 
       showDeleteToast(
-        "Offerte verwijderd",
+        "Offerte gearchiveerd",
         async () => {
           await restoreOfferte({ id });
-        }
+        },
+        "Te herstellen via het archief (binnen 30 dagen)"
       );
     } catch {
       setOptimisticDeletedIds((prev) => {
@@ -73,7 +74,7 @@ export function useOfferteActions() {
         newSet.delete(id);
         return newSet;
       });
-      toast.error("Fout bij verwijderen offerte");
+      toast.error("Fout bij archiveren offerte");
     }
   }, [deleteOfferte, restoreOfferte]);
 
@@ -226,10 +227,11 @@ export function useOfferteActions() {
       });
 
       showDeleteToast(
-        `${count} offerte(s) verwijderd`,
+        `${count} offerte(s) gearchiveerd`,
         async () => {
           await bulkRestore({ ids });
-        }
+        },
+        "Te herstellen via het archief (binnen 30 dagen)"
       );
     } catch {
       setOptimisticDeletedIds((prev) => {
@@ -237,7 +239,7 @@ export function useOfferteActions() {
         ids.forEach((id) => newSet.delete(id));
         return newSet;
       });
-      toast.error("Fout bij verwijderen offertes");
+      toast.error("Fout bij archiveren offertes");
     }
   }, [selectedIds, bulkRemove, bulkRestore, clearSelection]);
 

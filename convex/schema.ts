@@ -94,10 +94,14 @@ export default defineSchema({
     lastLoginAt: v.optional(v.number()),
     invitationToken: v.optional(v.string()),
     invitationExpiresAt: v.optional(v.number()),
+    // Archivering (§5.2): archiveren i.p.v. hard delete; hard delete alleen via GDPR-flow
+    isArchived: v.optional(v.boolean()),
+    archivedAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_user_archived", ["userId", "isArchived"])
     .index("by_pipeline_status", ["userId", "pipelineStatus"])
     .index("by_klant_type", ["userId", "klantType"])
     .index("by_clerk_user_id", ["clerkUserId"])
@@ -2137,6 +2141,9 @@ export default defineSchema({
     gekoppeldKlantId: v.optional(v.id("klanten")),
     geschatteWaarde: v.optional(v.number()),
     omschrijving: v.optional(v.string()),
+    // Archivering (§5.2): archiveren i.p.v. hard delete; hard delete alleen via GDPR-flow
+    isArchived: v.optional(v.boolean()),
+    archivedAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })

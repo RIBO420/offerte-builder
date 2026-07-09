@@ -16,10 +16,12 @@ export const list = query({
   args: {},
   handler: async (ctx) => {
     await requireAuthUserId(ctx);
-    return await ctx.db
+    const aanvragen = await ctx.db
       .query("configuratorAanvragen")
       .order("desc")
       .collect();
+    // Gearchiveerde leads niet tonen (§5.2)
+    return aanvragen.filter((a) => !a.isArchived);
   },
 });
 
@@ -38,11 +40,13 @@ export const listByStatus = query({
   },
   handler: async (ctx, args) => {
     await requireAuthUserId(ctx);
-    return await ctx.db
+    const aanvragen = await ctx.db
       .query("configuratorAanvragen")
       .withIndex("by_status", (q) => q.eq("status", args.status))
       .order("desc")
       .collect();
+    // Gearchiveerde leads niet tonen (§5.2)
+    return aanvragen.filter((a) => !a.isArchived);
   },
 });
 
@@ -86,6 +90,7 @@ export const countByStatus = query({
       .collect();
     // Count records where the effective status (pipelineStatus ?? status) is "nieuw"
     return nieuwByStatus.filter((a) => {
+      if (a.isArchived) return false;
       const effectiveStatus = a.pipelineStatus ?? a.status;
       return effectiveStatus === "nieuw";
     }).length;
@@ -107,6 +112,7 @@ export const listForOfferteSelector = query({
 
     return allLeads
       .filter((lead) => {
+        if (lead.isArchived) return false;
         const pipelineStatus = lead.pipelineStatus ?? lead.status;
         return pipelineStatus === "nieuw" || pipelineStatus === "contact_gehad";
       })
@@ -179,6 +185,8 @@ export const listByPipeline = query({
     };
 
     for (const lead of allLeads) {
+      // Gearchiveerde leads niet tonen op het bord (§5.2)
+      if (lead.isArchived) continue;
       const pipelineStatus = lead.pipelineStatus ?? mapOldStatus(lead.status);
       grouped[pipelineStatus].push(lead);
     }
@@ -194,9 +202,11 @@ export const pipelineStats = query({
   args: {},
   handler: async (ctx) => {
     await requireAuth(ctx);
-    const allLeads = await ctx.db
+    const alleRecords = await ctx.db
       .query("configuratorAanvragen")
       .collect();
+    // Gearchiveerde leads tellen niet mee in de statistieken (§5.2)
+    const allLeads = alleRecords.filter((a) => !a.isArchived);
 
     const totaalLeads = allLeads.length;
     let pipelineWaarde = 0;
@@ -689,7 +699,87 @@ export const markGewonnen = mutation({
 });
 
 /**
+ * §5.2: Archiveer een lead (i.p.v. hard delete). Foto's en activiteiten blijven bewaard.
+ * Hard delete blijft alleen bereikbaar via de GDPR-flow (verwijder).
+ */
+export const archiveer = mutation({
+  args: {
+    id: v.id("configuratorAanvragen"),
+  },
+  handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
+
+    const lead = await ctx.db.get(args.id);
+    if (!lead) {
+      throw new ConvexError("Lead niet gevonden");
+    }
+
+    await ctx.db.patch(args.id, {
+      isArchived: true,
+      archivedAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    return args.id;
+  },
+});
+
+/**
+ * §5.2: Herstel een gearchiveerde lead.
+ */
+export const herstelGearchiveerd = mutation({
+  args: {
+    id: v.id("configuratorAanvragen"),
+  },
+  handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
+
+    const lead = await ctx.db.get(args.id);
+    if (!lead) {
+      throw new ConvexError("Lead niet gevonden");
+    }
+    if (!lead.isArchived) {
+      throw new ConvexError("Deze lead is niet gearchiveerd");
+    }
+
+    await ctx.db.patch(args.id, {
+      isArchived: undefined,
+      archivedAt: undefined,
+      updatedAt: Date.now(),
+    });
+
+    return args.id;
+  },
+});
+
+/**
+ * §5.2: Lijst van gearchiveerde leads (voor Archief-pagina).
+ */
+export const listArchived = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAuthUserId(ctx);
+    const aanvragen = await ctx.db
+      .query("configuratorAanvragen")
+      .order("desc")
+      .collect();
+
+    return aanvragen
+      .filter((a) => a.isArchived)
+      .map((a) => ({
+        _id: a._id,
+        klantNaam: a.klantNaam,
+        referentie: a.referentie,
+        type: a.type,
+        archivedAt: a.archivedAt,
+      }))
+      .sort((a, b) => (b.archivedAt ?? 0) - (a.archivedAt ?? 0));
+  },
+});
+
+/**
  * Verwijder een lead en bijbehorende activiteiten en foto's (authenticated, admin).
+ * LET OP (§5.2): alleen gebruiken vanuit de GDPR-flow; de lijst-UI archiveert.
  */
 export const verwijder = mutation({
   args: {

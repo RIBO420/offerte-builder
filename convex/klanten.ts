@@ -2,7 +2,7 @@ import { v, ConvexError } from "convex/values";
 import { mutation, query, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { requireAuth, requireAuthUserId, getOwnedKlant, generateSecureToken } from "./auth";
-import { requireNotViewer, requireAdmin } from "./roles";
+import { requireNotViewer, requireAdmin, assertKanNaarKlantVersturen } from "./roles";
 import {
   sanitizeEmail,
   sanitizePhone,
@@ -17,11 +17,13 @@ export const list = query({
   args: {},
   handler: async (ctx) => {
     const userId = await requireAuthUserId(ctx);
-    return await ctx.db
+    const klanten = await ctx.db
       .query("klanten")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .order("desc")
       .collect();
+    // Gearchiveerde klanten niet tonen in de lijst (§5.2)
+    return klanten.filter((k) => !k.isArchived);
   },
 });
 
@@ -30,11 +32,12 @@ export const getRecent = query({
   args: {},
   handler: async (ctx) => {
     const userId = await requireAuthUserId(ctx);
-    return await ctx.db
+    const klanten = await ctx.db
       .query("klanten")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .order("desc")
-      .take(5);
+      .take(20);
+    return klanten.filter((k) => !k.isArchived).slice(0, 5);
   },
 });
 
@@ -91,20 +94,22 @@ export const search = query({
 
     if (!args.searchTerm.trim()) {
       // Return recent klanten if no search term
-      return await ctx.db
+      const recent = await ctx.db
         .query("klanten")
         .withIndex("by_user", (q) => q.eq("userId", userId))
         .order("desc")
-        .take(10);
+        .take(30);
+      return recent.filter((k) => !k.isArchived).slice(0, 10);
     }
 
     // Use search index
-    return await ctx.db
+    const results = await ctx.db
       .query("klanten")
       .withSearchIndex("search_klanten", (q) =>
         q.search("naam", args.searchTerm).eq("userId", userId)
       )
-      .take(10);
+      .take(30);
+    return results.filter((k) => !k.isArchived).slice(0, 10);
   },
 });
 
@@ -275,16 +280,84 @@ export const remove = mutation({
   },
 });
 
-// Combined query for klanten list with recent - reduces 2 round-trips to 1
-export const listWithRecent = query({
+// §5.2: Archiveer een klant (i.p.v. hard delete).
+// Hard delete blijft alleen bereikbaar via de GDPR-flow (gdprAnonymize/remove).
+export const archive = mutation({
+  args: { id: v.id("klanten") },
+  handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
+    // Verify ownership
+    await getOwnedKlant(ctx, args.id);
+    const now = Date.now();
+
+    await ctx.db.patch(args.id, {
+      isArchived: true,
+      archivedAt: now,
+      updatedAt: now,
+    });
+
+    return args.id;
+  },
+});
+
+// §5.2: Herstel een gearchiveerde klant
+export const restoreArchived = mutation({
+  args: { id: v.id("klanten") },
+  handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
+    const klant = await getOwnedKlant(ctx, args.id);
+
+    if (!klant.isArchived) {
+      throw new ConvexError("Deze klant is niet gearchiveerd");
+    }
+
+    await ctx.db.patch(args.id, {
+      isArchived: undefined,
+      archivedAt: undefined,
+      updatedAt: Date.now(),
+    });
+
+    return args.id;
+  },
+});
+
+// §5.2: Lijst van gearchiveerde klanten (voor Archief-pagina)
+export const listArchived = query({
   args: {},
   handler: async (ctx) => {
     const userId = await requireAuthUserId(ctx);
     const klanten = await ctx.db
       .query("klanten")
+      .withIndex("by_user_archived", (q) =>
+        q.eq("userId", userId).eq("isArchived", true)
+      )
+      .collect();
+
+    return klanten
+      .map((k) => ({
+        _id: k._id,
+        naam: k.naam,
+        plaats: k.plaats,
+        email: k.email,
+        archivedAt: k.archivedAt,
+      }))
+      .sort((a, b) => (b.archivedAt ?? 0) - (a.archivedAt ?? 0));
+  },
+});
+
+// Combined query for klanten list with recent - reduces 2 round-trips to 1
+export const listWithRecent = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireAuthUserId(ctx);
+    const alleKlanten = await ctx.db
+      .query("klanten")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .order("desc")
       .collect();
+
+    // Gearchiveerde klanten niet tonen in de lijst (§5.2)
+    const klanten = alleKlanten.filter((k) => !k.isArchived);
 
     return {
       klanten,
@@ -998,8 +1071,8 @@ export const activatePortal = mutation({
 export const sendPortalInvitation = mutation({
   args: { id: v.id("klanten") },
   handler: async (ctx, args) => {
-    await requireNotViewer(ctx);
-    const user = await requireAuth(ctx);
+    // Capability "versturen naar klant" (PRD §1.2): alleen kantoor
+    const user = await assertKanNaarKlantVersturen(ctx);
 
     const klant = await ctx.db.get(args.id);
     if (!klant) {

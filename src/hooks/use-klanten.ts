@@ -33,6 +33,7 @@ export function useKlanten() {
   const createMutation = useMutation(api.klanten.create);
   const updateMutation = useMutation(api.klanten.update);
   const removeMutation = useMutation(api.klanten.remove);
+  const archiveMutation = useMutation(api.klanten.archive);
   const createFromOfferteMutation = useMutation(api.klanten.createFromOfferte);
 
   const isLoading = !!user && data === undefined;
@@ -87,6 +88,14 @@ export function useKlanten() {
     [removeMutation]
   );
 
+  // §5.2: Archiveer klant (i.p.v. hard delete)
+  const archive = useCallback(
+    async (id: Id<"klanten">) => {
+      return await archiveMutation({ id });
+    },
+    [archiveMutation]
+  );
+
   const createFromOfferte = useCallback(
     async (klantData: {
       naam: string;
@@ -109,6 +118,7 @@ export function useKlanten() {
     create,
     update,
     remove,
+    archive,
     createFromOfferte,
   };
 }

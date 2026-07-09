@@ -23,19 +23,16 @@ export function DeleteDialog({ open, onOpenChange, offerteNummer, onConfirm }: D
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Offerte verwijderen?</AlertDialogTitle>
+          <AlertDialogTitle>Offerte archiveren?</AlertDialogTitle>
           <AlertDialogDescription>
-            Weet je zeker dat je offerte {offerteNummer} wilt
-            verwijderen? Dit kan niet ongedaan worden gemaakt.
+            Weet je zeker dat je offerte {offerteNummer} wilt archiveren?
+            Je kunt de offerte via het archief herstellen.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Annuleren</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={onConfirm}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-          >
-            Verwijderen
+          <AlertDialogAction onClick={onConfirm}>
+            Archiveren
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

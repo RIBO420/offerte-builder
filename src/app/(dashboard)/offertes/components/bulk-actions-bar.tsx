@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { X, Download, Trash2 } from "lucide-react";
+import { X, Download, Archive } from "lucide-react";
 
 interface BulkActionsBarProps {
   selectedCount: number;
@@ -84,8 +84,8 @@ export function BulkActionsBar({
             onClick={onShowDeleteDialog}
             className="flex-1 sm:flex-none min-h-[44px] sm:min-h-0 sm:h-8"
           >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Verwijderen
+            <Archive className="mr-2 h-4 w-4" />
+            Archiveren
           </Button>
         </div>
       </div>

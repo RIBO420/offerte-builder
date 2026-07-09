@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback } from "react";
+import { memo, useCallback, useState } from "react";
 import Link from "next/link";
 import { m } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ import {
   Trees,
   MoreHorizontal,
   Copy,
-  Trash2,
+  Archive,
   Eye,
   ExternalLink,
   FolderKanban,
@@ -28,6 +28,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { Id } from "../../../convex/_generated/dataModel";
 
@@ -130,7 +140,14 @@ export const OfferteCard = memo(function OfferteCard({
     onDuplicate(offerte._id);
   }, [offerte._id, onDuplicate]);
 
-  const handleDelete = useCallback(() => {
+  const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
+
+  const handleArchiveClick = useCallback(() => {
+    setShowArchiveConfirm(true);
+  }, []);
+
+  const handleConfirmArchive = useCallback(() => {
+    setShowArchiveConfirm(false);
     onDelete(offerte._id);
   }, [offerte._id, onDelete]);
 
@@ -235,12 +252,32 @@ export const OfferteCard = memo(function OfferteCard({
                 Dupliceren
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleDelete} className="text-destructive">
-                <Trash2 className="mr-2 h-4 w-4" />
-                Verwijderen
+              <DropdownMenuItem onClick={handleArchiveClick} className="text-destructive">
+                <Archive className="mr-2 h-4 w-4" />
+                Archiveren
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* Archive confirmation dialog (§5.2) */}
+          <AlertDialog open={showArchiveConfirm} onOpenChange={setShowArchiveConfirm}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Offerte archiveren?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Offerte {offerte.offerteNummer} wordt gearchiveerd en verdwijnt
+                  uit de lijst. Je kunt de offerte via het archief herstellen.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Annuleren</AlertDialogCancel>
+                <AlertDialogAction onClick={handleConfirmArchive}>
+                  <Archive className="mr-2 h-4 w-4" />
+                  Archiveren
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
 
         {/* Middle: Klant naam + Plaats */}

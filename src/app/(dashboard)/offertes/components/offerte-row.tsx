@@ -15,7 +15,7 @@ import {
   Trees,
   MoreHorizontal,
   Copy,
-  Trash2,
+  Archive,
   Eye,
   ExternalLink,
   FolderKanban,
@@ -65,6 +65,7 @@ export const OfferteRow = memo(function OfferteRow({
 }: OfferteRowProps) {
   const hasProject = projectInfo !== null;
   const [confirmTarget, setConfirmTarget] = useState<OfferteStatus | null>(null);
+  const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
 
   const nextStatuses = NEXT_STATUSES[offerte.status] ?? [];
   const isFinalStatus = nextStatuses.length === 0;
@@ -89,7 +90,12 @@ export const OfferteRow = memo(function OfferteRow({
     onDuplicate(offerte._id);
   }, [offerte._id, onDuplicate]);
 
-  const handleDelete = useCallback(() => {
+  const handleArchiveClick = useCallback(() => {
+    setShowArchiveConfirm(true);
+  }, []);
+
+  const handleConfirmArchive = useCallback(() => {
+    setShowArchiveConfirm(false);
     onDelete(offerte._id);
   }, [offerte._id, onDelete]);
 
@@ -277,16 +283,36 @@ export const OfferteRow = memo(function OfferteRow({
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                onClick={handleDelete}
+                onClick={handleArchiveClick}
                 className="text-destructive"
               >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Verwijderen
+                <Archive className="mr-2 h-4 w-4" />
+                Archiveren
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </TableCell>
       </m.tr>
+
+      {/* Archive confirmation dialog (§5.2) */}
+      <AlertDialog open={showArchiveConfirm} onOpenChange={setShowArchiveConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Offerte archiveren?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Offerte {offerte.offerteNummer} wordt gearchiveerd en verdwijnt uit
+              de lijst. Je kunt de offerte via het archief herstellen.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuleren</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmArchive}>
+              <Archive className="mr-2 h-4 w-4" />
+              Archiveren
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Status change confirmation dialog */}
       <AlertDialog

@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { nl } from "@/lib/date-locale";
-import { MapPin, Trash2 } from "lucide-react";
+import { MapPin, Archive } from "lucide-react";
 import type { Doc } from "../../../convex/_generated/dataModel";
 
 // ============================================
@@ -143,8 +143,8 @@ export function LeadCard({ lead, onClick, onDelete }: LeadCardProps) {
       {onDelete && (
         <button
           type="button"
-          aria-label={`Lead ${lead.klantNaam} verwijderen`}
-          title="Lead verwijderen"
+          aria-label={`Lead ${lead.klantNaam} archiveren`}
+          title="Lead archiveren"
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();
@@ -152,7 +152,7 @@ export function LeadCard({ lead, onClick, onDelete }: LeadCardProps) {
           }}
           className="absolute -right-2 -top-2 z-10 hidden size-6 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm transition-colors hover:border-destructive/50 hover:text-destructive group-hover:flex focus-visible:flex"
         >
-          <Trash2 className="size-3.5" />
+          <Archive className="size-3.5" />
         </button>
       )}
       <div className="flex items-start justify-between gap-2 mb-1.5">

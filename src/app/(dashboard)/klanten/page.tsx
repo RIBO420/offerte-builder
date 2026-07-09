@@ -54,7 +54,7 @@ import {
   Phone,
   MapPin,
   Pencil,
-  Trash2,
+  Archive,
   FileText,
   AlertTriangle,
   Bell,
@@ -174,7 +174,7 @@ function KlantenPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useCurrentUser();
-  const { klanten, isLoading, create, update, remove } = useKlanten();
+  const { klanten, isLoading, create, update, archive } = useKlanten();
 
   // Initialize filter state from URL search params
   const [searchTerm, setSearchTerm] = useState(searchParams.get("q") || "");
@@ -482,43 +482,40 @@ function KlantenPageContent() {
     }
   }, [selectedKlant, formData, update, resetForm]);
 
+  // §5.2: Archiveren i.p.v. hard delete; hard delete alleen via de GDPR-flow
   const handleDelete = useCallback(async () => {
     if (!selectedKlant) return;
 
     const klantId = selectedKlant._id;
 
-    // 1. Apply optimistic delete immediately
+    // 1. Apply optimistic archive immediately
     setOptimisticDeletedIds((prev) => new Set(prev).add(klantId));
 
     // Close dialog and show feedback immediately
     setShowDeleteDialog(false);
-    toast.success("Klant verwijderd");
+    toast.success("Klant gearchiveerd");
     setSelectedKlant(null);
 
     try {
       // 2. Make actual server call
-      await remove(klantId);
+      await archive(klantId);
 
-      // 3. Clear optimistic delete (server data will take over)
+      // 3. Clear optimistic archive (server data will take over)
       setOptimisticDeletedIds((prev) => {
         const newSet = new Set(prev);
         newSet.delete(klantId);
         return newSet;
       });
-    } catch (error) {
+    } catch {
       // 4. Rollback on error
       setOptimisticDeletedIds((prev) => {
         const newSet = new Set(prev);
         newSet.delete(klantId);
         return newSet;
       });
-      if (error instanceof Error && error.message.includes("gekoppelde offertes")) {
-        toast.error(error.message);
-      } else {
-        toast.error("Fout bij verwijderen klant");
-      }
+      toast.error("Fout bij archiveren klant");
     }
-  }, [selectedKlant, remove]);
+  }, [selectedKlant, archive]);
 
   const handleDeleteClick = useCallback((klant: Klant) => {
     setSelectedKlant(klant);
@@ -809,13 +806,13 @@ function KlantenPageContent() {
                 variant="ghost"
                 size="icon"
                 className="h-9 w-9 sm:h-8 sm:w-8"
-                aria-label="Verwijderen"
+                aria-label="Archiveren"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleDeleteClick(klant);
                 }}
               >
-                <Trash2 className="h-4 w-4 text-destructive" />
+                <Archive className="h-4 w-4 text-destructive" />
               </Button>
             </div>
           </TooltipProvider>
@@ -1191,28 +1188,26 @@ function KlantenPageContent() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */}
+      {/* Archive Confirmation (§5.2) */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Klant Verwijderen</AlertDialogTitle>
+            <AlertDialogTitle>Klant archiveren</AlertDialogTitle>
             <AlertDialogDescription>
-              Weet je zeker dat je {selectedKlant?.naam} wilt verwijderen? Deze
-              actie kan niet ongedaan worden gemaakt.
+              Weet je zeker dat je {selectedKlant?.naam} wilt archiveren? De
+              klant verdwijnt uit de lijst en kan via het archief worden
+              hersteld. Definitief verwijderen kan alleen via de GDPR-flow.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annuleren</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleDelete}>
               {isSubmitting ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
-                <Trash2 className="mr-2 h-4 w-4" />
+                <Archive className="mr-2 h-4 w-4" />
               )}
-              Verwijderen
+              Archiveren
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -157,14 +157,15 @@ export default function OfferteDetailPage({
       router.push("/offertes");
       // Show undo toast with 30-second window
       showDeleteToast(
-        "Offerte verwijderd",
+        "Offerte gearchiveerd",
         async () => {
           await restoreOfferte({ id: offerteId });
           router.push(`/offertes/${offerteId}`);
-        }
+        },
+        "Te herstellen via het archief (binnen 30 dagen)"
       );
     } catch {
-      toast.error("Fout bij verwijderen offerte");
+      toast.error("Fout bij archiveren offerte");
     }
   };
 
