@@ -258,6 +258,116 @@ const PERMISSIONS: Record<UserRole, Partial<Record<Resource, Action[]>>> = {
 };
 
 // ============================================
+// CANONIEK ROLLENMODEL (PRD §1.2, fase 0)
+// ============================================
+//
+// De PRD definieert vier canonieke rollen. Het bestaande 7-rollenmodel
+// blijft het opslagformaat (bestaand schema wint); dit is de bindende mapping:
+//
+//   kantoor    = directie, projectleider     (Yannick, Mickey, Romeo, Elke)
+//   voorman    = voorman
+//   medewerker = medewerker, onderaannemer_zzp, materiaalman
+//   klant      = klant
+//
+// Legacy: "admin" → directie → kantoor; "viewer" → klant.
+//
+// Bindende regels (PRD §1.2):
+// - Alleen `kantoor` heeft de capability *versturen naar klant*
+//   (mail, portaalbericht, offerte-/factuurverzending, portaaluitnodiging).
+//   Voor andere rollen bestaat de verstuurknop niet in de UI en weigert de API.
+// - `klant` ziet uitsluitend het eigen dossier (scoping op linkedKlantId).
+
+/** De vier canonieke rollen uit PRD §1.2. */
+export type CanonicaleRol = "kantoor" | "voorman" | "medewerker" | "klant";
+
+/** Bindende mapping van het 7-rollenmodel naar het canonieke 4-rollenmodel. */
+export const CANONIEKE_ROL_MAPPING: Record<UserRole, CanonicaleRol> = {
+  directie: "kantoor",
+  projectleider: "kantoor",
+  voorman: "voorman",
+  medewerker: "medewerker",
+  onderaannemer_zzp: "medewerker",
+  materiaalman: "medewerker",
+  klant: "klant",
+};
+
+/** Map een (legacy) database-rol naar de canonieke PRD-rol. */
+export function toCanonicaleRol(
+  role: string | undefined | null
+): CanonicaleRol {
+  return CANONIEKE_ROL_MAPPING[normalizeRole(role)];
+}
+
+/** True als de rol tot `kantoor` behoort (directie of projectleider). */
+export function isKantoorRol(role: string | undefined | null): boolean {
+  return toCanonicaleRol(role) === "kantoor";
+}
+
+/**
+ * Capability-check (PRD §1.2): alleen `kantoor` mag naar de klant versturen.
+ * Pure functie — testbaar zonder ctx.
+ */
+export function kanNaarKlantVersturen(
+  role: string | undefined | null
+): boolean {
+  return isKantoorRol(role);
+}
+
+/**
+ * Vereis dat de ingelogde gebruiker een kantoor-rol heeft
+ * (directie of projectleider). Gooit AuthError voor alle andere rollen.
+ */
+export async function requireKantoor(
+  ctx: QueryCtx | MutationCtx
+): Promise<Doc<"users">> {
+  const user = await requireAuth(ctx);
+  if (!isKantoorRol(user.role)) {
+    throw new AuthError(
+      "Alleen kantoor (directie of projectleider) mag deze actie uitvoeren"
+    );
+  }
+  return user;
+}
+
+/**
+ * Capability: *versturen naar klant* (PRD §1.2).
+ * Server-side afdwinging op ELK verstuurpad richting klant: e-mail,
+ * portaalbericht, offerte-/factuurverzending en portaaluitnodiging.
+ * Gooit AuthError voor voorman/medewerker/klant.
+ */
+export async function assertKanNaarKlantVersturen(
+  ctx: QueryCtx | MutationCtx
+): Promise<Doc<"users">> {
+  const user = await requireAuth(ctx);
+  if (!kanNaarKlantVersturen(user.role)) {
+    throw new AuthError(
+      "Alleen kantoor mag berichten of documenten naar de klant versturen"
+    );
+  }
+  return user;
+}
+
+/**
+ * Klant-toegang tot een chat-thread (RLS-equivalent, PRD §1.2):
+ * uitsluitend threads van het type "klant" die aan de eigen klant-id hangen.
+ * Interne threads (team/project/dm) zijn voor de klant-rol per definitie
+ * onzichtbaar — ook als er per ongeluk een klantId op staat.
+ * Pure functie — testbaar zonder ctx.
+ */
+export function klantHeeftToegangTotThread(
+  linkedKlantId: string | { toString(): string } | undefined | null,
+  thread:
+    | { type: string; klantId?: { toString(): string } | string | null }
+    | null
+    | undefined
+): boolean {
+  if (!thread || !linkedKlantId) return false;
+  if (thread.type !== "klant") return false;
+  if (!thread.klantId) return false;
+  return thread.klantId.toString() === linkedKlantId.toString();
+}
+
+// ============================================
 // PERMISSION HELPERS
 // ============================================
 
