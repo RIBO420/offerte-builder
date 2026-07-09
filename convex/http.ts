@@ -218,6 +218,7 @@ http.route({
           fotoIds: Array.isArray(body.fotoIds) ? body.fotoIds : undefined,
           postcode,
           huisnummer: body.huisnummer ? String(body.huisnummer).trim() : undefined,
+          straat: body.straat ? String(body.straat).trim() : undefined,
           plaats: body.plaats ? String(body.plaats).trim() : undefined,
           tuinoppervlak,
           heeftOntwerp,

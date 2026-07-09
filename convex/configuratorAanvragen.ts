@@ -812,6 +812,7 @@ export const createFromWebsite = internalMutation({
     // Nieuwe contactformulier velden
     postcode: v.optional(v.string()),
     huisnummer: v.optional(v.string()),
+    straat: v.optional(v.string()),
     plaats: v.optional(v.string()),
     tuinoppervlak: v.optional(v.string()),
     heeftOntwerp: v.optional(v.string()),
@@ -858,7 +859,9 @@ export const createFromWebsite = internalMutation({
       klantNaam: args.klantNaam.trim(),
       klantEmail: args.klantEmail.trim().toLowerCase(),
       klantTelefoon: args.klantTelefoon?.trim() ?? "",
-      klantAdres: "",
+      klantAdres: args.straat
+        ? `${args.straat.trim()} ${args.huisnummer?.trim() ?? ""}`.trim()
+        : "",
       klantPostcode: args.postcode?.trim() ?? "",
       klantHuisnummer: args.huisnummer?.trim(),
       klantPlaats: args.plaats?.trim() ?? "",

@@ -518,9 +518,10 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
     }
   }
 
-  // Build Google Maps link
+  // Build Google Maps link — klantAdres (straat + huisnummer) heeft de
+  // voorkeur; anders alleen huisnummer als losse fallback.
   const adresParts = [
-    lead.klantHuisnummer,
+    lead.klantAdres || lead.klantHuisnummer,
     lead.klantPostcode,
     lead.klantPlaats,
   ].filter(Boolean);
@@ -664,11 +665,20 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
               <section>
                 <h3 className="text-sm font-semibold mb-3">Locatie</h3>
                 <div className="space-y-2">
-                  {lead.klantHuisnummer && (
+                  {/* klantAdres bevat straat + huisnummer; toon losse
+                      huisnummer-regel alleen als er geen adres is */}
+                  {lead.klantAdres ? (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Home className="size-4 shrink-0" />
-                      <span>Huisnummer {lead.klantHuisnummer}</span>
+                      <span>{lead.klantAdres}</span>
                     </div>
+                  ) : (
+                    lead.klantHuisnummer && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Home className="size-4 shrink-0" />
+                        <span>Huisnummer {lead.klantHuisnummer}</span>
+                      </div>
+                    )
                   )}
                   {(lead.klantPostcode || lead.klantPlaats) && (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -676,12 +686,6 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
                       <span>
                         {[lead.klantPostcode, lead.klantPlaats].filter(Boolean).join(", ")}
                       </span>
-                    </div>
-                  )}
-                  {lead.klantAdres && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <MapPin className="size-4 shrink-0" />
-                      <span>{lead.klantAdres}</span>
                     </div>
                   )}
                   {mapsUrl && (
