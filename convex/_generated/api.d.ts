@@ -47,6 +47,7 @@ import type * as machines from "../machines.js";
 import type * as materiaalmanDashboard from "../materiaalmanDashboard.js";
 import type * as medewerkers from "../medewerkers.js";
 import type * as migrations from "../migrations.js";
+import type * as migrations_backfillWerkitemType from "../migrations/backfillWerkitemType.js";
 import type * as migrations_consolidateNotificationLogs from "../migrations/consolidateNotificationLogs.js";
 import type * as mobile from "../mobile.js";
 import type * as nacalculaties from "../nacalculaties.js";
@@ -91,6 +92,7 @@ import type * as voorcalculaties from "../voorcalculaties.js";
 import type * as voormanDashboard from "../voormanDashboard.js";
 import type * as voorraad from "../voorraad.js";
 import type * as weekPlanning from "../weekPlanning.js";
+import type * as werkitems from "../werkitems.js";
 import type * as werklocaties from "../werklocaties.js";
 
 import type {
@@ -139,6 +141,7 @@ declare const fullApi: ApiFromModules<{
   materiaalmanDashboard: typeof materiaalmanDashboard;
   medewerkers: typeof medewerkers;
   migrations: typeof migrations;
+  "migrations/backfillWerkitemType": typeof migrations_backfillWerkitemType;
   "migrations/consolidateNotificationLogs": typeof migrations_consolidateNotificationLogs;
   mobile: typeof mobile;
   nacalculaties: typeof nacalculaties;
@@ -183,6 +186,7 @@ declare const fullApi: ApiFromModules<{
   voormanDashboard: typeof voormanDashboard;
   voorraad: typeof voorraad;
   weekPlanning: typeof weekPlanning;
+  werkitems: typeof werkitems;
   werklocaties: typeof werklocaties;
 }>;
 

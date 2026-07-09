@@ -141,7 +141,10 @@ export const calculate = query({
     }
 
     // Get offerte for geplande machine kosten (from regels of type "machine")
-    const offerte = await ctx.db.get(project.offerteId);
+    // offerteId is optioneel; zonder offerte valt dit terug op 0
+    const offerte = project.offerteId
+      ? await ctx.db.get(project.offerteId)
+      : null;
     const geplandeMachineKosten = offerte?.regels
       ?.filter((r) => r.type === "machine")
       .reduce((sum, r) => sum + r.totaal, 0) || 0;
@@ -363,8 +366,10 @@ export const getWithDetails = query({
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .unique();
 
-    // Get offerte
-    const offerte = await ctx.db.get(project.offerteId);
+    // Get offerte (offerteId is optioneel geworden)
+    const offerte = project.offerteId
+      ? await ctx.db.get(project.offerteId)
+      : null;
 
     // Get voorcalculatie - first try by offerte (new workflow), then by project (legacy)
     let voorcalculatie = await ctx.db

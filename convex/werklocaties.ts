@@ -311,7 +311,10 @@ export const createFromOfferte = mutation({
     }
 
     // Get the offerte to access klant data
-    const offerte = await ctx.db.get(project.offerteId);
+    // offerteId is optioneel geworden; bestaande throw blijft gelden
+    const offerte = project.offerteId
+      ? await ctx.db.get(project.offerteId)
+      : null;
     if (!offerte) {
       throw new ConvexError("Offerte niet gevonden voor dit project");
     }
@@ -377,8 +380,10 @@ export const getWithProject = query({
     const project = await ctx.db.get(werklocatie.projectId);
     if (!project) return null;
 
-    // Get offerte for klant info
-    const offerte = await ctx.db.get(project.offerteId);
+    // Get offerte for klant info (offerteId kan ontbreken; fallback hieronder)
+    const offerte = project.offerteId
+      ? await ctx.db.get(project.offerteId)
+      : null;
 
     return {
       werklocatie,

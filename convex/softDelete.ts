@@ -349,7 +349,8 @@ export const getDeletedItems = query({
         .filter((p) => p.deletedAt)
         .map(async (p) => {
           // Get offerte for klant naam
-          const offerte = await ctx.db.get(p.offerteId);
+          // offerteId is optioneel sinds werkitem-generalisatie
+          const offerte = p.offerteId ? await ctx.db.get(p.offerteId) : null;
           return {
             _id: p._id,
             naam: p.naam,

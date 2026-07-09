@@ -96,7 +96,8 @@ export const getProjectPrestaties = query({
             .unique()
         )
       ),
-      Promise.all(offerteIds.map((id) => ctx.db.get(id))),
+      // offerteId kan ontbreken bij losse werkitems; positie behouden met null
+      Promise.all(offerteIds.map((id) => (id ? ctx.db.get(id) : null))),
       Promise.all(
         projectIds.map((id) =>
           ctx.db
@@ -205,11 +206,16 @@ export const getProjectPrestaties = query({
     const uurtarief = instellingen?.uurtarief || 45;
 
     for (const project of projecten) {
-      const offerte = offerteById.get(project.offerteId.toString());
+      // offerteId kan ontbreken bij losse werkitems
+      const offerte = project.offerteId
+        ? offerteById.get(project.offerteId.toString())
+        : undefined;
       if (!offerte) continue;
 
       const voorcalculatie =
-        voorcalculatieByOfferte.get(project.offerteId.toString()) ||
+        (project.offerteId
+          ? voorcalculatieByOfferte.get(project.offerteId.toString())
+          : undefined) ||
         voorcalculatieByProject.get(project._id.toString());
 
       const nacalculatie = nacalculatieByProject.get(project._id.toString());
@@ -477,7 +483,8 @@ export const getProjectVoortgang = query({
             .collect()
         )
       ),
-      Promise.all(offerteIds.map((id) => ctx.db.get(id))),
+      // offerteId kan ontbreken bij losse werkitems; positie behouden met null
+      Promise.all(offerteIds.map((id) => (id ? ctx.db.get(id) : null))),
       Promise.all(
         projectIds.map((id) =>
           ctx.db
@@ -554,11 +561,16 @@ export const getProjectVoortgang = query({
     };
 
     for (const project of projecten) {
-      const offerte = offerteById.get(project.offerteId.toString());
+      // offerteId kan ontbreken bij losse werkitems
+      const offerte = project.offerteId
+        ? offerteById.get(project.offerteId.toString())
+        : undefined;
       if (!offerte) continue;
 
       const voorcalculatie =
-        voorcalculatieByOfferte.get(project.offerteId.toString()) ||
+        (project.offerteId
+          ? voorcalculatieByOfferte.get(project.offerteId.toString())
+          : undefined) ||
         voorcalculatieByProject.get(project._id.toString());
 
       const urenRegistraties = urenByProject.get(project._id.toString()) || [];
@@ -733,7 +745,10 @@ export const getProjectTimeline = query({
 
     // Get offertes for project names
     const offerteIds = projecten.map((p) => p.offerteId);
-    const offertesResults = await Promise.all(offerteIds.map((id) => ctx.db.get(id)));
+    // offerteId kan ontbreken bij losse werkitems
+    const offertesResults = await Promise.all(
+      offerteIds.map((id) => (id ? ctx.db.get(id) : null))
+    );
     const offerteById = new Map(offertesResults.filter(Boolean).map((o) => [o!._id.toString(), o!]));
 
     // Aggregate by date
@@ -759,7 +774,9 @@ export const getProjectTimeline = query({
       dailyData[datum].uren += uren.uren;
 
       const project = projecten.find((p) => p._id.toString() === uren.projectId.toString());
-      const offerte = project ? offerteById.get(project.offerteId.toString()) : null;
+      const offerte = project?.offerteId
+        ? offerteById.get(project.offerteId.toString())
+        : null;
       const projectNaam = project?.naam || "Onbekend";
 
       dailyData[datum].projecten[projectNaam] = (dailyData[datum].projecten[projectNaam] || 0) + uren.uren;

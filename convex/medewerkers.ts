@@ -883,8 +883,11 @@ export const getMedewerkersMetPrestaties = query({
         const project = afgerondProjectMap.get(projectIdStr);
         if (project) {
           // O(1) lookup via Maps i.p.v. O(n) .find()
+          // offerteId is optioneel sinds werkitem-generalisatie
           const voorcalc = voorcalcByProjectId.get(projectIdStr)
-            || voorcalcByOfferteId.get(project.offerteId.toString());
+            || (project.offerteId
+              ? voorcalcByOfferteId.get(project.offerteId.toString())
+              : undefined);
           if (voorcalc) {
             // Proportioneel deel van norm uren (gebaseerd op bijdrage aan project)
             const projectUren = medewerkerUren

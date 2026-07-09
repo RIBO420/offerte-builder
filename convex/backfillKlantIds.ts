@@ -27,7 +27,10 @@ export const backfillProjectenKlantId = internalMutation({
     for (const project of projecten) {
       if (project.klantId) continue;
 
-      const offerte = await ctx.db.get(project.offerteId);
+      // offerteId is optioneel geworden (werkitem-projecten hebben er geen)
+      const offerte = project.offerteId
+        ? await ctx.db.get(project.offerteId)
+        : null;
       if (!offerte || !offerte.klantId) continue;
 
       await ctx.db.patch(project._id, { klantId: offerte.klantId });
@@ -59,7 +62,10 @@ export const backfillFacturenKlantId = internalMutation({
       const project = await ctx.db.get(factuur.projectId);
       if (!project) continue;
 
-      const offerte = await ctx.db.get(project.offerteId);
+      // offerteId is optioneel geworden (werkitem-projecten hebben er geen)
+      const offerte = project.offerteId
+        ? await ctx.db.get(project.offerteId)
+        : null;
       if (!offerte || !offerte.klantId) continue;
 
       await ctx.db.patch(factuur._id, { klantId: offerte.klantId });

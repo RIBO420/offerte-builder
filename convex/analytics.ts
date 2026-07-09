@@ -533,8 +533,8 @@ export const getVoorcalculatieNacalculatieVergelijking = query({
             .unique()
         )
       ),
-      // Get offertes for names
-      Promise.all(offerteIds.map((id) => ctx.db.get(id))),
+      // Get offertes for names (offerteId kan ontbreken bij werkitem-projecten)
+      Promise.all(offerteIds.map((id) => (id ? ctx.db.get(id) : null))),
     ]);
 
     // Build lookup maps
@@ -590,11 +590,15 @@ export const getVoorcalculatieNacalculatieVergelijking = query({
     for (const project of projecten) {
       // Get voorcalculatie (try offerte first, then project)
       const voorcalculatie =
-        voorcalculatieByOfferte.get(project.offerteId.toString()) ||
+        (project.offerteId
+          ? voorcalculatieByOfferte.get(project.offerteId.toString())
+          : undefined) ||
         voorcalculatieByProject.get(project._id.toString());
 
       const nacalculatie = nacalculatieByProject.get(project._id.toString());
-      const offerte = offerteById.get(project.offerteId.toString());
+      const offerte = project.offerteId
+        ? offerteById.get(project.offerteId.toString())
+        : undefined;
 
       if (!voorcalculatie || !nacalculatie) continue;
 
@@ -842,7 +846,10 @@ export const getFinancieelOverzicht = query({
 
     const offerteToProject = new Map<string, typeof projecten[0]>();
     for (const project of projecten) {
-      offerteToProject.set(project.offerteId.toString(), project);
+      // Alleen projecten met gekoppelde offerte opnemen in de lookup
+      if (project.offerteId) {
+        offerteToProject.set(project.offerteId.toString(), project);
+      }
     }
 
     // Get instellingen for uurtarief

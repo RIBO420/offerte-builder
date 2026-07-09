@@ -182,7 +182,10 @@ export const getUsageStats = query({
           projectIds.map(async (projectId) => {
             const project = await ctx.db.get(projectId);
             if (!project) return null;
-            const offerte = await ctx.db.get(project.offerteId);
+            // offerteId is optioneel sinds werkitem-generalisatie
+            const offerte = project.offerteId
+              ? await ctx.db.get(project.offerteId)
+              : null;
             return {
               _id: project._id,
               naam: project.naam,

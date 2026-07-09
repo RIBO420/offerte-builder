@@ -39,8 +39,10 @@ export const listArchivedProjects = query({
     // Fetch related data for each archived project
     const results = await Promise.all(
       archivedProjects.map(async (project) => {
-        // Get related offerte
-        const offerte = await ctx.db.get(project.offerteId);
+        // Get related offerte (offerteId kan ontbreken bij losse werkitems)
+        const offerte = project.offerteId
+          ? await ctx.db.get(project.offerteId)
+          : null;
 
         // Get related factuur
         const factuur = await ctx.db
@@ -155,8 +157,10 @@ export const getArchivedProjectDetails = query({
       return null; // This query is specifically for archived projects
     }
 
-    // Get related offerte with full details
-    const offerte = await ctx.db.get(project.offerteId);
+    // Get related offerte with full details (offerteId kan ontbreken bij losse werkitems)
+    const offerte = project.offerteId
+      ? await ctx.db.get(project.offerteId)
+      : null;
 
     // Get related factuur with full details
     const factuur = await ctx.db

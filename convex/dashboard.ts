@@ -237,7 +237,10 @@ export const getAdminDashboardData = query({
       ]);
 
     const activeProjects = activeProjectsRaw.map((project, index) => {
-      const offerte = offerteMap.get(project.offerteId.toString());
+      // offerteId is optioneel sinds werkitem-generalisatie
+      const offerte = project.offerteId
+        ? offerteMap.get(project.offerteId.toString())
+        : undefined;
       const klantNaam = offerte?.klant?.naam || "Onbekende klant";
 
       const voorcalculatie =

@@ -255,8 +255,9 @@ export const getFullDashboardData = query({
     };
 
     // === ACCEPTED OFFERTES WITHOUT PROJECT ===
+    // offerteId is optioneel sinds werkitem-generalisatie
     const offertesWithProject = new Set(
-      projects.map((p) => p.offerteId.toString())
+      projects.map((p) => p.offerteId?.toString()).filter(Boolean)
     );
     const geaccepteerdeOffertes = offertes.filter(
       (o) => o.status === "geaccepteerd"
@@ -336,7 +337,10 @@ export const getFullDashboardData = query({
     // Now process active projects with in-memory lookups (no additional queries)
     const activeProjects = activeProjectsRaw.map((project, index) => {
       // Get offerte for klant naam from our existing map
-      const offerte = offerteMap.get(project.offerteId.toString());
+      // offerteId is optioneel sinds werkitem-generalisatie
+      const offerte = project.offerteId
+        ? offerteMap.get(project.offerteId.toString())
+        : undefined;
       const klantNaam = offerte?.klant?.naam || "Onbekende klant";
 
       // Get voorcalculatie (check project-level first, then offerte-level)
@@ -1440,8 +1444,9 @@ export const getAcceptedOffertesWithoutProject = query({
       .collect();
 
     // Create a Set of offerteIds that have a project
+    // offerteId is optioneel sinds werkitem-generalisatie
     const offertesWithProject = new Set(
-      projects.map((p) => p.offerteId.toString())
+      projects.map((p) => p.offerteId?.toString()).filter(Boolean)
     );
 
     // Filter offertes that don't have a project yet

@@ -836,8 +836,10 @@ export const getBudgetVergelijking = query({
         .unique();
     }
 
-    // Get offerte for planned costs
-    const offerte = await ctx.db.get(project.offerteId);
+    // Get offerte for planned costs (offerteId kan ontbreken bij losse werkitems)
+    const offerte = project.offerteId
+      ? await ctx.db.get(project.offerteId)
+      : null;
 
     if (!voorcalculatie || !offerte) {
       return {
@@ -1082,8 +1084,10 @@ export const getProjectOverzicht = query({
     const user = await requireAuth(ctx);
     const project = await getOwnedProject(ctx, args.projectId);
 
-    // Get offerte and voorcalculatie
-    const offerte = await ctx.db.get(project.offerteId);
+    // Get offerte and voorcalculatie (offerteId kan ontbreken bij losse werkitems)
+    const offerte = project.offerteId
+      ? await ctx.db.get(project.offerteId)
+      : null;
 
     let voorcalculatie = await ctx.db
       .query("voorcalculaties")
@@ -1234,7 +1238,10 @@ export const getBudgetStatus = query({
     const project = await ctx.db.get(args.projectId);
     if (!project) return null;
 
-    const offerte = await ctx.db.get(project.offerteId);
+    // offerteId kan ontbreken bij losse werkitems
+    const offerte = project.offerteId
+      ? await ctx.db.get(project.offerteId)
+      : null;
     if (!offerte) return null;
 
     // Budget uit offerte totalen
@@ -1293,7 +1300,10 @@ export const checkBudgetThreshold = mutation({
     const project = await ctx.db.get(args.projectId);
     if (!project) return;
 
-    const offerte = await ctx.db.get(project.offerteId);
+    // offerteId kan ontbreken bij losse werkitems
+    const offerte = project.offerteId
+      ? await ctx.db.get(project.offerteId)
+      : null;
     if (!offerte) return;
 
     const budget = (offerte as Record<string, unknown>).totalen

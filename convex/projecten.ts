@@ -311,7 +311,7 @@ export const updateStatus = mutation({
     // PRJ-W01: KLIC-melding check for aanleg projects with grondwerk scope
     // Directie can override this check with skipKlicCheck flag
     if (currentStatus === "gepland" && newStatus === "in_uitvoering") {
-      const offerte = await ctx.db.get(project.offerteId);
+      const offerte = project.offerteId ? await ctx.db.get(project.offerteId) : null;
       if (
         offerte &&
         offerte.type === "aanleg" &&
@@ -370,7 +370,7 @@ export const updateStatus = mutation({
     // CRM-002: Auto-upgrade klant pipeline status when project is completed
     if (newStatus === "afgerond") {
       // Look up the offerte to find the klantId
-      const offerte = await ctx.db.get(project.offerteId);
+      const offerte = project.offerteId ? await ctx.db.get(project.offerteId) : null;
       if (offerte?.klantId) {
         await upgradeKlantPipeline(ctx, offerte.klantId, "opgeleverd");
       }
@@ -644,8 +644,8 @@ export const getWithDetails = query({
       return null;
     }
 
-    // Get related offerte
-    const offerte = await ctx.db.get(project.offerteId);
+    // Get related offerte (optioneel sinds werkitem-generalisatie, B1)
+    const offerte = project.offerteId ? await ctx.db.get(project.offerteId) : null;
 
     // Get voorcalculatie - first check project-level (copied/linked)
     let voorcalculatie = await ctx.db
@@ -734,7 +734,7 @@ export const getProjectsByOfferteIds = query({
 
     // Map projects to their offerteIds
     for (const project of projects) {
-      if (args.offerteIds.includes(project.offerteId)) {
+      if (project.offerteId && args.offerteIds.includes(project.offerteId)) {
         result[project.offerteId] = {
           _id: project._id,
           naam: project.naam,
@@ -877,7 +877,9 @@ export const search = query({
     const activeProjects = projects.filter((p) => !p.deletedAt && p.isArchived !== true);
 
     // Get offertes to search by offerte nummer and klant naam
-    const offerteIds = [...new Set(activeProjects.map((p) => p.offerteId))];
+    const offerteIds = [
+      ...new Set(activeProjects.flatMap((p) => (p.offerteId ? [p.offerteId] : []))),
+    ];
     const offertes = await Promise.all(
       offerteIds.map((id) => ctx.db.get(id))
     );
@@ -893,7 +895,9 @@ export const search = query({
       }
 
       // Search by offerte nummer and klant naam
-      const offerte = offerteMap.get(project.offerteId.toString());
+      const offerte = project.offerteId
+        ? offerteMap.get(project.offerteId.toString())
+        : undefined;
       if (offerte) {
         if (offerte.offerteNummer.toLowerCase().includes(searchTerm)) {
           return true;
@@ -1058,7 +1062,7 @@ export const getActiveProjectsWithProgress = query({
     // Fetch all data in parallel batches
     const [allOffertes, voorcalculatiesByProject, voorcalculatiesByOfferte, urenByProject] = await Promise.all([
       // Batch 1: Fetch all offertes
-      Promise.all(offerteIds.map((id) => ctx.db.get(id))),
+      Promise.all(offerteIds.map((id) => (id ? ctx.db.get(id) : null))),
       // Batch 2: Fetch voorcalculaties by project IDs
       Promise.all(
         projectIds.map((projectId) =>
@@ -1096,7 +1100,9 @@ export const getActiveProjectsWithProgress = query({
     // Build result with in-memory lookups (no additional queries)
     const results = activeProjects.map((project, index) => {
       // Get offerte for klant naam
-      const offerte = offerteMap.get(project.offerteId.toString());
+      const offerte = project.offerteId
+        ? offerteMap.get(project.offerteId.toString())
+        : undefined;
       const klantNaam = offerte?.klant?.naam || "Onbekende klant";
 
       // Get voorcalculatie (check project-level first, then offerte-level)

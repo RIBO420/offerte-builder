@@ -532,7 +532,10 @@ export const getAssignedProjects = query({
     // Get offerte info for each assigned project to include customer name
     const projectsWithDetails = await Promise.all(
       assignedProjects.map(async (project) => {
-        const offerte = await ctx.db.get(project.offerteId);
+        // offerteId kan ontbreken bij losse werkitems
+        const offerte = project.offerteId
+          ? await ctx.db.get(project.offerteId)
+          : null;
         return {
           _id: project._id,
           naam: project.naam,
@@ -932,8 +935,10 @@ export const getProjectDetailsForMedewerker = query({
       throw new ConvexError("Je bent niet toegewezen aan dit project");
     }
 
-    // Get offerte info (klant data only, no prices)
-    const offerte = await ctx.db.get(project.offerteId);
+    // Get offerte info (klant data only, no prices) — offerteId kan ontbreken bij losse werkitems
+    const offerte = project.offerteId
+      ? await ctx.db.get(project.offerteId)
+      : null;
     const offerteInfo = offerte
       ? {
           offerteNummer: offerte.offerteNummer,

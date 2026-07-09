@@ -164,7 +164,10 @@ export const exportProjecten = query({
     // Get related offerte info
     const result = await Promise.all(
       activeProjecten.map(async (project) => {
-        const offerte = await ctx.db.get(project.offerteId);
+        // offerteId is optioneel (werkitem-projecten); fallbacks hieronder vangen null op
+        const offerte = project.offerteId
+          ? await ctx.db.get(project.offerteId)
+          : null;
 
         // Get voorcalculatie for begrote uren
         let voorcalculatie = await ctx.db

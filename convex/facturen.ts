@@ -94,8 +94,10 @@ export const generate = mutation({
       throw new ConvexError("Er bestaat al een factuur voor dit project");
     }
 
-    // Haal offerte op
-    const offerte = await ctx.db.get(project.offerteId);
+    // Haal offerte op (offerteId is optioneel geworden; bestaande throw blijft gelden)
+    const offerte = project.offerteId
+      ? await ctx.db.get(project.offerteId)
+      : null;
     if (!offerte) {
       throw new ConvexError("Offerte niet gevonden voor dit project");
     }
@@ -583,6 +585,10 @@ export const markAsPaidAndArchiveProject = mutation({
     });
 
     // Get the linked offerte via project.offerteId
+    // offerteId is optioneel geworden; ontbreekt hij, dan geldt dezelfde bestaande fout
+    if (!project.offerteId) {
+      throw new ConvexError("Offerte niet gevonden");
+    }
     const offerte = await ctx.db.get(project.offerteId);
     if (!offerte) {
       throw new ConvexError("Offerte niet gevonden");
@@ -974,9 +980,9 @@ export const getWithDetails = query({
     // Haal gerelateerde data op
     const project = await ctx.db.get(factuur.projectId);
 
-    // Haal offerte op via project
+    // Haal offerte op via project (offerteId kan ontbreken)
     let offerte = null;
-    if (project) {
+    if (project && project.offerteId) {
       offerte = await ctx.db.get(project.offerteId);
     }
 

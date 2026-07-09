@@ -282,7 +282,10 @@ export const getActionItems = query({
     const projects = allProjects.filter((p) => !p.isArchived && !p.deletedAt);
 
     // Accepted offertes without project
-    const offertesWithProject = new Set(projects.map((p) => p.offerteId.toString()));
+    // offerteId is optioneel sinds werkitem-generalisatie
+    const offertesWithProject = new Set(
+      projects.map((p) => p.offerteId?.toString()).filter(Boolean)
+    );
     const acceptedWithoutProject = offertes
       .filter((o) => o.status === "geaccepteerd" && !offertesWithProject.has(o._id.toString()))
       .length;
@@ -382,7 +385,10 @@ export const getActiveProjectsLive = query({
     const projectsWithProgress = await Promise.all(
       activeProjects.map(async (project) => {
         // Get offerte for klant naam
-        const offerte = await ctx.db.get(project.offerteId);
+        // offerteId is optioneel sinds werkitem-generalisatie
+        const offerte = project.offerteId
+          ? await ctx.db.get(project.offerteId)
+          : null;
         const klantNaam = offerte?.klant?.naam || "Onbekende klant";
 
         // Get voorcalculatie for begrote uren

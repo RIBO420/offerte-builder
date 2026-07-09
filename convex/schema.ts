@@ -514,23 +514,51 @@ export default defineSchema({
   // Calculatie, Planning & Nacalculatie Add-on
   // ============================================
 
-  // Projecten - Links offerte to project for planning/nacalculatie
-  // Projects are created from accepted offertes that have voorcalculatie completed
-  // Workflow: gepland → in_uitvoering → afgerond → nacalculatie_compleet
+  // WERKITEM-tabel (PRD §1.1, besluit B1 optie C). Fysieke naam blijft "projecten"
+  // omdat Convex-ID's tabel-gebonden zijn (hernoemen = datamigratie van 14+
+  // refererende tabellen). Code-alias en type-invarianten: convex/werkitems.ts.
+  // UI: type "project" → "Project", type "onderhoudsbeurt" → "Onderhoudsbeurt";
+  // het woord "werkitem" is intern en verschijnt nooit in de UI.
+  // Velden zoals urenRegistraties.projectId verwijzen conceptueel naar een werkitem.
+  // Project-workflow: gepland → in_uitvoering → afgerond → nacalculatie_compleet → gefactureerd
+  // Beurt-workflow: gepland → uitgevoerd → gefactureerd (of vervallen)
   // Note: "voorcalculatie" is deprecated but kept for backwards compatibility during migration
   projecten: defineTable({
     userId: v.id("users"),
-    offerteId: v.id("offertes"),
+    // Discriminator (B1 stap 1): optioneel tijdens migratie; na backfill (stap 2)
+    // verplicht maken (stap 3). Semantiek: undefined === "project".
+    type: v.optional(
+      v.union(v.literal("project"), v.literal("onderhoudsbeurt"))
+    ),
+    // Was verplicht; PRD §1.1: nullable (losse beurt/servicebezoek heeft geen offerte)
+    offerteId: v.optional(v.id("offertes")),
     klantId: v.optional(v.id("klanten")),
     naam: v.string(),
     status: v.union(
       v.literal("voorcalculatie"), // DEPRECATED - will be migrated to gepland
+      // Project-statussen (bestaand; "gepland"/"gefactureerd" gedeeld met beurten)
       v.literal("gepland"),
       v.literal("in_uitvoering"),
       v.literal("afgerond"),
       v.literal("nacalculatie_compleet"),
-      v.literal("gefactureerd")
+      v.literal("gefactureerd"),
+      // Beurt-statussen (PRD §1.1) — alleen geldig bij type "onderhoudsbeurt",
+      // afgedwongen via assertStatusVoorType in convex/werkitems.ts
+      v.literal("uitgevoerd"),
+      v.literal("vervallen")
     ),
+    // — Gedeelde kernvelden werkitem (PRD §1.1), gezet door planbord/generator —
+    geplandeStart: v.optional(v.string()), // YYYY-MM-DD
+    geplandeEind: v.optional(v.string()), // YYYY-MM-DD
+    teamId: v.optional(v.id("teams")),
+    geschatteUren: v.optional(v.number()), // uit offerte/receptuur/contractregel
+    factuurId: v.optional(v.id("facturen")),
+    contractId: v.optional(v.id("onderhoudscontracten")), // alleen bij onderhoudsbeurten
+    adres: v.optional(v.string()), // default = klantadres, overschrijfbaar
+    // — Grondverzet (alleen type "project", PRD §1.1) —
+    ontgravenVolumeM3: v.optional(v.number()),
+    mbaStatus: v.optional(v.string()),
+    dsoReferentie: v.optional(v.string()),
     // Toegewezen medewerkers voor dit project (team assignment)
     toegewezenMedewerkerIds: v.optional(v.array(v.id("medewerkers"))),
     // Toegewezen voertuigen voor dit project (fleet management)
@@ -564,7 +592,13 @@ export default defineSchema({
     // Compound indexes for archived/deleted filtering (projecten.ts: list, search, stats)
     .index("by_user_archived", ["userId", "isArchived"])
     .index("by_user_deleted", ["userId", "deletedAt"])
-    .index("by_klant", ["klantId"]),
+    .index("by_klant", ["klantId"])
+    // Werkitem-indexes (B1-besluit): type-filter, contract-koppeling, planbord
+    .index("by_user_type", ["userId", "type"])
+    .index("by_user_type_status", ["userId", "type", "status"])
+    .index("by_contract", ["contractId"])
+    .index("by_team_geplandeStart", ["teamId", "geplandeStart"])
+    .index("by_user_geplandeStart", ["userId", "geplandeStart"]),
 
   // Voorcalculaties - Pre-calculation data
   // Can be linked to either an offerte (before sending) or a project (for legacy/reference)

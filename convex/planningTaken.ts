@@ -90,7 +90,10 @@ export const generateFromVoorcalculatie = mutation({
     }
 
     // Get the offerte to know the scopes
-    const offerte = await ctx.db.get(project.offerteId);
+    // offerteId is optioneel sinds werkitem-generalisatie
+    const offerte = project.offerteId
+      ? await ctx.db.get(project.offerteId)
+      : null;
     if (!offerte) {
       throw new ConvexError("Offerte niet gevonden");
     }
