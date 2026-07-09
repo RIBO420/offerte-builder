@@ -6,7 +6,7 @@ import {
   getOwnedOfferte,
   verifyOwnership,
 } from "./auth";
-import { requireNotViewer } from "./roles";
+import { requireNotViewer, assertKanNaarKlantVersturen } from "./roles";
 import { internal } from "./_generated/api";
 import { upgradeKlantPipeline } from "./pipelineHelpers";
 
@@ -513,14 +513,20 @@ export const getWithVoorcalculatie = query({
   },
 });
 
-// Get offerte by nummer
+// Get offerte by nummer (staf, alleen eigen offertes — nummer is raadbaar,
+// dus zonder scoping lekte dit volledige offertes incl. interne prijzen)
 export const getByNummer = query({
   args: { offerteNummer: v.string() },
   handler: async (ctx, args) => {
-    return await ctx.db
+    const user = await requireNotViewer(ctx);
+    const offerte = await ctx.db
       .query("offertes")
       .withIndex("by_nummer", (q) => q.eq("offerteNummer", args.offerteNummer))
       .unique();
+    if (!offerte || offerte.userId.toString() !== user._id.toString()) {
+      return null;
+    }
+    return offerte;
   },
 });
 
@@ -962,6 +968,11 @@ export const updateStatus = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
+    // Capability "versturen naar klant" (PRD §1.2): de overgang naar
+    // "verzonden" triggert e-mail/portaalnotificatie — alleen kantoor
+    if (args.status === "verzonden") {
+      await assertKanNaarKlantVersturen(ctx);
+    }
     // Verify ownership before updating (also retrieves the offerte)
     const oldOfferte = await getOwnedOfferte(ctx, args.id);
     const now = Date.now();

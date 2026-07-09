@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import { ConvexHttpClient } from "convex/browser";
+import { api } from "../../../../convex/_generated/api";
 import { Resend } from "resend";
 import { render } from "@react-email/components";
 import { OfferteEmail } from "@/components/email/offerte-email";
@@ -38,11 +40,50 @@ function getResendClient(): Resend {
 export async function POST(request: NextRequest) {
   try {
     // ── Authenticatie ─────────────────────────────────────────────────────────
-    const { userId } = await auth();
-    if (!userId) {
+    const authResult = await auth();
+    if (!authResult.userId) {
       return NextResponse.json(
         { error: "Niet geautoriseerd. Log in om deze functie te gebruiken." },
         { status: 401 }
+      );
+    }
+
+    // ── Autorisatie (PRD §1.2): capability "versturen naar klant" ────────────
+    // Alleen kantoor (directie/projectleider) mag e-mails naar klanten sturen.
+    // De rol komt uit Convex (bron van waarheid), niet uit de Clerk-sessie.
+    try {
+      const token = await authResult.getToken({ template: "convex" });
+      if (!token) {
+        return NextResponse.json(
+          { error: "Niet geautoriseerd. Log in om deze functie te gebruiken." },
+          { status: 401 }
+        );
+      }
+      const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
+      if (!convexUrl) {
+        return NextResponse.json(
+          { error: "Server niet correct geconfigureerd" },
+          { status: 503 }
+        );
+      }
+      const convex = new ConvexHttpClient(convexUrl);
+      convex.setAuth(token);
+      const roleInfo = await convex.query(api.roles.getCurrentUserRole, {});
+      const isKantoor = roleInfo.isAdmin || roleInfo.isProjectleider;
+      if (!isKantoor) {
+        return NextResponse.json(
+          {
+            error:
+              "Alleen kantoor mag e-mails naar klanten versturen.",
+          },
+          { status: 403 }
+        );
+      }
+    } catch {
+      // Rolcontrole niet kunnen uitvoeren = niet versturen (fail closed)
+      return NextResponse.json(
+        { error: "Autorisatie kon niet worden gecontroleerd" },
+        { status: 403 }
       );
     }
 

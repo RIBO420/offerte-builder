@@ -9,7 +9,7 @@ import { v, ConvexError } from "convex/values";
 import { mutation, query, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { requireAuth, requireAuthUserId, verifyOwnership } from "./auth";
-import { requireNotViewer } from "./roles";
+import { requireNotViewer, assertKanNaarKlantVersturen } from "./roles";
 import { Id } from "./_generated/dataModel";
 
 /**
@@ -425,6 +425,11 @@ export const updateStatus = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
+    // Capability "versturen naar klant" (PRD §1.2): de overgang naar
+    // "verzonden" triggert de factuurnotificatie — alleen kantoor
+    if (args.status === "verzonden") {
+      await assertKanNaarKlantVersturen(ctx);
+    }
     // Verifieer eigenaarschap
     const factuur = await getOwnedFactuur(ctx, args.id);
     const now = Date.now();

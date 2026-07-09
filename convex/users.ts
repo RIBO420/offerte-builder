@@ -516,10 +516,11 @@ export const initializeDefaults = mutation({
   },
 });
 
-// Admin query to list all users
+// Admin query to list all users (directie only — lekte voorheen alle e-mails/clerkIds zonder login)
 export const adminListUsers = query({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
     const users = await ctx.db.query("users").collect();
     return users.map((u) => ({
       _id: u._id,
@@ -530,10 +531,11 @@ export const adminListUsers = query({
   },
 });
 
-// Admin query to check data ownership
+// Admin query to check data ownership (directie only)
 export const adminCheckDataOwnership = query({
   args: {},
   handler: async (ctx) => {
+    await requireAdmin(ctx);
     const normuren = await ctx.db.query("normuren").take(1);
     const producten = await ctx.db.query("producten").take(1);
     const instellingen = await ctx.db.query("instellingen").take(1);
@@ -1368,7 +1370,9 @@ export const updateUserRole = mutation({
 export const adminMigrateExistingUsersToAdmin = mutation({
   args: {},
   handler: async (ctx) => {
-    // One-time setup migration - requires no existing admin users to bootstrap
+    // Bootstrap-migratie is afgerond (zie roles.ts) — nu directie-only om
+    // privilege-escalatie via dit publieke endpoint uit te sluiten.
+    await requireAdmin(ctx);
     const users = await ctx.db.query("users").collect();
     let updatedCount = 0;
 

@@ -16,6 +16,22 @@ import {
   ALLOWED_MIME_TYPES,
   DANGEROUS_EXTENSIONS,
 } from "./security";
+import type { QueryCtx, MutationCtx } from "./_generated/server";
+
+/**
+ * Interne chat (team/DM/project) is per PRD §1.2 gescheiden van
+ * klantcommunicatie: de klant-rol mag GEEN enkele functie in dit
+ * bestand aanroepen. Klantcommunicatie loopt via chatThreads/portaal.
+ */
+async function requireInterneChatToegang(ctx: QueryCtx | MutationCtx) {
+  const user = await requireAuth(ctx);
+  if (normalizeRole(user.role) === "klant") {
+    throw new ConvexError(
+      "Interne chat is niet beschikbaar voor klantaccounts"
+    );
+  }
+  return user;
+}
 
 // ============ TEAM CHAT ============
 
@@ -145,7 +161,7 @@ export const getTeamMessages = query({
     cursor: v.optional(v.number()), // Timestamp for pagination
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const user = await requireInterneChatToegang(ctx);
     const companyId = await getCompanyUserId(ctx);
     const limit = args.limit || 50;
 
@@ -201,7 +217,7 @@ export const markTeamMessagesAsRead = mutation({
     projectId: v.optional(v.id("projecten")),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const user = await requireInterneChatToegang(ctx);
     const companyId = await getCompanyUserId(ctx);
 
     // Get all messages in this channel that the user hasn't read
@@ -243,7 +259,7 @@ export const markTeamMessagesAsRead = mutation({
 export const getChannels = query({
   args: {},
   handler: async (ctx) => {
-    const user = await requireAuth(ctx);
+    const user = await requireInterneChatToegang(ctx);
     const companyId = await getCompanyUserId(ctx);
     const role = await getUserRole(ctx);
 
@@ -391,7 +407,7 @@ export const getDirectMessages = query({
     cursor: v.optional(v.number()), // Timestamp for pagination
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const user = await requireInterneChatToegang(ctx);
     const limit = args.limit || 50;
 
     // Get the other user's clerkId for the index query
@@ -437,7 +453,7 @@ export const markDMAsRead = mutation({
     fromUserId: v.id("users"),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const user = await requireInterneChatToegang(ctx);
 
     // Get the sender's clerkId
     const fromUser = await ctx.db.get(args.fromUserId);
@@ -472,7 +488,7 @@ export const markDMAsRead = mutation({
 export const getDMConversations = query({
   args: {},
   handler: async (ctx) => {
-    const user = await requireAuth(ctx);
+    const user = await requireInterneChatToegang(ctx);
 
     // Get all DMs involving this user
     const allDMs = await ctx.db
@@ -556,7 +572,7 @@ export const getDMConversations = query({
 export const getUnreadCounts = query({
   args: {},
   handler: async (ctx) => {
-    const user = await requireAuth(ctx);
+    const user = await requireInterneChatToegang(ctx);
     const companyId = await getCompanyUserId(ctx);
 
     // Count unread team messages (messages not in readBy array)
@@ -615,7 +631,7 @@ export const getUnreadCounts = query({
 export const getNotificationPreferences = query({
   args: {},
   handler: async (ctx) => {
-    const user = await requireAuth(ctx);
+    const user = await requireInterneChatToegang(ctx);
 
     const preferences = await ctx.db
       .query("notification_preferences")
@@ -661,7 +677,7 @@ export const updateNotificationPreferences = mutation({
     mutedUsers: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const user = await requireInterneChatToegang(ctx);
     const now = Date.now();
 
     // Find existing preferences
@@ -735,7 +751,7 @@ export const updateNotificationPreferences = mutation({
 export const getUsersForDM = query({
   args: {},
   handler: async (ctx) => {
-    const user = await requireAuth(ctx);
+    const user = await requireInterneChatToegang(ctx);
     const companyId = await getCompanyUserId(ctx);
 
     // Get all active medewerkers for this company
@@ -808,7 +824,7 @@ export const searchMessages = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const user = await requireInterneChatToegang(ctx);
     const companyId = await getCompanyUserId(ctx);
     const limit = args.limit || 20;
 
@@ -1036,7 +1052,7 @@ export const getFileUrl = query({
     storageId: v.id("_storage"),
   },
   handler: async (ctx, args) => {
-    await requireAuth(ctx);
+    await requireInterneChatToegang(ctx);
 
     const url = await ctx.storage.getUrl(args.storageId);
     return url;

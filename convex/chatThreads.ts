@@ -2,7 +2,13 @@ import { v, ConvexError } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { requireAuth, requireKlant } from "./auth";
-import { getCompanyUserId, normalizeRole } from "./roles";
+import {
+  getCompanyUserId,
+  normalizeRole,
+  kanNaarKlantVersturen,
+  klantHeeftToegangTotThread,
+  requireKantoor,
+} from "./roles";
 import { chatThreadTypeValidator, chatSenderTypeValidator } from "./validators";
 
 // List threads for dashboard (bedrijf/medewerker) or portal (klant)
@@ -72,8 +78,9 @@ export const getThread = query({
 
     const role = normalizeRole(user.role);
     if (role === "klant") {
-      // Klant can only see their own threads
-      if (!user.linkedKlantId || thread.klantId?.toString() !== user.linkedKlantId.toString()) {
+      // Klant: alleen eigen klant-threads — interne threads (team/project/dm)
+      // zijn nooit zichtbaar, ook niet met een (per ongeluk) gezet klantId
+      if (!klantHeeftToegangTotThread(user.linkedKlantId, thread)) {
         return null;
       }
     } else {
@@ -101,7 +108,8 @@ export const listMessages = query({
     // Ownership check
     const role = normalizeRole(user.role);
     if (role === "klant") {
-      if (!user.linkedKlantId || thread.klantId?.toString() !== user.linkedKlantId.toString()) {
+      // Klant: alleen eigen klant-threads — interne threads nooit leesbaar
+      if (!klantHeeftToegangTotThread(user.linkedKlantId, thread)) {
         return [];
       }
     } else {
@@ -134,7 +142,9 @@ export const getUnreadCounts = query({
         .query("chat_threads")
         .withIndex("by_klant", (q) => q.eq("klantId", user.linkedKlantId!))
         .collect();
-      const total = threads.reduce((sum, t) => sum + (t.unreadByKlant ?? 0), 0);
+      const total = threads
+        .filter((t) => t.type === "klant")
+        .reduce((sum, t) => sum + (t.unreadByKlant ?? 0), 0);
       return { total };
     }
 
@@ -163,18 +173,26 @@ export const sendMessage = mutation({
     // Determine sender type and verify access
     let senderType: "bedrijf" | "klant" | "medewerker";
     if (role === "klant") {
-      if (!user.linkedKlantId || thread.klantId?.toString() !== user.linkedKlantId.toString()) {
-        throw new Error("Geen toegang tot dit gesprek");
+      // Klant: alleen posten in eigen klant-threads — nooit in interne threads
+      if (!klantHeeftToegangTotThread(user.linkedKlantId, thread)) {
+        throw new ConvexError("Geen toegang tot dit gesprek");
       }
       senderType = "klant";
       // Klant cannot send attachments in v1
       if (args.attachmentStorageIds && args.attachmentStorageIds.length > 0) {
-        throw new Error("Bijlagen versturen is nog niet beschikbaar");
+        throw new ConvexError("Bijlagen versturen is nog niet beschikbaar");
       }
     } else {
       const companyUserId = await getCompanyUserId(ctx);
       if (thread.companyUserId.toString() !== companyUserId.toString()) {
-        throw new Error("Geen toegang tot dit gesprek");
+        throw new ConvexError("Geen toegang tot dit gesprek");
+      }
+      // Capability "versturen naar klant" (PRD §1.2): alleen kantoor mag in
+      // een klant-thread posten — voorman/medewerker worden geweigerd
+      if (thread.type === "klant" && !kanNaarKlantVersturen(user.role)) {
+        throw new ConvexError(
+          "Alleen kantoor mag berichten naar de klant versturen"
+        );
       }
       senderType = role === "directie" || role === "projectleider" ? "bedrijf" : "medewerker";
     }
@@ -227,9 +245,17 @@ export const markAsRead = mutation({
     const thread = await ctx.db.get(args.threadId);
     if (!thread) return;
 
+    // Ownership check: alleen deelnemers mogen unread-tellers resetten
     if (role === "klant") {
+      if (!klantHeeftToegangTotThread(user.linkedKlantId, thread)) {
+        throw new ConvexError("Geen toegang tot dit gesprek");
+      }
       await ctx.db.patch(args.threadId, { unreadByKlant: 0 });
     } else {
+      const companyUserId = await getCompanyUserId(ctx);
+      if (thread.companyUserId.toString() !== companyUserId.toString()) {
+        throw new ConvexError("Geen toegang tot dit gesprek");
+      }
       await ctx.db.patch(args.threadId, { unreadByBedrijf: 0 });
     }
 
@@ -260,7 +286,9 @@ export const getOrCreateKlantThread = mutation({
     projectId: v.optional(v.id("projecten")),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    // Klant-threads openen is een kantoor-taak (PRD §1.2)
+    const user = await requireKantoor(ctx);
+    const ownCompanyUserId = await getCompanyUserId(ctx);
 
     // Check if thread already exists
     if (args.offerteId) {
@@ -282,16 +310,21 @@ export const getOrCreateKlantThread = mutation({
     let klantId, companyUserId;
     if (args.offerteId) {
       const offerte = await ctx.db.get(args.offerteId);
-      if (!offerte) throw new Error("Offerte niet gevonden");
+      if (!offerte) throw new ConvexError("Offerte niet gevonden");
       klantId = offerte.klantId;
       companyUserId = offerte.userId;
     } else if (args.projectId) {
       const project = await ctx.db.get(args.projectId);
-      if (!project) throw new Error("Project niet gevonden");
+      if (!project) throw new ConvexError("Project niet gevonden");
       klantId = project.klantId;
       companyUserId = project.userId;
     } else {
-      throw new Error("offerteId of projectId is verplicht");
+      throw new ConvexError("offerteId of projectId is verplicht");
+    }
+
+    // Eigenaarschap: alleen threads openen op offertes/projecten van het eigen bedrijf
+    if (companyUserId.toString() !== ownCompanyUserId.toString()) {
+      throw new ConvexError("Geen toegang tot deze offerte of dit project");
     }
 
     const threadId = await ctx.db.insert("chat_threads", {
@@ -317,7 +350,8 @@ export const createKlantThread = mutation({
     klantId: v.id("klanten"),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    // Klant-threads openen is een kantoor-taak (PRD §1.2)
+    const user = await requireKantoor(ctx);
     const companyUserId = await getCompanyUserId(ctx);
 
     // Verify klant belongs to company

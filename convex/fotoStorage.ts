@@ -83,27 +83,30 @@ export const addFotoToAanvraag = mutation({
 // ============================================
 
 /**
- * Haalt een publieke download URL op voor een opgeslagen bestand.
- * Geen authenticatie vereist — URLs zijn tijdelijk en bestandsspecifiek.
+ * Haalt een download URL op voor een opgeslagen bestand.
+ * Authenticatie vereist — voorheen publiek, waardoor iedereen met een
+ * storage-id bestanden kon ophalen (audit: rollenmodel-gap, kritiek).
  */
 export const getUrl = query({
   args: {
     storageId: v.id("_storage"),
   },
   handler: async (ctx, args) => {
+    await requireAuth(ctx);
     return await ctx.storage.getUrl(args.storageId);
   },
 });
 
 /**
  * Haalt URLs op voor een array van storage IDs.
- * Handig om meerdere foto-URLs in één keer op te halen.
+ * Authenticatie vereist (zie getUrl).
  */
 export const getUrls = query({
   args: {
     storageIds: v.array(v.id("_storage")),
   },
   handler: async (ctx, args) => {
+    await requireAuth(ctx);
     const urls = await Promise.all(
       args.storageIds.map(async (storageId) => {
         const url = await ctx.storage.getUrl(storageId);

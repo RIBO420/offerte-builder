@@ -1,7 +1,7 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { generateSecureToken, getOwnedOfferte, isShareTokenValid, requireAuthUserId } from "./auth";
-import { requireNotViewer } from "./roles";
+import { requireNotViewer, assertKanNaarKlantVersturen } from "./roles";
 import { internal } from "./_generated/api";
 import { checkPublicOfferteRateLimit } from "./security";
 import { upgradeKlantPipeline } from "./pipelineHelpers";
@@ -13,8 +13,9 @@ export const createShareLink = mutation({
     expiresInDays: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    await requireAuthUserId(ctx);
-    await requireNotViewer(ctx);
+    // Capability "versturen naar klant" (PRD §1.2): een deelbare link
+    // aanmaken is de digitale verstuurhandeling — alleen kantoor
+    await assertKanNaarKlantVersturen(ctx);
     // Verify ownership
     await getOwnedOfferte(ctx, args.offerteId);
 
