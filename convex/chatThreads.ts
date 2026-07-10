@@ -279,67 +279,6 @@ export const markAsRead = mutation({
   },
 });
 
-// Create a thread (auto-created when first message sent on offerte/project)
-export const getOrCreateKlantThread = mutation({
-  args: {
-    offerteId: v.optional(v.id("offertes")),
-    projectId: v.optional(v.id("projecten")),
-  },
-  handler: async (ctx, args) => {
-    // Klant-threads openen is een kantoor-taak (PRD §1.2)
-    const user = await requireKantoor(ctx);
-    const ownCompanyUserId = await getCompanyUserId(ctx);
-
-    // Check if thread already exists
-    if (args.offerteId) {
-      const existing = await ctx.db
-        .query("chat_threads")
-        .withIndex("by_offerte", (q) => q.eq("offerteId", args.offerteId!))
-        .first();
-      if (existing) return existing._id;
-    }
-    if (args.projectId) {
-      const existing = await ctx.db
-        .query("chat_threads")
-        .withIndex("by_project", (q) => q.eq("projectId", args.projectId!))
-        .first();
-      if (existing) return existing._id;
-    }
-
-    // Determine klantId and companyUserId
-    let klantId, companyUserId;
-    if (args.offerteId) {
-      const offerte = await ctx.db.get(args.offerteId);
-      if (!offerte) throw new ConvexError("Offerte niet gevonden");
-      klantId = offerte.klantId;
-      companyUserId = offerte.userId;
-    } else if (args.projectId) {
-      const project = await ctx.db.get(args.projectId);
-      if (!project) throw new ConvexError("Project niet gevonden");
-      klantId = project.klantId;
-      companyUserId = project.userId;
-    } else {
-      throw new ConvexError("offerteId of projectId is verplicht");
-    }
-
-    // Eigenaarschap: alleen threads openen op offertes/projecten van het eigen bedrijf
-    if (companyUserId.toString() !== ownCompanyUserId.toString()) {
-      throw new ConvexError("Geen toegang tot deze offerte of dit project");
-    }
-
-    const threadId = await ctx.db.insert("chat_threads", {
-      type: "klant",
-      klantId,
-      offerteId: args.offerteId,
-      projectId: args.projectId,
-      participants: [user.clerkId],
-      companyUserId,
-      createdAt: Date.now(),
-    });
-
-    return threadId;
-  },
-});
 
 /**
  * Create a standalone klant thread (not linked to offerte or project).
