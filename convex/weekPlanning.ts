@@ -5,9 +5,41 @@
  */
 
 import { v, ConvexError } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, type QueryCtx } from "./_generated/server";
+import type { Doc, Id } from "./_generated/dataModel";
 import { requireAuth } from "./auth";
 import { requireNotViewer } from "./roles";
+
+/**
+ * Haal de medewerkers en projecten op waarnaar toewijzingen verwijzen,
+ * met gededupliceerde db.get's (één get per uniek id i.p.v. per rij).
+ */
+async function haalPlanningReferenties(
+  ctx: QueryCtx,
+  toewijzingen: Array<{
+    medewerkerId: Id<"medewerkers">;
+    projectId: Id<"projecten">;
+  }>
+) {
+  const medewerkerIds = [...new Set(toewijzingen.map((t) => t.medewerkerId))];
+  const projectIds = [...new Set(toewijzingen.map((t) => t.projectId))];
+
+  const [medewerkers, projecten] = await Promise.all([
+    Promise.all(medewerkerIds.map((id) => ctx.db.get(id))),
+    Promise.all(projectIds.map((id) => ctx.db.get(id))),
+  ]);
+
+  const medewerkerMap = new Map<Id<"medewerkers">, Doc<"medewerkers">>();
+  medewerkers.forEach((m) => {
+    if (m) medewerkerMap.set(m._id, m);
+  });
+  const projectMap = new Map<Id<"projecten">, Doc<"projecten">>();
+  projecten.forEach((p) => {
+    if (p) projectMap.set(p._id, p);
+  });
+
+  return { medewerkerMap, projectMap };
+}
 
 // ============================================
 // Queries
@@ -24,31 +56,31 @@ export const getWeek = query({
   handler: async (ctx, args) => {
     await requireAuth(ctx);
 
-    // Haal alle toewijzingen in het datumbereik
+    // Haal alle toewijzingen in het datumbereik (bereik in de index zelf,
+    // zodat niet de hele tabel gescand wordt)
     const toewijzingen = await ctx.db
       .query("weekPlanning")
-      .withIndex("by_datum")
-      .filter((q) =>
-        q.and(
-          q.gte(q.field("datum"), args.startDatum),
-          q.lte(q.field("datum"), args.eindDatum)
-        )
+      .withIndex("by_datum", (q) =>
+        q.gte("datum", args.startDatum).lte("datum", args.eindDatum)
       )
       .collect();
 
-    // Enriche met medewerker en project info
-    const enriched = await Promise.all(
-      toewijzingen.map(async (t) => {
-        const medewerker = await ctx.db.get(t.medewerkerId);
-        const project = await ctx.db.get(t.projectId);
-        return {
-          ...t,
-          medewerkerNaam: medewerker?.naam ?? "Onbekend",
-          projectNaam: project?.naam ?? "Onbekend",
-          projectStatus: project?.status,
-        };
-      })
+    // Enriche met medewerker en project info (gededupliceerde gets:
+    // unieke ids zijn veel kleiner dan het aantal toewijzingen)
+    const { medewerkerMap, projectMap } = await haalPlanningReferenties(
+      ctx,
+      toewijzingen
     );
+    const enriched = toewijzingen.map((t) => {
+      const medewerker = medewerkerMap.get(t.medewerkerId);
+      const project = projectMap.get(t.projectId);
+      return {
+        ...t,
+        medewerkerNaam: medewerker?.naam ?? "Onbekend",
+        projectNaam: project?.naam ?? "Onbekend",
+        projectStatus: project?.status,
+      };
+    });
 
     return enriched;
   },
@@ -83,15 +115,23 @@ export const getActiveProjects = query({
   handler: async (ctx) => {
     await requireAuth(ctx);
 
-    const projecten = await ctx.db.query("projecten").collect();
+    // by_status-index: alleen geplande/lopende projecten lezen i.p.v.
+    // de hele projectentabel scannen. Sorteren op _creationTime houdt
+    // dezelfde volgorde als de eerdere volledige scan.
+    const [gepland, inUitvoering] = await Promise.all([
+      ctx.db
+        .query("projecten")
+        .withIndex("by_status", (q) => q.eq("status", "gepland"))
+        .collect(),
+      ctx.db
+        .query("projecten")
+        .withIndex("by_status", (q) => q.eq("status", "in_uitvoering"))
+        .collect(),
+    ]);
 
-    return projecten
-      .filter(
-        (p) =>
-          !p.deletedAt &&
-          !p.isArchived &&
-          (p.status === "gepland" || p.status === "in_uitvoering")
-      )
+    return [...gepland, ...inUitvoering]
+      .filter((p) => !p.deletedAt && !p.isArchived)
+      .sort((a, b) => a._creationTime - b._creationTime)
       .map((p) => ({
         _id: p._id,
         naam: p.naam,
@@ -205,12 +245,8 @@ export const listByMonth = query({
 
     const toewijzingen = await ctx.db
       .query("weekPlanning")
-      .withIndex("by_datum")
-      .filter((q) =>
-        q.and(
-          q.gte(q.field("datum"), startDatum),
-          q.lte(q.field("datum"), eindDatum)
-        )
+      .withIndex("by_datum", (q) =>
+        q.gte("datum", startDatum).lte("datum", eindDatum)
       )
       .collect();
 
@@ -223,23 +259,25 @@ export const listByMonth = query({
     const urenPerDag = 8;
     const beschikbareUrenPerDag = alleMedewerkers.length * urenPerDag;
 
-    // Enrich with medewerker and project info
-    const enriched = await Promise.all(
-      toewijzingen.map(async (t) => {
-        const medewerker = await ctx.db.get(t.medewerkerId);
-        const project = await ctx.db.get(t.projectId);
-        return {
-          _id: t._id,
-          datum: t.datum,
-          uren: t.uren,
-          medewerkerId: t.medewerkerId,
-          projectId: t.projectId,
-          medewerkerNaam: medewerker?.naam ?? "Onbekend",
-          projectNaam: project?.naam ?? "Onbekend",
-          projectStatus: project?.status,
-        };
-      })
+    // Enrich with medewerker and project info (gededupliceerde gets)
+    const { medewerkerMap, projectMap } = await haalPlanningReferenties(
+      ctx,
+      toewijzingen
     );
+    const enriched = toewijzingen.map((t) => {
+      const medewerker = medewerkerMap.get(t.medewerkerId);
+      const project = projectMap.get(t.projectId);
+      return {
+        _id: t._id,
+        datum: t.datum,
+        uren: t.uren,
+        medewerkerId: t.medewerkerId,
+        projectId: t.projectId,
+        medewerkerNaam: medewerker?.naam ?? "Onbekend",
+        projectNaam: project?.naam ?? "Onbekend",
+        projectStatus: project?.status,
+      };
+    });
 
     // Group by date
     const perDag: Record<
@@ -299,12 +337,8 @@ export const listByQuarter = query({
 
     const toewijzingen = await ctx.db
       .query("weekPlanning")
-      .withIndex("by_datum")
-      .filter((q) =>
-        q.and(
-          q.gte(q.field("datum"), startDatum),
-          q.lte(q.field("datum"), eindDatum)
-        )
+      .withIndex("by_datum", (q) =>
+        q.gte("datum", startDatum).lte("datum", eindDatum)
       )
       .collect();
 
@@ -402,12 +436,8 @@ export const getCapacityOverview = query({
 
     const toewijzingen = await ctx.db
       .query("weekPlanning")
-      .withIndex("by_datum")
-      .filter((q) =>
-        q.and(
-          q.gte(q.field("datum"), startDatum),
-          q.lte(q.field("datum"), eindDatum)
-        )
+      .withIndex("by_datum", (q) =>
+        q.gte("datum", startDatum).lte("datum", eindDatum)
       )
       .collect();
 
