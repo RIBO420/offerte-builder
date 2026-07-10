@@ -142,7 +142,6 @@ export function Toast({
     return () => clearTimeout(timer);
   }, [duration, stackScale]);
 
-  // eslint-disable-next-line react-hooks/refs -- PanResponder ref is stable and safe to access during render
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,

@@ -94,7 +94,6 @@ interface AudioBarsProps {
 }
 
 function AudioBars({ isActief }: AudioBarsProps) {
-  // eslint-disable-next-line react-hooks/refs -- RN Animated.Value array refs are stable and safe to access during render
   const barAnimaties = useRef<Animated.Value[]>(
     Array.from({ length: AANTAL_BARS }, () => new Animated.Value(0.2))
   ).current;

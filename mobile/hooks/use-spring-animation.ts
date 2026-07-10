@@ -4,8 +4,7 @@ import {
   useAnimatedStyle,
   withSpring,
   withTiming,
-} from 'react-native-reanimated';
-import { useReducedMotion } from 'react-native-reanimated';
+ useReducedMotion } from 'react-native-reanimated';
 import { springConfigs, type SpringConfig } from '../theme/animations';
 
 export function usePressAnimation(config: SpringConfig = 'default') {
@@ -49,9 +48,7 @@ export function useScaleAnimation(config: SpringConfig = 'default') {
       opacity.value = 1;
       return;
     }
-    // eslint-disable-next-line react-hooks/immutability -- Reanimated shared values are mutable by design
     scale.value = withSpring(1, springConfigs[config]);
-    // eslint-disable-next-line react-hooks/immutability -- Reanimated shared values are mutable by design
     opacity.value = withTiming(1, { duration: 200 });
   }, [config, reduced]);
 
@@ -63,9 +60,7 @@ export function useScaleAnimation(config: SpringConfig = 'default') {
       opacity.value = 0;
       return;
     }
-    // eslint-disable-next-line react-hooks/immutability -- Reanimated shared values are mutable by design
     scale.value = withSpring(0.9, springConfigs[config]);
-    // eslint-disable-next-line react-hooks/immutability -- Reanimated shared values are mutable by design
     opacity.value = withTiming(0, { duration: 150 });
   }, [config, reduced]);
 

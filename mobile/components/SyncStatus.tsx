@@ -419,7 +419,6 @@ export function SyncStatus({
     if (modus === 'wachtend') {
       // eslint-disable-next-line react-hooks/immutability -- Reanimated shared values are mutable by design
       schaal.value = withSpring(1.01, { damping: 8 }, () => {
-        // eslint-disable-next-line react-hooks/immutability -- Reanimated shared values are mutable by design
         schaal.value = withSpring(1);
       });
     }

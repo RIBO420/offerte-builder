@@ -17,7 +17,6 @@ export function Skeleton({
   style,
   className
 }: SkeletonProps) {
-  // eslint-disable-next-line react-hooks/refs -- RN Animated.Value refs are stable and safe to access during render
   const shimmerAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
