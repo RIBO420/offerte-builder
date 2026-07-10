@@ -9,6 +9,8 @@ import {
 import { requireNotViewer, assertKanNaarKlantVersturen } from "./roles";
 import { internal } from "./_generated/api";
 import { upgradeKlantPipeline } from "./pipelineHelpers";
+import { beoordeelAcceptatie } from "./acceptatieRegels";
+import { maakContractVanGeaccepteerdeOfferte } from "./onderhoudscontracten";
 
 const klantValidator = v.object({
   naam: v.string(),
@@ -40,6 +42,12 @@ const regelValidator = v.object({
   totaal: v.number(),
   type: v.union(v.literal("materiaal"), v.literal("arbeid"), v.literal("machine")),
   margePercentage: v.optional(v.number()), // Override marge per regel
+  // Vrije builder (route 2, PRD §2.5b) — additief, zie schema.ts
+  inkoopprijsPerEenheid: v.optional(v.number()),
+  btwCode: v.optional(v.union(v.literal(9), v.literal(21))),
+  kortingPercentage: v.optional(v.number()),
+  productId: v.optional(v.id("producten")),
+  prijsOpRegel: v.optional(v.boolean()),
 });
 
 const scopeMargesValidator = v.object({
@@ -579,6 +587,8 @@ export const create = mutation({
     notities: v.optional(v.string()),
     klantId: v.optional(v.id("klanten")),
     leadId: v.optional(v.id("configuratorAanvragen")),
+    // Route 2 (PRD §2.5b): "vrij" = regel-editor; undefined = wizard
+    bron: v.optional(v.union(v.literal("wizard"), v.literal("vrij"))),
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
@@ -589,6 +599,7 @@ export const create = mutation({
       userId,
       type: args.type,
       status: "concept",
+      bron: args.bron,
       offerteNummer: args.offerteNummer,
       klant: args.klant,
       klantId: args.klantId,
@@ -1065,8 +1076,11 @@ export const updateStatus = mutation({
 
     // Validate status workflow
     // concept → voorcalculatie → verzonden → geaccepteerd/afgewezen
+    // Vrije offertes (route 2, PRD §2.5b) hebben geen voorcalculatie-stap
+    // en mogen direct van concept naar verzonden.
+    const isVrijeOfferte = oldOfferte.bron === "vrij";
     const validTransitions: Record<string, string[]> = {
-      concept: ["voorcalculatie"],
+      concept: isVrijeOfferte ? ["voorcalculatie", "verzonden"] : ["voorcalculatie"],
       voorcalculatie: ["concept", "verzonden"],
       verzonden: ["voorcalculatie", "geaccepteerd", "afgewezen"],
       geaccepteerd: ["verzonden"],
@@ -1080,7 +1094,8 @@ export const updateStatus = mutation({
     }
 
     // When changing to "verzonden", check that a voorcalculatie exists
-    if (args.status === "verzonden") {
+    // (niet voor vrije offertes: die kennen geen voorcalculatie-record)
+    if (args.status === "verzonden" && !isVrijeOfferte) {
       const voorcalculatie = await ctx.db
         .query("voorcalculaties")
         .withIndex("by_offerte", (q) => q.eq("offerteId", args.id))
@@ -1091,6 +1106,46 @@ export const updateStatus = mutation({
           "Voorcalculatie moet eerst worden ingevuld voordat de offerte kan worden verzonden"
         );
       }
+    }
+
+    // ── Harde acceptatie-validatie + overgang naar de keten (PRD §2.5) ──
+    // Een offerte kan nooit op "geaccepteerd" zonder ten minste één werkitem.
+    // Route 1 (bouwsteenRegels): automatisch concept-contract (uitvoering na
+    // de status-patch hieronder). Aanleg-wizard: automatisch eenmalig project
+    // (voorheen handmatige stap ná acceptatie — mag nu niet meer ontbreken).
+    // Route 2 (vrij): kantoor koppelt éérst werkitems via de koppel-dialoog,
+    // anders weigert deze mutation met een duidelijke fout.
+    let ketenActie: "geen" | "contract_aanmaken" | "project_aanmaken" = "geen";
+    if (args.status === "geaccepteerd") {
+      const werkitems = await ctx.db
+        .query("projecten")
+        .withIndex("by_offerte", (q) => q.eq("offerteId", args.id))
+        .collect();
+      const heeftWerkitem = werkitems.some((w) => !w.deletedAt);
+
+      const contract = await ctx.db
+        .query("onderhoudscontracten")
+        .withIndex("by_offerte", (q) => q.eq("offerteId", args.id))
+        .first();
+
+      const voorcalculatie = await ctx.db
+        .query("voorcalculaties")
+        .withIndex("by_offerte", (q) => q.eq("offerteId", args.id))
+        .first();
+
+      const besluit = beoordeelAcceptatie({
+        type: oldOfferte.type,
+        bron: oldOfferte.bron,
+        heeftWerkitem,
+        heeftContract: contract !== null,
+        aantalBouwsteenRegels: oldOfferte.bouwsteenRegels?.length ?? 0,
+        heeftVoorcalculatie: voorcalculatie !== null,
+      });
+
+      if (!besluit.toegestaan) {
+        throw new ConvexError(besluit.reden);
+      }
+      ketenActie = besluit.actie;
     }
 
     const updates: Record<string, unknown> = {
@@ -1126,6 +1181,29 @@ export const updateStatus = mutation({
     // Create version snapshot for status change
     const offerte = await ctx.db.get(args.id);
     if (offerte) {
+      // ── Overgang naar de keten (PRD §2.5) ──
+      if (ketenActie === "contract_aanmaken") {
+        // Route 1: voorgevuld CONCEPT-contract. De keten is: concept-contract
+        // nu, daarna activeert kantoor het contract (beurtgenerator, §2.1)
+        // waarmee de beurten/werkitems ontstaan.
+        await maakContractVanGeaccepteerdeOfferte(ctx, offerte);
+      } else if (ketenActie === "project_aanmaken") {
+        // Aanleg-wizard: eenmalig project — zelfde vorm als projecten.create,
+        // maar direct bij acceptatie zodat de harde validatie sluitend is.
+        await ctx.db.insert("projecten", {
+          userId: offerte.userId,
+          type: "project",
+          offerteId: offerte._id,
+          klantId: offerte.klantId,
+          naam: `Project ${offerte.offerteNummer} - ${offerte.klant.naam}`,
+          status: "gepland",
+          createdAt: now,
+          updatedAt: now,
+        });
+        if (offerte.klantId) {
+          await upgradeKlantPipeline(ctx, offerte.klantId, "in_uitvoering");
+        }
+      }
       const versions = await ctx.db
         .query("offerte_versions")
         .withIndex("by_offerte", (q) => q.eq("offerteId", args.id))

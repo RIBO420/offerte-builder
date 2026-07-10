@@ -1413,35 +1413,49 @@ export function offerteBouwsteenRegelsNaarWerkzaamheden<
  *   facturatiemodus "per_bezoek" (default).
  * Verplichte validatie op offerte-acceptatie zelf is §2.5 (latere stap).
  */
-export const createFromOfferte = mutation({
-  args: { offerteId: v.id("offertes") },
-  handler: async (ctx, args) => {
-    const user = await requireKantoor(ctx);
-    const now = Date.now();
+/**
+ * Kernlogica van createFromOfferte, herbruikbaar vanuit de acceptatie-
+ * overgang in offertes.updateStatus (PRD §2.5: route 1 maakt bij acceptatie
+ * automatisch een concept-contract). Draait onder de offerte-eigenaar;
+ * autorisatie gebeurt bij de aanroeper. Idempotent: bestaat er al een
+ * contract uit deze offerte, dan wordt dat teruggegeven.
+ */
+export async function maakContractVanGeaccepteerdeOfferte(
+  ctx: MutationCtx,
+  offerte: Doc<"offertes">
+): Promise<{ contractId: Id<"onderhoudscontracten">; aantalRegels: number }> {
+  const now = Date.now();
 
-    const offerte = await ctx.db.get(args.offerteId);
-    if (!offerte || offerte.userId.toString() !== user._id.toString()) {
-      throw new ConvexError("Offerte niet gevonden");
-    }
-    if (offerte.type !== "onderhoud") {
-      throw new ConvexError(
-        "Alleen onderhoud-offertes kunnen een contract worden"
-      );
-    }
-    if (offerte.status !== "geaccepteerd") {
-      throw new ConvexError(
-        "Alleen geaccepteerde offertes kunnen een contract worden"
-      );
-    }
-    if (!offerte.klantId) {
-      throw new ConvexError(
-        "Koppel de offerte eerst aan een klant voordat je een contract maakt"
-      );
-    }
-    const klant = await ctx.db.get(offerte.klantId);
-    if (!klant) {
-      throw new ConvexError("Klant van de offerte niet gevonden");
-    }
+  if (offerte.type !== "onderhoud") {
+    throw new ConvexError("Alleen onderhoud-offertes kunnen een contract worden");
+  }
+  if (offerte.status !== "geaccepteerd") {
+    throw new ConvexError(
+      "Alleen geaccepteerde offertes kunnen een contract worden"
+    );
+  }
+  if (!offerte.klantId) {
+    throw new ConvexError(
+      "Koppel de offerte eerst aan een klant voordat je een contract maakt"
+    );
+  }
+  const klant = await ctx.db.get(offerte.klantId);
+  if (!klant) {
+    throw new ConvexError("Klant van de offerte niet gevonden");
+  }
+
+  // Idempotentie: één contract per offerte (her-acceptatie maakt geen tweede)
+  const bestaand = await ctx.db
+    .query("onderhoudscontracten")
+    .withIndex("by_offerte", (q) => q.eq("offerteId", offerte._id))
+    .first();
+  if (bestaand) {
+    const bestaandeRegels = await ctx.db
+      .query("contractWerkzaamheden")
+      .withIndex("by_contract", (q) => q.eq("contractId", bestaand._id))
+      .collect();
+    return { contractId: bestaand._id, aantalRegels: bestaandeRegels.length };
+  }
 
     const startDatum = vandaagIso();
     const eindDatum = addMaanden(startDatum, 12);
@@ -1504,8 +1518,9 @@ export const createFromOfferte = mutation({
     const contractNummer = await generateContractNummer(ctx);
 
     const contractId = await ctx.db.insert("onderhoudscontracten", {
-      userId: user._id,
+      userId: offerte.userId,
       klantId: offerte.klantId,
+      offerteId: offerte._id,
       contractNummer,
       naam: `Onderhoudscontract ${klant.naam}`,
       locatie: {
@@ -1550,5 +1565,18 @@ export const createFromOfferte = mutation({
     await upgradeKlantPipeline(ctx, offerte.klantId, "onderhoud");
 
     return { contractId, aantalRegels: werkzaamheden.length };
+}
+
+export const createFromOfferte = mutation({
+  args: { offerteId: v.id("offertes") },
+  handler: async (ctx, args) => {
+    const user = await requireKantoor(ctx);
+
+    const offerte = await ctx.db.get(args.offerteId);
+    if (!offerte || offerte.userId.toString() !== user._id.toString()) {
+      throw new ConvexError("Offerte niet gevonden");
+    }
+
+    return maakContractVanGeaccepteerdeOfferte(ctx, offerte);
   },
 });
