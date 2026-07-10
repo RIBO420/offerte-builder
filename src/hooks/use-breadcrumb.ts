@@ -36,6 +36,7 @@ const ROUTE_LABELS: Record<string, string> = {
   prijsboek: "Prijsboek",
   garanties: "Garanties",
   servicemeldingen: "Servicemeldingen",
+  meldingen: "Meldingen",
   toolbox: "Toolbox",
   leveranciers: "Leveranciers",
   voorraad: "Voorraad",

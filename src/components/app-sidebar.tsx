@@ -77,6 +77,8 @@ const werkItems = [
   { title: "Klanten", url: "/klanten", icon: Users },
   { title: "Projecten", url: "/projecten", icon: FolderKanban },
   { title: "Planning", url: "/planning", icon: Calendar },
+  // PRD §2.4: meldingen/cases — intern bord met teller-badge (open cases)
+  { title: "Meldingen", url: "/meldingen", icon: Wrench },
   { title: "Uren", url: "/uren", icon: Clock },
   { title: "Rapportages", url: "/rapportages", icon: BarChart3 },
   { title: "Chat", url: "/chat", icon: MessageSquare },
@@ -107,7 +109,7 @@ const assetsMenuItems = [
   { title: "Tekstblokken", url: "/instellingen/tekstblokken", icon: TextQuote },
   { title: "Prijsboek", url: "/prijsboek", icon: BookOpen },
   { title: "Garanties", url: "/garanties", icon: ShieldCheck },
-  { title: "Servicemeldingen", url: "/servicemeldingen", icon: Wrench },
+  // "Servicemeldingen" is vervangen door het §2.4-bord "Meldingen" (werkItems)
   { title: "Toolbox", url: "/toolbox", icon: ClipboardList },
 ];
 
@@ -153,6 +155,13 @@ export function AppSidebar() {
     api.klanten.countKlanten,
     isKantoor ? {} : "skip"
   );
+  // §2.4: teller-badge open meldingen — stafrollen die het bord zien
+  const isMeldingenRol =
+    isKantoor || role === "voorman" || role === "medewerker";
+  const aantalOpenMeldingen = useQuery(
+    api.servicemeldingen.telOpenMeldingen,
+    isMeldingenRol ? {} : "skip"
+  );
 
   // Close mobile sidebar when navigating to a new page
   useEffect(() => {
@@ -166,7 +175,7 @@ export function AppSidebar() {
     }
     if (role === "voorman") {
       return werkItems.filter((item) =>
-        ["Dashboard", "Projecten", "Planning", "Uren", "Chat"].includes(item.title)
+        ["Dashboard", "Projecten", "Planning", "Meldingen", "Uren", "Chat"].includes(item.title)
       );
     }
     if (role === "materiaalman") {
@@ -181,7 +190,7 @@ export function AppSidebar() {
     }
     if (role === "medewerker") {
       return werkItems.filter((item) =>
-        ["Dashboard", "Uren", "Chat"].includes(item.title)
+        ["Dashboard", "Meldingen", "Uren", "Chat"].includes(item.title)
       );
     }
     // klant/viewer
@@ -271,6 +280,14 @@ export function AppSidebar() {
                           className="ml-auto text-xs h-5 min-w-5 px-1"
                         >
                           {aantalKlanten}
+                        </Badge>
+                      )}
+                      {item.title === "Meldingen" && aantalOpenMeldingen !== undefined && aantalOpenMeldingen > 0 && (
+                        <Badge
+                          variant="default"
+                          className="ml-auto text-xs h-5 min-w-5 px-1 bg-amber-600 hover:bg-amber-600"
+                        >
+                          {aantalOpenMeldingen}
                         </Badge>
                       )}
                     </Link>

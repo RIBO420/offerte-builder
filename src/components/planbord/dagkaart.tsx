@@ -187,6 +187,31 @@ function KlantBlok({
             </ul>
           )}
 
+          {/* Veldtaken uit meldingen (§2.4/§8.6): eigen regel in het
+              klantblok, alleen zichtbaar als de getagde medewerker vandaag
+              in dit team zit én dit klantblok op de dagkaart staat. */}
+          {stop.veldtaken.length > 0 && (
+            <ul className="space-y-1" data-testid="dagkaart-veldtaken">
+              {stop.veldtaken.map((taak) => (
+                <li
+                  key={taak.veldtaakId}
+                  className="flex items-center gap-2 rounded-sm bg-sky-50 px-1.5 py-1 text-sm dark:bg-sky-950/40"
+                >
+                  <Badge
+                    variant="outline"
+                    className="border-sky-400 text-[10px] text-sky-700 dark:text-sky-300"
+                  >
+                    Veldtaak
+                  </Badge>
+                  <span className="min-w-0 flex-1 truncate">{taak.tekst}</span>
+                  <span className="text-xs text-muted-foreground">
+                    @{taak.medewerkerNaam}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+
           {magMuteren && (
             <div className="flex flex-wrap items-center gap-2 text-xs">
               <label className="flex items-center gap-1">
