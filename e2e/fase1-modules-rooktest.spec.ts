@@ -132,7 +132,7 @@ test("fase 1 rooktest: planning, veld, meldingen, mails en facturatie", async ({
   await test.step("/instellingen/mailtriggers: beheerscherm rendert", async () => {
     await gaNaar(page, "/instellingen/mailtriggers", "mailtriggers");
     await expect(
-      page.getByRole("heading", { name: "Mail-triggers" })
+      page.getByRole("heading", { name: "Mail-triggers", exact: true })
     ).toBeVisible({ timeout: 30_000 });
   });
 

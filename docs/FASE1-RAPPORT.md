@@ -120,3 +120,30 @@ Per module, uit commit-rapportages en code-comments:
 ## 7. Eindoordeel
 
 **De branch `fase-1-catalogus` is klaar voor review door Ricardo.** Alle twaalf acceptatietests zijn geautomatiseerd of aantoonbaar gedekt voor zover dat zonder echte bedrijfsdata kan; de rooktests bewijzen dat elk fase 1-scherm op dev rendert en foutvrij is. De twee bugs die deze ronde aan het licht kwamen (dagkaart-laadlus, veld-crash voor kantoor zonder medewerker-koppeling) zijn gefixt en geverifieerd. De resterende risico's zitten niet in de code maar in data en besluiten: catalogus-vulling, drempels en de schaduw-offerte van Mickey, en de prod-flags van Ricardo vóór deploy.
+
+---
+
+## 8. Opschoonronde (10 juli 2026)
+
+Na de eindverificatie hierboven is een aparte opschoonronde uitgevoerd (32 commits sinds `d0add51`, plus deze eindcheck). Samenvatting:
+
+### Wat is opgeschoond
+- **Typecheck naar 0 fouten totaal** — de 536 pre-existente testtypefouten in `src/__tests__/` zijn verholpen (expliciete vitest-imports, vitest-axe-matchertypes, mock-typings).
+- **ESLint naar 0 errors en 0 warnings** op `src/` en `convex/` — ongebruikte imports/variabelen opgeruimd, `no-explicit-any` naar 0 met echte types.
+- **Mobile:** `tsc` naar 0 fouten en eigen Expo-eslint-config.
+- **Dead code verwijderd** — dode Convex-modules (realtime, plantsoorten, afvalverwerkers, transportbedrijven, garantiePakketten, publicOffertes), 12 clock-in/out-functies uit `convex/mobile.ts`, 8 dode weekPlanning-functies, nooit-ingehangen rol-dashboards, dode PDF-templates, wagenpark-restanten, dode offerte-extra's, dode barrels/wrappers/hooks, 6 ongebruikte ui-primitieven, verouderde /servicemeldingen-pagina's, ongebruikte devDependency `@axe-core/react` en het afgehandelde `DEAD-CODE-RAPPORT.md`.
+- **Performance:** N+1's verholpen via indexbereiken (herinneringen, weekPlanning, medewerker-prestaties), facturen-stats server-side, planbord-componenten gememoiseerd.
+- **UI-consistentie fase 1:** H1-huisstijl overal, EmptyState-patroon (planbord, veld, mails, mailtriggers, klant-onderhoud), huisstijl-datepickers, a11y-labels, statusbadges.
+
+### Eindcheck-resultaten (nieuwe baselines)
+| Check | Uitslag |
+|-------|---------|
+| `npm run typecheck` | **0 fouten totaal** |
+| `npx eslint src/ convex/` | **0 errors, 0 warnings** |
+| Unit-suite | **80 bestanden, 2585 tests, 2585 groen** |
+| Mobile `tsc --noEmit` | **0 fouten** |
+| E2E-rooktests fase 1 | **2/2 groen** (fase1-modules + fase1-offerte) — één spec-locator aangescherpt (`Mail-triggers` exact, botste met nieuwe empty-state-heading) |
+| `npx convex dev --once` | Groen ("Convex functions ready") |
+| Werkboom | Schoon; enige untracked bestand is `.claude/launch.json` |
+
+Kanttekening: de e2e-run draaide tegen een vers gestarte dev-server (poort 56735) omdat de eerdere preview op 59564 niet meer draaide; gedrag is identiek.
