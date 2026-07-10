@@ -11,6 +11,7 @@ import {
   VALIDATION_MESSAGES,
 } from "./validators";
 import { shouldUpgradePipeline } from "./pipelineHelpers";
+import { hoortInKlantenLijst } from "./leadsKlantenHelpers";
 
 // Get all klanten for authenticated user
 export const list = query({
@@ -22,8 +23,9 @@ export const list = query({
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .order("desc")
       .collect();
-    // Gearchiveerde klanten niet tonen in de lijst (§5.2)
-    return klanten.filter((k) => !k.isArchived);
+    // Gearchiveerde klanten (§5.2) en legacy "lead"-stadium (PRD §1.3, zie
+    // leadsKlantenHelpers.ts) niet tonen: de lead-funnel leeft op het leads-bord.
+    return klanten.filter(hoortInKlantenLijst);
   },
 });
 
@@ -171,7 +173,8 @@ export const create = mutation({
       email,
       telefoon,
       notities,
-      pipelineStatus: "lead",
+      // PRD §1.3: geen "lead"-default meer — een rij in klanten ís een klant;
+      // het lifecycle-stadium volgt uit echte events (upgradeKlantPipeline).
       klantType: args.klantType ?? "particulier",
       tags: sanitizedTags,
       createdAt: now,
@@ -356,13 +359,30 @@ export const listWithRecent = query({
       .order("desc")
       .collect();
 
-    // Gearchiveerde klanten niet tonen in de lijst (§5.2)
-    const klanten = alleKlanten.filter((k) => !k.isArchived);
+    // Gearchiveerde klanten (§5.2) en legacy "lead"-stadium (PRD §1.3) niet tonen
+    const klanten = alleKlanten.filter(hoortInKlantenLijst);
 
     return {
       klanten,
       recentKlanten: klanten.slice(0, 5),
     };
+  },
+});
+
+/**
+ * Teller-badge voor het menu-item "Klanten" (PRD §1.3/§5.1): het aantal echte
+ * klanten. Gearchiveerde klanten en records met het legacy "lead"-stadium
+ * (in sanering, zie leadsKlantenHelpers.ts) tellen niet mee.
+ */
+export const countKlanten = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireAuthUserId(ctx);
+    const klanten = await ctx.db
+      .query("klanten")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    return klanten.filter(hoortInKlantenLijst).length;
   },
 });
 
@@ -504,7 +524,7 @@ export const createFromOfferte = mutation({
       plaats: args.plaats.trim(),
       email,
       telefoon,
-      pipelineStatus: "lead",
+      // PRD §1.3: geen "lead"-default meer (zie leadsKlantenHelpers.ts)
       createdAt: now,
       updatedAt: now,
     });
@@ -785,7 +805,7 @@ export const importKlanten = mutation({
           plaats: klant.plaats.trim(),
           email,
           telefoon,
-          pipelineStatus: "lead",
+          // PRD §1.3: geen "lead"-default meer (zie leadsKlantenHelpers.ts)
           klantType: klant.klantType ?? "particulier",
           createdAt: now,
           updatedAt: now,
@@ -802,7 +822,6 @@ export const importKlanten = mutation({
           plaats: klant.plaats.trim(),
           email,
           telefoon,
-          pipelineStatus: "lead" as const,
           klantType: klant.klantType ?? "particulier",
           createdAt: now,
           updatedAt: now,

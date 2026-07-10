@@ -11,6 +11,10 @@ import { Id } from "./_generated/dataModel";
 
 // Ordered pipeline stages — index determines hierarchy
 export const PIPELINE_ORDER = [
+  // LET OP (PRD §1.3, fase 0): "lead" is DEPRECATED — de lead-funnel leeft op
+  // configuratorAanvragen (zie convex/leadsKlantenHelpers.ts). Het stadium
+  // blijft hier alleen staan zodat legacy-rijen correct blijven upgraden totdat
+  // convex/migrations/saneerLeadsKlanten.ts gedraaid is. Nergens meer schrijven.
   "lead",
   "offerte_verzonden",
   "getekend",

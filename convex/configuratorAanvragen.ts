@@ -3,6 +3,13 @@ import { internalMutation, mutation, query } from "./_generated/server";
 import { requireAuth, requireAuthUserId } from "./auth";
 import { requireNotViewer } from "./roles";
 import { Doc } from "./_generated/dataModel";
+import {
+  mapOldStatus,
+  isActieveLead,
+  isGepromoveerdeLead,
+  promoveerLead,
+  type LeadPipelineStatus,
+} from "./leadsKlantenHelpers";
 
 // ============================================
 // Queries
@@ -98,6 +105,21 @@ export const countByStatus = query({
 });
 
 /**
+ * Teller-badge voor het menu-item "Leads" (PRD §1.3/§5.1): het aantal leads
+ * dat actief in de funnel zit (nieuw/contact_gehad/offerte_verstuurd).
+ * Gearchiveerde, gewonnen (gepromoveerde) en verloren leads tellen niet mee —
+ * dit lost het verwarrende "45" op dat eerder op "Klanten" stond.
+ */
+export const countActieveLeads = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAuthUserId(ctx);
+    const aanvragen = await ctx.db.query("configuratorAanvragen").collect();
+    return aanvragen.filter(isActieveLead).length;
+  },
+});
+
+/**
  * Haal leads op die geschikt zijn voor selectie in de offerte wizard.
  * Toont leads met pipelineStatus "nieuw" of "contact_gehad" (die nog geen offerte hebben).
  */
@@ -137,28 +159,10 @@ export const listForOfferteSelector = query({
 // ============================================
 // Pipeline / CRM Helpers
 // ============================================
+// mapOldStatus en de funnel-logica leven in convex/leadsKlantenHelpers.ts
+// (PRD §1.3: sanering dubbele pipeline — zie het commentaarblok daar).
 
-type PipelineStatus = "nieuw" | "contact_gehad" | "offerte_verstuurd" | "gewonnen" | "verloren";
-
-/**
- * Map oude aanvraag status naar pipeline status voor backward compatibility.
- */
-function mapOldStatus(status: string): PipelineStatus {
-  switch (status) {
-    case "nieuw":
-      return "nieuw";
-    case "in_behandeling":
-      return "contact_gehad";
-    case "goedgekeurd":
-      return "gewonnen";
-    case "afgekeurd":
-      return "verloren";
-    case "voltooid":
-      return "gewonnen";
-    default:
-      return "nieuw";
-  }
-}
+type PipelineStatus = LeadPipelineStatus;
 
 // ============================================
 // Pipeline Queries
@@ -187,6 +191,10 @@ export const listByPipeline = query({
     for (const lead of allLeads) {
       // Gearchiveerde leads niet tonen op het bord (§5.2)
       if (lead.isArchived) continue;
+      // PRD §1.3: een gepromoveerde lead (gewonnen + gekoppeld klantrecord)
+      // wórdt de klant en verdwijnt van het bord; de historie blijft
+      // bereikbaar vanaf de klant (getLeadVoorKlant).
+      if (isGepromoveerdeLead(lead)) continue;
       const pipelineStatus = lead.pipelineStatus ?? mapOldStatus(lead.status);
       grouped[pipelineStatus].push(lead);
     }
@@ -630,7 +638,15 @@ export const updatePipelineStatus = mutation({
 });
 
 /**
- * Markeer een lead als gewonnen en koppel/maak een klant (authenticated).
+ * Markeer een lead als gewonnen = promotie naar klant (PRD §1.3, authenticated).
+ *
+ * De kern (promoveerLead, convex/leadsKlantenHelpers.ts) is idempotent en:
+ * - matcht bestaande klanten case-insensitief via de by_email-index
+ *   (geen ongeïndexeerde full-table scan meer);
+ * - maakt géén dubbel record: de lead wórdt de klant en verdwijnt van het
+ *   bord (listByPipeline filtert gepromoveerde leads), historie blijft
+ *   bereikbaar vanaf de klant (getLeadVoorKlant);
+ * - maakt direct het eerste werkitem aan (type "project", status "gepland").
  */
 export const markGewonnen = mutation({
   args: {
@@ -648,53 +664,47 @@ export const markGewonnen = mutation({
       throw new ConvexError("Klantnaam is verplicht om een lead als gewonnen te markeren");
     }
 
-    // Zoek bestaande klant op basis van e-mailadres
-    let klantId = lead.gekoppeldKlantId;
+    const resultaat = await promoveerLead(ctx, lead, currentUser);
+    return resultaat;
+  },
+});
 
-    if (!klantId && lead.klantEmail) {
-      const bestaandeKlanten = await ctx.db
-        .query("klanten")
-        .filter((q) => q.eq(q.field("email"), lead.klantEmail.toLowerCase()))
-        .collect();
+/**
+ * Lead-historie vanaf de klant (PRD §1.3): het gepromoveerde lead-record met
+ * activiteiten en foto-verwijzingen, opgezocht via de by_gekoppeld_klant-index.
+ */
+export const getLeadVoorKlant = query({
+  args: { klantId: v.id("klanten") },
+  handler: async (ctx, args) => {
+    await requireAuthUserId(ctx);
 
-      if (bestaandeKlanten.length > 0) {
-        klantId = bestaandeKlanten[0]._id;
-      }
-    }
+    const lead = await ctx.db
+      .query("configuratorAanvragen")
+      .withIndex("by_gekoppeld_klant", (q) => q.eq("gekoppeldKlantId", args.klantId))
+      .first();
+    if (!lead) return null;
 
-    // Maak nieuwe klant aan als die niet bestaat
-    if (!klantId) {
-      const now = Date.now();
-      klantId = await ctx.db.insert("klanten", {
-        userId: currentUser._id,
-        naam: lead.klantNaam.trim(),
-        adres: lead.klantAdres?.trim() ?? "",
-        postcode: lead.klantPostcode?.trim() ?? "",
-        plaats: lead.klantPlaats?.trim() ?? "",
-        email: lead.klantEmail?.trim().toLowerCase(),
-        telefoon: lead.klantTelefoon?.trim(),
-        createdAt: now,
-        updatedAt: now,
-      });
-    }
+    const activiteiten = await ctx.db
+      .query("leadActiviteiten")
+      .withIndex("by_lead", (q) => q.eq("leadId", lead._id))
+      .order("desc")
+      .collect();
 
-    await ctx.db.patch(args.id, {
-      pipelineStatus: "gewonnen",
-      gekoppeldKlantId: klantId,
-      updatedAt: Date.now(),
-    });
-
-    // Log activiteit
-    await ctx.db.insert("leadActiviteiten", {
-      leadId: args.id,
-      type: "status_wijziging",
-      beschrijving: "Lead gemarkeerd als gewonnen en klant gekoppeld",
-      gebruikerId: currentUser._id,
-      metadata: { gekoppeldKlantId: klantId },
-      createdAt: Date.now(),
-    });
-
-    return { klantId };
+    return {
+      _id: lead._id,
+      referentie: lead.referentie,
+      bron: lead.bron,
+      type: lead.type,
+      omschrijving: lead.omschrijving,
+      aantalFotos: lead.fotoIds?.length ?? 0,
+      createdAt: lead.createdAt,
+      activiteiten: activiteiten.map((a) => ({
+        _id: a._id,
+        type: a.type,
+        beschrijving: a.beschrijving,
+        createdAt: a.createdAt,
+      })),
+    };
   },
 });
 
