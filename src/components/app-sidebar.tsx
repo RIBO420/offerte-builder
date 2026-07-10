@@ -59,6 +59,7 @@ import {
   MessageSquare,
   ScrollText,
   Settings,
+  TextQuote,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Badge } from "@/components/ui/badge";
@@ -103,6 +104,7 @@ const assetsMenuItems = [
   { title: "Wagenparkbeheer", url: "/wagenpark", icon: Truck },
   { title: "Machinebeheer", url: "/instellingen/machines", icon: Wrench },
   { title: "Catalogus onderhoud", url: "/instellingen/catalogus", icon: Trees },
+  { title: "Tekstblokken", url: "/instellingen/tekstblokken", icon: TextQuote },
   { title: "Prijsboek", url: "/prijsboek", icon: BookOpen },
   { title: "Garanties", url: "/garanties", icon: ShieldCheck },
   { title: "Servicemeldingen", url: "/servicemeldingen", icon: Wrench },
