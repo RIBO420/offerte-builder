@@ -17,7 +17,7 @@
 
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAction, useMutation, useQuery } from "convex/react";
 import {
   DndContext,
@@ -42,6 +42,7 @@ import { magPlanbordMuteren } from "../../../convex/planbordLogica";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Clock,
   Coffee,
@@ -53,6 +54,7 @@ import {
   Route,
   Scissors,
   Truck,
+  Users,
   UserX,
   Warehouse,
 } from "lucide-react";
@@ -429,6 +431,7 @@ function StandaardblokkenBalk({
 // ============================================
 
 export function Dagkaart() {
+  const router = useRouter();
   const zoekparams = useSearchParams();
   const datumParam = zoekparams.get("datum");
   const teamParam = zoekparams.get("team") as Id<"teams"> | null;
@@ -657,9 +660,15 @@ export function Dagkaart() {
       {context === undefined || (teamId !== null && kaart === undefined) ? (
         <p className="text-sm text-muted-foreground">Dagkaart laden…</p>
       ) : !teamId || kaart === undefined ? (
-        <p className="text-sm text-muted-foreground">
-          Nog geen actieve teams. Maak eerst een team aan onder Teams.
-        </p>
+        <EmptyState
+          icon={<Users aria-hidden />}
+          title="Nog geen actieve teams"
+          description="Maak eerst een team aan; daarna verschijnt hier de dagkaart van dat team."
+          action={{
+            label: "Naar teams",
+            onClick: () => router.push("/medewerkers/teams"),
+          }}
+        />
       ) : (
         <div className="rounded-lg border">
           <div className="space-y-1 border-b bg-muted/40 p-3">

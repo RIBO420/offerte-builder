@@ -23,12 +23,15 @@ import {
   LockOpen,
   Send,
   Sun,
+  UserRound,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { useCurrentUserRole } from "@/hooks/use-users";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Dialog,
   DialogContent,
@@ -80,6 +83,7 @@ const BUITEN_STIJL: CSSProperties = {
 };
 
 export function VeldDag() {
+  const router = useRouter();
   const role = useCurrentUserRole();
   const isKantoor =
     role === "directie" || role === "admin" || role === "projectleider";
@@ -243,12 +247,34 @@ export function VeldDag() {
       {dag === undefined ? (
         <p className="text-sm text-muted-foreground">Dag laden…</p>
       ) : dag === null ? (
-        // Kantoor-account zonder eigen medewerker-koppeling: de backend geeft
-        // bewust null terug; kies hierboven een medewerker om diens dag te zien.
-        <p className="text-sm text-muted-foreground">
-          Je account is niet aan een medewerker gekoppeld. Kies hierboven een
-          medewerker om zijn of haar dag te bekijken.
-        </p>
+        // Account zonder eigen medewerker-koppeling: de backend geeft bewust
+        // null terug. Kantoor kan de medewerker-kiezer hierboven gebruiken;
+        // anders wijzen we de weg naar de medewerkers-pagina.
+        isKantoor && medewerkers && medewerkers.length > 0 ? (
+          <EmptyState
+            icon={<UserRound aria-hidden />}
+            title="Je account is niet aan een medewerker gekoppeld"
+            description="Kies hierboven een medewerker om zijn of haar dag te bekijken."
+          />
+        ) : (
+          <EmptyState
+            icon={<UserRound aria-hidden />}
+            title="Je account is niet aan een medewerker gekoppeld"
+            description={
+              isKantoor
+                ? "Koppel je account aan een medewerker via de pagina Medewerkers om hier een dag te zien."
+                : "Vraag kantoor om je account aan een medewerker te koppelen; daarna zie je hier je dag."
+            }
+            action={
+              isKantoor
+                ? {
+                    label: "Naar medewerkers",
+                    onClick: () => router.push("/medewerkers"),
+                  }
+                : undefined
+            }
+          />
+        )
       ) : (
         <>
           {/* Dag-status */}

@@ -14,6 +14,7 @@
 
 import { memo, useCallback, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "convex/react";
 import {
   DndContext,
@@ -36,6 +37,7 @@ import {
 } from "../../../convex/planbordLogica";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   ChevronLeft,
   ChevronRight,
@@ -239,6 +241,7 @@ const TeamDagCel = memo(function TeamDagCel({
 // ============================================
 
 export function Weekbord() {
+  const router = useRouter();
   const [periode, setPeriode] = useState<Periode>("week");
   const [anker, setAnker] = useState(vandaagIso());
   const [filterDatum, setFilterDatum] = useState<string | null>(null);
@@ -403,13 +406,23 @@ export function Weekbord() {
               ))}
             </div>
             <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" onClick={() => setAnker(schuifAnker(periode, anker, -1))}>
+              <Button
+                size="sm"
+                variant="outline"
+                aria-label="Vorige periode"
+                onClick={() => setAnker(schuifAnker(periode, anker, -1))}
+              >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <span className="min-w-40 text-center text-sm font-medium">
                 {bereikLabel(bereik.start, bereik.eind)}
               </span>
-              <Button size="sm" variant="outline" onClick={() => setAnker(schuifAnker(periode, anker, 1))}>
+              <Button
+                size="sm"
+                variant="outline"
+                aria-label="Volgende periode"
+                onClick={() => setAnker(schuifAnker(periode, anker, 1))}
+              >
                 <ChevronRight className="h-4 w-4" />
               </Button>
               <Button size="sm" variant="outline" onClick={() => setAnker(vandaagIso())}>
@@ -453,9 +466,15 @@ export function Weekbord() {
               {context === undefined || werkitems === undefined ? (
                 <p className="p-4 text-sm text-muted-foreground">Bord laden…</p>
               ) : resources.length === 0 ? (
-                <p className="p-4 text-sm text-muted-foreground">
-                  Nog geen actieve teams. Maak eerst een team aan onder Teams.
-                </p>
+                <EmptyState
+                  icon={<Users aria-hidden />}
+                  title="Nog geen actieve teams"
+                  description="Maak eerst een team aan; daarna kun je hier werk inplannen."
+                  action={{
+                    label: "Naar teams",
+                    onClick: () => router.push("/medewerkers/teams"),
+                  }}
+                />
               ) : (
                 resources.map((team) => (
                   <div
