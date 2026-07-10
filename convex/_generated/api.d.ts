@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as acceptatieRegels from "../acceptatieRegels.js";
 import type * as afvalverwerkers from "../afvalverwerkers.js";
 import type * as analytics from "../analytics.js";
 import type * as archief from "../archief.js";
@@ -103,6 +104,8 @@ import type * as voertuigen from "../voertuigen.js";
 import type * as voorcalculaties from "../voorcalculaties.js";
 import type * as voormanDashboard from "../voormanDashboard.js";
 import type * as voorraad from "../voorraad.js";
+import type * as vrijeOfferte from "../vrijeOfferte.js";
+import type * as vrijeOfferteBerekening from "../vrijeOfferteBerekening.js";
 import type * as weekPlanning from "../weekPlanning.js";
 import type * as werkitems from "../werkitems.js";
 import type * as werklocaties from "../werklocaties.js";
@@ -114,6 +117,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  acceptatieRegels: typeof acceptatieRegels;
   afvalverwerkers: typeof afvalverwerkers;
   analytics: typeof analytics;
   archief: typeof archief;
@@ -209,6 +213,8 @@ declare const fullApi: ApiFromModules<{
   voorcalculaties: typeof voorcalculaties;
   voormanDashboard: typeof voormanDashboard;
   voorraad: typeof voorraad;
+  vrijeOfferte: typeof vrijeOfferte;
+  vrijeOfferteBerekening: typeof vrijeOfferteBerekening;
   weekPlanning: typeof weekPlanning;
   werkitems: typeof werkitems;
   werklocaties: typeof werklocaties;
