@@ -35,6 +35,12 @@ export const MAIL_EVENTS = [
   "inplanning_bevestigd",
   "offerte_opvolging",
   "inplan_attendering",
+  // Debiteurenladder (PRD §3.2, fase 2): één event per ladder-trede die
+  // mailt. Sjabloon/modus per trede instelbaar via het trigger-record.
+  "betalingsherinnering_1",
+  "betalingsherinnering_2",
+  "betalingsherinnering_3",
+  "betalingsherinnering_4",
 ] as const;
 
 export type MailEvent = (typeof MAIL_EVENTS)[number];
@@ -45,7 +51,19 @@ export const MAIL_EVENT_LABELS: Record<MailEvent, string> = {
   inplanning_bevestigd: "Inplanning bevestigd",
   offerte_opvolging: "Offerte-opvolging",
   inplan_attendering: "Inplan-mail (planningsattendering)",
+  betalingsherinnering_1: "Betalingsherinnering (ladder trede 1)",
+  betalingsherinnering_2: "Tweede betalingsherinnering (ladder trede 2)",
+  betalingsherinnering_3: "Aanmaning (ladder trede 3)",
+  betalingsherinnering_4: "Laatste aanmaning (ladder trede 4)",
 };
+
+/** Mail-event dat bij een ladder-trede hoort (debiteurenladder, §3.2). */
+export function mailEventVoorTrede(trede: number): MailEvent {
+  return `betalingsherinnering_${Math.min(
+    Math.max(trede, 1),
+    4
+  )}` as MailEvent;
+}
 
 export interface MailTriggerSeed {
   event: MailEvent;
@@ -154,6 +172,97 @@ export const MAIL_TRIGGER_DEFAULTS: MailTriggerSeed[] = [
     inhoud:
       "Beste {{klantnaam}},\n\nHet seizoen komt eraan: het is weer tijd voor uw {{beurtnaam}}. Wij willen deze graag inplannen in de periode {{venster}}.\n\nSchikt deze periode u? Laat het ons weten, dan plannen wij de beurt voor u in. Komt de periode niet uit, dan zoeken we samen naar een beter moment.",
     variabelen: ["klantnaam", "beurtnaam", "venster", "bedrijfsnaam"],
+    vertragingDagen: 0,
+    ontvanger: "klant",
+    modus: "concept",
+    actief: true,
+  },
+  // ── Debiteurenladder (PRD §3.2, fase 2) ────────────────────────────────
+  // De dagelijkse ladder-cron (convex/debiteuren.ts) zet deze mails als
+  // CONCEPT in de wachtrij (kantoor keurt goed). Kantoor kan een trede op
+  // "automatisch" zetten — ook dan blijft de mail-guard fail-closed.
+  // Het RITME (dag 14/21/28) leeft in de ladder-instellingen, niet in het
+  // veld 'vertraging'; dat wordt voor deze events niet gebruikt.
+  {
+    event: "betalingsherinnering_1",
+    naam: "Betalingsherinnering",
+    omschrijving:
+      "Ladder trede 1 (default dag 14 na verzending): vriendelijke herinnering aan een openstaande factuur. Wordt door de dagelijkse debiteuren-cron als concept klaargezet.",
+    onderwerp: "Herinnering: factuur {{factuurnummer}} staat nog open",
+    inhoud:
+      "Beste {{klantnaam}},\n\nVolgens onze administratie staat factuur {{factuurnummer}} van {{factuurbedrag}} (vervaldatum {{vervaldatum}}) nog open.\n\nWellicht is de betaling aan uw aandacht ontsnapt. Wij verzoeken u vriendelijk het openstaande bedrag van {{openstaandBedrag}} alsnog over te maken.\n\nHeeft u de factuur inmiddels betaald, dan kunt u deze herinnering als niet verzonden beschouwen.",
+    variabelen: [
+      "klantnaam",
+      "factuurnummer",
+      "factuurbedrag",
+      "openstaandBedrag",
+      "vervaldatum",
+      "bedrijfsnaam",
+    ],
+    vertragingDagen: 0,
+    ontvanger: "klant",
+    modus: "concept",
+    actief: true,
+  },
+  {
+    event: "betalingsherinnering_2",
+    naam: "Tweede betalingsherinnering",
+    omschrijving:
+      "Ladder trede 2 (default dag 21 na verzending): tweede herinnering met een duidelijker verzoek. Wordt door de dagelijkse debiteuren-cron als concept klaargezet.",
+    onderwerp:
+      "Tweede herinnering: factuur {{factuurnummer}} staat nog open",
+    inhoud:
+      "Beste {{klantnaam}},\n\nOndanks onze eerdere herinnering staat factuur {{factuurnummer}} van {{factuurbedrag}} (vervaldatum {{vervaldatum}}) nog open.\n\nWij verzoeken u het openstaande bedrag van {{openstaandBedrag}} binnen 7 dagen over te maken.\n\nIs er een reden waarom de betaling uitblijft? Neem dan contact met ons op, dan zoeken we samen naar een oplossing.",
+    variabelen: [
+      "klantnaam",
+      "factuurnummer",
+      "factuurbedrag",
+      "openstaandBedrag",
+      "vervaldatum",
+      "bedrijfsnaam",
+    ],
+    vertragingDagen: 0,
+    ontvanger: "klant",
+    modus: "concept",
+    actief: true,
+  },
+  {
+    event: "betalingsherinnering_3",
+    naam: "Aanmaning",
+    omschrijving:
+      "Ladder trede 3 als kantoor die op 'mail' zet (default is een interne bel-taak): formele aanmaning. Wordt door de dagelijkse debiteuren-cron als concept klaargezet.",
+    onderwerp: "Aanmaning: factuur {{factuurnummer}}",
+    inhoud:
+      "Beste {{klantnaam}},\n\nHelaas hebben wij nog geen betaling ontvangen voor factuur {{factuurnummer}} van {{factuurbedrag}} (vervaldatum {{vervaldatum}}), ondanks eerdere herinneringen.\n\nWij verzoeken u dringend het openstaande bedrag van {{openstaandBedrag}} per omgaande over te maken.\n\nNeem bij vragen of een betalingsregeling direct contact met ons op.",
+    variabelen: [
+      "klantnaam",
+      "factuurnummer",
+      "factuurbedrag",
+      "openstaandBedrag",
+      "vervaldatum",
+      "bedrijfsnaam",
+    ],
+    vertragingDagen: 0,
+    ontvanger: "klant",
+    modus: "concept",
+    actief: true,
+  },
+  {
+    event: "betalingsherinnering_4",
+    naam: "Laatste aanmaning",
+    omschrijving:
+      "Ladder trede 4 (optioneel): laatste aanmaning vóór verdere stappen. Wordt door de dagelijkse debiteuren-cron als concept klaargezet.",
+    onderwerp: "Laatste aanmaning: factuur {{factuurnummer}}",
+    inhoud:
+      "Beste {{klantnaam}},\n\nDit is onze laatste aanmaning voor factuur {{factuurnummer}} van {{factuurbedrag}} (vervaldatum {{vervaldatum}}).\n\nWij verzoeken u het openstaande bedrag van {{openstaandBedrag}} binnen 5 dagen over te maken. Blijft betaling uit, dan zien wij ons genoodzaakt verdere stappen te ondernemen.\n\nNeem bij vragen of een betalingsregeling direct contact met ons op.",
+    variabelen: [
+      "klantnaam",
+      "factuurnummer",
+      "factuurbedrag",
+      "openstaandBedrag",
+      "vervaldatum",
+      "bedrijfsnaam",
+    ],
     vertragingDagen: 0,
     ontvanger: "klant",
     modus: "concept",

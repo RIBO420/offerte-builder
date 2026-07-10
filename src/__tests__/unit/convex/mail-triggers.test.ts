@@ -194,11 +194,13 @@ afterEach(() => {
 // ─── 1. Domeinconstanten + seed ──────────────────────────────────────────────
 
 describe("MAIL_TRIGGER_DEFAULTS (seed, PRD §2.7)", () => {
-  it("dekt precies de vijf fase 1-events, elk uniek", () => {
+  it("dekt precies alle events (fase 1 + debiteurenladder §3.2), elk uniek", () => {
     expect(MAIL_TRIGGER_DEFAULTS.map((t) => t.event).sort()).toEqual(
       [...MAIL_EVENTS].sort()
     );
-    expect(new Set(MAIL_TRIGGER_DEFAULTS.map((t) => t.event)).size).toBe(5);
+    expect(new Set(MAIL_TRIGGER_DEFAULTS.map((t) => t.event)).size).toBe(
+      MAIL_EVENTS.length
+    );
   });
 
   it("staat op modus 'concept' behalve lead_ontvangen (automatisch, gedocumenteerd)", () => {
@@ -243,13 +245,13 @@ describe("MAIL_TRIGGER_DEFAULTS (seed, PRD §2.7)", () => {
 });
 
 describe("seedDefaults (idempotent, kantoor-only)", () => {
-  it("maakt de vijf triggers aan en slaat ze bij een tweede run over", async () => {
+  it("maakt alle triggers aan en slaat ze bij een tweede run over", async () => {
     const { ctx } = ctxMetRol("directie");
 
     const eerste = (await handler(seedDefaults)(ctx, {})) as {
       aangemaakt: number;
     };
-    expect(eerste.aangemaakt).toBe(5);
+    expect(eerste.aangemaakt).toBe(MAIL_EVENTS.length);
 
     const tweede = (await handler(seedDefaults)(ctx, {})) as {
       aangemaakt: number;

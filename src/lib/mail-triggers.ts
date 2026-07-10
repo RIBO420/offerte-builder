@@ -13,6 +13,11 @@ export const MAIL_EVENTS = [
   "inplanning_bevestigd",
   "offerte_opvolging",
   "inplan_attendering",
+  // Debiteurenladder (PRD §3.2, fase 2): één event per ladder-trede
+  "betalingsherinnering_1",
+  "betalingsherinnering_2",
+  "betalingsherinnering_3",
+  "betalingsherinnering_4",
 ] as const;
 
 export type MailEvent = (typeof MAIL_EVENTS)[number];
@@ -23,6 +28,10 @@ export const MAIL_EVENT_LABELS: Record<string, string> = {
   inplanning_bevestigd: "Inplanning bevestigd",
   offerte_opvolging: "Offerte-opvolging",
   inplan_attendering: "Inplan-mail (planningsattendering)",
+  betalingsherinnering_1: "Betalingsherinnering (ladder trede 1)",
+  betalingsherinnering_2: "Tweede betalingsherinnering (ladder trede 2)",
+  betalingsherinnering_3: "Aanmaning (ladder trede 3)",
+  betalingsherinnering_4: "Laatste aanmaning (ladder trede 4)",
 };
 
 export const MAIL_MODUS_LABELS: Record<string, string> = {
