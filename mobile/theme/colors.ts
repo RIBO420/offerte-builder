@@ -132,3 +132,33 @@ export const darkColors: ColorScheme = {
 };
 
 export type ColorScheme = typeof colors;
+
+/**
+ * "Buiten"-modus (PRD §2.6 / bijlage C): hoog-contrast licht thema voor fel
+ * daglicht in het veld. Overschrijft de basistokens; samengevoegd via
+ * { ...themeColors, ...buitenColors } in de veld-schermen. Zelfde waarden als
+ * de web-veldweergave (BUITEN_STIJL in src/components/veld/veld-dag.tsx).
+ */
+export const buitenColors: Partial<ColorScheme> = {
+  background: '#FFFFFF',
+  foreground: '#000000',
+  card: '#FFFFFF',
+  cardForeground: '#000000',
+  primary: '#166534',
+  primaryForeground: '#FFFFFF',
+  secondary: '#F2F2F2',
+  secondaryForeground: '#166534',
+  muted: '#F2F2F2',
+  mutedForeground: '#1A1A1A',
+  accent: '#166534',
+  accentForeground: '#FFFFFF',
+  destructive: '#B91C1C',
+  destructiveForeground: '#FFFFFF',
+  border: '#000000',
+  input: '#F2F2F2',
+  ring: '#166534',
+  inactive: '#333333',
+  surface: '#FFFFFF',
+  surfaceElevated: '#F2F2F2',
+  surfaceOverlay: '#FFFFFFEE',
+};
