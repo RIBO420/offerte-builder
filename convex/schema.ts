@@ -564,6 +564,39 @@ export default defineSchema({
     ontgravenVolumeM3: v.optional(v.number()),
     mbaStatus: v.optional(v.string()),
     dsoReferentie: v.optional(v.string()),
+    // — Beurt-velden (alleen type "onderhoudsbeurt", PRD §2.1) —
+    // Gegenereerde contractbeurten: herkomst-regel + idempotentiesleutel
+    contractWerkzaamheidId: v.optional(v.id("contractWerkzaamheden")),
+    // Idempotentie beurtengenerator: `${contractWerkzaamheidId}:${voorzieneDatum}`
+    generatieSleutel: v.optional(v.string()),
+    // Richtdatum uit de generator/het ritme — GEEN planning (geplandeStart
+    // blijft leeg tot het planbord de beurt inplant, §2.2)
+    voorzieneDatum: v.optional(v.string()), // YYYY-MM-DD
+    // Losse beurt (zonder contract): eigen bouwstenen + prijs per beurt
+    bouwsteenRegels: v.optional(
+      v.array(
+        v.object({
+          bouwsteenId: v.optional(v.id("bouwstenen")),
+          omschrijving: v.string(),
+          prijsPerBeurt: v.optional(v.number()), // ex btw
+        })
+      )
+    ),
+    // Ritme van een losse beurt (PRD §2.1B): n× per jaar OF interval in weken,
+    // met optioneel seizoensvenster (maandnummers 1-12, mag over jaargrens).
+    ritme: v.optional(
+      v.object({
+        frequentiePerJaar: v.optional(v.number()),
+        intervalWeken: v.optional(v.number()),
+        vensterVanMaand: v.optional(v.number()),
+        vensterTotMaand: v.optional(v.number()),
+      })
+    ),
+    // Volgende voorziene datum volgens het ritme — fundament voor de
+    // attendering (§2.4-taak, latere stap). Wordt NIET automatisch ingepland.
+    volgendeVoorzieneDatum: v.optional(v.string()), // YYYY-MM-DD
+    attenderingDagenVooraf: v.optional(v.number()), // default 14 (in code)
+    attenderingNodig: v.optional(v.boolean()),
     // Toegewezen medewerkers voor dit project (team assignment)
     toegewezenMedewerkerIds: v.optional(v.array(v.id("medewerkers"))),
     // Toegewezen voertuigen voor dit project (fleet management)
@@ -603,7 +636,13 @@ export default defineSchema({
     .index("by_user_type_status", ["userId", "type", "status"])
     .index("by_contract", ["contractId"])
     .index("by_team_geplandeStart", ["teamId", "geplandeStart"])
-    .index("by_user_geplandeStart", ["userId", "geplandeStart"]),
+    .index("by_user_geplandeStart", ["userId", "geplandeStart"])
+    // Attendering-fundament (§2.1B): losse beurten waarvan het ritme-venster
+    // binnen X dagen opent
+    .index("by_user_volgendeVoorzieneDatum", [
+      "userId",
+      "volgendeVoorzieneDatum",
+    ]),
 
   // Voorcalculaties - Pre-calculation data
   // Can be linked to either an offerte (before sending) or a project (for legacy/reference)
@@ -2348,6 +2387,19 @@ export default defineSchema({
     indexatiePercentage: v.optional(v.number()),
     laatsteIndexatieDatum: v.optional(v.string()),
 
+    // Facturatiemodus (PRD §2.1): hoe dit contract gefactureerd wordt.
+    // Alleen het VELD — de facturatie-engine zelf is §2.8 (latere stap).
+    // Onbekend/undefined = "per_bezoek" (default, zie getFacturatiemodus).
+    // NB: `betalingsfrequentie` is het termijnritme BINNEN modus
+    // "vast_maandbedrag" — dat is géén facturatiemodus.
+    facturatiemodus: v.optional(
+      v.union(
+        v.literal("per_bezoek"),
+        v.literal("maandelijks_verzameld"),
+        v.literal("vast_maandbedrag")
+      )
+    ),
+
     // Status
     status: v.union(
       v.literal("concept"),
@@ -2387,14 +2439,31 @@ export default defineSchema({
     omschrijving: v.string(),
     scope: v.optional(v.string()), // Link to onderhoud scope type
 
-    // Seizoen & frequentie
-    seizoen: v.union(
-      v.literal("voorjaar"),
-      v.literal("zomer"),
-      v.literal("herfst"),
-      v.literal("winter")
+    // Catalogus-koppeling (PRD §2.1 + bijlage A): bouwsteen-regel
+    bouwsteenId: v.optional(v.id("bouwstenen")),
+    // Canonieke frequentie voor de beurtengenerator (vervangt functioneel het
+    // legacy seizoen/frequentie-paar; oude rijen behouden hun oude velden)
+    frequentiePerJaar: v.optional(v.number()),
+    // Prijs per beurt ex btw. Default uit de bouwsteen (normuren × uurtarief
+    // op contractdatum, of vast bedrag), handmatig overschrijfbaar.
+    prijsPerBeurt: v.optional(v.number()),
+    prijsPerBeurtHandmatig: v.optional(v.boolean()),
+    // Seizoensvenster als maandnummers 1-12 (mag over de jaargrens lopen);
+    // fijnmaziger dan het legacy seizoen-enum hieronder
+    vensterVanMaand: v.optional(v.number()),
+    vensterTotMaand: v.optional(v.number()),
+
+    // Seizoen & frequentie (LEGACY: seizoenstemplate-model; nieuwe regels
+    // gebruiken frequentiePerJaar + venster*, seizoen blijft leesbaar oud data)
+    seizoen: v.optional(
+      v.union(
+        v.literal("voorjaar"),
+        v.literal("zomer"),
+        v.literal("herfst"),
+        v.literal("winter")
+      )
     ),
-    frequentie: v.number(), // Times per season
+    frequentie: v.number(), // Times per season (legacy) / per jaar (nieuw)
     frequentieEenheid: v.optional(v.union(
       v.literal("per_seizoen"),
       v.literal("per_maand"),
@@ -2426,11 +2495,13 @@ export default defineSchema({
     periodeEinde: v.string(), // YYYY-MM-DD
     bedrag: v.number(), // Bedrag excl. BTW
 
-    // Status
+    // Status ("vervallen": termijn geannuleerd bij contractopzegging, zodat
+    // de latere facturatie-engine (§2.8) geen spookfacturen genereert)
     status: v.union(
       v.literal("gepland"),
       v.literal("gefactureerd"),
-      v.literal("betaald")
+      v.literal("betaald"),
+      v.literal("vervallen")
     ),
 
     createdAt: v.number(),

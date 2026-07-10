@@ -50,4 +50,20 @@ crons.daily(
   internal.betalingsherinneringen.processAutomatischeHerinneringen
 );
 
+/**
+ * Beurtenhorizon aanvullen (PRD §2.1, beurtengenerator)
+ *
+ * Draait elke nacht om 02:30 UTC en vult voor alle ACTIEVE
+ * onderhoudscontracten de rollende 12-maands planningshorizon aan met
+ * beurten (werkitems type "onderhoudsbeurt"). Idempotent via
+ * generatieSleutel — geen dubbele beurten bij herhaald draaien.
+ *
+ * Deze job is puur database-werk en verstuurt NOOIT e-mail.
+ */
+crons.daily(
+  "beurtenhorizon aanvullen",
+  { hourUTC: 2, minuteUTC: 30 }, // 02:30 UTC (03:30 CET / 04:30 CEST)
+  internal.beurtgenerator.vulHorizonAan
+);
+
 export default crons;

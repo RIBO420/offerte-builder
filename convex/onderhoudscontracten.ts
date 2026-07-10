@@ -7,12 +7,16 @@
 
 import { v, ConvexError } from "convex/values";
 import { mutation, query, MutationCtx } from "./_generated/server";
-import { Id } from "./_generated/dataModel";
+import { Doc } from "./_generated/dataModel";
 import { requireAuth, requireAuthUserId } from "./auth";
 import {
   requireDirectieOrProjectleider,
+  requireKantoor,
 } from "./roles";
 import { upgradeKlantPipeline } from "./pipelineHelpers";
+import { berekenPrijsPerBeurt } from "./bouwstenen";
+import { bepaalTariefOpDatum } from "./uurtarieven";
+import { vervalOngeplandeBeurten, addMaanden, vandaagIso } from "./beurtgenerator";
 
 // ============================================
 // VALIDATORS
@@ -46,11 +50,32 @@ const seizoenValidator = v.union(
   v.literal("winter")
 );
 
+/**
+ * Facturatiemodus per contract (PRD §2.1). Alleen de datastructuur — de
+ * facturatie-engine zelf is §2.8 (latere stap). Default: "per_bezoek".
+ */
+const facturatiemodusValidator = v.union(
+  v.literal("per_bezoek"),
+  v.literal("maandelijks_verzameld"),
+  v.literal("vast_maandbedrag")
+);
+
+/**
+ * Bouwsteen-regel van een contract (PRD §2.1 + bijlage A). Het legacy
+ * seizoen-enum is optioneel geworden; nieuwe regels sturen op
+ * frequentiePerJaar + seizoensvenster (maandnummers, mag over de jaargrens).
+ */
 const werkzaamheidInputValidator = v.object({
   omschrijving: v.string(),
   scope: v.optional(v.string()),
-  seizoen: seizoenValidator,
-  frequentie: v.number(),
+  bouwsteenId: v.optional(v.id("bouwstenen")),
+  frequentiePerJaar: v.optional(v.number()),
+  prijsPerBeurt: v.optional(v.number()),
+  prijsPerBeurtHandmatig: v.optional(v.boolean()),
+  vensterVanMaand: v.optional(v.number()),
+  vensterTotMaand: v.optional(v.number()),
+  seizoen: v.optional(seizoenValidator),
+  frequentie: v.optional(v.number()),
   frequentieEenheid: v.optional(
     v.union(
       v.literal("per_seizoen"),
@@ -85,32 +110,121 @@ function getTermijnenPerJaar(
 }
 
 /**
- * Generate the next contract number in the format OHC-YYYY-NNN.
+ * Bepaal het volgende contractnummer uit een lijst bestaande nummers met
+ * hetzelfde prefix. Pure functie (unit-testbaar).
  */
-async function generateContractNummer(
-  ctx: MutationCtx,
-  userId: Id<"users">
-): Promise<string> {
+export function volgendContractNummer(
+  prefix: string,
+  bestaandeNummers: string[]
+): string {
+  const maxNum = bestaandeNummers.reduce((max, nummer) => {
+    if (!nummer.startsWith(prefix)) return max;
+    const num = parseInt(nummer.slice(prefix.length), 10);
+    return isNaN(num) ? max : Math.max(max, num);
+  }, 0);
+  return `${prefix}${(maxNum + 1).toString().padStart(3, "0")}`;
+}
+
+/**
+ * Generate the next contract number in the format OHC-YYYY-NNN.
+ *
+ * Leest via de by_contractnummer-index alleen de nummers van het lopende
+ * jaar (prefix-scan) i.p.v. een collect() over alle contracten — dat schaalt
+ * en verkleint het conflictvenster; Convex' OCC serialiseert gelijktijdige
+ * mutations op deze range zodat dubbele nummers uitblijven.
+ */
+async function generateContractNummer(ctx: MutationCtx): Promise<string> {
   const year = new Date().getFullYear();
   const prefix = `OHC-${year}-`;
 
-  // Get all contracts for this user to find the next number
-  const existing = await ctx.db
+  const jaargenoten = await ctx.db
     .query("onderhoudscontracten")
-    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .withIndex("by_contractnummer", (q) =>
+      q.gte("contractNummer", prefix).lt("contractNummer", prefix + "\uffff")
+    )
     .collect();
 
-  const currentYearContracts = existing.filter((c) =>
-    c.contractNummer.startsWith(prefix)
+  return volgendContractNummer(
+    prefix,
+    jaargenoten.map((c) => c.contractNummer)
   );
+}
 
-  const maxNum = currentYearContracts.reduce((max: number, c) => {
-    const num = parseInt(c.contractNummer.replace(prefix, ""), 10);
-    return isNaN(num) ? max : Math.max(max, num);
-  }, 0);
+/**
+ * Indexatieclausule (AV V2.0 art. 5.3): automatisch van toepassing bij een
+ * looptijd langer dan 3 maanden. Pure functie (unit-testbaar).
+ */
+export function isIndexatieVanToepassing(
+  startDatum: string,
+  eindDatum: string
+): boolean {
+  return eindDatum > addMaanden(startDatum, 3);
+}
 
-  const nextNum = (maxNum + 1).toString().padStart(3, "0");
-  return `${prefix}${nextNum}`;
+/** Zichtbare clausuletekst (offerte, contract, PDF — PRD bijlage A regel 6). */
+export const INDEXATIE_CLAUSULE_TEKST =
+  "Op dit contract is de jaarlijkse prijsindexatie van toepassing conform " +
+  "Algemene Voorwaarden V2.0, artikel 5.3 (contracten met een looptijd " +
+  "langer dan 3 maanden).";
+
+/** Effectieve facturatiemodus: undefined (legacy) telt als "per_bezoek". */
+export function getFacturatiemodus(
+  contract: Pick<Doc<"onderhoudscontracten">, "facturatiemodus">
+): "per_bezoek" | "maandelijks_verzameld" | "vast_maandbedrag" {
+  return contract.facturatiemodus ?? "per_bezoek";
+}
+
+/**
+ * Jaarprijs van de bouwsteen-regels: Σ frequentiePerJaar × prijsPerBeurt.
+ * Regels zonder frequentie/prijs tellen niet mee. Pure functie.
+ */
+export function berekenJaarprijsBouwstenen(
+  regels: Array<{ frequentiePerJaar?: number; prijsPerBeurt?: number }>
+): number {
+  return regels.reduce(
+    (som, r) => som + (r.frequentiePerJaar ?? 0) * (r.prijsPerBeurt ?? 0),
+    0
+  );
+}
+
+/** Valideer een bouwsteen-regel (frequentie/prijs/venster). Gooit ConvexError. */
+export function valideerWerkzaamheidInput(w: {
+  omschrijving: string;
+  frequentiePerJaar?: number;
+  prijsPerBeurt?: number;
+  vensterVanMaand?: number;
+  vensterTotMaand?: number;
+}): void {
+  if (!w.omschrijving.trim()) {
+    throw new ConvexError("Omschrijving van de werkzaamheid is verplicht");
+  }
+  if (
+    w.frequentiePerJaar !== undefined &&
+    (!Number.isFinite(w.frequentiePerJaar) ||
+      w.frequentiePerJaar < 1 ||
+      w.frequentiePerJaar > 366)
+  ) {
+    throw new ConvexError("Frequentie per jaar moet tussen 1 en 366 zijn");
+  }
+  if (
+    w.prijsPerBeurt !== undefined &&
+    (w.prijsPerBeurt < 0 || !Number.isFinite(w.prijsPerBeurt))
+  ) {
+    throw new ConvexError("Prijs per beurt kan niet negatief zijn");
+  }
+  for (const maand of [w.vensterVanMaand, w.vensterTotMaand]) {
+    if (
+      maand !== undefined &&
+      (!Number.isInteger(maand) || maand < 1 || maand > 12)
+    ) {
+      throw new ConvexError("Venstermaanden moeten 1 t/m 12 zijn");
+    }
+  }
+  if ((w.vensterVanMaand === undefined) !== (w.vensterTotMaand === undefined)) {
+    throw new ConvexError(
+      "Geef het seizoensvenster met een van- én een tot-maand op"
+    );
+  }
 }
 
 /**
@@ -314,6 +428,22 @@ export const getById = query({
       .withIndex("by_contract", (q) => q.eq("contractId", args.id))
       .collect();
 
+    // Gegenereerde beurten (werkitems) van dit contract, per status
+    const beurten = await ctx.db
+      .query("projecten")
+      .withIndex("by_contract", (q) => q.eq("contractId", args.id))
+      .collect();
+    const actieveBeurten = beurten.filter((b) => !b.deletedAt);
+    const beurtenStats = {
+      totaal: actieveBeurten.length,
+      gepland: actieveBeurten.filter((b) => b.status === "gepland").length,
+      uitgevoerd: actieveBeurten.filter((b) => b.status === "uitgevoerd")
+        .length,
+      gefactureerd: actieveBeurten.filter((b) => b.status === "gefactureerd")
+        .length,
+      vervallen: actieveBeurten.filter((b) => b.status === "vervallen").length,
+    };
+
     return {
       ...contract,
       klant: klant
@@ -329,6 +459,19 @@ export const getById = query({
         : null,
       werkzaamheden: werkzaamheden.sort((a, b) => a.volgorde - b.volgorde),
       facturen: facturen.sort((a, b) => a.termijnNummer - b.termijnNummer),
+      // PRD §2.1: facturatiemodus + zichtbare indexatieclausule
+      facturatiemodusEffectief: getFacturatiemodus(contract),
+      indexatieVanToepassing: isIndexatieVanToepassing(
+        contract.startDatum,
+        contract.eindDatum
+      ),
+      indexatieClausule: isIndexatieVanToepassing(
+        contract.startDatum,
+        contract.eindDatum
+      )
+        ? INDEXATIE_CLAUSULE_TEKST
+        : null,
+      beurtenStats,
     };
   },
 });
@@ -522,6 +665,7 @@ export const create = mutation({
     tariefPerTermijn: v.number(),
     betalingsfrequentie: betalingsfrequentieValidator,
     indexatiePercentage: v.optional(v.number()),
+    facturatiemodus: v.optional(facturatiemodusValidator),
     autoVerlenging: v.boolean(),
     verlengingsPeriodeInMaanden: v.optional(v.number()),
     werkzaamheden: v.array(werkzaamheidInputValidator),
@@ -531,12 +675,21 @@ export const create = mutation({
     const user = await requireDirectieOrProjectleider(ctx);
     const now = Date.now();
 
-    // Generate contract number
-    const contractNummer = await generateContractNummer(ctx, user._id);
+    for (const w of args.werkzaamheden) {
+      valideerWerkzaamheidInput(w);
+    }
 
-    // Calculate jaarlijks tarief
+    // Generate contract number
+    const contractNummer = await generateContractNummer(ctx);
+
+    // Jaarlijks tarief: bouwsteen-regels (frequentie × prijs per beurt) winnen;
+    // anders het legacy termijnmodel (tarief × termijnen per jaar).
+    const jaarprijsBouwstenen = berekenJaarprijsBouwstenen(args.werkzaamheden);
     const termijnenPerJaar = getTermijnenPerJaar(args.betalingsfrequentie);
-    const jaarlijksTarief = args.tariefPerTermijn * termijnenPerJaar;
+    const jaarlijksTarief =
+      jaarprijsBouwstenen > 0
+        ? jaarprijsBouwstenen
+        : args.tariefPerTermijn * termijnenPerJaar;
 
     // Insert contract
     const contractId = await ctx.db.insert("onderhoudscontracten", {
@@ -552,6 +705,7 @@ export const create = mutation({
       betalingsfrequentie: args.betalingsfrequentie,
       jaarlijksTarief,
       indexatiePercentage: args.indexatiePercentage,
+      facturatiemodus: args.facturatiemodus ?? "per_bezoek",
       status: "concept",
       autoVerlenging: args.autoVerlenging,
       verlengingsPeriodeInMaanden: args.verlengingsPeriodeInMaanden,
@@ -560,42 +714,54 @@ export const create = mutation({
       updatedAt: now,
     });
 
-    // Insert werkzaamheden
+    // Insert werkzaamheden (bouwsteen-regels)
     for (let i = 0; i < args.werkzaamheden.length; i++) {
       const w = args.werkzaamheden[i];
+      const frequentie = w.frequentie ?? w.frequentiePerJaar ?? 1;
       await ctx.db.insert("contractWerkzaamheden", {
         contractId,
         omschrijving: w.omschrijving,
         scope: w.scope,
+        bouwsteenId: w.bouwsteenId,
+        frequentiePerJaar: w.frequentiePerJaar,
+        prijsPerBeurt: w.prijsPerBeurt,
+        prijsPerBeurtHandmatig: w.prijsPerBeurtHandmatig,
+        vensterVanMaand: w.vensterVanMaand,
+        vensterTotMaand: w.vensterTotMaand,
         seizoen: w.seizoen,
-        frequentie: w.frequentie,
+        frequentie,
         frequentieEenheid: w.frequentieEenheid,
         geschatteUrenPerBeurt: w.geschatteUrenPerBeurt,
-        geschatteUrenTotaal: w.geschatteUrenPerBeurt * w.frequentie,
+        geschatteUrenTotaal: w.geschatteUrenPerBeurt * frequentie,
         volgorde: i,
         createdAt: now,
       });
     }
 
-    // Generate planned termijnfacturen
-    const periodes = generateTermijnPeriodes(
-      args.startDatum,
-      args.eindDatum,
-      args.betalingsfrequentie,
-      args.tariefPerTermijn
-    );
+    // Termijnschema (contractFacturen) alleen bij modus "vast_maandbedrag":
+    // bij per_bezoek/maandelijks_verzameld factureert de latere engine (§2.8)
+    // op basis van uitgevoerde beurten — een termijnschema zou daar spookfacturen
+    // opleveren (audit-risico 21/27).
+    if ((args.facturatiemodus ?? "per_bezoek") === "vast_maandbedrag") {
+      const periodes = generateTermijnPeriodes(
+        args.startDatum,
+        args.eindDatum,
+        args.betalingsfrequentie,
+        args.tariefPerTermijn
+      );
 
-    for (const periode of periodes) {
-      await ctx.db.insert("contractFacturen", {
-        contractId,
-        userId: user._id,
-        termijnNummer: periode.termijnNummer,
-        periodeStart: periode.periodeStart,
-        periodeEinde: periode.periodeEinde,
-        bedrag: periode.bedrag,
-        status: "gepland",
-        createdAt: now,
-      });
+      for (const periode of periodes) {
+        await ctx.db.insert("contractFacturen", {
+          contractId,
+          userId: user._id,
+          termijnNummer: periode.termijnNummer,
+          periodeStart: periode.periodeStart,
+          periodeEinde: periode.periodeEinde,
+          bedrag: periode.bedrag,
+          status: "gepland",
+          createdAt: now,
+        });
+      }
     }
 
     // Upgrade klant pipeline
@@ -619,6 +785,7 @@ export const update = mutation({
     tariefPerTermijn: v.optional(v.number()),
     betalingsfrequentie: v.optional(betalingsfrequentieValidator),
     indexatiePercentage: v.optional(v.number()),
+    facturatiemodus: v.optional(facturatiemodusValidator),
     autoVerlenging: v.optional(v.boolean()),
     verlengingsPeriodeInMaanden: v.optional(v.number()),
     notities: v.optional(v.string()),
@@ -658,6 +825,8 @@ export const update = mutation({
       updates.verlengingsPeriodeInMaanden = args.verlengingsPeriodeInMaanden;
     if (args.indexatiePercentage !== undefined)
       updates.indexatiePercentage = args.indexatiePercentage;
+    if (args.facturatiemodus !== undefined)
+      updates.facturatiemodus = args.facturatiemodus;
     if (args.status !== undefined) updates.status = args.status;
 
     // Recalculate jaarlijks tarief if pricing changed
@@ -685,8 +854,14 @@ export const addWerkzaamheid = mutation({
     contractId: v.id("onderhoudscontracten"),
     omschrijving: v.string(),
     scope: v.optional(v.string()),
-    seizoen: seizoenValidator,
-    frequentie: v.number(),
+    bouwsteenId: v.optional(v.id("bouwstenen")),
+    frequentiePerJaar: v.optional(v.number()),
+    prijsPerBeurt: v.optional(v.number()),
+    prijsPerBeurtHandmatig: v.optional(v.boolean()),
+    vensterVanMaand: v.optional(v.number()),
+    vensterTotMaand: v.optional(v.number()),
+    seizoen: v.optional(seizoenValidator),
+    frequentie: v.optional(v.number()),
     frequentieEenheid: v.optional(
       v.union(
         v.literal("per_seizoen"),
@@ -704,6 +879,8 @@ export const addWerkzaamheid = mutation({
       throw new ConvexError("Contract niet gevonden");
     }
 
+    valideerWerkzaamheidInput(args);
+
     // Get current max volgorde
     const existing = await ctx.db
       .query("contractWerkzaamheden")
@@ -715,15 +892,22 @@ export const addWerkzaamheid = mutation({
       -1
     );
 
+    const frequentie = args.frequentie ?? args.frequentiePerJaar ?? 1;
     const werkzaamheidId = await ctx.db.insert("contractWerkzaamheden", {
       contractId: args.contractId,
       omschrijving: args.omschrijving,
       scope: args.scope,
+      bouwsteenId: args.bouwsteenId,
+      frequentiePerJaar: args.frequentiePerJaar,
+      prijsPerBeurt: args.prijsPerBeurt,
+      prijsPerBeurtHandmatig: args.prijsPerBeurtHandmatig,
+      vensterVanMaand: args.vensterVanMaand,
+      vensterTotMaand: args.vensterTotMaand,
       seizoen: args.seizoen,
-      frequentie: args.frequentie,
+      frequentie,
       frequentieEenheid: args.frequentieEenheid,
       geschatteUrenPerBeurt: args.geschatteUrenPerBeurt,
-      geschatteUrenTotaal: args.geschatteUrenPerBeurt * args.frequentie,
+      geschatteUrenTotaal: args.geschatteUrenPerBeurt * frequentie,
       volgorde: maxVolgorde + 1,
       createdAt: Date.now(),
     });
@@ -743,6 +927,12 @@ export const updateWerkzaamheid = mutation({
     id: v.id("contractWerkzaamheden"),
     omschrijving: v.optional(v.string()),
     scope: v.optional(v.string()),
+    bouwsteenId: v.optional(v.id("bouwstenen")),
+    frequentiePerJaar: v.optional(v.number()),
+    prijsPerBeurt: v.optional(v.number()),
+    prijsPerBeurtHandmatig: v.optional(v.boolean()),
+    vensterVanMaand: v.optional(v.number()),
+    vensterTotMaand: v.optional(v.number()),
     seizoen: v.optional(seizoenValidator),
     frequentie: v.optional(v.number()),
     frequentieEenheid: v.optional(
@@ -762,22 +952,50 @@ export const updateWerkzaamheid = mutation({
       throw new ConvexError("Werkzaamheid niet gevonden");
     }
 
+    valideerWerkzaamheidInput({
+      omschrijving: args.omschrijving ?? werkzaamheid.omschrijving,
+      frequentiePerJaar:
+        args.frequentiePerJaar ?? werkzaamheid.frequentiePerJaar,
+      prijsPerBeurt: args.prijsPerBeurt ?? werkzaamheid.prijsPerBeurt,
+      vensterVanMaand: args.vensterVanMaand ?? werkzaamheid.vensterVanMaand,
+      vensterTotMaand: args.vensterTotMaand ?? werkzaamheid.vensterTotMaand,
+    });
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const updates: Record<string, any> = { updatedAt: Date.now() };
 
     if (args.omschrijving !== undefined)
       updates.omschrijving = args.omschrijving;
     if (args.scope !== undefined) updates.scope = args.scope;
+    if (args.bouwsteenId !== undefined) updates.bouwsteenId = args.bouwsteenId;
+    if (args.prijsPerBeurt !== undefined)
+      updates.prijsPerBeurt = args.prijsPerBeurt;
+    if (args.prijsPerBeurtHandmatig !== undefined)
+      updates.prijsPerBeurtHandmatig = args.prijsPerBeurtHandmatig;
+    if (args.vensterVanMaand !== undefined)
+      updates.vensterVanMaand = args.vensterVanMaand;
+    if (args.vensterTotMaand !== undefined)
+      updates.vensterTotMaand = args.vensterTotMaand;
     if (args.seizoen !== undefined) updates.seizoen = args.seizoen;
     if (args.frequentieEenheid !== undefined)
       updates.frequentieEenheid = args.frequentieEenheid;
 
+    // Nieuwe canonieke frequentie: houd legacy `frequentie` in sync
+    if (args.frequentiePerJaar !== undefined) {
+      updates.frequentiePerJaar = args.frequentiePerJaar;
+      if (args.frequentie === undefined) {
+        updates.frequentie = args.frequentiePerJaar;
+      }
+    }
+
     // Recalculate totaal uren if relevant fields changed
-    const freq = args.frequentie ?? werkzaamheid.frequentie;
+    const freq =
+      args.frequentie ?? args.frequentiePerJaar ?? werkzaamheid.frequentie;
     const urenPerBeurt =
       args.geschatteUrenPerBeurt ?? werkzaamheid.geschatteUrenPerBeurt;
     if (
       args.frequentie !== undefined ||
+      args.frequentiePerJaar !== undefined ||
       args.geschatteUrenPerBeurt !== undefined
     ) {
       updates.frequentie = freq;
@@ -885,6 +1103,13 @@ export const renewContract = mutation({
 
 /**
  * Cancel a contract — set status to opgezegd.
+ *
+ * Ruimt ook de gevolgen op (PRD §2.1):
+ * - toekomstige ONGEPLANDE beurten (werkitems zonder geplandeStart, status
+ *   "gepland") gaan naar status "vervallen";
+ * - geplande termijnfacturen (status "gepland") gaan naar "vervallen", zodat
+ *   de latere facturatie-engine (§2.8) geen spookfacturen genereert.
+ * Al ingeplande, uitgevoerde of gefactureerde beurten blijven staan.
  */
 export const cancelContract = mutation({
   args: {
@@ -914,11 +1139,21 @@ export const cancelContract = mutation({
       updatedAt: now,
     });
 
-    // Note: planned (unfactured) termijnen remain as "gepland" but
-    // the contract status "opgezegd" makes them irrelevant.
-    // Phase 2: mark these as cancelled or delete them.
+    // Toekomstige ongeplande beurten → vervallen
+    const aantalVervallenBeurten = await vervalOngeplandeBeurten(ctx, args.id);
 
-    return args.id;
+    // Geplande termijnen → vervallen (dicht het oude cancelContract-gat)
+    const termijnen = await ctx.db
+      .query("contractFacturen")
+      .withIndex("by_contract_status", (q) =>
+        q.eq("contractId", args.id).eq("status", "gepland")
+      )
+      .collect();
+    for (const termijn of termijnen) {
+      await ctx.db.patch(termijn._id, { status: "vervallen" });
+    }
+
+    return { contractId: args.id, aantalVervallenBeurten };
   },
 });
 
@@ -955,10 +1190,12 @@ export const getForPdf = query({
       typeof sortedWerkzaamheden
     > = {};
     for (const w of sortedWerkzaamheden) {
-      if (!werkzaamhedenPerSeizoen[w.seizoen]) {
-        werkzaamhedenPerSeizoen[w.seizoen] = [];
+      // Nieuwe bouwsteen-regels hebben geen seizoen-enum meer → "jaarrond"
+      const seizoen = w.seizoen ?? "jaarrond";
+      if (!werkzaamhedenPerSeizoen[seizoen]) {
+        werkzaamhedenPerSeizoen[seizoen] = [];
       }
-      werkzaamhedenPerSeizoen[w.seizoen].push(w);
+      werkzaamhedenPerSeizoen[seizoen].push(w);
     }
 
     // Get facturen sorted by termijnNummer
@@ -990,6 +1227,18 @@ export const getForPdf = query({
         notities: contract.notities,
         voorwaarden: contract.voorwaarden,
         createdAt: contract.createdAt,
+        // PRD §2.1 / bijlage A regel 6: modus + clausule zichtbaar in de PDF
+        facturatiemodus: getFacturatiemodus(contract),
+        indexatieVanToepassing: isIndexatieVanToepassing(
+          contract.startDatum,
+          contract.eindDatum
+        ),
+        indexatieClausule: isIndexatieVanToepassing(
+          contract.startDatum,
+          contract.eindDatum
+        )
+          ? INDEXATIE_CLAUSULE_TEKST
+          : null,
       },
       klant: klant
         ? {
@@ -1024,5 +1273,216 @@ export const remove = mutation({
       deletedAt: Date.now(),
       updatedAt: Date.now(),
     });
+  },
+});
+
+// ============================================
+// BOUWSTEEN-DEFAULTS & OFFERTE-CONVERSIE (PRD §2.1)
+// ============================================
+
+/**
+ * Actieve bouwstenen voor de contract-bouwsteenkiezer (kantoor-only), met
+ * per bouwsteen de default prijs per beurt op een peildatum: normuren ×
+ * uurtarief-op-die-datum, of het vaste bedrag (PRD §2.1). Historische
+ * contracten behouden zo het tarief van hun eigen contractdatum (§8.7).
+ */
+export const getBouwsteenDefaults = query({
+  args: { datum: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    await requireKantoor(ctx);
+    const datum = args.datum ?? vandaagIso();
+
+    const tarieven = await ctx.db.query("uurtarieven").collect();
+    const geldendTarief = bepaalTariefOpDatum(tarieven, datum);
+
+    const bouwstenen = await ctx.db
+      .query("bouwstenen")
+      .withIndex("by_actief", (q) => q.eq("actief", true))
+      .collect();
+
+    return bouwstenen
+      .map((b) => ({
+        _id: b._id,
+        naam: b.naam,
+        code: b.code,
+        categorie: b.categorie,
+        soort: b.soort,
+        defaultFrequentiePerJaar: b.defaultFrequentiePerJaar,
+        vensterVanMaand: b.seizoensvensterVan,
+        vensterTotMaand: b.seizoensvensterTot,
+        urenPerBeurt: b.urenPerBeurt,
+        prijsmodel: b.prijsmodel,
+        btwCode: b.btwCode,
+        defaultPrijsPerBeurt: geldendTarief
+          ? berekenPrijsPerBeurt(b, geldendTarief.bedrag)
+          : null,
+        uurtarief: geldendTarief?.bedrag ?? null,
+      }))
+      .sort((a, b) => a.naam.localeCompare(b.naam, "nl"));
+  },
+});
+
+/**
+ * Match een offerte-regel aan een bouwsteen: de bouwsteennaam komt voor in
+ * de regelomschrijving (case-insensitief; langste naam wint). Codes worden
+ * bewust niet gematcht — te kort ("HS") en dus te veel false positives.
+ * Pure functie (unit-testbaar).
+ */
+export function matchBouwsteenOpOmschrijving<T extends { naam: string }>(
+  omschrijving: string,
+  bouwstenen: T[]
+): T | null {
+  const tekst = omschrijving.toLowerCase();
+  // Langste naam eerst zodat "haag snoeien groot" niet op "haag" blijft hangen
+  const opNaamlengte = [...bouwstenen].sort(
+    (a, b) => b.naam.length - a.naam.length
+  );
+  for (const b of opNaamlengte) {
+    if (b.naam && tekst.includes(b.naam.toLowerCase())) return b;
+  }
+  return null;
+}
+
+/**
+ * Geaccepteerde onderhoud-offerte → voorgevuld CONCEPT-contract (PRD §2.1,
+ * "één klik activeren" gebeurt daarna via beurtgenerator.activeerContract).
+ *
+ * Voorinvulling voor zover herleidbaar:
+ * - arbeid-regels worden bouwsteen-regels; bouwsteen gematcht op naam in de
+ *   omschrijving, met default frequentie/venster/prijs uit de catalogus
+ *   (prijs = normuren × uurtarief-op-startdatum of vast bedrag);
+ * - niet te matchen regels worden vrije regels (frequentie 1×/jaar, prijs =
+ *   regeltotaal) die kantoor in het concept bijstelt;
+ * - looptijd default 12 maanden vanaf vandaag, opzegtermijn 30 dagen,
+ *   facturatiemodus "per_bezoek" (default).
+ * Verplichte validatie op offerte-acceptatie zelf is §2.5 (latere stap).
+ */
+export const createFromOfferte = mutation({
+  args: { offerteId: v.id("offertes") },
+  handler: async (ctx, args) => {
+    const user = await requireKantoor(ctx);
+    const now = Date.now();
+
+    const offerte = await ctx.db.get(args.offerteId);
+    if (!offerte || offerte.userId.toString() !== user._id.toString()) {
+      throw new ConvexError("Offerte niet gevonden");
+    }
+    if (offerte.type !== "onderhoud") {
+      throw new ConvexError(
+        "Alleen onderhoud-offertes kunnen een contract worden"
+      );
+    }
+    if (offerte.status !== "geaccepteerd") {
+      throw new ConvexError(
+        "Alleen geaccepteerde offertes kunnen een contract worden"
+      );
+    }
+    if (!offerte.klantId) {
+      throw new ConvexError(
+        "Koppel de offerte eerst aan een klant voordat je een contract maakt"
+      );
+    }
+    const klant = await ctx.db.get(offerte.klantId);
+    if (!klant) {
+      throw new ConvexError("Klant van de offerte niet gevonden");
+    }
+
+    const startDatum = vandaagIso();
+    const eindDatum = addMaanden(startDatum, 12);
+
+    // Catalogus + uurtarief op contractdatum voor de prijs-defaults
+    const bouwstenen = await ctx.db
+      .query("bouwstenen")
+      .withIndex("by_actief", (q) => q.eq("actief", true))
+      .collect();
+    const tarieven = await ctx.db.query("uurtarieven").collect();
+    const geldendTarief = bepaalTariefOpDatum(tarieven, startDatum);
+
+    // Arbeid-regels → bouwsteen-regels (voor zover herleidbaar)
+    const arbeidRegels = offerte.regels.filter((r) => r.type === "arbeid");
+    const bronRegels = arbeidRegels.length > 0 ? arbeidRegels : offerte.regels;
+
+    const werkzaamheden = bronRegels.map((regel) => {
+      const bouwsteen = matchBouwsteenOpOmschrijving(
+        regel.omschrijving,
+        bouwstenen
+      );
+      if (bouwsteen) {
+        const defaultPrijs = geldendTarief
+          ? berekenPrijsPerBeurt(bouwsteen, geldendTarief.bedrag)
+          : null;
+        return {
+          omschrijving: bouwsteen.naam,
+          bouwsteenId: bouwsteen._id,
+          frequentiePerJaar: bouwsteen.defaultFrequentiePerJaar ?? 1,
+          prijsPerBeurt: defaultPrijs ?? regel.totaal,
+          prijsPerBeurtHandmatig: defaultPrijs === null,
+          vensterVanMaand: bouwsteen.seizoensvensterVan,
+          vensterTotMaand: bouwsteen.seizoensvensterTot,
+          geschatteUrenPerBeurt: bouwsteen.urenPerBeurt ?? 0,
+        };
+      }
+      // Niet herleidbaar → vrije regel, kantoor stelt bij in het concept
+      return {
+        omschrijving: regel.omschrijving,
+        bouwsteenId: undefined,
+        frequentiePerJaar: 1,
+        prijsPerBeurt: regel.totaal,
+        prijsPerBeurtHandmatig: true,
+        vensterVanMaand: undefined,
+        vensterTotMaand: undefined,
+        geschatteUrenPerBeurt: 0,
+      };
+    });
+
+    const jaarprijs = berekenJaarprijsBouwstenen(werkzaamheden);
+    const contractNummer = await generateContractNummer(ctx);
+
+    const contractId = await ctx.db.insert("onderhoudscontracten", {
+      userId: user._id,
+      klantId: offerte.klantId,
+      contractNummer,
+      naam: `Onderhoudscontract ${klant.naam}`,
+      locatie: {
+        adres: offerte.klant.adres,
+        postcode: offerte.klant.postcode,
+        plaats: offerte.klant.plaats,
+      },
+      startDatum,
+      eindDatum,
+      opzegtermijnDagen: 30,
+      tariefPerTermijn: Math.round((jaarprijs / 12) * 100) / 100,
+      betalingsfrequentie: "maandelijks",
+      jaarlijksTarief: jaarprijs,
+      facturatiemodus: "per_bezoek",
+      status: "concept",
+      autoVerlenging: false,
+      notities: `Aangemaakt vanuit offerte ${offerte.offerteNummer}`,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    for (let i = 0; i < werkzaamheden.length; i++) {
+      const w = werkzaamheden[i];
+      await ctx.db.insert("contractWerkzaamheden", {
+        contractId,
+        omschrijving: w.omschrijving,
+        bouwsteenId: w.bouwsteenId,
+        frequentiePerJaar: w.frequentiePerJaar,
+        prijsPerBeurt: w.prijsPerBeurt,
+        prijsPerBeurtHandmatig: w.prijsPerBeurtHandmatig,
+        vensterVanMaand: w.vensterVanMaand,
+        vensterTotMaand: w.vensterTotMaand,
+        frequentie: w.frequentiePerJaar,
+        geschatteUrenPerBeurt: w.geschatteUrenPerBeurt,
+        geschatteUrenTotaal: w.geschatteUrenPerBeurt * w.frequentiePerJaar,
+        volgorde: i,
+        createdAt: now,
+      });
+    }
+
+    await upgradeKlantPipeline(ctx, offerte.klantId, "onderhoud");
+
+    return { contractId, aantalRegels: werkzaamheden.length };
   },
 });
