@@ -24,6 +24,7 @@ interface OfferteRegel {
   type: "materiaal" | "arbeid" | "machine";
   interneNotitie?: string; // NOT rendered in customer PDF
   optioneel?: boolean;
+  btwCode?: number; // 9 of 21 (vrije builder, PRD §2.5b)
 }
 
 interface OfferteTotalen {
@@ -59,6 +60,9 @@ interface Offerte {
   regels: OfferteRegel[];
   totalen: OfferteTotalen;
   notities?: string;
+  // Vrije builder (route 2, PRD §2.5b) — zelfde template, extra optionele blokken
+  vrijeTeksten?: { aanhef?: string; voorwaarden?: string };
+  kortingOpTotaal?: number;
   createdAt: number;
   updatedAt: number;
 }
@@ -363,6 +367,13 @@ export function OffertePDF({ offerte, bedrijfsgegevens, theme, voorwaarden }: Of
           )}
         </View>
 
+        {/* Aanhef uit de tekstblokkenbibliotheek (vrije builder, PRD §2.5b) */}
+        {offerte.vrijeTeksten?.aanhef && (
+          <View style={s.notesSection}>
+            <Text style={s.notesText}>{offerte.vrijeTeksten.aanhef}</Text>
+          </View>
+        )}
+
         {/* Werkzaamheden - Customer-friendly summarized view */}
         {scopeSummaries.length > 0 && (
           <View style={s.section}>
@@ -440,6 +451,14 @@ export function OffertePDF({ offerte, bedrijfsgegevens, theme, voorwaarden }: Of
 
         {/* Totalen - Customer-friendly view (no internal costs breakdown) */}
         <View style={s.totalsSection}>
+          {offerte.kortingOpTotaal !== undefined && offerte.kortingOpTotaal > 0 && (
+            <View style={s.totalsRow}>
+              <Text style={s.totalsLabel}>Korting:</Text>
+              <Text style={s.totalsValue}>
+                − {formatCurrency(offerte.kortingOpTotaal)}
+              </Text>
+            </View>
+          )}
           <View style={s.totalsRow}>
             <Text style={s.totalsLabel}>Totaal excl. BTW:</Text>
             <Text style={s.totalsValue}>
@@ -447,7 +466,10 @@ export function OffertePDF({ offerte, bedrijfsgegevens, theme, voorwaarden }: Of
             </Text>
           </View>
           <View style={s.totalsRow}>
-            <Text style={s.totalsLabel}>BTW (21%):</Text>
+            <Text style={s.totalsLabel}>
+              {/* Gemengde btw (9%/21% per regel, vrije builder) → neutraal label */}
+              {offerte.regels.some((r) => r.btwCode === 9) ? "BTW:" : "BTW (21%):"}
+            </Text>
             <Text style={s.totalsValue}>
               {formatCurrency(offerte.totalen.btw)}
             </Text>
@@ -468,11 +490,14 @@ export function OffertePDF({ offerte, bedrijfsgegevens, theme, voorwaarden }: Of
           </View>
         )}
 
-        {/* Voorwaarden */}
-        {voorwaarden && (
+        {/* Voorwaarden: gekozen tekstblok op de offerte gaat vóór de
+            algemene instellingen-voorwaarden (vrije builder, PRD §2.5b) */}
+        {(offerte.vrijeTeksten?.voorwaarden || voorwaarden) && (
           <View style={s.notesSection}>
             <Text style={s.notesTitle}>Voorwaarden</Text>
-            <Text style={s.notesText}>{voorwaarden}</Text>
+            <Text style={s.notesText}>
+              {offerte.vrijeTeksten?.voorwaarden || voorwaarden}
+            </Text>
           </View>
         )}
 

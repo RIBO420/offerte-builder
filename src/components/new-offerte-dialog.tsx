@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Shovel, Trees } from "lucide-react";
+import { PenLine, Shovel, Trees } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -32,6 +32,12 @@ export function NewOfferteDialog() {
     router.push("/offertes/nieuw/onderhoud");
   };
 
+  // Route 2 (PRD §2.5b): vrije regel-editor
+  const handleSelectVrij = () => {
+    setShowNewOfferteDialog(false);
+    router.push("/offertes/nieuw/vrij");
+  };
+
   // Keyboard shortcuts within the dialog
   useKeyboardShortcuts(
     showNewOfferteDialog
@@ -55,6 +61,16 @@ export function NewOfferteDialog() {
             key: "2",
             description: "Nieuwe onderhoud offerte",
             action: handleSelectOnderhoud,
+          },
+          {
+            key: "v",
+            description: "Nieuwe vrije offerte",
+            action: handleSelectVrij,
+          },
+          {
+            key: "3",
+            description: "Nieuwe vrije offerte",
+            action: handleSelectVrij,
           },
         ]
       : []
@@ -110,12 +126,34 @@ export function NewOfferteDialog() {
               className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
             />
           </Button>
+
+          <Button
+            variant="outline"
+            className="flex flex-col items-center gap-3 h-auto py-6 relative group col-span-2"
+            onClick={handleSelectVrij}
+          >
+            <div className="flex size-12 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
+              <PenLine className="size-6 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div className="text-center">
+              <div className="font-medium">Vrij (regel-editor)</div>
+              <div className="text-xs text-muted-foreground">
+                Artikelen aanklikken of vrije regels — voor alles wat niet in
+                een pakket past
+              </div>
+            </div>
+            <KeyboardHint
+              keys={["V"]}
+              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+            />
+          </Button>
         </div>
 
         <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground border-t pt-4">
           <span className="flex items-center gap-1">
-            Druk <KeyboardHint keys={["A"]} size="sm" /> of{" "}
-            <KeyboardHint keys={["O"]} size="sm" /> om te selecteren
+            Druk <KeyboardHint keys={["A"]} size="sm" />,{" "}
+            <KeyboardHint keys={["O"]} size="sm" /> of{" "}
+            <KeyboardHint keys={["V"]} size="sm" /> om te selecteren
           </span>
         </div>
       </DialogContent>

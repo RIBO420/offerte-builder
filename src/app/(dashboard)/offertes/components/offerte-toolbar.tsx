@@ -9,7 +9,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Shovel, Trees, Search } from "lucide-react";
+import { Shovel, Trees, Search, PenLine } from "lucide-react";
 import {
   OfferteFiltersComponent,
   ActiveFilters,
@@ -81,6 +81,23 @@ export function OfferteToolbar({
         <div className="flex gap-2 w-full sm:w-auto">
           {/* §5.3c: kantoor-actie om verweesde concepten op te ruimen */}
           <ConceptOpruimenDialog />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button asChild variant="outline" className="flex-1 sm:flex-none">
+                <Link href="/offertes/nieuw/vrij">
+                  <PenLine className="mr-2 h-4 w-4" />
+                  <span className="hidden sm:inline">Vrij</span>
+                  <span className="sm:hidden">Vrije Offerte</span>
+                </Link>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Maak een vrije offerte in de regel-editor</p>
+              <p className="text-xs text-muted-foreground">
+                Voor alles wat niet in een pakket past
+              </p>
+            </TooltipContent>
+          </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button asChild variant="outline" className="flex-1 sm:flex-none">

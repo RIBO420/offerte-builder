@@ -241,7 +241,14 @@ export function OfferteHeader({
           </Button>
         ) : (
           <Button variant="outline" asChild>
-            <Link href={`/offertes/${id}/bewerken`}>
+            {/* Vrije offertes (route 2, PRD §2.5b) bewerken in de regel-editor */}
+            <Link
+              href={
+                offerte?.bron === "vrij"
+                  ? `/offertes/${id}/vrij`
+                  : `/offertes/${id}/bewerken`
+              }
+            >
               <Edit className="mr-2 h-4 w-4" />
               Bewerken
             </Link>
