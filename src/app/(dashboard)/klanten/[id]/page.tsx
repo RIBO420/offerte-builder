@@ -54,6 +54,7 @@ import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import { CopyButton } from "@/components/ui/copy-button";
 import { Id } from "../../../../../convex/_generated/dataModel";
 import { LeadHistorieCard } from "@/components/leads/lead-historie-card";
+import { OnderhoudSectie } from "@/components/klanten/onderhoud-sectie";
 import { KlantReminderBanner } from "@/components/klant-reminder-banner";
 import { formatCurrency } from "@/lib/format/currency";
 
@@ -420,6 +421,9 @@ export default function KlantDetailPage({
               gepromoveerde lead blijven vanaf de klant bereikbaar */}
           <LeadHistorieCard klantId={id as Id<"klanten">} />
         </div>
+
+        {/* Onderhoud (PRD §2.1): contracten + losse beurten, aparte regels */}
+        <OnderhoudSectie klantId={id as Id<"klanten">} />
 
         {/* Offertes */}
         <Card>

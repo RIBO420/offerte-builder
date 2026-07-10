@@ -33,6 +33,10 @@ interface ContractData {
   betalingsfrequentie: string;
   jaarlijksTarief: number;
   indexatiePercentage?: number;
+  // PRD §2.1 / bijlage A regel 6: indexatieclausule zichtbaar in het contract
+  indexatieVanToepassing?: boolean;
+  indexatieClausule?: string | null;
+  facturatiemodus?: string;
   autoVerlenging: boolean;
   verlengingsPeriodeInMaanden?: number;
   notities?: string;
@@ -52,8 +56,12 @@ interface KlantData {
 interface Werkzaamheid {
   _id: string;
   omschrijving: string;
-  seizoen: string;
+  // Optioneel sinds bouwsteen-regels (PRD §2.1): die hebben een
+  // seizoensvenster in maanden i.p.v. het legacy seizoen-enum
+  seizoen?: string;
   frequentie: number;
+  frequentiePerJaar?: number;
+  prijsPerBeurt?: number;
   frequentieEenheid?: string;
   geschatteUrenPerBeurt: number;
   geschatteUrenTotaal: number;
@@ -83,13 +91,14 @@ interface ContractPdfProps {
 // ── Helpers ──────────────────────────────────────────────────────────
 
 const seizoenLabels: Record<string, string> = {
+  jaarrond: "Werkzaamheden",
   voorjaar: "Voorjaar (Mrt - Mei)",
   zomer: "Zomer (Jun - Aug)",
   herfst: "Herfst (Sep - Nov)",
   winter: "Winter (Dec - Feb)",
 };
 
-const seizoenOrder = ["voorjaar", "zomer", "herfst", "winter"];
+const seizoenOrder = ["jaarrond", "voorjaar", "zomer", "herfst", "winter"];
 
 const frequentieLabels: Record<string, string> = {
   maandelijks: "Maandelijks",
@@ -456,6 +465,19 @@ export function ContractPDF({
                 </View>
               ))}
             </View>
+          </View>
+        )}
+
+        {/* ── 6b. Indexatieclausule (PRD bijlage A regel 6) ─────── */}
+        {contract.indexatieVanToepassing && contract.indexatieClausule && (
+          <View style={s.notesSection}>
+            <Text style={s.notesTitle}>Prijsindexatie</Text>
+            <Text style={s.notesText}>
+              {contract.indexatieClausule}
+              {contract.indexatiePercentage != null
+                ? ` Afgesproken indexatiepercentage: ${contract.indexatiePercentage}% per jaar.`
+                : ""}
+            </Text>
           </View>
         )}
 

@@ -118,6 +118,22 @@ const frequentieLabels: Record<string, string> = {
   jaarlijks: "Jaarlijks",
 };
 
+const facturatiemodusLabels: Record<string, string> = {
+  per_bezoek: "Per bezoek",
+  maandelijks_verzameld: "Maandelijkse verzamelfactuur",
+  vast_maandbedrag: "Vast maandbedrag",
+};
+
+const MAAND_KORT = [
+  "jan", "feb", "mrt", "apr", "mei", "jun",
+  "jul", "aug", "sep", "okt", "nov", "dec",
+];
+
+function vensterLabel(van?: number, tot?: number): string {
+  if (!van || !tot) return "Hele jaar";
+  return `${MAAND_KORT[van - 1]} – ${MAAND_KORT[tot - 1]}`;
+}
+
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("nl-NL", {
     style: "currency",
@@ -329,7 +345,7 @@ function ContractDetailContent() {
     user?._id ? { id: contractId } : "skip"
   );
 
-  const updateContract = useMutation(api.onderhoudscontracten.update);
+  const activeerContract = useMutation(api.beurtgenerator.activeerContract);
   const addWerkzaamheid = useMutation(api.onderhoudscontracten.addWerkzaamheid);
   const removeWerkzaamheid = useMutation(api.onderhoudscontracten.removeWerkzaamheid);
   const renewContract = useMutation(api.onderhoudscontracten.renewContract);
@@ -362,16 +378,23 @@ function ContractDetailContent() {
     [contract?.werkzaamheden]
   );
 
-  // Group werkzaamheden by seizoen
+  // Group werkzaamheden by seizoen; bouwsteen-regels zonder seizoen-enum
+  // (PRD §2.1: venster in maanden) vallen onder "jaarrond"
   const werkzaamhedenPerSeizoen = useMemo(() => {
     if (werkzaamheden.length === 0) return {};
     const grouped: Record<string, typeof werkzaamheden> = {};
     for (const w of werkzaamheden) {
-      if (!grouped[w.seizoen]) grouped[w.seizoen] = [];
-      grouped[w.seizoen].push(w);
+      const seizoen = w.seizoen ?? "jaarrond";
+      if (!grouped[seizoen]) grouped[seizoen] = [];
+      grouped[seizoen].push(w);
     }
     return grouped;
   }, [werkzaamheden]);
+
+  const bouwsteenRegels = useMemo(
+    () => werkzaamheden.filter((w) => w.seizoen === undefined),
+    [werkzaamheden]
+  );
 
   const totalGeschatteUren = useMemo(() => {
     return werkzaamheden.reduce(
@@ -384,12 +407,16 @@ function ContractDetailContent() {
   const handleActivate = useCallback(async () => {
     if (!contract) return;
     try {
-      await updateContract({ id: contract._id, status: "actief" });
-      toast.success("Contract geactiveerd");
+      const resultaat = await activeerContract({ id: contract._id });
+      toast.success("Contract geactiveerd", {
+        description: `${resultaat.aantalNieuweBeurten} ${
+          resultaat.aantalNieuweBeurten === 1 ? "beurt" : "beurten"
+        } aangemaakt voor de komende 12 maanden. Ze staan ongepland in de wachtrij.`,
+      });
     } catch {
       toast.error("Kon contract niet activeren");
     }
-  }, [contract, updateContract]);
+  }, [contract, activeerContract]);
 
   const handleAddWerkzaamheid = useCallback(async () => {
     if (!contract || !newWerk.omschrijving.trim()) return;
@@ -516,6 +543,12 @@ function ContractDetailContent() {
             <Button onClick={handleActivate}>
               <CheckCircle2 className="h-4 w-4 mr-2" />
               Activeren
+            </Button>
+          )}
+          {contract.status === "actief" && (
+            <Button variant="outline" onClick={handleActivate}>
+              <RefreshCcw className="h-4 w-4 mr-2" />
+              Beurten aanvullen
             </Button>
           )}
         </div>
@@ -658,8 +691,93 @@ function ContractDetailContent() {
                   </Dialog>
                 </div>
 
-                {/* Werkzaamheden grouped by seizoen */}
-                {(["voorjaar", "zomer", "herfst", "winter"] as const).map(
+                {/* Bouwsteen-regels (PRD §2.1): frequentie/jaar + venster + prijs */}
+                {bouwsteenRegels.length > 0 && (
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Leaf className="h-4 w-4" />
+                        Bouwstenen
+                        <span className="text-muted-foreground font-normal text-sm">
+                          (frequentie × prijs per beurt)
+                        </span>
+                        <Badge variant="secondary" className="ml-auto">
+                          {bouwsteenRegels.length}
+                        </Badge>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Bouwsteen</TableHead>
+                            <TableHead className="text-right">
+                              Freq./jaar
+                            </TableHead>
+                            <TableHead>Venster</TableHead>
+                            <TableHead className="text-right">
+                              Prijs/beurt
+                            </TableHead>
+                            <TableHead className="text-right">
+                              Jaarprijs
+                            </TableHead>
+                            <TableHead className="w-10" />
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {bouwsteenRegels.map((w) => (
+                            <TableRow key={w._id}>
+                              <TableCell className="font-medium">
+                                {w.omschrijving}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {w.frequentiePerJaar ?? w.frequentie}×
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {vensterLabel(
+                                  w.vensterVanMaand,
+                                  w.vensterTotMaand
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {w.prijsPerBeurt != null
+                                  ? formatCurrency(w.prijsPerBeurt)
+                                  : "—"}
+                              </TableCell>
+                              <TableCell className="text-right font-medium">
+                                {w.prijsPerBeurt != null
+                                  ? formatCurrency(
+                                      (w.frequentiePerJaar ?? w.frequentie) *
+                                        w.prijsPerBeurt
+                                    )
+                                  : "—"}
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() =>
+                                    handleRemoveWerkzaamheid(
+                                      w._id as Id<"contractWerkzaamheden">
+                                    )
+                                  }
+                                  aria-label="Bouwsteen verwijderen"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Legacy werkzaamheden grouped by seizoen */}
+                {werkzaamheden.some((w) => w.seizoen !== undefined) &&
+                (["voorjaar", "zomer", "herfst", "winter"] as const).map(
                   (seizoen) => {
                     const items = werkzaamhedenPerSeizoen[seizoen] || [];
                     const config = seizoenConfig[seizoen];
@@ -839,13 +957,27 @@ function ContractDetailContent() {
                     </p>
                   </div>
                 </div>
-                {contract.indexatiePercentage != null && (
+                <div className="flex items-start gap-3">
+                  <FileText className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium">Facturatiemodus</p>
+                    <p className="text-sm text-muted-foreground">
+                      {facturatiemodusLabels[
+                        contract.facturatiemodusEffectief
+                      ] ?? contract.facturatiemodusEffectief}
+                    </p>
+                  </div>
+                </div>
+                {contract.indexatieVanToepassing && (
                   <div className="flex items-start gap-3">
                     <RefreshCcw className="h-4 w-4 mt-0.5 text-muted-foreground" />
                     <div>
-                      <p className="text-sm font-medium">Indexatie</p>
+                      <p className="text-sm font-medium">Indexatieclausule</p>
                       <p className="text-sm text-muted-foreground">
-                        {contract.indexatiePercentage}% per jaar
+                        Van toepassing (AV V2.0 art. 5.3, looptijd &gt; 3
+                        maanden)
+                        {contract.indexatiePercentage != null &&
+                          ` — ${contract.indexatiePercentage}% per jaar`}
                       </p>
                     </div>
                   </div>
@@ -873,6 +1005,49 @@ function ContractDetailContent() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Beurten (gegenereerd door de beurtengenerator, PRD §2.1) */}
+            {contract.beurtenStats.totaal > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Beurten</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      In wachtrij (gepland)
+                    </span>
+                    <span className="font-medium">
+                      {contract.beurtenStats.gepland}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Uitgevoerd</span>
+                    <span className="font-medium">
+                      {contract.beurtenStats.uitgevoerd}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Gefactureerd</span>
+                    <span className="font-medium">
+                      {contract.beurtenStats.gefactureerd}
+                    </span>
+                  </div>
+                  {contract.beurtenStats.vervallen > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Vervallen</span>
+                      <span className="font-medium">
+                        {contract.beurtenStats.vervallen}
+                      </span>
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground pt-1">
+                    De nachtelijke aanvulling houdt de planningshorizon van 12
+                    maanden gevuld.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Klant info */}
             {contract.klant && (
