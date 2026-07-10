@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { requireKlant } from "./auth";
+import { voerKlantAcceptatieKetenUit } from "./acceptatieKeten";
 
 // Portal overview — KPIs + recent activity
 export const getOverzicht = query({
@@ -273,19 +274,39 @@ export const respondToOfferte = mutation({
       throw new Error("Een handtekening is verplicht bij acceptatie");
     }
 
+    const now = Date.now();
+
     // Update offerte status and customerResponse
     await ctx.db.patch(args.offerteId, {
       status: args.status === "geaccepteerd" ? "geaccepteerd" : "afgewezen",
       customerResponse: {
         status: args.status,
         comment: args.comment,
-        respondedAt: Date.now(),
-        viewedAt: offerte.customerResponse?.viewedAt ?? Date.now(),
+        respondedAt: now,
+        viewedAt: offerte.customerResponse?.viewedAt ?? now,
         signature: args.signature,
-        signedAt: args.signature ? Date.now() : undefined,
+        signedAt: args.signature ? now : undefined,
         selectedOptionalRegelIds: args.selectedOptionalRegelIds,
       },
     });
+
+    // ── Acceptatie-keten voor het klant-pad (PRD §2.5, beleid) ──
+    // De PRD-regel "geen acceptatie zonder ten minste één werkitem" is hard
+    // en geldt óók als de klant zelf accepteert. De klant-flow mag echter
+    // nooit blokkeren; daarom hergebruikt dit pad de acceptatie-kern
+    // (convex/acceptatieKeten.ts):
+    // (a) offerte met bouwsteenRegels → automatisch concept-contract (route 1);
+    // (b) aanleg-wizard-offerte → automatisch eenmalig project;
+    // (c) vrije offerte zonder herleidbare koppeling → vangnet: één eenmalig
+    //     project-werkitem met alle regels, titel "Uit offerte [nummer] —
+    //     koppeling controleren"; kantoor herverdeelt later via de
+    //     koppel-dialoog. Deze stap verstuurt bewust geen e-mail.
+    if (args.status === "geaccepteerd") {
+      const geaccepteerdeOfferte = await ctx.db.get(args.offerteId);
+      if (geaccepteerdeOfferte) {
+        await voerKlantAcceptatieKetenUit(ctx, geaccepteerdeOfferte, now);
+      }
+    }
 
     return { success: true };
   },

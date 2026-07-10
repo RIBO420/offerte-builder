@@ -4,7 +4,7 @@ import { generateSecureToken, getOwnedOfferte, isShareTokenValid, requireAuthUse
 import { requireNotViewer, assertKanNaarKlantVersturen } from "./roles";
 import { internal } from "./_generated/api";
 import { checkPublicOfferteRateLimit } from "./security";
-import { upgradeKlantPipeline } from "./pipelineHelpers";
+import { voerKlantAcceptatieKetenUit } from "./acceptatieKeten";
 
 // Create or refresh share link for an offerte (with ownership verification)
 export const createShareLink = mutation({
@@ -288,9 +288,19 @@ export const respond = mutation({
       comment: args.comment,
     });
 
-    // CRM-002: Auto-upgrade klant pipeline status on acceptance
-    if (args.status === "geaccepteerd" && offerte!.klantId) {
-      await upgradeKlantPipeline(ctx, offerte!.klantId, "getekend");
+    // ── Acceptatie-keten voor het klant-pad (PRD §2.5, beleid) ──
+    // Zelfde beleid als portaal.respondToOfferte: geen acceptatie zonder
+    // ten minste één werkitem, maar de klant-flow mag nooit blokkeren.
+    // De kern (convex/acceptatieKeten.ts) maakt automatisch een
+    // concept-contract (route 1), een eenmalig project (aanleg-wizard) of
+    // het vangnet-werkitem "Uit offerte [nummer] — koppeling controleren"
+    // (vrije offerte zonder koppeling), en doet de pipeline-upgrade naar
+    // "getekend". Deze stap verstuurt bewust geen e-mail.
+    if (args.status === "geaccepteerd") {
+      const geaccepteerdeOfferte = await ctx.db.get(offerte!._id);
+      if (geaccepteerdeOfferte) {
+        await voerKlantAcceptatieKetenUit(ctx, geaccepteerdeOfferte, now);
+      }
     }
 
     return { success: true };

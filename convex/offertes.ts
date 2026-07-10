@@ -9,8 +9,11 @@ import {
 import { requireNotViewer, assertKanNaarKlantVersturen } from "./roles";
 import { internal } from "./_generated/api";
 import { upgradeKlantPipeline } from "./pipelineHelpers";
-import { beoordeelAcceptatie } from "./acceptatieRegels";
-import { maakContractVanGeaccepteerdeOfferte } from "./onderhoudscontracten";
+import {
+  bepaalAcceptatieBesluit,
+  voerKetenActieUit,
+  type KetenActie,
+} from "./acceptatieKeten";
 
 const klantValidator = v.object({
   naam: v.string(),
@@ -1115,33 +1118,9 @@ export const updateStatus = mutation({
     // (voorheen handmatige stap ná acceptatie — mag nu niet meer ontbreken).
     // Route 2 (vrij): kantoor koppelt éérst werkitems via de koppel-dialoog,
     // anders weigert deze mutation met een duidelijke fout.
-    let ketenActie: "geen" | "contract_aanmaken" | "project_aanmaken" = "geen";
+    let ketenActie: KetenActie = "geen";
     if (args.status === "geaccepteerd") {
-      const werkitems = await ctx.db
-        .query("projecten")
-        .withIndex("by_offerte", (q) => q.eq("offerteId", args.id))
-        .collect();
-      const heeftWerkitem = werkitems.some((w) => !w.deletedAt);
-
-      const contract = await ctx.db
-        .query("onderhoudscontracten")
-        .withIndex("by_offerte", (q) => q.eq("offerteId", args.id))
-        .first();
-
-      const voorcalculatie = await ctx.db
-        .query("voorcalculaties")
-        .withIndex("by_offerte", (q) => q.eq("offerteId", args.id))
-        .first();
-
-      const besluit = beoordeelAcceptatie({
-        type: oldOfferte.type,
-        bron: oldOfferte.bron,
-        heeftWerkitem,
-        heeftContract: contract !== null,
-        aantalBouwsteenRegels: oldOfferte.bouwsteenRegels?.length ?? 0,
-        heeftVoorcalculatie: voorcalculatie !== null,
-      });
-
+      const besluit = await bepaalAcceptatieBesluit(ctx, oldOfferte);
       if (!besluit.toegestaan) {
         throw new ConvexError(besluit.reden);
       }
@@ -1181,29 +1160,12 @@ export const updateStatus = mutation({
     // Create version snapshot for status change
     const offerte = await ctx.db.get(args.id);
     if (offerte) {
-      // ── Overgang naar de keten (PRD §2.5) ──
-      if (ketenActie === "contract_aanmaken") {
-        // Route 1: voorgevuld CONCEPT-contract. De keten is: concept-contract
-        // nu, daarna activeert kantoor het contract (beurtgenerator, §2.1)
-        // waarmee de beurten/werkitems ontstaan.
-        await maakContractVanGeaccepteerdeOfferte(ctx, offerte);
-      } else if (ketenActie === "project_aanmaken") {
-        // Aanleg-wizard: eenmalig project — zelfde vorm als projecten.create,
-        // maar direct bij acceptatie zodat de harde validatie sluitend is.
-        await ctx.db.insert("projecten", {
-          userId: offerte.userId,
-          type: "project",
-          offerteId: offerte._id,
-          klantId: offerte.klantId,
-          naam: `Project ${offerte.offerteNummer} - ${offerte.klant.naam}`,
-          status: "gepland",
-          createdAt: now,
-          updatedAt: now,
-        });
-        if (offerte.klantId) {
-          await upgradeKlantPipeline(ctx, offerte.klantId, "in_uitvoering");
-        }
-      }
+      // ── Overgang naar de keten (PRD §2.5) — gedeelde kern ──
+      // Route 1: voorgevuld CONCEPT-contract (kantoor activeert daarna via
+      // de beurtgenerator, §2.1). Aanleg-wizard: eenmalig project. De
+      // uitvoering leeft in convex/acceptatieKeten.ts en wordt óók door de
+      // klant-paden (portaal + publieke link) gebruikt.
+      await voerKetenActieUit(ctx, offerte, ketenActie, now);
       const versions = await ctx.db
         .query("offerte_versions")
         .withIndex("by_offerte", (q) => q.eq("offerteId", args.id))
