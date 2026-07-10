@@ -52,6 +52,7 @@ import { useKlantWithOffertes } from "@/hooks/use-klanten";
 import { useIsAdmin } from "@/hooks/use-users";
 import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import { CopyButton } from "@/components/ui/copy-button";
+import { Switch } from "@/components/ui/switch";
 import { Id } from "../../../../../convex/_generated/dataModel";
 import { LeadHistorieCard } from "@/components/leads/lead-historie-card";
 import { OnderhoudSectie } from "@/components/klanten/onderhoud-sectie";
@@ -133,6 +134,7 @@ export default function KlantDetailPage({
   const isAdmin = useIsAdmin();
   const { klant, isLoading } = useKlantWithOffertes(id as Id<"klanten">);
   const gdprAnonymize = useMutation(api.klanten.gdprAnonymize);
+  const setInplanMail = useMutation(api.klanten.setInplanBevestigingsMail);
   const gdprBlockers = useQuery(
     api.klanten.checkGdprBlockers,
     id ? { id: id as Id<"klanten"> } : "skip"
@@ -355,6 +357,36 @@ export default function KlantDetailPage({
                   </div>
                 </div>
               )}
+
+              {/* §2.7: opt-in inplanning-bevestigingsmail (default uit) —
+                  zet bij inplannen een concept-mail klaar; kantoor keurt goed */}
+              <div className="flex items-center justify-between gap-3 border-t pt-4">
+                <div>
+                  <p className="text-sm font-medium">Bevestigingsmail bij inplannen</p>
+                  <p className="text-xs text-muted-foreground">
+                    Zet bij het inplannen een concept-mail klaar in Concept-mails
+                  </p>
+                </div>
+                <Switch
+                  checked={klant.inplanBevestigingsMail === true}
+                  onCheckedChange={async (checked) => {
+                    try {
+                      await setInplanMail({
+                        id: id as Id<"klanten">,
+                        inplanBevestigingsMail: checked,
+                      });
+                      showSuccessToast(
+                        checked
+                          ? "Bevestigingsmail bij inplannen aangezet"
+                          : "Bevestigingsmail bij inplannen uitgezet"
+                      );
+                    } catch {
+                      showErrorToast("Bijwerken mislukt");
+                    }
+                  }}
+                  aria-label="Bevestigingsmail bij inplannen"
+                />
+              </div>
             </CardContent>
           </Card>
 

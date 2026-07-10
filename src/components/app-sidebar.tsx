@@ -57,6 +57,7 @@ import {
   DollarSign,
   CheckSquare,
   MessageSquare,
+  Mail,
   ScrollText,
   Settings,
   TextQuote,
@@ -79,6 +80,8 @@ const werkItems = [
   { title: "Planning", url: "/planning", icon: Calendar },
   // PRD §2.4: meldingen/cases — intern bord met teller-badge (open cases)
   { title: "Meldingen", url: "/meldingen", icon: Wrench },
+  // PRD §2.7: goedkeurings-wachtrij voor uitgaande trigger-mails (kantoor)
+  { title: "Concept-mails", url: "/mails", icon: Mail },
   { title: "Uren", url: "/uren", icon: Clock },
   { title: "Rapportages", url: "/rapportages", icon: BarChart3 },
   { title: "Chat", url: "/chat", icon: MessageSquare },
@@ -107,6 +110,8 @@ const assetsMenuItems = [
   { title: "Machinebeheer", url: "/instellingen/machines", icon: Wrench },
   { title: "Catalogus onderhoud", url: "/instellingen/catalogus", icon: Trees },
   { title: "Tekstblokken", url: "/instellingen/tekstblokken", icon: TextQuote },
+  // PRD §2.7: event → sjabloon → vertraging → ontvanger (records, geen code)
+  { title: "Mail-triggers", url: "/instellingen/mailtriggers", icon: Mail },
   { title: "Prijsboek", url: "/prijsboek", icon: BookOpen },
   { title: "Garanties", url: "/garanties", icon: ShieldCheck },
   // "Servicemeldingen" is vervangen door het §2.4-bord "Meldingen" (werkItems)
@@ -161,6 +166,11 @@ export function AppSidebar() {
   const aantalOpenMeldingen = useQuery(
     api.servicemeldingen.telOpenMeldingen,
     isMeldingenRol ? {} : "skip"
+  );
+  // §2.7: teller-badge concept-mails in de goedkeurings-wachtrij (kantoor)
+  const aantalConceptMails = useQuery(
+    api.conceptMails.countWachtrij,
+    isKantoor ? {} : "skip"
   );
 
   // Close mobile sidebar when navigating to a new page
@@ -288,6 +298,14 @@ export function AppSidebar() {
                           className="ml-auto text-xs h-5 min-w-5 px-1 bg-amber-600 hover:bg-amber-600"
                         >
                           {aantalOpenMeldingen}
+                        </Badge>
+                      )}
+                      {item.title === "Concept-mails" && aantalConceptMails !== undefined && aantalConceptMails > 0 && (
+                        <Badge
+                          variant="default"
+                          className="ml-auto text-xs h-5 min-w-5 px-1 bg-green-700 hover:bg-green-700"
+                        >
+                          {aantalConceptMails}
                         </Badge>
                       )}
                     </Link>

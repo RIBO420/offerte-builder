@@ -9,8 +9,9 @@
  * - Een @tag van een medewerker maakt een veldtaak die op diens dagkaart
  *   verschijnt zodra zijn team bij deze klant gepland staat.
  * - Promotie melding → werkitem en (voor plantaken) "beurt vrijgeven naar
- *   wachtrij". De INPLAN-MAIL-knop is bewust een placeholder: §2.7 (mails)
- *   is de volgende stap — vanuit dit scherm wordt NIETS gemaild.
+ *   wachtrij". De INPLAN-MAIL-knop (§2.7) zet de mail als CONCEPT klaar in
+ *   de wachtrij "Concept-mails" — vanuit dit scherm wordt NIETS gemaild;
+ *   goedkeuren + versturen gebeurt in de wachtrij (capability §1.2).
  */
 
 import { useState } from "react";
@@ -79,6 +80,7 @@ export function MeldingDetailModal({
   const rondVeldtaakAf = useMutation(api.caseThread.rondVeldtaakAf);
   const promoveer = useMutation(api.servicemeldingen.promoveerNaarWerkitem);
   const geefVrij = useMutation(api.planningsattendering.geefBeurtVrij);
+  const maakInplanConcept = useMutation(api.conceptMails.maakInplanConcept);
 
   const [commentTekst, setCommentTekst] = useState("");
   const [tagMedewerkerId, setTagMedewerkerId] = useState<string>("");
@@ -160,6 +162,24 @@ export function MeldingDetailModal({
     }
   }
 
+  // §2.7 (event inplan_attendering): één klik zet de inplan-mail als
+  // CONCEPT klaar in de wachtrij "Concept-mails" — kantoor keurt daar goed
+  // en verstuurt (of verwerpt). Vanuit dit scherm wordt NIETS gemaild.
+  async function handleInplanMail() {
+    if (!meldingId) return;
+    setBezig(true);
+    try {
+      await maakInplanConcept({ meldingId });
+      showSuccessToast(
+        "Inplan-mail klaargezet — goedkeuren en versturen via Concept-mails"
+      );
+    } catch (error) {
+      showErrorToast(error instanceof Error ? error.message : "Mislukt");
+    } finally {
+      setBezig(false);
+    }
+  }
+
   return (
     <Dialog open={meldingId !== null} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
@@ -234,15 +254,17 @@ export function MeldingDetailModal({
                       <Send className="size-4 mr-1" />
                       Beurt vrijgeven naar wachtrij
                     </Button>
-                    {/* §2.7 is de volgende stap: vanuit deze stap mailt er NIETS */}
+                    {/* §2.7: zet de inplan-mail als concept in de wachtrij —
+                        versturen gebeurt daar, na goedkeuring door kantoor */}
                     <Button
                       variant="outline"
                       size="sm"
-                      disabled
-                      title="Beschikbaar na de mails-stap (§2.7)"
+                      onClick={handleInplanMail}
+                      disabled={bezig || melding?.status === "opgelost"}
+                      title="Zet de inplan-mail klaar in Concept-mails (kantoor keurt goed en verstuurt)"
                     >
                       <Mail className="size-4 mr-1" />
-                      Inplan-mail (beschikbaar na mails-stap)
+                      Inplan-mail klaarzetten
                     </Button>
                   </>
                 )}
