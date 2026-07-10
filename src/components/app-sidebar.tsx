@@ -36,6 +36,7 @@ import {
   Trees,
   Moon,
   Sun,
+  UserPlus,
   Users,
   UsersRound,
   Clock,
@@ -61,7 +62,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Badge } from "@/components/ui/badge";
-import { useIsAdmin, useCurrentUserRole } from "@/hooks/use-users";
+import { useCurrentUserRole } from "@/hooks/use-users";
 import { NotificationCenter } from "@/components/notification-center";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -69,6 +70,9 @@ import { api } from "../../convex/_generated/api";
 // Sidebar: Werk group - daily operational items
 const werkItems = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
+  // PRD §1.3: Leads (funnel, kanban-bord) en Klanten (bestaande klanten)
+  // zijn twee aparte menu-items met elk een eigen teller-badge
+  { title: "Leads", url: "/leads", icon: UserPlus },
   { title: "Klanten", url: "/klanten", icon: Users },
   { title: "Projecten", url: "/projecten", icon: FolderKanban },
   { title: "Planning", url: "/planning", icon: Calendar },
@@ -127,22 +131,30 @@ export function AppSidebar() {
   const { user, isLoaded: isUserLoaded } = useUser();
   const { signOut } = useClerk();
   const [mounted, setMounted] = useState(false);
-  const isAdmin = useIsAdmin();
   const role = useCurrentUserRole();
 
-  // Teller voor nieuwe verificatie-aanvragen (alleen geladen als admin)
-  const aantalNieuweAanvragen = useQuery(
-    api.configuratorAanvragen.countByStatus,
-    isAdmin ? {} : "skip"
+  // Helper: check if role is directie-level (includes legacy "admin")
+  const isDirectieOrAdmin = role === "directie" || role === "admin";
+  // Kantoor (PRD §1.2): directie + projectleider — zij zien Leads/Klanten
+  const isKantoor = isDirectieOrAdmin || role === "projectleider";
+
+  // Teller-badges (PRD §1.3/§5.1): "Leads" telt actieve funnel-leads,
+  // "Klanten" telt echte klanten. Gearchiveerde records en gepromoveerde
+  // (gewonnen) of verloren leads tellen niet mee — dit lost het verwarrende
+  // gecombineerde aantal op het oude Klanten-item op.
+  const aantalActieveLeads = useQuery(
+    api.configuratorAanvragen.countActieveLeads,
+    isKantoor ? {} : "skip"
+  );
+  const aantalKlanten = useQuery(
+    api.klanten.countKlanten,
+    isKantoor ? {} : "skip"
   );
 
   // Close mobile sidebar when navigating to a new page
   useEffect(() => {
     setOpenMobile(false);
   }, [pathname, setOpenMobile]);
-
-  // Helper: check if role is directie-level (includes legacy "admin")
-  const isDirectieOrAdmin = role === "directie" || role === "admin";
 
   // Filter Werk items based on 7-role model
   const filteredWerkItems = useMemo(() => {
@@ -242,12 +254,20 @@ export function AppSidebar() {
                     <Link href={item.url}>
                       <item.icon />
                       <span>{item.title}</span>
-                      {item.title === "Klanten" && aantalNieuweAanvragen !== undefined && aantalNieuweAanvragen > 0 && (
+                      {item.title === "Leads" && aantalActieveLeads !== undefined && aantalActieveLeads > 0 && (
                         <Badge
                           variant="default"
                           className="ml-auto text-xs h-5 min-w-5 px-1 bg-blue-600 hover:bg-blue-600"
                         >
-                          {aantalNieuweAanvragen}
+                          {aantalActieveLeads}
+                        </Badge>
+                      )}
+                      {item.title === "Klanten" && aantalKlanten !== undefined && aantalKlanten > 0 && (
+                        <Badge
+                          variant="secondary"
+                          className="ml-auto text-xs h-5 min-w-5 px-1"
+                        >
+                          {aantalKlanten}
                         </Badge>
                       )}
                     </Link>

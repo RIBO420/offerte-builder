@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useTableSort } from "@/hooks/use-table-sort";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -42,7 +42,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Users,
@@ -92,16 +91,10 @@ import {
   type KlantParseResult,
 } from "@/lib/klant-import-parser";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { useIsAdmin } from "@/hooks/use-users";
 import {
   ExportDropdown,
   klantenExportColumns,
 } from "@/components/export-dropdown";
-import { KanbanBoard } from "@/components/leads/kanban-board";
-import { PipelineStats } from "@/components/leads/pipeline-stats";
-import { LeadDetailModal } from "@/components/leads/lead-detail-modal";
-import { NieuweLeadDialog } from "@/components/leads/nieuwe-lead-dialog";
-import type { Lead } from "@/components/leads/lead-card";
 
 type PipelineStatus = "lead" | "offerte_verzonden" | "getekend" | "in_uitvoering" | "opgeleverd" | "onderhoud";
 
@@ -229,19 +222,16 @@ function KlantenPageContent() {
     (searchParams.get("type") as KlantType | "alle") || "alle"
   );
 
-  // Update URL when filters change (preserves the top-level ?tab= param)
+  // Update URL when filters change
   const updateUrlParams = useCallback((newPipeline: string, newType: string, newSearch: string) => {
     const params = new URLSearchParams();
-    // Preserve the tab param from the parent KlantenPageWithTabs
-    const currentTab = searchParams.get("tab");
-    if (currentTab && currentTab !== "klanten") params.set("tab", currentTab);
     if (newPipeline !== "alle") params.set("pipeline", newPipeline);
     if (newType !== "alle") params.set("type", newType);
     if (newSearch) params.set("q", newSearch);
 
     const queryString = params.toString();
     router.replace(queryString ? `?${queryString}` : "/klanten", { scroll: false });
-  }, [router, searchParams]);
+  }, [router]);
 
   const handlePipelineFilterChange = useCallback((value: PipelineStatus | "alle") => {
     setPipelineFilter(value);
@@ -1418,80 +1408,21 @@ function KlantenPageContent() {
 }
 
 // ============================================
-// Leads tab content (Kanban board)
+// Main page — alleen Klanten (PRD §1.3: leads hebben een eigen
+// menu-item /leads; de lead-funnel leeft daar op het kanban-bord)
 // ============================================
 
-function LeadsTabContent() {
-  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [nieuweLeadOpen, setNieuweLeadOpen] = useState(false);
-
-  const leads = useQuery(api.configuratorAanvragen.listByPipeline);
-
-  if (leads === undefined) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  return (
-    <>
-      <div className="flex justify-end mb-4">
-        <Button onClick={() => setNieuweLeadOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nieuwe Lead
-        </Button>
-      </div>
-
-      <KanbanBoard
-        leads={leads}
-        onLeadClick={(lead) => {
-          setSelectedLead(lead);
-          setDetailOpen(true);
-        }}
-      />
-
-      <div className="mt-6">
-        <PipelineStats />
-      </div>
-
-      <LeadDetailModal
-        lead={selectedLead}
-        open={detailOpen}
-        onClose={() => {
-          setDetailOpen(false);
-          setSelectedLead(null);
-        }}
-      />
-
-      <NieuweLeadDialog
-        open={nieuweLeadOpen}
-        onClose={() => setNieuweLeadOpen(false)}
-      />
-    </>
-  );
-}
-
-// ============================================
-// Main page with Klanten / Leads tabs
-// ============================================
-
-function KlantenPageWithTabs() {
+function KlantenPageShell() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const isAdmin = useIsAdmin();
-  const activeTab = searchParams.get("tab") || "klanten";
 
-  const aantalNieuweAanvragen = useQuery(
-    api.configuratorAanvragen.countByStatus,
-    isAdmin ? {} : "skip"
-  );
-
-  const handleTabChange = (tab: string) => {
-    router.push(`/klanten${tab === "klanten" ? "" : `?tab=${tab}`}`, { scroll: false });
-  };
+  // Oude tab-URL (/klanten?tab=leads) doorverwijzen naar het eigen menu-item
+  const wilLeads = searchParams.get("tab") === "leads";
+  useEffect(() => {
+    if (wilLeads) {
+      router.replace("/leads");
+    }
+  }, [wilLeads, router]);
 
   return (
     <>
@@ -1505,30 +1436,11 @@ function KlantenPageWithTabs() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Klanten</h1>
-            <p className="text-muted-foreground">Beheer je klantenbestand en leads</p>
+            <p className="text-muted-foreground">Beheer je klantenbestand</p>
           </div>
         </div>
 
-        {isAdmin ? (
-          <Tabs value={activeTab} onValueChange={handleTabChange}>
-            <TabsList>
-              <TabsTrigger value="klanten">Klanten</TabsTrigger>
-              <TabsTrigger value="leads" className="flex items-center gap-2">
-                Leads
-                {aantalNieuweAanvragen !== undefined && aantalNieuweAanvragen > 0 && (
-                  <Badge variant="default" className="text-xs h-5 min-w-5 px-1 bg-blue-600 hover:bg-blue-600">
-                    {aantalNieuweAanvragen}
-                  </Badge>
-                )}
-              </TabsTrigger>
-            </TabsList>
-            <div className="mt-6 flex flex-col gap-6">
-              {activeTab === "klanten" ? <KlantenPageContent /> : <LeadsTabContent />}
-            </div>
-          </Tabs>
-        ) : (
-          <KlantenPageContent />
-        )}
+        <KlantenPageContent />
       </m.div>
     </>
   );
@@ -1537,7 +1449,7 @@ function KlantenPageWithTabs() {
 export default function KlantenPage() {
   return (
     <RequireRole allowedRoles={["directie", "projectleider"]}>
-      <KlantenPageWithTabs />
+      <KlantenPageShell />
     </RequireRole>
   );
 }

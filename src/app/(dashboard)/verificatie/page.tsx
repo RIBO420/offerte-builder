@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
 export default function VerificatiePage() {
-  redirect("/klanten?tab=leads");
+  // PRD §1.3: leads hebben een eigen menu-item
+  redirect("/leads");
 }

@@ -53,6 +53,7 @@ import { useIsAdmin } from "@/hooks/use-users";
 import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import { CopyButton } from "@/components/ui/copy-button";
 import { Id } from "../../../../../convex/_generated/dataModel";
+import { LeadHistorieCard } from "@/components/leads/lead-historie-card";
 import { KlantReminderBanner } from "@/components/klant-reminder-banner";
 import { formatCurrency } from "@/lib/format/currency";
 
@@ -414,6 +415,10 @@ export default function KlantDetailPage({
               )}
             </CardContent>
           </Card>
+
+          {/* Lead-historie (PRD §1.3): herkomst + activiteiten van de
+              gepromoveerde lead blijven vanaf de klant bereikbaar */}
+          <LeadHistorieCard klantId={id as Id<"klanten">} />
         </div>
 
         {/* Offertes */}

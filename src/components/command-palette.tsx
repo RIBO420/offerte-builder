@@ -147,6 +147,15 @@ export function CommandPalette({ additionalItems = [] }: CommandPaletteProps) {
         keywords: ["archive", "oud", "verwijderd", "history"],
       },
       {
+        id: "nav-leads",
+        type: "navigation",
+        title: "Leads",
+        subtitle: "Lead-funnel (kanban-bord)",
+        icon: <Users className="size-4" />,
+        action: () => router.push("/leads"),
+        keywords: ["leads", "funnel", "pipeline", "aanvragen", "kanban"],
+      },
+      {
         id: "nav-klanten",
         type: "navigation",
         title: "Klanten",
