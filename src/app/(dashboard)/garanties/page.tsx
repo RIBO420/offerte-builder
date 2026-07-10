@@ -213,22 +213,18 @@ export default function GarantiesPage() {
                     value={newGarantie.projectId}
                     onValueChange={(val) => {
                       setNewGarantie((prev) => ({ ...prev, projectId: val }));
-                      // Auto-fill klant from project
-                      const project = projecten?.find(
-                        (p) => p._id === val
-                      );
-                      if (project) {
-                        // Find klant via offerte
-                        const klant = klanten?.find(
-                          (k) => k.naam === (project as { klantNaam?: string }).klantNaam
-                        );
-                        if (klant) {
-                          setNewGarantie((prev) => ({
-                            ...prev,
-                            projectId: val,
-                            klantId: klant._id,
-                          }));
-                        }
+                      // Auto-fill klant: werkitems dragen sinds fase 0 een
+                      // klantId; alleen invullen als die klant echt bestaat.
+                      const project = projecten?.find((p) => p._id === val);
+                      const klant = project?.klantId
+                        ? klanten?.find((k) => k._id === project.klantId)
+                        : undefined;
+                      if (klant) {
+                        setNewGarantie((prev) => ({
+                          ...prev,
+                          projectId: val,
+                          klantId: klant._id,
+                        }));
                       }
                     }}
                   >

@@ -581,11 +581,6 @@ export const getUnreadCounts = query({
       .filter((q) => q.neq(q.field("senderId"), user._id)) // Exclude own messages
       .collect();
 
-    const _unreadTeam = teamMessages.filter((m) => {
-      const readBy = m.readBy || [];
-      return !readBy.includes(user.clerkId);
-    }).length;
-
     // Count unread DMs to this user
     const unreadDMs = await ctx.db
       .query("direct_messages")

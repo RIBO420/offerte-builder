@@ -16,7 +16,7 @@ import { mutation, query } from "./_generated/server";
 import { requireAuth, requireAuthUserId, verifyOwnership } from "./auth";
 import { requireNotViewer } from "./roles";
 import { Id } from "./_generated/dataModel";
-import { validatePositive } from "./validators";
+import { validatePositive, sanitizeOptionalString } from "./validators";
 
 // Cost types for categorization
 const kostenTypeValidator = v.union(
@@ -426,6 +426,9 @@ export const create = mutation({
     const hoeveelheid = validatePositive(args.hoeveelheid, "Hoeveelheid");
     const prijsPerEenheid = validatePositive(args.prijsPerEenheid, "Prijs per eenheid");
 
+    // Notities gesanitized opslaan (trim, leeg → undefined) — consistent met
+    // klanten/inkooporders/leveranciers.
+    const notities = sanitizeOptionalString(args.notities);
 
     const totaal = hoeveelheid * prijsPerEenheid;
 
@@ -439,7 +442,7 @@ export const create = mutation({
         medewerker: args.medewerker,
         uren: args.hoeveelheid,
         scope: args.scope,
-        notities: args.notities,
+        notities,
         bron: "handmatig",
       });
       return { id: id.toString(), type: "arbeid", totaal };
@@ -489,7 +492,7 @@ export const create = mutation({
         type: "verbruik",
         hoeveelheid: -args.hoeveelheid, // negative for consumption
         projectId: args.projectId,
-        notities: args.notities,
+        notities,
         createdAt: new Date(args.datum).getTime(),
       });
 
@@ -538,7 +541,8 @@ export const update = mutation({
       if (args.datum !== undefined) updates.datum = args.datum;
       if (args.hoeveelheid !== undefined) updates.uren = args.hoeveelheid;
       if (args.scope !== undefined) updates.scope = args.scope;
-      if (args.notities !== undefined) updates.notities = args.notities;
+      if (args.notities !== undefined)
+        updates.notities = sanitizeOptionalString(args.notities);
       if (args.medewerker !== undefined) updates.medewerker = args.medewerker;
 
       await ctx.db.patch(args.id as Id<"urenRegistraties">, updates);
@@ -573,7 +577,8 @@ export const update = mutation({
       }
 
       const updates: Record<string, unknown> = {};
-      if (args.notities !== undefined) updates.notities = args.notities;
+      if (args.notities !== undefined)
+        updates.notities = sanitizeOptionalString(args.notities);
 
       // If hoeveelheid changes, we need to adjust voorraad
       if (args.hoeveelheid !== undefined) {
