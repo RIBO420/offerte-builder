@@ -22,6 +22,7 @@ import { ThinProgressBar, type ProjectStatus } from "@/components/project/thin-p
 import { ProjectFocusCards } from "@/components/project/project-focus-cards";
 import { ModulePills } from "@/components/project/module-pills";
 import { WerklocatieCard } from "@/components/project/werklocatie-card";
+import { KlantThreadPaneel } from "@/components/meldingen/klant-thread-paneel";
 import { ProjectDetailSkeleton } from "@/components/skeletons";
 
 const statusColors: Record<string, string> = {
@@ -211,6 +212,18 @@ export default function ProjectDetailPage({
           nacalculatieAfwijking={nacalculatie?.afwijkingPercentage ?? null}
           onWerklocatieClick={() => setWerklocatieOpen(true)}
         />
+
+        {/* Klantthread bij dit werkitem (§3.1) — visueel onmiskenbaar
+            anders dan interne threads; composer standaard intern */}
+        {project.klantId && (
+          <div className="max-w-2xl space-y-2">
+            <h2 className="text-sm font-medium">Klantgesprek</h2>
+            <KlantThreadPaneel
+              klantId={project.klantId}
+              werkitemId={projectId}
+            />
+          </div>
+        )}
       </div>
 
       {/* Werklocatie Sheet */}

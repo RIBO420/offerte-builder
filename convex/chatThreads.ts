@@ -327,6 +327,43 @@ export const createKlantThread = mutation({
 });
 
 /**
+ * Staf: bestaande klantthread bij een werkitem/melding opzoeken (géén
+ * create). Voor het thread-paneel in de detailweergave. Alle interne
+ * rollen mogen LEZEN; versturen blijft kantoor-only (sendMessage).
+ * De klant-rol wordt geweigerd — die gebruikt het portaal-pad.
+ */
+export const getKlantThreadVoorContext = query({
+  args: {
+    werkitemId: v.optional(v.id("projecten")),
+    meldingId: v.optional(v.id("servicemeldingen")),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireAuth(ctx);
+    if (normalizeRole(user.role) === "klant") return null;
+    const companyUserId = await getCompanyUserId(ctx);
+
+    if (!args.werkitemId && !args.meldingId) return null;
+
+    const threads = args.werkitemId
+      ? await ctx.db
+          .query("chat_threads")
+          .withIndex("by_project", (q) => q.eq("projectId", args.werkitemId))
+          .collect()
+      : await ctx.db
+          .query("chat_threads")
+          .withIndex("by_melding", (q) => q.eq("meldingId", args.meldingId))
+          .collect();
+
+    const thread = threads.find(
+      (t) =>
+        t.type === "klant" &&
+        t.companyUserId.toString() === companyUserId.toString()
+    );
+    return thread?._id ?? null;
+  },
+});
+
+/**
  * Kantoor: klantthread bij een werkitem of melding openen (get-or-create).
  * Dit is het thread-paneel in de detailweergave (PRD §3.1): de thread is
  * ZICHTBAAR VOOR DE KLANT — versturen loopt via sendMessage, dat voor

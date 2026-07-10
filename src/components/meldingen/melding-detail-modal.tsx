@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/select";
 import { AtSign, CheckCircle2, Hammer, Mail, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { KlantThreadPaneel } from "./klant-thread-paneel";
 
 const STATUS_OPTIES = [
   { value: "nieuw", label: "Nieuw" },
@@ -367,6 +368,18 @@ export function MeldingDetailModal({
                 </div>
               </div>
             </div>
+
+            {/* Klantthread (§3.1) — STRIKT gescheiden van de interne
+                case-thread hierboven; visueel onmiskenbaar anders */}
+            {melding && (
+              <div className="space-y-2">
+                <Label>Klantgesprek</Label>
+                <KlantThreadPaneel
+                  klantId={melding.klantId}
+                  meldingId={meldingId}
+                />
+              </div>
+            )}
           </div>
         )}
       </DialogContent>
