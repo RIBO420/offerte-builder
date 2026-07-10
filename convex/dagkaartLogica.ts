@@ -349,6 +349,148 @@ export function adresParenVoorDag(
 }
 
 // ============================================
+// "Stel volgorde voor" (bijlage B, fase 2 — route-intelligentie stap 2)
+// ============================================
+
+/** Stop-invoer voor het volgordevoorstel. */
+export interface VolgordeStop {
+  werkitemId: string;
+  adres: string | null;
+  /** Handmatige starttijd — deze stop wordt NIET verplaatst (§8.9). */
+  handmatigeStartTijd?: string | null;
+}
+
+export interface VolgordeVoorstel {
+  /** Werkitem-ids in de voorgestelde volgorde. */
+  volgorde: string[];
+  oudeReistijdMinuten: number;
+  nieuweReistijdMinuten: number;
+  /** Positief = winst; kan 0 zijn (dan is het voorstel gelijk aan nu). */
+  tijdwinstMinuten: number;
+  gewijzigd: boolean;
+}
+
+/** Reistijd tussen twee punten via de cache-map; onbekend → standaard. */
+function reistijdTussen(
+  van: string | null,
+  naar: string | null,
+  reistijden: ReadonlyMap<string, number>,
+  standaardMinuten: number
+): number {
+  if (!van || !naar) return standaardMinuten;
+  return reistijden.get(reistijdSleutel(van, naar)) ?? standaardMinuten;
+}
+
+/** Totale reistijd van een route loods → stops → loods. */
+function routeMinuten(
+  loodsAdres: string | null,
+  adressen: (string | null)[],
+  reistijden: ReadonlyMap<string, number>,
+  standaardMinuten: number
+): number {
+  const punten = [loodsAdres, ...adressen, loodsAdres];
+  let totaal = 0;
+  for (let i = 0; i < punten.length - 1; i++) {
+    totaal += reistijdTussen(
+      punten[i],
+      punten[i + 1],
+      reistijden,
+      standaardMinuten
+    );
+  }
+  return totaal;
+}
+
+/**
+ * Eenvoudige nearest-neighbour-heuristiek op de bekende reistijden
+ * (reistijdCache; onbekende paren → standaard-reistijd), startend vanaf de
+ * loods. Het voorstel is een PREVIEW — de planner beslist (overnemen loopt
+ * via de bestaande herordenDag; fase 4 pas automatische herplanning, §4.4).
+ *
+ * Regels:
+ * - Een stop met handmatige starttijd blijft op zijn huidige positie staan
+ *   (handmatige waarden blijven ALTIJD leidend, §8.9);
+ * - Bij gelijke reistijd wint de laagste huidige positie (stabiel);
+ * - Leeg, één stop of alles vastgezet → null (no-op, geen voorstel).
+ */
+export function stelVolgordeVoor(
+  loodsAdres: string | null,
+  stops: VolgordeStop[],
+  reistijden: ReadonlyMap<string, number>,
+  standaardMinuten: number
+): VolgordeVoorstel | null {
+  if (stops.length < 2) return null;
+
+  const vastePositie = stops.map(
+    (stop) =>
+      Boolean(
+        stop.handmatigeStartTijd && isGeldigeTijd(stop.handmatigeStartTijd)
+      )
+  );
+  if (vastePositie.every(Boolean)) return null;
+
+  const vrijeIndices = new Set(
+    stops.map((_, i) => i).filter((i) => !vastePositie[i])
+  );
+
+  // Posities één voor één vullen: vaste stops blijven staan; voor elke
+  // vrije positie de dichtstbijzijnde nog vrije stop vanaf het vorige adres.
+  const nieuweIndices: number[] = [];
+  let huidigAdres: string | null = loodsAdres;
+  for (let positie = 0; positie < stops.length; positie++) {
+    if (vastePositie[positie]) {
+      nieuweIndices.push(positie);
+      huidigAdres = stops[positie].adres ?? huidigAdres;
+      continue;
+    }
+    let beste: number | null = null;
+    let besteMinuten = Number.POSITIVE_INFINITY;
+    for (const kandidaat of vrijeIndices) {
+      const minuten = reistijdTussen(
+        huidigAdres,
+        stops[kandidaat].adres,
+        reistijden,
+        standaardMinuten
+      );
+      if (
+        minuten < besteMinuten ||
+        (minuten === besteMinuten && (beste === null || kandidaat < beste))
+      ) {
+        beste = kandidaat;
+        besteMinuten = minuten;
+      }
+    }
+    // vrijeIndices is nooit leeg op een vrije positie (aantallen kloppen)
+    const gekozen = beste as number;
+    vrijeIndices.delete(gekozen);
+    nieuweIndices.push(gekozen);
+    huidigAdres = stops[gekozen].adres ?? huidigAdres;
+  }
+
+  const oudeMinuten = routeMinuten(
+    loodsAdres,
+    stops.map((s) => s.adres),
+    reistijden,
+    standaardMinuten
+  );
+  const nieuweMinuten = routeMinuten(
+    loodsAdres,
+    nieuweIndices.map((i) => stops[i].adres),
+    reistijden,
+    standaardMinuten
+  );
+  const gewijzigd = nieuweIndices.some((oud, positie) => oud !== positie);
+
+  return {
+    volgorde: nieuweIndices.map((i) => stops[i].werkitemId),
+    oudeReistijdMinuten: oudeMinuten,
+    nieuweReistijdMinuten: nieuweMinuten,
+    tijdwinstMinuten: oudeMinuten - nieuweMinuten,
+    gewijzigd,
+  };
+}
+
+// ============================================
 // Taak losmaken uit een klantblok (§2.2: rest-opdracht terug in de bak)
 // ============================================
 

@@ -36,6 +36,7 @@ import {
   isGeldigeTijd,
   naarMinuten,
   splitsTaakUit,
+  stelVolgordeVoor,
   stopDuurMinuten,
   type AdresPaar,
   type KlantStop,
@@ -401,6 +402,93 @@ export const getDagkaart = query({
         duurOverrideMinuten: s.duurOverrideMinuten,
         geschatteUren: s.geschatteUren,
       })),
+    };
+  },
+});
+
+// ============================================
+// "Stel volgorde voor" (bijlage B, fase 2 — route-intelligentie stap 2)
+// ============================================
+
+/** Adres van een werkitem: eigen adres, anders klantadres (memoized). */
+async function adresVanWerkitem(
+  db: QueryDb,
+  item: WerkItem,
+  klantCache: Map<string, Doc<"klanten"> | null>
+): Promise<string | null> {
+  if (item.adres) return item.adres;
+  if (!item.klantId) return null;
+  const key = item.klantId.toString();
+  if (!klantCache.has(key)) {
+    klantCache.set(key, await db.get(item.klantId));
+  }
+  const klant = klantCache.get(key) ?? null;
+  return klant ? `${klant.adres}, ${klant.plaats}` : null;
+}
+
+/**
+ * Volgordevoorstel voor één team-dag: eenvoudige nearest-neighbour-heuristiek
+ * op de reistijden uit de bestaande cache (onbekende paren → standaard-
+ * reistijd), startend vanaf de loods. Het voorstel is een PREVIEW (volgorde +
+ * geschatte tijdwinst); de planner beslist — overnemen loopt via de bestaande
+ * herordenDag, verwerpen is niets doen. Stops met handmatige starttijd worden
+ * niet verplaatst (§8.9). GEEN automatische herplanning (fase 4, §4.4).
+ * Kantoor-only: het is een plannergereedschap, net als de orden-mutaties.
+ */
+export const getVolgordeVoorstel = query({
+  args: {
+    teamId: v.id("teams"),
+    datum: v.string(), // YYYY-MM-DD
+  },
+  handler: async (ctx, args) => {
+    await requireKantoor(ctx);
+    const userId = await requireAuthUserId(ctx);
+    await requireTeamVanUser(ctx, args.teamId, userId);
+
+    const [items, config] = await Promise.all([
+      werkitemsVoorTeamDag(ctx.db, userId, args.teamId, args.datum),
+      dagkaartStandaardenVoor(ctx.db, userId, args.teamId, args.datum),
+    ]);
+
+    const klantCache = new Map<string, Doc<"klanten"> | null>();
+    const stops = [];
+    for (const item of items) {
+      stops.push({
+        werkitemId: item._id.toString(),
+        adres: await adresVanWerkitem(ctx.db, item, klantCache),
+        handmatigeStartTijd: item.geplandeStartTijd ?? null,
+        naam: item.naam,
+      });
+    }
+
+    // Alle bekende reistijden van dit bedrijf (alleen echt berekende paren
+    // staan in de cache; klein — één rij per adrespaar)
+    const cacheRijen = await ctx.db
+      .query("reistijdCache")
+      .withIndex("by_user_sleutel", (q) => q.eq("userId", userId))
+      .collect();
+    const reistijden = new Map<string, number>();
+    for (const rij of cacheRijen) {
+      if (rij.userId.toString() !== userId.toString()) continue;
+      reistijden.set(rij.sleutel, rij.minuten);
+    }
+
+    const voorstel = stelVolgordeVoor(
+      config.loodsAdres,
+      stops,
+      reistijden,
+      config.standaarden.standaardReistijdMinuten
+    );
+    if (!voorstel) return null;
+
+    const naamPerId = new Map(stops.map((s) => [s.werkitemId, s.naam]));
+    return {
+      ...voorstel,
+      volgorde: voorstel.volgorde.map((id) => ({
+        werkitemId: id as unknown as Id<"projecten">,
+        naam: naamPerId.get(id) ?? "",
+      })),
+      reistijdBron: reistijden.size > 0 ? ("google_maps" as const) : ("standaard" as const),
     };
   },
 });

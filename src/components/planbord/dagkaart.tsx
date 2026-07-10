@@ -479,6 +479,22 @@ export function Dagkaart() {
   const koppelLos = useMutation(api.planbord.koppelTeamLos);
   const berekenReistijden = useAction(api.dagkaart.berekenReistijdenVoorDag);
 
+  // "Stel volgorde voor" (bijlage B, route-intelligentie stap 2): preview op
+  // aanvraag — de query draait pas na de klik en de planner beslist
+  // (overnemen = bestaande herordenDag; verwerpen = paneel sluiten).
+  const [toonVoorstel, setToonVoorstel] = useState(false);
+  // Team-/datumwissel sluit het voorstel: state tijdens render bijstellen
+  // (zelfde patroon als vorigeParams hierboven — geen effect).
+  const [voorstelContext, setVoorstelContext] = useState(`${teamId}|${datum}`);
+  if (voorstelContext !== `${teamId}|${datum}`) {
+    setVoorstelContext(`${teamId}|${datum}`);
+    setToonVoorstel(false);
+  }
+  const voorstel = useQuery(
+    api.dagkaart.getVolgordeVoorstel,
+    toonVoorstel && magMuteren && teamId ? { teamId, datum } : "skip"
+  );
+
   // Reistijden (bij)berekenen zodra de kaart opent — no-op zonder Maps-key
   useEffect(() => {
     if (!teamId) return;
@@ -558,6 +574,20 @@ export function Dagkaart() {
     },
     [taakLos]
   );
+  const onVoorstelOvernemen = async () => {
+    if (!voorstel || !teamId) return;
+    try {
+      await herorden({
+        teamId,
+        datum,
+        werkitemIds: voorstel.volgorde.map((v) => v.werkitemId),
+      });
+      toast.success("Voorgestelde volgorde overgenomen");
+      setToonVoorstel(false);
+    } catch (fout) {
+      meld(fout, "Volgorde overnemen mislukt");
+    }
+  };
   const onTeamLos = async () => {
     if (!teamId || !kaart) return;
     if (
@@ -641,6 +671,16 @@ export function Dagkaart() {
             </option>
           ))}
         </select>
+        {magMuteren && kaart && kaart.stops.length > 1 && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setToonVoorstel(true)}
+          >
+            <Route className="mr-1 h-4 w-4" />
+            Stel volgorde voor
+          </Button>
+        )}
         {magMuteren && kaart && kaart.stops.length > 0 && (
           <Button variant="outline" size="sm" onClick={onTeamLos}>
             <UserX className="mr-1 h-4 w-4" />
@@ -653,6 +693,71 @@ export function Dagkaart() {
           </Button>
         </div>
       </div>
+
+      {/* Volgordevoorstel (preview) — de planner beslist: overnemen of
+          verwerpen. Handmatig vastgezette starttijden blijven staan. */}
+      {toonVoorstel && magMuteren && (
+        <div
+          className="space-y-2 rounded-lg border bg-muted/30 p-3"
+          data-testid="volgorde-voorstel"
+        >
+          {voorstel === undefined ? (
+            <p className="text-sm text-muted-foreground">
+              Volgorde berekenen…
+            </p>
+          ) : voorstel === null || !voorstel.gewijzigd ? (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm text-muted-foreground">
+                {voorstel === null
+                  ? "Geen voorstel mogelijk: minder dan twee stops of alle stops staan handmatig vast."
+                  : "De huidige volgorde is al de kortste route volgens de bekende reistijden."}
+              </p>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setToonVoorstel(false)}
+              >
+                Sluiten
+              </Button>
+            </div>
+          ) : (
+            <>
+              <p className="text-sm font-medium">
+                Voorgestelde volgorde (kortste route vanaf de loods
+                {voorstel.reistijdBron === "standaard"
+                  ? ", op standaard-reistijden"
+                  : ""}
+                ):
+              </p>
+              <ol className="list-inside list-decimal text-sm">
+                {voorstel.volgorde.map((stop) => (
+                  <li key={stop.werkitemId}>{stop.naam}</li>
+                ))}
+              </ol>
+              <p className="text-sm text-muted-foreground">
+                Geschatte reistijd {voorstel.nieuweReistijdMinuten} min in
+                plaats van {voorstel.oudeReistijdMinuten} min
+                {voorstel.tijdwinstMinuten > 0
+                  ? ` — ${voorstel.tijdwinstMinuten} min winst`
+                  : ""}
+                . Handmatig vastgezette tijden blijven staan.
+              </p>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={onVoorstelOvernemen}>
+                  Overnemen
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setToonVoorstel(false)}
+                >
+                  Verwerpen
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Zonder team wordt de kaart-query geskipt en blijft `kaart` undefined;
           check daarom eerst op context + teamId, anders blijft "laden…" eeuwig
