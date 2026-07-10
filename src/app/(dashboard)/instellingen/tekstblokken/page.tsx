@@ -200,7 +200,7 @@ export default function TekstblokkenPage() {
       <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold">Tekstblokken</h1>
+            <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Tekstblokken</h1>
             <p className="text-sm text-muted-foreground">
               Herbruikbare teksten voor de offerte-builder — platte tekst, de
               huisstijl zit in de template.
@@ -258,7 +258,7 @@ export default function TekstblokkenPage() {
                             </TableCell>
                             <TableCell>
                               <Badge
-                                variant={blok.actief ? "default" : "outline"}
+                                variant={blok.actief ? "secondary" : "outline"}
                               >
                                 {blok.actief ? "Actief" : "Inactief"}
                               </Badge>

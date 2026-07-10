@@ -20,8 +20,10 @@ import { toast } from "sonner";
 import {
   CalendarClock,
   Edit,
+  Inbox,
   Loader2,
   Mail,
+  MailCheck,
   Send,
   ShieldAlert,
   Trash2,
@@ -38,6 +40,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -205,7 +208,7 @@ export default function ConceptMailsPage() {
       <PageHeader />
       <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
         <div>
-          <h1 className="text-2xl font-semibold">Concept-mails</h1>
+          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Concept-mails</h1>
           <p className="text-sm text-muted-foreground">
             Door mail-triggers klaargezette mails. Niets gaat naar de klant
             zonder goedkeuring van kantoor.
@@ -229,9 +232,11 @@ export default function ConceptMailsPage() {
               <Loader2 className="size-5 animate-spin text-muted-foreground" />
             </div>
           ) : wachtrij.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              Geen concept-mails in de wachtrij.
-            </p>
+            <EmptyState
+              icon={<Inbox aria-hidden />}
+              title="Geen concept-mails in de wachtrij"
+              description="Nieuwe concept-mails verschijnen hier zodra een mail-trigger afgaat, bijvoorbeeld bij het versturen van een offerte."
+            />
           ) : (
             <Table>
               <TableHeader>
@@ -323,9 +328,11 @@ export default function ConceptMailsPage() {
               <Loader2 className="size-5 animate-spin text-muted-foreground" />
             </div>
           ) : afgehandeld.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              Nog geen afgehandelde mails.
-            </p>
+            <EmptyState
+              icon={<MailCheck aria-hidden />}
+              title="Nog geen afgehandelde mails"
+              description="Verstuurde en geannuleerde concept-mails komen hier terecht."
+            />
           ) : (
             <Table>
               <TableHeader>

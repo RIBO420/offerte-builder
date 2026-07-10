@@ -445,7 +445,7 @@ function NieuwContractContent() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">
+            <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
               Nieuw contract
             </h1>
             <p className="text-muted-foreground">
@@ -495,6 +495,7 @@ function NieuwContractContent() {
                   <Users className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder="Zoek klant op naam, adres of plaats..."
+                    aria-label="Zoek klant op naam, adres of plaats"
                     className="pl-8"
                     value={klantSearch}
                     onChange={(e) => setKlantSearch(e.target.value)}

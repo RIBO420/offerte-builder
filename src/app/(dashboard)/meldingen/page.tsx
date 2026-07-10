@@ -54,7 +54,7 @@ export default function MeldingenPage() {
 
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Meldingen</h1>
+          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Meldingen</h1>
           <p className="text-sm text-muted-foreground">
             Serviceverzoeken, klachten, schades en plantaken — intern bord
           </p>

@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -197,7 +198,7 @@ export default function MailTriggersPage() {
       <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold">Mail-triggers</h1>
+            <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Mail-triggers</h1>
             <p className="text-sm text-muted-foreground">
               Transactionele mails: event → sjabloon → vertraging → ontvanger.
               Mails naar klanten worden altijd door kantoor goedgekeurd
@@ -228,10 +229,15 @@ export default function MailTriggersPage() {
               <Loader2 className="size-5 animate-spin text-muted-foreground" />
             </div>
           ) : triggers.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              Nog geen mail-triggers — klik op &quot;Standaardtriggers
-              laden&quot; om de vijf fase 1-events aan te maken.
-            </p>
+            <EmptyState
+              icon={<Mail aria-hidden />}
+              title="Nog geen mail-triggers"
+              description="Laad de standaardtriggers om de vijf fase 1-events aan te maken, of stel ze later handmatig in."
+              action={{
+                label: "Standaardtriggers laden",
+                onClick: handleSeed,
+              }}
+            />
           ) : (
             <Table>
               <TableHeader>

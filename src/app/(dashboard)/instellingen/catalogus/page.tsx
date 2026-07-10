@@ -208,7 +208,7 @@ export default function CatalogusPage() {
       >
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold">Catalogus onderhoud</h1>
+            <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Catalogus onderhoud</h1>
             <p className="text-sm text-muted-foreground">
               Bouwstenen en tarieven beheer je hier in de app — een nieuwe
               bouwsteen is een record, geen code.
