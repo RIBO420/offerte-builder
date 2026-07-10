@@ -10,6 +10,7 @@
 
 import type * as acceptatieKeten from "../acceptatieKeten.js";
 import type * as acceptatieRegels from "../acceptatieRegels.js";
+import type * as afronding from "../afronding.js";
 import type * as afvalverwerkers from "../afvalverwerkers.js";
 import type * as analytics from "../analytics.js";
 import type * as archief from "../archief.js";
@@ -58,8 +59,10 @@ import type * as losseBeurten from "../losseBeurten.js";
 import type * as machineGebruik from "../machineGebruik.js";
 import type * as machines from "../machines.js";
 import type * as mailTriggers from "../mailTriggers.js";
+import type * as materiaalDelta from "../materiaalDelta.js";
 import type * as materiaalmanDashboard from "../materiaalmanDashboard.js";
 import type * as medewerkers from "../medewerkers.js";
+import type * as meerwerk from "../meerwerk.js";
 import type * as migrations from "../migrations.js";
 import type * as migrations_backfillWerkitemType from "../migrations/backfillWerkitemType.js";
 import type * as migrations_consolidateNotificationLogs from "../migrations/consolidateNotificationLogs.js";
@@ -106,9 +109,11 @@ import type * as tijdlijnMigratie from "../tijdlijnMigratie.js";
 import type * as toolboxMeetings from "../toolboxMeetings.js";
 import type * as transportbedrijven from "../transportbedrijven.js";
 import type * as urenRegistraties from "../urenRegistraties.js";
+import type * as urenSegmenten from "../urenSegmenten.js";
 import type * as users from "../users.js";
 import type * as uurtarieven from "../uurtarieven.js";
 import type * as validators from "../validators.js";
+import type * as veldLogica from "../veldLogica.js";
 import type * as verlof from "../verlof.js";
 import type * as verzuim from "../verzuim.js";
 import type * as voertuigOnderhoud from "../voertuigOnderhoud.js";
@@ -133,6 +138,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   acceptatieKeten: typeof acceptatieKeten;
   acceptatieRegels: typeof acceptatieRegels;
+  afronding: typeof afronding;
   afvalverwerkers: typeof afvalverwerkers;
   analytics: typeof analytics;
   archief: typeof archief;
@@ -181,8 +187,10 @@ declare const fullApi: ApiFromModules<{
   machineGebruik: typeof machineGebruik;
   machines: typeof machines;
   mailTriggers: typeof mailTriggers;
+  materiaalDelta: typeof materiaalDelta;
   materiaalmanDashboard: typeof materiaalmanDashboard;
   medewerkers: typeof medewerkers;
+  meerwerk: typeof meerwerk;
   migrations: typeof migrations;
   "migrations/backfillWerkitemType": typeof migrations_backfillWerkitemType;
   "migrations/consolidateNotificationLogs": typeof migrations_consolidateNotificationLogs;
@@ -229,9 +237,11 @@ declare const fullApi: ApiFromModules<{
   toolboxMeetings: typeof toolboxMeetings;
   transportbedrijven: typeof transportbedrijven;
   urenRegistraties: typeof urenRegistraties;
+  urenSegmenten: typeof urenSegmenten;
   users: typeof users;
   uurtarieven: typeof uurtarieven;
   validators: typeof validators;
+  veldLogica: typeof veldLogica;
   verlof: typeof verlof;
   verzuim: typeof verzuim;
   voertuigOnderhoud: typeof voertuigOnderhoud;
