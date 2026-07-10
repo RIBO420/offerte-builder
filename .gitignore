@@ -49,3 +49,6 @@ next-env.d.ts
 playwright-report/
 test-results/
 e2e/.auth/
+
+# Claude Code sessie-/geheugenbestanden horen niet in de repo
+.claude/
