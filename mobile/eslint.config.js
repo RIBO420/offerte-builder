@@ -18,4 +18,23 @@ module.exports = defineConfig([
       '@typescript-eslint/no-require-imports': 'off',
     },
   },
+  {
+    // Zelfde unused-vars-conventie als de web-config (eslint.config.mjs in de
+    // repo-root): _-prefix markeert bewust-ongebruikte parameters/vars, en
+    // rest-destructuring om properties weg te laten is een bewust patroon.
+    // Alleen voor TS-bestanden: daarbuiten is de @typescript-eslint-plugin
+    // niet geladen (zie de *.config.js-uitzondering hierboven).
+    files: ['**/*.ts', '**/*.tsx'],
+    rules: {
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+          ignoreRestSiblings: true,
+        },
+      ],
+    },
+  },
 ]);
