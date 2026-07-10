@@ -2747,4 +2747,73 @@ export default defineSchema({
   })
     .index("by_thread", ["threadId", "createdAt"])
     .index("by_thread_unread", ["threadId", "isRead"]),
+
+  // ─── Bouwstenencatalogus (PRD §2.5f + bijlage A) ───────────────────────────
+  // Bedrijfsbrede catalogus (geen userId): bouwstenen beheren = records beheren
+  // (principe 2). Beheer is kantoor-only via requireKantoor in bouwstenen.ts.
+  bouwstenen: defineTable({
+    naam: v.string(),
+    // Kort en uniek, bv. "HS" (haag snoeien) — compacte weergave op dagkaart/bord
+    code: v.string(),
+    categorie: v.union(
+      v.literal("gras_gazon"),
+      v.literal("borders_beplanting"),
+      v.literal("heggen_bomen"),
+      v.literal("bestrating_terras"),
+      v.literal("reiniging"),
+      v.literal("seizoen"),
+      v.literal("kosten_regels")
+    ),
+    soort: v.union(
+      v.literal("terugkerend"),
+      v.literal("eenmalig"),
+      v.literal("op_afroep"),
+      v.literal("kostenregel"),
+      v.literal("keuzeregel"),
+      v.literal("bundel")
+    ),
+    defaultFrequentiePerJaar: v.optional(v.number()),
+    // Maandnummers 1-12; venster mag over de jaargrens lopen (van 10 tot 3)
+    seizoensvensterVan: v.optional(v.number()),
+    seizoensvensterTot: v.optional(v.number()),
+    // Geordende receptuurstappen (bv. reinigingsbeurt: borstelen → reinigen → invegen)
+    receptuurstappen: v.optional(
+      v.array(
+        v.object({
+          volgorde: v.number(),
+          omschrijving: v.string(),
+        })
+      )
+    ),
+    // Normuren zijn optioneel: hulpsuggestie, groeit uit de nacalculatie-loop (§3.4)
+    normurenPerEenheid: v.optional(v.number()),
+    eenheid: v.optional(v.string()),
+    // Prijsmodel per bouwsteen (§2.5a): uurbasis (default) of vaste prijs per beurt
+    prijsmodel: v.union(v.literal("uren"), v.literal("vast")),
+    urenPerBeurt: v.optional(v.number()),
+    vastBedragPerBeurt: v.optional(v.number()),
+    btwCode: v.union(v.literal(9), v.literal(21)),
+    // Verwijderen = deactiveren; geen hard delete
+    actief: v.boolean(),
+    opmerking: v.optional(v.string()),
+    // Materiaal-/machinekoppeling (bijlage A) — voedt later de materiaaldelta (§2.6)
+    productIds: v.optional(v.array(v.id("producten"))),
+    machineIds: v.optional(v.array(v.id("machines"))),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_code", ["code"])
+    .index("by_categorie", ["categorie"])
+    .index("by_actief", ["actief"]),
+
+  // ─── Uurtarief-historie (PRD §2.5a/f, acceptatietest §8.7) ─────────────────
+  // Tarief met ingangsdatum; huidig tarief = meest recente ingangsdatum ≤ vandaag.
+  // Historische offertes/contracten behouden zo het tarief van hun eigen datum.
+  uurtarieven: defineTable({
+    bedrag: v.number(), // ex btw
+    ingangsdatum: v.string(), // "YYYY-MM-DD" — lexicografisch vergelijkbaar
+    opmerking: v.optional(v.string()),
+    aangemaaktDoor: v.optional(v.id("users")),
+    createdAt: v.number(),
+  }).index("by_ingangsdatum", ["ingangsdatum"]),
 });
