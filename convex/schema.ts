@@ -198,6 +198,37 @@ export default defineSchema({
       })
     ),
 
+    // Catalogus-bouwsteenregels onderhoud (PRD §2.5a + bijlage A) — ADDITIEF
+    // naast regels[]: gestructureerde bron zodat onderhoudscontracten.
+    // createFromOfferte een concept-contract exact kan voorvullen (§2.1).
+    // prijsPerBeurt is het tarief op offertedatum: historische offertes
+    // behouden zo hun eigen tarief (§8.7).
+    bouwsteenRegels: v.optional(
+      v.array(
+        v.object({
+          bouwsteenId: v.id("bouwstenen"),
+          naam: v.string(),
+          soort: v.string(),
+          frequentiePerJaar: v.number(),
+          prijsPerBeurt: v.number(), // ex btw
+          prijsPerBeurtHandmatig: v.optional(v.boolean()),
+          btwCode: v.union(v.literal(9), v.literal(21)), // structuurregel 5
+          eenmalig: v.boolean(), // telt niet in het maandbedrag
+          // Zand-keuzeregel (bijlage A #17): twee prijzen, keuze bepaalt de prijs
+          zandKeuze: v.optional(
+            v.object({
+              keuze: v.union(
+                v.literal("voegzand"),
+                v.literal("straatzand")
+              ),
+              prijsVoegzand: v.number(),
+              prijsStraatzand: v.number(),
+            })
+          ),
+        })
+      )
+    ),
+
     // Notities
     notities: v.optional(v.string()),
 

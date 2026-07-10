@@ -806,6 +806,54 @@ export const update = mutation({
   },
 });
 
+// Catalogus-bouwsteenregels op de offerte (PRD §2.5a + bijlage A) — additief
+// naast regels[]. Gestructureerde bron voor contract-voorvulling (§2.1):
+// onderhoudscontracten.createFromOfferte leest deze regels 1-op-1 terug.
+export const updateBouwsteenRegels = mutation({
+  args: {
+    id: v.id("offertes"),
+    bouwsteenRegels: v.array(
+      v.object({
+        bouwsteenId: v.id("bouwstenen"),
+        naam: v.string(),
+        soort: v.string(),
+        frequentiePerJaar: v.number(),
+        prijsPerBeurt: v.number(),
+        prijsPerBeurtHandmatig: v.optional(v.boolean()),
+        btwCode: v.union(v.literal(9), v.literal(21)),
+        eenmalig: v.boolean(),
+        zandKeuze: v.optional(
+          v.object({
+            keuze: v.union(v.literal("voegzand"), v.literal("straatzand")),
+            prijsVoegzand: v.number(),
+            prijsStraatzand: v.number(),
+          })
+        ),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
+    const offerte = await getOwnedOfferte(ctx, args.id);
+
+    // Historie beschermen: een geaccepteerde offerte behoudt haar eigen
+    // bouwsteen-regels en tarieven (§8.7); wijzig eerst via updateRegels
+    // (die maakt een nieuwe versie en zet de status terug naar concept).
+    if (offerte.status === "geaccepteerd") {
+      throw new ConvexError(
+        "Geaccepteerde offerte is vergrendeld — bouwsteen-regels kunnen niet meer wijzigen"
+      );
+    }
+
+    await ctx.db.patch(args.id, {
+      bouwsteenRegels: args.bouwsteenRegels,
+      updatedAt: Date.now(),
+    });
+
+    return args.id;
+  },
+});
+
 // Update offerte regels and recalculate totals
 export const updateRegels = mutation({
   args: {
