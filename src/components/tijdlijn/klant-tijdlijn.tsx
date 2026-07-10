@@ -239,6 +239,7 @@ function TijdlijnComposer({
       <Textarea
         value={tekst}
         onChange={(e) => setTekst(e.target.value)}
+        aria-label="Nieuwe tijdlijn-notitie"
         placeholder={
           kanaal === "whatsapp"
             ? "Plak of vat het WhatsApp-gesprek samen…"
