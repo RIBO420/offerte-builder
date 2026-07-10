@@ -3432,6 +3432,10 @@ export default defineSchema({
     klantId: v.optional(v.id("klanten")),
     offerteId: v.optional(v.id("offertes")),
     projectId: v.optional(v.id("projecten")),
+    // §3.1 (fase 2): klantthread per melding — koppeling naar de case op het
+    // meldingen-bord. De thread is klant-zichtbaar; de interne case-thread
+    // (meldingComments) blijft strikt gescheiden en intern.
+    meldingId: v.optional(v.id("servicemeldingen")),
     channelName: v.optional(v.string()),
     participants: v.array(v.string()),
     lastMessageAt: v.optional(v.number()),
@@ -3445,6 +3449,7 @@ export default defineSchema({
     .index("by_klant", ["klantId"])
     .index("by_offerte", ["offerteId"])
     .index("by_project", ["projectId"])
+    .index("by_melding", ["meldingId"])
     .index("by_company_type", ["companyUserId", "type"])
     .index("by_company_last_message", ["companyUserId", "lastMessageAt"]),
 

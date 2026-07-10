@@ -5,7 +5,7 @@ import { requireAuth } from "./auth";
 import {
   getCompanyUserId,
   normalizeRole,
-  kanNaarKlantVersturen,
+  assertKanNaarKlantVersturen,
   klantHeeftToegangTotThread,
   requireKantoor,
 } from "./roles";
@@ -189,10 +189,9 @@ export const sendMessage = mutation({
       }
       // Capability "versturen naar klant" (PRD §1.2): alleen kantoor mag in
       // een klant-thread posten — voorman/medewerker worden geweigerd
-      if (thread.type === "klant" && !kanNaarKlantVersturen(user.role)) {
-        throw new ConvexError(
-          "Alleen kantoor mag berichten naar de klant versturen"
-        );
+      // (AuthError via de centrale capability-assert)
+      if (thread.type === "klant") {
+        await assertKanNaarKlantVersturen(ctx);
       }
       senderType = role === "directie" || role === "projectleider" ? "bedrijf" : "medewerker";
     }
@@ -324,6 +323,81 @@ export const createKlantThread = mutation({
     });
 
     return threadId;
+  },
+});
+
+/**
+ * Kantoor: klantthread bij een werkitem of melding openen (get-or-create).
+ * Dit is het thread-paneel in de detailweergave (PRD §3.1): de thread is
+ * ZICHTBAAR VOOR DE KLANT — versturen loopt via sendMessage, dat voor
+ * klant-threads assertKanNaarKlantVersturen afdwingt (kantoor-only).
+ */
+export const openKlantThreadVoorContext = mutation({
+  args: {
+    werkitemId: v.optional(v.id("projecten")),
+    meldingId: v.optional(v.id("servicemeldingen")),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireKantoor(ctx);
+    const companyUserId = await getCompanyUserId(ctx);
+
+    if (!args.werkitemId && !args.meldingId) {
+      throw new ConvexError("Werkitem of melding is verplicht");
+    }
+
+    let klantId;
+    let channelName: string;
+    if (args.werkitemId) {
+      const werkitem = await ctx.db.get(args.werkitemId);
+      if (
+        !werkitem ||
+        werkitem.deletedAt ||
+        werkitem.userId.toString() !== companyUserId.toString()
+      ) {
+        throw new ConvexError("Werkitem niet gevonden");
+      }
+      if (!werkitem.klantId) {
+        throw new ConvexError("Dit werkitem heeft geen gekoppelde klant");
+      }
+      klantId = werkitem.klantId;
+      channelName = werkitem.naam;
+    } else {
+      const melding = await ctx.db.get(args.meldingId!);
+      if (
+        !melding ||
+        melding.deletedAt ||
+        melding.userId.toString() !== companyUserId.toString()
+      ) {
+        throw new ConvexError("Melding niet gevonden");
+      }
+      klantId = melding.klantId;
+      channelName = `Melding: ${melding.beschrijving.slice(0, 60)}`;
+    }
+
+    const bestaande = args.werkitemId
+      ? await ctx.db
+          .query("chat_threads")
+          .withIndex("by_project", (q) => q.eq("projectId", args.werkitemId))
+          .collect()
+      : await ctx.db
+          .query("chat_threads")
+          .withIndex("by_melding", (q) => q.eq("meldingId", args.meldingId))
+          .collect();
+    const thread = bestaande.find(
+      (t) => t.type === "klant" && t.klantId?.toString() === klantId.toString()
+    );
+    if (thread) return thread._id;
+
+    return await ctx.db.insert("chat_threads", {
+      type: "klant",
+      klantId,
+      projectId: args.werkitemId,
+      meldingId: args.meldingId,
+      channelName,
+      participants: [user.clerkId],
+      companyUserId,
+      createdAt: Date.now(),
+    });
   },
 });
 

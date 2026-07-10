@@ -41,6 +41,10 @@ export const MAIL_EVENTS = [
   "betalingsherinnering_2",
   "betalingsherinnering_3",
   "betalingsherinnering_4",
+  // Klantenportaal (PRD §3.1, fase 2): ontvangstbevestiging van een melding
+  // die de klant via het portaal indient. Onpersoonlijke bevestiging —
+  // default "automatisch", altijd achter de mail-guard (fail-closed).
+  "melding_ontvangen",
 ] as const;
 
 export type MailEvent = (typeof MAIL_EVENTS)[number];
@@ -55,6 +59,7 @@ export const MAIL_EVENT_LABELS: Record<MailEvent, string> = {
   betalingsherinnering_2: "Tweede betalingsherinnering (ladder trede 2)",
   betalingsherinnering_3: "Aanmaning (ladder trede 3)",
   betalingsherinnering_4: "Laatste aanmaning (ladder trede 4)",
+  melding_ontvangen: "Melding ontvangen (portaal)",
 };
 
 /** Mail-event dat bij een ladder-trede hoort (debiteurenladder, §3.2). */
@@ -266,6 +271,21 @@ export const MAIL_TRIGGER_DEFAULTS: MailTriggerSeed[] = [
     vertragingDagen: 0,
     ontvanger: "klant",
     modus: "concept",
+    actief: true,
+  },
+  // ── Klantenportaal (PRD §3.1, fase 2) ──────────────────────────────────
+  {
+    event: "melding_ontvangen",
+    naam: "Ontvangstbevestiging melding (portaal)",
+    omschrijving:
+      "Automatische ontvangstbevestiging wanneer een klant via het portaal een melding indient (serviceverzoek of klacht). Onpersoonlijke bevestiging zonder inhoudelijke toezegging — daarom default 'automatisch'; verzending blijft altijd achter de mail-guard.",
+    onderwerp: "Wij hebben uw {{meldingType}} ontvangen",
+    inhoud:
+      "Beste {{klantnaam}},\n\nBedankt voor uw bericht. Wij hebben uw {{meldingType}} in goede orde ontvangen:\n\n“{{omschrijvingKort}}”\n\nWij bekijken uw melding zo snel mogelijk en nemen contact met u op. De status van uw melding kunt u volgen in het klantenportaal.",
+    variabelen: ["klantnaam", "meldingType", "omschrijvingKort", "bedrijfsnaam"],
+    vertragingDagen: 0,
+    ontvanger: "klant",
+    modus: "automatisch",
     actief: true,
   },
 ];
