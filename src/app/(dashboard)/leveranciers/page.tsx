@@ -50,10 +50,13 @@ import {
   CheckCircle2,
   XCircle,
   Users,
+  Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useLeveranciers, useLeveranciersSearch, useLeveranciersMutations } from "@/hooks/use-leveranciers";
 import { LeverancierForm, LeverancierFormData } from "@/components/leveranciers/leverancier-form";
+import { ProductImportDialog } from "@/components/leveranciers/product-import-dialog";
+import { useIsKantoor } from "@/hooks/use-users";
 import { InkoopTabs } from "@/components/inkoop/inkoop-tabs";
 import { Id } from "../../../../convex/_generated/dataModel";
 
@@ -86,7 +89,9 @@ function LeveranciersPageContent() {
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const { results: searchResults } = useLeveranciersSearch(debouncedSearchTerm);
 
+  const isKantoor = useIsKantoor();
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedLeverancier, setSelectedLeverancier] = useState<Leverancier | null>(null);
@@ -398,11 +403,28 @@ function LeveranciersPageContent() {
             </p>
           </div>
 
-          <Button onClick={() => setShowAddDialog(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Nieuwe Leverancier
-          </Button>
+          <div className="flex items-center gap-2">
+            {isKantoor && (
+              <Button
+                variant="outline"
+                onClick={() => setShowImportDialog(true)}
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                Producten importeren
+              </Button>
+            )}
+            <Button onClick={() => setShowAddDialog(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Nieuwe Leverancier
+            </Button>
+          </div>
         </div>
+
+        {/* Productbestand-import via kolommapping (PRD §2.5c, kantoor-only) */}
+        <ProductImportDialog
+          open={showImportDialog}
+          onOpenChange={setShowImportDialog}
+        />
 
         {/* Statistics Cards */}
         <div className="grid gap-4 md:grid-cols-3">
