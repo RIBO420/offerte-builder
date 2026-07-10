@@ -63,8 +63,13 @@ async function requireTeamVanUser(
 
 type QueryDb = QueryCtx["db"];
 
-/** Werkitems van één team op één dag, gesorteerd op volgordeBinnenDag. */
-async function werkitemsVoorTeamDag(
+/**
+ * Werkitems van één team op één dag, gesorteerd op volgordeBinnenDag.
+ * Geëxporteerd voor hergebruik door de veld-voorinvulling (§8.10,
+ * convex/urenSegmenten.ts): voorgestelde segmenten zijn AFGELEID van
+ * dezelfde dagkaart-pipeline — geen dubbele opslag van de planning.
+ */
+export async function werkitemsVoorTeamDag(
   db: QueryDb,
   userId: Id<"users">,
   teamId: Id<"teams">,
@@ -94,7 +99,8 @@ async function werkitemsVoorTeamDag(
     );
 }
 
-async function dagkaartStandaardenVoor(
+/** Geëxporteerd voor hergebruik door convex/urenSegmenten.ts (§8.10). */
+export async function dagkaartStandaardenVoor(
   db: QueryDb,
   userId: Id<"users">,
   teamId: Id<"teams">,
@@ -128,8 +134,11 @@ async function dagkaartStandaardenVoor(
   };
 }
 
-/** Reistijd per adrespaar: cache (Google Maps) → standaard-reistijd. */
-async function reistijdenUitCache(
+/**
+ * Reistijd per adrespaar: cache (Google Maps) → standaard-reistijd.
+ * Geëxporteerd voor hergebruik door convex/urenSegmenten.ts (§8.10).
+ */
+export async function reistijdenUitCache(
   db: QueryDb,
   userId: Id<"users">,
   paren: (AdresPaar | null)[],
@@ -658,6 +667,7 @@ export const maakTaakLos = mutation({
       klantId: item.klantId,
       status: "gepland",
       naam: `${item.naam} (rest: ${losgemaakt.omschrijving})`,
+      isRestOpdracht: true, // rest-label in de wachtrij (§2.2/§8.8)
       bouwsteenRegels: [losgemaakt],
       geschatteUren: taakUren ?? undefined,
       adres: item.adres,

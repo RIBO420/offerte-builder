@@ -468,6 +468,18 @@ export default defineSchema({
         standaardReistijdMinuten: v.optional(v.number()),
       })
     ),
+    // Veld-rol instellingen (PRD §2.6, stap 9a). Drempels voor de
+    // "Wie is achter"-widget zijn een PRD-aanname (>15 min of >20%),
+    // te bevestigen door Mickey (§7.1) — daarom instelbaar.
+    veldInstellingen: v.optional(
+      v.object({
+        afwijkingDrempelMinuten: v.optional(v.number()), // default 15
+        afwijkingDrempelProcent: v.optional(v.number()), // default 20
+        // Noodprotocol-snelkoppeling in de veld-app: beheerbaar tekstblok.
+        // De SOP-bibliotheek (§4.2) komt in fase 3; dit is de fase 1-bron.
+        noodprotocolTekst: v.optional(v.string()),
+      })
+    ),
     // Creditnota nummering (FAC-008)
     laatsteCreditnotaNummer: v.optional(v.number()),
     // Algemene voorwaarden PDF (EML-003)
@@ -665,7 +677,11 @@ export default defineSchema({
       // Beurt-statussen (PRD §1.1) — alleen geldig bij type "onderhoudsbeurt",
       // afgedwongen via assertStatusVoorType in convex/werkitems.ts
       v.literal("uitgevoerd"),
-      v.literal("vervallen")
+      v.literal("vervallen"),
+      // Afrondingsflow §2.6/§8.8: één of meer taken niet af → het werkitem
+      // sluit als "deels uitgevoerd" (beide typen); de onafgeronde taken gaan
+      // als rest-opdracht terug in de bak
+      v.literal("deels_uitgevoerd")
     ),
     // — Gedeelde kernvelden werkitem (PRD §1.1), gezet door planbord/generator —
     geplandeStart: v.optional(v.string()), // YYYY-MM-DD
@@ -734,6 +750,31 @@ export default defineSchema({
     // via een plantaak vrijgegeven beurt behouden de koppeling in beide
     // richtingen; melding-kant = servicemeldingen.werkitemId)
     meldingId: v.optional(v.id("servicemeldingen")),
+    // — Afrondingsflow §2.6/§8.8 (veld-rol, stap 9a) —
+    // Per-taak uitkomst bij het uitklokken (voorman): afgerond ✓ /
+    // begonnen-niet-af ◐ / niet gestart ○, met optionele notitie. Indexen
+    // verwijzen naar bouwsteenRegels/afgeleide taken op het moment van afronden.
+    taakAfronding: v.optional(
+      v.array(
+        v.object({
+          omschrijving: v.string(),
+          bouwsteenId: v.optional(v.id("bouwstenen")),
+          status: v.union(
+            v.literal("afgerond"),
+            v.literal("begonnen_niet_af"),
+            v.literal("niet_gestart")
+          ),
+          notitie: v.optional(v.string()),
+        })
+      )
+    ),
+    // Markering "klaar voor facturatie" (veld/status; de facturatie-engine
+    // zelf is §2.8). Bij deels_uitgevoerd geldt dit voor het uitgevoerde deel.
+    klaarVoorFacturatie: v.optional(v.boolean()),
+    afgerondOp: v.optional(v.number()),
+    // Rest-label in de wachtrij (§2.2/§8.8): dit werkitem is een afgesplitste
+    // rest-opdracht (via maakTaakLos of de afrondingsflow)
+    isRestOpdracht: v.optional(v.boolean()),
     // Toegewezen medewerkers voor dit project (team assignment)
     toegewezenMedewerkerIds: v.optional(v.array(v.id("medewerkers"))),
     // Toegewezen voertuigen voor dit project (fleet management)
@@ -1105,6 +1146,101 @@ export default defineSchema({
     // Index for typed medewerker ID lookups
     .index("by_medewerker_id", ["medewerkerId"]),
 
+  // ============================================
+  // Veld-rol: urensegmenten + dag-status (PRD §2.6 + bijlage C, stap 9a)
+  // ============================================
+
+  // UrenSegmenten — een werkdag per medewerker bestaat uit segmenten met
+  // categorie, begin-/eindtijd en (bij "werken" verplicht, in code afgedwongen)
+  // een werkitem-koppeling. BEWUST een eigen tabel naast urenRegistraties:
+  // die tabel is uren-per-dag met verplichte projectId (past niet op pauze/
+  // reistijd/teammeeting zonder werkitem) en voedt de bestaande Excel-export
+  // (exportUren) — die blijft ongemoeid. Dagkaart-voorstellen worden NIET
+  // opgeslagen (afgeleid tot bevestigd, §8.10); alleen bevestigde/handmatige
+  // segmenten staan hier.
+  urenSegmenten: defineTable({
+    userId: v.id("users"), // bedrijfseigenaar (multi-tenant scope)
+    medewerkerId: v.id("medewerkers"),
+    datum: v.string(), // YYYY-MM-DD
+    categorie: v.union(
+      v.literal("werken"),
+      v.literal("pauze"),
+      v.literal("reistijd"),
+      v.literal("teammeeting"),
+      v.literal("onderhoud_materiaal"),
+      v.literal("afvalverwerker_bes"),
+      v.literal("anders")
+    ),
+    beginTijd: v.string(), // HH:MM
+    eindTijd: v.string(), // HH:MM
+    // Verplicht bij "werken"; bij BES de herkomst van het groenafval
+    // (werkitem of klant) — anders indirecte tijd (loods-afsluitblok §2.2)
+    werkitemId: v.optional(v.id("projecten")),
+    klantId: v.optional(v.id("klanten")),
+    status: v.union(
+      v.literal("concept"),
+      v.literal("bevestigd"),
+      v.literal("ingediend")
+    ),
+    bron: v.union(v.literal("voorstel"), v.literal("handmatig")),
+    notitie: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_medewerker_datum", ["medewerkerId", "datum"])
+    .index("by_user_datum", ["userId", "datum"])
+    .index("by_werkitem", ["werkitemId"]),
+
+  // UrenDagen — dag-status per medewerker: indienen zet de dag op slot;
+  // kantoor kan heropenen en corrigeren (audit in urenLogboek). Geen rij =
+  // dag open (alleen afwijkingen van de default worden opgeslagen).
+  urenDagen: defineTable({
+    userId: v.id("users"), // bedrijfseigenaar (multi-tenant scope)
+    medewerkerId: v.id("medewerkers"),
+    datum: v.string(), // YYYY-MM-DD
+    status: v.union(v.literal("open"), v.literal("ingediend")),
+    ingediendOp: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_medewerker_datum", ["medewerkerId", "datum"])
+    .index("by_user_datum", ["userId", "datum"]),
+
+  // UrenLogboek — audit-log van de uren-flows (wie/wat/wanneer), patroon
+  // planbordLogboek: dag indienen/heropenen en kantoor-correcties op
+  // ingediende segmenten.
+  urenLogboek: defineTable({
+    userId: v.id("users"), // bedrijfseigenaar (multi-tenant scope)
+    medewerkerId: v.id("medewerkers"),
+    datum: v.string(), // YYYY-MM-DD (de werkdag waar de actie over gaat)
+    actie: v.union(
+      v.literal("dag_ingediend"),
+      v.literal("dag_heropend"),
+      v.literal("segment_gecorrigeerd")
+    ),
+    // Mensleesbare samenvatting, bv. "Dag 2026-07-10 heropend door kantoor"
+    details: v.string(),
+    door: v.id("users"),
+    createdAt: v.number(),
+  })
+    .index("by_user_createdAt", ["userId", "createdAt"])
+    .index("by_medewerker_datum", ["medewerkerId", "datum"]),
+
+  // MateriaalChecks — afvink-log van de materiaaldelta-checklist (§8.5):
+  // wie heeft welk delta-item wanneer afgevinkt vóór vertrek (route-knop).
+  // Geen discussie achteraf, wel een leerpunt.
+  materiaalChecks: defineTable({
+    userId: v.id("users"), // bedrijfseigenaar (multi-tenant scope)
+    werkitemId: v.id("projecten"),
+    datum: v.string(), // YYYY-MM-DD
+    item: v.string(), // genormaliseerde naam van het delta-item
+    door: v.id("users"),
+    doorNaam: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_werkitem_datum", ["werkitemId", "datum"])
+    .index("by_user_datum", ["userId", "datum"]),
+
   // MachineGebruik - Machine usage per project
   machineGebruik: defineTable({
     projectId: v.id("projecten"),
@@ -1160,6 +1296,17 @@ export default defineSchema({
     ),
     goedgekeurdDoor: v.optional(v.string()),
     goedgekeurdAt: v.optional(v.number()),
+    // — Meerwerk ter plekke (PRD §2.6, veld-rol stap 9a) — additief —
+    // Verzoek vanaf de dagkaart: voorman + geschatte tijd; planning keurt goed
+    // (tijd erbij → cascade schuift door) of zet het als nieuwe opdracht in de bak.
+    bron: v.optional(v.union(v.literal("kantoor"), v.literal("veld"))),
+    aangevraagdDoorId: v.optional(v.id("users")),
+    aangevraagdDoorNaam: v.optional(v.string()),
+    geschatteMinuten: v.optional(v.number()),
+    besluit: v.optional(
+      v.union(v.literal("tijd_erbij"), v.literal("nieuwe_opdracht"))
+    ),
+    nieuweOpdrachtId: v.optional(v.id("projecten")),
     createdAt: v.number(),
     updatedAt: v.number(),
   })

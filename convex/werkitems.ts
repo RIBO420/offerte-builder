@@ -48,8 +48,17 @@ const STATUSSEN_PER_TYPE: Record<WerkItemType, ReadonlyArray<WerkItemStatus>> = 
     "afgerond",
     "nacalculatie_compleet",
     "gefactureerd",
+    // Afrondingsflow §2.6/§8.8: één of meer taken niet af bij het uitklokken
+    "deels_uitgevoerd",
   ],
-  onderhoudsbeurt: ["gepland", "uitgevoerd", "gefactureerd", "vervallen"],
+  onderhoudsbeurt: [
+    "gepland",
+    "uitgevoerd",
+    "gefactureerd",
+    "vervallen",
+    // Afrondingsflow §2.6/§8.8
+    "deels_uitgevoerd",
+  ],
 };
 
 // ============================================
@@ -522,7 +531,8 @@ export const updateStatus = mutation({
       v.literal("nacalculatie_compleet"),
       v.literal("gefactureerd"),
       v.literal("uitgevoerd"),
-      v.literal("vervallen")
+      v.literal("vervallen"),
+      v.literal("deels_uitgevoerd")
     ),
   },
   handler: async (ctx, args) => {

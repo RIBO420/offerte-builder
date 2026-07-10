@@ -1,7 +1,7 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query, internalQuery } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
-import { requireKantoor, requireNotViewer } from "./roles";
+import { getCompanyUserId, requireKantoor, requireNotViewer } from "./roles";
 import { isGeldigeTijd, naarMinuten } from "./dagkaartLogica";
 
 const bedrijfsgegevensValidator = v.object({
@@ -197,6 +197,86 @@ export const updateDagkaartInstellingen = mutation({
 
     await ctx.db.patch(settings._id, { dagkaartInstellingen: nieuw });
     return settings._id;
+  },
+});
+
+/**
+ * Veld-instellingen (PRD §2.6, stap 9a): drempels voor de "Wie is achter"-
+ * widget (PRD-aanname >15 min of >20%, bevestiging Mickey §7.1) en het
+ * noodprotocol-tekstblok voor de vaste snelkoppeling in de veld-app
+ * (SOP-bibliotheek volgt in fase 3). Alleen kantoor wijzigt.
+ */
+export const updateVeldInstellingen = mutation({
+  args: {
+    afwijkingDrempelMinuten: v.optional(v.number()),
+    afwijkingDrempelProcent: v.optional(v.number()),
+    noodprotocolTekst: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireKantoor(ctx);
+    const userId = await requireAuthUserId(ctx);
+
+    if (
+      args.afwijkingDrempelMinuten !== undefined &&
+      (!Number.isFinite(args.afwijkingDrempelMinuten) ||
+        args.afwijkingDrempelMinuten < 0 ||
+        args.afwijkingDrempelMinuten > 24 * 60)
+    ) {
+      throw new ConvexError("Ongeldige drempel in minuten (0 t/m 1440)");
+    }
+    if (
+      args.afwijkingDrempelProcent !== undefined &&
+      (!Number.isFinite(args.afwijkingDrempelProcent) ||
+        args.afwijkingDrempelProcent < 0 ||
+        args.afwijkingDrempelProcent > 100)
+    ) {
+      throw new ConvexError("Ongeldige drempel in procenten (0 t/m 100)");
+    }
+
+    const settings = await ctx.db
+      .query("instellingen")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique();
+    if (!settings) {
+      throw new ConvexError(
+        "Instellingen niet gevonden. Maak eerst standaardinstellingen aan."
+      );
+    }
+
+    const huidige = settings.veldInstellingen ?? {};
+    await ctx.db.patch(settings._id, {
+      veldInstellingen: {
+        afwijkingDrempelMinuten:
+          args.afwijkingDrempelMinuten ?? huidige.afwijkingDrempelMinuten,
+        afwijkingDrempelProcent:
+          args.afwijkingDrempelProcent ?? huidige.afwijkingDrempelProcent,
+        noodprotocolTekst:
+          args.noodprotocolTekst ?? huidige.noodprotocolTekst,
+      },
+    });
+    return settings._id;
+  },
+});
+
+/**
+ * Veld-instellingen lezen voor de veld-weergave (voorman/medewerker):
+ * noodprotocol-tekst + de geldende drempels. Bedrijfsscope via
+ * getCompanyUserId zodat veld-accounts de instellingen van hun bedrijf zien.
+ */
+export const getVeldInstellingen = query({
+  args: {},
+  handler: async (ctx) => {
+    const companyUserId = await getCompanyUserId(ctx);
+    const settings = await ctx.db
+      .query("instellingen")
+      .withIndex("by_user", (q) => q.eq("userId", companyUserId))
+      .unique();
+    const veld = settings?.veldInstellingen;
+    return {
+      afwijkingDrempelMinuten: veld?.afwijkingDrempelMinuten ?? 15,
+      afwijkingDrempelProcent: veld?.afwijkingDrempelProcent ?? 20,
+      noodprotocolTekst: veld?.noodprotocolTekst ?? null,
+    };
   },
 });
 
