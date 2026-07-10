@@ -124,10 +124,6 @@ function createMockQueryBuilder(docs: MockDocument[]): MockQueryBuilder {
     withIndex: (_indexName, _fn) => builder,
     withSearchIndex: (_indexName, _fn) => builder,
     filter: (fn) => {
-      const filterBuilder: MockFilterBuilder = {
-        eq: (a, b) => a === b,
-        field: (name) => name,
-      };
       // Apply filter in-memory by checking each doc
       filteredDocs = filteredDocs.filter((doc) => {
         try {

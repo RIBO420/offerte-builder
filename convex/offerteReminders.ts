@@ -25,7 +25,7 @@ import {
 } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
-import { requireAuthUserId, getOwnedOfferte } from "./auth";
+import { getOwnedOfferte } from "./auth";
 import { requireNotViewer } from "./roles";
 import { DEFAULT_TEMPLATES } from "./emailTemplates";
 import { zetTriggerMailKlaar } from "./mailTriggers";

@@ -111,7 +111,7 @@ export function ComplianceBadge({
   className,
   showLabel = true,
 }: ComplianceBadgeProps) {
-  const { status, className: statusClassName, icon: Icon } = getComplianceStatus(daysLeft);
+  const { className: statusClassName, icon: Icon } = getComplianceStatus(daysLeft);
   const label = type === "apk" ? "APK" : "Verz.";
   const statusLabel = getStatusLabel(daysLeft, type);
 

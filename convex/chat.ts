@@ -8,13 +8,12 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { requireAuth, requireAuthUserId } from "./auth";
+import { requireAuth } from "./auth";
 import { requireNotViewer, getCompanyUserId, isAdminRole, normalizeRole, getUserRole } from "./roles";
 import {
   validateFile,
   MAX_FILE_SIZE_BYTES,
   ALLOWED_MIME_TYPES,
-  DANGEROUS_EXTENSIONS,
 } from "./security";
 import type { QueryCtx, MutationCtx } from "./_generated/server";
 
@@ -161,7 +160,7 @@ export const getTeamMessages = query({
     cursor: v.optional(v.number()), // Timestamp for pagination
   },
   handler: async (ctx, args) => {
-    const user = await requireInterneChatToegang(ctx);
+    await requireInterneChatToegang(ctx);
     const companyId = await getCompanyUserId(ctx);
     const limit = args.limit || 50;
 
@@ -582,7 +581,7 @@ export const getUnreadCounts = query({
       .filter((q) => q.neq(q.field("senderId"), user._id)) // Exclude own messages
       .collect();
 
-    const unreadTeam = teamMessages.filter((m) => {
+    const _unreadTeam = teamMessages.filter((m) => {
       const readBy = m.readBy || [];
       return !readBy.includes(user.clerkId);
     }).length;
@@ -824,7 +823,7 @@ export const searchMessages = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const user = await requireInterneChatToegang(ctx);
+    await requireInterneChatToegang(ctx);
     const companyId = await getCompanyUserId(ctx);
     const limit = args.limit || 20;
 
@@ -985,7 +984,7 @@ export const generateUploadUrl = mutation({
   },
   handler: async (ctx, args) => {
     // Require authentication (viewers cannot upload)
-    const user = await requireNotViewer(ctx);
+    await requireNotViewer(ctx);
 
     // Validate the file before generating URL
     const validation = validateFile(args.fileName, args.mimeType, args.fileSize);

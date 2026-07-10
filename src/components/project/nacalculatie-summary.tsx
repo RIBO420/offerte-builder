@@ -25,7 +25,6 @@ import {
   formatDeviation,
   formatHoursAsDays,
 } from "@/lib/nacalculatie-calculator";
-import { formatDecimal } from "@/lib/format";
 
 interface NacalculatieSummaryProps {
   data: NacalculatieResult;

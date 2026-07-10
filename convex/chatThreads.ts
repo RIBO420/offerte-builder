@@ -1,7 +1,7 @@
 import { v, ConvexError } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { requireAuth, requireKlant } from "./auth";
+import { requireAuth } from "./auth";
 import {
   getCompanyUserId,
   normalizeRole,
@@ -9,7 +9,7 @@ import {
   klantHeeftToegangTotThread,
   requireKantoor,
 } from "./roles";
-import { chatThreadTypeValidator, chatSenderTypeValidator } from "./validators";
+import { chatThreadTypeValidator } from "./validators";
 
 // List threads for dashboard (bedrijf/medewerker) or portal (klant)
 export const listThreads = query({

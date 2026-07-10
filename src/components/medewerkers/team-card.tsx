@@ -55,12 +55,6 @@ export function TeamCard({
   totalUren = 0,
 }: TeamCardProps) {
   const activeMedewerkers = team.medewerkersDetails.filter((m) => m.isActief);
-  const initials = team.naam
-    .split(" ")
-    .map((word) => word[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
 
   return (
     <m.div

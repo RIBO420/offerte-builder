@@ -8,7 +8,6 @@ import { workflowSteps } from "./types";
 
 export function WorkflowStepIndicator({
   currentStep,
-  status,
 }: {
   currentStep: number;
   status: string | null;

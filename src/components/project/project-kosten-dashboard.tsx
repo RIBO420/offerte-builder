@@ -93,7 +93,7 @@ export const ProjectKostenDashboard = memo(function ProjectKostenDashboard({
   }, [budgetVergelijking]);
 
   // Handlers
-  const handleSubmit = useCallback(async (data: KostenEntryData) => {
+  const handleSubmit = useCallback(async (_data: KostenEntryData) => {
     setIsSubmitting(true);
     try {
       showInfoToast(

@@ -1,4 +1,4 @@
-import { describe, it, test, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { useNotifications, useUnreadNotificationCount } from "@/hooks/use-notifications";
 

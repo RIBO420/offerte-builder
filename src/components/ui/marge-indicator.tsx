@@ -81,7 +81,7 @@ const MargeIndicator = memo(function MargeIndicator({
   className,
 }: MargeIndicatorProps) {
   // Memoize computed values
-  const { level, config, sizes, displayWidth, targetPosition } = useMemo(() => {
+  const { config, sizes, displayWidth, targetPosition } = useMemo(() => {
     const margeLevel = getMargeLevel(percentage)
     const margeConfig = getMargeLevelConfig(margeLevel)
     const sizeStyles = sizeConfig[size]

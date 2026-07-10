@@ -7,7 +7,6 @@ import { AnimatedNumber } from "@/components/ui/animated-number";
 import { Sparkline } from "@/components/ui/sparkline";
 import { TrendingUp, Euro, FileText, Target } from "lucide-react";
 import { useReducedMotion } from "@/hooks/use-accessibility";
-import { transitions } from "@/lib/motion-config";
 
 interface KpiCardsProps {
   kpis: {

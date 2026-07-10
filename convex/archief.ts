@@ -8,7 +8,6 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
-import { Id } from "./_generated/dataModel";
 
 /**
  * List all archived projects for the authenticated user.

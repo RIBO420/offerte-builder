@@ -20,7 +20,6 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
-  Cell,
 } from "recharts";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import { Users, Clock, Briefcase, TrendingUp, TrendingDown, Award, Zap, Star } from "lucide-react";
@@ -175,7 +174,6 @@ export const MedewerkerProductiviteit = memo(function MedewerkerProductiviteit({
     ? data.reduce((sum, item) => sum + item.efficiëntieRatio, 0) / data.length
     : 0;
 
-  const totalDeclarabeleUren = data.reduce((sum, item) => sum + item.declarabeleUren, 0);
   const totalProjecten = data.reduce((sum, item) => sum + item.projecten, 0);
 
   const urenChange = previousPeriodTotaalUren !== undefined

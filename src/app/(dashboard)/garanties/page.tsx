@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
@@ -38,16 +37,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Shield,
   ShieldCheck,
   ShieldAlert,
-  AlertTriangle,
   Wrench,
   Plus,
   Search,
-  Calendar,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Id } from "../../../../convex/_generated/dataModel";
@@ -62,14 +59,6 @@ function daysUntil(dateStr: string): number {
   now.setHours(0, 0, 0, 0);
   const target = new Date(dateStr);
   return Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-}
-
-function getGarantieColor(eindDatum: string, status: string) {
-  if (status === "verlopen") return "text-red-600 bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800 dark:text-red-400";
-  const days = daysUntil(eindDatum);
-  if (days <= 30) return "text-red-600 bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800 dark:text-red-400";
-  if (days <= 180) return "text-yellow-600 bg-yellow-50 border-yellow-200 dark:bg-yellow-950 dark:border-yellow-800 dark:text-yellow-400";
-  return "text-green-600 bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800 dark:text-green-400";
 }
 
 function GarantieStatusBadge({ status, eindDatum }: { status: string; eindDatum: string }) {
@@ -115,7 +104,6 @@ export default function GarantiesPage() {
 
   // Mutations
   const createGarantie = useMutation(api.garanties.create);
-  const checkExpire = useMutation(api.garanties.checkAndExpire);
 
   // Form state for creating a garantie
   const [newGarantie, setNewGarantie] = useState({

@@ -95,7 +95,7 @@ export function FleetGoSync({
 
       // Simulate success (in real implementation, check API response)
       setConnectionStatus("connected");
-    } catch (err) {
+    } catch {
       setConnectionStatus("error");
       setError("Kan geen verbinding maken met FleetGo. Controleer je API key.");
     }
@@ -188,7 +188,7 @@ export function FleetGoSync({
       );
       setSyncStatus("success");
       setSyncProgress(100);
-    } catch (err) {
+    } catch {
       setSyncStatus("error");
       setError("Fout bij ophalen voertuiggegevens van FleetGo.");
       showErrorToast("Sync mislukt");
@@ -235,7 +235,7 @@ export function FleetGoSync({
 
       showSuccessToast(`${vehiclesToImport.length} voertuig(en) geimporteerd`);
       setIsOpen(false);
-    } catch (err) {
+    } catch {
       showErrorToast("Fout bij importeren voertuigen");
     } finally {
       setIsImporting(false);

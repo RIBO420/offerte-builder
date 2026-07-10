@@ -713,7 +713,6 @@ describe("Facturen - Archive Filtering Logic", () => {
     ];
 
     // Replicate the filtering logic from list handler
-    const hideArchived = true;
     const result = facturen.filter((f) => !f.isArchived || f.status === "betaald");
 
     // The archived concept should be filtered out

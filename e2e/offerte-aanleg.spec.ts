@@ -9,7 +9,6 @@ import {
   clickVorige,
   selectScope,
   getTestKlantData,
-  fillAllNumberInputs,
   clickVolgendeWhenReady,
 } from './helpers/auth';
 

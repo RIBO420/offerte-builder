@@ -1,7 +1,7 @@
 import { v, ConvexError } from "convex/values";
 import { query, action } from "./_generated/server";
 import { api } from "./_generated/api";
-import { requireAuthUserId, getAuthenticatedUser } from "./auth";
+import { requireAuthUserId } from "./auth";
 
 // Helper type for regel
 interface OfferteRegel {
@@ -185,7 +185,7 @@ export const berekenGrondwerk = action({
 
     // Calculate ontgraven
     const urenOntgraven = data.oppervlakte * normuurOntgraven * bereikbaarheidFactor * diepteFactor;
-    const kostenOntgraven = urenOntgraven * uurtarief;
+    const _kostenOntgraven = urenOntgraven * uurtarief;
 
     const roundedUrenOntgraven = roundToQuarter(urenOntgraven);
     regels.push({

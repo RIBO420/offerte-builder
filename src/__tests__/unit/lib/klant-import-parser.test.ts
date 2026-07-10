@@ -3,8 +3,6 @@ import {
   processKlantImportData,
   parseKlantenFile,
   getSampleKlantCSV,
-  type ParsedKlantEntry,
-  type KlantParseResult,
 } from "@/lib/klant-import-parser";
 
 // ---------------------------------------------------------------------------

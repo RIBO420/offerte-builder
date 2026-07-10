@@ -128,7 +128,7 @@ function generateId(): string {
 export const getByProject = query({
   args: { projectId: v.id("projecten") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    await requireAuthUserId(ctx);
     // Verify ownership of project
     await getOwnedProject(ctx, args.projectId);
 
@@ -147,7 +147,7 @@ export const getByProject = query({
 export const getById = query({
   args: { id: v.id("kwaliteitsControles") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    await requireAuthUserId(ctx);
     const controle = await ctx.db.get(args.id);
 
     if (!controle) {
@@ -167,7 +167,7 @@ export const getById = query({
 export const getDefaultChecklist = query({
   args: { scope: v.string() },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    await requireAuthUserId(ctx);
     const items = STANDAARD_CHECKLISTS[args.scope] || STANDAARD_CHECKLISTS.overig;
 
     return items.map((omschrijving) => ({
@@ -184,7 +184,7 @@ export const getDefaultChecklist = query({
 export const getAllDefaultChecklists = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    await requireAuthUserId(ctx);
     return Object.entries(STANDAARD_CHECKLISTS).map(([scope, items]) => ({
       scope,
       items: items.map((omschrijving) => ({
@@ -210,7 +210,7 @@ export const getByProjectAndStatus = query({
     ),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    await requireAuthUserId(ctx);
     // Verify ownership of project
     await getOwnedProject(ctx, args.projectId);
 
@@ -670,7 +670,7 @@ export const getDashboardStats = query({
 export const getProjectSummary = query({
   args: { projectId: v.id("projecten") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    await requireAuthUserId(ctx);
     // Verify ownership of project
     await getOwnedProject(ctx, args.projectId);
 

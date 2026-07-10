@@ -3,15 +3,13 @@
 import { use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -25,15 +23,12 @@ import {
   ShieldCheck,
   ShieldAlert,
   ArrowLeft,
-  Calendar,
   User,
   FolderKanban,
   Wrench,
-  Clock,
   FileText,
   Plus,
 } from "lucide-react";
-import { toast } from "sonner";
 import { Id } from "../../../../../convex/_generated/dataModel";
 
 function formatDate(dateStr: string): string {

@@ -240,15 +240,6 @@ export function SortableList<T extends SortableItem>({
     );
   };
 
-  const announceMove = (activeId: UniqueIdentifier, overId: UniqueIdentifier) => {
-    const activePosition = getItemPosition(activeId);
-    const overPosition = getItemPosition(overId);
-    const name = getItemName(activeId);
-    setAnnouncement(
-      `${name} verplaatst van positie ${activePosition} naar positie ${overPosition} van ${items.length}.`
-    );
-  };
-
   const announceEnd = (activeId: UniqueIdentifier, overId?: UniqueIdentifier) => {
     if (overId) {
       const finalPosition = getItemPosition(overId);

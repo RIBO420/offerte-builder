@@ -30,29 +30,6 @@ function createMockVoorcalculatie(overrides: Partial<VoorcalculatieData> = {}): 
   };
 }
 
-function createMockUrenRegistraties(
-  total: number,
-  scopes: Record<string, number>
-): UrenRegistratie[] {
-  const registraties: UrenRegistratie[] = [];
-  let medewerkerIndex = 0;
-  const medewerkers = ["Jan", "Piet", "Klaas"];
-  const dates = ["2024-01-15", "2024-01-16", "2024-01-17"];
-
-  for (const [scope, uren] of Object.entries(scopes)) {
-    registraties.push({
-      datum: dates[registraties.length % dates.length],
-      medewerker: medewerkers[medewerkerIndex % medewerkers.length],
-      uren,
-      scope,
-      notities: `Werk aan ${scope}`,
-    });
-    medewerkerIndex++;
-  }
-
-  return registraties;
-}
-
 describe("Nacalculatie Calculator - getDeviationStatus", () => {
   it("returns 'good' for deviations <= 5%", () => {
     expect(getDeviationStatus(0)).toBe("good");

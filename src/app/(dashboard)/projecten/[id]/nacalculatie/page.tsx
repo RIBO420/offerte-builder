@@ -2,10 +2,7 @@
 
 import { use, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { m, AnimatePresence } from "framer-motion";
-import { useMutation } from "convex/react";
-import { api } from "../../../../../../convex/_generated/api";
+import { m } from "framer-motion";
 import { Id } from "../../../../../../convex/_generated/dataModel";
 import { useNacalculatie } from "@/hooks/use-nacalculatie";
 import { useLeerfeedback } from "@/hooks/use-leerfeedback";
@@ -13,10 +10,9 @@ import { NacalculatieSummary } from "@/components/project/nacalculatie-summary";
 import { AfwijkingenTabel } from "@/components/project/afwijkingen-tabel";
 import { VergelijkingChart, AfwijkingChart } from "@/components/project/vergelijking-chart";
 import { NormuurSuggestieCard } from "@/components/project/normuur-suggestie-card";
-import { LeerfeedbackHistorie, LeerfeedbackHistorieTable } from "@/components/project/leerfeedback-historie";
+import { LeerfeedbackHistorie } from "@/components/project/leerfeedback-historie";
 import { ProjectProgressStepper } from "@/components/project/project-progress-stepper";
 import { NacalculatieSuccessDialog } from "@/components/project/nacalculatie-success-dialog";
-import { Progress } from "@/components/ui/progress";
 import {
   Card,
   CardContent,
@@ -36,13 +32,11 @@ import {
   Loader2,
   ClipboardCheck,
   Save,
-  Download,
   FileSpreadsheet,
   AlertTriangle,
   Info,
   TrendingUp,
   TrendingDown,
-  History,
   Lightbulb,
   CheckCircle,
   Calculator,
@@ -62,7 +56,6 @@ export default function NacalculatiePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const router = useRouter();
   const projectId = id as Id<"projecten">;
 
   // Get nacalculatie data
@@ -133,21 +126,6 @@ export default function NacalculatiePage({
     }
   }, [clientCalculation, conclusies, save, details?.project?.status]);
 
-  // Save only conclusions
-  const handleSaveConclusions = useCallback(async () => {
-    if (!conclusies) return;
-
-    setIsSaving(true);
-    try {
-      await addConclusion(conclusies);
-      toast.success("Conclusies opgeslagen");
-    } catch (error) {
-      toast.error("Fout bij opslaan conclusies");
-      console.error(error);
-    } finally {
-      setIsSaving(false);
-    }
-  }, [conclusies, addConclusion]);
 
   // Export to Excel
   const handleExport = useCallback(async () => {

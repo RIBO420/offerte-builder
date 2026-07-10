@@ -52,9 +52,6 @@ export type UserRole =
 /** Legacy roles still present in the database until migrated */
 type LegacyRole = "admin" | "viewer";
 
-/** Any role string that may appear in the database (new + legacy) */
-type AnyRole = UserRole | LegacyRole;
-
 /** Permission actions */
 export type Action = "create" | "read" | "update" | "delete" | "manage";
 

@@ -119,7 +119,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const { event, payload } = webhookEvent;
-    const { invitee, scheduled_event, event_type } = payload;
 
     switch (event) {
       case "invitee.created": {

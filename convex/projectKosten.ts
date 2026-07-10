@@ -16,7 +16,7 @@ import { mutation, query } from "./_generated/server";
 import { requireAuth, requireAuthUserId, verifyOwnership } from "./auth";
 import { requireNotViewer } from "./roles";
 import { Id } from "./_generated/dataModel";
-import { validatePositive, sanitizeOptionalString } from "./validators";
+import { validatePositive } from "./validators";
 
 // Cost types for categorization
 const kostenTypeValidator = v.union(
@@ -426,8 +426,6 @@ export const create = mutation({
     const hoeveelheid = validatePositive(args.hoeveelheid, "Hoeveelheid");
     const prijsPerEenheid = validatePositive(args.prijsPerEenheid, "Prijs per eenheid");
 
-    // Sanitize optional strings
-    const notities = sanitizeOptionalString(args.notities);
 
     const totaal = hoeveelheid * prijsPerEenheid;
 

@@ -95,7 +95,7 @@ export function FleetGoSettings({
           showErrorToast("Ongeldige API key");
         }
       }
-    } catch (error) {
+    } catch {
       setTestStatus("error");
       showErrorToast("Fout bij testen verbinding");
     }
@@ -127,7 +127,7 @@ export function FleetGoSettings({
 
       showSuccessToast("FleetGo instellingen opgeslagen");
       setHasChanges(false);
-    } catch (error) {
+    } catch {
       showErrorToast("Fout bij opslaan instellingen");
     } finally {
       setIsSaving(false);

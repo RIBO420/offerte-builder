@@ -9,8 +9,7 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuth, requireAuthUserId, verifyOwnership } from "./auth";
-import { requireNotViewer, getUserRole, hasRole } from "./roles";
-import { Id } from "./_generated/dataModel";
+import { requireNotViewer } from "./roles";
 
 // ============================================
 // QUERIES
@@ -103,7 +102,7 @@ export const getById = query({
 export const getByProject = query({
   args: { projectId: v.id("projecten") },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    await requireAuth(ctx);
 
     const garantie = await ctx.db
       .query("garanties")
@@ -121,7 +120,7 @@ export const getByProject = query({
 export const getByKlant = query({
   args: { klantId: v.id("klanten") },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    await requireAuth(ctx);
 
     const garanties = await ctx.db
       .query("garanties")

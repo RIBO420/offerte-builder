@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
-import { Loader2, Download } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 // Loading component for PDF button
 function PDFButtonLoading() {

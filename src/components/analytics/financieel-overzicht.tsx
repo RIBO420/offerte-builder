@@ -26,11 +26,8 @@ import {
 } from "recharts";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import {
   Euro,
-  TrendingUp,
-  TrendingDown,
   Wallet,
   PiggyBank,
   Receipt,
@@ -425,7 +422,7 @@ export const FinancieelOverzicht = memo(function FinancieelOverzicht({
                     </Pie>
                     <Tooltip content={<PieTooltip />} />
                     <Legend
-                      formatter={(value, entry) => (
+                      formatter={(value) => (
                         <span className="text-sm text-foreground">{value}</span>
                       )}
                     />

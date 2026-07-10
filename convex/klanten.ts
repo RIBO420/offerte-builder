@@ -8,9 +8,7 @@ import {
   sanitizePhone,
   validateRequiredPostcode,
   sanitizeOptionalString,
-  VALIDATION_MESSAGES,
 } from "./validators";
-import { shouldUpgradePipeline } from "./pipelineHelpers";
 import { hoortInKlantenLijst } from "./leadsKlantenHelpers";
 import { logTijdlijnEvent } from "./tijdlijn";
 

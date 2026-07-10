@@ -12,7 +12,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { PageHeader } from "@/components/page-header";
 import {
@@ -58,7 +57,6 @@ export default function TeamsPage() {
     isLoading: teamsLoading,
     create,
     update,
-    remove,
     hardDelete,
     addLid,
     removeLid,

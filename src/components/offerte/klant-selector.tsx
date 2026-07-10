@@ -142,7 +142,6 @@ export function KlantSelector({
     }
   }, [initialLead, initialLeadId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const typedRecentKlanten = recentKlanten as Klant[];
   const typedSearchResults = searchResults as Klant[];
   const typedEnrichedKlanten = enrichedKlanten as EnrichedKlant[];
 

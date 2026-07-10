@@ -13,7 +13,6 @@ export function SuccessDialog({
   open,
   email,
   referentie,
-  indicatiePrijs,
   onAanbetaling,
   onSluiten,
   isBetalingBezig,

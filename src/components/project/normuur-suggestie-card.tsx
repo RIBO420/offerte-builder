@@ -51,7 +51,6 @@ import {
   type ScopeSuggestie,
   type ActiviteitSuggestie,
   formatScopeName,
-  getConfidenceColor,
   getConfidenceBadgeVariant,
   getSuggestionTypeColor,
   validateSuggestion,

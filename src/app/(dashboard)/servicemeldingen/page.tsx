@@ -6,7 +6,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { PageHeader } from "@/components/page-header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -36,7 +36,6 @@ import {
   Shield,
   Clock,
   User,
-  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Id } from "../../../../convex/_generated/dataModel";
@@ -216,7 +215,7 @@ export default function ServicemeldingenPage() {
         status: newStatus,
       });
       toast.success(`Status bijgewerkt naar ${statusColumns.find((c) => c.key === newStatus)?.label}`);
-    } catch (error) {
+    } catch {
       toast.error("Fout bij bijwerken status");
     }
   };

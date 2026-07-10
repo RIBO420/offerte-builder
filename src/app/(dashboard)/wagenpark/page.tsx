@@ -47,7 +47,6 @@ import {
   ShieldCheck,
   AlertTriangle,
   Fuel,
-  Calendar,
   Eye,
 } from "lucide-react";
 import { WagenparkPageSkeleton } from "@/components/ui/skeleton-card";
@@ -92,8 +91,6 @@ const statusConfig: Record<
     icon: <XCircle className="h-3 w-3 mr-1" />,
   },
 };
-
-type FilterTab = "alle" | VoertuigStatus;
 
 function formatKmStand(km: number | undefined): string {
   if (km === undefined) return "-";
@@ -218,7 +215,6 @@ function WagenparkPageContent() {
 
   // Paginate the filtered results
   const totalCount = filteredVoertuigen.length;
-  const totalPages = Math.ceil(totalCount / limit);
   const displayedVoertuigen = useMemo(() => {
     const startIndex = (page - 1) * limit;
     return filteredVoertuigen.slice(startIndex, startIndex + limit);

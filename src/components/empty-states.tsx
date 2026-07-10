@@ -1,9 +1,8 @@
 "use client";
 
-import { FileText, Users, Search, Package, Activity, Shovel, Trees, Sparkles, ArrowRight, Lightbulb, CheckCircle2, FolderKanban } from "lucide-react";
+import { FileText, Users, Search, Package, Activity, Shovel, Trees, ArrowRight, Lightbulb, CheckCircle2, FolderKanban } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
 interface EmptyStateWithActionProps {

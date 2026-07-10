@@ -9,7 +9,6 @@ import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useIsAdmin, useIsKantoor } from "@/hooks/use-users";
-import { useReducedMotion } from "@/hooks/use-accessibility";
 import { Pagination } from "@/components/ui/pagination";
 import {
   Card,
@@ -119,7 +118,6 @@ export default function UrenPage() {
 // Inner component that uses useSearchParams
 function UrenPageContent() {
   const searchParams = useSearchParams();
-  const reducedMotion = useReducedMotion();
   const { user, isLoading: isUserLoading } = useCurrentUser();
   const isAdmin = useIsAdmin();
   // Export is kantoor-functionaliteit (PRD §1.2): directie én projectleider.
@@ -262,7 +260,6 @@ function UrenPageContent() {
 
   // Paginate the sorted entries
   const totalCount = sortedEntries.length;
-  const totalPages = Math.ceil(totalCount / limit);
   const paginatedEntries = useMemo(() => {
     const startIndex = (page - 1) * limit;
     return sortedEntries.slice(startIndex, startIndex + limit);

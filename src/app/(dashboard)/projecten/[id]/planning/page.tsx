@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useCallback, useMemo, useRef } from "react";
+import { use, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
@@ -103,7 +103,6 @@ export default function PlanningPage({
   // Planning hook
   const {
     taken,
-    takenPerScope,
     summary,
     isLoading,
     generateFromVoorcalculatie,

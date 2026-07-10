@@ -18,7 +18,6 @@ import { useNormuren } from "./use-normuren";
  */
 export function useLeerfeedback() {
   const { user } = useCurrentUser();
-  const { normuren } = useNormuren();
 
   // Get suggestions from server
   const serverSuggesties = useQuery(

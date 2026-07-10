@@ -1,6 +1,6 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAuthUserId, getAuthenticatedUser, requireAuth } from "./auth";
+import { getAuthenticatedUser, requireAuth } from "./auth";
 import { requireNotViewer } from "./roles";
 import { Id, Doc } from "./_generated/dataModel";
 import { QueryCtx, MutationCtx } from "./_generated/server";
@@ -40,32 +40,6 @@ const noodcontactValidator = v.object({
 // ============================================
 // ROLE-BASED ACCESS HELPERS
 // ============================================
-
-/**
- * Check if the authenticated user is an admin (company owner) for the medewerker record.
- * An admin is a user whose _id matches the medewerker's userId field.
- */
-async function isAdminForMedewerker(
-  ctx: QueryCtx | MutationCtx,
-  medewerker: { userId: Id<"users"> }
-): Promise<boolean> {
-  const user = await getAuthenticatedUser(ctx);
-  if (!user) return false;
-  return user._id.toString() === medewerker.userId.toString();
-}
-
-/**
- * Check if the authenticated user is the linked medewerker.
- * A medewerker is linked when their clerkId matches medewerker.clerkUserId.
- */
-async function isLinkedMedewerker(
-  ctx: QueryCtx | MutationCtx,
-  medewerker: { clerkUserId?: string }
-): Promise<boolean> {
-  const user = await getAuthenticatedUser(ctx);
-  if (!user || !medewerker.clerkUserId) return false;
-  return user.clerkId === medewerker.clerkUserId;
-}
 
 /**
  * Get the user's role in relation to medewerkers.
@@ -314,7 +288,7 @@ export const list = query({
     isActief: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const { role, userId, linkedMedewerker, companyUserId } = await getUserRole(ctx);
+    const { role, linkedMedewerker, companyUserId } = await getUserRole(ctx);
 
     if (!role || !companyUserId) {
       return [];

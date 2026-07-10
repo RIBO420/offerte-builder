@@ -4,7 +4,6 @@ import {
   requireAuth,
   requireAuthUserId,
   getOwnedOfferte,
-  verifyOwnership,
 } from "./auth";
 import { requireNotViewer, assertKanNaarKlantVersturen } from "./roles";
 import { internal } from "./_generated/api";
@@ -68,18 +67,6 @@ const scopeMargesValidator = v.object({
   heggen: v.optional(v.number()),
   bomen: v.optional(v.number()),
   overig: v.optional(v.number()),
-});
-
-const totalenValidator = v.object({
-  materiaalkosten: v.number(),
-  arbeidskosten: v.number(),
-  totaalUren: v.number(),
-  subtotaal: v.number(),
-  marge: v.number(),
-  margePercentage: v.number(),
-  totaalExBtw: v.number(),
-  btw: v.number(),
-  totaalInclBtw: v.number(),
 });
 
 // List all offertes for authenticated user

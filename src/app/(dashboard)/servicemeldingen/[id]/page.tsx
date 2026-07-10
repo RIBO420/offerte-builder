@@ -13,7 +13,6 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
@@ -23,13 +22,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+
+
 import {
   Wrench,
   ArrowLeft,
@@ -40,7 +34,6 @@ import {
   Calendar,
   Clock,
   CheckCircle2,
-  ChevronRight,
   Plus,
   AlertTriangle,
 } from "lucide-react";
@@ -112,7 +105,7 @@ export default function MeldingDetailPage({
         status: newStatus,
       });
       toast.success(`Status bijgewerkt naar ${statusConfig[newStatus]?.label}`);
-    } catch (error) {
+    } catch {
       toast.error("Fout bij bijwerken status");
     }
   };
@@ -137,7 +130,7 @@ export default function MeldingDetailPage({
         medewerkerIds: [],
         notities: "",
       });
-    } catch (error) {
+    } catch {
       toast.error("Fout bij inplannen afspraak");
     }
   };
@@ -149,7 +142,7 @@ export default function MeldingDetailPage({
         status: "uitgevoerd",
       });
       toast.success("Afspraak als uitgevoerd gemarkeerd");
-    } catch (error) {
+    } catch {
       toast.error("Fout bij bijwerken afspraak");
     }
   };
@@ -162,7 +155,7 @@ export default function MeldingDetailPage({
       });
       toast.success("Kosten bijgewerkt");
       setShowKostenDialog(false);
-    } catch (error) {
+    } catch {
       toast.error("Fout bij bijwerken kosten");
     }
   };

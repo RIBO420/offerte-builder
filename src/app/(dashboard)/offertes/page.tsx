@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, Suspense } from "react";
+import { useState, useMemo, Suspense } from "react";
 import { formatCurrency } from "@/lib/format";
 import { TrendingUp, Calculator, Target, Clock, CheckSquare, XSquare } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -71,7 +71,6 @@ function OffertesPageContent() {
     // Bulk status preview
     pendingBulkStatus,
     showBulkStatusDialog,
-    setShowBulkStatusDialog,
     requestBulkStatusChange,
     confirmBulkStatusChange,
     cancelBulkStatusChange,
@@ -84,7 +83,6 @@ function OffertesPageContent() {
     toggleSelectAll,
     toggleSelect,
     clearSelection,
-    handleBulkStatusChange,
     handleBulkDelete,
     handleExportCSV,
   } = useOfferteActions();

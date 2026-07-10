@@ -67,12 +67,7 @@ const statusLabels: Record<ProjectStatus, string> = {
 export function ProjectProgressStepper({
   projectId,
   projectStatus,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   currentStatus: _deprecated, // Kept for backwards compatibility, but ignored
-  hasPlanning = false,
-  hasUrenRegistraties = false,
-  hasNacalculatie = false,
-  hasFactuur = false,
 }: ProjectProgressStepperProps) {
   // Map legacy "voorcalculatie" status to "gepland" for display purposes
   const effectiveStatus = projectStatus === "voorcalculatie" ? "gepland" : projectStatus;

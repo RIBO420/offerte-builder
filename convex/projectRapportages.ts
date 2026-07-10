@@ -774,9 +774,6 @@ export const getProjectTimeline = query({
       dailyData[datum].uren += uren.uren;
 
       const project = projecten.find((p) => p._id.toString() === uren.projectId.toString());
-      const offerte = project?.offerteId
-        ? offerteById.get(project.offerteId.toString())
-        : null;
       const projectNaam = project?.naam || "Onbekend";
 
       dailyData[datum].projecten[projectNaam] = (dailyData[datum].projecten[projectNaam] || 0) + uren.uren;

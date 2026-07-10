@@ -9,7 +9,7 @@
 
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAuth, requireAuthUserId, getAuthenticatedUser } from "./auth";
+import { requireAuth, getAuthenticatedUser } from "./auth";
 import { requireNotViewer } from "./roles";
 
 // ============================================

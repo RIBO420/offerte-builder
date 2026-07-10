@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, memo, useMemo } from "react";
+import { useState, memo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import {
-  LineChart,
   Line,
   XAxis,
   YAxis,

@@ -13,10 +13,6 @@ import type {
   GrondwerkFormData,
   BestratingFormData,
   BordersFormData,
-  GrasFormData,
-  HoutwerkFormData,
-  WaterElektraFormData,
-  SpecialsFormData,
 } from "@/lib/validations/aanleg-scopes";
 import { validateData } from "@/lib/validations";
 

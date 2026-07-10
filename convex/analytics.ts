@@ -1,19 +1,10 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
-import { Id } from "./_generated/dataModel";
 import {
   berekenConversionRates,
   berekenPipelineFunnel,
 } from "./lib/pipelineKpis";
-
-// Date filter validator for reuse across queries
-const dateFilterValidator = {
-  startDate: v.optional(v.number()),
-  endDate: v.optional(v.number()),
-  // Period comparison: compare with previous period of same length
-  comparePreviousPeriod: v.optional(v.boolean()),
-};
 
 // Helper to get month key from timestamp
 function getMonthKey(timestamp: number): string {
@@ -62,16 +53,6 @@ function linearRegression(data: { x: number; y: number }[]): { slope: number; in
   return { slope, intercept };
 }
 
-// Helper to get week key from timestamp
-function getWeekKey(timestamp: number): string {
-  const date = new Date(timestamp);
-  const year = date.getFullYear();
-  // Get ISO week number
-  const firstDayOfYear = new Date(year, 0, 1);
-  const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
-  const weekNumber = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
-  return `${year}-W${String(weekNumber).padStart(2, "0")}`;
-}
 
 // Helper to calculate date range for previous period comparison
 function getPreviousPeriodRange(startDate: number, endDate: number): { start: number; end: number } {

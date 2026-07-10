@@ -9,7 +9,7 @@
  */
 
 import { v } from "convex/values";
-import { mutation, query, internalMutation, internalQuery } from "./_generated/server";
+import { query, internalMutation, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { requireAuthUserId } from "./auth";
 

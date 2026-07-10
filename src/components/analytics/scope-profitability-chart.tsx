@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, memo, useMemo } from "react";
-import { m } from "framer-motion";
+import { useState, memo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {

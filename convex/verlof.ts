@@ -262,7 +262,7 @@ export const create = mutation({
     opmerking: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireNotViewer(ctx);
+    await requireNotViewer(ctx);
     const role = await getUserRole(ctx);
 
     // Validate medewerker access

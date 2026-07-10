@@ -1,7 +1,6 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { Id } from "./_generated/dataModel";
-import { requireAuth, getOwnedOfferte } from "./auth";
+import { getOwnedOfferte } from "./auth";
 import { requireNotViewer } from "./roles";
 
 // Get all versions for an offerte

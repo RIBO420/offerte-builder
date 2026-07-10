@@ -7,7 +7,7 @@ import { requireNotViewer } from "./roles";
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    await requireAuthUserId(ctx);
 
     // First get system defaults (userId = undefined)
     const systemDefaults = await ctx.db
@@ -47,7 +47,7 @@ export const getByTypeAndValue = query({
     waarde: v.string(),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    await requireAuthUserId(ctx);
     const user = await getAuthenticatedUser(ctx);
 
     // Try user override first
@@ -83,7 +83,7 @@ export const getByType = query({
     type: v.string(),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    await requireAuthUserId(ctx);
     const systemFactors = await ctx.db
       .query("correctiefactoren")
       .filter((q) =>

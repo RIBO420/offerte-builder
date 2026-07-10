@@ -19,7 +19,6 @@ import {
 } from "@/components/ui/form";
 import { Sprout } from "lucide-react";
 import type { GazonanalyseFormData, ScoreInfo } from "./schema";
-import { SCORE_INFO } from "./schema";
 
 // Score-gradient track
 function ScoreColorBar({ score }: { score: number }) {
@@ -40,7 +39,7 @@ interface ConditieBeoordelingProps {
   scoreInfo: ScoreInfo;
 }
 
-export function ConditieBeoordeling({ form, score, scoreInfo }: ConditieBeoordelingProps) {
+export function ConditieBeoordeling({ form, scoreInfo }: ConditieBeoordelingProps) {
   return (
     <Card>
       <CardHeader className="pb-3">

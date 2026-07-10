@@ -27,7 +27,6 @@ import {
   ExternalLink,
   FolderKanban,
   Timer,
-  Percent,
 } from "lucide-react";
 
 interface ProjectData {
@@ -62,14 +61,6 @@ function formatCurrency(amount: number): string {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount);
-}
-
-function formatDate(timestamp: number): string {
-  return new Intl.DateTimeFormat("nl-NL", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(timestamp));
 }
 
 function getStatusConfig(status: ProjectData["status"]): {
@@ -241,8 +232,6 @@ export const ProjectPrestaties = memo(function ProjectPrestaties({
 }: ProjectPrestatiesProps) {
 
   // Calculate summary statistics
-  const totalBudget = data.reduce((sum, p) => sum + p.budget, 0);
-  const totalWerkelijkeKosten = data.reduce((sum, p) => sum + p.werkelijkeKosten, 0);
   const gemiddeldeWinstmarge = data.length > 0
     ? data.reduce((sum, p) => sum + p.winstmarge, 0) / data.length
     : 0;

@@ -12,7 +12,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { SortConfig } from "@/hooks/use-table-sort";
 
 // Types for responsive table
 export interface ResponsiveColumn<T, SortKey = string> {

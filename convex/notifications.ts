@@ -41,13 +41,6 @@ interface ExpoPushMessage {
   ttl?: number;
 }
 
-interface ExpoPushTicket {
-  status: "ok" | "error";
-  id?: string;
-  message?: string;
-  details?: { error?: string };
-}
-
 // Batch tracking for notification throttling
 const BATCH_WINDOW_MS = 5000; // 5 seconds
 const MAX_NOTIFICATIONS_PER_BATCH = 3;
@@ -555,7 +548,7 @@ export const sendChatNotifications = internalAction({
 
     // Send all notifications in batch
     if (messages.length > 0) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       await ctx.runAction(internal.notifications.sendExpoPushNotification, {
         messages: messages as any,
       });
@@ -697,7 +690,7 @@ export const sendDirectMessageNotification = internalAction({
       },
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     await ctx.runAction(internal.notifications.sendExpoPushNotification, {
       messages: [message] as any,
     });

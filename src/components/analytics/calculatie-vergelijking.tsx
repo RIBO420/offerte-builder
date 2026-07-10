@@ -20,11 +20,9 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
-  Cell,
-  ReferenceLine,
 } from "recharts";
 import { AnimatedNumber } from "@/components/ui/animated-number";
-import { Calculator, TrendingUp, TrendingDown, Target, CheckCircle2, AlertTriangle, Minus } from "lucide-react";
+import { Calculator, TrendingUp, TrendingDown, Target, CheckCircle2, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { formatCurrency } from "@/lib/format";

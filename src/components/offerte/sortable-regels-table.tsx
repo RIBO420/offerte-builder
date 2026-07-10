@@ -229,7 +229,6 @@ function SortableRegelRow({
   onDelete,
   scopeLabels,
   formatCurrency,
-  instellingenMargePercentage,
   editingCell,
   onEditingCellChange,
   onRegelUpdate,

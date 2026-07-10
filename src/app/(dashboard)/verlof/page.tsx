@@ -127,7 +127,7 @@ function VerlofPageContent() {
     selectedMedewerker !== "alle"
       ? (selectedMedewerker as Id<"medewerkers">)
       : undefined;
-  const { aanvragen, pendingCount, isLoading, goedkeuren, afkeuren, remove } =
+  const { aanvragen, isLoading, goedkeuren, afkeuren, remove } =
     useVerlof({
       status: statusFilter,
       medewerkerId: medewerkerFilter,

@@ -4,8 +4,6 @@ import { useState, useCallback, useMemo, Suspense } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useSearchParams } from "next/navigation";
 import { m } from "framer-motion";
-import { useQuery } from "convex/react";
-import { api } from "../../../../convex/_generated/api";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useTabState } from "@/hooks/use-tab-state";
 import { RequireRole } from "@/components/require-admin";
@@ -59,7 +57,6 @@ import { MedewerkerDetailDialog, MedewerkerExtended } from "@/components/medewer
 import { SpecialisatieBadges } from "@/components/medewerkers/skills-selector";
 import { CertificaatBadges, getCertificaatStatus } from "@/components/medewerkers/certificaat-form";
 
-type FilterTab = "alle" | "actief" | "inactief";
 
 // Animation variants
 const containerVariants = {
@@ -129,11 +126,6 @@ function MedewerkersPageContent() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Query for certificate expiry warnings (skip when not authenticated)
-  const certificaatWaarschuwingen = useQuery(
-    api.medewerkers.checkVervaldataCertificaten,
-    user?._id ? { dagenVoorwaarschuwing: 90 } : "skip"
-  );
 
   // Calculate stats
   const stats = useMemo(() => {
@@ -188,7 +180,6 @@ function MedewerkersPageContent() {
 
   // Paginate the filtered results
   const totalCount = filteredMedewerkers.length;
-  const totalPages = Math.ceil(totalCount / limit);
   const displayedMedewerkers = useMemo(() => {
     const startIndex = (page - 1) * limit;
     return filteredMedewerkers.slice(startIndex, startIndex + limit);

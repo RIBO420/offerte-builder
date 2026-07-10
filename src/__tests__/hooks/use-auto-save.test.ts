@@ -253,7 +253,7 @@ describe("useAutoSave", () => {
       () => new Promise((resolve) => setTimeout(resolve, 100))
     );
 
-    const { result, rerender, unmount } = renderHook(
+    const { rerender, unmount } = renderHook(
       ({ data }) => useAutoSave({ data, onSave, debounceMs: 100 }),
       { initialProps: { data: { v: 1 } } }
     );

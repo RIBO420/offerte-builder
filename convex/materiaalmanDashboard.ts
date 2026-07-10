@@ -12,7 +12,6 @@ import { query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const WEEK_MS = 7 * DAY_MS;
 
 export const getMateriaalmanStats = query({
   args: {},

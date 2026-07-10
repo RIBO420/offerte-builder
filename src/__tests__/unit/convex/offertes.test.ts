@@ -1090,7 +1090,7 @@ describe("Accepted offertes without project detection", () => {
         offerteNummer: "OFF-001",
       })
     );
-    const offerteId2 = store.insert(
+    store.insert(
       "offertes",
       createMockOfferte(userId, "k:1", {
         status: "geaccepteerd",

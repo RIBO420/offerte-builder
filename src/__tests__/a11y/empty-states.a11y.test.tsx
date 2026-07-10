@@ -1,5 +1,5 @@
 import { describe, it, vi } from "vitest";
-import { Users, Search, Package, Activity } from "lucide-react";
+import { Users, Search, Package } from "lucide-react";
 import { expectNoA11yViolations } from "../a11y-helpers";
 import { EmptyState } from "@/components/ui/empty-state";
 import {

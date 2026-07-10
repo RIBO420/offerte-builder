@@ -72,7 +72,7 @@ describe("Offerte Status Transitions", () => {
     });
 
     it("does not contain duplicate targets", () => {
-      for (const [status, targets] of Object.entries(validTransitions)) {
+      for (const [, targets] of Object.entries(validTransitions)) {
         const unique = new Set(targets);
         expect(unique.size).toBe(
           targets.length,
