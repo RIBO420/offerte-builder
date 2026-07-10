@@ -8,7 +8,7 @@ import { Loader2 } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { useIsAdmin } from "@/hooks/use-users";
+import { useIsAdmin, useIsKantoor } from "@/hooks/use-users";
 import { useReducedMotion } from "@/hooks/use-accessibility";
 import { Pagination } from "@/components/ui/pagination";
 import {
@@ -122,6 +122,8 @@ function UrenPageContent() {
   const reducedMotion = useReducedMotion();
   const { user, isLoading: isUserLoading } = useCurrentUser();
   const isAdmin = useIsAdmin();
+  // Export is kantoor-functionaliteit (PRD §1.2): directie én projectleider.
+  const isKantoor = useIsKantoor();
 
   // Pagination state
   const [page, setPage] = useState(() => {
@@ -205,10 +207,10 @@ function UrenPageContent() {
     user?._id ? {} : "skip"
   );
 
-  // Export query (admin only)
+  // Export query (kantoor-functionaliteit, PRD §1.2)
   const exportData = useQuery(
     api.export.exportUren,
-    user?._id && isAdmin ? {} : "skip"
+    user?._id && isKantoor ? {} : "skip"
   );
 
   const isLoading = isUserLoading || urenData === undefined || statsData === undefined;
@@ -370,7 +372,7 @@ function UrenPageContent() {
                 : "Bekijk je geregistreerde uren"}
             </p>
           </div>
-          {isAdmin && (
+          {isKantoor && (
             <ExportDropdown
               getData={() => exportData ?? []}
               columns={urenExportColumns}

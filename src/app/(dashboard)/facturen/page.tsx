@@ -41,6 +41,7 @@ import { ScrollableTable } from "@/components/ui/responsive-table";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { useIsKantoor } from "@/hooks/use-users";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FacturenPageSkeleton, Skeleton } from "@/components/ui/skeleton-card";
 import {
@@ -161,7 +162,13 @@ function FacturenPageContent() {
   );
 
   // Export query
-  const exportData = useQuery(api.export.exportFacturen, user?._id ? {} : "skip");
+  // Export is kantoor-functionaliteit (PRD §1.2): de query wordt voor andere
+  // rollen niet aangeroepen (skip) zodat de pagina gewoon laadt.
+  const isKantoor = useIsKantoor();
+  const exportData = useQuery(
+    api.export.exportFacturen,
+    user?._id && isKantoor ? {} : "skip"
+  );
 
   const isLoading = isUserLoading || paginatedData === undefined;
 
@@ -303,13 +310,15 @@ function FacturenPageContent() {
               Overzicht van al je facturen en betalingen
             </p>
           </div>
-          <ExportDropdown
-            getData={() => exportData ?? []}
-            columns={facturenExportColumns}
-            filename="facturen"
-            sheetName="Facturen"
-            disabled={!exportData || exportData.length === 0}
-          />
+          {isKantoor && (
+            <ExportDropdown
+              getData={() => exportData ?? []}
+              columns={facturenExportColumns}
+              filename="facturen"
+              sheetName="Facturen"
+              disabled={!exportData || exportData.length === 0}
+            />
+          )}
         </m.div>
 
         {/* Stats Summary */}

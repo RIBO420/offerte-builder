@@ -14,6 +14,7 @@ import { RequireRole } from "@/components/require-admin";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { useIsKantoor } from "@/hooks/use-users";
 import { toast } from "sonner";
 import {
   defaultFilters,
@@ -110,8 +111,13 @@ function OffertesPageContent() {
     deletePreset,
   } = useFilterPresets<OfferteFilterState>("offertes");
 
-  // Export data query
-  const exportData = useQuery(api.export.exportOffertes);
+  // Export is kantoor-functionaliteit (PRD §1.2): de query wordt voor andere
+  // rollen niet aangeroepen (skip) zodat de pagina gewoon laadt.
+  const isKantoor = useIsKantoor();
+  const exportData = useQuery(
+    api.export.exportOffertes,
+    isKantoor ? {} : "skip"
+  );
 
   const isLoading = !!(isUserLoading || isOffertesLoading);
 
@@ -302,6 +308,7 @@ function OffertesPageContent() {
           onFiltersChange={handleFiltersChange}
           onFiltersReset={handleFiltersReset}
           exportData={exportData}
+          isKantoor={isKantoor}
           presets={presets}
           defaultPresets={defaultPresets}
           userPresets={userPresets}

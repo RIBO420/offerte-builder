@@ -2,9 +2,10 @@
  * Export Queries - Data Export Functions
  *
  * Provides queries for exporting data to CSV/Excel.
- * Export is kantoor-functionaliteit (PRD §1.2): exportProjecten staat open
- * voor kantoor (directie/projectleider); de overige queries zijn nog
- * directie-only. All queries return flat objects suitable for export.
+ * Export is kantoor-functionaliteit (PRD §1.2): alle entiteit-exports staan
+ * open voor kantoor (directie/projectleider) via requireKantoor.
+ * exportMedewerkers blijft directie-only (HR-gegevens, AVG).
+ * All queries return flat objects suitable for export.
  */
 
 import { v } from "convex/values";
@@ -49,12 +50,13 @@ const factuurStatusLabels: Record<string, string> = {
 // ============================================
 
 /**
- * Export all offertes with klant names, formatted for export
+ * Export all offertes with klant names, formatted for export.
+ * Kantoor-functionaliteit (PRD §1.2): toegankelijk via requireKantoor.
  */
 export const exportOffertes = query({
   args: {},
   handler: async (ctx) => {
-    const user = await requireAdmin(ctx);
+    const user = await requireKantoor(ctx);
 
     const offertes = await ctx.db
       .query("offertes")
@@ -92,12 +94,13 @@ export const exportOffertes = query({
 });
 
 /**
- * Export all klanten
+ * Export all klanten.
+ * Kantoor-functionaliteit (PRD §1.2): toegankelijk via requireKantoor.
  */
 export const exportKlanten = query({
   args: {},
   handler: async (ctx) => {
-    const user = await requireAdmin(ctx);
+    const user = await requireKantoor(ctx);
 
     const klanten = await ctx.db
       .query("klanten")
@@ -219,12 +222,13 @@ export const exportProjecten = query({
 });
 
 /**
- * Export all facturen
+ * Export all facturen.
+ * Kantoor-functionaliteit (PRD §1.2): toegankelijk via requireKantoor.
  */
 export const exportFacturen = query({
   args: {},
   handler: async (ctx) => {
-    const user = await requireAdmin(ctx);
+    const user = await requireKantoor(ctx);
 
     const facturen = await ctx.db
       .query("facturen")
@@ -255,7 +259,8 @@ export const exportFacturen = query({
 });
 
 /**
- * Export all urenregistraties with medewerker names
+ * Export all urenregistraties with medewerker names.
+ * Kantoor-functionaliteit (PRD §1.2): toegankelijk via requireKantoor.
  */
 export const exportUren = query({
   args: {
@@ -263,7 +268,7 @@ export const exportUren = query({
     endDate: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireAdmin(ctx);
+    const user = await requireKantoor(ctx);
 
     // Get all projects for this user
     const projecten = await ctx.db

@@ -1,11 +1,15 @@
 /**
  * Rollen-test voor export-queries (fase 0, PRD §1.2).
  *
- * Export is kantoor-functionaliteit: exportProjecten moet toegankelijk zijn
- * voor kantoor (directie én projectleider) en met een AuthError weigeren
- * voor alle andere rollen. Dit dekt de pre-existente bug waarbij /projecten
- * crashte voor niet-admin-rollen omdat de pagina een directie-only
- * export-query aanriep (requireAdmin i.p.v. requireKantoor).
+ * Export is kantoor-functionaliteit: alle entiteit-exports (offertes,
+ * klanten, projecten, facturen, uren) moeten toegankelijk zijn voor kantoor
+ * (directie én projectleider) en met een AuthError weigeren voor alle andere
+ * rollen. Dit dekt de pre-existente bug waarbij lijstpagina's crashten voor
+ * niet-admin-rollen omdat ze een directie-only export-query aanriepen
+ * (requireAdmin i.p.v. requireKantoor).
+ *
+ * Uitzondering: exportMedewerkers blijft bewust directie-only (HR-gegevens,
+ * AVG) — ook dat gedrag is hier vastgelegd.
  */
 
 import { describe, it, expect } from "vitest";
@@ -16,17 +20,38 @@ import {
   createMockProject,
 } from "../../helpers/convex-mock";
 import type { QueryCtx } from "../../../../convex/_generated/server";
-import { exportProjecten } from "../../../../convex/export";
+import {
+  exportOffertes,
+  exportKlanten,
+  exportProjecten,
+  exportFacturen,
+  exportUren,
+  exportMedewerkers,
+} from "../../../../convex/export";
 import { AuthError } from "../../../../convex/auth";
 import type { UserRole } from "../../../../convex/roles";
 
 // Convex registreert de handler op de functie zelf (func._handler);
 // zo testen we de echte query-implementatie tegen de mock-ctx.
-const exportProjectenHandler = (
-  exportProjecten as unknown as {
-    _handler: (ctx: QueryCtx, args: Record<string, never>) => Promise<unknown>;
-  }
-)._handler;
+type ExportHandler = (
+  ctx: QueryCtx,
+  args: Record<string, unknown>
+) => Promise<unknown>;
+
+function handlerVan(fn: unknown): ExportHandler {
+  return (fn as { _handler: ExportHandler })._handler;
+}
+
+const exportProjectenHandler = handlerVan(exportProjecten);
+
+/** Alle entiteit-exports die voor kantoor open moeten staan (PRD §1.2). */
+const KANTOOR_EXPORTS: Array<{ naam: string; handler: ExportHandler }> = [
+  { naam: "exportOffertes", handler: handlerVan(exportOffertes) },
+  { naam: "exportKlanten", handler: handlerVan(exportKlanten) },
+  { naam: "exportProjecten", handler: exportProjectenHandler },
+  { naam: "exportFacturen", handler: handlerVan(exportFacturen) },
+  { naam: "exportUren", handler: handlerVan(exportUren) },
+];
 
 /** Maakt een ctx waarin precies één user is ingelogd met de gegeven rol. */
 function ctxMetRol(role: string): { ctx: QueryCtx; store: MockConvexStore } {
@@ -114,5 +139,44 @@ describe("exportProjecten — kantoor-functionaliteit (PRD §1.2)", () => {
   it("staat legacy rol \"admin\" (→ directie → kantoor) toe", async () => {
     const { ctx } = ctxMetRol("admin");
     await expect(exportProjectenHandler(ctx, {})).resolves.toEqual([]);
+  });
+});
+
+describe("alle entiteit-exports — kantoor-functionaliteit (PRD §1.2)", () => {
+  for (const { naam, handler } of KANTOOR_EXPORTS) {
+    describe(naam, () => {
+      for (const rol of KANTOOR_ROLLEN) {
+        it(`staat rol "${rol}" toe`, async () => {
+          const { ctx } = ctxMetRol(rol);
+          await expect(handler(ctx, {})).resolves.toEqual([]);
+        });
+      }
+
+      for (const rol of NIET_KANTOOR_ROLLEN) {
+        it(`weigert rol "${rol}"`, async () => {
+          const { ctx } = ctxMetRol(rol);
+          await expect(handler(ctx, {})).rejects.toThrow(AuthError);
+        });
+      }
+
+      it('weigert legacy rol "viewer"', async () => {
+        const { ctx } = ctxMetRol("viewer");
+        await expect(handler(ctx, {})).rejects.toThrow(AuthError);
+      });
+    });
+  }
+});
+
+describe("exportMedewerkers — bewust directie-only (HR-gegevens, AVG)", () => {
+  const handler = handlerVan(exportMedewerkers);
+
+  it('staat rol "directie" toe', async () => {
+    const { ctx } = ctxMetRol("directie");
+    await expect(handler(ctx, {})).resolves.toEqual([]);
+  });
+
+  it('weigert rol "projectleider" (kantoor, maar geen directie)', async () => {
+    const { ctx } = ctxMetRol("projectleider");
+    await expect(handler(ctx, {})).rejects.toThrow(AuthError);
   });
 });

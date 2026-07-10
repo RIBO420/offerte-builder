@@ -29,8 +29,9 @@ interface OfferteToolbarProps {
   filters: OfferteFilters;
   onFiltersChange: (filters: OfferteFilters) => void;
   onFiltersReset: () => void;
-  // Export
+  // Export (kantoor-functionaliteit, PRD §1.2)
   exportData: Record<string, unknown>[] | undefined;
+  isKantoor: boolean;
   // Presets
   presets: FilterPreset<OfferteFilterState>[];
   defaultPresets: FilterPreset<OfferteFilterState>[];
@@ -50,6 +51,7 @@ export function OfferteToolbar({
   onFiltersChange,
   onFiltersReset,
   exportData,
+  isKantoor,
   presets,
   defaultPresets,
   userPresets,
@@ -129,13 +131,15 @@ export function OfferteToolbar({
             />
           </div>
           <div className="flex items-center gap-2">
-            <ExportDropdown
-              getData={() => exportData ?? []}
-              columns={offerteExportColumns}
-              filename="offertes"
-              sheetName="Offertes"
-              disabled={!exportData || exportData.length === 0}
-            />
+            {isKantoor && (
+              <ExportDropdown
+                getData={() => exportData ?? []}
+                columns={offerteExportColumns}
+                filename="offertes"
+                sheetName="Offertes"
+                disabled={!exportData || exportData.length === 0}
+              />
+            )}
             <FilterPresetSelector<OfferteFilterState>
               presets={presets}
               defaultPresets={defaultPresets}

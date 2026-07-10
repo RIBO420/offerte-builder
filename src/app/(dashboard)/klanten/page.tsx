@@ -91,6 +91,7 @@ import {
   type KlantParseResult,
 } from "@/lib/klant-import-parser";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { useIsKantoor } from "@/hooks/use-users";
 import {
   ExportDropdown,
   klantenExportColumns,
@@ -175,7 +176,13 @@ function KlantenPageContent() {
   const { results: searchResults } = useKlantenSearch(debouncedSearchTerm);
 
   // Export data query
-  const exportData = useQuery(api.export.exportKlanten, user?._id ? {} : "skip");
+  // Export is kantoor-functionaliteit (PRD §1.2): de query wordt voor andere
+  // rollen niet aangeroepen (skip) zodat de pagina gewoon laadt.
+  const isKantoor = useIsKantoor();
+  const exportData = useQuery(
+    api.export.exportKlanten,
+    user?._id && isKantoor ? {} : "skip"
+  );
 
   // CRM-005: Klanten met opvolgherinneringen
   const klantIdsMetHerinnering = useQuery(
@@ -986,13 +993,15 @@ function KlantenPageContent() {
       <div className="flex items-center justify-between">
         <div />
         <div className="flex items-center gap-2">
-          <ExportDropdown
-            getData={() => exportData ?? []}
-            columns={klantenExportColumns}
-            filename="klanten"
-            sheetName="Klanten"
-            disabled={!exportData || exportData.length === 0}
-          />
+          {isKantoor && (
+            <ExportDropdown
+              getData={() => exportData ?? []}
+              columns={klantenExportColumns}
+              filename="klanten"
+              sheetName="Klanten"
+              disabled={!exportData || exportData.length === 0}
+            />
+          )}
           <Button variant="outline" onClick={() => setShowImportDialog(true)}>
             <Upload className="mr-2 h-4 w-4" />
             Importeren
