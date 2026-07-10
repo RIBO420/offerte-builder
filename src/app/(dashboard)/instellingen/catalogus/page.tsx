@@ -65,6 +65,7 @@ import {
   type BouwsteenSubmitData,
 } from "@/components/catalogus/bouwsteen-form";
 import { UurtariefBeheer } from "@/components/catalogus/uurtarief-beheer";
+import { NormuurSuggesties } from "@/components/catalogus/normuur-suggesties";
 
 interface Bouwsteen extends BouwsteenFormInitial {
   _id: Id<"bouwstenen">;
@@ -230,6 +231,10 @@ export default function CatalogusPage() {
           historie={tariefHistorie}
           onNieuwTarief={handleNieuwTarief}
         />
+
+        {/* Nacalculatie-loop (§3.4): suggestie-blok per bouwsteen zodra er
+            voldoende echte urendata is — de mens beslist */}
+        <NormuurSuggesties />
 
         {isLoading ? (
           <div className="flex items-center justify-center p-12">

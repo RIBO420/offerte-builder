@@ -18,6 +18,8 @@ import type * as backfillKlantIds from "../backfillKlantIds.js";
 import type * as berekeningen from "../berekeningen.js";
 import type * as betalingen from "../betalingen.js";
 import type * as betalingsherinneringen from "../betalingsherinneringen.js";
+import type * as beurtNacalculatie from "../beurtNacalculatie.js";
+import type * as beurtNacalculatieLogica from "../beurtNacalculatieLogica.js";
 import type * as beurtgenerator from "../beurtgenerator.js";
 import type * as boekhouding from "../boekhouding.js";
 import type * as bouwstenen from "../bouwstenen.js";
@@ -147,6 +149,8 @@ declare const fullApi: ApiFromModules<{
   berekeningen: typeof berekeningen;
   betalingen: typeof betalingen;
   betalingsherinneringen: typeof betalingsherinneringen;
+  beurtNacalculatie: typeof beurtNacalculatie;
+  beurtNacalculatieLogica: typeof beurtNacalculatieLogica;
   beurtgenerator: typeof beurtgenerator;
   boekhouding: typeof boekhouding;
   bouwstenen: typeof bouwstenen;

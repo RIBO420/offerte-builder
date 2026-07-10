@@ -30,6 +30,8 @@ import {
   DynamicFinancieelOverzicht as FinancieelOverzicht,
 } from "@/components/analytics";
 import type { DateRangePreset } from "@/components/analytics";
+import { BeurtNacalculatie } from "@/components/analytics/beurt-nacalculatie";
+import { NormuurSuggesties } from "@/components/catalogus/normuur-suggesties";
 
 // Dynamic import for excel export (exceljs)
 const exportAnalyticsReport = async (
@@ -354,6 +356,11 @@ function RapportagesPageContent() {
                             accuracyScore={78}
                             previousAccuracyScore={comparisonEnabled ? 72 : undefined}
                           />
+                          {/* Nacalculatie-loop onderhoudsbeurten (PRD §3.4):
+                              echte urendata + normuur-suggesties — zelfde
+                              patroon als het catalogusbeheer */}
+                          <NormuurSuggesties />
+                          <BeurtNacalculatie />
                         </TabsContent>
                       </m.div>
                     )}

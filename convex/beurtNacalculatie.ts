@@ -26,7 +26,6 @@ import {
   bepaalNormuurSuggestie,
   DEFAULT_SUGGESTIE_DREMPEL_BEURTEN,
   huidigeNormVoorBouwsteen,
-  isGeldigeSuggestieDrempel,
   NACALC_BEURT_STATUSSEN,
   NACALC_VOLLEDIGE_STATUSSEN,
   normuurVeldVoorBouwsteen,
