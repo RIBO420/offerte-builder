@@ -7,6 +7,14 @@
  * bus, voertuigUitrusting). §8.5: standaardbus heeft alles behalve grasmaaier
  * → checklist toont alleen "grasmaaier". Afvinken wordt gelogd (wie/wanneer)
  * in materiaalChecks; daarna pas door naar Maps (gewone URL, geen API).
+ *
+ * BUS-KETEN (PRD §3.3, fase 2 — lost de fase 1-aanname
+ * "toegewezenVoertuigen[0]" op). De bus voor werkitem + dag is, in volgorde:
+ *   1. expliciete voertuigId in de aanroep (gebruiker kiest zelf);
+ *   2. dag-override van het team (teamBusOverrides, team + datum);
+ *   3. vaste standaardbus van het team (teams.standaardVoertuigId);
+ *   4. vangnet = fase 1-gedrag: werkitem.toegewezenVoertuigen[0].
+ * Stappen 2–4: bepaalEffectieveBus in convex/machineparkLogica.ts (puur).
  */
 
 import { v, ConvexError } from "convex/values";
@@ -24,6 +32,7 @@ import {
   normaliseerItemNaam,
   type DeltaItem,
 } from "./veldLogica";
+import { bepaalEffectieveBus, type BusBron } from "./machineparkLogica";
 
 const DATUM_PATROON = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -38,10 +47,10 @@ async function veldToegang(ctx: Parameters<typeof requireAuth>[0]) {
 }
 
 /**
- * Delta-checklist voor één werkitem + bus. Zonder expliciete voertuigId wordt
- * het eerst toegewezen voertuig van het werkitem gebruikt; zonder bus is er
- * geen inventaris en is de delta = alle benodigdheden (fail-closed: liever
- * te veel op de checklist dan te weinig in de bus).
+ * Delta-checklist voor één werkitem + bus. Zonder expliciete voertuigId
+ * geldt de bus-keten hierboven (dag-override → standaardbus → fallback);
+ * zonder bus is er geen inventaris en is de delta = alle benodigdheden
+ * (fail-closed: liever te veel op de checklist dan te weinig in de bus).
  */
 export const getDeltaChecklist = query({
   args: {
@@ -97,9 +106,39 @@ export const getDeltaChecklist = query({
       }
     }
 
+    // Bus-keten (§3.3): expliciet → dag-override → standaardbus → fallback
+    let dagOverrideVoertuigId: Id<"voertuigen"> | null = null;
+    let teamStandaardVoertuigId: Id<"voertuigen"> | null = null;
+    if (werkitem.teamId) {
+      const overrides = await ctx.db
+        .query("teamBusOverrides")
+        .withIndex("by_team_datum", (q) =>
+          q.eq("teamId", werkitem.teamId!).eq("datum", args.datum)
+        )
+        .collect();
+      dagOverrideVoertuigId =
+        overrides.find(
+          (o) => o.userId.toString() === companyUserId.toString()
+        )?.voertuigId ?? null;
+      const team = await ctx.db.get(werkitem.teamId);
+      teamStandaardVoertuigId = team?.standaardVoertuigId ?? null;
+    }
+    let busBron: BusBron | "expliciet" | null;
+    let voertuigId: Id<"voertuigen"> | null;
+    if (args.voertuigId) {
+      voertuigId = args.voertuigId;
+      busBron = "expliciet";
+    } else {
+      const keten = bepaalEffectieveBus({
+        dagOverrideVoertuigId,
+        teamStandaardVoertuigId,
+        toegewezenVoertuigen: werkitem.toegewezenVoertuigen,
+      });
+      voertuigId = keten.voertuigId;
+      busBron = keten.bron;
+    }
+
     // Standaardinventaris van de bus (voertuigUitrusting, status "aanwezig")
-    const voertuigId =
-      args.voertuigId ?? werkitem.toegewezenVoertuigen?.[0] ?? null;
     let voertuig: Doc<"voertuigen"> | null = null;
     let inventarisNamen: string[] = [];
     if (voertuigId) {
@@ -161,6 +200,9 @@ export const getDeltaChecklist = query({
       voertuig: voertuig
         ? { _id: voertuig._id, kenteken: voertuig.kenteken, merk: voertuig.merk }
         : null,
+      // Herkomst van de bus-keuze (§3.3): expliciet | dag_override |
+      // team_standaard | werkitem_fallback | null (geen bus)
+      busBron,
       benodigd,
       delta: deltaMetStatus,
       allesAfgevinkt: deltaMetStatus.every((d) => d.afgevinkt),

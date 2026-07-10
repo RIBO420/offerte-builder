@@ -33,26 +33,18 @@ import {
   vensterOpeningVoorDatum,
 } from "./losseBeurten";
 import { vandaagIso } from "./beurtgenerator";
+import { addDagen, dagenTussen, termijnBereikt } from "./vervalLogica";
 
 // ============================================
 // Pure helpers (unit-testbaar zonder ctx)
 // ============================================
 
-const DAG_MS = 24 * 60 * 60 * 1000;
-
-/** ISO-datum + n dagen (n mag negatief zijn). */
-export function addDagen(datum: string, dagen: number): string {
-  return new Date(Date.parse(`${datum}T00:00:00Z`) + dagen * DAG_MS)
-    .toISOString()
-    .slice(0, 10);
-}
-
-/** Hele dagen van `van` tot `tot` (negatief als `tot` in het verleden ligt). */
-export function dagenTussen(van: string, tot: string): number {
-  return Math.round(
-    (Date.parse(`${tot}T00:00:00Z`) - Date.parse(`${van}T00:00:00Z`)) / DAG_MS
-  );
-}
+// Gedeelde engine-kern (PRD §3.3): de datumhelpers en het termijn-criterium
+// leven sinds fase 2 stap 3 in vervalLogica.ts — de generieke familie
+// "item + datum + termijn + ontvanger → idempotente bord-taak" waar deze
+// attendering, de debiteurenladder en de vervallogica alle drie op draaien.
+// Her-export houdt bestaande importeurs (tests, planbord) werkend.
+export { addDagen, dagenTussen };
 
 /** Idempotentiesleutel van de plantaak voor één beurt-occurrence. */
 export function maakAttenderingSleutel(
@@ -103,7 +95,11 @@ export function attenderingVandaagNodig(
   );
   const dagenVooraf =
     beurt.attenderingDagenVooraf ?? DEFAULT_ATTENDERING_DAGEN;
-  if (vandaag < addDagen(opening, -dagenVooraf)) return null;
+  // Generiek engine-criterium (vervalLogica.termijnBereikt): doeldatum −
+  // termijnDagen ≤ vandaag — zelfde kern als de vervallogica-cron (§3.3).
+  if (!termijnBereikt({ doeldatum: opening, termijnDagen: dagenVooraf }, vandaag)) {
+    return null;
+  }
   return { vensterOpening: opening };
 }
 

@@ -370,8 +370,9 @@ export function MeldingDetailModal({
             </div>
 
             {/* Klantthread (§3.1) — STRIKT gescheiden van de interne
-                case-thread hierboven; visueel onmiskenbaar anders */}
-            {melding && (
+                case-thread hierboven; visueel onmiskenbaar anders.
+                Onderhoudstaken (§3.3) hebben geen klant → geen klantthread */}
+            {melding && melding.klantId && (
               <div className="space-y-2">
                 <Label>Klantgesprek</Label>
                 <KlantThreadPaneel

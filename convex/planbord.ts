@@ -24,6 +24,7 @@ import { requireAuthUserId } from "./auth";
 import { requireKantoor } from "./roles";
 import { beschikbaarheidsVensterValidator } from "./validators";
 import {
+  addDagen,
   berekenDuplicaatPlanning,
   effectievePlanvoorkeuren,
   isRelevantVoorWachtrij,
@@ -33,6 +34,13 @@ import {
   valideerSplitsDelen,
   werkitemOpDag,
 } from "./planbordLogica";
+import {
+  berekenMaterieelWaarschuwingen,
+  machineStatusNaarMiddelStatus,
+  maakMiddelSleutel,
+  voertuigStatusNaarMiddelStatus,
+  type MiddelStatus,
+} from "./machineparkLogica";
 import { getType, seizoensvensterVoorWerkitem, type WerkItem } from "./werkitems";
 
 // ============================================
@@ -41,8 +49,10 @@ import { getType, seizoensvensterVoorWerkitem, type WerkItem } from "./werkitems
 
 /**
  * Bordcontext voor een datumrange: teams (rijen), bemanning per team-dag
- * (default = vaste leden, override via teamBemanning), afwezigheidsblokken
- * en een naam-map van medewerkers. Leesbaar voor alle stafrollen.
+ * (default = vaste leden, override via teamBemanning), afwezigheidsblokken,
+ * een naam-map van medewerkers en materieel-waarschuwingen (PRD §3.3:
+ * kapotte bus/machine op gekoppelde team-dagen + dubbel geclaimd schaars
+ * materieel). Leesbaar voor alle stafrollen.
  */
 export const getBordContext = query({
   args: {
@@ -52,7 +62,16 @@ export const getBordContext = query({
   handler: async (ctx, args) => {
     const userId = await requireAuthUserId(ctx);
 
-    const [teams, bemanningRijen, blokken, medewerkers] = await Promise.all([
+    const [
+      teams,
+      bemanningRijen,
+      blokken,
+      medewerkers,
+      busOverrides,
+      reserveringen,
+      voertuigen,
+      machines,
+    ] = await Promise.all([
       ctx.db
         .query("teams")
         .withIndex("by_user_actief", (q) =>
@@ -75,16 +94,96 @@ export const getBordContext = query({
         .query("medewerkers")
         .withIndex("by_user", (q) => q.eq("userId", userId))
         .collect(),
+      ctx.db
+        .query("teamBusOverrides")
+        .withIndex("by_user_datum", (q) =>
+          q.eq("userId", userId).gte("datum", args.start).lte("datum", args.eind)
+        )
+        .collect(),
+      ctx.db
+        .query("middelReserveringen")
+        .withIndex("by_user_datum", (q) =>
+          q.eq("userId", userId).gte("datum", args.start).lte("datum", args.eind)
+        )
+        .collect(),
+      ctx.db
+        .query("voertuigen")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .collect(),
+      ctx.db
+        .query("machines")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .collect(),
     ]);
 
     const medewerkerNamen: Record<string, string> = {};
     for (const m of medewerkers) medewerkerNamen[m._id] = m.naam;
+
+    // — Materieel-waarschuwingen (§3.3): kapot + dubbel geclaimd —
+    const datums: string[] = [];
+    for (
+      let d = args.start;
+      d <= args.eind && datums.length < 62;
+      d = addDagen(d, 1)
+    ) {
+      datums.push(d);
+    }
+    const middelen = new Map<
+      string,
+      { naam: string; status: MiddelStatus }
+    >();
+    for (const vt of voertuigen) {
+      middelen.set(maakMiddelSleutel("voertuig", vt._id.toString()), {
+        naam: `${vt.merk} ${vt.model} (${vt.kenteken})`,
+        status: voertuigStatusNaarMiddelStatus(vt.status),
+      });
+    }
+    for (const m of machines) {
+      middelen.set(maakMiddelSleutel("machine", m._id.toString()), {
+        naam: m.naam,
+        status: machineStatusNaarMiddelStatus(m.status, m.isActief),
+      });
+    }
+    const werkitemCache = new Map<string, Doc<"projecten"> | null>();
+    const reserveringenVerrijkt = [];
+    for (const r of reserveringen) {
+      const key = r.werkitemId.toString();
+      if (!werkitemCache.has(key)) {
+        werkitemCache.set(key, await ctx.db.get(r.werkitemId));
+      }
+      const werkitem = werkitemCache.get(key) ?? null;
+      if (!werkitem || werkitem.deletedAt) continue;
+      reserveringenVerrijkt.push({
+        middelSleutel: r.middelSleutel,
+        datum: r.datum,
+        werkitemId: key,
+        teamId: werkitem.teamId?.toString() ?? null,
+        werkitemNaam: werkitem.naam,
+      });
+    }
+    const materieelWaarschuwingen = berekenMaterieelWaarschuwingen({
+      datums,
+      teams: teams.map((t) => ({
+        teamId: t._id.toString(),
+        naam: t.naam,
+        standaardVoertuigId: t.standaardVoertuigId?.toString() ?? null,
+      })),
+      busOverrides: busOverrides.map((o) => ({
+        teamId: o.teamId.toString(),
+        datum: o.datum,
+        voertuigId: o.voertuigId.toString(),
+      })),
+      middelen,
+      reserveringen: reserveringenVerrijkt,
+    });
 
     return {
       teams: teams.map((t) => ({
         _id: t._id,
         naam: t.naam,
         leden: t.leden,
+        kleur: t.kleur ?? null,
+        standaardVoertuigId: t.standaardVoertuigId ?? null,
       })),
       // Alleen afwijkende bemanning; default = teams.leden (client combineert
       // via bemanningVoorDag uit planbordLogica)
@@ -97,6 +196,7 @@ export const getBordContext = query({
         overlaptPeriode(b.startDatum, b.eindDatum, args.start, args.eind)
       ),
       medewerkerNamen,
+      materieelWaarschuwingen,
     };
   },
 });

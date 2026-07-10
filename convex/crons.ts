@@ -90,6 +90,26 @@ crons.daily(
 );
 
 /**
+ * Vervallogica-engine (PRD §3.3, fase 2)
+ *
+ * Draait elke ochtend om 05:15 UTC (na de planningsattendering — zelfde
+ * engine-familie: item + datum + termijn + ontvanger → idempotente
+ * bord-taak; gedeelde kern in convex/vervalLogica.ts). Actieve vervalitems
+ * (APK/keuring/certificaat/verzekering) waarvan de waarschuwtermijn is
+ * bereikt krijgen een onderhoudstaak (taaksoort "onderhoudstaak") op het
+ * §2.4-cases-bord, gericht aan de ingestelde ontvanger (rol of specifieke
+ * gebruiker). Idempotent via attenderingSleutel `verval:{id}:{vervaldatum}`.
+ *
+ * Deze job is puur database-werk en verstuurt NOOIT e-mail; vervalitems
+ * zijn niet klant-gebonden, dus ook geen klanttijdlijn-logging.
+ */
+crons.daily(
+  "vervalitems verwerken",
+  { hourUTC: 5, minuteUTC: 15 }, // 05:15 UTC (06:15 CET / 07:15 CEST)
+  internal.vervalItems.genereerVervalTaken
+);
+
+/**
  * Concept-mails: vertraagde trigger-mails klaarzetten (PRD §2.7)
  *
  * Draait elke ochtend om 06:00 UTC. Geplande (vertraagde) trigger-mails
