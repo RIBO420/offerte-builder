@@ -43,6 +43,10 @@ export function AnimatedNumber({
     targetValue.value = value;
     animatedProgress.value = 0;
     animatedProgress.value = withTiming(1, { duration });
+    // Bewust alleen value/duration: displayValue is hier de startwaarde van de
+    // animatie en wordt dóór de animatie zelf bijgewerkt — als dep zou het effect
+    // in een lus telkens opnieuw starten. De shared values zijn stabiel.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, duration]);
 
   // Ensure minimumFractionDigits doesn't exceed maximumFractionDigits

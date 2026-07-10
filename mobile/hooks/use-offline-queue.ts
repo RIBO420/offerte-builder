@@ -186,24 +186,6 @@ export function useOfflineQueue(): UseOfflineQueueReturn {
   }, []);
 
   // ----------------------------------------
-  // Automatische sync bij netwerkherstel
-  // ----------------------------------------
-  useEffect(() => {
-    const afmelden = NetInfo.addEventListener((staat) => {
-      const isOnline = staat.isConnected === true && staat.isInternetReachable !== false;
-      if (isOnline) {
-        // Wacht kort om het netwerk te laten stabiliseren
-        setTimeout(() => {
-          syncAllIntern();
-        }, 2000);
-      }
-    });
-
-    return () => afmelden();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // ----------------------------------------
   // Interne helpers met queue-toegang
   // ----------------------------------------
 
@@ -307,6 +289,26 @@ export function useOfflineQueue(): UseOfflineQueueReturn {
       setIsSyncing(false);
     }
   }, []);
+
+  // ----------------------------------------
+  // Automatische sync bij netwerkherstel
+  // ----------------------------------------
+  // Staat ná syncAllIntern (access-before-declaration was een compiler-error);
+  // syncAllIntern is een stabiele useCallback, dus dit effect draait nog steeds
+  // exact één keer bij mount — gedrag ongewijzigd.
+  useEffect(() => {
+    const afmelden = NetInfo.addEventListener((staat) => {
+      const isOnline = staat.isConnected === true && staat.isInternetReachable !== false;
+      if (isOnline) {
+        // Wacht kort om het netwerk te laten stabiliseren
+        setTimeout(() => {
+          syncAllIntern();
+        }, 2000);
+      }
+    });
+
+    return () => afmelden();
+  }, [syncAllIntern]);
 
   // ----------------------------------------
   // Publieke API

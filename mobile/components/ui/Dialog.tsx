@@ -1,4 +1,4 @@
-import React, { ReactNode, useEffect, useRef, createContext, useContext } from 'react';
+import React, { ReactNode, useEffect, useMemo, createContext, useContext } from 'react';
 import {
   View,
   Text,
@@ -53,10 +53,10 @@ export function Dialog({
   closeOnBackdropPress = true,
   animationDuration = 200,
 }: DialogProps) {
-  // eslint-disable-next-line react-hooks/refs -- RN Animated.Value refs are stable and safe to access during render
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  // eslint-disable-next-line react-hooks/refs -- RN Animated.Value refs are stable and safe to access during render
-  const scaleAnim = useRef(new Animated.Value(0.9)).current;
+  // useMemo i.p.v. useRef(...).current: zelfde stabiele Animated.Value-instantie,
+  // maar zonder ref-toegang tijdens render (react-hooks/refs).
+  const fadeAnim = useMemo(() => new Animated.Value(0), []);
+  const scaleAnim = useMemo(() => new Animated.Value(0.9), []);
 
   useEffect(() => {
     if (visible) {

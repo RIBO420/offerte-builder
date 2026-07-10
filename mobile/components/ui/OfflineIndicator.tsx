@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, Animated, Pressable, ActivityIndicator } from 'react-native';
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 import { Feather } from '@expo/vector-icons';
@@ -25,8 +25,9 @@ function formatTime(timestamp: number | null): string | null {
 
 export function OfflineIndicator({ showWhenOnline = false }: OfflineIndicatorProps) {
   const [isConnected, setIsConnected] = useState<boolean | null>(true);
-  // eslint-disable-next-line react-hooks/refs -- RN Animated.Value refs are stable and safe to access during render
-  const slideAnim = useRef(new Animated.Value(-100)).current;
+  // useMemo i.p.v. useRef(...).current: zelfde stabiele Animated.Value,
+  // maar zonder ref-toegang tijdens render (react-hooks/refs).
+  const slideAnim = useMemo(() => new Animated.Value(-100), []);
 
   // Use the sync engine for pending count, last sync time, and force sync
   const {
@@ -51,7 +52,8 @@ export function OfflineIndicator({ showWhenOnline = false }: OfflineIndicatorPro
       toValue: shouldShow ? 0 : -100,
       useNativeDriver: true,
     }).start();
-  }, [isConnected, showWhenOnline]);
+    // slideAnim is een stabiele useMemo-waarde; opnemen is gedragsneutraal.
+  }, [isConnected, showWhenOnline, slideAnim]);
 
   const handleRetry = useCallback(async () => {
     try {

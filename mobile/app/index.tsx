@@ -18,20 +18,21 @@ export default function Index() {
   const isSignedIn = AUTH_CONFIGURED ? clerkAuth.isSignedIn : false;
 
   useEffect(() => {
+    // Functie in het effect zelf: voorkomt access-before-declaration
+    // (react-hooks/immutability) zonder gedragswijziging — draait eenmalig bij mount.
+    const checkBiometricStatus = async () => {
+      try {
+        const enabled = await isBiometricEnabled();
+        const userId = await getBiometricUserId();
+        setHasBiometric(enabled && !!userId);
+      } catch (error) {
+        console.error('[Index] Biometric check error:', error);
+      } finally {
+        setCheckingBiometric(false);
+      }
+    };
     checkBiometricStatus();
   }, []);
-
-  const checkBiometricStatus = async () => {
-    try {
-      const enabled = await isBiometricEnabled();
-      const userId = await getBiometricUserId();
-      setHasBiometric(enabled && !!userId);
-    } catch (error) {
-      console.error('[Index] Biometric check error:', error);
-    } finally {
-      setCheckingBiometric(false);
-    }
-  };
 
   // Toon loading indicator terwijl auth status wordt geladen
   if (!isLoaded || checkingBiometric) {

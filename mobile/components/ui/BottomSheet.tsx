@@ -37,7 +37,8 @@ export function BottomSheet({
       translateY.value = withSpring(SCREEN_HEIGHT, springConfigs.default);
       backdropOpacity.value = withTiming(0, { duration: 200 });
     }
-  }, [isOpen]);
+    // Shared values zijn stabiele referenties; opnemen in deps is gedragsneutraal.
+  }, [isOpen, translateY, backdropOpacity]);
 
   const handleClose = () => {
     onClose();
@@ -46,12 +47,18 @@ export function BottomSheet({
   const panGesture = Gesture.Pan()
     .onUpdate((event) => {
       if (event.translationY > 0) {
+        // Reanimated shared value-mutatie in een gesture-worklet (UI-thread) is
+        // het canonieke reanimated-patroon; de regel kent shared values niet.
+        // eslint-disable-next-line react-hooks/immutability
         translateY.value = event.translationY;
       }
     })
     .onEnd((event) => {
       if (event.translationY > DISMISS_THRESHOLD) {
+        // Zie boven: shared value-mutatie in gesture-worklet is by design.
+        // eslint-disable-next-line react-hooks/immutability
         translateY.value = withSpring(SCREEN_HEIGHT, springConfigs.default);
+        // eslint-disable-next-line react-hooks/immutability
         backdropOpacity.value = withTiming(0, { duration: 200 }, () => {
           runOnJS(handleClose)();
         });

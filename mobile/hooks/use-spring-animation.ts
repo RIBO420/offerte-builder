@@ -19,13 +19,15 @@ export function usePressAnimation(config: SpringConfig = 'default') {
     if (reduced) return;
     // eslint-disable-next-line react-hooks/immutability -- Reanimated shared values are mutable by design
     scale.value = withSpring(0.96, springConfigs[config]);
-  }, [config, reduced]);
+    // scale is een stabiele shared value; opnemen is gedragsneutraal.
+  }, [config, reduced, scale]);
 
   const onPressOut = useCallback(() => {
     if (reduced) return;
     // eslint-disable-next-line react-hooks/immutability -- Reanimated shared values are mutable by design
     scale.value = withSpring(1, springConfigs[config]);
-  }, [config, reduced]);
+    // scale is een stabiele shared value; opnemen is gedragsneutraal.
+  }, [config, reduced, scale]);
 
   return { animatedStyle, onPressIn, onPressOut };
 }
@@ -50,7 +52,8 @@ export function useScaleAnimation(config: SpringConfig = 'default') {
     }
     scale.value = withSpring(1, springConfigs[config]);
     opacity.value = withTiming(1, { duration: 200 });
-  }, [config, reduced]);
+    // Shared values zijn stabiele referenties; opnemen is gedragsneutraal.
+  }, [config, reduced, scale, opacity]);
 
   const exit = useCallback(() => {
     if (reduced) {
@@ -62,7 +65,8 @@ export function useScaleAnimation(config: SpringConfig = 'default') {
     }
     scale.value = withSpring(0.9, springConfigs[config]);
     opacity.value = withTiming(0, { duration: 150 });
-  }, [config, reduced]);
+    // Shared values zijn stabiele referenties; opnemen is gedragsneutraal.
+  }, [config, reduced, scale, opacity]);
 
   return { animatedStyle, enter, exit };
 }

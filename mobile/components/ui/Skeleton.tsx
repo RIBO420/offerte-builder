@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { View, Animated, ViewStyle, DimensionValue } from 'react-native';
 import { cn } from '@/lib/utils';
 
@@ -17,7 +17,9 @@ export function Skeleton({
   style,
   className
 }: SkeletonProps) {
-  const shimmerAnim = useRef(new Animated.Value(0)).current;
+  // useMemo i.p.v. useRef(...).current: zelfde stabiele Animated.Value,
+  // maar zonder ref-toegang tijdens render (react-hooks/refs).
+  const shimmerAnim = useMemo(() => new Animated.Value(0), []);
 
   useEffect(() => {
     Animated.loop(
@@ -34,10 +36,10 @@ export function Skeleton({
         }),
       ])
     ).start();
-  }, []);
+    // shimmerAnim is een stabiele useMemo-waarde; opnemen is gedragsneutraal.
+  }, [shimmerAnim]);
 
   // Shimmer colors: #1A1A1A -> #222222 -> #1A1A1A
-  // eslint-disable-next-line react-hooks/refs -- RN Animated interpolation creates a derived value, does not read .current
   const backgroundColor = shimmerAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ['#1A1A1A', '#222222'],

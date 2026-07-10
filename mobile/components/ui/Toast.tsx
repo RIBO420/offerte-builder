@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -81,14 +81,14 @@ export function Toast({
   index,
 }: ToastProps) {
   const insets = useSafeAreaInsets();
-  // eslint-disable-next-line react-hooks/refs -- RN Animated.Value refs are stable and safe to access during render
-  const translateY = useRef(new Animated.Value(position === 'top' ? -100 : 100)).current;
-  // eslint-disable-next-line react-hooks/refs -- RN Animated.Value refs are stable and safe to access during render
-  const translateX = useRef(new Animated.Value(0)).current;
-  // eslint-disable-next-line react-hooks/refs -- RN Animated.Value refs are stable and safe to access during render
-  const opacity = useRef(new Animated.Value(0)).current;
-  // eslint-disable-next-line react-hooks/refs -- RN Animated.Value refs are stable and safe to access during render
-  const scale = useRef(new Animated.Value(0.9)).current;
+  // useMemo i.p.v. useRef(...).current: zelfde stabiele Animated.Value-instanties,
+  // maar zonder ref-toegang tijdens render (react-hooks/refs).
+  // position bepaalt alleen de startpositie; bewust eenmalig, zoals useRef deed.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const translateY = useMemo(() => new Animated.Value(position === 'top' ? -100 : 100), []);
+  const translateX = useMemo(() => new Animated.Value(0), []);
+  const opacity = useMemo(() => new Animated.Value(0), []);
+  const scale = useMemo(() => new Animated.Value(0.9), []);
 
   const variantStyle = getVariantStyles(variant);
   const icon = getVariantIcon(variant);
@@ -140,10 +140,16 @@ export function Toast({
     }, duration);
 
     return () => clearTimeout(timer);
+    // Bewust alleen duration/stackScale: 'dismiss' is per render een nieuwe functie;
+    // opnemen zou de auto-dismiss-timer bij elke render resetten (gedragswijziging).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [duration, stackScale]);
 
-  const panResponder = useRef(
-    PanResponder.create({
+  // useMemo i.p.v. useRef(...).current: stabiele PanResponder zonder ref-toegang
+  // tijdens render. Bewust zonder deps: de handlers sluiten (net als voorheen)
+  // over de mount-waarden; opnieuw aanmaken zou lopende gestures breken.
+  const panResponder = useMemo(
+    () => PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, gestureState) => {
         return Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5;
@@ -197,8 +203,11 @@ export function Toast({
           ]).start();
         }
       },
-    })
-  ).current;
+    }),
+    // Zie boven: bewust mount-closures, zoals de oorspronkelijke useRef-variant.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
 
   const containerStyle: ViewStyle = {
     position: 'absolute',

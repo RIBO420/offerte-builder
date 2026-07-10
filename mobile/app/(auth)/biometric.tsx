@@ -47,25 +47,27 @@ export default function BiometricSetupScreen() {
       return;
     }
 
-    checkBiometricAvailability();
-  }, [isSignedIn]);
+    // Functie in het effect zelf: voorkomt access-before-declaration
+    // (react-hooks/immutability) zonder gedragswijziging.
+    const checkBiometricAvailability = async () => {
+      try {
+        const available = await isBiometricAvailable();
+        setIsAvailable(available);
 
-  const checkBiometricAvailability = async () => {
-    try {
-      const available = await isBiometricAvailable();
-      setIsAvailable(available);
-
-      if (available) {
-        const type = await getBiometricType();
-        setBiometricType(type);
+        if (available) {
+          const type = await getBiometricType();
+          setBiometricType(type);
+        }
+      } catch (error) {
+        console.error('[BiometricSetup] Check error:', error);
+        setIsAvailable(false);
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error('[BiometricSetup] Check error:', error);
-      setIsAvailable(false);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
+    checkBiometricAvailability();
+    // router uit useRouter is een stabiele referentie; opnemen is gedragsneutraal.
+  }, [isSignedIn, router]);
 
   const handleEnableBiometric = async () => {
     setIsSettingUp(true);

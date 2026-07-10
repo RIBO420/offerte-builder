@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useColorScheme, Appearance, ColorSchemeName } from 'react-native';
+import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, darkColors, ColorScheme } from './colors';
 
@@ -18,10 +18,12 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
+  // useColorScheme abonneert zelf al op Appearance-wijzigingen en triggert
+  // een re-render; een eigen listener + state-kopie was duplicatie en gaf
+  // een setState-in-effect compiler-error.
   const systemColorScheme = useColorScheme();
   const [mode, setModeState] = useState<ThemeMode>('dark');
   const [isLoading, setIsLoading] = useState(true);
-  const [systemScheme, setSystemScheme] = useState<ColorSchemeName>(systemColorScheme);
 
   // Load saved theme preference on mount
   useEffect(() => {
@@ -41,22 +43,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     loadThemePreference();
   }, []);
 
-  // Listen for system appearance changes when in 'system' mode
-  useEffect(() => {
-    const subscription = Appearance.addChangeListener(({ colorScheme }) => {
-      setSystemScheme(colorScheme);
-    });
-
-    return () => {
-      subscription.remove();
-    };
-  }, []);
-
-  // Sync systemScheme with the hook value
-  useEffect(() => {
-    setSystemScheme(systemColorScheme);
-  }, [systemColorScheme]);
-
   // Save theme preference when mode changes
   const setMode = async (newMode: ThemeMode) => {
     setModeState(newMode);
@@ -67,7 +53,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const isDark = mode === 'system' ? systemScheme === 'dark' : mode === 'dark';
+  const isDark = mode === 'system' ? systemColorScheme === 'dark' : mode === 'dark';
   const themeColors = isDark ? { ...colors, ...darkColors } : colors;
 
   // Don't render children until theme is loaded to avoid flash

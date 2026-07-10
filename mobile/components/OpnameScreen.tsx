@@ -8,7 +8,7 @@
  *   npx expo install expo-av
  */
 
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -94,9 +94,12 @@ interface AudioBarsProps {
 }
 
 function AudioBars({ isActief }: AudioBarsProps) {
-  const barAnimaties = useRef<Animated.Value[]>(
-    Array.from({ length: AANTAL_BARS }, () => new Animated.Value(0.2))
-  ).current;
+  // useMemo i.p.v. useRef(...).current: zelfde stabiele Animated.Value-array,
+  // maar zonder ref-toegang tijdens render (react-hooks/refs).
+  const barAnimaties = useMemo<Animated.Value[]>(
+    () => Array.from({ length: AANTAL_BARS }, () => new Animated.Value(0.2)),
+    []
+  );
 
   const animatieRefs = useRef<Animated.CompositeAnimation[]>([]);
 
