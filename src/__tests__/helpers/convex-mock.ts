@@ -6,7 +6,7 @@
  * without requiring a real Convex backend.
  */
 
-import { vi } from "vitest";
+import { vi, type Mock } from "vitest";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -168,17 +168,17 @@ function createMockQueryBuilder(docs: MockDocument[]): MockQueryBuilder {
 
 export interface MockCtx {
   db: {
-    get: ReturnType<typeof vi.fn>;
-    insert: ReturnType<typeof vi.fn>;
-    patch: ReturnType<typeof vi.fn>;
-    delete: ReturnType<typeof vi.fn>;
-    query: ReturnType<typeof vi.fn>;
+    get: Mock;
+    insert: Mock;
+    patch: Mock;
+    delete: Mock;
+    query: Mock;
   };
   auth: {
-    getUserIdentity: ReturnType<typeof vi.fn>;
+    getUserIdentity: Mock;
   };
   scheduler: {
-    runAfter: ReturnType<typeof vi.fn>;
+    runAfter: Mock;
   };
 }
 

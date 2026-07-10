@@ -813,7 +813,8 @@ describe("Klanten Type Classification", () => {
 
   it("should default to 'particulier' when no type specified", () => {
     // This matches the behavior in klanten.ts create handler
-    const klantType = undefined ?? "particulier";
+    const opgegevenType: string | undefined = undefined;
+    const klantType = opgegevenType ?? "particulier";
     expect(klantType).toBe("particulier");
   });
 

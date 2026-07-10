@@ -644,7 +644,8 @@ describe("Projecten Paginated List", () => {
 
   // Default limit
   it("should default to 25 items per page", () => {
-    const limit = undefined || 25;
+    const opgegevenLimit: number | undefined = undefined;
+    const limit = opgegevenLimit || 25;
     expect(limit).toBe(25);
   });
 });

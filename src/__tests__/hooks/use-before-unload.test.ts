@@ -1,3 +1,4 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { useBeforeUnload } from "@/hooks/use-before-unload";
 
@@ -28,7 +29,7 @@ describe("useBeforeUnload", () => {
     renderHook(() => useBeforeUnload(false));
 
     const beforeUnloadCalls = addEventListenerSpy.mock.calls.filter(
-      (call) => call[0] === "beforeunload"
+      (call: unknown[]) => call[0] === "beforeunload"
     );
     expect(beforeUnloadCalls).toHaveLength(0);
   });
@@ -51,7 +52,7 @@ describe("useBeforeUnload", () => {
 
     // No listener added initially
     const initialCalls = addEventListenerSpy.mock.calls.filter(
-      (call) => call[0] === "beforeunload"
+      (call: unknown[]) => call[0] === "beforeunload"
     );
     expect(initialCalls).toHaveLength(0);
 
@@ -59,7 +60,7 @@ describe("useBeforeUnload", () => {
     rerender({ unsaved: true });
 
     const afterCalls = addEventListenerSpy.mock.calls.filter(
-      (call) => call[0] === "beforeunload"
+      (call: unknown[]) => call[0] === "beforeunload"
     );
     expect(afterCalls).toHaveLength(1);
   });
@@ -82,7 +83,7 @@ describe("useBeforeUnload", () => {
     renderHook(() => useBeforeUnload(true));
 
     const handler = addEventListenerSpy.mock.calls.find(
-      (call) => call[0] === "beforeunload"
+      (call: unknown[]) => call[0] === "beforeunload"
     )?.[1] as EventListener;
 
     expect(handler).toBeDefined();
@@ -99,13 +100,13 @@ describe("useBeforeUnload", () => {
     const { unmount } = renderHook(() => useBeforeUnload(true));
 
     const addedHandler = addEventListenerSpy.mock.calls.find(
-      (call) => call[0] === "beforeunload"
+      (call: unknown[]) => call[0] === "beforeunload"
     )?.[1];
 
     unmount();
 
     const removedHandler = removeEventListenerSpy.mock.calls.find(
-      (call) => call[0] === "beforeunload"
+      (call: unknown[]) => call[0] === "beforeunload"
     )?.[1];
 
     expect(addedHandler).toBe(removedHandler);

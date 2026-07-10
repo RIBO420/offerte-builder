@@ -1,3 +1,4 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { useAdminDashboardData } from "@/hooks/use-dashboard";
 
@@ -63,9 +64,10 @@ describe("useAdminDashboardData", () => {
 
     const { result } = renderHook(() => useAdminDashboardData());
 
-    expect(result.current.isLoading).toBe(false);
-    expect(result.current.totalOffertes).toBe(10);
-    expect(result.current.activeProjects).toBe(3);
+    const current = result.current as Record<string, unknown>;
+    expect(current.isLoading).toBe(false);
+    expect(current.totalOffertes).toBe(10);
+    expect(current.activeProjects).toBe(3);
   });
 
   it("returns isLoading false when user is not defined", () => {
@@ -90,10 +92,11 @@ describe("useAdminDashboardData", () => {
 
     const { result } = renderHook(() => useAdminDashboardData());
 
-    expect(result.current.totalOffertes).toBe(15);
-    expect(result.current.openOffertes).toBe(3);
-    expect(result.current.revenue).toBe(125000);
-    expect(result.current.activeProjects).toBe(7);
+    const current = result.current as Record<string, unknown>;
+    expect(current.totalOffertes).toBe(15);
+    expect(current.openOffertes).toBe(3);
+    expect(current.revenue).toBe(125000);
+    expect(current.activeProjects).toBe(7);
   });
 
   it("returns empty object spread when data is undefined", () => {

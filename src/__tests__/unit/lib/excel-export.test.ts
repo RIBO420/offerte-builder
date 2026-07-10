@@ -36,6 +36,7 @@ function createMockWorksheet(name: string): MockWorksheetData & {
   mockWorksheets.push(data);
 
   return {
+    name,
     get columns() {
       return data.columns;
     },

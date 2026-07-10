@@ -1,3 +1,4 @@
+import { expect } from "vitest";
 import { axe } from "vitest-axe";
 import { render, type RenderResult } from "@testing-library/react";
 
