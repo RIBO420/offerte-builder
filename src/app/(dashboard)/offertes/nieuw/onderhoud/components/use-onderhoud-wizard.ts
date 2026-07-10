@@ -29,6 +29,7 @@ export function useOnderhoudWizard() {
     setData: setWizardData,
     setStep: setCurrentStep,
     draftAge,
+    lastSavedAt,
     restoreDraft,
     discardDraft,
     clearDraft,
@@ -375,6 +376,7 @@ export function useOnderhoudWizard() {
     createdOfferteNummer,
     showRestoreDialog,
     draftAge,
+    lastSavedAt,
     scopeValidationErrors,
     scopeValidationHandlers,
 

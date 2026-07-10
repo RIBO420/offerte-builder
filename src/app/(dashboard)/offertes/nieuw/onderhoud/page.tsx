@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { m } from "framer-motion";
 import { PageHeader } from "@/components/page-header";
 import { Check, Save } from "lucide-react";
+import { SaveIndicator } from "@/components/ui/save-indicator";
 import { RestoreDraftDialog } from "@/components/offerte/restore-draft-dialog";
 import { WizardSteps, type WizardStep } from "@/components/offerte/wizard-steps";
 import { Id } from "../../../../../../convex/_generated/dataModel";
@@ -36,6 +37,7 @@ export default function NieuweOnderhoudOffertePage() {
     createdOfferteNummer,
     showRestoreDialog,
     draftAge,
+    lastSavedAt,
     scopeValidationErrors,
     scopeValidationHandlers,
     selectedTemplateId,
@@ -174,10 +176,20 @@ export default function NieuweOnderhoudOffertePage() {
               </p>
             </div>
             {currentStep > 0 && (
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Save className="h-3 w-3" />
-                <span className="hidden sm:inline">Auto-save aan</span>
-              </div>
+              lastSavedAt ? (
+                /* §5.3a: zichtbare indicator "concept opgeslagen" met timestamp */
+                <SaveIndicator
+                  isSaving={false}
+                  isDirty={false}
+                  lastSaved={lastSavedAt}
+                  savedLabel="Concept opgeslagen om"
+                />
+              ) : (
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Save className="h-3 w-3" />
+                  <span className="hidden sm:inline">Auto-save aan</span>
+                </div>
+              )
             )}
           </div>
 

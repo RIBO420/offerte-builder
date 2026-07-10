@@ -21,6 +21,7 @@ import {
   ExportDropdown,
   offerteExportColumns,
 } from "@/components/export-dropdown";
+import { ConceptOpruimenDialog } from "./concept-opruimen-dialog";
 
 interface OfferteToolbarProps {
   searchQuery: string;
@@ -76,6 +77,8 @@ export function OfferteToolbar({
           </p>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
+          {/* §5.3c: kantoor-actie om verweesde concepten op te ruimen */}
+          <ConceptOpruimenDialog />
           <Tooltip>
             <TooltipTrigger asChild>
               <Button asChild variant="outline" className="flex-1 sm:flex-none">

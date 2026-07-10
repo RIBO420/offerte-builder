@@ -24,6 +24,8 @@ interface UseWizardAutosaveReturn<T> {
   setStep: (step: number) => void;
   hasDraft: boolean;
   draftAge: string | null;
+  /** §5.3a: tijdstip van de laatste auto-save, voor de "concept opgeslagen"-indicator */
+  lastSavedAt: Date | null;
   restoreDraft: () => void;
   discardDraft: () => void;
   clearDraft: () => void;
@@ -103,6 +105,8 @@ export function useWizardAutosave<T>({
   const [hasDraft, setHasDraft] = useState(draftState.hasDraft);
   const [draftAge, setDraftAge] = useState<string | null>(draftState.draftAge);
   const [showRestoreDialog, setShowRestoreDialog] = useState(draftState.hasDraft);
+  // §5.3a: tijdstip van de laatste succesvolle auto-save (voor de indicator)
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [initialized] = useState(true);
 
   // Save to localStorage when data or step changes
@@ -125,6 +129,14 @@ export function useWizardAutosave<T>({
         type,
       };
       localStorage.setItem(storageKey, JSON.stringify(draft));
+      // §5.3a: zichtbare indicator "concept opgeslagen" met timestamp.
+      // Bewust setState in dit effect: de save zelf gebeurt hier (localStorage).
+      // De functionele update bailt out bij een ongewijzigde timestamp, zodat
+      // dit geen render-loop kan veroorzaken (lastSavedAt zit niet in de deps).
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setLastSavedAt((prev) =>
+        prev?.getTime() === draft.timestamp ? prev : new Date(draft.timestamp)
+      );
     } catch {
       // Silent failure - localStorage might be full or disabled
     }
@@ -177,6 +189,7 @@ export function useWizardAutosave<T>({
     setStep,
     hasDraft,
     draftAge,
+    lastSavedAt,
     restoreDraft,
     discardDraft,
     clearDraft,

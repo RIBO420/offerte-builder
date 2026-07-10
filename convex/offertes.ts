@@ -470,6 +470,43 @@ export const listByStatus = query({
   },
 });
 
+// §5.3c: Verweesde concepten — concepten ouder dan X dagen zonder klantkoppeling.
+// Kantoor kan deze via de offerte-lijst opgeschoond (gearchiveerd) zetten.
+// Bewust géén cron en géén hard delete: archiveren gaat via bulkRemove (soft delete).
+export const listVerweesdeConcepten = query({
+  args: {
+    ouderDanDagen: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+    const dagen = args.ouderDanDagen ?? 14;
+    const grens = Date.now() - dagen * 24 * 60 * 60 * 1000;
+
+    const offertes = await ctx.db
+      .query("offertes")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    return offertes
+      .filter(
+        (o) =>
+          o.status === "concept" &&
+          !o.klantId &&
+          !o.deletedAt &&
+          !o.isArchived &&
+          o.updatedAt < grens
+      )
+      .map((o) => ({
+        _id: o._id,
+        offerteNummer: o.offerteNummer,
+        klantNaam: o.klant?.naam || "Geen klant",
+        type: o.type,
+        updatedAt: o.updatedAt,
+      }))
+      .sort((a, b) => a.updatedAt - b.updatedAt);
+  },
+});
+
 // Get single offerte (with ownership verification)
 export const get = query({
   args: { id: v.id("offertes") },

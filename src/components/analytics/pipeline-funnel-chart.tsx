@@ -5,8 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ArrowDown, TrendingUp, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// §5.3b (PRD §2.5e): concepten (wizard auto-save) tellen niet mee in de
+// pipeline — de funnel begint bij voorcalculatie.
 interface PipelineFunnelData {
-  concept: number;
   voorcalculatie: number;
   verzonden: number;
   afgehandeld: number;
@@ -14,7 +15,6 @@ interface PipelineFunnelData {
 }
 
 interface ConversionRates {
-  conceptToVoorcalculatie: number;
   voorcalculatieToVerzonden: number;
   verzondenToAfgehandeld: number;
   afgehandeldToWon: number;
@@ -27,7 +27,6 @@ interface PipelineFunnelChartProps {
 }
 
 const stageLabels = {
-  concept: "Concept",
   voorcalculatie: "Voorcalculatie",
   verzonden: "Verzonden",
   afgehandeld: "Afgehandeld",
@@ -35,7 +34,6 @@ const stageLabels = {
 };
 
 const stageColors = {
-  concept: "bg-slate-100 dark:bg-slate-800",
   voorcalculatie: "bg-blue-100 dark:bg-blue-900/50",
   verzonden: "bg-amber-100 dark:bg-amber-900/50",
   afgehandeld: "bg-purple-100 dark:bg-purple-900/50",
@@ -43,7 +41,6 @@ const stageColors = {
 };
 
 const stageTextColors = {
-  concept: "text-slate-700 dark:text-slate-300",
   voorcalculatie: "text-blue-700 dark:text-blue-300",
   verzonden: "text-amber-700 dark:text-amber-300",
   afgehandeld: "text-purple-700 dark:text-purple-300",
@@ -96,7 +93,7 @@ export const PipelineFunnelChart = memo(function PipelineFunnelChart({ data, con
     );
   }
 
-  const stages: (keyof PipelineFunnelData)[] = ["concept", "voorcalculatie", "verzonden", "afgehandeld", "geaccepteerd"];
+  const stages: (keyof PipelineFunnelData)[] = ["voorcalculatie", "verzonden", "afgehandeld", "geaccepteerd"];
   const maxValue = Math.max(...Object.values(data));
 
   return (
@@ -148,20 +145,15 @@ export const PipelineFunnelChart = memo(function PipelineFunnelChart({ data, con
                 {/* Conversion arrow between stages */}
                 {index === 0 && (
                   <div className="ml-12 pl-3">
-                    <ConversionArrow rate={conversionRates.conceptToVoorcalculatie} label="naar voorcalculatie" />
+                    <ConversionArrow rate={conversionRates.voorcalculatieToVerzonden} label="naar verzonden" />
                   </div>
                 )}
                 {index === 1 && (
                   <div className="ml-12 pl-3">
-                    <ConversionArrow rate={conversionRates.voorcalculatieToVerzonden} label="naar verzonden" />
-                  </div>
-                )}
-                {index === 2 && (
-                  <div className="ml-12 pl-3">
                     <ConversionArrow rate={conversionRates.verzondenToAfgehandeld} label="naar afgehandeld" />
                   </div>
                 )}
-                {index === 3 && (
+                {index === 2 && (
                   <div className="ml-12 pl-3">
                     <ConversionArrow rate={conversionRates.afgehandeldToWon} label="win rate" />
                   </div>
@@ -175,12 +167,6 @@ export const PipelineFunnelChart = memo(function PipelineFunnelChart({ data, con
         <div className="mt-4 pt-4 border-t">
           <h4 className="text-sm font-medium mb-2">Inzichten</h4>
           <div className="grid grid-cols-2 gap-2 text-xs">
-            {conversionRates.conceptToVoorcalculatie < 50 && (
-              <div className="flex items-start gap-1 text-amber-600 dark:text-amber-400">
-                <AlertTriangle className="h-3 w-3 mt-0.5 flex-shrink-0" />
-                <span>Veel concepten krijgen geen voorcalculatie</span>
-              </div>
-            )}
             {conversionRates.voorcalculatieToVerzonden < 70 && (
               <div className="flex items-start gap-1 text-amber-600 dark:text-amber-400">
                 <AlertTriangle className="h-3 w-3 mt-0.5 flex-shrink-0" />

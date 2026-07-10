@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useWizardAutosave } from "@/hooks/use-wizard-autosave";
 
@@ -168,6 +169,27 @@ describe("useWizardAutosave", () => {
     const stored = JSON.parse(localStorage.getItem(storageKey)!);
     expect(stored.data).toEqual({ scope: "bestrating" });
     expect(stored.type).toBe("aanleg");
+  });
+
+  // §5.3a: zichtbare indicator "concept opgeslagen" met timestamp
+  it("exposes lastSavedAt after a successful auto-save", () => {
+    const { result } = renderHook(() =>
+      useWizardAutosave({
+        key: "test-key",
+        type: "aanleg",
+        initialData: { scope: "grondwerk" },
+      })
+    );
+
+    // Nothing saved yet
+    expect(result.current.lastSavedAt).toBeNull();
+
+    act(() => {
+      result.current.setData({ scope: "bestrating" });
+    });
+
+    expect(result.current.lastSavedAt).toBeInstanceOf(Date);
+    expect(result.current.lastSavedAt!.getTime()).toBe(1711612800000);
   });
 
   it("saves to localStorage when step changes", () => {

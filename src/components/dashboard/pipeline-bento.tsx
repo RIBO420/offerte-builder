@@ -123,8 +123,8 @@ function SegmentedBar({
 }: {
   stats: PipelineBentoProps["offerteStats"];
 }) {
+  // §5.3b: concepten (wizard auto-save) tellen niet mee in de pipeline
   const keys = [
-    "concept",
     "voorcalculatie",
     "verzonden",
     "geaccepteerd",
@@ -160,8 +160,8 @@ function PipelineCard({
 }: {
   stats: PipelineBentoProps["offerteStats"];
 }) {
+  // §5.3b: concepten (wizard auto-save) tellen niet mee in de pipeline
   const keys = [
-    "concept",
     "voorcalculatie",
     "verzonden",
     "geaccepteerd",
@@ -169,7 +169,6 @@ function PipelineCard({
   ] as const;
 
   const labels: Record<string, string> = {
-    concept: "Concept",
     voorcalculatie: "Voorcalc.",
     verzonden: "Verzonden",
     geaccepteerd: "Geaccept.",
@@ -182,7 +181,8 @@ function PipelineCard({
       <div className="flex items-center justify-between mb-3.5">
         <h3 className="text-[15px] font-semibold">Offerte Pipeline</h3>
         <span className="text-xs text-muted-foreground">
-          {stats.totaal} totaal
+          {stats.totaal} in pipeline
+          {stats.concept > 0 && ` · ${stats.concept} concept${stats.concept === 1 ? "" : "en"}`}
         </span>
       </div>
 
@@ -190,7 +190,7 @@ function PipelineCard({
       <SegmentedBar stats={stats} />
 
       {/* Status counts grid */}
-      <div className="grid grid-cols-5 gap-1.5 mt-3.5">
+      <div className="grid grid-cols-4 gap-1.5 mt-3.5">
         {keys.map((key) => {
           const isAccepted = key === "geaccepteerd";
           const isRejectedZero = key === "afgewezen" && stats[key] === 0;

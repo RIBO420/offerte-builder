@@ -431,7 +431,7 @@ export default function NieuweAanlegOffertePage() {
                 ) : lastSavedAt ? (
                   <Badge variant="outline" className="flex items-center gap-1.5 text-xs font-normal text-green-600 border-green-300 dark:text-green-400 dark:border-green-600">
                     <CheckCircle2 className="h-3 w-3" />
-                    <span className="hidden sm:inline">Opgeslagen om {formatTime(lastSavedAt)}</span>
+                    <span className="hidden sm:inline">Concept opgeslagen om {formatTime(lastSavedAt)}</span>
                   </Badge>
                 ) : (
                   <Badge variant="outline" className="flex items-center gap-1.5 text-xs font-normal text-muted-foreground border-muted">

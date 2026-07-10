@@ -2,6 +2,10 @@ import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
 import { Id } from "./_generated/dataModel";
+import {
+  berekenConversionRates,
+  berekenPipelineFunnel,
+} from "./lib/pipelineKpis";
 
 // Date filter validator for reuse across queries
 const dateFilterValidator = {
@@ -105,7 +109,6 @@ export const getAnalyticsData = query({
 
     // Calculate KPIs
     const totaalOffertes = offertes.length;
-    const concept = offertes.filter((o) => o.status === "concept");
     const voorcalculatie = offertes.filter((o) => o.status === "voorcalculatie");
     const verzonden = offertes.filter((o) => o.status === "verzonden");
     const geaccepteerd = offertes.filter((o) => o.status === "geaccepteerd");
@@ -125,34 +128,18 @@ export const getAnalyticsData = query({
       ? offertes.reduce((sum, o) => sum + o.totalen.totaalInclBtw, 0) / totaalOffertes
       : 0;
 
-    // ===== NEW: Sales Pipeline Funnel =====
-    // Calculate conversion rates between stages
-    const pipelineFunnel = {
-      concept: concept.length + voorcalculatie.length + verzonden.length + geaccepteerd.length + afgewezen.length,
-      voorcalculatie: voorcalculatie.length + verzonden.length + geaccepteerd.length + afgewezen.length,
-      verzonden: verzonden.length + geaccepteerd.length + afgewezen.length,
-      afgehandeld: geaccepteerd.length + afgewezen.length,
+    // ===== Sales Pipeline Funnel =====
+    // §5.3b (PRD §2.5e): concepten (wizard auto-save) tellen niet mee in de
+    // pipeline-KPI's — de funnel begint bij voorcalculatie.
+    const pipelineFunnel = berekenPipelineFunnel({
+      voorcalculatie: voorcalculatie.length,
+      verzonden: verzonden.length,
       geaccepteerd: geaccepteerd.length,
-    };
+      afgewezen: afgewezen.length,
+    });
 
-    // Conversion rates between stages
-    const conversionRates = {
-      conceptToVoorcalculatie: pipelineFunnel.concept > 0
-        ? Math.round((pipelineFunnel.voorcalculatie / pipelineFunnel.concept) * 100)
-        : 0,
-      voorcalculatieToVerzonden: pipelineFunnel.voorcalculatie > 0
-        ? Math.round((pipelineFunnel.verzonden / pipelineFunnel.voorcalculatie) * 100)
-        : 0,
-      verzondenToAfgehandeld: pipelineFunnel.verzonden > 0
-        ? Math.round((pipelineFunnel.afgehandeld / pipelineFunnel.verzonden) * 100)
-        : 0,
-      afgehandeldToWon: pipelineFunnel.afgehandeld > 0
-        ? Math.round((pipelineFunnel.geaccepteerd / pipelineFunnel.afgehandeld) * 100)
-        : 0,
-      overallConversion: pipelineFunnel.concept > 0
-        ? Math.round((pipelineFunnel.geaccepteerd / pipelineFunnel.concept) * 100)
-        : 0,
-    };
+    // Conversion rates between stages (excl. concepten)
+    const conversionRates = berekenConversionRates(pipelineFunnel);
 
     // ===== NEW: Deal Cycle Time =====
     // Calculate average days from creation to acceptance

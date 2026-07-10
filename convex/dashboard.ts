@@ -11,6 +11,7 @@
 
 import { query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
+import { filterConceptenUit } from "./lib/pipelineKpis";
 
 // ── Quarter helpers ──────────────────────────────────────────────────
 
@@ -101,8 +102,13 @@ export const getAdminDashboardData = query({
     // ══════════════════════════════════════════════════════════════════
 
     // === OFFERTE STATS ===
+    // §5.3b (PRD §2.5e): concepten (wizard auto-save) tellen niet mee in de
+    // pipeline-KPI's — totaal en totaalWaarde zijn exclusief concepten.
+    // Het concept-aantal blijft wel zichtbaar als losse teller.
+    const pipelineOffertes = filterConceptenUit(offertes);
+
     const offerteStats = {
-      totaal: offertes.length,
+      totaal: pipelineOffertes.length,
       concept: 0,
       voorcalculatie: 0,
       verzonden: 0,
@@ -118,7 +124,9 @@ export const getAdminDashboardData = query({
 
     for (const offerte of offertes) {
       offerteStats[offerte.status as keyof typeof offerteStats]++;
-      offerteStats.totaalWaarde += offerte.totalen?.totaalInclBtw ?? 0;
+      if (offerte.status !== "concept") {
+        offerteStats.totaalWaarde += offerte.totalen?.totaalInclBtw ?? 0;
+      }
 
       if (offerte.status === "geaccepteerd") {
         offerteStats.geaccepteerdWaarde += offerte.totalen?.totaalInclBtw ?? 0;
@@ -357,10 +365,11 @@ export const getAdminDashboardData = query({
     );
 
     // Quarter comparison
-    const offertesThisQ = allOffertes.filter(
+    // §5.3b: concepten tellen niet mee in de kwartaal-KPI's van de pipeline
+    const offertesThisQ = pipelineOffertes.filter(
       (o) => o.createdAt >= thisQ.start && o.createdAt <= thisQ.end
     );
-    const offertesPrevQ = allOffertes.filter(
+    const offertesPrevQ = pipelineOffertes.filter(
       (o) => o.createdAt >= prevQ.start && o.createdAt <= prevQ.end
     );
 

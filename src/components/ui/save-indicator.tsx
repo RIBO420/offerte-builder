@@ -9,6 +9,8 @@ interface SaveIndicatorProps {
   isDirty: boolean;
   lastSaved: Date | null;
   className?: string;
+  /** Label vóór de timestamp in de opgeslagen-staat (default: "Opgeslagen om") */
+  savedLabel?: string;
 }
 
 /**
@@ -34,6 +36,7 @@ export function SaveIndicator({
   isDirty,
   lastSaved,
   className,
+  savedLabel = "Opgeslagen om",
 }: SaveIndicatorProps) {
   // Saving state
   if (isSaving) {
@@ -93,11 +96,11 @@ export function SaveIndicator({
           aria-hidden="true"
         />
         <span>
-          Opgeslagen om{" "}
+          {savedLabel}{" "}
           <span className="font-medium">{formatTime(lastSaved)}</span>
         </span>
         <span className="sr-only">
-          Opgeslagen om {formatTime(lastSaved)}
+          {savedLabel} {formatTime(lastSaved)}
         </span>
       </div>
     );
