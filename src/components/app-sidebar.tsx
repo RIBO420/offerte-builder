@@ -110,6 +110,9 @@ const personeelMenuItems = [
 
 // Profile menu: Assets & Data group (admin/directie only)
 const assetsMenuItems = [
+  // PRD §3.3: machines én bussen in één module — status (kapot → weekbord),
+  // teamkleur, standaardbus, inventaris per bus en vervalitems (APK e.d.)
+  { title: "Machinepark", url: "/machinepark", icon: Truck },
   { title: "Wagenparkbeheer", url: "/wagenpark", icon: Truck },
   { title: "Machinebeheer", url: "/instellingen/machines", icon: Wrench },
   { title: "Catalogus onderhoud", url: "/instellingen/catalogus", icon: Trees },

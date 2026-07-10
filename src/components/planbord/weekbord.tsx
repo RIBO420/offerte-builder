@@ -41,6 +41,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import {
   ChevronLeft,
   ChevronRight,
+  AlertTriangle,
   CalendarClock,
   CalendarOff,
   Copy,
@@ -436,6 +437,45 @@ export function Weekbord() {
               )}
             </div>
           </div>
+
+          {/* Materieel-waarschuwingen (PRD §3.3): kapotte bus/machine op
+              gekoppelde team-dagen + dubbel geclaimd schaars materieel.
+              Waarschuwing, geen blokkade — zelfde toon als de
+              seizoenswaarschuwing. */}
+          {(context?.materieelWaarschuwingen?.length ?? 0) > 0 && (
+            <div
+              role="status"
+              className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200"
+            >
+              <p className="mb-1 flex items-center gap-1 font-semibold">
+                <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
+                Materieel-waarschuwingen
+              </p>
+              <ul className="list-inside list-disc space-y-0.5">
+                {(() => {
+                  // Groepeer identieke teksten (bv. kapotte bus, hele week)
+                  const perTekst = new Map<string, string[]>();
+                  for (const w of context!.materieelWaarschuwingen) {
+                    const datums = perTekst.get(w.tekst) ?? [];
+                    datums.push(w.datum);
+                    perTekst.set(w.tekst, datums);
+                  }
+                  return [...perTekst.entries()].map(([tekst, datums]) => {
+                    const gesorteerd = [...datums].sort();
+                    const wanneer =
+                      gesorteerd.length === 1
+                        ? gesorteerd[0]
+                        : `${gesorteerd[0]} t/m ${gesorteerd[gesorteerd.length - 1]}`;
+                    return (
+                      <li key={tekst}>
+                        {tekst} ({wanneer})
+                      </li>
+                    );
+                  });
+                })()}
+              </ul>
+            </div>
+          )}
 
           {/* Het bord */}
           <div className="overflow-x-auto rounded-lg border">
