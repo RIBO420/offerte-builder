@@ -66,4 +66,22 @@ crons.daily(
   internal.beurtgenerator.vulHorizonAan
 );
 
+/**
+ * Planningsattendering (PRD §2.1-restant, §8.12)
+ *
+ * Draait elke ochtend om 05:00 UTC en genereert voor ritme-beurten waarvan
+ * het seizoensvenster binnen de ingestelde dagen-vooraf opent een
+ * kantoor-taak (melding met taaksoort "plantaak") op het meldingen-bord.
+ * Idempotent via attenderingSleutel — geen dubbele taken bij herhaald
+ * draaien; attenderingNodig=false wordt gerespecteerd.
+ *
+ * Deze job is puur database-werk en verstuurt NOOIT e-mail (de inplan-mail
+ * is §2.7 en bewust nog een placeholder).
+ */
+crons.daily(
+  "planningsattendering genereren",
+  { hourUTC: 5, minuteUTC: 0 }, // 05:00 UTC (06:00 CET / 07:00 CEST)
+  internal.planningsattendering.genereerAttenderingen
+);
+
 export default crons;

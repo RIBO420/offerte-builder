@@ -126,6 +126,11 @@ export const getWachtrij = query({
         item.status === "gepland" &&
         !item.deletedAt &&
         item.isArchived !== true &&
+        // Ritme-moederbeurten mét attendering (§2.1/§8.12): de beurt komt
+        // pas in de wachtrij nadat kantoor hem vanuit de plantaak vrijgeeft
+        // (planningsattendering.geefBeurtVrij maakt de concrete beurt aan).
+        // Met attendering uit blijft de moeder gewoon zichtbaar (oud gedrag).
+        !(item.ritme && item.attenderingNodig !== false) &&
         isRelevantVoorWachtrij(item, args.start, args.eind)
     );
 
