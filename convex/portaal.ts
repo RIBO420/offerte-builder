@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { requireKlant } from "./auth";
 import { voerKlantAcceptatieKetenUit } from "./acceptatieKeten";
+import { logTijdlijnEvent } from "./tijdlijn";
 
 // Portal overview — KPIs + recent activity
 export const getOverzicht = query({
@@ -306,6 +307,16 @@ export const respondToOfferte = mutation({
       if (geaccepteerdeOfferte) {
         await voerKlantAcceptatieKetenUit(ctx, geaccepteerdeOfferte, now);
       }
+
+      // — Klanttijdlijn (PRD §2.3): portaal-acceptatie als systeem-event —
+      // De klant SCHRIJFT hier niet op de tijdlijn (die blijft intern);
+      // het systeem logt het feit van de acceptatie in het kantoordossier.
+      await logTijdlijnEvent(ctx, {
+        userId: offerte.userId,
+        klantId: klant._id,
+        eventType: "offerte_geaccepteerd",
+        tekst: `Offerte ${offerte.offerteNummer} geaccepteerd door de klant via het portaal`,
+      });
     }
 
     return { success: true };

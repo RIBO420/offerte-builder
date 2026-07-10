@@ -12,6 +12,7 @@ import {
 } from "./validators";
 import { shouldUpgradePipeline } from "./pipelineHelpers";
 import { hoortInKlantenLijst } from "./leadsKlantenHelpers";
+import { logTijdlijnEvent } from "./tijdlijn";
 
 // Get all klanten for authenticated user
 export const list = query({
@@ -1127,6 +1128,17 @@ export const sendPortalInvitation = mutation({
     await ctx.scheduler.runAfter(0, internal.portaalEmail.sendClerkInvitation, {
       email: klant.email,
       token,
+    });
+
+    // — Klanttijdlijn (PRD §2.3): portaal-uitnodiging verstuurd.
+    // Additief, niet-blokkerend; bewust zonder e-mailadres in de tekst.
+    await logTijdlijnEvent(ctx, {
+      userId: klant.userId,
+      klantId: args.id,
+      eventType: "portaal_uitnodiging",
+      auteurId: user._id,
+      auteurNaam: user.name,
+      tekst: "Portaal-uitnodiging verstuurd naar de klant",
     });
 
     return { success: true };

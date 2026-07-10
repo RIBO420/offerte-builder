@@ -26,6 +26,7 @@ import {
 } from "./_generated/server";
 import { Doc } from "./_generated/dataModel";
 import { requireKantoor } from "./roles";
+import { logTijdlijnEvent } from "./tijdlijn";
 
 // ─── Constanten ──────────────────────────────────────────────────────────────
 
@@ -325,6 +326,18 @@ export const activeerContract = mutation({
 
     if (contract.status === "concept") {
       await ctx.db.patch(args.id, { status: "actief", updatedAt: Date.now() });
+
+      // — Klanttijdlijn (PRD §2.3): contract geactiveerd (alleen bij de
+      // echte overgang concept → actief; her-runs loggen niet dubbel).
+      // Additief en niet-blokkerend.
+      await logTijdlijnEvent(ctx, {
+        userId: contract.userId,
+        klantId: contract.klantId,
+        eventType: "contract_geactiveerd",
+        auteurId: user._id,
+        auteurNaam: user.name,
+        tekst: `Onderhoudscontract ${contract.contractNummer} geactiveerd`,
+      });
     }
 
     const aantalNieuweBeurten = await genereerBeurtenVoorContract(ctx, {

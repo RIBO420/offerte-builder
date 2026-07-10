@@ -17,6 +17,7 @@ import { upgradeKlantPipeline } from "./pipelineHelpers";
 import { berekenPrijsPerBeurt } from "./bouwstenen";
 import { bepaalTariefOpDatum } from "./uurtarieven";
 import { vervalOngeplandeBeurten, addMaanden, vandaagIso } from "./beurtgenerator";
+import { logTijdlijnEvent } from "./tijdlijn";
 
 // ============================================
 // VALIDATORS
@@ -1097,6 +1098,17 @@ export const renewContract = mutation({
       });
     }
 
+    // — Klanttijdlijn (PRD §2.3): verlenging zet het contract (weer) op
+    // actief — zelfde event-type als activering. Additief, niet-blokkerend.
+    await logTijdlijnEvent(ctx, {
+      userId: contract.userId,
+      klantId: contract.klantId,
+      eventType: "contract_geactiveerd",
+      auteurId: user._id,
+      auteurNaam: user.name,
+      tekst: `Onderhoudscontract ${contract.contractNummer} verlengd t/m ${args.nieuwEindDatum}`,
+    });
+
     return args.id;
   },
 });
@@ -1117,7 +1129,7 @@ export const cancelContract = mutation({
     reden: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireDirectieOrProjectleider(ctx);
+    const user = await requireDirectieOrProjectleider(ctx);
 
     const contract = await ctx.db.get(args.id);
     if (!contract || contract.deletedAt) {
@@ -1137,6 +1149,18 @@ export const cancelContract = mutation({
         ? `${contract.notities ? contract.notities + "\n\n" : ""}Opzegreden: ${args.reden}`
         : contract.notities,
       updatedAt: now,
+    });
+
+    // — Klanttijdlijn (PRD §2.3): contract opgezegd. Additief, niet-blokkerend.
+    await logTijdlijnEvent(ctx, {
+      userId: contract.userId,
+      klantId: contract.klantId,
+      eventType: "contract_opgezegd",
+      auteurId: user._id,
+      auteurNaam: user.name,
+      tekst: `Onderhoudscontract ${contract.contractNummer} opgezegd${
+        args.reden ? ` — reden: ${args.reden}` : ""
+      }`,
     });
 
     // Toekomstige ongeplande beurten → vervallen

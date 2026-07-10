@@ -24,6 +24,7 @@ import {
   seizoensvensterWaarschuwing,
   type Seizoensvenster,
 } from "./planbordLogica";
+import { logTijdlijnEvent } from "./tijdlijn";
 
 // ============================================
 // Types
@@ -451,6 +452,22 @@ export const updatePlanning = mutation({
       werkitemId: werkitem._id,
       teamId: args.teamId ?? werkitem.teamId ?? undefined,
     });
+
+    // — Klanttijdlijn (PRD §2.3): "Ingepland: team X, datum" — naast (niet
+    // in plaats van) het planbordLogboek. Alleen het inplannen zelf is
+    // klantdossier-relevant; interne verschuivingen blijven planbord-audit.
+    // Additief en niet-blokkerend (logTijdlijnEvent vangt fouten zelf af).
+    if (actie === "gepland" && werkitem.klantId) {
+      await logTijdlijnEvent(ctx, {
+        userId,
+        klantId: werkitem.klantId,
+        eventType: "werkitem_ingepland",
+        werkitemId: werkitem._id,
+        auteurId: kantoorUser._id,
+        auteurNaam: kantoorUser.name,
+        tekst: `${werkitem.naam} — ${details}`,
+      });
+    }
 
     // — Seizoensvenster-bewaking: waarschuwing, geen blokkade —
     const venster = await seizoensvensterVoorWerkitem(ctx, werkitem);

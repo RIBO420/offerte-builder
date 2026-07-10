@@ -26,6 +26,7 @@
 
 import { GenericMutationCtx } from "convex/server";
 import { DataModel, Doc, Id } from "./_generated/dataModel";
+import { logTijdlijnEvent } from "./tijdlijn";
 
 // ─── Lead-funnel status (configuratorAanvragen) ──────────────────────────────
 
@@ -247,6 +248,20 @@ export async function promoveerLead(
       nieuweKlant,
     },
     createdAt: now,
+  });
+
+  // 6. Klanttijdlijn (PRD §2.3): promotie zichtbaar in het klantdossier.
+  //    Additief, niet-blokkerend (logTijdlijnEvent vangt fouten zelf af).
+  await logTijdlijnEvent(ctx, {
+    userId: currentUser._id,
+    klantId,
+    eventType: "lead_gewonnen",
+    werkitemId,
+    auteurId: currentUser._id,
+    auteurNaam: currentUser.name,
+    tekst: `Lead ${lead.referentie} gewonnen — gepromoveerd naar ${
+      nieuweKlant ? "nieuw klantrecord" : "bestaande klant"
+    } met eerste werkitem`,
   });
 
   return { klantId, werkitemId, nieuweKlant, alGepromoveerd: false };

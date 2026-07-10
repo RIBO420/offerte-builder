@@ -14,6 +14,7 @@ import {
   voerKetenActieUit,
   type KetenActie,
 } from "./acceptatieKeten";
+import { logTijdlijnEvent } from "./tijdlijn";
 
 const klantValidator = v.object({
   naam: v.string(),
@@ -1156,6 +1157,26 @@ export const updateStatus = mutation({
     }
 
     await ctx.db.patch(args.id, updates);
+
+    // — Klanttijdlijn (PRD §2.3): auto-event bij verzonden/geaccepteerd —
+    // Additief: logTijdlijnEvent is niet-blokkerend en breekt deze flow nooit.
+    if (
+      oldOfferte.klantId &&
+      (args.status === "verzonden" || args.status === "geaccepteerd")
+    ) {
+      await logTijdlijnEvent(ctx, {
+        userId: oldOfferte.userId,
+        klantId: oldOfferte.klantId,
+        eventType:
+          args.status === "verzonden"
+            ? "offerte_verzonden"
+            : "offerte_geaccepteerd",
+        tekst:
+          args.status === "verzonden"
+            ? `Offerte ${oldOfferte.offerteNummer} verzonden aan de klant`
+            : `Offerte ${oldOfferte.offerteNummer} geaccepteerd`,
+      });
+    }
 
     // Create version snapshot for status change
     const offerte = await ctx.db.get(args.id);
