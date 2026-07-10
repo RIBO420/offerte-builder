@@ -12,7 +12,7 @@
  * - Elke planwijziging wordt server-side audit-gelogd (planbordLogboek).
  */
 
-import { useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery } from "convex/react";
 import {
@@ -80,7 +80,10 @@ import {
 // Blok (één gepland werkitem op het bord)
 // ============================================
 
-function WerkitemBlok({
+// React.memo: voorkomt dat elke bord-rerender (query-updates, dialogen,
+// filterwissels) alle blokken opnieuw rendert; props zijn stabiel gemaakt
+// via useCallback in Weekbord.
+const WerkitemBlok = memo(function WerkitemBlok({
   event,
   spanKolommen,
   magMuteren,
@@ -193,13 +196,13 @@ function WerkitemBlok({
       )}
     </div>
   );
-}
+});
 
 // ============================================
 // Cel (één team × één dag)
 // ============================================
 
-function TeamDagCel({
+const TeamDagCel = memo(function TeamDagCel({
   teamId,
   datum,
   children,
@@ -229,7 +232,7 @@ function TeamDagCel({
       {children}
     </div>
   );
-}
+});
 
 // ============================================
 // Weekbord
@@ -292,10 +295,13 @@ export function Weekbord() {
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } })
   );
 
-  async function planMetWaarschuwing(args: Parameters<typeof updatePlanning>[0]) {
-    const resultaat = await updatePlanning(args);
-    if (resultaat?.waarschuwing) toast.warning(resultaat.waarschuwing);
-  }
+  const planMetWaarschuwing = useCallback(
+    async (args: Parameters<typeof updatePlanning>[0]) => {
+      const resultaat = await updatePlanning(args);
+      if (resultaat?.waarschuwing) toast.warning(resultaat.waarschuwing);
+    },
+    [updatePlanning]
+  );
 
   async function onDragEnd(e: DragEndEvent) {
     const actief = e.active.data.current as
@@ -357,18 +363,21 @@ export function Weekbord() {
     }
   }
 
-  async function onOntplan(event: PlanbordEvent) {
-    try {
-      await planMetWaarschuwing({
-        id: event.id,
-        geplandeStart: null,
-        geplandeEind: null,
-        teamId: null,
-      });
-    } catch (fout) {
-      toast.error(fout instanceof Error ? fout.message : "Ontplannen mislukt");
-    }
-  }
+  const onOntplan = useCallback(
+    async (event: PlanbordEvent) => {
+      try {
+        await planMetWaarschuwing({
+          id: event.id,
+          geplandeStart: null,
+          geplandeEind: null,
+          teamId: null,
+        });
+      } catch (fout) {
+        toast.error(fout instanceof Error ? fout.message : "Ontplannen mislukt");
+      }
+    },
+    [planMetWaarschuwing]
+  );
 
   const kolomBreedte = kolommen.length > 14 ? 64 : 110;
   const bemanningCel = (teamId: Id<"teams">, datum: string) =>

@@ -15,7 +15,7 @@
  * - Kantoor muteert; voorman/medewerker leest mee (alles read-only).
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useAction, useMutation, useQuery } from "convex/react";
@@ -64,6 +64,9 @@ type Dagkaart = FunctionReturnType<typeof api.dagkaart.getDagkaart>;
 type DagBlok = Dagkaart["blokken"][number];
 type DagStop = Dagkaart["stops"][number];
 
+const meld = (fout: unknown, fallback: string) =>
+  toast.error(fout instanceof Error ? fout.message : fallback);
+
 const STATUS_LABELS: Record<string, string> = {
   gepland: "Gepland",
   in_uitvoering: "In uitvoering",
@@ -76,7 +79,9 @@ const STATUS_LABELS: Record<string, string> = {
 // Klantblok (sorteerbaar; blok = één geheel)
 // ============================================
 
-function KlantBlok({
+// React.memo: tijdens dnd-sorts en reactieve kaart-updates rendert alleen
+// het blok dat wijzigt; de handlers zijn stabiel via useCallback in Dagkaart.
+const KlantBlok = memo(function KlantBlok({
   blok,
   stop,
   magMuteren,
@@ -270,7 +275,7 @@ function KlantBlok({
       </div>
     </div>
   );
-}
+});
 
 // ============================================
 // Vaste blokken (reistijd, pauze, loods, markers)
@@ -489,9 +494,6 @@ export function Dagkaart() {
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
   );
 
-  const meld = (fout: unknown, fallback: string) =>
-    toast.error(fout instanceof Error ? fout.message : fallback);
-
   const onDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     if (!kaart || !teamId || !over || active.id === over.id) return;
@@ -510,39 +512,49 @@ export function Dagkaart() {
     }
   };
 
-  const onStartTijd = async (id: Id<"projecten">, tijd: string | null) => {
-    try {
-      await setTijd({ id, geplandeStartTijd: tijd });
-    } catch (fout) {
-      meld(fout, "Starttijd aanpassen mislukt");
-    }
-  };
-  const onDuur = async (id: Id<"projecten">, minuten: number | null) => {
-    try {
-      await setTijd({ id, duurOverrideMinuten: minuten });
-    } catch (fout) {
-      meld(fout, "Duur aanpassen mislukt");
-    }
-  };
-  const onHerstelTijden = async (id: Id<"projecten">) => {
-    try {
-      await setTijd({ id, geplandeStartTijd: null, duurOverrideMinuten: null });
-    } catch (fout) {
-      meld(fout, "Herstellen mislukt");
-    }
-  };
-  const onTaakLos = async (
-    id: Id<"projecten">,
-    index: number,
-    omschrijving: string
-  ) => {
-    try {
-      await taakLos({ id, taakIndex: index });
-      toast.success(`"${omschrijving}" staat als rest-opdracht in de bak`);
-    } catch (fout) {
-      meld(fout, "Taak losmaken mislukt");
-    }
-  };
+  // Stabiele handlers (useCallback) zodat de gememoiseerde KlantBlok's niet
+  // op elke render van de kaart opnieuw renderen.
+  const onStartTijd = useCallback(
+    async (id: Id<"projecten">, tijd: string | null) => {
+      try {
+        await setTijd({ id, geplandeStartTijd: tijd });
+      } catch (fout) {
+        meld(fout, "Starttijd aanpassen mislukt");
+      }
+    },
+    [setTijd]
+  );
+  const onDuur = useCallback(
+    async (id: Id<"projecten">, minuten: number | null) => {
+      try {
+        await setTijd({ id, duurOverrideMinuten: minuten });
+      } catch (fout) {
+        meld(fout, "Duur aanpassen mislukt");
+      }
+    },
+    [setTijd]
+  );
+  const onHerstelTijden = useCallback(
+    async (id: Id<"projecten">) => {
+      try {
+        await setTijd({ id, geplandeStartTijd: null, duurOverrideMinuten: null });
+      } catch (fout) {
+        meld(fout, "Herstellen mislukt");
+      }
+    },
+    [setTijd]
+  );
+  const onTaakLos = useCallback(
+    async (id: Id<"projecten">, index: number, omschrijving: string) => {
+      try {
+        await taakLos({ id, taakIndex: index });
+        toast.success(`"${omschrijving}" staat als rest-opdracht in de bak`);
+      } catch (fout) {
+        meld(fout, "Taak losmaken mislukt");
+      }
+    },
+    [taakLos]
+  );
   const onTeamLos = async () => {
     if (!teamId || !kaart) return;
     if (
