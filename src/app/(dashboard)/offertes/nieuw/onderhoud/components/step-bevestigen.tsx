@@ -17,6 +17,12 @@ import {
   Check,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { formatCurrency } from "@/lib/formatters";
+import {
+  ZAND_LABELS,
+  type CatalogusTotalen,
+  type OfferteBouwsteenRegel,
+} from "@/lib/bouwsteen-offerte";
 import { SCOPES } from "./constants";
 import type { OnderhoudScope, OnderhoudScopeData } from "./types";
 
@@ -34,6 +40,9 @@ interface StepBevestigenProps {
   achterstalligheid: string;
   selectedScopes: OnderhoudScope[];
   scopeData: OnderhoudScopeData;
+  /** Actieve catalogus-bouwstenen (PRD §2.5a); optioneel voor hergebruik */
+  catalogusRegels?: OfferteBouwsteenRegel[];
+  catalogusTotalen?: CatalogusTotalen;
   isSubmitting: boolean;
   onSubmit: () => void;
   prevStep: () => void;
@@ -46,6 +55,8 @@ export function StepBevestigen({
   achterstalligheid,
   selectedScopes,
   scopeData,
+  catalogusRegels,
+  catalogusTotalen,
   isSubmitting,
   onSubmit,
   prevStep,
@@ -185,6 +196,62 @@ export function StepBevestigen({
           </CardContent>
         </Card>
 
+        {/* Catalogus-bouwstenen samenvatting (PRD §2.5a) */}
+        {catalogusRegels && catalogusRegels.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">
+                Bouwstenen uit de catalogus
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Frequentie × prijs per beurt — deze regels vullen straks het
+                onderhoudscontract voor
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2 pt-0">
+              {catalogusRegels.map((regel) => (
+                <div
+                  key={regel.bouwsteenId}
+                  className="flex flex-wrap items-baseline justify-between gap-2 rounded-lg border p-3 text-sm"
+                >
+                  <span className="font-medium">
+                    {regel.naam}
+                    {regel.zandKeuze &&
+                      ` — ${ZAND_LABELS[regel.zandKeuze.keuze]}`}
+                  </span>
+                  <span className="text-muted-foreground tabular-nums">
+                    {regel.eenmalig
+                      ? `eenmalig · ${formatCurrency(regel.prijsPerBeurt)}`
+                      : `${regel.frequentiePerJaar}× per jaar · ${formatCurrency(regel.prijsPerBeurt)} per beurt`}
+                  </span>
+                </div>
+              ))}
+              {catalogusTotalen && (
+                <div className="flex flex-wrap justify-between gap-2 rounded-lg bg-muted/50 p-3 text-sm">
+                  <span>
+                    Jaarprijs:{" "}
+                    <strong className="tabular-nums">
+                      {formatCurrency(catalogusTotalen.jaarprijs)}
+                    </strong>
+                  </span>
+                  <span>
+                    Maandbedrag:{" "}
+                    <strong className="tabular-nums">
+                      {formatCurrency(catalogusTotalen.maandbedrag)}
+                    </strong>
+                  </span>
+                  <span>
+                    Eenmalig:{" "}
+                    <strong className="tabular-nums">
+                      {formatCurrency(catalogusTotalen.eenmalig)}
+                    </strong>
+                  </span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         <Alert>
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Let op</AlertTitle>
@@ -239,7 +306,7 @@ export function StepBevestigen({
 
               <Button variant="outline" className="w-full" onClick={prevStep}>
                 <ChevronLeft className="mr-2 h-4 w-4" />
-                Terug naar Details
+                Terug naar Bouwstenen
               </Button>
 
               <Button variant="ghost" className="w-full" asChild>

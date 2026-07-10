@@ -9,11 +9,18 @@ import { RestoreDraftDialog } from "@/components/offerte/restore-draft-dialog";
 import { WizardSteps, type WizardStep } from "@/components/offerte/wizard-steps";
 import { Id } from "../../../../../../convex/_generated/dataModel";
 
+import { formatCurrency } from "@/lib/formatters";
+import {
+  berekenCatalogusTotalen,
+  bouwOfferteBouwsteenRegels,
+} from "@/lib/bouwsteen-offerte";
+
 import {
   LoadingState,
   StepSnelstart,
   StepKlantScopes,
   StepScopeDetails,
+  StepBouwstenen,
   StepBevestigen,
   SuccessDialog,
   useOnderhoudWizard,
@@ -70,7 +77,17 @@ export default function NieuweOnderhoudOffertePage() {
     handlePackageSelect,
     restoreDraft,
     discardDraft,
+    catalogus,
+    setCatalogus,
+    bouwsteenDefaults,
   } = wizard;
+
+  // Live samenvatting van de catalogus-stap (PRD §2.5a)
+  const catalogusRegels = bouwOfferteBouwsteenRegels(
+    bouwsteenDefaults ?? [],
+    catalogus
+  );
+  const catalogusTotalen = berekenCatalogusTotalen(catalogusRegels);
 
   // Wizard steps configuration with summaries
   const wizardSteps: WizardStep[] = [
@@ -131,6 +148,28 @@ export default function NieuweOnderhoudOffertePage() {
     },
     {
       id: 3,
+      name: "Bouwstenen & Pakketten",
+      shortName: "Bouwstenen",
+      isValid: true,
+      summary: (
+        <div className="space-y-1">
+          <div>
+            <strong>Bouwstenen:</strong>{" "}
+            {catalogusRegels.length > 0
+              ? `${catalogusRegels.length} actief`
+              : "Geen geselecteerd"}
+          </div>
+          {catalogusRegels.length > 0 && (
+            <div>
+              <strong>Maandbedrag:</strong>{" "}
+              {formatCurrency(catalogusTotalen.maandbedrag)}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: 4,
       name: "Bevestigen",
       shortName: "Bevestigen",
     },
@@ -254,8 +293,19 @@ export default function NieuweOnderhoudOffertePage() {
           />
         )}
 
-        {/* Step 3: Bevestigen */}
+        {/* Step 3: Bouwstenen uit de catalogus (PRD §2.5a + bijlage A) */}
         {currentStep === 3 && (
+          <StepBouwstenen
+            bouwstenen={bouwsteenDefaults}
+            catalogus={catalogus}
+            setCatalogus={setCatalogus}
+            nextStep={nextStep}
+            prevStep={prevStep}
+          />
+        )}
+
+        {/* Step 4: Bevestigen */}
+        {currentStep === 4 && (
           <StepBevestigen
             klantData={klantData}
             tuinOppervlakte={tuinOppervlakte}
@@ -263,6 +313,8 @@ export default function NieuweOnderhoudOffertePage() {
             achterstalligheid={achterstalligheid}
             selectedScopes={selectedScopes}
             scopeData={scopeData}
+            catalogusRegels={catalogusRegels}
+            catalogusTotalen={catalogusTotalen}
             isSubmitting={isSubmitting}
             onSubmit={handleSubmit}
             prevStep={prevStep}

@@ -2,6 +2,7 @@ export { LoadingState } from "./loading-state";
 export { StepSnelstart } from "./step-snelstart";
 export { StepKlantScopes } from "./step-klant-scopes";
 export { StepScopeDetails } from "./step-scope-details";
+export { StepBouwstenen } from "./step-bouwstenen";
 export { StepBevestigen } from "./step-bevestigen";
 export { SuccessDialog } from "./success-dialog";
 export { useOnderhoudWizard } from "./use-onderhoud-wizard";

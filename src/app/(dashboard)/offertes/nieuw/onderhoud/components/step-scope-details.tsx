@@ -193,7 +193,7 @@ export function StepScopeDetails({
                 disabled={!isStep2Valid}
                 onClick={nextStep}
               >
-                Volgende: Bevestigen
+                Volgende: Bouwstenen
                 <ChevronRight className="ml-2 h-4 w-4" />
               </Button>
 

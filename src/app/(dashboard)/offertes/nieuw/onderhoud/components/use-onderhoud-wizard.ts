@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
+import { useMutation, useQuery } from "convex/react";
 import { useOffertes } from "@/hooks/use-offertes";
 import { useInstellingen } from "@/hooks/use-instellingen";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -9,9 +10,17 @@ import { useOfferteCalculation } from "@/hooks/use-offerte-calculation";
 import { useWizardAutosave } from "@/hooks/use-wizard-autosave";
 import { useBeforeUnload } from "@/hooks/use-before-unload";
 import { useKlanten } from "@/hooks/use-klanten";
+import { api } from "../../../../../../../convex/_generated/api";
 import { Id } from "../../../../../../../convex/_generated/dataModel";
 import type { OffertePackage } from "@/lib/constants/packages";
 import type { Bereikbaarheid, Achterstalligheid } from "@/types/offerte";
+import {
+  LEGE_CATALOGUS_SELECTIE,
+  bouwOfferteBouwsteenRegels,
+  catalogusRegelsNaarOfferteRegels,
+  type BouwsteenDefault,
+  type CatalogusSelectie,
+} from "@/lib/bouwsteen-offerte";
 import { SCOPES, INITIAL_WIZARD_DATA } from "./constants";
 import type { OnderhoudScope, OnderhoudScopeData, WizardData } from "./types";
 
@@ -45,7 +54,23 @@ export function useOnderhoudWizard() {
   const hasUnsavedChanges = currentStep > 0;
   useBeforeUnload(hasUnsavedChanges);
 
-  const totalSteps = 4;
+  const totalSteps = 5;
+
+  // Catalogus-laag (PRD §2.5a): actieve bouwstenen met default-prijs op
+  // offertedatum (vandaag). Beheerscherm-wijzigingen verschijnen hier live,
+  // zonder deploy; historische offertes behouden hun eigen tarief omdat de
+  // prijs bij aanmaken op de offerte wordt vastgelegd (§8.7).
+  const offerteDatum = useMemo(
+    () => new Date().toISOString().slice(0, 10),
+    []
+  );
+  const bouwsteenDefaults = useQuery(
+    api.onderhoudscontracten.getBouwsteenDefaults,
+    { datum: offerteDatum }
+  ) as BouwsteenDefault[] | undefined;
+  const updateBouwsteenRegelsMutation = useMutation(
+    api.offertes.updateBouwsteenRegels
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
@@ -98,6 +123,21 @@ export function useOnderhoudWizard() {
 
   // Extract data from wizard state for easier access
   const { selectedTemplateId, selectedKlantId, selectedLeadId, selectedScopes, bereikbaarheid, achterstalligheid, tuinOppervlakte, klantData, scopeData } = wizardData;
+
+  // Catalogus-selectie; oudere autosave-drafts hebben dit veld nog niet
+  const catalogus = wizardData.catalogus ?? LEGE_CATALOGUS_SELECTIE;
+
+  const setCatalogus = (
+    updater: CatalogusSelectie | ((prev: CatalogusSelectie) => CatalogusSelectie)
+  ) => {
+    setWizardData((prev) => ({
+      ...prev,
+      catalogus:
+        typeof updater === "function"
+          ? updater(prev.catalogus ?? LEGE_CATALOGUS_SELECTIE)
+          : updater,
+    }));
+  };
 
   // Helper functions to update wizard data
   const setSelectedTemplateId = (id: string | null) => {
@@ -268,13 +308,36 @@ export function useOnderhoudWizard() {
         achterstalligheid,
       });
 
-      if (calculationResult && calculationResult.regels.length > 0) {
+      // Catalogus-laag (PRD §2.5a): bouwsteen-regels ADDITIEF naast de
+      // regels van de bestaande engine — prijs op offertedatum vastgelegd
+      const offerteBouwsteenRegels = bouwOfferteBouwsteenRegels(
+        bouwsteenDefaults ?? [],
+        catalogus
+      );
+      const catalogusOfferteRegels = catalogusRegelsNaarOfferteRegels(
+        offerteBouwsteenRegels
+      );
+
+      const alleRegels = [
+        ...(calculationResult?.regels ?? []),
+        ...catalogusOfferteRegels,
+      ];
+      if (alleRegels.length > 0) {
         await updateRegels({
           id: offerteId,
-          regels: calculationResult.regels,
+          regels: alleRegels,
           margePercentage: instellingen?.standaardMargePercentage || 15,
           btwPercentage: instellingen?.btwPercentage || 21,
           uurtarief: instellingen?.uurtarief || 45,
+        });
+      }
+
+      // Gestructureerd opslaan zodat onderhoudscontracten.createFromOfferte
+      // het concept-contract exact kan voorvullen (§2.1)
+      if (offerteBouwsteenRegels.length > 0) {
+        await updateBouwsteenRegelsMutation({
+          id: offerteId,
+          bouwsteenRegels: offerteBouwsteenRegels,
         });
       }
 
@@ -393,6 +456,11 @@ export function useOnderhoudWizard() {
     hasVerplichtWarning,
     isStep1Valid,
     isStep2Valid,
+
+    // Catalogus (PRD §2.5a)
+    catalogus,
+    setCatalogus,
+    bouwsteenDefaults,
 
     // Setters
     setShowTemplates,

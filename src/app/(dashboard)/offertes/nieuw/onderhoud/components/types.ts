@@ -10,6 +10,7 @@ import type {
   BomenOnderhoudData,
   OverigeOnderhoudData,
 } from "@/types/offerte";
+import type { CatalogusSelectie } from "@/lib/bouwsteen-offerte";
 
 export type OnderhoudScope = "gras" | "borders" | "heggen" | "bomen" | "overig" | "reiniging" | "bemesting" | "gazonanalyse" | "mollenbestrijding";
 
@@ -43,4 +44,7 @@ export interface WizardData {
     telefoon: string;
   };
   scopeData: OnderhoudScopeData;
+  // Catalogus-stap (PRD §2.5a + bijlage A). Optioneel zodat oudere
+  // autosave-drafts zonder dit veld gewoon herstellen.
+  catalogus?: CatalogusSelectie;
 }

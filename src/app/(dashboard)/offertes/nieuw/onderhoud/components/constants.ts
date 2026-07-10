@@ -15,6 +15,7 @@ import type {
   OverigeOnderhoudData,
 } from "@/types/offerte";
 import type { MollenbestrijdingData } from "@/components/offerte/onderhoud-forms/mollenbestrijding-form";
+import { LEGE_CATALOGUS_SELECTIE } from "@/lib/bouwsteen-offerte";
 import type { OnderhoudScope, WizardData } from "./types";
 
 export const SCOPES = [
@@ -173,4 +174,5 @@ export const INITIAL_WIZARD_DATA: WizardData = {
     gazonanalyse: defaultGazonanalyseData,
     mollenbestrijding: DEFAULT_MOLLENBESTRIJDING,
   },
+  catalogus: LEGE_CATALOGUS_SELECTIE,
 };
