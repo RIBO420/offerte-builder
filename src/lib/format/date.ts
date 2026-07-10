@@ -237,6 +237,41 @@ export function formatMonth(date: Date | number | string): string {
 }
 
 /**
+ * §5.5: Korte Nederlandse maand+jaar-aanduiding voor periode-labels
+ * op het dashboard. Eén vaste stijl: afgekorte maand met hoofdletter,
+ * zonder punt, gevolgd door het jaartal.
+ *
+ * @param date - The date to format
+ * @returns Formatted period string (e.g., "Jul 2026")
+ *
+ * @example
+ * formatMaandJaar(new Date(2026, 6, 10)) // "Jul 2026"
+ */
+export function formatMaandJaar(date: Date | number | string): string {
+  const d = toDate(date);
+  const maand = new Intl.DateTimeFormat("nl-NL", { month: "short" })
+    .format(d)
+    .replace(".", "");
+  const maandCapitalized = maand.charAt(0).toUpperCase() + maand.slice(1);
+  return `${maandCapitalized} ${d.getFullYear()}`;
+}
+
+/**
+ * §5.5: Kwartaal+jaar-aanduiding voor periode-labels op het dashboard.
+ *
+ * @param date - The date to format
+ * @returns Formatted quarter string (e.g., "Q3 2026")
+ *
+ * @example
+ * formatKwartaalJaar(new Date(2026, 6, 10)) // "Q3 2026"
+ */
+export function formatKwartaalJaar(date: Date | number | string): string {
+  const d = toDate(date);
+  const kwartaal = Math.ceil((d.getMonth() + 1) / 3);
+  return `Q${kwartaal} ${d.getFullYear()}`;
+}
+
+/**
  * Get ISO date string (YYYY-MM-DD) from a date.
  * Useful for form inputs and API calls.
  *

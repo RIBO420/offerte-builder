@@ -3,6 +3,7 @@
 import { Euro, FolderKanban, FileText, Receipt, TrendingUp, Clock } from "lucide-react";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import { Sparkline } from "@/components/ui/sparkline";
+import { formatMaandJaar, formatKwartaalJaar } from "@/lib/format";
 
 // ── MetricCard ──────────────────────────────────────────────────────────────
 
@@ -156,15 +157,10 @@ export function FinancieelGrid({
   omzetTrendPercentage,
   gefactureerdTrendPercentage,
 }: FinancieelGridProps) {
-  // Date helpers
+  // §5.5: periode-labels via de centrale formatteringshelper (consistent NL)
   const now = new Date();
-  const monthNames = [
-    "Jan", "Feb", "Mrt", "Apr", "Mei", "Jun",
-    "Jul", "Aug", "Sep", "Okt", "Nov", "Dec",
-  ];
-  const currentMonth = monthNames[now.getMonth()];
-  const currentYear = now.getFullYear();
-  const currentQuarter = `Q${Math.ceil((now.getMonth() + 1) / 3)}`;
+  const maandLabel = formatMaandJaar(now);
+  const kwartaalLabel = formatKwartaalJaar(now);
 
   // Openstaande offertes subtitle
   const offertesSubtitle =
@@ -196,7 +192,7 @@ export function FinancieelGrid({
           iconColor="text-green-500"
           trendPercentage={omzetTrendPercentage}
           trendColor="green"
-          subtitle={`${currentMonth} ${currentYear}`}
+          subtitle={`t/m ${maandLabel}`}
           sparklineData={[10, 15, 12, 20, 18, 25, 30, 28, 35, 40, 38, 45]}
           sparklineColor="#22c55e"
         />
@@ -239,7 +235,7 @@ export function FinancieelGrid({
           iconColor="text-blue-500"
           trendPercentage={gefactureerdTrendPercentage}
           trendColor="blue"
-          subtitle={`${currentQuarter} ${currentYear}`}
+          subtitle={kwartaalLabel}
           sparklineData={[5, 8, 10, 15, 20, 22, 25, 30]}
           sparklineColor="#3b82f6"
         />
@@ -250,7 +246,7 @@ export function FinancieelGrid({
           value={urenDezeMaand}
           icon={<Clock className="h-4 w-4" />}
           iconColor="text-orange-500"
-          subtitle="Geregistreerd"
+          subtitle={maandLabel}
         />
       </div>
     </section>

@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Loader2, Receipt, TrendingUp, Clock, AlertTriangle, ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
+import { formatMaandJaar, formatKwartaalJaar } from "@/lib/format";
 
 // ── Formatters ────────────────────────────────────────────────────────
 
@@ -55,6 +56,14 @@ export function DirectieDashboard() {
 
   const { financieel: fin, operationeel: ops, kwartaalVergelijking: kw } = stats;
 
+  // §5.5: periode-labels via de centrale formatteringshelper (consistent NL)
+  const now = new Date();
+  const kwartaalLabel = formatKwartaalJaar(now);
+  const vorigKwartaalLabel = formatKwartaalJaar(
+    new Date(now.getFullYear(), now.getMonth() - 3, 1)
+  );
+  const maandLabel = formatMaandJaar(now);
+
   return (
     <div className="space-y-6">
       {/* Section: Financieel & Operationeel (unieke KPIs) */}
@@ -77,15 +86,15 @@ export function DirectieDashboard() {
             }
           />
           <MetricCard
-            title="Gefactureerd dit Q"
+            title={`Gefactureerd (${kwartaalLabel})`}
             value={fmt.format(kw.gefactureerdThisQ)}
             icon={TrendingUp}
             iconColor="text-blue-500"
             footer={<TrendBadge current={kw.gefactureerdThisQ} previous={kw.gefactureerdPrevQ} />}
-            footerLabel="vs vorig kwartaal"
+            footerLabel={`vs ${vorigKwartaalLabel}`}
           />
           <MetricCard
-            title="Uren deze Maand"
+            title={`Uren (${maandLabel})`}
             value={ops.urenDezeMaand.toFixed(0)}
             icon={Clock}
             iconColor="text-orange-500"
@@ -100,7 +109,9 @@ export function DirectieDashboard() {
 
       {/* Section: Kwartaal Vergelijking */}
       <div>
-        <h3 className="text-sm font-medium text-muted-foreground mb-3">Dit Kwartaal vs Vorig Kwartaal</h3>
+        <h3 className="text-sm font-medium text-muted-foreground mb-3">
+          {kwartaalLabel} vs {vorigKwartaalLabel}
+        </h3>
         <div className="grid gap-3 sm:grid-cols-3">
           <ComparisonCard
             title="Offertes"

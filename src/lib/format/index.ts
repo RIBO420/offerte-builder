@@ -25,6 +25,8 @@ export {
   formatRelativeTime,
   formatDateRange,
   formatMonth,
+  formatMaandJaar,
+  formatKwartaalJaar,
   getISODateString,
   getTodayString,
   getDaysAgoString,
