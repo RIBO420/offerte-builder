@@ -57,6 +57,7 @@ import type * as migrations_backfillWerkitemType from "../migrations/backfillWer
 import type * as migrations_consolidateNotificationLogs from "../migrations/consolidateNotificationLogs.js";
 import type * as migrations_saneerLeadsKlanten from "../migrations/saneerLeadsKlanten.js";
 import type * as migrations_seedBouwstenen from "../migrations/seedBouwstenen.js";
+import type * as migrations_seedTekstblokken from "../migrations/seedTekstblokken.js";
 import type * as mobile from "../mobile.js";
 import type * as nacalculaties from "../nacalculaties.js";
 import type * as normuren from "../normuren.js";
@@ -73,6 +74,7 @@ import type * as portaal from "../portaal.js";
 import type * as portaalEmail from "../portaalEmail.js";
 import type * as proactiveWarnings from "../proactiveWarnings.js";
 import type * as producten from "../producten.js";
+import type * as productenImport from "../productenImport.js";
 import type * as projectKosten from "../projectKosten.js";
 import type * as projectRapportages from "../projectRapportages.js";
 import type * as projecten from "../projecten.js";
@@ -85,6 +87,7 @@ import type * as smartAnalytics from "../smartAnalytics.js";
 import type * as softDelete from "../softDelete.js";
 import type * as standaardtuinen from "../standaardtuinen.js";
 import type * as teams from "../teams.js";
+import type * as tekstblokken from "../tekstblokken.js";
 import type * as toolboxMeetings from "../toolboxMeetings.js";
 import type * as transportbedrijven from "../transportbedrijven.js";
 import type * as urenRegistraties from "../urenRegistraties.js";
@@ -160,6 +163,7 @@ declare const fullApi: ApiFromModules<{
   "migrations/consolidateNotificationLogs": typeof migrations_consolidateNotificationLogs;
   "migrations/saneerLeadsKlanten": typeof migrations_saneerLeadsKlanten;
   "migrations/seedBouwstenen": typeof migrations_seedBouwstenen;
+  "migrations/seedTekstblokken": typeof migrations_seedTekstblokken;
   mobile: typeof mobile;
   nacalculaties: typeof nacalculaties;
   normuren: typeof normuren;
@@ -176,6 +180,7 @@ declare const fullApi: ApiFromModules<{
   portaalEmail: typeof portaalEmail;
   proactiveWarnings: typeof proactiveWarnings;
   producten: typeof producten;
+  productenImport: typeof productenImport;
   projectKosten: typeof projectKosten;
   projectRapportages: typeof projectRapportages;
   projecten: typeof projecten;
@@ -188,6 +193,7 @@ declare const fullApi: ApiFromModules<{
   softDelete: typeof softDelete;
   standaardtuinen: typeof standaardtuinen;
   teams: typeof teams;
+  tekstblokken: typeof tekstblokken;
   toolboxMeetings: typeof toolboxMeetings;
   transportbedrijven: typeof transportbedrijven;
   urenRegistraties: typeof urenRegistraties;
