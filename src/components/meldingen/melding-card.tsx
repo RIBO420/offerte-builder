@@ -18,7 +18,7 @@ export interface MeldingKaart {
   status: string;
   type?: "serviceverzoek" | "klacht" | "schade";
   kanaal?: string;
-  taaksoort?: "melding" | "plantaak";
+  taaksoort?: "melding" | "plantaak" | "debiteurentaak";
   deadline?: string;
   prioriteit: string;
   klantNaam: string;
@@ -52,6 +52,7 @@ export function MeldingCard({ melding, onClick }: MeldingCardProps) {
     useDraggable({ id: melding._id });
 
   const isPlantaak = melding.taaksoort === "plantaak";
+  const isDebiteurentaak = melding.taaksoort === "debiteurentaak";
 
   return (
     <div
@@ -74,7 +75,11 @@ export function MeldingCard({ melding, onClick }: MeldingCardProps) {
       )}
     >
       <div className="flex items-center gap-1.5 flex-wrap">
-        {isPlantaak ? (
+        {isDebiteurentaak ? (
+          <Badge className="bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-100 text-[10px]">
+            Debiteurentaak
+          </Badge>
+        ) : isPlantaak ? (
           <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100 text-[10px]">
             Plantaak
           </Badge>

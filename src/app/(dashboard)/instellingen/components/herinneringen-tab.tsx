@@ -15,10 +15,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Save, Bell, Scale, Info } from "lucide-react";
+import { DebiteurenladderCard } from "./debiteurenladder-card";
 
 interface HerinneringenInstellingen {
   herinneringDagen?: number[];
@@ -130,43 +130,16 @@ export function HerinneringenTab({
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            Configureer wanneer betalingsherinneringen en aanmaningen worden verstuurd
-            voor onbetaalde facturen. De dagen worden geteld vanaf de vervaldatum van de factuur.
-            Herinneringen zijn vriendelijke betalingsverzoeken, aanmaningen zijn formele
-            ingebrekestellingen.
+            Het automatische traject loopt via de debiteurenladder hieronder
+            (dagen geteld vanaf de verzenddatum). De velden daaronder sturen
+            alleen nog de handmatige herinneringen en aanmaningen vanaf de
+            factuurpagina (dagen geteld vanaf de vervaldatum).
           </p>
         </CardContent>
       </Card>
 
-      {/* Automatisch Versturen Toggle */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Bell className="h-5 w-5" />
-            Automatisch versturen
-          </CardTitle>
-          <CardDescription>
-            Schakel in om herinneringen automatisch te laten versturen via de dagelijkse controle
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="auto-send">Automatische herinneringen</Label>
-              <p className="text-sm text-muted-foreground">
-                {automatisch
-                  ? "Herinneringen worden automatisch verstuurd"
-                  : "Alleen handmatig versturen via de factuurpagina"}
-              </p>
-            </div>
-            <Switch
-              id="auto-send"
-              checked={automatisch}
-              onCheckedChange={setAutomatisch}
-            />
-          </div>
-        </CardContent>
-      </Card>
+      {/* Debiteurenladder (PRD §3.2) — het automatische traject */}
+      <DebiteurenladderCard />
 
       {/* Herinnering Dagen */}
       <Card>

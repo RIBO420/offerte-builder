@@ -37,9 +37,9 @@ export default function MeldingenPage() {
     role === "directie" || role === "admin" || role === "projectleider";
 
   const [mijnCases, setMijnCases] = useState(false);
-  const [taaksoort, setTaaksoort] = useState<"alles" | "melding" | "plantaak">(
-    "alles"
-  );
+  const [taaksoort, setTaaksoort] = useState<
+    "alles" | "melding" | "plantaak" | "debiteurentaak"
+  >("alles");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [detailId, setDetailId] = useState<Id<"servicemeldingen"> | null>(null);
 
@@ -87,6 +87,7 @@ export default function MeldingenPage() {
             <SelectItem value="alles">Alles</SelectItem>
             <SelectItem value="melding">Meldingen</SelectItem>
             <SelectItem value="plantaak">Plantaken</SelectItem>
+            <SelectItem value="debiteurentaak">Debiteurentaken</SelectItem>
           </SelectContent>
         </Select>
       </div>

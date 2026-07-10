@@ -53,6 +53,7 @@ import {
   facturenExportColumns,
 } from "@/components/export-dropdown";
 import { formatCurrency } from "@/lib/format/currency";
+import { OpenstaandOverzicht } from "@/components/facturen/openstaand-overzicht";
 
 // Status configuration for facturen - WCAG AA compliant colors (4.5:1 contrast ratio)
 const statusConfig = {
@@ -186,7 +187,8 @@ function FacturenPageContent() {
   const [previousItems, setPreviousItems] = useState<any[]>([]);
 
   // Use cursor-based paginated query with status filter
-  const statusFilter = activeTab !== "alle" ? activeTab as "concept" | "definitief" | "verzonden" | "betaald" | "vervallen" : undefined;
+  // ("openstaand" is het debiteurenoverzicht (§3.2) met een eigen query)
+  const statusFilter = activeTab !== "alle" && activeTab !== "openstaand" ? activeTab as "concept" | "definitief" | "verzonden" | "betaald" | "vervallen" : undefined;
 
   const paginatedData = useQuery(
     api.facturen.listPaginated,
@@ -526,8 +528,19 @@ function FacturenPageContent() {
                   </Badge>
                 )}
               </TabsTrigger>
+              {/* §3.2: de lijst ís het debiteurenoverzicht — "verschuldigd
+                  sinds", aanmaanniveau en pauzeer-acties per factuur */}
+              <TabsTrigger value="openstaand">
+                <Bell className="mr-1 h-4 w-4" />
+                Openstaand
+              </TabsTrigger>
             </TabsList>
 
+            {activeTab === "openstaand" ? (
+              <TabsContent value="openstaand" className="space-y-6">
+                <OpenstaandOverzicht isKantoor={isKantoor} />
+              </TabsContent>
+            ) : (
             <TabsContent value={activeTab} className="space-y-6">
               {/* Bulk-verstuur vanuit de wachtrij (§2.8) — alleen kantoor */}
               {isWachtrijTab && isKantoor && displayedFacturen.length > 0 && (
@@ -822,6 +835,7 @@ function FacturenPageContent() {
                 )}
               </AnimatePresence>
             </TabsContent>
+            )}
           </Tabs>
         </m.div>
       </m.div>
