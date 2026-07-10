@@ -42,7 +42,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Users,
   Plus,
@@ -216,7 +215,6 @@ function KlantenPageContent() {
     plaats: "",
     email: "",
     telefoon: "",
-    notities: "",
     klantType: "particulier" as KlantType,
     tags: [] as string[],
   });
@@ -377,7 +375,6 @@ function KlantenPageContent() {
       plaats: "",
       email: "",
       telefoon: "",
-      notities: "",
       klantType: "particulier",
       tags: [],
     });
@@ -398,7 +395,7 @@ function KlantenPageContent() {
         plaats: formData.plaats,
         email: formData.email || undefined,
         telefoon: formData.telefoon || undefined,
-        notities: formData.notities || undefined,
+        // notities bewust niet meegestuurd (deprecated, PRD §2.3)
         klantType: formData.klantType,
         tags: formData.tags.length > 0 ? formData.tags : undefined,
       });
@@ -422,7 +419,6 @@ function KlantenPageContent() {
       plaats: klant.plaats,
       email: klant.email || "",
       telefoon: klant.telefoon || "",
-      notities: klant.notities || "",
       klantType: klant.klantType ?? "particulier",
       tags: klant.tags ?? [],
     });
@@ -439,7 +435,8 @@ function KlantenPageContent() {
       plaats: formData.plaats,
       email: formData.email || undefined,
       telefoon: formData.telefoon || undefined,
-      notities: formData.notities || undefined,
+      // notities bewust niet meegestuurd: het veld is deprecated (PRD §2.3)
+      // en een update mag bestaande (gemigreerde) inhoud niet wissen
       klantType: formData.klantType,
       tags: formData.tags,
     };
@@ -920,18 +917,9 @@ function KlantenPageContent() {
         />
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="notities">Notities</Label>
-        <Textarea
-          id="notities"
-          placeholder="Extra informatie over de klant..."
-          value={formData.notities}
-          onChange={(e) =>
-            setFormData({ ...formData, notities: e.target.value })
-          }
-          rows={3}
-        />
-      </div>
+      {/* Notities-veld verwijderd (PRD §2.3): het vrije Notities-veld is
+          uitgefaseerd — losse notities lopen via de klanttijdlijn op de
+          klant-detailpagina. Bestaande inhoud is daarheen gemigreerd. */}
 
       {/* CRM-007: Duplicate warning */}
       {duplicates && duplicates.length > 0 && (

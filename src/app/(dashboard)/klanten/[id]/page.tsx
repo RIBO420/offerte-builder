@@ -42,7 +42,7 @@ import {
   ArrowLeft,
   Shovel,
   Trees,
-  StickyNote,
+  History,
   Tag,
   ShieldAlert,
 } from "lucide-react";
@@ -55,6 +55,7 @@ import { CopyButton } from "@/components/ui/copy-button";
 import { Id } from "../../../../../convex/_generated/dataModel";
 import { LeadHistorieCard } from "@/components/leads/lead-historie-card";
 import { OnderhoudSectie } from "@/components/klanten/onderhoud-sectie";
+import { KlantTijdlijn } from "@/components/tijdlijn/klant-tijdlijn";
 import { KlantReminderBanner } from "@/components/klant-reminder-banner";
 import { formatCurrency } from "@/lib/format/currency";
 
@@ -396,31 +397,30 @@ export default function KlantDetailPage({
             </CardContent>
           </Card>
 
-          {/* Notes Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <StickyNote className="h-5 w-5" />
-                Notities
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {klant.notities ? (
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                  {klant.notities}
-                </p>
-              ) : (
-                <p className="text-sm text-muted-foreground italic">
-                  Geen notities
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
           {/* Lead-historie (PRD §1.3): herkomst + activiteiten van de
               gepromoveerde lead blijven vanaf de klant bereikbaar */}
           <LeadHistorieCard klantId={id as Id<"klanten">} />
         </div>
+
+        {/* Klanttijdlijn (PRD §2.3) — vervangt het vrije Notities-veld
+            ("één waarheid"): filters op kanaal/klus, vrij zoeken en
+            entry-compositie voor kantoor. Bestaande notities zijn gemigreerd
+            als "Genoteerd vóór tijdlijn"-entry (tijdlijnMigratie). */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <History className="h-5 w-5" />
+              Tijdlijn
+            </CardTitle>
+            <CardDescription>
+              Wie heeft wat met deze klant besproken, wanneer, via welk
+              kanaal, over welke klus?
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <KlantTijdlijn klantId={id as Id<"klanten">} />
+          </CardContent>
+        </Card>
 
         {/* Onderhoud (PRD §2.1): contracten + losse beurten, aparte regels */}
         <OnderhoudSectie klantId={id as Id<"klanten">} />

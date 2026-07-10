@@ -9,7 +9,8 @@ import { ChatMessageList } from "@/components/chat/chat-message-list";
 import { ChatInput } from "@/components/chat/chat-input";
 import { ChatTabBadge } from "@/components/chat/chat-tabs-badge";
 import { NewDMDialog } from "@/components/chat/new-dm-dialog";
-import { NewKlantChatDialog } from "@/components/chat/new-klant-chat-dialog";
+import { KlantTijdlijn } from "@/components/tijdlijn/klant-tijdlijn";
+import Link from "next/link";
 import { m } from "framer-motion";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -23,16 +24,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
   Users,
   Megaphone,
   MessageCircle,
@@ -41,10 +32,8 @@ import {
   Loader2,
   PenSquare,
   ArrowLeft,
-  Trash2,
 } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
-import { toast } from "sonner";
 import { isKantoorRol } from "@/lib/rollen";
 
 type ChatTab = "team" | "mededelingen" | "dm" | "project" | "klant";
@@ -335,50 +324,27 @@ function DMConversation({
   );
 }
 
-// ── Klant Tab Content ────────────────────────────────────────────────
+// ── Klanten-tab: WEERGAVE van de klanttijdlijn (PRD §2.3) ────────────
+// Zelfde data als de klant-detailpagina, via dezelfde Convex-queries
+// (convex/tijdlijn.ts) — andere ingang, géén tweede opslag. De oude
+// klant-thread-berichten (chat_threads) zijn NIET gemigreerd maar blijven
+// als read-only historie-blok zichtbaar binnen <KlantTijdlijn />.
 
-function KlantTab({ currentUserClerkId, userRole }: { currentUserClerkId: string; userRole?: string }) {
-  const threads = useQuery(api.chatThreads.listThreads, {});
-  const deleteThread = useMutation(api.chatThreads.deleteThread);
-  const [selectedThreadId, setSelectedThreadId] =
-    useState<Id<"chat_threads"> | null>(null);
-  const [threadToDelete, setThreadToDelete] = useState<{ _id: Id<"chat_threads">; name: string } | null>(null);
-  const [showNewKlantChat, setShowNewKlantChat] = useState(false);
+function KlantenTijdlijnTab() {
+  const klanten = useQuery(api.tijdlijn.listKlantenMetTijdlijn, {});
+  const [selectedKlantId, setSelectedKlantId] = useState<Id<"klanten"> | null>(
+    null
+  );
 
-  const selectedThread = useMemo(() => {
-    if (!selectedThreadId || !threads) return null;
-    return threads.find((t) => t._id === selectedThreadId) ?? null;
-  }, [selectedThreadId, threads]);
+  // Zonder expliciete keuze: de klant met de recentste tijdlijn-activiteit
+  const effectiveKlantId = selectedKlantId ?? klanten?.[0]?.klantId ?? null;
 
-  // Auto-select first thread
-  useEffect(() => {
-    if (threads && threads.length > 0 && !selectedThread) {
-      setSelectedThreadId(threads[0]._id);
-    }
-  }, [threads, selectedThread]);
+  const selected = useMemo(() => {
+    if (!effectiveKlantId || !klanten) return null;
+    return klanten.find((k) => k.klantId === effectiveKlantId) ?? null;
+  }, [effectiveKlantId, klanten]);
 
-  const handleThreadCreated = useCallback((threadId: Id<"chat_threads">) => {
-    setSelectedThreadId(threadId);
-  }, []);
-
-  const handleDeleteThread = useCallback(async () => {
-    if (!threadToDelete) return;
-    try {
-      await deleteThread({ threadId: threadToDelete._id });
-      toast.success("Gesprek verwijderd");
-      if (selectedThreadId === threadToDelete._id) {
-        setSelectedThreadId(null);
-      }
-    } catch {
-      toast.error("Fout bij verwijderen gesprek");
-    } finally {
-      setThreadToDelete(null);
-    }
-  }, [threadToDelete, deleteThread, selectedThreadId]);
-
-  const canDelete = userRole === "directie" || userRole === "admin";
-
-  if (threads === undefined) {
+  if (klanten === undefined) {
     return (
       <div className="flex items-center justify-center flex-1">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -386,58 +352,39 @@ function KlantTab({ currentUserClerkId, userRole }: { currentUserClerkId: string
     );
   }
 
-  if (threads.length === 0) {
+  if (klanten.length === 0) {
     return (
-      <>
-        <EmptyState
-          icon={<UserRound />}
-          title="Geen klantgesprekken"
-          description="Er zijn nog geen gesprekken met klanten gestart."
-          action={{
-            label: "Nieuw gesprek",
-            onClick: () => setShowNewKlantChat(true),
-            variant: "outline",
-          }}
-          className="flex-1"
-        />
-        <NewKlantChatDialog
-          open={showNewKlantChat}
-          onOpenChange={setShowNewKlantChat}
-          onThreadCreated={handleThreadCreated}
-        />
-      </>
+      <EmptyState
+        icon={<UserRound />}
+        title="Geen klanten"
+        description="Zodra er klanten zijn, zie je hier hun tijdlijnen."
+        className="flex-1"
+      />
     );
   }
 
   return (
     <div className="flex flex-1 min-h-0">
-      {/* Thread list sidebar */}
+      {/* Klantenlijst sidebar */}
       <div className="w-72 border-r flex flex-col overflow-hidden">
         <div className="flex items-center justify-between p-3 border-b shrink-0">
           <span className="text-sm font-medium text-muted-foreground">
-            Klanten ({threads.length})
+            Klanten ({klanten.length})
           </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowNewKlantChat(true)}
-            title="Nieuw klantgesprek"
-          >
-            <PenSquare className="h-4 w-4" />
-          </Button>
         </div>
         <div className="flex-1 overflow-y-auto">
           <div className="divide-y">
-            {threads.map((thread) => (
-              <div
-                key={thread._id}
-                className={`flex items-center gap-2 w-full p-3 hover:bg-accent/50 transition-colors cursor-pointer ${
-                  selectedThreadId === thread._id ? "bg-accent" : ""
+            {klanten.map((k) => (
+              <button
+                key={k.klantId}
+                type="button"
+                className={`flex items-center gap-2 w-full p-3 text-left hover:bg-accent/50 transition-colors cursor-pointer ${
+                  effectiveKlantId === k.klantId ? "bg-accent" : ""
                 }`}
-                onClick={() => setSelectedThreadId(thread._id)}
+                onClick={() => setSelectedKlantId(k.klantId)}
               >
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-medium text-xs">
-                  {(thread.channelName || "K")
+                  {k.naam
                     .split(" ")
                     .map((w: string) => w[0])
                     .join("")
@@ -446,142 +393,130 @@ function KlantTab({ currentUserClerkId, userRole }: { currentUserClerkId: string
                 </div>
                 <div className="flex-1 min-w-0">
                   <span className="text-sm font-medium truncate block">
-                    {thread.channelName || "Klant"}
+                    {k.naam}
                   </span>
-                  {thread.lastMessagePreview && (
+                  {k.laatsteEntryPreview && (
                     <p className="text-xs text-muted-foreground truncate">
-                      {thread.lastMessagePreview}
+                      {k.laatsteEntryPreview}
                     </p>
                   )}
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  {(thread.unreadByBedrijf ?? 0) > 0 && (
-                    <Badge variant="destructive" className="h-5 min-w-5 text-xs">
-                      {thread.unreadByBedrijf}
-                    </Badge>
-                  )}
-                  {canDelete && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 hover:opacity-100"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setThreadToDelete({ _id: thread._id, name: thread.channelName || "Klant" });
-                      }}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
-                </div>
-              </div>
+                {k.laatsteEntryAt && (
+                  <span className="text-[10px] text-muted-foreground shrink-0">
+                    {formatTime(k.laatsteEntryAt)}
+                  </span>
+                )}
+              </button>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Messages area */}
-      {selectedThread ? (
-        <KlantThreadMessages
-          threadId={selectedThread._id}
-          threadName={selectedThread.channelName || "Klant"}
-          currentUserClerkId={currentUserClerkId}
-        />
+      {/* Tijdlijn van de geselecteerde klant */}
+      {selected ? (
+        <div className="flex flex-1 flex-col min-h-0">
+          <div className="flex items-center gap-2 p-3 border-b shrink-0">
+            <UserRound className="h-4 w-4 text-muted-foreground" />
+            <span className="font-medium text-sm">{selected.naam}</span>
+            <Link
+              href={`/klanten/${selected.klantId}`}
+              className="ml-auto text-xs text-muted-foreground underline-offset-2 hover:underline"
+            >
+              Open klantkaart
+            </Link>
+          </div>
+          <div className="flex-1 min-h-0 overflow-y-auto p-4">
+            <KlantTijdlijn klantId={selected.klantId} />
+          </div>
+        </div>
       ) : (
         <EmptyState
-          icon={<MessageCircle />}
-          title="Selecteer een gesprek"
-          description="Kies een klant uit de lijst om het gesprek te bekijken."
+          icon={<UserRound />}
+          title="Selecteer een klant"
+          description="Kies een klant uit de lijst om de tijdlijn te bekijken."
           className="flex-1"
         />
       )}
-
-      {/* Delete confirmation */}
-      <AlertDialog open={!!threadToDelete} onOpenChange={() => setThreadToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Gesprek verwijderen</AlertDialogTitle>
-            <AlertDialogDescription>
-              Weet je zeker dat je het gesprek met <strong>{threadToDelete?.name}</strong> wilt verwijderen?
-              Alle berichten worden permanent verwijderd.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Annuleren</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteThread}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Verwijderen
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* New klant chat dialog */}
-      <NewKlantChatDialog
-        open={showNewKlantChat}
-        onOpenChange={setShowNewKlantChat}
-        onThreadCreated={handleThreadCreated}
-      />
     </div>
   );
 }
 
-function KlantThreadMessages({
-  threadId,
-  threadName,
-  currentUserClerkId,
+// ── Projecten-tab: tijdlijn gefilterd op werkitem (PRD §2.3) ─────────
+// Zelfde tijdlijn-data, andere ingang. De oude interne project-chat
+// (team_messages, channelType "project") blijft als read-only historie
+// zichtbaar onder de tijdlijn — geen dataverlies.
+
+function ProjectTijdlijnTab({
+  projectId,
+  projecten,
 }: {
-  threadId: Id<"chat_threads">;
-  threadName: string;
-  currentUserClerkId: string;
+  projectId?: Id<"projecten">;
+  projecten?: { _id: string; naam: string; klantId?: string }[];
 }) {
-  const messages = useQuery(api.chatThreads.listMessages, { threadId });
-  const sendMessage = useMutation(api.chatThreads.sendMessage);
-  const markAsRead = useMutation(api.chatThreads.markAsRead);
-
-  useEffect(() => {
-    markAsRead({ threadId }).catch(() => {});
-  }, [threadId, markAsRead]);
-
-  const handleSend = useCallback(
-    (message: string) => {
-      sendMessage({ threadId, message }).catch(() => {});
-    },
-    [sendMessage, threadId]
+  const project = useMemo(
+    () => (projecten ?? []).find((p) => p._id === projectId) ?? null,
+    [projecten, projectId]
   );
 
-  const mappedMessages = useMemo(
-    () =>
-      (messages ?? []).map((m) => ({
-        _id: m._id,
-        senderId: m.senderUserId || "",
-        senderName: m.senderName || "Klant",
-        message: m.message,
-        messageType: "text" as const,
-        createdAt: m.createdAt,
-      })),
-    [messages]
+  const chatHistorie = useQuery(
+    api.chat.getTeamMessages,
+    projectId ? { channelType: "project", projectId } : "skip"
   );
+
+  if (!projectId) {
+    return (
+      <EmptyState
+        icon={<FolderOpen />}
+        title="Selecteer een project"
+        description="Kies een project rechtsboven om de tijdlijn van die klus te bekijken."
+        className="flex-1"
+      />
+    );
+  }
+
+  if (projecten === undefined || (project && !project.klantId)) {
+    return (
+      <EmptyState
+        icon={<FolderOpen />}
+        title={projecten === undefined ? "Laden…" : "Geen klant gekoppeld"}
+        description={
+          projecten === undefined
+            ? ""
+            : "Dit project heeft geen gekoppelde klant; er is dus geen klanttijdlijn."
+        }
+        className="flex-1"
+      />
+    );
+  }
 
   return (
-    <div className="flex flex-1 flex-col min-h-0">
-      <div className="flex items-center gap-2 p-3 border-b shrink-0">
-        <UserRound className="h-4 w-4 text-muted-foreground" />
-        <span className="font-medium text-sm">{threadName}</span>
-      </div>
-      <div className="flex-1 min-h-0 overflow-hidden">
-        <ChatMessageList
-          messages={mappedMessages}
-          currentUserClerkId={currentUserClerkId}
-          isLoading={messages === undefined}
-          emptyMessage="Nog geen berichten met deze klant"
+    <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
+      {project?.klantId && (
+        <KlantTijdlijn
+          klantId={project.klantId as Id<"klanten">}
+          vasteWerkitemId={projectId}
+          toonHistorie={false}
         />
-      </div>
-      <div className="border-t p-3 shrink-0">
-        <ChatInput onSend={handleSend} placeholder={`Bericht naar ${threadName}...`} />
-      </div>
+      )}
+      {chatHistorie && chatHistorie.length > 0 && (
+        <div className="rounded-lg border bg-muted/30 p-3">
+          <p className="mb-2 text-xs font-medium text-muted-foreground">
+            Interne project-chat van vóór de tijdlijn ({chatHistorie.length}{" "}
+            berichten, alleen-lezen)
+          </p>
+          <div className="max-h-64 space-y-2 overflow-y-auto">
+            {chatHistorie.map((msg) => (
+              <div key={msg._id} className="text-sm">
+                <span className="text-xs text-muted-foreground">
+                  {formatTime(msg.createdAt)} —{" "}
+                  <span className="font-medium">{msg.senderName}</span>:
+                </span>{" "}
+                <span className="whitespace-pre-wrap">{msg.message}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -644,19 +579,6 @@ export default function ChatPage() {
     user ? {} : "skip"
   );
 
-  // Klant thread unread count (alleen relevant/opvraagbaar voor kantoor)
-  const klantThreads = useQuery(
-    api.chatThreads.listThreads,
-    user && isKantoor ? {} : "skip"
-  );
-  const klantUnread = useMemo(() => {
-    if (!klantThreads) return 0;
-    return klantThreads.reduce(
-      (sum, t) => sum + (t.unreadByBedrijf ?? 0),
-      0
-    );
-  }, [klantThreads]);
-
   // Projects list for project selector
   const projecten = useQuery(
     api.projecten.list,
@@ -706,10 +628,11 @@ export default function ChatPage() {
             isActive={activeTab === "dm"}
             onClick={() => setActiveTab("dm")}
           />
+          {/* Projecten & Klanten zijn sinds PRD §2.3 weergaven van de
+              klanttijdlijn (geen chat, dus geen unread-teller) */}
           <ChatTabBadge
             label="Projecten"
             icon={<FolderOpen className="h-4 w-4" />}
-            count={unreadCounts?.project}
             isActive={activeTab === "project"}
             onClick={() => setActiveTab("project")}
           />
@@ -717,7 +640,6 @@ export default function ChatPage() {
             <ChatTabBadge
               label="Klanten"
               icon={<UserRound className="h-4 w-4" />}
-              count={klantUnread}
               isActive={activeTab === "klant"}
               onClick={() => setActiveTab("klant")}
             />
@@ -776,17 +698,14 @@ export default function ChatPage() {
             <DMTab currentUserClerkId={currentUserClerkId} />
           )}
           {activeTab === "project" && (
-            <ChannelTab
-              channelType="project"
+            <ProjectTijdlijnTab
               projectId={selectedProjectId}
-              currentUserClerkId={currentUserClerkId}
-              userRole={userRole}
-              emptyMessage="Nog geen berichten in dit project"
+              projecten={projecten as
+                | { _id: string; naam: string; klantId?: string }[]
+                | undefined}
             />
           )}
-          {activeTab === "klant" && isKantoor && (
-            <KlantTab currentUserClerkId={currentUserClerkId} userRole={userRole} />
-          )}
+          {activeTab === "klant" && isKantoor && <KlantenTijdlijnTab />}
         </div>
       </m.div>
     </>
