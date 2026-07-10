@@ -226,6 +226,8 @@ export const createWerkitem = mutation({
     klantId: v.id("klanten"),
     naam: v.string(),
     offerteId: v.optional(v.id("offertes")),
+    // Koppel-dialoog route 2 (PRD §2.5): toegewezen offerte-regel-id's
+    offerteRegelIds: v.optional(v.array(v.string())),
     contractId: v.optional(v.id("onderhoudscontracten")),
     geplandeStart: v.optional(v.string()), // YYYY-MM-DD
     geplandeEind: v.optional(v.string()), // YYYY-MM-DD
@@ -272,6 +274,7 @@ export const createWerkitem = mutation({
       naam: args.naam,
       status: "gepland",
       offerteId: args.offerteId,
+      offerteRegelIds: args.offerteRegelIds,
       contractId: args.contractId,
       geplandeStart: args.geplandeStart,
       geplandeEind: args.geplandeEind,

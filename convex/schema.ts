@@ -195,6 +195,14 @@ export default defineSchema({
         margePercentage: v.optional(v.number()), // Override marge per regel
         interneNotitie: v.optional(v.string()), // Interne notitie, niet zichtbaar voor klant
         optioneel: v.optional(v.boolean()), // Optionele post — klant kan aan/uit zetten
+        // ── Vrije builder (route 2, PRD §2.5b) — ADDITIEF ──
+        // Bij vrije regels is prijsPerEenheid de VERKOOPprijs per eenheid;
+        // inkoopprijsPerEenheid + margePercentage voeden het overzichtsblok.
+        inkoopprijsPerEenheid: v.optional(v.number()),
+        btwCode: v.optional(v.union(v.literal(9), v.literal(21))), // btw per regel
+        kortingPercentage: v.optional(v.number()), // korting per regel (op verkoop)
+        productId: v.optional(v.id("producten")), // herkomst artikel-picker
+        prijsOpRegel: v.optional(v.boolean()), // €0-inkoop: geen marge-berekening
       })
     ),
 
@@ -228,6 +236,22 @@ export default defineSchema({
         })
       )
     ),
+
+    // ── Vrije builder (route 2, PRD §2.5b) — ADDITIEF ──
+    // Aanmaakroute: "vrij" = regel-editor (geen voorcalculatie-stap);
+    // undefined/"wizard" = bestaande wizards. Bepaalt o.a. de
+    // voorcalculatie-eis bij verzenden en de bewerk-route in de UI.
+    bron: v.optional(v.union(v.literal("wizard"), v.literal("vrij"))),
+    // Tekstblokken uit de bibliotheek, als PLATTE tekst vastgelegd op de
+    // offerte (historie: latere bibliotheek-wijzigingen raken deze offerte niet).
+    vrijeTeksten: v.optional(
+      v.object({
+        aanhef: v.optional(v.string()),
+        voorwaarden: v.optional(v.string()),
+      })
+    ),
+    // Korting op het totaal (bedrag ex btw) — naast korting per regel
+    kortingOpTotaal: v.optional(v.number()),
 
     // Notities
     notities: v.optional(v.string()),
@@ -587,6 +611,9 @@ export default defineSchema({
     ),
     // Was verplicht; PRD §1.1: nullable (losse beurt/servicebezoek heeft geen offerte)
     offerteId: v.optional(v.id("offertes")),
+    // Koppel-dialoog route 2 (PRD §2.5): welke offerte-regels (regel.id's)
+    // aan dit werkitem zijn toegewezen bij acceptatie.
+    offerteRegelIds: v.optional(v.array(v.string())),
     klantId: v.optional(v.id("klanten")),
     naam: v.string(),
     status: v.union(
@@ -2405,6 +2432,9 @@ export default defineSchema({
   onderhoudscontracten: defineTable({
     userId: v.id("users"),
     klantId: v.id("klanten"),
+    // Herkomst-offerte (PRD §2.5): gezet door createFromOfferte, zodat de
+    // acceptatie-validatie kan zien dat de keten-uitgang al bestaat.
+    offerteId: v.optional(v.id("offertes")),
 
     // Contractidentificatie
     contractNummer: v.string(), // e.g. "OHC-2026-001"
@@ -2479,7 +2509,8 @@ export default defineSchema({
     .index("by_status", ["status"])
     .index("by_user_status", ["userId", "status"])
     .index("by_einddatum", ["eindDatum"])
-    .index("by_contractnummer", ["contractNummer"]),
+    .index("by_contractnummer", ["contractNummer"])
+    .index("by_offerte", ["offerteId"]),
 
   // ContractWerkzaamheden — work items per contract, grouped by season
   contractWerkzaamheden: defineTable({
