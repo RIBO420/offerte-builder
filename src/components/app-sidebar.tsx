@@ -102,6 +102,7 @@ const personeelMenuItems = [
 const assetsMenuItems = [
   { title: "Wagenparkbeheer", url: "/wagenpark", icon: Truck },
   { title: "Machinebeheer", url: "/instellingen/machines", icon: Wrench },
+  { title: "Catalogus onderhoud", url: "/instellingen/catalogus", icon: Trees },
   { title: "Prijsboek", url: "/prijsboek", icon: BookOpen },
   { title: "Garanties", url: "/garanties", icon: ShieldCheck },
   { title: "Servicemeldingen", url: "/servicemeldingen", icon: Wrench },
