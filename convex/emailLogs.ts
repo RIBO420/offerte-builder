@@ -78,6 +78,47 @@ export const create = mutation({
   },
 });
 
+// Create email log entry voor §2.7 trigger-mails (internal — geen auth,
+// aangeroepen vanuit conceptMails-acties). Verschil met createInternal:
+// offerteId is optioneel (lead-/inplan-mails hangen niet aan een offerte)
+// en de §2.7 event-typen zijn toegestaan.
+export const createTriggerInternal = internalMutation({
+  args: {
+    offerteId: v.optional(v.id("offertes")),
+    userId: v.id("users"),
+    type: v.union(
+      v.literal("offerte_verzonden"),
+      v.literal("herinnering"),
+      v.literal("lead_ontvangen"),
+      v.literal("inplanning_bevestigd"),
+      v.literal("inplan_attendering"),
+      v.literal("trigger_mail")
+    ),
+    to: v.string(),
+    subject: v.string(),
+    status: v.union(
+      v.literal("verzonden"),
+      v.literal("mislukt"),
+      v.literal("onderdrukt (sandbox)")
+    ),
+    resendId: v.optional(v.string()),
+    error: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.insert("email_logs", {
+      offerteId: args.offerteId,
+      userId: args.userId,
+      type: args.type,
+      to: args.to,
+      subject: args.subject,
+      status: args.status,
+      resendId: args.resendId,
+      error: args.error,
+      createdAt: Date.now(),
+    });
+  },
+});
+
 // Create email log entry (internal — no auth required, for cron jobs/actions)
 export const createInternal = internalMutation({
   args: {

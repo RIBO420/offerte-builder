@@ -451,7 +451,10 @@ export const tijdlijnEventTypeValidator = v.union(
   v.literal("factuur_betaald"),
   // §2.4 — meldingen/cases (helper-ready, hook volgt daar)
   v.literal("melding_aangemaakt"),
-  v.literal("melding_status_gewijzigd")
+  v.literal("melding_status_gewijzigd"),
+  // §2.7 — transactionele mails: goedgekeurde/verzonden (of in sandbox
+  // onderdrukte) trigger-mails loggen op de tijdlijn met kanaal "email"
+  v.literal("mail_verzonden")
 );
 
 // ==================== USER ROLE VALIDATORS ====================

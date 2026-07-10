@@ -101,6 +101,9 @@ export default defineSchema({
     // beide per klus overschrijven (projecten.voorkeursTeamId e.d.)
     voorkeursTeamId: v.optional(v.id("teams")),
     beschikbaarheidsVenster: v.optional(beschikbaarheidsVensterValidator),
+    // §2.7: inplanning-bevestigingsmail per klant (default uit) — bij het
+    // inplannen van een werkitem wordt dan een concept-mail klaargezet.
+    inplanBevestigingsMail: v.optional(v.boolean()),
     // Klantenportaal fields
     clerkUserId: v.optional(v.string()),
     portalEnabled: v.optional(v.boolean()),
@@ -511,14 +514,22 @@ export default defineSchema({
 
   // Email logs
   email_logs: defineTable({
-    offerteId: v.id("offertes"),
+    // §2.7: optioneel geworden — trigger-mails (lead, inplanning, inplan-
+    // attendering) hangen niet altijd aan een offerte. Bestaande rijen
+    // hebben het veld allemaal; bestaande queries via by_offerte blijven werken.
+    offerteId: v.optional(v.id("offertes")),
     userId: v.id("users"),
     type: v.union(
       v.literal("offerte_verzonden"),
       v.literal("herinnering"),
       v.literal("bedankt"),
       v.literal("factuur_verzonden"),
-      v.literal("factuur_herinnering")
+      v.literal("factuur_herinnering"),
+      // §2.7 trigger-mails
+      v.literal("lead_ontvangen"),
+      v.literal("inplanning_bevestigd"),
+      v.literal("inplan_attendering"),
+      v.literal("trigger_mail") // custom/toekomstige events (principe 2)
     ),
     to: v.string(),
     subject: v.string(),
@@ -3300,4 +3311,98 @@ export default defineSchema({
   })
     .index("by_categorie", ["categorie", "actief"])
     .index("by_actief", ["actief"]),
+
+  // ─── Transactionele mails (PRD §2.7) ────────────────────────────────────────
+  // Eén tabel: event → sjabloon → vertraging → ontvanger. Nieuwe mails
+  // toevoegen = record toevoegen, geen code (principe 2). Bedrijfsbreed
+  // (geen userId), beheer kantoor-only via requireKantoor in mailTriggers.ts.
+  // KANTOOR↔KLANT-REGEL (§1.2): modus "concept" (default) zet mails in de
+  // goedkeurings-wachtrij (conceptMails); "automatisch" is alleen voor
+  // onpersoonlijke bevestigingen (lead-ontvangst) en loopt ALSNOG door de
+  // mail-guard (EMAIL_VERZENDEN_ACTIEF, fail-closed).
+  mailTriggers: defineTable({
+    // Event-sleutel, bv. "lead_ontvangen" | "offerte_verzonden" |
+    // "inplanning_bevestigd" | "offerte_opvolging" | "inplan_attendering".
+    // Bewust v.string(): nieuwe events zijn records, geen schemawijziging.
+    event: v.string(),
+    naam: v.string(),
+    omschrijving: v.optional(v.string()),
+    // Sjabloon: platte tekst met {{variabelen}} (principe 3: huisstijl zit
+    // in de mail-template/layout, niet in de tekst).
+    onderwerp: v.string(),
+    inhoud: v.string(),
+    // Herbruikbare inhoud: tekstblokken (categorie "email") die onder de
+    // inhoud worden meegenomen bij het klaarzetten.
+    tekstblokIds: v.optional(v.array(v.id("tekstblokken"))),
+    // Gedocumenteerde variabelen voor het beheerscherm, bv. ["klantnaam"]
+    variabelen: v.array(v.string()),
+    // 0 = direct klaarzetten; > 0 = na N dagen (dagelijkse cron zet klaar)
+    vertragingDagen: v.number(),
+    ontvanger: v.union(
+      v.literal("klant"),
+      v.literal("lead"),
+      v.literal("custom")
+    ),
+    // Vast e-mailadres bij ontvanger "custom"
+    customEmail: v.optional(v.string()),
+    modus: v.union(v.literal("concept"), v.literal("automatisch")),
+    actief: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_event", ["event"])
+    .index("by_actief", ["actief"]),
+
+  // Uitgaande-mail-wachtrij ("Concept-mails", §2.7): door triggers
+  // klaargezette mails. Kantoor bewerkt (alleen inhoudsvelden), keurt goed
+  // en verstuurt (assertKanNaarKlantVersturen + mail-guard) of verwerpt.
+  // Statusverloop: gepland (vertraagd, nog niet in de wachtrij) → wachtrij →
+  // verzonden / verworpen / mislukt / onderdrukt (sandbox).
+  conceptMails: defineTable({
+    // Bedrijfseigenaar (multi-tenant scope, conventie zoals servicemeldingen)
+    userId: v.id("users"),
+    event: v.string(),
+    triggerId: v.optional(v.id("mailTriggers")),
+    // Koppelingen (voor context, tijdlijn en dedupe)
+    klantId: v.optional(v.id("klanten")),
+    leadId: v.optional(v.id("configuratorAanvragen")),
+    offerteId: v.optional(v.id("offertes")),
+    werkitemId: v.optional(v.id("projecten")),
+    meldingId: v.optional(v.id("servicemeldingen")),
+    ontvangerEmail: v.string(),
+    ontvangerNaam: v.string(),
+    // Gerenderde inhoud (variabelen al ingevuld) — kantoor mag deze
+    // bewerken; opmaak/huisstijl komt pas bij verzending uit de layout.
+    onderwerp: v.string(),
+    inhoud: v.string(),
+    // Wanneer de mail in de wachtrij hoort te staan (nu + vertragingDagen)
+    geplandOp: v.number(),
+    status: v.union(
+      v.literal("gepland"),
+      v.literal("wachtrij"),
+      v.literal("verzonden"),
+      v.literal("verworpen"),
+      v.literal("mislukt"),
+      v.literal("onderdrukt (sandbox)") // mailGuard: EMAIL_VERZENDEN_ACTIEF !== "true"
+    ),
+    modus: v.union(v.literal("concept"), v.literal("automatisch")),
+    // Idempotentie per event + bronrecord, bv. "offerte_verzonden:<offerteId>"
+    dedupeSleutel: v.optional(v.string()),
+    resendId: v.optional(v.string()),
+    foutmelding: v.optional(v.string()),
+    // Claim-stempel van de verzend-actie (dubbelklik-/race-bescherming):
+    // gezet vlak vóór de daadwerkelijke verzendpoging
+    verzendingGestartAt: v.optional(v.number()),
+    // Wie heeft goedgekeurd/verworpen (undefined = automatisch pad)
+    behandeldDoorId: v.optional(v.id("users")),
+    behandeldAt: v.optional(v.number()),
+    verzondenAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_status_gepland", ["status", "geplandOp"])
+    .index("by_user_status", ["userId", "status"])
+    .index("by_dedupe", ["dedupeSleutel"])
+    .index("by_klant", ["klantId"])
+    .index("by_melding", ["meldingId"]),
 });
