@@ -234,7 +234,7 @@ export default function ConceptMailsPage() {
           ) : wachtrij.length === 0 ? (
             <EmptyState
               icon={<Inbox aria-hidden />}
-              title="Geen concept-mails in de wachtrij"
+              title="De wachtrij is leeg"
               description="Nieuwe concept-mails verschijnen hier zodra een mail-trigger afgaat, bijvoorbeeld bij het versturen van een offerte."
             />
           ) : (
