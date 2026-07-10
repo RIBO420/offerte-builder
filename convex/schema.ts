@@ -281,7 +281,7 @@ export default defineSchema({
     .index("by_user_archived", ["userId", "isArchived"])
     .index("by_user_deleted", ["userId", "deletedAt"]),
 
-  // Prijsboek
+  // Prijsboek / productbestand (PRD §2.5c)
   producten: defineTable({
     userId: v.id("users"),
     productnaam: v.string(),
@@ -292,6 +292,23 @@ export default defineSchema({
     leverancier: v.optional(v.string()),
     verliespercentage: v.number(),
     isActief: v.boolean(),
+    // ── Productbestand-uitbreiding (PRD §2.5c, additief) ──
+    // Koppeling naar de leveranciers-module (naast het legacy vrije-tekstveld)
+    leverancierId: v.optional(v.id("leveranciers")),
+    // Btw-code: 9 of 21 (gevalideerd in producten.ts)
+    btwCode: v.optional(v.number()),
+    // Korte omschrijving voor de artikel-picker (§2.5b)
+    omschrijving: v.optional(v.string()),
+    // Gebruiksteller: in hoeveel offertes/facturen dit artikel gebruikt is
+    // ("116× gebruikt"); picker sorteert hierop aflopend
+    gebruiksteller: v.optional(v.number()),
+    // Artikel zonder vaste inkoopprijs: prijs wordt op de offerte-regel
+    // ingevuld. Op zulke artikelen (en op €0-inkoopprijs) mag NOOIT een
+    // marge-percentage doorgerekend worden — voorkomt HERO's "Infinity%"
+    prijsOpRegel: v.optional(v.boolean()),
+    // Genormaliseerde naam (lowercase, enkele spaties) voor ontdubbeling
+    // en idempotente import (match op genormaliseerde naam + leverancier)
+    naamGenormaliseerd: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -299,6 +316,8 @@ export default defineSchema({
     .index("by_categorie", ["userId", "categorie"])
     // Index for active-only product queries (voorraad.ts: inventarisatie)
     .index("by_user_actief", ["userId", "isActief"])
+    // Idempotente import: bestaand product opzoeken op genormaliseerde naam
+    .index("by_user_naam_genormaliseerd", ["userId", "naamGenormaliseerd"])
     .searchIndex("search_producten", {
       searchField: "productnaam",
       filterFields: ["userId", "categorie"],
@@ -2918,4 +2937,29 @@ export default defineSchema({
     aangemaaktDoor: v.optional(v.id("users")),
     createdAt: v.number(),
   }).index("by_ingangsdatum", ["ingangsdatum"]),
+
+  // ─── Tekstblokkenbibliotheek (PRD §2.5b) ────────────────────────────────────
+  // Bedrijfsbrede bibliotheek (geen userId) van herbruikbare tekstblokken voor
+  // de offerte-builder. Inhoud is bewust PLATTE tekst zonder opmaak
+  // (principe 3: huisstijl zit in de template, niet in de tekst).
+  // Beheer is kantoor-only via requireKantoor in tekstblokken.ts.
+  tekstblokken: defineTable({
+    naam: v.string(),
+    categorie: v.union(
+      v.literal("aanhef"),
+      v.literal("voorwaarden"),
+      v.literal("standaardtekst"),
+      v.literal("email")
+    ),
+    // Platte tekst, geen HTML/markdown
+    inhoud: v.string(),
+    // Verwijderen = deactiveren; geen hard delete
+    actief: v.boolean(),
+    // Weergavevolgorde binnen de categorie
+    volgorde: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_categorie", ["categorie", "actief"])
+    .index("by_actief", ["actief"]),
 });
