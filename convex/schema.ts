@@ -447,11 +447,37 @@ export default defineSchema({
       })),
     }))),
     // Herinneringen & aanmaningen instellingen (FAC-006, FAC-007)
+    // LEGACY sinds fase 2: het automatische pad is vervangen door de
+    // debiteurenladder (debiteurenLadder hieronder); dit blok stuurt alleen
+    // nog de handmatige aanmaning-niveaus in betalingsherinneringen.ts.
     herinneringInstellingen: v.optional(
       v.object({
         herinneringDagen: v.optional(v.array(v.number())),
         aanmaningDagen: v.optional(v.array(v.number())),
         automatischVersturen: v.optional(v.boolean()),
+      })
+    ),
+    // Debiteurenladder (PRD §3.2): instelbare treden (max 4). Ontbrekende
+    // velden vallen terug op DEBITEUREN_LADDER_DEFAULTS in
+    // convex/debiteurenLogica.ts (dag 14 mail, dag 21 mail, dag 28 taak).
+    debiteurenLadder: v.optional(
+      v.object({
+        actief: v.optional(v.boolean()),
+        // Eigenaar van trede-taken op het cases-bord (default: bedrijfseigenaar)
+        taakEigenaarId: v.optional(v.id("users")),
+        treden: v.optional(
+          v.array(
+            v.object({
+              trede: v.number(), // 1..4
+              dagenNaVerzending: v.number(), // ankerdatum = verzonden (dag 0)
+              escalatie: v.union(
+                v.literal("mail"),
+                v.literal("interne_taak")
+              ),
+              actief: v.optional(v.boolean()),
+            })
+          )
+        ),
       })
     ),
     // Dagkaart-standaardblokken (PRD §2.2 weergave 2, stap 5b) — instelbaar
@@ -1484,6 +1510,15 @@ export default defineSchema({
     betaaldAt: v.optional(v.number()),
     notities: v.optional(v.string()),
 
+    // Debiteurenladder (PRD §3.2): per factuur pauzeren (betalingsafspraak)
+    // of één trede overslaan. Gepauzeerd = de dagelijkse cron slaat de
+    // factuur over; de reden is zichtbaar op de factuur en de klanttijdlijn.
+    ladderGepauzeerd: v.optional(v.boolean()),
+    ladderPauzeReden: v.optional(v.string()),
+    ladderPauzeAt: v.optional(v.number()),
+    // Overgeslagen treden (tredenummers) — de cron behandelt ze als verwerkt
+    ladderOvergeslagenTreden: v.optional(v.array(v.number())),
+
     // Boekhouding sync tracking (MOD-014)
     externalBookkeepingId: v.optional(v.string()), // ID in extern boekhoudsysteem
     boekhoudSyncStatus: v.optional(v.union(
@@ -1517,20 +1552,33 @@ export default defineSchema({
     .index("by_contract_verzamelMaand", ["contractId", "verzamelMaand"]),
 
   // Betalingsherinneringen & Aanmaningen (FAC-006, FAC-007)
+  // Sinds fase 2 (PRD §3.2) óók het logboek van de debiteurenladder:
+  // ladder-records hebben trede + bron "ladder"; handmatige records
+  // (verstuurHandmatig/verstuurAanmaning) blijven zonder trede bestaan.
   betalingsherinneringen: defineTable({
     factuurId: v.id("facturen"),
     userId: v.id("users"),
     type: v.union(
       v.literal("herinnering"),
+      // "tweede_herinnering" en "interne_taak" zijn de fase 2-laddertypen
+      v.literal("tweede_herinnering"),
       v.literal("eerste_aanmaning"),
       v.literal("tweede_aanmaning"),
-      v.literal("ingebrekestelling")
+      v.literal("ingebrekestelling"),
+      v.literal("interne_taak")
     ),
     volgnummer: v.number(),
     dagenVervallen: v.number(),
     verstuurdAt: v.number(),
     emailVerstuurd: v.optional(v.boolean()),
     notities: v.optional(v.string()),
+    // Debiteurenladder (PRD §3.2): welke trede dit record afdekt en hoe het
+    // ontstond. Ladder-mails wijzen naar de concept-wachtrij (kantoor keurt
+    // goed); trede-taken wijzen naar de kantoor-taak op het cases-bord.
+    trede: v.optional(v.number()),
+    bron: v.optional(v.union(v.literal("ladder"), v.literal("handmatig"))),
+    conceptMailId: v.optional(v.id("conceptMails")),
+    meldingId: v.optional(v.id("servicemeldingen")),
   })
     .index("by_factuur", ["factuurId"])
     .index("by_user", ["userId"]),
@@ -3108,10 +3156,18 @@ export default defineSchema({
     // planning-wachtrij; schade → verzekeringsvlag
     beoordelenVoorPlanning: v.optional(v.boolean()),
     verzekeringsvlag: v.optional(v.boolean()),
-    // Taaksoort: "melding" (default) of "plantaak" — de door de
-    // planningsattendering (§2.1/§8.12) gegenereerde kantoor-taak op dit bord
-    taaksoort: v.optional(v.union(v.literal("melding"), v.literal("plantaak"))),
-    // Idempotentiesleutel van de attendering-cron: `plantaak:{beurtId}:{datum}`
+    // Taaksoort: "melding" (default), "plantaak" (planningsattendering
+    // §2.1/§8.12) of "debiteurentaak" (debiteurenladder trede 3, PRD §3.2:
+    // "bellen/aanmaning") — automatisch gegenereerde kantoor-taken op dit bord
+    taaksoort: v.optional(
+      v.union(
+        v.literal("melding"),
+        v.literal("plantaak"),
+        v.literal("debiteurentaak")
+      )
+    ),
+    // Idempotentiesleutel van de attendering-cron (`plantaak:{beurtId}:{datum}`)
+    // of de debiteurenladder (`debiteur:{factuurId}:{trede}`)
     attenderingSleutel: v.optional(v.string()),
     // Escalatie (§2.1): zonder actie na X dagen kleurt de taak op (default 7)
     escalatieDagen: v.optional(v.number()),

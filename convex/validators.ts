@@ -454,7 +454,14 @@ export const tijdlijnEventTypeValidator = v.union(
   v.literal("melding_status_gewijzigd"),
   // §2.7 — transactionele mails: goedgekeurde/verzonden (of in sandbox
   // onderdrukte) trigger-mails loggen op de tijdlijn met kanaal "email"
-  v.literal("mail_verzonden")
+  v.literal("mail_verzonden"),
+  // §3.2 — debiteurenladder (fase 2): elke trede en elke pauze/hervatting
+  // logt op de klanttijdlijn ("verschuldigd sinds"-dossier)
+  v.literal("betalingsherinnering_klaargezet"),
+  v.literal("debiteurentaak_aangemaakt"),
+  v.literal("debiteurenladder_gepauzeerd"),
+  v.literal("debiteurenladder_hervat"),
+  v.literal("debiteurenladder_trede_overgeslagen")
 );
 
 // ==================== USER ROLE VALIDATORS ====================
