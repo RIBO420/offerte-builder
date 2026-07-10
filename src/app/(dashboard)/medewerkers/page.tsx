@@ -4,7 +4,6 @@ import { useState, useCallback, useMemo, Suspense } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useSearchParams } from "next/navigation";
 import { m } from "framer-motion";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { useTabState } from "@/hooks/use-tab-state";
 import { RequireRole } from "@/components/require-admin";
 import { Pagination } from "@/components/ui/pagination";
@@ -82,7 +81,6 @@ const itemVariants = {
 
 function MedewerkersPageContent() {
   const searchParams = useSearchParams();
-  const { user } = useCurrentUser();
   const { medewerkers, isLoading, update, remove } = useMedewerkers();
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearchTerm = useDebounce(searchTerm, 300);

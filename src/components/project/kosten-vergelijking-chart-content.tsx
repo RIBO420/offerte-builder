@@ -82,12 +82,6 @@ const CustomTooltip = memo(function CustomTooltip({
   );
 });
 
-const typeLabels: Record<string, string> = {
-  materiaal: "Materiaal",
-  arbeid: "Arbeid",
-  machine: "Machine",
-  overig: "Overig",
-};
 
 export const KostenVergelijkingChartContent = memo(function KostenVergelijkingChartContent({
   materiaal,
@@ -95,7 +89,6 @@ export const KostenVergelijkingChartContent = memo(function KostenVergelijkingCh
   machine,
   overig,
   height = 350,
-  showPercentage = false,
 }: KostenVergelijkingChartProps) {
   const chartData = useMemo(() => {
     const data = [

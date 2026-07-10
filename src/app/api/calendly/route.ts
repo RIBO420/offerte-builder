@@ -118,7 +118,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const { event, payload } = webhookEvent;
+    const { event } = webhookEvent;
 
     switch (event) {
       case "invitee.created": {

@@ -49,8 +49,6 @@ export type UserRole =
   | "onderaannemer_zzp"
   | "materiaalman";
 
-/** Legacy roles still present in the database until migrated */
-type LegacyRole = "admin" | "viewer";
 
 /** Permission actions */
 export type Action = "create" | "read" | "update" | "delete" | "manage";

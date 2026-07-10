@@ -37,6 +37,9 @@ const eslintConfig = defineConfig([
           argsIgnorePattern: "^_",
           varsIgnorePattern: "^_",
           caughtErrorsIgnorePattern: "^_",
+          // const { id, ...rest } = args — id weglaten via rest-destructuring
+          // is een bewust patroon, geen dode variabele.
+          ignoreRestSiblings: true,
         },
       ],
     },

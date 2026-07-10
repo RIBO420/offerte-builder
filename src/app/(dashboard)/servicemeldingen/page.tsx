@@ -338,7 +338,7 @@ export default function ServicemeldingenPage() {
                     <SelectContent>
                       <SelectItem value="geen">Geen project</SelectItem>
                       {projecten
-                        ?.filter((p: any) => {
+                        ?.filter(() => {
                           if (!newMelding.klantId) return true;
                           // Show all projects — filtering by klant would
                           // require offerte lookup which is complex

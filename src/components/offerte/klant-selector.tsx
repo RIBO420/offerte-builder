@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/popover";
 import { Check, ChevronsUpDown, User, Plus, FileText, Clock, Euro, Megaphone } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useKlantenSearch, useKlanten } from "@/hooks/use-klanten";
+import { useKlantenSearch } from "@/hooks/use-klanten";
 import { useKlantenWithStats } from "@/hooks/use-smart-analytics";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
@@ -103,7 +103,6 @@ export function KlantSelector({
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const { results: searchResults } = useKlantenSearch(searchTerm);
-  const { recentKlanten } = useKlanten();
   const { klanten: enrichedKlanten } = useKlantenWithStats(10);
   const [selectedKlantId, setSelectedKlantId] = useState<Id<"klanten"> | null>(
     null

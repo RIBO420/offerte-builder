@@ -66,7 +66,6 @@ export default function NacalculatiePage({
     isLoading,
     isLoadingDetails,
     save,
-    addConclusion,
     hasVoorcalculatie,
     hasUrenRegistraties,
   } = useNacalculatie(projectId);

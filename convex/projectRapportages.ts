@@ -743,13 +743,6 @@ export const getProjectTimeline = query({
       )
     );
 
-    // Get offertes for project names
-    const offerteIds = projecten.map((p) => p.offerteId);
-    // offerteId kan ontbreken bij losse werkitems
-    const offertesResults = await Promise.all(
-      offerteIds.map((id) => (id ? ctx.db.get(id) : null))
-    );
-    const offerteById = new Map(offertesResults.filter(Boolean).map((o) => [o!._id.toString(), o!]));
 
     // Aggregate by date
     type DailyData = {

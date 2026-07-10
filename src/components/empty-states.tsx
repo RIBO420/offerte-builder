@@ -9,7 +9,7 @@ interface EmptyStateWithActionProps {
   onAction?: () => void;
 }
 
-export function NoOffertes({ onAction }: EmptyStateWithActionProps) {
+export function NoOffertes(_props: EmptyStateWithActionProps) {
   return (
     <div className="space-y-8">
       {/* Welcome Section */}
@@ -217,7 +217,7 @@ export function NoRecentActivity({ onAction }: EmptyStateWithActionProps) {
   );
 }
 
-export function NoProjecten({ onAction }: EmptyStateWithActionProps) {
+export function NoProjecten(_props: EmptyStateWithActionProps) {
   return (
     <div className="space-y-8">
       {/* Welcome Section */}
