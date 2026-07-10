@@ -1,6 +1,5 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query, internalQuery } from "./_generated/server";
-import { Id } from "./_generated/dataModel";
 import { requireAuthUserId } from "./auth";
 import { requireKantoor, requireNotViewer } from "./roles";
 import { isGeldigeTijd, naarMinuten } from "./dagkaartLogica";

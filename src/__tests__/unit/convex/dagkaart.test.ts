@@ -54,9 +54,6 @@ const stop = (
   ...extra,
 });
 
-const klantBlokken = (blokken: DagBlok[]) =>
-  blokken.filter((b) => b.soort === "klant");
-
 const blokVan = (blokken: DagBlok[], id: string) => {
   const blok = blokken.find((b) => b.soort === "klant" && b.werkitemId === id);
   if (!blok) throw new Error(`Klantblok ${id} niet gevonden`);

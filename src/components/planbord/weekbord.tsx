@@ -13,6 +13,7 @@
  */
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useMutation, useQuery } from "convex/react";
 import {
   DndContext,
@@ -38,6 +39,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   ChevronLeft,
   ChevronRight,
+  CalendarClock,
   CalendarOff,
   Copy,
   Minus,
@@ -520,22 +522,32 @@ export function Weekbord() {
                                 {cel.medewerkerIds.length - cel.afwezigen.length}/
                                 {cel.medewerkerIds.length}
                               </button>
-                              {magMuteren && (
-                                <button
-                                  data-testid="uitval-knop"
-                                  title="Ziekte/uitval: team deze dag loskoppelen"
-                                  onClick={() =>
-                                    setUitvalDoel({
-                                      teamId: team.id,
-                                      teamNaam: team.naam,
-                                      datum,
-                                    })
-                                  }
-                                  className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-red-600"
+                              <span className="flex items-center gap-0.5">
+                                <Link
+                                  data-testid="dagkaart-link"
+                                  href={`/planning/dagkaart?team=${team.id}&datum=${datum}`}
+                                  title="Open dagkaart (route-weergave van deze team-dag)"
+                                  className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
                                 >
-                                  <UserX className="h-3 w-3" />
-                                </button>
-                              )}
+                                  <CalendarClock className="h-3 w-3" />
+                                </Link>
+                                {magMuteren && (
+                                  <button
+                                    data-testid="uitval-knop"
+                                    title="Ziekte/uitval: team deze dag loskoppelen"
+                                    onClick={() =>
+                                      setUitvalDoel({
+                                        teamId: team.id,
+                                        teamNaam: team.naam,
+                                        datum,
+                                      })
+                                    }
+                                    className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-red-600"
+                                  >
+                                    <UserX className="h-3 w-3" />
+                                  </button>
+                                )}
+                              </span>
                             </div>
                           )}
                         </TeamDagCel>
