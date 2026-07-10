@@ -2,6 +2,7 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import {
   aanlegScopeDataValidator,
+  beschikbaarheidsVensterValidator,
   onderhoudScopeDataValidator,
   tuintypologieValidator,
   userRoleValidator,
@@ -88,6 +89,11 @@ export default defineSchema({
     gdprAnonymized: v.optional(v.boolean()),
     gdprAnonymizedAt: v.optional(v.number()),
     gdprAnonymizedBy: v.optional(v.id("users")),
+    // Planbord §2.2: voorkeursteam ("de vaste hovenier kent de tuin") en
+    // beschikbaarheidsvenster (bv. "alleen donderdag"); het werkitem kan
+    // beide per klus overschrijven (projecten.voorkeursTeamId e.d.)
+    voorkeursTeamId: v.optional(v.id("teams")),
+    beschikbaarheidsVenster: v.optional(beschikbaarheidsVensterValidator),
     // Klantenportaal fields
     clerkUserId: v.optional(v.string()),
     portalEnabled: v.optional(v.boolean()),
@@ -633,6 +639,18 @@ export default defineSchema({
     geplandeStart: v.optional(v.string()), // YYYY-MM-DD
     geplandeEind: v.optional(v.string()), // YYYY-MM-DD
     teamId: v.optional(v.id("teams")),
+    // — Planbord §2.2 (stap 5a): het werkitem is de ENIGE waarheid voor planning
+    //   (principe 1: één record, twee weergaven). Het weekbord schrijft
+    //   UITSLUITEND deze velden; weekPlanning/planningTaken zijn voor planning
+    //   DEPRECATED (lezen mag, zie comments bij die tabellen). —
+    // Volgorde binnen de team-dag (1-based); fundament voor de route-dagkaart (5b)
+    volgordeBinnenDag: v.optional(v.number()),
+    // Geplande tijden binnen de dag (HH:MM, 24-uurs); dupliceren behoudt ze
+    geplandeStartTijd: v.optional(v.string()),
+    geplandeEindTijd: v.optional(v.string()),
+    // Planvoorkeuren op werkitem-niveau (§2.2); overschrijven de klant-velden
+    voorkeursTeamId: v.optional(v.id("teams")),
+    beschikbaarheidsVenster: v.optional(beschikbaarheidsVensterValidator),
     geschatteUren: v.optional(v.number()), // uit offerte/receptuur/contractregel
     factuurId: v.optional(v.id("facturen")),
     contractId: v.optional(v.id("onderhoudscontracten")), // alleen bij onderhoudsbeurten
@@ -740,6 +758,10 @@ export default defineSchema({
     .index("by_offerte", ["offerteId"]),
 
   // PlanningTaken - Planning tasks per project
+  // DEPRECATED voor planning (§2.2, stap 5a): dag/team/volgorde-planning leeft
+  // UITSLUITEND op het werkitem (projecten.geplandeStart/teamId/volgordeBinnenDag).
+  // Deze tabel blijft leesbaar als taken-checklist; nieuwe planschrijfpaden
+  // mogen hier NIET meer heen.
   planningTaken: defineTable({
     projectId: v.id("projecten"),
     scope: v.string(),
@@ -760,6 +782,10 @@ export default defineSchema({
     .index("by_project_status", ["projectId", "status"]),
 
   // WeekPlanning — Medewerker-project-dag toewijzingen voor weekplanning
+  // DEPRECATED voor planning (§2.2, stap 5a): het weekbord schrijft UITSLUITEND
+  // naar werkitem-planvelden (projecten) en teamBemanning. Bestaande rijen zijn
+  // gemigreerd via migrations/migreerWeekPlanningNaarWerkitems.ts; lezen mag,
+  // nieuwe planschrijfpaden mogen hier NIET meer heen.
   weekPlanning: defineTable({
     medewerkerId: v.id("medewerkers"),
     projectId: v.id("projecten"),
@@ -775,6 +801,71 @@ export default defineSchema({
     .index("by_medewerker_datum", ["medewerkerId", "datum"])
     .index("by_project", ["projectId"])
     .index("by_datum_project", ["datum", "projectId"]),
+
+  // TeamBemanning — bemanning van een team op één dag (PRD §2.2 + bijlage B
+  // anti-eis: team ≠ kleurlabel). Default = teams.leden; alleen afwijkingen
+  // krijgen een rij hier (wie zit er DIE dag echt in het team).
+  teamBemanning: defineTable({
+    userId: v.id("users"),
+    teamId: v.id("teams"),
+    datum: v.string(), // YYYY-MM-DD
+    medewerkerIds: v.array(v.id("medewerkers")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_team_datum", ["teamId", "datum"])
+    .index("by_user_datum", ["userId", "datum"]),
+
+  // Afwezigheidsblokken — niet-klant-blokken die capaciteit blokkeren op het
+  // planbord (PRD §2.2: verlof/ziekte/feestdag). Fase 1: handmatig geplaatst
+  // via het bord; GEEN koppeling met verlofaanvragen/HR (dat is fase 3).
+  // Scope: óf één medewerker (medewerkerId), óf een heel team (teamId).
+  afwezigheidsblokken: defineTable({
+    userId: v.id("users"),
+    medewerkerId: v.optional(v.id("medewerkers")), // scope: medewerker
+    teamId: v.optional(v.id("teams")), // scope: heel team
+    startDatum: v.string(), // YYYY-MM-DD (inclusief)
+    eindDatum: v.string(), // YYYY-MM-DD (inclusief)
+    reden: v.union(
+      v.literal("verlof"),
+      v.literal("ziekte"),
+      v.literal("feestdag"),
+      v.literal("overig")
+    ),
+    omschrijving: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user_start", ["userId", "startDatum"])
+    .index("by_medewerker", ["medewerkerId"])
+    .index("by_team", ["teamId"]),
+
+  // PlanbordLogboek — audit-log van planwijzigingen (PRD §2.2: "audit-logging
+  // van planwijzigingen hoort meteen bij het bord"). Wie, wat, wanneer.
+  // Patroon: leadActiviteiten (event-log met type + omschrijving).
+  planbordLogboek: defineTable({
+    userId: v.id("users"), // bedrijfseigenaar (multi-tenant scope)
+    werkitemId: v.optional(v.id("projecten")),
+    teamId: v.optional(v.id("teams")),
+    actie: v.union(
+      v.literal("gepland"),
+      v.literal("verplaatst"),
+      v.literal("ontpland"),
+      v.literal("duur_aangepast"),
+      v.literal("gedupliceerd"),
+      v.literal("gesplitst"),
+      v.literal("team_losgekoppeld"),
+      v.literal("bemanning_gewijzigd"),
+      v.literal("afwezigheid_toegevoegd"),
+      v.literal("afwezigheid_verwijderd")
+    ),
+    // Mensleesbare samenvatting, bv. "Ingepland: team Groen, 2026-05-14"
+    details: v.string(),
+    door: v.id("users"), // wie de wijziging deed
+    createdAt: v.number(),
+  })
+    .index("by_user_createdAt", ["userId", "createdAt"])
+    .index("by_werkitem", ["werkitemId"]),
 
   // Machines - Machinepark / Wagenpark
   // Beheer van intern en extern gehuurde machines en voertuigen

@@ -16,8 +16,14 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
-import { requireNotViewer } from "./roles";
+import { requireKantoor, requireNotViewer } from "./roles";
 import { Doc, Id } from "./_generated/dataModel";
+import {
+  addDagen,
+  logPlanwijziging,
+  seizoensvensterWaarschuwing,
+  type Seizoensvenster,
+} from "./planbordLogica";
 
 // ============================================
 // Types
@@ -184,8 +190,15 @@ export const listVoorWachtrij = query({
 });
 
 /**
- * Werkitems binnen een datumrange voor het planbord (§2.2).
- * Datums als YYYY-MM-DD (lexicografisch sorteerbaar).
+ * Maximale duur (dagen) van een meerdaags werkitem waar het planbord
+ * rekening mee houdt bij overlap-detectie aan de linkerrand van het venster.
+ */
+const MAX_MEERDAAGS_DAGEN = 62;
+
+/**
+ * Werkitems die overlappen met een datumrange voor het planbord (§2.2).
+ * Ook meerdaagse items die vóór `start` beginnen maar in de range doorlopen
+ * worden meegenomen. Datums als YYYY-MM-DD (lexicografisch sorteerbaar).
  */
 export const listVoorPlanbord = query({
   args: {
@@ -199,12 +212,17 @@ export const listVoorPlanbord = query({
       .withIndex("by_user_geplandeStart", (q) =>
         q
           .eq("userId", userId)
-          .gte("geplandeStart", args.start)
+          .gte("geplandeStart", addDagen(args.start, -MAX_MEERDAAGS_DAGEN))
           .lte("geplandeStart", args.eind)
       )
       .collect();
     return items.filter(
-      (item) => !item.deletedAt && item.isArchived !== true
+      (item) =>
+        !item.deletedAt &&
+        item.isArchived !== true &&
+        // Overlap met [start..eind]: eind van het item (of de startdag zelf)
+        // moet op of na de vensterstart liggen
+        (item.geplandeEind ?? item.geplandeStart ?? "") >= args.start
     );
   },
 });
@@ -291,8 +309,48 @@ export const createWerkitem = mutation({
 });
 
 /**
- * Planning van een werkitem zetten/wijzigen (planbord §2.2):
- * teamId + geplandeStart/geplandeEind. `null` wist een veld (terug naar wachtrij).
+ * Seizoensvenster van een werkitem (voor de bewaking van §2.2):
+ * - losse beurt: venster uit het eigen ritme;
+ * - gegenereerde contractbeurt: venster van de contract-werkzaamheid;
+ * - projecten/overig: geen venster.
+ * Geëxporteerd voor hergebruik door convex/planbord.ts (dupliceren/splitsen).
+ */
+export async function seizoensvensterVoorWerkitem(
+  ctx: QueryCtx | MutationCtx,
+  werkitem: Pick<WerkItem, "ritme" | "contractWerkzaamheidId">
+): Promise<Seizoensvenster | null> {
+  if (
+    werkitem.ritme &&
+    (werkitem.ritme.vensterVanMaand !== undefined ||
+      werkitem.ritme.vensterTotMaand !== undefined)
+  ) {
+    return werkitem.ritme;
+  }
+  if (werkitem.contractWerkzaamheidId) {
+    const werkzaamheid = await ctx.db.get(werkitem.contractWerkzaamheidId);
+    if (
+      werkzaamheid &&
+      (werkzaamheid.vensterVanMaand !== undefined ||
+        werkzaamheid.vensterTotMaand !== undefined)
+    ) {
+      return {
+        vensterVanMaand: werkzaamheid.vensterVanMaand,
+        vensterTotMaand: werkzaamheid.vensterTotMaand,
+      };
+    }
+  }
+  return null;
+}
+
+/**
+ * Planning van een werkitem zetten/wijzigen (planbord §2.2, ENIGE schrijfpad
+ * van het weekbord): teamId + geplandeStart/geplandeEind + volgordeBinnenDag +
+ * geplande tijden. `null` wist een veld; ontplannen (geplandeStart: null) wist
+ * automatisch ook volgorde en tijden (terug in de bak).
+ *
+ * Rolcheck: alleen kantoor plant (PRD §2.2: kantoor plant, voorman leest).
+ * Logt een audit-event (wie/wat/wanneer) in planbordLogboek en geeft naast
+ * het id een eventuele seizoensvenster-WAARSCHUWING terug (geen blokkade).
  */
 export const updatePlanning = mutation({
   args: {
@@ -300,9 +358,12 @@ export const updatePlanning = mutation({
     geplandeStart: v.optional(v.union(v.string(), v.null())),
     geplandeEind: v.optional(v.union(v.string(), v.null())),
     teamId: v.optional(v.union(v.id("teams"), v.null())),
+    volgordeBinnenDag: v.optional(v.union(v.number(), v.null())),
+    geplandeStartTijd: v.optional(v.union(v.string(), v.null())), // HH:MM
+    geplandeEindTijd: v.optional(v.union(v.string(), v.null())), // HH:MM
   },
   handler: async (ctx, args) => {
-    await requireNotViewer(ctx);
+    const kantoorUser = await requireKantoor(ctx);
     const userId = await requireAuthUserId(ctx);
     const werkitem = await getOwnedWerkitem(ctx, userId, args.id);
 
@@ -314,11 +375,13 @@ export const updatePlanning = mutation({
       throw new ConvexError("Geplande einddatum ligt vóór de startdatum");
     }
 
+    let teamNaam: string | null = null;
     if (args.teamId) {
       const team = await ctx.db.get(args.teamId);
       if (!team || team.userId.toString() !== userId.toString()) {
         throw new ConvexError("Team niet gevonden");
       }
+      teamNaam = team.naam;
     }
 
     const patch: Partial<WerkItem> = { updatedAt: Date.now() };
@@ -331,9 +394,73 @@ export const updatePlanning = mutation({
     if (args.teamId !== undefined) {
       patch.teamId = args.teamId ?? undefined;
     }
+    if (args.volgordeBinnenDag !== undefined) {
+      patch.volgordeBinnenDag = args.volgordeBinnenDag ?? undefined;
+    }
+    if (args.geplandeStartTijd !== undefined) {
+      patch.geplandeStartTijd = args.geplandeStartTijd ?? undefined;
+    }
+    if (args.geplandeEindTijd !== undefined) {
+      patch.geplandeEindTijd = args.geplandeEindTijd ?? undefined;
+    }
+
+    const wasGepland = werkitem.geplandeStart !== undefined;
+    const nieuweStart =
+      args.geplandeStart === undefined
+        ? werkitem.geplandeStart
+        : (args.geplandeStart ?? undefined);
+
+    // Ontplannen wist ook volgorde en tijden (het item gaat terug in de bak)
+    if (wasGepland && nieuweStart === undefined) {
+      patch.volgordeBinnenDag = undefined;
+      patch.geplandeStartTijd = undefined;
+      patch.geplandeEindTijd = undefined;
+    }
 
     await ctx.db.patch(werkitem._id, patch);
-    return werkitem._id;
+
+    // — Audit-event (PRD §2.2: audit-logging hoort meteen bij het bord) —
+    const doelTeam =
+      args.teamId === undefined
+        ? undefined
+        : (teamNaam ?? "geen team");
+    let actie: Doc<"planbordLogboek">["actie"];
+    let details: string;
+    if (!wasGepland && nieuweStart !== undefined) {
+      actie = "gepland";
+      details = `Ingepland: ${doelTeam ?? "geen team"}, ${nieuweStart}`;
+    } else if (wasGepland && nieuweStart === undefined) {
+      actie = "ontpland";
+      details = `Uit de planning gehaald (terug in de bak), was ${werkitem.geplandeStart}`;
+    } else if (
+      args.geplandeStart === undefined &&
+      args.geplandeEind !== undefined &&
+      args.teamId === undefined
+    ) {
+      actie = "duur_aangepast";
+      details = `Duur aangepast: t/m ${args.geplandeEind ?? "eind gewist"}`;
+    } else {
+      actie = "verplaatst";
+      details = `Planning gewijzigd: ${nieuweStart ?? "-"}${doelTeam ? `, ${doelTeam}` : ""}`;
+    }
+    await logPlanwijziging(ctx, {
+      userId,
+      door: kantoorUser._id,
+      actie,
+      details: `${werkitem.naam} — ${details}`,
+      werkitemId: werkitem._id,
+      teamId: args.teamId ?? werkitem.teamId ?? undefined,
+    });
+
+    // — Seizoensvenster-bewaking: waarschuwing, geen blokkade —
+    const venster = await seizoensvensterVoorWerkitem(ctx, werkitem);
+    const waarschuwing = seizoensvensterWaarschuwing(
+      venster,
+      nieuweStart,
+      werkitem.naam
+    );
+
+    return { id: werkitem._id, waarschuwing };
   },
 });
 

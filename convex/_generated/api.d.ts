@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as acceptatieKeten from "../acceptatieKeten.js";
 import type * as acceptatieRegels from "../acceptatieRegels.js";
 import type * as afvalverwerkers from "../afvalverwerkers.js";
 import type * as analytics from "../analytics.js";
@@ -56,6 +57,7 @@ import type * as medewerkers from "../medewerkers.js";
 import type * as migrations from "../migrations.js";
 import type * as migrations_backfillWerkitemType from "../migrations/backfillWerkitemType.js";
 import type * as migrations_consolidateNotificationLogs from "../migrations/consolidateNotificationLogs.js";
+import type * as migrations_migreerWeekPlanningNaarWerkitems from "../migrations/migreerWeekPlanningNaarWerkitems.js";
 import type * as migrations_saneerLeadsKlanten from "../migrations/saneerLeadsKlanten.js";
 import type * as migrations_seedBouwstenen from "../migrations/seedBouwstenen.js";
 import type * as migrations_seedTekstblokken from "../migrations/seedTekstblokken.js";
@@ -69,6 +71,8 @@ import type * as offerteVersions from "../offerteVersions.js";
 import type * as offertes from "../offertes.js";
 import type * as onderhoudscontracten from "../onderhoudscontracten.js";
 import type * as pipelineHelpers from "../pipelineHelpers.js";
+import type * as planbord from "../planbord.js";
+import type * as planbordLogica from "../planbordLogica.js";
 import type * as planningTaken from "../planningTaken.js";
 import type * as plantsoorten from "../plantsoorten.js";
 import type * as portaal from "../portaal.js";
@@ -117,6 +121,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  acceptatieKeten: typeof acceptatieKeten;
   acceptatieRegels: typeof acceptatieRegels;
   afvalverwerkers: typeof afvalverwerkers;
   analytics: typeof analytics;
@@ -165,6 +170,7 @@ declare const fullApi: ApiFromModules<{
   migrations: typeof migrations;
   "migrations/backfillWerkitemType": typeof migrations_backfillWerkitemType;
   "migrations/consolidateNotificationLogs": typeof migrations_consolidateNotificationLogs;
+  "migrations/migreerWeekPlanningNaarWerkitems": typeof migrations_migreerWeekPlanningNaarWerkitems;
   "migrations/saneerLeadsKlanten": typeof migrations_saneerLeadsKlanten;
   "migrations/seedBouwstenen": typeof migrations_seedBouwstenen;
   "migrations/seedTekstblokken": typeof migrations_seedTekstblokken;
@@ -178,6 +184,8 @@ declare const fullApi: ApiFromModules<{
   offertes: typeof offertes;
   onderhoudscontracten: typeof onderhoudscontracten;
   pipelineHelpers: typeof pipelineHelpers;
+  planbord: typeof planbord;
+  planbordLogica: typeof planbordLogica;
   planningTaken: typeof planningTaken;
   plantsoorten: typeof plantsoorten;
   portaal: typeof portaal;

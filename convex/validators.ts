@@ -9,6 +9,19 @@ import { v, ConvexError } from "convex/values";
 
 // ==================== COMMON TYPES ====================
 
+/**
+ * Beschikbaarheidsvenster van een klant of werkitem (PRD §2.2 planbord):
+ * wanneer mag er bij deze klant gewerkt worden. Alle velden optioneel;
+ * `dagen` zijn ISO-weekdagen (1 = maandag … 7 = zondag).
+ * Werkitem-venster overschrijft klant-venster (zie convex/planbord.ts).
+ */
+export const beschikbaarheidsVensterValidator = v.object({
+  dagen: v.optional(v.array(v.number())), // ISO-weekdagen 1-7
+  vanDatum: v.optional(v.string()), // YYYY-MM-DD (inclusief)
+  totDatum: v.optional(v.string()), // YYYY-MM-DD (inclusief)
+  notitie: v.optional(v.string()), // bv. "alleen ochtend, hond los in tuin"
+});
+
 // Tuintypologie validator
 export const tuintypologieValidator = v.union(
   v.literal("klein_stad"),
