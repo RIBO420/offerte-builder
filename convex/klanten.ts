@@ -965,10 +965,11 @@ export const getKlantenMetHerinneringen = query({
       if (pipelineStatus === "lead") {
         const dagenSindsAanmaak = Math.floor((now - klant.createdAt) / DAY_MS);
         if (dagenSindsAanmaak >= 14) {
+          // by_klant-index: leest alleen de offertes van deze klant
+          // (i.p.v. alle offertes van de gebruiker per klant scannen)
           const offertes = await ctx.db
             .query("offertes")
-            .withIndex("by_user", (q) => q.eq("userId", klant.userId))
-            .filter((q) => q.eq(q.field("klantId"), klant._id))
+            .withIndex("by_klant", (q) => q.eq("klantId", klant._id))
             .take(1);
 
           if (offertes.length === 0) {
@@ -982,8 +983,7 @@ export const getKlantenMetHerinneringen = query({
       if (pipelineStatus === "offerte_verzonden") {
         const offertes = await ctx.db
           .query("offertes")
-          .withIndex("by_user", (q) => q.eq("userId", klant.userId))
-          .filter((q) => q.eq(q.field("klantId"), klant._id))
+          .withIndex("by_klant", (q) => q.eq("klantId", klant._id))
           .order("desc")
           .collect();
 
