@@ -8,7 +8,7 @@
  */
 
 import Link from "next/link";
-import { CalendarClock } from "lucide-react";
+import { CalendarClock, List } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Weekbord } from "@/components/planbord/weekbord";
@@ -29,12 +29,20 @@ export default function WeekbordPagina() {
               passen.
             </p>
           </div>
-          <Button variant="outline" asChild>
-            <Link href="/planning/dagkaart">
-              <CalendarClock className="mr-2 h-4 w-4" />
-              Dagkaart
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" asChild>
+              <Link href="/planning/lijst">
+                <List className="mr-2 h-4 w-4" />
+                Lijst
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/planning/dagkaart">
+                <CalendarClock className="mr-2 h-4 w-4" />
+                Dagkaart
+              </Link>
+            </Button>
+          </div>
         </div>
         <Weekbord />
       </div>
