@@ -33,30 +33,19 @@ export function bepaalPrijsOpRegel(
 }
 
 /**
- * Verkoopprijs uit inkoopprijs + marge-percentage. Weigert hard op
- * prijs-op-regel-artikelen en op inkoopprijs ≤ €0: daar is geen zinnige
- * marge-berekening mogelijk (voorkomt HERO's "Infinity%", bijlage B).
+ * Verkoopprijs uit inkoopprijs + marge-percentage — PRD §2.5b-semantiek:
+ * marge is een percentage van de VERKOOPprijs, dus factor 1 ÷ (1 − m).
+ * 30% marge → ×1,43 (NIET ×1,30 — dat zou een opslag óp de inkoop zijn,
+ * een begrip dat in deze codebase bewust niet bestaat).
+ *
+ * De enige definitie + de letterlijke PRD-(i)-tekst leven in
+ * convex/vrijeOfferteBerekening.ts (verkoopprijsUitMarge en
+ * MARGEFACTOR_TOELICHTING); dit is een re-export zodat het productbestand
+ * gegarandeerd dezelfde rekenregel gebruikt als de vrije builder.
+ * Weigert hard op prijs-op-regel en inkoop ≤ €0 (HERO's "Infinity%",
+ * bijlage B) en op marge < 0% of ≥ 100%.
  */
-export function berekenVerkoopprijsUitMarge(
-  inkoopprijs: number,
-  margePercentage: number,
-  prijsOpRegel: boolean
-): number {
-  if (prijsOpRegel) {
-    throw new ConvexError(
-      "Geen marge-berekening mogelijk: prijs wordt op de offerte-regel ingevuld"
-    );
-  }
-  if (inkoopprijs <= 0) {
-    throw new ConvexError(
-      "Geen marge-berekening mogelijk op een inkoopprijs van €0 of lager"
-    );
-  }
-  if (!Number.isFinite(margePercentage)) {
-    throw new ConvexError("Ongeldig marge-percentage");
-  }
-  return inkoopprijs * (1 + margePercentage / 100);
-}
+export { verkoopprijsUitMarge as berekenVerkoopprijsUitMarge } from "./vrijeOfferteBerekening";
 
 /** Valideer een btw-code (9 of 21); undefined is toegestaan (nog niet gezet). */
 export function valideerBtwCode(btwCode: number | undefined): void {

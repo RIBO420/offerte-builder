@@ -25,6 +25,7 @@ import {
   verhoogTeller,
   GELDIGE_BTW_CODES,
 } from "../../../../convex/producten";
+import { verkoopprijsUitMarge } from "../../../../convex/vrijeOfferteBerekening";
 import {
   spelafstand,
   maxSpelafstandVoor,
@@ -112,9 +113,25 @@ describe("bepaalPrijsOpRegel", () => {
 });
 
 describe("berekenVerkoopprijsUitMarge", () => {
-  it("berekent de verkoopprijs uit inkoopprijs + marge", () => {
-    expect(berekenVerkoopprijsUitMarge(100, 25, false)).toBe(125);
+  it("rekent met de PRD-margefactor 1÷(1−m), niet met een opslag óp inkoop", () => {
+    // PRD §2.5b: 30% marge → ×1,43 (100 → 142,86), 40% → ×1,67 (100 → 166,67)
+    expect(berekenVerkoopprijsUitMarge(100, 30, false)).toBe(142.86);
+    expect(berekenVerkoopprijsUitMarge(100, 40, false)).toBe(166.67);
+    expect(berekenVerkoopprijsUitMarge(100, 25, false)).toBe(133.33);
     expect(berekenVerkoopprijsUitMarge(10, 0, false)).toBe(10);
+  });
+
+  it("is exact dezelfde functie als de vrije-builder-berekening (één definitie)", () => {
+    expect(berekenVerkoopprijsUitMarge).toBe(verkoopprijsUitMarge);
+  });
+
+  it("weigert marge < 0% of ≥ 100% (Infinity%-verbod)", () => {
+    expect(() => berekenVerkoopprijsUitMarge(100, 100, false)).toThrow(
+      ConvexError
+    );
+    expect(() => berekenVerkoopprijsUitMarge(100, -5, false)).toThrow(
+      ConvexError
+    );
   });
 
   it("weigert marge op een prijs-op-regel-artikel", () => {
