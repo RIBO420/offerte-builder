@@ -21,12 +21,14 @@ import {
   query,
   internalMutation,
   internalAction,
+  type MutationCtx,
 } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { Id } from "./_generated/dataModel";
+import { Doc, Id } from "./_generated/dataModel";
 import { requireAuthUserId, getOwnedOfferte } from "./auth";
 import { requireNotViewer } from "./roles";
 import { DEFAULT_TEMPLATES } from "./emailTemplates";
+import { zetTriggerMailKlaar } from "./mailTriggers";
 import {
   isEmailVerzendenActief,
   SANDBOX_EMAIL_REDEN,
@@ -88,6 +90,88 @@ function formatCurrency(amount: number): string {
     style: "currency",
     currency: "EUR",
   }).format(amount);
+}
+
+/**
+ * §2.7-integratie (event offerte_opvolging): de bestaande offerte-opvolging
+ * (offerte_reminders, dag 3/7/14, geannuleerd bij reactie) IS het
+ * ritme-mechanisme en blijft dat — het trigger-record bepaalt alleen wat er
+ * richting de KLANT gebeurt. Eén pad per reminder, dus geen dubbele
+ * opvolgmails:
+ *
+ * - trigger "offerte_opvolging" actief + modus "concept" (seed-default):
+ *   opvolgmail wordt als CONCEPT in de wachtrij gezet; kantoor keurt goed
+ *   en verstuurt (§1.2 — niet volautomatisch).
+ * - trigger actief + modus "automatisch", of (nog) géén trigger-record:
+ *   het bestaande herinnerings-mailpad (sendReminderEmail, herinnering_1/2/3-
+ *   sjablonen) — dat pad zit al volledig achter de mail-guard.
+ * - trigger inactief: alleen de interne notificatie, geen klant-mail.
+ *
+ * De vertragingDagen van het trigger-record wordt voor dit event bewust
+ * NIET gebruikt: het schema (3/7/14 dagen) leeft hier, inclusief de
+ * annuleringslogica. Dat staat ook zo gedocumenteerd op het seed-record.
+ */
+async function verwerkOpvolgingsKlantmail(
+  ctx: MutationCtx,
+  reminder: Doc<"offerte_reminders">,
+  offerte: Doc<"offertes">
+): Promise<void> {
+  if (!offerte.klant.email) {
+    console.warn(
+      `[offerteReminders] No email address for klant "${offerte.klant.naam}" — skipping email for reminder ${reminder._id}`
+    );
+    return;
+  }
+
+  const trigger = await ctx.db
+    .query("mailTriggers")
+    .withIndex("by_event", (q) => q.eq("event", "offerte_opvolging"))
+    .first();
+
+  // Trigger bestaat maar staat uit: alleen interne notificatie, geen klant-mail
+  if (trigger && !trigger.actief) return;
+
+  if (trigger && trigger.modus === "concept") {
+    const siteUrl =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      process.env.SITE_URL ||
+      "https://app.toptuinen.nl";
+    const offerteLink = offerte.shareToken
+      ? `${siteUrl}/offerte/${offerte.shareToken}`
+      : `${siteUrl}/offertes`;
+
+    await zetTriggerMailKlaar(ctx, {
+      event: "offerte_opvolging",
+      userId: reminder.userId,
+      ontvangerEmail: offerte.klant.email,
+      ontvangerNaam: offerte.klant.naam,
+      variabelen: {
+        klantnaam: offerte.klant.naam,
+        offerteNummer: offerte.offerteNummer,
+        offerteBedrag: formatCurrency(offerte.totalen.totaalInclBtw),
+        offerteLink,
+      },
+      klantId: offerte.klantId ?? undefined,
+      offerteId: offerte._id,
+      // Idempotent per reminder: dag 3/7/14 mogen elk één mail klaarzetten
+      dedupeSleutel: `offerte_opvolging:${reminder._id.toString()}`,
+    });
+    return;
+  }
+
+  // Geen trigger-record (nog niet geseed) of modus "automatisch":
+  // bestaand herinnerings-pad (EML-006) — volledig achter de mail-guard.
+  await ctx.scheduler.runAfter(0, internal.offerteReminders.sendReminderEmail, {
+    reminderId: reminder._id,
+    offerteId: reminder.offerteId,
+    userId: reminder.userId,
+    reminderType: reminder.type,
+    klantEmail: offerte.klant.email,
+    klantNaam: offerte.klant.naam,
+    offerteNummer: offerte.offerteNummer,
+    offerteBedrag: formatCurrency(offerte.totalen.totaalInclBtw),
+    shareToken: offerte.shareToken ?? undefined,
+  });
 }
 
 // ============ MUTATIONS ============
@@ -221,28 +305,9 @@ export const processReminder = internalMutation({
       sentAt: now,
     });
 
-    // Schedule sending the actual email to the client (EML-006)
-    if (offerte.klant.email) {
-      await ctx.scheduler.runAfter(
-        0,
-        internal.offerteReminders.sendReminderEmail,
-        {
-          reminderId: args.reminderId,
-          offerteId: reminder.offerteId,
-          userId: reminder.userId,
-          reminderType: reminder.type,
-          klantEmail: offerte.klant.email,
-          klantNaam: offerte.klant.naam,
-          offerteNummer: offerte.offerteNummer,
-          offerteBedrag: formatCurrency(offerte.totalen.totaalInclBtw),
-          shareToken: offerte.shareToken ?? undefined,
-        }
-      );
-    } else {
-      console.warn(
-        `[offerteReminders] No email address for klant "${offerte.klant.naam}" — skipping email for reminder ${args.reminderId}`
-      );
-    }
+    // Klant-mail via het §2.7-trigger-model (concept-wachtrij of het
+    // bestaande herinnerings-pad) — één pad, geen dubbele opvolgmails.
+    await verwerkOpvolgingsKlantmail(ctx, reminder, offerte);
 
     return { success: true, reminderType: reminder.type };
   },
@@ -297,28 +362,9 @@ export const processDueReminders = internalMutation({
         sentAt: now,
       });
 
-      // Schedule sending the actual email to the client (EML-006)
-      if (offerte.klant.email) {
-        await ctx.scheduler.runAfter(
-          0,
-          internal.offerteReminders.sendReminderEmail,
-          {
-            reminderId: reminder._id,
-            offerteId: reminder.offerteId,
-            userId: reminder.userId,
-            reminderType: reminder.type,
-            klantEmail: offerte.klant.email,
-            klantNaam: offerte.klant.naam,
-            offerteNummer: offerte.offerteNummer,
-            offerteBedrag: formatCurrency(offerte.totalen.totaalInclBtw),
-            shareToken: offerte.shareToken ?? undefined,
-          }
-        );
-      } else {
-        console.warn(
-          `[offerteReminders] No email address for klant "${offerte.klant.naam}" — skipping email for reminder ${reminder._id}`
-        );
-      }
+      // Klant-mail via het §2.7-trigger-model (concept-wachtrij of het
+      // bestaande herinnerings-pad) — één pad, geen dubbele opvolgmails.
+      await verwerkOpvolgingsKlantmail(ctx, reminder, offerte);
 
       processedCount++;
     }

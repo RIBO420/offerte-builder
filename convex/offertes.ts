@@ -15,6 +15,7 @@ import {
   type KetenActie,
 } from "./acceptatieKeten";
 import { logTijdlijnEvent } from "./tijdlijn";
+import { zetTriggerMailKlaar } from "./mailTriggers";
 
 const klantValidator = v.object({
   naam: v.string(),
@@ -1257,6 +1258,42 @@ export const updateStatus = mutation({
         await ctx.scheduler.runAfter(0, internal.portaalEmail.sendOfferteNotification, {
           offerteId: offerte._id,
         });
+      }
+
+      // §2.7 (event offerte_verzonden): begeleidende mail klaarzetten in de
+      // Concept-mails-wachtrij — maar ALLEEN voor klanten ZONDER portaal-
+      // toegang. Klanten mét portaal krijgen hierboven al de portaal-
+      // notificatie (sendOfferteNotification) — geen dubbele mail.
+      // Additief: zonder actieve trigger of dedupe-sleutel gebeurt er niets.
+      if (args.status === "verzonden" && offerte.klantId) {
+        const klant = await ctx.db.get(offerte.klantId);
+        if (klant && !klant.portalEnabled && klant.email) {
+          const siteUrl =
+            process.env.NEXT_PUBLIC_APP_URL ||
+            process.env.SITE_URL ||
+            "https://app.toptuinen.nl";
+          const offerteLink = offerte.shareToken
+            ? `${siteUrl}/offerte/${offerte.shareToken}`
+            : `${siteUrl}/offertes`;
+          await zetTriggerMailKlaar(ctx, {
+            event: "offerte_verzonden",
+            userId: offerte.userId,
+            ontvangerEmail: klant.email,
+            ontvangerNaam: klant.naam,
+            variabelen: {
+              klantnaam: klant.naam,
+              offerteNummer: offerte.offerteNummer,
+              offerteBedrag: new Intl.NumberFormat("nl-NL", {
+                style: "currency",
+                currency: "EUR",
+              }).format(offerte.totalen.totaalInclBtw),
+              offerteLink,
+            },
+            klantId: offerte.klantId,
+            offerteId: offerte._id,
+            dedupeSleutel: `offerte_verzonden:${offerte._id.toString()}`,
+          });
+        }
       }
     }
 

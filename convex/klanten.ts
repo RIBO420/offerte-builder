@@ -259,6 +259,26 @@ export const update = mutation({
   },
 });
 
+// §2.7 (event inplanning_bevestigd): bevestigingsmail bij inplannen — een
+// opt-in PER KLANT (default uit). Staat de vlag aan, dan zet het inplannen
+// van een werkitem een CONCEPT-mail klaar in de wachtrij (kantoor keurt
+// goed, §1.2 — er wordt nooit automatisch verstuurd).
+export const setInplanBevestigingsMail = mutation({
+  args: {
+    id: v.id("klanten"),
+    inplanBevestigingsMail: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
+    await getOwnedKlant(ctx, args.id);
+    await ctx.db.patch(args.id, {
+      inplanBevestigingsMail: args.inplanBevestigingsMail,
+      updatedAt: Date.now(),
+    });
+    return args.id;
+  },
+});
+
 // Delete a klant
 export const remove = mutation({
   args: { id: v.id("klanten") },

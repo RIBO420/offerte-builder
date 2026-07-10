@@ -25,6 +25,8 @@ import {
   type Seizoensvenster,
 } from "./planbordLogica";
 import { logTijdlijnEvent } from "./tijdlijn";
+import { zetTriggerMailKlaar } from "./mailTriggers";
+import { formatDatumNl } from "./conceptMails";
 
 // ============================================
 // Types
@@ -467,6 +469,29 @@ export const updatePlanning = mutation({
         auteurNaam: kantoorUser.name,
         tekst: `${werkitem.naam} — ${details}`,
       });
+
+      // §2.7 (event inplanning_bevestigd): optioneel PER KLANT (veld
+      // inplanBevestigingsMail, default uit) — bevestigingsmail als CONCEPT
+      // in de wachtrij; kantoor keurt goed (§1.2). Additief: zonder
+      // klant-opt-in, actieve trigger of e-mailadres gebeurt er niets.
+      const klant = await ctx.db.get(werkitem.klantId);
+      if (klant?.inplanBevestigingsMail === true && klant.email && nieuweStart) {
+        await zetTriggerMailKlaar(ctx, {
+          event: "inplanning_bevestigd",
+          userId,
+          ontvangerEmail: klant.email,
+          ontvangerNaam: klant.naam,
+          variabelen: {
+            klantnaam: klant.naam,
+            werkitemNaam: werkitem.naam,
+            geplandeDatum: formatDatumNl(nieuweStart),
+            teamTekst: teamNaam ? ` door team ${teamNaam}` : "",
+          },
+          klantId: werkitem.klantId,
+          werkitemId: werkitem._id,
+          dedupeSleutel: `inplanning_bevestigd:${werkitem._id.toString()}:${nieuweStart}`,
+        });
+      }
     }
 
     // — Seizoensvenster-bewaking: waarschuwing, geen blokkade —

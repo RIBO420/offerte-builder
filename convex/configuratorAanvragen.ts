@@ -10,6 +10,44 @@ import {
   promoveerLead,
   type LeadPipelineStatus,
 } from "./leadsKlantenHelpers";
+import { vindBedrijfseigenaarId, zetTriggerMailKlaar } from "./mailTriggers";
+import type { MutationCtx } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
+
+/**
+ * §2.7 (event lead_ontvangen): ontvangstbevestiging voor een nieuwe
+ * website-lead klaarzetten via het trigger-model. Publieke instroom heeft
+ * geen ingelogde gebruiker — de bedrijfseigenaar (directie) is de scope,
+ * zelfde conventie als de planningsattendering. Default-modus van deze
+ * trigger is "automatisch" (onpersoonlijke bevestiging), maar ook dan
+ * verstuurt uitsluitend conceptMails.verstuurConceptMail — achter de
+ * mail-guard (EMAIL_VERZENDEN_ACTIEF, fail-closed).
+ */
+async function zetLeadOntvangstbevestigingKlaar(
+  ctx: MutationCtx,
+  lead: {
+    leadId: Id<"configuratorAanvragen">;
+    naam: string;
+    email: string;
+    referentie: string;
+  }
+): Promise<void> {
+  const eigenaarId = await vindBedrijfseigenaarId(ctx);
+  if (!eigenaarId) return; // geen bedrijfseigenaar → geen mail (additief)
+
+  await zetTriggerMailKlaar(ctx, {
+    event: "lead_ontvangen",
+    userId: eigenaarId,
+    ontvangerEmail: lead.email,
+    ontvangerNaam: lead.naam,
+    variabelen: {
+      naam: lead.naam,
+      referentie: lead.referentie,
+    },
+    leadId: lead.leadId,
+    dedupeSleutel: `lead_ontvangen:${lead.leadId.toString()}`,
+  });
+}
 
 // ============================================
 // Queries
@@ -378,6 +416,16 @@ export const create = mutation({
       type: "aangemaakt",
       beschrijving: `Lead aangemaakt via configurator (${args.type})`,
       createdAt: now,
+    });
+
+    // §2.7 (event lead_ontvangen): ontvangstbevestiging klaarzetten.
+    // Additief en optioneel: zonder actieve trigger gebeurt er niets;
+    // daadwerkelijke verzending loopt altijd via de mail-guard.
+    await zetLeadOntvangstbevestigingKlaar(ctx, {
+      leadId: id,
+      naam: args.klantNaam.trim(),
+      email: args.klantEmail.trim().toLowerCase(),
+      referentie,
     });
 
     return { id, referentie };
@@ -990,6 +1038,15 @@ export const createFromWebsite = internalMutation({
       type: "aangemaakt",
       beschrijving: `Lead aangemaakt via website contactformulier (${onderwerpLabel})${aantalFotos > 0 ? ` met ${aantalFotos} foto('s)` : ""}`,
       createdAt: now,
+    });
+
+    // §2.7 (event lead_ontvangen): ontvangstbevestiging klaarzetten —
+    // zelfde trigger-pad als de configurator-instroom, achter de mail-guard.
+    await zetLeadOntvangstbevestigingKlaar(ctx, {
+      leadId: id,
+      naam: args.klantNaam.trim(),
+      email: args.klantEmail.trim().toLowerCase(),
+      referentie,
     });
 
     return { id, referentie };

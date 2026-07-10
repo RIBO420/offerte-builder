@@ -84,4 +84,36 @@ crons.daily(
   internal.planningsattendering.genereerAttenderingen
 );
 
+/**
+ * Concept-mails: vertraagde trigger-mails klaarzetten (PRD §2.7)
+ *
+ * Draait elke ochtend om 06:00 UTC. Geplande (vertraagde) trigger-mails
+ * waarvan de vertraging is verstreken gaan naar de "Concept-mails"-wachtrij.
+ *
+ * KANTOOR↔KLANT-REGEL (§1.2): in concept-modus VERSTUURT deze cron nooit
+ * zelf iets — kantoor keurt goed in de wachtrij. Alleen in automatisch-
+ * modus wordt de verzend-actie ingepland, en die staat volledig achter de
+ * mail-guard (EMAIL_VERZENDEN_ACTIEF, fail-closed).
+ */
+crons.daily(
+  "concept-mails klaarzetten",
+  { hourUTC: 6, minuteUTC: 0 }, // 06:00 UTC (07:00 CET / 08:00 CEST)
+  internal.conceptMails.verwerkGeplandeMails
+);
+
+/**
+ * Offerte-opvolging verwerken (PRD §2.7, event offerte_opvolging)
+ *
+ * Draait elke ochtend om 06:15 UTC en verwerkt de bestaande
+ * offerte_reminders (dag 3/7/14 na verzenden; geannuleerd bij reactie).
+ * Per due reminder: interne notificatie + — afhankelijk van de
+ * mail-trigger "offerte_opvolging" — een concept-mail in de wachtrij
+ * (default) of het bestaande herinnerings-mailpad (achter de mail-guard).
+ */
+crons.daily(
+  "offerte-opvolging verwerken",
+  { hourUTC: 6, minuteUTC: 15 }, // 06:15 UTC
+  internal.offerteReminders.processDueReminders
+);
+
 export default crons;
