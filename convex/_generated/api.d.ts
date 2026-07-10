@@ -38,6 +38,8 @@ import type * as directieDashboard from "../directieDashboard.js";
 import type * as emailLogs from "../emailLogs.js";
 import type * as emailTemplates from "../emailTemplates.js";
 import type * as export_ from "../export.js";
+import type * as facturatieEngine from "../facturatieEngine.js";
+import type * as facturatieLogica from "../facturatieLogica.js";
 import type * as facturen from "../facturen.js";
 import type * as fotoStorage from "../fotoStorage.js";
 import type * as garantiePakketten from "../garantiePakketten.js";
@@ -70,6 +72,7 @@ import type * as migrations_migreerWeekPlanningNaarWerkitems from "../migrations
 import type * as migrations_saneerLeadsKlanten from "../migrations/saneerLeadsKlanten.js";
 import type * as migrations_seedBouwstenen from "../migrations/seedBouwstenen.js";
 import type * as migrations_seedTekstblokken from "../migrations/seedTekstblokken.js";
+import type * as migrations_splitsFactuurStatus from "../migrations/splitsFactuurStatus.js";
 import type * as mobile from "../mobile.js";
 import type * as nacalculaties from "../nacalculaties.js";
 import type * as normuren from "../normuren.js";
@@ -166,6 +169,8 @@ declare const fullApi: ApiFromModules<{
   emailLogs: typeof emailLogs;
   emailTemplates: typeof emailTemplates;
   export: typeof export_;
+  facturatieEngine: typeof facturatieEngine;
+  facturatieLogica: typeof facturatieLogica;
   facturen: typeof facturen;
   fotoStorage: typeof fotoStorage;
   garantiePakketten: typeof garantiePakketten;
@@ -198,6 +203,7 @@ declare const fullApi: ApiFromModules<{
   "migrations/saneerLeadsKlanten": typeof migrations_saneerLeadsKlanten;
   "migrations/seedBouwstenen": typeof migrations_seedBouwstenen;
   "migrations/seedTekstblokken": typeof migrations_seedTekstblokken;
+  "migrations/splitsFactuurStatus": typeof migrations_splitsFactuurStatus;
   mobile: typeof mobile;
   nacalculaties: typeof nacalculaties;
   normuren: typeof normuren;

@@ -6,11 +6,27 @@
  */
 
 import { v, ConvexError } from "convex/values";
-import { mutation, query, internalQuery } from "./_generated/server";
+import {
+  mutation,
+  query,
+  internalQuery,
+  type MutationCtx,
+} from "./_generated/server";
 import { internal } from "./_generated/api";
 import { requireAuth, requireAuthUserId, verifyOwnership } from "./auth";
 import { requireNotViewer, assertKanNaarKlantVersturen } from "./roles";
-import { Id } from "./_generated/dataModel";
+import { Doc, Id } from "./_generated/dataModel";
+import {
+  bepaalBetaalStatus,
+  berekenFactuurTotalen,
+  effectieveStatussen,
+  isGeldigeDocumentOvergang,
+  legacyStatusVan,
+  mapLegacyStatus,
+  type BetaalStatus,
+  type DocumentStatus,
+} from "./facturatieLogica";
+import { logTijdlijnEvent } from "./tijdlijn";
 
 /**
  * Validator voor klantgegevens op factuur
@@ -34,7 +50,17 @@ const regelValidator = v.object({
   hoeveelheid: v.number(),
   prijsPerEenheid: v.number(),
   totaal: v.number(),
+  btwCode: v.optional(v.union(v.literal(9), v.literal(21))),
+  scope: v.optional(v.string()),
+  kortingPercentage: v.optional(v.number()),
 });
+
+/** Documentstatussen zoals de wachtrij/lijst erop filtert (§2.8). */
+const documentStatusValidator = v.union(
+  v.literal("concept"),
+  v.literal("definitief"),
+  v.literal("verzonden")
+);
 
 /**
  * Validator voor correctie
@@ -64,6 +90,149 @@ async function getOwnedFactuur(
 ) {
   const factuur = await ctx.db.get(factuurId);
   return verifyOwnership(ctx, factuur, "factuur");
+}
+
+// ── Statussplitsing-kern (§2.8) ──────────────────────────────────────────
+
+/**
+ * Dual-write: schrijf documentStatus + betaalStatus én de legacy-spiegel
+ * (status) in één patch, zodat oude lezers consistent blijven.
+ */
+function statusPatch(
+  documentStatus: DocumentStatus,
+  betaalStatus: BetaalStatus
+): {
+  documentStatus: DocumentStatus;
+  betaalStatus: BetaalStatus;
+  status: ReturnType<typeof legacyStatusVan>;
+} {
+  return {
+    documentStatus,
+    betaalStatus,
+    status: legacyStatusVan(documentStatus, betaalStatus),
+  };
+}
+
+/**
+ * Verstuur-kern (§2.8): concept/definitief → verzonden. Gedeeld door de
+ * enkelvoudige verstuur-mutatie, de bulk-verstuur uit de wachtrij én de
+ * facturatie-engine (directVersturen-contracten). Doet GEEN rolcheck —
+ * de aanroepers zijn daarvoor verantwoordelijk (publiek pad:
+ * assertKanNaarKlantVersturen; engine: contract-toggle door kantoor gezet).
+ * De klantmail loopt via portaalEmail.sendFactuurNotification en zit
+ * daarmee ALTIJD achter de mailGuard (sandbox verstuurt nooit).
+ */
+export async function verstuurFactuurKern(
+  ctx: MutationCtx,
+  factuur: Doc<"facturen">,
+  opts: { auteurId?: Id<"users">; auteurNaam?: string } = {}
+): Promise<void> {
+  const { documentStatus, betaalStatus } = effectieveStatussen(factuur);
+  if (!isGeldigeDocumentOvergang(documentStatus, "verzonden")) {
+    throw new ConvexError(
+      `Factuur ${factuur.factuurnummer} kan niet verstuurd worden vanuit status "${documentStatus}"`
+    );
+  }
+  const now = Date.now();
+  await ctx.db.patch(factuur._id, {
+    ...statusPatch("verzonden", betaalStatus),
+    verzondenAt: now,
+    updatedAt: now,
+  });
+
+  // Referentie-administratie: gekoppelde werkitems → gefactureerd blijft
+  // buiten scope (werkitem-status is planbord-domein); factuurId staat er al.
+
+  // Tijdlijn-event factuur_verzonden (§2.3) — voedt ook de debiteurenladder
+  if (factuur.klantId) {
+    await logTijdlijnEvent(ctx, {
+      userId: factuur.userId,
+      klantId: factuur.klantId,
+      eventType: "factuur_verzonden",
+      tekst: `Factuur ${factuur.factuurnummer} verzonden (€ ${factuur.totaalInclBtw.toFixed(2)} incl. btw)`,
+      auteurId: opts.auteurId,
+      auteurNaam: opts.auteurNaam,
+    });
+  }
+
+  // Project-status bijwerken (bestaand gedrag uit updateStatus)
+  if (factuur.projectId) {
+    const project = await ctx.db.get(factuur.projectId);
+    if (
+      project &&
+      project.status !== "gefactureerd" &&
+      (project.type === undefined || project.type === "project")
+    ) {
+      await ctx.db.patch(factuur.projectId, {
+        status: "gefactureerd",
+        updatedAt: now,
+      });
+    }
+  }
+
+  // Klantnotificatie (achter mailGuard in portaalEmail)
+  if (factuur.klantId) {
+    await ctx.scheduler.runAfter(
+      0,
+      internal.portaalEmail.sendFactuurNotification,
+      { factuurId: factuur._id }
+    );
+  }
+}
+
+/**
+ * Betaal-kern (§2.8, deelbetalingen): verwerk een nieuw cumulatief betaald
+ * bedrag op de factuur. Zet betaalStatus (open → gedeeltelijk_betaald →
+ * betaald), spiegelt legacy status, logt factuur_betaald op de tijdlijn bij
+ * volledige betaling en zet de contractFacturen-termijn door (§2.8 punt 6).
+ */
+export async function verwerkBetaaldBedragKern(
+  ctx: MutationCtx,
+  factuur: Doc<"facturen">,
+  nieuwBetaaldBedrag: number,
+  opts: { auteurId?: Id<"users">; auteurNaam?: string; betaaldAt?: number } = {}
+): Promise<BetaalStatus> {
+  const now = Date.now();
+  const { documentStatus, betaalStatus } = effectieveStatussen(factuur);
+  const nieuweBetaalStatus = bepaalBetaalStatus(
+    factuur.totaalInclBtw,
+    nieuwBetaaldBedrag,
+    betaalStatus
+  );
+  const volledigBetaald = nieuweBetaalStatus === "betaald";
+
+  await ctx.db.patch(factuur._id, {
+    ...statusPatch(documentStatus, nieuweBetaalStatus),
+    betaaldBedrag: nieuwBetaaldBedrag,
+    betaaldAt: volledigBetaald
+      ? (opts.betaaldAt ?? now)
+      : factuur.betaaldAt,
+    updatedAt: now,
+  });
+
+  if (volledigBetaald) {
+    // Tijdlijn-event factuur_betaald (§2.3)
+    if (factuur.klantId) {
+      await logTijdlijnEvent(ctx, {
+        userId: factuur.userId,
+        klantId: factuur.klantId,
+        eventType: "factuur_betaald",
+        tekst: `Factuur ${factuur.factuurnummer} betaald (€ ${factuur.totaalInclBtw.toFixed(2)})`,
+        auteurId: opts.auteurId,
+        auteurNaam: opts.auteurNaam,
+      });
+    }
+    // ContractFacturen-termijn doorzetten (vast_maandbedrag-spoor)
+    const termijn = await ctx.db
+      .query("contractFacturen")
+      .withIndex("by_factuur", (q) => q.eq("factuurId", factuur._id))
+      .first();
+    if (termijn && termijn.status === "gefactureerd") {
+      await ctx.db.patch(termijn._id, { status: "betaald" });
+    }
+  }
+
+  return nieuweBetaalStatus;
 }
 
 /**
@@ -170,6 +339,11 @@ export const generate = mutation({
       projectId: args.projectId,
       factuurnummer,
       status: "concept",
+      documentStatus: "concept",
+      betaalStatus: "open",
+      bron: "project",
+      offerteId: project.offerteId,
+      klantId: project.klantId,
       klant: {
         naam: offerte.klant.naam,
         adres: offerte.klant.adres,
@@ -233,8 +407,15 @@ export const search = query({
       return facturen.slice(0, 10);
     }
 
-    // Get all projects to search by project naam
-    const projectIds = [...new Set(facturen.map((f) => f.projectId))];
+    // Get all projects to search by project naam (losse facturen §2.8
+    // hebben geen projectId)
+    const projectIds = [
+      ...new Set(
+        facturen
+          .map((f) => f.projectId)
+          .filter((id): id is Id<"projecten"> => id !== undefined)
+      ),
+    ];
     const projects = await Promise.all(
       projectIds.map((id) => ctx.db.get(id))
     );
@@ -255,7 +436,9 @@ export const search = query({
       }
 
       // Search by project naam
-      const project = projectMap.get(factuur.projectId.toString());
+      const project = factuur.projectId
+        ? projectMap.get(factuur.projectId.toString())
+        : undefined;
       if (project && project.naam.toLowerCase().includes(searchTerm)) {
         return true;
       }
@@ -320,6 +503,8 @@ export const list = query({
         v.literal("vervallen")
       )
     ),
+    // §2.8: filter op de gesplitste documentketen ("Te versturen" = concept)
+    documentStatus: v.optional(documentStatusValidator),
     hideArchived: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
@@ -333,14 +518,26 @@ export const list = query({
 
     let result = facturen;
 
-    // Filter op status indien opgegeven
+    // Filter op legacy-status indien opgegeven (via effectieve statussen,
+    // zodat gemigreerde én ongemigreerde rijen consistent filteren)
     if (args.status) {
-      result = result.filter((f) => f.status === args.status);
+      result = result.filter((f) => {
+        const eff = effectieveStatussen(f);
+        return legacyStatusVan(eff.documentStatus, eff.betaalStatus) === args.status;
+      });
+    }
+
+    if (args.documentStatus) {
+      result = result.filter(
+        (f) => effectieveStatussen(f).documentStatus === args.documentStatus
+      );
     }
 
     // Filter archived facturen if hideArchived is true (but always show paid invoices)
     if (args.hideArchived) {
-      result = result.filter((f) => !f.isArchived || f.status === "betaald");
+      result = result.filter(
+        (f) => !f.isArchived || effectieveStatussen(f).betaalStatus === "betaald"
+      );
     }
 
     return result;
@@ -364,8 +561,8 @@ export const update = mutation({
     const factuur = await getOwnedFactuur(ctx, args.id);
     const now = Date.now();
 
-    // Alleen bewerken in concept status
-    if (factuur.status !== "concept") {
+    // Alleen bewerken in concept-documentstatus (§2.8: statussplitsing)
+    if (effectieveStatussen(factuur).documentStatus !== "concept") {
       throw new ConvexError("Factuur kan alleen bewerkt worden in concept status");
     }
 
@@ -387,16 +584,20 @@ export const update = mutation({
       updates.regels = nieuweRegels;
       updates.correcties = nieuweCorrecties.length > 0 ? nieuweCorrecties : undefined;
 
-      // Herbereken totalen
-      const regelsTotaal = nieuweRegels.reduce((sum, r) => sum + r.totaal, 0);
-      const correctiesTotaal = nieuweCorrecties.reduce((sum, c) => sum + c.bedrag, 0);
-      const subtotaal = regelsTotaal + correctiesTotaal;
-      const btwBedrag = subtotaal * (factuur.btwPercentage / 100);
-      const totaalInclBtw = subtotaal + btwBedrag;
+      // Herbereken totalen incl. btw-uitsplitsing per tarief (§2.8 punt 4);
+      // correcties dragen geen btwCode en vallen op het default-percentage.
+      const totalen = berekenFactuurTotalen(
+        [
+          ...nieuweRegels,
+          ...nieuweCorrecties.map((c) => ({ totaal: c.bedrag })),
+        ],
+        factuur.btwPercentage
+      );
 
-      updates.subtotaal = subtotaal;
-      updates.btwBedrag = btwBedrag;
-      updates.totaalInclBtw = totaalInclBtw;
+      updates.subtotaal = totalen.subtotaal;
+      updates.btwBedrag = totalen.btwBedrag;
+      updates.totaalInclBtw = totalen.totaalInclBtw;
+      updates.btwUitsplitsing = totalen.btwUitsplitsing;
     }
 
     await ctx.db.patch(args.id, updates);
@@ -424,7 +625,7 @@ export const updateStatus = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    await requireNotViewer(ctx);
+    const user = await requireNotViewer(ctx);
     // Capability "versturen naar klant" (PRD §1.2): de overgang naar
     // "verzonden" triggert de factuurnotificatie — alleen kantoor
     if (args.status === "verzonden") {
@@ -433,11 +634,16 @@ export const updateStatus = mutation({
     // Verifieer eigenaarschap
     const factuur = await getOwnedFactuur(ctx, args.id);
     const now = Date.now();
-    const oudeStatus = factuur.status;
+    // §2.8: valideer op de LEGACY-keten (bestaande UI-aanroepen), maar
+    // schrijf via de statussplitsing (dual-write) weg.
+    const oudeStatus = legacyStatusVan(
+      effectieveStatussen(factuur).documentStatus,
+      effectieveStatussen(factuur).betaalStatus
+    );
 
     // Valideer statusovergang
     const geldigeOvergangen: Record<string, string[]> = {
-      concept: ["definitief"],
+      concept: ["definitief", "verzonden"], // wachtrij §2.8: direct versturen mag
       definitief: ["concept", "verzonden"],
       verzonden: ["betaald", "vervallen"],
       betaald: [], // Eindstatus
@@ -450,41 +656,217 @@ export const updateStatus = mutation({
       );
     }
 
-    const updates: Record<string, unknown> = {
-      status: args.status,
-      updatedAt: now,
-    };
-
-    // Zet specifieke timestamps bij statuswijziging
     if (args.status === "verzonden") {
-      updates.verzondenAt = now;
+      if (oudeStatus === "vervallen") {
+        // Opnieuw versturen van een vervallen factuur: alleen betaalketen
+        // terug naar open; document was al verzonden.
+        await ctx.db.patch(args.id, {
+          ...statusPatch("verzonden", "open"),
+          verzondenAt: now,
+          updatedAt: now,
+        });
+        if (factuur.klantId) {
+          await ctx.scheduler.runAfter(
+            0,
+            internal.portaalEmail.sendFactuurNotification,
+            { factuurId: args.id }
+          );
+        }
+      } else {
+        await verstuurFactuurKern(ctx, factuur, {
+          auteurId: user._id,
+          auteurNaam: user.name,
+        });
+      }
+      return args.id;
     }
 
     if (args.status === "betaald") {
-      updates.betaaldAt = now;
+      await verwerkBetaaldBedragKern(ctx, factuur, factuur.totaalInclBtw, {
+        auteurId: user._id,
+        auteurNaam: user.name,
+      });
+      return args.id;
     }
 
-    await ctx.db.patch(args.id, updates);
+    if (args.status === "vervallen") {
+      await ctx.db.patch(args.id, {
+        ...statusPatch("verzonden", "vervallen"),
+        updatedAt: now,
+      });
+      return args.id;
+    }
+
+    // concept ↔ definitief: pure documentketen
+    const mapped = mapLegacyStatus(args.status);
+    await ctx.db.patch(args.id, {
+      ...statusPatch(
+        mapped.documentStatus,
+        effectieveStatussen(factuur).betaalStatus
+      ),
+      updatedAt: now,
+    });
 
     // Update project status naar gefactureerd indien van toepassing
-    if (args.status === "definitief" || args.status === "verzonden") {
+    // (bestaand gedrag bij "definitief"; alleen echte projecten)
+    if (args.status === "definitief" && factuur.projectId) {
       const project = await ctx.db.get(factuur.projectId);
-      if (project && project.status !== "gefactureerd") {
+      if (
+        project &&
+        project.status !== "gefactureerd" &&
+        (project.type === undefined || project.type === "project")
+      ) {
         await ctx.db.patch(factuur.projectId, {
           status: "gefactureerd",
           updatedAt: now,
         });
       }
-
-      // Notify klant via portal email when factuur is sent
-      if (args.status === "verzonden" && project?.klantId) {
-        await ctx.scheduler.runAfter(0, internal.portaalEmail.sendFactuurNotification, {
-          factuurId: args.id,
-        });
-      }
     }
 
     return args.id;
+  },
+});
+
+/**
+ * Verstuur één factuur uit de "Te versturen"-wachtrij (§2.8).
+ * Kantoor-pad: capability-check + mailGuard + tijdlijn-event.
+ */
+export const verstuur = mutation({
+  args: { id: v.id("facturen") },
+  handler: async (ctx, args) => {
+    const user = await assertKanNaarKlantVersturen(ctx);
+    const factuur = await getOwnedFactuur(ctx, args.id);
+    await verstuurFactuurKern(ctx, factuur, {
+      auteurId: user._id,
+      auteurNaam: user.name,
+    });
+    return args.id;
+  },
+});
+
+/**
+ * Bulk-verstuur vanuit de "Te versturen"-wachtrij (§2.8): kantoor doet de
+ * laatste check en verstuurt meerdere concepten in één handeling. Facturen
+ * die intussen al verzonden zijn worden overgeslagen (idempotent), zodat
+ * één misser niet de hele bulk laat klappen.
+ */
+export const bulkVerstuur = mutation({
+  args: { ids: v.array(v.id("facturen")) },
+  handler: async (ctx, args) => {
+    const user = await assertKanNaarKlantVersturen(ctx);
+    let verstuurd = 0;
+    const overgeslagen: Array<{ id: Id<"facturen">; reden: string }> = [];
+
+    for (const id of args.ids) {
+      const factuur = await getOwnedFactuur(ctx, id);
+      const { documentStatus } = effectieveStatussen(factuur);
+      if (documentStatus === "verzonden") {
+        overgeslagen.push({ id, reden: "al verzonden" });
+        continue;
+      }
+      await verstuurFactuurKern(ctx, factuur, {
+        auteurId: user._id,
+        auteurNaam: user.name,
+      });
+      verstuurd++;
+    }
+
+    return { verstuurd, overgeslagen };
+  },
+});
+
+/**
+ * Losse factuur via de herbruikbare vrije regel-editor (§2.8 punt 5).
+ * Regels komen 1-op-1 uit de editor (artikel-picker, hoofdstukken, korting,
+ * btw per regel); het concept landt in dezelfde "Te versturen"-wachtrij.
+ */
+export const createVrij = mutation({
+  args: {
+    klantId: v.id("klanten"),
+    regels: v.array(regelValidator),
+    datumVanDienst: v.optional(v.string()), // YYYY-MM-DD
+    notities: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
+    const userId = await requireAuthUserId(ctx);
+    const now = Date.now();
+
+    if (args.regels.length === 0) {
+      throw new ConvexError("Een factuur heeft minimaal één regel nodig");
+    }
+
+    const klant = await ctx.db.get(args.klantId);
+    if (!klant || klant.userId.toString() !== userId.toString()) {
+      throw new ConvexError("Klant niet gevonden");
+    }
+
+    const instellingen = await ctx.db
+      .query("instellingen")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique();
+    if (!instellingen) {
+      throw new ConvexError(
+        "Instellingen niet gevonden. Configureer eerst je bedrijfsgegevens."
+      );
+    }
+
+    const laatsteNummer = instellingen.laatsteFactuurNummer ?? 0;
+    const volgendNummer = laatsteNummer + 1;
+    const jaar = new Date().getFullYear();
+    const prefix = instellingen.factuurNummerPrefix ?? "FAC-";
+    const factuurnummer = `${prefix}${jaar}-${String(volgendNummer).padStart(3, "0")}`;
+
+    const totalen = berekenFactuurTotalen(args.regels, 21);
+    const betalingstermijnDagen = instellingen.standaardBetalingstermijn ?? 14;
+
+    const factuurId = await ctx.db.insert("facturen", {
+      userId,
+      klantId: args.klantId,
+      factuurnummer,
+      status: "concept",
+      documentStatus: "concept",
+      betaalStatus: "open",
+      bron: "handmatig",
+      klant: {
+        naam: klant.naam,
+        adres: klant.adres,
+        postcode: klant.postcode,
+        plaats: klant.plaats,
+        email: klant.email,
+        telefoon: klant.telefoon,
+      },
+      bedrijf: {
+        naam: instellingen.bedrijfsgegevens.naam,
+        adres: instellingen.bedrijfsgegevens.adres,
+        postcode: instellingen.bedrijfsgegevens.postcode,
+        plaats: instellingen.bedrijfsgegevens.plaats,
+        kvk: instellingen.bedrijfsgegevens.kvk,
+        btw: instellingen.bedrijfsgegevens.btw,
+        iban: instellingen.bedrijfsgegevens.iban,
+        email: instellingen.bedrijfsgegevens.email,
+        telefoon: instellingen.bedrijfsgegevens.telefoon,
+      },
+      regels: args.regels,
+      subtotaal: totalen.subtotaal,
+      btwPercentage: totalen.btwPercentage,
+      btwBedrag: totalen.btwBedrag,
+      totaalInclBtw: totalen.totaalInclBtw,
+      btwUitsplitsing: totalen.btwUitsplitsing,
+      factuurdatum: now,
+      vervaldatum: now + betalingstermijnDagen * 24 * 60 * 60 * 1000,
+      betalingstermijnDagen,
+      datumVanDienst: args.datumVanDienst,
+      notities: args.notities,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await ctx.db.patch(instellingen._id, {
+      laatsteFactuurNummer: volgendNummer,
+    });
+
+    return factuurId;
   },
 });
 
@@ -497,23 +879,102 @@ export const markAsPaid = mutation({
     betaaldAt: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    await requireNotViewer(ctx);
+    const user = await requireNotViewer(ctx);
     // Verifieer eigenaarschap
     const factuur = await getOwnedFactuur(ctx, args.id);
-    const now = Date.now();
 
     // Alleen verzonden facturen kunnen als betaald worden gemarkeerd
-    if (factuur.status !== "verzonden") {
+    const { documentStatus, betaalStatus } = effectieveStatussen(factuur);
+    if (documentStatus !== "verzonden" || betaalStatus === "betaald") {
       throw new ConvexError("Alleen verzonden facturen kunnen als betaald worden gemarkeerd");
     }
 
-    await ctx.db.patch(args.id, {
-      status: "betaald",
-      betaaldAt: args.betaaldAt ?? now,
-      updatedAt: now,
+    await verwerkBetaaldBedragKern(ctx, factuur, factuur.totaalInclBtw, {
+      auteurId: user._id,
+      auteurNaam: user.name,
+      betaaldAt: args.betaaldAt,
     });
 
     return args.id;
+  },
+});
+
+/**
+ * Registreer een (deel)betaling op een factuur (§2.8, deelbetalingen).
+ * Schrijft een rij in de betalingen-tabel (factuurId-koppeling) en zet de
+ * betaalStatus automatisch: open → gedeeltelijk_betaald → betaald.
+ */
+export const registreerBetaling = mutation({
+  args: {
+    factuurId: v.id("facturen"),
+    bedrag: v.number(),
+    omschrijving: v.optional(v.string()),
+    betaaldAt: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireNotViewer(ctx);
+    const factuur = await getOwnedFactuur(ctx, args.factuurId);
+    const now = Date.now();
+
+    if (!Number.isFinite(args.bedrag) || args.bedrag <= 0) {
+      throw new ConvexError("Betalingsbedrag moet groter dan nul zijn");
+    }
+    const { documentStatus, betaalStatus } = effectieveStatussen(factuur);
+    if (documentStatus !== "verzonden") {
+      throw new ConvexError(
+        "Betalingen kunnen alleen op verzonden facturen geregistreerd worden"
+      );
+    }
+    if (betaalStatus === "betaald") {
+      throw new ConvexError("Deze factuur is al volledig betaald");
+    }
+
+    const reedsBetaald = factuur.betaaldBedrag ?? 0;
+    const restbedrag =
+      Math.round((factuur.totaalInclBtw - reedsBetaald) * 100) / 100;
+    if (args.bedrag > restbedrag + 0.01) {
+      throw new ConvexError(
+        `Betaling (€ ${args.bedrag.toFixed(2)}) is hoger dan het openstaande bedrag (€ ${restbedrag.toFixed(2)})`
+      );
+    }
+
+    // Betaling vastleggen in de betalingen-tabel (handmatige registratie,
+    // geen Mollie-payment — herkenbaar aan het prefix)
+    await ctx.db.insert("betalingen", {
+      userId: factuur.userId,
+      molliePaymentId: `handmatig_${args.factuurId}_${now}`,
+      bedrag: args.bedrag,
+      status: "paid",
+      beschrijving:
+        args.omschrijving ??
+        `Betaling op factuur ${factuur.factuurnummer}`,
+      referentie: factuur.factuurnummer,
+      klantNaam: factuur.klant.naam,
+      klantEmail: factuur.klant.email ?? "",
+      type: "factuur",
+      factuurId: args.factuurId,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const nieuwBetaald =
+      Math.round((reedsBetaald + args.bedrag) * 100) / 100;
+    const nieuweBetaalStatus = await verwerkBetaaldBedragKern(
+      ctx,
+      factuur,
+      nieuwBetaald,
+      {
+        auteurId: user._id,
+        auteurNaam: user.name,
+        betaaldAt: args.betaaldAt,
+      }
+    );
+
+    return {
+      factuurId: args.factuurId,
+      betaaldBedrag: nieuwBetaald,
+      betaalStatus: nieuweBetaalStatus,
+    };
   },
 });
 
@@ -553,24 +1014,27 @@ export const markAsPaidAndArchiveProject = mutation({
     id: v.id("facturen"),
   },
   handler: async (ctx, args) => {
-    await requireNotViewer(ctx);
+    const user = await requireNotViewer(ctx);
     // Verifieer eigenaarschap van factuur
     const factuur = await getOwnedFactuur(ctx, args.id);
     const now = Date.now();
 
     // Alleen verzonden facturen kunnen als betaald worden gemarkeerd
-    if (factuur.status !== "verzonden") {
+    const eff = effectieveStatussen(factuur);
+    if (eff.documentStatus !== "verzonden" || eff.betaalStatus === "betaald") {
       throw new ConvexError("Alleen verzonden facturen kunnen als betaald worden gemarkeerd");
     }
 
-    // Update factuur status to "betaald"
-    await ctx.db.patch(args.id, {
-      status: "betaald",
-      betaaldAt: now,
-      updatedAt: now,
+    // Update factuur naar betaald (statussplitsing + tijdlijn + termijn-sync)
+    await verwerkBetaaldBedragKern(ctx, factuur, factuur.totaalInclBtw, {
+      auteurId: user._id,
+      auteurNaam: user.name,
     });
 
-    // Get the linked project
+    // Get the linked project (losse facturen §2.8 hebben geen project)
+    if (!factuur.projectId) {
+      throw new ConvexError("Project niet gevonden");
+    }
     const project = await ctx.db.get(factuur.projectId);
     if (!project) {
       throw new ConvexError("Project niet gevonden");
@@ -634,36 +1098,46 @@ export const getStats = query({
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
 
-    // Count per status
+    // KPI's op de gesplitste statussen (§2.8): documentketen voor de
+    // wachtrij-telling, betaalketen voor openstaand/betaald. Deelbetalingen
+    // tellen het RESTbedrag als openstaand.
     let conceptCount = 0;
     let definitiefCount = 0;
     let verzondenCount = 0;
     let betaaldCount = 0;
     let vervallenCount = 0;
+    let teVersturenCount = 0;
     let totaalBedrag = 0;
     let openstaandBedrag = 0;
     let betaaldBedrag = 0;
 
     for (const factuur of facturen) {
-      // Count by status
-      switch (factuur.status) {
-        case "concept":
-          conceptCount++;
-          break;
-        case "definitief":
-          definitiefCount++;
-          break;
-        case "verzonden":
-          verzondenCount++;
-          openstaandBedrag += factuur.totaalInclBtw;
-          break;
-        case "betaald":
-          betaaldCount++;
-          betaaldBedrag += factuur.totaalInclBtw;
-          break;
-        case "vervallen":
-          vervallenCount++;
-          break;
+      const { documentStatus, betaalStatus } = effectieveStatussen(factuur);
+
+      if (documentStatus === "concept") {
+        conceptCount++;
+        teVersturenCount++;
+      } else if (documentStatus === "definitief") {
+        definitiefCount++;
+      } else {
+        // verzonden: betaalketen bepaalt de KPI
+        switch (betaalStatus) {
+          case "betaald":
+            betaaldCount++;
+            betaaldBedrag += factuur.totaalInclBtw;
+            break;
+          case "vervallen":
+          case "geannuleerd":
+            vervallenCount++;
+            break;
+          default: {
+            verzondenCount++;
+            const reedsBetaald = factuur.betaaldBedrag ?? 0;
+            openstaandBedrag += factuur.totaalInclBtw - reedsBetaald;
+            betaaldBedrag += reedsBetaald;
+            break;
+          }
+        }
       }
       totaalBedrag += factuur.totaalInclBtw;
     }
@@ -678,6 +1152,7 @@ export const getStats = query({
       verzonden: verzondenCount,
       betaald: betaaldCount,
       vervallen: vervallenCount,
+      teVersturen: teVersturenCount,
     };
   },
 });
@@ -699,6 +1174,8 @@ export const listPaginated = query({
         v.literal("vervallen")
       )
     ),
+    // §2.8: "Te versturen"-wachtrij filtert op documentStatus "concept"
+    documentStatus: v.optional(documentStatusValidator),
   },
   handler: async (ctx, args) => {
     const userId = await requireAuthUserId(ctx);
@@ -710,10 +1187,18 @@ export const listPaginated = query({
       .order("desc")
       .paginate({ numItems: limit, cursor: args.cursor ?? null });
 
-    // Post-filter by status if provided
+    // Post-filter via effectieve (gesplitste) statussen
     let items = result.page;
     if (args.status) {
-      items = items.filter((f) => f.status === args.status);
+      items = items.filter((f) => {
+        const eff = effectieveStatussen(f);
+        return legacyStatusVan(eff.documentStatus, eff.betaalStatus) === args.status;
+      });
+    }
+    if (args.documentStatus) {
+      items = items.filter(
+        (f) => effectieveStatussen(f).documentStatus === args.documentStatus
+      );
     }
 
     return {
@@ -742,15 +1227,20 @@ export const getRecent = query({
       .order("desc")
       .take(limit);
 
-    return facturen.map((factuur) => ({
-      _id: factuur._id,
-      factuurnummer: factuur.factuurnummer,
-      klantNaam: factuur.klant.naam,
-      totaalInclBtw: factuur.totaalInclBtw,
-      status: factuur.status,
-      factuurdatum: factuur.factuurdatum,
-      vervaldatum: factuur.vervaldatum,
-    }));
+    return facturen.map((factuur) => {
+      const eff = effectieveStatussen(factuur);
+      return {
+        _id: factuur._id,
+        factuurnummer: factuur.factuurnummer,
+        klantNaam: factuur.klant.naam,
+        totaalInclBtw: factuur.totaalInclBtw,
+        status: factuur.status,
+        documentStatus: eff.documentStatus,
+        betaalStatus: eff.betaalStatus,
+        factuurdatum: factuur.factuurdatum,
+        vervaldatum: factuur.vervaldatum,
+      };
+    });
   },
 });
 
@@ -829,8 +1319,9 @@ export const createCreditnota = mutation({
     // Haal originele factuur op en verifieer eigenaarschap
     const factuur = await getOwnedFactuur(ctx, args.factuurId);
 
-    // Alleen verzonden, betaald of vervallen facturen kunnen gecrediteerd worden
-    if (!["verzonden", "betaald", "vervallen"].includes(factuur.status)) {
+    // Alleen verzonden facturen kunnen gecrediteerd worden (documentketen;
+    // betaalketen mag open/betaald/vervallen zijn — zelfde regel als eerst)
+    if (effectieveStatussen(factuur).documentStatus !== "verzonden") {
       throw new ConvexError(
         "Alleen verzonden, betaalde of vervallen facturen kunnen gecrediteerd worden"
       );
@@ -879,7 +1370,8 @@ export const createCreditnota = mutation({
       }
     }
 
-    // Maak negatieve regels (bedragen worden negatief)
+    // Maak negatieve regels (bedragen worden negatief); btwCode blijft mee
+    // zodat de creditnota dezelfde btw-uitsplitsing spiegelt (§2.8 punt 4)
     const negatieveRegels = creditRegels.map((r) => ({
       id: r.id,
       omschrijving: r.omschrijving,
@@ -887,20 +1379,25 @@ export const createCreditnota = mutation({
       hoeveelheid: r.hoeveelheid,
       prijsPerEenheid: -Math.abs(r.prijsPerEenheid),
       totaal: -Math.abs(r.totaal),
+      btwCode: r.btwCode,
+      scope: r.scope,
     }));
 
-    // Bereken negatieve totalen
-    const regelsTotaal = negatieveRegels.reduce((sum, r) => sum + r.totaal, 0);
-    const subtotaal = regelsTotaal;
-    const btwBedrag = subtotaal * (factuur.btwPercentage / 100);
-    const totaalInclBtw = subtotaal + btwBedrag;
+    // Bereken negatieve totalen (uitsplitsing per tarief)
+    const totalen = berekenFactuurTotalen(
+      negatieveRegels,
+      factuur.btwPercentage
+    );
 
     // Maak de creditnota aan (als factuur met isCreditnota = true)
     const creditnotaId = await ctx.db.insert("facturen", {
       userId,
       projectId: factuur.projectId,
+      klantId: factuur.klantId,
       factuurnummer: creditnotaNummer,
       status: "definitief", // Creditnota's zijn meteen definitief
+      documentStatus: "definitief",
+      betaalStatus: "open",
       isCreditnota: true,
       referentieFactuurId: args.factuurId,
       creditnotaReden: args.reden,
@@ -908,10 +1405,14 @@ export const createCreditnota = mutation({
       bedrijf: factuur.bedrijf,
       regels: negatieveRegels,
       correcties: undefined,
-      subtotaal,
+      subtotaal: totalen.subtotaal,
       btwPercentage: factuur.btwPercentage,
-      btwBedrag,
-      totaalInclBtw,
+      btwBedrag: totalen.btwBedrag,
+      totaalInclBtw: totalen.totaalInclBtw,
+      btwUitsplitsing: totalen.btwUitsplitsing,
+      datumVanDienst: factuur.datumVanDienst,
+      contractId: factuur.contractId,
+      offerteId: factuur.offerteId,
       factuurdatum: now,
       vervaldatum: now, // Creditnota's hebben geen betalingstermijn
       betalingstermijnDagen: 0,
@@ -982,8 +1483,9 @@ export const getWithDetails = query({
       return null;
     }
 
-    // Haal gerelateerde data op
-    const project = await ctx.db.get(factuur.projectId);
+    // Haal gerelateerde data op (losse facturen §2.8 hebben geen project)
+    const projectId = factuur.projectId;
+    const project = projectId ? await ctx.db.get(projectId) : null;
 
     // Haal offerte op via project (offerteId kan ontbreken)
     let offerte = null;
@@ -992,16 +1494,20 @@ export const getWithDetails = query({
     }
 
     // Haal nacalculatie op indien beschikbaar
-    const nacalculatie = await ctx.db
-      .query("nacalculaties")
-      .withIndex("by_project", (q) => q.eq("projectId", factuur.projectId))
-      .unique();
+    const nacalculatie = projectId
+      ? await ctx.db
+          .query("nacalculaties")
+          .withIndex("by_project", (q) => q.eq("projectId", projectId))
+          .unique()
+      : null;
 
     // Haal voorcalculatie op indien beschikbaar
-    const voorcalculatie = await ctx.db
-      .query("voorcalculaties")
-      .withIndex("by_project", (q) => q.eq("projectId", factuur.projectId))
-      .unique();
+    const voorcalculatie = projectId
+      ? await ctx.db
+          .query("voorcalculaties")
+          .withIndex("by_project", (q) => q.eq("projectId", projectId))
+          .unique()
+      : null;
 
     return {
       factuur,

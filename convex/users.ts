@@ -458,7 +458,7 @@ export const initializeDefaults = mutation({
     const projectIds = userProjects.map((p) => p._id);
     const allFacturen = await ctx.db.query("facturen").collect();
     const userFacturen = allFacturen.filter((f) =>
-      projectIds.includes(f.projectId)
+      f.projectId !== undefined && projectIds.includes(f.projectId)
     );
 
     // Update projects with facturen to gefactureerd and archive paid ones
@@ -714,7 +714,7 @@ export const adminSeedUserDefaults = mutation({
     const projectIds = userProjects.map((p) => p._id);
     const allFacturen = await ctx.db.query("facturen").collect();
     const userFacturen = allFacturen.filter((f) =>
-      projectIds.includes(f.projectId)
+      f.projectId !== undefined && projectIds.includes(f.projectId)
     );
 
     // Update projects with facturen to gefactureerd and archive paid ones
@@ -819,7 +819,7 @@ export const runDataMigrations = mutation({
     const projectIds = userProjects.map((p) => p._id);
     const allFacturen = await ctx.db.query("facturen").collect();
     const userFacturen = allFacturen.filter((f) =>
-      projectIds.includes(f.projectId)
+      f.projectId !== undefined && projectIds.includes(f.projectId)
     );
 
     // 3. Update projects with facturen to gefactureerd and archive paid ones
@@ -932,7 +932,7 @@ export const adminRunMigrations = mutation({
     const projectIds = userProjects.map((p) => p._id);
     const allFacturen = await ctx.db.query("facturen").collect();
     const userFacturen = allFacturen.filter((f) =>
-      projectIds.includes(f.projectId)
+      f.projectId !== undefined && projectIds.includes(f.projectId)
     );
 
     // Update projects with facturen to gefactureerd and archive paid ones
@@ -1552,7 +1552,9 @@ export const exportPersonalData = query({
     // 6. Facturen (invoices) - linked to projects
     const projectIds = projecten.map((p) => p._id);
     const allFacturen = await ctx.db.query("facturen").collect();
-    const facturen = allFacturen.filter((f) => projectIds.includes(f.projectId));
+    const facturen = allFacturen.filter(
+      (f) => f.projectId !== undefined && projectIds.includes(f.projectId)
+    );
 
     // 7. UrenRegistraties (time registrations) - linked to projects
     const allUrenRegistraties = await ctx.db.query("urenRegistraties").collect();

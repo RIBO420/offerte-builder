@@ -1319,10 +1319,18 @@ export default defineSchema({
   // Workflow: concept → definitief → verzonden → betaald/vervallen
   // Correcties uit nacalculatie kunnen worden meegenomen als extra regels
   facturen: defineTable({
-    projectId: v.id("projecten"),
+    // Optioneel geworden (§2.8): losse facturen via de regel-editor hangen
+    // aan een klant, niet aan een project/werkitem. Engine-facturen zetten
+    // hier het (eerste) werkitem-id (werkitems leven in de projecten-tabel).
+    projectId: v.optional(v.id("projecten")),
     userId: v.id("users"),
     klantId: v.optional(v.id("klanten")),
     factuurnummer: v.string(),
+    // DEPRECATED (§2.8, HERO-pariteit bijlage B): de enkele statusketen is
+    // gesplitst in documentStatus + betaalStatus. Dit veld blijft als
+    // legacy-spiegel bestaan (dual-write via legacyStatusVan in
+    // facturatieLogica.ts) zodat bestaande lezers niet breken. NIET meer
+    // rechtstreeks op filteren in nieuwe code — gebruik effectieveStatussen.
     status: v.union(
       v.literal("concept"),
       v.literal("definitief"),
@@ -1330,6 +1338,27 @@ export default defineSchema({
       v.literal("betaald"),
       v.literal("vervallen")
     ),
+    // Statussplitsing (§2.8/bijlage B): documentketen los van betaalketen,
+    // want deelbetalingen passen niet in één keten. Optioneel voor oude
+    // rijen; migratie migraties:splitsFactuurStatus vult beide velden.
+    documentStatus: v.optional(
+      v.union(
+        v.literal("concept"),
+        v.literal("definitief"),
+        v.literal("verzonden")
+      )
+    ),
+    betaalStatus: v.optional(
+      v.union(
+        v.literal("open"),
+        v.literal("gedeeltelijk_betaald"),
+        v.literal("betaald"),
+        v.literal("vervallen"),
+        v.literal("geannuleerd")
+      )
+    ),
+    // Som van geregistreerde (deel)betalingen (betalingen.factuurId)
+    betaaldBedrag: v.optional(v.number()),
 
     // Factuur type: regulier (volledig/deelfactuur) of meerwerk (FAC-003)
     factuurType: v.optional(v.union(
@@ -1383,6 +1412,12 @@ export default defineSchema({
         eenheid: v.string(),
         prijsPerEenheid: v.number(),
         totaal: v.number(),
+        // Btw per regel (§2.8): 9/21, bron = bouwsteen/artikel. Regels
+        // zonder btwCode vallen terug op factuur.btwPercentage (legacy).
+        btwCode: v.optional(v.union(v.literal(9), v.literal(21))),
+        // Hoofdstuk + korting uit de vrije regel-editor (§2.5b hergebruikt)
+        scope: v.optional(v.string()),
+        kortingPercentage: v.optional(v.number()),
       })
     ),
 
@@ -1401,11 +1436,48 @@ export default defineSchema({
     btwPercentage: v.number(),
     btwBedrag: v.number(),
     totaalInclBtw: v.number(),
+    // Btw-uitsplitsing per tarief (§2.8): grondslag + bedrag per 9/21.
+    // Aanwezig op engine-/vrije facturen; totalenblok en PDF tonen dit.
+    btwUitsplitsing: v.optional(
+      v.array(
+        v.object({
+          percentage: v.number(),
+          grondslag: v.number(),
+          bedrag: v.number(),
+        })
+      )
+    ),
 
     // Betalingstermijn
     factuurdatum: v.number(),
     vervaldatum: v.number(),
     betalingstermijnDagen: v.number(),
+    // Datum van dienst (§2.8, HERO-pariteit): uitvoeringsdatum van de
+    // beurt(en), naast de factuurdatum. YYYY-MM-DD.
+    datumVanDienst: v.optional(v.string()),
+
+    // Referenties (§2.8): keten contract → beurt → uitvoering → factuur
+    contractId: v.optional(v.id("onderhoudscontracten")),
+    offerteId: v.optional(v.id("offertes")),
+    // Werkitems (beurten) die op deze factuur staan; werkitems leven in de
+    // projecten-tabel. Idempotentie andersom: projecten.factuurId.
+    werkitemIds: v.optional(v.array(v.id("projecten"))),
+    // Herkomst van de factuur (engine §2.8 / termijnschema / handmatig)
+    bron: v.optional(
+      v.union(
+        v.literal("project"), // bestaand pad: facturen.generate
+        v.literal("engine_per_bezoek"),
+        v.literal("engine_maandverzameling"),
+        v.literal("termijnschema"), // vast_maandbedrag (contractFacturen)
+        v.literal("handmatig") // losse factuur via de regel-editor
+      )
+    ),
+    // Maandverzamelfactuur (facturatiemodus maandelijks_verzameld):
+    // kalendermaand YYYY-MM waarin de beurten vallen; de maandwissel-cron
+    // sluit de maand (verzamelGesloten) zodat nieuwe beurten een nieuwe
+    // verzamelfactuur openen.
+    verzamelMaand: v.optional(v.string()),
+    verzamelGesloten: v.optional(v.boolean()),
 
     // Tracking
     verzondenAt: v.optional(v.number()),
@@ -1438,7 +1510,11 @@ export default defineSchema({
     .index("by_user_status", ["userId", "status"])
     // Index for boekhouding sync queries (boekhouding.ts: getSyncStatus, markForSync)
     .index("by_user_boekhoudSync", ["userId", "boekhoudSyncStatus"])
-    .index("by_klant", ["klantId"]),
+    .index("by_klant", ["klantId"])
+    // "Te versturen"-wachtrij (§2.8): alle concepten per gebruiker
+    .index("by_user_documentStatus", ["userId", "documentStatus"])
+    // Open maandverzamelfactuur per contract/maand (facturatie-engine §2.8)
+    .index("by_contract_verzamelMaand", ["contractId", "verzamelMaand"]),
 
   // Betalingsherinneringen & Aanmaningen (FAC-006, FAC-007)
   betalingsherinneringen: defineTable({
@@ -2631,6 +2707,10 @@ export default defineSchema({
       v.literal("configurator"),
       v.literal("factuur")
     ),
+    // Koppeling naar de factuur (§2.8, deelbetalingen): handmatig
+    // geregistreerde (deel)betalingen zetten dit veld; de betaalStatus van
+    // de factuur (open → gedeeltelijk_betaald → betaald) volgt de som.
+    factuurId: v.optional(v.id("facturen")),
     metadata: v.optional(v.record(v.string(), v.union(v.string(), v.number(), v.boolean(), v.null()))),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -2638,7 +2718,8 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_mollieId", ["molliePaymentId"])
     .index("by_referentie", ["referentie"])
-    .index("by_status", ["status"]),
+    .index("by_status", ["status"])
+    .index("by_factuur", ["factuurId"]),
 
   // ============================================
   // Plantsoorten
@@ -2810,6 +2891,13 @@ export default defineSchema({
     // Verlenging
     autoVerlenging: v.boolean(),
     verlengingsPeriodeInMaanden: v.optional(v.number()),
+
+    // §2.8 "direct versturen zonder check": engine-facturen van dit
+    // contract slaan de Te-versturen-check over en gaan direct op
+    // "verzonden" (mail blijft achter de mailGuard). Default uit —
+    // human-in-the-loop; alleen kantoor (assertKanNaarKlantVersturen)
+    // mag deze toggle aanzetten.
+    directVersturen: v.optional(v.boolean()),
 
     // Opmerkingen
     notities: v.optional(v.string()),

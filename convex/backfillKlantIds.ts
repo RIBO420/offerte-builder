@@ -59,6 +59,7 @@ export const backfillFacturenKlantId = internalMutation({
     for (const factuur of facturen) {
       if (factuur.klantId) continue;
 
+      if (!factuur.projectId) continue; // losse facturen (§2.8) hebben geen project
       const project = await ctx.db.get(factuur.projectId);
       if (!project) continue;
 

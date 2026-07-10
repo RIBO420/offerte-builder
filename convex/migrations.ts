@@ -252,7 +252,9 @@ export const migrateProjectsWithFacturen = mutation({
 
     // Verzamel unieke project IDs
     const projectIdSet = new Set(
-      voltooideFacturen.map((factuur) => factuur.projectId)
+      voltooideFacturen
+        .map((factuur) => factuur.projectId)
+        .filter((id): id is NonNullable<typeof id> => id !== undefined)
     );
     const projectIds = Array.from(projectIdSet);
 
@@ -392,6 +394,7 @@ export const archiveOffertesWithFacturenAdmin = mutation({
     const offerteIdsToArchive: Id<"offertes">[] = [];
 
     for (const factuur of voltooideFacturen) {
+      if (!factuur.projectId) continue; // losse facturen (§2.8) hebben geen project
       const project = await ctx.db.get(factuur.projectId);
       if (project && project.offerteId && !offerteIdsToArchive.includes(project.offerteId)) {
         offerteIdsToArchive.push(project.offerteId);
@@ -447,6 +450,7 @@ export const archivePaidProjectsAdmin = mutation({
     let archivedOfferteCount = 0;
 
     for (const factuur of betaaldeFacturen) {
+      if (!factuur.projectId) continue; // losse facturen (§2.8) hebben geen project
       const project = await ctx.db.get(factuur.projectId);
 
       if (project) {
@@ -534,6 +538,7 @@ export const runAllArchivingMigrations = mutation({
     const allFacturen = await ctx.db.query("facturen").collect();
 
     for (const factuur of allFacturen) {
+      if (!factuur.projectId) continue; // losse facturen (§2.8) hebben geen project
       const project = await ctx.db.get(factuur.projectId);
       if (!project) continue;
 
