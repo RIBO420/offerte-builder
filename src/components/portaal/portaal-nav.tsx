@@ -9,6 +9,7 @@ import {
   Receipt,
   MessageSquare,
   Download,
+  AlertCircle,
   X,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -17,8 +18,9 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { href: "/portaal/overzicht", label: "Overzicht", icon: LayoutDashboard },
   { href: "/portaal/offertes", label: "Offertes", icon: FileText },
-  { href: "/portaal/projecten", label: "Projecten", icon: FolderOpen },
+  { href: "/portaal/projecten", label: "Werkzaamheden", icon: FolderOpen },
   { href: "/portaal/facturen", label: "Facturen", icon: Receipt },
+  { href: "/portaal/meldingen", label: "Meldingen", icon: AlertCircle },
   { href: "/portaal/chat", label: "Berichten", icon: MessageSquare, badgeKey: "messages" as const },
   { href: "/portaal/documenten", label: "Documenten", icon: Download },
 ];

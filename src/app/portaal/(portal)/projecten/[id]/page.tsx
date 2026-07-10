@@ -18,11 +18,23 @@ import {
   FolderOpen,
   ArrowLeft,
   Calendar,
-  MessageSquare,
+  CalendarDays,
+  MapPin,
   Download,
 } from "lucide-react";
 import { PortaalProjectProgress } from "@/components/portaal/portaal-project-progress";
+import { PortaalContextThread } from "@/components/portaal/portaal-context-thread";
 import { cn } from "@/lib/utils";
+
+function formatGeplandeDatum(datum: string): string {
+  const parsed = new Date(`${datum}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return datum;
+  return new Intl.DateTimeFormat("nl-NL", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(parsed);
+}
 
 function formatDate(timestamp: number): string {
   return new Intl.DateTimeFormat("nl-NL", {
@@ -134,11 +146,26 @@ export default function PortaalProjectDetailPage({
               {statusConfig.label}
             </Badge>
           </div>
-          <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400 mt-1">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+            {project.type === "onderhoudsbeurt" ? "Onderhoudsbeurt" : "Project"}
+          </p>
+          <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400 mt-1 flex-wrap">
             <span className="flex items-center gap-1">
               <Calendar className="h-3.5 w-3.5" />
               Aangemaakt op {formatDate(project.createdAt)}
             </span>
+            {project.geplandeStart && (
+              <span className="flex items-center gap-1 text-gray-700 dark:text-gray-300">
+                <CalendarDays className="h-3.5 w-3.5 text-[#4ADE80]" />
+                Gepland op {formatGeplandeDatum(project.geplandeStart)}
+              </span>
+            )}
+            {project.adres && (
+              <span className="flex items-center gap-1">
+                <MapPin className="h-3.5 w-3.5" />
+                {project.adres}
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -159,6 +186,9 @@ export default function PortaalProjectDetailPage({
         </CardContent>
       </Card>
 
+      {/* Klantthread bij dit werkitem (PRD §3.1) */}
+      <PortaalContextThread werkitemId={id as Id<"projecten">} />
+
       {/* Quick actions */}
       <Card className="border border-gray-200 dark:border-[#2a3e2a] bg-white dark:bg-[#1a2e1a]">
         <CardHeader>
@@ -168,12 +198,6 @@ export default function PortaalProjectDetailPage({
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-3">
-            <Button asChild variant="default" className="bg-[#4ADE80] hover:bg-[#3BC96F] text-black">
-              <Link href="/portaal/chat">
-                <MessageSquare className="h-4 w-4 mr-1.5" />
-                Bericht sturen
-              </Link>
-            </Button>
             <Button asChild variant="outline" className="border-gray-200 dark:border-[#2a3e2a]">
               <Link href="/portaal/documenten">
                 <Download className="h-4 w-4 mr-1.5" />
