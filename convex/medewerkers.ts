@@ -792,13 +792,12 @@ export const getMedewerkersMetPrestaties = query({
     if (args.periode) {
       const vanDatum = new Date(args.periode.van).toISOString().slice(0, 10);
       const totDatum = new Date(args.periode.tot).toISOString().slice(0, 10);
+      // by_datum-index: alleen registraties binnen de periode lezen
+      // (i.p.v. de hele — snelgroeiende — tabel scannen en in JS filteren)
       urenRegistraties = await ctx.db
         .query("urenRegistraties")
-        .filter((q) =>
-          q.and(
-            q.gte(q.field("datum"), vanDatum),
-            q.lte(q.field("datum"), totDatum)
-          )
+        .withIndex("by_datum", (q) =>
+          q.gte("datum", vanDatum).lte("datum", totDatum)
         )
         .collect();
     } else {
