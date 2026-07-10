@@ -35,6 +35,7 @@ import { ScrollableTable } from "@/components/ui/responsive-table";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { useIsKantoor } from "@/hooks/use-users";
 import { NoProjecten, NoSearchResults } from "@/components/empty-states";
 import { FilterPresetSelector } from "@/components/ui/filter-preset-selector";
 import {
@@ -174,8 +175,13 @@ function ProjectenPageContent() {
     deletePreset,
   } = useFilterPresets<ProjectenFilterState>("projecten");
 
-  // Export data query
-  const exportData = useQuery(api.export.exportProjecten, user?._id ? {} : "skip");
+  // Export is kantoor-functionaliteit (PRD §1.2): de admin-only query wordt
+  // voor andere rollen niet aangeroepen (skip) zodat de pagina gewoon laadt.
+  const isKantoor = useIsKantoor();
+  const exportData = useQuery(
+    api.export.exportProjecten,
+    user?._id && isKantoor ? {} : "skip"
+  );
 
   const isLoading = isUserLoading || paginatedData === undefined;
 
@@ -317,13 +323,15 @@ function ProjectenPageContent() {
               Calculatie, planning en nacalculatie voor je projecten
             </p>
           </div>
-          <ExportDropdown
-            getData={() => exportData ?? []}
-            columns={projectenExportColumns}
-            filename="projecten"
-            sheetName="Projecten"
-            disabled={!exportData || exportData.length === 0}
-          />
+          {isKantoor && (
+            <ExportDropdown
+              getData={() => exportData ?? []}
+              columns={projectenExportColumns}
+              filename="projecten"
+              sheetName="Projecten"
+              disabled={!exportData || exportData.length === 0}
+            />
+          )}
         </m.div>
 
         {/* Accepted offertes without project */}

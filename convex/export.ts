@@ -2,12 +2,14 @@
  * Export Queries - Data Export Functions
  *
  * Provides queries for exporting data to CSV/Excel.
- * All queries require admin role and return flat objects suitable for export.
+ * Export is kantoor-functionaliteit (PRD §1.2): exportProjecten staat open
+ * voor kantoor (directie/projectleider); de overige queries zijn nog
+ * directie-only. All queries return flat objects suitable for export.
  */
 
 import { v } from "convex/values";
 import { query } from "./_generated/server";
-import { requireAdmin } from "./roles";
+import { requireAdmin, requireKantoor } from "./roles";
 
 // ============================================
 // Status and Type Labels
@@ -145,12 +147,14 @@ export const exportKlanten = query({
 });
 
 /**
- * Export all projecten with status and offerte info
+ * Export all projecten with status and offerte info.
+ * Kantoor-functionaliteit (PRD §1.2): toegankelijk voor directie én
+ * projectleider via requireKantoor.
  */
 export const exportProjecten = query({
   args: {},
   handler: async (ctx) => {
-    const user = await requireAdmin(ctx);
+    const user = await requireKantoor(ctx);
 
     const projecten = await ctx.db
       .query("projecten")
