@@ -1065,6 +1065,52 @@ export const makeCurrentUserAdmin = internalMutation({
 });
 
 /**
+ * Bootstrap: past de ADMIN_EMAILS-lijst toe op reeds bestaande accounts.
+ *
+ * users:store promoveert ADMIN_EMAILS-accounts alleen bij login/upsert;
+ * accounts die vóór opname in de lijst zijn aangemaakt (zoals het
+ * e2e-testaccount op dev) blijven daardoor op hun oude rol staan.
+ * Deze internal mutation repareert dat: alle users van wie het e-mailadres
+ * in ADMIN_EMAILS staat en die nog geen directie/admin zijn, worden
+ * directie. Andere accounts worden niet aangeraakt.
+ *
+ * Alleen server-side aan te roepen (dashboard of CLI met deploy-rechten):
+ * ```
+ * npx convex run users:bootstrapAdminEmails
+ * ```
+ */
+export const bootstrapAdminEmails = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const promoted: { email: string; oldRole: string }[] = [];
+
+    for (const email of ADMIN_EMAILS) {
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_email", (q) => q.eq("email", email))
+        .first();
+
+      if (user && !isAdminRole(user.role)) {
+        promoted.push({
+          email: user.email,
+          oldRole: normalizeRole(user.role),
+        });
+        await ctx.db.patch(user._id, { role: "directie" });
+      }
+    }
+
+    return {
+      success: true,
+      message:
+        promoted.length > 0
+          ? `${promoted.length} account(s) gepromoveerd naar directie`
+          : "Geen accounts te promoveren (alles al up-to-date)",
+      promoted,
+    };
+  },
+});
+
+/**
  * Admin mutation to set another user's role.
  *
  * USAGE:
