@@ -282,6 +282,9 @@ export async function verwerkKlaarVoorFacturatie(
     const open = bestaande.find(
       (f) =>
         f.bron === "engine_maandverzameling" &&
+        // Dubbel op de indexvelden gefilterd (defensief)
+        f.contractId?.toString() === contract._id.toString() &&
+        f.verzamelMaand === verzamelMaand &&
         f.verzamelGesloten !== true &&
         effectieveStatussen(f).documentStatus === "concept"
     );
@@ -317,6 +320,8 @@ export async function verwerkKlaarVoorFacturatie(
     const open = vanKlant.find(
       (f) =>
         f.bron === "engine_per_bezoek" &&
+        // Dubbel op het indexveld gefilterd (defensief)
+        f.klantId?.toString() === werkitem.klantId?.toString() &&
         f.datumVanDienst === datumVanDienst &&
         f.userId.toString() === werkitem.userId.toString() &&
         effectieveStatussen(f).documentStatus === "concept"
@@ -449,6 +454,7 @@ export const sluitMaandverzamelfacturen = internalMutation({
     ).filter(
       (f) =>
         f.bron === "engine_maandverzameling" &&
+        effectieveStatussen(f).documentStatus === "concept" && // defensief
         f.verzamelGesloten !== true &&
         f.verzamelMaand !== undefined &&
         isVerzamelMaandVoorbij(f.verzamelMaand, now)
@@ -509,6 +515,7 @@ export const factureerContractTermijnen = internalMutation({
     const contractCache = new Map<string, Doc<"onderhoudscontracten"> | null>();
 
     for (const termijn of geplande) {
+      if (termijn.status !== "gepland") continue; // defensief (indexfilter)
       if (termijn.periodeStart > vandaag) continue; // nog niet aan de beurt
       if (termijn.factuurId) {
         overgeslagen++; // idempotentie: al gekoppeld
