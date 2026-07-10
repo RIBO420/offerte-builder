@@ -129,7 +129,7 @@ describe("logTijdlijnEvent (centrale helper)", () => {
         klantId: klantId as never,
         eventType,
         tekst: `Event ${eventType}`,
-        meldingId: "melding-123",
+        meldingId: "melding-123" as never,
       });
       expect(id).not.toBeNull();
     }
