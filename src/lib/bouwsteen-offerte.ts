@@ -31,6 +31,9 @@ export interface BouwsteenDefault {
   btwCode: 9 | 21;
   /** normuren × uurtarief-op-datum, of het vaste bedrag. Null = nog niet ingevuld. */
   defaultPrijsPerBeurt: number | null;
+  /** Keuzeregel-optieprijzen (bijlage A #17, zand): default per optie. */
+  optiePrijsVoegzand?: number;
+  optiePrijsStraatzand?: number;
   uurtarief: number | null;
   receptuurstappen?: Array<{ volgorde: number; omschrijving: string }>;
 }
@@ -173,6 +176,25 @@ export function pasPakketToe(
 
 // ─── Doorrekening ────────────────────────────────────────────────────────────
 
+/**
+ * Default-optieprijs van de zand-keuzeregel (bijlage A #17) uit de
+ * catalogus, per optie. Null = niet ingevuld (val terug op het enkele
+ * prijsveld).
+ */
+export function defaultOptiePrijs(
+  bouwsteen: Pick<
+    BouwsteenDefault,
+    "optiePrijsVoegzand" | "optiePrijsStraatzand"
+  >,
+  optie: ZandKeuze
+): number | null {
+  const prijs =
+    optie === "voegzand"
+      ? bouwsteen.optiePrijsVoegzand
+      : bouwsteen.optiePrijsStraatzand;
+  return prijs ?? null;
+}
+
 /** Effectieve prijs per beurt van een regel: handmatig > catalogus-default. */
 export function effectievePrijsPerBeurt(
   bouwsteen: BouwsteenDefault,
@@ -180,9 +202,15 @@ export function effectievePrijsPerBeurt(
   selectie: CatalogusSelectie
 ): number | null {
   if (bouwsteen.soort === "keuzeregel") {
-    // Zand-keuzeregel (#17): de keuze bepaalt de prijs van de invegen-regel
+    // Zand-keuzeregel (#17): de keuze bepaalt de prijs van de invegen-regel.
+    // Voorrang: handmatige invoer > optieprijs uit de catalogus (per optie,
+    // bijlage A #17) > het enkele catalogus-prijsveld.
     const gekozen = selectie.zandPrijzen[selectie.zandKeuze];
-    return gekozen ?? bouwsteen.defaultPrijsPerBeurt;
+    return (
+      gekozen ??
+      defaultOptiePrijs(bouwsteen, selectie.zandKeuze) ??
+      bouwsteen.defaultPrijsPerBeurt
+    );
   }
   if (state && state.prijsPerBeurt !== null) return state.prijsPerBeurt;
   return bouwsteen.defaultPrijsPerBeurt;
@@ -266,9 +294,15 @@ export function bouwOfferteBouwsteenRegels(
             zandKeuze: {
               keuze: selectie.zandKeuze,
               prijsVoegzand:
-                selectie.zandPrijzen.voegzand ?? b.defaultPrijsPerBeurt ?? 0,
+                selectie.zandPrijzen.voegzand ??
+                defaultOptiePrijs(b, "voegzand") ??
+                b.defaultPrijsPerBeurt ??
+                0,
               prijsStraatzand:
-                selectie.zandPrijzen.straatzand ?? b.defaultPrijsPerBeurt ?? 0,
+                selectie.zandPrijzen.straatzand ??
+                defaultOptiePrijs(b, "straatzand") ??
+                b.defaultPrijsPerBeurt ??
+                0,
             },
           }
         : {}),

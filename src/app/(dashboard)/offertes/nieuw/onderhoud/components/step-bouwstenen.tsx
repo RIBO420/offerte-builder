@@ -57,6 +57,7 @@ import {
   ZAND_LABELS,
   berekenCatalogusTotalen,
   bouwOfferteBouwsteenRegels,
+  defaultOptiePrijs,
   defaultPrijsToelichting,
   effectievePrijsPerBeurt,
   isEenmaligeSoort,
@@ -393,6 +394,7 @@ export function StepBouwstenen({
                                       aria-label={`Prijs ${ZAND_LABELS[optie]}`}
                                       value={
                                         catalogus.zandPrijzen[optie] ??
+                                        defaultOptiePrijs(b, optie) ??
                                         b.defaultPrijsPerBeurt ??
                                         0
                                       }

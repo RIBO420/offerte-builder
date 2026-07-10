@@ -1319,6 +1319,9 @@ export const getBouwsteenDefaults = query({
         defaultPrijsPerBeurt: geldendTarief
           ? berekenPrijsPerBeurt(b, geldendTarief.bedrag)
           : null,
+        // Keuzeregel-optieprijzen (bijlage A #17, zand): defaults per optie
+        optiePrijsVoegzand: b.optiePrijsVoegzand,
+        optiePrijsStraatzand: b.optiePrijsStraatzand,
         uurtarief: geldendTarief?.bedrag ?? null,
       }))
       .sort((a, b) => a.naam.localeCompare(b.naam, "nl"));

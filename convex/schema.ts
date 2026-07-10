@@ -2944,6 +2944,12 @@ export default defineSchema({
     prijsmodel: v.union(v.literal("uren"), v.literal("vast")),
     urenPerBeurt: v.optional(v.number()),
     vastBedragPerBeurt: v.optional(v.number()),
+    // Keuzeregel-optieprijzen (bijlage A #17, zand): default prijs per optie
+    // (onkruidvrij voegzand / straatzand); de wizard gebruikt deze als
+    // voorzet i.p.v. het enkele prijsveld. Alleen relevant bij soort
+    // "keuzeregel" — additief, dus optioneel.
+    optiePrijsVoegzand: v.optional(v.number()),
+    optiePrijsStraatzand: v.optional(v.number()),
     btwCode: v.union(v.literal(9), v.literal(21)),
     // Verwijderen = deactiveren; geen hard delete
     actief: v.boolean(),

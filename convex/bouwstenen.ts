@@ -76,6 +76,8 @@ export interface BouwsteenInvoer {
   prijsmodel: "uren" | "vast";
   urenPerBeurt?: number;
   vastBedragPerBeurt?: number;
+  optiePrijsVoegzand?: number;
+  optiePrijsStraatzand?: number;
 }
 
 /**
@@ -145,6 +147,17 @@ export function valideerBouwsteen(invoer: BouwsteenInvoer): void {
   ) {
     throw new ConvexError("Vast bedrag per beurt kan niet negatief zijn");
   }
+  for (const optiePrijs of [
+    invoer.optiePrijsVoegzand,
+    invoer.optiePrijsStraatzand,
+  ]) {
+    if (
+      optiePrijs !== undefined &&
+      (optiePrijs < 0 || !Number.isFinite(optiePrijs))
+    ) {
+      throw new ConvexError("Optieprijs kan niet negatief zijn");
+    }
+  }
 }
 
 /**
@@ -208,6 +221,10 @@ const bouwsteenVelden = {
   prijsmodel: v.union(v.literal("uren"), v.literal("vast")),
   urenPerBeurt: v.optional(v.number()),
   vastBedragPerBeurt: v.optional(v.number()),
+  // Keuzeregel-optieprijzen (bijlage A #17, zand): default prijs per optie;
+  // de wizard gebruikt deze als voorzet i.p.v. het enkele prijsveld.
+  optiePrijsVoegzand: v.optional(v.number()),
+  optiePrijsStraatzand: v.optional(v.number()),
   btwCode: v.union(v.literal(9), v.literal(21)),
   opmerking: v.optional(v.string()),
   productIds: v.optional(v.array(v.id("producten"))),
@@ -328,6 +345,8 @@ export const update = mutation({
       prijsmodel: velden.prijsmodel,
       urenPerBeurt: velden.urenPerBeurt,
       vastBedragPerBeurt: velden.vastBedragPerBeurt,
+      optiePrijsVoegzand: velden.optiePrijsVoegzand,
+      optiePrijsStraatzand: velden.optiePrijsStraatzand,
       btwCode: velden.btwCode,
       opmerking: velden.opmerking,
       productIds: velden.productIds,

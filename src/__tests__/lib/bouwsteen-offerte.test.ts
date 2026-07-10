@@ -220,6 +220,49 @@ describe("effectievePrijsPerBeurt", () => {
       effectievePrijsPerBeurt(zandKeuzeregel, undefined, selectieMet())
     ).toBe(45);
   });
+
+  it("zand-keuzeregel: catalogus-optieprijzen gaan vóór het enkele prijsveld (bijlage A #17)", () => {
+    const metOptieprijzen = {
+      ...zandKeuzeregel,
+      optiePrijsVoegzand: 95,
+      optiePrijsStraatzand: 75,
+    };
+    // Zonder handmatige invoer: per-optie-default uit de catalogus
+    expect(
+      effectievePrijsPerBeurt(metOptieprijzen, undefined, selectieMet())
+    ).toBe(95);
+    expect(
+      effectievePrijsPerBeurt(
+        metOptieprijzen,
+        undefined,
+        selectieMet({ zandKeuze: "straatzand" })
+      )
+    ).toBe(75);
+    // Handmatige invoer wint van de optieprijs
+    expect(
+      effectievePrijsPerBeurt(
+        metOptieprijzen,
+        undefined,
+        selectieMet({ zandPrijzen: { voegzand: 50, straatzand: null } })
+      )
+    ).toBe(50);
+    // Beide offerte-prijzen krijgen de per-optie-default mee
+    const regels = bouwOfferteBouwsteenRegels([metOptieprijzen], {
+      ...selectieMet(),
+      regels: {
+        [metOptieprijzen._id]: {
+          aan: true,
+          frequentiePerJaar: 2,
+          prijsPerBeurt: null,
+        },
+      },
+    });
+    expect(regels[0].zandKeuze).toEqual({
+      keuze: "voegzand",
+      prijsVoegzand: 95,
+      prijsStraatzand: 75,
+    });
+  });
 });
 
 describe("defaultPrijsToelichting", () => {

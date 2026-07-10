@@ -95,6 +95,8 @@ const bouwsteenFormSchema = z
     prijsmodel: z.enum(["uren", "vast"]),
     urenPerBeurt: optioneelGetal,
     vastBedragPerBeurt: optioneelGetal,
+    optiePrijsVoegzand: optioneelGetal,
+    optiePrijsStraatzand: optioneelGetal,
     defaultFrequentiePerJaar: optioneelGetal,
     seizoensvensterVan: z.string(),
     seizoensvensterTot: z.string(),
@@ -123,6 +125,8 @@ export interface BouwsteenSubmitData {
   prijsmodel: "uren" | "vast";
   urenPerBeurt?: number;
   vastBedragPerBeurt?: number;
+  optiePrijsVoegzand?: number;
+  optiePrijsStraatzand?: number;
   defaultFrequentiePerJaar?: number;
   seizoensvensterVan?: number;
   seizoensvensterTot?: number;
@@ -141,6 +145,8 @@ export interface BouwsteenFormInitial {
   prijsmodel: "uren" | "vast";
   urenPerBeurt?: number;
   vastBedragPerBeurt?: number;
+  optiePrijsVoegzand?: number;
+  optiePrijsStraatzand?: number;
   defaultFrequentiePerJaar?: number;
   seizoensvensterVan?: number;
   seizoensvensterTot?: number;
@@ -167,6 +173,12 @@ function naarFormValues(b?: BouwsteenFormInitial): BouwsteenFormValues {
     urenPerBeurt: b?.urenPerBeurt !== undefined ? String(b.urenPerBeurt) : "",
     vastBedragPerBeurt:
       b?.vastBedragPerBeurt !== undefined ? String(b.vastBedragPerBeurt) : "",
+    optiePrijsVoegzand:
+      b?.optiePrijsVoegzand !== undefined ? String(b.optiePrijsVoegzand) : "",
+    optiePrijsStraatzand:
+      b?.optiePrijsStraatzand !== undefined
+        ? String(b.optiePrijsStraatzand)
+        : "",
     defaultFrequentiePerJaar:
       b?.defaultFrequentiePerJaar !== undefined
         ? String(b.defaultFrequentiePerJaar)
@@ -219,6 +231,7 @@ export function BouwsteenForm({
   }, [open, initial]);
 
   const prijsmodel = form.watch("prijsmodel");
+  const soort = form.watch("soort");
   const urenTekst = form.watch("urenPerBeurt");
   const uren = parseGetal(urenTekst ?? "");
   const liveBedrag =
@@ -244,6 +257,14 @@ export function BouwsteenForm({
       prijsmodel: values.prijsmodel,
       urenPerBeurt: parseGetal(values.urenPerBeurt),
       vastBedragPerBeurt: parseGetal(values.vastBedragPerBeurt),
+      optiePrijsVoegzand:
+        values.soort === "keuzeregel"
+          ? parseGetal(values.optiePrijsVoegzand)
+          : undefined,
+      optiePrijsStraatzand:
+        values.soort === "keuzeregel"
+          ? parseGetal(values.optiePrijsStraatzand)
+          : undefined,
       defaultFrequentiePerJaar: parseGetal(values.defaultFrequentiePerJaar),
       seizoensvensterVan: parseGetal(values.seizoensvensterVan),
       seizoensvensterTot: parseGetal(values.seizoensvensterTot),
@@ -476,6 +497,55 @@ export function BouwsteenForm({
                 />
               )}
             </div>
+
+            {/* Keuzeregel (bijlage A #17, zand): default prijs per optie —
+                de wizard vult hiermee de twee zichtbare zandprijzen voor */}
+            {soort === "keuzeregel" && (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="optiePrijsVoegzand"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-1">
+                        Prijs onkruidvrij voegzand (ex btw)
+                        <InfoHint tekst="Default prijs per beurt voor de optie onkruidvrij voegzand. De offerte-wizard toont beide prijzen; de klantkeuze bepaalt de prijs." />
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="bv. 95"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="optiePrijsStraatzand"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-1">
+                        Prijs straatzand (ex btw)
+                        <InfoHint tekst="Default prijs per beurt voor de optie straatzand. De offerte-wizard toont beide prijzen; de klantkeuze bepaalt de prijs." />
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="bv. 75"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
 
             <div className="grid gap-4 sm:grid-cols-3">
               <FormField
