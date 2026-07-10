@@ -23,42 +23,25 @@ import {
   CheckCircle,
   AlertTriangle,
   Clock,
+  Loader2,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/format/currency";
 import { cn } from "@/lib/utils";
+import {
+  getBetaalStatusConfig,
+  formatFactuurDate,
+  formatDatumVanDienst,
+} from "@/components/portaal/portaal-factuur-card";
+import { usePortaalFactuurPdf } from "@/components/portaal/use-portaal-factuur-pdf";
 
-function formatDate(timestamp: number): string {
-  return new Intl.DateTimeFormat("nl-NL", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(new Date(timestamp));
-}
-
-function getFactuurStatusConfig(status: string) {
-  switch (status) {
+function statusIconVoor(betaalStatus: string) {
+  switch (betaalStatus) {
     case "betaald":
-      return {
-        label: "Betaald",
-        className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800",
-        icon: CheckCircle,
-        iconColor: "text-emerald-600 dark:text-emerald-400",
-      };
+      return { icon: CheckCircle, iconColor: "text-emerald-600 dark:text-emerald-400" };
     case "vervallen":
-      return {
-        label: "Vervallen",
-        className: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800",
-        icon: AlertTriangle,
-        iconColor: "text-red-600 dark:text-red-400",
-      };
-    case "verzonden":
+      return { icon: AlertTriangle, iconColor: "text-red-600 dark:text-red-400" };
     default:
-      return {
-        label: "Openstaand",
-        className: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800",
-        icon: Clock,
-        iconColor: "text-amber-600 dark:text-amber-400",
-      };
+      return { icon: Clock, iconColor: "text-amber-600 dark:text-amber-400" };
   }
 }
 
@@ -92,9 +75,9 @@ export default function PortaalFactuurDetailPage({
   const { id } = use(params);
 
   // Reuse the getFacturen list query and find the specific factuur
-  // since there's no dedicated getFactuur query in portaal.ts
   const facturen = useQuery(api.portaal.getFacturen);
   const factuur = facturen?.find((f) => f._id === id);
+  const { downloadPdf, isDownloading } = usePortaalFactuurPdf();
 
   if (facturen === undefined) {
     return <DetailSkeleton />;
@@ -119,8 +102,13 @@ export default function PortaalFactuurDetailPage({
     );
   }
 
-  const statusConfig = getFactuurStatusConfig(factuur.status);
-  const StatusIcon = statusConfig.icon;
+  const statusConfig = getBetaalStatusConfig(factuur.betaalStatus);
+  const { icon: StatusIcon, iconColor } = statusIconVoor(factuur.betaalStatus);
+  const isBetaald = factuur.betaalStatus === "betaald";
+  const isVervallen = factuur.betaalStatus === "vervallen";
+  const isDeelbetaald = factuur.betaalStatus === "gedeeltelijk_betaald";
+  const isPayable =
+    factuur.paymentUrl && (factuur.betaalStatus === "open" || isDeelbetaald);
 
   return (
     <div className="space-y-6">
@@ -143,7 +131,7 @@ export default function PortaalFactuurDetailPage({
           <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400 mt-1">
             <span className="flex items-center gap-1">
               <Calendar className="h-3.5 w-3.5" />
-              {formatDate(factuur.createdAt)}
+              {formatFactuurDate(factuur.factuurdatum)}
             </span>
           </div>
         </div>
@@ -152,30 +140,40 @@ export default function PortaalFactuurDetailPage({
       {/* Status card */}
       <Card className={cn(
         "border",
-        factuur.status === "betaald"
+        isBetaald
           ? "border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20"
-          : factuur.status === "vervallen"
+          : isVervallen
             ? "border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20"
             : "border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20"
       )}>
         <CardContent className="p-4 flex items-center gap-3">
-          <StatusIcon className={cn("h-5 w-5 shrink-0", statusConfig.iconColor)} />
+          <StatusIcon className={cn("h-5 w-5 shrink-0", iconColor)} />
           <div>
             <p className="font-medium text-sm text-gray-900 dark:text-white">
-              {factuur.status === "betaald"
+              {isBetaald
                 ? "Deze factuur is betaald"
-                : factuur.status === "vervallen"
+                : isVervallen
                   ? "Deze factuur is vervallen"
-                  : "Deze factuur staat open"}
+                  : isDeelbetaald
+                    ? "Deze factuur is deels betaald"
+                    : "Deze factuur staat open"}
             </p>
-            {factuur.betaaldAt && factuur.status === "betaald" && (
+            {factuur.betaaldAt && isBetaald && (
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                Betaald op {formatDate(factuur.betaaldAt)}
+                Betaald op {formatFactuurDate(factuur.betaaldAt)}
               </p>
             )}
-            {factuur.vervaldatum && factuur.status !== "betaald" && (
+            {isDeelbetaald &&
+              factuur.betaaldBedrag != null &&
+              factuur.totaalInclBtw != null && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  {formatCurrency(factuur.betaaldBedrag)} van{" "}
+                  {formatCurrency(factuur.totaalInclBtw)} voldaan
+                </p>
+              )}
+            {factuur.vervaldatum && !isBetaald && (
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                Vervaldatum: {formatDate(factuur.vervaldatum)}
+                Vervaldatum: {formatFactuurDate(factuur.vervaldatum)}
               </p>
             )}
           </div>
@@ -212,19 +210,35 @@ export default function PortaalFactuurDetailPage({
             <div className="flex justify-between text-gray-600 dark:text-gray-400">
               <span>Factuurdatum</span>
               <span className="font-medium text-gray-900 dark:text-white">
-                {formatDate(factuur.createdAt)}
+                {formatFactuurDate(factuur.factuurdatum)}
               </span>
             </div>
+            {factuur.datumVanDienst && (
+              <div className="flex justify-between text-gray-600 dark:text-gray-400">
+                <span>Datum van dienst</span>
+                <span className="font-medium text-gray-900 dark:text-white">
+                  {formatDatumVanDienst(factuur.datumVanDienst)}
+                </span>
+              </div>
+            )}
             {factuur.vervaldatum && (
               <div className="flex justify-between text-gray-600 dark:text-gray-400">
                 <span>Vervaldatum</span>
                 <span className={cn(
                   "font-medium",
-                  factuur.status === "vervallen"
+                  isVervallen
                     ? "text-red-600 dark:text-red-400"
                     : "text-gray-900 dark:text-white"
                 )}>
-                  {formatDate(factuur.vervaldatum)}
+                  {formatFactuurDate(factuur.vervaldatum)}
+                </span>
+              </div>
+            )}
+            {isDeelbetaald && factuur.betaaldBedrag != null && (
+              <div className="flex justify-between text-gray-600 dark:text-gray-400">
+                <span>Reeds voldaan</span>
+                <span className="font-medium text-sky-600 dark:text-sky-400">
+                  {formatCurrency(factuur.betaaldBedrag)}
                 </span>
               </div>
             )}
@@ -232,7 +246,7 @@ export default function PortaalFactuurDetailPage({
               <div className="flex justify-between text-gray-600 dark:text-gray-400">
                 <span>Betaald op</span>
                 <span className="font-medium text-emerald-600 dark:text-emerald-400">
-                  {formatDate(factuur.betaaldAt)}
+                  {formatFactuurDate(factuur.betaaldAt)}
                 </span>
               </div>
             )}
@@ -244,7 +258,7 @@ export default function PortaalFactuurDetailPage({
       <Card className="border border-gray-200 dark:border-[#2a3e2a] bg-white dark:bg-[#1a2e1a]">
         <CardContent className="p-5">
           <div className="flex flex-wrap gap-3">
-            {factuur.paymentUrl && factuur.status === "verzonden" && (
+            {isPayable && (
               <Button asChild className="bg-[#4ADE80] hover:bg-[#3BC96F] text-black">
                 <a href={factuur.paymentUrl} target="_blank" rel="noopener noreferrer">
                   <CreditCard className="h-4 w-4 mr-1.5" />
@@ -252,7 +266,7 @@ export default function PortaalFactuurDetailPage({
                 </a>
               </Button>
             )}
-            {factuur.paymentUrl && factuur.status === "vervallen" && (
+            {factuur.paymentUrl && isVervallen && (
               <Button asChild variant="destructive">
                 <a href={factuur.paymentUrl} target="_blank" rel="noopener noreferrer">
                   <CreditCard className="h-4 w-4 mr-1.5" />
@@ -260,8 +274,17 @@ export default function PortaalFactuurDetailPage({
                 </a>
               </Button>
             )}
-            <Button variant="outline" className="border-gray-200 dark:border-[#2a3e2a]">
-              <Download className="h-4 w-4 mr-1.5" />
+            <Button
+              variant="outline"
+              className="border-gray-200 dark:border-[#2a3e2a]"
+              disabled={isDownloading}
+              onClick={() => downloadPdf(factuur._id)}
+            >
+              {isDownloading ? (
+                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4 mr-1.5" />
+              )}
               PDF downloaden
             </Button>
           </div>

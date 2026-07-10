@@ -1,39 +1,56 @@
 "use client";
 
 import Link from "next/link";
-import { Receipt, CreditCard, Download, Eye, AlertTriangle } from "lucide-react";
+import { Receipt, CreditCard, Download, Eye, AlertTriangle, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/format/currency";
 import { cn } from "@/lib/utils";
+import { usePortaalFactuurPdf } from "./use-portaal-factuur-pdf";
 
-interface PortaalFactuurCardProps {
-  factuur: {
-    _id: string;
-    factuurnummer: string;
-    status: string;
-    totaalInclBtw?: number;
-    vervaldatum?: number;
-    betaaldAt?: number;
-    createdAt: number;
-    paymentUrl?: string;
-  };
+export interface PortaalFactuur {
+  _id: string;
+  factuurnummer: string;
+  betaalStatus: string;
+  totaalInclBtw?: number;
+  betaaldBedrag?: number;
+  factuurdatum: number;
+  datumVanDienst?: string;
+  vervaldatum?: number;
+  betaaldAt?: number;
+  isCreditnota?: boolean;
+  createdAt: number;
+  paymentUrl?: string;
 }
 
-function getFactuurStatusConfig(status: string) {
-  switch (status) {
+interface PortaalFactuurCardProps {
+  factuur: PortaalFactuur;
+}
+
+export function getBetaalStatusConfig(betaalStatus: string) {
+  switch (betaalStatus) {
     case "betaald":
       return {
         label: "Betaald",
         className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800",
+      };
+    case "gedeeltelijk_betaald":
+      return {
+        label: "Deels betaald",
+        className: "bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-400 border-sky-200 dark:border-sky-800",
       };
     case "vervallen":
       return {
         label: "Vervallen",
         className: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800",
       };
-    case "verzonden":
+    case "geannuleerd":
+      return {
+        label: "Geannuleerd",
+        className: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-700",
+      };
+    case "open":
     default:
       return {
         label: "Openstaand",
@@ -42,7 +59,7 @@ function getFactuurStatusConfig(status: string) {
   }
 }
 
-function formatDate(timestamp: number): string {
+export function formatFactuurDate(timestamp: number): string {
   return new Intl.DateTimeFormat("nl-NL", {
     day: "numeric",
     month: "long",
@@ -50,9 +67,23 @@ function formatDate(timestamp: number): string {
   }).format(new Date(timestamp));
 }
 
+export function formatDatumVanDienst(datum: string): string {
+  const parsed = new Date(`${datum}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return datum;
+  return new Intl.DateTimeFormat("nl-NL", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(parsed);
+}
+
 export function PortaalFactuurCard({ factuur }: PortaalFactuurCardProps) {
-  const statusConfig = getFactuurStatusConfig(factuur.status);
-  const isOverdue = factuur.status === "vervallen";
+  const statusConfig = getBetaalStatusConfig(factuur.betaalStatus);
+  const isOverdue = factuur.betaalStatus === "vervallen";
+  const isPayable =
+    factuur.paymentUrl &&
+    ["open", "gedeeltelijk_betaald"].includes(factuur.betaalStatus);
+  const { downloadPdf, isDownloading } = usePortaalFactuurPdf();
 
   return (
     <Card className={cn(
@@ -75,18 +106,34 @@ export function PortaalFactuurCard({ factuur }: PortaalFactuurCardProps) {
             <div className="min-w-0">
               <h3 className="font-semibold text-gray-900 dark:text-white truncate">
                 {factuur.factuurnummer}
+                {factuur.isCreditnota && (
+                  <span className="ml-2 text-xs font-normal text-gray-500">(creditnota)</span>
+                )}
               </h3>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                {formatDate(factuur.createdAt)}
-                {factuur.vervaldatum && factuur.status !== "betaald" && (
-                  <> &middot; Vervaldatum: {formatDate(factuur.vervaldatum)}</>
+                Factuurdatum: {formatFactuurDate(factuur.factuurdatum)}
+                {factuur.vervaldatum && factuur.betaalStatus !== "betaald" && (
+                  <> &middot; Vervaldatum: {formatFactuurDate(factuur.vervaldatum)}</>
                 )}
               </p>
-              {factuur.betaaldAt && factuur.status === "betaald" && (
-                <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-0.5">
-                  Betaald op {formatDate(factuur.betaaldAt)}
+              {factuur.datumVanDienst && (
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                  Datum van dienst: {formatDatumVanDienst(factuur.datumVanDienst)}
                 </p>
               )}
+              {factuur.betaaldAt && factuur.betaalStatus === "betaald" && (
+                <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-0.5">
+                  Betaald op {formatFactuurDate(factuur.betaaldAt)}
+                </p>
+              )}
+              {factuur.betaalStatus === "gedeeltelijk_betaald" &&
+                factuur.betaaldBedrag != null &&
+                factuur.totaalInclBtw != null && (
+                  <p className="text-sm text-sky-600 dark:text-sky-400 mt-0.5">
+                    {formatCurrency(factuur.betaaldBedrag)} van{" "}
+                    {formatCurrency(factuur.totaalInclBtw)} voldaan
+                  </p>
+                )}
             </div>
           </div>
           <Badge className={cn("shrink-0 border", statusConfig.className)}>
@@ -110,7 +157,7 @@ export function PortaalFactuurCard({ factuur }: PortaalFactuurCardProps) {
               Bekijken
             </Link>
           </Button>
-          {factuur.paymentUrl && factuur.status === "verzonden" && (
+          {isPayable && (
             <Button asChild variant="default" size="sm" className="bg-[#4ADE80] hover:bg-[#3BC96F] text-black">
               <a href={factuur.paymentUrl} target="_blank" rel="noopener noreferrer">
                 <CreditCard className="h-4 w-4 mr-1.5" />
@@ -118,7 +165,7 @@ export function PortaalFactuurCard({ factuur }: PortaalFactuurCardProps) {
               </a>
             </Button>
           )}
-          {factuur.paymentUrl && factuur.status === "vervallen" && (
+          {factuur.paymentUrl && isOverdue && (
             <Button asChild variant="destructive" size="sm">
               <a href={factuur.paymentUrl} target="_blank" rel="noopener noreferrer">
                 <CreditCard className="h-4 w-4 mr-1.5" />
@@ -126,8 +173,18 @@ export function PortaalFactuurCard({ factuur }: PortaalFactuurCardProps) {
               </a>
             </Button>
           )}
-          <Button variant="outline" size="sm" className="border-gray-200 dark:border-[#2a3e2a]">
-            <Download className="h-4 w-4 mr-1.5" />
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-gray-200 dark:border-[#2a3e2a]"
+            disabled={isDownloading}
+            onClick={() => downloadPdf(factuur._id)}
+          >
+            {isDownloading ? (
+              <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4 mr-1.5" />
+            )}
             PDF
           </Button>
         </div>
