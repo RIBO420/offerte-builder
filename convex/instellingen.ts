@@ -2,7 +2,8 @@ import { v, ConvexError } from "convex/values";
 import { mutation, query, internalQuery } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { requireAuthUserId } from "./auth";
-import { requireNotViewer } from "./roles";
+import { requireKantoor, requireNotViewer } from "./roles";
+import { isGeldigeTijd, naarMinuten } from "./dagkaartLogica";
 
 const bedrijfsgegevensValidator = v.object({
   naam: v.string(),
@@ -128,6 +129,74 @@ export const update = mutation({
       updates.offerteNummerPrefix = args.offerteNummerPrefix;
 
     await ctx.db.patch(settings._id, updates);
+    return settings._id;
+  },
+});
+
+/**
+ * Dagkaart-standaardblokken per bedrijf (PRD §2.2, stap 5b): vertrektijd
+ * loods, pauze, loods-afronding en de standaard-reistijd per verplaatsing.
+ * Echte tijden levert Mickey later (§7.1); tot dan gelden de defaults uit
+ * convex/dagkaartLogica.ts. Alleen kantoor (planning) mag dit wijzigen.
+ */
+export const updateDagkaartInstellingen = mutation({
+  args: {
+    vertrekTijd: v.optional(v.string()),
+    pauzeStart: v.optional(v.string()),
+    pauzeEind: v.optional(v.string()),
+    loodsAfrondingMinuten: v.optional(v.number()),
+    standaardReistijdMinuten: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    await requireKantoor(ctx);
+    const userId = await requireAuthUserId(ctx);
+
+    for (const tijd of [args.vertrekTijd, args.pauzeStart, args.pauzeEind]) {
+      if (tijd !== undefined && !isGeldigeTijd(tijd)) {
+        throw new ConvexError("Ongeldige tijd (verwacht HH:MM)");
+      }
+    }
+    for (const minuten of [
+      args.loodsAfrondingMinuten,
+      args.standaardReistijdMinuten,
+    ]) {
+      if (
+        minuten !== undefined &&
+        (!Number.isFinite(minuten) || minuten < 0 || minuten > 24 * 60)
+      ) {
+        throw new ConvexError("Ongeldig aantal minuten (0 t/m 1440)");
+      }
+    }
+
+    const settings = await ctx.db
+      .query("instellingen")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique();
+    if (!settings) {
+      throw new ConvexError(
+        "Instellingen niet gevonden. Maak eerst standaardinstellingen aan."
+      );
+    }
+
+    const huidige = settings.dagkaartInstellingen ?? {};
+    const nieuw = {
+      vertrekTijd: args.vertrekTijd ?? huidige.vertrekTijd,
+      pauzeStart: args.pauzeStart ?? huidige.pauzeStart,
+      pauzeEind: args.pauzeEind ?? huidige.pauzeEind,
+      loodsAfrondingMinuten:
+        args.loodsAfrondingMinuten ?? huidige.loodsAfrondingMinuten,
+      standaardReistijdMinuten:
+        args.standaardReistijdMinuten ?? huidige.standaardReistijdMinuten,
+    };
+    if (
+      nieuw.pauzeStart &&
+      nieuw.pauzeEind &&
+      naarMinuten(nieuw.pauzeEind) < naarMinuten(nieuw.pauzeStart)
+    ) {
+      throw new ConvexError("Pauze-einde ligt vóór de pauzestart");
+    }
+
+    await ctx.db.patch(settings._id, { dagkaartInstellingen: nieuw });
     return settings._id;
   },
 });
