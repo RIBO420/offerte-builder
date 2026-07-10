@@ -1027,6 +1027,22 @@ export default defineSchema({
     tariefType: v.union(v.literal("uur"), v.literal("dag")),
     gekoppeldeScopes: v.array(v.string()), // Scopes die automatisch deze machine triggeren
     isActief: v.boolean(),
+    // — Machinepark (PRD §3.3, fase 2) —
+    // Operationele status: kapot → waarschuwing op weekbord-team-dagen
+    // waaraan de machine gekoppeld is (via team of reservering). Optioneel
+    // voor bestaande rijen; ontbreekt = "beschikbaar".
+    status: v.optional(
+      v.union(
+        v.literal("beschikbaar"),
+        v.literal("onderhoud"),
+        v.literal("kapot")
+      )
+    ),
+    // Schaars materieel (hoogwerker/kraan): reserveerbaar per werkitem-dag;
+    // dubbel claimen op dezelfde dag geeft een planbord-waarschuwing.
+    schaars: v.optional(v.boolean()),
+    // Vaste team-koppeling (kleurcode per team in het machinepark-overzicht)
+    teamId: v.optional(v.id("teams")),
   })
     .index("by_user", ["userId"])
     // Index for active-only machine queries (machines.ts: getForScopes, getStatistics; weekPlanning.ts)
@@ -1623,8 +1639,18 @@ export default defineSchema({
     status: v.union(
       v.literal("actief"),
       v.literal("inactief"),
-      v.literal("onderhoud")
+      v.literal("onderhoud"),
+      // Machinepark (PRD §3.3): kapot → waarschuwing op weekbord-team-dagen
+      // waaraan dit voertuig gekoppeld is (standaardbus/dag-override/reservering)
+      v.literal("kapot")
     ),
+    // Schaars materieel (PRD §3.3): reserveerbaar per werkitem-dag;
+    // dubbel claimen op dezelfde dag geeft een planbord-waarschuwing.
+    schaars: v.optional(v.boolean()),
+    // Vaste team-koppeling (kleurcode per team in het machinepark-overzicht).
+    // NB: de STANDAARDBUS van een team staat op teams.standaardVoertuigId;
+    // dit veld is alleen weergave-koppeling.
+    teamId: v.optional(v.id("teams")),
     notities: v.optional(v.string()),
     // Verzekering en APK gegevens
     apkVervaldatum: v.optional(v.number()), // APK expiry timestamp
@@ -1700,6 +1726,88 @@ export default defineSchema({
     .index("by_voertuig", ["voertuigId"])
     .index("by_user", ["userId"]),
 
+  // TeamBusOverrides — per-dag-afwijking van de standaardbus van een team
+  // (PRD §3.3, zelfde patroon als teamBemanning: default = teams.
+  // standaardVoertuigId; alleen afwijkende dagen krijgen een rij hier).
+  // Bewust een EIGEN tabel (niet een veld op teamBemanning): een bus-override
+  // mag de bemanning-default niet bevriezen.
+  teamBusOverrides: defineTable({
+    userId: v.id("users"),
+    teamId: v.id("teams"),
+    datum: v.string(), // YYYY-MM-DD
+    voertuigId: v.id("voertuigen"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_team_datum", ["teamId", "datum"])
+    .index("by_user_datum", ["userId", "datum"]),
+
+  // MiddelReserveringen — schaars materieel als planbare resource (PRD §3.3,
+  // HERO-pariteit "bronnen", bijlage B). Expliciete reservering van één
+  // middel (voertuig of machine) op één werkitem-dag. Dubbel claimen van
+  // hetzelfde middel op dezelfde dag = WAARSCHUWING (geen blokkade,
+  // consistent met de seizoenswaarschuwing van het planbord).
+  middelReserveringen: defineTable({
+    userId: v.id("users"),
+    middelType: v.union(v.literal("voertuig"), v.literal("machine")),
+    voertuigId: v.optional(v.id("voertuigen")), // gezet bij middelType "voertuig"
+    machineId: v.optional(v.id("machines")), // gezet bij middelType "machine"
+    // Genormaliseerde sleutel `${middelType}:${id}` voor dubbel-claim-detectie
+    middelSleutel: v.string(),
+    werkitemId: v.id("projecten"),
+    datum: v.string(), // YYYY-MM-DD
+    createdAt: v.number(),
+  })
+    .index("by_werkitem", ["werkitemId"])
+    .index("by_user_datum", ["userId", "datum"])
+    .index("by_sleutel_datum", ["middelSleutel", "datum"]),
+
+  // VervalItems — generieke vervallogica-engine (PRD §3.3). BEWUST generiek:
+  // geen voertuig-specifieke velden in de kern, zodat dezelfde engine in
+  // fase 3 ook HR-certificeringen kan dragen (§4.2). De dagelijkse cron
+  // (convex/vervalItems.ts, zelfde engine-familie als planningsattendering:
+  // item + datum + termijn + ontvanger → idempotente bord-taak) maakt binnen
+  // de waarschuwtermijn een taak (taaksoort "onderhoudstaak") op het
+  // §2.4-cases-bord. Taken, GEEN mails.
+  vervalItems: defineTable({
+    userId: v.id("users"),
+    naam: v.string(), // bv. "APK bus VW Crafter"
+    type: v.union(
+      v.literal("apk"),
+      v.literal("keuring"),
+      v.literal("certificaat"),
+      v.literal("verzekering"),
+      v.literal("anders")
+    ),
+    // Gekoppeld object: voertuig, machine of vrij (niets gekoppeld).
+    // Fase 3 voegt hier hooguit een objectType toe (bv. "medewerker").
+    objectType: v.union(
+      v.literal("voertuig"),
+      v.literal("machine"),
+      v.literal("vrij")
+    ),
+    voertuigId: v.optional(v.id("voertuigen")), // bij objectType "voertuig"
+    machineId: v.optional(v.id("machines")), // bij objectType "machine"
+    vervaldatum: v.string(), // YYYY-MM-DD
+    waarschuwtermijnDagen: v.number(), // taak vanaf vervaldatum − termijn
+    // Ontvanger: rol (kantoor = bedrijfseigenaar, voorman = eerste voorman)
+    // óf een specifieke gebruiker (wint van de rol).
+    ontvangerRol: v.optional(
+      v.union(v.literal("kantoor"), v.literal("voorman"))
+    ),
+    ontvangerGebruikerId: v.optional(v.id("users")),
+    // Optioneel: taak direct markeren voor de planbord-wachtrij
+    // ("bus wegbrengen" als interne opdracht, §2.4 beoordelenVoorPlanning)
+    maakPlantaak: v.optional(v.boolean()),
+    actief: v.boolean(), // false = cron slaat dit item over
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_actief", ["userId", "actief"])
+    .index("by_voertuig", ["voertuigId"])
+    .index("by_machine", ["machineId"]),
+
   // ============================================
   // Teams (Team Management)
   // ============================================
@@ -1710,6 +1818,14 @@ export default defineSchema({
     naam: v.string(),
     beschrijving: v.optional(v.string()),
     leden: v.array(v.id("medewerkers")), // Array van medewerker IDs
+    // Kleurcode van het team (PRD §3.3: kleurcode per team in het
+    // machinepark-overzicht). Hex of tailwind-token; puur weergave.
+    kleur: v.optional(v.string()),
+    // Vaste standaardbus van het team (PRD §3.3; lost de fase 1-aanname
+    // "toegewezenVoertuigen[0]" op). Per-dag-afwijking: teamBusOverrides.
+    // Delta-keten (materiaalDelta.ts): dag-override → standaardbus → fallback
+    // eerste toegewezen voertuig van het werkitem.
+    standaardVoertuigId: v.optional(v.id("voertuigen")),
     isActief: v.boolean(),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -3104,7 +3220,11 @@ export default defineSchema({
   // taaksoort (melding | plantaak voor de planningsattendering, §2.1/§8.12).
   servicemeldingen: defineTable({
     userId: v.id("users"),
-    klantId: v.id("klanten"),
+    // Optioneel geworden (PRD §3.3): onderhoudstaken uit de vervallogica-
+    // engine (APK/keuring op een voertuig/machine) zijn niet klant-gebonden.
+    // Meldingen en plan-/debiteurentaken hebben ALTIJD een klant (afgedwongen
+    // in code bij aanmaak).
+    klantId: v.optional(v.id("klanten")),
     projectId: v.optional(v.id("projecten")),
     garantieId: v.optional(v.id("garanties")),
 
@@ -3157,17 +3277,21 @@ export default defineSchema({
     beoordelenVoorPlanning: v.optional(v.boolean()),
     verzekeringsvlag: v.optional(v.boolean()),
     // Taaksoort: "melding" (default), "plantaak" (planningsattendering
-    // §2.1/§8.12) of "debiteurentaak" (debiteurenladder trede 3, PRD §3.2:
-    // "bellen/aanmaning") — automatisch gegenereerde kantoor-taken op dit bord
+    // §2.1/§8.12), "debiteurentaak" (debiteurenladder trede 3, PRD §3.2:
+    // "bellen/aanmaning") of "onderhoudstaak" (vervallogica-engine §3.3:
+    // APK/keuring/certificaat/verzekering, niet klant-gebonden) —
+    // automatisch gegenereerde kantoor-taken op dit bord
     taaksoort: v.optional(
       v.union(
         v.literal("melding"),
         v.literal("plantaak"),
-        v.literal("debiteurentaak")
+        v.literal("debiteurentaak"),
+        v.literal("onderhoudstaak")
       )
     ),
-    // Idempotentiesleutel van de attendering-cron (`plantaak:{beurtId}:{datum}`)
-    // of de debiteurenladder (`debiteur:{factuurId}:{trede}`)
+    // Idempotentiesleutel van de attendering-cron (`plantaak:{beurtId}:{datum}`),
+    // de debiteurenladder (`debiteur:{factuurId}:{trede}`) of de vervallogica
+    // (`verval:{vervalItemId}:{vervaldatum}`)
     attenderingSleutel: v.optional(v.string()),
     // Escalatie (§2.1): zonder actie na X dagen kleurt de taak op (default 7)
     escalatieDagen: v.optional(v.number()),

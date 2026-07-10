@@ -407,6 +407,10 @@ export const openKlantThreadVoorContext = mutation({
       ) {
         throw new ConvexError("Melding niet gevonden");
       }
+      if (!melding.klantId) {
+        // Onderhoudstaken (§3.3) zijn niet klant-gebonden → geen klantthread
+        throw new ConvexError("Deze taak heeft geen gekoppelde klant");
+      }
       klantId = melding.klantId;
       channelName = `Melding: ${melding.beschrijving.slice(0, 60)}`;
     }

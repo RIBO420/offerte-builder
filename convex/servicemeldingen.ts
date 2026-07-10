@@ -207,21 +207,22 @@ export const list = query({
     // Apply additional filters
     if (args.klantId) {
       result = result.filter(
-        (m) => m.klantId.toString() === args.klantId!.toString()
+        (m) => m.klantId?.toString() === args.klantId!.toString()
       );
     }
     if (args.prioriteit) {
       result = result.filter((m) => m.prioriteit === args.prioriteit);
     }
 
-    // Enrich with klant and project data
+    // Enrich with klant and project data (klantId optioneel: onderhoudstaken
+    // uit de vervallogica-engine §3.3 zijn niet klant-gebonden)
     const enriched = await Promise.all(
       result.map(async (m) => {
-        const klant = await ctx.db.get(m.klantId);
+        const klant = m.klantId ? await ctx.db.get(m.klantId) : null;
         const project = m.projectId ? await ctx.db.get(m.projectId) : null;
         return {
           ...m,
-          klantNaam: klant?.naam ?? "Onbekend",
+          klantNaam: klant?.naam ?? (m.klantId ? "Onbekend" : "Intern"),
           projectNaam: project?.naam ?? null,
         };
       })
@@ -244,7 +245,7 @@ export const getById = query({
       return null;
     }
 
-    const klant = await ctx.db.get(melding.klantId);
+    const klant = melding.klantId ? await ctx.db.get(melding.klantId) : null;
     const project = melding.projectId
       ? await ctx.db.get(melding.projectId)
       : null;
@@ -283,7 +284,7 @@ export const getById = query({
 
     return {
       ...melding,
-      klantNaam: klant?.naam ?? "Onbekend",
+      klantNaam: klant?.naam ?? (melding.klantId ? "Onbekend" : "Intern"),
       klantAdres: klant
         ? `${klant.adres}, ${klant.postcode} ${klant.plaats}`
         : "",
@@ -367,7 +368,7 @@ export const getKanbanData = query({
     // Apply filters
     if (args.klantId) {
       filtered = filtered.filter(
-        (m) => m.klantId.toString() === args.klantId!.toString()
+        (m) => m.klantId?.toString() === args.klantId!.toString()
       );
     }
     if (args.prioriteit) {
@@ -380,10 +381,10 @@ export const getKanbanData = query({
     // Enrich with klant names
     const enriched = await Promise.all(
       filtered.map(async (m) => {
-        const klant = await ctx.db.get(m.klantId);
+        const klant = m.klantId ? await ctx.db.get(m.klantId) : null;
         return {
           ...m,
-          klantNaam: klant?.naam ?? "Onbekend",
+          klantNaam: klant?.naam ?? (m.klantId ? "Onbekend" : "Intern"),
         };
       })
     );
@@ -412,7 +413,8 @@ export const getBord = query({
       v.union(
         v.literal("melding"),
         v.literal("plantaak"),
-        v.literal("debiteurentaak")
+        v.literal("debiteurentaak"),
+        v.literal("onderhoudstaak")
       )
     ),
   },
@@ -445,8 +447,9 @@ export const getBord = query({
     const now = Date.now();
     const verrijkt = [];
     for (const m of relevant) {
-      const klantKey = m.klantId.toString();
-      if (!klantCache.has(klantKey)) {
+      // klantId optioneel (§3.3): onderhoudstaken zijn niet klant-gebonden
+      const klantKey = m.klantId?.toString() ?? "";
+      if (m.klantId && !klantCache.has(klantKey)) {
         const klant = await ctx.db.get(m.klantId);
         klantCache.set(klantKey, klant?.naam ?? "Onbekend");
       }
@@ -461,7 +464,7 @@ export const getBord = query({
       }
       verrijkt.push({
         ...m,
-        klantNaam: klantCache.get(klantKey) ?? "Onbekend",
+        klantNaam: klantCache.get(klantKey) ?? (m.klantId ? "Onbekend" : "Intern"),
         eigenaarNaam,
         kolom: bordKolomVoorStatus(m.status),
         geescaleerd: isGeescaleerd(m, now),
@@ -684,14 +687,17 @@ export const updateStatus = mutation({
       updatedAt: Date.now(),
     });
 
-    await logTijdlijnEvent(ctx, {
-      userId: companyUserId,
-      klantId: melding.klantId,
-      eventType: "melding_status_gewijzigd",
-      tekst: `Melding "${melding.beschrijving.trim().slice(0, 80)}": status ${STATUS_LABEL[melding.status]} → ${STATUS_LABEL[args.status]}`,
-      werkitemId: melding.werkitemId,
-      meldingId: args.id,
-    });
+    // Tijdlijn alleen indien klant-gerelateerd (onderhoudstaken §3.3 niet)
+    if (melding.klantId) {
+      await logTijdlijnEvent(ctx, {
+        userId: companyUserId,
+        klantId: melding.klantId,
+        eventType: "melding_status_gewijzigd",
+        tekst: `Melding "${melding.beschrijving.trim().slice(0, 80)}": status ${STATUS_LABEL[melding.status]} → ${STATUS_LABEL[args.status]}`,
+        werkitemId: melding.werkitemId,
+        meldingId: args.id,
+      });
+    }
     await voegSysteemCommentToe(ctx, {
       userId: companyUserId,
       meldingId: args.id,
@@ -759,6 +765,11 @@ export const promoveerNaarWerkitem = mutation({
     const melding = await ctx.db.get(args.id);
     if (!melding || melding.deletedAt || melding.userId.toString() !== companyUserId.toString()) {
       throw new ConvexError("Melding niet gevonden");
+    }
+    if (!melding.klantId) {
+      // Onderhoudstaken (§3.3) zijn niet klant-gebonden; promotie naar een
+      // klant-werkitem is daar niet van toepassing.
+      throw new ConvexError("Deze taak heeft geen klant en kan niet gepromoveerd worden");
     }
     const klant = await ctx.db.get(melding.klantId);
     if (!klant) throw new ConvexError("Klant niet gevonden");

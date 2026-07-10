@@ -584,7 +584,7 @@ export const getMeldingen = query({
         (m) =>
           !m.deletedAt &&
           (m.taaksoort ?? "melding") === "melding" &&
-          m.klantId.toString() === klant._id.toString()
+          m.klantId?.toString() === klant._id.toString()
       )
       .map((m) => ({
         _id: m._id,
@@ -746,7 +746,7 @@ export const getThreadVoorContext = query({
 
     if (args.meldingId) {
       const melding = await ctx.db.get(args.meldingId);
-      if (!melding || melding.klantId.toString() !== klant._id.toString()) {
+      if (!melding || melding.klantId?.toString() !== klant._id.toString()) {
         return null;
       }
       const threads = await ctx.db
@@ -817,7 +817,7 @@ export const openThreadVoorMelding = mutation({
       !melding ||
       melding.deletedAt ||
       (melding.taaksoort ?? "melding") !== "melding" ||
-      melding.klantId.toString() !== klant._id.toString()
+      melding.klantId?.toString() !== klant._id.toString()
     ) {
       throw new ConvexError("Melding niet gevonden");
     }

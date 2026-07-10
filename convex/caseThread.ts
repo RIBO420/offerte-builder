@@ -152,14 +152,17 @@ export const addComment = mutation({
     });
 
     // @tag → veldtaak (§8.6): verschijnt op de dagkaart van de medewerker
-    // zodra zijn team bij deze klant gepland staat (convex/dagkaart.ts)
+    // zodra zijn team bij deze klant gepland staat (convex/dagkaart.ts).
+    // Onderhoudstaken (§3.3) hebben geen klant → geen veldtaak (de dagkaart
+    // matcht op klant; zonder klant is er niets om op te matchen).
     const veldtaakIds: Id<"veldtaken">[] = [];
-    for (const medewerker of medewerkers) {
+    const meldingKlantId = melding.klantId;
+    for (const medewerker of meldingKlantId ? medewerkers : []) {
       veldtaakIds.push(
         await ctx.db.insert("veldtaken", {
           userId: companyUserId,
           meldingId: args.meldingId,
-          klantId: melding.klantId,
+          klantId: meldingKlantId!,
           medewerkerId: medewerker._id,
           medewerkerNaam: medewerker.naam,
           tekst,

@@ -279,6 +279,10 @@ export const maakInplanConcept = mutation({
         "Inplan-mails kunnen alleen vanuit een plantaak worden klaargezet"
       );
     }
+    if (!melding.klantId) {
+      // Plantaken hebben altijd een klant; belt & braces voor het type
+      throw new ConvexError("Deze taak heeft geen gekoppelde klant");
+    }
 
     const klant = await ctx.db.get(melding.klantId);
     if (!klant) throw new ConvexError("Klant niet gevonden");
