@@ -4,13 +4,21 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
-import { ArrowLeft, FilePlus2 } from "lucide-react";
+import { ArrowLeft, CalendarIcon, FilePlus2 } from "lucide-react";
+import { format } from "date-fns";
+import { nl } from "@/lib/date-locale";
+import { cn } from "@/lib/utils";
 import { RequireRole } from "@/components/require-admin";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -32,6 +40,12 @@ import { berekenBtwUitsplitsing } from "../../../../../convex/facturatieLogica";
  * concept-factuur in de "Te versturen"-wachtrij. Zelfde PDF-huisstijl,
  * bewust geen opmaakknoppen.
  */
+/** "YYYY-MM-DD" → lokale Date (zonder timezone-verschuiving). */
+function isoNaarDate(iso: string): Date {
+  const [jaar, maand, dag] = iso.split("-").map(Number);
+  return new Date(jaar, maand - 1, dag);
+}
+
 export default function NieuweFactuurPage() {
   return (
     <RequireRole allowedRoles={["directie", "projectleider"]}>
@@ -147,12 +161,38 @@ function NieuweFactuurContent() {
                   <label className="text-sm font-medium" htmlFor="datum-dienst">
                     Datum van dienst (optioneel)
                   </label>
-                  <Input
-                    id="datum-dienst"
-                    type="date"
-                    value={datumVanDienst}
-                    onChange={(e) => setDatumVanDienst(e.target.value)}
-                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        id="datum-dienst"
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start pl-3 text-left font-normal",
+                          !datumVanDienst && "text-muted-foreground"
+                        )}
+                      >
+                        {datumVanDienst ? (
+                          format(isoNaarDate(datumVanDienst), "d MMMM yyyy", {
+                            locale: nl,
+                          })
+                        ) : (
+                          <span>Selecteer datum</span>
+                        )}
+                        <CalendarIcon className="ml-auto h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={
+                          datumVanDienst ? isoNaarDate(datumVanDienst) : undefined
+                        }
+                        onSelect={(d) =>
+                          setDatumVanDienst(d ? format(d, "yyyy-MM-dd") : "")
+                        }
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <div className="space-y-1.5 sm:col-span-2">
                   <label className="text-sm font-medium" htmlFor="notities">

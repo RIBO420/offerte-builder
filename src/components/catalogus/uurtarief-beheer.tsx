@@ -9,8 +9,11 @@
  */
 
 import { useState } from "react";
-import { Euro, Info, Loader2 } from "lucide-react";
+import { CalendarIcon, Euro, Info, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { format } from "date-fns";
+import { nl } from "@/lib/date-locale";
+import { cn } from "@/lib/utils";
 import {
   Card,
   CardContent,
@@ -27,6 +30,12 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { formatCurrency } from "@/lib/format/currency";
 
 export interface UurtariefRecord {
@@ -48,6 +57,17 @@ interface UurtariefBeheerProps {
 function formatDatum(iso: string): string {
   const [jaar, maand, dag] = iso.split("-");
   return `${dag}-${maand}-${jaar}`;
+}
+
+/** "YYYY-MM-DD" → lokale Date (zonder timezone-verschuiving). */
+function isoNaarDate(iso: string): Date {
+  const [jaar, maand, dag] = iso.split("-").map(Number);
+  return new Date(jaar, maand - 1, dag);
+}
+
+/** Lokale Date → "YYYY-MM-DD". */
+function dateNaarIso(d: Date): string {
+  return format(d, "yyyy-MM-dd");
 }
 
 export function UurtariefBeheer({
@@ -148,13 +168,34 @@ export function UurtariefBeheer({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="nieuw-tarief-datum">Ingangsdatum</Label>
-            <Input
-              id="nieuw-tarief-datum"
-              type="date"
-              className="w-44"
-              value={ingangsdatum}
-              onChange={(e) => setIngangsdatum(e.target.value)}
-            />
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  id="nieuw-tarief-datum"
+                  variant="outline"
+                  className={cn(
+                    "w-44 justify-start pl-3 text-left font-normal",
+                    !ingangsdatum && "text-muted-foreground"
+                  )}
+                >
+                  {ingangsdatum ? (
+                    format(isoNaarDate(ingangsdatum), "d MMMM yyyy", {
+                      locale: nl,
+                    })
+                  ) : (
+                    <span>Selecteer datum</span>
+                  )}
+                  <CalendarIcon className="ml-auto h-4 w-4 text-muted-foreground" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={ingangsdatum ? isoNaarDate(ingangsdatum) : undefined}
+                  onSelect={(d) => d && setIngangsdatum(dateNaarIso(d))}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
           <Button onClick={handleSubmit} disabled={isSaving}>
             {isSaving && <Loader2 className="mr-2 size-4 animate-spin" />}
