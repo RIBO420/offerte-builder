@@ -17,7 +17,7 @@ const externeServer = process.env.FASE1_BASE_URL;
 export default defineConfig({
   globalSetup: "./e2e/global-setup.ts",
   testDir: "./e2e",
-  testMatch: /fase1-(offerte|modules)-rooktest\.spec\.ts/,
+  testMatch: /(fase1-(offerte|modules)|fase2)-rooktest\.spec\.ts/,
   fullyParallel: false,
   workers: 1,
   retries: 0,

@@ -75,8 +75,10 @@ export function NormuurSuggesties() {
     [neemOver]
   );
 
-  // Geen kantoor, nog aan het laden of niets te suggereren → geen blok
-  if (!magBeheren || !data || data.suggesties.length === 0) return null;
+  // Geen kantoor of nog aan het laden → geen blok. In de lege staat (wel
+  // geladen, geen suggesties) blijft de kaart zichtbaar zodat kantoor weet
+  // dat de nacalculatie-loop bestaat en vanaf welke drempel hij vult.
+  if (!magBeheren || !data) return null;
 
   return (
     <Card data-testid="normuur-suggesties">
@@ -93,6 +95,16 @@ export function NormuurSuggesties() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
+        {data.suggesties.length === 0 && (
+          <p
+            className="text-sm text-muted-foreground"
+            data-testid="normuur-suggesties-leeg"
+          >
+            Nog geen suggesties: zodra een bouwsteen {data.drempel} of meer
+            bevestigde beurten heeft en het gemiddelde afwijkt van de norm,
+            verschijnt hier een voorstel.
+          </p>
+        )}
         {data.suggesties.map((suggestie) => (
           <div
             key={suggestie.bouwsteenId}
