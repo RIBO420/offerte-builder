@@ -444,6 +444,20 @@ export default defineSchema({
         automatischVersturen: v.optional(v.boolean()),
       })
     ),
+    // Dagkaart-standaardblokken (PRD §2.2 weergave 2, stap 5b) — instelbaar
+    // per bedrijf; echte tijden levert Mickey later (§7.1). Ontbrekende velden
+    // vallen terug op DAGKAART_DEFAULTS in convex/dagkaartLogica.ts.
+    dagkaartInstellingen: v.optional(
+      v.object({
+        vertrekTijd: v.optional(v.string()), // HH:MM, default 07:00
+        pauzeStart: v.optional(v.string()), // HH:MM, default 12:00
+        pauzeEind: v.optional(v.string()), // HH:MM, default 12:30
+        loodsAfrondingMinuten: v.optional(v.number()), // default 30
+        // Default reistijd per verplaatsing als er geen berekende reistijd is
+        // (geen GOOGLE_MAPS_API_KEY of nog niet berekend), default 20
+        standaardReistijdMinuten: v.optional(v.number()),
+      })
+    ),
     // Creditnota nummering (FAC-008)
     laatsteCreditnotaNummer: v.optional(v.number()),
     // Algemene voorwaarden PDF (EML-003)
@@ -645,9 +659,15 @@ export default defineSchema({
     //   DEPRECATED (lezen mag, zie comments bij die tabellen). —
     // Volgorde binnen de team-dag (1-based); fundament voor de route-dagkaart (5b)
     volgordeBinnenDag: v.optional(v.number()),
-    // Geplande tijden binnen de dag (HH:MM, 24-uurs); dupliceren behoudt ze
+    // Geplande tijden binnen de dag (HH:MM, 24-uurs); dupliceren behoudt ze.
+    // geplandeStartTijd is op de dagkaart (5b) een HANDMATIGE override: de
+    // tijdcascade laat hem altijd staan en rekent er niet overheen.
     geplandeStartTijd: v.optional(v.string()),
     geplandeEindTijd: v.optional(v.string()),
+    // Handmatige duur-override (minuten) voor de tijdcascade op de dagkaart
+    // (5b). Bewust los van geplandeStartTijd: duur aanpassen pint de starttijd
+    // niet — het blok blijft meeschuiven, alles erná schuift door (§8.9).
+    duurOverrideMinuten: v.optional(v.number()),
     // Planvoorkeuren op werkitem-niveau (§2.2); overschrijven de klant-velden
     voorkeursTeamId: v.optional(v.id("teams")),
     beschikbaarheidsVenster: v.optional(beschikbaarheidsVensterValidator),
@@ -857,7 +877,12 @@ export default defineSchema({
       v.literal("team_losgekoppeld"),
       v.literal("bemanning_gewijzigd"),
       v.literal("afwezigheid_toegevoegd"),
-      v.literal("afwezigheid_verwijderd")
+      v.literal("afwezigheid_verwijderd"),
+      // Route-dagkaart (stap 5b)
+      v.literal("volgorde_gewijzigd"),
+      v.literal("tijd_aangepast"),
+      v.literal("taak_losgemaakt"),
+      v.literal("dagblokken_aangepast")
     ),
     // Mensleesbare samenvatting, bv. "Ingepland: team Groen, 2026-05-14"
     details: v.string(),
@@ -866,6 +891,40 @@ export default defineSchema({
   })
     .index("by_user_createdAt", ["userId", "createdAt"])
     .index("by_werkitem", ["werkitemId"]),
+
+  // ReistijdCache — berekende reistijden per adrespaar voor de dagkaart
+  // (PRD §2.2, stap 5b). Alleen ECHT berekende reistijden (Google Maps
+  // Distance Matrix) worden gecachet; zonder GOOGLE_MAPS_API_KEY blijft de
+  // tabel leeg en valt de dagkaart terug op de standaard-reistijd uit
+  // instellingen (fail-closed, zie convex/reistijdLogica.ts).
+  // NB: de tabel `routes` is GPS-tracking en heeft hier niets mee te maken.
+  reistijdCache: defineTable({
+    userId: v.id("users"),
+    sleutel: v.string(), // genormaliseerd "van|naar" (reistijdSleutel)
+    vanAdres: v.string(),
+    naarAdres: v.string(),
+    minuten: v.number(),
+    bron: v.union(v.literal("standaard"), v.literal("google_maps")),
+    berekendOp: v.number(),
+  }).index("by_user_sleutel", ["userId", "sleutel"]),
+
+  // DagkaartAfwijkingen — dag-specifieke afwijking van de standaardblokken
+  // (vertrek loods / pauze / loods-afronding) voor één team-dag (PRD §2.2).
+  // Blokken op de dagkaart zijn AFGELEID; alleen afwijkingen worden
+  // opgeslagen. Geen rij = standaardblokken uit instellingen/defaults.
+  dagkaartAfwijkingen: defineTable({
+    userId: v.id("users"),
+    teamId: v.id("teams"),
+    datum: v.string(), // YYYY-MM-DD
+    vertrekTijd: v.optional(v.string()), // HH:MM
+    pauzeStart: v.optional(v.string()), // HH:MM
+    pauzeEind: v.optional(v.string()), // HH:MM
+    loodsAfrondingMinuten: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_team_datum", ["teamId", "datum"])
+    .index("by_user_datum", ["userId", "datum"]),
 
   // Machines - Machinepark / Wagenpark
   // Beheer van intern en extern gehuurde machines en voertuigen
