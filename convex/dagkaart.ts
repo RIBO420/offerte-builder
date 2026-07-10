@@ -83,6 +83,8 @@ async function werkitemsVoorTeamDag(
         item.isArchived !== true &&
         item.status !== "vervallen" &&
         item.userId.toString() === userId.toString() &&
+        // Belt & braces bovenop de indexquery: team-scope expliciet
+        item.teamId?.toString() === teamId.toString() &&
         werkitemOpDag(item, datum)
     )
     .sort(
@@ -173,6 +175,80 @@ export interface DagkaartTaak {
   normUren: number | null;
 }
 
+export interface DagkaartVeldtaak {
+  veldtaakId: Id<"veldtaken">;
+  meldingId: Id<"servicemeldingen">;
+  medewerkerId: Id<"medewerkers">;
+  medewerkerNaam: string;
+  tekst: string;
+}
+
+/**
+ * Veldtaken-matching (PRD §2.4, case-test §8.6): een veldtaak (uit een @tag
+ * in de case-thread) verschijnt op de dagkaart zodra (a) de getagde
+ * medewerker DIE dag in de bemanning van dit team zit (teamBemanning-
+ * afwijking, anders teams.leden) én (b) een werkitem van die klant op deze
+ * team-dag staat. Niet eerder, en niet bij een ander team. De dagkaart
+ * toont ze als eigen regel in het klantblok.
+ */
+async function veldtakenVoorTeamDag(
+  db: QueryDb,
+  userId: Id<"users">,
+  team: Doc<"teams">,
+  datum: string,
+  items: WerkItem[]
+): Promise<Map<string, DagkaartVeldtaak[]>> {
+  const result = new Map<string, DagkaartVeldtaak[]>();
+  const klantIds = new Set(
+    items
+      .map((i) => i.klantId?.toString())
+      .filter((k): k is string => k !== undefined)
+  );
+  if (klantIds.size === 0) return result;
+
+  // Bemanning van de dag: een teamBemanning-afwijking wint van teams.leden
+  const bemanningRijen = await db
+    .query("teamBemanning")
+    .withIndex("by_team_datum", (q) =>
+      q.eq("teamId", team._id).eq("datum", datum)
+    )
+    .collect();
+  const afwijking = bemanningRijen.find(
+    (r) =>
+      r.teamId.toString() === team._id.toString() &&
+      r.datum === datum &&
+      r.userId.toString() === userId.toString()
+  );
+  const bemanning = afwijking?.medewerkerIds ?? team.leden;
+
+  for (const medewerkerId of bemanning) {
+    const taken = await db
+      .query("veldtaken")
+      .withIndex("by_medewerker", (q) =>
+        q.eq("medewerkerId", medewerkerId).eq("status", "open")
+      )
+      .collect();
+    for (const taak of taken) {
+      // Belt & braces bovenop de indexquery
+      if (taak.status !== "open") continue;
+      if (taak.medewerkerId.toString() !== medewerkerId.toString()) continue;
+      if (taak.userId.toString() !== userId.toString()) continue;
+      if (!klantIds.has(taak.klantId.toString())) continue;
+      const key = taak.klantId.toString();
+      const lijst = result.get(key) ?? [];
+      lijst.push({
+        veldtaakId: taak._id,
+        meldingId: taak.meldingId,
+        medewerkerId: taak.medewerkerId,
+        medewerkerNaam: taak.medewerkerNaam,
+        tekst: taak.tekst,
+      });
+      result.set(key, lijst);
+    }
+  }
+  return result;
+}
+
 export const getDagkaart = query({
   args: {
     teamId: v.id("teams"),
@@ -201,6 +277,15 @@ export const getDagkaart = query({
       return bouwsteenCache.get(id) ?? null;
     };
 
+    // Veldtaken uit meldingen (§2.4/§8.6) per klant op deze team-dag
+    const veldtakenPerKlant = await veldtakenVoorTeamDag(
+      ctx.db,
+      userId,
+      team,
+      args.datum,
+      items
+    );
+
     const stops: (KlantStop & {
       naam: string;
       status: string;
@@ -208,6 +293,7 @@ export const getDagkaart = query({
       klantNaam: string | null;
       bijzonderheden: string | null;
       taken: DagkaartTaak[];
+      veldtaken: DagkaartVeldtaak[];
       handmatigeStartTijd: string | null;
       duurOverrideMinuten: number | null;
       geschatteUren: number | null;
@@ -258,6 +344,9 @@ export const getDagkaart = query({
         klantNaam: klant?.naam ?? null,
         bijzonderheden: klant?.notities ?? null,
         taken,
+        veldtaken: item.klantId
+          ? (veldtakenPerKlant.get(item.klantId.toString()) ?? [])
+          : [],
       });
     }
 
@@ -297,6 +386,7 @@ export const getDagkaart = query({
         adres: s.adres,
         bijzonderheden: s.bijzonderheden,
         taken: s.taken,
+        veldtaken: s.veldtaken,
         duurMinuten: s.duurMinuten,
         handmatigeStartTijd: s.handmatigeStartTijd,
         duurOverrideMinuten: s.duurOverrideMinuten,
