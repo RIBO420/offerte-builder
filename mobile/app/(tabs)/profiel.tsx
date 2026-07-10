@@ -3,7 +3,6 @@ import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
   Alert,
   Image,
   Linking,
@@ -21,9 +20,8 @@ import { api } from '../../convex/_generated/api';
 import { useTheme, useColors } from '../../theme';
 import { colors } from '../../theme/colors';
 import { useCurrentUser } from '../../hooks/use-current-user';
-import { useUserRole, ROLE_BADGE_COLORS } from '../../hooks/use-user-role';
-import { Card, CardContent, Button, Badge, Switch, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui';
-import { cn } from '../../lib/utils';
+import { useUserRole } from '../../hooks/use-user-role';
+import { Button, Badge, Switch, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui';
 import {
   isBiometricAvailable,
   getBiometricType,
@@ -159,9 +157,9 @@ function AuthenticatedProfielScreen() {
   const router = useRouter();
   const colors = useColors();
   const { mode, setMode } = useTheme();
-  const { user, isLoaded: userLoaded } = useUser();
+  const { user } = useUser();
   const { signOut } = useClerk();
-  const { roleDisplayName, roleBadgeVariant, roleBadgeColors, isAdmin, isMedewerker, normalizedRole } = useUserRole();
+  const { roleDisplayName, roleBadgeVariant } = useUserRole();
 
   // These queries will only run when this component is mounted (i.e., when authenticated)
   const profile = useQuery(api.mobile.getProfile);
@@ -172,7 +170,8 @@ function AuthenticatedProfielScreen() {
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricType, setBiometricType] = useState<BiometricType>(null);
   const [biometricLoading, setBiometricLoading] = useState(false);
-  const [language, setLanguage] = useState('nl');
+  // Taalvoorkeur wordt wel geladen/bewaard maar (nog) nergens gelezen — alleen NL beschikbaar.
+  const [_language, setLanguage] = useState('nl');
   const [showAboutDialog, setShowAboutDialog] = useState(false);
   const [showHelpDialog, setShowHelpDialog] = useState(false);
 
@@ -352,19 +351,6 @@ function AuthenticatedProfielScreen() {
     }
   };
 
-  const handleLanguageChange = async () => {
-    // For now, only Dutch is supported
-    Alert.alert(
-      'Taal',
-      'Momenteel is alleen Nederlands beschikbaar. Meer talen worden binnenkort toegevoegd.',
-      [{ text: 'OK' }]
-    );
-  };
-
-  const handleOpenHelp = async () => {
-    setShowHelpDialog(true);
-  };
-
   const handleContactSupport = async (method: 'email' | 'website') => {
     setShowHelpDialog(false);
 
@@ -375,7 +361,7 @@ function AuthenticatedProfielScreen() {
       } else {
         await Linking.openURL(SUPPORT_URL);
       }
-    } catch (error) {
+    } catch {
       Alert.alert('Fout', 'Kon de link niet openen');
     }
   };

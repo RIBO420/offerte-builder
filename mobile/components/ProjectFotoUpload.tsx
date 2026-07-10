@@ -28,7 +28,6 @@ import {
   ActivityIndicator,
   Alert,
   StyleSheet,
-  Dimensions,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -36,7 +35,7 @@ import { Feather } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { FotoGalerij } from './FotoGalerij';
 import { useOfflineQueue } from '@/hooks/use-offline-queue';
-import type { CapturedPhoto, FotoType } from '@/hooks/use-photo-capture';
+import type { CapturedPhoto } from '@/hooks/use-photo-capture';
 
 // ============================================
 // TYPES
@@ -68,8 +67,6 @@ interface ProjectFotoUploadProps {
 // ============================================
 // CONSTANTEN
 // ============================================
-
-const { width: SCHERM_BREEDTE } = Dimensions.get('window');
 
 const CATEGORIE_CONFIG: Record<FotoCategorie, { label: string; kleur: string; icoon: string; beschrijving: string }> = {
   voor:     { label: 'Voor werkzaamheden', kleur: '#3b82f6', icoon: 'arrow-right-circle', beschrijving: 'Situatie vóór de aanleg' },

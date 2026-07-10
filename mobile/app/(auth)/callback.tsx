@@ -14,7 +14,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useSignIn, useSignUp, useAuth } from '@clerk/clerk-expo';
 import { CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react-native';
 import { isAuthConfigured } from '../../lib/env';
@@ -26,7 +26,6 @@ const AUTH_CONFIGURED = isAuthConfigured();
 
 export default function CallbackScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams();
   const [status, setStatus] = useState<CallbackStatus>('verifying');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 

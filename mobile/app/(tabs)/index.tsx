@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, RefreshControl, ScrollView, FlatList, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -21,38 +21,6 @@ import {
   Skeleton,
   SkeletonCard,
 } from '../../components/ui';
-
-// Time formatting helper
-function formatTime(seconds: number): string {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = seconds % 60;
-  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-}
-
-function formatHoursMinutes(hours: number): string {
-  const h = Math.floor(hours);
-  const m = Math.round((hours - h) * 60);
-  return `${h}:${m.toString().padStart(2, '0')}`;
-}
-
-// Greeting based on time of day
-function getGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Goedemorgen';
-  if (hour < 18) return 'Goedemiddag';
-  return 'Goedenavond';
-}
-
-// Format currency helper
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('nl-NL', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
-}
 
 // Time-ago formatting for notifications
 function formatTimeAgo(timestamp: number): string {
@@ -100,7 +68,6 @@ function getNotificationIcon(type: string): React.ReactNode {
 
 // Wrapper component that handles auth check
 export default function DashboardScreen() {
-  const colors = useColors();
   const { isLoading, isUserSynced } = useCurrentUser();
 
   if (isLoading || !isUserSynced) {
@@ -123,13 +90,11 @@ export default function DashboardScreen() {
 function AuthenticatedDashboard() {
   const colors = useColors();
   const router = useRouter();
-  const { isAdmin, isMedewerker } = useUserRole();
+  const { isMedewerker } = useUserRole();
   const [refreshing, setRefreshing] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
 
   // Queries
   const profile = useQuery(api.medewerkers.getActive);
-  const projectStats = useQuery(api.projecten.getStats);
   const activeProjects = useQuery(api.projecten.getActiveProjectsWithProgress);
 
   const isDataLoading = profile === undefined;
@@ -137,8 +102,6 @@ function AuthenticatedDashboard() {
     api.projecten.listForPlanning,
     isMedewerker ? {} : 'skip'
   );
-  const offerteStats = useQuery(api.offertes.getStats, isAdmin ? {} : 'skip');
-  const revenueStats = useQuery(api.offertes.getRevenueStats, isAdmin ? {} : 'skip');
 
   // Notification queries
   const notifications = useQuery(api.notifications.list, { limit: 5 });
@@ -148,63 +111,11 @@ function AuthenticatedDashboard() {
 
   const userName = profile?.[0]?.naam || 'Medewerker';
 
-  // Mock session state
-  const [isClockingIn, setIsClockingIn] = useState(false);
-  const [isClockedIn, setIsClockedIn] = useState(false);
-  const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
-  const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // Timer effect - store interval ID in ref for reliable cleanup
-  useEffect(() => {
-    if (timerIntervalRef.current) {
-      clearInterval(timerIntervalRef.current);
-      timerIntervalRef.current = null;
-    }
-
-    if (isClockedIn && sessionStartTime) {
-      timerIntervalRef.current = setInterval(() => {
-        setCurrentTime(Math.floor((Date.now() - sessionStartTime) / 1000));
-      }, 1000);
-    } else {
-      setTimeout(() => setCurrentTime(0), 0);
-    }
-
-    return () => {
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current);
-        timerIntervalRef.current = null;
-      }
-    };
-  }, [isClockedIn, sessionStartTime]);
-
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await new Promise(resolve => setTimeout(resolve, 1000));
     setRefreshing(false);
   }, []);
-
-  const handleClockIn = () => {
-    setIsClockingIn(true);
-    setTimeout(() => {
-      setIsClockedIn(true);
-      setSessionStartTime(Date.now());
-      setIsClockingIn(false);
-    }, 500);
-  };
-
-  const handleClockOut = () => {
-    setIsClockedIn(false);
-    setSessionStartTime(null);
-    setCurrentTime(0);
-  };
-
-  // Week data
-  const weekDays = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'];
-  const currentDayIndex = new Date().getDay();
-  const adjustedDayIndex = currentDayIndex === 0 ? 6 : currentDayIndex - 1;
-  const weeklyHours = [8.5, 7.0, 6.5, 0, 0, 0, 0];
-  const todayHours = weeklyHours[adjustedDayIndex] + (currentTime / 3600);
-  const totalWeekHours = weeklyHours.reduce((sum, h) => sum + h, 0) + (isClockedIn ? currentTime / 3600 : 0);
 
   // Derive hero project: first planning project (medewerker) or first active project (admin)
   const heroProject = isMedewerker

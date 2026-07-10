@@ -12,7 +12,6 @@ import {
   SyncState,
   SyncQueueItem,
   initDatabase,
-  getDatabase,
 } from '@/lib/storage';
 
 // ============================================

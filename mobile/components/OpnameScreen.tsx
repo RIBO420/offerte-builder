@@ -40,10 +40,8 @@ export interface OpnameScreenProps {
 // ============================================
 
 const ROOD = '#DC2626';
-const ROOD_DONKER = '#991B1B';
 const GROEN = '#4ADE80';
 const ORANJE = '#D97706';
-const GRIJS_DONKER = '#111';
 const GRIJS = '#222';
 const GRIJS_LICHT = '#888';
 const GRIJS_HEEL_LICHT = '#E8E8E8';

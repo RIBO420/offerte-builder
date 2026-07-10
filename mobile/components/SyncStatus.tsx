@@ -19,14 +19,12 @@ import {
   ScrollView,
   ActivityIndicator,
   StyleSheet,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
-  withTiming,
 } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import NetInfo from '@react-native-community/netinfo';

@@ -19,8 +19,6 @@ import { useCurrentUser } from '../../hooks/use-current-user';
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
   Button,
   Badge,
   Dialog,

@@ -8,8 +8,6 @@ import {
 } from 'react-native';
 import { cn } from '@/lib/utils';
 
-// Minimum touch target size for accessibility (44x44 points)
-const MIN_TOUCH_TARGET = 44;
 const CHECKBOX_SIZE = 20;
 
 interface CheckboxProps {

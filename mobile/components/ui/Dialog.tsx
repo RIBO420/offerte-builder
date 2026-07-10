@@ -15,7 +15,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { spacing } from '../../theme/spacing';
 import { shadows } from '../../theme/shadows';
 import { Button } from './Button';
-import { cn } from '@/lib/utils';
 
 // Dialog Context for compound components
 interface DialogContextValue {

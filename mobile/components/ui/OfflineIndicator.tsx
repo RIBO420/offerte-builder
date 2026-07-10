@@ -3,8 +3,6 @@ import { View, Text, StyleSheet, Animated, Pressable, ActivityIndicator } from '
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 import { Feather } from '@expo/vector-icons';
 import { typography } from '../../theme/typography';
-import { radius } from '../../theme/radius';
-import { spacing } from '../../theme/spacing';
 import { colors } from '../../theme/colors';
 import { useSyncStatus } from '../../hooks/use-offline-sync';
 

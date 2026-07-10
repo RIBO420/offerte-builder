@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useCallback, useState } from 'react';
-import { useAuth, useUser, useClerk } from '@clerk/clerk-expo';
+import { useAuth, useUser } from '@clerk/clerk-expo';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import {

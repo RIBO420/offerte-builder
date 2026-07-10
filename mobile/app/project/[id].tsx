@@ -12,10 +12,6 @@ import {
   ParallaxHeader,
   AnimatedNumber,
   ScopeTag,
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
   Skeleton,
 } from '../../components/ui';
 
@@ -25,17 +21,6 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   in_uitvoering: { bg: '#4ADE8033', text: '#4ADE80' },
   afgerond: { bg: '#3B82F633', text: '#3B82F6' },
   on_hold: { bg: '#6B728033', text: '#6B7280' },
-};
-
-// Scope color mapping
-const SCOPE_COLORS: Record<string, string> = {
-  grondwerk: '#B09070',
-  bestrating: '#9A9CA0',
-  borders: '#4D8C4D',
-  gras: '#7DD98C',
-  houtwerk: '#A87A50',
-  water: '#5AA0D0',
-  specials: '#B070D0',
 };
 
 export default function ProjectDetailScreen() {

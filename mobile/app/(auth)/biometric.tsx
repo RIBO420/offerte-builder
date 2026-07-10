@@ -10,7 +10,7 @@ import {
 import { useRouter } from 'expo-router';
 import { ShieldCheck, Fingerprint, Zap, Shield, Lock } from 'lucide-react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
-import { useAuth, useUser, useClerk } from '@clerk/clerk-expo';
+import { useAuth, useUser } from '@clerk/clerk-expo';
 import {
   isBiometricAvailable,
   getBiometricType,
@@ -32,7 +32,6 @@ export default function BiometricSetupScreen() {
   // Altijd hooks aanroepen (React rules of hooks)
   const authHook = useAuth();
   const userHook = useUser();
-  const clerkHook = useClerk();
 
   // Gebruik resultaat alleen als auth geconfigureerd is
   const getToken = AUTH_CONFIGURED ? authHook.getToken : null;

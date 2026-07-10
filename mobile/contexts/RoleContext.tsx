@@ -21,7 +21,7 @@ import React, {
 import { useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
 import { useCurrentUser, UserRole } from '../hooks/use-current-user';
-import type { Id, Doc } from '../convex/_generated/dataModel';
+import type { Id } from '../convex/_generated/dataModel';
 
 /**
  * Linked medewerker information for users with medewerker role

@@ -19,8 +19,7 @@ import { api } from '../../convex/_generated/api';
 import { useColors } from '../../theme';
 import { colors } from '../../theme/colors';
 import { useCurrentUser } from '../../hooks/use-current-user';
-import { Tabs, TabsContent, Badge } from '../../components/ui';
-import { cn } from '@/lib/utils';
+import { TabsContent } from '../../components/ui';
 import type { Id } from '../../convex/_generated/dataModel';
 
 // Types
@@ -175,13 +174,6 @@ function AuthenticatedChatScreen() {
   const markAsRead = useMutation(api.chat.markTeamMessagesAsRead);
   const sendDirectMessage = useMutation(api.chat.sendDirectMessage);
   const markDMAsRead = useMutation(api.chat.markDMAsRead);
-
-  // Get current user ID (from messages)
-  const getCurrentUserId = useCallback(() => {
-    // We determine the current user by finding messages marked as own
-    // or by checking the senderClerkId against current auth
-    return null; // Will be determined from message data
-  }, []);
 
   // Mark messages as read when viewing a channel
   useEffect(() => {

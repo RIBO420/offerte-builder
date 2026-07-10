@@ -136,7 +136,7 @@ export function useAudioRecording(): UseAudioRecordingReturn {
         return false;
       }
       return true;
-    } catch (err) {
+    } catch {
       setError('Kon geen toegang krijgen tot de microfoon.');
       return false;
     }
