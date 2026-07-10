@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { PageHeader } from "@/components/page-header";
 import { useKlanten } from "@/hooks/use-klanten";
 import { api } from "../../../../../../convex/_generated/api";
 import type { Id } from "../../../../../../convex/_generated/dataModel";
@@ -74,14 +75,19 @@ export default function NieuweVrijeOffertePage() {
   };
 
   return (
-    <div className="mx-auto max-w-xl space-y-6 p-4 md:p-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Vrije offerte</h1>
-        <p className="text-muted-foreground">
-          Regel-editor: artikelen aanklikken of vrije regels typen, prijs en
-          marge per regel. Voor alles wat niet in een pakket past.
-        </p>
-      </div>
+    <>
+      <PageHeader />
+      <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
+            Vrije offerte
+          </h1>
+          <p className="text-muted-foreground">
+            Regel-editor: artikelen aanklikken of vrije regels typen, prijs en
+            marge per regel. Voor alles wat niet in een pakket past.
+          </p>
+        </div>
+        <div className="max-w-xl">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
@@ -148,8 +154,15 @@ export default function NieuweVrijeOffertePage() {
             )}
             Naar de regel-editor
           </Button>
+          {!klantId && !isLoading && (
+            <p className="text-center text-xs text-muted-foreground">
+              Kies eerst een klant om verder te gaan.
+            </p>
+          )}
         </CardContent>
       </Card>
-    </div>
+        </div>
+      </div>
+    </>
   );
 }
