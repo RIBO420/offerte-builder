@@ -12,7 +12,8 @@ import { describe, it, expect } from "vitest";
 
 /** Valid status transitions map (mirrors convex/facturen.ts updateStatus) */
 const VALID_STATUS_TRANSITIONS: Record<string, string[]> = {
-  concept: ["definitief"],
+  // §2.8: concept → verzonden mag sinds de "Te versturen"-wachtrij
+  concept: ["definitief", "verzonden"],
   definitief: ["concept", "verzonden"],
   verzonden: ["betaald", "vervallen"],
   betaald: [], // Final status
@@ -397,8 +398,8 @@ describe("Facturen - Status Transitions", () => {
     }
   });
 
-  it("rejects concept -> verzonden (must go via definitief)", () => {
-    expect(isValidStatusTransition("concept", "verzonden")).toBe(false);
+  it("allows concept -> verzonden (§2.8: versturen vanuit de wachtrij)", () => {
+    expect(isValidStatusTransition("concept", "verzonden")).toBe(true);
   });
 
   it("rejects concept -> betaald (skips steps)", () => {

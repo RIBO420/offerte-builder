@@ -2971,7 +2971,15 @@ export default defineSchema({
     .index("by_contract", ["contractId"])
     .index("by_contract_seizoen", ["contractId", "seizoen"]),
 
-  // ContractFacturen — invoice schedule per contract term
+  // ContractFacturen — termijnschema (UITSLUITEND facturatiemodus
+  // "vast_maandbedrag", §2.8 punt 6). Sinds de facturatie-engine is dit
+  // geen dead-end meer: de cron facturatieEngine.factureerContractTermijnen
+  // zet geplande termijnen om in concept-facturen, schrijft factuurId terug
+  // en zet de status door (gepland → gefactureerd → betaald via de
+  // betaal-kern in facturen.ts). Voor contracten met modus per_bezoek of
+  // maandelijks_verzameld worden GEEN termijnen meer aangemaakt — het
+  // beurten-spoor van de engine is daar het enige spoor (wederzijds
+  // exclusief; geen dubbele boekhouding).
   contractFacturen: defineTable({
     contractId: v.id("onderhoudscontracten"),
     factuurId: v.optional(v.id("facturen")),
