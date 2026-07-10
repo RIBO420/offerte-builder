@@ -427,7 +427,8 @@ export default defineSchema({
       v.literal("geopend"),
       v.literal("delivered"),
       v.literal("bounced"),
-      v.literal("complained")
+      v.literal("complained"),
+      v.literal("onderdrukt (sandbox)") // mailGuard: EMAIL_VERZENDEN_ACTIEF !== "true"
     ),
     resendId: v.optional(v.string()), // Resend message ID for tracking
     error: v.optional(v.string()),

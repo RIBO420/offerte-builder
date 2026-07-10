@@ -15,6 +15,11 @@ import { internalAction } from "./_generated/server";
 import type { ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
+import {
+  isEmailVerzendenActief,
+  SANDBOX_EMAIL_REDEN,
+  SANDBOX_EMAIL_STATUS,
+} from "./lib/mailGuard";
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
@@ -43,6 +48,14 @@ export const sendClerkInvitation = internalAction({
   },
   handler: async (_ctx, args) => {
     const redirectUrl = `${getPortalUrl()}/portaal/registreren?token=${args.token}`;
+
+    // Mail-sandbox-guard: Clerk stuurt bij notify:true zelf een e-mail.
+    if (!isEmailVerzendenActief()) {
+      console.warn(
+        `[portaalEmail/sendClerkInvitation] ${SANDBOX_EMAIL_STATUS}: uitnodiging naar ${args.email} niet verstuurd — ${SANDBOX_EMAIL_REDEN}`
+      );
+      return;
+    }
 
     const response = await fetch("https://api.clerk.com/v1/invitations", {
       method: "POST",
@@ -104,6 +117,15 @@ async function sendViaResend(params: {
   fromName: string;
   replyTo?: string;
 }): Promise<string | undefined> {
+  // Mail-sandbox-guard (fail-closed): zonder EMAIL_VERZENDEN_ACTIEF="true"
+  // wordt er niets naar Resend gestuurd, alleen gelogd.
+  if (!isEmailVerzendenActief()) {
+    console.warn(
+      `[portaalEmail] ${SANDBOX_EMAIL_STATUS}: "${params.subject}" naar ${params.to} niet verstuurd — ${SANDBOX_EMAIL_REDEN}`
+    );
+    return undefined;
+  }
+
   const resendApiKey = process.env.RESEND_API_KEY;
   if (!resendApiKey) {
     console.error("[portaalEmail] RESEND_API_KEY not configured — skipping send");

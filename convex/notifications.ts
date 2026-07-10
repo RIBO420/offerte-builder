@@ -21,6 +21,11 @@ import {
 import { internal } from "./_generated/api";
 import { Id, Doc } from "./_generated/dataModel";
 import { requireAuth } from "./auth";
+import {
+  isEmailVerzendenActief,
+  SANDBOX_EMAIL_REDEN,
+  SANDBOX_EMAIL_STATUS,
+} from "./lib/mailGuard";
 
 // ============ TYPES ============
 
@@ -300,6 +305,15 @@ export const sendExpoPushNotification = internalAction({
   handler: async (ctx, args) => {
     if (args.messages.length === 0) {
       return { success: true, tickets: [] };
+    }
+
+    // Push-sandbox-guard (fail-closed): zonder EMAIL_VERZENDEN_ACTIEF="true"
+    // gaan er geen echte pushberichten naar Expo.
+    if (!isEmailVerzendenActief()) {
+      console.warn(
+        `[notifications/sendExpoPushNotification] ${SANDBOX_EMAIL_STATUS}: ${args.messages.length} pushbericht(en) niet verstuurd — ${SANDBOX_EMAIL_REDEN}`
+      );
+      return { success: false, error: SANDBOX_EMAIL_STATUS, tickets: [] };
     }
 
     try {

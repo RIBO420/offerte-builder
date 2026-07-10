@@ -65,7 +65,12 @@ export function useEmail() {
         type: params.type,
         to: params.to,
         subject: result.subject || `Offerte ${params.offerteNummer}`,
-        status: result.success ? "verzonden" : "mislukt",
+        status:
+          result.status === "onderdrukt (sandbox)"
+            ? "onderdrukt (sandbox)"
+            : result.success
+              ? "verzonden"
+              : "mislukt",
         resendId: result.resendId,
         error: result.error,
         customMessage: params.customMessage,

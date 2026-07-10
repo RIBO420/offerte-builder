@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../../convex/_generated/api";
+import {
+  isEmailVerzendenActief,
+  SANDBOX_EMAIL_REDEN,
+  SANDBOX_EMAIL_STATUS,
+} from "../../../../convex/lib/mailGuard";
 import { Resend } from "resend";
 import { render } from "@react-email/components";
 import { OfferteEmail } from "@/components/email/offerte-email";
@@ -213,6 +218,19 @@ export async function POST(request: NextRequest) {
       const fromEmail =
         process.env.RESEND_FROM_EMAIL || "noreply@toptuinen.nl";
 
+      // Mail-sandbox-guard (fail-closed): zonder EMAIL_VERZENDEN_ACTIEF="true"
+      // wordt de bevestiging alleen gelogd, niet echt verstuurd.
+      if (!isEmailVerzendenActief()) {
+        console.warn(
+          `[emailLogs] bevestiging ${SANDBOX_EMAIL_STATUS}: naar ${to} niet verstuurd — ${SANDBOX_EMAIL_REDEN}`
+        );
+        return NextResponse.json({
+          success: true,
+          status: SANDBOX_EMAIL_STATUS,
+          subject,
+        });
+      }
+
       let resend: Resend;
       try {
         resend = getResendClient();
@@ -307,6 +325,19 @@ export async function POST(request: NextRequest) {
 
     // Send email via Resend
     const fromEmail = process.env.RESEND_FROM_EMAIL || "noreply@toptuinen.nl";
+
+    // Mail-sandbox-guard (fail-closed): zonder EMAIL_VERZENDEN_ACTIEF="true"
+    // wordt de offerte-mail alleen gelogd, niet echt verstuurd.
+    if (!isEmailVerzendenActief()) {
+      console.warn(
+        `[emailLogs] offerte-email ${SANDBOX_EMAIL_STATUS}: "${subject}" naar ${to} niet verstuurd — ${SANDBOX_EMAIL_REDEN}`
+      );
+      return NextResponse.json({
+        success: true,
+        status: SANDBOX_EMAIL_STATUS,
+        subject,
+      });
+    }
 
     let resend: Resend;
     try {

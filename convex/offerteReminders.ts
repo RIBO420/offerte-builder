@@ -27,6 +27,11 @@ import { Id } from "./_generated/dataModel";
 import { requireAuthUserId, getOwnedOfferte } from "./auth";
 import { requireNotViewer } from "./roles";
 import { DEFAULT_TEMPLATES } from "./emailTemplates";
+import {
+  isEmailVerzendenActief,
+  SANDBOX_EMAIL_REDEN,
+  SANDBOX_EMAIL_STATUS,
+} from "./lib/mailGuard";
 
 // ============ CONSTANTS ============
 
@@ -454,6 +459,31 @@ export const sendReminderEmail = internalAction({
 </html>`;
 
     // 7. Send via Resend API
+    // Mail-sandbox-guard (fail-closed): zonder EMAIL_VERZENDEN_ACTIEF="true"
+    // wordt de herinnering alleen gelogd, niet echt verstuurd.
+    if (!isEmailVerzendenActief()) {
+      console.warn(
+        `[offerteReminders/sendEmail] ${SANDBOX_EMAIL_STATUS}: herinnering naar ${args.klantEmail} niet verstuurd — ${SANDBOX_EMAIL_REDEN}`
+      );
+      await ctx.runMutation(internal.emailLogs.createInternal, {
+        offerteId: args.offerteId,
+        userId: args.userId,
+        type: "herinnering",
+        to: args.klantEmail,
+        subject: renderedOnderwerp,
+        status: SANDBOX_EMAIL_STATUS,
+        error: SANDBOX_EMAIL_REDEN,
+      });
+      await ctx.runMutation(
+        internal.offerteReminders.updateReminderEmailStatus,
+        {
+          reminderId: args.reminderId,
+          emailError: SANDBOX_EMAIL_STATUS,
+        }
+      );
+      return { success: false, error: "email_sandbox" };
+    }
+
     const resendApiKey = process.env.RESEND_API_KEY;
     if (!resendApiKey) {
       console.error(

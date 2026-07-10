@@ -49,7 +49,8 @@ export const create = mutation({
       v.literal("geopend"),
       v.literal("delivered"),
       v.literal("bounced"),
-      v.literal("complained")
+      v.literal("complained"),
+      v.literal("onderdrukt (sandbox)")
     ),
     resendId: v.optional(v.string()),
     error: v.optional(v.string()),
@@ -97,7 +98,8 @@ export const createInternal = internalMutation({
       v.literal("geopend"),
       v.literal("delivered"),
       v.literal("bounced"),
-      v.literal("complained")
+      v.literal("complained"),
+      v.literal("onderdrukt (sandbox)")
     ),
     resendId: v.optional(v.string()),
     error: v.optional(v.string()),
