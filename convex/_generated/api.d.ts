@@ -33,6 +33,8 @@ import type * as crons from "../crons.js";
 import type * as dagkaart from "../dagkaart.js";
 import type * as dagkaartLogica from "../dagkaartLogica.js";
 import type * as dashboard from "../dashboard.js";
+import type * as debiteuren from "../debiteuren.js";
+import type * as debiteurenLogica from "../debiteurenLogica.js";
 import type * as emailLogs from "../emailLogs.js";
 import type * as emailTemplates from "../emailTemplates.js";
 import type * as export_ from "../export.js";
@@ -156,6 +158,8 @@ declare const fullApi: ApiFromModules<{
   dagkaart: typeof dagkaart;
   dagkaartLogica: typeof dagkaartLogica;
   dashboard: typeof dashboard;
+  debiteuren: typeof debiteuren;
+  debiteurenLogica: typeof debiteurenLogica;
   emailLogs: typeof emailLogs;
   emailTemplates: typeof emailTemplates;
   export: typeof export_;

@@ -5,10 +5,18 @@
  * - Herinneringen: friendly reminders at configurable intervals (default 7, 14, 21 days)
  * - Aanmaningen: formal collection letters at configurable intervals (default 30, 45, 60 days)
  *   1e aanmaning (friendly), 2e aanmaning (formal), ingebrekestelling (legal)
+ *
+ * FASE 2 (PRD §3.2): het AUTOMATISCHE pad (processAutomatischeHerinneringen
+ * + de bijbehorende cron) is VERVANGEN door de debiteurenladder in
+ * convex/debiteuren.ts — één bron van waarheid, dus hier geen cron meer.
+ * De handmatige mutations (verstuurHandmatig/verstuurAanmaning) blijven
+ * bestaan voor kantoor; hun records tellen in de ladder mee als afgedekte
+ * treden (tredeNiveauVanRecord in debiteurenLogica.ts), zodat de ladder
+ * nooit dubbelt met wat kantoor al verstuurde.
  */
 
 import { v, ConvexError } from "convex/values";
-import { mutation, query, internalMutation } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
 import { requireNotViewer } from "./roles";
 
@@ -30,9 +38,11 @@ function determineType(
  */
 export const typeLabels: Record<string, string> = {
   herinnering: "Betalingsherinnering",
+  tweede_herinnering: "Tweede herinnering",
   eerste_aanmaning: "1e Aanmaning",
   tweede_aanmaning: "2e Aanmaning",
   ingebrekestelling: "Ingebrekestelling",
+  interne_taak: "Interne taak (bellen/aanmaning)",
 };
 
 /**
@@ -330,96 +340,7 @@ export const getAanmaningStatus = query({
   },
 });
 
-/**
- * Internal mutation: Process automatic reminders for all overdue invoices.
- * Called by the daily cron job.
- */
-export const processAutomatischeHerinneringen = internalMutation({
-  args: {},
-  handler: async (ctx) => {
-    const now = Date.now();
-    let verwerkt = 0;
-
-    // Get all verzonden facturen that are overdue
-    const verzondenFacturen = await ctx.db
-      .query("facturen")
-      .withIndex("by_status", (q) => q.eq("status", "verzonden"))
-      .collect();
-
-    const vervallenFacturen = await ctx.db
-      .query("facturen")
-      .withIndex("by_status", (q) => q.eq("status", "vervallen"))
-      .collect();
-
-    const overdueFacturen = [...verzondenFacturen, ...vervallenFacturen].filter(
-      (f) => now > f.vervaldatum && !f.isCreditnota
-    );
-
-    for (const factuur of overdueFacturen) {
-      const dagenVervallen = Math.floor((now - factuur.vervaldatum) / (24 * 60 * 60 * 1000));
-
-      // Get user's instellingen
-      const instellingen = await ctx.db
-        .query("instellingen")
-        .withIndex("by_user", (q) => q.eq("userId", factuur.userId))
-        .unique();
-
-      if (!instellingen?.herinneringInstellingen?.automatischVersturen) {
-        continue; // Skip if automatic sending is not enabled
-      }
-
-      const herinneringDagen = instellingen.herinneringInstellingen.herinneringDagen ?? [7, 14, 21];
-      const aanmaningDagen = instellingen.herinneringInstellingen.aanmaningDagen ?? [30, 45, 60];
-      const alleDagen = [...herinneringDagen, ...aanmaningDagen].sort((a, b) => a - b);
-
-      // Get existing herinneringen for this factuur
-      const bestaande = await ctx.db
-        .query("betalingsherinneringen")
-        .withIndex("by_factuur", (q) => q.eq("factuurId", factuur._id))
-        .collect();
-
-      // Check if we should send a new herinnering at this point
-      // Find the highest threshold that has been crossed
-      const toepasselijkeDagen = alleDagen.filter((d) => dagenVervallen >= d);
-      if (toepasselijkeDagen.length === 0) continue;
-
-      // Check if we already sent for the latest applicable threshold
-      const laatsteDag = toepasselijkeDagen[toepasselijkeDagen.length - 1];
-      const alVerstuurd = bestaande.some((h) => {
-        // Check if a herinnering was already sent for approximately this threshold
-        const threshold = alleDagen.find((d) => Math.abs(h.dagenVervallen - d) <= 2);
-        return threshold === laatsteDag;
-      });
-
-      if (alVerstuurd) continue;
-
-      // Determine type
-      const type = determineType(dagenVervallen, aanmaningDagen);
-      const volgnummer = bestaande.filter((h) => h.type === type).length + 1;
-
-      // Create the herinnering record
-      await ctx.db.insert("betalingsherinneringen", {
-        factuurId: factuur._id,
-        userId: factuur.userId,
-        type,
-        volgnummer,
-        dagenVervallen,
-        verstuurdAt: now,
-        emailVerstuurd: true,
-        notities: `Automatisch verstuurd na ${dagenVervallen} dagen`,
-      });
-
-      // Update factuur status to vervallen if still verzonden
-      if (factuur.status === "verzonden") {
-        await ctx.db.patch(factuur._id, {
-          status: "vervallen",
-          updatedAt: now,
-        });
-      }
-
-      verwerkt++;
-    }
-
-    return { verwerkt };
-  },
-});
+// processAutomatischeHerinneringen is verwijderd (fase 2, PRD §3.2): het
+// automatische pad loopt nu via de debiteurenladder-cron in
+// convex/debiteuren.ts (verwerkLadder). Bestaande records in deze tabel
+// blijven gewoon leesbaar en tellen in de ladder mee als afgedekte treden.

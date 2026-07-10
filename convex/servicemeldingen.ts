@@ -408,7 +408,13 @@ export const getKanbanData = query({
 export const getBord = query({
   args: {
     mijnCases: v.optional(v.boolean()),
-    taaksoort: v.optional(v.union(v.literal("melding"), v.literal("plantaak"))),
+    taaksoort: v.optional(
+      v.union(
+        v.literal("melding"),
+        v.literal("plantaak"),
+        v.literal("debiteurentaak")
+      )
+    ),
   },
   handler: async (ctx, args) => {
     const user = await requireInterneRol(ctx);

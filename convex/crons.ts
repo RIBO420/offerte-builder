@@ -36,18 +36,23 @@ crons.daily(
 );
 
 /**
- * Daily Payment Reminders & Collection Letters (FAC-006, FAC-007)
+ * Debiteurenladder verwerken (PRD §3.2, fase 2)
  *
- * Runs at 8:00 AM UTC every day to:
- * - Check for overdue invoices
- * - Send automatic payment reminders (7, 14, 21 days)
- * - Generate collection letters (30, 45, 60 days)
- * - Only processes invoices where automatischVersturen is enabled
+ * Draait elke ochtend om 08:00 UTC en vervangt het oude
+ * processAutomatischeHerinneringen-pad (FAC-006/007). Per openstaande,
+ * verzonden factuur wordt hooguit één vervallen trede uitgevoerd:
+ * - mail-trede (default dag 14/21): herinneringsmail als CONCEPT in de
+ *   goedkeurings-wachtrij (§2.7) — kantoor keurt goed; een trede kan via
+ *   het trigger-record op "automatisch" (blijft achter de mail-guard);
+ * - taak-trede (default dag 28): interne kantoor-taak "bellen/aanmaning"
+ *   op het cases-bord (taaksoort "debiteurentaak").
+ * Idempotent per factuur+trede; gepauzeerde facturen worden overgeslagen;
+ * elke trede logt op de klanttijdlijn.
  */
 crons.daily(
-  "betalingsherinneringen verwerken",
+  "debiteurenladder verwerken",
   { hourUTC: 8, minuteUTC: 0 },
-  internal.betalingsherinneringen.processAutomatischeHerinneringen
+  internal.debiteuren.verwerkLadder
 );
 
 /**
