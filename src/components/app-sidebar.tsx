@@ -31,6 +31,7 @@ import {
 import {
   Archive,
   FileText,
+  HardHat,
   Home,
   BookOpen,
   Trees,
@@ -72,6 +73,9 @@ import { api } from "../../convex/_generated/api";
 // Sidebar: Werk group - daily operational items
 const werkItems = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
+  // PRD §2.6: veld-weergave (voorman/medewerker) — eigen dag, segmenten
+  // bevestigen, taken afronden, meerwerk en route-knop met materiaaldelta
+  { title: "Mijn dag", url: "/veld", icon: HardHat },
   // PRD §1.3: Leads (funnel, kanban-bord) en Klanten (bestaande klanten)
   // zijn twee aparte menu-items met elk een eigen teller-badge
   { title: "Leads", url: "/leads", icon: UserPlus },
@@ -185,7 +189,7 @@ export function AppSidebar() {
     }
     if (role === "voorman") {
       return werkItems.filter((item) =>
-        ["Dashboard", "Projecten", "Planning", "Meldingen", "Uren", "Chat"].includes(item.title)
+        ["Dashboard", "Mijn dag", "Projecten", "Planning", "Meldingen", "Uren", "Chat"].includes(item.title)
       );
     }
     if (role === "materiaalman") {
@@ -200,7 +204,7 @@ export function AppSidebar() {
     }
     if (role === "medewerker") {
       return werkItems.filter((item) =>
-        ["Dashboard", "Meldingen", "Uren", "Chat"].includes(item.title)
+        ["Dashboard", "Mijn dag", "Meldingen", "Uren", "Chat"].includes(item.title)
       );
     }
     // klant/viewer

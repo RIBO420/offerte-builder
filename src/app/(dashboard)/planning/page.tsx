@@ -27,7 +27,11 @@ import {
 } from "lucide-react";
 import { PlanningPageSkeleton } from "@/components/ui/skeleton-card";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { useIsAdmin } from "@/hooks/use-users";
+import { useIsAdmin, useIsKantoor } from "@/hooks/use-users";
+import {
+  MeerwerkBeoordeling,
+  WieIsAchterWidget,
+} from "@/components/planning/wie-is-achter-widget";
 import { MaandKalender } from "@/components/planning/maand-kalender";
 import { KwartaalOverzicht } from "@/components/planning/kwartaal-overzicht";
 import { JaarOverzicht } from "@/components/planning/jaar-overzicht";
@@ -257,6 +261,7 @@ function PlanningPageLoader() {
 function PlanningPageContent() {
   const { user, isLoading: isUserLoading } = useCurrentUser();
   const isAdmin = useIsAdmin();
+  const isKantoor = useIsKantoor();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -448,6 +453,14 @@ function PlanningPageContent() {
             </TabsList>
           </Tabs>
         </m.div>
+
+        {/* Veld-rol §2.6 (kantoor): "Wie is achter" + meerwerk-beoordeling */}
+        {isKantoor && (
+          <div className="grid gap-4 lg:grid-cols-2">
+            <WieIsAchterWidget />
+            <MeerwerkBeoordeling />
+          </div>
+        )}
 
         {/* View content */}
         {currentView === "week" && (
