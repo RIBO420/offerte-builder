@@ -37,6 +37,7 @@ import {
   DeleteDialog,
   StatusChangeDialog,
 } from "./components";
+import { KoppelWerkitemsDialog } from "./components/koppel-werkitems-dialog";
 
 export default function OfferteDetailPage({
   params,
@@ -71,6 +72,13 @@ export default function OfferteDetailPage({
     offerte ? { offerteId: id as Id<"offertes"> } : "skip"
   );
 
+  // Acceptatie-informatie (PRD §2.5): moet kantoor eerst werkitems koppelen?
+  const acceptatieInfo = useQuery(
+    api.vrijeOfferte.acceptatieInfo,
+    offerte ? { id: id as Id<"offertes"> } : "skip"
+  );
+  const [showKoppelDialog, setShowKoppelDialog] = useState(false);
+
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -89,7 +97,37 @@ export default function OfferteDetailPage({
     newStatus: "concept" | "voorcalculatie" | "verzonden" | "geaccepteerd" | "afgewezen"
   ) => {
     if (!offerte) return;
+    // PRD §2.5: geen acceptatie zonder werkitem — koppel-dialoog eerst
+    if (newStatus === "geaccepteerd" && acceptatieInfo?.koppelingNodig) {
+      setShowKoppelDialog(true);
+      return;
+    }
     setStatusChangeConfirm({ open: true, targetStatus: newStatus });
+  };
+
+  // Na de koppel-dialoog: werkitems bestaan, acceptatie kan door
+  const accepteerNaKoppeling = async () => {
+    if (!offerte) return;
+    setOptimisticStatus("geaccepteerd");
+    setIsUpdating(true);
+    try {
+      await updateStatus({ id: offerte._id, status: "geaccepteerd" });
+      setOptimisticStatus(null);
+      toast.success("Werkitems gekoppeld en offerte geaccepteerd");
+    } catch (error) {
+      setOptimisticStatus(null);
+      const convexData = (error as { data?: string })?.data;
+      toast.error(
+        typeof convexData === "string"
+          ? convexData
+          : error instanceof Error
+            ? error.message
+            : "Fout bij accepteren"
+      );
+      throw error;
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   const confirmStatusChange = async () => {
@@ -334,6 +372,14 @@ export default function OfferteDetailPage({
         currentStatus={offerte.status}
         targetStatus={statusChangeConfirm.targetStatus}
         onConfirm={confirmStatusChange}
+      />
+
+      {/* Koppel-dialoog bij acceptatie zonder keten-uitgang (PRD §2.5) */}
+      <KoppelWerkitemsDialog
+        open={showKoppelDialog}
+        onOpenChange={setShowKoppelDialog}
+        offerte={offerte}
+        onGekoppeld={accepteerNaKoppeling}
       />
 
       {/* Save as template dialog */}
