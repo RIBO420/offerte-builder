@@ -154,17 +154,6 @@ export {
   CommandShortcut,
 } from "./command";
 
-// Breadcrumb
-export {
-  Breadcrumb,
-  BreadcrumbEllipsis,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "./breadcrumb";
-
 // Scroll Area
 export { ScrollArea, ScrollBar } from "./scroll-area";
 
@@ -227,7 +216,6 @@ export {
 export { StatusBadge } from "./status-badge";
 export { ScopeTag } from "./scope-tag";
 export { EmptyState } from "./empty-state";
-export { TrendIndicator } from "./trend-indicator";
 export { MargeIndicator } from "./marge-indicator";
 
 // Data Display
@@ -236,12 +224,9 @@ export { PriceDisplay } from "./price-display";
 export { Sparkline } from "./sparkline";
 export { DonutChart, DonutChartWithLegend, MiniDonut } from "./donut-chart";
 export { PriceBreakdownChart } from "./price-breakdown-chart";
-export { DataCard } from "./data-card";
 
 // Forms & Input
 export { NumberInput } from "./number-input";
-export { FormFieldFeedback } from "./form-field-feedback";
-export { FormSection } from "./form-section";
 export { SignaturePadComponent as SignaturePad } from "./signature-pad";
 
 // Navigation & Layout
@@ -258,19 +243,8 @@ export { SkipLink } from "./skip-link";
 // Re-export page transitions from parent components folder
 // Note: PageTransition, ContentTransition, FadeIn are in @/components/page-transition
 
-// Typography
-export {
-  Heading,
-  Text,
-  Caption,
-  TextLabel,
-  headingVariants,
-  textVariants,
-} from "./typography";
-
 // Types - Re-export important types
 export type { OfflineIndicatorProps } from "./offline-indicator";
 export type { DonutSegment, DonutChartProps, DonutChartWithLegendProps, MiniDonutProps } from "./donut-chart";
-export type { HeadingProps, TextProps, CaptionProps, TextLabelProps } from "./typography";
 export type { StatusBadgeProps, StatusDotProps } from "./status-badge";
 export type { EmptyStateProps, EmptyStateAction } from "./empty-state";
