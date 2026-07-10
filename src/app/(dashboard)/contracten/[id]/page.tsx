@@ -60,10 +60,23 @@ import {
   Loader2,
   AlertCircle,
   FileText,
+  Send,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { useIsKantoor } from "@/hooks/use-users";
 import { usePdfTheme } from "@/hooks/use-pdf-theme";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -123,6 +136,93 @@ const facturatiemodusLabels: Record<string, string> = {
   maandelijks_verzameld: "Maandelijkse verzamelfactuur",
   vast_maandbedrag: "Vast maandbedrag",
 };
+
+// ── Direct versturen zonder check (PRD §2.8) ─────────────────────────
+
+/**
+ * Toggle "direct versturen zonder check": engine-facturen van dit contract
+ * slaan de "Te versturen"-wachtrij over. Default UIT (human-in-the-loop);
+ * aanzetten vraagt expliciete bevestiging — één verkeerde automatische
+ * factuur kost een creditnota en klantvertrouwen. Alleen kantoor (de
+ * server dwingt dit af via assertKanNaarKlantVersturen).
+ */
+function DirectVersturenToggle({
+  contractId,
+  directVersturen,
+}: {
+  contractId: Id<"onderhoudscontracten">;
+  directVersturen: boolean;
+}) {
+  const zetDirectVersturen = useMutation(api.facturatieEngine.zetDirectVersturen);
+  const [bevestigingOpen, setBevestigingOpen] = useState(false);
+
+  const zetToggle = async (waarde: boolean) => {
+    try {
+      await zetDirectVersturen({ contractId, directVersturen: waarde });
+      toast.success(
+        waarde
+          ? "Direct versturen AAN — facturen van dit contract gaan zonder check de deur uit"
+          : "Direct versturen uit — facturen wachten weer op de laatste check"
+      );
+    } catch {
+      toast.error("Instelling wijzigen mislukt (alleen kantoor mag dit)");
+    }
+  };
+
+  return (
+    <div className="flex items-start gap-3">
+      <Send className="h-4 w-4 mt-0.5 text-muted-foreground" />
+      <div className="flex-1">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm font-medium">Direct versturen zonder check</p>
+          <Switch
+            checked={directVersturen}
+            aria-label="Direct versturen zonder check"
+            onCheckedChange={(checked) => {
+              if (checked) {
+                setBevestigingOpen(true); // bewuste drempel (§2.8)
+              } else {
+                void zetToggle(false);
+              }
+            }}
+          />
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {directVersturen
+            ? "Engine-facturen van dit contract worden automatisch verzonden (mail achter de mail-guard)."
+            : "Uit (aanbevolen): concept-facturen wachten in “Te versturen” op de laatste check door kantoor."}
+        </p>
+        <AlertDialog open={bevestigingOpen} onOpenChange={setBevestigingOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                Facturen automatisch versturen?
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                Facturen uit de facturatie-engine voor dit contract worden dan
+                ZONDER menselijke check direct naar de klant verstuurd. Eén
+                verkeerde automatische factuur kost een creditnota en
+                klantvertrouwen. Zet dit alleen aan voor contracten waar je de
+                facturatie volledig vertrouwt.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annuleren</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  setBevestigingOpen(false);
+                  void zetToggle(true);
+                }}
+              >
+                Ja, direct versturen
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    </div>
+  );
+}
 
 const MAAND_KORT = [
   "jan", "feb", "mrt", "apr", "mei", "jun",
@@ -355,6 +455,9 @@ function ContractDetailContent() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showRenewDialog, setShowRenewDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+
+  // §2.8: directVersturen-toggle is kantoor-functionaliteit
+  const isKantoor = useIsKantoor();
 
   // Add werkzaamheid form state
   const [newWerk, setNewWerk] = useState({
@@ -968,6 +1071,13 @@ function ContractDetailContent() {
                     </p>
                   </div>
                 </div>
+                {/* §2.8: toggle alleen voor kantoor zichtbaar */}
+                {isKantoor && (
+                  <DirectVersturenToggle
+                    contractId={contract._id}
+                    directVersturen={contract.directVersturen === true}
+                  />
+                )}
                 {contract.indexatieVanToepassing && (
                   <div className="flex items-start gap-3">
                     <RefreshCcw className="h-4 w-4 mt-0.5 text-muted-foreground" />

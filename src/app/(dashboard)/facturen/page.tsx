@@ -27,6 +27,7 @@ import {
   MinusCircle,
   Bell,
   AlertTriangle,
+  FilePlus2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -38,8 +39,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ScrollableTable } from "@/components/ui/responsive-table";
-import { useQuery } from "convex/react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { toast } from "sonner";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
+import type { Id } from "../../../../convex/_generated/dataModel";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useIsKantoor } from "@/hooks/use-users";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -77,9 +81,47 @@ const statusConfig = {
     icon: AlertCircle,
     color: "bg-red-200 text-red-800 dark:bg-red-900 dark:text-red-200",
   },
+  // §2.8 statussplitsing: deelbetaling zichtbaar in de lijst
+  gedeeltelijk_betaald: {
+    label: "Deels betaald",
+    icon: Clock,
+    color: "bg-teal-200 text-teal-800 dark:bg-teal-900 dark:text-teal-200",
+  },
 };
 
 type FactuurStatus = keyof typeof statusConfig;
+
+/**
+ * Weergavestatus op basis van de gesplitste statussen (§2.8):
+ * documentketen tot en met "verzonden", daarna wint de betaalketen.
+ * Valt terug op het legacy status-veld voor ongemigreerde rijen.
+ */
+function weergaveStatus(factuur: {
+  status: string;
+  documentStatus?: "concept" | "definitief" | "verzonden";
+  betaalStatus?:
+    | "open"
+    | "gedeeltelijk_betaald"
+    | "betaald"
+    | "vervallen"
+    | "geannuleerd";
+}): FactuurStatus {
+  const doc = factuur.documentStatus;
+  const betaal = factuur.betaalStatus;
+  if (!doc || !betaal) return factuur.status as FactuurStatus;
+  if (doc !== "verzonden") return doc;
+  switch (betaal) {
+    case "betaald":
+      return "betaald";
+    case "gedeeltelijk_betaald":
+      return "gedeeltelijk_betaald";
+    case "vervallen":
+    case "geannuleerd":
+      return "vervallen";
+    default:
+      return "verzonden";
+  }
+}
 
 const dateFormatter = new Intl.DateTimeFormat("nl-NL", {
   day: "numeric",
@@ -133,6 +175,11 @@ function FacturenPageContent() {
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [activeTab, setActiveTab] = useState("alle");
 
+  // "Te versturen"-wachtrij (§2.8): bulk-selectie + verstuur
+  const [geselecteerd, setGeselecteerd] = useState<Set<string>>(new Set());
+  const [isVersturen, setIsVersturen] = useState(false);
+  const bulkVerstuur = useMutation(api.facturen.bulkVerstuur);
+
   // Cursor-based pagination state
   const [cursor, setCursor] = useState<string | undefined>(undefined);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -173,7 +220,6 @@ function FacturenPageContent() {
   const isLoading = isUserLoading || paginatedData === undefined;
 
   // Calculate stats from facturen
-  /* eslint-disable react-hooks/purity -- Date.now() needed for expiry check */
   const stats = useMemo(() => {
     if (!facturen) {
       return {
@@ -203,7 +249,9 @@ function FacturenPageContent() {
     };
 
     facturen.forEach((factuur) => {
-      counts[factuur.status as FactuurStatus]++;
+      // Legacy status-veld (dual-write §2.8) kent geen gedeeltelijk_betaald;
+      // die facturen tellen als "verzonden" in de tab-tellingen.
+      counts[factuur.status as Exclude<FactuurStatus, "gedeeltelijk_betaald">]++;
 
       // Total revenue from paid invoices (creditnota's have negative amounts, so they reduce revenue)
       if (factuur.status === "betaald") {
@@ -232,7 +280,6 @@ function FacturenPageContent() {
 
     return counts;
   }, [facturen]);
-  /* eslint-enable react-hooks/purity */
 
   // Accumulate items across cursor pages
   const allItems = useMemo(() => {
@@ -268,14 +315,52 @@ function FacturenPageContent() {
     setActiveTab(newTab);
     setCursor(undefined);
     setPreviousItems([]);
+    setGeselecteerd(new Set());
   }, []);
 
   const handleNavigate = useCallback(
-    (projectId: string) => {
-      router.push(`/projecten/${projectId}/factuur`);
+    (projectId: string | undefined) => {
+      // Losse facturen (§2.8) hebben geen project(pagina)
+      if (projectId) router.push(`/projecten/${projectId}/factuur`);
     },
     [router]
   );
+
+  // Wachtrij-modus: op de "Te versturen"-tab is bulk-selectie actief (§2.8)
+  const isWachtrijTab = activeTab === "concept";
+
+  const toggleSelectie = useCallback((id: string) => {
+    setGeselecteerd((huidig) => {
+      const volgende = new Set(huidig);
+      if (volgende.has(id)) {
+        volgende.delete(id);
+      } else {
+        volgende.add(id);
+      }
+      return volgende;
+    });
+  }, []);
+
+  const handleBulkVerstuur = useCallback(async () => {
+    if (geselecteerd.size === 0 || isVersturen) return;
+    setIsVersturen(true);
+    try {
+      const resultaat = await bulkVerstuur({
+        ids: [...geselecteerd] as Id<"facturen">[],
+      });
+      toast.success(
+        `${resultaat.verstuurd} ${resultaat.verstuurd === 1 ? "factuur" : "facturen"} verstuurd` +
+          (resultaat.overgeslagen.length > 0
+            ? ` (${resultaat.overgeslagen.length} overgeslagen)`
+            : "")
+      );
+      setGeselecteerd(new Set());
+    } catch {
+      toast.error("Versturen mislukt — controleer de facturen en probeer opnieuw");
+    } finally {
+      setIsVersturen(false);
+    }
+  }, [geselecteerd, isVersturen, bulkVerstuur]);
 
   // Check if vervaldatum is in the past (verzonden or vervallen status)
   const isOverdue = useCallback((vervaldatum: number, status: string) => {
@@ -310,15 +395,23 @@ function FacturenPageContent() {
               Overzicht van al je facturen en betalingen
             </p>
           </div>
-          {isKantoor && (
-            <ExportDropdown
-              getData={() => exportData ?? []}
-              columns={facturenExportColumns}
-              filename="facturen"
-              sheetName="Facturen"
-              disabled={!exportData || exportData.length === 0}
-            />
-          )}
+          <div className="flex items-center gap-2">
+            {isKantoor && (
+              <Button onClick={() => router.push("/facturen/nieuw")}>
+                <FilePlus2 className="h-4 w-4 mr-2" />
+                Nieuwe factuur
+              </Button>
+            )}
+            {isKantoor && (
+              <ExportDropdown
+                getData={() => exportData ?? []}
+                columns={facturenExportColumns}
+                filename="facturen"
+                sheetName="Facturen"
+                disabled={!exportData || exportData.length === 0}
+              />
+            )}
+          </div>
         </m.div>
 
         {/* Stats Summary */}
@@ -443,8 +536,10 @@ function FacturenPageContent() {
                   {stats.totaal}
                 </Badge>
               </TabsTrigger>
+              {/* §2.8: concepten (uit de engine, projecten of losse facturen)
+                  zijn de "Te versturen"-wachtrij — kantoor checkt en verstuurt */}
               <TabsTrigger value="concept">
-                Concept
+                Te versturen
                 {stats.concept > 0 && (
                   <Badge variant="secondary" className="ml-2">
                     {stats.concept}
@@ -486,6 +581,45 @@ function FacturenPageContent() {
             </TabsList>
 
             <TabsContent value={activeTab} className="space-y-6">
+              {/* Bulk-verstuur vanuit de wachtrij (§2.8) — alleen kantoor */}
+              {isWachtrijTab && isKantoor && displayedFacturen.length > 0 && (
+                <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/40 px-4 py-3">
+                  <Checkbox
+                    id="selecteer-alles"
+                    checked={
+                      geselecteerd.size > 0 &&
+                      geselecteerd.size === displayedFacturen.length
+                    }
+                    onCheckedChange={(checked) =>
+                      setGeselecteerd(
+                        checked
+                          ? new Set(displayedFacturen.map((f) => f._id as string))
+                          : new Set()
+                      )
+                    }
+                  />
+                  <label
+                    htmlFor="selecteer-alles"
+                    className="text-sm text-muted-foreground cursor-pointer"
+                  >
+                    Alles selecteren
+                  </label>
+                  <Button
+                    size="sm"
+                    onClick={handleBulkVerstuur}
+                    disabled={geselecteerd.size === 0 || isVersturen}
+                  >
+                    <Send className="h-4 w-4 mr-2" />
+                    {isVersturen
+                      ? "Bezig met versturen…"
+                      : `Verstuur geselecteerde (${geselecteerd.size})`}
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    Laatste check vóór verzending — de klant ontvangt de factuur
+                    per e-mail.
+                  </p>
+                </div>
+              )}
               <AnimatePresence mode="wait">
                 {isLoading ? (
                   <m.div
@@ -541,6 +675,9 @@ function FacturenPageContent() {
                         <Table>
                           <TableHeader>
                             <TableRow>
+                              {isWachtrijTab && isKantoor && (
+                                <TableHead className="w-10" aria-label="Selecteer" />
+                              )}
                               <TableHead>Factuurnummer</TableHead>
                               <TableHead>Klant</TableHead>
                               <TableHead>Type</TableHead>
@@ -558,9 +695,23 @@ function FacturenPageContent() {
                               return (
                               <TableRow
                                 key={factuur._id}
-                                className={`cursor-pointer hover:bg-muted/50 ${isCreditnota ? "bg-red-50/50 dark:bg-red-950/20" : ""}`}
+                                className={`${factuur.projectId ? "cursor-pointer" : ""} hover:bg-muted/50 ${isCreditnota ? "bg-red-50/50 dark:bg-red-950/20" : ""}`}
                                 onClick={() => handleNavigate(factuur.projectId)}
                               >
+                                {isWachtrijTab && isKantoor && (
+                                  <TableCell
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="w-10"
+                                  >
+                                    <Checkbox
+                                      aria-label={`Selecteer ${factuur.factuurnummer}`}
+                                      checked={geselecteerd.has(factuur._id)}
+                                      onCheckedChange={() =>
+                                        toggleSelectie(factuur._id)
+                                      }
+                                    />
+                                  </TableCell>
+                                )}
                                 <TableCell>
                                   <div className="flex items-center gap-3">
                                     <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${
@@ -658,9 +809,7 @@ function FacturenPageContent() {
                                   })()}
                                 </TableCell>
                                 <TableCell>
-                                  <StatusBadge
-                                    status={factuur.status as FactuurStatus}
-                                  />
+                                  <StatusBadge status={weergaveStatus(factuur)} />
                                 </TableCell>
                               </TableRow>
                               );

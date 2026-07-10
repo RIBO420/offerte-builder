@@ -49,6 +49,13 @@ interface Factuur {
   subtotaal: number;
   btwPercentage: number;
   btw: number;
+  // Btw-uitsplitsing per tarief (PRD §2.8 punt 4): indien aanwezig toont de
+  // PDF "btw 9%" en "btw 21%" apart in plaats van één btw-regel
+  btwUitsplitsing?: Array<{
+    percentage: number;
+    grondslag: number;
+    bedrag: number;
+  }>;
   totaalInclBtw: number;
   betaalInstructies?: string;
   notities?: string;
@@ -639,12 +646,26 @@ export function FactuurPDF({ factuur, bedrijfsgegevens, theme, voorwaarden }: Fa
               </Text>
             </View>
           )}
-          <View style={styles.totalsRow}>
-            <Text style={styles.totalsLabel}>
-              BTW ({factuur.btwPercentage}%):
-            </Text>
-            <Text style={styles.totalsValue}>{formatCurrency(factuur.btw)}</Text>
-          </View>
+          {factuur.btwUitsplitsing && factuur.btwUitsplitsing.length > 0 ? (
+            factuur.btwUitsplitsing.map((uitsplitsing) => (
+              <View style={styles.totalsRow} key={uitsplitsing.percentage}>
+                <Text style={styles.totalsLabel}>
+                  BTW {uitsplitsing.percentage}% (over{" "}
+                  {formatCurrency(uitsplitsing.grondslag)}):
+                </Text>
+                <Text style={styles.totalsValue}>
+                  {formatCurrency(uitsplitsing.bedrag)}
+                </Text>
+              </View>
+            ))
+          ) : (
+            <View style={styles.totalsRow}>
+              <Text style={styles.totalsLabel}>
+                BTW ({factuur.btwPercentage}%):
+              </Text>
+              <Text style={styles.totalsValue}>{formatCurrency(factuur.btw)}</Text>
+            </View>
+          )}
           <View style={styles.totalsDivider} />
           <View style={styles.totalsFinalRow}>
             <Text style={styles.totalsFinalLabel}>Totaal incl. BTW:</Text>

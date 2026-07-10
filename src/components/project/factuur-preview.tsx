@@ -54,6 +54,12 @@ export interface FactuurData {
   subtotaal: number;
   btwPercentage: number;
   btw: number;
+  // Btw-uitsplitsing per tarief (PRD §2.8 punt 4)
+  btwUitsplitsing?: Array<{
+    percentage: number;
+    grondslag: number;
+    bedrag: number;
+  }>;
   totaal: number;
   betalingstermijn?: number; // days
   notities?: string;
@@ -294,12 +300,27 @@ export const FactuurPreview = memo(function FactuurPreview({
                 </span>
               </div>
             )}
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">
-                BTW ({factuur.btwPercentage}%):
-              </span>
-              <span>{formatCurrency(factuur.btw)}</span>
-            </div>
+            {factuur.btwUitsplitsing && factuur.btwUitsplitsing.length > 0 ? (
+              factuur.btwUitsplitsing.map((uitsplitsing) => (
+                <div
+                  className="flex justify-between text-sm"
+                  key={uitsplitsing.percentage}
+                >
+                  <span className="text-muted-foreground">
+                    BTW {uitsplitsing.percentage}% (over{" "}
+                    {formatCurrency(uitsplitsing.grondslag)}):
+                  </span>
+                  <span>{formatCurrency(uitsplitsing.bedrag)}</span>
+                </div>
+              ))
+            ) : (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">
+                  BTW ({factuur.btwPercentage}%):
+                </span>
+                <span>{formatCurrency(factuur.btw)}</span>
+              </div>
+            )}
             <Separator />
             <div className="flex justify-between text-lg font-bold">
               <span>Totaal:</span>

@@ -224,6 +224,8 @@ export function useFactuurHandlers(
       subtotaal: factuur.subtotaal,
       btwPercentage: factuur.btwPercentage,
       btw: factuur.btwBedrag,
+      // Btw-uitsplitsing per tarief (PRD §2.8 punt 4) — PDF toont 9/21 apart
+      btwUitsplitsing: factuur.btwUitsplitsing,
       totaalInclBtw: factuur.totaalInclBtw,
       notities: factuur.notities,
     };
