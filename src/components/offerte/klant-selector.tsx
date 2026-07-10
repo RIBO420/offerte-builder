@@ -130,6 +130,7 @@ export function KlantSelector({
         email: initialLead.klantEmail || "",
         telefoon: initialLead.klantTelefoon || "",
       });
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- eenmalige prefill vanuit async geladen lead-data
       setSelectedLeadId(initialLeadId);
       onLeadSelect?.(initialLeadId);
 

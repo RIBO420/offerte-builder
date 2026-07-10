@@ -42,6 +42,58 @@ const eslintConfig = defineConfig([
           ignoreRestSiblings: true,
         },
       ],
+      // React Compiler-diagnostiek: react-hook-form staat op de lijst van
+      // incompatibele libraries; de melding is informatief (compilatie wordt
+      // overgeslagen) en niet oplosbaar zonder van formulierbibliotheek te
+      // wisselen.
+      "react-hooks/incompatible-library": "off",
+    },
+  },
+  {
+    // dnd-kit's useSortable levert bewust render-time callback-refs
+    // (setNodeRef) en drag-props; react-hooks/refs (compiler-heuristiek)
+    // markeert dit onterecht als ref-access tijdens render.
+    files: [
+      "src/components/ui/sortable-list.tsx",
+      "src/components/offerte/sortable-regels-table.tsx",
+      "src/components/project/taken-lijst.tsx",
+    ],
+    rules: {
+      "react-hooks/refs": "off",
+    },
+  },
+  {
+    // useCallback met react-hook-form's `form` in de deps: de compiler kan de
+    // handmatige memoization niet behouden door de incompatibele library;
+    // useCallback verwijderen zou identiteitsstabiliteit (gedrag) wijzigen.
+    files: ["src/components/project/uren-entry-form.tsx"],
+    rules: {
+      "react-hooks/preserve-manual-memoization": "off",
+    },
+  },
+  {
+    // @react-pdf/renderer's <Image> is geen DOM-<img>; jsx-a11y/alt-text
+    // (door eslint-config-next geconfigureerd voor componentnaam "Image")
+    // slaat hier onterecht aan.
+    files: [
+      "src/components/pdf/**",
+      "src/components/project/factuur-pdf.tsx",
+    ],
+    rules: {
+      "jsx-a11y/alt-text": "off",
+    },
+  },
+  {
+    // Dynamische previews (Convex-storage-foto's, geüpload logo) hebben geen
+    // vaste hostnames/afmetingen; next/image zou remotePatterns-config en
+    // ander laadgedrag vergen — geen mechanische winst.
+    files: [
+      "src/components/leads/lead-detail-modal.tsx",
+      "src/components/project/werklocatie-card.tsx",
+      "src/app/(dashboard)/instellingen/components/huisstijl-tab.tsx",
+    ],
+    rules: {
+      "@next/next/no-img-element": "off",
     },
   },
 ]);

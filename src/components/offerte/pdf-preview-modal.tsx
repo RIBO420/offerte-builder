@@ -111,7 +111,7 @@ export function PdfPreviewModal({
     } finally {
       setIsLoading(false);
     }
-  }, [offerte, bedrijfsgegevens]);
+  }, [offerte, bedrijfsgegevens, theme, voorwaarden]);
 
   useEffect(() => {
     if (open) {

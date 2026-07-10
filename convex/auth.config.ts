@@ -1,4 +1,4 @@
-export default {
+const authConfig = {
   providers: [
     // Production - toptuinen.app (used by both web and mobile)
     {
@@ -12,3 +12,5 @@ export default {
     },
   ],
 };
+
+export default authConfig;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useFormValidationSyncNested } from "@/hooks/use-scope-form-sync";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -38,15 +38,20 @@ export function BestratingForm({ data, onChange, onValidationChange }: Bestratin
     data.zones ?? []
   );
 
-  // Compute funderingslagen based on bestratingtype
-  const funderingslagen: FunderingslagenData | undefined = bestratingtype
-    ? {
-        gebrokenPuin: FUNDERINGS_SPECS[bestratingtype].gebrokenPuin,
-        zand: FUNDERINGS_SPECS[bestratingtype].zand,
-        brekerszand: FUNDERINGS_SPECS[bestratingtype].brekerszand,
-        stabiliser: FUNDERINGS_SPECS[bestratingtype].stabiliser,
-      }
-    : undefined;
+  // Compute funderingslagen based on bestratingtype (gememoized zodat
+  // afhankelijke hooks niet elke render nieuwe deps krijgen)
+  const funderingslagen: FunderingslagenData | undefined = useMemo(
+    () =>
+      bestratingtype
+        ? {
+            gebrokenPuin: FUNDERINGS_SPECS[bestratingtype].gebrokenPuin,
+            zand: FUNDERINGS_SPECS[bestratingtype].zand,
+            brekerszand: FUNDERINGS_SPECS[bestratingtype].brekerszand,
+            stabiliser: FUNDERINGS_SPECS[bestratingtype].stabiliser,
+          }
+        : undefined,
+    [bestratingtype]
+  );
 
   // Stable onChange callback
   const stableOnChange = useCallback(

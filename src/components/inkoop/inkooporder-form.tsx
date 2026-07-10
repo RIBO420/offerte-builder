@@ -145,10 +145,11 @@ export function InkooporderForm({
   });
 
   // Calculate total
-  const totaal = useMemo(() => {
-    const regels = form.watch("regels");
-    return regels.reduce((sum, regel) => sum + (regel.totaal || 0), 0);
-  }, [form.watch("regels")]);
+  const regelsWatch = form.watch("regels");
+  const totaal = useMemo(
+    () => regelsWatch.reduce((sum, regel) => sum + (regel.totaal || 0), 0),
+    [regelsWatch]
+  );
 
   // Update regel totaal when hoeveelheid or prijs changes
   const updateRegelTotaal = useCallback(
