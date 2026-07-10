@@ -4,6 +4,8 @@ import {
   aanlegScopeDataValidator,
   beschikbaarheidsVensterValidator,
   onderhoudScopeDataValidator,
+  tijdlijnEventTypeValidator,
+  tijdlijnKanaalValidator,
   tuintypologieValidator,
   userRoleValidator,
 } from "./validators";
@@ -62,6 +64,11 @@ export default defineSchema({
     plaats: v.string(),
     email: v.optional(v.string()),
     telefoon: v.optional(v.string()),
+    // DEPRECATED (PRD §2.3): het vrije Notities-veld is uitgefaseerd ten
+    // gunste van de klanttijdlijn (tabel klantTijdlijn, "één waarheid").
+    // Bestaande inhoud is gemigreerd via tijdlijnMigratie:migreerNotities
+    // ("Genoteerd vóór tijdlijn: ..."). Veld blijft in het schema staan
+    // (geen dataverlies) maar wordt niet meer in de UI getoond of bewerkt.
     notities: v.optional(v.string()),
     // CRM pipeline lifecycle status (CRM-002)
     pipelineStatus: v.optional(v.union(
@@ -3049,6 +3056,51 @@ export default defineSchema({
   })
     .index("by_thread", ["threadId", "createdAt"])
     .index("by_thread_unread", ["threadId", "isRead"]),
+
+  // ─── Klanttijdlijn (PRD §2.3) ──────────────────────────────────────────────
+  // Per klant één doorzoekbare tijdlijn: handmatige entries (kantoor) +
+  // auto-events uit het systeem (via logTijdlijnEvent in convex/tijdlijn.ts).
+  //
+  // BEWUST GESCHEIDEN van de interne chat (chat_threads/chat_messages,
+  // team_messages, direct_messages) — PRD §1.2: interne communicatie en
+  // klantcommunicatie zijn twee gescheiden objecten/tabellen, zodat een
+  // query-fout nooit interne communicatie kan lekken.
+  //
+  // TOEGANG: de tijdlijn is een INTERN KANTOORDOSSIER. De klant-rol heeft
+  // GEEN enkele query op deze tabel — geen enkele functie in convex/tijdlijn.ts
+  // mag data uit klantTijdlijn aan een klant-account teruggeven.
+  // Klantcommunicatie via het portaal is een apart kanaal (chat_threads).
+  // Afgedwongen via requireInterneRol/requireKantoor in convex/tijdlijn.ts.
+  klantTijdlijn: defineTable({
+    // Bedrijfseigenaar (multi-tenant scope, conventie zoals planbordLogboek)
+    userId: v.id("users"),
+    klantId: v.id("klanten"),
+    // Moment van het contact/event (kan afwijken van _creationTime,
+    // bv. bij de notities-migratie of achteraf genoteerde telefoontjes)
+    timestamp: v.number(),
+    // Auteur: users-id, of undefined voor "systeem" (auto-events/migratie)
+    auteurId: v.optional(v.id("users")),
+    // Gedenormaliseerde weergavenaam ("Systeem" voor auto-events)
+    auteurNaam: v.string(),
+    kanaal: tijdlijnKanaalValidator,
+    eventType: tijdlijnEventTypeValidator,
+    tekst: v.string(),
+    // Optionele koppeling met een werkitem ("over welke klus?", Pietje-test)
+    werkitemId: v.optional(v.id("projecten")),
+    // Alvast gereserveerd voor §2.4 — wordt v.id("meldingen") zodra die
+    // tabel bestaat; tot die tijd een opaque string-id
+    meldingId: v.optional(v.string()),
+    // Foto's/bijlagen — zelfde storage-patroon als chat_messages
+    bijlagen: v.optional(v.array(v.id("_storage"))),
+    createdAt: v.number(),
+  })
+    .index("by_klant", ["klantId", "timestamp"])
+    .index("by_user", ["userId", "timestamp"])
+    .index("by_werkitem", ["werkitemId", "timestamp"])
+    .searchIndex("search_tekst", {
+      searchField: "tekst",
+      filterFields: ["userId", "klantId", "kanaal", "werkitemId"],
+    }),
 
   // ─── Bouwstenencatalogus (PRD §2.5f + bijlage A) ───────────────────────────
   // Bedrijfsbrede catalogus (geen userId): bouwstenen beheren = records beheren

@@ -405,6 +405,55 @@ export const chatSenderTypeValidator = v.union(
   v.literal("medewerker")
 );
 
+// ==================== KLANTTIJDLIJN VALIDATORS (PRD §2.3) ====================
+
+/** Alle kanalen op de klanttijdlijn, inclusief "systeem" voor auto-events. */
+export const tijdlijnKanaalValidator = v.union(
+  v.literal("telefoon"),
+  v.literal("whatsapp"),
+  v.literal("email"),
+  v.literal("intern"),
+  v.literal("systeem")
+);
+
+/**
+ * Kanalen die kantoor handmatig mag kiezen — "systeem" is gereserveerd
+ * voor auto-events via logTijdlijnEvent (convex/tijdlijn.ts).
+ */
+export const tijdlijnHandmatigKanaalValidator = v.union(
+  v.literal("telefoon"),
+  v.literal("whatsapp"),
+  v.literal("email"),
+  v.literal("intern")
+);
+
+/**
+ * Event-typen op de klanttijdlijn. De typen voor beurten (§2.6),
+ * facturen (§2.8) en meldingen (§2.4) staan er alvast in zodat de
+ * helper ze aankan zodra die stappen gebouwd worden — hooks volgen daar.
+ */
+export const tijdlijnEventTypeValidator = v.union(
+  // Handmatige entries + eenmalige notities-migratie
+  v.literal("handmatig"),
+  v.literal("notitie_migratie"),
+  // Auto-events fase 1 stap 6 (§2.3)
+  v.literal("offerte_verzonden"),
+  v.literal("offerte_geaccepteerd"),
+  v.literal("werkitem_ingepland"),
+  v.literal("contract_geactiveerd"),
+  v.literal("contract_opgezegd"),
+  v.literal("portaal_uitnodiging"),
+  v.literal("lead_gewonnen"),
+  // §2.6 — beurten (helper-ready, hook volgt daar)
+  v.literal("beurt_afgerond"),
+  // §2.8 — facturatie (helper-ready, hook volgt daar)
+  v.literal("factuur_verzonden"),
+  v.literal("factuur_betaald"),
+  // §2.4 — meldingen/cases (helper-ready, hook volgt daar)
+  v.literal("melding_aangemaakt"),
+  v.literal("melding_status_gewijzigd")
+);
+
 // ==================== USER ROLE VALIDATORS ====================
 
 /**

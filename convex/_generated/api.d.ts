@@ -96,6 +96,8 @@ import type * as softDelete from "../softDelete.js";
 import type * as standaardtuinen from "../standaardtuinen.js";
 import type * as teams from "../teams.js";
 import type * as tekstblokken from "../tekstblokken.js";
+import type * as tijdlijn from "../tijdlijn.js";
+import type * as tijdlijnMigratie from "../tijdlijnMigratie.js";
 import type * as toolboxMeetings from "../toolboxMeetings.js";
 import type * as transportbedrijven from "../transportbedrijven.js";
 import type * as urenRegistraties from "../urenRegistraties.js";
@@ -212,6 +214,8 @@ declare const fullApi: ApiFromModules<{
   standaardtuinen: typeof standaardtuinen;
   teams: typeof teams;
   tekstblokken: typeof tekstblokken;
+  tijdlijn: typeof tijdlijn;
+  tijdlijnMigratie: typeof tijdlijnMigratie;
   toolboxMeetings: typeof toolboxMeetings;
   transportbedrijven: typeof transportbedrijven;
   urenRegistraties: typeof urenRegistraties;
