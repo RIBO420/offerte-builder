@@ -7,7 +7,7 @@
 
 import { v, ConvexError } from "convex/values";
 import { mutation, query, MutationCtx } from "./_generated/server";
-import { Doc } from "./_generated/dataModel";
+import { Doc, Id } from "./_generated/dataModel";
 import { requireAuth, requireAuthUserId } from "./auth";
 import {
   requireDirectieOrProjectleider,
@@ -1313,6 +1313,9 @@ export const getBouwsteenDefaults = query({
         urenPerBeurt: b.urenPerBeurt,
         prijsmodel: b.prijsmodel,
         btwCode: b.btwCode,
+        // Receptuurstappen (bv. reinigingsbeurt: borstelen → reinigen →
+        // invegen) voor de wizard-weergave van de vaste stapvolgorde (§2.5a)
+        receptuurstappen: b.receptuurstappen,
         defaultPrijsPerBeurt: geldendTarief
           ? berekenPrijsPerBeurt(b, geldendTarief.bedrag)
           : null,
@@ -1341,6 +1344,59 @@ export function matchBouwsteenOpOmschrijving<T extends { naam: string }>(
     if (b.naam && tekst.includes(b.naam.toLowerCase())) return b;
   }
   return null;
+}
+
+/** Gestructureerde bouwsteen-regel van een offerte (offertes.bouwsteenRegels). */
+export interface OfferteBouwsteenRegelInput {
+  bouwsteenId: Id<"bouwstenen">;
+  naam: string;
+  soort: string;
+  frequentiePerJaar: number;
+  prijsPerBeurt: number;
+  prijsPerBeurtHandmatig?: boolean;
+  eenmalig: boolean;
+  zandKeuze?: {
+    keuze: "voegzand" | "straatzand";
+    prijsVoegzand: number;
+    prijsStraatzand: number;
+  };
+}
+
+/**
+ * Gestructureerde offerte-bouwsteenregels (wizard §2.5a) → contract-
+ * werkzaamheden. Exacte voorvulling zonder naam-matching: bouwsteenId,
+ * frequentie en prijs per beurt komen 1-op-1 van de offerte, zodat een
+ * historische offerte haar eigen tarief behoudt (§8.7). Eenmalige regels
+ * krijgen geen frequentiePerJaar en genereren dus geen beurtenreeks
+ * (structuurregel 2). Pure functie (unit-testbaar).
+ */
+export function offerteBouwsteenRegelsNaarWerkzaamheden<
+  TB extends {
+    _id: Id<"bouwstenen">;
+    seizoensvensterVan?: number;
+    seizoensvensterTot?: number;
+    urenPerBeurt?: number;
+  },
+>(regels: OfferteBouwsteenRegelInput[], bouwstenen: TB[]) {
+  const perId = new Map(bouwstenen.map((b) => [b._id.toString(), b]));
+  return regels.map((regel) => {
+    const bouwsteen = perId.get(regel.bouwsteenId.toString());
+    const zandLabel = regel.zandKeuze
+      ? regel.zandKeuze.keuze === "voegzand"
+        ? " — onkruidvrij voegzand"
+        : " — straatzand"
+      : "";
+    return {
+      omschrijving: `${regel.naam}${zandLabel}`,
+      bouwsteenId: regel.bouwsteenId,
+      frequentiePerJaar: regel.eenmalig ? undefined : regel.frequentiePerJaar,
+      prijsPerBeurt: regel.prijsPerBeurt,
+      prijsPerBeurtHandmatig: regel.prijsPerBeurtHandmatig ?? false,
+      vensterVanMaand: bouwsteen?.seizoensvensterVan,
+      vensterTotMaand: bouwsteen?.seizoensvensterTot,
+      geschatteUrenPerBeurt: bouwsteen?.urenPerBeurt ?? 0,
+    };
+  });
 }
 
 /**
@@ -1402,38 +1458,47 @@ export const createFromOfferte = mutation({
     const arbeidRegels = offerte.regels.filter((r) => r.type === "arbeid");
     const bronRegels = arbeidRegels.length > 0 ? arbeidRegels : offerte.regels;
 
-    const werkzaamheden = bronRegels.map((regel) => {
-      const bouwsteen = matchBouwsteenOpOmschrijving(
-        regel.omschrijving,
-        bouwstenen
-      );
-      if (bouwsteen) {
-        const defaultPrijs = geldendTarief
-          ? berekenPrijsPerBeurt(bouwsteen, geldendTarief.bedrag)
-          : null;
-        return {
-          omschrijving: bouwsteen.naam,
-          bouwsteenId: bouwsteen._id,
-          frequentiePerJaar: bouwsteen.defaultFrequentiePerJaar ?? 1,
-          prijsPerBeurt: defaultPrijs ?? regel.totaal,
-          prijsPerBeurtHandmatig: defaultPrijs === null,
-          vensterVanMaand: bouwsteen.seizoensvensterVan,
-          vensterTotMaand: bouwsteen.seizoensvensterTot,
-          geschatteUrenPerBeurt: bouwsteen.urenPerBeurt ?? 0,
-        };
-      }
-      // Niet herleidbaar → vrije regel, kantoor stelt bij in het concept
-      return {
-        omschrijving: regel.omschrijving,
-        bouwsteenId: undefined,
-        frequentiePerJaar: 1,
-        prijsPerBeurt: regel.totaal,
-        prijsPerBeurtHandmatig: true,
-        vensterVanMaand: undefined,
-        vensterTotMaand: undefined,
-        geschatteUrenPerBeurt: 0,
-      };
-    });
+    // Gestructureerde bouwsteen-regels van de wizard (§2.5a) winnen: exacte
+    // voorvulling met het tarief van de offertedatum. Alleen oudere offertes
+    // zonder bouwsteenRegels vallen terug op naam-matching.
+    const werkzaamheden =
+      offerte.bouwsteenRegels && offerte.bouwsteenRegels.length > 0
+        ? offerteBouwsteenRegelsNaarWerkzaamheden(
+            offerte.bouwsteenRegels,
+            bouwstenen
+          )
+        : bronRegels.map((regel) => {
+            const bouwsteen = matchBouwsteenOpOmschrijving(
+              regel.omschrijving,
+              bouwstenen
+            );
+            if (bouwsteen) {
+              const defaultPrijs = geldendTarief
+                ? berekenPrijsPerBeurt(bouwsteen, geldendTarief.bedrag)
+                : null;
+              return {
+                omschrijving: bouwsteen.naam,
+                bouwsteenId: bouwsteen._id as Id<"bouwstenen"> | undefined,
+                frequentiePerJaar: bouwsteen.defaultFrequentiePerJaar ?? 1,
+                prijsPerBeurt: defaultPrijs ?? regel.totaal,
+                prijsPerBeurtHandmatig: defaultPrijs === null,
+                vensterVanMaand: bouwsteen.seizoensvensterVan,
+                vensterTotMaand: bouwsteen.seizoensvensterTot,
+                geschatteUrenPerBeurt: bouwsteen.urenPerBeurt ?? 0,
+              };
+            }
+            // Niet herleidbaar → vrije regel, kantoor stelt bij in het concept
+            return {
+              omschrijving: regel.omschrijving,
+              bouwsteenId: undefined as Id<"bouwstenen"> | undefined,
+              frequentiePerJaar: 1 as number | undefined,
+              prijsPerBeurt: regel.totaal,
+              prijsPerBeurtHandmatig: true,
+              vensterVanMaand: undefined as number | undefined,
+              vensterTotMaand: undefined as number | undefined,
+              geschatteUrenPerBeurt: 0,
+            };
+          });
 
     const jaarprijs = berekenJaarprijsBouwstenen(werkzaamheden);
     const contractNummer = await generateContractNummer(ctx);
@@ -1473,9 +1538,10 @@ export const createFromOfferte = mutation({
         prijsPerBeurtHandmatig: w.prijsPerBeurtHandmatig,
         vensterVanMaand: w.vensterVanMaand,
         vensterTotMaand: w.vensterTotMaand,
-        frequentie: w.frequentiePerJaar,
+        // Legacy verplicht veld; eenmalige regels (geen frequentiePerJaar) → 1
+        frequentie: w.frequentiePerJaar ?? 1,
         geschatteUrenPerBeurt: w.geschatteUrenPerBeurt,
-        geschatteUrenTotaal: w.geschatteUrenPerBeurt * w.frequentiePerJaar,
+        geschatteUrenTotaal: w.geschatteUrenPerBeurt * (w.frequentiePerJaar ?? 1),
         volgorde: i,
         createdAt: now,
       });
