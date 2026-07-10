@@ -1158,6 +1158,74 @@ export const getStats = query({
 });
 
 /**
+ * Compacte tellers voor de facturenpagina (KPI-kaarten + tab-badges).
+ *
+ * Zelfde telsemantiek als de eerdere client-side berekening over `list`:
+ * het raw legacy `status`-veld voor de tab-tellingen, creditnota-regels voor
+ * omzet en openstaand, en `vervaldatum` voor het aantal verlopen facturen.
+ * Alleen deze negen getallen gaan over de lijn — niet de volledige tabel.
+ */
+export const getLijstStats = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireAuthUserId(ctx);
+
+    const facturen = await ctx.db
+      .query("facturen")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    const now = Date.now();
+    const counts = {
+      totaal: facturen.length,
+      concept: 0,
+      definitief: 0,
+      verzonden: 0,
+      betaald: 0,
+      vervallen: 0,
+      totaalOmzet: 0,
+      openstaand: 0,
+      verlopen: 0,
+    };
+
+    for (const factuur of facturen) {
+      // Legacy status-veld (dual-write §2.8) kent geen gedeeltelijk_betaald;
+      // die facturen tellen als "verzonden" in de tab-tellingen.
+      const status = factuur.status;
+      if (status in counts) {
+        counts[status as "concept" | "definitief" | "verzonden" | "betaald" | "vervallen"]++;
+      }
+
+      // Omzet uit betaalde facturen (creditnota's zijn negatief en drukken de omzet)
+      if (status === "betaald") {
+        counts.totaalOmzet += factuur.totaalInclBtw;
+      }
+
+      // Definitieve creditnota's drukken de omzet ook (negatief bedrag)
+      if (factuur.isCreditnota && status === "definitief") {
+        counts.totaalOmzet += factuur.totaalInclBtw;
+      }
+
+      // Openstaand bedrag (verzonden + vervallen), creditnota's uitgezonderd
+      if ((status === "verzonden" || status === "vervallen") && !factuur.isCreditnota) {
+        counts.openstaand += factuur.totaalInclBtw;
+      }
+
+      // Verlopen facturen (verzonden/vervallen voorbij de vervaldatum)
+      if (
+        (status === "verzonden" || status === "vervallen") &&
+        now > factuur.vervaldatum &&
+        !factuur.isCreditnota
+      ) {
+        counts.verlopen++;
+      }
+    }
+
+    return counts;
+  },
+});
+
+/**
  * List facturen with cursor-based pagination.
  * Uses Convex native .paginate() to avoid loading all records into memory.
  */

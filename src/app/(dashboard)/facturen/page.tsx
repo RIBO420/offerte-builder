@@ -41,7 +41,7 @@ import {
 import { ScrollableTable } from "@/components/ui/responsive-table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useConvex } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -199,8 +199,8 @@ function FacturenPageContent() {
     user?._id && debouncedSearchQuery.trim() ? { searchTerm: debouncedSearchQuery } : "skip"
   );
 
-  // Also fetch stats (non-paginated for counts)
-  const facturen = useQuery(api.facturen.list, user?._id ? {} : "skip");
+  // Compacte tellers (server-side, i.p.v. de volledige facturenlijst laden)
+  const lijstStats = useQuery(api.facturen.getLijstStats, user?._id ? {} : "skip");
 
   // Overdue stats for herinnering badges (FAC-006)
   const overdueStats = useQuery(
@@ -208,78 +208,26 @@ function FacturenPageContent() {
     user?._id ? {} : "skip"
   );
 
-  // Export query
-  // Export is kantoor-functionaliteit (PRD §1.2): de query wordt voor andere
-  // rollen niet aangeroepen (skip) zodat de pagina gewoon laadt.
+  // Export is kantoor-functionaliteit (PRD §1.2) en wordt pas on-demand
+  // opgehaald bij een klik op de exportknop (geen reactieve query die de
+  // volledige export-payload open houdt zolang de pagina open staat).
   const isKantoor = useIsKantoor();
-  const exportData = useQuery(
-    api.export.exportFacturen,
-    user?._id && isKantoor ? {} : "skip"
-  );
+  const convex = useConvex();
 
   const isLoading = isUserLoading || paginatedData === undefined;
 
-  // Calculate stats from facturen
-  const stats = useMemo(() => {
-    if (!facturen) {
-      return {
-        totaal: 0,
-        concept: 0,
-        definitief: 0,
-        verzonden: 0,
-        betaald: 0,
-        vervallen: 0,
-        totaalOmzet: 0,
-        openstaand: 0,
-        verlopen: 0,
-      };
-    }
-
-    const now = Date.now();
-    const counts = {
-      totaal: facturen.length,
-      concept: 0,
-      definitief: 0,
-      verzonden: 0,
-      betaald: 0,
-      vervallen: 0,
-      totaalOmzet: 0,
-      openstaand: 0,
-      verlopen: 0,
-    };
-
-    facturen.forEach((factuur) => {
-      // Legacy status-veld (dual-write §2.8) kent geen gedeeltelijk_betaald;
-      // die facturen tellen als "verzonden" in de tab-tellingen.
-      counts[factuur.status as Exclude<FactuurStatus, "gedeeltelijk_betaald">]++;
-
-      // Total revenue from paid invoices (creditnota's have negative amounts, so they reduce revenue)
-      if (factuur.status === "betaald") {
-        counts.totaalOmzet += factuur.totaalInclBtw;
-      }
-
-      // Creditnota's that are definitief also reduce revenue
-      if (factuur.isCreditnota && factuur.status === "definitief") {
-        counts.totaalOmzet += factuur.totaalInclBtw; // negative amount
-      }
-
-      // Outstanding amount (verzonden + vervallen), creditnota's excluded
-      if ((factuur.status === "verzonden" || factuur.status === "vervallen") && !factuur.isCreditnota) {
-        counts.openstaand += factuur.totaalInclBtw;
-      }
-
-      // Count overdue invoices (verzonden/vervallen past due date)
-      if (
-        (factuur.status === "verzonden" || factuur.status === "vervallen") &&
-        now > factuur.vervaldatum &&
-        !factuur.isCreditnota
-      ) {
-        counts.verlopen++;
-      }
-    });
-
-    return counts;
-  }, [facturen]);
+  // Stats komen als negen tellers van de server (facturen.getLijstStats)
+  const stats = lijstStats ?? {
+    totaal: 0,
+    concept: 0,
+    definitief: 0,
+    verzonden: 0,
+    betaald: 0,
+    vervallen: 0,
+    totaalOmzet: 0,
+    openstaand: 0,
+    verlopen: 0,
+  };
 
   // Accumulate items across cursor pages
   const allItems = useMemo(() => {
@@ -404,11 +352,10 @@ function FacturenPageContent() {
             )}
             {isKantoor && (
               <ExportDropdown
-                getData={() => exportData ?? []}
+                getData={() => convex.query(api.export.exportFacturen, {})}
                 columns={facturenExportColumns}
                 filename="facturen"
                 sheetName="Facturen"
-                disabled={!exportData || exportData.length === 0}
               />
             )}
           </div>
