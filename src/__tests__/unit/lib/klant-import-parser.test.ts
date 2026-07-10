@@ -31,7 +31,7 @@ function makeRow(overrides: Record<string, string> = {}): Record<string, string>
 function makeCSVFile(content: string, name = "klanten.csv"): File {
   const file = new File([content], name, { type: "text/csv" });
   if (typeof file.text !== "function") {
-    (file as any).text = () => Promise.resolve(content);
+    Object.assign(file, { text: () => Promise.resolve(content) });
   }
   return file;
 }

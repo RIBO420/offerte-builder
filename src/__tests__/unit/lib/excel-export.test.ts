@@ -192,7 +192,7 @@ describe("exportToExcel", () => {
       await exportToExcel([makeExportRow()]);
 
       const ws = mockWorksheets[0];
-      const headers = ws.columns.map((c: any) => c.header);
+      const headers = ws.columns.map((c) => (c as { header: string }).header);
 
       expect(headers).toContain("Offerte Nr.");
       expect(headers).toContain("Type");

@@ -345,8 +345,8 @@ export default function MeldingDetailPage({
                         <Label>Medewerkers</Label>
                         <div className="space-y-2 max-h-48 overflow-y-auto border rounded-lg p-3">
                           {medewerkers
-                            ?.filter((m: any) => m.isActief !== false)
-                            .map((m: any) => (
+                            ?.filter((m) => m.isActief !== false)
+                            .map((m) => (
                               <label
                                 key={m._id}
                                 className="flex items-center gap-2 text-sm cursor-pointer"
@@ -416,7 +416,7 @@ export default function MeldingDetailPage({
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {melding.afspraken.map((afspraak: any) => (
+                    {melding.afspraken.map((afspraak) => (
                       <div
                         key={afspraak._id}
                         className="flex items-start gap-4 p-4 rounded-lg border"

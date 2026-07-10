@@ -33,7 +33,7 @@ interface ExpoPushMessage {
   to: string;
   title: string;
   body: string;
-  data?: Record<string, unknown>;
+  data?: Record<string, string | number | boolean | null>;
   sound?: "default" | null;
   badge?: number;
   channelId?: string;
@@ -528,7 +528,7 @@ export const sendChatNotifications = internalAction({
         data: {
           type: "chat",
           channelType: args.channelType,
-          projectId: args.projectId,
+          ...(args.projectId !== undefined ? { projectId: args.projectId } : {}),
           messageId: args.messageId,
           senderClerkId: args.senderClerkId,
         },
@@ -548,9 +548,8 @@ export const sendChatNotifications = internalAction({
 
     // Send all notifications in batch
     if (messages.length > 0) {
-       
       await ctx.runAction(internal.notifications.sendExpoPushNotification, {
-        messages: messages as any,
+        messages,
       });
     }
 
@@ -690,9 +689,8 @@ export const sendDirectMessageNotification = internalAction({
       },
     };
 
-     
     await ctx.runAction(internal.notifications.sendExpoPushNotification, {
-      messages: [message] as any,
+      messages: [message],
     });
 
     // Log the notification

@@ -215,12 +215,12 @@ export default function GarantiesPage() {
                       setNewGarantie((prev) => ({ ...prev, projectId: val }));
                       // Auto-fill klant from project
                       const project = projecten?.find(
-                        (p: any) => p._id === val
+                        (p) => p._id === val
                       );
                       if (project) {
                         // Find klant via offerte
                         const klant = klanten?.find(
-                          (k: any) => k.naam === (project as any).klantNaam
+                          (k) => k.naam === (project as { klantNaam?: string }).klantNaam
                         );
                         if (klant) {
                           setNewGarantie((prev) => ({
@@ -238,12 +238,12 @@ export default function GarantiesPage() {
                     <SelectContent>
                       {projecten
                         ?.filter(
-                          (p: any) =>
+                          (p) =>
                             p.status === "afgerond" ||
                             p.status === "nacalculatie_compleet" ||
                             p.status === "gefactureerd"
                         )
-                        .map((p: any) => (
+                        .map((p) => (
                           <SelectItem key={p._id} value={p._id}>
                             {p.naam}
                           </SelectItem>
@@ -263,7 +263,7 @@ export default function GarantiesPage() {
                       <SelectValue placeholder="Selecteer klant..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {klanten?.map((k: any) => (
+                      {klanten?.map((k) => (
                         <SelectItem key={k._id} value={k._id}>
                           {k.naam}
                         </SelectItem>

@@ -39,6 +39,13 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Id } from "../../../../convex/_generated/dataModel";
+import type { FunctionReturnType } from "convex/server";
+
+type KanbanDataResult = NonNullable<
+  FunctionReturnType<typeof api.servicemeldingen.getKanbanData>
+>;
+type KanbanMelding = KanbanDataResult["nieuw"][number];
+type Prioriteit = "laag" | "normaal" | "hoog" | "urgent";
 
 // Status column configuration
 const statusColumns = [
@@ -63,7 +70,7 @@ function KanbanCard({
   onMove,
   onClick,
 }: {
-  melding: any;
+  melding: KanbanMelding;
   onMove: (id: string, newStatus: KanbanStatus) => void;
   onClick: () => void;
 }) {
@@ -187,7 +194,7 @@ export default function ServicemeldingenPage() {
           ? (newMelding.projectId as Id<"projecten">)
           : undefined,
         beschrijving: newMelding.beschrijving,
-        prioriteit: newMelding.prioriteit as any,
+        prioriteit: newMelding.prioriteit as Prioriteit,
         contactInfo: newMelding.contactInfo || undefined,
       });
       toast.success("Servicemelding aangemaakt");
@@ -224,7 +231,7 @@ export default function ServicemeldingenPage() {
   const filteredKanban = useMemo(() => {
     if (!kanbanData) return null;
 
-    const filterMeldingen = (meldingen: any[]) => {
+    const filterMeldingen = (meldingen: KanbanMelding[]) => {
       let result = [...meldingen];
 
       if (searchQuery) {
@@ -316,7 +323,7 @@ export default function ServicemeldingenPage() {
                       <SelectValue placeholder="Selecteer klant..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {klanten?.map((k: any) => (
+                      {klanten?.map((k) => (
                         <SelectItem key={k._id} value={k._id}>
                           {k.naam}
                         </SelectItem>
@@ -344,7 +351,7 @@ export default function ServicemeldingenPage() {
                           // require offerte lookup which is complex
                           return true;
                         })
-                        .map((p: any) => (
+                        .map((p) => (
                           <SelectItem key={p._id} value={p._id}>
                             {p.naam}
                           </SelectItem>
@@ -489,7 +496,7 @@ export default function ServicemeldingenPage() {
                         Geen meldingen
                       </div>
                     ) : (
-                      items.map((melding: any) => (
+                      items.map((melding) => (
                         <KanbanCard
                           key={melding._id}
                           melding={melding}
