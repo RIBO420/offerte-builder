@@ -104,7 +104,7 @@ export default function ProjectDetailScreen() {
 
   // Calculate progress from planning tasks
   const totalTaken = planningTaken?.length || 0;
-  const completedTaken = planningTaken?.filter((t) => t.status === 'completed').length || 0;
+  const completedTaken = planningTaken?.filter((t: { status: string }) => t.status === 'completed').length || 0;
   const progressPercent = totalTaken > 0 ? Math.round((completedTaken / totalTaken) * 100) : 0;
 
   // Build subtitle from scopes or description
@@ -277,7 +277,7 @@ export default function ProjectDetailScreen() {
                         {medewerkerUren.totaalUren.toFixed(1)} uur totaal
                       </Text>
                     </View>
-                    {medewerkerUren.registraties.slice(0, 5).map((reg, index) => (
+                    {medewerkerUren.registraties.slice(0, 5).map((reg: { datum: string; scope?: string; uren: number }, index: number) => (
                       <View
                         key={index}
                         style={[

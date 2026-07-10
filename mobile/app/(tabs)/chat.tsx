@@ -247,7 +247,7 @@ function AuthenticatedChatScreen() {
   const handleStartNewDM = useCallback((user: { userId: Id<'users'>; naam: string; email?: string; functie?: string }) => {
     setShowNewDMModal(false);
     // Check if there's already an existing conversation with this user
-    const existing = dmConversations?.find((c) => c.partnerId === user.userId);
+    const existing = dmConversations?.find((c: DMConversation) => c.partnerId === user.userId);
     if (existing) {
       setSelectedDMConversation(existing);
     } else {
@@ -721,12 +721,12 @@ function AuthenticatedChatScreen() {
               {!dmUsers ? (
                 <View style={styles.modalLoading}>
                   <ActivityIndicator size="large" color="#4ADE80" />
-                  <Text style={styles.modalLoadingText}>Collega's laden...</Text>
+                  <Text style={styles.modalLoadingText}>Collega&apos;s laden...</Text>
                 </View>
               ) : dmUsers.length === 0 ? (
                 <View style={styles.modalEmpty}>
                   <Feather name="users" size={40} color="#999999" />
-                  <Text style={styles.modalEmptyTitle}>Geen collega's beschikbaar</Text>
+                  <Text style={styles.modalEmptyTitle}>Geen collega&apos;s beschikbaar</Text>
                   <Text style={styles.modalEmptySubtitle}>
                     Er zijn geen andere gebruikers om mee te chatten
                   </Text>

@@ -292,7 +292,15 @@ function AuthenticatedDashboard() {
               </View>
             ) : latestNotifications.length > 0 ? (
               <View style={{ gap: 8, marginBottom: 8 }}>
-                {latestNotifications.map((notif) => (
+                {latestNotifications.map((notif: {
+                  _id: string;
+                  type: string;
+                  title: string;
+                  message: string;
+                  _creationTime: number;
+                  isRead?: boolean;
+                  projectId?: string;
+                }) => (
                   <NotificationBanner
                     key={notif._id}
                     icon={getNotificationIcon(notif.type)}

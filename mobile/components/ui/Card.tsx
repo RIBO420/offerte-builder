@@ -1,5 +1,5 @@
 import React, { ReactNode } from 'react';
-import { View, Text, ViewStyle } from 'react-native';
+import { View, Text, ViewStyle, StyleProp } from 'react-native';
 import { cn } from '@/lib/utils';
 
 interface CardProps {
@@ -27,6 +27,7 @@ interface CardDescriptionProps {
 interface CardContentProps {
   children: ReactNode;
   className?: string;
+  style?: StyleProp<ViewStyle>;
 }
 
 interface CardFooterProps {
@@ -124,9 +125,9 @@ export function CardDescription({ children, className }: CardDescriptionProps) {
 /**
  * CardContent - Main content area of the card
  */
-export function CardContent({ children, className }: CardContentProps) {
+export function CardContent({ children, className, style }: CardContentProps) {
   return (
-    <View className={cn('', className)}>
+    <View className={cn('', className)} style={style}>
       {children}
     </View>
   );

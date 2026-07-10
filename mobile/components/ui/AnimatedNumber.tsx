@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Text, StyleSheet, TextStyle } from 'react-native';
+import { Text, StyleSheet, TextStyle, StyleProp } from 'react-native';
 import { useSharedValue, withTiming, runOnJS, useDerivedValue } from 'react-native-reanimated';
 import { typography } from '../../theme/typography';
 
@@ -10,7 +10,7 @@ interface AnimatedNumberProps {
   suffix?: string;
   decimals?: number;
   locale?: string;
-  style?: TextStyle;
+  style?: StyleProp<TextStyle>;
   formatOptions?: Intl.NumberFormatOptions;
 }
 

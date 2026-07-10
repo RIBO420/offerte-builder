@@ -261,7 +261,7 @@ export function SegmentenLijst({
                       style={{ color: kleuren.mutedForeground, fontSize: 12 }}
                       numberOfLines={2}
                     >
-                      "{segment.notitie}"
+                      &quot;{segment.notitie}&quot;
                     </Text>
                   ) : null}
                 </View>
