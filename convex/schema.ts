@@ -719,6 +719,10 @@ export default defineSchema({
     volgendeVoorzieneDatum: v.optional(v.string()), // YYYY-MM-DD
     attenderingDagenVooraf: v.optional(v.number()), // default 14 (in code)
     attenderingNodig: v.optional(v.boolean()),
+    // §2.4: koppeling werkitem → melding (promotie melding→werkitem en de
+    // via een plantaak vrijgegeven beurt behouden de koppeling in beide
+    // richtingen; melding-kant = servicemeldingen.werkitemId)
+    meldingId: v.optional(v.id("servicemeldingen")),
     // Toegewezen medewerkers voor dit project (team assignment)
     toegewezenMedewerkerIds: v.optional(v.array(v.id("medewerkers"))),
     // Toegewezen voertuigen voor dit project (fleet management)
@@ -2792,7 +2796,10 @@ export default defineSchema({
     .index("by_user_status", ["userId", "status"])
     .index("by_einddatum", ["eindDatum"]),
 
-  // Servicemeldingen — Klachten en serviceverzoeken van klanten
+  // Servicemeldingen — het melding/case-object van het interne bord (PRD §2.4).
+  // Bestaande tabel (garantiebeheer MOD-010) ADDITIEF uitgebreid tot het
+  // PRD-meldingobject: type/kanaal/eigenaar/deadline + routing-vlaggen +
+  // taaksoort (melding | plantaak voor de planningsattendering, §2.1/§8.12).
   servicemeldingen: defineTable({
     userId: v.id("users"),
     klantId: v.id("klanten"),
@@ -2805,13 +2812,55 @@ export default defineSchema({
     // Garantie of betaald
     isGarantie: v.boolean(),
 
-    // Status workflow: nieuw -> in_behandeling -> ingepland -> afgehandeld
+    // Status workflow (PRD §2.4): nieuw → in_behandeling → wacht_op_derden →
+    // opgelost. "ingepland"/"afgehandeld" zijn LEGACY-statussen van het oude
+    // garantiebord; het bord toont ze in de kolommen in_behandeling/opgelost.
     status: v.union(
       v.literal("nieuw"),
       v.literal("in_behandeling"),
-      v.literal("ingepland"),
-      v.literal("afgehandeld"),
+      v.literal("wacht_op_derden"),
+      v.literal("opgelost"),
+      v.literal("ingepland"), // legacy
+      v.literal("afgehandeld"), // legacy
     ),
+
+    // ── PRD §2.4 meldingobject (additief; afgedwongen in code bij aanmaak) ──
+    // serviceverzoek / klacht / schade
+    type: v.optional(
+      v.union(
+        v.literal("serviceverzoek"),
+        v.literal("klacht"),
+        v.literal("schade"),
+      )
+    ),
+    // Instroomkanaal (portaal volgt in fase 2 op ditzelfde object/bord)
+    kanaal: v.optional(
+      v.union(
+        v.literal("telefoon"),
+        v.literal("whatsapp"),
+        v.literal("email"),
+        v.literal("portaal"),
+        v.literal("intern"),
+      )
+    ),
+    // Eigenaar — precies één, verplicht bij aanmaak ("wie pakt dit op")
+    eigenaarId: v.optional(v.id("users")),
+    aangemaaktDoorId: v.optional(v.id("users")),
+    deadline: v.optional(v.string()), // YYYY-MM-DD, optioneel
+    // Koppeling melding ↔ werkitem: bron ("klacht over de voorjaarsbeurt"),
+    // promotie-resultaat (klacht → herstelbeurt) of de beurt van een plantaak
+    werkitemId: v.optional(v.id("projecten")),
+    // Routing-defaults (PRD §2.4): serviceverzoek → beoordelen voor de
+    // planning-wachtrij; schade → verzekeringsvlag
+    beoordelenVoorPlanning: v.optional(v.boolean()),
+    verzekeringsvlag: v.optional(v.boolean()),
+    // Taaksoort: "melding" (default) of "plantaak" — de door de
+    // planningsattendering (§2.1/§8.12) gegenereerde kantoor-taak op dit bord
+    taaksoort: v.optional(v.union(v.literal("melding"), v.literal("plantaak"))),
+    // Idempotentiesleutel van de attendering-cron: `plantaak:{beurtId}:{datum}`
+    attenderingSleutel: v.optional(v.string()),
+    // Escalatie (§2.1): zonder actie na X dagen kleurt de taak op (default 7)
+    escalatieDagen: v.optional(v.number()),
 
     // Prioriteit
     prioriteit: v.union(
@@ -2842,7 +2891,57 @@ export default defineSchema({
     .index("by_garantie", ["garantieId"])
     .index("by_status", ["status"])
     .index("by_user_status", ["userId", "status"])
-    .index("by_prioriteit", ["userId", "prioriteit"]),
+    .index("by_prioriteit", ["userId", "prioriteit"])
+    // §2.4-bord: filter "mijn cases" + idempotente attendering-cron
+    .index("by_user_eigenaar", ["userId", "eigenaarId"])
+    .index("by_attenderingSleutel", ["attenderingSleutel"])
+    .index("by_werkitem", ["werkitemId"]),
+
+  // MeldingComments — interne case-thread per melding (PRD §2.4).
+  // NIET zichtbaar voor de klant-rol: zelfde harde scheiding als de
+  // klanttijdlijn (requireInterneRol in convex/caseThread.ts). Het antwoord
+  // van een getagde medewerker landt hier; alleen kantoor koppelt terug
+  // naar de klant (bestaande capability assertKanNaarKlantVersturen).
+  meldingComments: defineTable({
+    userId: v.id("users"), // bedrijfseigenaar (multi-tenant scope)
+    meldingId: v.id("servicemeldingen"),
+    // Auteur: users-id, of undefined voor systeem-entries (statuswissels e.d.)
+    auteurId: v.optional(v.id("users")),
+    auteurNaam: v.string(),
+    tekst: v.string(),
+    // @tags in dit comment (elke tag maakt een veldtaak, §8.6)
+    taggedMedewerkerIds: v.optional(v.array(v.id("medewerkers"))),
+    // true voor automatische entries (aanmaak/statuswissel/promotie)
+    systeem: v.optional(v.boolean()),
+    createdAt: v.number(),
+  })
+    .index("by_melding", ["meldingId", "createdAt"])
+    .index("by_user", ["userId"]),
+
+  // Veldtaken — uit een @tag in de case-thread (PRD §2.4, case-test §8.6).
+  // Gekoppeld aan melding + klant + medewerker; verschijnt automatisch op de
+  // dagkaart van die medewerker zodra zijn team bij die klant gepland staat
+  // (matching in convex/dagkaart.ts: teamBemanning/teams.leden × werkitems
+  // met deze klantId op de team-dag).
+  veldtaken: defineTable({
+    userId: v.id("users"), // bedrijfseigenaar (multi-tenant scope)
+    meldingId: v.id("servicemeldingen"),
+    klantId: v.id("klanten"),
+    medewerkerId: v.id("medewerkers"),
+    medewerkerNaam: v.string(), // gedenormaliseerd voor weergave
+    tekst: v.string(),
+    // Herkomst-comment (de @tag); optioneel zodat een veldtaak ook los kan
+    commentId: v.optional(v.id("meldingComments")),
+    status: v.union(v.literal("open"), v.literal("afgerond")),
+    afgerondOp: v.optional(v.number()),
+    afgerondDoorId: v.optional(v.id("users")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_melding", ["meldingId"])
+    .index("by_medewerker", ["medewerkerId", "status"])
+    .index("by_klant", ["klantId"])
+    .index("by_user", ["userId"]),
 
   // ServiceAfspraken — Ingeplande servicebezoeken gekoppeld aan een melding
   serviceAfspraken: defineTable({
@@ -3087,9 +3186,9 @@ export default defineSchema({
     tekst: v.string(),
     // Optionele koppeling met een werkitem ("over welke klus?", Pietje-test)
     werkitemId: v.optional(v.id("projecten")),
-    // Alvast gereserveerd voor §2.4 — wordt v.id("meldingen") zodra die
-    // tabel bestaat; tot die tijd een opaque string-id
-    meldingId: v.optional(v.string()),
+    // §2.4: echte koppeling met de melding/case (elke melding en elke
+    // statuswissel logt automatisch op de tijdlijn)
+    meldingId: v.optional(v.id("servicemeldingen")),
     // Foto's/bijlagen — zelfde storage-patroon als chat_messages
     bijlagen: v.optional(v.array(v.id("_storage"))),
     createdAt: v.number(),

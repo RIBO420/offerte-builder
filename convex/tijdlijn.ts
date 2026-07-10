@@ -96,8 +96,8 @@ export type LogTijdlijnEventArgs = {
   auteurId?: Id<"users">;
   auteurNaam?: string;
   werkitemId?: Id<"projecten">;
-  /** §2.4-veld, alvast ondersteund (string tot de meldingen-tabel bestaat) */
-  meldingId?: string;
+  /** §2.4: koppeling met de melding/case op het interne bord */
+  meldingId?: Id<"servicemeldingen">;
   bijlagen?: Id<"_storage">[];
   /** Default Date.now() — migratie/backdated events kunnen afwijken */
   timestamp?: number;
