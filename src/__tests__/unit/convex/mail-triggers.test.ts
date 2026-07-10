@@ -203,9 +203,12 @@ describe("MAIL_TRIGGER_DEFAULTS (seed, PRD §2.7)", () => {
     );
   });
 
-  it("staat op modus 'concept' behalve lead_ontvangen (automatisch, gedocumenteerd)", () => {
+  it("staat op modus 'concept' behalve de onpersoonlijke ontvangstbevestigingen (automatisch, gedocumenteerd)", () => {
+    // §1.2: alleen onpersoonlijke bevestigingen mogen default automatisch —
+    // de lead-bevestiging (fase 1) en de portaal-meldingbevestiging (§3.1).
+    const automatischeEvents = ["lead_ontvangen", "melding_ontvangen"];
     for (const seed of MAIL_TRIGGER_DEFAULTS) {
-      if (seed.event === "lead_ontvangen") {
+      if (automatischeEvents.includes(seed.event)) {
         expect(seed.modus).toBe("automatisch");
         // De keuze is gedocumenteerd op het record zelf
         expect(seed.omschrijving).toContain("automatisch");

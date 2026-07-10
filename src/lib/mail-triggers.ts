@@ -18,6 +18,8 @@ export const MAIL_EVENTS = [
   "betalingsherinnering_2",
   "betalingsherinnering_3",
   "betalingsherinnering_4",
+  // Klantenportaal (PRD §3.1, fase 2): ontvangstbevestiging portaal-melding
+  "melding_ontvangen",
 ] as const;
 
 export type MailEvent = (typeof MAIL_EVENTS)[number];
@@ -32,6 +34,7 @@ export const MAIL_EVENT_LABELS: Record<string, string> = {
   betalingsherinnering_2: "Tweede betalingsherinnering (ladder trede 2)",
   betalingsherinnering_3: "Aanmaning (ladder trede 3)",
   betalingsherinnering_4: "Laatste aanmaning (ladder trede 4)",
+  melding_ontvangen: "Melding ontvangen (portaal)",
 };
 
 export const MAIL_MODUS_LABELS: Record<string, string> = {

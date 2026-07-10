@@ -210,8 +210,15 @@ export const getWerkitems = query({
       .withIndex("by_klant", (q) => q.eq("klantId", klant._id))
       .collect();
 
+    // Belt & braces naast de index: expliciete klant-scope (zelfde patroon
+    // als servicemeldingen.ts) — een query zonder scope faalt in tests.
     return werkitems
-      .filter((w) => !w.deletedAt && !w.isArchived)
+      .filter(
+        (w) =>
+          !w.deletedAt &&
+          !w.isArchived &&
+          w.klantId?.toString() === klant._id.toString()
+      )
       .map((w) => ({
         _id: w._id,
         naam: w.naam,
@@ -295,7 +302,12 @@ export const getFacturen = query({
       .collect();
 
     // Portaal-regel 3: alleen verzonden documenten (nooit concepten).
-    const visibleFacturen = facturen.filter(isKlantZichtbareFactuur);
+    // Belt & braces naast de index: expliciete klant-scope.
+    const visibleFacturen = facturen.filter(
+      (f) =>
+        f.klantId?.toString() === klant._id.toString() &&
+        isKlantZichtbareFactuur(f)
+    );
 
     // Look up payment links from betalingen table for unpaid facturen
     // The betalingen table uses `referentie` (string) to link to factuurnummer,
@@ -702,6 +714,55 @@ export const generatePortaalUploadUrl = mutation({
 // dwingen klantHeeftToegangTotThread af); hier alleen get-or-create,
 // strikt gescopet op het eigen werkitem / de eigen melding.
 // ============================================================
+
+/**
+ * Bestaande klantthread bij een eigen werkitem/melding opzoeken (géén
+ * create — lezen mag geen records aanmaken). Retourneert null als er nog
+ * geen gesprek is. Strikt gescopet op de eigen klant.
+ */
+export const getThreadVoorContext = query({
+  args: {
+    werkitemId: v.optional(v.id("projecten")),
+    meldingId: v.optional(v.id("servicemeldingen")),
+  },
+  handler: async (ctx, args) => {
+    const { klant } = await requireKlant(ctx);
+
+    if (args.werkitemId) {
+      const werkitem = await ctx.db.get(args.werkitemId);
+      if (!werkitem || werkitem.klantId?.toString() !== klant._id.toString()) {
+        return null;
+      }
+      const threads = await ctx.db
+        .query("chat_threads")
+        .withIndex("by_project", (q) => q.eq("projectId", args.werkitemId))
+        .collect();
+      const thread = threads.find(
+        (t) =>
+          t.type === "klant" && t.klantId?.toString() === klant._id.toString()
+      );
+      return thread?._id ?? null;
+    }
+
+    if (args.meldingId) {
+      const melding = await ctx.db.get(args.meldingId);
+      if (!melding || melding.klantId.toString() !== klant._id.toString()) {
+        return null;
+      }
+      const threads = await ctx.db
+        .query("chat_threads")
+        .withIndex("by_melding", (q) => q.eq("meldingId", args.meldingId))
+        .collect();
+      const thread = threads.find(
+        (t) =>
+          t.type === "klant" && t.klantId?.toString() === klant._id.toString()
+      );
+      return thread?._id ?? null;
+    }
+
+    return null;
+  },
+});
 
 /**
  * Thread bij een eigen werkitem openen (get-or-create). Klant→kantoor-
