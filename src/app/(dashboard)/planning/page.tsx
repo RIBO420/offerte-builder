@@ -408,14 +408,22 @@ function PlanningPageContent() {
                   : "Jouw toegewezen projecten en planningen"}
               </p>
             </div>
-            {isAdmin && (
-              <Button asChild>
-                <Link href="/projecten">
-                  <FolderKanban className="mr-2 h-4 w-4" />
-                  Alle Projecten
+            <div className="flex gap-2">
+              <Button asChild variant="default">
+                <Link href="/planning/weekbord">
+                  <CalendarRange className="mr-2 h-4 w-4" />
+                  Weekbord
                 </Link>
               </Button>
-            )}
+              {isAdmin && (
+                <Button asChild variant="outline">
+                  <Link href="/projecten">
+                    <FolderKanban className="mr-2 h-4 w-4" />
+                    Alle Projecten
+                  </Link>
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* View switcher tabs */}
