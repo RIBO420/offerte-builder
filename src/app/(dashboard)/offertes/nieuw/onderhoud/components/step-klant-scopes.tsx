@@ -195,7 +195,19 @@ export function StepKlantScopes({
                         ? "border-primary bg-primary/5"
                         : "border-border"
                     }`}
-                    onClick={() => toggleScope(scope.id)}
+                    onClick={(e) => {
+                      // Checkbox en label togglen zelf al (onCheckedChange /
+                      // htmlFor); zonder deze guard toggelt een klik daarop
+                      // twee keer en gebeurt er netto niets.
+                      if (
+                        (e.target as HTMLElement).closest(
+                          'label, [role="checkbox"]'
+                        )
+                      ) {
+                        return;
+                      }
+                      toggleScope(scope.id);
+                    }}
                   >
                     <Checkbox
                       id={scope.id}
