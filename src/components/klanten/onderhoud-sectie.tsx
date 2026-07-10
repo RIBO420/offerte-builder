@@ -39,6 +39,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ScrollText, Sprout, Plus, CalendarClock } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import { formatCurrency } from "@/lib/format/currency";
 
@@ -395,9 +396,12 @@ export function OnderhoudSectie({ klantId }: { klantId: Id<"klanten"> }) {
             Laden...
           </p>
         ) : contracten.length === 0 && losseBeurten.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-4 text-center">
-            Nog geen onderhoudscontracten of losse beurten
-          </p>
+          <EmptyState
+            icon={<Sprout aria-hidden />}
+            title="Nog geen onderhoud"
+            description="Onderhoudscontracten en losse beurten van deze klant verschijnen hier."
+            className="py-4"
+          />
         ) : (
           <>
             {contracten.map((c) => (
