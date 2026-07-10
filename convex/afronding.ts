@@ -29,6 +29,7 @@ import {
   verdeelTaakAfronding,
   type AfrondTaakInvoer,
 } from "./veldLogica";
+import { verwerkKlaarVoorFacturatie } from "./facturatieEngine";
 
 const taakStatusValidator = v.union(
   v.literal("afgerond"),
@@ -158,7 +159,7 @@ export const rondWerkitemAf = mutation({
       await ctx.db.patch(werkitem._id, {
         status: nieuweStatus,
         taakAfronding,
-        klaarVoorFacturatie: true, // §2.8 pakt dit op; hier alleen de markering
+        klaarVoorFacturatie: true,
         afgerondOp: now,
         updatedAt: now,
       });
@@ -173,7 +174,20 @@ export const rondWerkitemAf = mutation({
           werkitemId: werkitem._id,
         });
       }
-      return { status: nieuweStatus, restId: null };
+
+      // Facturatie-engine (§2.8): direct een concept-factuur in de
+      // "Te versturen"-wachtrij volgens de facturatiemodus van het contract
+      const facturatie = await verwerkKlaarVoorFacturatie(ctx, {
+        werkitemId: werkitem._id,
+        auteurId: user._id,
+        auteurNaam: user.name,
+      });
+
+      return {
+        status: nieuweStatus,
+        restId: null,
+        factuurId: facturatie.factuurId,
+      };
     }
 
     // Eén of meer ◐/○ → rest-opdracht met klantmetadata en resterende
@@ -211,7 +225,9 @@ export const rondWerkitemAf = mutation({
     await ctx.db.patch(werkitem._id, {
       status: "deels_uitgevoerd",
       taakAfronding,
-      // Het uitgevoerde deel gaat wél door naar facturatie (§8.8)
+      // Het uitgevoerde deel gaat wél door naar facturatie (§8.8): de
+      // engine factureert uitsluitend de taken met status "afgerond";
+      // de rest-opdracht factureert later zijn eigen deel.
       klaarVoorFacturatie: true,
       afgerondOp: now,
       updatedAt: now,
@@ -232,6 +248,20 @@ export const rondWerkitemAf = mutation({
         werkitemId: werkitem._id,
       });
     }
-    return { status: "deels_uitgevoerd" as const, restId };
+
+    // Facturatie-engine (§2.8/§8.8): alleen het uitgevoerde deel wordt
+    // gefactureerd; de rest-opdracht (restId) heeft bewust géén
+    // factuurkoppeling en doorloopt later zijn eigen afronding.
+    const facturatie = await verwerkKlaarVoorFacturatie(ctx, {
+      werkitemId: werkitem._id,
+      auteurId: user._id,
+      auteurNaam: user.name,
+    });
+
+    return {
+      status: "deels_uitgevoerd" as const,
+      restId,
+      factuurId: facturatie.factuurId,
+    };
   },
 });

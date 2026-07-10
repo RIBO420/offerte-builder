@@ -116,4 +116,40 @@ crons.daily(
   internal.offerteReminders.processDueReminders
 );
 
+/**
+ * Contracttermijnen factureren (PRD §2.8, facturatiemodus vast_maandbedrag)
+ *
+ * Draait elke nacht om 04:00 UTC en zet geplande contractFacturen-termijnen
+ * waarvan de periode begonnen is om in concept-facturen in de "Te
+ * versturen"-wachtrij. Schrijft factuurId terug op de termijn en zet de
+ * status gepland → gefactureerd (dicht het oude dead-end, §2.8 punt 6).
+ * Idempotent: termijnen met factuurId of status ≠ gepland worden
+ * overgeslagen. Alleen actieve contracten met modus vast_maandbedrag;
+ * het beurten-spoor doet voor die contracten niets (wederzijds exclusief).
+ *
+ * Deze job mailt NOOIT zelf: eventueel direct versturen (contract-toggle)
+ * loopt via verstuurFactuurKern en daarmee achter de mail-guard.
+ */
+crons.daily(
+  "contracttermijnen factureren",
+  { hourUTC: 4, minuteUTC: 0 }, // 04:00 UTC (05:00 CET / 06:00 CEST)
+  internal.facturatieEngine.factureerContractTermijnen
+);
+
+/**
+ * Maandverzamelfacturen sluiten (PRD §2.8, maandelijks_verzameld)
+ *
+ * Draait op de 1e van de maand om 04:30 UTC: verzamelconcepten van voorbije
+ * maanden krijgen verzamelGesloten=true en een verse factuur-/vervaldatum,
+ * zodat nieuwe beurten een nieuwe verzamelfactuur openen. De concepten
+ * blijven in de "Te versturen"-wachtrij (human-in-the-loop); alleen
+ * contracten met directVersturen=true worden direct verstuurd, en ook dan
+ * blijft de mail achter de mail-guard (concept-modus mailt nooit).
+ */
+crons.monthly(
+  "maandverzamelfacturen sluiten",
+  { day: 1, hourUTC: 4, minuteUTC: 30 },
+  internal.facturatieEngine.sluitMaandverzamelfacturen
+);
+
 export default crons;
