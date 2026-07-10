@@ -506,6 +506,15 @@ export default defineSchema({
         noodprotocolTekst: v.optional(v.string()),
       })
     ),
+    // Nacalculatie-loop (PRD §3.4): drempel voor normuur-suggesties per
+    // bouwsteen (default 5 volledig uitgevoerde beurten, zie
+    // convex/beurtNacalculatieLogica.ts). Instelbaar omdat de juiste waarde
+    // pas na een seizoen echte data blijkt (§2.5a).
+    nacalculatieInstellingen: v.optional(
+      v.object({
+        suggestieDrempelBeurten: v.optional(v.number()), // default 5
+      })
+    ),
     // Creditnota nummering (FAC-008)
     laatsteCreditnotaNummer: v.optional(v.number()),
     // Algemene voorwaarden PDF (EML-003)

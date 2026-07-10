@@ -3,6 +3,7 @@ import { mutation, query, internalQuery } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
 import { getCompanyUserId, requireKantoor, requireNotViewer } from "./roles";
 import { isGeldigeTijd, naarMinuten } from "./dagkaartLogica";
+import { isGeldigeSuggestieDrempel } from "./beurtNacalculatieLogica";
 
 const bedrijfsgegevensValidator = v.object({
   naam: v.string(),
@@ -277,6 +278,50 @@ export const getVeldInstellingen = query({
       afwijkingDrempelProcent: veld?.afwijkingDrempelProcent ?? 20,
       noodprotocolTekst: veld?.noodprotocolTekst ?? null,
     };
+  },
+});
+
+/**
+ * Nacalculatie-instellingen (PRD §3.4): drempel voor normuur-suggesties —
+ * pas vanaf dit aantal volledig uitgevoerde beurten met een bouwsteen
+ * verschijnt een suggestie (default 5, zie beurtNacalculatieLogica.ts).
+ * Alleen kantoor wijzigt.
+ */
+export const updateNacalculatieInstellingen = mutation({
+  args: {
+    suggestieDrempelBeurten: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    await requireKantoor(ctx);
+    const userId = await requireAuthUserId(ctx);
+
+    if (
+      args.suggestieDrempelBeurten !== undefined &&
+      !isGeldigeSuggestieDrempel(args.suggestieDrempelBeurten)
+    ) {
+      throw new ConvexError(
+        "Ongeldige suggestie-drempel (geheel getal, 1 t/m 1000)"
+      );
+    }
+
+    const settings = await ctx.db
+      .query("instellingen")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique();
+    if (!settings) {
+      throw new ConvexError(
+        "Instellingen niet gevonden. Maak eerst standaardinstellingen aan."
+      );
+    }
+
+    const huidige = settings.nacalculatieInstellingen ?? {};
+    await ctx.db.patch(settings._id, {
+      nacalculatieInstellingen: {
+        suggestieDrempelBeurten:
+          args.suggestieDrempelBeurten ?? huidige.suggestieDrempelBeurten,
+      },
+    });
+    return settings._id;
   },
 });
 
