@@ -135,9 +135,7 @@ export default function GarantieDetailPage({
             <Button
               variant="outline"
               onClick={() =>
-                router.push(
-                  `/servicemeldingen?garantieId=${id}`
-                )
+                router.push("/meldingen")
               }
             >
               <Plus className="mr-2 h-4 w-4" />
@@ -224,9 +222,7 @@ export default function GarantieDetailPage({
                 <Button
                   size="sm"
                   onClick={() =>
-                    router.push(
-                      `/servicemeldingen?garantieId=${id}`
-                    )
+                    router.push("/meldingen")
                   }
                 >
                   <Plus className="mr-1 h-3 w-3" />
@@ -257,7 +253,7 @@ export default function GarantieDetailPage({
                           key={m._id}
                           className="cursor-pointer hover:bg-muted/50"
                           onClick={() =>
-                            router.push(`/servicemeldingen/${m._id}`)
+                            router.push("/meldingen")
                           }
                         >
                           <TableCell className="font-medium max-w-xs truncate">
