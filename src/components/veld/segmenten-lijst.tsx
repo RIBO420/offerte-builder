@@ -34,7 +34,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type VeldDagData = FunctionReturnType<typeof api.urenSegmenten.getVeldDag>;
+type VeldDagData = NonNullable<
+  FunctionReturnType<typeof api.urenSegmenten.getVeldDag>
+>;
 
 const CATEGORIE_LABELS: Record<string, string> = {
   werken: "Werken",

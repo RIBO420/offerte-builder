@@ -639,9 +639,12 @@ export function Dagkaart() {
         </div>
       </div>
 
-      {kaart === undefined || context === undefined ? (
+      {/* Zonder team wordt de kaart-query geskipt en blijft `kaart` undefined;
+          check daarom eerst op context + teamId, anders blijft "laden…" eeuwig
+          staan op omgevingen zonder actieve teams. */}
+      {context === undefined || (teamId !== null && kaart === undefined) ? (
         <p className="text-sm text-muted-foreground">Dagkaart laden…</p>
-      ) : !teamId ? (
+      ) : !teamId || kaart === undefined ? (
         <p className="text-sm text-muted-foreground">
           Nog geen actieve teams. Maak eerst een team aan onder Teams.
         </p>

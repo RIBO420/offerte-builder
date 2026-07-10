@@ -43,7 +43,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-type VeldDagData = FunctionReturnType<typeof api.urenSegmenten.getVeldDag>;
+type VeldDagData = NonNullable<
+  FunctionReturnType<typeof api.urenSegmenten.getVeldDag>
+>;
 type VeldStop = VeldDagData["stops"][number];
 
 type TaakStatus = "afgerond" | "begonnen_niet_af" | "niet_gestart";

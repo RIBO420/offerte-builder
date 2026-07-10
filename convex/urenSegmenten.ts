@@ -352,6 +352,12 @@ export const getVeldDag = query({
   handler: async (ctx, args) => {
     assertGeldigeDatum(args.datum);
     const veld = await veldContext(ctx);
+    // Kantoor zonder eigen medewerker-koppeling en zonder expliciete keuze:
+    // geen fout maar null, zodat de UI de medewerker-keuze kan tonen in
+    // plaats van te crashen (kantoor-accounts zijn niet altijd medewerker).
+    if (!args.medewerkerId && veld.rol === "kantoor" && !veld.eigenMedewerker) {
+      return null;
+    }
     const medewerker = await resolveDoelMedewerker(ctx, veld, args.medewerkerId);
 
     const [segmenten, dagRij, team] = await Promise.all([

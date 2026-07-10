@@ -145,6 +145,7 @@ function MijnDag() {
 
   const dag = useQuery(api.urenSegmenten.getVeldDag, { datum }) as
     | VeldDagData
+    | null
     | undefined;
   const veldInstellingen = useQuery(api.instellingen.getVeldInstellingen, {}) as
     | VeldInstellingenData
@@ -155,7 +156,7 @@ function MijnDag() {
 
   const isIngediend = dag?.dagStatus === 'ingediend';
   // Ingediende dag is read-only; heropenen/corrigeren is kantoorwerk (web)
-  const magBewerken = dag !== undefined && !isIngediend;
+  const magBewerken = dag != null && !isIngediend;
 
   const label = useMemo(() => datumLabel(datum), [datum]);
 
@@ -309,6 +310,13 @@ function MijnDag() {
         {dag === undefined ? (
           <Text style={{ color: kleuren.mutedForeground, fontSize: 13 }}>
             Dag laden…
+          </Text>
+        ) : dag === null ? (
+          // Kantoor-account zonder medewerker-koppeling (backend geeft null);
+          // andermans dag bekijken/kiezen is kantoorwerk op web.
+          <Text style={{ color: kleuren.mutedForeground, fontSize: 13 }}>
+            Je account is niet aan een medewerker gekoppeld. Gebruik de
+            webversie om de dag van een medewerker te bekijken.
           </Text>
         ) : (
           <>

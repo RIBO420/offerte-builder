@@ -116,7 +116,7 @@ export function VeldDag() {
   const heropenDag = useMutation(api.urenSegmenten.heropenDag);
 
   const isIngediend = dag?.dagStatus === "ingediend";
-  const magBewerken = dag !== undefined && (!isIngediend || isKantoor);
+  const magBewerken = dag != null && (!isIngediend || isKantoor);
 
   const datumLabel = useMemo(
     () =>
@@ -242,6 +242,13 @@ export function VeldDag() {
 
       {dag === undefined ? (
         <p className="text-sm text-muted-foreground">Dag laden…</p>
+      ) : dag === null ? (
+        // Kantoor-account zonder eigen medewerker-koppeling: de backend geeft
+        // bewust null terug; kies hierboven een medewerker om diens dag te zien.
+        <p className="text-sm text-muted-foreground">
+          Je account is niet aan een medewerker gekoppeld. Kies hierboven een
+          medewerker om zijn of haar dag te bekijken.
+        </p>
       ) : (
         <>
           {/* Dag-status */}
