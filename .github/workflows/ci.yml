@@ -117,16 +117,31 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: lint-and-typecheck
+    # E2E vereist Clerk/Convex-secrets in de repo-settings; zonder die secrets
+    # kan de dev-server geen pagina renderen ("Missing publishableKey") en
+    # faalde deze job altijd. Met de vlag hieronder slaat hij netjes over tot
+    # de secrets zijn geconfigureerd (Settings → Secrets and variables →
+    # Actions): NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY, CLERK_SECRET_KEY,
+    # NEXT_PUBLIC_CONVEX_URL, E2E_CLERK_USER_EMAIL, E2E_CLERK_USER_PASSWORD.
+    env:
+      E2E_SECRETS_AANWEZIG: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY != '' }}
     steps:
+      - name: E2E-secrets ontbreken — job wordt overgeslagen
+        if: env.E2E_SECRETS_AANWEZIG != 'true'
+        run: echo "::notice::E2E overgeslagen — configureer de Clerk/Convex-secrets in de repo-settings om deze job te activeren (zie commentaar in ci.yml)."
+
       - name: Checkout repository
+        if: env.E2E_SECRETS_AANWEZIG == 'true'
         uses: actions/checkout@v4
 
       - name: Setup Node.js
+        if: env.E2E_SECRETS_AANWEZIG == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Cache node_modules
+        if: env.E2E_SECRETS_AANWEZIG == 'true'
         uses: actions/cache@v4
         id: cache-node-modules
         with:
@@ -136,10 +151,11 @@ jobs:
             node-modules-${{ runner.os }}-
 
       - name: Install dependencies
-        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        if: env.E2E_SECRETS_AANWEZIG == 'true' && steps.cache-node-modules.outputs.cache-hit != 'true'
         run: npm ci
 
       - name: Cache Playwright browsers
+        if: env.E2E_SECRETS_AANWEZIG == 'true'
         uses: actions/cache@v4
         id: cache-playwright
         with:
@@ -149,21 +165,27 @@ jobs:
             playwright-${{ runner.os }}-
 
       - name: Install Playwright browsers
-        if: steps.cache-playwright.outputs.cache-hit != 'true'
+        if: env.E2E_SECRETS_AANWEZIG == 'true' && steps.cache-playwright.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
 
       - name: Install Playwright system dependencies
-        if: steps.cache-playwright.outputs.cache-hit == 'true'
+        if: env.E2E_SECRETS_AANWEZIG == 'true' && steps.cache-playwright.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
 
       - name: Run Playwright tests
+        if: env.E2E_SECRETS_AANWEZIG == 'true'
         run: npx playwright test
         env:
           CI: true
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL }}
+          E2E_CLERK_USER_EMAIL: ${{ secrets.E2E_CLERK_USER_EMAIL }}
+          E2E_CLERK_USER_PASSWORD: ${{ secrets.E2E_CLERK_USER_PASSWORD }}
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
-        if: failure()
+        if: env.E2E_SECRETS_AANWEZIG == 'true' && failure()
         with:
           name: playwright-report
           path: playwright-report/
