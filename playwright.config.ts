@@ -8,6 +8,10 @@ dotenv.config({ path: path.resolve(__dirname, '.env.local') });
 export default defineConfig({
   globalSetup: './e2e/global-setup.ts',
   testDir: './e2e',
+  // De fase-rooktests zijn omgevingsspecifieke smoke-tests (dev-data,
+  // e2e-account met directie-rol) en draaien via playwright.fase1.config.ts —
+  // niet in de generieke CI-run.
+  testIgnore: /fase[0-2].*rooktest\.spec\.ts/,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
