@@ -13,6 +13,7 @@ import { ThemeProvider } from '../theme';
 import { useCurrentUser } from '../hooks/use-current-user';
 import { usePushNotifications } from '../hooks/use-push-notifications';
 import { RoleProvider } from '../contexts/RoleContext';
+import { ToastProvider } from '../contexts/ToastContext';
 import { Feather } from '@expo/vector-icons';
 
 // Convex client instantie
@@ -271,14 +272,16 @@ export default function RootLayout() {
     return (
       <SafeAreaProvider>
         <ThemeProvider>
-          <AppErrorBoundary>
-            <StatusBar style="light" />
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="index" />
-              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            </Stack>
-          </AppErrorBoundary>
+          <ToastProvider>
+            <AppErrorBoundary>
+              <StatusBar style="light" />
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="index" />
+                <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              </Stack>
+            </AppErrorBoundary>
+          </ToastProvider>
         </ThemeProvider>
       </SafeAreaProvider>
     );
@@ -287,18 +290,23 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <AppErrorBoundary>
-          <ClerkProvider
-            tokenCache={tokenCache}
-            publishableKey={CLERK_PUBLISHABLE_KEY}
-          >
-            <ClerkLoaded>
-              <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
-                <InnerLayout />
-              </ConvexProviderWithClerk>
-            </ClerkLoaded>
-          </ClerkProvider>
-        </AppErrorBoundary>
+        {/* ToastProvider hoort op rootniveau, niet in InnerLayout: het Clerk-loze
+            fallbackpad hierboven rendert (auth)/login.tsx en heeft hem óók nodig.
+            Binnen SafeAreaProvider houden — Toast.tsx gebruikt useSafeAreaInsets. */}
+        <ToastProvider>
+          <AppErrorBoundary>
+            <ClerkProvider
+              tokenCache={tokenCache}
+              publishableKey={CLERK_PUBLISHABLE_KEY}
+            >
+              <ClerkLoaded>
+                <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
+                  <InnerLayout />
+                </ConvexProviderWithClerk>
+              </ClerkLoaded>
+            </ClerkProvider>
+          </AppErrorBoundary>
+        </ToastProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );

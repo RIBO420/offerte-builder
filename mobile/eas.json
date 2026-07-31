@@ -18,7 +18,11 @@
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_CONVEX_URL": "https://impartial-dinosaur-829.convex.cloud",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_Y2xlcmsudG9wdHVpbmVuLmFwcCQ="
+      }
     }
   },
   "submit": {

@@ -71,8 +71,19 @@ export const colors = {
   },
 };
 
-export const darkColors: ColorScheme = {
-  // Light Mode Overrides
+/**
+ * Overrides voor de LICHTE modus.
+ *
+ * Heette eerder `darkColors` terwijl het blok lichte waarden bevat (#FAFAF8 als
+ * achtergrond). In combinatie met `isDark ? {...colors, ...darkColors} : colors` leverde
+ * "donker" dus het lichte palet en andersom. Zie docs/MOBILE-AUDIT.md (B6).
+ *
+ * Let op: de spread in ThemeProvider is SHALLOW. Geneste objecten (`scope`, `trend`,
+ * `chart`) moeten hier dus óf volledig gedefinieerd zijn óf helemaal ontbreken — een
+ * half object wist de overige sleutels naar undefined. `chart` ontbreekt bewust: de
+ * basiswaarden gelden.
+ */
+export const lightColors: Partial<ColorScheme> = {
   background: '#FAFAF8',
   foreground: '#1A1A1A',
   card: '#FFFFFF',
@@ -103,31 +114,23 @@ export const darkColors: ColorScheme = {
   natureDark: '#E8F5E9',
   natureLight: '#F1F8F1',
 
-  // Scope colors - +0.1 lightness for dark mode visibility (aligned with webapp)
+  // Scope-kleuren, verdonkerd voor leesbaarheid op #FAFAF8.
+  // De vorige waarden hier waren de dark-mode varianten (+0.1 lightness) en haalden op
+  // een lichte achtergrond geen WCAG AA.
   scope: {
-    grondwerk: '#B09070', // oklch(0.65 0.12 85) - Aarde/bruin
-    bestrating: '#9A9CA0', // oklch(0.65 0.02 250) - Steen/grijs
-    borders: '#4D8C4D', // oklch(0.55 0.15 145) - Bosgroen
-    gras: '#7DD98C', // oklch(0.75 0.2 130) - Helder gras groen
-    houtwerk: '#A87A50', // oklch(0.6 0.12 55) - Warm hout
-    water: '#5AA0D0', // oklch(0.65 0.15 230) - Blauw water
-    specials: '#B070D0', // oklch(0.65 0.2 300) - Paars specials
+    grondwerk: '#8A6A48', // Aarde/bruin
+    bestrating: '#6B6D71', // Steen/grijs
+    borders: '#2F6B32', // Bosgroen
+    gras: '#2D7A3E', // Grasgroen
+    houtwerk: '#7D5433', // Warm hout
+    water: '#2C6FA0', // Blauw water
+    specials: '#7B3FA0', // Paars specials
   },
 
-  // Trend colors - +0.1 lightness for dark mode (aligned with webapp)
   trend: {
-    positive: '#5AD070', // oklch(0.7 0.2 145) - Groen
-    negative: '#E88080', // oklch(0.7 0.2 25) - Rood
-    neutral: '#8A8A8A', // oklch(0.6 0 0) - Grijs
-  },
-
-  // Chart colors aligned with webapp dark mode
-  chart: {
-    1: '#6B8CF8', // oklch(0.488 0.243 264.376)
-    2: '#4DD9A0', // oklch(0.696 0.17 162.48)
-    3: '#F5C050', // oklch(0.769 0.188 70.08)
-    4: '#C080F0', // oklch(0.627 0.265 303.9)
-    5: '#F08060', // oklch(0.645 0.246 16.439)
+    positive: '#16803C',
+    negative: '#B91C1C',
+    neutral: '#6B6B6B',
   },
 };
 

@@ -10,7 +10,34 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuth } from "./auth";
-import { requireAdmin, normalizeRole } from "./roles";
+import { requireAdmin, normalizeRole, getLinkedMedewerker } from "./roles";
+import type { Doc } from "./_generated/dataModel";
+import type { QueryCtx, MutationCtx } from "./_generated/server";
+
+/**
+ * Zoek het medewerker-record van de ingelogde gebruiker.
+ *
+ * Twee routes, in deze volgorde:
+ *  1. users.linkedMedewerkerId — de bron van waarheid die ook getCompanyUserId voedt.
+ *  2. medewerkers.clerkUserId  — legacy pad, blijft werken voor records die nog niet
+ *     via de koppelmutatie zijn aangemaakt.
+ *
+ * Voorheen gebruikte dit bestand uitsluitend route 2, terwijl urenSegmenten.ts route 1
+ * gebruikt. Bij een record waar beide velden niet naar dezelfde gebruiker wijzen faalde
+ * telkens één van de twee. Zie docs/MOBILE-AUDIT.md (B1/B2).
+ */
+async function vindEigenMedewerker(
+  ctx: QueryCtx | MutationCtx,
+  clerkId: string
+): Promise<Doc<"medewerkers"> | null> {
+  const viaKoppeling = await getLinkedMedewerker(ctx);
+  if (viaKoppeling) return viaKoppeling;
+
+  return await ctx.db
+    .query("medewerkers")
+    .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", clerkId))
+    .first();
+}
 
 // ============================================
 // USER PROFILE
@@ -25,10 +52,7 @@ export const getProfile = query({
     const user = await requireAuth(ctx);
 
     // Get medewerker record
-    const medewerker = await ctx.db
-      .query("medewerkers")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", user.clerkId))
-      .first();
+    const medewerker = await vindEigenMedewerker(ctx, user.clerkId);
 
     if (!medewerker) {
       return {
@@ -83,14 +107,13 @@ export const updateBiometricSetting = mutation({
   handler: async (ctx, args) => {
     const user = await requireAuth(ctx);
 
-    // Get medewerker record
-    const medewerker = await ctx.db
-      .query("medewerkers")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", user.clerkId))
-      .first();
+    const medewerker = await vindEigenMedewerker(ctx, user.clerkId);
 
+    // Geen medewerkerprofiel is een legitieme toestand (bijv. een directie-account
+    // zonder eigen veldprofiel). Dat is geen fout: gooien zorgde ervoor dat de app
+    // "Kon biometrie instelling niet wijzigen" toonde terwijl er niets stuk was.
     if (!medewerker) {
-      throw new ConvexError("Medewerker profiel niet gevonden");
+      return { success: false as const, reason: "geen_medewerkerprofiel" as const };
     }
 
     await ctx.db.patch(medewerker._id, {
@@ -98,7 +121,7 @@ export const updateBiometricSetting = mutation({
       updatedAt: Date.now(),
     });
 
-    return { success: true };
+    return { success: true as const, reason: null };
   },
 });
 
@@ -389,6 +412,23 @@ export const adminLinkUserToMedewerker = mutation({
   handler: async (ctx, args) => {
     const user = await requireAdmin(ctx);
 
+    const targetUser = await ctx.db.get(args.userId);
+    if (!targetUser) {
+      throw new ConvexError("Gebruiker niet gevonden");
+    }
+
+    // Maak een eventuele vorige koppeling los, anders blijft clerkUserId achter op het
+    // oude medewerker-record en vindt vindEigenMedewerker straks de verkeerde persoon.
+    if (
+      targetUser.linkedMedewerkerId &&
+      targetUser.linkedMedewerkerId !== args.medewerkerId
+    ) {
+      const oudeMedewerker = await ctx.db.get(targetUser.linkedMedewerkerId);
+      if (oudeMedewerker) {
+        await ctx.db.patch(oudeMedewerker._id, { clerkUserId: undefined });
+      }
+    }
+
     // If linking (not unlinking), verify the medewerker exists and belongs to admin
     if (args.medewerkerId) {
       const medewerker = await ctx.db.get(args.medewerkerId);
@@ -410,12 +450,40 @@ export const adminLinkUserToMedewerker = mutation({
       if (existingLink && existingLink._id.toString() !== args.userId.toString()) {
         throw new ConvexError("Deze medewerker is al aan een andere gebruiker gekoppeld");
       }
-    }
 
-    // Update the user's linked medewerker
-    await ctx.db.patch(args.userId, {
-      linkedMedewerkerId: args.medewerkerId,
-    });
+      // Een directie-account dat zelf tenant-eigenaar is, mag niet aan een medewerker
+      // van een ANDERE tenant gekoppeld worden: getCompanyUserId zou dan zijn eigen _id
+      // blijven teruggeven en elke scope-check zou daarna mismatchen.
+      const isEigenTenant =
+        medewerker.userId.toString() === targetUser._id.toString();
+      if (!isEigenTenant && normalizeRole(targetUser.role) === "directie") {
+        const bezitEigenMedewerkers = await ctx.db
+          .query("medewerkers")
+          .filter((q) => q.eq(q.field("userId"), targetUser._id))
+          .first();
+        if (bezitEigenMedewerkers) {
+          throw new ConvexError(
+            "Deze gebruiker is directie met eigen bedrijfsdata en kan niet aan een medewerker van een ander bedrijf gekoppeld worden"
+          );
+        }
+      }
+
+      // Zet clerkUserId op het medewerker-record, gelijk aan users.linkKlantAccount.
+      await ctx.db.patch(args.medewerkerId, { clerkUserId: targetUser.clerkId });
+
+      await ctx.db.patch(args.userId, {
+        linkedMedewerkerId: args.medewerkerId,
+        // De rol MOET meebewegen: blijft hij op directie/admin staan, dan kort
+        // getCompanyUserId (roles.ts:620) af op de eigen _id en matcht die nooit met
+        // medewerker.userId. Dat was de oorzaak van "Medewerker niet gevonden".
+        ...(isEigenTenant ? {} : { role: "medewerker" as const }),
+      });
+    } else {
+      await ctx.db.patch(args.userId, {
+        linkedMedewerkerId: undefined,
+        role: "klant" as const,
+      });
+    }
 
     return { success: true };
   },

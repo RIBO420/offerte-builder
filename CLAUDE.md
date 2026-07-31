@@ -49,7 +49,7 @@ npm run test:coverage
 cd mobile
 npx expo start --ios          # Start Expo dev server + iOS simulator
 npx expo start --ios --clear  # Start with Metro cache cleared
-npm install --legacy-peer-deps # Required flag due to Clerk peer dep conflicts
+npm install                   # Flags niet nodig: mobile/.npmrc zet legacy-peer-deps=true
 ```
 
 ### E2E Tests (Playwright)
@@ -124,7 +124,7 @@ npx convex deploy --yes  # Deploy to production
 
 ## Important Notes
 
-- All npm installs in `/mobile` require `--legacy-peer-deps` flag
+- `mobile/.npmrc` zet `legacy-peer-deps=true` — nodig omdat `@clerk/clerk-expo` een `react-dom` peer dependency declareert die botst met de react-versie van Expo SDK 54. Niet verwijderen: zonder dit faalt `npm ci`, o.a. in de EAS Build "Install dependencies" fase waar de vlag niet handmatig meegegeven kan worden. Losse `--legacy-peer-deps` flags zijn hierdoor niet meer nodig.
 - Mobile uses `react-native-reanimated` v4.1.1 (not legacy Animated API)
 - The web app uses Tailwind CSS v4 (not v3) — different config format than mobile
 - Mobile uses NativeWind (Tailwind for RN) with `tailwind.config.js` v3 syntax
