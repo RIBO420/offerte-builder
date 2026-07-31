@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   StyleSheet,
   Modal,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -152,7 +153,10 @@ function AuthenticatedChatScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedDMConversation, setSelectedDMConversation] = useState<DMConversation | null>(null);
   const [showNewDMModal, setShowNewDMModal] = useState(false);
-  const flatListRef = useRef<FlatList>(null);
+  // Aparte refs per lijst: één gedeelde ref stond eerder op zowel de team- als de
+  // projectlijst, waardoor scrollen naar het nieuwste bericht de verkeerde lijst raakte.
+  const teamListRef = useRef<FlatList>(null);
+  const projectListRef = useRef<FlatList>(null);
   const dmFlatListRef = useRef<FlatList>(null);
 
   // These queries will only run when this component is mounted (i.e., when authenticated)
@@ -204,22 +208,34 @@ function AuthenticatedChatScreen() {
     if (!message.trim()) return;
 
     try {
-      if (activeTab === 'team' || activeTab === 'broadcast' || activeTab === 'project') {
+      if (activeTab === 'team' || activeTab === 'broadcast') {
         await sendTeamMessage({
           channelType: activeTab,
           message: message.trim(),
           messageType: 'text',
         });
+        teamListRef.current?.scrollToOffset({ offset: 0, animated: true });
       } else if (activeTab === 'dm' && selectedDMConversation) {
         await sendDirectMessage({
           toUserId: selectedDMConversation.partnerId,
           message: message.trim(),
           messageType: 'text',
         });
+        dmFlatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+      } else {
+        // Projectkanaal is leesgeschiedenis: de webapp behandelt het read-only en
+        // convex/chat.ts:68 eist een projectId dat dit scherm niet heeft. Eerder werd
+        // hier tóch verstuurd, wat gegarandeerd stil faalde.
+        return;
       }
       setMessage('');
     } catch (error) {
-      console.error('Error sending message:', error);
+      // Was console.error: de gebruiker zag niets gebeuren en bleef het opnieuw proberen.
+      const melding =
+        error && typeof error === 'object' && 'data' in error
+          ? String((error as { data: unknown }).data)
+          : 'Controleer je verbinding en probeer het opnieuw.';
+      Alert.alert('Versturen mislukt', melding);
     }
   }, [message, activeTab, sendTeamMessage, sendDirectMessage, selectedDMConversation]);
 
@@ -382,23 +398,31 @@ function AuthenticatedChatScreen() {
     [selectedDMConversation]
   );
 
-  // Get messages for current tab, marking own messages
-  const getMessages = () => {
+  // Berichten voor het actieve tabblad, omgekeerd voor de inverted FlatList.
+  //
+  // convex/chat.ts:201 levert OPLOPEND (oudste eerst). Een inverted FlatList zet index 0
+  // visueel onderaan, dus zonder reverse() stond het oudste bericht onderaan en verscheen
+  // een nieuw bericht buiten beeld. De DM-lijst deed dit al goed (:571).
+  // Laat convex/chat.ts ongemoeid — de webapp rekent op oplopende volgorde.
+  const messages = useMemo(() => {
+    const src =
+      activeTab === 'team'
+        ? teamMessages
+        : activeTab === 'broadcast'
+          ? broadcastMessages
+          : activeTab === 'project'
+            ? projectMessages
+            : undefined;
     const currentUserId = currentUser?._id;
-    const markOwn = (msgs: any[] | undefined) =>
-      (msgs || []).map((m: any) => ({ ...m, isOwn: m.senderId === currentUserId }));
+    return (src ?? [])
+      .map((m: any) => ({ ...m, isOwn: m.senderId === currentUserId }))
+      .reverse();
+  }, [activeTab, teamMessages, broadcastMessages, projectMessages, currentUser?._id]);
 
-    if (activeTab === 'team') {
-      return markOwn(teamMessages);
-    } else if (activeTab === 'broadcast') {
-      return markOwn(broadcastMessages);
-    } else if (activeTab === 'project') {
-      return markOwn(projectMessages);
-    }
-    return [];
-  };
-
-  const messages = getMessages();
+  const invertedDMMessages = useMemo(
+    () => [...(dmMessages ?? [])].reverse(),
+    [dmMessages]
+  );
   const isLoading = false; // Never block UI
 
   // Custom tab bar renderer
@@ -504,18 +528,13 @@ function AuthenticatedChatScreen() {
               renderEmptyState('message-circle', 'Nog geen berichten', 'Start een gesprek met je team!')
             ) : (
               <FlatList
-                ref={flatListRef}
+                ref={teamListRef}
                 data={messages}
                 keyExtractor={(item) => item._id}
                 renderItem={renderMessage}
                 inverted
                 contentContainerStyle={styles.messageList}
                 showsVerticalScrollIndicator={false}
-                getItemLayout={(_, index) => ({
-                  length: 80,
-                  offset: 80 * index,
-                  index,
-                })}
                 refreshControl={
                   <RefreshControl
                     refreshing={refreshing}
@@ -541,11 +560,6 @@ function AuthenticatedChatScreen() {
                 inverted
                 contentContainerStyle={styles.messageList}
                 showsVerticalScrollIndicator={false}
-                getItemLayout={(_, index) => ({
-                  length: 80,
-                  offset: 80 * index,
-                  index,
-                })}
                 refreshControl={
                   <RefreshControl
                     refreshing={refreshing}
@@ -568,17 +582,12 @@ function AuthenticatedChatScreen() {
               ) : (
                 <FlatList
                   ref={dmFlatListRef}
-                  data={[...dmMessages].reverse()}
+                  data={invertedDMMessages}
                   keyExtractor={(item) => item._id}
                   renderItem={renderDMMessage}
                   inverted
                   contentContainerStyle={styles.messageList}
                   showsVerticalScrollIndicator={false}
-                  getItemLayout={(_, index) => ({
-                    length: 80,
-                    offset: 80 * index,
-                    index,
-                  })}
                   refreshControl={
                     <RefreshControl
                       refreshing={refreshing}
@@ -636,18 +645,13 @@ function AuthenticatedChatScreen() {
               renderEmptyState('folder', 'Geen project berichten', 'Selecteer een project om berichten te zien')
             ) : (
               <FlatList
-                ref={flatListRef}
+                ref={projectListRef}
                 data={messages}
                 keyExtractor={(item) => item._id}
                 renderItem={renderMessage}
                 inverted
                 contentContainerStyle={styles.messageList}
                 showsVerticalScrollIndicator={false}
-                getItemLayout={(_, index) => ({
-                  length: 80,
-                  offset: 80 * index,
-                  index,
-                })}
                 refreshControl={
                   <RefreshControl
                     refreshing={refreshing}
@@ -660,8 +664,10 @@ function AuthenticatedChatScreen() {
           </TabsContent>
         </View>
 
-        {/* Input bar - show for team/broadcast/project channels and when viewing a DM conversation */}
-        {(activeTab === 'team' || activeTab === 'broadcast' || activeTab === 'project' || selectedDMConversation) && (
+        {/* Input bar — team/broadcast en een geopend DM-gesprek.
+            Het projectkanaal is bewust uitgesloten: dat is leesgeschiedenis (de webapp
+            behandelt het read-only) en versturen faalde daar altijd. */}
+        {(activeTab === 'team' || activeTab === 'broadcast' || selectedDMConversation) && (
           <View style={styles.inputBar}>
             <TextInput
               style={styles.textInput}

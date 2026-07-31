@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { colors, darkColors, ColorScheme } from './colors';
+import { colors, lightColors, ColorScheme } from './colors';
 
-const THEME_STORAGE_KEY = '@toptuinen_theme_mode';
+// _v2: de vorige sleutel kan 'light' bevatten, gezet door gebruikers die daarmee het
+// omgekeerde thema compenseerden. Na de fix zou dat juist het lichte palet geven.
+const THEME_STORAGE_KEY = '@toptuinen_theme_mode_v2';
 
 type ThemeMode = 'light' | 'dark' | 'system';
 
@@ -54,7 +56,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   };
 
   const isDark = mode === 'system' ? systemColorScheme === 'dark' : mode === 'dark';
-  const themeColors = isDark ? { ...colors, ...darkColors } : colors;
+  // `colors` IS het donkere basispalet; licht is de override. Voorheen stond dit om.
+  const themeColors = isDark ? colors : { ...colors, ...lightColors };
 
   // Don't render children until theme is loaded to avoid flash
   if (isLoading) {

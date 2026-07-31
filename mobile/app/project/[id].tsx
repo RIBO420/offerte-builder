@@ -146,19 +146,18 @@ export default function ProjectDetailScreen() {
               </View>
             )}
 
-            {/* Quick Actions Row */}
+            {/* Quick Actions Row
+                Alleen "Uren" is hier zinvol. "Foto's" verwees naar een scherm dat niet
+                bestaat (de Foto's-tab is een stub, zie docs/MOBILE-AUDIT.md B5) en
+                "Notities" dupliceerde de NOTITIES-sectie die hieronder al zichtbaar is.
+                Beide hadden geen onPress en deden dus niets. */}
             <View style={s.quickActionsRow}>
-              <TouchableOpacity style={s.quickAction}>
-                <Feather name="camera" size={20} color="#6B8F6B" />
-                <Text style={s.quickActionLabel}>Foto&apos;s</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={s.quickAction}>
+              <TouchableOpacity
+                style={s.quickAction}
+                onPress={() => router.push('/(tabs)/uren')}
+              >
                 <Feather name="clock" size={20} color="#6B8F6B" />
                 <Text style={s.quickActionLabel}>Uren</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={s.quickAction}>
-                <Feather name="file-text" size={20} color="#6B8F6B" />
-                <Text style={s.quickActionLabel}>Notities</Text>
               </TouchableOpacity>
             </View>
 

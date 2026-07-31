@@ -17,7 +17,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "nl.toptuinen.medewerkers",
       "infoPlist": {
-        "NSFaceIDUsageDescription": "Gebruik Face ID om snel en veilig in te loggen op Top Tuinen"
+        "NSFaceIDUsageDescription": "Gebruik Face ID om snel en veilig in te loggen op Top Tuinen",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -27,7 +28,16 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "nl.toptuinen.medewerkers"
+      "package": "nl.toptuinen.medewerkers",
+      "permissions": [
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -36,12 +46,46 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
+      "expo-notifications",
       [
         "expo-local-authentication",
         {
           "faceIDPermission": "Gebruik Face ID om snel en veilig in te loggen"
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Top Tuinen gebruikt de camera om projectfoto's vast te leggen",
+          "microphonePermission": "Top Tuinen gebruikt de microfoon voor spraaknotities bij projecten"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Top Tuinen heeft toegang tot je foto's nodig om projectfoto's toe te voegen",
+          "cameraPermission": "Top Tuinen gebruikt de camera om projectfoto's vast te leggen"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Top Tuinen gebruikt je locatie om foto's aan het juiste project te koppelen"
+        }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Top Tuinen gebruikt de microfoon voor spraaknotities bij projecten"
+        }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "b353b3f3-5b5a-456d-9176-0cbcc08719c7"
+      }
+    },
+    "owner": "ricardobos"
   }
 }

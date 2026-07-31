@@ -98,15 +98,25 @@ function TabItem({
   );
 }
 
-export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
+export function FloatingTabBar({ state, navigation, descriptors }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+
+  // Routes met href:null verbergen. expo-router vertaalt dat naar tabBarButton:() => null,
+  // wat de standaard React Navigation-balk respecteert maar deze custom balk niet —
+  // vandaar dat verborgen routes hier eerder als naamloze tabs verschenen.
+  const zichtbareRoutes = state.routes.filter(
+    (route) => descriptors[route.key]?.options.tabBarButton === undefined
+  );
 
   return (
     <View style={[styles.wrapper, { paddingBottom: Math.max(insets.bottom, 12) }]}>
       <View style={styles.container}>
         <BlurView intensity={40} tint="dark" style={styles.blur}>
           <View style={styles.overlay}>
-            {state.routes.map((route, index) => {
+            {zichtbareRoutes.map((route) => {
+              // Vergelijk tegen de ORIGINELE index: state.index verwijst naar
+              // state.routes, niet naar de gefilterde lijst.
+              const index = state.routes.indexOf(route);
               const isFocused = state.index === index;
 
               const onPress = () => {
