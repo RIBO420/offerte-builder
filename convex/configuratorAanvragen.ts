@@ -11,8 +11,24 @@ import {
   type LeadPipelineStatus,
 } from "./leadsKlantenHelpers";
 import { vindBedrijfseigenaarId, zetTriggerMailKlaar } from "./mailTriggers";
+import {
+  checkConfiguratorEmailRateLimit,
+  checkConfiguratorGlobaalRateLimit,
+  checkReferentieLookupRateLimit,
+} from "./security";
 import type { MutationCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
+
+/**
+ * Audit §3: de configurator is een publiek endpoint zonder ingelogde
+ * gebruiker. Bij een overschrijding krijgt de bezoeker een Nederlandse
+ * melding met een concrete wachttijd in minuten, plus de mogelijkheid om te
+ * bellen — een echte klant die per ongeluk tegen de limiet aanloopt mag geen
+ * doodlopende weg krijgen.
+ */
+function wachttijdInMinuten(resetAt: number): number {
+  return Math.max(1, Math.ceil((resetAt - Date.now()) / 60000));
+}
 
 /**
  * §2.7 (event lead_ontvangen): ontvangstbevestiging voor een nieuwe
@@ -109,10 +125,35 @@ export const getById = query({
 /**
  * Zoek een aanvraag op referentienummer (public, voor klant).
  * Klanten kunnen hun eigen aanvraag opzoeken zonder in te loggen.
+ *
+ * Audit §3: zonder rem kan iemand hier ongelimiteerd naar referenties raden
+ * (`CFG-YYYYMMDD-XXXX` heeft maar 10.000 varianten per dag). De globale
+ * limiet maakt dat onbegonnen werk zonder de statuspagina te hinderen.
+ *
+ * Dat de query-cache van Convex herhaalde opvragingen van dezelfde referentie
+ * kan afvangen werkt hier in ons voordeel: de klant die zijn eigen status
+ * bekijkt verbruikt nauwelijks quotum, terwijl een enumerator per poging een
+ * nieuwe referentie gebruikt en dus altijd door deze teller heen moet.
+ *
+ * LET OP twee eigenschappen van deze constructie: de teller staat in het
+ * geheugen van één isolate (bij meerdere isolates ligt de effectieve limiet
+ * hoger) en het bijwerken ervan is een side effect in een gecachete query, dus
+ * het verbruik is niet exact. Het is een rem tegen enumeratie, geen quotum.
  */
 export const getByReferentie = query({
   args: { referentie: v.string() },
   handler: async (ctx, args) => {
+    const rateLimit = checkReferentieLookupRateLimit();
+    if (!rateLimit.allowed) {
+      // Bewust `null` en geen throw. Dit is een live subscription op een
+      // publieke pagina: een ConvexError bubbelt langs de statuspagina naar de
+      // error-boundary en blijft gooien tot de bezoeker herlaadt. `null` valt
+      // in het bestaande "aanvraag niet gevonden"-pad, dus de pagina blijft
+      // heel — en een enumerator krijgt precies dezelfde uitkomst als bij een
+      // niet-bestaande referentie, wat het orakel juist verder dichtzet.
+      return null;
+    }
+
     return await ctx.db
       .query("configuratorAanvragen")
       .withIndex("by_referentie", (q) => q.eq("referentie", args.referentie))
@@ -290,6 +331,10 @@ export const pipelineStats = query({
 /**
  * Maak een nieuwe aanvraag aan (public, geen authenticatie vereist).
  * Genereert automatisch een uniek referentienummer.
+ *
+ * Audit §3: publiek endpoint, dus achter een rate limit (zie de motivatie
+ * bij de drempels in convex/security.ts). Convex kent hier geen IP-adres;
+ * we begrenzen daarom globaal én per e-mailadres.
  */
 export const create = mutation({
   args: {
@@ -351,6 +396,16 @@ export const create = mutation({
     indicatiePrijs: v.number(),
   },
   handler: async (ctx, args) => {
+    // Globale noodrem vóór al het werk: dit kost geen db-calls en vangt een
+    // flood met steeds wisselende e-mailadressen af.
+    const globaleLimiet = checkConfiguratorGlobaalRateLimit();
+    if (!globaleLimiet.allowed) {
+      throw new ConvexError(
+        "Er komen op dit moment ongewoon veel aanvragen binnen. Probeer het over " +
+          `${wachttijdInMinuten(globaleLimiet.resetAt)} minuten opnieuw of bel ons even.`
+      );
+    }
+
     // Valideer verplichte velden
     if (!args.klantNaam.trim()) {
       throw new ConvexError("Naam is verplicht");
@@ -358,6 +413,16 @@ export const create = mutation({
     if (!args.klantEmail.trim()) {
       throw new ConvexError("E-mailadres is verplicht");
     }
+
+    // Per e-mailadres: remt de herhaalbot, niet de klant die zich vergist.
+    const emailLimiet = checkConfiguratorEmailRateLimit(args.klantEmail);
+    if (!emailLimiet.allowed) {
+      throw new ConvexError(
+        "We hebben al meerdere aanvragen van dit e-mailadres ontvangen. Probeer het over " +
+          `${wachttijdInMinuten(emailLimiet.resetAt)} minuten opnieuw of bel ons even.`
+      );
+    }
+
     if (!args.klantTelefoon.trim()) {
       throw new ConvexError("Telefoonnummer is verplicht");
     }

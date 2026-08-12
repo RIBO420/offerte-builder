@@ -412,7 +412,7 @@ export const create = mutation({
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
-    await getOwnedProject(ctx, args.projectId);
+    const project = await getOwnedProject(ctx, args.projectId);
 
     // Validate required fields
     if (!args.omschrijving.trim()) {
@@ -438,6 +438,10 @@ export const create = mutation({
       }
       const id = await ctx.db.insert("urenRegistraties", {
         projectId: args.projectId,
+        // Tenant-scope (audit §2): zelfde route als de backfill-migratie
+        // (projectId → projecten.userId). Zonder dit veld valt de registratie
+        // buiten elke by_user-query en is hij dus onzichtbaar in de app.
+        userId: project.userId,
         datum: args.datum,
         medewerker: args.medewerker,
         uren: args.hoeveelheid,
@@ -1238,8 +1242,19 @@ export const getProjectOverzicht = query({
 export const getBudgetStatus = query({
   args: { projectId: v.id("projecten") },
   handler: async (ctx, args) => {
+    // Zonder guard lekte dit publieke endpoint budget, werkelijke kosten en
+    // margestatus van elk project aan iedereen met een projectId.
+    //
+    // Bewust dezelfde scoping als projecten.getWithDetails — `null` in plaats
+    // van een throw — omdat de projectdetailpagina beide queries parallel vuurt
+    // en op `null` netjes "Project niet gevonden" toont. Een throw wint die race
+    // en zet de gebruiker in de error-boundary; hetzelfde gebeurde zodra iemand
+    // het project verwijderde terwijl de pagina openstond.
     const project = await ctx.db.get(args.projectId);
     if (!project) return null;
+
+    const user = await requireAuth(ctx);
+    if (project.userId.toString() !== user._id.toString()) return null;
 
     // offerteId kan ontbreken bij losse werkitems
     const offerte = project.offerteId
@@ -1270,9 +1285,16 @@ export const getBudgetStatus = query({
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .collect();
 
-    // Standaard uurtarief ophalen
-    const instellingen = await ctx.db.query("instellingen").first();
-    const standaardUurtarief = (instellingen as Record<string, unknown>)?.uurtarief as number ?? 45;
+    // Standaard uurtarief van de eigenaar van dít project ophalen. Een
+    // ongescoopte `.first()` pakte een willekeurige rij uit `instellingen` —
+    // dus mogelijk het uurtarief van een ánder bedrijf. Dat maakte de cijfers
+    // niet alleen fout zodra er meerdere tenants zijn, het liet ook een vreemd
+    // uurtarief terugrekenen uit `werkelijkeKosten`.
+    const instellingen = await ctx.db
+      .query("instellingen")
+      .withIndex("by_user", (q) => q.eq("userId", project.userId))
+      .unique();
+    const standaardUurtarief = instellingen?.uurtarief ?? 45;
 
     const arbeidskosten = uren.reduce((sum, u) => sum + (u.uren * standaardUurtarief), 0);
     const machinekosten = machines.reduce((sum, m) => sum + m.kosten, 0);
@@ -1298,10 +1320,12 @@ export const getBudgetStatus = query({
 export const checkBudgetThreshold = mutation({
   args: { projectId: v.id("projecten") },
   handler: async (ctx, args) => {
-    await requireAuthUserId(ctx);
-
-    const project = await ctx.db.get(args.projectId);
-    if (!project) return;
+    // `requireAuthUserId` alleen zegt "iemand is ingelogd", niet "dit project is
+    // van mij". Zonder eigendomscheck kon elke ingelogde gebruiker — ook een
+    // klant — met een vreemd projectId een notificatie inserten op
+    // `userId: project.userId`, mét de projectnaam in titel en bericht: een
+    // cross-tenant schrijfactie in de meldingenlijst van een ander bedrijf.
+    const project = await getOwnedProject(ctx, args.projectId);
 
     // offerteId kan ontbreken bij losse werkitems
     const offerte = project.offerteId
@@ -1324,8 +1348,13 @@ export const checkBudgetThreshold = mutation({
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .collect();
 
-    const instellingen = await ctx.db.query("instellingen").first();
-    const standaardUurtarief = (instellingen as Record<string, unknown>)?.uurtarief as number ?? 45;
+    // Uurtarief van de project-eigenaar, niet een willekeurige instellingen-rij
+    // uit de tabel (zie de toelichting in getBudgetStatus hierboven).
+    const instellingen = await ctx.db
+      .query("instellingen")
+      .withIndex("by_user", (q) => q.eq("userId", project.userId))
+      .unique();
+    const standaardUurtarief = instellingen?.uurtarief ?? 45;
 
     const arbeidskosten = uren.reduce((sum, u) => sum + (u.uren * standaardUurtarief), 0);
     const machinekosten = machines.reduce((sum, m) => sum + m.kosten, 0);

@@ -220,13 +220,64 @@ export const getOfferteEmailStats = query({
 // ── Webhook mutations ────────────────────────────────────────────────────
 
 /**
- * Update email log from Resend webhook event.
- * Called by the /api/webhooks/resend route handler after signature verification.
- * This mutation does not require user auth — security is handled by
- * the webhook endpoint's Svix signature verification.
+ * Vergelijkt twee geheimen in (nagenoeg) constante tijd.
+ *
+ * Een gewone `===` breekt af bij het eerste afwijkende teken. Dat tijdverschil
+ * is over veel requests meetbaar en laat een aanvaller het geheim teken voor
+ * teken raden. De XOR-lus kost altijd evenveel tijd, ongeacht wáár het verschil
+ * zit. Het lengteverschil lekt alleen de lengte van het geheim en niet de
+ * inhoud — dezelfde afweging die Node's `timingSafeEqual` maakt.
+ *
+ * Handgeschreven omdat de Convex-runtime geen `node:crypto` heeft.
+ */
+function gelijkInConstanteTijd(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+
+  let verschil = 0;
+  for (let i = 0; i < a.length; i++) {
+    verschil |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return verschil === 0;
+}
+
+/**
+ * Controleert het gedeelde geheim dat de webhookroute meestuurt.
+ *
+ * Gooit altijd — nooit stilzwijgend doorlaten. Een ontbrekend geheim in de
+ * Convex-omgeving is een configuratiefout, geen reden om de deur open te
+ * zetten; fail closed is hier de veilige kant.
+ */
+function vereisWebhookGeheim(meegestuurd: string): void {
+  const verwacht = process.env.CONVEX_WEBHOOK_SECRET;
+
+  if (!verwacht) {
+    throw new ConvexError(
+      "CONVEX_WEBHOOK_SECRET is niet geconfigureerd in de Convex-omgeving — " +
+        "webhook-updates worden geweigerd"
+    );
+  }
+
+  if (!gelijkInConstanteTijd(meegestuurd, verwacht)) {
+    throw new ConvexError("Ongeldig webhook-geheim");
+  }
+}
+
+/**
+ * Werkt een email_log bij op basis van een Resend-webhookevent.
+ *
+ * Aangeroepen door /api/webhooks/resend, ná verificatie van de Svix-
+ * handtekening. Dit blijft een publieke `mutation` omdat een `internalMutation`
+ * niet aanroepbaar is via `ConvexHttpClient` vanuit een Next.js-routehandler.
+ * De toegangscontrole loopt daarom via het gedeelde geheim in `args.secret`:
+ * zonder dat geheim kan niemand die de deployment-URL kent nog delivery-,
+ * open-, bounce- of complaint-events vervalsen.
+ *
+ * Twee lagen, geen vervanging van elkaar: Svix bewijst dat het event van
+ * Resend komt, het gedeelde geheim bewijst dat de aanroep van ónze route komt.
  */
 export const updateFromWebhook = mutation({
   args: {
+    secret: v.string(),
     resendId: v.string(),
     eventType: v.union(
       v.literal("email.delivered"),
@@ -238,6 +289,8 @@ export const updateFromWebhook = mutation({
     timestamp: v.number(),
   },
   handler: async (ctx, args) => {
+    vereisWebhookGeheim(args.secret);
+
     // Find the email log by resendId
     const log = await ctx.db
       .query("email_logs")

@@ -32,14 +32,11 @@ export function useCurrentUser() {
 
   // Sync Clerk user to Convex on first load
   // The upsert mutation also creates default settings for new users
+  // clerkId, e-mail en naam worden server-side uit het Clerk-token gehaald —
+  // meesturen vanaf de client zou account-overname mogelijk maken (audit §1).
   useEffect(() => {
     if (isClerkLoaded && clerkUser && convexUser === null) {
-      upsertUser({
-        clerkId: clerkUser.id,
-        email: clerkUser.primaryEmailAddress?.emailAddress || "",
-        name: clerkUser.fullName || clerkUser.firstName || "Gebruiker",
-        bedrijfsnaam: undefined,
-      });
+      upsertUser({ bedrijfsnaam: undefined });
     }
   }, [isClerkLoaded, clerkUser, convexUser, upsertUser]);
 

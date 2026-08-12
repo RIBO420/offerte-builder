@@ -316,11 +316,28 @@ export const list = query({
   },
 });
 
-// Get a single template
+// Get a single template (systeemtemplate of eigen template)
 export const get = query({
   args: { id: v.id("standaardtuinen") },
   handler: async (ctx, { id }) => {
-    return await ctx.db.get(id);
+    // Zelfde scoping als `list`: systeemtemplates (userId === undefined) zijn
+    // voor elke ingelogde gebruiker zichtbaar, eigen templates alleen voor de
+    // eigenaar. Zonder deze guard was elk template-id van elk bedrijf leesbaar
+    // voor willekeurige (ook uitgelogde) aanroepers van dit publieke endpoint.
+    const userId = await requireAuthUserId(ctx);
+
+    const template = await ctx.db.get(id);
+    if (!template) return null;
+
+    // template.userId leeg => systeemtemplate, altijd toegestaan.
+    // Een template van een ander bedrijf levert net als een onbekend id `null`
+    // op — geen aparte foutmelding, want het verschil tussen "bestaat niet" en
+    // "geen toegang" is zelf al een bestaans-orakel.
+    if (template.userId && template.userId.toString() !== userId.toString()) {
+      return null;
+    }
+
+    return template;
   },
 });
 
@@ -422,8 +439,18 @@ export const createOfferteFromTemplate = mutation({
     await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
 
+    // Dezelfde eigendomscheck als in `get`/`update`/`remove`. Zonder deze regel
+    // omzeilde deze mutation de guard in `get` volledig: met alleen een
+    // template-id kopieerde elke ingelogde niet-klant `scopes` en
+    // `defaultWaarden` van een ander bedrijf in een offerte op zijn eigen naam,
+    // en las die inhoud daarna gewoon via zijn eigen offerte-queries uit.
+    // Beide foutpaden geven dezelfde melding: het verschil tussen "bestaat
+    // niet" en "van iemand anders" is zelf al een bestaans-orakel.
     const template = await ctx.db.get(args.templateId);
     if (!template) throw new ConvexError("Template niet gevonden");
+    if (template.userId && template.userId.toString() !== userId.toString()) {
+      throw new ConvexError("Template niet gevonden");
+    }
 
     const now = Date.now();
 
