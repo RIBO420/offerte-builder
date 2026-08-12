@@ -5,17 +5,32 @@
  */
 
 import { v, ConvexError } from "convex/values";
-import { mutation, query, type QueryCtx } from "./_generated/server";
+import {
+  mutation,
+  query,
+  type MutationCtx,
+  type QueryCtx,
+} from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { requireAuth } from "./auth";
-import { requireNotViewer } from "./roles";
+import {
+  getCompanyUserId,
+  hasPermission,
+  normalizeRole,
+  requireNotViewer,
+} from "./roles";
 
 /**
  * Haal de medewerkers en projecten op waarnaar toewijzingen verwijzen,
  * met gededupliceerde db.get's (één get per uniek id i.p.v. per rij).
+ *
+ * Alles wat niet aan `companyUserId` hangt valt buiten de map (audit §2): de
+ * rijen zijn hierboven al op tenant gefilterd, maar een verdwaalde verwijzing
+ * naar een project van een ander bedrijf mag nooit alsnog een naam prijsgeven.
  */
 async function haalPlanningReferenties(
-  ctx: QueryCtx,
+  ctx: QueryCtx | MutationCtx,
+  companyUserId: Id<"users">,
   toewijzingen: Array<{
     medewerkerId: Id<"medewerkers">;
     projectId: Id<"projecten">;
@@ -31,14 +46,109 @@ async function haalPlanningReferenties(
 
   const medewerkerMap = new Map<Id<"medewerkers">, Doc<"medewerkers">>();
   medewerkers.forEach((m) => {
-    if (m) medewerkerMap.set(m._id, m);
+    if (m && m.userId === companyUserId) medewerkerMap.set(m._id, m);
   });
   const projectMap = new Map<Id<"projecten">, Doc<"projecten">>();
   projecten.forEach((p) => {
-    if (p) projectMap.set(p._id, p);
+    if (p && p.userId === companyUserId) projectMap.set(p._id, p);
   });
 
   return { medewerkerMap, projectMap };
+}
+
+/**
+ * Het medewerkerrecord van de ingelogde gebruiker.
+ *
+ * Er bestaan twee koppelroutes in de data: `users.linkedMedewerkerId`
+ * (roles.ts) en `medewerkers.clerkUserId` (medewerkers.ts). Beide worden
+ * gebruikt, dus we proberen ze allebei — anders krijgt een medewerker die maar
+ * via één route gekoppeld is een leeg planbord.
+ */
+async function haalEigenMedewerker(
+  ctx: QueryCtx | MutationCtx,
+  user: Doc<"users">
+): Promise<Doc<"medewerkers"> | null> {
+  if (user.linkedMedewerkerId) {
+    const viaLink = await ctx.db.get(user.linkedMedewerkerId);
+    if (viaLink) return viaLink;
+  }
+
+  return await ctx.db
+    .query("medewerkers")
+    .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", user.clerkId))
+    .first();
+}
+
+/** Rol- en tenantcontext voor het planbord. */
+type PlanningContext = {
+  /** Het bedrijfsaccount waarop élke planningquery gescoped moet worden. */
+  companyUserId: Id<"users">;
+  /** Medewerkers waarvan planningrijen zichtbaar zijn (incl. inactieve). */
+  rijScopeIds: Set<Id<"medewerkers">>;
+  /** Actieve zichtbare medewerkers: Y-as én capaciteitsbasis. */
+  zichtbareMedewerkers: Doc<"medewerkers">[];
+};
+
+/**
+ * Tenant- en rolcontext voor het planbord (audit §2).
+ *
+ * De tabel `weekPlanning` heeft zelf géén `userId`; de tenant-scope loopt dus
+ * via de medewerker waaraan een rij hangt. Daarom lezen we hier één keer alle
+ * medewerkers van het bedrijf via de `by_user`-index (i.p.v. de vroegere
+ * `.filter()`-scan over álle bedrijven) en gebruiken we die set om zowel de
+ * planningrijen te scopen als de capaciteit te berekenen.
+ *
+ * Rol: wie geen leesrecht op `medewerkers` heeft (medewerker, zzp'er,
+ * materiaalman, klant) ziet uitsluitend de eigen rij — dezelfde regel als
+ * `medewerkers.ts::list`, maar via de centrale rechtenmatrix zodat voorman en
+ * projectleider hun leesrecht behouden.
+ */
+async function haalPlanningContext(
+  ctx: QueryCtx | MutationCtx
+): Promise<PlanningContext> {
+  const user = await requireAuth(ctx);
+  const eigenMedewerker = await haalEigenMedewerker(ctx, user);
+
+  // Tenant volgt roles.getCompanyUserId (directie = eigen account, overige
+  // rollen erven de tenant van hun medewerkerrecord). Die helper kijkt alleen
+  // naar user.linkedMedewerkerId; de clerkUserId-route vullen we hier aan.
+  const companyUserId =
+    normalizeRole(user.role) !== "directie" && eigenMedewerker
+      ? eigenMedewerker.userId
+      : await getCompanyUserId(ctx);
+
+  const bedrijfsMedewerkers = await ctx.db
+    .query("medewerkers")
+    .withIndex("by_user", (q) => q.eq("userId", companyUserId))
+    .collect();
+
+  const magVolledigeLijst = hasPermission(user.role, "read", "medewerkers");
+  const eigenRij =
+    eigenMedewerker && eigenMedewerker.userId === companyUserId
+      ? eigenMedewerker
+      : null;
+
+  const zichtbaar = magVolledigeLijst
+    ? bedrijfsMedewerkers
+    : eigenRij
+      ? [eigenRij]
+      : [];
+
+  return {
+    companyUserId,
+    // Inactieve medewerkers blijven meetellen voor de rijen: historische
+    // toewijzingen van iemand die uit dienst is mogen niet verdwijnen.
+    rijScopeIds: new Set(zichtbaar.map((m) => m._id)),
+    zichtbareMedewerkers: zichtbaar.filter((m) => m.isActief),
+  };
+}
+
+/** Houd alleen de planningrijen over die bij de zichtbare medewerkers horen. */
+function scopeToewijzingen<T extends { medewerkerId: Id<"medewerkers"> }>(
+  toewijzingen: T[],
+  rijScopeIds: Set<Id<"medewerkers">>
+): T[] {
+  return toewijzingen.filter((t) => rijScopeIds.has(t.medewerkerId));
 }
 
 // ============================================
@@ -54,21 +164,24 @@ export const getWeek = query({
     eindDatum: v.string(), // YYYY-MM-DD (vrijdag)
   },
   handler: async (ctx, args) => {
-    await requireAuth(ctx);
+    const { companyUserId, rijScopeIds } = await haalPlanningContext(ctx);
 
     // Haal alle toewijzingen in het datumbereik (bereik in de index zelf,
-    // zodat niet de hele tabel gescand wordt)
-    const toewijzingen = await ctx.db
+    // zodat niet de hele tabel gescand wordt). De by_datum-index kent geen
+    // tenant, dus scopen we daarna op de medewerkers van dit bedrijf.
+    const alleToewijzingen = await ctx.db
       .query("weekPlanning")
       .withIndex("by_datum", (q) =>
         q.gte("datum", args.startDatum).lte("datum", args.eindDatum)
       )
       .collect();
+    const toewijzingen = scopeToewijzingen(alleToewijzingen, rijScopeIds);
 
     // Enriche met medewerker en project info (gededupliceerde gets:
     // unieke ids zijn veel kleiner dan het aantal toewijzingen)
     const { medewerkerMap, projectMap } = await haalPlanningReferenties(
       ctx,
+      companyUserId,
       toewijzingen
     );
     const enriched = toewijzingen.map((t) => {
@@ -88,18 +201,16 @@ export const getWeek = query({
 
 /**
  * Actieve medewerkers ophalen voor de Y-as.
+ *
+ * Alleen de medewerkers van het eigen bedrijf, en alleen voor rollen die de
+ * medewerkerslijst mogen lezen (zie haalPlanningContext).
  */
 export const getMedewerkers = query({
   args: {},
   handler: async (ctx) => {
-    await requireAuth(ctx);
+    const { zichtbareMedewerkers } = await haalPlanningContext(ctx);
 
-    const medewerkers = await ctx.db
-      .query("medewerkers")
-      .filter((q) => q.eq(q.field("isActief"), true))
-      .collect();
-
-    return medewerkers.map((m) => ({
+    return zichtbareMedewerkers.map((m) => ({
       _id: m._id,
       naam: m.naam,
       functie: m.functie,
@@ -113,19 +224,23 @@ export const getMedewerkers = query({
 export const getActiveProjects = query({
   args: {},
   handler: async (ctx) => {
-    await requireAuth(ctx);
+    const { companyUserId } = await haalPlanningContext(ctx);
 
-    // by_status-index: alleen geplande/lopende projecten lezen i.p.v.
-    // de hele projectentabel scannen. Sorteren op _creationTime houdt
-    // dezelfde volgorde als de eerdere volledige scan.
+    // by_user_status-index: alleen de geplande/lopende projecten van dít
+    // bedrijf lezen. De oude by_status-variant las de projectnamen van álle
+    // bedrijven (audit §2). Sorteren op _creationTime houdt dezelfde volgorde.
     const [gepland, inUitvoering] = await Promise.all([
       ctx.db
         .query("projecten")
-        .withIndex("by_status", (q) => q.eq("status", "gepland"))
+        .withIndex("by_user_status", (q) =>
+          q.eq("userId", companyUserId).eq("status", "gepland")
+        )
         .collect(),
       ctx.db
         .query("projecten")
-        .withIndex("by_status", (q) => q.eq("status", "in_uitvoering"))
+        .withIndex("by_user_status", (q) =>
+          q.eq("userId", companyUserId).eq("status", "in_uitvoering")
+        )
         .collect(),
     ]);
 
@@ -145,6 +260,36 @@ export const getActiveProjects = query({
 // ============================================
 
 /**
+ * Controleer dat een medewerker bij het eigen bedrijf hoort (audit §2).
+ * Zonder deze check kon een ingelogde gebruiker planningrijen schrijven op
+ * medewerkers en projecten van een ánder bedrijf.
+ */
+async function vereisEigenMedewerker(
+  ctx: MutationCtx,
+  medewerkerId: Id<"medewerkers">,
+  companyUserId: Id<"users">
+): Promise<Doc<"medewerkers">> {
+  const medewerker = await ctx.db.get(medewerkerId);
+  if (!medewerker || medewerker.userId !== companyUserId) {
+    throw new ConvexError("Medewerker niet gevonden");
+  }
+  return medewerker;
+}
+
+/** Idem voor projecten. */
+async function vereisEigenProject(
+  ctx: MutationCtx,
+  projectId: Id<"projecten">,
+  companyUserId: Id<"users">
+): Promise<Doc<"projecten">> {
+  const project = await ctx.db.get(projectId);
+  if (!project || project.userId !== companyUserId) {
+    throw new ConvexError("Project niet gevonden");
+  }
+  return project;
+}
+
+/**
  * Toewijzing toevoegen (drag-drop een project op een medewerker+dag).
  */
 export const assign = mutation({
@@ -157,6 +302,9 @@ export const assign = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
+    const { companyUserId } = await haalPlanningContext(ctx);
+    await vereisEigenMedewerker(ctx, args.medewerkerId, companyUserId);
+    await vereisEigenProject(ctx, args.projectId, companyUserId);
 
     // Check of deze combinatie al bestaat
     const existing = await ctx.db
@@ -198,9 +346,16 @@ export const move = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
+    const { companyUserId } = await haalPlanningContext(ctx);
 
     const item = await ctx.db.get(args.id);
     if (!item) throw new ConvexError("Toewijzing niet gevonden");
+
+    // Zowel de bron- als de doelmedewerker moet van het eigen bedrijf zijn:
+    // anders kon een toewijzing van een ander bedrijf verplaatst worden, of de
+    // eigen toewijzing naar een vreemde medewerker.
+    await vereisEigenMedewerker(ctx, item.medewerkerId, companyUserId);
+    await vereisEigenMedewerker(ctx, args.medewerkerId, companyUserId);
 
     await ctx.db.patch(args.id, {
       medewerkerId: args.medewerkerId,
@@ -216,8 +371,11 @@ export const remove = mutation({
   args: { id: v.id("weekPlanning") },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
+    const { companyUserId } = await haalPlanningContext(ctx);
     const item = await ctx.db.get(args.id);
     if (!item) throw new ConvexError("Toewijzing niet gevonden");
+    // Alleen toewijzingen van eigen medewerkers zijn verwijderbaar.
+    await vereisEigenMedewerker(ctx, item.medewerkerId, companyUserId);
     await ctx.db.delete(args.id);
   },
 });
@@ -236,32 +394,30 @@ export const listByMonth = query({
     month: v.number(), // 1-12
   },
   handler: async (ctx, args) => {
-    await requireAuth(ctx);
+    const { companyUserId, rijScopeIds, zichtbareMedewerkers } =
+      await haalPlanningContext(ctx);
 
     // Build date range: first and last day of month (YYYY-MM-DD strings)
     const startDatum = `${args.year}-${String(args.month).padStart(2, "0")}-01`;
     const lastDay = new Date(args.year, args.month, 0).getDate();
     const eindDatum = `${args.year}-${String(args.month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 
-    const toewijzingen = await ctx.db
+    const alleToewijzingen = await ctx.db
       .query("weekPlanning")
       .withIndex("by_datum", (q) =>
         q.gte("datum", startDatum).lte("datum", eindDatum)
       )
       .collect();
+    const toewijzingen = scopeToewijzingen(alleToewijzingen, rijScopeIds);
 
-    // Get capacity info
-    const alleMedewerkers = await ctx.db
-      .query("medewerkers")
-      .filter((q) => q.eq(q.field("isActief"), true))
-      .collect();
-
+    // Capaciteit op basis van de zichtbare medewerkers van dit bedrijf
     const urenPerDag = 8;
-    const beschikbareUrenPerDag = alleMedewerkers.length * urenPerDag;
+    const beschikbareUrenPerDag = zichtbareMedewerkers.length * urenPerDag;
 
     // Enrich with medewerker and project info (gededupliceerde gets)
     const { medewerkerMap, projectMap } = await haalPlanningReferenties(
       ctx,
+      companyUserId,
       toewijzingen
     );
     const enriched = toewijzingen.map((t) => {
@@ -312,7 +468,11 @@ export const listByMonth = query({
       }
     }
 
-    return { perDag, beschikbareUrenPerDag, totaalMedewerkers: alleMedewerkers.length };
+    return {
+      perDag,
+      beschikbareUrenPerDag,
+      totaalMedewerkers: zichtbareMedewerkers.length,
+    };
   },
 });
 
@@ -326,7 +486,8 @@ export const listByQuarter = query({
     quarter: v.number(), // 1-4
   },
   handler: async (ctx, args) => {
-    await requireAuth(ctx);
+    const { rijScopeIds, zichtbareMedewerkers } =
+      await haalPlanningContext(ctx);
 
     const startMonth = (args.quarter - 1) * 3 + 1;
     const endMonth = startMonth + 2;
@@ -335,17 +496,13 @@ export const listByQuarter = query({
     const lastDay = new Date(args.year, endMonth, 0).getDate();
     const eindDatum = `${args.year}-${String(endMonth).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 
-    const toewijzingen = await ctx.db
+    const alleToewijzingen = await ctx.db
       .query("weekPlanning")
       .withIndex("by_datum", (q) =>
         q.gte("datum", startDatum).lte("datum", eindDatum)
       )
       .collect();
-
-    const alleMedewerkers = await ctx.db
-      .query("medewerkers")
-      .filter((q) => q.eq(q.field("isActief"), true))
-      .collect();
+    const toewijzingen = scopeToewijzingen(alleToewijzingen, rijScopeIds);
 
     const urenPerDag = 8;
 
@@ -377,7 +534,7 @@ export const listByQuarter = query({
         // Calculate Monday of this week
         const monday = new Date(d);
         monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
-        const beschikbaar = alleMedewerkers.length * urenPerDag * 5; // 5 werkdagen
+        const beschikbaar = zichtbareMedewerkers.length * urenPerDag * 5; // 5 werkdagen
 
         perWeek[weekKey] = {
           weekNummer: weekNum,
@@ -413,7 +570,7 @@ export const listByQuarter = query({
 
     return {
       weken: result,
-      totaalMedewerkers: alleMedewerkers.length,
+      totaalMedewerkers: zichtbareMedewerkers.length,
     };
   },
 });
@@ -428,23 +585,20 @@ export const getCapacityOverview = query({
     year: v.number(),
   },
   handler: async (ctx, args) => {
-    await requireAuth(ctx);
+    const { rijScopeIds, zichtbareMedewerkers } =
+      await haalPlanningContext(ctx);
 
     // Full year range
     const startDatum = `${args.year}-01-01`;
     const eindDatum = `${args.year}-12-31`;
 
-    const toewijzingen = await ctx.db
+    const alleToewijzingen = await ctx.db
       .query("weekPlanning")
       .withIndex("by_datum", (q) =>
         q.gte("datum", startDatum).lte("datum", eindDatum)
       )
       .collect();
-
-    const alleMedewerkers = await ctx.db
-      .query("medewerkers")
-      .filter((q) => q.eq(q.field("isActief"), true))
-      .collect();
+    const toewijzingen = scopeToewijzingen(alleToewijzingen, rijScopeIds);
 
     const urenPerDag = 8;
 
@@ -475,7 +629,7 @@ export const getCapacityOverview = query({
       { naam: string; urenPerMaand: number[] }
     > = {};
 
-    for (const mw of alleMedewerkers) {
+    for (const mw of zichtbareMedewerkers) {
       perMedewerker[mw._id] = {
         naam: mw.naam,
         urenPerMaand: new Array(12).fill(0),
@@ -484,7 +638,7 @@ export const getCapacityOverview = query({
 
     for (let m = 1; m <= 12; m++) {
       const werkdagen = werkdagenInMaand(args.year, m);
-      const beschikbaar = alleMedewerkers.length * urenPerDag * werkdagen;
+      const beschikbaar = zichtbareMedewerkers.length * urenPerDag * werkdagen;
 
       perMaand.push({
         maand: m,
@@ -531,7 +685,7 @@ export const getCapacityOverview = query({
     return {
       maanden,
       medewerkers,
-      totaalMedewerkers: alleMedewerkers.length,
+      totaalMedewerkers: zichtbareMedewerkers.length,
     };
   },
 });

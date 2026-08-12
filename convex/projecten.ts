@@ -117,6 +117,9 @@ export const create = mutation({
     if (args.copyVoorcalculatie) {
       await ctx.db.insert("voorcalculaties", {
         projectId,
+        // Tenant-scope (audit §2): het project hierboven is met dezelfde userId
+        // aangemaakt, dus dit is per definitie de juiste tenant.
+        userId,
         offerteId: args.offerteId, // Keep link to original offerte
         teamGrootte: offerteVoorcalculatie.teamGrootte,
         teamleden: offerteVoorcalculatie.teamleden,

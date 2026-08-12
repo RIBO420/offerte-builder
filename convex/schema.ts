@@ -861,6 +861,11 @@ export default defineSchema({
   // Can be linked to either an offerte (before sending) or a project (for legacy/reference)
   // New workflow: voorcalculatie is created at offerte level before sending to client
   voorcalculaties: defineTable({
+    // Multi-tenant scope (audit §2). BEWUST optioneel: bestaande rijen hebben het
+    // veld nog niet en een verplicht veld zou de deploy op die data laten falen.
+    // Backfill: npx convex run migrations:backfillVoorcalculatiesUserId
+    // Nieuwe schrijfpaden MOETEN dit veld zetten (= offerte/project.userId).
+    userId: v.optional(v.id("users")),
     offerteId: v.optional(v.id("offertes")), // Link to offerte (new workflow)
     projectId: v.optional(v.id("projecten")), // Link to project (legacy/reference)
     teamGrootte: v.union(v.literal(2), v.literal(3), v.literal(4)),
@@ -873,7 +878,9 @@ export default defineSchema({
     updatedAt: v.optional(v.number()),
   })
     .index("by_project", ["projectId"])
-    .index("by_offerte", ["offerteId"]),
+    .index("by_offerte", ["offerteId"])
+    // Tenant-scope: voorcalculaties van één bedrijf ophalen zonder full table scan
+    .index("by_user", ["userId"]),
 
   // PlanningTaken - Planning tasks per project
   // DEPRECATED voor planning (§2.2, stap 5a): dag/team/volgorde-planning leeft
@@ -1161,6 +1168,11 @@ export default defineSchema({
 
   // UrenRegistraties - Time registrations (imported or manual)
   urenRegistraties: defineTable({
+    // Multi-tenant scope (audit §2). BEWUST optioneel: bestaande rijen hebben het
+    // veld nog niet en een verplicht veld zou de deploy op die data laten falen.
+    // Backfill: npx convex run migrations:backfillUrenRegistratiesUserId
+    // Nieuwe schrijfpaden MOETEN dit veld zetten (= projecten.userId).
+    userId: v.optional(v.id("users")),
     projectId: v.id("projecten"),
     datum: v.string(), // YYYY-MM-DD format
     medewerker: v.string(),
@@ -1195,7 +1207,11 @@ export default defineSchema({
     // Index for clerkId-based lookups from mobile app
     .index("by_medewerker_clerk", ["medewerkerClerkId"])
     // Index for typed medewerker ID lookups
-    .index("by_medewerker_id", ["medewerkerId"]),
+    .index("by_medewerker_id", ["medewerkerId"])
+    // Tenant-scope: uren van één bedrijf ophalen zonder full table scan
+    .index("by_user", ["userId"])
+    // Tenant-scope + periode in één index (medewerkers.getMedewerkersMetPrestaties)
+    .index("by_user_datum", ["userId", "datum"]),
 
   // ============================================
   // Veld-rol: urensegmenten + dag-status (PRD §2.6 + bijlage C, stap 9a)
@@ -1956,6 +1972,12 @@ export default defineSchema({
 
   // Direct messages - Een-op-een berichten
   direct_messages: defineTable({
+    // Multi-tenant scope (audit §2). Gelijk aan companyId — dat veld is hier al de
+    // bedrijfs-user, maar heet anders dan in de rest van het datamodel. Door ook
+    // userId te voeren kan chat.ts dezelfde by_user-scoping gebruiken als de rest.
+    // BEWUST optioneel: bestaande rijen hebben het veld nog niet.
+    // Backfill: npx convex run migrations:backfillDirectMessagesUserId
+    userId: v.optional(v.id("users")),
     fromUserId: v.id("users"),
     fromClerkId: v.string(),
     toUserId: v.id("users"),
@@ -1975,7 +1997,9 @@ export default defineSchema({
   })
     .index("by_conversation", ["fromClerkId", "toClerkId"])
     .index("by_company", ["companyId"])
-    .index("by_recipient_unread", ["toClerkId", "isRead"]),
+    .index("by_recipient_unread", ["toClerkId", "isRead"])
+    // Tenant-scope: berichten van één bedrijf ophalen zonder full table scan
+    .index("by_user", ["userId"]),
 
   // Notification preferences - Push notification instellingen
   notification_preferences: defineTable({
