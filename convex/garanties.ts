@@ -10,6 +10,7 @@ import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuth, requireAuthUserId, verifyOwnership } from "./auth";
 import { requireNotViewer } from "./roles";
+import { laadDocsMap } from "./lib/batchLoad";
 
 // ============================================
 // QUERIES
@@ -44,20 +45,24 @@ export const list = query({
     // Filter out soft-deleted
     const activeGaranties = garanties.filter((g) => !g.deletedAt);
 
-    // Enrich with klant and project data
-    const enriched = await Promise.all(
-      activeGaranties.map(async (g) => {
-        const klant = await ctx.db.get(g.klantId);
-        const project = await ctx.db.get(g.projectId);
-        return {
-          ...g,
-          klantNaam: klant?.naam ?? "Onbekend",
-          projectNaam: project?.naam ?? "Onbekend",
-        };
-      })
+    // Enrich with klant and project data.
+    // N+1 weg (audit §5): één klant heeft doorgaans meerdere garanties, dus
+    // haal de unieke klanten/projecten in twee rondes op i.p.v. twee gets
+    // per garantie.
+    const klantMap = await laadDocsMap(
+      ctx,
+      activeGaranties.map((g) => g.klantId)
+    );
+    const projectMap = await laadDocsMap(
+      ctx,
+      activeGaranties.map((g) => g.projectId)
     );
 
-    return enriched;
+    return activeGaranties.map((g) => ({
+      ...g,
+      klantNaam: klantMap.get(g.klantId.toString())?.naam ?? "Onbekend",
+      projectNaam: projectMap.get(g.projectId.toString())?.naam ?? "Onbekend",
+    }));
   },
 });
 

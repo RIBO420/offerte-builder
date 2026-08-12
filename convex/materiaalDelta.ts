@@ -33,6 +33,7 @@ import {
   type DeltaItem,
 } from "./veldLogica";
 import { bepaalEffectieveBus, type BusBron } from "./machineparkLogica";
+import { laadDocsMap } from "./lib/batchLoad";
 
 const DATUM_PATROON = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -86,21 +87,36 @@ export const getDeltaChecklist = query({
         ];
       }
     }
+    // N+1 weg (audit §5): drie rondes i.p.v. één get per bouwsteen en daarna
+    // nog één per gekoppelde machine/product. Eerst de bouwstenen, dan in één
+    // klap alle machines en producten waar die bouwstenen naar wijzen.
+    const bouwsteenMap = await laadDocsMap(
+      ctx,
+      regels.map((r) => r.bouwsteenId)
+    );
+    const gebruikteBouwstenen = [...bouwsteenMap.values()];
+    const [machineMap, productMap] = await Promise.all([
+      laadDocsMap(
+        ctx,
+        gebruikteBouwstenen.flatMap((b) => b.machineIds ?? [])
+      ),
+      laadDocsMap(
+        ctx,
+        gebruikteBouwstenen.flatMap((b) => b.productIds ?? [])
+      ),
+    ]);
+
     const benodigd: DeltaItem[] = [];
-    const bouwsteenCache = new Map<string, Doc<"bouwstenen"> | null>();
     for (const regel of regels) {
       if (!regel.bouwsteenId) continue;
-      if (!bouwsteenCache.has(regel.bouwsteenId)) {
-        bouwsteenCache.set(regel.bouwsteenId, await ctx.db.get(regel.bouwsteenId));
-      }
-      const bouwsteen = bouwsteenCache.get(regel.bouwsteenId) ?? null;
+      const bouwsteen = bouwsteenMap.get(regel.bouwsteenId.toString());
       if (!bouwsteen) continue;
       for (const machineId of bouwsteen.machineIds ?? []) {
-        const machine = await ctx.db.get(machineId);
+        const machine = machineMap.get(machineId.toString());
         if (machine) benodigd.push({ naam: machine.naam, soort: "machine" });
       }
       for (const productId of bouwsteen.productIds ?? []) {
-        const product = await ctx.db.get(productId);
+        const product = productMap.get(productId.toString());
         if (product)
           benodigd.push({ naam: product.productnaam, soort: "materiaal" });
       }

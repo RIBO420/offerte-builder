@@ -7,6 +7,7 @@ import {
   getUserRole,
   getLinkedMedewerker,
 } from "./roles";
+import { laadDocsMap } from "./lib/batchLoad";
 
 // ============================================
 // VERLOFAANVRAGEN — Leave Request Management
@@ -97,18 +98,19 @@ export const list = query({
     // Sort by startDatum descending (newest first)
     aanvragen.sort((a, b) => b.startDatum.localeCompare(a.startDatum));
 
-    // Enrich with medewerker naam
-    const enriched = await Promise.all(
-      aanvragen.map(async (aanvraag) => {
-        const medewerker = await ctx.db.get(aanvraag.medewerkerId);
-        return {
-          ...aanvraag,
-          medewerkerNaam: medewerker?.naam ?? "Onbekend",
-        };
-      })
+    // Enrich with medewerker naam.
+    // N+1 weg (audit §5): één medewerker heeft meerdere aanvragen per jaar,
+    // dus haal de unieke medewerkers in één ronde op.
+    const medewerkerMap = await laadDocsMap(
+      ctx,
+      aanvragen.map((a) => a.medewerkerId)
     );
 
-    return enriched;
+    return aanvragen.map((aanvraag) => ({
+      ...aanvraag,
+      medewerkerNaam:
+        medewerkerMap.get(aanvraag.medewerkerId.toString())?.naam ?? "Onbekend",
+    }));
   },
 });
 

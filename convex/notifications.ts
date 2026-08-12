@@ -1342,6 +1342,10 @@ export const notifyOfferteCreated = internalMutation({
     const recipients = await getOfferteNotificationRecipients(ctx, args.offerteId);
     let notificationsSent = 0;
 
+    // Buiten de lus (audit §5): de aanmaker is voor elke ontvanger dezelfde,
+    // dus die hoeft niet per notificatie opnieuw opgehaald te worden.
+    const createdByUser = await ctx.db.get(args.createdByUserId);
+
     for (const recipientId of recipients) {
       // Skip self-notification for creation
       if (recipientId === args.createdByUserId) {
@@ -1355,8 +1359,6 @@ export const notifyOfferteCreated = internalMutation({
       );
 
       if (shouldSend.inApp) {
-        const createdByUser = await ctx.db.get(args.createdByUserId);
-
         await ctx.db.insert("notifications", {
           userId: recipientId,
           type: "offerte_aangemaakt",

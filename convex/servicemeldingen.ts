@@ -23,6 +23,7 @@ import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/s
 import { verifyOwnership } from "./auth";
 import { getCompanyUserId, isKantoorRol, normalizeRole, requireKantoor } from "./roles";
 import { logTijdlijnEvent, requireInterneRol } from "./tijdlijn";
+import { laadDocsMap } from "./lib/batchLoad";
 import { Doc, Id } from "./_generated/dataModel";
 
 // Status validator — PRD-statussen + legacy (ingepland/afgehandeld, MOD-010)
@@ -215,20 +216,29 @@ export const list = query({
     }
 
     // Enrich with klant and project data (klantId optioneel: onderhoudstaken
-    // uit de vervallogica-engine §3.3 zijn niet klant-gebonden)
-    const enriched = await Promise.all(
-      result.map(async (m) => {
-        const klant = m.klantId ? await ctx.db.get(m.klantId) : null;
-        const project = m.projectId ? await ctx.db.get(m.projectId) : null;
-        return {
-          ...m,
-          klantNaam: klant?.naam ?? (m.klantId ? "Onbekend" : "Intern"),
-          projectNaam: project?.naam ?? null,
-        };
-      })
+    // uit de vervallogica-engine §3.3 zijn niet klant-gebonden).
+    // N+1 weg (audit §5): meldingen delen vaak dezelfde klant/project, dus
+    // haal de unieke ids één keer op en verrijk daarna uit de Map.
+    const klantMap = await laadDocsMap(
+      ctx,
+      result.map((m) => m.klantId)
+    );
+    const projectMap = await laadDocsMap(
+      ctx,
+      result.map((m) => m.projectId)
     );
 
-    return enriched;
+    return result.map((m) => {
+      const klant = m.klantId ? klantMap.get(m.klantId.toString()) : undefined;
+      const project = m.projectId
+        ? projectMap.get(m.projectId.toString())
+        : undefined;
+      return {
+        ...m,
+        klantNaam: klant?.naam ?? (m.klantId ? "Onbekend" : "Intern"),
+        projectNaam: project?.naam ?? null,
+      };
+    });
   },
 });
 
@@ -259,21 +269,19 @@ export const getById = query({
       .withIndex("by_melding", (q) => q.eq("meldingId", args.id))
       .collect();
 
-    // Enrich afspraken with medewerker names
-    const enrichedAfspraken = await Promise.all(
-      afspraken.map(async (a) => {
-        const medewerkerNames = await Promise.all(
-          a.medewerkerIds.map(async (id) => {
-            const med = await ctx.db.get(id);
-            return med?.naam ?? "Onbekend";
-          })
-        );
-        return {
-          ...a,
-          medewerkerNamen: medewerkerNames,
-        };
-      })
+    // Enrich afspraken with medewerker names.
+    // N+1 weg (audit §5): dezelfde medewerker staat vaak op meerdere afspraken;
+    // haal alle unieke ids in één ronde op en lees daarna uit de Map.
+    const medewerkerMap = await laadDocsMap(
+      ctx,
+      afspraken.flatMap((a) => a.medewerkerIds)
     );
+    const enrichedAfspraken = afspraken.map((a) => ({
+      ...a,
+      medewerkerNamen: a.medewerkerIds.map(
+        (id) => medewerkerMap.get(id.toString())?.naam ?? "Onbekend"
+      ),
+    }));
 
     const eigenaar = melding.eigenaarId
       ? await ctx.db.get(melding.eigenaarId)
@@ -378,16 +386,17 @@ export const getKanbanData = query({
       filtered = filtered.filter((m) => m.isGarantie === args.isGarantie);
     }
 
-    // Enrich with klant names
-    const enriched = await Promise.all(
-      filtered.map(async (m) => {
-        const klant = m.klantId ? await ctx.db.get(m.klantId) : null;
-        return {
-          ...m,
-          klantNaam: klant?.naam ?? (m.klantId ? "Onbekend" : "Intern"),
-        };
-      })
+    // Enrich with klant names — N+1 weg (audit §5), unieke klanten in één ronde
+    const kanbanKlantMap = await laadDocsMap(
+      ctx,
+      filtered.map((m) => m.klantId)
     );
+    const enriched = filtered.map((m) => ({
+      ...m,
+      klantNaam: m.klantId
+        ? (kanbanKlantMap.get(m.klantId.toString())?.naam ?? "Onbekend")
+        : "Intern",
+    }));
 
     // Group by status
     const kanban = {
@@ -441,35 +450,31 @@ export const getBord = query({
       );
     }
 
-    // Verrijking met memoisatie — geen N+1 op dezelfde klant/eigenaar
-    const klantCache = new Map<string, string>();
-    const userCache = new Map<string, string>();
+    // Verrijking via batch-lookups (audit §5). De oude memoisatie voorkwam
+    // dubbele gets, maar deed ze nog steeds strikt na elkaar; nu gaan de
+    // unieke klanten en eigenaren in twee rondes de deur uit.
+    const klantMap = await laadDocsMap(
+      ctx,
+      relevant.map((m) => m.klantId)
+    );
+    const eigenaarMap = await laadDocsMap(
+      ctx,
+      relevant.map((m) => m.eigenaarId)
+    );
+
     const now = Date.now();
-    const verrijkt = [];
-    for (const m of relevant) {
+    const verrijkt = relevant.map((m) => ({
+      ...m,
       // klantId optioneel (§3.3): onderhoudstaken zijn niet klant-gebonden
-      const klantKey = m.klantId?.toString() ?? "";
-      if (m.klantId && !klantCache.has(klantKey)) {
-        const klant = await ctx.db.get(m.klantId);
-        klantCache.set(klantKey, klant?.naam ?? "Onbekend");
-      }
-      let eigenaarNaam: string | null = null;
-      if (m.eigenaarId) {
-        const key = m.eigenaarId.toString();
-        if (!userCache.has(key)) {
-          const eigenaar = await ctx.db.get(m.eigenaarId);
-          userCache.set(key, eigenaar?.name ?? "Onbekend");
-        }
-        eigenaarNaam = userCache.get(key) ?? null;
-      }
-      verrijkt.push({
-        ...m,
-        klantNaam: klantCache.get(klantKey) ?? (m.klantId ? "Onbekend" : "Intern"),
-        eigenaarNaam,
-        kolom: bordKolomVoorStatus(m.status),
-        geescaleerd: isGeescaleerd(m, now),
-      });
-    }
+      klantNaam: m.klantId
+        ? (klantMap.get(m.klantId.toString())?.naam ?? "Onbekend")
+        : "Intern",
+      eigenaarNaam: m.eigenaarId
+        ? (eigenaarMap.get(m.eigenaarId.toString())?.name ?? "Onbekend")
+        : null,
+      kolom: bordKolomVoorStatus(m.status),
+      geescaleerd: isGeescaleerd(m, now),
+    }));
 
     verrijkt.sort((a, b) => b.updatedAt - a.updatedAt);
     return {
