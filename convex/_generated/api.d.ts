@@ -55,6 +55,7 @@ import type * as leadActiviteiten from "../leadActiviteiten.js";
 import type * as leadsKlantenHelpers from "../leadsKlantenHelpers.js";
 import type * as leerfeedback from "../leerfeedback.js";
 import type * as leveranciers from "../leveranciers.js";
+import type * as lib_batchLoad from "../lib/batchLoad.js";
 import type * as lib_mailGuard from "../lib/mailGuard.js";
 import type * as lib_mailRender from "../lib/mailRender.js";
 import type * as lib_pipelineKpis from "../lib/pipelineKpis.js";
@@ -186,6 +187,7 @@ declare const fullApi: ApiFromModules<{
   leadsKlantenHelpers: typeof leadsKlantenHelpers;
   leerfeedback: typeof leerfeedback;
   leveranciers: typeof leveranciers;
+  "lib/batchLoad": typeof lib_batchLoad;
   "lib/mailGuard": typeof lib_mailGuard;
   "lib/mailRender": typeof lib_mailRender;
   "lib/pipelineKpis": typeof lib_pipelineKpis;
