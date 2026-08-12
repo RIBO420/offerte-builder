@@ -39,6 +39,7 @@ import { Doc, Id } from "./_generated/dataModel";
 import { assertKanNaarKlantVersturen } from "./roles";
 import { verifyOwnership } from "./auth";
 import { getFacturatiemodus } from "./onderhoudscontracten";
+import { laadDocsMap } from "./lib/batchLoad";
 import {
   bepaalEngineActie,
   berekenFactuurTotalen,
@@ -150,23 +151,20 @@ async function verzamelPrijsbronnen(
     }
   }
 
-  const bouwsteenCache = new Map<string, Doc<"bouwstenen"> | null>();
-  const resultaat: TaakPrijsbron[] = [];
-  for (const bron of bronnen) {
-    let btwCode: 9 | 21 | undefined;
-    if (bron.bouwsteenId) {
-      if (!bouwsteenCache.has(bron.bouwsteenId)) {
-        bouwsteenCache.set(bron.bouwsteenId, await ctx.db.get(bron.bouwsteenId));
-      }
-      btwCode = bouwsteenCache.get(bron.bouwsteenId)?.btwCode;
-    }
-    resultaat.push({
-      omschrijving: bron.omschrijving,
-      prijsPerBeurt: bron.prijsPerBeurt,
-      btwCode,
-    });
-  }
-  return resultaat;
+  // N+1 weg (audit §5): de bouwstenen in één ronde ophalen. De oude cache
+  // voorkwam dubbele gets, maar liet ze wel strikt na elkaar lopen.
+  const bouwsteenMap = await laadDocsMap(
+    ctx,
+    bronnen.map((b) => b.bouwsteenId)
+  );
+
+  return bronnen.map((bron) => ({
+    omschrijving: bron.omschrijving,
+    prijsPerBeurt: bron.prijsPerBeurt,
+    btwCode: bron.bouwsteenId
+      ? bouwsteenMap.get(bron.bouwsteenId.toString())?.btwCode
+      : undefined,
+  }));
 }
 
 /** Herbereken totalen van een factuur na het toevoegen van regels. */
@@ -460,6 +458,13 @@ export const sluitMaandverzamelfacturen = internalMutation({
         isVerzamelMaandVoorbij(f.verzamelMaand, now)
     );
 
+    // N+1 weg (audit §5): de contracten van alle kandidaten in één ronde
+    // ophalen; meerdere verzamelfacturen kunnen hetzelfde contract delen.
+    const contractMap = await laadDocsMap(
+      ctx,
+      kandidaten.map((f) => f.contractId)
+    );
+
     let gesloten = 0;
     let directVerstuurd = 0;
     for (const factuur of kandidaten) {
@@ -472,9 +477,11 @@ export const sluitMaandverzamelfacturen = internalMutation({
       gesloten++;
 
       const contract = factuur.contractId
-        ? await ctx.db.get(factuur.contractId)
+        ? (contractMap.get(factuur.contractId.toString()) ?? null)
         : null;
       if (magEngineDirectVersturen(contract)) {
+        // BEWUST opnieuw lezen: verstuurFactuurKern heeft de zojuist gepatchte
+        // factuurdatum/vervaldatum nodig, niet de kopie van vóór de patch.
         const vers = await ctx.db.get(factuur._id);
         if (vers) {
           await verstuurFactuurKern(ctx, vers, { auteurNaam: ENGINE_AUTEUR });
@@ -512,7 +519,22 @@ export const factureerContractTermijnen = internalMutation({
 
     let gefactureerd = 0;
     let overgeslagen = 0;
-    const contractCache = new Map<string, Doc<"onderhoudscontracten"> | null>();
+
+    // N+1 weg (audit §5): contracten en klanten vóór de lus in één ronde
+    // ophalen voor de termijnen die überhaupt aan de beurt zijn. Voorheen
+    // deed elke termijn zijn eigen get van contract én klant, ook als tien
+    // termijnen bij hetzelfde contract hoorden.
+    const teFactureren = geplande.filter(
+      (t) => t.status === "gepland" && t.periodeStart <= vandaag && !t.factuurId
+    );
+    const contractMap = await laadDocsMap(
+      ctx,
+      teFactureren.map((t) => t.contractId)
+    );
+    const klantMap = await laadDocsMap(
+      ctx,
+      [...contractMap.values()].map((c) => c.klantId)
+    );
 
     for (const termijn of geplande) {
       if (termijn.status !== "gepland") continue; // defensief (indexfilter)
@@ -522,10 +544,7 @@ export const factureerContractTermijnen = internalMutation({
         continue;
       }
 
-      if (!contractCache.has(termijn.contractId)) {
-        contractCache.set(termijn.contractId, await ctx.db.get(termijn.contractId));
-      }
-      const contract = contractCache.get(termijn.contractId) ?? null;
+      const contract = contractMap.get(termijn.contractId.toString()) ?? null;
       if (
         !contract ||
         contract.status !== "actief" ||
@@ -535,7 +554,10 @@ export const factureerContractTermijnen = internalMutation({
         continue;
       }
 
-      const klant = await ctx.db.get(contract.klantId);
+      const klant = klantMap.get(contract.klantId.toString()) ?? null;
+      // BEWUST per iteratie opnieuw: laatsteFactuurNummer wordt verderop in
+      // deze lus gepatcht, dus een gecachte kopie zou twee termijnen van
+      // dezelfde tenant hetzelfde factuurnummer geven.
       const instellingen = await ctx.db
         .query("instellingen")
         .withIndex("by_user", (q) => q.eq("userId", termijn.userId))
@@ -554,12 +576,16 @@ export const factureerContractTermijnen = internalMutation({
         .query("contractWerkzaamheden")
         .withIndex("by_contract", (q) => q.eq("contractId", contract._id))
         .collect();
+      // N+1 weg (audit §5): bouwstenen van alle werkzaamheden in één ronde
+      const bouwsteenMap = await laadDocsMap(
+        ctx,
+        werkzaamheden.map((w) => w.bouwsteenId)
+      );
       const btwCodes = new Set<9 | 21>();
       for (const w of werkzaamheden) {
-        if (w.bouwsteenId) {
-          const bouwsteen = await ctx.db.get(w.bouwsteenId);
-          if (bouwsteen?.btwCode) btwCodes.add(bouwsteen.btwCode);
-        }
+        if (!w.bouwsteenId) continue;
+        const btw = bouwsteenMap.get(w.bouwsteenId.toString())?.btwCode;
+        if (btw) btwCodes.add(btw);
       }
       const btwCode: 9 | 21 =
         btwCodes.size === 1 ? [...btwCodes][0] : DEFAULT_BTW_ONDERHOUD;

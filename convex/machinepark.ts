@@ -33,6 +33,7 @@ import {
   type MiddelStatus,
 } from "./machineparkLogica";
 import { vandaagIso } from "./beurtgenerator";
+import { laadDocsMap } from "./lib/batchLoad";
 import { vervalTaakNodig } from "./vervalLogica";
 
 const DATUM_PATROON = /^\d{4}-\d{2}-\d{2}$/;
@@ -171,20 +172,25 @@ export const getTeamBussen = query({
         q.eq("userId", companyUserId).eq("isActief", true)
       )
       .collect();
-    const resultaat = [];
-    for (const team of teams) {
+    // N+1 weg (audit §5): de standaardbussen in één ronde ophalen; teams
+    // delen vaak dezelfde bus.
+    const busMap = await laadDocsMap(
+      ctx,
+      teams.map((t) => t.standaardVoertuigId)
+    );
+
+    return teams.map((team) => {
       const bus = team.standaardVoertuigId
-        ? await ctx.db.get(team.standaardVoertuigId)
-        : null;
-      resultaat.push({
+        ? busMap.get(team.standaardVoertuigId.toString())
+        : undefined;
+      return {
         teamId: team._id,
         naam: team.naam,
         kleur: team.kleur ?? null,
         standaardVoertuigId: team.standaardVoertuigId ?? null,
         standaardBusNaam: bus ? `${bus.merk} ${bus.model} (${bus.kenteken})` : null,
-      });
-    }
-    return resultaat;
+      };
+    });
   },
 });
 
@@ -201,18 +207,30 @@ export const getReserveringenVoorWerkitem = query({
     const relevant = reserveringen.filter(
       (r) => r.userId.toString() === companyUserId.toString()
     );
-    const verrijkt = [];
-    for (const r of relevant) {
+    // N+1 weg (audit §5): voertuigen en machines vooraf in twee rondes; een
+    // werkitem reserveert hetzelfde middel vaak op meerdere dagen.
+    const [voertuigMap, machineMap] = await Promise.all([
+      laadDocsMap(
+        ctx,
+        relevant.map((r) => (r.middelType === "voertuig" ? r.voertuigId : undefined))
+      ),
+      laadDocsMap(
+        ctx,
+        relevant.map((r) => (r.middelType === "machine" ? r.machineId : undefined))
+      ),
+    ]);
+
+    const verrijkt = relevant.map((r) => {
       let naam = "Onbekend middel";
       if (r.middelType === "voertuig" && r.voertuigId) {
-        const vt = await ctx.db.get(r.voertuigId);
+        const vt = voertuigMap.get(r.voertuigId.toString());
         if (vt) naam = `${vt.merk} ${vt.model} (${vt.kenteken})`;
       } else if (r.middelType === "machine" && r.machineId) {
-        const m = await ctx.db.get(r.machineId);
+        const m = machineMap.get(r.machineId.toString());
         if (m) naam = m.naam;
       }
-      verrijkt.push({ ...r, middelNaam: naam });
-    }
+      return { ...r, middelNaam: naam };
+    });
     return verrijkt.sort((a, b) => a.datum.localeCompare(b.datum));
   },
 });

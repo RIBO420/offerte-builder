@@ -2,6 +2,7 @@ import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
 import { requireNotViewer } from "./roles";
+import { laadDocsMap } from "./lib/batchLoad";
 
 // List all machines for authenticated user
 export const list = query({
@@ -36,10 +37,13 @@ export const getByScopes = query({
   args: { scopes: v.array(v.string()) },
   handler: async (ctx, args) => {
     const userId = await requireAuthUserId(ctx);
+    // by_user_actief i.p.v. .filter (audit §5): de index selecteert de actieve
+    // machines meteen, in plaats van alle machines lezen en daarna weggooien.
     const allMachines = await ctx.db
       .query("machines")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .filter((q) => q.eq(q.field("isActief"), true))
+      .withIndex("by_user_actief", (q) =>
+        q.eq("userId", userId).eq("isActief", true)
+      )
       .collect();
 
     // Filter machines that have at least one matching scope
@@ -161,58 +165,71 @@ export const getUsageStats = query({
   handler: async (ctx) => {
     const userId = await requireAuthUserId(ctx);
 
-    // Get all active machines for user
+    // Get all active machines for user — by_user_actief i.p.v. .filter (audit §5)
     const machines = await ctx.db
       .query("machines")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .filter((q) => q.eq(q.field("isActief"), true))
+      .withIndex("by_user_actief", (q) =>
+        q.eq("userId", userId).eq("isActief", true)
+      )
       .collect();
 
-    // Get usage stats per machine
-    const machineStats = await Promise.all(
-      machines.map(async (machine) => {
-        const usage = await ctx.db
+    // Gebruiksregels per machine (geïndexeerd, parallel)
+    const gebruikPerMachine = await Promise.all(
+      machines.map((machine) =>
+        ctx.db
           .query("machineGebruik")
           .withIndex("by_machine", (q) => q.eq("machineId", machine._id))
-          .collect();
-
-        // Get unique projects
-        const projectIds = [...new Set(usage.map((u) => u.projectId))];
-        const projects = await Promise.all(
-          projectIds.map(async (projectId) => {
-            const project = await ctx.db.get(projectId);
-            if (!project) return null;
-            // offerteId is optioneel sinds werkitem-generalisatie
-            const offerte = project.offerteId
-              ? await ctx.db.get(project.offerteId)
-              : null;
-            return {
-              _id: project._id,
-              naam: project.naam,
-              status: project.status,
-              klantNaam: offerte?.klant.naam || "Onbekend",
-            };
-          })
-        );
-
-        const totaalUren = usage.reduce((sum, u) => sum + u.uren, 0);
-        const totaalKosten = usage.reduce((sum, u) => sum + u.kosten, 0);
-        const aantalDagen = usage.length;
-
-        return {
-          ...machine,
-          usage: {
-            totaalUren,
-            totaalKosten,
-            aantalDagen,
-            aantalProjecten: projectIds.length,
-            projecten: projects.filter(Boolean),
-          },
-        };
-      })
+          .collect()
+      )
     );
 
-    return machineStats;
+    // N+1 weg (audit §5): projecten en offertes één keer voor álle machines
+    // ophalen. Dezelfde klus staat vaak bij meerdere machines in het gebruik,
+    // en die haalde voorheen elk zijn eigen project + offerte op.
+    const alleProjectIds = gebruikPerMachine.flatMap((usage) =>
+      usage.map((u) => u.projectId)
+    );
+    const projectMap = await laadDocsMap(ctx, alleProjectIds);
+    // offerteId is optioneel sinds werkitem-generalisatie
+    const offerteMap = await laadDocsMap(
+      ctx,
+      [...projectMap.values()].map((p) => p.offerteId)
+    );
+
+    return machines.map((machine, i) => {
+      const usage = gebruikPerMachine[i];
+
+      // Get unique projects
+      const projectIds = [...new Set(usage.map((u) => u.projectId))];
+      const projects = projectIds.map((projectId) => {
+        const project = projectMap.get(projectId.toString());
+        if (!project) return null;
+        const offerte = project.offerteId
+          ? offerteMap.get(project.offerteId.toString())
+          : null;
+        return {
+          _id: project._id,
+          naam: project.naam,
+          status: project.status,
+          klantNaam: offerte?.klant.naam || "Onbekend",
+        };
+      });
+
+      const totaalUren = usage.reduce((sum, u) => sum + u.uren, 0);
+      const totaalKosten = usage.reduce((sum, u) => sum + u.kosten, 0);
+      const aantalDagen = usage.length;
+
+      return {
+        ...machine,
+        usage: {
+          totaalUren,
+          totaalKosten,
+          aantalDagen,
+          aantalProjecten: projectIds.length,
+          projecten: projects.filter(Boolean),
+        },
+      };
+    });
   },
 });
 

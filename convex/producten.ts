@@ -349,10 +349,14 @@ export const countByCategorie = query({
   args: {},
   handler: async (ctx) => {
     const userId = await requireAuthUserId(ctx);
+    // by_user_actief i.p.v. .filter (audit §5): de index selecteert de actieve
+    // producten meteen, in plaats van het hele assortiment inlezen en
+    // vervolgens de helft weggooien.
     const products = await ctx.db
       .query("producten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .filter((q) => q.eq(q.field("isActief"), true))
+      .withIndex("by_user_actief", (q) =>
+        q.eq("userId", userId).eq("isActief", true)
+      )
       .collect();
 
     const counts: Record<string, number> = {};

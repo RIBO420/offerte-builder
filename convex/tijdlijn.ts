@@ -33,6 +33,7 @@ import {
   tijdlijnHandmatigKanaalValidator,
   tijdlijnKanaalValidator,
 } from "./validators";
+import { laadDocsMap } from "./lib/batchLoad";
 
 // ============================================
 // Types
@@ -150,21 +151,23 @@ async function verrijkMetWerkitemNaam(
   ctx: QueryCtx,
   entries: TijdlijnEntry[]
 ): Promise<VerrijkteEntry[]> {
-  const namen = new Map<string, string>();
-  const result: VerrijkteEntry[] = [];
-  for (const entry of entries) {
-    if (!entry.werkitemId) {
-      result.push(entry);
-      continue;
-    }
-    const key = entry.werkitemId.toString();
-    if (!namen.has(key)) {
-      const werkitem = await ctx.db.get(entry.werkitemId);
-      namen.set(key, werkitem?.naam ?? "Onbekend werkitem");
-    }
-    result.push({ ...entry, werkitemNaam: namen.get(key) });
-  }
-  return result;
+  // N+1 weg (audit §5): de werkitems in één ronde ophalen. De oude memoisatie
+  // voorkwam dubbele gets, maar liet ze wel strikt na elkaar lopen — bij een
+  // tijdlijn met 50 verschillende werkitems zijn dat 50 seriële round-trips.
+  const werkitemMap = await laadDocsMap(
+    ctx,
+    entries.map((e) => e.werkitemId)
+  );
+
+  return entries.map((entry) => {
+    if (!entry.werkitemId) return entry;
+    return {
+      ...entry,
+      werkitemNaam:
+        werkitemMap.get(entry.werkitemId.toString())?.naam ??
+        "Onbekend werkitem",
+    };
+  });
 }
 
 /**
@@ -334,13 +337,22 @@ export const listKlantenMetTijdlijn = query({
         k.isArchived !== true
     );
 
+    // N+1 weg (audit §5): de "laatste entry"-queries parallel afvuren in
+    // plaats van serieel per klant. Elke query blijft geïndexeerd en leest
+    // één rij, maar wacht niet meer op de klant ervoor.
+    const laatsteEntries = await Promise.all(
+      actieveKlanten.map((klant) =>
+        ctx.db
+          .query("klantTijdlijn")
+          .withIndex("by_klant", (q) => q.eq("klantId", klant._id))
+          .order("desc")
+          .first()
+      )
+    );
+
     const result = [];
-    for (const klant of actieveKlanten) {
-      const laatste = await ctx.db
-        .query("klantTijdlijn")
-        .withIndex("by_klant", (q) => q.eq("klantId", klant._id))
-        .order("desc")
-        .first();
+    for (const [i, klant] of actieveKlanten.entries()) {
+      const laatste = laatsteEntries[i];
       const entryOk =
         laatste &&
         laatste.klantId.toString() === klant._id.toString() &&
@@ -391,14 +403,28 @@ export const listWerkitemsMetTijdlijn = query({
       }
     }
 
+    // N+1 weg (audit §5): werkitems en klanten in twee rondes ophalen; veel
+    // werkitems horen bij dezelfde klant.
+    const laatsteEntries = [...perWerkitem.values()];
+    const [werkitemMap, klantMap] = await Promise.all([
+      laadDocsMap(
+        ctx,
+        laatsteEntries.map((e) => e.werkitemId)
+      ),
+      laadDocsMap(
+        ctx,
+        laatsteEntries.map((e) => e.klantId)
+      ),
+    ]);
+
     const result = [];
-    for (const entry of perWerkitem.values()) {
+    for (const entry of laatsteEntries) {
       if (!entry.werkitemId) continue;
-      const werkitem = await ctx.db.get(entry.werkitemId);
+      const werkitem = werkitemMap.get(entry.werkitemId.toString());
       if (!werkitem || werkitem.userId.toString() !== companyUserId.toString()) {
         continue;
       }
-      const klant = entry.klantId ? await ctx.db.get(entry.klantId) : null;
+      const klant = entry.klantId ? klantMap.get(entry.klantId.toString()) : null;
       result.push({
         werkitemId: entry.werkitemId,
         werkitemNaam: werkitem.naam,

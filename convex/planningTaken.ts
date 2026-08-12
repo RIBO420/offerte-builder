@@ -3,6 +3,7 @@ import { mutation, query, QueryCtx, MutationCtx } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
 import { requireNotViewer } from "./roles";
 import { Id } from "./_generated/dataModel";
+import { laadDocsMap } from "./lib/batchLoad";
 
 /**
  * Task templates per scope - must match src/lib/planning-templates.ts
@@ -230,9 +231,18 @@ export const updateVolgorde = mutation({
     await requireNotViewer(ctx);
     await getOwnedProject(ctx, args.projectId);
 
-    // Update each task's volgorde
+    // N+1 weg (audit §5): alle taken eerst in één ronde ophalen. Voorheen
+    // wachtte de get van elke taak op de patch van de vorige — bij een reorder
+    // van 30 taken zijn dat 30 seriële heen-en-weertjes.
+    const taakMap = await laadDocsMap(
+      ctx,
+      args.taskOrders.map((t) => t.taskId)
+    );
+
+    // Update each task's volgorde (bewust serieel: dubbele taskId's in de
+    // invoer moeten in volgorde verwerkt worden, laatste wint)
     for (const { taskId, volgorde } of args.taskOrders) {
-      const task = await ctx.db.get(taskId);
+      const task = taakMap.get(taskId.toString());
       if (task && task.projectId.toString() === args.projectId.toString()) {
         await ctx.db.patch(taskId, { volgorde });
       }

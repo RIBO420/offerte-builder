@@ -18,6 +18,7 @@ import { berekenPrijsPerBeurt } from "./bouwstenen";
 import { bepaalTariefOpDatum } from "./uurtarieven";
 import { vervalOngeplandeBeurten, addMaanden, vandaagIso } from "./beurtgenerator";
 import { logTijdlijnEvent } from "./tijdlijn";
+import { laadDocsMap } from "./lib/batchLoad";
 
 // ============================================
 // VALIDATORS
@@ -332,19 +333,22 @@ export const list = query({
       filtered = filtered.filter((c) => !c.isArchived);
     }
 
-    // Enrich with klant naam
-    const enriched = await Promise.all(
-      filtered.map(async (contract) => {
-        const klant = await ctx.db.get(contract.klantId);
-        return {
-          ...contract,
-          klantNaam: klant?.naam ?? "Onbekende klant",
-          klantPlaats: klant?.plaats ?? "",
-        };
-      })
+    // Enrich with klant naam.
+    // N+1 weg (audit §5): één klant kan meerdere contracten hebben, dus de
+    // unieke klanten in één ronde ophalen.
+    const klantMap = await laadDocsMap(
+      ctx,
+      filtered.map((c) => c.klantId)
     );
 
-    return enriched;
+    return filtered.map((contract) => {
+      const klant = klantMap.get(contract.klantId.toString());
+      return {
+        ...contract,
+        klantNaam: klant?.naam ?? "Onbekende klant",
+        klantPlaats: klant?.plaats ?? "",
+      };
+    });
   },
 });
 
@@ -381,17 +385,19 @@ export const listPaginated = query({
     // Filter out deleted
     const filtered = result.page.filter((c) => !c.deletedAt);
 
-    // Enrich
-    const enriched = await Promise.all(
-      filtered.map(async (contract) => {
-        const klant = await ctx.db.get(contract.klantId);
-        return {
-          ...contract,
-          klantNaam: klant?.naam ?? "Onbekende klant",
-          klantPlaats: klant?.plaats ?? "",
-        };
-      })
+    // Enrich — N+1 weg (audit §5), unieke klanten in één ronde
+    const klantMap = await laadDocsMap(
+      ctx,
+      filtered.map((c) => c.klantId)
     );
+    const enriched = filtered.map((contract) => {
+      const klant = klantMap.get(contract.klantId.toString());
+      return {
+        ...contract,
+        klantNaam: klant?.naam ?? "Onbekende klant",
+        klantPlaats: klant?.plaats ?? "",
+      };
+    });
 
     return {
       items: enriched,
@@ -525,16 +531,16 @@ export const getExpiringContracts = query({
       (c) => c.eindDatum >= todayStr && c.eindDatum <= futureDateStr
     );
 
-    // Enrich with klant naam
-    const enriched = await Promise.all(
-      expiring.map(async (contract) => {
-        const klant = await ctx.db.get(contract.klantId);
-        return {
-          ...contract,
-          klantNaam: klant?.naam ?? "Onbekende klant",
-        };
-      })
+    // Enrich with klant naam — N+1 weg (audit §5)
+    const klantMap = await laadDocsMap(
+      ctx,
+      expiring.map((c) => c.klantId)
     );
+    const enriched = expiring.map((contract) => ({
+      ...contract,
+      klantNaam:
+        klantMap.get(contract.klantId.toString())?.naam ?? "Onbekende klant",
+    }));
 
     return enriched.sort((a, b) => a.eindDatum.localeCompare(b.eindDatum));
   },
@@ -564,26 +570,34 @@ export const getUpcomingWork = query({
       )
       .collect();
 
+    // N+1 weg (audit §5): de klanten één keer voor álle contracten ophalen
+    // i.p.v. één get per contract binnen de lus.
+    const klantMap = await laadDocsMap(
+      ctx,
+      contracts.map((c) => c.klantId)
+    );
+
     // Get werkzaamheden for current season across all contracts
-    const allWork = await Promise.all(
-      contracts.map(async (contract) => {
-        const werkzaamheden = await ctx.db
+    const werkzaamhedenPerContract = await Promise.all(
+      contracts.map((contract) =>
+        ctx.db
           .query("contractWerkzaamheden")
           .withIndex("by_contract_seizoen", (q) =>
             q.eq("contractId", contract._id).eq("seizoen", currentSeason)
           )
-          .collect();
+          .collect()
+      )
+    );
 
-        const klant = await ctx.db.get(contract.klantId);
-
-        return werkzaamheden.map((w) => ({
-          ...w,
-          contractNaam: contract.naam,
-          contractNummer: contract.contractNummer,
-          klantNaam: klant?.naam ?? "Onbekende klant",
-          locatie: contract.locatie,
-        }));
-      })
+    const allWork = contracts.map((contract, i) =>
+      werkzaamhedenPerContract[i].map((w) => ({
+        ...w,
+        contractNaam: contract.naam,
+        contractNummer: contract.contractNummer,
+        klantNaam:
+          klantMap.get(contract.klantId.toString())?.naam ?? "Onbekende klant",
+        locatie: contract.locatie,
+      }))
     );
 
     return {
@@ -1173,9 +1187,13 @@ export const cancelContract = mutation({
         q.eq("contractId", args.id).eq("status", "gepland")
       )
       .collect();
-    for (const termijn of termijnen) {
-      await ctx.db.patch(termijn._id, { status: "vervallen" });
-    }
+    // Parallel i.p.v. serieel (audit §5): het zijn losse documenten, dus de
+    // patches hoeven niet op elkaar te wachten.
+    await Promise.all(
+      termijnen.map((termijn) =>
+        ctx.db.patch(termijn._id, { status: "vervallen" })
+      )
+    );
 
     return { contractId: args.id, aantalVervallenBeurten };
   },
