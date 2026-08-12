@@ -18,7 +18,12 @@ export function Field({
 }: FieldProps) {
   return (
     <div className="space-y-1.5">
-      <Label className={cn("text-sm font-medium", error && "text-red-600")}>
+      <Label
+        className={cn(
+          "text-sm font-medium",
+          error && "text-red-600 dark:text-red-400"
+        )}
+      >
         {label}
         {verplicht && <span className="text-red-500 ml-1">*</span>}
       </Label>
@@ -26,7 +31,9 @@ export function Field({
       {hulptekst && !error && (
         <p className="text-xs text-muted-foreground">{hulptekst}</p>
       )}
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && (
+        <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
+      )}
     </div>
   );
 }

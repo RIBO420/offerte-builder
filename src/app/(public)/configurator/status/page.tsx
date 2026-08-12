@@ -64,6 +64,9 @@ interface Aanvraag {
 // Constants
 // ---------------------------------------------------------------------------
 
+// Statuskleuren (blauw/amber/groen/rood) hebben geen design-token; elke variant
+// krijgt daarom een expliciete dark:-tegenhanger zodat de badge in dark mode een
+// donker vlak met lichte tekst is in plaats van een felle lichte balk.
 const STATUS_CONFIG: Record<
   Status,
   {
@@ -78,40 +81,45 @@ const STATUS_CONFIG: Record<
     label: "Nieuw",
     uitleg:
       "Uw aanvraag is ontvangen en wordt binnen 2 werkdagen beoordeeld.",
-    badgeClass: "bg-blue-100 text-blue-800 border-blue-200",
-    iconClass: "text-blue-600",
+    badgeClass:
+      "bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-900",
+    iconClass: "text-blue-600 dark:text-blue-400",
     Icon: ClipboardList,
   },
   in_behandeling: {
     label: "In behandeling",
     uitleg:
       "Uw aanvraag wordt momenteel beoordeeld door ons team.",
-    badgeClass: "bg-amber-100 text-amber-800 border-amber-200",
-    iconClass: "text-amber-600",
+    badgeClass:
+      "bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-200 border-amber-200 dark:border-amber-900",
+    iconClass: "text-amber-600 dark:text-amber-400",
     Icon: Clock,
   },
   goedgekeurd: {
     label: "Goedgekeurd",
     uitleg:
       "Uw aanvraag is goedgekeurd! U wordt binnenkort gecontacteerd voor de planning.",
-    badgeClass: "bg-green-100 text-green-800 border-green-200",
-    iconClass: "text-green-600",
+    badgeClass:
+      "bg-green-100 dark:bg-green-950 text-green-800 dark:text-green-200 border-green-200 dark:border-green-900",
+    iconClass: "text-green-600 dark:text-green-400",
     Icon: CheckCircle,
   },
   afgekeurd: {
     label: "Afgekeurd",
     uitleg:
       "Helaas kunnen wij deze aanvraag niet uitvoeren. Neem contact op voor meer informatie.",
-    badgeClass: "bg-red-100 text-red-800 border-red-200",
-    iconClass: "text-red-600",
+    badgeClass:
+      "bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-200 border-red-200 dark:border-red-900",
+    iconClass: "text-red-600 dark:text-red-400",
     Icon: XCircle,
   },
   voltooid: {
     label: "Voltooid",
     uitleg:
       "De werkzaamheden zijn voltooid. Bedankt voor uw vertrouwen!",
-    badgeClass: "bg-green-100 text-green-800 border-green-200",
-    iconClass: "text-green-600",
+    badgeClass:
+      "bg-green-100 dark:bg-green-950 text-green-800 dark:text-green-200 border-green-200 dark:border-green-900",
+    iconClass: "text-green-600 dark:text-green-400",
     Icon: CheckCircle2,
   },
 };
@@ -123,9 +131,12 @@ const TYPE_LABELS: Record<AanvraagType, string> = {
 };
 
 const TYPE_BADGE_CLASS: Record<AanvraagType, string> = {
-  gazon: "bg-green-50 text-green-700 border-green-200",
-  boomschors: "bg-amber-50 text-amber-700 border-amber-200",
-  verticuteren: "bg-lime-50 text-lime-700 border-lime-200",
+  gazon:
+    "bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 border-green-200 dark:border-green-900",
+  boomschors:
+    "bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900",
+  verticuteren:
+    "bg-lime-50 dark:bg-lime-950 text-lime-700 dark:text-lime-300 border-lime-200 dark:border-lime-900",
 };
 
 // ---------------------------------------------------------------------------
@@ -241,7 +252,7 @@ function Timeline({ status }: { status: Status }) {
                     ? stap.key === "afgekeurd"
                       ? "bg-red-600 border-red-600"
                       : "bg-blue-600 border-blue-600"
-                    : "bg-white border-gray-200"
+                    : "bg-card border-border"
                 )}
               >
                 {isKlaar ? (
@@ -253,7 +264,7 @@ function Timeline({ status }: { status: Status }) {
                     <div className="h-2.5 w-2.5 rounded-full bg-white" />
                   )
                 ) : (
-                  <div className="h-2.5 w-2.5 rounded-full bg-gray-200" />
+                  <div className="h-2.5 w-2.5 rounded-full bg-muted-foreground/40" />
                 )}
               </div>
               {/* Verbindingslijn */}
@@ -261,7 +272,7 @@ function Timeline({ status }: { status: Status }) {
                 <div
                   className={cn(
                     "w-0.5 flex-1 min-h-[2rem]",
-                    isKlaar ? "bg-green-400" : "bg-gray-200"
+                    isKlaar ? "bg-green-400 dark:bg-green-600" : "bg-border"
                   )}
                 />
               )}
@@ -273,12 +284,12 @@ function Timeline({ status }: { status: Status }) {
                 className={cn(
                   "text-sm font-medium leading-tight",
                   isKlaar
-                    ? "text-green-700"
+                    ? "text-green-700 dark:text-green-400"
                     : isHuidig
                     ? stap.key === "afgekeurd"
-                      ? "text-red-700"
-                      : "text-blue-700"
-                    : "text-gray-500"
+                      ? "text-red-700 dark:text-red-400"
+                      : "text-blue-700 dark:text-blue-400"
+                    : "text-muted-foreground"
                 )}
               >
                 {stap.label}
@@ -302,14 +313,14 @@ function AanvraagKaart({ aanvraag }: { aanvraag: Aanvraag }) {
   return (
     <div className="space-y-4 print:space-y-3">
       {/* Header */}
-      <Card className="shadow-sm border-gray-200">
+      <Card className="shadow-sm border-border">
         <CardHeader className="pb-4">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
             <div className="space-y-1">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 Referentienummer
               </p>
-              <p className="text-xl font-bold font-mono text-gray-900">
+              <p className="text-xl font-bold font-mono text-foreground">
                 {aanvraag.referentie}
               </p>
             </div>
@@ -329,13 +340,13 @@ function AanvraagKaart({ aanvraag }: { aanvraag: Aanvraag }) {
 
         <CardContent className="space-y-5">
           {/* Status indicator */}
-          <div className="flex items-start gap-3 p-4 rounded-lg bg-gray-50 border border-gray-100">
+          <div className="flex items-start gap-3 p-4 rounded-lg bg-muted border border-border">
             <config.Icon
               className={cn("h-5 w-5 flex-shrink-0 mt-0.5", config.iconClass)}
             />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-sm font-semibold text-gray-900">
+                <p className="text-sm font-semibold text-foreground">
                   Huidige status:
                 </p>
                 <StatusBadge status={aanvraag.status} />
@@ -368,19 +379,19 @@ function AanvraagKaart({ aanvraag }: { aanvraag: Aanvraag }) {
                 <div className="space-y-2.5">
                   <div className="flex items-center gap-2.5 text-sm">
                     <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                    <span className="text-gray-700">
+                    <span className="text-foreground">
                       {maskeerNaam(aanvraag.klantNaam)}
                     </span>
                   </div>
                   <div className="flex items-center gap-2.5 text-sm">
                     <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                    <span className="text-gray-700">
+                    <span className="text-foreground">
                       {maskeerAdres(aanvraag.klantAdres, aanvraag.klantPlaats)}
                     </span>
                   </div>
                   <div className="flex items-center gap-2.5 text-sm">
                     <CalendarDays className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                    <span className="text-gray-700">
+                    <span className="text-foreground">
                       Ingediend op {formatDatum(aanvraag.createdAt)}
                     </span>
                   </div>
@@ -398,9 +409,9 @@ function AanvraagKaart({ aanvraag }: { aanvraag: Aanvraag }) {
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2.5">
                       <EuroIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                      <span className="text-gray-600">Indicatieprijs</span>
+                      <span className="text-muted-foreground">Indicatieprijs</span>
                     </div>
-                    <span className="font-semibold text-gray-900">
+                    <span className="font-semibold text-foreground">
                       {formatPrijs(aanvraag.indicatiePrijs)}
                     </span>
                   </div>
@@ -409,12 +420,12 @@ function AanvraagKaart({ aanvraag }: { aanvraag: Aanvraag }) {
                     <>
                       <div className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2.5">
-                          <EuroIcon className="h-4 w-4 text-green-600 flex-shrink-0" />
-                          <span className="text-gray-600 font-medium">
+                          <EuroIcon className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" />
+                          <span className="text-muted-foreground font-medium">
                             Definitieve prijs
                           </span>
                         </div>
-                        <span className="font-bold text-green-700 text-base">
+                        <span className="font-bold text-green-700 dark:text-green-400 text-base">
                           {formatPrijs(aanvraag.definitievePrijs)}
                         </span>
                       </div>
@@ -442,7 +453,7 @@ function AanvraagKaart({ aanvraag }: { aanvraag: Aanvraag }) {
           variant="outline"
           size="sm"
           onClick={() => window.print()}
-          className="gap-2 text-gray-600 hover:text-gray-900"
+          className="gap-2 text-muted-foreground hover:text-foreground"
         >
           <Printer className="h-4 w-4" />
           Afdrukken
@@ -454,14 +465,14 @@ function AanvraagKaart({ aanvraag }: { aanvraag: Aanvraag }) {
 
 function NietGevonden() {
   return (
-    <Card className="shadow-sm border-red-100 bg-red-50/40">
+    <Card className="shadow-sm border-red-100 dark:border-red-900 bg-red-50/40 dark:bg-red-950/40">
       <CardContent className="py-10">
         <div className="flex flex-col items-center text-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-100">
-            <AlertCircle className="h-7 w-7 text-red-600" />
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-100 dark:bg-red-950">
+            <AlertCircle className="h-7 w-7 text-red-600 dark:text-red-400" />
           </div>
           <div className="space-y-1.5">
-            <CardTitle className="text-lg text-gray-900">
+            <CardTitle className="text-lg text-foreground">
               Geen aanvraag gevonden
             </CardTitle>
             <p className="text-sm text-muted-foreground max-w-xs mx-auto">
@@ -476,7 +487,7 @@ function NietGevonden() {
               Hulp nodig?{" "}
               <a
                 href="mailto:info@toptuinen.nl"
-                className="text-green-700 font-medium hover:text-green-900 underline underline-offset-2"
+                className="text-green-700 dark:text-green-400 font-medium hover:text-green-900 dark:hover:text-green-300 underline underline-offset-2"
               >
                 Neem contact met ons op
               </a>
@@ -505,7 +516,7 @@ function ZoekResultaat({ referentie }: { referentie: string }) {
         {[1, 2, 3].map((i) => (
           <div
             key={i}
-            className="h-16 rounded-xl bg-gray-100 animate-pulse"
+            className="h-16 rounded-xl bg-muted animate-pulse"
           />
         ))}
       </div>
@@ -570,7 +581,7 @@ function StatusPageContent() {
     <div className="container max-w-3xl mx-auto py-8 px-4">
       {/* Paginatitel */}
       <div className="mb-8 text-center">
-        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
+        <h2 className="text-2xl sm:text-3xl font-bold text-foreground">
           Aanvraagstatus opzoeken
         </h2>
         <p className="text-muted-foreground mt-2 max-w-lg mx-auto text-sm sm:text-base">
@@ -580,7 +591,7 @@ function StatusPageContent() {
       </div>
 
       {/* Zoekbalk */}
-      <Card className="shadow-sm border-gray-200 mb-6">
+      <Card className="shadow-sm border-border mb-6">
         <CardContent className="pt-5 pb-5">
           <div className="space-y-3">
             <div className="relative">
@@ -604,7 +615,7 @@ function StatusPageContent() {
             </div>
 
             {validatieFout && (
-              <p className="text-xs text-red-600 flex items-center gap-1.5">
+              <p className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1.5">
                 <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
                 {validatieFout}
               </p>
@@ -638,7 +649,7 @@ function StatusPageContent() {
             Heeft u geen referentienummer?{" "}
             <a
               href="mailto:info@toptuinen.nl"
-              className="text-green-700 font-medium hover:text-green-900 underline underline-offset-2"
+              className="text-green-700 dark:text-green-400 font-medium hover:text-green-900 dark:hover:text-green-300 underline underline-offset-2"
             >
               Neem contact met ons op
             </a>
@@ -659,9 +670,9 @@ export default function AanvraagStatusPage() {
       fallback={
         <div className="container max-w-3xl mx-auto py-8 px-4">
           <div className="space-y-4">
-            <div className="h-10 bg-gray-100 rounded-lg animate-pulse mx-auto w-64" />
-            <div className="h-4 bg-gray-100 rounded animate-pulse mx-auto w-80" />
-            <div className="h-24 bg-gray-100 rounded-xl animate-pulse mt-8" />
+            <div className="h-10 bg-muted rounded-lg animate-pulse mx-auto w-64" />
+            <div className="h-4 bg-muted rounded animate-pulse mx-auto w-80" />
+            <div className="h-24 bg-muted rounded-xl animate-pulse mt-8" />
           </div>
         </div>
       }

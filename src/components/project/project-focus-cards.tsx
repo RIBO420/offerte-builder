@@ -35,7 +35,7 @@ export function ProjectFocusCards({
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10">
-              <Clock className="h-4 w-4 text-blue-500" />
+              <Clock className="h-4 w-4 text-blue-500 dark:text-blue-400" />
             </div>
             <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Uren Voortgang
@@ -69,7 +69,7 @@ export function ProjectFocusCards({
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-500/10">
-              <ListChecks className="h-4 w-4 text-green-500" />
+              <ListChecks className="h-4 w-4 text-green-500 dark:text-green-400" />
             </div>
             <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Planning Voortgang

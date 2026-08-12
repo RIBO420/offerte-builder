@@ -923,7 +923,7 @@ function PrijsboekPageContent() {
 
           <DialogFooter className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <CheckCircle className="h-4 w-4 text-green-600" />
+              <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
               {importPreview.length} producten klaar om te importeren
             </div>
             <div className="flex gap-2">

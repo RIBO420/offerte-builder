@@ -58,7 +58,7 @@ export function AanlegReviewSection({
             </span>
           </div>
           <span className="font-medium">{scope?.naam}</span>
-          <CheckCircle2 className="h-4 w-4 text-green-600 ml-auto" />
+          <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400 ml-auto" />
         </div>
         <div className="text-sm text-muted-foreground">
           {scopeId === "grondwerk" && (
@@ -214,15 +214,15 @@ export function AanlegReviewSection({
             {/* Checklist voor voltooide secties */}
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm">
-                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
                 <span>Klantgegevens ingevuld</span>
               </div>
               <div className="flex items-center gap-2 text-sm">
-                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
                 <span>{selectedScopes.length} scope{selectedScopes.length !== 1 ? "s" : ""} geselecteerd</span>
               </div>
               <div className="flex items-center gap-2 text-sm">
-                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
                 <span>Scope details ingevuld</span>
               </div>
             </div>

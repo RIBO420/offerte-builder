@@ -135,7 +135,7 @@ export default function NieuweOnderhoudOffertePage() {
             return (
               <div key={scopeId} className="flex items-center gap-2">
                 {valid ? (
-                  <Check className="h-3 w-3 text-green-600" />
+                  <Check className="h-3 w-3 text-green-600 dark:text-green-400" />
                 ) : (
                   <span className="h-3 w-3 rounded-full bg-orange-400" />
                 )}

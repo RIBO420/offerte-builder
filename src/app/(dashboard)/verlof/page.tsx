@@ -427,7 +427,7 @@ function VerlofPageContent() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-100"
+                                className="h-8 w-8 text-green-600 dark:text-green-400 hover:text-green-700 hover:dark:text-green-300 hover:bg-green-100 hover:dark:bg-green-900"
                                 onClick={() =>
                                   handleGoedkeuren(
                                     aanvraag._id as Id<"verlofaanvragen">
@@ -446,7 +446,7 @@ function VerlofPageContent() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-100"
+                                className="h-8 w-8 text-red-600 dark:text-red-400 hover:text-red-700 hover:dark:text-red-300 hover:bg-red-100 hover:dark:bg-red-900"
                                 onClick={() =>
                                   setAfkeurAanvraag(
                                     aanvraag._id as Id<"verlofaanvragen">

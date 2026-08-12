@@ -65,8 +65,8 @@ function FactorIndicator({ factor, label }: FactorIndicatorProps) {
           isNeutral
             ? "text-muted-foreground"
             : isIncrease
-              ? "text-orange-600"
-              : "text-green-600"
+              ? "text-orange-600 dark:text-orange-400"
+              : "text-green-600 dark:text-green-400"
         )}
       >
         {isNeutral ? (

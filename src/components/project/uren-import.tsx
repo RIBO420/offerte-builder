@@ -171,11 +171,11 @@ export function UrenImport({ onImport, isImporting = false }: UrenImportProps) {
           {/* Warnings */}
           {warnings.length > 0 && (
             <div className="rounded-lg border border-orange-500/50 bg-orange-500/10 p-3">
-              <div className="flex items-center gap-2 text-orange-600">
+              <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400">
                 <AlertTriangle className="h-4 w-4" />
                 <span className="font-medium">Waarschuwingen:</span>
               </div>
-              <ul className="mt-2 text-sm text-orange-600 list-disc list-inside">
+              <ul className="mt-2 text-sm text-orange-600 dark:text-orange-400 list-disc list-inside">
                 {warnings.slice(0, 5).map((warning, i) => (
                   <li key={i}>{warning}</li>
                 ))}
@@ -247,7 +247,7 @@ export function UrenImport({ onImport, isImporting = false }: UrenImportProps) {
 
           <DialogFooter className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <CheckCircle className="h-4 w-4 text-green-600" />
+              <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
               {entries.length} registraties klaar om te importeren
             </div>
             <div className="flex gap-2">

@@ -271,7 +271,7 @@ export function WerklocatieForm({
               render={({ field }) => (
                 <div className="flex items-center justify-between rounded-lg border p-3">
                   <div className="flex items-center gap-2">
-                    <Zap className="h-4 w-4 text-yellow-600" />
+                    <Zap className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
                     <FormLabel htmlFor="stroom" className="cursor-pointer">
                       Stroom
                     </FormLabel>
@@ -292,7 +292,7 @@ export function WerklocatieForm({
               render={({ field }) => (
                 <div className="flex items-center justify-between rounded-lg border p-3">
                   <div className="flex items-center gap-2">
-                    <Droplet className="h-4 w-4 text-blue-600" />
+                    <Droplet className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                     <FormLabel htmlFor="water" className="cursor-pointer">
                       Water
                     </FormLabel>
@@ -313,7 +313,7 @@ export function WerklocatieForm({
               render={({ field }) => (
                 <div className="flex items-center justify-between rounded-lg border p-3">
                   <div className="flex items-center gap-2">
-                    <Bath className="h-4 w-4 text-green-600" />
+                    <Bath className="h-4 w-4 text-green-600 dark:text-green-400" />
                     <FormLabel htmlFor="toilet" className="cursor-pointer">
                       Toilet
                     </FormLabel>
@@ -441,7 +441,7 @@ export function WerklocatieForm({
 
         {/* Veiligheid sectie */}
         <div className="space-y-4">
-          <div className="flex items-center gap-2 text-sm font-medium text-amber-600">
+          <div className="flex items-center gap-2 text-sm font-medium text-amber-600 dark:text-amber-400">
             <AlertTriangle className="h-4 w-4" />
             Veiligheid
           </div>
@@ -456,7 +456,7 @@ export function WerklocatieForm({
                     {...field}
                     placeholder="Bijv. Let op hond, lage takken, ongelijk terrein..."
                     rows={2}
-                    className="border-amber-200 focus:border-amber-400"
+                    className="border-amber-200 dark:border-amber-800 focus:border-amber-400 focus:dark:border-amber-700"
                   />
                 </FormControl>
                 <FormMessage />

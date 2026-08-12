@@ -259,7 +259,7 @@ export function PlanningOverzicht({
                       <td className="text-right p-3 tabular-nums">
                         <span
                           className={cn(
-                            voortgang === 100 && "text-green-600 font-medium"
+                            voortgang === 100 && "text-green-600 dark:text-green-400 font-medium"
                           )}
                         >
                           {voortgang}%

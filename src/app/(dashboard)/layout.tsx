@@ -77,7 +77,7 @@ export default function DashboardLayout({
   if (isLoading || !isAuthenticated || currentUser === undefined || isKlant) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-500 dark:text-emerald-400" />
       </div>
     );
   }

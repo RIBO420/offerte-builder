@@ -154,11 +154,14 @@ export function FactorenTab({
                           />
                         ) : (
                           <span
+                            // Opslag (>1) en korting (<1) zijn statuskleuren
+                            // zonder token; in dark mode een lichtere tint,
+                            // anders is het getal in de tabel niet leesbaar.
                             className={
                               factor.factor !== 1
                                 ? factor.factor > 1
-                                  ? "text-orange-600 font-medium"
-                                  : "text-green-600 font-medium"
+                                  ? "text-orange-600 dark:text-orange-400 font-medium"
+                                  : "text-green-600 dark:text-green-400 font-medium"
                                 : ""
                             }
                           >
@@ -188,7 +191,7 @@ export function FactorenTab({
                                 {isSaving ? (
                                   <Loader2 className="h-4 w-4 animate-spin" />
                                 ) : (
-                                  <Save className="h-4 w-4 text-green-600" />
+                                  <Save className="h-4 w-4 text-green-600 dark:text-green-400" />
                                 )}
                               </Button>
                               <Button

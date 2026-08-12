@@ -19,11 +19,14 @@ export function StapIndicator({ huidigStap }: StapIndicatorProps) {
         <span className="text-sm font-medium text-muted-foreground">
           Stap {huidigStap} van {TOTAAL_STAPPEN}
         </span>
-        <Badge variant="outline" className="text-green-700 border-green-300 bg-green-50">
+        <Badge
+          variant="outline"
+          className="text-green-700 border-green-300 bg-green-50 dark:text-green-300 dark:border-green-800 dark:bg-green-950"
+        >
           {STAP_LABELS[huidigStap - 1]}
         </Badge>
       </div>
-      <Progress value={voortgang} className="h-2 [&>div]:bg-green-600" />
+      <Progress value={voortgang} className="h-2 [&>div]:bg-green-600 dark:[&>div]:bg-green-500" />
       <div className="flex justify-between mt-3">
         {STAP_LABELS.map((label, index) => {
           const stapNummer = index + 1;
@@ -40,11 +43,13 @@ export function StapIndicator({ huidigStap }: StapIndicatorProps) {
               <div
                 className={cn(
                   "flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold border-2 transition-colors",
+                  // De drie statussen moeten ook in dark mode uit elkaar te houden zijn:
+                  // afgerond = gevuld groen, actief = groene rand op paginakleur, nog te doen = neutrale rand.
                   isKlaar
-                    ? "bg-green-600 border-green-600 text-white"
+                    ? "bg-green-600 border-green-600 text-white dark:bg-green-500 dark:border-green-500 dark:text-green-950"
                     : isActief
-                    ? "border-green-600 text-green-700 bg-white"
-                    : "border-gray-300 text-gray-500 bg-white"
+                    ? "border-green-600 text-green-700 bg-background dark:border-green-500 dark:text-green-400"
+                    : "border-border text-muted-foreground bg-background"
                 )}
               >
                 {isKlaar ? <CheckCircle2 className="h-4 w-4" /> : stapNummer}
@@ -52,7 +57,9 @@ export function StapIndicator({ huidigStap }: StapIndicatorProps) {
               <span
                 className={cn(
                   "text-xs text-center",
-                  isActief ? "text-green-700 font-medium" : "text-muted-foreground"
+                  isActief
+                    ? "text-green-700 dark:text-green-400 font-medium"
+                    : "text-muted-foreground"
                 )}
               >
                 {label}

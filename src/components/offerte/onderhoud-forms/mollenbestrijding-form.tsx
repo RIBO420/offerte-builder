@@ -164,7 +164,7 @@ const PAKKETTEN = [
     badge: "Meest compleet",
     stijl: {
       ring: "ring-amber-500",
-      headerBg: "bg-amber-50",
+      headerBg: "bg-amber-50 dark:bg-amber-950",
       badgeBg: "bg-amber-500",
       badgeText: "text-white",
       buttonVariant: "outline" as const,
@@ -270,7 +270,7 @@ export function MollenbestrijdingForm({
                     <FormItem>
                       <FormLabel required>
                         Oppervlakte tuin
-                        <span className="text-xs text-orange-600 font-normal ml-2">(verplicht)</span>
+                        <span className="text-xs text-orange-600 dark:text-orange-400 font-normal ml-2">(verplicht)</span>
                       </FormLabel>
                       <FormControl>
                         <AreaInput
@@ -281,7 +281,7 @@ export function MollenbestrijdingForm({
                           onBlur={field.onBlur}
                           showStepper={false}
                           error={!!errors.tuinOppervlakte}
-                          className={errors.tuinOppervlakte ? "border-orange-300" : ""}
+                          className={errors.tuinOppervlakte ? "border-orange-300 dark:border-orange-700" : ""}
                         />
                       </FormControl>
                       <FormMessage />
@@ -297,13 +297,13 @@ export function MollenbestrijdingForm({
                   <FormItem>
                     <FormLabel required>
                       Tuin-type
-                      <span className="text-xs text-orange-600 font-normal ml-2">(verplicht)</span>
+                      <span className="text-xs text-orange-600 dark:text-orange-400 font-normal ml-2">(verplicht)</span>
                     </FormLabel>
                     <Select value={field.value} onValueChange={field.onChange}>
                       <FormControl>
                         <SelectTrigger
                           id="mollen-tuintype"
-                          className={errors.tuinType ? "border-orange-300" : ""}
+                          className={errors.tuinType ? "border-orange-300 dark:border-orange-700" : ""}
                         >
                           <SelectValue placeholder="Selecteer tuin-type" />
                         </SelectTrigger>
@@ -355,16 +355,16 @@ export function MollenbestrijdingForm({
             {/* ----------------------------------------------------------------
                 Sectie 2 — Marketing statistieken
             ---------------------------------------------------------------- */}
-            <div className="rounded-lg border border-green-200 bg-green-50 p-4 space-y-2">
+            <div className="rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950 p-4 space-y-2">
               <div className="flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-green-700 shrink-0" />
-                <p className="text-sm font-semibold text-green-800">
+                <TrendingUp className="h-4 w-4 text-green-700 dark:text-green-300 shrink-0" />
+                <p className="text-sm font-semibold text-green-800 dark:text-green-200">
                   Dit jaar al 127 mollen verplaatst in uw regio!
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <Star className="h-4 w-4 text-green-700 shrink-0" />
-                <p className="text-sm text-green-700">
+                <Star className="h-4 w-4 text-green-700 dark:text-green-300 shrink-0" />
+                <p className="text-sm text-green-700 dark:text-green-300">
                   96% van onze klanten is tevreden met de aanpak
                 </p>
               </div>
@@ -373,14 +373,14 @@ export function MollenbestrijdingForm({
             {/* ----------------------------------------------------------------
                 Sectie 3 — Disclaimer (altijd zichtbaar)
             ---------------------------------------------------------------- */}
-            <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-4">
+            <div className="rounded-lg border border-yellow-300 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-950 p-4">
               <div className="flex items-start gap-3">
-                <AlertTriangle className="h-4 w-4 text-yellow-700 mt-0.5 shrink-0" />
+                <AlertTriangle className="h-4 w-4 text-yellow-700 dark:text-yellow-300 mt-0.5 shrink-0" />
                 <div className="space-y-1">
-                  <p className="text-sm font-semibold text-yellow-800">
+                  <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-200">
                     Let op: geen garantie op mollenbestrijding
                   </p>
-                  <p className="text-xs text-yellow-700 leading-relaxed">
+                  <p className="text-xs text-yellow-700 dark:text-yellow-300 leading-relaxed">
                     Op mollenbestrijding wordt geen garantie verleend. Mollen zijn wilde dieren en
                     kunnen terugkeren. Wij doen ons uiterste best maar kunnen geen molvrije tuin
                     garanderen.
@@ -429,7 +429,7 @@ export function MollenbestrijdingForm({
                                 isSelected && isPremium
                                   ? "bg-primary/10"
                                   : isSelected && isPremiumPlus
-                                    ? "bg-amber-50"
+                                    ? "bg-amber-50 dark:bg-amber-950"
                                     : isSelected
                                       ? "bg-muted/50"
                                       : "bg-muted/30",
@@ -462,7 +462,7 @@ export function MollenbestrijdingForm({
                                 className={[
                                   "text-xl font-bold",
                                   isPremiumPlus
-                                    ? "text-amber-600"
+                                    ? "text-amber-600 dark:text-amber-400"
                                     : isPremium
                                       ? "text-primary"
                                       : "text-foreground",
@@ -485,7 +485,7 @@ export function MollenbestrijdingForm({
                                       className={[
                                         "h-3.5 w-3.5 shrink-0 mt-0.5",
                                         isPremiumPlus
-                                          ? "text-amber-500"
+                                          ? "text-amber-500 dark:text-amber-400"
                                           : isPremium
                                             ? "text-primary"
                                             : "text-muted-foreground",
@@ -508,7 +508,7 @@ export function MollenbestrijdingForm({
                                   isSelected && isPremium
                                     ? "bg-primary text-primary-foreground"
                                     : isSelected && isPremiumPlus
-                                      ? "border-amber-500 text-amber-700"
+                                      ? "border-amber-500 text-amber-700 dark:text-amber-300"
                                       : "",
                                 ].join(" ")}
                                 tabIndex={-1}

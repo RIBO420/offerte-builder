@@ -90,7 +90,7 @@ function BakKaart({
               {item.beschikbaarheidsVenster.notitie}
             </p>
           )}
-          {hint && <p className="mt-1 text-[11px] text-amber-600">{hint}</p>}
+          {hint && <p className="mt-1 text-[11px] text-amber-600 dark:text-amber-400">{hint}</p>}
         </div>
       </div>
     </div>

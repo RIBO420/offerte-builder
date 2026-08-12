@@ -147,7 +147,7 @@ export function ModulePills({
                 className={cn(
                   "h-4 w-4 shrink-0",
                   pill.highlighted && !isGreen && "text-primary",
-                  pill.highlighted && isGreen && "text-green-500",
+                  pill.highlighted && isGreen && "text-green-500 dark:text-green-400",
                   !pill.highlighted && "text-muted-foreground"
                 )}
               />
@@ -156,7 +156,7 @@ export function ModulePills({
                   className={cn(
                     "text-sm font-medium leading-tight",
                     pill.highlighted && !isGreen && "text-primary",
-                    pill.highlighted && isGreen && "text-green-500",
+                    pill.highlighted && isGreen && "text-green-500 dark:text-green-400",
                     !pill.highlighted && "text-foreground"
                   )}
                 >
@@ -166,7 +166,7 @@ export function ModulePills({
                   className={cn(
                     "text-[11px] leading-tight",
                     pill.highlighted && !isGreen && "text-primary/70",
-                    pill.highlighted && isGreen && "text-green-500/70",
+                    pill.highlighted && isGreen && "text-green-500 dark:text-green-400/70",
                     !pill.highlighted && "text-muted-foreground"
                   )}
                 >
@@ -177,7 +177,7 @@ export function ModulePills({
                 className={cn(
                   "h-3.5 w-3.5 shrink-0",
                   pill.highlighted && !isGreen && "text-primary/50",
-                  pill.highlighted && isGreen && "text-green-500/50",
+                  pill.highlighted && isGreen && "text-green-500 dark:text-green-400/50",
                   !pill.highlighted && "text-muted-foreground/50"
                 )}
               />

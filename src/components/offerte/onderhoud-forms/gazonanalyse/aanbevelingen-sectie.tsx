@@ -49,7 +49,7 @@ export function AanbevelingenSectie({
             control={form.control}
             name="aanbevelingen.drainageAanleggen"
             render={({ field }) => (
-              <FormItem className="flex items-start justify-between rounded-lg border border-blue-200 bg-blue-50 p-3 gap-3">
+              <FormItem className="flex items-start justify-between rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950 p-3 gap-3">
                 <div className="space-y-0.5">
                   <FormLabel className="text-sm font-medium">
                     Drainage aanleggen
@@ -76,7 +76,7 @@ export function AanbevelingenSectie({
             control={form.control}
             name="aanbevelingen.bekalken"
             render={({ field }) => (
-              <FormItem className="flex items-start justify-between rounded-lg border border-amber-200 bg-amber-50 p-3 gap-3">
+              <FormItem className="flex items-start justify-between rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950 p-3 gap-3">
                 <div className="space-y-0.5">
                   <FormLabel className="text-sm font-medium">
                     Bekalken
@@ -103,7 +103,7 @@ export function AanbevelingenSectie({
             control={form.control}
             name="aanbevelingen.beregeningsadvies"
             render={({ field }) => (
-              <FormItem className="flex items-start justify-between rounded-lg border border-cyan-200 bg-cyan-50 p-3 gap-3">
+              <FormItem className="flex items-start justify-between rounded-lg border border-cyan-200 dark:border-cyan-800 bg-cyan-50 dark:bg-cyan-950 p-3 gap-3">
                 <div className="space-y-0.5">
                   <FormLabel className="text-sm font-medium">
                     Beregeningsadvies
@@ -149,9 +149,9 @@ export function AanbevelingenSectie({
 
               {/* Info card wanneer robotmaaier advies actief is */}
               {aanbevelingen.robotmaaierAdvies && (
-                <div className="rounded-lg border border-green-200 bg-green-50 p-3 flex gap-2">
-                  <Info className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
-                  <p className="text-xs text-green-800">
+                <div className="rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950 p-3 flex gap-2">
+                  <Info className="h-4 w-4 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
+                  <p className="text-xs text-green-800 dark:text-green-200">
                     <span className="font-semibold">Robotmaaier tip:</span>{" "}
                     Een robotmaaier maait dagelijks kleine stukjes — het
                     gazon wordt er beter van! Kort gras stimuleert

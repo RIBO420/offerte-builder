@@ -132,7 +132,7 @@ export function TemplateSelector({ type, onSelect, onSkip }: TemplateSelectorPro
           {systemTemplates.length > 0 && (
             <>
               <div className="flex items-center gap-1.5 pt-2">
-                <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                <Sparkles className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" />
                 <span className="text-xs font-medium text-muted-foreground">
                   Standaard templates
                 </span>
@@ -186,7 +186,7 @@ export function TemplateSelector({ type, onSelect, onSkip }: TemplateSelectorPro
           {userTemplates.length > 0 && (
             <>
               <div className="flex items-center gap-1.5 pt-2">
-                <User className="h-3.5 w-3.5 text-blue-500" />
+                <User className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400" />
                 <span className="text-xs font-medium text-muted-foreground">
                   Mijn templates
                 </span>

@@ -160,10 +160,10 @@ export function WizardSteps({
               >
                 <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border bg-muted/30 px-2.5 py-1.5 text-xs hover:bg-muted/50 transition-colors touch-manipulation">
                   <div className="flex items-center gap-1.5">
-                    <Check className="h-3 w-3 text-green-600" />
+                    <Check className="h-3 w-3 text-green-600 dark:text-green-400" />
                     <span className="font-medium">{step.name}</span>
                     {step.isValid === false && (
-                      <span className="text-[10px] text-orange-600">(onvolledig)</span>
+                      <span className="text-[10px] text-orange-600 dark:text-orange-400">(onvolledig)</span>
                     )}
                   </div>
                   <ChevronDown

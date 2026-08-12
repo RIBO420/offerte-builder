@@ -142,7 +142,7 @@ export function VoorraadMutatiesDialog({
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right font-medium">
-                        <span className={isPositive ? "text-green-600" : "text-orange-600"}>
+                        <span className={isPositive ? "text-green-600 dark:text-green-400" : "text-orange-600 dark:text-orange-400"}>
                           {mutatie.hoeveelheid > 0 ? "+" : ""}{mutatie.hoeveelheid} {eenheid}
                         </span>
                       </TableCell>
