@@ -16,6 +16,7 @@
 import { useCallback, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
+import { logger } from "@/lib/logger";
 import { Check, Lightbulb, Loader2 } from "lucide-react";
 import { api } from "@convex/_generated/api";
 import { Id } from "@convex/_generated/dataModel";
@@ -67,7 +68,9 @@ export function NormuurSuggesties() {
         );
       } catch (error) {
         toast.error("Fout bij overnemen van de norm");
-        console.error(error);
+        logger.error("Overnemen normuur-suggestie mislukt", error, {
+          module: "catalogus/normuur-suggesties",
+        });
       } finally {
         setBezigMet(null);
       }

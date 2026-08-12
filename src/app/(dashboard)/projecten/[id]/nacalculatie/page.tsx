@@ -27,6 +27,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { PageHeader } from "@/components/page-header";
 import { toast } from "sonner";
+import { logger } from "@/lib/logger";
 import {
   ArrowLeft,
   Loader2,
@@ -119,7 +120,9 @@ export default function NacalculatiePage({
       setShowSuccessDialog(true);
     } catch (error) {
       toast.error("Fout bij opslaan nacalculatie");
-      console.error(error);
+      logger.error("Opslaan nacalculatie mislukt", error, {
+        module: "projecten/nacalculatie",
+      });
     } finally {
       setIsSaving(false);
     }
@@ -141,7 +144,9 @@ export default function NacalculatiePage({
       toast.success("Excel export gedownload");
     } catch (error) {
       toast.error("Fout bij exporteren");
-      console.error(error);
+      logger.error("Excel-export nacalculatie mislukt", error, {
+        module: "projecten/nacalculatie",
+      });
     } finally {
       setIsExporting(false);
     }
@@ -165,7 +170,9 @@ export default function NacalculatiePage({
         toast.success("Normuur aangepast");
       } catch (error) {
         toast.error("Fout bij aanpassen normuur");
-        console.error(error);
+        logger.error("Aanpassen normuur mislukt", error, {
+          module: "projecten/nacalculatie",
+        });
       }
     },
     [applyAanpassing]
@@ -179,7 +186,9 @@ export default function NacalculatiePage({
         toast.success("Aanpassing teruggedraaid");
       } catch (error) {
         toast.error("Fout bij terugdraaien");
-        console.error(error);
+        logger.error("Terugdraaien normuur-aanpassing mislukt", error, {
+          module: "projecten/nacalculatie",
+        });
       }
     },
     [revertAanpassing]

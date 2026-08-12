@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
+import { logger } from "@/lib/logger";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import {
   useUrenRegistratie,
@@ -148,7 +149,10 @@ export default function UitvoeringPage() {
         toast.success(`${result.count} registraties geimporteerd`);
       } catch (error) {
         toast.error("Fout bij importeren");
-        console.error(error);
+        logger.error("Importeren urenregistraties mislukt", error, {
+          module: "projecten/uitvoering",
+          aantalRegels: entries.length,
+        });
       } finally {
         setIsImporting(false);
       }
@@ -165,7 +169,9 @@ export default function UitvoeringPage() {
         setShowUrenForm(false);
       } catch (error) {
         toast.error("Fout bij registreren uren");
-        console.error(error);
+        logger.error("Registreren uren mislukt", error, {
+          module: "projecten/uitvoering",
+        });
       } finally {
         setIsSaving(false);
       }
@@ -192,7 +198,9 @@ export default function UitvoeringPage() {
       setMachineUren("");
     } catch (error) {
       toast.error("Fout bij registreren machine gebruik");
-      console.error(error);
+      logger.error("Registreren machinegebruik mislukt", error, {
+        module: "projecten/uitvoering",
+      });
     } finally {
       setIsSaving(false);
     }
@@ -230,7 +238,9 @@ export default function UitvoeringPage() {
         return newSet;
       });
       toast.error("Fout bij verwijderen");
-      console.error(error);
+      logger.error("Verwijderen registratie mislukt", error, {
+        module: "projecten/uitvoering",
+      });
     }
   }, [itemToDelete, deleteUren, deleteMachineUsage]);
 
@@ -282,7 +292,10 @@ export default function UitvoeringPage() {
         // Rollback on error
         setOptimisticKlicMelding(null);
         toast.error("Fout bij opslaan KLIC-melding status");
-        console.error(error);
+        logger.error("Opslaan KLIC-meldingstatus mislukt", error, {
+          module: "projecten/uitvoering",
+          projectId,
+        });
       }
     },
     [projectId, setKlicMelding]

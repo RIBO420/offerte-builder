@@ -26,6 +26,8 @@ import {
   ZoomIn,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { logger } from "@/lib/logger";
+import { showErrorToast } from "@/lib/toast-utils";
 
 interface QCFoto {
   url: string;
@@ -105,7 +107,11 @@ export function QCFotoUpload({
         };
         reader.readAsDataURL(file);
       } catch (error) {
-        console.error("Fout bij uploaden foto:", error);
+        logger.error("Uploaden kwaliteitsfoto mislukt", error, {
+          module: "project/qc-foto",
+          kwaliteitsControleId,
+          uploadType,
+        });
         alert("Er is een fout opgetreden bij het uploaden");
       } finally {
         setIsUploading(false);
@@ -129,7 +135,13 @@ export function QCFotoUpload({
       });
       onFotoRemoved?.();
     } catch (error) {
-      console.error("Fout bij verwijderen foto:", error);
+      logger.error("Verwijderen kwaliteitsfoto mislukt", error, {
+        module: "project/qc-foto",
+        kwaliteitsControleId,
+      });
+      // De foto blijft gewoon staan na een mislukte verwijdering; zonder melding
+      // lijkt het alsof de knop niets doet.
+      showErrorToast("Foto kon niet worden verwijderd");
     } finally {
       setDeletingUrl(null);
     }

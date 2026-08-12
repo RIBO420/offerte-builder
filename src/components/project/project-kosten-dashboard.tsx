@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { showSuccessToast, showErrorToast, showInfoToast } from "@/lib/toast-utils";
+import { logger } from "@/lib/logger";
 import {
   Plus,
   Euro,
@@ -103,7 +104,9 @@ export const ProjectKostenDashboard = memo(function ProjectKostenDashboard({
       setIsFormOpen(false);
     } catch (error) {
       showErrorToast("Fout bij toevoegen kostenpost");
-      console.error(error);
+      logger.error("Toevoegen kostenpost mislukt", error, {
+        module: "project/kosten",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -121,7 +124,9 @@ export const ProjectKostenDashboard = memo(function ProjectKostenDashboard({
       setDeleteItem(null);
     } catch (error) {
       showErrorToast("Fout bij verwijderen");
-      console.error(error);
+      logger.error("Verwijderen kostenpost mislukt", error, {
+        module: "project/kosten",
+      });
     }
   }, [deleteKost, deleteItem, id]);
 

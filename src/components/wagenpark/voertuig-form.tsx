@@ -47,6 +47,7 @@ import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
 import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import { getMutationErrorMessage } from "@/lib/error-handling";
+import { logger } from "@/lib/logger";
 
 // Common vehicle brands in the Netherlands for landscaping/construction
 const vehicleBrands = [
@@ -282,7 +283,10 @@ export function VoertuigForm({
       onOpenChange(false);
       onSuccess?.();
     } catch (error) {
-      console.error("Error saving voertuig:", error);
+      logger.error("Opslaan voertuig mislukt", error, {
+        module: "wagenpark/voertuig",
+        bewerken: isEditMode,
+      });
       showErrorToast(
         isEditMode
           ? "Fout bij bijwerken voertuig"

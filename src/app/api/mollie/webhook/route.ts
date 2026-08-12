@@ -12,6 +12,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
+import { logger } from "@/lib/logger";
 
 const MOLLIE_API = "https://api.mollie.com/v2";
 const WEBHOOK_SIGNING_KEY = process.env.MOLLIE_WEBHOOK_SIGNING_KEY;
@@ -43,9 +44,10 @@ function verifyWebhookSignature(
 ): boolean {
   if (!WEBHOOK_SIGNING_KEY) {
     // Geen sleutel geconfigureerd — verzoeken worden afgewezen in productie
-    console.error(
-      "[mollie/webhook] MOLLIE_WEBHOOK_SIGNING_KEY niet geconfigureerd — webhook wordt afgewezen. " +
-        "Stel deze omgevingsvariabele in om webhooks te verwerken."
+    logger.error(
+      "MOLLIE_WEBHOOK_SIGNING_KEY niet geconfigureerd — webhook wordt afgewezen",
+      undefined,
+      { module: "mollie/webhook" }
     );
     return false;
   }
@@ -80,7 +82,8 @@ async function getMolliePayment(
     });
 
     if (!response.ok) {
-      console.error("[mollie/webhook] Kan betaling niet ophalen:", {
+      logger.error("Kan betaling niet ophalen bij Mollie", undefined, {
+        module: "mollie/webhook",
         paymentId,
         status: response.status,
       });
@@ -89,7 +92,10 @@ async function getMolliePayment(
 
     return (await response.json()) as MolliePaymentDetail;
   } catch (err) {
-    console.error("[mollie/webhook] Fout bij ophalen betaling:", err);
+    logger.error("Fout bij ophalen betaling bij Mollie", err, {
+      module: "mollie/webhook",
+      paymentId,
+    });
     return null;
   }
 }
@@ -97,7 +103,9 @@ async function getMolliePayment(
 export async function POST(request: NextRequest) {
   const apiKey = process.env.MOLLIE_API_KEY;
   if (!apiKey) {
-    console.error("[mollie/webhook] MOLLIE_API_KEY niet geconfigureerd");
+    logger.error("MOLLIE_API_KEY niet geconfigureerd", undefined, {
+      module: "mollie/webhook",
+    });
     // Mollie verwacht altijd een 200 OK, anders herprobeert het de webhook
     return new NextResponse("OK", { status: 200 });
   }
@@ -107,12 +115,14 @@ export async function POST(request: NextRequest) {
   const signatureHeader = request.headers.get("webhook-signing");
 
   if (!signatureHeader) {
-    console.warn("[mollie/webhook] Handtekening-header ontbreekt.");
+    logger.warn("Handtekening-header ontbreekt", { module: "mollie/webhook" });
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
   if (!verifyWebhookSignature(signatureHeader, rawBody)) {
-    console.warn("[mollie/webhook] Ongeldige handtekening ontvangen.");
+    logger.warn("Ongeldige handtekening ontvangen", {
+      module: "mollie/webhook",
+    });
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
@@ -129,13 +139,15 @@ export async function POST(request: NextRequest) {
       const json = JSON.parse(rawBody) as { id?: string };
       paymentId = json.id ?? null;
     } catch {
-      console.error("[mollie/webhook] Kan request body niet verwerken");
+      logger.error("Kan request body niet verwerken", undefined, {
+        module: "mollie/webhook",
+      });
       return new NextResponse("OK", { status: 200 });
     }
   }
 
   if (!paymentId) {
-    console.warn("[mollie/webhook] Geen betaling-ID ontvangen");
+    logger.warn("Geen betaling-ID ontvangen", { module: "mollie/webhook" });
     return new NextResponse("OK", { status: 200 });
   }
 
@@ -146,8 +158,11 @@ export async function POST(request: NextRequest) {
     return new NextResponse("OK", { status: 200 });
   }
 
-  // Log de betalingsstatus
-  console.info("[mollie/webhook] Betalingsstatus bijgewerkt:", {
+  // Zolang de TODO hieronder openstaat is deze logregel het énige spoor van de
+  // betalingsstatus — er wordt nog niets naar Convex weggeschreven. Daarom
+  // gestructureerd naar Sentry en niet naar een vluchtige stdout-console.
+  logger.info("Betalingsstatus ontvangen van Mollie", {
+    module: "mollie/webhook",
     paymentId: payment.id,
     status: payment.status,
     bedrag: `${payment.amount.value} ${payment.amount.currency}`,
@@ -159,7 +174,25 @@ export async function POST(request: NextRequest) {
     ...(payment.canceledAt ? { geannuleerdOp: payment.canceledAt } : {}),
   });
 
-  // TODO: Update betalingsstatus in Convex via een server-side action
+  // TODO(betalingen): schrijf `payment.status` weg naar de `betalingen`-tabel.
+  //
+  // Geblokkeerd — er is nog geen mutation die vanuit deze route aanroepbaar is.
+  // `betalingen.updateStatus` bestaat wél en doet precies het goede (zoekt op
+  // de `by_mollieId`-index en patcht status + updatedAt), maar begint met
+  // `requireNotViewer(ctx)`. Die vereist een Clerk-identiteit via `ctx.auth`,
+  // en een webhook heeft er geen: Mollie roept ons aan, geen ingelogde
+  // gebruiker. Een `ConvexHttpClient` zonder token faalt dus met een AuthError.
+  //
+  // Benodigd: `betalingen.updateStatusFromWebhook` — een publieke mutation die
+  // in plaats van `requireNotViewer` een gedeeld geheim controleert
+  // (`CONVEX_WEBHOOK_SECRET`), exact zoals `emailLogs.updateFromWebhook` dat
+  // doet. Een `internalMutation` kan hier niet: die is niet aanroepbaar via
+  // `ConvexHttpClient`. Zie src/app/api/webhooks/resend/route.ts voor het
+  // volledige patroon (lazy client + geheim meesturen + foutafhandeling).
+  //
+  // Zodra die mutation er is, hier aanroepen met { molliePaymentId: payment.id,
+  // status: payment.status, webhookSecret } — de statuswaarden van Mollie
+  // komen één-op-één overeen met `betalingStatusValidator` in convex/betalingen.ts.
 
   // Mollie verwacht altijd een 200 OK response
   return new NextResponse("OK", { status: 200 });

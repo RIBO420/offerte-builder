@@ -44,6 +44,7 @@ import {
   Euro,
 } from "lucide-react";
 import { toast } from "sonner";
+import { logger } from "@/lib/logger";
 import { VoorraadAdjustDialog, type VoorraadItem, type MutatieType } from "@/components/voorraad/voorraad-adjust-dialog";
 import { VoorraadMutatiesDialog } from "@/components/voorraad/voorraad-mutaties-dialog";
 import { useVoorraad, useVoorraadStats, useVoorraadMutaties, useVoorraadMutations } from "@/hooks/use-voorraad";
@@ -173,7 +174,10 @@ function VoorraadPageContent() {
       });
       toast.success("Voorraad succesvol aangepast");
     } catch (error) {
-      console.error("Failed to adjust stock:", error);
+      logger.error("Aanpassen voorraad mislukt", error, {
+        module: "voorraad",
+        mutatieType: data.type,
+      });
       toast.error(error instanceof Error ? error.message : "Fout bij aanpassen voorraad");
     }
   };

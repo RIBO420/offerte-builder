@@ -27,6 +27,8 @@ import {
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { logger } from "@/lib/logger";
+import { showErrorToast } from "@/lib/toast-utils";
 
 // QC Status types and labels
 type QCStatus = "open" | "in_uitvoering" | "goedgekeurd" | "afgekeurd";
@@ -144,7 +146,13 @@ export function QCChecklistCard({
         afgevinktDoor: checked ? userName : undefined,
       });
     } catch (error) {
-      console.error("Fout bij bijwerken checklist item:", error);
+      logger.error("Bijwerken checklist-item mislukt", error, {
+        module: "project/qc-checklist",
+        itemId,
+      });
+      // Het vinkje springt terug zodra de query hertekent; zonder melding lijkt
+      // dat op een haperende UI in plaats van een mislukte opslag.
+      showErrorToast("Kon het vinkje niet opslaan. Probeer het opnieuw.");
     } finally {
       setUpdatingItems((prev) => {
         const next = new Set(prev);

@@ -50,6 +50,9 @@ import { QCFotoUpload } from "@/components/project/qc-foto-upload";
 import { QCApprovalDialog } from "@/components/project/qc-approval-dialog";
 import { QCPageSkeleton } from "@/components/skeletons";
 import { cn } from "@/lib/utils";
+import { logger } from "@/lib/logger";
+import { showErrorToast } from "@/lib/toast-utils";
+import { getMutationErrorMessage } from "@/lib/error-handling";
 
 // QC Status types
 type QCStatus = "open" | "in_uitvoering" | "goedgekeurd" | "afgekeurd";
@@ -191,7 +194,16 @@ export default function KwaliteitscontrolePage({
       setSelectedScope("");
       setExpandedQC(newId);
     } catch (error) {
-      console.error("Fout bij aanmaken QC:", error);
+      logger.error("Aanmaken kwaliteitscontrole mislukt", error, {
+        module: "projecten/kwaliteit",
+        projectId,
+        scope: selectedScope,
+      });
+      // Zonder toast sloot de dialoog niet en gebeurde er verder niets zichtbaars;
+      // de gebruiker bleef in het ongewisse of de controle nu was aangemaakt.
+      showErrorToast("Kwaliteitscontrole kon niet worden aangemaakt", {
+        description: getMutationErrorMessage(error),
+      });
     } finally {
       setIsCreating(false);
     }

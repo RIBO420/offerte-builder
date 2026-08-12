@@ -34,6 +34,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { toast } from "sonner";
+import { logger } from "@/lib/logger";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Id } from "../../../../../convex/_generated/dataModel";
 
@@ -418,7 +419,9 @@ function NieuwContractContent() {
       router.push(`/contracten/${contractId}`);
     } catch (error) {
       toast.error("Kon contract niet aanmaken");
-      console.error(error);
+      logger.error("Aanmaken contract mislukt", error, {
+        module: "contracten/nieuw",
+      });
     } finally {
       setIsSubmitting(false);
     }

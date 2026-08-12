@@ -215,8 +215,11 @@ export function handleBackgroundError(
   operation: string,
   extra?: Record<string, unknown>
 ): void {
-  // Log to console for development visibility
-  console.warn(`[Background Operation Failed] ${operation}:`, error);
+  // Alleen tijdens ontwikkelen naar de console; in productie is de Sentry-melding
+  // hieronder het echte kanaal.
+  if (process.env.NODE_ENV !== "production") {
+    console.warn(`[Background Operation Failed] ${operation}:`, error);
+  }
 
   // Capture in Sentry at warning level (non-critical)
   Sentry.captureException(error, {

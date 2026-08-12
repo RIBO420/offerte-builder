@@ -43,6 +43,7 @@ import {
 import { Loader2, Plus, Trash2, Fuel, TrendingDown, Euro, Droplets } from "lucide-react";
 import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import { getMutationErrorMessage } from "@/lib/error-handling";
+import { logger } from "@/lib/logger";
 import { cn } from "@/lib/utils";
 import { Id } from "../../../convex/_generated/dataModel";
 import type { BrandstofRecord, BrandstofStats } from "@/hooks/use-voertuig-details";
@@ -180,7 +181,9 @@ export function BrandstofForm({
       });
       setIsAdding(false);
     } catch (error) {
-      console.error("Error adding fuel:", error);
+      logger.error("Toevoegen tankbeurt mislukt", error, {
+        module: "wagenpark/brandstof",
+      });
       showErrorToast("Fout bij toevoegen tankbeurt", {
         description: getMutationErrorMessage(error),
       });
@@ -197,7 +200,9 @@ export function BrandstofForm({
       showSuccessToast("Tankbeurt verwijderd");
       setDeleteId(null);
     } catch (error) {
-      console.error("Error deleting fuel:", error);
+      logger.error("Verwijderen tankbeurt mislukt", error, {
+        module: "wagenpark/brandstof",
+      });
       showErrorToast("Fout bij verwijderen", {
         description: getMutationErrorMessage(error),
       });

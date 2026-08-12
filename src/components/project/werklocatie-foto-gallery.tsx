@@ -28,6 +28,7 @@ import {
   ZoomIn,
 } from "lucide-react";
 import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
+import { logger } from "@/lib/logger";
 
 interface Foto {
   url: string;
@@ -111,7 +112,9 @@ export function WerklocatieFotoGallery({
         }
       }
     } catch (error) {
-      console.error("Error deleting foto:", error);
+      logger.error("Verwijderen werklocatiefoto mislukt", error, {
+        module: "project/werklocatie-fotos",
+      });
       showErrorToast("Er ging iets mis bij het verwijderen");
     } finally {
       setIsDeleting(false);

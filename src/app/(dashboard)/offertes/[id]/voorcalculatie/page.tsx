@@ -49,6 +49,7 @@ import { Progress } from "@/components/ui/progress";
 import { Id } from "../../../../../../convex/_generated/dataModel";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { logger } from "@/lib/logger";
 
 export default function OfferteVoorcalculatiePage({
   params,
@@ -161,7 +162,9 @@ export default function OfferteVoorcalculatiePage({
       toast.success("Voorcalculatie opgeslagen");
     } catch (error) {
       toast.error("Fout bij opslaan voorcalculatie");
-      console.error(error);
+      logger.error("Opslaan voorcalculatie mislukt", error, {
+        module: "offertes/voorcalculatie",
+      });
     }
   }, [saveNow]);
 
@@ -182,7 +185,10 @@ export default function OfferteVoorcalculatiePage({
       router.push(`/offertes/${id}`);
     } catch (error) {
       toast.error("Fout bij afronden voorcalculatie");
-      console.error(error);
+      logger.error("Afronden voorcalculatie mislukt", error, {
+        module: "offertes/voorcalculatie",
+        offerteId: id,
+      });
     } finally {
       setIsCompleting(false);
       setShowCompleteDialog(false);

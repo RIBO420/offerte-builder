@@ -9,6 +9,7 @@ import {
   calculateNacalculatie,
   type NacalculatieResult,
 } from "@/lib/nacalculatie-calculator";
+import { createBackgroundErrorHandler } from "@/lib/error-handling";
 
 /**
  * Hook for nacalculatie operations on a specific project
@@ -49,9 +50,13 @@ export function useNacalculatie(projectId: Id<"projecten"> | null) {
       !hasFixedStatus.current
     ) {
       hasFixedStatus.current = true;
-      ensureCorrectStatusMutation({ projectId }).catch((err) => {
-        console.error("Failed to fix project status:", err);
-      });
+      // Achtergrondcorrectie: mislukken mag de pagina niet blokkeren, maar de
+      // projectstatus blijft dan wel verkeerd staan — dus wel naar Sentry.
+      ensureCorrectStatusMutation({ projectId }).catch(
+        createBackgroundErrorHandler("nacalculatie.ensureCorrectStatus", {
+          projectId,
+        })
+      );
     }
   }, [projectId, details?.project?.status, details?.nacalculatie, ensureCorrectStatusMutation]);
 

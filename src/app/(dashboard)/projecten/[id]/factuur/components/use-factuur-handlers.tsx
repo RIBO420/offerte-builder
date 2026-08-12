@@ -7,6 +7,7 @@ import { Id, Doc } from "../../../../../../../convex/_generated/dataModel";
 import { toast } from "sonner";
 import type { PdfTheme } from "@/components/pdf/pdf-theme";
 import type { Bedrijfsgegevens } from "@/types/offerte";
+import { logger } from "@/lib/logger";
 
 export interface FactuurHandlersState {
   isGenerating: boolean;
@@ -83,7 +84,10 @@ export function useFactuurHandlers(
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Onbekende fout";
       toast.error(`Fout bij genereren factuur: ${errorMessage}`);
-      console.error(error);
+      logger.error("Genereren factuur mislukt", error, {
+        module: "projecten/factuur",
+        projectId,
+      });
     } finally {
       setIsGenerating(false);
     }
@@ -98,7 +102,10 @@ export function useFactuurHandlers(
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Onbekende fout";
       toast.error(`Fout bij definitief maken: ${errorMessage}`);
-      console.error(error);
+      logger.error("Factuur definitief maken mislukt", error, {
+        module: "projecten/factuur",
+        factuurId,
+      });
     } finally {
       setIsSaving(false);
     }
@@ -114,7 +121,10 @@ export function useFactuurHandlers(
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Onbekende fout";
       toast.error(`Fout bij verzenden factuur: ${errorMessage}`);
-      console.error(error);
+      logger.error("Verzenden factuur mislukt", error, {
+        module: "projecten/factuur",
+        factuurId,
+      });
     } finally {
       setIsSending(false);
     }
@@ -130,7 +140,10 @@ export function useFactuurHandlers(
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Onbekende fout";
       toast.error(`Fout bij markeren als betaald: ${errorMessage}`);
-      console.error(error);
+      logger.error("Factuur markeren als betaald mislukt", error, {
+        module: "projecten/factuur",
+        factuurId,
+      });
     } finally {
       setIsSaving(false);
     }
@@ -145,7 +158,10 @@ export function useFactuurHandlers(
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Onbekende fout";
       toast.error(`Fout bij verzenden herinnering: ${errorMessage}`);
-      console.error(error);
+      logger.error("Verzenden betalingsherinnering mislukt", error, {
+        module: "projecten/factuur",
+        factuurId,
+      });
     } finally {
       setIsSending(false);
     }
@@ -171,7 +187,11 @@ export function useFactuurHandlers(
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Onbekende fout";
       toast.error(`Fout bij verzenden aanmaning: ${errorMessage}`);
-      console.error(error);
+      logger.error("Verzenden aanmaning mislukt", error, {
+        module: "projecten/factuur",
+        factuurId,
+        aanmaningType: selectedAanmaningType,
+      });
     } finally {
       setIsSendingAanmaning(false);
     }
@@ -190,7 +210,10 @@ export function useFactuurHandlers(
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Onbekende fout";
       toast.error(`Fout bij aanmaken creditnota: ${errorMessage}`);
-      console.error(error);
+      logger.error("Aanmaken creditnota mislukt", error, {
+        module: "projecten/factuur",
+        factuurId,
+      });
     } finally {
       setIsCreatingCreditnota(false);
     }
@@ -273,7 +296,9 @@ export function useFactuurHandlers(
         description: `${factuur.factuurnummer} is succesvol gedownload.`,
       });
     } catch (error) {
-      console.error("PDF generation error:", error);
+      logger.error("Genereren factuur-PDF mislukt", error, {
+        module: "projecten/factuur",
+      });
       toast.error("PDF kon niet worden gegenereerd", {
         description: error instanceof Error ? error.message : "Onbekende fout opgetreden",
       });
@@ -315,7 +340,9 @@ export function useFactuurHandlers(
       // Revoke after a delay to allow the browser to open the tab
       setTimeout(() => URL.revokeObjectURL(url), 5000);
     } catch (error) {
-      console.error("PDF preview error:", error);
+      logger.error("Openen factuur-PDF preview mislukt", error, {
+        module: "projecten/factuur",
+      });
       toast.error("PDF preview kon niet worden geopend", {
         description: error instanceof Error ? error.message : "Onbekende fout opgetreden",
       });

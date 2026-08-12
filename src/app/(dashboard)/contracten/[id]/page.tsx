@@ -80,6 +80,7 @@ import { useIsKantoor } from "@/hooks/use-users";
 import { usePdfTheme } from "@/hooks/use-pdf-theme";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { logger } from "@/lib/logger";
 import type { Id } from "../../../../../convex/_generated/dataModel";
 
 // Status badge colors
@@ -329,7 +330,9 @@ function ContractPdfDownloadButton({
         description: `${pdfData.contract.contractNummer} is succesvol gedownload.`,
       });
     } catch (error) {
-      console.error("PDF generation error:", error);
+      logger.error("Genereren contract-PDF mislukt", error, {
+        module: "contracten/detail",
+      });
       setHasError(true);
       toast.error("PDF kon niet worden gegenereerd", {
         description:
@@ -353,7 +356,9 @@ function ContractPdfDownloadButton({
       // Revoke after a delay to allow the browser to open the tab
       setTimeout(() => URL.revokeObjectURL(url), 5000);
     } catch (error) {
-      console.error("PDF preview error:", error);
+      logger.error("Openen contract-PDF preview mislukt", error, {
+        module: "contracten/detail",
+      });
       setHasError(true);
       toast.error("PDF preview kon niet worden geopend", {
         description:

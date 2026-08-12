@@ -6,6 +6,8 @@
  * Supports Dutch column headers and proper formatting.
  */
 
+import { logger } from "@/lib/logger";
+
 // Column definition for exports
 export interface ExportColumn<T> {
   key: keyof T | string;
@@ -91,7 +93,12 @@ export function exportToCSV<T extends Record<string, unknown>>(
   filename: string
 ): void {
   if (data.length === 0) {
-    console.warn("No data to export");
+    // Vangnet: aanroepers (zoals ExportDropdown) tonen zelf al een waarschuwing
+    // aan de gebruiker vóór ze hier komen. Debug-niveau, geen Sentry-ruis.
+    logger.debug("CSV-export overgeslagen: geen rijen", {
+      module: "export-utils",
+      filename,
+    });
     return;
   }
 
@@ -151,7 +158,11 @@ export async function exportToExcel<T extends Record<string, unknown>>(
   sheetName: string = "Data"
 ): Promise<void> {
   if (data.length === 0) {
-    console.warn("No data to export");
+    // Zie de toelichting bij exportToCSV: de aanroeper waarschuwt de gebruiker.
+    logger.debug("Excel-export overgeslagen: geen rijen", {
+      module: "export-utils",
+      filename,
+    });
     return;
   }
 

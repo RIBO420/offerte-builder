@@ -30,6 +30,7 @@ import {
   Stap4Prijsoverzicht,
   SuccessDialog,
 } from "./components";
+import { logger } from "@/lib/logger";
 
 export default function GazonConfiguratorPage() {
   const [huidigStap, setHuidigStap] = useState(1);
@@ -206,16 +207,20 @@ export default function GazonConfiguratorPage() {
             bedrijfsTelefoon: "085-0601024",
           }),
         });
-      } catch {
-        // Email fout is niet fataal — aanvraag is al opgeslagen
-        console.warn("[gazon] Bevestigingsmail mislukt, aanvraag is wel opgeslagen");
+      } catch (mailFout) {
+        // Email fout is niet fataal — aanvraag is al opgeslagen. De klant krijgt
+        // dan wel geen bevestiging, dus we willen dit terugzien in Sentry.
+        logger.warn("Bevestigingsmail mislukt, aanvraag is wel opgeslagen", {
+          module: "configurator/gazon",
+          fout: mailFout instanceof Error ? mailFout.message : String(mailFout),
+        });
       }
 
       setShowSuccessDialog(true);
     } catch (err) {
-      const foutmelding =
-        err instanceof Error ? err.message : "Onbekende fout";
-      console.error("[gazon] Fout bij versturen aanvraag:", foutmelding);
+      logger.error("Versturen gazon-aanvraag mislukt", err, {
+        module: "configurator/gazon",
+      });
       toast.error("Er ging iets mis bij het versturen. Probeer het opnieuw.");
     } finally {
       setIsSubmitting(false);

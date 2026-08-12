@@ -51,6 +51,7 @@ import {
 import { useIsKantoor } from "@/hooks/use-users";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { formatCurrency } from "@/lib/format/currency";
+import { logger } from "@/lib/logger";
 import {
   BOUWSTEEN_CATEGORIEEN,
   CATEGORIE_LABELS,
@@ -147,7 +148,9 @@ export default function CatalogusPage() {
             ? String((error as { data: unknown }).data)
             : "Fout bij opslaan bouwsteen";
         toast.error(bericht);
-        console.error(error);
+        logger.error("Opslaan bouwsteen mislukt", error, {
+          module: "instellingen/catalogus",
+        });
       } finally {
         setIsSaving(false);
       }
@@ -166,7 +169,9 @@ export default function CatalogusPage() {
         );
       } catch (error) {
         toast.error("Fout bij wijzigen actief-status");
-        console.error(error);
+        logger.error("Wijzigen actief-status bouwsteen mislukt", error, {
+          module: "instellingen/catalogus",
+        });
       }
     },
     [setActief]

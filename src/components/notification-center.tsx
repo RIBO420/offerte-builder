@@ -12,6 +12,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { handleBackgroundError } from "@/lib/error-handling";
 import { useNotifications } from "@/hooks/use-notifications";
 import type { Doc } from "../../convex/_generated/dataModel";
 
@@ -194,7 +195,9 @@ export function NotificationCenter() {
     try {
       await markAsRead(notificationId as unknown as Parameters<typeof markAsRead>[0]);
     } catch (error) {
-      console.error("Failed to mark notification as read:", error);
+      // Bewust geen toast: het markeren gebeurt terloops bij het openen van een
+      // melding. Wel naar Sentry, anders blijft een kapotte mutation onzichtbaar.
+      handleBackgroundError(error, "notificaties.markAsRead", { notificationId });
     }
   }, [markAsRead]);
 
@@ -202,7 +205,7 @@ export function NotificationCenter() {
     try {
       await dismiss(notificationId as unknown as Parameters<typeof dismiss>[0]);
     } catch (error) {
-      console.error("Failed to dismiss notification:", error);
+      handleBackgroundError(error, "notificaties.dismiss", { notificationId });
     }
   }, [dismiss]);
 
@@ -210,7 +213,7 @@ export function NotificationCenter() {
     try {
       await markAllAsRead();
     } catch (error) {
-      console.error("Failed to mark all notifications as read:", error);
+      handleBackgroundError(error, "notificaties.markAllAsRead");
     }
   }, [markAllAsRead]);
 

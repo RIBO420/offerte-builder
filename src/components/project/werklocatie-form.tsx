@@ -33,6 +33,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
+import { logger } from "@/lib/logger";
 
 type Werklocatie = {
   _id: Id<"werklocaties">;
@@ -174,7 +175,9 @@ export function WerklocatieForm({
 
       onSuccess?.();
     } catch (error) {
-      console.error("Error saving werklocatie:", error);
+      logger.error("Opslaan werklocatie mislukt", error, {
+        module: "project/werklocatie",
+      });
       showErrorToast("Er ging iets mis bij het opslaan");
     } finally {
       setIsSubmitting(false);
@@ -195,7 +198,9 @@ export function WerklocatieForm({
       showSuccessToast("Werklocatie verwijderd");
       onSuccess?.();
     } catch (error) {
-      console.error("Error deleting werklocatie:", error);
+      logger.error("Verwijderen werklocatie mislukt", error, {
+        module: "project/werklocatie",
+      });
       showErrorToast("Er ging iets mis bij het verwijderen");
     } finally {
       setIsDeleting(false);

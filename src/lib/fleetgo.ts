@@ -8,6 +8,8 @@
  * calling FleetGo directly. The API key is kept secure on the server.
  */
 
+import { logger } from '@/lib/logger';
+
 // API Configuration - uses local proxy for security
 const FLEETGO_PROXY_URL = '/api/fleetgo';
 
@@ -389,7 +391,11 @@ export class FleetGoClient {
       this.mockVehicles = FleetGoMockDataGenerator.generateVehicles(count);
       this.useMockData = true;
       this.mockDataInitialized = true;
-      console.warn('[FleetGo] Running in mock mode - API key not configured on server');
+      // Waarschuwing en geen debug: draaien op mockdata is in productie een
+      // configuratieprobleem dat je wilt terugzien, niet iets om te negeren.
+      logger.warn('FleetGo draait op mockdata — API-sleutel niet ingesteld op de server', {
+        module: 'fleetgo',
+      });
     }
   }
 
