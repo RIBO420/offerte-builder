@@ -10,6 +10,15 @@
  * Resend uses Svix for webhook delivery. The signature is verified using
  * the `svix-id`, `svix-timestamp`, and `svix-signature` headers.
  *
+ * Twee lagen beveiliging, allebei nodig:
+ *  1. RESEND_WEBHOOK_SECRET — Svix-handtekening; bewijst dat het event
+ *     daadwerkelijk van Resend komt.
+ *  2. CONVEX_WEBHOOK_SECRET — gedeeld geheim dat we meesturen naar
+ *     `emailLogs.updateFromWebhook`. Die Convex-mutation is een publiek
+ *     endpoint (een internalMutation is niet aanroepbaar via
+ *     ConvexHttpClient), dus zonder dit geheim kon iedereen die de
+ *     deployment-URL kent e-mailstatussen vervalsen.
+ *
  * See: https://resend.com/docs/webhooks
  */
 
@@ -17,6 +26,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../../../convex/_generated/api";
+import { logger } from "@/lib/logger";
 
 // ── Convex client (lazy init) ─────────────────────────────────────────────
 
@@ -86,10 +96,12 @@ function verifyWebhookSignature(
   const tolerance = 5 * 60; // 5 minutes
 
   if (Math.abs(now - timestampSeconds) > tolerance) {
-    console.warn(
-      "[resend/webhook] Timestamp outside tolerance window:",
-      { received: timestampSeconds, now, diff: Math.abs(now - timestampSeconds) }
-    );
+    logger.warn("Timestamp valt buiten het toegestane tijdvenster", {
+      module: "resend/webhook",
+      ontvangen: timestampSeconds,
+      nu: now,
+      verschil: Math.abs(now - timestampSeconds),
+    });
     return false;
   }
 
@@ -138,13 +150,29 @@ export async function POST(request: NextRequest) {
   const webhookSecret = process.env.RESEND_WEBHOOK_SECRET;
 
   if (!webhookSecret) {
-    console.error(
-      "[resend/webhook] RESEND_WEBHOOK_SECRET niet geconfigureerd — " +
-        "webhook wordt afgewezen. Stel deze omgevingsvariabele in " +
-        "om email tracking te activeren."
+    logger.error(
+      "RESEND_WEBHOOK_SECRET niet geconfigureerd — webhook wordt afgewezen",
+      undefined,
+      { module: "resend/webhook" }
     );
     // Return 200 to prevent Resend from retrying endlessly
     return new NextResponse("Webhook secret not configured", { status: 500 });
+  }
+
+  // Zonder dit geheim weigert de Convex-mutation de update. Hier al afvangen
+  // in plaats van verderop in de try/catch: die slikt fouten en antwoordt 200,
+  // waardoor een configuratiefout onzichtbaar zou blijven.
+  const convexWebhookSecret = process.env.CONVEX_WEBHOOK_SECRET;
+
+  if (!convexWebhookSecret) {
+    logger.error(
+      "CONVEX_WEBHOOK_SECRET niet geconfigureerd — email-statusupdates worden geweigerd door Convex",
+      undefined,
+      { module: "resend/webhook" }
+    );
+    return new NextResponse("Convex webhook secret not configured", {
+      status: 500,
+    });
   }
 
   // ── Read and verify the request ──────────────────────────────────────
@@ -154,7 +182,7 @@ export async function POST(request: NextRequest) {
   const svixSignature = request.headers.get("svix-signature");
 
   if (!svixId || !svixTimestamp || !svixSignature) {
-    console.warn("[resend/webhook] Svix headers ontbreken");
+    logger.warn("Svix headers ontbreken", { module: "resend/webhook" });
     return new NextResponse("Missing webhook signature headers", {
       status: 401,
     });
@@ -171,7 +199,9 @@ export async function POST(request: NextRequest) {
       webhookSecret
     )
   ) {
-    console.warn("[resend/webhook] Ongeldige webhook-handtekening ontvangen");
+    logger.warn("Ongeldige webhook-handtekening ontvangen", {
+      module: "resend/webhook",
+    });
     return new NextResponse("Invalid signature", { status: 401 });
   }
 
@@ -181,7 +211,9 @@ export async function POST(request: NextRequest) {
   try {
     event = JSON.parse(rawBody) as ResendWebhookEvent;
   } catch {
-    console.error("[resend/webhook] Kan JSON niet verwerken");
+    logger.error("Kan JSON niet verwerken", undefined, {
+      module: "resend/webhook",
+    });
     return new NextResponse("Invalid JSON", { status: 400 });
   }
 
@@ -190,9 +222,10 @@ export async function POST(request: NextRequest) {
     !SUPPORTED_EVENT_TYPES.includes(event.type as ResendEventType)
   ) {
     // Acknowledge unsupported events without processing
-    console.info(
-      `[resend/webhook] Niet-ondersteund event type genegeerd: ${event.type}`
-    );
+    logger.debug("Niet-ondersteund event type genegeerd", {
+      module: "resend/webhook",
+      eventType: event.type,
+    });
     return new NextResponse("OK", { status: 200 });
   }
 
@@ -201,7 +234,7 @@ export async function POST(request: NextRequest) {
   const timestamp = new Date(event.created_at).getTime();
 
   if (!resendId) {
-    console.warn("[resend/webhook] Geen email_id in event data");
+    logger.warn("Geen email_id in event data", { module: "resend/webhook" });
     return new NextResponse("OK", { status: 200 });
   }
 
@@ -211,24 +244,41 @@ export async function POST(request: NextRequest) {
     const client = getConvexClient();
 
     await client.mutation(api.emailLogs.updateFromWebhook, {
+      secret: convexWebhookSecret,
       resendId,
       eventType,
       timestamp,
     });
 
-    console.info("[resend/webhook] Email status bijgewerkt:", {
+    logger.info("Emailstatus bijgewerkt", {
+      module: "resend/webhook",
       resendId,
       eventType,
-      to: event.data.to,
+      ontvanger: event.data.to,
     });
   } catch (error) {
-    // Log the error but still return 200 to prevent Resend from retrying
-    // for known issues (e.g., resendId not found in our logs)
-    console.error("[resend/webhook] Fout bij verwerking:", {
+    const melding = error instanceof Error ? error.message : String(error);
+
+    logger.error("Fout bij verwerken van Resend-webhook", error, {
+      module: "resend/webhook",
       resendId,
       eventType,
-      error: error instanceof Error ? error.message : String(error),
     });
+
+    // Een verkeerd of ontbrekend CONVEX_WEBHOOK_SECRET aan de Convex-kant is
+    // een configuratiefout, geen "event dat we mogen laten vallen". Met een 200
+    // zou Resend niet opnieuw proberen en zouden alle statusupdates stilzwijgend
+    // verdwijnen — alleen zichtbaar in de logregel hierboven. 500 laat Resend
+    // retryen, zodat de events er alsnog zijn zodra het geheim klopt.
+    if (
+      melding.includes("webhook-geheim") ||
+      melding.includes("CONVEX_WEBHOOK_SECRET")
+    ) {
+      return new NextResponse("Convex webhook secret mismatch", { status: 500 });
+    }
+
+    // Overige fouten (bijv. een resendId dat niet in onze logs staat) leveren
+    // bewust 200 op: retryen lost die niet op.
   }
 
   return new NextResponse("OK", { status: 200 });

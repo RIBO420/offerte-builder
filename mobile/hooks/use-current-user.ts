@@ -93,12 +93,11 @@ export function useCurrentUser(): CurrentUserResult {
       !hasAttemptedUpsert.current
     ) {
       hasAttemptedUpsert.current = true;
-      upsertUser({
-        clerkId: clerkUser.id,
-        email: clerkUser.primaryEmailAddress?.emailAddress || "",
-        name: clerkUser.fullName || clerkUser.firstName || "Gebruiker",
-        bedrijfsnaam: undefined,
-      }).catch((error) => {
+      // clerkId, e-mail en naam worden server-side uit het Clerk-token gehaald —
+      // meesturen vanaf de client zou account-overname mogelijk maken (audit §1).
+      // De validator accepteert die velden niet meer; meesturen levert een
+      // ArgumentValidationError op en dan wordt er nooit een Convex-user gemaakt.
+      upsertUser({ bedrijfsnaam: undefined }).catch((error) => {
         console.error("[useCurrentUser] Failed to create user:", error);
         hasAttemptedUpsert.current = false; // Allow retry
       });

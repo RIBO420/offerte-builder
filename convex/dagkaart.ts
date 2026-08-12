@@ -27,7 +27,7 @@ import {
 import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
 import { requireAuthUserId } from "./auth";
-import { requireKantoor } from "./roles";
+import { requireKantoor, requireNotViewer } from "./roles";
 import { logPlanwijziging, werkitemOpDag } from "./planbordLogica";
 import {
   adresParenVoorDag,
@@ -42,7 +42,15 @@ import {
   type KlantStop,
 } from "./dagkaartLogica";
 import { kiesReistijdProvider } from "./reistijdLogica";
+import { checkReistijdRateLimit } from "./security";
 import { getType, type WerkItem } from "./werkitems";
+
+/**
+ * Maximaal aantal betaalde Google Maps-calls per aanroep van
+ * `berekenReistijdenVoorDag`. Ruim boven een realistische team-dag (een
+ * handvol stops), zodat het plafond alleen misbruik raakt.
+ */
+const MAX_MAPS_CALLS_PER_AANROEP = 25;
 
 // ============================================
 // Gedeelde helpers
@@ -789,6 +797,13 @@ export const getOntbrekendeAdresParen = internalQuery({
     datum: v.string(),
   },
   handler: async (ctx, args) => {
+    // De rol-/eigendomscheck van de reistijdberekening staat hier en niet in de
+    // aanroepende action: alleen deze ctx heeft db-toegang. Niveau = *lezen*
+    // van de dagkaart (zoals getDagkaart), niet muteren (requireKantoor):
+    // voorman en medewerker openen de dagkaart ook en hebben de reistijden
+    // nodig. Klanten hebben hier niets te zoeken en mogen dus ook geen
+    // (betaalde) Maps-calls kunnen uitlokken.
+    await requireNotViewer(ctx);
     const userId = await requireAuthUserId(ctx);
     await requireTeamVanUser(ctx, args.teamId, userId);
     const [items, config] = await Promise.all([
@@ -887,6 +902,30 @@ export const berekenReistijdenVoorDag = action({
     ctx,
     args
   ): Promise<{ berekend: number; bron: "standaard" | "google_maps" }> => {
+    // Deze action belt (met Maps-key) een betaalde Google-API; ongeguard is dat
+    // een open kostenkraan voor iedereen die de deployment-URL kent. In een
+    // action bestaat ctx.db niet, dus de auth-helpers (QueryCtx) kunnen hier
+    // niet draaien. Daarom: hier een goedkope identiteitscheck die faalt vóór
+    // er ook maar iets gebeurt, en de rol- en teameigendomscheck in de
+    // internalQuery getOntbrekendeAdresParen hieronder — die heeft wél db.
+    // Convex geeft de identiteit door aan runQuery/runMutation, dus die guard
+    // dekt dezelfde aanroeper af.
+    const identiteit = await ctx.auth.getUserIdentity();
+    if (!identiteit) {
+      throw new ConvexError("Je moet ingelogd zijn om reistijden te berekenen");
+    }
+
+    // De guard hierboven sluit de kraan voor buitenstaanders, maar niet voor een
+    // ingelogde tenant die adressen blijft wijzigen: elke wijziging mint een
+    // nieuwe cachesleutel en dus nieuwe betaalde Maps-calls, in een lus zonder
+    // bovengrens. Vandaar een rem per gebruiker én een plafond per aanroep.
+    const limiet = checkReistijdRateLimit(identiteit.subject);
+    if (!limiet.allowed) {
+      throw new ConvexError(
+        "Te veel reistijdberekeningen achter elkaar. Probeer het over een minuut opnieuw."
+      );
+    }
+
     const { ontbrekend, standaardMinuten } = await ctx.runQuery(
       internal.dagkaart.getOntbrekendeAdresParen,
       { teamId: args.teamId, datum: args.datum }
@@ -901,6 +940,11 @@ export const berekenReistijdenVoorDag = action({
     }
     let berekend = 0;
     for (const paar of ontbrekend) {
+      // Harde bovengrens per aanroep: een team-dag heeft in de praktijk een
+      // handvol stops, dus dit raakt geen echte planning, maar het voorkomt dat
+      // één aanroep een onbeperkt aantal betaalde calls afvuurt. De rest wordt
+      // bij een volgende aanroep alsnog berekend.
+      if (berekend >= MAX_MAPS_CALLS_PER_AANROEP) break;
       const minuten = await provider.berekenMinuten(
         paar.vanAdres,
         paar.naarAdres

@@ -18,15 +18,18 @@
  */
 const rateLimitMap = new Map<
   string,
-  { count: number; windowStart: number }
+  { count: number; windowStart: number; windowMs: number }
 >();
 
-// Clean up expired entries on access (lazy cleanup instead of setInterval)
+// Clean up expired entries on access (lazy cleanup instead of setInterval).
+// De opruiming kijkt naar het vénster van de entry zélf en niet naar een vaste
+// minuut: sinds de configurator-limieten een uurvenster gebruiken zou een vaste
+// minuut die tellers elke minuut wissen en de limiet feitelijk uitschakelen.
+// Voor de bestaande limieten met een venster van 60s is het gedrag identiek.
 function cleanupExpiredEntries(): void {
   const now = Date.now();
   for (const [key, value] of rateLimitMap.entries()) {
-    if (now - value.windowStart > 60000) {
-      // Remove entries older than 1 minute
+    if (now - value.windowStart > value.windowMs) {
       rateLimitMap.delete(key);
     }
   }
@@ -61,7 +64,7 @@ export function checkRateLimit(config: RateLimitConfig): RateLimitResult {
 
   if (!entry || now - entry.windowStart >= windowMs) {
     // New window or expired window
-    rateLimitMap.set(key, { count: 1, windowStart: now });
+    rateLimitMap.set(key, { count: 1, windowStart: now, windowMs });
     return {
       allowed: true,
       remaining: maxRequests - 1,
@@ -90,6 +93,27 @@ export function checkRateLimit(config: RateLimitConfig): RateLimitResult {
 }
 
 /**
+ * Generieke rate limit voor publieke (niet-geauthenticeerde) endpoints.
+ *
+ * De sleutel wordt gehasht opgeslagen zodat er geen tokens of e-mailadressen
+ * in het geheugen blijven staan. Het namespace-voorvoegsel houdt de emmers van
+ * verschillende endpoints gescheiden, zodat drukte op het ene endpoint het
+ * andere niet dichtzet.
+ */
+export function checkPubliekeRateLimit(
+  namespace: string,
+  sleutel: string,
+  maxRequests: number,
+  windowMs: number
+): RateLimitResult {
+  return checkRateLimit({
+    maxRequests,
+    windowMs,
+    identifier: `${namespace}:${hashString(sleutel)}`,
+  });
+}
+
+/**
  * Rate limit check for public offerte operations (by share token).
  * Prevents brute-force token guessing.
  */
@@ -99,8 +123,124 @@ export function checkPublicOfferteRateLimit(
   windowMs: number = 60000
 ): RateLimitResult {
   // Use a hash of the token as identifier (don't store actual tokens)
-  const identifier = `public_offerte:${hashString(token.substring(0, 8))}`;
-  return checkRateLimit({ maxRequests, windowMs, identifier });
+  return checkPubliekeRateLimit(
+    "public_offerte",
+    token.substring(0, 8),
+    maxRequests,
+    windowMs
+  );
+}
+
+// ============================================
+// RATE LIMITS PUBLIEKE CONFIGURATOR (audit §3)
+// ============================================
+//
+// De configurator is de klantgerichte instroom van leads: een te strakke
+// limiet kost direct omzet. Convex geeft in een mutation/query geen IP-adres,
+// dus we begrenzen op twee assen:
+//
+//  1. per e-mailadres — remt de meest voorkomende spam (één bot die hetzelfde
+//     formulier herhaalt) zonder een echte klant te raken;
+//  2. globaal — een noodrem tegen een flood met steeds wisselende adressen.
+//
+// LET OP: de teller staat in het geheugen van één Convex-instantie. Bij
+// meerdere instanties is de effectieve limiet dus hoger; het blijft een rem
+// tegen ongelimiteerde spam, geen harde garantie.
+
+/**
+ * Vijf aanvragen per e-mailadres per uur. Een echte klant vraagt in het
+ * ergste geval één offerte per configurator-type (gazon, boomschors,
+ * verticuteren) plus een correctie na een typefout — dat is vier. Vijf laat
+ * daar nog ruimte boven en snijdt tegelijk elke herhaalbot af.
+ */
+export const CONFIGURATOR_MAX_PER_EMAIL = 5;
+export const CONFIGURATOR_EMAIL_VENSTER_MS = 60 * 60 * 1000; // 1 uur
+
+/**
+ * Honderd aanvragen per uur over álle bezoekers samen. Top Tuinen krijgt in de
+ * praktijk een handvol leads per dag; honderd per uur is ruim twee ordes van
+ * grootte daarboven en wordt door normaal verkeer nooit geraakt. Het plafond
+ * bestaat puur om een flood met wisselende e-mailadressen af te toppen.
+ */
+export const CONFIGURATOR_MAX_GLOBAAL = 100;
+export const CONFIGURATOR_GLOBAAL_VENSTER_MS = 60 * 60 * 1000; // 1 uur
+
+/**
+ * Honderdtwintig referentie-opzoekingen per minuut over alle bezoekers samen.
+ * De statuspagina doet één lookup per bezoek, dus dit raakt geen klant, maar
+ * het maakt het brute-forcen van `CFG-YYYYMMDD-XXXX` (10.000 varianten per
+ * dag) onbegonnen werk in plaats van een kwestie van seconden.
+ */
+export const REFERENTIE_LOOKUP_MAX_GLOBAAL = 120;
+export const REFERENTIE_LOOKUP_VENSTER_MS = 60000; // 1 minuut
+
+/**
+ * Rate limit per e-mailadres voor het publieke configuratorformulier.
+ */
+export function checkConfiguratorEmailRateLimit(
+  klantEmail: string
+): RateLimitResult {
+  return checkPubliekeRateLimit(
+    "configurator_email",
+    klantEmail.trim().toLowerCase(),
+    CONFIGURATOR_MAX_PER_EMAIL,
+    CONFIGURATOR_EMAIL_VENSTER_MS
+  );
+}
+
+/**
+ * Globale noodrem voor het publieke configuratorformulier.
+ */
+export function checkConfiguratorGlobaalRateLimit(): RateLimitResult {
+  return checkPubliekeRateLimit(
+    "configurator_globaal",
+    "alle",
+    CONFIGURATOR_MAX_GLOBAAL,
+    CONFIGURATOR_GLOBAAL_VENSTER_MS
+  );
+}
+
+/**
+ * Globale rem op het opzoeken van aanvragen via referentienummer, tegen
+ * enumeratie van referenties.
+ */
+export function checkReferentieLookupRateLimit(): RateLimitResult {
+  return checkPubliekeRateLimit(
+    "configurator_referentie",
+    "alle",
+    REFERENTIE_LOOKUP_MAX_GLOBAAL,
+    REFERENTIE_LOOKUP_VENSTER_MS
+  );
+}
+
+// ============================================
+// RATE LIMIT REISTIJDBEREKENING (Google Maps)
+// ============================================
+//
+// `GOOGLE_MAPS_API_KEY` is één deployment-brede sleutel: de rekening is van de
+// app-eigenaar, niet van de tenant die de calls uitlokt. De reistijdcache dempt
+// herhaling, maar wie adressen blijft wijzigen mint steeds nieuwe cachesleutels
+// en dus steeds nieuwe betaalde calls. Deze rem begrenst dat per ingelogde
+// gebruiker.
+
+/**
+ * Tien reistijdberekeningen per gebruiker per minuut. Een planner opent in de
+ * praktijk een handvol dagkaarten achter elkaar; tien laat dat ruim toe en
+ * knipt het herhaald triggeren in een script af.
+ */
+export const REISTIJD_MAX_PER_GEBRUIKER = 10;
+export const REISTIJD_VENSTER_MS = 60000; // 1 minuut
+
+/**
+ * Rate limit op het (bij)berekenen van reistijden, per Clerk-identiteit.
+ */
+export function checkReistijdRateLimit(clerkSubject: string): RateLimitResult {
+  return checkPubliekeRateLimit(
+    "reistijd_berekening",
+    clerkSubject,
+    REISTIJD_MAX_PER_GEBRUIKER,
+    REISTIJD_VENSTER_MS
+  );
 }
 
 /**

@@ -27,11 +27,9 @@ function KoppelenContent() {
       setStatus("linking");
       try {
         // Step 1: Ensure user record exists in Convex
-        await upsertUser({
-          clerkId: clerkUser.id,
-          email: clerkUser.primaryEmailAddress?.emailAddress || "",
-          name: clerkUser.fullName || clerkUser.firstName || "Klant",
-        });
+        // Identiteit komt server-side uit het Clerk-token; client-args zouden
+        // account-overname mogelijk maken (audit §1).
+        await upsertUser({});
 
         // Step 2: Link to klant record
         await linkKlantAccount({ invitationToken: token });

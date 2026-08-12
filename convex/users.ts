@@ -2,7 +2,12 @@ import { v, ConvexError } from "convex/values";
 import { mutation, query, internalMutation, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { getAuthenticatedUser, requireAuth } from "./auth";
-import { requireAdmin, normalizeRole, isAdminRole } from "./roles";
+import {
+  requireAdmin,
+  normalizeRole,
+  isAdminRole,
+  getCompanyUserId,
+} from "./roles";
 import { Id } from "./_generated/dataModel";
 import { MutationCtx } from "./_generated/server";
 
@@ -223,54 +228,104 @@ async function initializeSystemCorrectieFactoren(ctx: MutationCtx) {
   }
 }
 
-// Create or update user (called from Clerk webhook or on first login)
-// Also creates default settings, normuren, and products for new users
-// Automatically assigns admin role to:
-// 1. The first user ever created in the system
-// 2. Users with email addresses in the ADMIN_EMAILS list
+// Maakt of werkt de user bij op basis van de ingelogde Clerk-identiteit.
+// Maakt daarnaast standaardinstellingen, normuren en producten aan voor nieuwe users.
+// Kent automatisch de directie-rol toe aan:
+// 1. de allereerste user in het systeem
+// 2. users met een e-mailadres uit de ADMIN_EMAILS-lijst
+//
+// SECURITY: clerkId, e-mail en naam komen UITSLUITEND uit het geverifieerde
+// Clerk-token (ctx.auth.getUserIdentity()), nooit uit client-args. Kwamen ze uit
+// args, dan kon iedereen (1) via de e-mail-fallback het clerkId van een bestaand
+// bedrijfsaccount overschrijven en dat account overnemen, en (2) zichzelf met een
+// adres uit ADMIN_EMAILS tot directie promoveren. Zie audit §1.
+//
+// De e-mail-fallback op de by_email-index is helemaal verdwenen: hij kon een
+// bestaand account (met rol) herbinden aan een andere Clerk-identiteit, was
+// niet-deterministisch bij dubbele adressen (`.first()` zonder uniciteit in het
+// schema) en matchte hoofdlettergevoelig terwijl ADMIN_EMAILS dat niet doet.
 export const upsert = mutation({
   args: {
-    clerkId: v.string(),
-    email: v.string(),
-    name: v.string(),
     bedrijfsnaam: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // Called by Clerk webhook - auth handled by Clerk, no user-level auth needed
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError("Niet ingelogd");
+    }
+
+    const clerkId = identity.subject;
+
+    // De e-mail- en naamclaim zijn OPTIONEEL. Welke claims in het Convex-JWT
+    // zitten hangt af van het Clerk-JWT-template — dashboardconfiguratie die
+    // deze repo niet afdwingt. Alles hieronder moet daarom kloppen mét én
+    // zónder claim: een ontbrekende claim mag nooit bestaande gegevens wissen.
+    //
+    // emailVerified === false betekent expliciet "Clerk heeft dit adres niet
+    // geverifieerd"; zo'n adres telt niet mee voor ADMIN_EMAILS en wordt niet
+    // opgeslagen. Ontbreekt de claim (undefined), dan is de status onbekend en
+    // leunen we op de Clerk-instelling (sign-up staat op "Restricted", adressen
+    // worden door de beheerder gezet). Zie het rapport bij audit §1.
+    //
+    // Het adres wordt genormaliseerd (trim + lowercase) opgeslagen, zodat de
+    // by_email-index elders in de codebase deterministisch matcht — dezelfde
+    // keuze als in leadsKlantenHelpers.
+    const emailClaim = (identity.email ?? "").trim().toLowerCase();
+    const emailBruikbaar = emailClaim !== "" && identity.emailVerified !== false;
+    const naamClaim = (identity.name ?? identity.givenName ?? "").trim();
 
     // Ensure system correction factors are initialized (runs once)
     await initializeSystemCorrectieFactoren(ctx);
 
-    // First try to find by clerkId
-    let existing = await ctx.db
+    // UITSLUITEND op clerkId zoeken. De oude e-mail-fallback herbond een
+    // bestaand account — inclusief zijn rol — aan een nieuwe Clerk-identiteit.
+    // Wie adres X in zijn token kreeg erfde het account met adres X; realistisch
+    // pad: een vertrokken directielid wordt in Clerk verwijderd, het bedrijf
+    // hergebruikt het adres voor een nieuwe medewerker, en die logt in als
+    // directie. Audit §1 punt 3 vraagt daarom expliciet om geen clerkId-
+    // herbinding op basis van e-mail. Gevolg: bij een dev/prod-wissel van
+    // Clerk-instantie ontstaat een nieuwe users-rij in plaats van een stille
+    // overname; opnieuw koppelen is een bewuste beheerdersactie.
+    const existing = await ctx.db
       .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkId))
       .unique();
 
-    // If not found by clerkId, try by email to prevent duplicates
-    // (handles dev/prod Clerk instances sharing the same Convex DB)
-    if (!existing) {
-      existing = await ctx.db
-        .query("users")
-        .withIndex("by_email", (q) => q.eq("email", args.email))
-        .first();
-    }
-
     if (existing) {
-      // Update existing user, including clerkId in case it changed (dev/prod switch)
-      const updates: Record<string, string | undefined> = {
-        clerkId: args.clerkId,
-        email: args.email,
-        name: args.name,
-        bedrijfsnaam: args.bedrijfsnaam,
-      };
+      // Alleen schrijven wat we ook echt weten: ctx.db.patch VERWIJDERT velden
+      // met waarde undefined, dus een onvoorwaardelijk patch-object wist bij
+      // elke aanroep het e-mailadres, de bedrijfsnaam of een via updateProfile
+      // zelfgekozen naam. Dat zou setUserRole, bootstrapAdminEmails, de
+      // e-mailkoppelingen én de e-mailcheck in linkKlantAccount slopen.
+      const updates: Record<string, string | undefined> = {};
 
-      // Upgrade to directie if email is in admin list and not already directie/admin
-      if (isAdminEmail(args.email) && !isAdminRole(existing.role)) {
-        (updates as Record<string, string>).role = "directie";
+      if (emailBruikbaar && existing.email !== emailClaim) {
+        updates.email = emailClaim;
       }
 
-      await ctx.db.patch(existing._id, updates);
+      // Naam alleen invullen als hij nog ontbreekt of nog op de plaatshouder
+      // staat: anders draait elke login de naam terug die de gebruiker zelf via
+      // updateProfile heeft gezet.
+      if (naamClaim !== "" && (!existing.name || existing.name === "Gebruiker")) {
+        updates.name = naamClaim;
+      }
+
+      if (args.bedrijfsnaam !== undefined) {
+        updates.bedrijfsnaam = args.bedrijfsnaam;
+      }
+
+      // Promotie naar directie mag alleen op een adres dat we vertrouwen.
+      if (
+        emailBruikbaar &&
+        isAdminEmail(emailClaim) &&
+        !isAdminRole(existing.role)
+      ) {
+        updates.role = "directie";
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await ctx.db.patch(existing._id, updates);
+      }
       return existing._id;
     }
 
@@ -282,13 +337,15 @@ export const upsert = mutation({
     // First user is always directie, or if email is in admin list
     // New users get "medewerker" role by default unless they match directie criteria
     const role: "directie" | "medewerker" =
-      isFirstUser || isAdminEmail(args.email) ? "directie" : "medewerker";
+      isFirstUser || (emailBruikbaar && isAdminEmail(emailClaim))
+        ? "directie"
+        : "medewerker";
 
     // Create new user with appropriate role
     const userId = await ctx.db.insert("users", {
-      clerkId: args.clerkId,
-      email: args.email,
-      name: args.name,
+      clerkId,
+      email: emailBruikbaar ? emailClaim : "",
+      name: naamClaim !== "" ? naamClaim : "Gebruiker",
       bedrijfsnaam: args.bedrijfsnaam,
       role,
       createdAt: Date.now(),
@@ -562,10 +619,13 @@ export const adminMigrateUserData = mutation({
     let migratedProducten = 0;
     let migratedInstellingen = 0;
 
-    // Migrate normuren
+    // fromUserId/toUserId zijn hier de bedrijfsscope: dit is een directie-only
+    // hersteltool om data van een oud naar een nieuw bedrijfsaccount te tillen.
+    // De by_user-indexen doen wat de .filter()-scans deden, maar zonder de hele
+    // tabel van alle bedrijven te lezen.
     const normuren = await ctx.db
       .query("normuren")
-      .filter((q) => q.eq(q.field("userId"), args.fromUserId))
+      .withIndex("by_user", (q) => q.eq("userId", args.fromUserId))
       .collect();
 
     for (const normuur of normuren) {
@@ -576,7 +636,7 @@ export const adminMigrateUserData = mutation({
     // Migrate producten
     const producten = await ctx.db
       .query("producten")
-      .filter((q) => q.eq(q.field("userId"), args.fromUserId))
+      .withIndex("by_user", (q) => q.eq("userId", args.fromUserId))
       .collect();
 
     for (const product of producten) {
@@ -587,7 +647,7 @@ export const adminMigrateUserData = mutation({
     // Migrate instellingen
     const instellingen = await ctx.db
       .query("instellingen")
-      .filter((q) => q.eq(q.field("userId"), args.fromUserId))
+      .withIndex("by_user", (q) => q.eq("userId", args.fromUserId))
       .collect();
 
     for (const instelling of instellingen) {
@@ -613,10 +673,12 @@ export const adminSeedUserDefaults = mutation({
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
 
-    // Find user by email
+    // Find user by email — bewust over alle accounts heen: dit is een
+    // directie-only hersteltool die per e-mailadres een specifiek account
+    // opzoekt. Via by_email in plaats van een .filter()-scan.
     const user = await ctx.db
       .query("users")
-      .filter((q) => q.eq(q.field("email"), args.userEmail))
+      .withIndex("by_email", (q) => q.eq("email", args.userEmail))
       .first();
 
     if (!user) {
@@ -884,10 +946,11 @@ export const adminRunMigrations = mutation({
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
 
-    // Find user by email
+    // Find user by email — bewust over alle accounts heen (directie-only
+    // migratietool, zie requireAdmin hierboven). by_email in plaats van scan.
     const user = await ctx.db
       .query("users")
-      .filter((q) => q.eq(q.field("email"), args.userEmail))
+      .withIndex("by_email", (q) => q.eq("email", args.userEmail))
       .first();
 
     if (!user) {
@@ -1031,15 +1094,24 @@ export const makeCurrentUserAdmin = internalMutation({
     }
 
     // Safety check: Only allow if no admins/directie exist yet
-    const existingAdmins = await ctx.db
+    //
+    // Deze query kijkt bewust systeembreed en niet per bedrijf: hij wijst de
+    // állereerste directie aan, dus er is op dat moment nog geen bedrijfsscope
+    // om op te filteren. Dat is veilig omdat dit een internalMutation is
+    // (alleen server-side aanroepbaar, nooit vanaf een client) en de check
+    // hieronder afbreekt zodra er ergens al een directie bestaat.
+    //
+    // Wel via de by_role-index in plaats van een .filter()-scan: zo worden
+    // alleen de directie-/admin-rijen gelezen en niet de hele users-tabel.
+    const directieUsers = await ctx.db
       .query("users")
-      .filter((q) =>
-        q.or(
-          q.eq(q.field("role"), "directie"),
-          q.eq(q.field("role"), "admin")
-        )
-      )
+      .withIndex("by_role", (q) => q.eq("role", "directie"))
       .collect();
+    const legacyAdminUsers = await ctx.db
+      .query("users")
+      .withIndex("by_role", (q) => q.eq("role", "admin"))
+      .collect();
+    const existingAdmins = [...directieUsers, ...legacyAdminUsers];
 
     if (existingAdmins.length > 0) {
       return {
@@ -1151,10 +1223,12 @@ export const setUserRole = mutation({
       };
     }
 
-    // Find the target user
+    // Find the target user — rolbeheer draait om het users-record zelf, dat
+    // (anders dan de bedrijfsdata) geen userId-scope kent; de directie-check
+    // hierboven is daarom de enige poort. by_email in plaats van scan.
     const targetUser = await ctx.db
       .query("users")
-      .filter((q) => q.eq(q.field("email"), args.userEmail))
+      .withIndex("by_email", (q) => q.eq("email", args.userEmail))
       .first();
 
     if (!targetUser) {
@@ -1233,7 +1307,14 @@ export const listUsersWithDetails = query({
       return [];
     }
 
-    // Get all users
+    // LET OP — bewust systeembreed, met een bekende beperking:
+    // de users-tabel heeft geen userId/bedrijfskolom (bedrijfsscope loopt via
+    // medewerkers.userId), dus er is hier niets om op te scopen. Een pas
+    // aangemaakt account is nog nergens aan gekoppeld en moet juist in deze
+    // lijst verschijnen om gekoppeld te KUNNEN worden — filteren zou dat
+    // onmogelijk maken. De directie-check hierboven is daarom de enige poort.
+    // De koppel-acties zelf (linkUserToMedewerker) zijn wél bedrijfsgescoped.
+    // Echte scoping vraagt een schemawijziging (bedrijfsveld op users).
     const users = await ctx.db.query("users").collect();
 
     // Get linked medewerkers
@@ -1299,6 +1380,16 @@ export const linkUserToMedewerker = mutation({
         throw new ConvexError("Medewerker niet gevonden");
       }
 
+      // Tenant-check: medewerkerId komt uit de client, dus zonder deze controle
+      // kan directie van bedrijf A een account koppelen aan een medewerker van
+      // bedrijf B (en daarmee diens clerkUserId overschrijven). De lijst uit
+      // getAvailableMedewerkersForLinking is al bedrijfsgescoped; deze check
+      // maakt die scope ook afdwingbaar.
+      const companyUserId = await getCompanyUserId(ctx);
+      if (medewerker.userId.toString() !== companyUserId.toString()) {
+        throw new ConvexError("Medewerker hoort niet bij dit bedrijf");
+      }
+
       // Update medewerker with the user's clerkId
       await ctx.db.patch(args.medewerkerId, { clerkUserId: targetUser.clerkId });
 
@@ -1336,10 +1427,17 @@ export const getAvailableMedewerkersForLinking = query({
       return [];
     }
 
-    // Get ALL active medewerkers that don't have a linked user yet
+    // Medewerkers zijn tenant-data (medewerkers.userId = het bedrijfsaccount).
+    // Zonder deze scope kreeg directie de actieve medewerkers van ÁLLE
+    // bedrijven in de koppellijst te zien — inclusief naam, e-mail en functie
+    // (audit §2). Alleen medewerkers van het eigen bedrijf zijn hier relevant,
+    // want koppelen mag sowieso niet buiten het eigen bedrijf.
+    const companyUserId = await getCompanyUserId(ctx);
     const allMedewerkers = await ctx.db
       .query("medewerkers")
-      .filter((q) => q.eq(q.field("isActief"), true))
+      .withIndex("by_user_actief", (q) =>
+        q.eq("userId", companyUserId).eq("isActief", true)
+      )
       .collect();
 
     // Filter out medewerkers that already have a clerkUserId set (already linked to a user)
@@ -1463,9 +1561,11 @@ export const cliSetUserRole = mutation({
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
 
+    // Zelfde als setUserRole: directie-only rolbeheer per e-mailadres,
+    // via by_email in plaats van een scan over alle users.
     const user = await ctx.db
       .query("users")
-      .filter((q) => q.eq(q.field("email"), args.email))
+      .withIndex("by_email", (q) => q.eq("email", args.email))
       .first();
 
     if (!user) {
@@ -1889,22 +1989,72 @@ export const requestDataDeletion = mutation({
   handler: async (ctx, args) => {
     const user = await requireAuth(ctx);
 
-    // Get all directie (admin) users to notify
-    const adminUsers = await ctx.db
-      .query("users")
-      .filter((q) =>
-        q.or(
-          q.eq(q.field("role"), "directie"),
-          q.eq(q.field("role"), "admin") // Legacy compat
-        )
-      )
-      .collect();
+    // Een verwijderingsverzoek hoort alleen bij de directie van het EIGEN
+    // bedrijf terecht te komen. Voorheen kreeg de directie van élk bedrijf in
+    // het systeem een notificatie met naam én e-mailadres van de aanvrager —
+    // zelf een datalek binnen een AVG-functie (audit §2).
+    //
+    // Bewust NIET via getCompanyUserId: die helper geeft voor een klant het
+    // eigen account terug (klanten zien alleen hun eigen data), terwijl het
+    // verzoek juist naar het hovenierbedrijf achter dat klantrecord moet.
+    const rol = normalizeRole(user.role);
+    let companyUserId: Id<"users"> | null = null;
+
+    if (rol === "directie") {
+      // Directie IS het bedrijfsaccount waar alle bedrijfsdata aan hangt.
+      companyUserId = user._id;
+    } else if (user.linkedMedewerkerId) {
+      const eigenMedewerker = await ctx.db.get(user.linkedMedewerkerId);
+      companyUserId = eigenMedewerker?.userId ?? null;
+    } else if (user.linkedKlantId) {
+      const eigenKlant = await ctx.db.get(user.linkedKlantId);
+      companyUserId = eigenKlant?.userId ?? null;
+    }
+
+    const teNotificeren = new Map<string, Id<"users">>();
+
+    if (companyUserId) {
+      const bedrijfsAccount = await ctx.db.get(companyUserId);
+      if (bedrijfsAccount) {
+        teNotificeren.set(bedrijfsAccount._id.toString(), bedrijfsAccount._id);
+      }
+
+      // Overige directie-accounts binnen hetzelfde bedrijf zijn herkenbaar aan
+      // hun gekoppelde medewerker (medewerkers.userId = bedrijfsaccount). De
+      // by_role-index leest alleen de directie-rijen in plaats van de hele
+      // users-tabel te scannen.
+      for (const adminRol of ["directie", "admin"] as const) {
+        const adminsMetRol = await ctx.db
+          .query("users")
+          .withIndex("by_role", (q) => q.eq("role", adminRol))
+          .collect();
+
+        for (const admin of adminsMetRol) {
+          if (teNotificeren.has(admin._id.toString())) continue;
+          if (!admin.linkedMedewerkerId) continue;
+
+          const medewerker = await ctx.db.get(admin.linkedMedewerkerId);
+          if (
+            medewerker &&
+            medewerker.userId.toString() === companyUserId.toString()
+          ) {
+            teNotificeren.set(admin._id.toString(), admin._id);
+          }
+        }
+      }
+    }
+
+    // Is het account nog nergens aan gekoppeld, dan is er geen bedrijf te
+    // bepalen. Dan liever niemand notificeren (elke andere keuze is een
+    // cross-tenant lek) — de auditlog hieronder legt het verzoek wél vast en
+    // adminNotified: false vertelt de gebruiker dat er handmatig contact nodig is.
+    const adminUserIds = [...teNotificeren.values()];
 
     // Create a notification for each admin
     const now = Date.now();
-    for (const admin of adminUsers) {
+    for (const adminUserId of adminUserIds) {
       await ctx.db.insert("notifications", {
-        userId: admin._id,
+        userId: adminUserId,
         type: "system_reminder",
         title: "GDPR Verwijderingsverzoek",
         message: `Gebruiker ${user.name} (${user.email}) heeft een verzoek ingediend om alle persoonlijke gegevens te verwijderen.${args.reason ? ` Reden: ${args.reason}` : ""}`,
@@ -1936,7 +2086,7 @@ export const requestDataDeletion = mutation({
       message:
         "Je verzoek tot verwijdering is ontvangen. De beheerder wordt op de hoogte gesteld en zal contact met je opnemen.",
       requestedAt: now,
-      adminNotified: adminUsers.length > 0,
+      adminNotified: adminUserIds.length > 0,
     };
   },
 });
