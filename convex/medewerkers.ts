@@ -693,6 +693,36 @@ export const hardDelete = mutation({
 // ============================================
 
 /**
+ * Bepaalt of een urenregistratie bij het opgegeven bedrijf hoort (audit §2).
+ *
+ * Na de backfill (migrations:backfillUrenRegistratiesUserId) staat de tenant direct
+ * op de registratie. Zolang die niet gedraaid is, is `userId` leeg en vallen we terug
+ * op de tenant van het gekoppelde project — dat is de relatie waar de backfill de
+ * userId ook uit afleidt, dus beide routes geven hetzelfde antwoord.
+ *
+ * De cache voorkomt dat hetzelfde project per registratie opnieuw wordt opgehaald.
+ */
+async function hoortRegistratieBijBedrijf(
+  ctx: QueryCtx | MutationCtx,
+  registratie: Doc<"urenRegistraties">,
+  companyUserId: Id<"users">,
+  projectTenantCache: Map<string, Id<"users"> | null>
+): Promise<boolean> {
+  if (registratie.userId) {
+    return registratie.userId === companyUserId;
+  }
+
+  const key = registratie.projectId.toString();
+  let tenant = projectTenantCache.get(key);
+  if (tenant === undefined) {
+    const project = await ctx.db.get(registratie.projectId);
+    tenant = project?.userId ?? null;
+    projectTenantCache.set(key, tenant);
+  }
+  return tenant === companyUserId;
+}
+
+/**
  * Haal medewerker op met gewerkte uren statistieken.
  * - Admin: can get stats for any medewerker they own
  * - Medewerker: can only get stats for their own profile
@@ -702,7 +732,7 @@ export const getWithStats = query({
   handler: async (ctx, args) => {
     const { role, linkedMedewerker, companyUserId } = await getUserRole(ctx);
 
-    if (!role) return null;
+    if (!role || !companyUserId) return null;
 
     const medewerker = await ctx.db.get(args.id);
     if (!medewerker) return null;
@@ -718,11 +748,40 @@ export const getWithStats = query({
       return null;
     }
 
-    // Haal urenregistraties op gefilterd op medewerker naam (query-level filter i.p.v. in-memory)
-    const medewerkerUren = await ctx.db
+    // Urenregistraties van déze medewerker (audit §2). Primair via de getypeerde
+    // koppeling `medewerkerId` — die is per definitie tenant-veilig, want de
+    // medewerker is hierboven al op eigenaarschap gecontroleerd. Oude registraties
+    // hebben die koppeling nog niet; daarvoor matchen we op naam via de
+    // by_medewerker-index (geen full table scan meer) én controleren we expliciet
+    // dat de registratie bij dit bedrijf hoort — anders deelden twee bedrijven met
+    // een "Jan de Vries" elkaars uren.
+    const urenViaKoppeling = await ctx.db
       .query("urenRegistraties")
-      .filter((q) => q.eq(q.field("medewerker"), medewerker.naam))
+      .withIndex("by_medewerker_id", (q) => q.eq("medewerkerId", medewerker._id))
       .collect();
+
+    const urenViaNaam = await ctx.db
+      .query("urenRegistraties")
+      .withIndex("by_medewerker", (q) => q.eq("medewerker", medewerker.naam))
+      .collect();
+
+    const medewerkerUren = [...urenViaKoppeling];
+    const projectTenantCache = new Map<string, Id<"users"> | null>();
+    for (const registratie of urenViaNaam) {
+      // Heeft de registratie al een medewerkerId, dan is ze hierboven meegenomen
+      // (of ze hoort bij een andere medewerker met dezelfde naam).
+      if (registratie.medewerkerId) continue;
+      if (
+        await hoortRegistratieBijBedrijf(
+          ctx,
+          registratie,
+          companyUserId,
+          projectTenantCache
+        )
+      ) {
+        medewerkerUren.push(registratie);
+      }
+    }
 
     // Bereken totaal gewerkte uren
     const totaalUren = medewerkerUren.reduce((sum, ur) => sum + ur.uren, 0);
@@ -787,24 +846,7 @@ export const getMedewerkersMetPrestaties = query({
       )
       .collect();
 
-    // Haal urenregistraties op met query-level filter op periode (i.p.v. collect-all + in-memory filter)
-    let urenRegistraties;
-    if (args.periode) {
-      const vanDatum = new Date(args.periode.van).toISOString().slice(0, 10);
-      const totDatum = new Date(args.periode.tot).toISOString().slice(0, 10);
-      // by_datum-index: alleen registraties binnen de periode lezen
-      // (i.p.v. de hele — snelgroeiende — tabel scannen en in JS filteren)
-      urenRegistraties = await ctx.db
-        .query("urenRegistraties")
-        .withIndex("by_datum", (q) =>
-          q.gte("datum", vanDatum).lte("datum", totDatum)
-        )
-        .collect();
-    } else {
-      urenRegistraties = await ctx.db.query("urenRegistraties").collect();
-    }
-
-    // Haal projecten op voor efficiëntie berekening
+    // Haal projecten op voor efficiëntie berekening (tevens fallback-bron hieronder)
     const projecten = await ctx.db
       .query("projecten")
       .withIndex("by_user", (q) => q.eq("userId", companyUserId))
@@ -814,11 +856,93 @@ export const getMedewerkersMetPrestaties = query({
       (p) => p.status === "afgerond" || p.status === "nacalculatie_compleet" || p.status === "gefactureerd"
     );
 
-    // Haal voorcalculaties op en bouw Maps voor O(1) lookups (i.p.v. O(n²) nested .find())
-    const allVoorcalculaties = await ctx.db.query("voorcalculaties").collect();
-    const voorcalcByProjectId = new Map<string, typeof allVoorcalculaties[0]>();
-    const voorcalcByOfferteId = new Map<string, typeof allVoorcalculaties[0]>();
-    for (const vc of allVoorcalculaties) {
+    const vanDatum = args.periode
+      ? new Date(args.periode.van).toISOString().slice(0, 10)
+      : null;
+    const totDatum = args.periode
+      ? new Date(args.periode.tot).toISOString().slice(0, 10)
+      : null;
+
+    // Urenregistraties van DIT bedrijf (audit §2). Voorheen werd de hele tabel
+    // gescand — over alle tenants heen. Nu via de by_user(_datum)-index, die de
+    // periode-filtering meteen meeneemt.
+    const urenRegistraties: Doc<"urenRegistraties">[] =
+      vanDatum !== null && totDatum !== null
+        ? await ctx.db
+            .query("urenRegistraties")
+            .withIndex("by_user_datum", (q) =>
+              q
+                .eq("userId", companyUserId)
+                .gte("datum", vanDatum)
+                .lte("datum", totDatum)
+            )
+            .collect()
+        : await ctx.db
+            .query("urenRegistraties")
+            .withIndex("by_user", (q) => q.eq("userId", companyUserId))
+            .collect();
+
+    // FALLBACK zolang migrations:backfillUrenRegistratiesUserId niet gedraaid is:
+    // dan heeft géén enkele registratie een userId en geeft de index hierboven leeg
+    // terug. We halen ze in dat geval per project van dit bedrijf op — nog steeds
+    // tenant-veilig (projecten zijn al gescoped), alleen duurder. LET OP: draai de
+    // backfill in één keer af; tussen twee batches door kan dit rapport tijdelijk
+    // onvolledig zijn. Zodra de backfill klaar is, is dit pad dode code voor
+    // bedrijven mét uren en kan het verwijderd worden.
+    if (urenRegistraties.length === 0) {
+      for (const project of projecten) {
+        const projectUren =
+          vanDatum !== null && totDatum !== null
+            ? await ctx.db
+                .query("urenRegistraties")
+                .withIndex("by_project_datum", (q) =>
+                  q
+                    .eq("projectId", project._id)
+                    .gte("datum", vanDatum)
+                    .lte("datum", totDatum)
+                )
+                .collect()
+            : await ctx.db
+                .query("urenRegistraties")
+                .withIndex("by_project", (q) => q.eq("projectId", project._id))
+                .collect();
+        urenRegistraties.push(...projectUren);
+      }
+    }
+
+    // Voorcalculaties van DIT bedrijf (audit §2) — voorheen ook een volledige
+    // tabelscan over alle tenants.
+    const voorcalculaties: Doc<"voorcalculaties">[] = await ctx.db
+      .query("voorcalculaties")
+      .withIndex("by_user", (q) => q.eq("userId", companyUserId))
+      .collect();
+
+    // Zelfde fallback als bij de uren: vóór migrations:backfillVoorcalculatiesUserId
+    // heeft geen enkele voorcalculatie een userId. Haal ze dan op via de afgeronde
+    // projecten — precies de projecten waarvoor hieronder een norm nodig is.
+    if (voorcalculaties.length === 0) {
+      for (const project of afgerondeProjecten) {
+        const viaProject = await ctx.db
+          .query("voorcalculaties")
+          .withIndex("by_project", (q) => q.eq("projectId", project._id))
+          .collect();
+        voorcalculaties.push(...viaProject);
+
+        const offerteId = project.offerteId;
+        if (offerteId) {
+          const viaOfferte = await ctx.db
+            .query("voorcalculaties")
+            .withIndex("by_offerte", (q) => q.eq("offerteId", offerteId))
+            .collect();
+          voorcalculaties.push(...viaOfferte);
+        }
+      }
+    }
+
+    // Bouw Maps voor O(1) lookups (i.p.v. O(n²) nested .find())
+    const voorcalcByProjectId = new Map<string, Doc<"voorcalculaties">>();
+    const voorcalcByOfferteId = new Map<string, Doc<"voorcalculaties">>();
+    for (const vc of voorcalculaties) {
       if (vc.projectId) voorcalcByProjectId.set(vc.projectId.toString(), vc);
       if (vc.offerteId) voorcalcByOfferteId.set(vc.offerteId.toString(), vc);
     }

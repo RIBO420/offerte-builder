@@ -270,6 +270,10 @@ export const add = mutation({
 
     return await ctx.db.insert("urenRegistraties", {
       projectId: args.projectId,
+      // Tenant-scope (audit §2): zelfde route als de backfill-migratie
+      // (projectId → projecten.userId). Zonder dit veld valt de registratie
+      // buiten elke by_user-query en is hij dus onzichtbaar in de app.
+      userId: project.userId,
       datum: args.datum,
       medewerker: args.medewerker,
       uren: args.uren,
@@ -310,6 +314,9 @@ export const importBatch = mutation({
     for (const entry of args.entries) {
       const id = await ctx.db.insert("urenRegistraties", {
         projectId: args.projectId,
+        // Tenant-scope (audit §2): zie `add` — het project is hierboven al op
+        // eigenaarschap gecontroleerd, dus project.userId is de juiste tenant.
+        userId: project.userId,
         datum: entry.datum,
         medewerker: entry.medewerker,
         uren: entry.uren,

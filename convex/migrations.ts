@@ -735,6 +735,177 @@ export const backfillMedewerkerId = internalMutation({
   },
 });
 
+// ============================================
+// TENANT-SCOPE BACKFILLS (audit §2)
+// ============================================
+//
+// urenRegistraties, voorcalculaties en direct_messages hebben sinds deze audit een
+// optioneel `userId` (de bedrijfs-user) plus een `by_user`-index. Optioneel, omdat
+// bestaande documenten het veld nog niet hebben — verplicht maken zou de deploy op
+// bestaande data laten falen.
+//
+// Deze drie backfills vullen het veld alsnog. Ze zijn:
+// - IDEMPOTENT: ze lezen via `by_user` met `userId === undefined`, dus documenten die
+//   al een userId hebben vallen buiten de gelezen range. Nogmaals draaien is gratis.
+// - BATCHGEWIJS: per run maximaal `batchSize` documenten, zodat ze niet stuklopen op
+//   de lees-/tijdlimieten van één mutation. Blijf draaien tot `klaar: true`.
+//
+// Documenten waarvan de herkomst niet te bepalen is (bijv. een verwijderd project)
+// worden geteld als `overgeslagen` en blijven zonder userId staan; die vallen in de
+// leescode terug op de gedocumenteerde fallback.
+
+const BACKFILL_BATCH_SIZE = 200;
+
+/**
+ * Backfill urenRegistraties.userId (multi-tenant scope, audit §2).
+ * Route: urenRegistraties.projectId → projecten.userId.
+ *
+ * Draaien tot `klaar: true`:
+ * npx convex run migrations:backfillUrenRegistratiesUserId '{}'
+ */
+export const backfillUrenRegistratiesUserId = internalMutation({
+  args: {
+    batchSize: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const batchSize = args.batchSize ?? BACKFILL_BATCH_SIZE;
+
+    // Alleen documenten zonder userId: de by_user-index bevat ze onder `undefined`
+    const batch = await ctx.db
+      .query("urenRegistraties")
+      .withIndex("by_user", (q) => q.eq("userId", undefined))
+      .take(batchSize);
+
+    // Cache per project: één urenregistratie per dag per medewerker betekent veel
+    // registraties op hetzelfde project — zonder cache zouden we dat project
+    // per registratie opnieuw ophalen.
+    const projectTenant = new Map<string, Id<"users"> | null>();
+    let bijgewerkt = 0;
+    let overgeslagen = 0;
+
+    for (const registratie of batch) {
+      const key = registratie.projectId.toString();
+      let tenant = projectTenant.get(key);
+      if (tenant === undefined) {
+        const project = await ctx.db.get(registratie.projectId);
+        tenant = project?.userId ?? null;
+        projectTenant.set(key, tenant);
+      }
+
+      if (tenant === null) {
+        overgeslagen++; // wees-registratie: project bestaat niet meer
+        continue;
+      }
+
+      await ctx.db.patch(registratie._id, { userId: tenant });
+      bijgewerkt++;
+    }
+
+    return {
+      verwerkt: batch.length,
+      bijgewerkt,
+      overgeslagen,
+      klaar: batch.length < batchSize,
+      message: `urenRegistraties: ${bijgewerkt} bijgewerkt, ${overgeslagen} overgeslagen (geen project)`,
+    };
+  },
+});
+
+/**
+ * Backfill voorcalculaties.userId (multi-tenant scope, audit §2).
+ * Route: projectId → projecten.userId, anders offerteId → offertes.userId.
+ * Beide velden zijn optioneel in het schema, vandaar de dubbele route.
+ *
+ * Draaien tot `klaar: true`:
+ * npx convex run migrations:backfillVoorcalculatiesUserId '{}'
+ */
+export const backfillVoorcalculatiesUserId = internalMutation({
+  args: {
+    batchSize: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const batchSize = args.batchSize ?? BACKFILL_BATCH_SIZE;
+
+    const batch = await ctx.db
+      .query("voorcalculaties")
+      .withIndex("by_user", (q) => q.eq("userId", undefined))
+      .take(batchSize);
+
+    let bijgewerkt = 0;
+    let overgeslagen = 0;
+
+    for (const voorcalculatie of batch) {
+      let tenant: Id<"users"> | null = null;
+
+      if (voorcalculatie.projectId) {
+        const project = await ctx.db.get(voorcalculatie.projectId);
+        tenant = project?.userId ?? null;
+      }
+      if (!tenant && voorcalculatie.offerteId) {
+        const offerte = await ctx.db.get(voorcalculatie.offerteId);
+        tenant = offerte?.userId ?? null;
+      }
+
+      if (tenant === null) {
+        overgeslagen++; // noch project noch offerte bestaat nog
+        continue;
+      }
+
+      await ctx.db.patch(voorcalculatie._id, { userId: tenant });
+      bijgewerkt++;
+    }
+
+    return {
+      verwerkt: batch.length,
+      bijgewerkt,
+      overgeslagen,
+      klaar: batch.length < batchSize,
+      message: `voorcalculaties: ${bijgewerkt} bijgewerkt, ${overgeslagen} overgeslagen (geen project/offerte)`,
+    };
+  },
+});
+
+/**
+ * Backfill direct_messages.userId (multi-tenant scope, audit §2).
+ *
+ * Route: `companyId`. Dat veld is in deze tabel al de bedrijfs-user (v.id("users"))
+ * en wordt bij het versturen gezet op de company van de afzender — het heet alleen
+ * anders dan de `userId` die de rest van het datamodel gebruikt. We kopiëren het dus
+ * één-op-één, zodat chat.ts dezelfde by_user-scoping kan gebruiken als de rest.
+ * Bewust NIET via fromUserId/toUserId: dat zijn de individuele gebruikers, niet de tenant.
+ *
+ * Draaien tot `klaar: true`:
+ * npx convex run migrations:backfillDirectMessagesUserId '{}'
+ */
+export const backfillDirectMessagesUserId = internalMutation({
+  args: {
+    batchSize: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const batchSize = args.batchSize ?? BACKFILL_BATCH_SIZE;
+
+    const batch = await ctx.db
+      .query("direct_messages")
+      .withIndex("by_user", (q) => q.eq("userId", undefined))
+      .take(batchSize);
+
+    let bijgewerkt = 0;
+
+    for (const bericht of batch) {
+      await ctx.db.patch(bericht._id, { userId: bericht.companyId });
+      bijgewerkt++;
+    }
+
+    return {
+      verwerkt: batch.length,
+      bijgewerkt,
+      overgeslagen: 0,
+      klaar: batch.length < batchSize,
+      message: `direct_messages: ${bijgewerkt} bijgewerkt via companyId`,
+    };
+  },
+});
+
 /**
  * Migrate brandstofRegistratie.datum from number (timestamp) to string (YYYY-MM-DD).
  * Converts existing numeric timestamps to YYYY-MM-DD format strings.

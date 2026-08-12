@@ -128,6 +128,9 @@ export const create = mutation({
 
     const voorcalculatieId = await ctx.db.insert("voorcalculaties", {
       projectId: args.projectId,
+      // Tenant-scope (audit §2): project én offerte zijn hierboven op
+      // eigenaarschap gecontroleerd tegen deze userId, dus die is de tenant.
+      userId,
       offerteId: args.offerteId,
       teamGrootte: args.teamGrootte,
       teamleden: args.teamleden,

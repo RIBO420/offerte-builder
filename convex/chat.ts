@@ -323,6 +323,28 @@ export const getChannels = query({
 // ============ DIRECT MESSAGES ============
 
 /**
+ * TENANT-SCOPING VAN direct_messages (audit §2)
+ *
+ * De DM-queries hieronder scanden de hele tabel met `.filter()` op clerkId's.
+ * Dat las de berichten van álle bedrijven en groeit bovendien lineair mee met
+ * de totale tabel. Alle leesqueries lopen nu eerst via de `by_user`-index,
+ * gescopet op `getCompanyUserId(ctx)` — het bedrijfsaccount van de ingelogde
+ * gebruiker.
+ *
+ * BEWUSTE KEUZE — fail-closed tijdens de migratie:
+ * `userId` is optioneel in het schema omdat bestaande rijen het veld nog niet
+ * hebben. Een index-range op `userId === companyId` sluit die oude rijen uit:
+ * ze zijn tijdelijk ONZICHTBAAR (en tellen niet mee in de ongelezen-teller) in
+ * plaats van zichtbaar-voor-iedereen. Liever te weinig tonen dan andermans
+ * berichten lekken. Zodra de backfill is gedraaid komen ze vanzelf terug:
+ *
+ *   npx convex run migrations:backfillDirectMessagesUserId '{}'
+ *
+ * De backfill zet `userId = companyId`; nieuwe berichten krijgen het veld
+ * hieronder direct bij de insert mee, zodat er geen nieuw gat kan ontstaan.
+ */
+
+/**
  * Send a direct message to another user.
  */
 export const sendDirectMessage = mutation({
@@ -364,6 +386,8 @@ export const sendDirectMessage = mutation({
     }
 
     const messageId = await ctx.db.insert("direct_messages", {
+      // Tenant-scope voor by_user; gelijk aan companyId, zie sectiecomment
+      userId: companyId,
       fromUserId: user._id,
       fromClerkId: user.clerkId,
       toUserId: args.toUserId,
@@ -407,6 +431,7 @@ export const getDirectMessages = query({
   },
   handler: async (ctx, args) => {
     const user = await requireInterneChatToegang(ctx);
+    const companyId = await getCompanyUserId(ctx);
     const limit = args.limit || 50;
 
     // Get the other user's clerkId for the index query
@@ -415,20 +440,25 @@ export const getDirectMessages = query({
       return [];
     }
 
-    // Query messages in both directions using filter
-    // (index doesn't support OR queries, so we need to filter)
-    let messagesQuery = ctx.db.query("direct_messages").filter((q) =>
-      q.or(
-        q.and(
-          q.eq(q.field("fromClerkId"), user.clerkId),
-          q.eq(q.field("toClerkId"), otherUser.clerkId)
-        ),
-        q.and(
-          q.eq(q.field("fromClerkId"), otherUser.clerkId),
-          q.eq(q.field("toClerkId"), user.clerkId)
+    // Eerst tenant-scope via de index, daarna pas de conversatie eruit filteren.
+    // De OR over beide richtingen kan niet in een index, maar draait nu alleen
+    // nog over de berichten van het eigen bedrijf. Zie sectiecomment voor de
+    // fail-closed keuze rond berichten zonder userId.
+    let messagesQuery = ctx.db
+      .query("direct_messages")
+      .withIndex("by_user", (q) => q.eq("userId", companyId))
+      .filter((q) =>
+        q.or(
+          q.and(
+            q.eq(q.field("fromClerkId"), user.clerkId),
+            q.eq(q.field("toClerkId"), otherUser.clerkId)
+          ),
+          q.and(
+            q.eq(q.field("fromClerkId"), otherUser.clerkId),
+            q.eq(q.field("toClerkId"), user.clerkId)
+          )
         )
-      )
-    );
+      );
 
     // Apply cursor for pagination
     if (args.cursor) {
@@ -453,6 +483,7 @@ export const markDMAsRead = mutation({
   },
   handler: async (ctx, args) => {
     const user = await requireInterneChatToegang(ctx);
+    const companyId = await getCompanyUserId(ctx);
 
     // Get the sender's clerkId
     const fromUser = await ctx.db.get(args.fromUserId);
@@ -460,13 +491,22 @@ export const markDMAsRead = mutation({
       return { markedCount: 0 };
     }
 
-    // Find unread messages from this user to the current user
+    // Find unread messages from this user to the current user.
+    // Tenant-filter erbij: een clerkId kan bij een bedrijfswissel berichten uit
+    // een vorig bedrijf hebben. Die horen niet meer bij deze gebruiker en
+    // blijven hier dus onaangeraakt — consistent met getUnreadCounts, dat ze
+    // ook niet meetelt.
     const unreadMessages = await ctx.db
       .query("direct_messages")
       .withIndex("by_recipient_unread", (q) =>
         q.eq("toClerkId", user.clerkId).eq("isRead", false)
       )
-      .filter((q) => q.eq(q.field("fromClerkId"), fromUser.clerkId))
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("userId"), companyId),
+          q.eq(q.field("fromClerkId"), fromUser.clerkId)
+        )
+      )
       .collect();
 
     const now = Date.now();
@@ -488,10 +528,14 @@ export const getDMConversations = query({
   args: {},
   handler: async (ctx) => {
     const user = await requireInterneChatToegang(ctx);
+    const companyId = await getCompanyUserId(ctx);
 
-    // Get all DMs involving this user
+    // Get all DMs involving this user, binnen het eigen bedrijf.
+    // Zonder de by_user-scope was dit een collect() over de volledige tabel van
+    // alle tenants. Zie sectiecomment voor de fail-closed keuze.
     const allDMs = await ctx.db
       .query("direct_messages")
+      .withIndex("by_user", (q) => q.eq("userId", companyId))
       .filter((q) =>
         q.or(
           q.eq(q.field("fromClerkId"), user.clerkId),
@@ -581,12 +625,15 @@ export const getUnreadCounts = query({
       .filter((q) => q.neq(q.field("senderId"), user._id)) // Exclude own messages
       .collect();
 
-    // Count unread DMs to this user
+    // Count unread DMs to this user, alleen binnen het eigen bedrijf.
+    // Zelfde tenant-filter als markDMAsRead, zodat de teller niet oploopt met
+    // berichten die de gebruiker hier niet kan openen of wegklikken.
     const unreadDMs = await ctx.db
       .query("direct_messages")
       .withIndex("by_recipient_unread", (q) =>
         q.eq("toClerkId", user.clerkId).eq("isRead", false)
       )
+      .filter((q) => q.eq(q.field("userId"), companyId))
       .collect();
 
     // Count by channel type for more granular unread counts
