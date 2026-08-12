@@ -48,6 +48,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
+import { logger } from "@/lib/logger";
 import { Id } from "../../../../../convex/_generated/dataModel";
 import { useVoertuigDetails } from "@/hooks/use-voertuig-details";
 import { KentekenPlaat } from "@/components/wagenpark/kenteken-plaat";
@@ -173,7 +174,9 @@ export default function VoertuigDetailPage({
       toast.success("Onderhoud verwijderd");
       setDeleteOnderhoudId(null);
     } catch (error) {
-      console.error("Error deleting onderhoud:", error);
+      logger.error("Verwijderen onderhoudsregistratie mislukt", error, {
+        module: "wagenpark/detail",
+      });
       toast.error("Fout bij verwijderen");
     }
   };

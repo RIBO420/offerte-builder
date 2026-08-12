@@ -50,6 +50,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { MachineForm, MachineFormData } from "@/components/machines/machine-form";
 import { Id } from "@convex/_generated/dataModel";
 import { formatCurrency } from "@/lib/format/currency";
+import { logger } from "@/lib/logger";
 
 // Scope labels
 const scopeLabels: Record<string, string> = {
@@ -128,7 +129,9 @@ export default function MachinesPage() {
         handleCloseForm();
       } catch (error) {
         toast.error("Fout bij opslaan machine");
-        console.error(error);
+        logger.error("Opslaan machine mislukt", error, {
+          module: "instellingen/machines",
+        });
       } finally {
         setIsSaving(false);
       }
@@ -146,7 +149,9 @@ export default function MachinesPage() {
       setMachineToDelete(null);
     } catch (error) {
       toast.error("Fout bij verwijderen machine");
-      console.error(error);
+      logger.error("Verwijderen machine mislukt", error, {
+        module: "instellingen/machines",
+      });
     }
   }, [machineToDelete, deleteMachine]);
 
@@ -161,7 +166,9 @@ export default function MachinesPage() {
       }
     } catch (error) {
       toast.error("Fout bij toevoegen standaard machines");
-      console.error(error);
+      logger.error("Toevoegen standaardmachines mislukt", error, {
+        module: "instellingen/machines",
+      });
     } finally {
       setIsInitializing(false);
     }

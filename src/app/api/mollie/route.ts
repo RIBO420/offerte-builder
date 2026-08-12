@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import { logger } from "@/lib/logger";
 
 // Mollie API v2 base URL
 const MOLLIE_API = "https://api.mollie.com/v2";
@@ -148,7 +149,8 @@ export async function POST(request: NextRequest) {
     const payment = (await mollieResponse.json()) as MolliePaymentResponse;
 
     if (!mollieResponse.ok) {
-      console.error("[mollie] Fout bij aanmaken betaling:", {
+      logger.error("Mollie weigerde het aanmaken van de betaling", undefined, {
+        module: "mollie",
         status: mollieResponse.status,
         detail: payment.detail,
         title: payment.title,
@@ -167,7 +169,9 @@ export async function POST(request: NextRequest) {
       status: payment.status,
     });
   } catch (err) {
-    console.error("[mollie] Onverwachte fout:", err);
+    logger.error("Onverwachte fout bij communicatie met Mollie", err, {
+      module: "mollie",
+    });
     return NextResponse.json(
       { error: "Fout bij communicatie met Mollie" },
       { status: 500 }

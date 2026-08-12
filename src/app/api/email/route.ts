@@ -27,6 +27,7 @@ import {
   getRateLimitHeaders,
   getRequestIdentifier as getUpstashRequestIdentifier,
 } from "@/lib/upstash-rate-limiter";
+import { logger } from "@/lib/logger";
 
 // Lazy initialization to avoid build-time errors when API key is not set
 let resendClient: Resend | null = null;
@@ -117,10 +118,13 @@ export async function POST(request: NextRequest) {
         }
       } catch (upstashError) {
         // If Upstash fails, fall back to in-memory rate limiting
-        console.warn(
-          "Upstash rate limiting failed, falling back to in-memory:",
-          upstashError
-        );
+        logger.warn("Upstash rate limiting mislukt, terugval op in-memory", {
+          module: "api/email",
+          fout:
+            upstashError instanceof Error
+              ? upstashError.message
+              : String(upstashError),
+        });
         const fallbackIdentifier = getInMemoryRequestIdentifier(request);
         inMemoryRateLimitInfo =
           inMemoryEmailRateLimiter.check(fallbackIdentifier);
@@ -221,9 +225,11 @@ export async function POST(request: NextRequest) {
       // Mail-sandbox-guard (fail-closed): zonder EMAIL_VERZENDEN_ACTIEF="true"
       // wordt de bevestiging alleen gelogd, niet echt verstuurd.
       if (!isEmailVerzendenActief()) {
-        console.warn(
-          `[emailLogs] bevestiging ${SANDBOX_EMAIL_STATUS}: naar ${to} niet verstuurd — ${SANDBOX_EMAIL_REDEN}`
-        );
+        logger.warn(`Bevestigingsmail ${SANDBOX_EMAIL_STATUS} door mail-sandbox`, {
+          module: "api/email",
+          ontvanger: to,
+          reden: SANDBOX_EMAIL_REDEN,
+        });
         return NextResponse.json({
           success: true,
           status: SANDBOX_EMAIL_STATUS,
@@ -250,11 +256,12 @@ export async function POST(request: NextRequest) {
       });
 
       if (error) {
-        console.error("[emailLogs] bevestiging mislukt:", {
-          to,
+        logger.error("Versturen bevestigingsmail mislukt", undefined, {
+          module: "api/email",
+          ontvanger: to,
           klantNaam,
           aanvraagType,
-          error: error.message,
+          resendFout: error.message,
         });
         return NextResponse.json(
           {
@@ -265,8 +272,9 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      console.info("[emailLogs] bevestiging verzonden:", {
-        to,
+      logger.info("Bevestigingsmail verzonden", {
+        module: "api/email",
+        ontvanger: to,
         klantNaam,
         aanvraagType,
         resendId: data?.id,
@@ -329,9 +337,12 @@ export async function POST(request: NextRequest) {
     // Mail-sandbox-guard (fail-closed): zonder EMAIL_VERZENDEN_ACTIEF="true"
     // wordt de offerte-mail alleen gelogd, niet echt verstuurd.
     if (!isEmailVerzendenActief()) {
-      console.warn(
-        `[emailLogs] offerte-email ${SANDBOX_EMAIL_STATUS}: "${subject}" naar ${to} niet verstuurd — ${SANDBOX_EMAIL_REDEN}`
-      );
+      logger.warn(`Offerte-email ${SANDBOX_EMAIL_STATUS} door mail-sandbox`, {
+        module: "api/email",
+        ontvanger: to,
+        subject,
+        reden: SANDBOX_EMAIL_REDEN,
+      });
       return NextResponse.json({
         success: true,
         status: SANDBOX_EMAIL_STATUS,

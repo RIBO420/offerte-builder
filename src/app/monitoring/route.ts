@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
 
 // Sentry tunnel route to avoid ad-blockers
 // This proxies Sentry events from the client to Sentry's ingest endpoint
@@ -48,7 +49,9 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    console.error("Sentry tunnel error:", error);
+    // Deze route is de tunnel voor client-events. De server-SDK praat rechtstreeks
+    // met Sentry (niet via deze tunnel), dus hier melden levert geen lus op.
+    logger.error("Sentry-tunnel mislukt", error, { module: "monitoring" });
     return NextResponse.json(
       { error: "Failed to tunnel to Sentry" },
       { status: 500 }

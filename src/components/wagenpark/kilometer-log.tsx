@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Loader2, Plus, Trash2, TrendingUp, Minus } from "lucide-react";
 import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
+import { logger } from "@/lib/logger";
 import { cn } from "@/lib/utils";
 import { Id } from "../../../convex/_generated/dataModel";
 import type { KilometerRecord } from "@/hooks/use-voertuig-details";
@@ -147,7 +148,9 @@ export function KilometerLog({
       setDatum(getTodayString());
       setIsAdding(false);
     } catch (error) {
-      console.error("Error adding km:", error);
+      logger.error("Toevoegen kilometerstand mislukt", error, {
+        module: "wagenpark/kilometers",
+      });
       showErrorToast("Fout bij toevoegen kilometerstand");
     } finally {
       setIsSubmitting(false);
@@ -162,7 +165,9 @@ export function KilometerLog({
       showSuccessToast("Kilometerstand verwijderd");
       setDeleteId(null);
     } catch (error) {
-      console.error("Error deleting km:", error);
+      logger.error("Verwijderen kilometerstand mislukt", error, {
+        module: "wagenpark/kilometers",
+      });
       showErrorToast("Fout bij verwijderen");
     }
   };

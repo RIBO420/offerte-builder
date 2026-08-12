@@ -64,6 +64,7 @@ import {
   type ImportVeld,
   type KolomMapping,
 } from "@/lib/product-import";
+import { logger } from "@/lib/logger";
 
 type Stap = "mapping" | "preview" | "resultaat";
 
@@ -163,7 +164,9 @@ export function ProductImportDialog({
         setDataRijen(rijen.slice(1));
         setMapping(raadMapping(rijen[0]));
       } catch (error) {
-        console.error(error);
+        logger.error("Inlezen importbestand mislukt", error, {
+          module: "leveranciers/product-import",
+        });
         toast.error("Bestand kon niet gelezen worden");
       }
     },
@@ -246,7 +249,9 @@ export function ProductImportDialog({
           ? String((error as { data: unknown }).data)
           : "Import mislukt";
       toast.error(bericht);
-      console.error(error);
+      logger.error("Importeren leveranciersproducten mislukt", error, {
+        module: "leveranciers/product-import",
+      });
     } finally {
       setIsImporteren(false);
     }

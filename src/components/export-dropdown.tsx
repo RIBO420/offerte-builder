@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Download, FileSpreadsheet, FileText, Loader2 } from "lucide-react";
 import { showSuccessToast, showErrorToast, showWarningToast } from "@/lib/toast-utils";
+import { logger } from "@/lib/logger";
 import {
   exportToCSV,
   exportToExcel,
@@ -81,7 +82,10 @@ export function ExportDropdown<T extends Record<string, unknown>>({
       exportToCSV(data, columns, filename);
       showSuccessToast(`${data.length} rij(en) geexporteerd naar CSV`);
     } catch (error) {
-      console.error("Export CSV error:", error);
+      logger.error("CSV-export mislukt", error, {
+        module: "export-dropdown",
+        filename,
+      });
       showErrorToast("Fout bij exporteren naar CSV");
     } finally {
       setIsExporting(false);
@@ -99,7 +103,10 @@ export function ExportDropdown<T extends Record<string, unknown>>({
       await exportToExcel(data, columns, filename, sheetName);
       showSuccessToast(`${data.length} rij(en) geexporteerd naar Excel`);
     } catch (error) {
-      console.error("Export Excel error:", error);
+      logger.error("Excel-export mislukt", error, {
+        module: "export-dropdown",
+        filename,
+      });
       showErrorToast("Fout bij exporteren naar Excel");
     } finally {
       setIsExporting(false);

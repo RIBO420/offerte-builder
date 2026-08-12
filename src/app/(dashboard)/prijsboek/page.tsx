@@ -79,6 +79,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { Id } from "../../../../convex/_generated/dataModel";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format/currency";
+import { logger } from "@/lib/logger";
 
 // Dynamic imports for heavy libraries (~400KB total)
 // These are only needed when user imports a file
@@ -280,7 +281,7 @@ function PrijsboekPageContent() {
       resetForm();
     } catch (error) {
       toast.error("Fout bij opslaan product");
-      console.error(error);
+      logger.error("Opslaan product mislukt", error, { module: "prijsboek" });
     } finally {
       setIsSaving(false);
     }
@@ -310,7 +311,9 @@ function PrijsboekPageContent() {
       setSelectedProduct(null);
     } catch (error) {
       toast.error("Fout bij verwijderen product");
-      console.error(error);
+      logger.error("Verwijderen product mislukt", error, {
+        module: "prijsboek",
+      });
     }
   };
 
@@ -446,7 +449,10 @@ function PrijsboekPageContent() {
       setImportErrors([]);
     } catch (error) {
       toast.error("Fout bij importeren producten");
-      console.error(error);
+      logger.error("Importeren producten mislukt", error, {
+        module: "prijsboek",
+        aantalRijen: importPreview.length,
+      });
     } finally {
       setIsImporting(false);
     }

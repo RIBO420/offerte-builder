@@ -26,6 +26,8 @@ import { Stap1Klantgegevens } from "./components/stap1-klantgegevens";
 import { Stap2VerticuterenSpecs } from "./components/stap2-verticuteren-specs";
 import { Stap3DatumOverzicht } from "./components/stap3-datum-overzicht";
 import { SuccessDialog } from "./components/success-dialog";
+import { toast } from "sonner";
+import { logger } from "@/lib/logger";
 
 export default function VerticuterenConfiguratorPage() {
   const [huidigStap, setHuidigStap] = useState(1);
@@ -193,7 +195,9 @@ export default function VerticuterenConfiguratorPage() {
 
       setShowSuccessDialog(true);
     } catch (err) {
-      console.error("Aanvraag indienen mislukt:", err);
+      logger.error("Indienen verticuteer-aanvraag mislukt", err, {
+        module: "configurator/verticuteren",
+      });
       setErrors({
         submit:
           "Er is een fout opgetreden bij het indienen van uw aanvraag. Probeer het opnieuw of neem contact met ons op.",
@@ -228,7 +232,16 @@ export default function VerticuterenConfiguratorPage() {
         window.location.href = data.checkoutUrl;
       }
     } catch (err) {
-      console.error("Betaling starten mislukt:", err);
+      logger.error("Starten aanbetaling mislukt", err, {
+        module: "configurator/verticuteren",
+        referentieNummer,
+      });
+      // De succesdialoog staat open over de pagina heen, dus het `errors.submit`
+      // blok eronder is hier onzichtbaar. Zonder toast zou de knop simpelweg
+      // niets doen en zou de klant niet weten dat de betaling niet startte.
+      toast.error(
+        "De betaling kon niet worden gestart. Probeer het opnieuw of neem contact met ons op."
+      );
     } finally {
       setIsBetalingBezig(false);
     }

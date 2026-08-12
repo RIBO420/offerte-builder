@@ -37,6 +37,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { formatCurrency } from "@/lib/format/currency";
+import { logger } from "@/lib/logger";
 
 export interface UurtariefRecord {
   _id: string;
@@ -99,7 +100,9 @@ export function UurtariefBeheer({
       setBedrag("");
     } catch (error) {
       toast.error("Fout bij opslaan uurtarief");
-      console.error(error);
+      logger.error("Opslaan uurtarief mislukt", error, {
+        module: "catalogus/uurtarief",
+      });
     } finally {
       setIsSaving(false);
     }

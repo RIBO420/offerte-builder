@@ -17,6 +17,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Check, X, Loader2, AlertTriangle } from "lucide-react";
+import { logger } from "@/lib/logger";
 
 interface QCApprovalDialogProps {
   open: boolean;
@@ -100,7 +101,10 @@ export function QCApprovalDialog({
       onOpenChange(false);
       onSuccess?.();
     } catch (err) {
-      console.error("Fout bij verwerken:", err);
+      logger.error("Verwerken kwaliteitscontrole-beoordeling mislukt", err, {
+        module: "project/qc-approval",
+        kwaliteitsControleId,
+      });
       setError(
         err instanceof Error
           ? err.message

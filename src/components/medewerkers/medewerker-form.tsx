@@ -25,6 +25,7 @@ import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import { getMutationErrorMessage } from "@/lib/error-handling";
+import { logger } from "@/lib/logger";
 import { Id } from "../../../convex/_generated/dataModel";
 import { Specialisatie } from "./skills-selector";
 import { Certificaat } from "./certificaat-form";
@@ -307,7 +308,10 @@ export function MedewerkerForm({
       onOpenChange(false);
       onSuccess?.();
     } catch (error) {
-      console.error("Error saving medewerker:", error);
+      logger.error("Opslaan medewerker mislukt", error, {
+        module: "medewerkers/formulier",
+        bewerken: isEditMode,
+      });
       showErrorToast(
         isEditMode
           ? "Fout bij bijwerken medewerker"

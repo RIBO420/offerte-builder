@@ -40,6 +40,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { logger } from "@/lib/logger";
 import { useTeams } from "@/hooks/use-teams";
 import { useMedewerkers } from "@/hooks/use-medewerkers";
 import { TeamCard } from "@/components/medewerkers/team-card";
@@ -113,7 +114,9 @@ export default function TeamsPage() {
         setShowCreateDialog(false);
       } catch (error) {
         toast.error("Fout bij aanmaken team");
-        console.error(error);
+        logger.error("Aanmaken team mislukt", error, {
+          module: "medewerkers/teams",
+        });
       } finally {
         setIsSubmitting(false);
       }
@@ -142,7 +145,9 @@ export default function TeamsPage() {
         setSelectedTeam(null);
       } catch (error) {
         toast.error("Fout bij bijwerken team");
-        console.error(error);
+        logger.error("Bijwerken team mislukt", error, {
+          module: "medewerkers/teams",
+        });
       } finally {
         setIsSubmitting(false);
       }
@@ -159,7 +164,9 @@ export default function TeamsPage() {
         );
       } catch (error) {
         toast.error("Fout bij wijzigen status");
-        console.error(error);
+        logger.error("Wijzigen teamstatus mislukt", error, {
+          module: "medewerkers/teams",
+        });
       }
     },
     [update]
@@ -178,7 +185,9 @@ export default function TeamsPage() {
         toast.success("Lid toegevoegd");
       } catch (error) {
         toast.error("Fout bij toevoegen lid");
-        console.error(error);
+        logger.error("Toevoegen teamlid mislukt", error, {
+          module: "medewerkers/teams",
+        });
       }
     },
     [selectedTeam, addLid]
@@ -192,7 +201,9 @@ export default function TeamsPage() {
         toast.success("Lid verwijderd");
       } catch (error) {
         toast.error("Fout bij verwijderen lid");
-        console.error(error);
+        logger.error("Verwijderen teamlid mislukt", error, {
+          module: "medewerkers/teams",
+        });
       }
     },
     [selectedTeam, removeLid]
@@ -214,7 +225,9 @@ export default function TeamsPage() {
       setSelectedTeam(null);
     } catch (error) {
       toast.error("Fout bij verwijderen team");
-      console.error(error);
+      logger.error("Verwijderen team mislukt", error, {
+        module: "medewerkers/teams",
+      });
     } finally {
       setIsSubmitting(false);
     }

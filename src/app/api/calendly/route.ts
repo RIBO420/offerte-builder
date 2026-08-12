@@ -10,13 +10,21 @@
  *   Calendly stuurt de handtekening mee als "Calendly-Webhook-Signature" header
  *   in het formaat: "t=<timestamp>,v1=<hmac-sha256>".
  *
- * TODO: Sla afspraakinformatie op in Convex in plaats van alleen te loggen.
+ * TODO(afspraken): sla afspraakinformatie op in Convex. Nu wordt een geldig
+ * ondertekend event stilzwijgend weggegooid — er gaat dus data verloren.
+ * Geblokkeerd — er is nog geen `afspraken`-tabel in convex/schema.ts.
+ * `serviceAfspraken` lijkt erop maar is het niet: die hangt verplicht aan een
+ * `servicemeldingen`-record en aan `medewerkerIds`, terwijl een Calendly-boeking
+ * van een nog onbekende websitebezoeker komt. Zie het auditrapport (§5, K4) voor
+ * het voorstel: tabel + indexen + een via `CONVEX_WEBHOOK_SECRET` beveiligde
+ * `aanmaken`/`annuleren`-mutation.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 
 import type { CalendlyWebhookEvent } from "@/lib/calendly";
+import { logger } from "@/lib/logger";
 
 const SIGNING_KEY = process.env.CALENDLY_WEBHOOK_SIGNING_KEY;
 
@@ -34,9 +42,10 @@ function verifyWebhookSignature(
 ): boolean {
   if (!SIGNING_KEY) {
     // Geen sleutel geconfigureerd — verzoeken worden afgewezen
-    console.error(
-      "[Calendly Webhook] CALENDLY_WEBHOOK_SIGNING_KEY niet geconfigureerd — webhook wordt afgewezen. " +
-      "Stel deze omgevingsvariabele in om webhooks te verwerken."
+    logger.error(
+      "CALENDLY_WEBHOOK_SIGNING_KEY niet geconfigureerd — webhook wordt afgewezen",
+      undefined,
+      { module: "calendly/webhook" }
     );
     return false;
   }
@@ -77,9 +86,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // ── Handtekening verificatie (verplicht) ─────────────────────────────────
     if (!SIGNING_KEY) {
-      console.error(
-        "[Calendly Webhook] CALENDLY_WEBHOOK_SIGNING_KEY niet geconfigureerd — " +
-        "alle webhooks worden afgewezen. Stel deze omgevingsvariabele in."
+      logger.error(
+        "CALENDLY_WEBHOOK_SIGNING_KEY niet geconfigureerd — alle webhooks worden afgewezen",
+        undefined,
+        { module: "calendly/webhook" }
       );
       return NextResponse.json(
         { foutmelding: "Webhook niet geconfigureerd." },
@@ -90,7 +100,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const signatureHeader = request.headers.get("Calendly-Webhook-Signature");
 
     if (!signatureHeader) {
-      console.warn("[Calendly Webhook] Handtekening-header ontbreekt.");
+      logger.warn("Handtekening-header ontbreekt", {
+        module: "calendly/webhook",
+      });
       return NextResponse.json(
         { foutmelding: "Handtekening-header ontbreekt." },
         { status: 401 }
@@ -98,7 +110,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     if (!verifyWebhookSignature(signatureHeader, rawBody)) {
-      console.warn("[Calendly Webhook] Ongeldige handtekening ontvangen.");
+      logger.warn("Ongeldige handtekening ontvangen", {
+        module: "calendly/webhook",
+      });
       return NextResponse.json(
         { foutmelding: "Ongeldige handtekening." },
         { status: 401 }
@@ -111,7 +125,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
       webhookEvent = JSON.parse(rawBody) as CalendlyWebhookEvent;
     } catch {
-      console.error("[Calendly Webhook] Ongeldig JSON-body ontvangen.");
+      logger.error("Ongeldig JSON-body ontvangen", undefined, {
+        module: "calendly/webhook",
+      });
       return NextResponse.json(
         { foutmelding: "Ongeldig JSON-formaat." },
         { status: 400 }
@@ -122,12 +138,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     switch (event) {
       case "invitee.created": {
-        // TODO: Sla de afspraak op in Convex (api.afspraken.aanmaken)
+        // TODO(afspraken): `api.afspraken.aanmaken` bestaat nog niet — zie de
+        // blokkade bovenaan dit bestand. De payload levert alles wat de tabel
+        // nodig heeft: payload.invitee.{name,email},
+        // payload.scheduled_event.{start_time,end_time,location.type} en
+        // payload.event_type.{name,slug}.
         break;
       }
 
       case "invitee.canceled": {
-        // TODO: Markeer de afspraak als geannuleerd in Convex (api.afspraken.annuleren)
+        // TODO(afspraken): `api.afspraken.annuleren` bestaat nog niet — zie de
+        // blokkade bovenaan dit bestand. Annuleren moet de bestaande afspraak
+        // opzoeken; Calendly stuurt in dit event geen eigen id mee in
+        // `CalendlyWebhookEvent`, dus de sleutel wordt
+        // (invitee.email + scheduled_event.start_time). Voeg bij voorkeur
+        // `payload.uri` toe aan het type en gebruik dat als stabiele sleutel.
         break;
       }
 
@@ -139,7 +164,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({ status: "ok" }, { status: 200 });
   } catch (error) {
-    console.error("[Calendly Webhook] Onverwachte fout:", error);
+    logger.error("Onverwachte fout bij verwerken Calendly-webhook", error, {
+      module: "calendly/webhook",
+    });
 
     return NextResponse.json(
       { foutmelding: "Interne serverfout." },

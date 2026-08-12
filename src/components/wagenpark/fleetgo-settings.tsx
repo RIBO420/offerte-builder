@@ -26,6 +26,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
+import { logger } from "@/lib/logger";
 
 interface FleetGoSettingsProps {
   initialApiKey?: string;
@@ -119,9 +120,12 @@ export function FleetGoSettings({
         // on the backend, not in localStorage
         await new Promise((resolve) => setTimeout(resolve, 1000));
 
-        // For demo purposes only - real implementation needs secure backend storage
-        console.warn(
-          "FleetGo API key saved (demo mode). In production, store this securely on the server."
+        // Waarschuwing, geen debug: de gebruiker krijgt hieronder "opgeslagen"
+        // te zien terwijl er niets is bewaard. Dat wil je in productie zien.
+        // De sleutel zelf loggen we bewust niet.
+        logger.warn(
+          "FleetGo API-sleutel niet opgeslagen — demo-modus zonder onSave-handler",
+          { module: "wagenpark/fleetgo-instellingen" }
         );
       }
 

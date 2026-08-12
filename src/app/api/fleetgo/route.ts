@@ -15,6 +15,7 @@ import {
   getRequestIdentifier,
   createRateLimitResponse,
 } from "@/lib/rate-limiter";
+import { logger } from "@/lib/logger";
 
 // Server-only API key (never exposed to client)
 const FLEETGO_API_KEY = process.env.FLEETGO_API_KEY;
@@ -167,7 +168,9 @@ export async function POST(request: NextRequest) {
       throw fetchError;
     }
   } catch (error) {
-    console.error("[FleetGo API Proxy] Error:", error);
+    logger.error("Fout in de FleetGo API-proxy", error, {
+      module: "api/fleetgo",
+    });
 
     return NextResponse.json(
       { error: "Interne serverfout bij FleetGo API", code: "INTERNAL_ERROR" },

@@ -39,6 +39,7 @@ import {
 import { Loader2, CalendarIcon } from "lucide-react";
 import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import { getMutationErrorMessage } from "@/lib/error-handling";
+import { logger } from "@/lib/logger";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { nl } from "@/lib/date-locale";
@@ -188,7 +189,10 @@ export function OnderhoudForm({
 
       handleClose();
     } catch (error) {
-      console.error("Error saving onderhoud:", error);
+      logger.error("Opslaan onderhoud mislukt", error, {
+        module: "wagenpark/onderhoud",
+        bewerken: isEditMode,
+      });
       showErrorToast(
         isEditMode
           ? "Fout bij bijwerken onderhoud"

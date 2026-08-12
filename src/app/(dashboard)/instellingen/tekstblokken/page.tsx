@@ -14,6 +14,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { toast } from "sonner";
+import { logger } from "@/lib/logger";
 import {
   Archive,
   ArchiveRestore,
@@ -153,7 +154,9 @@ export default function TekstblokkenPage() {
           ? String((error as { data: unknown }).data)
           : "Fout bij opslaan tekstblok";
       toast.error(bericht);
-      console.error(error);
+      logger.error("Opslaan tekstblok mislukt", error, {
+        module: "instellingen/tekstblokken",
+      });
     } finally {
       setIsSaving(false);
     }
@@ -170,7 +173,9 @@ export default function TekstblokkenPage() {
         );
       } catch (error) {
         toast.error("Fout bij wijzigen actief-status");
-        console.error(error);
+        logger.error("Wijzigen actief-status tekstblok mislukt", error, {
+          module: "instellingen/tekstblokken",
+        });
       }
     },
     [setActief]

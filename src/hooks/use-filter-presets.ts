@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
+import { logger } from "@/lib/logger";
 
 // Generic filter state type - each page can define its own filter structure
 export type FilterState = Record<string, unknown>;
@@ -166,7 +167,14 @@ function loadPresetsFromStorage<T extends FilterState>(pageKey: PageKey): Filter
       return [...defaults, ...userPresets];
     }
   } catch (error) {
-    console.error("Error loading filter presets:", error);
+    // Beschadigde of onleesbare localStorage is niet blokkerend: hieronder
+    // vallen we terug op de standaardpresets. Wel melden, want het wijst op
+    // een migratieprobleem in het opgeslagen formaat.
+    logger.warn("Filterpresets konden niet worden geladen", {
+      module: "use-filter-presets",
+      pageKey,
+      fout: error instanceof Error ? error.message : String(error),
+    });
   }
   return getDefaultPresets<T>(pageKey);
 }
@@ -186,7 +194,12 @@ export function useFilterPresets<T extends FilterState>(pageKey: PageKey) {
       const userPresets = newPresets.filter(p => !p.isDefault);
       localStorage.setItem(getStorageKey(pageKey), JSON.stringify(userPresets));
     } catch (error) {
-      console.error("Error saving filter presets:", error);
+      // Fout niveau: de gebruiker denkt dat zijn preset bewaard is terwijl die
+      // bij een refresh weg is (bv. volle localStorage). Dat willen we zien.
+      logger.error("Filterpresets konden niet worden opgeslagen", error, {
+        module: "use-filter-presets",
+        pageKey,
+      });
     }
   }, [pageKey]);
 
