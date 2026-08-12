@@ -185,7 +185,7 @@ export function UrenTab({
         {/* Quick tips */}
         <div className="mt-6 w-full max-w-md space-y-3">
           <div className="flex items-start gap-3 rounded-lg bg-muted/50 p-3">
-            <Lightbulb className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+            <Lightbulb className="h-5 w-5 text-amber-500 dark:text-amber-400 shrink-0 mt-0.5" />
             <div className="text-sm">
               <p className="font-medium">Tip: Snelle invoer</p>
               <p className="text-muted-foreground">

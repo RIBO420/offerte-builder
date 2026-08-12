@@ -162,8 +162,8 @@ export function EngagementTimeline({
           ),
         iconColor:
           log.status === "mislukt" || log.status === "bounced"
-            ? "text-red-500"
-            : "text-blue-500",
+            ? "text-red-500 dark:text-red-400"
+            : "text-blue-500 dark:text-blue-400",
         dotColor:
           log.status === "mislukt" || log.status === "bounced"
             ? "bg-red-500"
@@ -178,7 +178,7 @@ export function EngagementTimeline({
           description: `${typeLabel} afgeleverd`,
           timestamp: log.deliveredAt,
           icon: <MailCheck className="h-3.5 w-3.5" />,
-          iconColor: "text-green-500",
+          iconColor: "text-green-500 dark:text-green-400",
           dotColor: "bg-green-500",
         });
       }
@@ -191,7 +191,7 @@ export function EngagementTimeline({
           description: `${typeLabel} geopend`,
           timestamp: log.openedAt,
           icon: <Eye className="h-3.5 w-3.5" />,
-          iconColor: "text-purple-500",
+          iconColor: "text-purple-500 dark:text-purple-400",
           dotColor: "bg-purple-500",
         });
       }
@@ -204,7 +204,7 @@ export function EngagementTimeline({
           description: `Link in ${typeLabel.toLowerCase()} aangeklikt`,
           timestamp: log.clickedAt,
           icon: <MousePointerClick className="h-3.5 w-3.5" />,
-          iconColor: "text-indigo-500",
+          iconColor: "text-indigo-500 dark:text-indigo-400",
           dotColor: "bg-indigo-500",
         });
       }
@@ -217,7 +217,7 @@ export function EngagementTimeline({
           description: `${typeLabel} geweigerd door mailserver`,
           timestamp: log.bouncedAt,
           icon: <MailX className="h-3.5 w-3.5" />,
-          iconColor: "text-red-500",
+          iconColor: "text-red-500 dark:text-red-400",
           dotColor: "bg-red-500",
         });
       }
@@ -231,7 +231,7 @@ export function EngagementTimeline({
         description: "Offerte bekeken door klant",
         timestamp: customerResponse.viewedAt,
         icon: <Eye className="h-3.5 w-3.5" />,
-        iconColor: "text-amber-500",
+        iconColor: "text-amber-500 dark:text-amber-400",
         dotColor: "bg-amber-500",
       });
     }
@@ -246,7 +246,7 @@ export function EngagementTimeline({
         description: "Offerte geaccepteerd door klant",
         timestamp: customerResponse.respondedAt,
         icon: <CheckCircle className="h-3.5 w-3.5" />,
-        iconColor: "text-green-500",
+        iconColor: "text-green-500 dark:text-green-400",
         dotColor: "bg-green-500",
       });
     }
@@ -261,7 +261,7 @@ export function EngagementTimeline({
         description: "Offerte afgewezen door klant",
         timestamp: customerResponse.respondedAt,
         icon: <XCircle className="h-3.5 w-3.5" />,
-        iconColor: "text-red-500",
+        iconColor: "text-red-500 dark:text-red-400",
         dotColor: "bg-red-500",
       });
     }
@@ -277,7 +277,7 @@ export function EngagementTimeline({
         description: "Klant heeft een vraag gesteld",
         timestamp: customerResponse.respondedAt,
         icon: <MessageSquare className="h-3.5 w-3.5" />,
-        iconColor: "text-orange-500",
+        iconColor: "text-orange-500 dark:text-orange-400",
         dotColor: "bg-orange-500",
       });
     }
@@ -292,7 +292,7 @@ export function EngagementTimeline({
         description: version.omschrijving || `Versie ${version.versieNummer} aangemaakt`,
         timestamp: version.createdAt,
         icon: <History className="h-3.5 w-3.5" />,
-        iconColor: "text-slate-500",
+        iconColor: "text-muted-foreground",
         dotColor: "bg-slate-400",
       });
     }
@@ -304,7 +304,7 @@ export function EngagementTimeline({
       description: "Offerte aangemaakt",
       timestamp: createdAt,
       icon: <Clock className="h-3.5 w-3.5" />,
-      iconColor: "text-slate-400",
+      iconColor: "text-muted-foreground",
       dotColor: "bg-slate-300",
     });
 
@@ -348,7 +348,9 @@ export function EngagementTimeline({
                       event.dotColor
                     )}
                   >
-                    <div className="h-1.5 w-1.5 rounded-full bg-white" />
+                    {/* Binnenste stip is een "gat" in de gekleurde stip en
+                        moet dus de paginakleur volgen, net als de border. */}
+                    <div className="h-1.5 w-1.5 rounded-full bg-background" />
                   </div>
 
                   {/* Content */}

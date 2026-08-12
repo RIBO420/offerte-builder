@@ -85,10 +85,10 @@ export function BemestingForm({ data, onChange, onValidationChange }: BemestingF
   const MARGE_PERCENTAGE = 70;
   const margeKleur =
     MARGE_PERCENTAGE > 50
-      ? "bg-green-100 text-green-800 border-green-200"
+      ? "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800"
       : MARGE_PERCENTAGE >= 30
-        ? "bg-orange-100 text-orange-800 border-orange-200"
-        : "bg-red-100 text-red-800 border-red-200";
+        ? "bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200 border-orange-200 dark:border-orange-800"
+        : "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 border-red-200 dark:border-red-800";
 
   return (
     <Form {...form}>
@@ -115,7 +115,7 @@ export function BemestingForm({ data, onChange, onValidationChange }: BemestingF
                 <span>Marge: ~{MARGE_PERCENTAGE}%</span>
               </div>
             </div>
-            <p className="text-xs text-green-700 font-medium flex items-center gap-1 mt-1">
+            <p className="text-xs text-green-700 dark:text-green-300 font-medium flex items-center gap-1 mt-1">
               <Star className="h-3 w-3" />
               Hoge marge product — actief aanbieden!
             </p>

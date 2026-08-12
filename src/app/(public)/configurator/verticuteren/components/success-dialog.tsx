@@ -30,8 +30,8 @@ export function SuccessDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <div className="flex flex-col items-center text-center gap-4 py-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-              <CheckCircle2 className="h-9 w-9 text-green-600" />
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-950">
+              <CheckCircle2 className="h-9 w-9 text-green-600 dark:text-green-400" />
             </div>
             <div>
               <DialogTitle className="text-xl font-bold">
@@ -49,16 +49,16 @@ export function SuccessDialog({
 
         <div className="space-y-4 py-2">
           {/* Referentienummer */}
-          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <div className="flex items-center justify-between p-4 bg-muted rounded-lg border border-border">
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">
                 Uw referentienummer
               </p>
-              <p className="text-lg font-bold text-green-700 font-mono mt-0.5">
+              <p className="text-lg font-bold text-green-700 dark:text-green-400 font-mono mt-0.5">
                 {referentie}
               </p>
             </div>
-            <CalendarCheck className="h-8 w-8 text-green-200" />
+            <CalendarCheck className="h-8 w-8 text-green-200 dark:text-green-900" />
           </div>
 
           {/* Wat volgt */}
@@ -78,11 +78,11 @@ export function SuccessDialog({
           </ul>
 
           {/* Aanbetaling */}
-          <div className="rounded-lg border border-green-200 bg-green-50 p-4">
-            <p className="text-sm font-semibold text-green-900 mb-1">
+          <div className="rounded-lg border border-green-200 dark:border-green-900 bg-green-50 dark:bg-green-950 p-4">
+            <p className="text-sm font-semibold text-green-900 dark:text-green-100 mb-1">
               Optionele aanbetaling — {formatEuro(75)}
             </p>
-            <p className="text-xs text-green-800 mb-3">
+            <p className="text-xs text-green-800 dark:text-green-200 mb-3">
               Zet uw gewenste datum zeker met een kleine aanbetaling. Dit is
               volledig optioneel en wordt verrekend met de definitieve factuur.
             </p>

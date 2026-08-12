@@ -119,7 +119,7 @@ export const KentekenPlaat = memo(function KentekenPlaat({
       <div
         className={cn(
           "relative inline-flex items-stretch rounded-[4px] overflow-hidden",
-          "bg-gray-200 border-2 border-gray-300",
+          "bg-muted border-2 border-border",
           config.plate,
           config.shadow,
           className
@@ -144,7 +144,7 @@ export const KentekenPlaat = memo(function KentekenPlaat({
         <div className="flex-1 flex items-center justify-center">
           <span
             className={cn(
-              "font-bold text-gray-400 uppercase",
+              "font-bold text-muted-foreground uppercase",
               config.text
             )}
             style={{ fontFamily: "'Arial Black', 'Helvetica Neue', sans-serif" }}
@@ -217,6 +217,8 @@ export const KentekenPlaat = memo(function KentekenPlaat({
         />
 
         {/* License plate text */}
+        {/* Bewust text-black en geen token: de plaat heeft een vaste gele
+            achtergrond, dus de tekst moet in beide thema's zwart blijven. */}
         <span
           className={cn(
             "relative font-bold text-black uppercase",
@@ -265,7 +267,7 @@ export const KentekenBadge = memo(function KentekenBadge({
       <span
         className={cn(
           "inline-flex items-center rounded px-1.5 py-0.5",
-          "bg-gray-100 text-gray-400 text-xs font-mono",
+          "bg-muted text-muted-foreground text-xs font-mono",
           className
         )}
       >
@@ -292,6 +294,7 @@ export const KentekenBadge = memo(function KentekenBadge({
           NL
         </span>
       )}
+      {/* Vaste gele plaatachtergrond: tekst blijft in beide thema's zwart. */}
       <span
         className="px-1.5 py-0.5 text-black"
         style={{

@@ -318,15 +318,15 @@ export const ProjectKostenDashboard = memo(function ProjectKostenDashboard({
       {/* Legend */}
       <div className="flex items-center gap-6 text-xs text-muted-foreground">
         <div className="flex items-center gap-1">
-          <CheckCircle className="h-3 w-3 text-green-500" />
+          <CheckCircle className="h-3 w-3 text-green-500 dark:text-green-400" />
           <span>{"<= 5%"} afwijking</span>
         </div>
         <div className="flex items-center gap-1">
-          <AlertTriangle className="h-3 w-3 text-yellow-500" />
+          <AlertTriangle className="h-3 w-3 text-yellow-500 dark:text-yellow-400" />
           <span>{"5-15%"} afwijking</span>
         </div>
         <div className="flex items-center gap-1">
-          <AlertCircle className="h-3 w-3 text-red-500" />
+          <AlertCircle className="h-3 w-3 text-red-500 dark:text-red-400" />
           <span>{"> 15%"} afwijking</span>
         </div>
       </div>

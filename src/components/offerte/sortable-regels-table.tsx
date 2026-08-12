@@ -320,7 +320,7 @@ function SortableRegelRow({
             {regel.interneNotitie && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className="inline-flex items-center text-blue-500/70 cursor-help">
+                  <span className="inline-flex items-center text-blue-500 dark:text-blue-400/70 cursor-help">
                     <MessageSquareText className="h-3.5 w-3.5" />
                   </span>
                 </TooltipTrigger>
@@ -334,7 +334,7 @@ function SortableRegelRow({
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <span className="capitalize">{regel.type}</span>
             {regel.optioneel && (
-              <Badge variant="outline" className="text-[10px] px-1 py-0 border-orange-300 text-orange-600">
+              <Badge variant="outline" className="text-[10px] px-1 py-0 border-orange-300 dark:border-orange-700 text-orange-600 dark:text-orange-400">
                 Optioneel
               </Badge>
             )}

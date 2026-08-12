@@ -61,12 +61,12 @@ export function VerlofSaldoCard({ saldo, isLoading }: VerlofsaldoProps) {
 
         <div className="grid grid-cols-3 gap-3">
           <div className="flex flex-col items-center p-2 rounded-lg bg-muted/50">
-            <CheckCircle2 className="h-4 w-4 text-green-600 mb-1" />
+            <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400 mb-1" />
             <span className="text-lg font-semibold">{saldo.restant}</span>
             <span className="text-xs text-muted-foreground">Restant</span>
           </div>
           <div className="flex flex-col items-center p-2 rounded-lg bg-muted/50">
-            <Clock className="h-4 w-4 text-yellow-600 mb-1" />
+            <Clock className="h-4 w-4 text-yellow-600 dark:text-yellow-400 mb-1" />
             <span className="text-lg font-semibold">
               {saldo.gereserveerdDagen}
             </span>
@@ -74,7 +74,7 @@ export function VerlofSaldoCard({ saldo, isLoading }: VerlofsaldoProps) {
           </div>
           <div className="flex flex-col items-center p-2 rounded-lg bg-muted/50">
             <AlertCircle
-              className={`h-4 w-4 mb-1 ${saldo.beschikbaar <= 3 ? "text-red-600" : "text-blue-600"}`}
+              className={`h-4 w-4 mb-1 ${saldo.beschikbaar <= 3 ? "text-red-600 dark:text-red-400" : "text-blue-600 dark:text-blue-400"}`}
             />
             <span className="text-lg font-semibold">
               {saldo.beschikbaar}

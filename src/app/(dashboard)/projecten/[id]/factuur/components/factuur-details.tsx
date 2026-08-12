@@ -242,7 +242,7 @@ export function FactuurRegels({ regels, correcties }: FactuurRegelsProps) {
               {correcties.map((correctie, index) => (
                 <div key={index} className="flex justify-between text-sm">
                   <span className="text-muted-foreground">{correctie.omschrijving}</span>
-                  <span className={correctie.bedrag >= 0 ? "text-green-600" : "text-red-600"}>
+                  <span className={correctie.bedrag >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
                     {correctie.bedrag >= 0 ? "+" : ""}{formatCurrency(correctie.bedrag)}
                   </span>
                 </div>

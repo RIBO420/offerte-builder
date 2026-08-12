@@ -84,7 +84,7 @@ export function NormuurSuggesties() {
     <Card data-testid="normuur-suggesties">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Lightbulb className="size-5 text-amber-500" />
+          <Lightbulb className="size-5 text-amber-500 dark:text-amber-400" />
           Normuur-suggesties uit nacalculatie
         </CardTitle>
         <CardDescription>

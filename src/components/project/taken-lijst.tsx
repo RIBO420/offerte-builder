@@ -73,11 +73,11 @@ interface TakenLijstProps {
 function StatusIcon({ status }: { status: TaakStatus }) {
   switch (status) {
     case "afgerond":
-      return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+      return <CheckCircle2 className="h-4 w-4 text-green-500 dark:text-green-400" />;
     case "gestart":
-      return <PlayCircle className="h-4 w-4 text-blue-500" />;
+      return <PlayCircle className="h-4 w-4 text-blue-500 dark:text-blue-400" />;
     default:
-      return <Circle className="h-4 w-4 text-gray-400" />;
+      return <Circle className="h-4 w-4 text-muted-foreground" />;
   }
 }
 

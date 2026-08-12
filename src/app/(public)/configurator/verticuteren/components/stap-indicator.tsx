@@ -15,7 +15,7 @@ export function StapIndicator({ huidigStap }: { huidigStap: number }) {
         </span>
         <Badge
           variant="outline"
-          className="text-green-700 border-green-300 bg-green-50"
+          className="text-green-700 dark:text-green-400 border-green-300 dark:border-green-800 bg-green-50 dark:bg-green-950"
         >
           {STAP_LABELS[huidigStap - 1]}
         </Badge>
@@ -37,8 +37,8 @@ export function StapIndicator({ huidigStap }: { huidigStap: number }) {
                   isKlaar
                     ? "bg-green-600 border-green-600 text-white"
                     : isActief
-                    ? "border-green-600 text-green-700 bg-white"
-                    : "border-gray-300 text-gray-500 bg-white"
+                    ? "border-green-600 text-green-700 dark:text-green-400 bg-card"
+                    : "border-border text-muted-foreground bg-card"
                 )}
               >
                 {isKlaar ? <CheckCircle2 className="h-4 w-4" /> : stapNummer}
@@ -46,7 +46,9 @@ export function StapIndicator({ huidigStap }: { huidigStap: number }) {
               <span
                 className={cn(
                   "text-xs text-center max-w-16",
-                  isActief ? "text-green-700 font-medium" : "text-muted-foreground"
+                  isActief
+                    ? "text-green-700 dark:text-green-400 font-medium"
+                    : "text-muted-foreground"
                 )}
               >
                 {label}

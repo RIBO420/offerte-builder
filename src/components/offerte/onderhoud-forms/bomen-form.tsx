@@ -72,7 +72,7 @@ function BoomIndicator({ categorie }: { categorie: HoogtecategorieValue | null }
       <TreeDeciduous
         className={
           actief?.klein
-            ? "h-4 w-4 text-green-600"
+            ? "h-4 w-4 text-green-600 dark:text-green-400"
             : "h-4 w-4 text-muted-foreground/30"
         }
       />
@@ -80,7 +80,7 @@ function BoomIndicator({ categorie }: { categorie: HoogtecategorieValue | null }
       <TreeDeciduous
         className={
           actief?.middel
-            ? "h-6 w-6 text-green-700"
+            ? "h-6 w-6 text-green-700 dark:text-green-300"
             : "h-6 w-6 text-muted-foreground/30"
         }
       />
@@ -88,7 +88,7 @@ function BoomIndicator({ categorie }: { categorie: HoogtecategorieValue | null }
       <TreeDeciduous
         className={
           actief?.groot
-            ? "h-8 w-8 text-green-800"
+            ? "h-8 w-8 text-green-800 dark:text-green-200"
             : "h-8 w-8 text-muted-foreground/30"
         }
       />
@@ -251,7 +251,7 @@ export function BomenForm({ data, onChange, onValidationChange }: BomenFormProps
                   }`}
                 >
                   <RadioGroupItem value="0-4m" id="hc-klein" />
-                  <TreeDeciduous className="h-4 w-4 shrink-0 text-green-600" />
+                  <TreeDeciduous className="h-4 w-4 shrink-0 text-green-600 dark:text-green-400" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium">0–4 m — Klein</p>
                     <p className="text-xs text-muted-foreground">
@@ -270,7 +270,7 @@ export function BomenForm({ data, onChange, onValidationChange }: BomenFormProps
                   }`}
                 >
                   <RadioGroupItem value="4-10m" id="hc-middel" />
-                  <TreeDeciduous className="h-6 w-6 shrink-0 text-green-700" />
+                  <TreeDeciduous className="h-6 w-6 shrink-0 text-green-700 dark:text-green-300" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium">4–10 m — Middel</p>
                     <p className="text-xs text-muted-foreground">
@@ -289,7 +289,7 @@ export function BomenForm({ data, onChange, onValidationChange }: BomenFormProps
                   }`}
                 >
                   <RadioGroupItem value="10-20m" id="hc-groot" />
-                  <TreeDeciduous className="h-8 w-8 shrink-0 text-green-800" />
+                  <TreeDeciduous className="h-8 w-8 shrink-0 text-green-800 dark:text-green-200" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium">10–20 m — Groot</p>
                     <p className="text-xs text-muted-foreground">
@@ -409,10 +409,10 @@ export function BomenForm({ data, onChange, onValidationChange }: BomenFormProps
               </FormControl>
               {toonVerkeersmaatregelenWaarschuwing && (
                 <div className="flex items-center gap-1.5 pt-1">
-                  <Info className="h-3.5 w-3.5 shrink-0 text-blue-600" />
+                  <Info className="h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-blue-400" />
                   <Badge
                     variant="outline"
-                    className="text-blue-700 border-blue-300 bg-blue-50 text-xs"
+                    className="text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950 text-xs"
                   >
                     Mogelijk verkeersmaatregelen nodig
                   </Badge>
@@ -461,14 +461,14 @@ export function BomenForm({ data, onChange, onValidationChange }: BomenFormProps
 
               {/* Veiligheidswaarschuwing */}
               {heeftVeiligheidsrisico && (
-                <Card className="border-orange-300 bg-orange-50">
+                <Card className="border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-950">
                   <CardContent className="flex items-start gap-2 p-3">
-                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-orange-600" />
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-orange-600 dark:text-orange-400" />
                     <div className="space-y-1">
-                      <p className="text-xs font-semibold text-orange-800">
+                      <p className="text-xs font-semibold text-orange-800 dark:text-orange-200">
                         Veiligheidsmaatregelen vereist
                       </p>
-                      <ul className="text-xs text-orange-700 space-y-0.5 list-disc list-inside">
+                      <ul className="text-xs text-orange-700 dark:text-orange-300 space-y-0.5 list-disc list-inside">
                         {veiligheid.nabijGebouw && (
                           <li>Bescherming gevelbekleding/dakgoot aanbevolen</li>
                         )}
@@ -587,7 +587,7 @@ export function BomenForm({ data, onChange, onValidationChange }: BomenFormProps
                     `, snoeihout: ~${(watchedValues.aantalBomen * (watchedValues.snoei === "zwaar" ? 0.3 : 0.1)).toFixed(1)} m³`
                   )}
                   {watchedValues.hoogteklasse === "hoog" && (
-                    <span className="text-orange-600"> (hoogwerker nodig)</span>
+                    <span className="text-orange-600 dark:text-orange-400"> (hoogwerker nodig)</span>
                   )}
                 </div>
                 {kroondiameter > 0 && (

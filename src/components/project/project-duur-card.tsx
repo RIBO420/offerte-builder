@@ -188,7 +188,7 @@ export function ProjectDuurCard({
             </div>
             <div className="pt-2 border-t">
               <div className="flex items-center gap-2 text-sm">
-                <CalendarCheck2 className="h-4 w-4 text-green-600" />
+                <CalendarCheck2 className="h-4 w-4 text-green-600 dark:text-green-400" />
                 <span>
                   Verwachte oplevering:{" "}
                   <span className="font-medium">{formatDateNL(eindDatum)}</span>

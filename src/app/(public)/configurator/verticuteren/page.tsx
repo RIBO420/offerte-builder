@@ -250,10 +250,10 @@ export default function VerticuterenConfiguratorPage() {
     <div className="container max-w-3xl mx-auto py-8 px-4">
       {/* Paginatitel */}
       <div className="mb-8 text-center">
-        <div className="inline-flex items-center justify-center h-14 w-14 rounded-2xl bg-green-100 mb-4">
-          <Scissors className="h-7 w-7 text-green-700" />
+        <div className="inline-flex items-center justify-center h-14 w-14 rounded-2xl bg-green-100 dark:bg-green-950 mb-4">
+          <Scissors className="h-7 w-7 text-green-700 dark:text-green-400" />
         </div>
-        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
+        <h2 className="text-2xl sm:text-3xl font-bold text-foreground">
           Verticuteren
         </h2>
         <p className="text-muted-foreground mt-2 max-w-lg mx-auto">
@@ -267,14 +267,14 @@ export default function VerticuterenConfiguratorPage() {
 
       {/* Globale submit-fout */}
       {errors.submit && (
-        <div className="mb-4 flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg text-sm">
-          <XCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-          <p className="text-red-800">{errors.submit}</p>
+        <div className="mb-4 flex items-start gap-3 p-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-900 rounded-lg text-sm">
+          <XCircle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+          <p className="text-red-800 dark:text-red-200">{errors.submit}</p>
         </div>
       )}
 
       {/* Formulier kaart */}
-      <Card className="shadow-sm border-gray-200">
+      <Card className="shadow-sm border-border">
         <CardContent className="pt-6 pb-6">
           {huidigStap === 1 && (
             <Stap1Klantgegevens

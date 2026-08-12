@@ -51,7 +51,7 @@ export function ValidationSummary({ validations, className }: ValidationSummaryP
         <span className="text-muted-foreground">Validatie status</span>
         <span className={cn(
           "font-medium",
-          totalErrors > 0 ? "text-orange-600" : "text-green-600"
+          totalErrors > 0 ? "text-orange-600 dark:text-orange-400" : "text-green-600 dark:text-green-400"
         )}>
           {validCount}/{validations.length} compleet
         </span>
@@ -82,13 +82,13 @@ export function ValidationSummary({ validations, className }: ValidationSummaryP
                 </div>
                 <div className="flex items-center gap-1.5">
                   {validation.isValid ? (
-                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
                   ) : (
                     <>
-                      <span className="text-xs text-orange-600">
+                      <span className="text-xs text-orange-600 dark:text-orange-400">
                         {validation.errors.length} fout{validation.errors.length !== 1 ? "en" : ""}
                       </span>
-                      <AlertCircle className="h-4 w-4 text-orange-600" />
+                      <AlertCircle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
                       {hasErrors && (
                         isExpanded ? (
                           <ChevronDown className="h-3 w-3 text-muted-foreground" />
@@ -103,10 +103,10 @@ export function ValidationSummary({ validations, className }: ValidationSummaryP
 
               {/* Error details */}
               {isExpanded && hasErrors && (
-                <div className="border-t px-3 py-2 bg-orange-50/50">
+                <div className="border-t px-3 py-2 bg-orange-50 dark:bg-orange-950/50">
                   <ul className="space-y-1">
                     {validation.errors.map((error, idx) => (
-                      <li key={idx} className="flex items-start gap-2 text-xs text-orange-700">
+                      <li key={idx} className="flex items-start gap-2 text-xs text-orange-700 dark:text-orange-300">
                         <span className="mt-0.5 h-1 w-1 shrink-0 rounded-full bg-orange-500" />
                         <span>
                           <span className="font-medium">{formatFieldName(error.field)}:</span>{" "}

@@ -70,7 +70,7 @@ export function Stap3DatumOverzicht({
 
       {/* Kalender */}
       <div className="space-y-2">
-        <p className="text-sm font-medium text-gray-900">
+        <p className="text-sm font-medium text-foreground">
           Gewenste datum <span className="text-red-500">*</span>
         </p>
         <BeschikbaarheidsKalender
@@ -81,7 +81,9 @@ export function Stap3DatumOverzicht({
           geblokkeerdeDagen={[0, 6]}
         />
         {errors.gewensteDatum && (
-          <p className="text-xs text-red-600">{errors.gewensteDatum}</p>
+          <p className="text-xs text-red-600 dark:text-red-400">
+            {errors.gewensteDatum}
+          </p>
         )}
       </div>
 
@@ -90,13 +92,13 @@ export function Stap3DatumOverzicht({
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
-              <Calculator className="h-4 w-4 text-green-600" />
+              <Calculator className="h-4 w-4 text-green-600 dark:text-green-400" />
               Indicatieprijs berekening
             </CardTitle>
           </CardHeader>
           <CardContent>
             {/* Klantgegevens samenvatting */}
-            <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-100">
+            <div className="mb-4 p-3 bg-muted rounded-lg border border-border">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
                 Aanvraag voor
               </p>
@@ -130,7 +132,7 @@ export function Stap3DatumOverzicht({
               </div>
             </div>
 
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-border">
               {/* Basisprijs */}
               <PrijsRegelRij
                 label="Verticuteren (basisprijs)"
@@ -215,7 +217,7 @@ export function Stap3DatumOverzicht({
               <Separator />
               <div className="flex justify-between text-base font-bold pt-1">
                 <span>Totaal (incl. BTW)</span>
-                <span className="text-green-700 tabular-nums">
+                <span className="text-green-700 dark:text-green-400 tabular-nums">
                   {formatEuro(prijs.totaal)}
                 </span>
               </div>
@@ -223,7 +225,7 @@ export function Stap3DatumOverzicht({
           </CardContent>
         </Card>
       ) : (
-        <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground border rounded-lg bg-gray-50">
+        <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground border rounded-lg bg-muted">
           <Calculator className="h-10 w-10 mb-3 opacity-40" />
           <p className="font-medium">Geen volledige gegevens</p>
           <p className="text-sm mt-1">
@@ -233,9 +235,9 @@ export function Stap3DatumOverzicht({
       )}
 
       {/* Disclaimer */}
-      <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-100 rounded-lg">
-        <Info className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
-        <p className="text-sm text-blue-800">
+      <div className="flex items-start gap-3 p-4 bg-blue-50 dark:bg-blue-950 border border-blue-100 dark:border-blue-900 rounded-lg">
+        <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+        <p className="text-sm text-blue-800 dark:text-blue-200">
           <span className="font-semibold">Indicatieprijs</span> — Dit is een
           indicatieprijs op basis van uw opgegeven gegevens. Na verificatie door
           ons team ontvangt u een definitieve offerte. De eindprijs kan licht
@@ -260,7 +262,7 @@ export function Stap3DatumOverzicht({
 
       {/* Algemene voorwaarden */}
       <div
-        className="flex items-start gap-3 p-4 rounded-lg border-2 border-gray-200 hover:border-green-300 transition-colors cursor-pointer"
+        className="flex items-start gap-3 p-4 rounded-lg border-2 border-border hover:border-green-300 dark:hover:border-green-700 transition-colors cursor-pointer"
         onClick={() => onAkkoordChange(!akkoordVoorwaarden)}
       >
         <Checkbox
@@ -269,11 +271,11 @@ export function Stap3DatumOverzicht({
           className="mt-0.5 flex-shrink-0 data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
           onClick={(e) => e.stopPropagation()}
         />
-        <p className="text-sm text-gray-700 select-none">
+        <p className="text-sm text-foreground select-none">
           Ik ga akkoord met de{" "}
           <a
             href="#"
-            className="text-green-700 font-medium underline underline-offset-2 hover:text-green-900"
+            className="text-green-700 dark:text-green-400 font-medium underline underline-offset-2 hover:text-green-900 dark:hover:text-green-300"
             onClick={(e) => e.stopPropagation()}
           >
             algemene voorwaarden

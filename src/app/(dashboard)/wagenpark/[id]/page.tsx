@@ -354,12 +354,12 @@ export default function VoertuigDetailPage({
                           <span
                             className={
                               apkDaysLeft < 0
-                                ? "text-red-500 font-medium"
+                                ? "text-red-500 dark:text-red-400 font-medium"
                                 : apkDaysLeft <= 30
-                                ? "text-red-500 font-medium"
+                                ? "text-red-500 dark:text-red-400 font-medium"
                                 : apkDaysLeft <= 60
-                                ? "text-amber-500 font-medium"
-                                : "text-green-500 font-medium"
+                                ? "text-amber-500 dark:text-amber-400 font-medium"
+                                : "text-green-500 dark:text-green-400 font-medium"
                             }
                           >
                             {apkDaysLeft < 0
@@ -416,12 +416,12 @@ export default function VoertuigDetailPage({
                           <span
                             className={
                               verzekeringDaysLeft < 0
-                                ? "text-red-500 font-medium"
+                                ? "text-red-500 dark:text-red-400 font-medium"
                                 : verzekeringDaysLeft <= 30
-                                ? "text-red-500 font-medium"
+                                ? "text-red-500 dark:text-red-400 font-medium"
                                 : verzekeringDaysLeft <= 60
-                                ? "text-amber-500 font-medium"
-                                : "text-green-500 font-medium"
+                                ? "text-amber-500 dark:text-amber-400 font-medium"
+                                : "text-green-500 dark:text-green-400 font-medium"
                             }
                           >
                             {verzekeringDaysLeft < 0

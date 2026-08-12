@@ -235,7 +235,7 @@ export default function GazonConfiguratorPage() {
     <div className="container max-w-3xl mx-auto py-8 px-4">
       {/* Paginatitel */}
       <div className="mb-8 text-center">
-        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
+        <h2 className="text-2xl sm:text-3xl font-bold text-foreground">
           Gazon aanleggen
         </h2>
         <p className="text-muted-foreground mt-2 max-w-lg mx-auto">
@@ -248,7 +248,7 @@ export default function GazonConfiguratorPage() {
       <StapIndicator huidigStap={huidigStap} />
 
       {/* Formulier kaart */}
-      <Card className="shadow-sm border-gray-200">
+      <Card className="shadow-sm border-border">
         <CardContent className="pt-6 pb-6">
           {huidigStap === 1 && (
             <Stap1Klantgegevens

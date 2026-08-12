@@ -60,8 +60,8 @@ export function Stap2GazonSpecs({
 
       {/* Type gras */}
       <div className="space-y-3">
-        <Label className={cn("text-sm font-medium", errors.typeGras && "text-red-600")}>
-          Type gras <span className="text-red-500">*</span>
+        <Label className={cn("text-sm font-medium", errors.typeGras && "text-red-600 dark:text-red-400")}>
+          Type gras <span className="text-red-500 dark:text-red-400">*</span>
         </Label>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {(Object.entries(TYPE_GRAS_CONFIG) as [TypeGras, typeof TYPE_GRAS_CONFIG[TypeGras]][]).map(
@@ -74,10 +74,10 @@ export function Stap2GazonSpecs({
                   "text-left p-4 rounded-lg border-2 transition-all cursor-pointer hover:shadow-sm",
                   data.typeGras === type
                     ? config.kleur + " shadow-sm"
-                    : "border-gray-200 hover:border-gray-300 bg-white"
+                    : "border-border hover:border-muted-foreground/40 bg-card"
                 )}
               >
-                <p className="font-semibold text-sm text-gray-900">{config.label}</p>
+                <p className="font-semibold text-sm text-foreground">{config.label}</p>
                 <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                   {config.uitleg}
                 </p>
@@ -87,7 +87,7 @@ export function Stap2GazonSpecs({
                     "mt-3 text-xs",
                     data.typeGras === type
                       ? "border-current"
-                      : "border-gray-300"
+                      : "border-border"
                   )}
                 >
                   {config.prijsIndicatie}
@@ -97,14 +97,14 @@ export function Stap2GazonSpecs({
           )}
         </div>
         {errors.typeGras && (
-          <p className="text-xs text-red-600">{errors.typeGras}</p>
+          <p className="text-xs text-red-600 dark:text-red-400">{errors.typeGras}</p>
         )}
       </div>
 
       {/* Ondergrond */}
       <div className="space-y-3">
-        <Label className={cn("text-sm font-medium", errors.ondergrond && "text-red-600")}>
-          Huidige ondergrond <span className="text-red-500">*</span>
+        <Label className={cn("text-sm font-medium", errors.ondergrond && "text-red-600 dark:text-red-400")}>
+          Huidige ondergrond <span className="text-red-500 dark:text-red-400">*</span>
         </Label>
         <div className="space-y-2">
           {(Object.entries(ONDERGROND_CONFIG) as [Ondergrond, typeof ONDERGROND_CONFIG[Ondergrond]][]).map(
@@ -116,27 +116,30 @@ export function Stap2GazonSpecs({
                 className={cn(
                   "w-full text-left px-4 py-3 rounded-lg border-2 transition-all cursor-pointer hover:shadow-sm flex items-start justify-between gap-4",
                   data.ondergrond === type
-                    ? "border-green-500 bg-green-50 shadow-sm"
-                    : "border-gray-200 hover:border-gray-300 bg-white"
+                    ? "border-green-500 bg-green-50 dark:bg-green-950 shadow-sm"
+                    : "border-border hover:border-muted-foreground/40 bg-card"
                 )}
               >
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm text-gray-900">{config.label}</p>
+                  <p className="font-medium text-sm text-foreground">{config.label}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">{config.uitleg}</p>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   {config.toeslag && (
-                    <Badge variant="outline" className="text-xs text-amber-700 border-amber-300 bg-amber-50">
+                    <Badge
+                      variant="outline"
+                      className="text-xs text-amber-700 border-amber-300 bg-amber-50 dark:text-amber-300 dark:border-amber-800 dark:bg-amber-950"
+                    >
                       Toeslag
                     </Badge>
                   )}
                   {config.tarief > 0 && (
-                    <span className="text-xs font-medium text-gray-600">
+                    <span className="text-xs font-medium text-muted-foreground">
                       +€{config.tarief}/m²
                     </span>
                   )}
                   {config.tarief === 0 && (
-                    <span className="text-xs font-medium text-green-700">
+                    <span className="text-xs font-medium text-green-700 dark:text-green-400">
                       Inbegrepen
                     </span>
                   )}
@@ -146,7 +149,7 @@ export function Stap2GazonSpecs({
           )}
         </div>
         {errors.ondergrond && (
-          <p className="text-xs text-red-600">{errors.ondergrond}</p>
+          <p className="text-xs text-red-600 dark:text-red-400">{errors.ondergrond}</p>
         )}
       </div>
 
@@ -154,12 +157,12 @@ export function Stap2GazonSpecs({
 
       {/* Opties */}
       <div className="space-y-4">
-        <p className="text-sm font-medium text-gray-900">Extra opties</p>
+        <p className="text-sm font-medium text-foreground">Extra opties</p>
 
         {/* Drainage */}
-        <div className="flex items-center justify-between p-4 rounded-lg border border-gray-200 bg-gray-50">
+        <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-muted">
           <div className="flex-1 pr-4">
-            <p className="text-sm font-medium text-gray-900">Drainage aanleggen</p>
+            <p className="text-sm font-medium text-foreground">Drainage aanleggen</p>
             <p className="text-xs text-muted-foreground mt-0.5">
               Aanbevolen bij zware kleigrond of wateroverlast. Schatting: 1 m
               drainage per 10 m² — €15/m
@@ -172,9 +175,9 @@ export function Stap2GazonSpecs({
         </div>
 
         {/* Opsluitbanden */}
-        <div className="flex items-center justify-between p-4 rounded-lg border border-gray-200 bg-gray-50">
+        <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-muted">
           <div className="flex-1 pr-4">
-            <p className="text-sm font-medium text-gray-900">Opsluitbanden plaatsen</p>
+            <p className="text-sm font-medium text-foreground">Opsluitbanden plaatsen</p>
             <p className="text-xs text-muted-foreground mt-0.5">
               Nette afscheiding van het gazon naar borders, paden of bestrating — €18/m
             </p>
@@ -190,7 +193,7 @@ export function Stap2GazonSpecs({
 
         {/* Opsluitbanden meters — alleen zichtbaar als toggle aan */}
         {data.opsluitbanden && (
-          <div className="ml-4 pl-4 border-l-2 border-green-200">
+          <div className="ml-4 pl-4 border-l-2 border-green-200 dark:border-green-900">
             <Field label="Aantal strekkende meters" error={errors.opsluitbandenMeters}>
               <div className="flex items-center gap-3">
                 <Input

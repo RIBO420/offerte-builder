@@ -124,7 +124,7 @@ export function HerinneringenTab({
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Info className="h-5 w-5 text-blue-500" />
+            <Info className="h-5 w-5 text-blue-500 dark:text-blue-400" />
             Over betalingsherinneringen
           </CardTitle>
         </CardHeader>
@@ -145,7 +145,7 @@ export function HerinneringenTab({
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Bell className="h-5 w-5 text-amber-500" />
+            <Bell className="h-5 w-5 text-amber-500 dark:text-amber-400" />
             Betalingsherinneringen
           </CardTitle>
           <CardDescription>
@@ -208,7 +208,7 @@ export function HerinneringenTab({
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Scale className="h-5 w-5 text-red-500" />
+            <Scale className="h-5 w-5 text-red-500 dark:text-red-400" />
             Aanmaningen
           </CardTitle>
           <CardDescription>
@@ -279,37 +279,48 @@ export function HerinneringenTab({
         </CardHeader>
         <CardContent>
           <div className="relative space-y-3">
+            {/*
+              Statuskleuren hebben geen design-token; daarom een expliciete
+              dark:-variant per stap. In dark mode schuift de hele reeks een
+              tint lichter/feller op, zodat de stippen op de donkere
+              achtergrond zichtbaar blijven én de escalatie (amber → oranje →
+              rood, oplopend in intensiteit) onderling onderscheidbaar blijft.
+            */}
             {[
-              { dag: 0, label: "Vervaldatum", color: "bg-amber-500" },
+              {
+                dag: 0,
+                label: "Vervaldatum",
+                color: "bg-amber-500 dark:bg-amber-400",
+              },
               {
                 dag: herinnering1,
                 label: "1e herinnering",
-                color: "bg-amber-400",
+                color: "bg-amber-400 dark:bg-amber-300",
               },
               {
                 dag: herinnering2,
                 label: "2e herinnering",
-                color: "bg-amber-500",
+                color: "bg-amber-500 dark:bg-amber-400",
               },
               {
                 dag: herinnering3,
                 label: "3e herinnering",
-                color: "bg-orange-500",
+                color: "bg-orange-500 dark:bg-orange-400",
               },
               {
                 dag: aanmaning1,
                 label: "1e aanmaning",
-                color: "bg-red-400",
+                color: "bg-red-400 dark:bg-red-300",
               },
               {
                 dag: aanmaning2,
                 label: "2e aanmaning",
-                color: "bg-red-500",
+                color: "bg-red-500 dark:bg-red-400",
               },
               {
                 dag: aanmaning3,
                 label: "Ingebrekestelling",
-                color: "bg-red-700",
+                color: "bg-red-700 dark:bg-red-500",
               },
             ].map((item, index) => (
               <div key={index} className="flex items-center gap-3">

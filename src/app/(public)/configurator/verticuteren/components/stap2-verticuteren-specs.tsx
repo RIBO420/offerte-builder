@@ -64,7 +64,7 @@ export function Stap2VerticuterenSpecs({
         <Label
           className={cn(
             "text-sm font-medium",
-            errors.conditie && "text-red-600"
+            errors.conditie && "text-red-600 dark:text-red-400"
           )}
         >
           Huidige conditie van het gazon{" "}
@@ -85,12 +85,12 @@ export function Stap2VerticuterenSpecs({
                 "text-left p-4 rounded-lg border-2 transition-all cursor-pointer hover:shadow-sm",
                 data.conditie === conditie
                   ? config.kleur + " shadow-sm"
-                  : "border-gray-200 hover:border-gray-300 bg-white"
+                  : "border-border hover:border-muted-foreground/40 bg-card"
               )}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1">
-                  <p className="font-semibold text-sm text-gray-900">
+                  <p className="font-semibold text-sm text-foreground">
                     {config.label}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
@@ -104,7 +104,7 @@ export function Stap2VerticuterenSpecs({
                       "text-xs flex-shrink-0 mt-0.5",
                       data.conditie === conditie
                         ? "border-current " + config.intensiteit
-                        : "border-gray-300 text-gray-500"
+                        : "border-border text-muted-foreground"
                     )}
                   >
                     +{config.toeslagPercent}%
@@ -115,8 +115,8 @@ export function Stap2VerticuterenSpecs({
                     className={cn(
                       "text-xs flex-shrink-0 mt-0.5",
                       data.conditie === conditie
-                        ? "border-green-500 text-green-700"
-                        : "border-gray-300 text-gray-500"
+                        ? "border-green-500 text-green-700 dark:text-green-400"
+                        : "border-border text-muted-foreground"
                     )}
                   >
                     Standaard
@@ -127,7 +127,9 @@ export function Stap2VerticuterenSpecs({
           ))}
         </div>
         {errors.conditie && (
-          <p className="text-xs text-red-600">{errors.conditie}</p>
+          <p className="text-xs text-red-600 dark:text-red-400">
+            {errors.conditie}
+          </p>
         )}
       </div>
 
@@ -135,14 +137,14 @@ export function Stap2VerticuterenSpecs({
 
       {/* Extra opties */}
       <div className="space-y-4">
-        <p className="text-sm font-medium text-gray-900">
+        <p className="text-sm font-medium text-foreground">
           Extra opties na het verticuteren
         </p>
 
         {/* Bijzaaien */}
-        <div className="flex items-center justify-between p-4 rounded-lg border border-gray-200 bg-gray-50">
+        <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-muted">
           <div className="flex-1 pr-4">
-            <p className="text-sm font-medium text-gray-900">
+            <p className="text-sm font-medium text-foreground">
               Bijzaaien na verticuteren
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
@@ -157,9 +159,9 @@ export function Stap2VerticuterenSpecs({
         </div>
 
         {/* Topdressing */}
-        <div className="flex items-center justify-between p-4 rounded-lg border border-gray-200 bg-gray-50">
+        <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-muted">
           <div className="flex-1 pr-4">
-            <p className="text-sm font-medium text-gray-900">
+            <p className="text-sm font-medium text-foreground">
               Topdressing aanbrengen
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
@@ -178,13 +180,13 @@ export function Stap2VerticuterenSpecs({
           className={cn(
             "flex items-center justify-between p-4 rounded-lg border-2 transition-colors",
             data.bemesting
-              ? "border-green-400 bg-green-50"
-              : "border-green-200 bg-green-50/40"
+              ? "border-green-400 bg-green-50 dark:bg-green-950"
+              : "border-green-200 dark:border-green-900 bg-green-50/40 dark:bg-green-950/40"
           )}
         >
           <div className="flex-1 pr-4">
             <div className="flex items-center gap-2 mb-0.5">
-              <p className="text-sm font-medium text-gray-900">
+              <p className="text-sm font-medium text-foreground">
                 Bemesting toevoegen
               </p>
               <Badge className="text-xs bg-green-600 hover:bg-green-600 text-white border-0">

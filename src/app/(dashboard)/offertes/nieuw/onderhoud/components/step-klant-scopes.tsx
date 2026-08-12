@@ -234,7 +234,7 @@ export function StepKlantScopes({
                             <Badge
                               key={v}
                               variant="outline"
-                              className="text-[10px] px-1.5 py-0 border-amber-500 text-amber-600"
+                              className="text-[10px] px-1.5 py-0 border-amber-500 text-amber-600 dark:text-amber-400"
                             >
                               verplicht: {v}
                             </Badge>

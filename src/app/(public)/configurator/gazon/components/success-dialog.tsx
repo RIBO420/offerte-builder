@@ -88,8 +88,8 @@ export function SuccessDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <div className="flex flex-col items-center text-center gap-4 py-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-              <CheckCircle2 className="h-9 w-9 text-green-600" />
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-950">
+              <CheckCircle2 className="h-9 w-9 text-green-600 dark:text-green-400" />
             </div>
             <div>
               <DialogTitle className="text-xl font-bold">
@@ -107,42 +107,43 @@ export function SuccessDialog({
 
         <div className="space-y-4 py-2">
           {/* Referentienummer */}
-          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <div className="flex items-center justify-between p-4 bg-muted rounded-lg border border-border">
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">
                 Uw referentienummer
               </p>
-              <p className="text-lg font-bold text-green-700 font-mono mt-0.5">
+              <p className="text-lg font-bold text-green-700 dark:text-green-400 font-mono mt-0.5">
                 {referentie}
               </p>
             </div>
-            <Leaf className="h-8 w-8 text-green-200" />
+            {/* Decoratief blad — bewust laag contrast, dus in dark mode juist een donkere tint */}
+            <Leaf className="h-8 w-8 text-green-200 dark:text-green-900" />
           </div>
 
           <ul className="space-y-2 text-sm text-muted-foreground">
             <li className="flex items-start gap-2">
-              <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
+              <CheckCircle2 className="h-4 w-4 text-green-500 dark:text-green-400 flex-shrink-0 mt-0.5" />
               Uw aanvraag is ontvangen en geregistreerd
             </li>
             <li className="flex items-start gap-2">
-              <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
+              <CheckCircle2 className="h-4 w-4 text-green-500 dark:text-green-400 flex-shrink-0 mt-0.5" />
               Wij nemen contact met u op voor een afspraak ter plaatse
             </li>
             <li className="flex items-start gap-2">
-              <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
+              <CheckCircle2 className="h-4 w-4 text-green-500 dark:text-green-400 flex-shrink-0 mt-0.5" />
               Na inspectie ontvangt u een definitieve offerte
             </li>
           </ul>
 
           {/* Aanbetaling sectie */}
-          <div className="rounded-lg border-2 border-dashed border-green-200 bg-green-50/50 p-4 space-y-3">
+          <div className="rounded-lg border-2 border-dashed border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/40 p-4 space-y-3">
             <div className="flex items-center gap-2">
-              <CreditCard className="h-4 w-4 text-green-700" />
-              <p className="text-sm font-semibold text-green-900">
+              <CreditCard className="h-4 w-4 text-green-700 dark:text-green-400" />
+              <p className="text-sm font-semibold text-green-900 dark:text-green-100">
                 Aanbetaling (optioneel)
               </p>
             </div>
-            <p className="text-xs text-green-800 leading-relaxed">
+            <p className="text-xs text-green-800 dark:text-green-200 leading-relaxed">
               Betaal €{AANBETALING_BEDRAG} aanbetaling om uw aanvraag prioriteit te
               geven. Uw aanvraag wordt dan direct behandeld.
             </p>
@@ -167,7 +168,7 @@ export function SuccessDialog({
             <button
               type="button"
               onClick={onSluiten}
-              className="w-full text-xs text-muted-foreground hover:text-gray-700 underline underline-offset-2 transition-colors py-1"
+              className="w-full text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors py-1"
             >
               Of ga verder zonder aanbetaling
             </button>

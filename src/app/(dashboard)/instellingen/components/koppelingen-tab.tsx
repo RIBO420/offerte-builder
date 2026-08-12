@@ -267,12 +267,15 @@ function ConnectedProviderCard({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
-                <CheckCircle className="h-5 w-5 text-green-600" />
+                <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
               </div>
               <div>
                 <CardTitle className="text-lg flex items-center gap-2">
                   {providerInfo?.naam ?? instellingen.provider}
-                  <Badge variant="outline" className="text-green-600 border-green-300">
+                  <Badge
+                    variant="outline"
+                    className="text-green-600 border-green-300 dark:text-green-400 dark:border-green-800"
+                  >
                     Verbonden
                   </Badge>
                 </CardTitle>
@@ -355,7 +358,7 @@ function ConnectedProviderCard({
                 })}
               </span>
               {instellingen.laatsteSyncStatus === "success" && (
-                <CheckCircle className="h-3.5 w-3.5 text-green-500" />
+                <CheckCircle className="h-3.5 w-3.5 text-green-500 dark:text-green-400" />
               )}
               {instellingen.laatsteSyncStatus === "error" && (
                 <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
@@ -517,7 +520,7 @@ function SetupDialog({
               Test verbinding
             </Button>
             {testResult === true && (
-              <span className="flex items-center gap-1 text-sm text-green-600">
+              <span className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
                 <CheckCircle className="h-4 w-4" /> Succesvol
               </span>
             )}
@@ -759,7 +762,7 @@ function VoorwaardenCard() {
         {voorwaarden?.url ? (
           <div className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
             <div className="flex items-center gap-2 min-w-0">
-              <FileText className="h-4 w-4 text-green-500 shrink-0" />
+              <FileText className="h-4 w-4 text-green-500 dark:text-green-400 shrink-0" />
               <span className="text-sm truncate">{voorwaarden.naam}</span>
             </div>
             <div className="flex items-center gap-1 shrink-0">

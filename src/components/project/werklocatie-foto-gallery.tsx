@@ -336,7 +336,7 @@ export function WerklocatieFotoGallery({
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="h-8 w-8 text-red-400 hover:bg-red-500/20 hover:text-red-300"
+                  className="h-8 w-8 text-red-400 dark:text-red-300 hover:bg-red-500/20 hover:text-red-300"
                   onClick={() =>
                     setDeleteConfirmUrl(filteredFotos[selectedIndex].url)
                   }
