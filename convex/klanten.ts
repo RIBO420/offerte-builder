@@ -7,7 +7,10 @@ import {
   sanitizeEmail,
   sanitizePhone,
   validateRequiredPostcode,
+  normaliseerImportPostcode,
   sanitizeOptionalString,
+  sanitizeKvkNummer,
+  sanitizeBtwNummer,
 } from "./validators";
 import { hoortInKlantenLijst } from "./leadsKlantenHelpers";
 import { logTijdlijnEvent } from "./tijdlijn";
@@ -135,6 +138,10 @@ export const create = mutation({
     notities: v.optional(v.string()),
     klantType: klantTypeValidator,
     tags: v.optional(v.array(v.string())),
+    // TT-002: zakelijke velden (alleen relevant bij een niet-particuliere klant)
+    contactpersoon: v.optional(v.string()),
+    kvkNummer: v.optional(v.string()),
+    btwNummer: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
@@ -176,6 +183,9 @@ export const create = mutation({
       // het lifecycle-stadium volgt uit echte events (upgradeKlantPipeline).
       klantType: args.klantType ?? "particulier",
       tags: sanitizedTags,
+      contactpersoon: sanitizeOptionalString(args.contactpersoon),
+      kvkNummer: sanitizeKvkNummer(args.kvkNummer),
+      btwNummer: sanitizeBtwNummer(args.btwNummer),
       createdAt: now,
       updatedAt: now,
     });
@@ -195,6 +205,10 @@ export const update = mutation({
     notities: v.optional(v.string()),
     klantType: klantTypeValidator,
     tags: v.optional(v.array(v.string())),
+    // TT-002: zakelijke velden
+    contactpersoon: v.optional(v.string()),
+    kvkNummer: v.optional(v.string()),
+    btwNummer: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
@@ -248,6 +262,18 @@ export const update = mutation({
     if (args.tags !== undefined) {
       // Sanitize tags: trim, lowercase, remove empties, deduplicate
       filteredUpdates.tags = [...new Set(args.tags.map((t) => t.trim().toLowerCase()).filter(Boolean))];
+    }
+
+    if (args.contactpersoon !== undefined) {
+      filteredUpdates.contactpersoon = sanitizeOptionalString(args.contactpersoon);
+    }
+
+    if (args.kvkNummer !== undefined) {
+      filteredUpdates.kvkNummer = sanitizeKvkNummer(args.kvkNummer);
+    }
+
+    if (args.btwNummer !== undefined) {
+      filteredUpdates.btwNummer = sanitizeBtwNummer(args.btwNummer);
     }
 
     await ctx.db.patch(args.id, {
@@ -732,9 +758,13 @@ export const importKlanten = mutation({
         naam: v.string(),
         email: v.optional(v.string()),
         telefoon: v.optional(v.string()),
-        adres: v.string(),
-        postcode: v.string(),
-        plaats: v.string(),
+        // Adresvelden zijn optioneel bij import: een onvolledig adres is geen
+        // reden om een klant buiten de deur te houden (zie normaliseerImportPostcode).
+        adres: v.optional(v.string()),
+        postcode: v.optional(v.string()),
+        plaats: v.optional(v.string()),
+        // TT-002: bij een bedrijfsrij is dit de persoon achter de bedrijfsnaam
+        contactpersoon: v.optional(v.string()),
         klantType: v.optional(
           v.union(
             v.literal("particulier"),
@@ -773,15 +803,11 @@ export const importKlanten = mutation({
           continue;
         }
 
-        if (!klant.postcode.trim()) {
-          errors.push(`Rij ${rowNum}: Postcode is verplicht`);
-          continue;
-        }
-
-        if (!klant.plaats.trim()) {
-          errors.push(`Rij ${rowNum}: Plaats is verplicht`);
-          continue;
-        }
+        // Postcode en plaats zijn bewust NIET verplicht bij import — zie de
+        // toelichting op de args hierboven.
+        const postcode = normaliseerImportPostcode(klant.postcode);
+        const adres = (klant.adres ?? "").trim();
+        const plaats = (klant.plaats ?? "").trim();
 
         // Check for duplicates
         const isDuplicate = existingKlanten.some((existing) => {
@@ -797,8 +823,8 @@ export const importKlanten = mutation({
           // Check naam + postcode combo
           if (
             klant.naam.trim().toLowerCase() === existing.naam.toLowerCase() &&
-            klant.postcode.replace(/\s/g, "").toLowerCase() ===
-              existing.postcode.replace(/\s/g, "").toLowerCase()
+            postcode.replace(/\s/g, "").toLowerCase() ===
+              (existing.postcode ?? "").replace(/\s/g, "").toLowerCase()
           ) {
             return true;
           }
@@ -812,16 +838,15 @@ export const importKlanten = mutation({
         }
 
         // Sanitize fields
-        const postcode = validateRequiredPostcode(klant.postcode);
         const email = sanitizeEmail(klant.email);
         const telefoon = sanitizePhone(klant.telefoon);
 
         const newId = await ctx.db.insert("klanten", {
           userId,
           naam: klant.naam.trim(),
-          adres: klant.adres.trim(),
+          adres,
           postcode,
-          plaats: klant.plaats.trim(),
+          plaats,
           email,
           telefoon,
           // PRD §1.3: geen "lead"-default meer (zie leadsKlantenHelpers.ts)
@@ -836,11 +861,12 @@ export const importKlanten = mutation({
           _creationTime: now,
           userId,
           naam: klant.naam.trim(),
-          adres: klant.adres.trim(),
+          adres,
           postcode,
-          plaats: klant.plaats.trim(),
+          plaats,
           email,
           telefoon,
+          contactpersoon: sanitizeOptionalString(klant.contactpersoon),
           klantType: klant.klantType ?? "particulier",
           createdAt: now,
           updatedAt: now,

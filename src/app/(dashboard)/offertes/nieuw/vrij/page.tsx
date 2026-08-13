@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "convex/react";
-import { PenLine, ArrowRight, Loader2 } from "lucide-react";
+import { PenLine, ArrowRight, Loader2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,6 +21,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PageHeader } from "@/components/page-header";
+import {
+  NieuweKlantDialog,
+  type AangemaakteKlant,
+} from "@/components/klanten/nieuwe-klant-dialog";
 import { useKlanten } from "@/hooks/use-klanten";
 import { api } from "../../../../../../convex/_generated/api";
 import type { Id } from "../../../../../../convex/_generated/dataModel";
@@ -40,9 +44,25 @@ export default function NieuweVrijeOffertePage() {
   const [klantId, setKlantId] = useState<string>("");
   const [type, setType] = useState<"aanleg" | "onderhoud">("aanleg");
   const [bezig, setBezig] = useState(false);
+  const [showNieuweKlant, setShowNieuweKlant] = useState(false);
+  // Een net aangemaakte klant zit nog niet noodzakelijk in `klanten` (de query
+  // moet eerst opnieuw binnenkomen), dus houden we hem hier apart bij.
+  const [nieuweKlant, setNieuweKlant] = useState<AangemaakteKlant | null>(null);
+
+  const klantOpties = useMemo(() => {
+    if (!nieuweKlant || klanten.some((k) => k._id === nieuweKlant._id)) {
+      return klanten;
+    }
+    return [nieuweKlant, ...klanten];
+  }, [klanten, nieuweKlant]);
+
+  const handleKlantAangemaakt = (klant: AangemaakteKlant) => {
+    setNieuweKlant(klant);
+    setKlantId(klant._id);
+  };
 
   const start = async () => {
-    const klant = klanten.find((k) => k._id === klantId);
+    const klant = klantOpties.find((k) => k._id === klantId);
     if (!klant) {
       toast.error("Kies eerst een klant");
       return;
@@ -104,20 +124,34 @@ export default function NieuweVrijeOffertePage() {
             <label className="text-sm font-medium" htmlFor="klant-select">
               Klant
             </label>
-            <Select value={klantId} onValueChange={setKlantId}>
-              <SelectTrigger id="klant-select" aria-label="Kies klant">
-                <SelectValue
-                  placeholder={isLoading ? "Klanten laden…" : "Kies een klant"}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {klanten.map((klant) => (
-                  <SelectItem key={klant._id} value={klant._id}>
-                    {klant.naam} — {klant.plaats}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2">
+              <Select value={klantId} onValueChange={setKlantId}>
+                <SelectTrigger
+                  id="klant-select"
+                  aria-label="Kies klant"
+                  className="flex-1"
+                >
+                  <SelectValue
+                    placeholder={isLoading ? "Klanten laden…" : "Kies een klant"}
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {klantOpties.map((klant) => (
+                    <SelectItem key={klant._id} value={klant._id}>
+                      {klant.naam} — {klant.plaats}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowNieuweKlant(true)}
+              >
+                <UserPlus className="mr-2 h-4 w-4" />
+                Nieuw
+              </Button>
+            </div>
           </div>
           <div className="space-y-1.5">
             <label className="text-sm font-medium" htmlFor="type-select">
@@ -163,6 +197,12 @@ export default function NieuweVrijeOffertePage() {
       </Card>
         </div>
       </div>
+
+      <NieuweKlantDialog
+        open={showNieuweKlant}
+        onOpenChange={setShowNieuweKlant}
+        onCreated={handleKlantAangemaakt}
+      />
     </>
   );
 }

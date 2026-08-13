@@ -27,6 +27,7 @@ import { useOnboarding } from "@/hooks/use-onboarding";
 import { WelcomeModal, OnboardingChecklist } from "@/components/onboarding";
 import { VoormanDashboard } from "@/components/dashboard/voorman-dashboard";
 import { WarningsFeed } from "@/components/dashboard/warnings-feed";
+import { MijnTaken } from "@/components/dashboard/mijn-taken";
 import { useAdminDashboardData } from "@/hooks/use-dashboard";
 import { AandachtNodig } from "@/components/dashboard/aandacht-nodig";
 import { FinancieelGrid } from "@/components/dashboard/financieel-grid";
@@ -161,6 +162,9 @@ export default function DashboardPage() {
 
             {/* Proactive Warnings for medewerkers (SOD-004) */}
             <WarningsFeed />
+
+            {/* Klanttaken die aan mij zijn toegewezen (rendert niets als leeg) */}
+            <MijnTaken />
 
             {/* Primary CTA - Uren Registreren */}
             <m.div
@@ -399,6 +403,11 @@ export default function DashboardPage() {
                     />
                   </m.div>
                 )}
+
+                {/* Klanttaken die aan mij zijn toegewezen (rendert niets als leeg) */}
+                <m.div variants={itemVariants}>
+                  <MijnTaken />
+                </m.div>
 
                 {/* Section 3: Financieel Grid */}
                 <m.div variants={itemVariants}>

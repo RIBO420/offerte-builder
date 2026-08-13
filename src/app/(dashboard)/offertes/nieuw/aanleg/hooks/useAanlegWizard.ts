@@ -6,6 +6,8 @@ import type {
   Bereikbaarheid,
   GrondwerkData,
   BestratingData,
+  ParkeerplaatsData,
+  BeregeningData,
   BordersData,
   GrasData,
   HoutwerkData,
@@ -16,6 +18,8 @@ import type {
 export type AanlegScope =
   | "grondwerk"
   | "bestrating"
+  | "parkeerplaats"
+  | "beregening"
   | "borders"
   | "gras"
   | "houtwerk"
@@ -25,6 +29,8 @@ export type AanlegScope =
 export type ScopeData = {
   grondwerk: GrondwerkData;
   bestrating: BestratingData;
+  parkeerplaats: ParkeerplaatsData;
+  beregening: BeregeningData;
   borders: BordersData;
   gras: GrasData;
   houtwerk: HoutwerkData;
@@ -48,6 +54,25 @@ export const DEFAULT_BESTRATING: BestratingData = {
     dikteOnderlaag: 5,
     opsluitbanden: false,
   },
+};
+
+export const DEFAULT_PARKEERPLAATS: ParkeerplaatsData = {
+  oppervlakte: 0,
+  verharding: "betonklinker",
+  draagkracht: "personenauto",
+  ontgraven: true,
+  opsluitbanden: true,
+  afwatering: "geen",
+  belijning: true,
+};
+
+export const DEFAULT_BEREGENING: BeregeningData = {
+  oppervlakte: 0,
+  aantalZones: 2,
+  sproeierType: "popup",
+  waterbron: "waterleiding",
+  regelkast: true,
+  wintervast: true,
 };
 
 export const DEFAULT_BORDERS: BordersData = {
@@ -118,6 +143,8 @@ export const INITIAL_WIZARD_DATA: WizardData = {
   scopeData: {
     grondwerk: DEFAULT_GRONDWERK,
     bestrating: DEFAULT_BESTRATING,
+    parkeerplaats: DEFAULT_PARKEERPLAATS,
+    beregening: DEFAULT_BEREGENING,
     borders: DEFAULT_BORDERS,
     gras: DEFAULT_GRAS,
     houtwerk: DEFAULT_HOUTWERK,
@@ -143,6 +170,20 @@ export const SCOPES = [
     beschrijving: "Tegels/klinkers/natuursteen + onderbouw",
     verplicht: ["onderbouw"],
     color: "bg-slate-500",
+  },
+  {
+    id: "parkeerplaats" as AanlegScope,
+    naam: "Parkeerplaats aanleggen",
+    beschrijving: "Verharding + fundering op verkeersbelasting, kolken, belijning",
+    verplicht: ["fundering"],
+    color: "bg-zinc-600",
+  },
+  {
+    id: "beregening" as AanlegScope,
+    naam: "Beregening",
+    beschrijving: "Sproei-installatie: zones, leidingwerk, regelkast",
+    verplicht: ["zones"],
+    color: "bg-sky-500",
   },
   {
     id: "borders" as AanlegScope,
@@ -265,6 +306,8 @@ export function useAanlegWizard(): UseAanlegWizardReturn {
   const [scopeValidationErrors, setScopeValidationErrors] = useState<Record<AanlegScope, Record<string, string>>>({
     grondwerk: {},
     bestrating: {},
+    parkeerplaats: {},
+    beregening: {},
     borders: {},
     gras: {},
     houtwerk: {},
@@ -279,6 +322,12 @@ export function useAanlegWizard(): UseAanlegWizardReturn {
     },
     bestrating: (_isValid: boolean, errors: Record<string, string>) => {
       setScopeValidationErrors(prev => ({ ...prev, bestrating: errors }));
+    },
+    parkeerplaats: (_isValid: boolean, errors: Record<string, string>) => {
+      setScopeValidationErrors(prev => ({ ...prev, parkeerplaats: errors }));
+    },
+    beregening: (_isValid: boolean, errors: Record<string, string>) => {
+      setScopeValidationErrors(prev => ({ ...prev, beregening: errors }));
     },
     borders: (_isValid: boolean, errors: Record<string, string>) => {
       setScopeValidationErrors(prev => ({ ...prev, borders: errors }));
@@ -396,6 +445,17 @@ export function useAanlegWizard(): UseAanlegWizardReturn {
         return (
           scopeData.bestrating.oppervlakte > 0 &&
           scopeData.bestrating.onderbouw.dikteOnderlaag > 0
+        );
+      case "parkeerplaats":
+        return (
+          scopeData.parkeerplaats.oppervlakte > 0 &&
+          (scopeData.parkeerplaats.afwatering !== "kolken" ||
+            (scopeData.parkeerplaats.aantalKolken ?? 0) > 0)
+        );
+      case "beregening":
+        return (
+          scopeData.beregening.oppervlakte > 0 &&
+          scopeData.beregening.aantalZones > 0
         );
       case "borders":
         return scopeData.borders.oppervlakte > 0;

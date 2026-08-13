@@ -5,6 +5,8 @@ import { nl } from "@/lib/date-locale";
 export const scopeLabels: Record<string, string> = {
   grondwerk: "Grondwerk",
   bestrating: "Bestrating",
+  parkeerplaats: "Parkeerplaats",
+  beregening: "Beregening",
   borders: "Borders",
   gras: "Gazon",
   houtwerk: "Houtwerk",

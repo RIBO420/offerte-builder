@@ -33,6 +33,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Car,
   Plus,
   Search,
@@ -48,6 +55,7 @@ import {
   AlertTriangle,
   Fuel,
   Eye,
+  MoreHorizontal,
 } from "lucide-react";
 import { WagenparkPageSkeleton } from "@/components/ui/skeleton-card";
 import { toast } from "sonner";
@@ -78,17 +86,17 @@ const statusConfig: Record<
   actief: {
     label: "Actief",
     variant: "default",
-    icon: <CheckCircle2 className="h-3 w-3 mr-1" />,
+    icon: <CheckCircle2 className="h-3 w-3 mr-1 shrink-0" />,
   },
   onderhoud: {
     label: "In onderhoud",
     variant: "secondary",
-    icon: <Wrench className="h-3 w-3 mr-1" />,
+    icon: <Wrench className="h-3 w-3 mr-1 shrink-0" />,
   },
   inactief: {
     label: "Inactief",
     variant: "outline",
-    icon: <XCircle className="h-3 w-3 mr-1" />,
+    icon: <XCircle className="h-3 w-3 mr-1 shrink-0" />,
   },
 };
 
@@ -297,8 +305,16 @@ function WagenparkPageContent() {
         key: "kenteken",
         header: "Kenteken",
         isPrimary: true,
+        // De kentekenplaat heeft een vaste breedte (140px, size="sm") en mag
+        // niet inkorten. 140px + 2x8px celpadding => 164px. `allowOverflow`
+        // voorkomt dat de plaat wordt afgeknipt wanneer de browser alle
+        // kolommen proportioneel verkleint in `table-fixed`.
+        // De waarschuwingsbadge wrapt naar een tweede regel i.p.v. de plaat
+        // weg te drukken.
+        width: "w-[164px]",
+        allowOverflow: true,
         render: (voertuig) => (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
             <KentekenPlaat kenteken={voertuig.kenteken} size="sm" />
             <ComplianceWarningBadge
               apkDaysLeft={getDaysUntilExpiry(voertuig.apkVervaldatum)}
@@ -311,38 +327,56 @@ function WagenparkPageContent() {
         key: "voertuig",
         header: "Merk & Model",
         isSecondary: true,
-        render: (voertuig) => (
-          <div>
-            <span className="font-medium">{voertuig.merk}</span>
-            <span className="text-muted-foreground ml-1">{voertuig.model}</span>
-            {voertuig.bouwjaar && (
-              <span className="text-muted-foreground text-xs ml-1">
-                ({voertuig.bouwjaar})
-              </span>
-            )}
-          </div>
-        ),
+        width: "w-[24%]",
+        render: (voertuig) => {
+          const volledig = [voertuig.merk, voertuig.model]
+            .filter(Boolean)
+            .join(" ")
+            .concat(voertuig.bouwjaar ? ` (${voertuig.bouwjaar})` : "");
+          return (
+            <div className="truncate" title={volledig}>
+              <span className="font-medium">{voertuig.merk}</span>
+              <span className="text-muted-foreground ml-1">{voertuig.model}</span>
+              {voertuig.bouwjaar && (
+                <span className="text-muted-foreground text-xs ml-1">
+                  ({voertuig.bouwjaar})
+                </span>
+              )}
+            </div>
+          );
+        },
       },
       {
         key: "type",
         header: "Type",
         showInCard: true,
         mobileLabel: "Type",
-        render: (voertuig) => (
-          <Badge variant="outline">{typeLabels[voertuig.type] || voertuig.type}</Badge>
-        ),
+        width: "w-[11%]",
+        render: (voertuig) => {
+          const label = typeLabels[voertuig.type] || voertuig.type;
+          return (
+            <Badge variant="outline" className="max-w-full" title={label}>
+              <span className="truncate">{label}</span>
+            </Badge>
+          );
+        },
       },
       {
         key: "status",
         header: "Status",
         showInCard: true,
         mobileLabel: "Status",
+        width: "w-[12%]",
         render: (voertuig) => {
           const config = statusConfig[voertuig.status];
           return (
-            <Badge variant={config.variant}>
+            <Badge
+              variant={config.variant}
+              className="max-w-full"
+              title={config.label}
+            >
               {config.icon}
-              {config.label}
+              <span className="truncate">{config.label}</span>
             </Badge>
           );
         },
@@ -352,27 +386,39 @@ function WagenparkPageContent() {
         header: "KM Stand",
         showInCard: true,
         mobileLabel: "KM",
-        render: (voertuig) => (
-          <div className="flex items-center gap-1.5 text-sm">
-            <Gauge className="h-3.5 w-3.5 text-muted-foreground hidden sm:inline" />
-            <span>{formatKmStand(voertuig.kmStand)}</span>
-          </div>
-        ),
+        width: "w-[9%]",
+        render: (voertuig) => {
+          const kmLabel = formatKmStand(voertuig.kmStand);
+          return (
+            <div className="flex items-center gap-1.5 text-sm">
+              <Gauge className="h-3.5 w-3.5 text-muted-foreground hidden sm:inline shrink-0" />
+              <span className="truncate" title={kmLabel}>
+                {kmLabel}
+              </span>
+            </div>
+          );
+        },
       },
       {
         key: "sync",
         header: "Laatste sync",
         showInCard: true,
         mobileLabel: "Sync",
-        render: (voertuig) =>
-          voertuig.fleetgoId ? (
+        width: "w-[12%]",
+        render: (voertuig) => {
+          if (!voertuig.fleetgoId) {
+            return <span className="text-muted-foreground text-sm">-</span>;
+          }
+          const syncLabel = formatSyncTime(voertuig.laatsteSyncAt);
+          return (
             <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <RefreshCw className="h-3.5 w-3.5 hidden sm:inline" />
-              <span>{formatSyncTime(voertuig.laatsteSyncAt)}</span>
+              <RefreshCw className="h-3.5 w-3.5 hidden sm:inline shrink-0" />
+              <span className="truncate" title={syncLabel}>
+                {syncLabel}
+              </span>
             </div>
-          ) : (
-            <span className="text-muted-foreground text-sm">-</span>
-          ),
+          );
+        },
       },
       {
         key: "acties",
@@ -380,20 +426,15 @@ function WagenparkPageContent() {
         align: "right",
         showInCard: true,
         mobileLabel: "",
+        // Twee besturingselementen (bewerken + menu) i.p.v. maximaal vier losse
+        // iconen. In `table-fixed` is een px-breedte géén ondergrens: bij een
+        // smal venster schaalt de browser alle kolommen proportioneel mee,
+        // waardoor de eerste knop buiten de cel viel. Zijwaarts scrollen is
+        // geen optie, dus verhuizen de minder gebruikte acties naar een menu.
+        width: "w-[88px]",
+        allowOverflow: true,
         render: (voertuig) => (
-          <div className="flex items-center justify-end gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 sm:h-8 sm:w-8"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleViewDetails(voertuig);
-              }}
-              aria-label="Bekijk details"
-            >
-              <Eye className="h-4 w-4" />
-            </Button>
+          <div className="flex items-center justify-end gap-0.5 whitespace-nowrap">
             <Button
               variant="ghost"
               size="icon"
@@ -402,66 +443,64 @@ function WagenparkPageContent() {
                 e.stopPropagation();
                 handleEdit(voertuig);
               }}
-              aria-label="Bewerken"
+              aria-label={`${voertuig.kenteken} bewerken`}
             >
               <Pencil className="h-4 w-4" />
             </Button>
-            {voertuig.status === "actief" && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 sm:h-8 sm:w-8"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleToggleStatus(voertuig, "onderhoud");
-                }}
-                aria-label="Op onderhoud zetten"
-              >
-                <Wrench className="h-4 w-4 text-muted-foreground" />
-              </Button>
-            )}
-            {voertuig.status === "onderhoud" && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 sm:h-8 sm:w-8"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleToggleStatus(voertuig, "actief");
-                }}
-                aria-label="Activeren"
-              >
-                <CheckCircle2 className="h-4 w-4 text-green-600" />
-              </Button>
-            )}
-            {voertuig.status === "inactief" && (
-              <>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
                   className="h-9 w-9 sm:h-8 sm:w-8"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleToggleStatus(voertuig, "actief");
-                  }}
-                  aria-label="Activeren"
+                  aria-label={`Meer acties voor ${voertuig.kenteken}`}
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  <MoreHorizontal className="h-4 w-4" />
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 sm:h-8 sm:w-8"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteClick(voertuig);
-                  }}
-                  aria-label="Verwijderen"
-                >
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-              </>
-            )}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onClick={() => handleViewDetails(voertuig)}>
+                  <Eye className="mr-2 h-4 w-4" />
+                  Details bekijken
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+
+                {voertuig.status === "actief" && (
+                  <DropdownMenuItem
+                    onClick={() => handleToggleStatus(voertuig, "onderhoud")}
+                  >
+                    <Wrench className="mr-2 h-4 w-4 text-muted-foreground" />
+                    Op onderhoud zetten
+                  </DropdownMenuItem>
+                )}
+
+                {(voertuig.status === "onderhoud" ||
+                  voertuig.status === "inactief") && (
+                  <DropdownMenuItem
+                    onClick={() => handleToggleStatus(voertuig, "actief")}
+                  >
+                    <CheckCircle2 className="mr-2 h-4 w-4 text-green-600" />
+                    Activeren
+                  </DropdownMenuItem>
+                )}
+
+                {voertuig.status === "inactief" && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onClick={() => handleDeleteClick(voertuig)}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Verwijderen
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         ),
       },

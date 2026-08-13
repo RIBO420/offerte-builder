@@ -141,6 +141,8 @@ export function TarievenTab({
                   {[
                     { key: "grondwerk", label: "Grondwerk" },
                     { key: "bestrating", label: "Bestrating" },
+                    { key: "parkeerplaats", label: "Parkeerplaats" },
+                    { key: "beregening", label: "Beregening" },
                     { key: "borders", label: "Borders" },
                     { key: "gras", label: "Gazon" },
                     { key: "houtwerk", label: "Houtwerk" },

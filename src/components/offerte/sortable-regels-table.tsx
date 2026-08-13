@@ -45,6 +45,8 @@ const EDITABLE_FIELDS: EditingCell["field"][] = [
 const AUTO_CALCULATED_SCOPES = new Set([
   "grondwerk",
   "bestrating",
+  "parkeerplaats",
+  "beregening",
   "borders",
   "houtwerk",
   "gras",

@@ -188,45 +188,56 @@ describe("processKlantImportData", () => {
       expect(result.errors.some((e) => e.includes("naam"))).toBe(true);
     });
 
-    it("returns error when postcode column is missing from data", () => {
+    // Alleen de naam is verplicht: een import uit een ander pakket mag niet
+    // stukvallen op een ontbrekend adres — aanvullen kan later in de app.
+    it("importeert zonder postcodekolom, met waarschuwing", () => {
       const row: Record<string, string> = {
         naam: "Test",
         plaats: "Amsterdam",
       };
       const result = processKlantImportData([row]);
 
-      expect(result.errors.some((e) => e.includes("postcode"))).toBe(true);
+      expect(result.errors).toHaveLength(0);
+      expect(result.entries).toHaveLength(1);
+      expect(result.entries[0].postcode).toBe("");
+      expect(result.warnings.some((w) => w.includes("geen postcode"))).toBe(true);
     });
 
-    it("returns error when plaats column is missing from data", () => {
+    it("importeert zonder plaatskolom", () => {
       const row: Record<string, string> = {
         naam: "Test",
         postcode: "1234 AB",
       };
       const result = processKlantImportData([row]);
 
-      expect(result.errors.some((e) => e.includes("plaats"))).toBe(true);
+      expect(result.errors).toHaveLength(0);
+      expect(result.entries).toHaveLength(1);
+      expect(result.entries[0].plaats).toBe("");
+      expect(result.entries[0].opmerkingen).toContain("plaats ontbreekt");
     });
 
     it("returns row-level error when naam value is empty", () => {
       const result = processKlantImportData([makeRow({ naam: "" })]);
 
       expect(result.entries).toHaveLength(0);
-      expect(result.errors.some((e) => e.includes("Rij 2") && e.includes("Naam"))).toBe(true);
+      expect(result.errors.some((e) => e.includes("Rij 2") && e.includes("naam"))).toBe(true);
     });
 
-    it("returns row-level error when postcode value is empty", () => {
+    it("importeert een rij zonder postcode en markeert die", () => {
       const result = processKlantImportData([makeRow({ postcode: "" })]);
 
-      expect(result.entries).toHaveLength(0);
-      expect(result.errors.some((e) => e.includes("Rij 2") && e.includes("Postcode"))).toBe(true);
+      expect(result.errors).toHaveLength(0);
+      expect(result.entries).toHaveLength(1);
+      expect(result.entries[0].postcode).toBe("");
+      expect(result.entries[0].opmerkingen).toContain("postcode ontbreekt");
     });
 
-    it("returns row-level error when plaats value is empty", () => {
+    it("importeert een rij zonder plaats en markeert die", () => {
       const result = processKlantImportData([makeRow({ plaats: "" })]);
 
-      expect(result.entries).toHaveLength(0);
-      expect(result.errors.some((e) => e.includes("Rij 2") && e.includes("Plaats"))).toBe(true);
+      expect(result.errors).toHaveLength(0);
+      expect(result.entries).toHaveLength(1);
+      expect(result.entries[0].opmerkingen).toContain("plaats ontbreekt");
     });
 
     it("skips bad rows but still processes good rows", () => {
@@ -246,29 +257,36 @@ describe("processKlantImportData", () => {
   // Postcode validation
   // -----------------------------------------------------------------------
   describe("postcode validation", () => {
-    it("rejects postcode with too few digits", () => {
+    // Geen enkele postcode blokkeert de import meer; afwijkende waarden komen
+    // binnen mét een aandachtspunt zodat je ze in de app kunt nalopen.
+    it("laat een te korte postcode door met aandachtspunt", () => {
       const result = processKlantImportData([makeRow({ postcode: "123 AB" })]);
 
-      expect(result.errors.some((e) => e.includes("Ongeldige postcode"))).toBe(true);
-      expect(result.entries).toHaveLength(0);
+      expect(result.errors).toHaveLength(0);
+      expect(result.entries).toHaveLength(1);
+      expect(result.entries[0].opmerkingen).toContain("afwijkende postcode");
     });
 
-    it("rejects postcode with too many digits", () => {
-      const result = processKlantImportData([makeRow({ postcode: "12345 AB" })]);
+    it("behoudt een Duitse postcode van 5 cijfers", () => {
+      const result = processKlantImportData([makeRow({ postcode: "47906" })]);
 
-      expect(result.errors.some((e) => e.includes("Ongeldige postcode"))).toBe(true);
+      expect(result.errors).toHaveLength(0);
+      expect(result.entries[0].postcode).toBe("47906");
+      expect(result.entries[0].opmerkingen).toContain("buitenlandse postcode");
     });
 
-    it("rejects postcode with only digits", () => {
-      const result = processKlantImportData([makeRow({ postcode: "1234" })]);
+    it("behoudt een Belgische postcode van 4 cijfers", () => {
+      const result = processKlantImportData([makeRow({ postcode: "3630" })]);
 
-      expect(result.errors.some((e) => e.includes("Ongeldige postcode"))).toBe(true);
+      expect(result.errors).toHaveLength(0);
+      expect(result.entries[0].postcode).toBe("3630");
     });
 
-    it("rejects postcode with three letters", () => {
+    it("laat een postcode met drie letters door met aandachtspunt", () => {
       const result = processKlantImportData([makeRow({ postcode: "1234 ABC" })]);
 
-      expect(result.errors.some((e) => e.includes("Ongeldige postcode"))).toBe(true);
+      expect(result.errors).toHaveLength(0);
+      expect(result.entries[0].opmerkingen).toContain("afwijkende postcode");
     });
 
     it("accepts postcode without space (e.g. 1234AB)", () => {
@@ -301,7 +319,8 @@ describe("processKlantImportData", () => {
 
       expect(result.entries).toHaveLength(1);
       expect(result.entries[0].email).toBeUndefined();
-      expect(result.warnings.some((w) => w.includes("Ongeldig e-mailadres"))).toBe(true);
+      expect(result.warnings.some((w) => w.includes("ongeldig e-mailadres"))).toBe(true);
+      expect(result.entries[0].opmerkingen).toContain("ongeldig e-mailadres");
     });
 
     it("sets email to undefined for email missing @ sign", () => {
@@ -429,14 +448,14 @@ describe("processKlantImportData", () => {
       expect(result.entries[0].adres).toBe("42");
     });
 
-    it("uses 'Onbekend' when both straat and huisnummer are empty", () => {
+    it("laat het adres leeg als straat en huisnummer beide leeg zijn", () => {
       const result = processKlantImportData([
         makeRow({ straat: "", huisnummer: "" }),
       ]);
-      expect(result.entries[0].adres).toBe("Onbekend");
+      expect(result.entries[0].adres).toBe("");
     });
 
-    it("produces warning when straat column is absent entirely", () => {
+    it("importeert ook zonder straatkolom", () => {
       const row: Record<string, string> = {
         naam: "Test",
         postcode: "1234 AB",
@@ -444,8 +463,163 @@ describe("processKlantImportData", () => {
       };
       const result = processKlantImportData([row]);
 
-      expect(result.warnings.some((w) => w.includes("straat"))).toBe(true);
-      expect(result.entries[0].adres).toBe("Onbekend");
+      expect(result.errors).toHaveLength(0);
+      expect(result.entries[0].adres).toBe("");
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // Samengesteld adresveld — het formaat van de relatie-export
+  // -----------------------------------------------------------------------
+  describe("samengesteld adresveld", () => {
+    /** Rij zoals de relatie-export hem levert: adres, postcode en plaats in één veld. */
+    function exportRij(plaats: string, overrides: Record<string, string> = {}) {
+      return {
+        Type: "Persoon",
+        Klantnummer: "1003",
+        Bedrijfsnaam: "",
+        Voornaam: "Annemiek",
+        Achternaam: "van der Sanden",
+        "E-mail": "a@voorbeeld.nl",
+        Categorie: "Klant",
+        Plaats: plaats,
+        ...overrides,
+      };
+    }
+
+    it("splitst straat, postcode en plaats uit één veld", () => {
+      const result = processKlantImportData([
+        exportRij("Dijk 24A, 6127 AG Grevenbicht"),
+      ]);
+
+      expect(result.entries[0].adres).toBe("Dijk 24A");
+      expect(result.entries[0].postcode).toBe("6127 AG");
+      expect(result.entries[0].plaats).toBe("Grevenbicht");
+    });
+
+    it("normaliseert een postcode zonder spatie", () => {
+      const result = processKlantImportData([
+        exportRij("Marconistraat 2 , 6132GT Sittard"),
+      ]);
+
+      expect(result.entries[0].postcode).toBe("6132 GT");
+      expect(result.entries[0].plaats).toBe("Sittard");
+    });
+
+    it("kiest de laatste postcode als het adres er meerdere bevat", () => {
+      const result = processKlantImportData([
+        exportRij("ECI 2, Berkelplein 26 6301 ZE Valkenburg, 6041 MA Roermond"),
+      ]);
+
+      expect(result.entries[0].postcode).toBe("6041 MA");
+      expect(result.entries[0].plaats).toBe("Roermond");
+      expect(result.entries[0].adres).toBe("ECI 2, Berkelplein 26 6301 ZE Valkenburg");
+    });
+
+    it("houdt een Duitse postcode heel", () => {
+      const result = processKlantImportData([
+        exportRij("Briandstraße 12, 47906 Kempen"),
+      ]);
+
+      expect(result.errors).toHaveLength(0);
+      expect(result.entries[0].postcode).toBe("47906");
+      expect(result.entries[0].plaats).toBe("Kempen");
+      expect(result.entries[0].opmerkingen).toContain("buitenlandse postcode");
+    });
+
+    it("valt terug op adres + plaats als er geen postcode in staat", () => {
+      const result = processKlantImportData([
+        exportRij("Schoorsweg 9, Berg a d Maas"),
+      ]);
+
+      expect(result.errors).toHaveLength(0);
+      expect(result.entries[0].adres).toBe("Schoorsweg 9");
+      expect(result.entries[0].plaats).toBe("Berg a d Maas");
+      expect(result.entries[0].opmerkingen).toContain("postcode ontbreekt");
+    });
+
+    it("herkent een Nederlandse postcode zonder letters", () => {
+      const result = processKlantImportData([exportRij("Gaarstraat 32, 6121 Born")]);
+
+      expect(result.entries[0].postcode).toBe("6121");
+      expect(result.entries[0].plaats).toBe("Born");
+    });
+
+    it("importeert een rij met een volledig leeg adres", () => {
+      const result = processKlantImportData([exportRij("")]);
+
+      expect(result.errors).toHaveLength(0);
+      expect(result.entries).toHaveLength(1);
+      expect(result.entries[0].adres).toBe("");
+    });
+
+    it("stelt de naam samen uit voornaam en achternaam", () => {
+      const result = processKlantImportData([exportRij("Dijk 24A, 6127 AG Grevenbicht")]);
+
+      expect(result.entries[0].naam).toBe("Annemiek van der Sanden");
+      expect(result.entries[0].klantType).toBe("particulier");
+    });
+
+    it("gebruikt de bedrijfsnaam en zet de persoon als contactpersoon", () => {
+      const result = processKlantImportData([
+        exportRij("Lissabonlaan 2, 6135 LE Sittard", {
+          Type: "Bedrijf",
+          Bedrijfsnaam: "Bruls Prefab Beton",
+          Voornaam: "B.",
+          Achternaam: "Bruls",
+        }),
+      ]);
+
+      expect(result.entries[0].naam).toBe("Bruls Prefab Beton");
+      expect(result.entries[0].contactpersoon).toBe("B. Bruls");
+      expect(result.entries[0].klantType).toBe("zakelijk");
+    });
+
+    it("herkent een VvE aan de bedrijfsnaam", () => {
+      const result = processKlantImportData([
+        exportRij("Prinsbisdomstraat 10D, 6121 JG Born", {
+          Type: "Bedrijf",
+          Bedrijfsnaam: "VvE Prins Bisdomstaete",
+          Voornaam: "",
+          Achternaam: "",
+        }),
+      ]);
+
+      expect(result.entries[0].klantType).toBe("vve");
+    });
+
+    it("routeert op de kolom Categorie", () => {
+      const result = processKlantImportData([
+        exportRij("Roligt 9, 6088 NG Roggel", {
+          Type: "Bedrijf",
+          Bedrijfsnaam: "Heijnen Plants BV",
+          Categorie: "Leverancier",
+        }),
+        exportRij("Dijk 24A, 6127 AG Grevenbicht"),
+      ]);
+
+      expect(result.entries[0].soort).toBe("leverancier");
+      expect(result.entries[1].soort).toBe("klant");
+    });
+
+    it("decodeert HTML-entiteiten uit de export", () => {
+      const result = processKlantImportData([
+        exportRij("Engelenkampstraat 14, VvE Blok 1,2 &amp; 3, 6131 JH Sittard"),
+      ]);
+
+      expect(result.entries[0].adres).toContain("&");
+      expect(result.entries[0].adres).not.toContain("&amp;");
+      expect(result.entries[0].postcode).toBe("6131 JH");
+    });
+
+    it("markeert dubbele rijen binnen hetzelfde bestand", () => {
+      const result = processKlantImportData([
+        exportRij("Mauritslaan 30, 6129 EM Urmond"),
+        exportRij("Mauritslaan 30, 6129 EM Urmond"),
+      ]);
+
+      expect(result.entries[1].opmerkingen).toContain("dubbel in bestand");
+      expect(result.warnings.some((w) => w.includes("meerdere keren"))).toBe(true);
     });
   });
 
@@ -493,24 +667,24 @@ describe("processKlantImportData", () => {
   // Multiple rows with mixed errors
   // -----------------------------------------------------------------------
   describe("mixed valid and invalid rows", () => {
-    it("collects errors from multiple rows", () => {
+    it("slaat alleen rijen zonder naam over", () => {
       const rows = [
-        makeRow({ naam: "" }),           // Error: naam missing
-        makeRow({ postcode: "INVALID" }), // Error: invalid postcode
-        makeRow(),                         // Valid
+        makeRow({ naam: "" }),            // Overslaan: geen naam
+        makeRow({ postcode: "INVALID" }), // Komt binnen met aandachtspunt
+        makeRow({ naam: "Piet Pieters" }), // Geldig
       ];
       const result = processKlantImportData(rows);
 
-      expect(result.entries).toHaveLength(1);
-      expect(result.errors).toHaveLength(2);
+      expect(result.entries).toHaveLength(2);
+      expect(result.errors).toHaveLength(1);
     });
 
     it("reports correct row numbers in error messages (header = row 1)", () => {
       const rows = [
-        makeRow(),                         // Row 2 — valid
-        makeRow({ naam: "" }),             // Row 3 — error
-        makeRow(),                         // Row 4 — valid
-        makeRow({ postcode: "INVALID" }),  // Row 5 — error
+        makeRow(),             // Rij 2 — geldig
+        makeRow({ naam: "" }), // Rij 3 — geen naam
+        makeRow({ naam: "Ander Persoon" }), // Rij 4 — geldig
+        makeRow({ naam: "" }), // Rij 5 — geen naam
       ];
       const result = processKlantImportData(rows);
 
@@ -677,16 +851,28 @@ Renée van der Bühl;1234 AB;Zürich`;
 // ===========================================================================
 
 describe("getSampleKlantCSV", () => {
+  // De voorbeeld-CSV volgt nu het relatie-exportformaat, zodat wat je
+  // downloadt hetzelfde is als wat het bronsysteem oplevert.
   it("returns a string with semicolon-separated header", () => {
     const csv = getSampleKlantCSV();
     const firstLine = csv.split("\n")[0];
 
-    expect(firstLine).toContain("naam");
-    expect(firstLine).toContain("email");
-    expect(firstLine).toContain("telefoon");
-    expect(firstLine).toContain("postcode");
-    expect(firstLine).toContain("plaats");
+    expect(firstLine).toContain("Bedrijfsnaam");
+    expect(firstLine).toContain("Voornaam");
+    expect(firstLine).toContain("Achternaam");
+    expect(firstLine).toContain("E-mail");
+    expect(firstLine).toContain("Categorie");
+    expect(firstLine).toContain("Plaats");
     expect(firstLine.split(";").length).toBeGreaterThanOrEqual(7);
+  });
+
+  it("bevat zowel een klant als een leverancier", async () => {
+    const result = await parseKlantenFile(
+      makeCSVFile(getSampleKlantCSV(), "voorbeeld.csv")
+    );
+
+    expect(result.entries.some((e) => e.soort === "klant")).toBe(true);
+    expect(result.entries.some((e) => e.soort === "leverancier")).toBe(true);
   });
 
   it("contains sample data rows", () => {

@@ -79,8 +79,9 @@ npx convex deploy --yes  # Deploy to production
 - **Offerte** = Quote/proposal with status workflow: concept → voorcalculatie → verzonden → geaccepteerd → geweigerd
 - **Klant** = Customer
 - **Medewerker** = Employee/staff member
-- **Aanleg** = New garden installation (scopes: grondwerk, bestrating, borders, gras, houtwerk, water_elektra, specials)
-- **Onderhoud** = Maintenance contracts
+- **Aanleg** = New garden installation (scopes: grondwerk, bestrating, **parkeerplaats**, **beregening**, borders, gras, houtwerk, water_elektra, specials)
+- **Onderhoud** = Maintenance contracts (scopes incl. reiniging, bemesting, gazonanalyse, mollenbestrijding)
+- **Offertetypes (TT-004):** `offertes.type` kent bewust maar twee waarden — `aanleg` en `onderhoud`. De 8 werkzaamheden die kantoor hanteert (Tuinaanleg, Tuinrenovatie, Onderhoud, Beregening, Bestrating, Parkeerplaats, Reiniging, Overige diensten) zijn **startpunten in `NewOfferteDialog`**, niet aparte types: elke tegel opent de juiste wizard met `?scope=…` (meerdere toegestaan). Voeg dus géén literals toe aan `offertes.type` — dat raakt 40+ switch-punten, filters, statistieken en PDF.
 - **Regels** = Line items (type: materiaal/arbeid/machine) with hoeveelheid × prijsPerEenheid
 - **Nacalculatie** = Post-calculation (comparing estimated vs actual costs)
 - **Uren** = Hours/time tracking by field workers
@@ -93,6 +94,51 @@ npx convex deploy --yes  # Deploy to production
 - Calculator: `src/lib/offerte-calculator.ts` — pricing logic
 - PDF generation: React PDF (`@react-pdf/renderer`)
 - UI components: shadcn/ui (Radix primitives + Tailwind)
+
+### Een nieuwe aanleg-scope toevoegen
+
+Een scope leeft op ~15 plekken. Volg `parkeerplaats` of `beregening` als blauwdruk
+(beide zijn in één keer compleet doorgevoerd) en loop deze lijst af:
+
+1. `convex/validators.ts` — eigen validator + opnemen in `aanlegScopeDataValidator`
+2. `src/types/offerte.ts` — `AanlegScope` union + `…Data` interface
+3. `src/lib/validations/aanleg-scopes.ts` — zod-schema
+4. `useAanlegWizard.ts` — `ScopeData`, `DEFAULT_…`, `INITIAL_WIZARD_DATA`, `SCOPES`,
+   `isScopeDataValid`, `scopeValidationErrors`, `scopeValidationHandlers`
+5. `scope-forms/<scope>-form.tsx` + export in `scope-forms/index.ts`
+6. `AanlegScopeDetailsStep` (case + `SCOPE_ICONS`), `AanlegKlantScopesStep`,
+   `scope-change-modal` (beide ook `SCOPE_ICONS`), `AanlegReviewSection` (samenvatting)
+7. `src/lib/offerte-calculator.ts` — constanten + `calculate<Scope>` + `switch`-case
+8. `src/lib/voorcalculatie-calculator.ts` — uren-case (spiegelt de calculator)
+9. Labelmaps (~14 bestanden): zoek op een bestaande scope-naam met
+   `grep -rl "parkeerplaats" src convex` en loop die lijst af
+10. `convex/normuren.ts` seed, `convex/kwaliteitsControles.ts` checklist,
+    `planning-templates.ts` taken/kleur, `scopeMarges` in schema + instellingen + tarieven-tab
+11. Tests in `src/lib/__tests__/offerte-calculator.test.ts`
+
+**Val nooit terug op `if (normuur) …`.** `normuren.createDefaults` is idempotent op
+"heeft deze user al normuren", dus bestaande bedrijven krijgen nieuwe seed-regels
+nóóit. Gebruik `findNormuur(...)?.normuurPerEenheid ?? CONSTANTE`, anders levert de
+scope stilzwijgend €0 arbeid op. De fallback-constanten in `offerte-calculator.ts`
+zijn realistische schattingen, geen vastgestelde Top Tuinen-tarieven.
+
+### Tabellen: nooit zijwaarts scrollen
+
+De app scrollt bewust nergens horizontaal — liever inkorten. `ResponsiveTable`
+(`src/components/ui/responsive-table.tsx`) heeft daarvoor twee kolom-opties:
+
+- `width?: string` — Tailwind-class (`w-[30%]`, `w-[88px]`). Zodra één kolom een
+  width heeft, schakelt de tabel naar `table-fixed` en korten lange waarden in.
+- `allowOverflow?: boolean` — zet `overflow-hidden` uit; nodig voor knoppenkolommen.
+
+**Val hier niet in:** in `table-fixed` is een px-breedte **geen ondergrens**. Passen
+de kolommen samen niet, dan schaalt de browser ze allemaal proportioneel mee — ook
+je "vaste" 196px. Een rij met 5 icoonknoppen (≈184px nodig) verliest dan de eerste
+knop buiten de cel. Oplossing bij >3 acties: potlood-knop + `DropdownMenu` met
+`MoreHorizontal`, kolom `w-[88px]` + `allowOverflow`. Zie `klanten/page.tsx`.
+
+`EmptyState` heeft een `compact`-variant (één regel i.p.v. ~180px). Gebruik die op
+overzichtspagina's met meerdere secties, anders is een lege sectie de grootste.
 
 ## Mobile App Structure
 
@@ -111,6 +157,25 @@ npx convex deploy --yes  # Deploy to production
 - Functions organized by domain: `convex/offertes.ts`, `convex/klanten.ts`, `convex/projecten.ts`, etc.
 - Auth via `convex/auth.config.ts` using Clerk provider; helpers in `convex/auth.ts` (`requireAuth`, `requireAuthUserId`, `requireKlant`, etc.)
 - **Role-based access (7-role model, see `convex/roles.ts` / `convex/validators.ts`):** `directie` (= admin), `projectleider`, `voorman`, `medewerker`, `klant`, `onderaannemer_zzp`, `materiaalman`. Legacy mapping: `admin`→`directie`, `viewer`→`klant`. `klant` users live in `/portaal`; staff in `/dashboard`.
+- **`klantTaken`** (`convex/klantTaken.ts`) — losse to-do's per klant, toewijsbaar aan een
+  medewerker. Eigen tabel naast `klantTijdlijn` (wat er gebeurd ís, append-only) en
+  `planningTaken` (hangt aan een werkitem). Intern dossier: klantaccounts krijgen op elke
+  functie een `AuthError`. UI: `klant-taken-card` op `/klanten/[id]`, teller in de
+  klantenlijst, `mijn-taken` op het dashboard.
+- **`places` / `placesLogica`** (TT-006) — bedrijfszoeken via Google Places. De sleutel
+  (`GOOGLE_MAPS_API_KEY`, dezelfde als voor Distance Matrix) blijft server-side in een
+  action. Places wordt per aanroep afgerekend op de sleutel van de app-eigenaar, dus:
+  debounce 350 ms + minimaal 3 tekens, sessie-token, krappe `X-Goog-FieldMask`, en een
+  rate limit per gebruiker (`checkPlacesRateLimit`). `placesLogica.ts` is puur en wordt
+  getest met een gemockte fetch — er gaan nooit echte calls uit in de testsuite.
+- **Klant-import** — `src/lib/klant-import-parser.ts` is bewust tolerant: een rij wordt
+  alleen geweigerd als er geen náám uit te halen is. Ontbrekende/buitenlandse postcodes en
+  onleesbare e-mailadressen leveren een aandachtspunt op, geen fout. Het adresveld van de
+  relatie-export ("Dijk 24A, 6127 AG Grevenbicht") wordt gesplitst door van achteren naar
+  voren het laatste komma-segment met een postcode te zoeken. `importKlanten` en
+  `importLeveranciers` accepteren daarom lege adresvelden en gebruiken
+  `normaliseerImportPostcode` (normaliseert, weigert nooit) i.p.v. de strenge varianten.
+  Eén gedeelde dialog: `src/components/import/relatie-import-dialog.tsx`.
 
 ## Testing
 
@@ -122,8 +187,31 @@ npx convex deploy --yes  # Deploy to production
 - **E2E setup:** `e2e/global-setup.ts` + `playwright.config.ts` loads `.env.local` via dotenv
 - **A11y tests:** `src/__tests__/a11y/` — axe-core checks on core UI components
 
+## Openstaande acties (stand: 14 aug 2026)
+
+- **Places API (New) staat nog UIT** in Google Cloud voor `GOOGLE_MAPS_API_KEY`. Tot dat
+  moment verbergt `BedrijfZoeken` zichzelf (`places.beschikbaar` → false) en werkt
+  handmatig invoeren gewoon. Aanzetten = TT-006 live.
+- **Fallback-prijzen nalopen.** De constanten voor parkeerplaats en beregening in
+  `offerte-calculator.ts` (bv. betonklinker €28/m², kolk €185, pop-up sproeier €45,
+  regelkast €285) zijn realistische schattingen, géén vastgestelde Top Tuinen-tarieven.
+  Zodra kantoor eigen normuren/producten invoert, winnen die vanzelf.
+- **Vier tabellen alleen nagerekend, niet visueel gecontroleerd:** leveranciers,
+  medewerkers, wagenpark, machines. De klantentabel is wél gemeten (820–1920px).
+- **E2E-auth is stuk (pre-existing):** `e2e/helpers/auth.ts` zoekt een veld `E-mailadres`
+  dat niet meer op de loginpagina staat, dus `login()` loopt vast op een timeout. Alle
+  geauthenticeerde Playwright-tests falen daardoor. Losstaand van de wijzigingen hierboven.
+
 ## Important Notes
 
+- **Dev-server draait niet standaard.** Er staat géén `npm run dev` voor dit project op een
+  vaste poort; poort 3000 is bij deze gebruiker Timeline-ERP en 3002 Vitamientje-agent.
+  Start hem expliciet en controleer wélke app antwoordt (`/` moet "Top Tuinen" bevatten)
+  voordat je een poortnummer doorgeeft.
+- **Zie je een layoutwijziging niet terug, herstart de dev-server voordat je de code
+  verdenkt.** Tailwind v4 + Turbopack serveert soms een verouderde stylesheet: de classes
+  staan dan wel in de DOM maar de bijbehorende CSS-regel ontbreekt. Kost anders een half
+  uur debuggen aan correcte code.
 - `mobile/.npmrc` zet `legacy-peer-deps=true` — nodig omdat `@clerk/clerk-expo` een `react-dom` peer dependency declareert die botst met de react-versie van Expo SDK 54. Niet verwijderen: zonder dit faalt `npm ci`, o.a. in de EAS Build "Install dependencies" fase waar de vlag niet handmatig meegegeven kan worden. Losse `--legacy-peer-deps` flags zijn hierdoor niet meer nodig.
 - Mobile uses `react-native-reanimated` v4.1.1 (not legacy Animated API)
 - The web app uses Tailwind CSS v4 (not v3) — different config format than mobile

@@ -243,6 +243,35 @@ export function checkReistijdRateLimit(clerkSubject: string): RateLimitResult {
   );
 }
 
+// ============================================
+// RATE LIMIT BEDRIJFSZOEKEN (Google Places)
+// ============================================
+//
+// Zelfde overweging als bij reistijd: Places wordt per aanroep afgerekend op
+// dezelfde deployment-brede sleutel. Zoeken gebeurt terwijl je typt, dus dit is
+// veel gevoeliger voor een lus dan de dagkaart. De client dempt al met een
+// debounce; deze rem is de harde bovengrens per ingelogde gebruiker.
+
+/**
+ * Dertig zoekopdrachten per gebruiker per minuut. Eén klant opzoeken kost in
+ * de praktijk twee tot vier calls (typen + details ophalen); dertig laat een
+ * paar klanten achter elkaar ruim toe en knipt een doorgeslagen lus af.
+ */
+export const PLACES_MAX_PER_GEBRUIKER = 30;
+export const PLACES_VENSTER_MS = 60000; // 1 minuut
+
+/**
+ * Rate limit op het zoeken van bedrijfsgegevens, per Clerk-identiteit.
+ */
+export function checkPlacesRateLimit(clerkSubject: string): RateLimitResult {
+  return checkPubliekeRateLimit(
+    "places_zoeken",
+    clerkSubject,
+    PLACES_MAX_PER_GEBRUIKER,
+    PLACES_VENSTER_MS
+  );
+}
+
 /**
  * Simple string hash for creating identifiers.
  * Not cryptographically secure, but sufficient for rate limiting keys.

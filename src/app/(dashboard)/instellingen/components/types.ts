@@ -32,6 +32,8 @@ export interface TarievenState {
 export interface ScopeMargesState {
   grondwerk?: number;
   bestrating?: number;
+  parkeerplaats?: number;
+  beregening?: number;
   borders?: number;
   gras?: number;
   houtwerk?: number;

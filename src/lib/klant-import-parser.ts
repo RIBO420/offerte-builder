@@ -1,100 +1,174 @@
 /**
- * CSV parser for klanten (customer) imports
- * Handles Dutch CSV format (semicolon separator, UTF-8 with BOM)
+ * CSV-parser voor klanten- en leveranciersimport.
  *
- * Expected columns: naam, email, telefoon, straat, huisnummer, postcode, plaats, type
+ * Uitgangspunt: een export uit een ander pakket is rommelig, en dat mag de
+ * import niet blokkeren. Daarom geldt hier één regel — een rij wordt alleen
+ * geweigerd als er geen náám uit te halen is. Al het andere (ontbrekende of
+ * buitenlandse postcode, onleesbaar e-mailadres, adres zonder plaats) levert
+ * een waarschuwing op en de rij komt gewoon binnen. Aanvullen kan later in de
+ * app; opnieuw moeten stoeien met een CSV kan niet.
+ *
+ * Ondersteunde vormen:
+ * - Losse kolommen: naam/email/telefoon/straat/huisnummer/postcode/plaats/type
+ * - Relatie-export: Type;Klantnummer;Bedrijfsnaam;Voornaam;Achternaam;E-mail;
+ *   Categorie;Plaats — waarbij "Plaats" het volledige adres bevat
+ *   ("Dijk 24A, 6127 AG Grevenbicht") en "Categorie" klant van leverancier
+ *   scheidt.
  */
 
 export type KlantType = "particulier" | "zakelijk" | "vve" | "gemeente" | "overig";
+
+/** Klant of leverancier — bepaalt naar welke tabel de rij gaat. */
+export type RelatieSoort = "klant" | "leverancier";
 
 export interface ParsedKlantEntry {
   naam: string;
   email?: string;
   telefoon?: string;
-  adres: string; // Combined straat + huisnummer
+  /** Contactpersoon bij een bedrijf (voornaam + achternaam naast de bedrijfsnaam). */
+  contactpersoon?: string;
+  adres: string;
   postcode: string;
   plaats: string;
   klantType: KlantType;
+  soort: RelatieSoort;
+  /** Externe referentie uit het bronsysteem, puur informatief in het voorbeeld. */
+  klantnummer?: string;
+  /** Wat er aan deze rij mankeerde — getoond in de preview, blokkeert niets. */
+  opmerkingen: string[];
 }
 
 export interface KlantParseResult {
   entries: ParsedKlantEntry[];
+  /** Alleen blokkerende problemen: bestand onleesbaar of rij zonder naam. */
   errors: string[];
+  /** Alles wat is rechtgezet of ontbreekt maar de import niet tegenhoudt. */
   warnings: string[];
 }
 
-// Column name mappings (multiple possible names per field)
+// Kolomnamen die we herkennen (meerdere varianten per veld)
 const columnMappings: Record<string, string[]> = {
-  naam: ["naam", "name", "klantnaam", "bedrijfsnaam", "klant", "customer"],
+  naam: ["naam", "name", "klantnaam", "klant", "customer", "relatie"],
+  bedrijfsnaam: ["bedrijfsnaam", "bedrijf", "company", "organisatie"],
+  voornaam: ["voornaam", "firstname", "first_name", "roepnaam"],
+  achternaam: ["achternaam", "lastname", "last_name", "familienaam"],
   email: ["email", "e-mail", "emailadres", "e-mailadres", "mail"],
   telefoon: ["telefoon", "telefoonnummer", "tel", "phone", "mobiel", "gsm"],
   straat: ["straat", "straatnaam", "street", "adres", "address"],
   huisnummer: ["huisnummer", "nummer", "nr", "housenumber", "huis_nr"],
   postcode: ["postcode", "postal", "zip", "zipcode", "postal_code"],
   plaats: ["plaats", "stad", "city", "woonplaats", "town", "gemeente"],
-  type: ["type", "klanttype", "klant_type", "soort", "categorie"],
+  type: ["type", "klanttype", "klant_type", "soort"],
+  categorie: ["categorie", "category", "relatiesoort"],
+  klantnummer: ["klantnummer", "relatienummer", "debiteurnummer", "nummer_klant"],
 };
 
 const VALID_KLANT_TYPES: KlantType[] = ["particulier", "zakelijk", "vve", "gemeente", "overig"];
 
-// Dutch postcode regex: 4 digits + 2 letters (with optional space)
-const POSTCODE_REGEX = /^\d{4}\s?[A-Za-z]{2}$/;
+/** Nederlandse postcode: 4 cijfers + 2 letters. */
+const NL_POSTCODE = /^(\d{4})\s*([A-Za-z]{2})(?![A-Za-z])/;
+/** Buitenlandse/onvolledige postcode: 4 t/m 6 cijfers (BE 4, NL 4, DE 5). */
+const NUMERIEKE_POSTCODE = /^(\d{4,6})(?!\d)/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/**
- * Remove UTF-8 BOM if present
- */
 function stripBOM(text: string): string {
-  if (text.charCodeAt(0) === 0xfeff) {
-    return text.slice(1);
-  }
-  return text;
+  return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
 }
 
 /**
- * Detect separator (semicolon or comma)
+ * HTML-entiteiten die exports vaak achterlaten ("D&#039;Artagnanlaan",
+ * "Blok 1,2 &amp; 3") terugvertalen naar leesbare tekst.
  */
+function decodeEntities(text: string): string {
+  return text
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCharCode(parseInt(code, 16)))
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&");
+}
+
 function detectSeparator(firstLine: string): string {
-  const semicolonCount = (firstLine.match(/;/g) || []).length;
-  const commaCount = (firstLine.match(/,/g) || []).length;
-  return semicolonCount >= commaCount ? ";" : ",";
+  const puntkomma = (firstLine.match(/;/g) || []).length;
+  const komma = (firstLine.match(/,/g) || []).length;
+  const tab = (firstLine.match(/\t/g) || []).length;
+  if (tab > puntkomma && tab > komma) return "\t";
+  return puntkomma >= komma ? ";" : ",";
 }
 
 /**
- * Parse CSV text manually to handle both ; and , separators
+ * Echte CSV-parser met quote-ondersteuning. De oude versie deed `line.split(sep)`
+ * en brak op elk veld met de scheidingstekens erin — precies wat er gebeurt bij
+ * een adresveld als "Dijk 24A, 6127 AG Grevenbicht".
  */
+function splitCSV(text: string, separator: string): string[][] {
+  const rijen: string[][] = [];
+  let rij: string[] = [];
+  let veld = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const teken = text[i];
+
+    if (inQuotes) {
+      if (teken === '"') {
+        if (text[i + 1] === '"') {
+          veld += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        veld += teken;
+      }
+      continue;
+    }
+
+    if (teken === '"') {
+      inQuotes = true;
+    } else if (teken === separator) {
+      rij.push(veld);
+      veld = "";
+    } else if (teken === "\n") {
+      rij.push(veld);
+      rijen.push(rij);
+      rij = [];
+      veld = "";
+    } else if (teken !== "\r") {
+      veld += teken;
+    }
+  }
+
+  if (veld || rij.length > 0) {
+    rij.push(veld);
+    rijen.push(rij);
+  }
+
+  return rijen.filter((r) => r.some((v) => v.trim()));
+}
+
 function parseCSVText(text: string): Record<string, string>[] {
   const cleaned = stripBOM(text);
-  const lines = cleaned.split(/\r?\n/).filter((line) => line.trim());
+  const eersteRegel = cleaned.split(/\r?\n/, 1)[0] ?? "";
+  const separator = detectSeparator(eersteRegel);
+  const rijen = splitCSV(cleaned, separator);
 
-  if (lines.length < 2) {
-    return [];
-  }
+  if (rijen.length < 2) return [];
 
-  const separator = detectSeparator(lines[0]);
-  const headers = lines[0].split(separator).map((h) => h.trim().replace(/^["']|["']$/g, ""));
+  const headers = rijen[0].map((h) => decodeEntities(h).trim());
 
-  const rows: Record<string, string>[] = [];
-
-  for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(separator).map((v) => v.trim().replace(/^["']|["']$/g, ""));
-    const row: Record<string, string> = {};
-
-    for (let j = 0; j < headers.length; j++) {
-      row[headers[j]] = values[j] || "";
-    }
-
-    // Skip completely empty rows
-    if (Object.values(row).some((v) => v.trim())) {
-      rows.push(row);
-    }
-  }
-
-  return rows;
+  return rijen.slice(1).map((waarden) => {
+    const rij: Record<string, string> = {};
+    headers.forEach((header, i) => {
+      rij[header] = decodeEntities(waarden[i] ?? "").trim();
+    });
+    return rij;
+  });
 }
 
-/**
- * Find column by possible names (case-insensitive partial match)
- */
 function findColumn(
   row: Record<string, string>,
   possibleNames: string[]
@@ -106,34 +180,31 @@ function findColumn(
     const index = lowerKeys.findIndex((k) => k === name.toLowerCase());
     if (index !== -1) return keys[index];
   }
-
-  // Fallback: partial match
   for (const name of possibleNames) {
     const index = lowerKeys.findIndex((k) => k.includes(name.toLowerCase()));
     if (index !== -1) return keys[index];
   }
-
   return undefined;
 }
 
-/**
- * Normalize klant type string to valid enum value
- */
-function normalizeKlantType(value: string | undefined): KlantType {
-  if (!value) return "particulier";
+function normalizeKlantType(value: string | undefined, naam: string): KlantType {
+  // "VvE Kapellerlaan 36-40" is geen gewoon bedrijf — dat scheelt handwerk achteraf.
+  if (/^\s*vve\b/i.test(naam) || /\bvve\b/i.test(naam)) return "vve";
+  if (/^\s*gemeente\b/i.test(naam)) return "gemeente";
 
+  if (!value) return "particulier";
   const lower = value.toLowerCase().trim();
 
-  // Direct match
-  if (VALID_KLANT_TYPES.includes(lower as KlantType)) {
-    return lower as KlantType;
-  }
+  if (VALID_KLANT_TYPES.includes(lower as KlantType)) return lower as KlantType;
 
-  // Common aliases
   const aliases: Record<string, KlantType> = {
     bedrijf: "zakelijk",
+    bedrijven: "zakelijk",
     business: "zakelijk",
     company: "zakelijk",
+    zakelijk: "zakelijk",
+    persoon: "particulier",
+    personen: "particulier",
     prive: "particulier",
     privé: "particulier",
     private: "particulier",
@@ -149,26 +220,116 @@ function normalizeKlantType(value: string | undefined): KlantType {
   return aliases[lower] ?? "particulier";
 }
 
-/**
- * Validate Dutch postcode format
- */
-function isValidPostcode(postcode: string): boolean {
-  return POSTCODE_REGEX.test(postcode.trim());
+function normalizeSoort(value: string | undefined): RelatieSoort | undefined {
+  if (!value) return undefined;
+  const lower = value.toLowerCase().trim();
+  if (lower.startsWith("lever") || lower.startsWith("suppl") || lower.startsWith("crediteur")) {
+    return "leverancier";
+  }
+  if (lower.startsWith("klant") || lower.startsWith("customer") || lower.startsWith("debiteur")) {
+    return "klant";
+  }
+  return undefined;
 }
 
-/**
- * Format postcode to standard format (1234 AB)
- */
-function formatPostcode(postcode: string): string {
+/** Nederlandse postcode netjes als "1234 AB"; overige codes blijven zoals ze zijn. */
+export function formatPostcode(postcode: string): string {
   const cleaned = postcode.replace(/\s/g, "").toUpperCase();
-  if (cleaned.length === 6) {
+  if (/^\d{4}[A-Z]{2}$/.test(cleaned)) {
     return `${cleaned.slice(0, 4)} ${cleaned.slice(4)}`;
   }
   return postcode.trim();
 }
 
+export interface GesplitstAdres {
+  adres: string;
+  postcode: string;
+  plaats: string;
+  /** true als er wel een adres is maar geen herkenbare postcode. */
+  postcodeOntbreekt: boolean;
+  /** true bij een niet-Nederlandse postcode (Duits/Belgisch). */
+  buitenlandsePostcode: boolean;
+}
+
 /**
- * Process imported data and validate
+ * Haalt adres, postcode en plaats uit één samengesteld veld.
+ *
+ * Werkt van achteren naar voren: het laatste komma-segment dat met een
+ * postcode begint is de postcode+plaats, alles daarvóór is het adres. Zo
+ * blijven adressen met extra komma's ("ECI 2, Berkelplein 26 6301 ZE
+ * Valkenburg, 6041 MA Roermond") intact en wint de échte postcode van een
+ * postcode die toevallig middenin het adres staat.
+ */
+export function splitsAdresveld(ruw: string): GesplitstAdres {
+  const tekst = decodeEntities(ruw ?? "").trim();
+  if (!tekst) {
+    return {
+      adres: "",
+      postcode: "",
+      plaats: "",
+      postcodeOntbreekt: false,
+      buitenlandsePostcode: false,
+    };
+  }
+
+  const segmenten = tekst
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  for (let i = segmenten.length - 1; i >= 0; i--) {
+    const segment = segmenten[i];
+
+    const nl = segment.match(NL_POSTCODE);
+    if (nl) {
+      return {
+        adres: segmenten.slice(0, i).join(", "),
+        postcode: `${nl[1]} ${nl[2].toUpperCase()}`,
+        plaats: segment.slice(nl[0].length).trim().replace(/^,\s*/, ""),
+        postcodeOntbreekt: false,
+        buitenlandsePostcode: false,
+      };
+    }
+
+    const numeriek = segment.match(NUMERIEKE_POSTCODE);
+    if (numeriek) {
+      const plaats = segment.slice(numeriek[0].length).trim().replace(/^,\s*/, "");
+      // Een los getal zonder plaatsnaam is eerder een huisnummer dan een postcode.
+      if (!plaats) continue;
+      return {
+        adres: segmenten.slice(0, i).join(", "),
+        postcode: numeriek[1],
+        plaats,
+        postcodeOntbreekt: false,
+        // 4 cijfers zonder letters kan ook een NL-postcode zijn waar de letters
+        // ontbreken; alles vanaf 5 cijfers is zeker buitenlands.
+        buitenlandsePostcode: numeriek[1].length >= 5,
+      };
+    }
+  }
+
+  // Geen postcode gevonden: laatste segment als plaats, de rest als adres.
+  if (segmenten.length >= 2) {
+    return {
+      adres: segmenten.slice(0, -1).join(", "),
+      postcode: "",
+      plaats: segmenten[segmenten.length - 1],
+      postcodeOntbreekt: true,
+      buitenlandsePostcode: false,
+    };
+  }
+
+  return {
+    adres: segmenten[0] ?? "",
+    postcode: "",
+    plaats: "",
+    postcodeOntbreekt: true,
+    buitenlandsePostcode: false,
+  };
+}
+
+/**
+ * Verwerkt ingelezen rijen tot importeerbare records.
  */
 export function processKlantImportData(
   data: Record<string, string>[]
@@ -182,9 +343,11 @@ export function processKlantImportData(
     return { entries, errors, warnings };
   }
 
-  // Detect columns from first row
   const firstRow = data[0];
   const naamCol = findColumn(firstRow, columnMappings.naam);
+  const bedrijfsnaamCol = findColumn(firstRow, columnMappings.bedrijfsnaam);
+  const voornaamCol = findColumn(firstRow, columnMappings.voornaam);
+  const achternaamCol = findColumn(firstRow, columnMappings.achternaam);
   const emailCol = findColumn(firstRow, columnMappings.email);
   const telefoonCol = findColumn(firstRow, columnMappings.telefoon);
   const straatCol = findColumn(firstRow, columnMappings.straat);
@@ -192,103 +355,163 @@ export function processKlantImportData(
   const postcodeCol = findColumn(firstRow, columnMappings.postcode);
   const plaatsCol = findColumn(firstRow, columnMappings.plaats);
   const typeCol = findColumn(firstRow, columnMappings.type);
+  const categorieCol = findColumn(firstRow, columnMappings.categorie);
+  const klantnummerCol = findColumn(firstRow, columnMappings.klantnummer);
 
-  if (!naamCol) {
+  const heeftNaamBron = Boolean(naamCol || bedrijfsnaamCol || achternaamCol || voornaamCol);
+  if (!heeftNaamBron) {
     errors.push(
-      "Kolom 'naam' niet gevonden. Verwachte namen: naam, klantnaam, bedrijfsnaam"
+      "Geen naamkolom gevonden. Verwacht: 'naam', of 'bedrijfsnaam' / 'voornaam' + 'achternaam'."
     );
-  }
-
-  if (!postcodeCol) {
-    errors.push(
-      "Kolom 'postcode' niet gevonden. Verwachte namen: postcode, postal, zip"
-    );
-  }
-
-  if (!plaatsCol) {
-    errors.push(
-      "Kolom 'plaats' niet gevonden. Verwachte namen: plaats, stad, woonplaats"
-    );
-  }
-
-  if (errors.length > 0) {
     return { entries, errors, warnings };
   }
 
-  if (!straatCol) {
-    warnings.push(
-      "Kolom 'straat' niet gevonden. Adres wordt leeg gelaten. Verwachte namen: straat, adres"
-    );
-  }
+  // Als er geen aparte postcodekolom is, zit het adres vermoedelijk samengevoegd
+  // in het plaatsveld; dat splitsen we hieronder per rij.
+  const adresIsSamengesteld = !postcodeCol && !straatCol;
 
-  // Process each row
+  let zonderPostcode = 0;
+  let buitenlands = 0;
+  let zonderEmail = 0;
+  const gezieneSleutels = new Set<string>();
+  let dubbelInBestand = 0;
+
   data.forEach((row, index) => {
-    const rowNum = index + 2; // +1 for header, +1 for 1-based index
+    const rowNum = index + 2; // +1 header, +1 voor 1-based
+    const lees = (col: string | undefined) => (col ? (row[col] ?? "").trim() : "");
+    const opmerkingen: string[] = [];
 
-    // Parse naam (required)
-    const naam = naamCol ? row[naamCol]?.trim() : undefined;
+    // ── Naam ──────────────────────────────────────────────────────────────
+    const bedrijfsnaam = lees(bedrijfsnaamCol);
+    const voornaam = lees(voornaamCol);
+    const achternaam = lees(achternaamCol);
+    const persoonsnaam = [voornaam, achternaam].filter(Boolean).join(" ").trim();
+    const naam = (bedrijfsnaam || persoonsnaam || lees(naamCol)).trim();
+
     if (!naam) {
-      errors.push(`Rij ${rowNum}: Naam ontbreekt`);
+      errors.push(`Rij ${rowNum}: geen naam gevonden, rij overgeslagen`);
       return;
     }
 
-    // Parse postcode (required)
-    const rawPostcode = postcodeCol ? row[postcodeCol]?.trim() : undefined;
-    if (!rawPostcode) {
-      errors.push(`Rij ${rowNum}: Postcode ontbreekt`);
-      return;
+    // Bij een bedrijf is de persoonsnaam de contactpersoon.
+    const contactpersoon = bedrijfsnaam && persoonsnaam ? persoonsnaam : undefined;
+
+    // ── Adres ─────────────────────────────────────────────────────────────
+    let adres = "";
+    let postcode = "";
+    let plaats = "";
+
+    if (adresIsSamengesteld) {
+      const gesplitst = splitsAdresveld(lees(plaatsCol));
+      adres = gesplitst.adres;
+      postcode = gesplitst.postcode;
+      plaats = gesplitst.plaats;
+      if (gesplitst.postcodeOntbreekt) opmerkingen.push("postcode ontbreekt");
+      if (gesplitst.buitenlandsePostcode) opmerkingen.push("buitenlandse postcode");
+    } else {
+      const straat = lees(straatCol);
+      const huisnummer = lees(huisnummerCol);
+      adres = [straat, huisnummer].filter(Boolean).join(" ");
+      const ruwePostcode = lees(postcodeCol);
+      plaats = lees(plaatsCol);
+
+      if (ruwePostcode) {
+        postcode = formatPostcode(ruwePostcode);
+        if (!/^\d{4}\s[A-Z]{2}$/.test(postcode)) {
+          if (/^\d{4,6}$/.test(postcode.replace(/\s/g, ""))) {
+            opmerkingen.push("buitenlandse postcode");
+          } else {
+            opmerkingen.push("afwijkende postcode");
+          }
+        }
+      } else {
+        opmerkingen.push("postcode ontbreekt");
+      }
+
+      // Adres zonder losse plaatskolom: mogelijk zit alles in het adresveld.
+      if (!plaats && adres.includes(",")) {
+        const gesplitst = splitsAdresveld(adres);
+        adres = gesplitst.adres || adres;
+        plaats = gesplitst.plaats;
+        if (!postcode) postcode = gesplitst.postcode;
+      }
     }
 
-    if (!isValidPostcode(rawPostcode)) {
-      errors.push(
-        `Rij ${rowNum}: Ongeldige postcode "${rawPostcode}" (verwacht formaat: 1234 AB)`
-      );
-      return;
-    }
-    const postcode = formatPostcode(rawPostcode);
+    if (!plaats) opmerkingen.push("plaats ontbreekt");
+    if (!postcode) zonderPostcode++;
+    if (opmerkingen.includes("buitenlandse postcode")) buitenlands++;
 
-    // Parse plaats (required)
-    const plaats = plaatsCol ? row[plaatsCol]?.trim() : undefined;
-    if (!plaats) {
-      errors.push(`Rij ${rowNum}: Plaats ontbreekt`);
-      return;
-    }
-
-    // Parse adres (optional, combine straat + huisnummer)
-    const straat = straatCol ? row[straatCol]?.trim() : "";
-    const huisnummer = huisnummerCol ? row[huisnummerCol]?.trim() : "";
-    const adres = [straat, huisnummer].filter(Boolean).join(" ") || "Onbekend";
-
-    // Parse email (optional)
-    const email = emailCol ? row[emailCol]?.trim() : undefined;
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      warnings.push(`Rij ${rowNum}: Ongeldig e-mailadres "${email}", wordt overgeslagen`);
+    // ── E-mail ────────────────────────────────────────────────────────────
+    const ruweEmail = lees(emailCol);
+    let email: string | undefined;
+    if (ruweEmail) {
+      if (EMAIL_REGEX.test(ruweEmail)) {
+        email = ruweEmail.toLowerCase();
+      } else {
+        opmerkingen.push("ongeldig e-mailadres");
+        warnings.push(`Rij ${rowNum}: ongeldig e-mailadres "${ruweEmail}", niet overgenomen`);
+      }
+    } else {
+      zonderEmail++;
     }
 
-    // Parse telefoon (optional)
-    const telefoon = telefoonCol ? row[telefoonCol]?.trim() : undefined;
+    const telefoon = lees(telefoonCol) || undefined;
+    const klantType = normalizeKlantType(lees(typeCol), naam);
+    const soort = normalizeSoort(lees(categorieCol)) ?? "klant";
+    const klantnummer = lees(klantnummerCol) || undefined;
 
-    // Parse type (optional, defaults to particulier)
-    const rawType = typeCol ? row[typeCol]?.trim() : undefined;
-    const klantType = normalizeKlantType(rawType);
+    // Dubbelen binnen hetzelfde bestand markeren (e-mail, anders naam+postcode).
+    const sleutel = email
+      ? `e:${email}`
+      : `n:${naam.toLowerCase()}|${postcode.replace(/\s/g, "").toLowerCase()}`;
+    if (gezieneSleutels.has(sleutel)) {
+      opmerkingen.push("dubbel in bestand");
+      dubbelInBestand++;
+    } else {
+      gezieneSleutels.add(sleutel);
+    }
 
     entries.push({
       naam,
-      email: email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : undefined,
-      telefoon: telefoon || undefined,
+      email,
+      telefoon,
+      contactpersoon,
       adres,
       postcode,
       plaats,
       klantType,
+      soort,
+      klantnummer,
+      opmerkingen,
     });
   });
+
+  // Samenvattende waarschuwingen in plaats van één regel per rij — anders staan
+  // er honderd meldingen in beeld en zie je het echte probleem niet meer.
+  if (zonderPostcode > 0) {
+    warnings.push(
+      `${zonderPostcode} ${zonderPostcode === 1 ? "rij heeft" : "rijen hebben"} geen postcode. Deze worden gewoon geïmporteerd; je kunt de postcode later in de app aanvullen.`
+    );
+  }
+  if (buitenlands > 0) {
+    warnings.push(
+      `${buitenlands} ${buitenlands === 1 ? "rij heeft" : "rijen hebben"} een buitenlandse postcode (Duits/Belgisch). Deze blijft staan zoals hij is.`
+    );
+  }
+  if (zonderEmail > 0) {
+    warnings.push(
+      `${zonderEmail} ${zonderEmail === 1 ? "rij heeft" : "rijen hebben"} geen e-mailadres. Zonder e-mail kun je geen portaal-uitnodiging versturen.`
+    );
+  }
+  if (dubbelInBestand > 0) {
+    warnings.push(
+      `${dubbelInBestand} ${dubbelInBestand === 1 ? "rij komt" : "rijen komen"} meerdere keren voor in dit bestand. Alleen de eerste wordt geïmporteerd.`
+    );
+  }
 
   return { entries, errors, warnings };
 }
 
-/**
- * Main parse function - reads file and processes
- */
 export async function parseKlantenFile(file: File): Promise<KlantParseResult> {
   const fileExtension = file.name.split(".").pop()?.toLowerCase();
 
@@ -313,14 +536,11 @@ export async function parseKlantenFile(file: File): Promise<KlantParseResult> {
   }
 }
 
-/**
- * Get sample CSV content for download (Dutch format with semicolons)
- */
 export function getSampleKlantCSV(): string {
-  return `naam;email;telefoon;straat;huisnummer;postcode;plaats;type
-Jan Jansen;jan@voorbeeld.nl;06-12345678;Hoofdstraat;1;1234 AB;Amsterdam;particulier
-De Groene Tuin B.V.;info@groen.nl;020-1234567;Kerkweg;42;5678 CD;Rotterdam;zakelijk
-Familie de Vries;devries@email.nl;06-87654321;Parkweg;15a;9012 EF;Utrecht;particulier
-VvE Zonnedael;bestuur@zonnedael.nl;030-9876543;Zonnebloemstraat;8;3456 GH;Den Haag;vve
-Gemeente Hilversum;groen@hilversum.nl;035-6291111;Raadhuis;1;1211 AB;Hilversum;gemeente`;
+  return `Type;Klantnummer;Bedrijfsnaam;Voornaam;Achternaam;E-mail;Categorie;Plaats
+Persoon;1001;;Jan;Jansen;jan@voorbeeld.nl;Klant;Hoofdstraat 1, 1234 AB Amsterdam
+Persoon;1002;;Els;de Vries;devries@email.nl;Klant;Parkweg 15a, 9012 EF Utrecht
+Bedrijf;1003;De Groene Tuin B.V.;Piet;Bakker;info@groen.nl;Klant;Kerkweg 42, 5678 CD Rotterdam
+Bedrijf;1004;VvE Zonnedael;;;bestuur@zonnedael.nl;Klant;Zonnebloemstraat 8, 3456 GH Den Haag
+Bedrijf;1005;Boomkwekerij Frijns;;;info@frijns.nl;Leverancier;Groot Welsden 30, 6269 EV Margraten`;
 }

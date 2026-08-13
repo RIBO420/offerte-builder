@@ -57,11 +57,36 @@ export interface HoutwerkConfigurator {
 export type AanlegScope =
   | "grondwerk"
   | "bestrating"
+  | "parkeerplaats"
+  | "beregening"
   | "borders"
   | "gras"
   | "houtwerk"
   | "water_elektra"
   | "specials";
+
+// Parkeerplaats: type verharding en de verkeersbelasting die de fundering bepaalt
+export type ParkeerplaatsVerharding =
+  | "betonklinker"
+  | "grasbetontegel"
+  | "halfverharding"
+  | "asfalt";
+
+export type ParkeerplaatsDraagkracht =
+  | "personenauto"
+  | "bestelbus"
+  | "vrachtverkeer";
+
+export type ParkeerplaatsAfwatering = "geen" | "kolken" | "infiltratie";
+
+// Beregening
+export type SproeierType =
+  | "popup"
+  | "sproeidop"
+  | "druppelslang"
+  | "combinatie";
+
+export type Waterbron = "waterleiding" | "put" | "regenwater";
 
 // Klant gegevens
 export interface Klant {
@@ -129,6 +154,46 @@ export interface BestratingData {
   funderingslagen?: FunderingslagenData;
   // Zones voor bestrating (meerdere gebieden)
   zones?: BestratingZone[];
+}
+
+// Parkeerplaats scope data
+export interface ParkeerplaatsData {
+  oppervlakte: number;
+  /** Alleen voor de omschrijving op de offerte; bepaalt de prijs niet. */
+  aantalPlaatsen?: number;
+  verharding: ParkeerplaatsVerharding;
+  /** Zwaarste verkeer dat de verharding moet dragen — bepaalt de fundering. */
+  draagkracht: ParkeerplaatsDraagkracht;
+  /** Ontgraven + afvoer binnen deze scope (uit als scope grondwerk dat al doet). */
+  ontgraven: boolean;
+  /** Overschrijft de funderingsdiktes (cm) die uit de draagkracht volgen. */
+  funderingslagen?: {
+    gebrokenPuin: number;
+    zand: number;
+  };
+  opsluitbanden: boolean;
+  /** Leeg = omtrek wordt geschat uit de oppervlakte. */
+  opsluitbandenMeters?: number;
+  afwatering: ParkeerplaatsAfwatering;
+  aantalKolken?: number;
+  belijning: boolean;
+}
+
+// Beregening scope data
+export interface BeregeningData {
+  /** Te beregenen oppervlakte in m². */
+  oppervlakte: number;
+  /** Aantal sproeizones (elk met een eigen magneetventiel). */
+  aantalZones: number;
+  sproeierType: SproeierType;
+  waterbron: Waterbron;
+  /** Leeg = geschat uit oppervlakte en aantal zones. */
+  leidinglengte?: number;
+  /** Automatische regelkast met tijdsturing. */
+  regelkast: boolean;
+  wifiModule?: boolean;
+  /** Leegblaasvoorziening tegen vorstschade. */
+  wintervast: boolean;
 }
 
 // Borders scope data

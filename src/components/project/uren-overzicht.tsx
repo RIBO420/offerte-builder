@@ -30,6 +30,8 @@ interface UrenOverzichtProps {
 const scopeColors: Record<string, string> = {
   grondwerk: "bg-amber-500",
   bestrating: "bg-stone-500",
+  parkeerplaats: "bg-zinc-600",
+  beregening: "bg-sky-500",
   borders: "bg-green-500",
   gras: "bg-emerald-500",
   houtwerk: "bg-orange-600",

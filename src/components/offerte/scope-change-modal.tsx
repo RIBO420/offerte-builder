@@ -14,6 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Shovel,
+  SquareParking,
+  Droplets,
   Layers,
   Flower2,
   Trees,
@@ -31,6 +33,8 @@ import { SCOPES } from "@/app/(dashboard)/offertes/nieuw/aanleg/hooks/useAanlegW
 const SCOPE_ICONS = {
   grondwerk: Shovel,
   bestrating: Layers,
+  parkeerplaats: SquareParking,
+  beregening: Droplets,
   borders: Flower2,
   gras: Trees,
   houtwerk: Hammer,

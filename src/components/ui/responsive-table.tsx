@@ -34,6 +34,21 @@ export interface ResponsiveColumn<T, SortKey = string> {
   sortKey?: SortKey;
   // Whether this column is sortable
   sortable?: boolean;
+  /**
+   * Vaste kolombreedte (Tailwind-class, bv. "w-[22%]" of "w-[180px]").
+   *
+   * Zodra één kolom een breedte heeft, schakelt de tabel over op
+   * `table-fixed`. Kolommen houden zich dan aan hun breedte en lange waarden
+   * worden ingekort in plaats van dat ze de tabel oprekken — deze app scrollt
+   * bewust nooit zijwaarts.
+   */
+  width?: string;
+  /**
+   * Zet `overflow-hidden` uit voor deze kolom. Nodig bij kolommen met
+   * vaste besturingselementen (knoppenrij): daar mag nooit iets worden
+   * afgeknipt, terwijl tekstkolommen juist moeten inkorten.
+   */
+  allowOverflow?: boolean;
 }
 
 interface ResponsiveTableProps<T, SortKey = string> {
@@ -91,11 +106,15 @@ export function ResponsiveTable<T, SortKey = string>({
     );
   }
 
+  // Vaste kolombreedtes => table-fixed, zodat lange inhoud inkort i.p.v. de
+  // tabel breder te maken dan het scherm.
+  const heeftVasteBreedtes = columns.some((col) => col.width);
+
   return (
     <div className={className}>
       {/* Desktop/Tablet Table View */}
       <div className={cn("hidden", breakpointClass)}>
-        <Table>
+        <Table className={cn(heeftVasteBreedtes && "table-fixed")}>
           <TableHeader>
             <TableRow>
               {columns.map((column) => {
@@ -114,6 +133,7 @@ export function ResponsiveTable<T, SortKey = string>({
                     className={cn(
                       column.align === "right" && "text-right",
                       column.align === "center" && "text-center",
+                      column.width,
                       isSortable && "cursor-pointer select-none hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     )}
                     onClick={isSortable ? () => onSort(column.sortKey!) : undefined}
@@ -160,7 +180,9 @@ export function ResponsiveTable<T, SortKey = string>({
                     key={column.key}
                     className={cn(
                       column.align === "right" && "text-right",
-                      column.align === "center" && "text-center"
+                      column.align === "center" && "text-center",
+                      // Nodig om truncate binnen een vaste kolom te laten werken
+                      heeftVasteBreedtes && !column.allowOverflow && "overflow-hidden"
                     )}
                   >
                     {column.render(item)}

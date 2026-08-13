@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { PageHeader } from "@/components/page-header";
 import {
   AlertDialog,
@@ -34,16 +33,12 @@ import {
 } from "@/components/ui/table";
 import {
   User,
-  Mail,
-  Phone,
-  MapPin,
   FileText,
   Loader2,
   ArrowLeft,
   Shovel,
   Trees,
   History,
-  Tag,
   ShieldAlert,
 } from "lucide-react";
 import { useMutation, useQuery } from "convex/react";
@@ -53,9 +48,11 @@ import { useIsAdmin } from "@/hooks/use-users";
 import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import { CopyButton } from "@/components/ui/copy-button";
 import { Switch } from "@/components/ui/switch";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Id } from "../../../../../convex/_generated/dataModel";
 import { LeadHistorieCard } from "@/components/leads/lead-historie-card";
 import { OnderhoudSectie } from "@/components/klanten/onderhoud-sectie";
+import { KlantTakenCard } from "@/components/klanten/klant-taken-card";
 import { KlantTijdlijn } from "@/components/tijdlijn/klant-tijdlijn";
 import { KlantReminderBanner } from "@/components/klant-reminder-banner";
 import { formatCurrency } from "@/lib/format/currency";
@@ -122,6 +119,56 @@ function formatDate(timestamp: number): string {
     month: "short",
     year: "numeric",
   });
+}
+
+/**
+ * Paneel in de rechterkolom. Bewust géén <Card>: die brengt een eigen
+ * kop-, padding- en schaduwlaag mee, en drie Cards onder elkaar in een smalle
+ * kolom leest als drie losse eilanden. Eén rand met een klein kopje houdt het
+ * dossier rustig.
+ */
+function Paneel({
+  titel,
+  children,
+}: {
+  titel: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="rounded-lg border bg-card">
+      <h2 className="border-b px-4 py-2.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        {titel}
+      </h2>
+      {children}
+    </section>
+  );
+}
+
+/** Label links, waarde rechts — leest als een dossierregel, niet als een kaart. */
+function Feit({
+  label,
+  children,
+  uitlijnen = "rechts",
+}: {
+  label: string;
+  children: ReactNode;
+  /** Adressen lopen over meerdere regels en staan beter onder het label. */
+  uitlijnen?: "rechts" | "onder";
+}) {
+  if (uitlijnen === "onder") {
+    return (
+      <div className="px-4 py-2.5">
+        <dt className="text-xs text-muted-foreground">{label}</dt>
+        <dd className="mt-0.5 text-sm">{children}</dd>
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-baseline justify-between gap-3 px-4 py-2.5">
+      <dt className="shrink-0 text-xs text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 text-right text-sm">{children}</dd>
+    </div>
+  );
 }
 
 export default function KlantDetailPage({
@@ -205,93 +252,101 @@ export default function KlantDetailPage({
     (sum, o) => sum + (o.totalen?.totaalInclBtw || 0),
     0
   );
+  const geaccepteerdAantal = offertes.filter(
+    (o) => o.status === "geaccepteerd"
+  ).length;
   const acceptedValue = offertes
     .filter((o) => o.status === "geaccepteerd")
     .reduce((sum, o) => sum + (o.totalen?.totaalInclBtw || 0), 0);
+
+  const pipelineStatus = (klant as { pipelineStatus?: PipelineStatus })
+    .pipelineStatus;
+  const klantType =
+    (klant as { klantType?: KlantType }).klantType ?? "particulier";
+  const tags = (klant as { tags?: string[] }).tags ?? [];
+
+  const adresregel = [
+    klant.adres,
+    [klant.postcode, klant.plaats].filter(Boolean).join(" "),
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   return (
     <>
       <PageHeader customLabels={{ [`/klanten/${id}`]: klant.naam }} />
 
-      <div className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" asChild aria-label="Terug naar klanten">
+      <div className="flex flex-1 flex-col gap-5 p-4 md:p-6">
+        {/* Kop: identiteit links, acties rechts. Compact gehouden — de details
+            staan in de rechterkolom, niet in de titel. */}
+        <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+          <div className="flex min-w-0 items-start gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0"
+              asChild
+              aria-label="Terug naar klanten"
+            >
               <Link href="/klanten">
                 <ArrowLeft className="h-4 w-4" />
               </Link>
             </Button>
-            <div>
-              <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+                <h1 className="truncate text-2xl font-semibold tracking-tight">
                   {klant.naam}
                 </h1>
-                <Badge className={pipelineColors[(klant as { pipelineStatus?: PipelineStatus }).pipelineStatus ?? "lead"]}>
-                  {pipelineLabels[(klant as { pipelineStatus?: PipelineStatus }).pipelineStatus ?? "lead"]}
+                {/* Geen status = nog geen stadium, géén "Lead" verzinnen */}
+                {pipelineStatus && (
+                  <Badge className={pipelineColors[pipelineStatus]}>
+                    {pipelineLabels[pipelineStatus]}
+                  </Badge>
+                )}
+                <Badge className={klantTypeColors[klantType]}>
+                  {klantTypeLabels[klantType]}
                 </Badge>
-                <Badge className={klantTypeColors[(klant as { klantType?: KlantType }).klantType ?? "particulier"]}>
-                  {klantTypeLabels[(klant as { klantType?: KlantType }).klantType ?? "particulier"]}
-                </Badge>
+                {tags.map((tag) => (
+                  <Badge key={tag} variant="outline" className="text-xs">
+                    {tag}
+                  </Badge>
+                ))}
               </div>
-              {(klant as { tags?: string[] }).tags && (klant as { tags?: string[] }).tags!.length > 0 && (
-                <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                  <Tag className="h-3.5 w-3.5 text-muted-foreground" />
-                  {(klant as { tags?: string[] }).tags!.map((tag: string) => (
-                    <Badge key={tag} variant="outline" className="text-xs">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-              <p className="text-muted-foreground mt-1">
-                Klant sinds {formatDate(klant.createdAt)}
-              </p>
             </div>
           </div>
-          <div className="flex gap-2">
-            {isAdmin && !isAnonymized && (
-              <Button
-                variant="outline"
-                className="text-destructive border-destructive/50 hover:bg-destructive/10"
-                onClick={() => setShowGdprDialog(true)}
-              >
-                <ShieldAlert className="mr-2 h-4 w-4" />
-                GDPR Verwijderverzoek
+
+          {!isAnonymized && (
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/offertes/nieuw/aanleg">
+                  <Shovel className="mr-2 h-4 w-4" />
+                  Aanleg
+                </Link>
               </Button>
-            )}
-            {!isAnonymized && (
-              <>
-                <Button variant="outline" asChild>
-                  <Link href="/offertes/nieuw/aanleg">
-                    <Shovel className="mr-2 h-4 w-4" />
-                    Aanleg Offerte
-                  </Link>
-                </Button>
-                <Button asChild>
-                  <Link href="/offertes/nieuw/onderhoud">
-                    <Trees className="mr-2 h-4 w-4" />
-                    Onderhoud Offerte
-                  </Link>
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
+              <Button size="sm" asChild>
+                <Link href="/offertes/nieuw/onderhoud">
+                  <Trees className="mr-2 h-4 w-4" />
+                  Onderhoud
+                </Link>
+              </Button>
+            </div>
+          )}
+        </header>
 
         {/* CRM-008: GDPR Anonymized Banner */}
         {isAnonymized && (
-          <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950">
-            <ShieldAlert className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+          <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950">
+            <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <div className="text-sm">
+              <p className="font-medium text-amber-800 dark:text-amber-200">
                 Deze klant is geanonimiseerd conform GDPR
               </p>
-              <p className="text-sm text-amber-600 dark:text-amber-400">
-                Persoonsgegevens zijn verwijderd op{" "}
+              <p className="text-amber-600 dark:text-amber-400">
+                Persoonsgegevens verwijderd op{" "}
                 {gdprBlockers?.anonymizedAt
                   ? formatDate(gdprBlockers.anonymizedAt)
-                  : "onbekend"
-                }. Financiele gegevens zijn bewaard voor de boekhouding.
+                  : "onbekend"}
+                . Financiële gegevens zijn bewaard voor de boekhouding.
               </p>
             </div>
           </div>
@@ -306,68 +361,214 @@ export default function KlantDetailPage({
           />
         )}
 
-        <div className="grid gap-6 md:grid-cols-3">
-          {/* Contact Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
-                Contactgegevens
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-start gap-3">
-                <MapPin className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium">Adres</p>
-                  <p className="text-sm text-muted-foreground">
-                    {klant.adres}
-                    <br />
-                    {klant.postcode} {klant.plaats}
-                  </p>
-                </div>
-              </div>
+        {/* Werkvlak links, feiten rechts. De rechterkolom blijft staan bij het
+            scrollen: bij het lezen van de tijdlijn wil je het telefoonnummer
+            binnen bereik houden. */}
+        <div className="grid items-start gap-5 xl:grid-cols-[1fr_20rem]">
+          <div className="min-w-0 space-y-5">
+            {/* Taken vóór de tijdlijn: vooruitkijken vóór terugkijken. */}
+            <KlantTakenCard klantId={id as Id<"klanten">} />
 
-              {klant.telefoon && (
-                <div className="flex items-start gap-3">
-                  <Phone className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">Telefoon</p>
-                    <div className="flex items-center gap-1">
-                      <p className="text-sm text-muted-foreground">
+            {/* Klanttijdlijn (PRD §2.3) — vervangt het vrije Notities-veld
+                ("één waarheid"): filters op kanaal/klus, vrij zoeken en
+                entry-compositie voor kantoor. */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <History className="h-4 w-4" />
+                  Tijdlijn
+                </CardTitle>
+                <CardDescription>
+                  Wie heeft wat besproken, wanneer, via welk kanaal, over welke
+                  klus?
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <KlantTijdlijn klantId={id as Id<"klanten">} />
+              </CardContent>
+            </Card>
+
+            {/* Onderhoud (PRD §2.1): contracten + losse beurten */}
+            <OnderhoudSectie klantId={id as Id<"klanten">} />
+
+            {/* Offertes */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <FileText className="h-4 w-4" />
+                  Offertes
+                  {offertes.length > 0 && (
+                    <Badge variant="secondary">{offertes.length}</Badge>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {offertes.length === 0 ? (
+                  <EmptyState
+                    compact
+                    icon={<FileText aria-hidden />}
+                    title="Nog geen offertes."
+                    description="Maak de eerste offerte voor deze klant."
+                  />
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nummer</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Datum</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Bedrag</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {offertes.map((offerte) => (
+                        <TableRow key={offerte._id}>
+                          <TableCell>
+                            <Link
+                              href={`/offertes/${offerte._id}`}
+                              className="font-medium hover:underline"
+                            >
+                              {offerte.offerteNummer}
+                            </Link>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {offerte.type === "aanleg" ? (
+                                <Shovel className="h-4 w-4 shrink-0 text-muted-foreground" />
+                              ) : (
+                                <Trees className="h-4 w-4 shrink-0 text-muted-foreground" />
+                              )}
+                              <span className="capitalize">{offerte.type}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {formatDate(offerte.createdAt)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={statusColors[offerte.status]}>
+                              {statusLabels[offerte.status]}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right font-medium tabular-nums">
+                            {formatCurrency(offerte.totalen?.totaalInclBtw || 0)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <aside className="space-y-4 xl:sticky xl:top-6">
+            <Paneel titel="Gegevens">
+              <dl className="divide-y">
+                {klant.contactpersoon && (
+                  <Feit label="Contactpersoon">{klant.contactpersoon}</Feit>
+                )}
+                {klant.telefoon && (
+                  <Feit label="Telefoon">
+                    <span className="inline-flex items-center gap-1">
+                      <a
+                        href={`tel:${klant.telefoon}`}
+                        className="hover:underline"
+                      >
                         {klant.telefoon}
-                      </p>
-                      <CopyButton value={klant.telefoon} label="Kopieer telefoonnummer" />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {klant.email && (
-                <div className="flex items-start gap-3">
-                  <Mail className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">E-mail</p>
-                    <div className="flex items-center gap-1">
-                      <p className="text-sm text-muted-foreground">
+                      </a>
+                      <CopyButton
+                        value={klant.telefoon}
+                        label="Kopieer telefoonnummer"
+                      />
+                    </span>
+                  </Feit>
+                )}
+                {klant.email && (
+                  <Feit label="E-mail" uitlijnen="onder">
+                    <span className="flex items-center gap-1">
+                      <a
+                        href={`mailto:${klant.email}`}
+                        className="truncate hover:underline"
+                        title={klant.email}
+                      >
                         {klant.email}
-                      </p>
-                      <CopyButton value={klant.email} label="Kopieer e-mailadres" />
-                    </div>
-                  </div>
-                </div>
-              )}
+                      </a>
+                      <CopyButton
+                        value={klant.email}
+                        label="Kopieer e-mailadres"
+                      />
+                    </span>
+                  </Feit>
+                )}
+                <Feit label="Adres" uitlijnen="onder">
+                  {adresregel || (
+                    <span className="text-muted-foreground">
+                      Geen adres bekend
+                    </span>
+                  )}
+                </Feit>
+                {klant.kvkNummer && (
+                  <Feit label="KvK">
+                    <span className="inline-flex items-center gap-1 tabular-nums">
+                      {klant.kvkNummer}
+                      <CopyButton
+                        value={klant.kvkNummer}
+                        label="Kopieer KvK-nummer"
+                      />
+                    </span>
+                  </Feit>
+                )}
+                {klant.btwNummer && (
+                  <Feit label="BTW">
+                    <span className="inline-flex items-center gap-1">
+                      {klant.btwNummer}
+                      <CopyButton
+                        value={klant.btwNummer}
+                        label="Kopieer BTW-nummer"
+                      />
+                    </span>
+                  </Feit>
+                )}
+                <Feit label="Klant sinds">{formatDate(klant.createdAt)}</Feit>
+              </dl>
+            </Paneel>
 
-              {/* §2.7: opt-in inplanning-bevestigingsmail (default uit) —
-                  zet bij inplannen een concept-mail klaar; kantoor keurt goed */}
-              <div className="flex items-center justify-between gap-3 border-t pt-4">
-                <div>
-                  <p className="text-sm font-medium">Bevestigingsmail bij inplannen</p>
+            <Paneel titel="Cijfers">
+              <dl className="divide-y">
+                <Feit label="Offertes">
+                  <span className="tabular-nums">{offertes.length}</span>
+                </Feit>
+                <Feit label="Geaccepteerd">
+                  <span className="tabular-nums">{geaccepteerdAantal}</span>
+                </Feit>
+                <Feit label="Totale waarde">
+                  <span className="tabular-nums">
+                    {formatCurrency(totalValue)}
+                  </span>
+                </Feit>
+                <Feit label="Waarvan geaccepteerd">
+                  <span className="tabular-nums font-medium text-green-600 dark:text-green-400">
+                    {formatCurrency(acceptedValue)}
+                  </span>
+                </Feit>
+              </dl>
+            </Paneel>
+
+            {/* §2.7: opt-in inplanning-bevestigingsmail (default uit) — zet bij
+                inplannen een concept-mail klaar; kantoor keurt goed */}
+            <Paneel titel="Instellingen">
+              <div className="flex items-start justify-between gap-3 px-4 py-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">
+                    Bevestigingsmail bij inplannen
+                  </p>
                   <p className="text-xs text-muted-foreground">
-                    Zet bij het inplannen een concept-mail klaar in Concept-mails
+                    Zet een concept-mail klaar in Concept-mails
                   </p>
                 </div>
                 <Switch
+                  className="mt-0.5 shrink-0"
                   checked={klant.inplanBevestigingsMail === true}
                   onCheckedChange={async (checked) => {
                     try {
@@ -387,159 +588,27 @@ export default function KlantDetailPage({
                   aria-label="Bevestigingsmail bij inplannen"
                 />
               </div>
-            </CardContent>
-          </Card>
+            </Paneel>
 
-          {/* Stats Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Statistieken
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-2xl font-bold">{offertes.length}</p>
-                  <p className="text-sm text-muted-foreground">Offertes</p>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">
-                    {offertes.filter((o) => o.status === "geaccepteerd").length}
-                  </p>
-                  <p className="text-sm text-muted-foreground">Geaccepteerd</p>
-                </div>
-              </div>
+            {/* Lead-historie (PRD §1.3): herkomst + activiteiten van de
+                gepromoveerde lead blijven vanaf de klant bereikbaar.
+                Rendert niets als deze klant geen lead-verleden heeft. */}
+            <LeadHistorieCard klantId={id as Id<"klanten">} />
 
-              <Separator />
-
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Totale waarde</span>
-                  <span className="font-medium">{formatCurrency(totalValue)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Geaccepteerd</span>
-                  <span className="font-medium text-green-600">
-                    {formatCurrency(acceptedValue)}
-                  </span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Lead-historie (PRD §1.3): herkomst + activiteiten van de
-              gepromoveerde lead blijven vanaf de klant bereikbaar */}
-          <LeadHistorieCard klantId={id as Id<"klanten">} />
-        </div>
-
-        {/* Klanttijdlijn (PRD §2.3) — vervangt het vrije Notities-veld
-            ("één waarheid"): filters op kanaal/klus, vrij zoeken en
-            entry-compositie voor kantoor. Bestaande notities zijn gemigreerd
-            als "Genoteerd vóór tijdlijn"-entry (tijdlijnMigratie). */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <History className="h-5 w-5" />
-              Tijdlijn
-            </CardTitle>
-            <CardDescription>
-              Wie heeft wat met deze klant besproken, wanneer, via welk
-              kanaal, over welke klus?
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <KlantTijdlijn klantId={id as Id<"klanten">} />
-          </CardContent>
-        </Card>
-
-        {/* Onderhoud (PRD §2.1): contracten + losse beurten, aparte regels */}
-        <OnderhoudSectie klantId={id as Id<"klanten">} />
-
-        {/* Offertes */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Offertes</CardTitle>
-                <CardDescription>
-                  Alle offertes voor {klant.naam}
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {offertes.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                <h3 className="text-lg font-medium">Nog geen offertes</h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Maak de eerste offerte voor deze klant aan.
-                </p>
-                <div className="flex gap-2 mt-4">
-                  <Button variant="outline" asChild>
-                    <Link href="/offertes/nieuw/aanleg">
-                      <Shovel className="mr-2 h-4 w-4" />
-                      Aanleg
-                    </Link>
-                  </Button>
-                  <Button asChild>
-                    <Link href="/offertes/nieuw/onderhoud">
-                      <Trees className="mr-2 h-4 w-4" />
-                      Onderhoud
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nummer</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Datum</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Bedrag</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {offertes.map((offerte) => (
-                    <TableRow key={offerte._id}>
-                      <TableCell>
-                        <Link
-                          href={`/offertes/${offerte._id}`}
-                          className="font-medium hover:underline"
-                        >
-                          {offerte.offerteNummer}
-                        </Link>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {offerte.type === "aanleg" ? (
-                            <Shovel className="h-4 w-4 text-muted-foreground" />
-                          ) : (
-                            <Trees className="h-4 w-4 text-muted-foreground" />
-                          )}
-                          <span className="capitalize">{offerte.type}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{formatDate(offerte.createdAt)}</TableCell>
-                      <TableCell>
-                        <Badge className={statusColors[offerte.status]}>
-                          {statusLabels[offerte.status]}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatCurrency(offerte.totalen?.totaalInclBtw || 0)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            {/* Onomkeerbaar, dus onderaan en visueel apart van de dagelijkse acties. */}
+            {isAdmin && !isAnonymized && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start text-destructive hover:bg-destructive/10 hover:text-destructive"
+                onClick={() => setShowGdprDialog(true)}
+              >
+                <ShieldAlert className="mr-2 h-4 w-4" />
+                GDPR-verwijderverzoek
+              </Button>
             )}
-          </CardContent>
-        </Card>
+          </aside>
+        </div>
       </div>
 
       {/* CRM-008: GDPR Anonymization Confirmation Dialog */}

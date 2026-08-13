@@ -833,6 +833,355 @@ describe("calculateOfferteRegels — aanleg scopes", () => {
     });
   });
 
+  // ---- PARKEERPLAATS ----
+
+  describe("parkeerplaats", () => {
+    const basis = {
+      oppervlakte: 200,
+      verharding: "betonklinker" as const,
+      draagkracht: "personenauto" as const,
+      ontgraven: false,
+      opsluitbanden: false,
+      afwatering: "geen" as const,
+      belijning: false,
+    };
+
+    function bereken(
+      data: Record<string, unknown>,
+      ctx: CalculationContext = context
+    ): OfferteRegel[] {
+      return calculateOfferteRegels(
+        {
+          type: "aanleg",
+          scopes: ["parkeerplaats"],
+          scopeData: { parkeerplaats: { ...basis, ...data } },
+          bereikbaarheid: "goed",
+        },
+        ctx
+      );
+    }
+
+    it("levert geen regels bij oppervlakte 0", () => {
+      expect(bereken({ oppervlakte: 0 })).toHaveLength(0);
+    });
+
+    it("berekent de fundering uit de verkeersbelasting: 25cm puin + 10cm zand bij personenauto's", () => {
+      const regels = bereken({});
+
+      const puin = regels.find((r) => r.omschrijving.includes("Gebroken puin"));
+      const zand = regels.find((r) => r.omschrijving.includes("Straatzand"));
+
+      // 200 m² * 0.25 m = 50 m³, +5% verlies = 52.5
+      expect(puin!.hoeveelheid).toBe(52.5);
+      expect(puin!.eenheid).toBe("m³");
+      // 200 m² * 0.10 m = 20 m³, +5% verlies = 21
+      expect(zand!.hoeveelheid).toBe(21);
+    });
+
+    it("verzwaart de fundering bij vrachtverkeer: 50cm puin + 15cm zand", () => {
+      const regels = bereken({ draagkracht: "vrachtverkeer" });
+
+      const puin = regels.find((r) => r.omschrijving.includes("Gebroken puin"));
+      const zand = regels.find((r) => r.omschrijving.includes("Straatzand"));
+
+      expect(puin!.hoeveelheid).toBe(cents(200 * 0.5 * 1.05));
+      expect(zand!.hoeveelheid).toBe(cents(200 * 0.15 * 1.05));
+    });
+
+    it("respecteert een handmatige funderingsopbouw boven de draagkracht", () => {
+      const regels = bereken({
+        draagkracht: "vrachtverkeer",
+        funderingslagen: { gebrokenPuin: 20, zand: 5 },
+      });
+
+      const puin = regels.find((r) => r.omschrijving.includes("Gebroken puin"));
+      expect(puin!.hoeveelheid).toBe(cents(200 * 0.2 * 1.05));
+      expect(puin!.omschrijving).toContain("20 cm");
+    });
+
+    it("rekent verharding per m² met de normuur uit de instellingen", () => {
+      const ctx = createContext({
+        normuren: [
+          ...createNormuren(),
+          { _id: "np1", activiteit: "betonklinkers", scope: "parkeerplaats", normuurPerEenheid: 0.5, eenheid: "m2" },
+        ],
+      });
+      const regels = bereken({}, ctx);
+
+      const arbeid = regels.find((r) => r.omschrijving === "Betonklinkers aanbrengen");
+      expect(arbeid!.type).toBe("arbeid");
+      expect(arbeid!.hoeveelheid).toBe(roundToQuarter(200 * 0.5));
+    });
+
+    it("valt terug op ingebouwde normuren en prijzen als het bedrijf niets heeft ingesteld", () => {
+      // Bestaande bedrijven krijgen geen nieuwe seed-normuren (createDefaults is
+      // idempotent). Zonder fallback zou deze scope stilzwijgend €0 opleveren.
+      const leeg = createContext({ normuren: [], producten: [] });
+      const regels = bereken({ opsluitbanden: true, belijning: true }, leeg);
+
+      const arbeid = regels.filter((r) => r.type === "arbeid");
+      const materiaal = regels.filter((r) => r.type === "materiaal");
+
+      expect(arbeid.length).toBeGreaterThan(0);
+      expect(materiaal.length).toBeGreaterThan(0);
+      expect(arbeid.every((r) => r.hoeveelheid > 0)).toBe(true);
+      expect(regels.every((r) => r.totaal > 0)).toBe(true);
+      // Verharding: 200 m² * 0.45 uur/m² fallback
+      expect(
+        regels.find((r) => r.omschrijving === "Betonklinkers aanbrengen")!.hoeveelheid
+      ).toBe(roundToQuarter(200 * 0.45));
+    });
+
+    it("schat de lengte opsluitbanden uit de oppervlakte als die niet is ingevuld", () => {
+      const regels = bereken({ opsluitbanden: true });
+
+      const band = regels.find((r) => r.omschrijving.includes("Opsluitbanden incl"));
+      // omtrek ≈ 4 * √200 ≈ 56.57 m, +5% verlies
+      expect(band!.hoeveelheid).toBe(cents(4 * Math.sqrt(200) * 1.05));
+    });
+
+    it("gebruikt de ingevulde lengte opsluitbanden als die er wel is", () => {
+      const regels = bereken({ opsluitbanden: true, opsluitbandenMeters: 80 });
+
+      const band = regels.find((r) => r.omschrijving.includes("Opsluitbanden incl"));
+      expect(band!.hoeveelheid).toBe(cents(80 * 1.05));
+    });
+
+    it("laat opsluitbanden en belijning weg als ze uitstaan", () => {
+      const regels = bereken({});
+
+      expect(regels.some((r) => r.omschrijving.includes("Opsluitbanden"))).toBe(false);
+      expect(regels.some((r) => r.omschrijving.includes("Belijning"))).toBe(false);
+    });
+
+    it("valt bij kolken terug op één kolk per 150 m² als het aantal ontbreekt", () => {
+      const regels = bereken({ afwatering: "kolken" });
+
+      const kolken = regels.find((r) => r.omschrijving.includes("Straatkolk"));
+      expect(kolken!.hoeveelheid).toBe(2); // ceil(200 / 150)
+    });
+
+    it("gebruikt het ingevulde aantal kolken", () => {
+      const regels = bereken({ afwatering: "kolken", aantalKolken: 5 });
+
+      const kolken = regels.find((r) => r.omschrijving.includes("Straatkolk"));
+      const kolkArbeid = regels.find((r) => r.omschrijving.includes("Kolken plaatsen"));
+      expect(kolken!.hoeveelheid).toBe(5);
+      expect(kolkArbeid!.hoeveelheid).toBe(roundToQuarter(5 * 2.5));
+    });
+
+    it("rekent infiltratie per m² in plaats van per kolk", () => {
+      const regels = bereken({ afwatering: "infiltratie" });
+
+      expect(regels.some((r) => r.omschrijving.includes("Straatkolk"))).toBe(false);
+      const infiltratie = regels.find((r) => r.omschrijving.includes("Infiltratievoorziening"));
+      expect(infiltratie!.hoeveelheid).toBe(200);
+    });
+
+    it("rekent belijning per parkeervak", () => {
+      const regels = bereken({ belijning: true, aantalPlaatsen: 12 });
+
+      const belijning = regels.find((r) => r.omschrijving.includes("Belijning"));
+      expect(belijning!.hoeveelheid).toBe(12);
+      expect(belijning!.eenheid).toBe("vak");
+    });
+
+    it("schat het aantal vakken uit de oppervlakte als het aantal plaatsen ontbreekt", () => {
+      const regels = bereken({ belijning: true });
+
+      const belijning = regels.find((r) => r.omschrijving.includes("Belijning"));
+      expect(belijning!.hoeveelheid).toBe(8); // 200 / 25
+    });
+
+    it("neemt ontgraven en afvoer alleen mee als die aanstaan", () => {
+      const zonder = bereken({ ontgraven: false });
+      expect(zonder.some((r) => r.omschrijving.includes("Ontgraven"))).toBe(false);
+
+      const met = bereken({ ontgraven: true });
+      // Diepte = 25 + 10 + 8 = 43 cm → 200 * 0.43 = 86 m³
+      const afvoer = met.find((r) => r.omschrijving.includes("Afvoer grond"));
+      expect(met.some((r) => r.omschrijving.includes("Ontgraven"))).toBe(true);
+      expect(afvoer!.hoeveelheid).toBe(86);
+    });
+
+    it("verzwaart de arbeid bij slechte bereikbaarheid", () => {
+      const goed = bereken({});
+      const slecht = calculateOfferteRegels(
+        {
+          type: "aanleg",
+          scopes: ["parkeerplaats"],
+          scopeData: { parkeerplaats: { ...basis } },
+          bereikbaarheid: "slecht",
+        },
+        createContext()
+      );
+
+      const urenGoed = goed
+        .filter((r) => r.type === "arbeid")
+        .reduce((som, r) => som + r.hoeveelheid, 0);
+      const urenSlecht = slecht
+        .filter((r) => r.type === "arbeid")
+        .reduce((som, r) => som + r.hoeveelheid, 0);
+
+      expect(urenSlecht).toBeGreaterThan(urenGoed);
+    });
+
+    it("zet alle regels op scope 'parkeerplaats' zodat de scope-marge werkt", () => {
+      const regels = bereken({
+        ontgraven: true,
+        opsluitbanden: true,
+        afwatering: "kolken",
+        aantalKolken: 2,
+        belijning: true,
+      });
+
+      expect(regels.length).toBeGreaterThan(0);
+      expect(regels.every((r) => r.scope === "parkeerplaats")).toBe(true);
+    });
+  });
+
+  // ---- BEREGENING ----
+
+  describe("beregening", () => {
+    const basis = {
+      oppervlakte: 200,
+      aantalZones: 4,
+      sproeierType: "popup" as const,
+      waterbron: "waterleiding" as const,
+      regelkast: false,
+      wintervast: false,
+    };
+
+    function bereken(
+      data: Record<string, unknown>,
+      ctx: CalculationContext = context
+    ): OfferteRegel[] {
+      return calculateOfferteRegels(
+        {
+          type: "aanleg",
+          scopes: ["beregening"],
+          scopeData: { beregening: { ...basis, ...data } },
+          bereikbaarheid: "goed",
+        },
+        ctx
+      );
+    }
+
+    it("levert geen regels bij oppervlakte 0", () => {
+      expect(bereken({ oppervlakte: 0 })).toHaveLength(0);
+    });
+
+    it("rekent één magneetventiel per zone", () => {
+      const regels = bereken({ aantalZones: 6 });
+
+      const ventiel = regels.find((r) => r.omschrijving.includes("Magneetventiel"));
+      expect(ventiel!.hoeveelheid).toBe(6);
+      const arbeid = regels.find((r) => r.omschrijving.includes("Zoneventielen"));
+      expect(arbeid!.hoeveelheid).toBe(roundToQuarter(6 * 0.75));
+    });
+
+    it("schat het aantal pop-ups op één per 25 m²", () => {
+      const regels = bereken({});
+
+      const sproeier = regels.find((r) => r.omschrijving === "Pop-up sproeier");
+      // 200 / 25 = 8 stuks, +5% verlies
+      expect(sproeier!.hoeveelheid).toBe(cents(8 * 1.05));
+      expect(sproeier!.eenheid).toBe("stuk");
+    });
+
+    it("rekent druppelslang per strekkende meter", () => {
+      const regels = bereken({ sproeierType: "druppelslang" });
+
+      const slang = regels.find((r) => r.omschrijving === "Druppelslang");
+      expect(slang!.eenheid).toBe("m");
+      // 200 / 2 = 100 m, +5% verlies
+      expect(slang!.hoeveelheid).toBe(cents(100 * 1.05));
+    });
+
+    it("schat de leidinglengte als die niet is ingevuld", () => {
+      const regels = bereken({});
+
+      const leiding = regels.find((r) => r.omschrijving.includes("PE-leiding"));
+      // omtrek 4√200 + 4 zones × √200, afgerond
+      const verwacht = Math.round(4 * Math.sqrt(200) + 4 * Math.sqrt(200));
+      expect(leiding!.hoeveelheid).toBe(cents(verwacht * 1.05));
+    });
+
+    it("gebruikt de ingevulde leidinglengte", () => {
+      const regels = bereken({ leidinglengte: 150 });
+
+      const leiding = regels.find((r) => r.omschrijving.includes("PE-leiding"));
+      expect(leiding!.hoeveelheid).toBe(cents(150 * 1.05));
+    });
+
+    it("kiest de aansluitkosten op basis van de waterbron", () => {
+      // De materiaalregel van de bron is altijd 1 stuk; daarop vergelijken we.
+      const bronRegel = (regels: OfferteRegel[]) =>
+        regels.find(
+          (r) => r.type === "materiaal" && r.eenheid === "stuk" && r.hoeveelheid === 1
+        )!;
+
+      const leiding = bereken({ waterbron: "waterleiding" });
+      const put = bereken({ waterbron: "put" });
+      const regen = bereken({ waterbron: "regenwater" });
+
+      expect(bronRegel(leiding).omschrijving).toBe("Aansluiting op waterleiding");
+      expect(bronRegel(put).omschrijving).toBe("Geslagen put incl. pomp");
+      expect(bronRegel(regen).omschrijving).toBe(
+        "Regenwateraansluiting incl. pomp"
+      );
+
+      // Een put en regenwater zijn duurder dan een waterleidingaansluiting.
+      expect(bronRegel(put).totaal).toBeGreaterThan(bronRegel(leiding).totaal);
+      expect(bronRegel(regen).totaal).toBeGreaterThan(bronRegel(put).totaal);
+    });
+
+    it("laat regelkast, wifi en wintervast weg als ze uitstaan", () => {
+      const regels = bereken({});
+
+      expect(regels.some((r) => r.omschrijving.includes("Regelkast"))).toBe(false);
+      expect(regels.some((r) => r.omschrijving.includes("Wifi"))).toBe(false);
+      expect(regels.some((r) => r.omschrijving.includes("Leegblaas"))).toBe(false);
+    });
+
+    it("voegt regelkast met wifi toe als beide aanstaan", () => {
+      const regels = bereken({ regelkast: true, wifiModule: true });
+
+      expect(regels.some((r) => r.omschrijving.includes("Regelkast 4 zones"))).toBe(true);
+      expect(regels.some((r) => r.omschrijving === "Wifi-module")).toBe(true);
+    });
+
+    it("negeert de wifi-module zonder regelkast", () => {
+      const regels = bereken({ regelkast: false, wifiModule: true });
+
+      expect(regels.some((r) => r.omschrijving.includes("Wifi"))).toBe(false);
+    });
+
+    it("rekent de leegblaasvoorziening bij wintervast", () => {
+      const regels = bereken({ wintervast: true });
+
+      expect(regels.some((r) => r.omschrijving === "Leegblaasaansluiting")).toBe(true);
+      expect(
+        regels.find((r) => r.omschrijving.includes("Leegblaasvoorziening"))!.hoeveelheid
+      ).toBe(1);
+    });
+
+    it("valt terug op ingebouwde waarden zonder normuren of producten", () => {
+      const leeg = createContext({ normuren: [], producten: [] });
+      const regels = bereken({ regelkast: true, wintervast: true }, leeg);
+
+      expect(regels.filter((r) => r.type === "arbeid").length).toBeGreaterThan(0);
+      expect(regels.every((r) => r.totaal > 0)).toBe(true);
+    });
+
+    it("zet alle regels op scope 'beregening'", () => {
+      const regels = bereken({ regelkast: true, wifiModule: true, wintervast: true });
+
+      expect(regels.length).toBeGreaterThan(0);
+      expect(regels.every((r) => r.scope === "beregening")).toBe(true);
+    });
+  });
+
   // ---- BORDERS ----
 
   describe("borders", () => {

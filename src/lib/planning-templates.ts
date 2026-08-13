@@ -9,6 +9,8 @@ export const takenTemplates: Record<string, string[]> = {
   // Aanleg scopes
   grondwerk: ["Ontgraven", "Grond afvoeren", "Onderbouw voorbereiden"],
   bestrating: ["Fundering leggen", "Bestraten", "Aftrillen/afwerken"],
+  parkeerplaats: ["Ontgraven en afvoeren", "Fundering aanbrengen en verdichten", "Verharding aanbrengen", "Opsluitbanden en kolken", "Belijning aanbrengen"],
+  beregening: ["Sleuven graven", "Leidingwerk leggen", "Zoneventielen plaatsen", "Sproeiers plaatsen en afstellen", "Regelkast programmeren"],
   borders: ["Grond voorbereiden", "Beplanting plaatsen", "Afwerking aanbrengen"],
   gras: ["Ondergrond voorbereiden", "Gras zaaien/leggen", "Afwerken"],
   houtwerk: ["Fundering maken", "Houtwerk monteren", "Afwerking"],
@@ -30,6 +32,8 @@ export const scopeDisplayNames: Record<string, string> = {
   // Aanleg scopes
   grondwerk: "Grondwerk",
   bestrating: "Bestrating",
+  parkeerplaats: "Parkeerplaats",
+  beregening: "Beregening",
   borders: "Borders",
   gras: "Gras",
   houtwerk: "Houtwerk",
@@ -67,6 +71,8 @@ export function getTasksForScope(scope: string): string[] {
 export const scopeColors: Record<string, string> = {
   grondwerk: "bg-amber-500",
   bestrating: "bg-slate-500",
+  parkeerplaats: "bg-zinc-600",
+  beregening: "bg-sky-500",
   borders: "bg-green-500",
   gras: "bg-emerald-500",
   houtwerk: "bg-orange-600",

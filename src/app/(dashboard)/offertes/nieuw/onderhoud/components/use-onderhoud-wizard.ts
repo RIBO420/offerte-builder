@@ -474,6 +474,7 @@ export function useOnderhoudWizard() {
     setScopeData,
 
     // Actions
+    setSelectedScopes,
     toggleScope,
     isScopeDataValid,
     handleStepNavigation,

@@ -56,6 +56,8 @@ import { logger } from "@/lib/logger";
 const scopeLabels: Record<string, string> = {
   grondwerk: "Grondwerk",
   bestrating: "Bestrating",
+  parkeerplaats: "Parkeerplaats",
+  beregening: "Beregening",
   borders: "Borders",
   gras: "Gazon",
   houtwerk: "Houtwerk",
@@ -185,10 +187,13 @@ export default function MachinesPage() {
         key: "naam",
         header: "Machine",
         isPrimary: true,
+        width: "w-[30%]",
         render: (machine) => (
-          <div className="flex items-center gap-2">
-            <Wrench className="h-4 w-4 text-muted-foreground" />
-            <span className="font-medium">{machine.naam}</span>
+          <div className="flex items-center gap-2 min-w-0">
+            <Wrench className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span className="font-medium truncate" title={machine.naam}>
+              {machine.naam}
+            </span>
           </div>
         ),
       },
@@ -197,9 +202,11 @@ export default function MachinesPage() {
         header: "Type",
         isSecondary: true,
         showInCard: true,
+        width: "w-[12%]",
         render: (machine) => (
           <Badge
             variant={machine.type === "intern" ? "secondary" : "outline"}
+            className="max-w-full truncate"
           >
             {machine.type === "intern" ? "Intern" : "Extern"}
           </Badge>
@@ -210,8 +217,12 @@ export default function MachinesPage() {
         header: "Tarief",
         align: "right" as const,
         showInCard: true,
+        width: "w-[15%]",
         render: (machine) => (
-          <div>
+          <div
+            className="truncate"
+            title={`${formatCurrency(machine.tarief)} /${machine.tariefType}`}
+          >
             <span className="font-medium">
               {formatCurrency(machine.tarief)}
             </span>
@@ -226,25 +237,27 @@ export default function MachinesPage() {
         header: "Gekoppelde scopes",
         showInCard: true,
         mobileLabel: "Scopes",
+        width: "w-[33%]",
         render: (machine) => (
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap items-center gap-1 min-w-0">
             {machine.gekoppeldeScopes.length > 0 ? (
               machine.gekoppeldeScopes.slice(0, 3).map((scope) => (
                 <Badge
                   key={scope}
                   variant="outline"
-                  className="text-xs"
+                  className="text-xs max-w-full truncate"
+                  title={scopeLabels[scope] || scope}
                 >
                   {scopeLabels[scope] || scope}
                 </Badge>
               ))
             ) : (
-              <span className="text-muted-foreground text-sm">
+              <span className="text-muted-foreground text-sm truncate">
                 Geen scopes
               </span>
             )}
             {machine.gekoppeldeScopes.length > 3 && (
-              <Badge variant="outline" className="text-xs">
+              <Badge variant="outline" className="text-xs shrink-0">
                 +{machine.gekoppeldeScopes.length - 3}
               </Badge>
             )}
@@ -257,6 +270,8 @@ export default function MachinesPage() {
         align: "right" as const,
         showInCard: true,
         mobileLabel: "",
+        width: "w-[88px]",
+        allowOverflow: true,
         render: (machine) => (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

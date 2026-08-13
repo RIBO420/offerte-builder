@@ -22,6 +22,8 @@ export function useInstellingen() {
     scopeMarges?: {
       grondwerk?: number;
       bestrating?: number;
+      parkeerplaats?: number;
+      beregening?: number;
       borders?: number;
       gras?: number;
       houtwerk?: number;

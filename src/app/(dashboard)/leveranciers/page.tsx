@@ -56,6 +56,7 @@ import { toast } from "sonner";
 import { useLeveranciers, useLeveranciersSearch, useLeveranciersMutations } from "@/hooks/use-leveranciers";
 import { LeverancierForm, LeverancierFormData } from "@/components/leveranciers/leverancier-form";
 import { ProductImportDialog } from "@/components/leveranciers/product-import-dialog";
+import { RelatieImportDialog } from "@/components/import/relatie-import-dialog";
 import { useIsKantoor } from "@/hooks/use-users";
 import { InkoopTabs } from "@/components/inkoop/inkoop-tabs";
 import { Id } from "../../../../convex/_generated/dataModel";
@@ -92,6 +93,7 @@ function LeveranciersPageContent() {
   const isKantoor = useIsKantoor();
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
+  const [showLeverancierImport, setShowLeverancierImport] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedLeverancier, setSelectedLeverancier] = useState<Leverancier | null>(null);
@@ -227,11 +229,16 @@ function LeveranciersPageContent() {
         isPrimary: true,
         sortable: true,
         sortKey: "naam",
+        // Vaste breedtes: de tabel moet binnen de kaart passen zonder
+        // zijwaarts scrollen — lange namen/adressen korten in.
+        width: "w-[26%]",
         render: (leverancier) => (
           <div className="flex items-center gap-2">
-            <span className="font-medium">{leverancier.naam}</span>
+            <span className="font-medium truncate" title={leverancier.naam}>
+              {leverancier.naam}
+            </span>
             {!leverancier.isActief && (
-              <Badge variant="secondary" className="text-xs">
+              <Badge variant="secondary" className="text-xs shrink-0">
                 Inactief
               </Badge>
             )}
@@ -244,11 +251,14 @@ function LeveranciersPageContent() {
         isSecondary: true,
         sortable: true,
         sortKey: "contactpersoon",
+        width: "w-[19%]",
         render: (leverancier) =>
           leverancier.contactpersoon ? (
             <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <User className="h-3.5 w-3.5 hidden sm:inline" />
-              <span>{leverancier.contactpersoon}</span>
+              <User className="h-3.5 w-3.5 shrink-0 hidden sm:inline" />
+              <span className="truncate" title={leverancier.contactpersoon}>
+                {leverancier.contactpersoon}
+              </span>
             </div>
           ) : (
             <span className="text-muted-foreground">-</span>
@@ -261,11 +271,14 @@ function LeveranciersPageContent() {
         showInCard: true,
         sortable: true,
         sortKey: "telefoon",
+        width: "w-[14%]",
         render: (leverancier) =>
           leverancier.telefoon ? (
             <div className="flex items-center gap-1.5 text-sm">
-              <Phone className="h-3.5 w-3.5 text-muted-foreground hidden sm:inline" />
-              <span>{leverancier.telefoon}</span>
+              <Phone className="h-3.5 w-3.5 shrink-0 text-muted-foreground hidden sm:inline" />
+              <span className="truncate" title={leverancier.telefoon}>
+                {leverancier.telefoon}
+              </span>
             </div>
           ) : (
             <span className="text-muted-foreground">-</span>
@@ -278,11 +291,12 @@ function LeveranciersPageContent() {
         showInCard: true,
         sortable: true,
         sortKey: "email",
+        width: "w-[23%]",
         render: (leverancier) =>
           leverancier.email ? (
             <div className="flex items-center gap-1.5 text-sm">
-              <Mail className="h-3.5 w-3.5 text-muted-foreground hidden sm:inline" />
-              <span className="truncate max-w-[150px]" title={leverancier.email}>
+              <Mail className="h-3.5 w-3.5 shrink-0 text-muted-foreground hidden sm:inline" />
+              <span className="truncate" title={leverancier.email}>
                 {leverancier.email}
               </span>
             </div>
@@ -296,10 +310,11 @@ function LeveranciersPageContent() {
         showInCard: true,
         sortable: true,
         sortKey: "isActief",
+        width: "w-[12%]",
         render: (leverancier) => (
           <Badge
             variant={leverancier.isActief ? "default" : "secondary"}
-            className="cursor-pointer"
+            className="cursor-pointer whitespace-nowrap"
             onClick={(e) => {
               e.stopPropagation();
               handleToggleStatus(leverancier);
@@ -325,13 +340,19 @@ function LeveranciersPageContent() {
         align: "right",
         showInCard: true,
         mobileLabel: "",
+        // Twee besturingselementen passen binnen 88px (2 × 32px + gap + celpadding).
+        // `allowOverflow` houdt de knoppen zichtbaar: in `table-fixed` is een
+        // px-breedte géén ondergrens, dus bij een smal venster mag deze cel
+        // liever iets uitsteken dan een knop afknippen.
+        width: "w-[88px]",
+        allowOverflow: true,
         render: (leverancier) => (
-          <div className="flex items-center justify-end gap-1">
+          <div className="flex items-center justify-end gap-0.5 whitespace-nowrap">
             <Button
               variant="ghost"
               size="icon"
               className="h-9 w-9 sm:h-8 sm:w-8"
-              aria-label="Bewerken"
+              aria-label={`${leverancier.naam} bewerken`}
               onClick={(e) => {
                 e.stopPropagation();
                 handleEdit(leverancier);
@@ -343,7 +364,7 @@ function LeveranciersPageContent() {
               variant="ghost"
               size="icon"
               className="h-9 w-9 sm:h-8 sm:w-8"
-              aria-label="Verwijderen"
+              aria-label={`${leverancier.naam} verwijderen`}
               onClick={(e) => {
                 e.stopPropagation();
                 handleDeleteClick(leverancier);
@@ -405,13 +426,22 @@ function LeveranciersPageContent() {
 
           <div className="flex items-center gap-2">
             {isKantoor && (
-              <Button
-                variant="outline"
-                onClick={() => setShowImportDialog(true)}
-              >
-                <Upload className="mr-2 h-4 w-4" />
-                Producten importeren
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowLeverancierImport(true)}
+                >
+                  <Upload className="mr-2 h-4 w-4" />
+                  Leveranciers importeren
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowImportDialog(true)}
+                >
+                  <Upload className="mr-2 h-4 w-4" />
+                  Producten importeren
+                </Button>
+              </>
             )}
             <Button onClick={() => setShowAddDialog(true)}>
               <Plus className="mr-2 h-4 w-4" />
@@ -419,6 +449,13 @@ function LeveranciersPageContent() {
             </Button>
           </div>
         </div>
+
+        {/* Leveranciersbestand-import — zelfde dialog als op de klantenpagina */}
+        <RelatieImportDialog
+          open={showLeverancierImport}
+          onOpenChange={setShowLeverancierImport}
+          soort="leverancier"
+        />
 
         {/* Productbestand-import via kolommapping (PRD §2.5c, kantoor-only) */}
         <ProductImportDialog

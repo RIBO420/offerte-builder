@@ -47,6 +47,8 @@ import { Badge } from "@/components/ui/badge";
 const availableScopes = [
   { id: "grondwerk", label: "Grondwerk" },
   { id: "bestrating", label: "Bestrating" },
+  { id: "parkeerplaats", label: "Parkeerplaats" },
+  { id: "beregening", label: "Beregening" },
   { id: "borders", label: "Borders" },
   { id: "gras", label: "Gazon" },
   { id: "houtwerk", label: "Houtwerk" },

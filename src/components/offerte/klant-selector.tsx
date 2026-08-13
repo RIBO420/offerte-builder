@@ -19,10 +19,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Check, ChevronsUpDown, User, Plus, FileText, Clock, Euro, Megaphone } from "lucide-react";
+import { Check, ChevronsUpDown, User, Plus, FileText, Clock, Euro, Megaphone, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useKlantenSearch } from "@/hooks/use-klanten";
 import { useKlantenWithStats } from "@/hooks/use-smart-analytics";
+import {
+  NieuweKlantDialog,
+  type AangemaakteKlant,
+} from "@/components/klanten/nieuwe-klant-dialog";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
 
@@ -108,6 +112,7 @@ export function KlantSelector({
     null
   );
   const [selectedLeadId, setSelectedLeadId] = useState<Id<"configuratorAanvragen"> | null>(null);
+  const [showNieuweKlant, setShowNieuweKlant] = useState(false);
 
   // Fetch leads for the selector
   const leads = useQuery(api.configuratorAanvragen.listForOfferteSelector);
@@ -203,6 +208,21 @@ export function KlantSelector({
     setSearchTerm("");
   };
 
+  /** Popover sluiten en de nieuwe-klant-dialog openen met wat er al ingevuld staat. */
+  const handleOpenNieuweKlant = () => {
+    setOpen(false);
+    setShowNieuweKlant(true);
+  };
+
+  /**
+   * Vers aangemaakte klant meteen selecteren — geen extra klik nodig. Een
+   * eventueel gekozen lead blijft gekoppeld (de offerte houdt zo zijn
+   * lead-herkomst); de weergave schakelt vanzelf om naar de klant.
+   */
+  const handleKlantAangemaakt = (klant: AangemaakteKlant) => {
+    handleSelectKlant(klant);
+  };
+
   const handleClearSelection = () => {
     setSelectedKlantId(null);
     setSelectedLeadId(null);
@@ -263,10 +283,35 @@ export function KlantSelector({
                   <div className="py-6 text-center text-sm">
                     <p className="text-muted-foreground">Geen klanten gevonden</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Vul de gegevens hieronder handmatig in
+                      Maak de klant direct aan of vul de gegevens hieronder in
                     </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-3"
+                      onClick={handleOpenNieuweKlant}
+                    >
+                      <UserPlus className="mr-2 h-3.5 w-3.5" />
+                      {searchTerm
+                        ? `"${searchTerm}" aanmaken als klant`
+                        : "Nieuwe klant aanmaken"}
+                    </Button>
                   </div>
                 </CommandEmpty>
+                <CommandGroup>
+                  {/* De zoekterm zit bewust in `value`: cmdk filtert op value,
+                      zodat deze actie ook zichtbaar blijft terwijl je typt. */}
+                  <CommandItem
+                    value={`nieuwe klant aanmaken ${searchTerm}`}
+                    onSelect={handleOpenNieuweKlant}
+                    className="text-primary"
+                  >
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    {searchTerm
+                      ? `"${searchTerm}" aanmaken als nieuwe klant`
+                      : "Nieuwe klant aanmaken"}
+                  </CommandItem>
+                </CommandGroup>
                 {!searchTerm && typedEnrichedKlanten.length > 0 && (
                   <CommandGroup heading="Recente klanten">
                     {typedEnrichedKlanten.map((klant) => (
@@ -406,18 +451,36 @@ export function KlantSelector({
             </Command>
           </PopoverContent>
         </Popover>
-        {(selectedKlantId || selectedLeadId) && (
+        <div className="flex flex-wrap items-center gap-1">
           <Button
             variant="ghost"
             size="sm"
-            onClick={handleClearSelection}
+            onClick={handleOpenNieuweKlant}
             className="text-xs"
           >
-            <Plus className="h-3 w-3 mr-1 rotate-45" />
-            Nieuwe klant invoeren
+            <UserPlus className="h-3 w-3 mr-1" />
+            Nieuwe klant aanmaken
           </Button>
-        )}
+          {(selectedKlantId || selectedLeadId) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleClearSelection}
+              className="text-xs text-muted-foreground"
+            >
+              <Plus className="h-3 w-3 mr-1 rotate-45" />
+              Selectie wissen
+            </Button>
+          )}
+        </div>
       </div>
+
+      <NieuweKlantDialog
+        open={showNieuweKlant}
+        onOpenChange={setShowNieuweKlant}
+        initialValues={value}
+        onCreated={handleKlantAangemaakt}
+      />
 
       {/* Handmatige invoer */}
       <div className="grid gap-4 md:grid-cols-2">

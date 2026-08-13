@@ -57,20 +57,18 @@ import {
   AlertTriangle,
   Bell,
   Upload,
-  Download,
-  CheckCircle2,
-  XCircle,
-  AlertCircle,
-  FileUp,
   Globe,
   GlobeLock,
+  ListTodo,
+  MoreHorizontal,
 } from "lucide-react";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -84,11 +82,8 @@ import { useKlanten, useKlantenSearch } from "@/hooks/use-klanten";
 import { Id } from "../../../../convex/_generated/dataModel";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import {
-  parseKlantenFile,
-  getSampleKlantCSV,
-  type KlantParseResult,
-} from "@/lib/klant-import-parser";
+import { RelatieImportDialog } from "@/components/import/relatie-import-dialog";
+import { BedrijfZoeken } from "@/components/klanten/bedrijf-zoeken";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useIsKantoor } from "@/hooks/use-users";
 import {
@@ -112,6 +107,10 @@ type Klant = {
   pipelineStatus?: PipelineStatus;
   klantType?: KlantType;
   tags?: string[];
+  // TT-002: alleen gevuld bij een niet-particuliere klant
+  contactpersoon?: string;
+  kvkNummer?: string;
+  btwNummer?: string;
   portalEnabled?: boolean;
   clerkUserId?: string;
   createdAt: number;
@@ -135,6 +134,26 @@ const KLANT_TYPE_COLORS: Record<KlantType, string> = {
 };
 
 const ALL_KLANT_TYPES: KlantType[] = ["particulier", "zakelijk", "vve", "gemeente", "overig"];
+
+/**
+ * TT-002: de zakelijke velden horen alleen bij een niet-particuliere klant.
+ * Bij "particulier" sturen we bewust lege strings mee (geen `undefined`): de
+ * update-mutation slaat `undefined`-velden over, dus alleen zo wordt een
+ * achtergebleven KvK-nummer ook echt gewist als je het type omzet.
+ */
+function zakelijkeVelden(form: {
+  klantType: KlantType;
+  contactpersoon: string;
+  kvkNummer: string;
+  btwNummer: string;
+}) {
+  const zakelijk = form.klantType !== "particulier";
+  return {
+    contactpersoon: zakelijk ? form.contactpersoon.trim() : "",
+    kvkNummer: zakelijk ? form.kvkNummer.trim() : "",
+    btwNummer: zakelijk ? form.btwNummer.trim() : "",
+  };
+}
 
 const PIPELINE_LABELS: Record<PipelineStatus, string> = {
   lead: "Lead",
@@ -193,6 +212,12 @@ function KlantenPageContent() {
     [klantIdsMetHerinnering]
   );
 
+  // Openstaande taken per klant — één query voor de hele lijst, geen N+1.
+  const openTakenPerKlant = useQuery(
+    api.klantTaken.openTellingPerKlant,
+    user?._id ? {} : "skip"
+  );
+
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -217,6 +242,10 @@ function KlantenPageContent() {
     telefoon: "",
     klantType: "particulier" as KlantType,
     tags: [] as string[],
+    // TT-002: alleen gebruikt bij een niet-particuliere klant
+    contactpersoon: "",
+    kvkNummer: "",
+    btwNummer: "",
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -260,18 +289,33 @@ function KlantenPageContent() {
     api.klanten.sendPortalInvitation
   );
 
-  const handleActivatePortal = useCallback(async (klant: Klant) => {
+  // Portaal-activatie is een externe handeling (de klant krijgt toegang tot
+  // zijn dossier), daarom altijd eerst expliciet bevestigen — nooit direct
+  // vanaf de knop in de tabel.
+  const [portalKlant, setPortalKlant] = useState<Klant | null>(null);
+  const [isActivatingPortal, setIsActivatingPortal] = useState(false);
+
+  const handleActivatePortal = useCallback((klant: Klant) => {
+    setPortalKlant(klant);
+  }, []);
+
+  const confirmActivatePortal = useCallback(async () => {
+    if (!portalKlant) return;
+    setIsActivatingPortal(true);
     try {
-      await activatePortalMutation({ id: klant._id });
-      toast.success(`Portaal geactiveerd voor ${klant.naam}.`);
+      await activatePortalMutation({ id: portalKlant._id });
+      toast.success(`Portaal geactiveerd voor ${portalKlant.naam}.`);
+      setPortalKlant(null);
     } catch (error) {
       if (error instanceof Error) {
         toast.error(error.message);
       } else {
         toast.error("Fout bij activeren portaal");
       }
+    } finally {
+      setIsActivatingPortal(false);
     }
-  }, [activatePortalMutation]);
+  }, [activatePortalMutation, portalKlant]);
 
   const handleDeactivatePortal = useCallback(async (klant: Klant) => {
     try {
@@ -301,13 +345,6 @@ function KlantenPageContent() {
     }
   }, [sendPortalInvitationMutation]);
 
-  // Import state
-  const importKlantenMutation = useMutation(api.klanten.importKlanten);
-  const [importParseResult, setImportParseResult] = useState<KlantParseResult | null>(null);
-  const [isImporting, setIsImporting] = useState(false);
-  const [isParsing, setIsParsing] = useState(false);
-  const [importResult, setImportResult] = useState<{ imported: number; skipped: number; errors: string[] } | null>(null);
-  const [isDragOver, setIsDragOver] = useState(false);
 
   // CRM-003: Fetch all existing tags for autocomplete
   const allTags = useQuery(api.klanten.getAllTags, user?._id ? {} : "skip");
@@ -353,7 +390,7 @@ function KlantenPageContent() {
   const filteredKlanten: Klant[] = useMemo(() => {
     let base = (debouncedSearchTerm ? searchResults : klantenWithOptimisticUpdates) as Klant[];
     if (pipelineFilter !== "alle") {
-      base = base.filter((klant) => (klant.pipelineStatus ?? "lead") === pipelineFilter);
+      base = base.filter((klant) => klant.pipelineStatus === pipelineFilter);
     }
     if (klantTypeFilter !== "alle") {
       base = base.filter((klant) => (klant.klantType ?? "particulier") === klantTypeFilter);
@@ -377,6 +414,9 @@ function KlantenPageContent() {
       telefoon: "",
       klantType: "particulier",
       tags: [],
+      contactpersoon: "",
+      kvkNummer: "",
+      btwNummer: "",
     });
   }, []);
 
@@ -398,6 +438,7 @@ function KlantenPageContent() {
         // notities bewust niet meegestuurd (deprecated, PRD §2.3)
         klantType: formData.klantType,
         tags: formData.tags.length > 0 ? formData.tags : undefined,
+        ...zakelijkeVelden(formData),
       });
       toast.success("Klant toegevoegd");
       setShowAddDialog(false);
@@ -421,6 +462,9 @@ function KlantenPageContent() {
       telefoon: klant.telefoon || "",
       klantType: klant.klantType ?? "particulier",
       tags: klant.tags ?? [],
+      contactpersoon: klant.contactpersoon ?? "",
+      kvkNummer: klant.kvkNummer ?? "",
+      btwNummer: klant.btwNummer ?? "",
     });
     setShowEditDialog(true);
   }, []);
@@ -439,6 +483,7 @@ function KlantenPageContent() {
       // en een update mag bestaande (gemigreerde) inhoud niet wissen
       klantType: formData.klantType,
       tags: formData.tags,
+      ...zakelijkeVelden(formData),
     };
 
     // 1. Apply optimistic update immediately
@@ -516,87 +561,6 @@ function KlantenPageContent() {
     setShowDeleteDialog(true);
   }, []);
 
-  // Import handlers
-  const handleFileSelect = useCallback(async (file: File) => {
-    setIsParsing(true);
-    setImportResult(null);
-    try {
-      const result = await parseKlantenFile(file);
-      setImportParseResult(result);
-    } catch {
-      toast.error("Fout bij verwerken bestand");
-    } finally {
-      setIsParsing(false);
-    }
-  }, []);
-
-  const handleImportDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      setIsDragOver(false);
-      const file = e.dataTransfer.files[0];
-      if (file) handleFileSelect(file);
-    },
-    [handleFileSelect]
-  );
-
-  const handleImportFileInput = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) handleFileSelect(file);
-    },
-    [handleFileSelect]
-  );
-
-  const handleImportSubmit = useCallback(async () => {
-    if (!importParseResult || importParseResult.entries.length === 0) return;
-
-    setIsImporting(true);
-    try {
-      const result = await importKlantenMutation({
-        klanten: importParseResult.entries.map((entry) => ({
-          naam: entry.naam,
-          email: entry.email,
-          telefoon: entry.telefoon,
-          adres: entry.adres,
-          postcode: entry.postcode,
-          plaats: entry.plaats,
-          klantType: entry.klantType,
-        })),
-      });
-      setImportResult(result);
-      if (result.imported > 0) {
-        toast.success(`${result.imported} klant${result.imported !== 1 ? "en" : ""} geimporteerd`);
-      }
-    } catch {
-      toast.error("Fout bij importeren klanten");
-    } finally {
-      setIsImporting(false);
-    }
-  }, [importParseResult, importKlantenMutation]);
-
-  const handleImportDialogClose = useCallback((open: boolean) => {
-    if (!open) {
-      setImportParseResult(null);
-      setImportResult(null);
-      setIsDragOver(false);
-    }
-    setShowImportDialog(open);
-  }, []);
-
-  const handleDownloadSampleCSV = useCallback(() => {
-    const csv = getSampleKlantCSV();
-    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "klanten-voorbeeld.csv";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  }, []);
-
   // Column configuration for ResponsiveTable
   const columns: ResponsiveColumn<Klant, keyof Klant>[] = useMemo(
     () => [
@@ -606,12 +570,16 @@ function KlantenPageContent() {
         isPrimary: true,
         sortable: true,
         sortKey: "naam",
+        // Vaste breedtes: de tabel moet binnen de kaart passen zonder
+        // zijwaarts scrollen — lange namen/adressen korten in.
+        width: "w-[34%]",
         render: (klant) => (
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2 flex-wrap">
               <Link
                 href={`/klanten/${klant._id}`}
-                className="font-medium hover:underline"
+                className="font-medium hover:underline truncate max-w-full"
+                title={klant.naam}
               >
                 {klant.naam}
               </Link>
@@ -622,12 +590,27 @@ function KlantenPageContent() {
                   <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
                 </span>
               )}
-              <Badge className={`text-xs ${PIPELINE_COLORS[klant.pipelineStatus ?? "lead"]}`}>
-                {PIPELINE_LABELS[klant.pipelineStatus ?? "lead"]}
-              </Badge>
+              {/* Geen status = nog geen stadium, géén "Lead": deze lijst laat
+                  leads juist weg (hoortInKlantenLijst) en na een import zou
+                  anders élke klant als lead worden bestempeld. */}
+              {klant.pipelineStatus && (
+                <Badge className={`text-xs ${PIPELINE_COLORS[klant.pipelineStatus]}`}>
+                  {PIPELINE_LABELS[klant.pipelineStatus]}
+                </Badge>
+              )}
               <Badge className={`text-xs ${KLANT_TYPE_COLORS[klant.klantType ?? "particulier"]}`}>
                 {KLANT_TYPE_LABELS[klant.klantType ?? "particulier"]}
               </Badge>
+              {(openTakenPerKlant?.[klant._id] ?? 0) > 0 && (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] gap-0.5"
+                  title={`${openTakenPerKlant?.[klant._id]} openstaande ta${openTakenPerKlant?.[klant._id] === 1 ? "ak" : "ken"}`}
+                >
+                  <ListTodo className="h-3 w-3" />
+                  {openTakenPerKlant?.[klant._id]}
+                </Badge>
+              )}
               {klant.portalEnabled && klant.clerkUserId && (
                 <Badge className="text-[10px] bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                   <Globe className="h-3 w-3 mr-0.5" />
@@ -655,18 +638,38 @@ function KlantenPageContent() {
       },
       {
         key: "plaats",
-        header: "Plaats",
+        header: "Adres",
         isSecondary: true,
         sortable: true,
         sortKey: "plaats",
-        render: (klant) => (
-          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <MapPin className="h-3.5 w-3.5 hidden sm:inline" />
-            <span className="truncate max-w-[200px] sm:max-w-none" title={`${klant.adres}, ${klant.postcode} ${klant.plaats}`}>
-              {klant.adres}, {klant.postcode} {klant.plaats}
-            </span>
-          </div>
-        ),
+        width: "w-[30%]",
+        render: (klant) => {
+          // Na een import kunnen adresvelden leeg zijn; zonder deze opbouw
+          // toont de rij een losse komma in plaats van een leesbaar adres.
+          const adresregel = [
+            klant.adres,
+            [klant.postcode, klant.plaats].filter(Boolean).join(" "),
+          ]
+            .filter(Boolean)
+            .join(", ");
+
+          if (!adresregel) {
+            return (
+              <span className="text-sm text-muted-foreground">
+                Geen adres bekend
+              </span>
+            );
+          }
+
+          return (
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <MapPin className="h-3.5 w-3.5 shrink-0 hidden sm:inline" />
+              <span className="truncate" title={adresregel}>
+                {adresregel}
+              </span>
+            </div>
+          );
+        },
       },
       {
         key: "telefoon",
@@ -675,6 +678,7 @@ function KlantenPageContent() {
         showInCard: true,
         sortable: true,
         sortKey: "telefoon",
+        width: "w-[12%]",
         render: (klant) =>
           klant.telefoon ? (
             <div className="flex items-center gap-1.5 text-sm">
@@ -692,11 +696,12 @@ function KlantenPageContent() {
         showInCard: true,
         sortable: true,
         sortKey: "email",
+        width: "w-[18%]",
         render: (klant) =>
           klant.email ? (
             <div className="flex items-center gap-1.5 text-sm">
-              <Mail className="h-3.5 w-3.5 text-muted-foreground hidden sm:inline" />
-              <span className="truncate max-w-[150px]" title={klant.email}>{klant.email}</span>
+              <Mail className="h-3.5 w-3.5 shrink-0 text-muted-foreground hidden sm:inline" />
+              <span className="truncate" title={klant.email}>{klant.email}</span>
             </div>
           ) : (
             <span className="text-muted-foreground">-</span>
@@ -708,147 +713,194 @@ function KlantenPageContent() {
         align: "right",
         showInCard: true,
         mobileLabel: "",
+        // Twee besturingselementen (bewerken + menu) i.p.v. vijf losse iconen.
+        // Vijf knoppen pasten niet: in `table-fixed` is een px-breedte géén
+        // ondergrens — bij een smal venster schaalt de browser alle kolommen
+        // proportioneel mee, waardoor de eerste knop buiten de cel viel.
+        // Zijwaarts scrollen is geen optie, dus verhuizen de minder gebruikte
+        // acties naar een menu.
+        width: "w-[88px]",
+        allowOverflow: true,
         render: (klant) => (
-          <TooltipProvider>
-            <div className="flex items-center justify-end gap-1">
-              <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" asChild aria-label="Bekijk details">
-                <Link href={`/klanten/${klant._id}`}>
-                  <FileText className="h-4 w-4" />
-                </Link>
-              </Button>
-              {/* Portal activate/deactivate button */}
-              {klant.portalEnabled ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9 sm:h-8 sm:w-8"
-                      aria-label="Portaal deactiveren"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeactivatePortal(klant);
-                      }}
-                    >
-                      <GlobeLock className="h-4 w-4 text-green-600" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Portaal deactiveren</TooltipContent>
-                </Tooltip>
-              ) : (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9 sm:h-8 sm:w-8"
-                      aria-label="Portaal activeren"
-                      disabled={!klant.email}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleActivatePortal(klant);
-                      }}
-                    >
-                      <Globe className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
+          <div className="flex items-center justify-end gap-0.5 whitespace-nowrap">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 sm:h-8 sm:w-8"
+              aria-label={`${klant.naam} bewerken`}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleEdit(klant);
+              }}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 sm:h-8 sm:w-8"
+                  aria-label={`Meer acties voor ${klant.naam}`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-60">
+                <DropdownMenuItem asChild>
+                  <Link href={`/klanten/${klant._id}`}>
+                    <FileText className="mr-2 h-4 w-4" />
+                    Details bekijken
+                  </Link>
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+
+                {klant.portalEnabled ? (
+                  <DropdownMenuItem onClick={() => handleDeactivatePortal(klant)}>
+                    <GlobeLock className="mr-2 h-4 w-4 text-green-600" />
+                    Portaal deactiveren
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem
+                    disabled={!klant.email}
+                    onClick={() => handleActivatePortal(klant)}
+                  >
+                    <Globe className="mr-2 h-4 w-4" />
                     {klant.email
                       ? "Portaal activeren"
-                      : "Voeg eerst een e-mailadres toe"}
-                  </TooltipContent>
-                </Tooltip>
-              )}
-              {/* Send password-setup invitation (only until the klant is linked) */}
-              {!klant.clerkUserId && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9 sm:h-8 sm:w-8"
-                      aria-label="Wachtwoord-uitnodiging versturen"
-                      disabled={!klant.email}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSendPortalInvitation(klant);
-                      }}
-                    >
-                      <Send className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
+                      : "Portaal activeren (e-mail ontbreekt)"}
+                  </DropdownMenuItem>
+                )}
+
+                {!klant.clerkUserId && (
+                  <DropdownMenuItem
+                    disabled={!klant.email}
+                    onClick={() => handleSendPortalInvitation(klant)}
+                  >
+                    <Send className="mr-2 h-4 w-4" />
                     {klant.email
-                      ? "Wachtwoord-uitnodiging versturen"
-                      : "Voeg eerst een e-mailadres toe"}
-                  </TooltipContent>
-                </Tooltip>
-              )}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 sm:h-8 sm:w-8"
-                aria-label="Bewerken"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleEdit(klant);
-                }}
-              >
-                <Pencil className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 sm:h-8 sm:w-8"
-                aria-label="Archiveren"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDeleteClick(klant);
-                }}
-              >
-                <Archive className="h-4 w-4 text-destructive" />
-              </Button>
-            </div>
-          </TooltipProvider>
+                      ? "Wachtwoord-uitnodiging sturen"
+                      : "Uitnodiging sturen (e-mail ontbreekt)"}
+                  </DropdownMenuItem>
+                )}
+
+                <DropdownMenuSeparator />
+
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => handleDeleteClick(klant)}
+                >
+                  <Archive className="mr-2 h-4 w-4" />
+                  Archiveren
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         ),
       },
     ],
-    [handleEdit, handleDeleteClick, herinneringSet, handleActivatePortal, handleDeactivatePortal, handleSendPortalInvitation]
+    [handleEdit, handleDeleteClick, herinneringSet, openTakenPerKlant, handleActivatePortal, handleDeactivatePortal, handleSendPortalInvitation]
   );
+
+  // TT-002: het klanttype bepaalt welke velden zinvol zijn. Particulieren
+  // krijgen geen contactpersoon/KvK/BTW te zien.
+  const isZakelijkeKlant = formData.klantType !== "particulier";
 
   const klantFormJsx = (
     <div className="grid gap-4">
+      {/* TT-006: zoeken vult de velden hieronder; handmatig kan altijd. */}
+      <BedrijfZoeken
+        onGevonden={(bedrijf) =>
+          setFormData((prev) => ({
+            ...prev,
+            naam: bedrijf.naam || prev.naam,
+            adres: bedrijf.adres || prev.adres,
+            postcode: bedrijf.postcode || prev.postcode,
+            plaats: bedrijf.plaats || prev.plaats,
+            telefoon: bedrijf.telefoon || prev.telefoon,
+          }))
+        }
+      />
+
+      {/* Type staat bewust bovenaan: die keuze stuurt de rest van het formulier. */}
+      <div className="space-y-2">
+        <Label htmlFor="klantType">Type klant *</Label>
+        <Select
+          value={formData.klantType}
+          onValueChange={(value) =>
+            setFormData({ ...formData, klantType: value as KlantType })
+          }
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Selecteer type" />
+          </SelectTrigger>
+          <SelectContent>
+            {ALL_KLANT_TYPES.map((type) => (
+              <SelectItem key={type} value={type}>
+                {KLANT_TYPE_LABELS[type]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="naam">Naam *</Label>
+          <Label htmlFor="naam">
+            {isZakelijkeKlant ? "Bedrijfsnaam *" : "Naam *"}
+          </Label>
           <Input
             id="naam"
-            placeholder="Jan Jansen"
+            placeholder={isZakelijkeKlant ? "De Groene Tuin B.V." : "Jan Jansen"}
             value={formData.naam}
             onChange={(e) => setFormData({ ...formData, naam: e.target.value })}
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="klantType">Type klant</Label>
-          <Select
-            value={formData.klantType}
-            onValueChange={(value) =>
-              setFormData({ ...formData, klantType: value as KlantType })
-            }
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Selecteer type" />
-            </SelectTrigger>
-            <SelectContent>
-              {ALL_KLANT_TYPES.map((type) => (
-                <SelectItem key={type} value={type}>
-                  {KLANT_TYPE_LABELS[type]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {isZakelijkeKlant && (
+          <div className="space-y-2">
+            <Label htmlFor="contactpersoon">Contactpersoon</Label>
+            <Input
+              id="contactpersoon"
+              placeholder="Jan Jansen"
+              value={formData.contactpersoon}
+              onChange={(e) =>
+                setFormData({ ...formData, contactpersoon: e.target.value })
+              }
+            />
+          </div>
+        )}
       </div>
+
+      {isZakelijkeKlant && (
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="kvkNummer">KvK-nummer</Label>
+            <Input
+              id="kvkNummer"
+              inputMode="numeric"
+              placeholder="12345678"
+              value={formData.kvkNummer}
+              onChange={(e) =>
+                setFormData({ ...formData, kvkNummer: e.target.value })
+              }
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="btwNummer">BTW-nummer</Label>
+            <Input
+              id="btwNummer"
+              placeholder="NL123456789B01"
+              value={formData.btwNummer}
+              onChange={(e) =>
+                setFormData({ ...formData, btwNummer: e.target.value })
+              }
+            />
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
@@ -1040,9 +1092,11 @@ function KlantenPageContent() {
         >
           Alle ({klantenWithOptimisticUpdates.length})
         </Badge>
-        {ALL_PIPELINE_STATUSES.map((status) => {
+        {/* "lead" overslaan: hoortInKlantenLijst houdt leads uit deze lijst,
+            dus die pil zou altijd (0) tonen. Leads leven op /leads. */}
+        {ALL_PIPELINE_STATUSES.filter((status) => status !== "lead").map((status) => {
           const count = klantenWithOptimisticUpdates.filter(
-            (k) => (k.pipelineStatus ?? "lead") === status
+            (k) => k.pipelineStatus === status
           ).length;
           return (
             <Badge
@@ -1200,206 +1254,82 @@ function KlantenPageContent() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Import Dialog */}
-      <Dialog open={showImportDialog} onOpenChange={handleImportDialogClose}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Upload className="h-5 w-5" />
-              Klanten Importeren
-            </DialogTitle>
-            <DialogDescription>
-              Upload een CSV bestand met klantgegevens. Duplicaten worden automatisch overgeslagen.
-            </DialogDescription>
-          </DialogHeader>
-
-          {/* Import result state */}
-          {importResult && (
-            <div className="space-y-3">
-              <div className="rounded-lg border bg-card p-4 space-y-3">
-                <h4 className="font-medium flex items-center gap-2">
-                  <CheckCircle2 className="h-5 w-5 text-green-600" />
-                  Import voltooid
-                </h4>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="rounded-md bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 p-3 text-center">
-                    <p className="text-2xl font-bold text-green-700 dark:text-green-400">{importResult.imported}</p>
-                    <p className="text-xs text-green-600 dark:text-green-500">Geimporteerd</p>
-                  </div>
-                  <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-center">
-                    <p className="text-2xl font-bold text-amber-700 dark:text-amber-400">{importResult.skipped}</p>
-                    <p className="text-xs text-amber-600 dark:text-amber-500">Overgeslagen (duplicaat)</p>
-                  </div>
-                  <div className="rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 p-3 text-center">
-                    <p className="text-2xl font-bold text-red-700 dark:text-red-400">{importResult.errors.length}</p>
-                    <p className="text-xs text-red-600 dark:text-red-500">Fouten</p>
-                  </div>
-                </div>
-                {importResult.errors.length > 0 && (
-                  <div className="rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 p-3">
-                    <p className="text-sm font-medium text-red-700 dark:text-red-400 mb-1">Fouten:</p>
-                    <ul className="text-xs text-red-600 dark:text-red-500 space-y-0.5 max-h-32 overflow-y-auto">
-                      {importResult.errors.map((err, i) => (
-                        <li key={i}>{err}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-              <DialogFooter>
-                <Button onClick={() => handleImportDialogClose(false)}>Sluiten</Button>
-              </DialogFooter>
-            </div>
-          )}
-
-          {/* Parse + upload state */}
-          {!importResult && (
-            <div className="space-y-4">
-              {/* File drop zone */}
-              <div
-                className={`relative rounded-lg border-2 border-dashed p-8 text-center transition-colors ${
-                  isDragOver
-                    ? "border-primary bg-primary/5"
-                    : "border-muted-foreground/25 hover:border-muted-foreground/50"
-                }`}
-                onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
-                onDragLeave={() => setIsDragOver(false)}
-                onDrop={handleImportDrop}
-              >
-                {isParsing ? (
-                  <div className="flex flex-col items-center gap-2">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">Bestand verwerken...</p>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center gap-2">
-                    <FileUp className="h-8 w-8 text-muted-foreground/50" />
-                    <div>
-                      <p className="text-sm font-medium">Sleep een CSV bestand hierheen</p>
-                      <p className="text-xs text-muted-foreground">of klik om een bestand te selecteren</p>
-                    </div>
-                    <input
-                      type="file"
-                      accept=".csv"
-                      className="absolute inset-0 cursor-pointer opacity-0"
-                      onChange={handleImportFileInput}
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Sample CSV download */}
-              <div className="flex items-center justify-between rounded-md bg-muted/50 p-3">
-                <div className="text-sm">
-                  <p className="font-medium">Voorbeeld CSV</p>
-                  <p className="text-xs text-muted-foreground">Download een voorbeeldbestand met het juiste formaat</p>
-                </div>
-                <Button variant="outline" size="sm" onClick={handleDownloadSampleCSV}>
-                  <Download className="mr-2 h-3.5 w-3.5" />
-                  Download
-                </Button>
-              </div>
-
-              {/* Parse errors */}
-              {importParseResult && importParseResult.errors.length > 0 && (
-                <div className="rounded-md border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 p-3">
-                  <p className="text-sm font-medium text-red-700 dark:text-red-400 flex items-center gap-1.5 mb-1">
-                    <XCircle className="h-4 w-4" />
-                    Validatiefouten
-                  </p>
-                  <ul className="text-xs text-red-600 dark:text-red-500 space-y-0.5 max-h-32 overflow-y-auto">
-                    {importParseResult.errors.map((err, i) => (
-                      <li key={i}>{err}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* Parse warnings */}
-              {importParseResult && importParseResult.warnings.length > 0 && (
-                <div className="rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-3">
-                  <p className="text-sm font-medium text-amber-700 dark:text-amber-400 flex items-center gap-1.5 mb-1">
-                    <AlertCircle className="h-4 w-4" />
-                    Waarschuwingen
-                  </p>
-                  <ul className="text-xs text-amber-600 dark:text-amber-500 space-y-0.5 max-h-24 overflow-y-auto">
-                    {importParseResult.warnings.map((warn, i) => (
-                      <li key={i}>{warn}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* Preview table */}
-              {importParseResult && importParseResult.entries.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">
-                    Voorbeeld ({importParseResult.entries.length} klant{importParseResult.entries.length !== 1 ? "en" : ""} gevonden)
-                  </p>
-                  <div className="rounded-md border overflow-x-auto max-h-64 overflow-y-auto">
-                    <table className="w-full text-xs">
-                      <thead className="bg-muted/50 sticky top-0">
-                        <tr>
-                          <th className="px-3 py-2 text-left font-medium">#</th>
-                          <th className="px-3 py-2 text-left font-medium">Naam</th>
-                          <th className="px-3 py-2 text-left font-medium">E-mail</th>
-                          <th className="px-3 py-2 text-left font-medium">Telefoon</th>
-                          <th className="px-3 py-2 text-left font-medium">Adres</th>
-                          <th className="px-3 py-2 text-left font-medium">Postcode</th>
-                          <th className="px-3 py-2 text-left font-medium">Plaats</th>
-                          <th className="px-3 py-2 text-left font-medium">Type</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y">
-                        {importParseResult.entries.slice(0, 50).map((entry, i) => (
-                          <tr key={i} className="hover:bg-muted/30">
-                            <td className="px-3 py-1.5 text-muted-foreground">{i + 1}</td>
-                            <td className="px-3 py-1.5 font-medium">{entry.naam}</td>
-                            <td className="px-3 py-1.5 text-muted-foreground">{entry.email || "-"}</td>
-                            <td className="px-3 py-1.5 text-muted-foreground">{entry.telefoon || "-"}</td>
-                            <td className="px-3 py-1.5 text-muted-foreground truncate max-w-[120px]">{entry.adres}</td>
-                            <td className="px-3 py-1.5">{entry.postcode}</td>
-                            <td className="px-3 py-1.5">{entry.plaats}</td>
-                            <td className="px-3 py-1.5">
-                              <Badge className={`text-[10px] ${KLANT_TYPE_COLORS[entry.klantType]}`}>
-                                {KLANT_TYPE_LABELS[entry.klantType]}
-                              </Badge>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    {importParseResult.entries.length > 50 && (
-                      <p className="text-xs text-muted-foreground text-center py-2">
-                        ...en nog {importParseResult.entries.length - 50} meer
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              <DialogFooter className="gap-2">
-                <Button variant="outline" onClick={() => handleImportDialogClose(false)}>
-                  Annuleren
-                </Button>
-                <Button
-                  onClick={handleImportSubmit}
-                  disabled={!importParseResult || importParseResult.entries.length === 0 || isImporting}
-                >
-                  {isImporting ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Upload className="mr-2 h-4 w-4" />
+      {/* Portaal-activatie bevestiging — de klant krijgt hiermee toegang tot
+          zijn eigen dossier, dus nooit met één klik vanuit de tabel. */}
+      <AlertDialog
+        open={portalKlant !== null}
+        onOpenChange={(open) => {
+          if (!open && !isActivatingPortal) setPortalKlant(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Globe className="h-5 w-5 text-green-600" />
+              Klantportaal activeren
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  Je staat op het punt het klantportaal te activeren voor{" "}
+                  <span className="font-medium text-foreground">
+                    {portalKlant?.naam}
+                  </span>
+                  {portalKlant?.email && (
+                    <>
+                      {" "}
+                      (
+                      <span className="font-medium text-foreground">
+                        {portalKlant.email}
+                      </span>
+                      )
+                    </>
                   )}
-                  {isImporting
-                    ? "Bezig met importeren..."
-                    : `${importParseResult?.entries.length ?? 0} klant${(importParseResult?.entries.length ?? 0) !== 1 ? "en" : ""} importeren`}
-                </Button>
-              </DialogFooter>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+                  .
+                </p>
+                <p>Na activatie kan deze klant in het portaal meekijken met:</p>
+                <ul className="list-disc space-y-0.5 pl-5">
+                  <li>zijn offertes en facturen</li>
+                  <li>de voortgang en foto&apos;s van zijn projecten</li>
+                  <li>documenten en berichten</li>
+                </ul>
+                <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                  Er wordt nu <span className="font-medium">nog geen e-mail</span>{" "}
+                  verstuurd. De klant kan pas inloggen nadat je hierna
+                  afzonderlijk de wachtwoord-uitnodiging verstuurt.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isActivatingPortal}>
+              Annuleren
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isActivatingPortal}
+              onClick={(e) => {
+                // Voorkom auto-close: de dialog sluit pas als de mutation slaagt.
+                e.preventDefault();
+                void confirmActivatePortal();
+              }}
+            >
+              {isActivatingPortal ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Globe className="mr-2 h-4 w-4" />
+              )}
+              Portaal activeren
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Import — gedeelde dialog, ook gebruikt op de leveranciers-pagina */}
+      <RelatieImportDialog
+        open={showImportDialog}
+        onOpenChange={setShowImportDialog}
+        soort="klant"
+      />
     </>
   );
 }

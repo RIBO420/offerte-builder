@@ -164,10 +164,76 @@ export const specialsValidator = v.object({
   items: v.array(specialsItemValidator),
 });
 
+// Parkeerplaats aanleggen — bewust een eigen scope naast bestrating: de
+// fundering wordt bepaald door de verkeersbelasting (personenauto tot
+// vrachtverkeer) i.p.v. door pad/oprit/terrein, en er horen posten bij die
+// een tuinterras niet kent (kolken/afwatering, vakbelijning).
+export const parkeerplaatsValidator = v.object({
+  oppervlakte: v.number(),
+  aantalPlaatsen: v.optional(v.number()),
+  verharding: v.union(
+    v.literal("betonklinker"),
+    v.literal("grasbetontegel"),
+    v.literal("halfverharding"),
+    v.literal("asfalt")
+  ),
+  draagkracht: v.union(
+    v.literal("personenauto"),
+    v.literal("bestelbus"),
+    v.literal("vrachtverkeer")
+  ),
+  // Ontgraven + afvoer meenemen in deze scope (of los via scope grondwerk)
+  ontgraven: v.boolean(),
+  // Handmatige overschrijving van de funderingsdiktes in cm
+  funderingslagen: v.optional(
+    v.object({
+      gebrokenPuin: v.number(),
+      zand: v.number(),
+    })
+  ),
+  opsluitbanden: v.boolean(),
+  opsluitbandenMeters: v.optional(v.number()),
+  afwatering: v.union(
+    v.literal("geen"),
+    v.literal("kolken"),
+    v.literal("infiltratie")
+  ),
+  aantalKolken: v.optional(v.number()),
+  belijning: v.boolean(),
+});
+
+// Beregening — automatische sproei-installatie. Eigen scope naast
+// water_elektra: die gaat over verlichting en bekabeling, dit over water
+// (zones, sproeiers, leidingwerk, regelkast en wintervast maken).
+export const beregeningValidator = v.object({
+  oppervlakte: v.number(),
+  aantalZones: v.number(),
+  sproeierType: v.union(
+    v.literal("popup"),
+    v.literal("sproeidop"),
+    v.literal("druppelslang"),
+    v.literal("combinatie")
+  ),
+  waterbron: v.union(
+    v.literal("waterleiding"),
+    v.literal("put"),
+    v.literal("regenwater")
+  ),
+  // Leeg = geschat uit oppervlakte en aantal zones
+  leidinglengte: v.optional(v.number()),
+  // Automatische besturing
+  regelkast: v.boolean(),
+  wifiModule: v.optional(v.boolean()),
+  // Leegblaasvoorziening tegen vorstschade
+  wintervast: v.boolean(),
+});
+
 // Combined aanleg scope data validator
 export const aanlegScopeDataValidator = v.object({
   grondwerk: v.optional(grondwerkValidator),
   bestrating: v.optional(bestratingValidator),
+  parkeerplaats: v.optional(parkeerplaatsValidator),
+  beregening: v.optional(beregeningValidator),
   borders: v.optional(bordersValidator),
   gras: v.optional(grasValidator),
   houtwerk: v.optional(houtwerkValidator),
@@ -731,6 +797,25 @@ export function sanitizePostcode(value: string | undefined | null): string | und
     throw new ConvexError(VALIDATION_MESSAGES.postcode);
   }
   return normalized;
+}
+
+/**
+ * Postcode voor CSV-import: normaliseert maar weigert nooit.
+ *
+ * Bij handinvoer is een strenge check nuttig, bij een import uit een ander
+ * pakket niet: dan blokkeert één Duitse postcode of één leeg veld de hele
+ * batch. Nederlandse postcodes worden netjes als "1234 AB" opgeslagen,
+ * buitenlandse codes blijven staan zoals ze zijn, leeg blijft leeg.
+ */
+export function normaliseerImportPostcode(value: string | undefined | null): string {
+  const sanitized = sanitizeOptionalString(value);
+  if (!sanitized) return "";
+
+  const compact = sanitized.toUpperCase().replace(/\s+/g, "");
+  if (/^\d{4}[A-Z]{2}$/.test(compact)) {
+    return `${compact.slice(0, 4)} ${compact.slice(4)}`;
+  }
+  return sanitized.trim();
 }
 
 /**

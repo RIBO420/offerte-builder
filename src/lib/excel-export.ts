@@ -51,6 +51,8 @@ const typeLabels: Record<string, string> = {
 const scopeLabels: Record<string, string> = {
   grondwerk: "Grondwerk",
   bestrating: "Bestrating",
+  parkeerplaats: "Parkeerplaats",
+  beregening: "Beregening",
   borders: "Borders",
   gras: "Gras",
   houtwerk: "Houtwerk",

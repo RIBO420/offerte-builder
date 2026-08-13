@@ -6,6 +6,7 @@ import {
   sanitizeEmail,
   sanitizePhone,
   sanitizePostcode,
+  normaliseerImportPostcode,
   sanitizeKvkNummer,
   sanitizeBtwNummer,
   sanitizeIban,
@@ -178,6 +179,99 @@ export const create = mutation({
       createdAt: now,
       updatedAt: now,
     });
+  },
+});
+
+/**
+ * Leveranciers importeren uit een CSV.
+ *
+ * Zelfde uitgangspunt als importKlanten: alleen de naam is verplicht, de rest
+ * mag ontbreken of afwijken (buitenlandse postcodes zijn hier eerder regel dan
+ * uitzondering — de helft van de leveranciers zit in Duitsland of België).
+ * Duplicaten worden overgeslagen, ook binnen dezelfde batch.
+ */
+export const importLeveranciers = mutation({
+  args: {
+    leveranciers: v.array(
+      v.object({
+        naam: v.string(),
+        contactpersoon: v.optional(v.string()),
+        email: v.optional(v.string()),
+        telefoon: v.optional(v.string()),
+        adres: v.optional(v.string()),
+        postcode: v.optional(v.string()),
+        plaats: v.optional(v.string()),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
+    const userId = await requireAuthUserId(ctx);
+    const now = Date.now();
+
+    const bestaande = await ctx.db
+      .query("leveranciers")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    // Alleen de velden die we nodig hebben voor duplicaatdetectie, zodat een
+    // net ingevoegde leverancier ook meetelt binnen dezelfde batch.
+    const gezien = bestaande.map((l) => ({
+      naam: l.naam.toLowerCase().trim(),
+      email: l.email?.toLowerCase().trim(),
+    }));
+
+    let imported = 0;
+    let skipped = 0;
+    const errors: string[] = [];
+
+    for (let i = 0; i < args.leveranciers.length; i++) {
+      const rij = args.leveranciers[i];
+      const rowNum = i + 1;
+
+      try {
+        const naam = rij.naam.trim();
+        if (!naam) {
+          errors.push(`Rij ${rowNum}: Naam is verplicht`);
+          continue;
+        }
+
+        const email = sanitizeEmail(rij.email);
+        const isDuplicaat = gezien.some(
+          (b) =>
+            (email && b.email && b.email === email) ||
+            b.naam === naam.toLowerCase()
+        );
+        if (isDuplicaat) {
+          skipped++;
+          continue;
+        }
+
+        await ctx.db.insert("leveranciers", {
+          userId,
+          naam,
+          contactpersoon: sanitizeOptionalString(rij.contactpersoon),
+          email,
+          telefoon: sanitizePhone(rij.telefoon),
+          adres: sanitizeOptionalString(rij.adres),
+          // Bewust normaliseerImportPostcode i.p.v. sanitizePostcode: die laatste
+          // gooit op elke niet-Nederlandse postcode en zou de batch breken.
+          postcode: normaliseerImportPostcode(rij.postcode) || undefined,
+          plaats: sanitizeOptionalString(rij.plaats),
+          isActief: true,
+          createdAt: now,
+          updatedAt: now,
+        });
+
+        gezien.push({ naam: naam.toLowerCase(), email });
+        imported++;
+      } catch (e) {
+        const message = e instanceof Error ? e.message : "Onbekende fout";
+        errors.push(`Rij ${rowNum} (${rij.naam}): ${message}`);
+      }
+    }
+
+    return { imported, skipped, errors };
   },
 });
 

@@ -87,6 +87,15 @@ export default defineSchema({
       v.literal("gemeente"),
       v.literal("overig"),
     )),
+    // TT-002: zakelijke velden. Alleen relevant als klantType niet
+    // "particulier" is; de UI toont ze dan ook alleen daar. Optioneel in het
+    // schema omdat bestaande klanten ze niet hebben en een CSV-import ze lang
+    // niet altijd meelevert.
+    // Bij een bedrijf/VvE is `naam` de bedrijfs- of VvE-naam en is dit de
+    // persoon waarmee je schakelt.
+    contactpersoon: v.optional(v.string()),
+    kvkNummer: v.optional(v.string()),
+    btwNummer: v.optional(v.string()),
     // CRM-003: Vrije tags voor segmentatie
     tags: v.optional(v.array(v.string())),
     // CRM-005: Opvolgherinneringen op klant-niveau
@@ -400,6 +409,8 @@ export default defineSchema({
         // Aanleg scopes
         grondwerk: v.optional(v.number()),
         bestrating: v.optional(v.number()),
+        parkeerplaats: v.optional(v.number()),
+        beregening: v.optional(v.number()),
         borders: v.optional(v.number()),
         gras: v.optional(v.number()),
         houtwerk: v.optional(v.number()),
@@ -3672,6 +3683,44 @@ export default defineSchema({
       searchField: "tekst",
       filterFields: ["userId", "klantId", "kanaal", "werkitemId"],
     }),
+
+  // ─── Klanttaken ────────────────────────────────────────────────────────────
+  // Losse to-do's per klant ("terugbellen over de oprit", "maten opmeten"),
+  // toewijsbaar aan een medewerker. BEWUST een eigen tabel:
+  // - klantTijdlijn legt vast wat er GEBEURD is (dossier, append-only);
+  //   een taak legt vast wat er nog MOET gebeuren en verandert van status.
+  // - planningTaken hangt aan een werkitem/project en voedt de uitvoering;
+  //   een klanttaak bestaat ook zonder project (leadfase, nazorg).
+  // Net als de tijdlijn is dit een INTERN dossier: klantaccounts hebben hier
+  // geen enkele query of mutation op.
+  klantTaken: defineTable({
+    // Bedrijfseigenaar (multi-tenant scope, conventie zoals klantTijdlijn)
+    userId: v.id("users"),
+    klantId: v.id("klanten"),
+    titel: v.string(),
+    omschrijving: v.optional(v.string()),
+    status: v.union(v.literal("open"), v.literal("afgerond")),
+    prioriteit: v.union(
+      v.literal("laag"),
+      v.literal("normaal"),
+      v.literal("hoog")
+    ),
+    // YYYY-MM-DD; zelfde notatie als urenSegmenten/onderhoudscontracten,
+    // zodat sorteren en vergelijken zonder tijdzone-gedoe kan.
+    deadline: v.optional(v.string()),
+    toegewezenAanId: v.optional(v.id("medewerkers")),
+    // Optionele koppeling met een werkitem ("over welke klus?")
+    werkitemId: v.optional(v.id("projecten")),
+    aangemaaktDoorId: v.optional(v.id("users")),
+    afgerondAt: v.optional(v.number()),
+    afgerondDoorId: v.optional(v.id("users")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_klant", ["klantId", "status"])
+    .index("by_user_status", ["userId", "status"])
+    .index("by_medewerker_status", ["toegewezenAanId", "status"])
+    .index("by_werkitem", ["werkitemId"]),
 
   // ─── Bouwstenencatalogus (PRD §2.5f + bijlage A) ───────────────────────────
   // Bedrijfsbrede catalogus (geen userId): bouwstenen beheren = records beheren

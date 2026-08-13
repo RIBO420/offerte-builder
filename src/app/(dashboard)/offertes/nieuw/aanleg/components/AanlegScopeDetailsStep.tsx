@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
   Shovel,
+  SquareParking,
+  Droplets,
   Layers,
   Flower2,
   Trees,
@@ -23,6 +25,8 @@ import {
 import {
   GrondwerkForm,
   BestratingForm,
+  ParkeerplaatsForm,
+  BeregeningForm,
   BordersForm,
   GrasForm,
   HoutwerkForm,
@@ -39,6 +43,8 @@ import { AanlegNavigation } from "./AanlegNavigation";
 const SCOPE_ICONS = {
   grondwerk: Shovel,
   bestrating: Layers,
+  parkeerplaats: SquareParking,
+  beregening: Droplets,
   borders: Flower2,
   gras: Trees,
   houtwerk: Hammer,
@@ -124,6 +130,24 @@ export function AanlegScopeDetailsStep({
                   data={scopeData.bestrating}
                   onChange={(data) => onScopeDataChange({ ...scopeData, bestrating: data })}
                   onValidationChange={scopeValidationHandlers.bestrating}
+                />
+              );
+            case "parkeerplaats":
+              return (
+                <ParkeerplaatsForm
+                  key={scopeId}
+                  data={scopeData.parkeerplaats}
+                  onChange={(data) => onScopeDataChange({ ...scopeData, parkeerplaats: data })}
+                  onValidationChange={scopeValidationHandlers.parkeerplaats}
+                />
+              );
+            case "beregening":
+              return (
+                <BeregeningForm
+                  key={scopeId}
+                  data={scopeData.beregening}
+                  onChange={(data) => onScopeDataChange({ ...scopeData, beregening: data })}
+                  onValidationChange={scopeValidationHandlers.beregening}
                 />
               );
             case "borders":

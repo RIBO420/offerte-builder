@@ -22,6 +22,8 @@ const scopeMargesValidator = v.object({
   // Aanleg scopes
   grondwerk: v.optional(v.number()),
   bestrating: v.optional(v.number()),
+  parkeerplaats: v.optional(v.number()),
+  beregening: v.optional(v.number()),
   borders: v.optional(v.number()),
   gras: v.optional(v.number()),
   houtwerk: v.optional(v.number()),

@@ -34,6 +34,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Users,
   Plus,
   Search,
@@ -47,6 +54,7 @@ import {
   Award,
   AlertTriangle,
   Eye,
+  MoreHorizontal,
 } from "lucide-react";
 import { MedewerkersPageSkeleton } from "@/components/ui/skeleton-card";
 import { toast } from "sonner";
@@ -244,19 +252,30 @@ function MedewerkersPageContent() {
         key: "naam",
         header: "Naam",
         isPrimary: true,
+        width: "w-[20%]",
         render: (medewerker) => (
-          <div className="flex items-center gap-2">
-            <span className="font-medium">{medewerker.naam}</span>
-          </div>
+          <span
+            className="block truncate font-medium"
+            title={medewerker.naam}
+          >
+            {medewerker.naam}
+          </span>
         ),
       },
       {
         key: "functie",
         header: "Functie",
         isSecondary: true,
+        width: "w-[13%]",
         render: (medewerker) =>
           medewerker.functie ? (
-            <Badge variant="secondary">{medewerker.functie}</Badge>
+            <Badge
+              variant="secondary"
+              className="max-w-full"
+              title={medewerker.functie}
+            >
+              <span className="truncate">{medewerker.functie}</span>
+            </Badge>
           ) : (
             <span className="text-muted-foreground">-</span>
           ),
@@ -266,6 +285,7 @@ function MedewerkersPageContent() {
         header: "Specialisaties",
         showInCard: true,
         mobileLabel: "Skills",
+        width: "w-[17%]",
         render: (medewerker) => (
           <SpecialisatieBadges specialisaties={medewerker.specialisaties} />
         ),
@@ -275,6 +295,7 @@ function MedewerkersPageContent() {
         header: "Certificaten",
         showInCard: true,
         mobileLabel: "Certs",
+        width: "w-[15%]",
         render: (medewerker) => (
           <CertificaatBadges certificaten={medewerker.certificaten} />
         ),
@@ -284,41 +305,59 @@ function MedewerkersPageContent() {
         header: "Contact",
         showInCard: true,
         mobileLabel: "Contact",
-        render: (medewerker) => (
-          <div className="flex flex-col gap-0.5">
-            {medewerker.email && (
-              <div className="flex items-center gap-1.5 text-sm">
-                <Mail className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="truncate max-w-[120px]" title={medewerker.email}>{medewerker.email}</span>
-              </div>
-            )}
-            {medewerker.telefoon && (
-              <div className="flex items-center gap-1.5 text-sm">
-                <Phone className="h-3.5 w-3.5 text-muted-foreground" />
-                <span>{medewerker.telefoon}</span>
-              </div>
-            )}
-            {!medewerker.email && !medewerker.telefoon && (
-              <span className="text-muted-foreground">-</span>
-            )}
-          </div>
-        ),
+        width: "w-[18%]",
+        render: (medewerker) => {
+          // Zonder deze check toont de cel een lege regel als beide velden
+          // ontbreken; nu staat er een leesbare tekst.
+          if (!medewerker.email && !medewerker.telefoon) {
+            return (
+              <span className="text-sm text-muted-foreground">
+                Geen contact bekend
+              </span>
+            );
+          }
+
+          return (
+            <div className="flex flex-col gap-0.5">
+              {medewerker.email && (
+                <div className="flex items-center gap-1.5 text-sm">
+                  <Mail className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  <span className="truncate" title={medewerker.email}>
+                    {medewerker.email}
+                  </span>
+                </div>
+              )}
+              {medewerker.telefoon && (
+                <div className="flex items-center gap-1.5 text-sm">
+                  <Phone className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  <span className="truncate" title={medewerker.telefoon}>
+                    {medewerker.telefoon}
+                  </span>
+                </div>
+              )}
+            </div>
+          );
+        },
       },
       {
         key: "status",
         header: "Status",
         mobileLabel: "Status",
         showInCard: true,
+        width: "w-[11%]",
         render: (medewerker) => (
-          <Badge variant={medewerker.isActief ? "default" : "secondary"}>
+          <Badge
+            variant={medewerker.isActief ? "default" : "secondary"}
+            className="whitespace-nowrap"
+          >
             {medewerker.isActief ? (
               <>
-                <UserCheck className="h-3 w-3 mr-1" />
+                <UserCheck className="h-3 w-3 mr-1 shrink-0" />
                 Actief
               </>
             ) : (
               <>
-                <UserX className="h-3 w-3 mr-1" />
+                <UserX className="h-3 w-3 mr-1 shrink-0" />
                 Inactief
               </>
             )}
@@ -331,20 +370,15 @@ function MedewerkersPageContent() {
         align: "right",
         showInCard: true,
         mobileLabel: "",
+        // Twee besturingselementen (bewerken + menu) i.p.v. vier losse iconen.
+        // In `table-fixed` is een px-breedte géén ondergrens: bij een smal
+        // venster schaalt de browser alle kolommen proportioneel mee, waardoor
+        // knoppen buiten de cel vallen. Zijwaarts scrollen is geen optie, dus
+        // verhuizen de minder gebruikte acties naar een menu.
+        width: "w-[88px]",
+        allowOverflow: true,
         render: (medewerker) => (
-          <div className="flex items-center justify-end gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 sm:h-8 sm:w-8"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleViewDetail(medewerker);
-              }}
-              aria-label="Bekijken"
-            >
-              <Eye className="h-4 w-4" />
-            </Button>
+          <div className="flex items-center justify-end gap-0.5 whitespace-nowrap">
             <Button
               variant="ghost"
               size="icon"
@@ -353,40 +387,60 @@ function MedewerkersPageContent() {
                 e.stopPropagation();
                 handleEdit(medewerker);
               }}
-              aria-label="Bewerken"
+              aria-label={`${medewerker.naam} bewerken`}
             >
               <Pencil className="h-4 w-4" />
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 sm:h-8 sm:w-8"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleToggleActive(medewerker);
-              }}
-              aria-label={medewerker.isActief ? "Op inactief zetten" : "Activeren"}
-            >
-              {medewerker.isActief ? (
-                <UserX className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <UserCheck className="h-4 w-4 text-green-600" />
-              )}
-            </Button>
-            {!medewerker.isActief && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 sm:h-8 sm:w-8"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDeleteClick(medewerker);
-                }}
-                aria-label="Verwijderen"
-              >
-                <Trash2 className="h-4 w-4 text-destructive" />
-              </Button>
-            )}
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 sm:h-8 sm:w-8"
+                  aria-label={`Meer acties voor ${medewerker.naam}`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onClick={() => handleViewDetail(medewerker)}>
+                  <Eye className="mr-2 h-4 w-4" />
+                  Details bekijken
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+
+                <DropdownMenuItem onClick={() => handleToggleActive(medewerker)}>
+                  {medewerker.isActief ? (
+                    <>
+                      <UserX className="mr-2 h-4 w-4 text-muted-foreground" />
+                      Op inactief zetten
+                    </>
+                  ) : (
+                    <>
+                      <UserCheck className="mr-2 h-4 w-4 text-green-600" />
+                      Activeren
+                    </>
+                  )}
+                </DropdownMenuItem>
+
+                {!medewerker.isActief && (
+                  <>
+                    <DropdownMenuSeparator />
+
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onClick={() => handleDeleteClick(medewerker)}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Verwijderen
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         ),
       },

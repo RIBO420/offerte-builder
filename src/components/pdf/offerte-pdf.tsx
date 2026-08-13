@@ -77,6 +77,8 @@ interface OffertePDFProps {
 const scopeLabels: Record<string, string> = {
   grondwerk: "Grondwerk",
   bestrating: "Bestrating",
+  parkeerplaats: "Parkeerplaats",
+  beregening: "Beregening",
   borders: "Borders & Beplanting",
   gras: "Gras / Gazon",
   houtwerk: "Houtwerk",
@@ -198,7 +200,7 @@ function summarizeRegelsByScope(regels: OfferteRegel[]): ScopeSummary[] {
   }
 
   // Sort by scope order and return
-  const scopeOrder = ['grondwerk', 'bestrating', 'borders', 'gras', 'houtwerk', 'water_elektra', 'specials', 'heggen', 'bomen', 'overig'];
+  const scopeOrder = ['grondwerk', 'bestrating', 'parkeerplaats', 'beregening', 'borders', 'gras', 'houtwerk', 'water_elektra', 'specials', 'heggen', 'bomen', 'overig'];
   return Array.from(scopeMap.values()).sort((a, b) => {
     const aIndex = scopeOrder.indexOf(a.scope);
     const bIndex = scopeOrder.indexOf(b.scope);

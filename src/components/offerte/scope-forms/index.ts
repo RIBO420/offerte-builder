@@ -1,5 +1,7 @@
 export { GrondwerkForm } from "./grondwerk-form";
 export { BestratingForm } from "./bestrating-form";
+export { ParkeerplaatsForm } from "./parkeerplaats-form";
+export { BeregeningForm } from "./beregening-form";
 export { BordersForm } from "./borders-form";
 export { GrasForm } from "./gras-form";
 export { HoutwerkForm } from "./houtwerk-form";

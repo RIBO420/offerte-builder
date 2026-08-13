@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
+import type { OnderhoudScope } from "./components/types";
 import { m } from "framer-motion";
 import { PageHeader } from "@/components/page-header";
 import { Check, Save } from "lucide-react";
@@ -30,6 +32,8 @@ import {
 export default function NieuweOnderhoudOffertePage() {
   const searchParams = useSearchParams();
   const leadIdParam = searchParams.get("leadId");
+  // TT-004: ?scope=reiniging opent deze wizard met de scope alvast aangevinkt.
+  const scopeParams = searchParams.getAll("scope");
 
   const wizard = useOnderhoudWizard();
 
@@ -66,6 +70,7 @@ export default function NieuweOnderhoudOffertePage() {
     setTuinOppervlakte,
     setKlantData,
     setScopeData,
+    setSelectedScopes,
     toggleScope,
     isScopeDataValid,
     handleStepNavigation,
@@ -81,6 +86,23 @@ export default function NieuweOnderhoudOffertePage() {
     setCatalogus,
     bouwsteenDefaults,
   } = wizard;
+
+  // Scopes uit de URL eenmalig voorselecteren (TT-004).
+  const scopeVoorgeselecteerdRef = useRef(false);
+  const scopeSleutel = scopeParams.join(",");
+  useEffect(() => {
+    if (scopeVoorgeselecteerdRef.current || scopeParams.length === 0) return;
+    const geldig = scopeParams.filter((s) =>
+      SCOPES.some((scope) => scope.id === s)
+    ) as OnderhoudScope[];
+    if (geldig.length === 0) return;
+    scopeVoorgeselecteerdRef.current = true;
+    setSelectedScopes((huidige) => [
+      ...huidige,
+      ...geldig.filter((s) => !huidige.includes(s)),
+    ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- eenmalige prefill op basis van de URL
+  }, [scopeSleutel]);
 
   // Live samenvatting van de catalogus-stap (PRD §2.5a)
   const catalogusRegels = bouwOfferteBouwsteenRegels(

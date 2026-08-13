@@ -397,10 +397,10 @@ export function OnderhoudSectie({ klantId }: { klantId: Id<"klanten"> }) {
           </p>
         ) : contracten.length === 0 && losseBeurten.length === 0 ? (
           <EmptyState
+            compact
             icon={<Sprout aria-hidden />}
-            title="Nog geen onderhoud"
-            description="Onderhoudscontracten en losse beurten van deze klant verschijnen hier."
-            className="py-4"
+            title="Nog geen onderhoud."
+            description="Contracten en losse beurten verschijnen hier."
           />
         ) : (
           <>

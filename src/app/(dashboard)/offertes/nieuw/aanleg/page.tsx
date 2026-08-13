@@ -40,6 +40,10 @@ import {
 export default function NieuweAanlegOffertePage() {
   const searchParams = useSearchParams();
   const leadIdParam = searchParams.get("leadId");
+  // ?scope=…&scope=… selecteert scopes alvast voor. Zo kan de Nieuwe-Offerte
+  // dialog werkzaamheden als "Parkeerplaats" of "Tuinrenovatie" aanbieden
+  // zonder dat daar een aparte wizard voor nodig is (TT-004).
+  const scopeParams = searchParams.getAll("scope");
 
   const { isLoading: isUserLoading } = useCurrentUser();
   const { create, updateRegels } = useOffertes();
@@ -116,6 +120,23 @@ export default function NieuweAanlegOffertePage() {
   const handleScopesChange = useCallback((updatedScopes: AanlegScope[]) => {
     wizard.setSelectedScopes(updatedScopes);
   }, [wizard]);
+
+  // Scopes uit de URL eenmalig voorselecteren (?scope=parkeerplaats).
+  const scopeVoorgeselecteerdRef = useRef(false);
+  const scopeSleutel = scopeParams.join(",");
+  useEffect(() => {
+    if (scopeVoorgeselecteerdRef.current || scopeParams.length === 0) return;
+    const geldig = scopeParams.filter((s) =>
+      SCOPES.some((scope) => scope.id === s)
+    ) as AanlegScope[];
+    if (geldig.length === 0) return;
+    scopeVoorgeselecteerdRef.current = true;
+    wizard.setSelectedScopes((huidige) => [
+      ...huidige,
+      ...geldig.filter((s) => !huidige.includes(s)),
+    ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- eenmalige prefill op basis van de URL
+  }, [scopeSleutel]);
 
   // Scroll naar top bij stap wisseling
   useEffect(() => {

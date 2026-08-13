@@ -1208,9 +1208,9 @@ describe("getScopeLabel", () => {
 });
 
 describe("scopeLabels", () => {
-  it("contains all 12 expected scope keys", () => {
+  it("contains all 14 expected scope keys", () => {
     const expectedKeys = [
-      "grondwerk", "bestrating", "borders", "gras",
+      "grondwerk", "bestrating", "parkeerplaats", "beregening", "borders", "gras",
       "houtwerk", "water_elektra", "specials",
       "gras_onderhoud", "borders_onderhoud", "heggen", "bomen", "overig",
     ];

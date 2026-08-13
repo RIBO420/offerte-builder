@@ -38,6 +38,77 @@ export const bestratingSchema = z.object({
 
 export type BestratingFormData = z.infer<typeof bestratingSchema>;
 
+// Parkeerplaats schema — kolken zijn verplicht als er voor kolken is gekozen
+export const parkeerplaatsSchema = z
+  .object({
+    oppervlakte: z
+      .number({ error: "Voer een getal in" })
+      .min(0.1, "Oppervlakte moet groter dan 0 zijn"),
+    aantalPlaatsen: z
+      .number()
+      .min(0, "Aantal mag niet negatief zijn")
+      .optional(),
+    verharding: z.enum(
+      ["betonklinker", "grasbetontegel", "halfverharding", "asfalt"],
+      { error: "Selecteer een type verharding" }
+    ),
+    draagkracht: z.enum(["personenauto", "bestelbus", "vrachtverkeer"], {
+      error: "Selecteer de verkeersbelasting",
+    }),
+    ontgraven: z.boolean(),
+    funderingslagen: z
+      .object({
+        gebrokenPuin: z
+          .number()
+          .min(0, "Dikte mag niet negatief zijn")
+          .max(100, "Dikte mag maximaal 100 cm zijn"),
+        zand: z
+          .number()
+          .min(0, "Dikte mag niet negatief zijn")
+          .max(100, "Dikte mag maximaal 100 cm zijn"),
+      })
+      .optional(),
+    opsluitbanden: z.boolean(),
+    opsluitbandenMeters: z.number().min(0.5, "Minimaal 0.5 meter").optional(),
+    afwatering: z.enum(["geen", "kolken", "infiltratie"], {
+      error: "Selecteer een afwateringsoplossing",
+    }),
+    aantalKolken: z.number().min(0, "Aantal mag niet negatief zijn").optional(),
+    belijning: z.boolean(),
+  })
+  .refine(
+    (data) => data.afwatering !== "kolken" || (data.aantalKolken ?? 0) > 0,
+    {
+      message: "Vul het aantal kolken in",
+      path: ["aantalKolken"],
+    }
+  );
+
+export type ParkeerplaatsFormData = z.infer<typeof parkeerplaatsSchema>;
+
+// Beregening schema
+export const beregeningSchema = z.object({
+  oppervlakte: z
+    .number({ error: "Voer een getal in" })
+    .min(0.1, "Oppervlakte moet groter dan 0 zijn"),
+  aantalZones: z
+    .number({ error: "Voer een getal in" })
+    .min(1, "Minimaal 1 zone")
+    .max(30, "Maximaal 30 zones"),
+  sproeierType: z.enum(["popup", "sproeidop", "druppelslang", "combinatie"], {
+    error: "Selecteer een type sproeier",
+  }),
+  waterbron: z.enum(["waterleiding", "put", "regenwater"], {
+    error: "Selecteer een waterbron",
+  }),
+  leidinglengte: z.number().min(1, "Minimaal 1 meter").optional(),
+  regelkast: z.boolean(),
+  wifiModule: z.boolean().optional(),
+  wintervast: z.boolean(),
+});
+
+export type BeregeningFormData = z.infer<typeof beregeningSchema>;
+
 // Borders schema
 export const bordersSchema = z.object({
   oppervlakte: z

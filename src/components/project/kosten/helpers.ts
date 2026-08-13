@@ -12,6 +12,8 @@ export const kostenTypeConfig = {
 export const scopeDisplayNames: Record<string, string> = {
   grondwerk: "Grondwerk",
   bestrating: "Bestrating",
+  parkeerplaats: "Parkeerplaats",
+  beregening: "Beregening",
   borders: "Borders",
   gras: "Gazon",
   houtwerk: "Houtwerk",

@@ -1,6 +1,8 @@
 export const scopeLabels: Record<string, string> = {
   grondwerk: "Grondwerk",
   bestrating: "Bestrating",
+  parkeerplaats: "Parkeerplaats",
+  beregening: "Beregening",
   borders: "Borders",
   houtwerk: "Houtwerk",
   schuttingen: "Schuttingen",

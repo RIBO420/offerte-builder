@@ -80,6 +80,35 @@ export function AanlegReviewSection({
                 ", incl. opsluitbanden"}
             </>
           )}
+          {scopeId === "parkeerplaats" && (
+            <>
+              {scopeData.parkeerplaats.oppervlakte} m²
+              {scopeData.parkeerplaats.aantalPlaatsen
+                ? ` (${scopeData.parkeerplaats.aantalPlaatsen} plaatsen)`
+                : ""}
+              , {scopeData.parkeerplaats.verharding}
+              <br />
+              Belasting: {scopeData.parkeerplaats.draagkracht}
+              {scopeData.parkeerplaats.ontgraven && ", incl. ontgraven"}
+              {scopeData.parkeerplaats.opsluitbanden && ", incl. opsluitbanden"}
+              {scopeData.parkeerplaats.afwatering !== "geen" &&
+                `, afwatering: ${scopeData.parkeerplaats.afwatering}`}
+              {scopeData.parkeerplaats.belijning && ", incl. belijning"}
+            </>
+          )}
+          {scopeId === "beregening" && (
+            <>
+              {scopeData.beregening.oppervlakte} m² ·{" "}
+              {scopeData.beregening.aantalZones}{" "}
+              {scopeData.beregening.aantalZones === 1 ? "zone" : "zones"} ·{" "}
+              {scopeData.beregening.sproeierType}
+              <br />
+              Bron: {scopeData.beregening.waterbron}
+              {scopeData.beregening.regelkast && ", incl. regelkast"}
+              {scopeData.beregening.wifiModule && " + wifi"}
+              {scopeData.beregening.wintervast && ", wintervast"}
+            </>
+          )}
           {scopeId === "borders" && (
             <>
               {scopeData.borders.oppervlakte} m², intensiteit:{" "}

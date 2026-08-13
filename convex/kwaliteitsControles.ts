@@ -30,6 +30,23 @@ const STANDAARD_CHECKLISTS: Record<string, string[]> = {
     "Afwatering correct",
     "Randen netjes afgewerkt",
   ],
+  parkeerplaats: [
+    "Fundering op juiste dikte aangebracht en verdicht",
+    "Verharding vlak en op hoogte",
+    "Afschot richting afwatering correct",
+    "Kolken/infiltratie aangesloten en getest",
+    "Opsluitbanden vast en op lijn",
+    "Belijning parkeervakken volgens tekening",
+    "Terrein bezemschoon opgeleverd",
+  ],
+  beregening: [
+    "Alle zones getest en sproeibeeld gecontroleerd",
+    "Geen overlap of droge plekken",
+    "Leidingwerk op diepte en zonder lekkage",
+    "Magneetventielen bereikbaar in klepput",
+    "Regelkast geprogrammeerd en uitgelegd aan klant",
+    "Leegblaasaansluiting aanwezig en getest",
+  ],
   borders: [
     "Grondverbetering toegepast",
     "Planten correct geplaatst",

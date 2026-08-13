@@ -19,6 +19,8 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import {
   Shovel,
+  SquareParking,
+  Droplets,
   Layers,
   Flower2,
   Trees,
@@ -43,6 +45,8 @@ import { Id } from "../../../../../../../convex/_generated/dataModel";
 const SCOPE_ICONS = {
   grondwerk: Shovel,
   bestrating: Layers,
+  parkeerplaats: SquareParking,
+  beregening: Droplets,
   borders: Flower2,
   gras: Trees,
   houtwerk: Hammer,

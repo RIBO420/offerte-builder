@@ -126,6 +126,127 @@ function calculateScopeNormuren(
       break;
     }
 
+    case "parkeerplaats": {
+      // Zelfde opbouw als calculateParkeerplaats in offerte-calculator:
+      // ontgraven + fundering (op m³) + verharding + banden/kolken/belijning.
+      const oppervlakte = (data?.oppervlakte as number) || 0;
+      const verharding = (data?.verharding as string) || "betonklinker";
+      const draagkracht = (data?.draagkracht as string) || "personenauto";
+      const ontgraven = data?.ontgraven !== false;
+
+      const funderingCm =
+        draagkracht === "vrachtverkeer"
+          ? { puin: 50, zand: 15 }
+          : draagkracht === "bestelbus"
+            ? { puin: 35, zand: 10 }
+            : { puin: 25, zand: 10 };
+      const lagen = (data?.funderingslagen as
+        | { gebrokenPuin?: number; zand?: number }
+        | undefined) ?? { gebrokenPuin: funderingCm.puin, zand: funderingCm.zand };
+      const puinM3 = (oppervlakte * (lagen.gebrokenPuin ?? 0)) / 100;
+      const zandM3 = (oppervlakte * (lagen.zand ?? 0)) / 100;
+
+      if (ontgraven) {
+        const ontgraafDiepteM =
+          ((lagen.gebrokenPuin ?? 0) + (lagen.zand ?? 0) + 8) / 100;
+        scopeUren += oppervlakte * 0.25;
+        scopeUren += oppervlakte * ontgraafDiepteM * 0.1; // afvoeren per m³
+      }
+
+      const funderingNormuur = scopeNormuren.find((n) =>
+        n.activiteit.toLowerCase().includes("fundering")
+      );
+      scopeUren +=
+        (puinM3 + zandM3) * (funderingNormuur?.normuurPerEenheid || 0.35);
+
+      const verhardingUrenPerM2: Record<string, number> = {
+        betonklinker: 0.45,
+        grasbetontegel: 0.35,
+        halfverharding: 0.12,
+        asfalt: 0.08,
+      };
+      const verhardingNormuur = scopeNormuren.find((n) =>
+        n.activiteit.toLowerCase().includes(verharding)
+      );
+      scopeUren +=
+        oppervlakte *
+        (verhardingNormuur?.normuurPerEenheid ??
+          verhardingUrenPerM2[verharding] ??
+          0.45);
+
+      if (data?.opsluitbanden) {
+        const meters =
+          (data?.opsluitbandenMeters as number) ||
+          (oppervlakte > 0 ? 4 * Math.sqrt(oppervlakte) : 0);
+        scopeUren += meters * 0.25;
+      }
+      if (data?.afwatering === "kolken") {
+        const kolken =
+          (data?.aantalKolken as number) ||
+          Math.max(1, Math.ceil(oppervlakte / 150));
+        scopeUren += kolken * 2.5;
+      } else if (data?.afwatering === "infiltratie") {
+        scopeUren += oppervlakte * 0.1;
+      }
+      if (data?.belijning) {
+        const vakken =
+          (data?.aantalPlaatsen as number) ||
+          Math.max(1, Math.round(oppervlakte / 25));
+        scopeUren += vakken * 0.25;
+      }
+      break;
+    }
+
+    case "beregening": {
+      // Zelfde opbouw als calculateBeregening: bron + leidingwerk + zones +
+      // sproeipunten + besturing.
+      const oppervlakte = (data?.oppervlakte as number) || 0;
+      const zones = Math.max(1, (data?.aantalZones as number) || 1);
+      const type = (data?.sproeierType as string) || "popup";
+      const bron = (data?.waterbron as string) || "waterleiding";
+
+      scopeUren +=
+        bron === "regenwater" ? 5 : bron === "put" ? 4 : 1.5;
+
+      const leiding =
+        (data?.leidinglengte as number) ||
+        (oppervlakte > 0
+          ? Math.round(4 * Math.sqrt(oppervlakte) + zones * Math.sqrt(oppervlakte))
+          : 0);
+      const sleufNormuur = scopeNormuren.find((n) =>
+        n.activiteit.toLowerCase().includes("sleuf")
+      );
+      scopeUren += leiding * (sleufNormuur?.normuurPerEenheid || 0.15);
+      scopeUren += leiding * 0.05;
+
+      scopeUren += zones * 0.75;
+
+      const m2PerSproeier: Record<string, number> = {
+        popup: 25,
+        sproeidop: 15,
+        druppelslang: 2,
+        combinatie: 20,
+      };
+      const urenPerSproeier: Record<string, number> = {
+        popup: 0.5,
+        sproeidop: 0.25,
+        druppelslang: 0.06,
+        combinatie: 0.35,
+      };
+      const aantal =
+        oppervlakte > 0
+          ? Math.max(1, Math.ceil(oppervlakte / (m2PerSproeier[type] ?? 25)))
+          : 0;
+      scopeUren += aantal * (urenPerSproeier[type] ?? 0.5);
+
+      if (data?.regelkast) {
+        scopeUren += 2;
+        if (data?.wifiModule) scopeUren += 0.5;
+      }
+      if (data?.wintervast) scopeUren += 1;
+      break;
+    }
+
     case "borders": {
       const oppervlakte = (data?.oppervlakte as number) || 0;
       const intensiteit =
@@ -414,6 +535,8 @@ export function formatDagen(dagen: number): string {
 export const scopeLabels: Record<string, string> = {
   grondwerk: "Grondwerk",
   bestrating: "Bestrating",
+  parkeerplaats: "Parkeerplaats",
+  beregening: "Beregening",
   borders: "Borders",
   gras: "Gras",
   houtwerk: "Houtwerk",

@@ -160,6 +160,22 @@ export const createDefaults = mutation({
       { activiteit: "Zandbed aanbrengen", scope: "bestrating", normuurPerEenheid: 0.1, eenheid: "m²", omschrijving: "Aanbrengen en egaliseren zandbed" },
       { activiteit: "Opsluitbanden plaatsen", scope: "bestrating", normuurPerEenheid: 0.25, eenheid: "m", omschrijving: "Plaatsen opsluitbanden" },
 
+      // Parkeerplaats — de calculator valt terug op ingebouwde waarden als deze
+      // regels ontbreken (bestaande bedrijven krijgen geen nieuwe seed, zie
+      // de idempotentie-check hierboven). Aanpasbaar via Instellingen.
+      { activiteit: "Ontgraven", scope: "parkeerplaats", normuurPerEenheid: 0.25, eenheid: "m²", omschrijving: "Ontgraven parkeerterrein op funderingsdiepte" },
+      { activiteit: "Fundering aanbrengen", scope: "parkeerplaats", normuurPerEenheid: 0.35, eenheid: "m³", omschrijving: "Aanbrengen en verdichten fundering" },
+      { activiteit: "Betonklinkers", scope: "parkeerplaats", normuurPerEenheid: 0.45, eenheid: "m²", omschrijving: "Aanbrengen betonklinkers" },
+      { activiteit: "Grasbetontegels", scope: "parkeerplaats", normuurPerEenheid: 0.35, eenheid: "m²", omschrijving: "Aanbrengen grasbetontegels" },
+      { activiteit: "Halfverharding (split)", scope: "parkeerplaats", normuurPerEenheid: 0.12, eenheid: "m²", omschrijving: "Aanbrengen halfverharding" },
+      { activiteit: "Asfalt", scope: "parkeerplaats", normuurPerEenheid: 0.08, eenheid: "m²", omschrijving: "Machinaal aanbrengen asfalt" },
+
+      // Beregening — ook hier valt de calculator terug op ingebouwde waarden
+      { activiteit: "Sleuf graven", scope: "beregening", normuurPerEenheid: 0.15, eenheid: "m", omschrijving: "Sleuf graven en dichten voor leidingwerk" },
+      { activiteit: "Pop-up sproeier", scope: "beregening", normuurPerEenheid: 0.5, eenheid: "stuk", omschrijving: "Plaatsen en afstellen pop-up sproeier" },
+      { activiteit: "Sproeidop op steel", scope: "beregening", normuurPerEenheid: 0.25, eenheid: "stuk", omschrijving: "Plaatsen sproeidop op steel" },
+      { activiteit: "Druppelslang", scope: "beregening", normuurPerEenheid: 0.06, eenheid: "m", omschrijving: "Aanleggen druppelslang" },
+
       // Borders
       { activiteit: "Grondbewerking border", scope: "borders", normuurPerEenheid: 0.2, eenheid: "m²", omschrijving: "Spitten en losmaken grond" },
       { activiteit: "Planten laag", scope: "borders", normuurPerEenheid: 0.15, eenheid: "m²", omschrijving: "Aanplanten lage intensiteit" },

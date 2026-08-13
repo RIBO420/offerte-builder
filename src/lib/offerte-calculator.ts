@@ -13,6 +13,8 @@ import type {
   Achterstalligheid,
   GrondwerkData,
   BestratingData,
+  ParkeerplaatsData,
+  BeregeningData,
   BordersData,
   GrasData,
   HoutwerkData,
@@ -108,6 +110,146 @@ const OPSLUITBAND_PRIJS_PER_M = 15; // € per lopende meter
 const BODEMVERBETERING_PRIJS_PER_M3 = 35; // € per m³
 const BODEMVERBETERING_DIEPTE = 0.3; // 30 cm diepte
 
+// ==================== PARKEERPLAATS ====================
+//
+// Deze scope werkt NIET met `if (normuur) …` zoals de oudere scopes, maar met
+// `normuur ?? fallback`. Reden: normuren.createDefaults is idempotent op
+// "heeft deze gebruiker al normuren" — bestaande bedrijven krijgen nieuwe
+// seed-regels dus nooit. Zonder fallback zou een parkeerplaats-offerte bij hen
+// stilletjes op €0 arbeid uitkomen. Zodra kantoor eigen normuren/producten
+// voor deze scope aanmaakt, winnen die vanzelf.
+
+/** Funderingsopbouw in cm, bepaald door de zwaarste verkeersbelasting. */
+export const PARKEERPLAATS_FUNDERING_CM = {
+  personenauto: { gebrokenPuin: 25, zand: 10 },
+  bestelbus: { gebrokenPuin: 35, zand: 10 },
+  vrachtverkeer: { gebrokenPuin: 50, zand: 15 },
+} as const;
+
+/** Materiaalprijs verharding in € per m². */
+const PARKEERPLAATS_VERHARDING_PRIJS_PER_M2 = {
+  betonklinker: 28,
+  grasbetontegel: 32,
+  halfverharding: 14,
+  asfalt: 45,
+} as const;
+
+/** Normuren voor het aanbrengen van de verharding, uur per m². */
+const PARKEERPLAATS_VERHARDING_UREN_PER_M2 = {
+  betonklinker: 0.45,
+  grasbetontegel: 0.35,
+  halfverharding: 0.12,
+  asfalt: 0.08, // machinaal
+} as const;
+
+const PARKEERPLAATS_VERHARDING_LABEL = {
+  betonklinker: "Betonklinkers",
+  grasbetontegel: "Grasbetontegels",
+  halfverharding: "Halfverharding (split)",
+  asfalt: "Asfalt",
+} as const;
+
+const PARKEERPLAATS_FUNDERING_UREN_PER_M3 = 0.35; // aanbrengen + verdichten
+const PARKEERPLAATS_ONTGRAVEN_UREN_PER_M2 = 0.25;
+const PARKEERPLAATS_AFVOER_PRIJS_PER_M3 = 28;
+const PARKEERPLAATS_OPSLUITBAND_UREN_PER_M = 0.25;
+const PARKEERPLAATS_KOLK_PRIJS = 185; // € per kolk incl. aansluitmateriaal
+const PARKEERPLAATS_KOLK_UREN = 2.5;
+const PARKEERPLAATS_INFILTRATIE_PRIJS_PER_M2 = 22;
+const PARKEERPLAATS_INFILTRATIE_UREN_PER_M2 = 0.1;
+const PARKEERPLAATS_BELIJNING_PRIJS_PER_VAK = 8;
+const PARKEERPLAATS_BELIJNING_UREN_PER_VAK = 0.25;
+/** Vuistregel: één kolk per 150 m². */
+const PARKEERPLAATS_M2_PER_KOLK = 150;
+/** Vuistregel voor de vakken als het aantal plaatsen niet is ingevuld. */
+const PARKEERPLAATS_M2_PER_VAK = 25;
+
+/**
+ * Omtrek schatten uit de oppervlakte (aanname: ongeveer vierkant vlak).
+ * Zelfde benadering als calculateBestrating al voor opsluitbanden gebruikt.
+ */
+export function schatOpsluitbandMeters(oppervlakte: number): number {
+  if (!oppervlakte || oppervlakte <= 0) return 0;
+  return 4 * Math.sqrt(oppervlakte);
+}
+
+// ==================== BEREGENING ====================
+//
+// Zelfde fallback-aanpak als parkeerplaats: `normuur ?? constante`, zodat de
+// scope ook rekent bij bedrijven die geen eigen normuren hebben ingevoerd.
+
+/** Materiaalprijs per sproeipunt in €. */
+const BEREGENING_SPROEIER_PRIJS = {
+  popup: 45,
+  sproeidop: 18,
+  druppelslang: 4, // per meter slang, telt als "punt" per strekkende meter
+  combinatie: 35, // gemiddelde van pop-up en druppel
+} as const;
+
+/** Installatietijd per sproeipunt in uren. */
+const BEREGENING_SPROEIER_UREN = {
+  popup: 0.5,
+  sproeidop: 0.25,
+  druppelslang: 0.06,
+  combinatie: 0.35,
+} as const;
+
+const BEREGENING_SPROEIER_LABEL = {
+  popup: "Pop-up sproeier",
+  sproeidop: "Sproeidop op steel",
+  druppelslang: "Druppelslang",
+  combinatie: "Sproeipunt (gazon + borders)",
+} as const;
+
+/** m² dat één sproeipunt bestrijkt. */
+const BEREGENING_M2_PER_SPROEIER = {
+  popup: 25,
+  sproeidop: 15,
+  druppelslang: 2, // druppelslang rekent per meter, ca. 1 m per 2 m²
+  combinatie: 20,
+} as const;
+
+const BEREGENING_LEIDING_PRIJS_PER_M = 4.5; // PE-leiding 25 mm
+const BEREGENING_SLEUF_UREN_PER_M = 0.15; // graven + dichten
+const BEREGENING_LEIDING_UREN_PER_M = 0.05; // leggen en koppelen
+const BEREGENING_ZONEKLEP_PRIJS = 65; // magneetventiel incl. klepput
+const BEREGENING_ZONEKLEP_UREN = 0.75;
+const BEREGENING_REGELKAST_PRIJS = 285;
+const BEREGENING_REGELKAST_UREN = 2;
+const BEREGENING_WIFI_PRIJS = 120;
+const BEREGENING_WIFI_UREN = 0.5;
+const BEREGENING_WINTERVAST_PRIJS = 85;
+const BEREGENING_WINTERVAST_UREN = 1;
+
+/** Aansluitkosten per waterbron: materiaal en uren. */
+const BEREGENING_WATERBRON = {
+  waterleiding: { prijs: 125, uren: 1.5, label: "Aansluiting op waterleiding" },
+  put: { prijs: 450, uren: 4, label: "Geslagen put incl. pomp" },
+  regenwater: { prijs: 650, uren: 5, label: "Regenwateraansluiting incl. pomp" },
+} as const;
+
+/** Aantal sproeipunten schatten uit de oppervlakte. */
+export function schatSproeiers(
+  oppervlakte: number,
+  type: keyof typeof BEREGENING_M2_PER_SPROEIER
+): number {
+  if (!oppervlakte || oppervlakte <= 0) return 0;
+  return Math.max(1, Math.ceil(oppervlakte / BEREGENING_M2_PER_SPROEIER[type]));
+}
+
+/**
+ * Leidinglengte schatten: een hoofdleiding rond het vlak plus een aftakking
+ * per zone. Bewust een ruwe benadering — de gebruiker kan hem overschrijven.
+ */
+export function schatBeregeningLeiding(
+  oppervlakte: number,
+  zones: number
+): number {
+  if (!oppervlakte || oppervlakte <= 0) return 0;
+  const omtrek = 4 * Math.sqrt(oppervlakte);
+  return Math.round(omtrek + zones * Math.sqrt(oppervlakte));
+}
+
 // Offerte overhead
 const OFFERTE_OVERHEAD = 200; // € vast bedrag per offerte
 
@@ -126,6 +268,8 @@ export interface OfferteRegel {
 export interface ScopeMarges {
   grondwerk?: number;
   bestrating?: number;
+  parkeerplaats?: number;
+  beregening?: number;
   borders?: number;
   gras?: number;
   houtwerk?: number;
@@ -572,6 +716,491 @@ function calculateBestrating(
         ));
       }
     }
+  }
+
+  return regels;
+}
+
+/**
+ * Parkeerplaats aanleggen — opbouw van onder naar boven:
+ * ontgraven/afvoer → gebroken puin → straatzand → verharding →
+ * opsluitbanden → afwatering → belijning.
+ *
+ * Elke normuur/prijs komt uit de instellingen van het bedrijf als die bestaat,
+ * anders uit de constanten hierboven (zie toelichting daar).
+ */
+function calculateParkeerplaats(
+  data: ParkeerplaatsData,
+  context: CalculationContext
+): OfferteRegel[] {
+  const regels: OfferteRegel[] = [];
+  const { normuren, producten, instellingen, bereikbaarheid, correctiefactoren } =
+    context;
+
+  const oppervlakte = data.oppervlakte ?? 0;
+  if (oppervlakte <= 0) return regels;
+
+  const bereikbaarheidFactor = getCorrectionFactor(
+    correctiefactoren,
+    "bereikbaarheid",
+    bereikbaarheid
+  );
+  const uurtarief = instellingen.uurtarief;
+  const scope = "parkeerplaats";
+
+  const verharding = data.verharding ?? "betonklinker";
+  const draagkracht = data.draagkracht ?? "personenauto";
+  const fundering =
+    data.funderingslagen ?? PARKEERPLAATS_FUNDERING_CM[draagkracht];
+
+  const plaatsenSuffix = data.aantalPlaatsen
+    ? ` (${data.aantalPlaatsen} plaatsen)`
+    : "";
+
+  // ── 1. Ontgraven + afvoer ────────────────────────────────────────────────
+  // De ontgravingsdiepte volgt uit de funderingsopbouw plus de dikte van de
+  // verharding zelf (~8 cm klinker/tegel op zandbed).
+  if (data.ontgraven) {
+    const ontgravingsDiepteM =
+      (fundering.gebrokenPuin + fundering.zand + 8) / 100;
+    const grondM3 = oppervlakte * ontgravingsDiepteM;
+
+    const ontgravenNormuur =
+      findNormuur(normuren, scope, "ontgraven")?.normuurPerEenheid ??
+      findNormuur(normuren, "grondwerk", "ontgraven zwaar")?.normuurPerEenheid ??
+      PARKEERPLAATS_ONTGRAVEN_UREN_PER_M2;
+    regels.push(
+      createArbeidsRegel(
+        scope,
+        `Ontgraven parkeerterrein (${(ontgravingsDiepteM * 100).toFixed(0)} cm)`,
+        calculateLaborHours(
+          oppervlakte * ontgravenNormuur,
+          bereikbaarheidFactor
+        ),
+        uurtarief
+      )
+    );
+
+    const afvoerNormuur =
+      findNormuur(normuren, "grondwerk", "afvoeren")?.normuurPerEenheid ?? 0.1;
+    regels.push(
+      createArbeidsRegel(
+        scope,
+        "Grond laden en afvoeren",
+        calculateLaborHours(grondM3 * afvoerNormuur, bereikbaarheidFactor),
+        uurtarief
+      )
+    );
+
+    const afvoerPrijs =
+      findProduct(producten, "afvoer grond")?.verkoopprijs ??
+      PARKEERPLAATS_AFVOER_PRIJS_PER_M3;
+    regels.push(
+      createMateriaalRegel(
+        scope,
+        "Afvoer grond (stort)",
+        grondM3,
+        "m³",
+        afvoerPrijs,
+        0
+      )
+    );
+  }
+
+  // ── 2. Fundering: gebroken puin + straatzand ─────────────────────────────
+  const funderingUrenPerM3 =
+    findNormuur(normuren, scope, "fundering aanbrengen")?.normuurPerEenheid ??
+    PARKEERPLAATS_FUNDERING_UREN_PER_M3;
+
+  if (fundering.gebrokenPuin > 0) {
+    const puinM3 = oppervlakte * (fundering.gebrokenPuin / 100);
+    regels.push(
+      createMateriaalRegel(
+        scope,
+        `Gebroken puin (${fundering.gebrokenPuin} cm, ${draagkracht})`,
+        puinM3,
+        "m³",
+        findProduct(producten, "gebroken puin")?.verkoopprijs ??
+          FUNDERING_PRIJZEN.gebrokenPuin,
+        5
+      )
+    );
+    regels.push(
+      createArbeidsRegel(
+        scope,
+        "Puinfundering aanbrengen en verdichten",
+        calculateLaborHours(puinM3 * funderingUrenPerM3, bereikbaarheidFactor),
+        uurtarief
+      )
+    );
+  }
+
+  if (fundering.zand > 0) {
+    const zandM3 = oppervlakte * (fundering.zand / 100);
+    regels.push(
+      createMateriaalRegel(
+        scope,
+        `Straatzand (${fundering.zand} cm)`,
+        zandM3,
+        "m³",
+        findProduct(producten, "straatzand")?.verkoopprijs ??
+          FUNDERING_PRIJZEN.straatzand,
+        5
+      )
+    );
+    regels.push(
+      createArbeidsRegel(
+        scope,
+        "Zandbed aanbrengen en egaliseren",
+        calculateLaborHours(zandM3 * funderingUrenPerM3, bereikbaarheidFactor),
+        uurtarief
+      )
+    );
+  }
+
+  // ── 3. Verharding ────────────────────────────────────────────────────────
+  const verhardingLabel = PARKEERPLAATS_VERHARDING_LABEL[verharding];
+  regels.push(
+    createMateriaalRegel(
+      scope,
+      `${verhardingLabel}${plaatsenSuffix}`,
+      oppervlakte,
+      "m²",
+      findProduct(producten, verhardingLabel.toLowerCase())?.verkoopprijs ??
+        PARKEERPLAATS_VERHARDING_PRIJS_PER_M2[verharding],
+      5
+    )
+  );
+
+  const verhardingUren =
+    findNormuur(normuren, scope, verhardingLabel.toLowerCase())
+      ?.normuurPerEenheid ?? PARKEERPLAATS_VERHARDING_UREN_PER_M2[verharding];
+  regels.push(
+    createArbeidsRegel(
+      scope,
+      `${verhardingLabel} aanbrengen`,
+      calculateLaborHours(oppervlakte * verhardingUren, bereikbaarheidFactor),
+      uurtarief
+    )
+  );
+
+  // ── 4. Opsluitbanden ─────────────────────────────────────────────────────
+  if (data.opsluitbanden) {
+    const meters =
+      data.opsluitbandenMeters && data.opsluitbandenMeters > 0
+        ? data.opsluitbandenMeters
+        : schatOpsluitbandMeters(oppervlakte);
+
+    regels.push(
+      createMateriaalRegel(
+        scope,
+        "Opsluitbanden incl. betonnen rugsteun",
+        meters,
+        "m",
+        findProduct(producten, "opsluitband")?.verkoopprijs ??
+          OPSLUITBAND_PRIJS_PER_M,
+        5
+      )
+    );
+    const bandUren =
+      findNormuur(normuren, "bestrating", "opsluitbanden")?.normuurPerEenheid ??
+      PARKEERPLAATS_OPSLUITBAND_UREN_PER_M;
+    regels.push(
+      createArbeidsRegel(
+        scope,
+        "Opsluitbanden plaatsen",
+        calculateLaborHours(meters * bandUren, bereikbaarheidFactor),
+        uurtarief
+      )
+    );
+  }
+
+  // ── 5. Afwatering ────────────────────────────────────────────────────────
+  if (data.afwatering === "kolken") {
+    const aantal =
+      data.aantalKolken && data.aantalKolken > 0
+        ? data.aantalKolken
+        : Math.max(1, Math.ceil(oppervlakte / PARKEERPLAATS_M2_PER_KOLK));
+
+    regels.push(
+      createMateriaalRegel(
+        scope,
+        "Straatkolk incl. aansluiting",
+        aantal,
+        "stuk",
+        findProduct(producten, "kolk")?.verkoopprijs ?? PARKEERPLAATS_KOLK_PRIJS,
+        0
+      )
+    );
+    regels.push(
+      createArbeidsRegel(
+        scope,
+        "Kolken plaatsen en aansluiten",
+        calculateLaborHours(
+          aantal * PARKEERPLAATS_KOLK_UREN,
+          bereikbaarheidFactor
+        ),
+        uurtarief
+      )
+    );
+  } else if (data.afwatering === "infiltratie") {
+    regels.push(
+      createMateriaalRegel(
+        scope,
+        "Infiltratievoorziening (koffer + geotextiel)",
+        oppervlakte,
+        "m²",
+        PARKEERPLAATS_INFILTRATIE_PRIJS_PER_M2,
+        0
+      )
+    );
+    regels.push(
+      createArbeidsRegel(
+        scope,
+        "Infiltratievoorziening aanbrengen",
+        calculateLaborHours(
+          oppervlakte * PARKEERPLAATS_INFILTRATIE_UREN_PER_M2,
+          bereikbaarheidFactor
+        ),
+        uurtarief
+      )
+    );
+  }
+
+  // ── 6. Belijning ─────────────────────────────────────────────────────────
+  if (data.belijning) {
+    const vakken =
+      data.aantalPlaatsen && data.aantalPlaatsen > 0
+        ? data.aantalPlaatsen
+        : Math.max(1, Math.round(oppervlakte / PARKEERPLAATS_M2_PER_VAK));
+
+    regels.push(
+      createMateriaalRegel(
+        scope,
+        "Belijning parkeervakken",
+        vakken,
+        "vak",
+        PARKEERPLAATS_BELIJNING_PRIJS_PER_VAK,
+        0
+      )
+    );
+    regels.push(
+      createArbeidsRegel(
+        scope,
+        "Parkeervakken uitzetten en markeren",
+        calculateLaborHours(
+          vakken * PARKEERPLAATS_BELIJNING_UREN_PER_VAK,
+          bereikbaarheidFactor
+        ),
+        uurtarief
+      )
+    );
+  }
+
+  return regels;
+}
+
+/**
+ * Beregening — opbouw: waterbron → leidingwerk (sleuf + buis) → zoneventielen
+ * → sproeipunten → besturing → wintervast maken.
+ */
+function calculateBeregening(
+  data: BeregeningData,
+  context: CalculationContext
+): OfferteRegel[] {
+  const regels: OfferteRegel[] = [];
+  const { normuren, producten, instellingen, bereikbaarheid, correctiefactoren } =
+    context;
+
+  const oppervlakte = data.oppervlakte ?? 0;
+  if (oppervlakte <= 0) return regels;
+
+  const bereikbaarheidFactor = getCorrectionFactor(
+    correctiefactoren,
+    "bereikbaarheid",
+    bereikbaarheid
+  );
+  const uurtarief = instellingen.uurtarief;
+  const scope = "beregening";
+
+  const type = data.sproeierType ?? "popup";
+  const zones = Math.max(1, data.aantalZones ?? 1);
+
+  // ── 1. Waterbron ─────────────────────────────────────────────────────────
+  const bron = BEREGENING_WATERBRON[data.waterbron ?? "waterleiding"];
+  regels.push(
+    createMateriaalRegel(scope, bron.label, 1, "stuk", bron.prijs, 0)
+  );
+  regels.push(
+    createArbeidsRegel(
+      scope,
+      `${bron.label} aanleggen`,
+      calculateLaborHours(bron.uren, bereikbaarheidFactor),
+      uurtarief
+    )
+  );
+
+  // ── 2. Leidingwerk ───────────────────────────────────────────────────────
+  const leiding =
+    data.leidinglengte && data.leidinglengte > 0
+      ? data.leidinglengte
+      : schatBeregeningLeiding(oppervlakte, zones);
+
+  regels.push(
+    createMateriaalRegel(
+      scope,
+      "PE-leiding 25 mm",
+      leiding,
+      "m",
+      findProduct(producten, "pe-leiding")?.verkoopprijs ??
+        BEREGENING_LEIDING_PRIJS_PER_M,
+      5
+    )
+  );
+
+  const sleufNormuur =
+    findNormuur(normuren, scope, "sleuf")?.normuurPerEenheid ??
+    findNormuur(normuren, "water_elektra", "sleuf graven")?.normuurPerEenheid ??
+    BEREGENING_SLEUF_UREN_PER_M;
+  regels.push(
+    createArbeidsRegel(
+      scope,
+      "Sleuven graven en dichten",
+      calculateLaborHours(leiding * sleufNormuur, bereikbaarheidFactor),
+      uurtarief
+    )
+  );
+  regels.push(
+    createArbeidsRegel(
+      scope,
+      "Leidingwerk leggen en koppelen",
+      calculateLaborHours(
+        leiding * BEREGENING_LEIDING_UREN_PER_M,
+        bereikbaarheidFactor
+      ),
+      uurtarief
+    )
+  );
+
+  // ── 3. Zoneventielen ─────────────────────────────────────────────────────
+  regels.push(
+    createMateriaalRegel(
+      scope,
+      "Magneetventiel incl. klepput",
+      zones,
+      "stuk",
+      findProduct(producten, "magneetventiel")?.verkoopprijs ??
+        BEREGENING_ZONEKLEP_PRIJS,
+      0
+    )
+  );
+  regels.push(
+    createArbeidsRegel(
+      scope,
+      "Zoneventielen plaatsen en aansluiten",
+      calculateLaborHours(
+        zones * BEREGENING_ZONEKLEP_UREN,
+        bereikbaarheidFactor
+      ),
+      uurtarief
+    )
+  );
+
+  // ── 4. Sproeipunten ──────────────────────────────────────────────────────
+  const aantalSproeiers = schatSproeiers(oppervlakte, type);
+  const sproeierLabel = BEREGENING_SPROEIER_LABEL[type];
+  const sproeierEenheid = type === "druppelslang" ? "m" : "stuk";
+
+  regels.push(
+    createMateriaalRegel(
+      scope,
+      sproeierLabel,
+      aantalSproeiers,
+      sproeierEenheid,
+      findProduct(producten, sproeierLabel.toLowerCase())?.verkoopprijs ??
+        BEREGENING_SPROEIER_PRIJS[type],
+      5
+    )
+  );
+
+  const sproeierUren =
+    findNormuur(normuren, scope, sproeierLabel.toLowerCase())
+      ?.normuurPerEenheid ?? BEREGENING_SPROEIER_UREN[type];
+  regels.push(
+    createArbeidsRegel(
+      scope,
+      `${sproeierLabel} plaatsen en afstellen`,
+      calculateLaborHours(
+        aantalSproeiers * sproeierUren,
+        bereikbaarheidFactor
+      ),
+      uurtarief
+    )
+  );
+
+  // ── 5. Besturing ─────────────────────────────────────────────────────────
+  if (data.regelkast) {
+    regels.push(
+      createMateriaalRegel(
+        scope,
+        `Regelkast ${zones} zones`,
+        1,
+        "stuk",
+        BEREGENING_REGELKAST_PRIJS,
+        0
+      )
+    );
+    regels.push(
+      createArbeidsRegel(
+        scope,
+        "Regelkast monteren en programmeren",
+        calculateLaborHours(BEREGENING_REGELKAST_UREN, bereikbaarheidFactor),
+        uurtarief
+      )
+    );
+
+    if (data.wifiModule) {
+      regels.push(
+        createMateriaalRegel(
+          scope,
+          "Wifi-module",
+          1,
+          "stuk",
+          BEREGENING_WIFI_PRIJS,
+          0
+        )
+      );
+      regels.push(
+        createArbeidsRegel(
+          scope,
+          "Wifi-module installeren en koppelen",
+          calculateLaborHours(BEREGENING_WIFI_UREN, bereikbaarheidFactor),
+          uurtarief
+        )
+      );
+    }
+  }
+
+  // ── 6. Wintervast ────────────────────────────────────────────────────────
+  if (data.wintervast) {
+    regels.push(
+      createMateriaalRegel(
+        scope,
+        "Leegblaasaansluiting",
+        1,
+        "stuk",
+        BEREGENING_WINTERVAST_PRIJS,
+        0
+      )
+    );
+    regels.push(
+      createArbeidsRegel(
+        scope,
+        "Leegblaasvoorziening aanbrengen",
+        calculateLaborHours(BEREGENING_WINTERVAST_UREN, bereikbaarheidFactor),
+        uurtarief
+      )
+    );
   }
 
   return regels;
@@ -1862,6 +2491,12 @@ export function calculateOfferteRegels(
           break;
         case "bestrating":
           regels = calculateBestrating(data as BestratingData, context);
+          break;
+        case "parkeerplaats":
+          regels = calculateParkeerplaats(data as ParkeerplaatsData, context);
+          break;
+        case "beregening":
+          regels = calculateBeregening(data as BeregeningData, context);
           break;
         case "borders":
           regels = calculateBorders(data as BordersData, context);
