@@ -155,7 +155,9 @@ export async function POST(request: NextRequest) {
       undefined,
       { module: "resend/webhook" }
     );
-    // Return 200 to prevent Resend from retrying endlessly
+    // Bewust 500 en geen 200: dit is een configuratiefout aan onze kant, geen
+    // afgehandeld event. Resend blijft retryen, zodat de statusupdates alsnog
+    // binnenkomen zodra het geheim gezet is in plaats van stil te verdwijnen.
     return new NextResponse("Webhook secret not configured", { status: 500 });
   }
 
