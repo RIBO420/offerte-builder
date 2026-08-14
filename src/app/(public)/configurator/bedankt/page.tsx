@@ -96,7 +96,7 @@ function BedanktMetReferentie({ referentie, betaald }: BedanktMetReferentieProps
 
   return (
     <div className="container max-w-2xl mx-auto px-4 py-12">
-      <Card className="border-green-200 dark:border-green-900 shadow-lg overflow-hidden">
+      <Card className="border-green-200 shadow-lg overflow-hidden">
         {/* Groene top-banner */}
         <div className="h-2 bg-gradient-to-r from-green-500 to-green-600" />
 
@@ -104,9 +104,9 @@ function BedanktMetReferentie({ referentie, betaald }: BedanktMetReferentieProps
           {/* Vinkje met pulse animatie */}
           <div className="flex justify-center">
             <div className="relative inline-flex">
-              <span className="absolute inset-0 rounded-full bg-green-200 dark:bg-green-900 animate-ping opacity-60" />
+              <span className="absolute inset-0 rounded-full bg-green-200 animate-ping opacity-60" />
               <CheckCircle2
-                className="relative h-16 w-16 text-green-600 dark:text-green-400"
+                className="relative h-16 w-16 text-green-600"
                 strokeWidth={1.5}
               />
             </div>
@@ -117,7 +117,7 @@ function BedanktMetReferentie({ referentie, betaald }: BedanktMetReferentieProps
               Bedankt voor uw aanvraag!
             </CardTitle>
             {betaald && (
-              <p className="text-green-700 dark:text-green-400 font-medium text-base">
+              <p className="text-green-700 font-medium text-base">
                 Uw aanbetaling is ontvangen
               </p>
             )}
@@ -128,9 +128,9 @@ function BedanktMetReferentie({ referentie, betaald }: BedanktMetReferentieProps
           {/* Referentienummer */}
           <div className="flex flex-col items-center gap-2">
             <p className="text-sm text-muted-foreground">Uw referentienummer</p>
-            <div className="flex items-center gap-2 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-900 rounded-lg px-5 py-3">
-              <FileText className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" />
-              <span className="text-lg font-mono font-bold tracking-widest text-green-800 dark:text-green-200">
+            <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-5 py-3">
+              <FileText className="h-4 w-4 text-green-600 flex-shrink-0" />
+              <span className="text-lg font-mono font-bold tracking-widest text-green-800">
                 {referentie}
               </span>
             </div>
@@ -148,7 +148,7 @@ function BedanktMetReferentie({ referentie, betaald }: BedanktMetReferentieProps
                   variant={betalingStatusVariant(aanvraag.betalingStatus)}
                   className={cn(
                     aanvraag.betalingStatus === "betaald" &&
-                      "bg-green-100 dark:bg-green-950 text-green-800 dark:text-green-300 border-green-200 dark:border-green-900 hover:bg-green-100 dark:hover:bg-green-950"
+                      "bg-green-100 text-green-800 border-green-200 hover:bg-green-100"
                   )}
                 >
                   {betalingStatusLabel(aanvraag.betalingStatus)}
@@ -176,13 +176,13 @@ function BedanktMetReferentie({ referentie, betaald }: BedanktMetReferentieProps
                 return (
                   <li key={index} className="flex gap-4">
                     <div className="flex-shrink-0 mt-0.5">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-400 font-bold text-sm">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 text-green-700 font-bold text-sm">
                         {index + 1}
                       </div>
                     </div>
                     <div className="flex-1 space-y-0.5">
                       <div className="flex items-center gap-2">
-                        <Icon className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" />
+                        <Icon className="h-4 w-4 text-green-600 flex-shrink-0" />
                         <p className="font-medium text-foreground text-sm">
                           {stap.titel}
                         </p>
@@ -231,15 +231,15 @@ function BedanktMetReferentie({ referentie, betaald }: BedanktMetReferentieProps
 function BedanktGeneriek() {
   return (
     <div className="container max-w-2xl mx-auto px-4 py-12">
-      <Card className="border-green-200 dark:border-green-900 shadow-lg overflow-hidden">
+      <Card className="border-green-200 shadow-lg overflow-hidden">
         <div className="h-2 bg-gradient-to-r from-green-500 to-green-600" />
 
         <CardHeader className="pt-10 pb-6 text-center space-y-4">
           <div className="flex justify-center">
             <div className="relative inline-flex">
-              <span className="absolute inset-0 rounded-full bg-green-200 dark:bg-green-900 animate-ping opacity-60" />
+              <span className="absolute inset-0 rounded-full bg-green-200 animate-ping opacity-60" />
               <CheckCircle2
-                className="relative h-16 w-16 text-green-600 dark:text-green-400"
+                className="relative h-16 w-16 text-green-600"
                 strokeWidth={1.5}
               />
             </div>
@@ -267,13 +267,13 @@ function BedanktGeneriek() {
                 return (
                   <li key={index} className="flex gap-4">
                     <div className="flex-shrink-0 mt-0.5">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-400 font-bold text-sm">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 text-green-700 font-bold text-sm">
                         {index + 1}
                       </div>
                     </div>
                     <div className="flex-1 space-y-0.5">
                       <div className="flex items-center gap-2">
-                        <Icon className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" />
+                        <Icon className="h-4 w-4 text-green-600 flex-shrink-0" />
                         <p className="font-medium text-foreground text-sm">
                           {stap.titel}
                         </p>
@@ -332,7 +332,7 @@ export default function BedanktPagina() {
     <Suspense
       fallback={
         <div className="container max-w-2xl mx-auto px-4 py-12 flex justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-green-600 dark:text-green-400" />
+          <Loader2 className="h-8 w-8 animate-spin text-green-600" />
         </div>
       }
     >

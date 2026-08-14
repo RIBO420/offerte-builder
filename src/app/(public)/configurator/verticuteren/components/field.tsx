@@ -21,7 +21,7 @@ export function Field({
       <Label
         className={cn(
           "text-sm font-medium",
-          error && "text-red-600 dark:text-red-400"
+          error && "text-red-600"
         )}
       >
         {label}
@@ -32,7 +32,7 @@ export function Field({
         <p className="text-xs text-muted-foreground">{hulptekst}</p>
       )}
       {error && (
-        <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
+        <p className="text-xs text-red-600">{error}</p>
       )}
     </div>
   );

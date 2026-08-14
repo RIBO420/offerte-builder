@@ -14,8 +14,9 @@ import {
 } from "./constants";
 import { formatEuro } from "./utils";
 import { Field } from "./field";
+import { PoortWaarschuwing } from "./poort-waarschuwing";
 
-export function Stap2VerticuterenSpecs({
+export function StapVerticuterenSpecs({
   data,
   errors,
   onChange,
@@ -27,10 +28,13 @@ export function Stap2VerticuterenSpecs({
     value: VerticuterenSpecs[K]
   ) => void;
 }) {
+  const poortBreedte = parseFloat(data.poortbreedte);
+  const isTeSmall = !isNaN(poortBreedte) && poortBreedte < 60;
+
   return (
     <div className="space-y-6">
       <CardHeader className="px-0 pt-0">
-        <CardTitle className="text-xl">Verticuteren specificaties</CardTitle>
+        <CardTitle className="text-xl font-display">Verticuteren specificaties</CardTitle>
         <CardDescription>
           Geef de details van uw gazon op. Wij berekenen op basis hiervan een
           indicatieprijs voor de verticuteerdienst.
@@ -66,7 +70,7 @@ export function Stap2VerticuterenSpecs({
         <Label
           className={cn(
             "text-sm font-medium",
-            errors.conditie && "text-red-600 dark:text-red-400"
+            errors.conditie && "text-red-600"
           )}
         >
           Huidige conditie van het gazon{" "}
@@ -117,7 +121,7 @@ export function Stap2VerticuterenSpecs({
                     className={cn(
                       "text-xs flex-shrink-0 mt-0.5",
                       data.conditie === conditie
-                        ? "border-green-500 text-green-700 dark:text-green-400"
+                        ? "border-green-500 text-green-700"
                         : "border-border text-muted-foreground"
                     )}
                   >
@@ -129,7 +133,7 @@ export function Stap2VerticuterenSpecs({
           ))}
         </div>
         {errors.conditie && (
-          <p className="text-xs text-red-600 dark:text-red-400">
+          <p className="text-xs text-red-600">
             {errors.conditie}
           </p>
         )}
@@ -182,8 +186,8 @@ export function Stap2VerticuterenSpecs({
           className={cn(
             "flex items-center justify-between p-4 rounded-lg border-2 transition-colors",
             data.bemesting
-              ? "border-green-400 bg-green-50 dark:bg-green-950"
-              : "border-green-200 dark:border-green-900 bg-green-50/40 dark:bg-green-950/40"
+              ? "border-green-400 bg-green-50"
+              : "border-green-200 bg-green-50/40"
           )}
         >
           <div className="flex-1 pr-4">
@@ -206,6 +210,37 @@ export function Stap2VerticuterenSpecs({
           />
         </div>
       </div>
+
+      <Separator />
+
+      {/* Poortbreedte — bepaalt de machine-inzet en dus de prijs (WS9: bij de
+          specificaties, zodat de prijsindicatie vóór de NAW-stap compleet is). */}
+      <Field
+        label="Poortbreedte"
+        error={errors.poortbreedte}
+        hulptekst="De breedte van de smalste doorgang naar uw tuin, in centimeters. Dit bepaalt welke machines we kunnen inzetten."
+      >
+        <div className="flex items-center gap-3">
+          <Input
+            required
+            aria-required
+            type="number"
+            placeholder="120"
+            min={1}
+            max={500}
+            value={data.poortbreedte}
+            onChange={(e) => onChange("poortbreedte", e.target.value)}
+            className={cn(
+              "max-w-36",
+              (errors.poortbreedte || isTeSmall) &&
+                "border-red-400 focus-visible:ring-red-400"
+            )}
+          />
+          <span className="text-sm text-muted-foreground">cm</span>
+        </div>
+      </Field>
+
+      <PoortWaarschuwing breedte={data.poortbreedte} />
     </div>
   );
 }

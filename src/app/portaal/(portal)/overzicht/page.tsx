@@ -30,7 +30,7 @@ export default function PortaalOverzichtPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl md:text-2xl font-bold text-[#1a2e1a] dark:text-white">
+        <h1 className="text-xl md:text-2xl font-bold text-foreground">
           Welkom, {overzicht.klantNaam}
         </h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">

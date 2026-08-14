@@ -28,10 +28,7 @@ export function berekenMinDatum(): Date {
   return datum;
 }
 
-export function berekenPrijs(
-  specs: VerticuterenSpecs,
-  poortbreedte: string
-): PrijsBerekening | null {
+export function berekenPrijs(specs: VerticuterenSpecs): PrijsBerekening | null {
   if (!specs.conditie || !specs.oppervlakte) return null;
   const m2 = parseFloat(specs.oppervlakte);
   if (isNaN(m2) || m2 < 20) return null;
@@ -42,7 +39,8 @@ export function berekenPrijs(
   const conditioneelToeslag =
     Math.round(basisprijs * (conditioneelToeslagPercent / 100) * 100) / 100;
 
-  const poort = parseFloat(poortbreedte);
+  // WS9: poortbreedte zit bij de specificaties (prijs vóór NAW).
+  const poort = parseFloat(specs.poortbreedte);
   const handmatigToeslag = !isNaN(poort) && poort < 80;
   const basePlusConditie = basisprijs + conditioneelToeslag;
   const handmatigToeslagBedrag = handmatigToeslag
@@ -88,7 +86,9 @@ export function berekenPrijs(
   };
 }
 
-export function validateStap1(klant: KlantGegevens): Record<string, string> {
+/* WS9: NAW-validatie hoort bij de l\u00E1\u00E1tste stap (na de prijsindicatie);
+   poortbreedte is verhuisd naar de specificaties. */
+export function validateKlant(klant: KlantGegevens): Record<string, string> {
   const errors: Record<string, string> = {};
   if (!klant.naam.trim()) errors.naam = "Naam is verplicht";
   if (!klant.email.trim()) {
@@ -100,18 +100,10 @@ export function validateStap1(klant: KlantGegevens): Record<string, string> {
   if (!klant.adres.trim()) errors.adres = "Adres is verplicht";
   if (!klant.postcode.trim()) errors.postcode = "Postcode is verplicht";
   if (!klant.plaats.trim()) errors.plaats = "Plaats is verplicht";
-  if (!klant.poortbreedte.trim()) {
-    errors.poortbreedte = "Poortbreedte is verplicht";
-  } else {
-    const breedte = parseFloat(klant.poortbreedte);
-    if (isNaN(breedte) || breedte <= 0) {
-      errors.poortbreedte = "Voer een geldige breedte in";
-    }
-  }
   return errors;
 }
 
-export function validateStap2(specs: VerticuterenSpecs): Record<string, string> {
+export function validateSpecs(specs: VerticuterenSpecs): Record<string, string> {
   const errors: Record<string, string> = {};
   if (!specs.oppervlakte.trim()) {
     errors.oppervlakte = "Oppervlakte is verplicht";
@@ -122,10 +114,18 @@ export function validateStap2(specs: VerticuterenSpecs): Record<string, string> 
     }
   }
   if (!specs.conditie) errors.conditie = "Selecteer de huidige conditie";
+  if (!specs.poortbreedte.trim()) {
+    errors.poortbreedte = "Poortbreedte is verplicht";
+  } else {
+    const breedte = parseFloat(specs.poortbreedte);
+    if (isNaN(breedte) || breedte <= 0) {
+      errors.poortbreedte = "Voer een geldige breedte in";
+    }
+  }
   return errors;
 }
 
-export function validateStap3(gewensteDatum: Date | undefined): Record<string, string> {
+export function validateDatum(gewensteDatum: Date | undefined): Record<string, string> {
   const errors: Record<string, string> = {};
   if (!gewensteDatum) errors.gewensteDatum = "Selecteer een gewenste datum";
   return errors;

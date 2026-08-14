@@ -20,7 +20,7 @@ export function PrijsRegelRij({
         isSubtotaal && "font-medium",
         // Groen accentvlak voor de aanbevolen regel — in dark mode een diepe
         // groentint zodat de rij opvalt zonder als lichte balk te knallen.
-        highlight && "bg-green-50 dark:bg-green-950 -mx-3 px-3 rounded-md"
+        highlight && "bg-green-50 -mx-3 px-3 rounded-md"
       )}
     >
       <div className="flex-1 min-w-0">

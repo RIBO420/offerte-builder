@@ -83,7 +83,7 @@ function DetailSkeleton() {
           <Skeleton className="h-4 w-56 mt-1" />
         </div>
       </div>
-      <div className="rounded-xl border border-gray-200 dark:border-[#2a3e2a] bg-white dark:bg-[#1a2e1a] p-6">
+      <div className="rounded-xl border border-border bg-card p-6">
         <Skeleton className="h-6 w-32 mb-4" />
         <div className="space-y-3">
           {[1, 2, 3, 4, 5].map((i) => (
@@ -285,7 +285,7 @@ export default function PortaalOfferteDetailPage({
       )}
 
       {/* Line items grouped by scope */}
-      <Card className="border border-gray-200 dark:border-[#2a3e2a] bg-white dark:bg-[#1a2e1a]">
+      <Card className="border border-border bg-card">
         <CardHeader>
           <CardTitle className="text-lg text-gray-900 dark:text-white">
             Specificatie
@@ -295,7 +295,7 @@ export default function PortaalOfferteDetailPage({
           {Object.entries(regelsByScope).map(([scope, regels]) => (
             <div key={scope}>
               <h3 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
-                <span className="inline-block w-2 h-2 rounded-full bg-[#4ADE80]" />
+                <span className="inline-block w-2 h-2 rounded-full bg-primary" />
                 {scopeLabels[scope] ?? scope}
               </h3>
               <div className="overflow-x-auto">
@@ -403,7 +403,7 @@ export default function PortaalOfferteDetailPage({
 
       {/* Notes */}
       {offerte.notities && (
-        <Card className="border border-gray-200 dark:border-[#2a3e2a] bg-white dark:bg-[#1a2e1a]">
+        <Card className="border border-border bg-card">
           <CardHeader>
             <CardTitle className="text-lg text-gray-900 dark:text-white">
               Opmerkingen
@@ -419,10 +419,10 @@ export default function PortaalOfferteDetailPage({
 
       {/* Accept/Reject actions */}
       {canRespond && (
-        <Card className="border border-gray-200 dark:border-[#2a3e2a] bg-white dark:bg-[#1a2e1a]">
+        <Card className="border border-border bg-card">
           <CardHeader>
             <CardTitle className="text-lg text-gray-900 dark:text-white flex items-center gap-2">
-              <PenTool className="h-5 w-5 text-[#4ADE80]" />
+              <PenTool className="h-5 w-5 text-primary" />
               Uw reactie
             </CardTitle>
           </CardHeader>
@@ -460,7 +460,7 @@ export default function PortaalOfferteDetailPage({
               <Button
                 onClick={handleAccept}
                 disabled={isSubmitting || !signature}
-                className="bg-[#4ADE80] hover:bg-[#3BC96F] text-black flex-1"
+                className="bg-primary hover:bg-primary/85 text-primary-foreground flex-1"
               >
                 {isSubmitting ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />

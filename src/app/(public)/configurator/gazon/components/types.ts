@@ -12,7 +12,6 @@ export interface KlantGegevens {
   adres: string;
   postcode: string;
   plaats: string;
-  poortbreedte: string;
 }
 
 export interface GazonSpecs {
@@ -22,6 +21,9 @@ export interface GazonSpecs {
   drainage: boolean;
   opsluitbanden: boolean;
   opsluitbandenMeters: string;
+  /** WS9: poortbreedte hoort bij de specificaties — de prijs (handmatig-toeslag)
+   *  moet berekend kunnen worden vóórdat de klant NAW-gegevens invult. */
+  poortbreedte: string;
   gewensteStartdatum: Date | undefined;
 }
 
@@ -49,7 +51,8 @@ export interface PrijsBerekening {
 // Constants
 // ---------------------------------------------------------------------------
 
-export const STAP_LABELS = ["Klantgegevens", "Gazon specificaties", "Foto's", "Prijsoverzicht"];
+/* WS9 (keuzepunt 5): eerst laten zien wat het kost, pas daarna NAW vragen. */
+export const STAP_LABELS = ["Specificaties", "Foto's", "Prijsindicatie", "Uw gegevens"];
 export const TOTAAL_STAPPEN = 4;
 export const AANBETALING_BEDRAG = 75;
 
@@ -62,22 +65,22 @@ export const TYPE_GRAS_CONFIG: Record<
     uitleg: "Direct mooi resultaat. Hoge kwaliteit graszoden worden vakkundig gelegd voor een instant gazon.",
     prijsIndicatie: "€12–15 / m²",
     tarief: 14,
-    // Selectiekleur: in dark mode een diepe tint zodat het vlak leesbaar blijft.
-    kleur: "border-green-500 bg-green-50 dark:bg-green-950",
+    // WS9: de configurator is altijd licht (.cfg-licht) — geen dark:-varianten.
+    kleur: "border-green-500 bg-green-50",
   },
   inzaaien: {
     label: "Inzaaien",
     uitleg: "Voordeliger optie met een groeitijd van 4–8 weken. Ideaal voor grote oppervlakken.",
     prijsIndicatie: "€5–8 / m²",
     tarief: 6,
-    kleur: "border-lime-500 bg-lime-50 dark:bg-lime-950",
+    kleur: "border-lime-500 bg-lime-50",
   },
   kunstgras: {
     label: "Kunstgras",
     uitleg: "Onderhoudsvrij en altijd groen. Ideaal voor gezinnen met kinderen of huisdieren.",
     prijsIndicatie: "€35–60 / m²",
     tarief: 45,
-    kleur: "border-emerald-500 bg-emerald-50 dark:bg-emerald-950",
+    kleur: "border-emerald-500 bg-emerald-50",
   },
 };
 
@@ -112,7 +115,6 @@ export const LEEG_KLANT: KlantGegevens = {
   adres: "",
   postcode: "",
   plaats: "",
-  poortbreedte: "",
 };
 
 export const LEEG_SPECS: GazonSpecs = {
@@ -122,5 +124,6 @@ export const LEEG_SPECS: GazonSpecs = {
   drainage: false,
   opsluitbanden: false,
   opsluitbandenMeters: "",
+  poortbreedte: "",
   gewensteStartdatum: undefined,
 };

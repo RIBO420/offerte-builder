@@ -28,7 +28,7 @@ export default function PortaalDocumentenPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl md:text-2xl font-bold text-[#1a2e1a] dark:text-white">
+        <h1 className="text-xl md:text-2xl font-bold text-foreground">
           Documenten
         </h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
@@ -37,7 +37,7 @@ export default function PortaalDocumentenPage() {
       </div>
 
       {!hasDocuments ? (
-        <Card className="p-8 bg-white dark:bg-[#1a2e1a] border-gray-200 dark:border-[#2a3e2a] text-center">
+        <Card className="p-8 bg-card border-border text-center">
           <Download className="h-8 w-8 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
           <p className="text-sm text-gray-500 dark:text-gray-400">
             Er zijn nog geen documenten beschikbaar.
@@ -47,23 +47,23 @@ export default function PortaalDocumentenPage() {
         <>
           {/* Offertes section */}
           {hasOffertes && (
-            <Card className="bg-white dark:bg-[#1a2e1a] border-gray-200 dark:border-[#2a3e2a]">
+            <Card className="bg-card border-border">
               <div className="p-5 pb-3">
                 <div className="flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-[#4ADE80]" />
-                  <h2 className="text-[15px] font-semibold text-[#1a2e1a] dark:text-white">
+                  <FileText className="h-4 w-4 text-primary" />
+                  <h2 className="text-[15px] font-semibold text-foreground">
                     Offertes
                   </h2>
                 </div>
               </div>
-              <Separator className="bg-gray-100 dark:bg-[#2a3e2a]" />
+              <Separator className="bg-border" />
               <div className="p-5 pt-3">
                 {documenten.offertes.map((offerte, i) => (
                   <div
                     key={offerte._id}
                     className={`flex items-center justify-between py-3 ${
                       i < documenten.offertes.length - 1
-                        ? "border-b border-gray-100 dark:border-[#2a3e2a]"
+                        ? "border-b border-border"
                         : ""
                     }`}
                   >
@@ -84,7 +84,7 @@ export default function PortaalDocumentenPage() {
                       variant="ghost"
                       size="sm"
                       asChild
-                      className="text-[#1a2e1a] dark:text-[#4ADE80] hover:bg-[#e8f5e8] dark:hover:bg-[#1a2e1a]"
+                      className="text-foreground dark:text-primary hover:bg-accent"
                     >
                       <a
                         href={`/portaal/offertes/${offerte._id}`}
@@ -103,23 +103,23 @@ export default function PortaalDocumentenPage() {
 
           {/* Facturen section */}
           {hasFacturen && (
-            <Card className="bg-white dark:bg-[#1a2e1a] border-gray-200 dark:border-[#2a3e2a]">
+            <Card className="bg-card border-border">
               <div className="p-5 pb-3">
                 <div className="flex items-center gap-2">
-                  <Receipt className="h-4 w-4 text-[#F59E0B]" />
-                  <h2 className="text-[15px] font-semibold text-[#1a2e1a] dark:text-white">
+                  <Receipt className="h-4 w-4 text-accent-warm" />
+                  <h2 className="text-[15px] font-semibold text-foreground">
                     Facturen
                   </h2>
                 </div>
               </div>
-              <Separator className="bg-gray-100 dark:bg-[#2a3e2a]" />
+              <Separator className="bg-border" />
               <div className="p-5 pt-3">
                 {documenten.facturen.map((factuur, i) => (
                   <div
                     key={factuur._id}
                     className={`flex items-center justify-between py-3 ${
                       i < documenten.facturen.length - 1
-                        ? "border-b border-gray-100 dark:border-[#2a3e2a]"
+                        ? "border-b border-border"
                         : ""
                     }`}
                   >
@@ -139,7 +139,7 @@ export default function PortaalDocumentenPage() {
                       variant="ghost"
                       size="sm"
                       asChild
-                      className="text-[#1a2e1a] dark:text-[#4ADE80] hover:bg-[#e8f5e8] dark:hover:bg-[#1a2e1a]"
+                      className="text-foreground dark:text-primary hover:bg-accent"
                     >
                       <a
                         href={`/portaal/facturen/${factuur._id}`}

@@ -15,7 +15,7 @@ export default function PortaalDocumentenLoading() {
       {[1, 2].map((i) => (
         <div
           key={i}
-          className="rounded-xl border border-gray-200 dark:border-[#2a3e2a] bg-white dark:bg-[#1a2e1a]"
+          className="rounded-xl border border-border bg-card"
         >
           <div className="p-5 pb-3">
             <div className="flex items-center gap-2">
@@ -23,7 +23,7 @@ export default function PortaalDocumentenLoading() {
               <Skeleton className="h-5 w-24" />
             </div>
           </div>
-          <div className="h-px bg-gray-100 dark:bg-[#2a3e2a]" />
+          <div className="h-px bg-border" />
           <div className="p-5 pt-3 space-y-3">
             {[1, 2, 3].map((j) => (
               <div key={j} className="flex items-center justify-between py-3">

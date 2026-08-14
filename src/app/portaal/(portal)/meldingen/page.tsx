@@ -123,7 +123,7 @@ function MeldingForm() {
   };
 
   return (
-    <Card className="border border-gray-200 dark:border-[#2a3e2a] bg-white dark:bg-[#1a2e1a]">
+    <Card className="border border-border bg-card">
       <CardHeader>
         <CardTitle className="text-lg text-gray-900 dark:text-white">
           Nieuwe melding
@@ -141,11 +141,11 @@ function MeldingForm() {
               className={cn(
                 "flex items-start gap-3 rounded-lg border p-3 text-left transition-colors",
                 type === "serviceverzoek"
-                  ? "border-[#4ADE80] bg-[#4ADE80]/10"
-                  : "border-gray-200 dark:border-[#2a3e2a] hover:border-gray-300"
+                  ? "border-primary bg-primary/10"
+                  : "border-border hover:border-gray-300"
               )}
             >
-              <Wrench className="h-5 w-5 text-[#4ADE80] shrink-0 mt-0.5" />
+              <Wrench className="h-5 w-5 text-primary shrink-0 mt-0.5" />
               <span>
                 <span className="block text-sm font-medium text-gray-900 dark:text-white">
                   Serviceverzoek
@@ -161,11 +161,11 @@ function MeldingForm() {
               className={cn(
                 "flex items-start gap-3 rounded-lg border p-3 text-left transition-colors",
                 type === "klacht"
-                  ? "border-[#4ADE80] bg-[#4ADE80]/10"
-                  : "border-gray-200 dark:border-[#2a3e2a] hover:border-gray-300"
+                  ? "border-primary bg-primary/10"
+                  : "border-border hover:border-gray-300"
               )}
             >
-              <AlertCircle className="h-5 w-5 text-[#4ADE80] shrink-0 mt-0.5" />
+              <AlertCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
               <span>
                 <span className="block text-sm font-medium text-gray-900 dark:text-white">
                   Klacht
@@ -189,7 +189,7 @@ function MeldingForm() {
             placeholder="Beschrijf zo duidelijk mogelijk wat er aan de hand is..."
             rows={4}
             maxLength={2000}
-            className="border-gray-200 dark:border-[#2a3e2a]"
+            className="border-border"
           />
         </div>
 
@@ -213,7 +213,7 @@ function MeldingForm() {
               type="button"
               variant="outline"
               size="sm"
-              className="border-gray-200 dark:border-[#2a3e2a]"
+              className="border-border"
               onClick={() => fileInputRef.current?.click()}
               disabled={files.length >= MAX_FOTOS}
             >
@@ -243,7 +243,7 @@ function MeldingForm() {
         <Button
           onClick={handleSubmit}
           disabled={submitting || !beschrijving.trim()}
-          className="bg-[#4ADE80] hover:bg-[#3BC96F] text-black"
+          className="bg-primary hover:bg-primary/85 text-primary-foreground"
         >
           {submitting ? (
             <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
@@ -265,8 +265,8 @@ export default function PortaalMeldingenPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <div className="rounded-lg bg-[#4ADE80]/10 p-2">
-          <AlertCircle className="h-6 w-6 text-[#4ADE80]" />
+        <div className="rounded-lg bg-primary/10 p-2">
+          <AlertCircle className="h-6 w-6 text-primary" />
         </div>
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -306,7 +306,7 @@ export default function PortaalMeldingenPage() {
             return (
               <Card
                 key={melding._id}
-                className="border border-gray-200 dark:border-[#2a3e2a] bg-white dark:bg-[#1a2e1a]"
+                className="border border-border bg-card"
               >
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between gap-4">
@@ -335,7 +335,7 @@ export default function PortaalMeldingenPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="border-gray-200 dark:border-[#2a3e2a]"
+                      className="border-border"
                       onClick={() =>
                         setOpenThreadFor(isOpen ? null : melding._id)
                       }

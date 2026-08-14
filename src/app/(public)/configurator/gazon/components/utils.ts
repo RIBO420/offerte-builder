@@ -93,7 +93,7 @@ export function berekenPrijs(data: FormData): PrijsBerekening | null {
     (opsluitbandenRegel?.totaal ?? 0) +
     voorrijkosten;
 
-  const poort = parseFloat(data.klant.poortbreedte);
+  const poort = parseFloat(data.specs.poortbreedte);
   const handmatigToeslag = !isNaN(poort) && poort < 80;
   const handmatigToeslagPercent = 25;
   const toeslagBedrag = handmatigToeslag
@@ -124,7 +124,9 @@ export function berekenPrijs(data: FormData): PrijsBerekening | null {
 // Validation
 // ---------------------------------------------------------------------------
 
-export function validateStap1(klant: KlantGegevens): Record<string, string> {
+/* WS9: NAW-validatie hoort bij de láátste stap (na de prijsindicatie);
+   poortbreedte is verhuisd naar de specificaties. */
+export function validateKlant(klant: KlantGegevens): Record<string, string> {
   const errors: Record<string, string> = {};
 
   if (!klant.naam.trim()) errors.naam = "Naam is verplicht";
@@ -137,19 +139,11 @@ export function validateStap1(klant: KlantGegevens): Record<string, string> {
   if (!klant.adres.trim()) errors.adres = "Adres is verplicht";
   if (!klant.postcode.trim()) errors.postcode = "Postcode is verplicht";
   if (!klant.plaats.trim()) errors.plaats = "Plaats is verplicht";
-  if (!klant.poortbreedte.trim()) {
-    errors.poortbreedte = "Poortbreedte is verplicht";
-  } else {
-    const breedte = parseFloat(klant.poortbreedte);
-    if (isNaN(breedte) || breedte <= 0) {
-      errors.poortbreedte = "Voer een geldige breedte in";
-    }
-  }
 
   return errors;
 }
 
-export function validateStap2(specs: GazonSpecs): Record<string, string> {
+export function validateSpecs(specs: GazonSpecs): Record<string, string> {
   const errors: Record<string, string> = {};
 
   if (!specs.oppervlakte.trim()) {
@@ -168,6 +162,15 @@ export function validateStap2(specs: GazonSpecs): Record<string, string> {
     const meters = parseFloat(specs.opsluitbandenMeters);
     if (!specs.opsluitbandenMeters.trim() || isNaN(meters) || meters <= 0) {
       errors.opsluitbandenMeters = "Voer het aantal meters in";
+    }
+  }
+
+  if (!specs.poortbreedte.trim()) {
+    errors.poortbreedte = "Poortbreedte is verplicht";
+  } else {
+    const breedte = parseFloat(specs.poortbreedte);
+    if (isNaN(breedte) || breedte <= 0) {
+      errors.poortbreedte = "Voer een geldige breedte in";
     }
   }
 

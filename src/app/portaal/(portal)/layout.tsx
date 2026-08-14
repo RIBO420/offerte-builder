@@ -57,8 +57,9 @@ export default function PortaalLayout({ children }: { children: React.ReactNode 
   if (isLoading || !isAuthenticated || currentUser === undefined || isStaf) {
     return (
       <PortaalThemeProvider>
-        <div className="min-h-screen bg-[#f8faf8] dark:bg-[#0a0f0a] flex items-center justify-center">
-          <Loader2 className="h-8 w-8 text-[#4ADE80] animate-spin" />
+        {/* WS9: .portal activeert de portaal-tokenscope (globals.css, Stap E). */}
+        <div className="portal min-h-screen bg-background flex items-center justify-center">
+          <Loader2 className="h-8 w-8 text-primary animate-spin" />
         </div>
       </PortaalThemeProvider>
     );
@@ -67,7 +68,8 @@ export default function PortaalLayout({ children }: { children: React.ReactNode 
   return (
     <PortaalThemeProvider>
       <NavigationProgress />
-      <div className="min-h-screen bg-[#f8faf8] dark:bg-[#0a0f0a]">
+      {/* WS9: .portal activeert de portaal-tokenscope (globals.css, Stap E). */}
+      <div className="portal min-h-screen bg-background">
         <PortaalHeader
           klantNaam={overzicht?.klantNaam}
           onMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)}

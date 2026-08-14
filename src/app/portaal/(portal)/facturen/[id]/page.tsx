@@ -55,7 +55,7 @@ function DetailSkeleton() {
           <Skeleton className="h-4 w-48 mt-1" />
         </div>
       </div>
-      <div className="rounded-xl border border-gray-200 dark:border-[#2a3e2a] bg-white dark:bg-[#1a2e1a] p-6">
+      <div className="rounded-xl border border-border bg-card p-6">
         <div className="space-y-4">
           <Skeleton className="h-6 w-32" />
           <Skeleton className="h-10 w-40" />
@@ -181,10 +181,10 @@ export default function PortaalFactuurDetailPage({
       </Card>
 
       {/* Amount details */}
-      <Card className="border border-gray-200 dark:border-[#2a3e2a] bg-white dark:bg-[#1a2e1a]">
+      <Card className="border border-border bg-card">
         <CardHeader>
           <CardTitle className="text-lg text-gray-900 dark:text-white flex items-center gap-2">
-            <Receipt className="h-5 w-5 text-[#4ADE80]" />
+            <Receipt className="h-5 w-5 text-primary" />
             Factuurbedrag
           </CardTitle>
         </CardHeader>
@@ -255,11 +255,11 @@ export default function PortaalFactuurDetailPage({
       </Card>
 
       {/* Actions */}
-      <Card className="border border-gray-200 dark:border-[#2a3e2a] bg-white dark:bg-[#1a2e1a]">
+      <Card className="border border-border bg-card">
         <CardContent className="p-5">
           <div className="flex flex-wrap gap-3">
             {isPayable && (
-              <Button asChild className="bg-[#4ADE80] hover:bg-[#3BC96F] text-black">
+              <Button asChild className="bg-primary hover:bg-primary/85 text-primary-foreground">
                 <a href={factuur.paymentUrl} target="_blank" rel="noopener noreferrer">
                   <CreditCard className="h-4 w-4 mr-1.5" />
                   Nu betalen
@@ -276,7 +276,7 @@ export default function PortaalFactuurDetailPage({
             )}
             <Button
               variant="outline"
-              className="border-gray-200 dark:border-[#2a3e2a]"
+              className="border-border"
               disabled={isDownloading}
               onClick={() => downloadPdf(factuur._id)}
             >

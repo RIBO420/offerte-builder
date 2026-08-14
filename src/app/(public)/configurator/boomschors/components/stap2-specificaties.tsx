@@ -306,19 +306,19 @@ export function Stap2Specificaties({ specificaties, onChange, errors }: Stap2Pro
             </div>
 
             {bezorgInfo && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800/50 p-4">
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
                 <div className="flex items-start gap-3">
                   <TruckIcon className="size-4 text-amber-600 shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+                    <p className="text-sm font-medium text-amber-900">
                       Geschatte bezorgkosten ({bezorgInfo.label})
                     </p>
                     {bezorgInfo.type === "prijs" ? (
-                      <p className="text-lg font-bold text-amber-700 dark:text-amber-300 mt-0.5">
+                      <p className="text-lg font-bold text-amber-700 mt-0.5">
                         {formatEuro(bezorgInfo.prijs)}
                       </p>
                     ) : (
-                      <p className="text-sm text-amber-700 dark:text-amber-300 mt-0.5">
+                      <p className="text-sm text-amber-700 mt-0.5">
                         Neem contact met ons op voor een maatwerkprijs.
                       </p>
                     )}

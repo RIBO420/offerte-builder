@@ -1,12 +1,11 @@
 import { Input } from "@/components/ui/input";
 import { CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import type { KlantGegevens } from "./types";
 import { Field } from "./field";
-import { PoortWaarschuwing } from "./poort-waarschuwing";
 
-export function Stap1Klantgegevens({
+/* WS9: dit is nu de slotstap — NAW pas ná de prijsindicatie (keuzepunt 5). */
+export function StapKlantgegevens({
   data,
   errors,
   onChange,
@@ -15,16 +14,14 @@ export function Stap1Klantgegevens({
   errors: Record<string, string>;
   onChange: (field: keyof KlantGegevens, value: string) => void;
 }) {
-  const poortBreedte = parseFloat(data.poortbreedte);
-  const isTeSmall = !isNaN(poortBreedte) && poortBreedte < 60;
-
   return (
     <div className="space-y-6">
       <CardHeader className="px-0 pt-0">
-        <CardTitle className="text-xl">Uw gegevens</CardTitle>
+        <CardTitle className="text-xl font-display">Uw gegevens</CardTitle>
         <CardDescription>
-          Vul uw contactgegevens in. Wij gebruiken deze om de aanvraag te
-          verwerken en contact met u op te nemen.
+          Bijna klaar — waar mogen we de indicatie naartoe sturen? Wij gebruiken
+          uw gegevens alleen om de aanvraag te verwerken en contact met u op te
+          nemen.
         </CardDescription>
       </CardHeader>
 
@@ -95,7 +92,7 @@ export function Stap1Klantgegevens({
             <Input
               required
               aria-required
-              placeholder="Amsterdam"
+              placeholder="Echt"
               value={data.plaats}
               onChange={(e) => onChange("plaats", e.target.value)}
               className={cn(
@@ -105,35 +102,6 @@ export function Stap1Klantgegevens({
           </Field>
         </div>
       </div>
-
-      <Separator />
-
-      <Field
-        label="Poortbreedte"
-        error={errors.poortbreedte}
-        hulptekst="De breedte van de smalste doorgang naar uw tuin, in centimeters. Dit bepaalt welke machines we kunnen inzetten."
-      >
-        <div className="flex items-center gap-3">
-          <Input
-            required
-            aria-required
-            type="number"
-            placeholder="120"
-            min={1}
-            max={500}
-            value={data.poortbreedte}
-            onChange={(e) => onChange("poortbreedte", e.target.value)}
-            className={cn(
-              "max-w-36",
-              (errors.poortbreedte || isTeSmall) &&
-                "border-red-400 focus-visible:ring-red-400"
-            )}
-          />
-          <span className="text-sm text-muted-foreground">cm</span>
-        </div>
-      </Field>
-
-      <PoortWaarschuwing breedte={data.poortbreedte} />
     </div>
   );
 }

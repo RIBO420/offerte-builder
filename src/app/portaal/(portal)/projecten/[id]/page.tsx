@@ -80,7 +80,7 @@ function DetailSkeleton() {
           <Skeleton className="h-4 w-36 mt-1" />
         </div>
       </div>
-      <div className="rounded-xl border border-gray-200 dark:border-[#2a3e2a] bg-white dark:bg-[#1a2e1a] p-6">
+      <div className="rounded-xl border border-border bg-card p-6">
         <Skeleton className="h-6 w-32 mb-4" />
         <Skeleton className="h-2 w-full rounded-full mb-6" />
         <div className="flex gap-2">
@@ -156,7 +156,7 @@ export default function PortaalProjectDetailPage({
             </span>
             {project.geplandeStart && (
               <span className="flex items-center gap-1 text-gray-700 dark:text-gray-300">
-                <CalendarDays className="h-3.5 w-3.5 text-[#4ADE80]" />
+                <CalendarDays className="h-3.5 w-3.5 text-primary" />
                 Gepland op {formatGeplandeDatum(project.geplandeStart)}
               </span>
             )}
@@ -171,10 +171,10 @@ export default function PortaalProjectDetailPage({
       </div>
 
       {/* Progress */}
-      <Card className="border border-gray-200 dark:border-[#2a3e2a] bg-white dark:bg-[#1a2e1a]">
+      <Card className="border border-border bg-card">
         <CardHeader>
           <CardTitle className="text-lg text-gray-900 dark:text-white flex items-center gap-2">
-            <FolderOpen className="h-5 w-5 text-[#4ADE80]" />
+            <FolderOpen className="h-5 w-5 text-primary" />
             Voortgang
           </CardTitle>
         </CardHeader>
@@ -190,7 +190,7 @@ export default function PortaalProjectDetailPage({
       <PortaalContextThread werkitemId={id as Id<"projecten">} />
 
       {/* Quick actions */}
-      <Card className="border border-gray-200 dark:border-[#2a3e2a] bg-white dark:bg-[#1a2e1a]">
+      <Card className="border border-border bg-card">
         <CardHeader>
           <CardTitle className="text-lg text-gray-900 dark:text-white">
             Snelle acties
@@ -198,7 +198,7 @@ export default function PortaalProjectDetailPage({
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-3">
-            <Button asChild variant="outline" className="border-gray-200 dark:border-[#2a3e2a]">
+            <Button asChild variant="outline" className="border-border">
               <Link href="/portaal/documenten">
                 <Download className="h-4 w-4 mr-1.5" />
                 Documenten bekijken

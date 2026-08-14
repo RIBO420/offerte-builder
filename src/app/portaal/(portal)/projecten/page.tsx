@@ -63,7 +63,7 @@ function WerkitemsSkeleton() {
   return (
     <div className="space-y-4">
       {[1, 2, 3].map((i) => (
-        <div key={i} className="rounded-xl border border-gray-200 dark:border-[#2a3e2a] bg-white dark:bg-[#1a2e1a] p-5">
+        <div key={i} className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-start justify-between">
             <div className="flex items-start gap-3">
               <Skeleton className="h-9 w-9 rounded-lg" />
@@ -89,8 +89,8 @@ export default function PortaalWerkzaamhedenPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <div className="rounded-lg bg-[#4ADE80]/10 p-2">
-          <FolderOpen className="h-6 w-6 text-[#4ADE80]" />
+        <div className="rounded-lg bg-primary/10 p-2">
+          <FolderOpen className="h-6 w-6 text-primary" />
         </div>
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -125,16 +125,16 @@ export default function PortaalWerkzaamhedenPage() {
             return (
               <Card
                 key={item._id}
-                className="border border-gray-200 dark:border-[#2a3e2a] bg-white dark:bg-[#1a2e1a] transition-shadow hover:shadow-md"
+                className="border border-border bg-card transition-shadow hover:shadow-md"
               >
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3 min-w-0">
-                      <div className="rounded-lg bg-[#4ADE80]/10 p-2 shrink-0">
+                      <div className="rounded-lg bg-primary/10 p-2 shrink-0">
                         {isBeurt ? (
-                          <Leaf className="h-5 w-5 text-[#4ADE80]" />
+                          <Leaf className="h-5 w-5 text-primary" />
                         ) : (
-                          <FolderOpen className="h-5 w-5 text-[#4ADE80]" />
+                          <FolderOpen className="h-5 w-5 text-primary" />
                         )}
                       </div>
                       <div className="min-w-0">
@@ -146,7 +146,7 @@ export default function PortaalWerkzaamhedenPage() {
                         </p>
                         {item.geplandeStart && (
                           <p className="text-sm text-gray-600 dark:text-gray-300 mt-1 flex items-center gap-1.5">
-                            <CalendarDays className="h-3.5 w-3.5 text-[#4ADE80]" />
+                            <CalendarDays className="h-3.5 w-3.5 text-primary" />
                             Gepland op {formatGeplandeDatum(item.geplandeStart)}
                           </p>
                         )}
@@ -168,7 +168,7 @@ export default function PortaalWerkzaamhedenPage() {
                       asChild
                       variant="default"
                       size="sm"
-                      className="bg-[#4ADE80] hover:bg-[#3BC96F] text-black"
+                      className="bg-primary hover:bg-primary/85 text-primary-foreground"
                     >
                       <Link href={`/portaal/projecten/${item._id}`}>
                         <Eye className="h-4 w-4 mr-1.5" />

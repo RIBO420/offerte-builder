@@ -65,7 +65,7 @@ interface Aanvraag {
 // ---------------------------------------------------------------------------
 
 // Statuskleuren (blauw/amber/groen/rood) hebben geen design-token; elke variant
-// krijgt daarom een expliciete dark:-tegenhanger zodat de badge in dark mode een
+// krijgt daarom een expliciete zodat de badge in dark mode een
 // donker vlak met lichte tekst is in plaats van een felle lichte balk.
 const STATUS_CONFIG: Record<
   Status,
@@ -82,8 +82,8 @@ const STATUS_CONFIG: Record<
     uitleg:
       "Uw aanvraag is ontvangen en wordt binnen 2 werkdagen beoordeeld.",
     badgeClass:
-      "bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-900",
-    iconClass: "text-blue-600 dark:text-blue-400",
+      "bg-blue-100 text-blue-800 border-blue-200",
+    iconClass: "text-blue-600",
     Icon: ClipboardList,
   },
   in_behandeling: {
@@ -91,8 +91,8 @@ const STATUS_CONFIG: Record<
     uitleg:
       "Uw aanvraag wordt momenteel beoordeeld door ons team.",
     badgeClass:
-      "bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-200 border-amber-200 dark:border-amber-900",
-    iconClass: "text-amber-600 dark:text-amber-400",
+      "bg-amber-100 text-amber-800 border-amber-200",
+    iconClass: "text-amber-600",
     Icon: Clock,
   },
   goedgekeurd: {
@@ -100,8 +100,8 @@ const STATUS_CONFIG: Record<
     uitleg:
       "Uw aanvraag is goedgekeurd! U wordt binnenkort gecontacteerd voor de planning.",
     badgeClass:
-      "bg-green-100 dark:bg-green-950 text-green-800 dark:text-green-200 border-green-200 dark:border-green-900",
-    iconClass: "text-green-600 dark:text-green-400",
+      "bg-green-100 text-green-800 border-green-200",
+    iconClass: "text-green-600",
     Icon: CheckCircle,
   },
   afgekeurd: {
@@ -109,8 +109,8 @@ const STATUS_CONFIG: Record<
     uitleg:
       "Helaas kunnen wij deze aanvraag niet uitvoeren. Neem contact op voor meer informatie.",
     badgeClass:
-      "bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-200 border-red-200 dark:border-red-900",
-    iconClass: "text-red-600 dark:text-red-400",
+      "bg-red-100 text-red-800 border-red-200",
+    iconClass: "text-red-600",
     Icon: XCircle,
   },
   voltooid: {
@@ -118,8 +118,8 @@ const STATUS_CONFIG: Record<
     uitleg:
       "De werkzaamheden zijn voltooid. Bedankt voor uw vertrouwen!",
     badgeClass:
-      "bg-green-100 dark:bg-green-950 text-green-800 dark:text-green-200 border-green-200 dark:border-green-900",
-    iconClass: "text-green-600 dark:text-green-400",
+      "bg-green-100 text-green-800 border-green-200",
+    iconClass: "text-green-600",
     Icon: CheckCircle2,
   },
 };
@@ -132,11 +132,11 @@ const TYPE_LABELS: Record<AanvraagType, string> = {
 
 const TYPE_BADGE_CLASS: Record<AanvraagType, string> = {
   gazon:
-    "bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 border-green-200 dark:border-green-900",
+    "bg-green-50 text-green-700 border-green-200",
   boomschors:
-    "bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900",
+    "bg-amber-50 text-amber-700 border-amber-200",
   verticuteren:
-    "bg-lime-50 dark:bg-lime-950 text-lime-700 dark:text-lime-300 border-lime-200 dark:border-lime-900",
+    "bg-lime-50 text-lime-700 border-lime-200",
 };
 
 // ---------------------------------------------------------------------------
@@ -272,7 +272,7 @@ function Timeline({ status }: { status: Status }) {
                 <div
                   className={cn(
                     "w-0.5 flex-1 min-h-[2rem]",
-                    isKlaar ? "bg-green-400 dark:bg-green-600" : "bg-border"
+                    isKlaar ? "bg-green-400" : "bg-border"
                   )}
                 />
               )}
@@ -284,11 +284,11 @@ function Timeline({ status }: { status: Status }) {
                 className={cn(
                   "text-sm font-medium leading-tight",
                   isKlaar
-                    ? "text-green-700 dark:text-green-400"
+                    ? "text-green-700"
                     : isHuidig
                     ? stap.key === "afgekeurd"
-                      ? "text-red-700 dark:text-red-400"
-                      : "text-blue-700 dark:text-blue-400"
+                      ? "text-red-700"
+                      : "text-blue-700"
                     : "text-muted-foreground"
                 )}
               >
@@ -420,12 +420,12 @@ function AanvraagKaart({ aanvraag }: { aanvraag: Aanvraag }) {
                     <>
                       <div className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2.5">
-                          <EuroIcon className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" />
+                          <EuroIcon className="h-4 w-4 text-green-600 flex-shrink-0" />
                           <span className="text-muted-foreground font-medium">
                             Definitieve prijs
                           </span>
                         </div>
-                        <span className="font-bold text-green-700 dark:text-green-400 text-base">
+                        <span className="font-bold text-green-700 text-base">
                           {formatPrijs(aanvraag.definitievePrijs)}
                         </span>
                       </div>
@@ -465,11 +465,11 @@ function AanvraagKaart({ aanvraag }: { aanvraag: Aanvraag }) {
 
 function NietGevonden() {
   return (
-    <Card className="shadow-sm border-red-100 dark:border-red-900 bg-red-50/40 dark:bg-red-950/40">
+    <Card className="shadow-sm border-red-100 bg-red-50/40">
       <CardContent className="py-10">
         <div className="flex flex-col items-center text-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-100 dark:bg-red-950">
-            <AlertCircle className="h-7 w-7 text-red-600 dark:text-red-400" />
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-100">
+            <AlertCircle className="h-7 w-7 text-red-600" />
           </div>
           <div className="space-y-1.5">
             <CardTitle className="text-lg text-foreground">
@@ -487,7 +487,7 @@ function NietGevonden() {
               Hulp nodig?{" "}
               <a
                 href="mailto:info@toptuinen.nl"
-                className="text-green-700 dark:text-green-400 font-medium hover:text-green-900 dark:hover:text-green-300 underline underline-offset-2"
+                className="text-green-700 font-medium hover:text-green-900 underline underline-offset-2"
               >
                 Neem contact met ons op
               </a>
@@ -615,7 +615,7 @@ function StatusPageContent() {
             </div>
 
             {validatieFout && (
-              <p className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1.5">
+              <p className="text-xs text-red-600 flex items-center gap-1.5">
                 <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
                 {validatieFout}
               </p>
@@ -649,7 +649,7 @@ function StatusPageContent() {
             Heeft u geen referentienummer?{" "}
             <a
               href="mailto:info@toptuinen.nl"
-              className="text-green-700 dark:text-green-400 font-medium hover:text-green-900 dark:hover:text-green-300 underline underline-offset-2"
+              className="text-green-700 font-medium hover:text-green-900 underline underline-offset-2"
             >
               Neem contact met ons op
             </a>

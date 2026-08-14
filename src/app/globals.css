@@ -1157,3 +1157,58 @@ body {
     -webkit-overflow-scrolling: touch;
   }
 }
+
+/* ============================================================
+   WS9 — .portal-tokenscope (kleurplan Stap E)
+   Het klantportaal behoudt zijn "Premium Organic"-merkwereld
+   (#4ADE80-familie, gedeeld met mobiel), maar voortaan uit
+   tokens in plaats van losse hexwaarden in 15+ bestanden.
+   Omdat @theme inline utilities naar var(--token) laat wijzen,
+   winnen deze waarden binnen de subtree van `.portal`
+   (gezet op de wrapper in portaal/(portal)/layout.tsx).
+   Alleen aanvullend blok — niets hierboven wijzigen (WS4).
+   ============================================================ */
+
+.portal {
+  --background: #f8faf8;
+  --foreground: #1a2e1a;
+  --card: #ffffff;
+  --card-foreground: #1a2e1a;
+  --popover: #ffffff;
+  --popover-foreground: #1a2e1a;
+  --primary: #4ade80;            /* mobiel merkgroen */
+  --primary-foreground: #0a0f0a;
+  --secondary: #e8f5e8;
+  --secondary-foreground: #1a2e1a;
+  --muted: #f3f4f6;
+  --muted-foreground: #6b7280;
+  --accent: #e8f5e8;             /* hover-vlak licht */
+  --accent-foreground: #1a2e1a;
+  --accent-warm: #f59e0b;        /* attentie (facturen openstaand) */
+  --border: #e5e7eb;
+  --input: #e5e7eb;
+  --ring: #4ade80;
+  --portal-info: #60a5fa;        /* informatief (steenblauw-familie) */
+}
+
+.dark .portal {
+  --background: #0a0f0a;
+  --foreground: #e8f5e8;
+  --card: #1a2e1a;
+  --card-foreground: #e8f5e8;
+  --popover: #1a2e1a;
+  --popover-foreground: #e8f5e8;
+  --primary: #4ade80;
+  --primary-foreground: #0a0f0a;
+  --secondary: #2a3e2a;
+  --secondary-foreground: #e8f5e8;
+  --muted: #111a11;
+  --muted-foreground: #9ca3af;
+  --accent: #1a2e1a;             /* hover-vlak donker */
+  --accent-foreground: #e8f5e8;
+  --accent-warm: #f59e0b;
+  --border: #2a3e2a;
+  --input: #2a3e2a;
+  --ring: #4ade80;
+  --portal-info: #60a5fa;
+}

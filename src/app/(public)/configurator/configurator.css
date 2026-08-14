@@ -1,0 +1,50 @@
+/* ============================================================
+   WS9 — Publieke configurator: gedwongen licht merkthema.
+
+   De configurator is het visitekaartje naar de klant en is dus
+   altijd licht ("Vakwerk in het groen"), ook als de bezoeker een
+   donker OS-thema heeft (next-themes zet dan `.dark` op <html>).
+   Dit blok pint de licht-waarden van het "Loof & Leem"-palet uit
+   globals.css op een scope-klasse; omdat `@theme inline` de
+   utilities naar `var(--token)` laat wijzen, winnen deze waarden
+   binnen de subtree van `.cfg-licht`. De configurator-bestanden
+   gebruiken bewust géén `dark:`-varianten meer.
+
+   Dit bestand wordt uitsluitend door configurator/layout.tsx
+   geïmporteerd en raakt globals.css niet (WS4 draait parallel).
+   ============================================================ */
+
+.cfg-licht {
+  color-scheme: light;
+
+  --background: oklch(0.982 0.006 140);
+  --foreground: oklch(0.19 0.015 150);
+  --card: oklch(0.998 0.003 140);
+  --card-foreground: var(--foreground);
+  --popover: oklch(0.998 0.003 140);
+  --popover-foreground: var(--foreground);
+  --primary: oklch(0.44 0.11 152);
+  --primary-foreground: oklch(0.98 0.01 145);
+  --secondary: oklch(0.955 0.01 140);
+  --secondary-foreground: oklch(0.25 0.02 150);
+  --muted: oklch(0.955 0.008 140);
+  --muted-foreground: oklch(0.45 0.015 150);
+  --accent: oklch(0.94 0.025 145);
+  --accent-foreground: oklch(0.24 0.04 150);
+  --accent-warm: oklch(0.68 0.13 60);
+  --destructive: oklch(0.55 0.20 27);
+  --border: oklch(0.905 0.012 140);
+  --input: oklch(0.905 0.012 140);
+  --ring: oklch(0.60 0.11 152);
+
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+/* Rustig botanisch grid als drager achter de wizardpagina's —
+   merkgroen op lage sterkte, puur CSS (geen extra asset). */
+.cfg-veldpatroon {
+  background-image:
+    radial-gradient(oklch(0.44 0.11 152 / 0.07) 1px, transparent 1px);
+  background-size: 22px 22px;
+}

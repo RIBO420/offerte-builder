@@ -19,7 +19,7 @@ export default function PortaalProjectenLoading() {
         {[1, 2, 3].map((i) => (
           <div
             key={i}
-            className="rounded-xl border border-gray-200 dark:border-[#2a3e2a] bg-white dark:bg-[#1a2e1a] p-5"
+            className="rounded-xl border border-border bg-card p-5"
           >
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-3">

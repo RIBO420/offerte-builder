@@ -12,7 +12,6 @@ export interface KlantGegevens {
   adres: string;
   postcode: string;
   plaats: string;
-  poortbreedte: string;
 }
 
 export interface VerticuterenSpecs {
@@ -21,6 +20,9 @@ export interface VerticuterenSpecs {
   bijzaaien: boolean;
   topdressing: boolean;
   bemesting: boolean;
+  /** WS9: poortbreedte hoort bij de specificaties — de prijs (handmatig-toeslag)
+   *  moet berekend kunnen worden vóórdat de klant NAW-gegevens invult. */
+  poortbreedte: string;
 }
 
 export interface PrijsBerekening {

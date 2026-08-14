@@ -9,17 +9,16 @@ import { test, expect } from '@playwright/test';
 //   - /configurator/gazon       — Lawn installation (4-step wizard)
 //   - /configurator/verticuteren — Lawn aeration (3-step wizard)
 //
+// WS9 step order (keuzepunt 5): specifications (with price) come FIRST,
+// customer details (NAW) come LAST — after the price indication.
+//   - gazon:        specificaties → foto's → prijsindicatie → gegevens
+//   - boomschors:   specificaties (live prijs) → gegevens → bevestiging
+//   - verticuteren: specificaties → prijs & datum → gegevens
+//
 // Additional public pages:
+//   - /configurator             — Index with the three service cards (WS9)
 //   - /configurator/bedankt     — Thank-you page after submission
 //   - /configurator/status      — Lookup request status by reference number
-//
-// These tests verify:
-//   1. Page loads and layout rendering
-//   2. Step navigation (forward / backward)
-//   3. Form validation (required fields)
-//   4. Form filling for each wizard type
-//   5. Bedankt (thank-you) page variants
-//   6. Status lookup page
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
@@ -45,10 +44,47 @@ test.describe('Configurator — Layout', () => {
     await expect(footer.getByText('info@toptuinen.nl')).toBeVisible();
     await expect(footer.getByText('Bezoek onze hoofdsite')).toBeVisible();
   });
+
+  test('should never show the internal product name to customers', async ({ page }) => {
+    for (const path of ['/configurator', '/configurator/gazon']) {
+      await page.goto(path);
+      await expect(page.locator('body')).not.toContainText('Top Tuinen OS');
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------
-// Boomschors Configurator (3 steps)
+// Index page (WS9 — replaces the temporary redirect)
+// ---------------------------------------------------------------------------
+
+test.describe('Configurator — Index', () => {
+  test('should show the service chooser on /configurator', async ({ page }) => {
+    await page.goto('/configurator');
+
+    await expect(
+      page.getByRole('heading', { name: 'Waar kunnen we u mee helpen?' }),
+    ).toBeVisible();
+
+    // Three service cards linking to the wizards
+    await expect(page.getByRole('link', { name: /Gazon aanleggen/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Boomschors bestellen/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Verticuteren/ })).toBeVisible();
+
+    // Status lookup entry point
+    await expect(page.getByRole('link', { name: /Volg uw aanvraag/ })).toBeVisible();
+  });
+
+  test('service card should navigate to the gazon wizard', async ({ page }) => {
+    await page.goto('/configurator');
+
+    await page.getByRole('link', { name: /Gazon aanleggen/ }).click();
+    await expect(page).toHaveURL(/\/configurator\/gazon/);
+    await expect(page.locator('h2:has-text("Gazon aanleggen")')).toBeVisible();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Boomschors Configurator (3 steps: specificaties → gegevens → bevestiging)
 // ---------------------------------------------------------------------------
 
 test.describe('Configurator — Boomschors', () => {
@@ -62,14 +98,19 @@ test.describe('Configurator — Boomschors', () => {
     await expect(page.getByText('Zelf bestellen')).toBeVisible();
   });
 
-  test('should show step 1 (Uw gegevens) by default', async ({ page }) => {
+  test('should show step 1 (Specificaties) by default', async ({ page }) => {
     await page.goto('/configurator/boomschors');
 
-    // Step 1 heading should be visible
-    await expect(page.getByRole('heading', { name: 'Uw gegevens' })).toBeVisible();
+    // WS9: specifications come first
+    await expect(
+      page.getByRole('heading', { name: 'Boomschors specificaties' }),
+    ).toBeVisible();
 
-    // Step 1 form fields should be present
-    await expect(page.getByLabel(/Naam/)).toBeVisible();
+    // Product options are immediately visible
+    await expect(page.getByText('Grove boomschors')).toBeVisible();
+    await expect(page.getByText('Fijne boomschors')).toBeVisible();
+    await expect(page.getByText('Cacaodoppen')).toBeVisible();
+    await expect(page.getByText('Houtsnippers')).toBeVisible();
   });
 
   test('should validate step 1 required fields before advancing', async ({ page }) => {
@@ -78,88 +119,58 @@ test.describe('Configurator — Boomschors', () => {
     // Try to go to next step without filling anything
     await page.getByRole('button', { name: 'Volgende' }).click();
 
-    // Should stay on step 1 — validation errors should appear
-    // The page should still show step 1 content
+    // Should stay on step 1 — specifications still visible
+    await expect(
+      page.getByRole('heading', { name: 'Boomschors specificaties' }),
+    ).toBeVisible();
+  });
+
+  test('should show price banner on step 1 when oppervlakte is filled', async ({ page }) => {
+    await page.goto('/configurator/boomschors');
+
+    // WS9: the price indication is visible BEFORE any customer details
+    await page.locator('#oppervlakte').fill('50');
+
+    // 50m² at 7cm = 3.5m³ which qualifies
+    await expect(page.getByText('Geschatte prijs')).toBeVisible({ timeout: 5_000 });
+  });
+
+  test('should navigate to step 2 (Uw gegevens) after filling specificaties', async ({ page }) => {
+    await page.goto('/configurator/boomschors');
+
+    await fillBoomschorsSpecificaties(page);
+    await page.getByRole('button', { name: 'Volgende' }).click();
+
+    // NAW comes only after the price indication (WS9)
     await expect(page.getByRole('heading', { name: 'Uw gegevens' })).toBeVisible();
-  });
-
-  test('should navigate to step 2 after filling step 1', async ({ page }) => {
-    await page.goto('/configurator/boomschors');
-
-    // Fill in klantgegevens (step 1)
-    await fillBoomschorsStap1(page);
-
-    // Click Volgende
-    await page.getByRole('button', { name: 'Volgende' }).click();
-
-    // Should now be on step 2 (Specificaties)
-    await expect(page.getByRole('heading', { name: 'Boomschors specificaties' })).toBeVisible();
-  });
-
-  test('should show product options on step 2', async ({ page }) => {
-    await page.goto('/configurator/boomschors');
-    await fillBoomschorsStap1(page);
-    await page.getByRole('button', { name: 'Volgende' }).click();
-
-    // Step 2 should show product type options
-    await expect(page.getByText('Grove boomschors')).toBeVisible();
-    await expect(page.getByText('Fijne boomschors')).toBeVisible();
-    await expect(page.getByText('Cacaodoppen')).toBeVisible();
-    await expect(page.getByText('Houtsnippers')).toBeVisible();
   });
 
   test('should navigate back to step 1 with Vorige button', async ({ page }) => {
     await page.goto('/configurator/boomschors');
-    await fillBoomschorsStap1(page);
+    await fillBoomschorsSpecificaties(page);
     await page.getByRole('button', { name: 'Volgende' }).click();
 
     // Now on step 2, click Vorige
     await page.getByRole('button', { name: 'Vorige' }).click();
 
-    // Should be back on step 1
-    await expect(page.getByRole('heading', { name: 'Uw gegevens' })).toBeVisible();
-  });
-
-  test('should show price banner on step 2 when oppervlakte is filled', async ({ page }) => {
-    await page.goto('/configurator/boomschors');
-    await fillBoomschorsStap1(page);
-    await page.getByRole('button', { name: 'Volgende' }).click();
-
-    // Fill in oppervlakte on step 2
-    const oppervlakteInput = page.locator('#oppervlakte');
-    if (await oppervlakteInput.isVisible().catch(() => false)) {
-      await oppervlakteInput.fill('50');
-
-      // Price banner should appear (if m³ >= 1)
-      // 50m² at 7cm = 3.5m³ which qualifies
-      await expect(page.getByText('Geschatte prijs')).toBeVisible({ timeout: 5_000 });
-    }
+    // Should be back on the specifications
+    await expect(
+      page.getByRole('heading', { name: 'Boomschors specificaties' }),
+    ).toBeVisible();
   });
 
   test('should navigate to step 3 (Samenvatting) after filling step 2', async ({ page }) => {
     await page.goto('/configurator/boomschors');
-    await fillBoomschorsStap1(page);
+    await fillBoomschorsSpecificaties(page);
     await page.getByRole('button', { name: 'Volgende' }).click();
 
-    // Fill step 2 specificaties (switch to ophalen to avoid bezorgPostcode validation)
-    await fillBoomschorsStap2(page);
+    await fillBoomschorsKlantgegevens(page);
     await page.getByRole('button', { name: 'Volgende' }).click();
 
     // Should now be on step 3 — the submit button should say "Bestelling plaatsen"
     await expect(
       page.getByRole('button', { name: /Bestelling plaatsen/ }),
     ).toBeVisible();
-  });
-
-  test('should show the Bestelling plaatsen button on step 3', async ({ page }) => {
-    await page.goto('/configurator/boomschors');
-    await fillBoomschorsStap1(page);
-    await page.getByRole('button', { name: 'Volgende' }).click();
-    await fillBoomschorsStap2(page);
-    await page.getByRole('button', { name: 'Volgende' }).click();
-
-    const submitButton = page.getByRole('button', { name: /Bestelling plaatsen/ });
-    await expect(submitButton).toBeVisible();
   });
 
   test('should show contact info at the bottom', async ({ page }) => {
@@ -172,7 +183,7 @@ test.describe('Configurator — Boomschors', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Gazon Configurator (4 steps)
+// Gazon Configurator (4 steps: specs → foto's → prijsindicatie → gegevens)
 // ---------------------------------------------------------------------------
 
 test.describe('Configurator — Gazon', () => {
@@ -188,12 +199,14 @@ test.describe('Configurator — Gazon', () => {
     ).toBeVisible();
   });
 
-  test('should show step 1 (Klantgegevens) by default', async ({ page }) => {
+  test('should show step 1 (Gazon specificaties) by default', async ({ page }) => {
     await page.goto('/configurator/gazon');
 
-    // Form fields should be visible
-    const inputs = page.locator('input');
-    await expect(inputs.first()).toBeVisible();
+    // WS9: specifications come first
+    await expect(
+      page.locator('[data-slot="card-title"]', { hasText: 'Gazon specificaties' }),
+    ).toBeVisible();
+    await expect(page.getByText('Type gras')).toBeVisible();
   });
 
   test('should validate step 1 required fields', async ({ page }) => {
@@ -202,35 +215,58 @@ test.describe('Configurator — Gazon', () => {
     // Try to advance without filling in data
     await page.getByRole('button', { name: 'Volgende stap' }).click();
 
-    // Should stay on step 1 — form should still be visible
-    const inputs = page.locator('input');
-    expect(await inputs.count()).toBeGreaterThan(0);
-  });
-
-  test('should navigate to step 2 after filling step 1', async ({ page }) => {
-    await page.goto('/configurator/gazon');
-
-    await fillGazonStap1(page);
-    await page.getByRole('button', { name: 'Volgende stap' }).click();
-
-    // Step 2 should show gazon specification content (card title)
+    // Should stay on step 1 — specifications still visible
     await expect(
       page.locator('[data-slot="card-title"]', { hasText: 'Gazon specificaties' }),
+    ).toBeVisible();
+  });
+
+  test('should navigate to step 2 (Foto\'s) after filling specificaties', async ({ page }) => {
+    await page.goto('/configurator/gazon');
+
+    await fillGazonSpecificaties(page);
+    await page.getByRole('button', { name: 'Volgende stap' }).click();
+
+    await expect(
+      page.locator('[data-slot="card-title"]', { hasText: 'Foto' }),
     ).toBeVisible({ timeout: 5_000 });
+  });
+
+  test('should show the prijsindicatie BEFORE asking for customer details', async ({ page }) => {
+    await page.goto('/configurator/gazon');
+
+    await fillGazonSpecificaties(page);
+    await page.getByRole('button', { name: 'Volgende stap' }).click(); // → foto's
+    await page.getByRole('button', { name: 'Volgende stap' }).click(); // → prijsindicatie
+
+    // Price overview with total, without any NAW fields on this step (WS9)
+    await expect(
+      page.locator('[data-slot="card-title"]', { hasText: 'prijsindicatie' }),
+    ).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText('Totaal (incl. BTW)')).toBeVisible();
+    await expect(page.getByPlaceholder('Jan de Vries')).not.toBeVisible();
+
+    // The NAW step comes only after the price
+    await page.getByRole('button', { name: 'Volgende stap' }).click(); // → gegevens
+    await expect(
+      page.locator('[data-slot="card-title"]', { hasText: 'Uw gegevens' }),
+    ).toBeVisible();
+    await expect(page.getByText('Bijna klaar')).toBeVisible();
+    await expect(page.getByPlaceholder('Echt')).toBeVisible();
   });
 
   test('should navigate back with Vorige stap button', async ({ page }) => {
     await page.goto('/configurator/gazon');
-    await fillGazonStap1(page);
+    await fillGazonSpecificaties(page);
     await page.getByRole('button', { name: 'Volgende stap' }).click();
 
     // Go back
     await page.getByRole('button', { name: 'Vorige stap' }).click();
 
-    // Should be back on step 1
-    await page.waitForTimeout(300);
-    const inputs = page.locator('input');
-    expect(await inputs.count()).toBeGreaterThan(3);
+    // Should be back on step 1 (specificaties)
+    await expect(
+      page.locator('[data-slot="card-title"]', { hasText: 'Gazon specificaties' }),
+    ).toBeVisible();
   });
 
   test('Vorige stap button should be disabled on step 1', async ({ page }) => {
@@ -242,7 +278,7 @@ test.describe('Configurator — Gazon', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Verticuteren Configurator (3 steps)
+// Verticuteren Configurator (3 steps: specs → prijs & datum → gegevens)
 // ---------------------------------------------------------------------------
 
 test.describe('Configurator — Verticuteren', () => {
@@ -258,11 +294,13 @@ test.describe('Configurator — Verticuteren', () => {
     ).toBeVisible();
   });
 
-  test('should show step 1 (Klantgegevens) by default', async ({ page }) => {
+  test('should show step 1 (Specificaties) by default', async ({ page }) => {
     await page.goto('/configurator/verticuteren');
 
-    const inputs = page.locator('input');
-    await expect(inputs.first()).toBeVisible();
+    // WS9: specifications come first
+    await expect(
+      page.locator('[data-slot="card-title"]', { hasText: 'Verticuteren specificaties' }),
+    ).toBeVisible();
   });
 
   test('should validate step 1 required fields', async ({ page }) => {
@@ -271,33 +309,36 @@ test.describe('Configurator — Verticuteren', () => {
     await page.getByRole('button', { name: 'Volgende stap' }).click();
 
     // Should stay on step 1
-    const inputs = page.locator('input');
-    expect(await inputs.count()).toBeGreaterThan(0);
+    await expect(
+      page.locator('[data-slot="card-title"]', { hasText: 'Verticuteren specificaties' }),
+    ).toBeVisible();
   });
 
-  test('should navigate to step 2 after filling step 1', async ({ page }) => {
+  test('should show prijsindicatie on step 2, before customer details', async ({ page }) => {
     await page.goto('/configurator/verticuteren');
 
-    await fillVerticuterenStap1(page);
+    await fillVerticuterenSpecificaties(page);
     await page.getByRole('button', { name: 'Volgende stap' }).click();
 
-    // Step 2 should show verticuteren specification card title
+    // Step 2 shows the price indication & date — no NAW fields yet (WS9)
     await expect(
-      page.locator('[data-slot="card-title"]', { hasText: 'specificaties' }),
+      page.locator('[data-slot="card-title"]', { hasText: 'prijsindicatie' }),
     ).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText('Totaal (incl. BTW)')).toBeVisible();
+    await expect(page.getByPlaceholder('Jan de Vries')).not.toBeVisible();
   });
 
   test('should navigate back with Vorige stap button', async ({ page }) => {
     await page.goto('/configurator/verticuteren');
-    await fillVerticuterenStap1(page);
+    await fillVerticuterenSpecificaties(page);
     await page.getByRole('button', { name: 'Volgende stap' }).click();
 
     await page.getByRole('button', { name: 'Vorige stap' }).click();
 
-    // Should be on step 1 again
-    await page.waitForTimeout(300);
-    const inputs = page.locator('input');
-    expect(await inputs.count()).toBeGreaterThan(3);
+    // Should be on step 1 (specificaties) again
+    await expect(
+      page.locator('[data-slot="card-title"]', { hasText: 'Verticuteren specificaties' }),
+    ).toBeVisible();
   });
 
   test('Vorige stap button should be disabled on step 1', async ({ page }) => {
@@ -551,6 +592,11 @@ test.describe('Configurator — Status Page', () => {
 
 test.describe('Configurator — Cross-cutting', () => {
   test('all configurator pages should be publicly accessible (no auth required)', async ({ page }) => {
+    // Index (WS9)
+    const indexResponse = await page.goto('/configurator');
+    expect(indexResponse?.status()).toBeLessThan(400);
+    expect(page.url()).toContain('/configurator');
+
     // Boomschors
     const boomschorsResponse = await page.goto('/configurator/boomschors');
     expect(boomschorsResponse?.status()).toBeLessThan(400);
@@ -579,6 +625,7 @@ test.describe('Configurator — Cross-cutting', () => {
 
   test('all configurators should NOT redirect to sign-in', async ({ page }) => {
     const paths = [
+      '/configurator',
       '/configurator/boomschors',
       '/configurator/gazon',
       '/configurator/verticuteren',
@@ -596,27 +643,14 @@ test.describe('Configurator — Cross-cutting', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Helper functions for filling form steps
+// Helper functions for filling form steps (WS9 step order)
 // ---------------------------------------------------------------------------
 
 /**
- * Fill in step 1 (Klantgegevens) for the boomschors configurator.
- * Uses input IDs defined in Stap1Klantgegevens component.
+ * Fill in step 1 (Specificaties) for the boomschors configurator.
+ * Selects "ophalen" to skip bezorgPostcode validation.
  */
-async function fillBoomschorsStap1(page: import('@playwright/test').Page) {
-  await page.locator('#naam').fill('Test Klant');
-  await page.locator('#email').fill('test@example.com');
-  await page.locator('#telefoon').fill('0612345678');
-  await page.locator('#adres').fill('Teststraat 1');
-  await page.locator('#postcode').fill('1234 AB');
-  await page.locator('#plaats').fill('Amsterdam');
-}
-
-/**
- * Fill in step 2 (Specificaties) for the boomschors configurator.
- * Selects default product type and fills in oppervlakte.
- */
-async function fillBoomschorsStap2(page: import('@playwright/test').Page) {
+async function fillBoomschorsSpecificaties(page: import('@playwright/test').Page) {
   // Fill in oppervlakte (surface area in m²)
   await page.locator('#oppervlakte').fill('50');
 
@@ -629,29 +663,35 @@ async function fillBoomschorsStap2(page: import('@playwright/test').Page) {
 }
 
 /**
- * Fill in step 1 (Klantgegevens) for the gazon configurator.
- * Uses placeholder-based selectors since gazon form uses Field wrapper without IDs.
+ * Fill in step 2 (Uw gegevens) for the boomschors configurator.
+ * Uses input IDs defined in Stap1Klantgegevens component.
  */
-async function fillGazonStap1(page: import('@playwright/test').Page) {
-  await page.getByPlaceholder('Jan de Vries').fill('Test Klant');
-  await page.getByPlaceholder('jan@email.nl').fill('test@example.com');
-  await page.getByPlaceholder('06-12345678').fill('0612345678');
-  await page.getByPlaceholder('Tuinstraat 12').fill('Teststraat 1');
-  await page.getByPlaceholder('1234 AB').fill('1234 AB');
-  await page.getByPlaceholder('Amsterdam').fill('Amsterdam');
+async function fillBoomschorsKlantgegevens(page: import('@playwright/test').Page) {
+  await page.locator('#naam').fill('Test Klant');
+  await page.locator('#email').fill('test@example.com');
+  await page.locator('#telefoon').fill('0612345678');
+  await page.locator('#adres').fill('Teststraat 1');
+  await page.locator('#postcode').fill('1234 AB');
+  await page.locator('#plaats').fill('Echt');
+}
+
+/**
+ * Fill in step 1 (Gazon specificaties) for the gazon configurator.
+ * Oppervlakte + type gras + ondergrond + poortbreedte (moved here in WS9).
+ */
+async function fillGazonSpecificaties(page: import('@playwright/test').Page) {
+  await page.getByPlaceholder('50').fill('100');
+  await page.getByRole('button', { name: /Graszoden/ }).click();
+  await page.getByRole('button', { name: /Kale grond/ }).click();
   await page.getByPlaceholder('120').fill('100');
 }
 
 /**
- * Fill in step 1 (Klantgegevens) for the verticuteren configurator.
- * Same structure as gazon (includes poortbreedte).
+ * Fill in step 1 (Verticuteren specificaties) for the verticuteren
+ * configurator. Oppervlakte + conditie + poortbreedte (moved here in WS9).
  */
-async function fillVerticuterenStap1(page: import('@playwright/test').Page) {
-  await page.getByPlaceholder('Jan de Vries').fill('Test Klant');
-  await page.getByPlaceholder('jan@email.nl').fill('test@example.com');
-  await page.getByPlaceholder('06-12345678').fill('0612345678');
-  await page.getByPlaceholder('Tuinstraat 12').fill('Teststraat 1');
-  await page.getByPlaceholder('1234 AB').fill('1234 AB');
-  await page.getByPlaceholder('Amsterdam').fill('Amsterdam');
+async function fillVerticuterenSpecificaties(page: import('@playwright/test').Page) {
+  await page.getByPlaceholder('75').fill('100');
+  await page.getByRole('button', { name: /Uitstekend/ }).click();
   await page.getByPlaceholder('120').fill('100');
 }

@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import Image from "next/image";
 import { useMutation } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronRight, ChevronLeft } from "lucide-react";
+import { ChevronRight, ChevronLeft, CheckCircle2, Leaf, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   type KlantGegevens,
   type GazonSpecs,
@@ -21,13 +23,13 @@ import {
   berekenPrijs,
   formatEuro,
   formatDatumVolledig,
-  validateStap1,
-  validateStap2,
+  validateKlant,
+  validateSpecs,
   StapIndicator,
-  Stap1Klantgegevens,
-  Stap2GazonSpecs,
-  Stap3FotoUpload,
-  Stap4Prijsoverzicht,
+  StapKlantgegevens,
+  StapGazonSpecs,
+  StapFotoUpload,
+  StapPrijsoverzicht,
   SuccessDialog,
 } from "./components";
 import { logger } from "@/lib/logger";
@@ -87,18 +89,18 @@ export default function GazonConfiguratorPage() {
     }));
   }, []);
 
+  // WS9-stapvolgorde (keuzepunt 5): 1 specificaties → 2 foto's →
+  // 3 prijsindicatie → 4 gegevens. NAW wordt pas ná de prijs gevraagd.
   const naarVolgendeStap = useCallback(() => {
     let stapErrors: Record<string, string> = {};
 
     if (huidigStap === 1) {
-      stapErrors = validateStap1(formData.klant);
-      const poort = parseFloat(formData.klant.poortbreedte);
+      stapErrors = validateSpecs(formData.specs);
+      const poort = parseFloat(formData.specs.poortbreedte);
       if (!isNaN(poort) && poort < 60) {
         stapErrors.poortbreedte =
           "Poortbreedte te smal — wij kunnen hier helaas niet werken";
       }
-    } else if (huidigStap === 2) {
-      stapErrors = validateStap2(formData.specs);
     }
 
     if (Object.keys(stapErrors).length > 0) {
@@ -110,7 +112,7 @@ export default function GazonConfiguratorPage() {
     setErrors({});
     setHuidigStap((s) => Math.min(s + 1, TOTAAL_STAPPEN));
     window.scrollTo({ top: 0, behavior: "smooth" });
-  }, [huidigStap, formData.klant, formData.specs]);
+  }, [huidigStap, formData.specs]);
 
   const naarVorigeStap = useCallback(() => {
     setErrors({});
@@ -120,6 +122,15 @@ export default function GazonConfiguratorPage() {
 
   const handleVersturen = useCallback(async () => {
     if (isSubmitting) return;
+
+    // NAW is nu de slotstap: valideren vlak vóór het versturen.
+    const klantErrors = validateKlant(formData.klant);
+    if (Object.keys(klantErrors).length > 0) {
+      setErrors(klantErrors);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    setErrors({});
 
     const prijs = berekenPrijs(formData);
     if (!prijs) {
@@ -139,7 +150,7 @@ export default function GazonConfiguratorPage() {
         opsluitbandenMeters: formData.specs.opsluitbanden
           ? parseFloat(formData.specs.opsluitbandenMeters) || 0
           : 0,
-        poortbreedte: parseFloat(formData.klant.poortbreedte),
+        poortbreedte: parseFloat(formData.specs.poortbreedte),
         handmatigToeslag: prijs.handmatigToeslag,
         gewensteStartdatum: formData.specs.gewensteStartdatum
           ? formData.specs.gewensteStartdatum.toISOString().split("T")[0]
@@ -236,11 +247,26 @@ export default function GazonConfiguratorPage() {
     setReferentieNummer("");
   }, []);
 
+  // Compacte herinnering aan de indicatieprijs op de slotstap (gegevens).
+  const prijsRecap = huidigStap === TOTAAL_STAPPEN ? berekenPrijs(formData) : null;
+
   return (
     <div className="container max-w-3xl mx-auto py-8 px-4">
+      {/* Sfeerbeeld — eigen foto van Top Tuinen (hoofdsite) */}
+      <div className="relative mb-6 h-36 sm:h-44 overflow-hidden rounded-xl border border-border shadow-sm">
+        <Image
+          src="/images/configurator/gazon.webp"
+          alt=""
+          fill
+          priority
+          sizes="(max-width: 768px) 100vw, 768px"
+          className="object-cover"
+        />
+      </div>
+
       {/* Paginatitel */}
       <div className="mb-8 text-center">
-        <h2 className="text-2xl sm:text-3xl font-bold text-foreground">
+        <h2 className="font-display text-2xl sm:text-3xl font-semibold text-foreground">
           Gazon aanleggen
         </h2>
         <p className="text-muted-foreground mt-2 max-w-lg mx-auto">
@@ -252,33 +278,99 @@ export default function GazonConfiguratorPage() {
       {/* Stap indicator */}
       <StapIndicator huidigStap={huidigStap} />
 
-      {/* Formulier kaart */}
+      {/* Formulier kaart — WS9-volgorde: specs → foto's → prijs → gegevens */}
       <Card className="shadow-sm border-border">
         <CardContent className="pt-6 pb-6">
           {huidigStap === 1 && (
-            <Stap1Klantgegevens
-              data={formData.klant}
-              errors={errors}
-              onChange={updateKlant}
-            />
-          )}
-          {huidigStap === 2 && (
-            <Stap2GazonSpecs
+            <StapGazonSpecs
               data={formData.specs}
               errors={errors}
               onChange={updateSpecs}
             />
           )}
-          {huidigStap === 3 && <Stap3FotoUpload />}
-          {huidigStap === 4 && (
-            <Stap4Prijsoverzicht
+          {huidigStap === 2 && <StapFotoUpload />}
+          {huidigStap === 3 && (
+            <StapPrijsoverzicht
               data={formData}
-              akkoordVoorwaarden={akkoordVoorwaarden}
-              onAkkoordChange={setAkkoordVoorwaarden}
-              onVersturen={handleVersturen}
-              isSubmitting={isSubmitting}
               onStartdatumChange={updateStartdatum}
             />
+          )}
+          {huidigStap === 4 && (
+            <div className="space-y-6">
+              <StapKlantgegevens
+                data={formData.klant}
+                errors={errors}
+                onChange={updateKlant}
+              />
+
+              {/* Compacte prijs-herinnering boven de bevestiging */}
+              {prijsRecap && (
+                <div className="flex items-center justify-between rounded-lg bg-secondary border border-border px-4 py-3">
+                  <span className="text-sm text-secondary-foreground">
+                    Uw indicatieprijs
+                  </span>
+                  <span className="font-display text-lg font-semibold text-primary tabular-nums">
+                    {formatEuro(prijsRecap.totaal)}{" "}
+                    <span className="text-xs font-sans font-normal text-muted-foreground">incl. BTW</span>
+                  </span>
+                </div>
+              )}
+
+              {/* Akkoord voorwaarden */}
+              <div
+                className="flex items-start gap-3 p-4 rounded-lg border-2 border-border hover:border-primary/40 transition-colors cursor-pointer"
+                onClick={() => setAkkoordVoorwaarden(!akkoordVoorwaarden)}
+              >
+                <div
+                  className={cn(
+                    "flex h-5 w-5 flex-shrink-0 items-center justify-center rounded border-2 mt-0.5 transition-colors",
+                    akkoordVoorwaarden
+                      ? "bg-primary border-primary"
+                      : "border-border bg-background"
+                  )}
+                >
+                  {akkoordVoorwaarden && (
+                    <CheckCircle2 className="h-3.5 w-3.5 text-primary-foreground" />
+                  )}
+                </div>
+                <p className="text-sm text-foreground select-none">
+                  Ik ga akkoord met de{" "}
+                  <a
+                    href="#"
+                    className="text-primary font-medium underline underline-offset-2 hover:text-primary/80"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    algemene voorwaarden
+                  </a>{" "}
+                  van Top Tuinen. Ik begrijp dat dit een indicatieprijs is en dat
+                  de definitieve offerte na inspectie wordt opgesteld.
+                </p>
+              </div>
+
+              {/* Versturen knop */}
+              <Button
+                onClick={handleVersturen}
+                disabled={!akkoordVoorwaarden || isSubmitting}
+                size="lg"
+                className={cn(
+                  "w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold",
+                  (!akkoordVoorwaarden || isSubmitting) &&
+                    "opacity-50 cursor-not-allowed"
+                )}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Aanvraag versturen...
+                  </>
+                ) : (
+                  <>
+                    <Leaf className="mr-2 h-5 w-5" />
+                    Aanvraag versturen
+                  </>
+                )}
+              </Button>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -298,8 +390,8 @@ export default function GazonConfiguratorPage() {
         {huidigStap < TOTAAL_STAPPEN && (
           <Button
             onClick={naarVolgendeStap}
-            // green-700: wit op green-600 haalde maar 3,22:1 (AA vraagt 4,5:1)
-            className="gap-2 bg-green-700 hover:bg-green-800 text-white"
+            // --primary (loofgroen, L0.44) haalt ruim AA met witte tekst
+            className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             Volgende stap
             <ChevronRight className="h-4 w-4" />
@@ -307,7 +399,7 @@ export default function GazonConfiguratorPage() {
         )}
 
         {huidigStap === TOTAAL_STAPPEN && (
-          <div /> /* Ruimte — verstuurknop zit in Stap4 */
+          <div /> /* Ruimte — verstuurknop zit in de gegevens-stap */
         )}
       </div>
 

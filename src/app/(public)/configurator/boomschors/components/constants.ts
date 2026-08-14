@@ -46,4 +46,5 @@ export const PRODUCT_INFO: Record<
   },
 };
 
-export const STAP_LABELS = ["Uw gegevens", "Specificaties", "Bevestiging"];
+/* WS9 (keuzepunt 5): eerst specificaties met live prijs, dan pas NAW. */
+export const STAP_LABELS = ["Specificaties", "Uw gegevens", "Bevestiging"];

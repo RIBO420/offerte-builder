@@ -10,7 +10,7 @@ function FacturenSkeleton() {
   return (
     <div className="space-y-4">
       {[1, 2, 3].map((i) => (
-        <div key={i} className="rounded-xl border border-gray-200 dark:border-[#2a3e2a] bg-white dark:bg-[#1a2e1a] p-5">
+        <div key={i} className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-start justify-between">
             <div className="flex items-start gap-3">
               <Skeleton className="h-9 w-9 rounded-lg" />
@@ -39,8 +39,8 @@ export default function PortaalFacturenPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <div className="rounded-lg bg-[#4ADE80]/10 p-2">
-          <Receipt className="h-6 w-6 text-[#4ADE80]" />
+        <div className="rounded-lg bg-primary/10 p-2">
+          <Receipt className="h-6 w-6 text-primary" />
         </div>
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">

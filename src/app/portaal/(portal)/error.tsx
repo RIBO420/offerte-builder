@@ -36,12 +36,12 @@ export default function PortaalError({
 
   return (
     <div className="flex items-center justify-center py-12">
-      <div className="w-full max-w-md rounded-xl border border-gray-200 dark:border-[#2a3e2a] bg-white dark:bg-[#1a2e1a] p-6">
+      <div className="w-full max-w-md rounded-xl border border-border bg-card p-6">
         <div className="flex flex-col items-center text-center">
           <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
             <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
           </div>
-          <h2 className="text-lg font-semibold text-[#1a2e1a] dark:text-white">
+          <h2 className="text-lg font-semibold text-foreground">
             Er is iets misgegaan
           </h2>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -52,7 +52,7 @@ export default function PortaalError({
 
         {/* Technische details alleen lokaal: een klant heeft niets aan een stacktrace. */}
         {process.env.NODE_ENV === "development" && (
-          <pre className="mt-4 max-h-32 overflow-auto rounded-lg bg-gray-100 dark:bg-[#0a0f0a] p-3 text-xs whitespace-pre-wrap text-gray-600 dark:text-gray-400">
+          <pre className="mt-4 max-h-32 overflow-auto rounded-lg bg-muted p-3 text-xs whitespace-pre-wrap text-gray-600 dark:text-gray-400">
             {error.name}: {error.message}
           </pre>
         )}
@@ -71,7 +71,7 @@ export default function PortaalError({
           <Button
             variant="outline"
             asChild
-            className="flex-1 border-gray-200 dark:border-[#2a3e2a]"
+            className="flex-1 border-border"
           >
             <Link href="/portaal/overzicht">
               <LayoutDashboard className="mr-2 h-4 w-4" />

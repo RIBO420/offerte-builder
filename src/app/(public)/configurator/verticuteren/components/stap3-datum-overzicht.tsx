@@ -1,20 +1,15 @@
 import { useMemo } from "react";
 import {
-  Card,
-  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import { Calculator, Info, Scissors } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Calculator, Info } from "lucide-react";
 import { BeschikbaarheidsKalender } from "@/components/beschikbaarheids-kalender";
-import type { KlantGegevens, VerticuterenSpecs } from "./types";
+import type { VerticuterenSpecs } from "./types";
 import {
   BASISPRIJS_PER_M2,
   BIJZAAIEN_TARIEF,
@@ -25,48 +20,163 @@ import {
 import { formatEuro, berekenMinDatum, berekenPrijs } from "./utils";
 import { PrijsRegelRij } from "./prijs-regel-rij";
 
-export function Stap3DatumOverzicht({
-  klant,
+/* WS9: stap 2 — prijsindicatie & datum, vóórdat de klant NAW-gegevens invult.
+   Akkoord en versturen zitten in de slotstap (Uw gegevens). */
+export function StapDatumPrijs({
   specs,
   gewensteDatum,
   opmerkingen,
-  akkoordVoorwaarden,
   errors,
   onDatumSelect,
   onOpmerkingenChange,
-  onAkkoordChange,
-  onVersturen,
-  isSubmitting,
 }: {
-  klant: KlantGegevens;
   specs: VerticuterenSpecs;
   gewensteDatum: Date | undefined;
   opmerkingen: string;
-  akkoordVoorwaarden: boolean;
   errors: Record<string, string>;
   onDatumSelect: (datum: Date) => void;
   onOpmerkingenChange: (waarde: string) => void;
-  onAkkoordChange: (waarde: boolean) => void;
-  onVersturen: () => void;
-  isSubmitting: boolean;
 }) {
   const minDatum = useMemo(() => berekenMinDatum(), []);
-  const prijs = useMemo(
-    () => berekenPrijs(specs, klant.poortbreedte),
-    [specs, klant.poortbreedte]
-  );
+  const prijs = useMemo(() => berekenPrijs(specs), [specs]);
   const m2 = parseFloat(specs.oppervlakte);
   const conditieConfig = specs.conditie ? CONDITIE_CONFIG[specs.conditie] : null;
 
   return (
     <div className="space-y-6">
       <CardHeader className="px-0 pt-0">
-        <CardTitle className="text-xl">Datum & Overzicht</CardTitle>
+        <CardTitle className="text-xl font-display">Uw prijsindicatie & datum</CardTitle>
         <CardDescription>
-          Kies een gewenste startdatum en controleer het prijsoverzicht voordat
-          u uw aanvraag indient.
+          Bekijk de indicatieprijs en kies een gewenste datum voor de
+          werkzaamheden.
         </CardDescription>
       </CardHeader>
+
+      {/* Prijsoverzicht als "offertepapier" */}
+      {prijs ? (
+        <div className="rounded-lg border border-border bg-card shadow-sm px-5 py-5 sm:px-7 sm:py-6">
+          <div className="flex items-center justify-between gap-2 border-b border-border pb-3 mb-1">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              Indicatieprijs
+            </p>
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Calculator className="h-3.5 w-3.5 text-primary" />
+              Verticuteren{conditieConfig ? ` · conditie ${conditieConfig.label.toLowerCase()}` : ""}
+            </span>
+          </div>
+
+          <div className="divide-y divide-border">
+            {/* Basisprijs */}
+            <PrijsRegelRij
+              label="Verticuteren (basisprijs)"
+              detail={`${m2} m² × ${formatEuro(BASISPRIJS_PER_M2)}/m²`}
+              bedrag={formatEuro(prijs.basisprijs)}
+            />
+
+            {/* Conditie toeslag */}
+            {prijs.conditioneelToeslag > 0 && conditieConfig && (
+              <PrijsRegelRij
+                label={`Conditie-toeslag (${conditieConfig.label.toLowerCase()}, +${prijs.conditioneelToeslagPercent}%)`}
+                detail={`${m2} m² × ${formatEuro(BASISPRIJS_PER_M2)}/m² × ${prijs.conditioneelToeslagPercent}%`}
+                bedrag={formatEuro(prijs.conditioneelToeslag)}
+              />
+            )}
+
+            {/* Handmatig werk toeslag */}
+            {prijs.handmatigToeslag && (
+              <PrijsRegelRij
+                label="Toeslag handmatig werk (+25%)"
+                detail="Smalste doorgang < 80 cm — extra arbeidsintensief"
+                bedrag={formatEuro(prijs.handmatigToeslagBedrag)}
+              />
+            )}
+
+            {/* Bijzaaien */}
+            {prijs.bijzaaienRegel !== null && (
+              <PrijsRegelRij
+                label="Bijzaaien"
+                detail={`${m2} m² × ${formatEuro(BIJZAAIEN_TARIEF)}/m²`}
+                bedrag={formatEuro(prijs.bijzaaienRegel)}
+              />
+            )}
+
+            {/* Topdressing */}
+            {prijs.topdressingRegel !== null && (
+              <PrijsRegelRij
+                label="Topdressing"
+                detail={`${m2} m² × ${formatEuro(TOPDRESSING_TARIEF)}/m²`}
+                bedrag={formatEuro(prijs.topdressingRegel)}
+              />
+            )}
+
+            {/* Bemesting */}
+            {prijs.bemestingRegel !== null && (
+              <PrijsRegelRij
+                label="Bemesting"
+                detail={`${m2} m² × ${formatEuro(BEMESTING_TARIEF)}/m²`}
+                bedrag={formatEuro(prijs.bemestingRegel)}
+                highlight
+              />
+            )}
+
+            {/* Machine-huurkosten */}
+            <PrijsRegelRij
+              label="Machine-huurkosten"
+              bedrag={formatEuro(prijs.machineHuur)}
+            />
+
+            {/* Voorrijkosten */}
+            <PrijsRegelRij
+              label="Voorrijkosten"
+              bedrag={formatEuro(prijs.voorrijkosten)}
+            />
+          </div>
+
+          <Separator className="my-4" />
+
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Subtotaal (excl. BTW)</span>
+              <span className="font-medium tabular-nums">
+                {formatEuro(prijs.subtotaal)}
+              </span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">BTW (21%)</span>
+              <span className="font-medium tabular-nums">
+                {formatEuro(prijs.btw)}
+              </span>
+            </div>
+            <Separator />
+            <div className="flex items-baseline justify-between pt-1">
+              <span className="text-base font-semibold">Totaal (incl. BTW)</span>
+              {/* Het heldcijfer van de wizard — displayfont, merkgroen */}
+              <span className="font-display text-2xl font-semibold text-primary tabular-nums">
+                {formatEuro(prijs.totaal)}
+              </span>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground border rounded-lg bg-muted">
+          <Calculator className="h-10 w-10 mb-3 opacity-40" />
+          <p className="font-medium">Geen volledige gegevens</p>
+          <p className="text-sm mt-1">
+            Ga terug en vul alle verplichte velden in om een prijs te berekenen.
+          </p>
+        </div>
+      )}
+
+      {/* Disclaimer */}
+      <div className="flex items-start gap-3 p-4 bg-secondary border border-border rounded-lg">
+        <Info className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+        <p className="text-sm text-secondary-foreground">
+          <span className="font-semibold">Indicatieprijs</span> — Dit is een
+          indicatieprijs op basis van uw opgegeven gegevens. Na verificatie door
+          ons team ontvangt u een definitieve offerte. De eindprijs kan licht
+          afwijken na meting ter plaatse.
+        </p>
+      </div>
 
       {/* Kalender */}
       <div className="space-y-2">
@@ -81,168 +191,10 @@ export function Stap3DatumOverzicht({
           geblokkeerdeDagen={[0, 6]}
         />
         {errors.gewensteDatum && (
-          <p className="text-xs text-red-600 dark:text-red-400">
+          <p className="text-xs text-red-600">
             {errors.gewensteDatum}
           </p>
         )}
-      </div>
-
-      {/* Prijsoverzicht */}
-      {prijs ? (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Calculator className="h-4 w-4 text-green-600 dark:text-green-400" />
-              Indicatieprijs berekening
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {/* Klantgegevens samenvatting */}
-            <div className="mb-4 p-3 bg-muted rounded-lg border border-border">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                Aanvraag voor
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Naam: </span>
-                  <span className="font-medium">{klant.naam}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Oppervlakte: </span>
-                  <span className="font-medium">{m2} m²</span>
-                </div>
-                {conditieConfig && (
-                  <div>
-                    <span className="text-muted-foreground">Conditie: </span>
-                    <span className="font-medium">{conditieConfig.label}</span>
-                  </div>
-                )}
-                {gewensteDatum && (
-                  <div>
-                    <span className="text-muted-foreground">Datum: </span>
-                    <span className="font-medium">
-                      {gewensteDatum.toLocaleDateString("nl-NL", {
-                        day: "numeric",
-                        month: "long",
-                        year: "numeric",
-                      })}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="divide-y divide-border">
-              {/* Basisprijs */}
-              <PrijsRegelRij
-                label="Verticuteren (basisprijs)"
-                detail={`${m2} m² × ${formatEuro(BASISPRIJS_PER_M2)}/m²`}
-                bedrag={formatEuro(prijs.basisprijs)}
-              />
-
-              {/* Conditie toeslag */}
-              {prijs.conditioneelToeslag > 0 && conditieConfig && (
-                <PrijsRegelRij
-                  label={`Conditie-toeslag (${conditieConfig.label.toLowerCase()}, +${prijs.conditioneelToeslagPercent}%)`}
-                  detail={`${m2} m² × ${formatEuro(BASISPRIJS_PER_M2)}/m² × ${prijs.conditioneelToeslagPercent}%`}
-                  bedrag={formatEuro(prijs.conditioneelToeslag)}
-                />
-              )}
-
-              {/* Handmatig werk toeslag */}
-              {prijs.handmatigToeslag && (
-                <PrijsRegelRij
-                  label="Toeslag handmatig werk (+25%)"
-                  detail="Smalste doorgang < 80 cm — extra arbeidsintensief"
-                  bedrag={formatEuro(prijs.handmatigToeslagBedrag)}
-                />
-              )}
-
-              {/* Bijzaaien */}
-              {prijs.bijzaaienRegel !== null && (
-                <PrijsRegelRij
-                  label="Bijzaaien"
-                  detail={`${m2} m² × ${formatEuro(BIJZAAIEN_TARIEF)}/m²`}
-                  bedrag={formatEuro(prijs.bijzaaienRegel)}
-                />
-              )}
-
-              {/* Topdressing */}
-              {prijs.topdressingRegel !== null && (
-                <PrijsRegelRij
-                  label="Topdressing"
-                  detail={`${m2} m² × ${formatEuro(TOPDRESSING_TARIEF)}/m²`}
-                  bedrag={formatEuro(prijs.topdressingRegel)}
-                />
-              )}
-
-              {/* Bemesting */}
-              {prijs.bemestingRegel !== null && (
-                <PrijsRegelRij
-                  label="Bemesting"
-                  detail={`${m2} m² × ${formatEuro(BEMESTING_TARIEF)}/m²`}
-                  bedrag={formatEuro(prijs.bemestingRegel)}
-                  highlight
-                />
-              )}
-
-              {/* Machine-huurkosten */}
-              <PrijsRegelRij
-                label="Machine-huurkosten"
-                bedrag={formatEuro(prijs.machineHuur)}
-              />
-
-              {/* Voorrijkosten */}
-              <PrijsRegelRij
-                label="Voorrijkosten"
-                bedrag={formatEuro(prijs.voorrijkosten)}
-              />
-            </div>
-
-            <Separator className="my-4" />
-
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Subtotaal (excl. BTW)</span>
-                <span className="font-medium tabular-nums">
-                  {formatEuro(prijs.subtotaal)}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">BTW (21%)</span>
-                <span className="font-medium tabular-nums">
-                  {formatEuro(prijs.btw)}
-                </span>
-              </div>
-              <Separator />
-              <div className="flex justify-between text-base font-bold pt-1">
-                <span>Totaal (incl. BTW)</span>
-                <span className="text-green-700 dark:text-green-400 tabular-nums">
-                  {formatEuro(prijs.totaal)}
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground border rounded-lg bg-muted">
-          <Calculator className="h-10 w-10 mb-3 opacity-40" />
-          <p className="font-medium">Geen volledige gegevens</p>
-          <p className="text-sm mt-1">
-            Ga terug en vul alle verplichte velden in om een prijs te berekenen.
-          </p>
-        </div>
-      )}
-
-      {/* Disclaimer */}
-      <div className="flex items-start gap-3 p-4 bg-blue-50 dark:bg-blue-950 border border-blue-100 dark:border-blue-900 rounded-lg">
-        <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-        <p className="text-sm text-blue-800 dark:text-blue-200">
-          <span className="font-semibold">Indicatieprijs</span> — Dit is een
-          indicatieprijs op basis van uw opgegeven gegevens. Na verificatie door
-          ons team ontvangt u een definitieve offerte. De eindprijs kan licht
-          afwijken na meting ter plaatse.
-        </p>
       </div>
 
       {/* Opmerkingen */}
@@ -259,55 +211,6 @@ export function Stap3DatumOverzicht({
           className="resize-none"
         />
       </div>
-
-      {/* Algemene voorwaarden */}
-      <div
-        className="flex items-start gap-3 p-4 rounded-lg border-2 border-border hover:border-green-300 dark:hover:border-green-700 transition-colors cursor-pointer"
-        onClick={() => onAkkoordChange(!akkoordVoorwaarden)}
-      >
-        <Checkbox
-          checked={akkoordVoorwaarden}
-          onCheckedChange={(checked) => onAkkoordChange(checked === true)}
-          className="mt-0.5 flex-shrink-0 data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
-          onClick={(e) => e.stopPropagation()}
-        />
-        <p className="text-sm text-foreground select-none">
-          Ik ga akkoord met de{" "}
-          <a
-            href="#"
-            className="text-green-700 dark:text-green-400 font-medium underline underline-offset-2 hover:text-green-900 dark:hover:text-green-300"
-            onClick={(e) => e.stopPropagation()}
-          >
-            algemene voorwaarden
-          </a>{" "}
-          van Top Tuinen. Ik begrijp dat dit een indicatieprijs is en dat de
-          definitieve offerte na inspectie wordt opgesteld.
-        </p>
-      </div>
-
-      {/* Versturen knop */}
-      <Button
-        onClick={onVersturen}
-        disabled={!akkoordVoorwaarden || isSubmitting}
-        size="lg"
-        className={cn(
-          // green-700: wit op green-600 haalde maar 3,22:1 (AA vraagt 4,5:1)
-          "w-full bg-green-700 hover:bg-green-800 text-white font-semibold",
-          (!akkoordVoorwaarden || isSubmitting) && "opacity-50 cursor-not-allowed"
-        )}
-      >
-        {isSubmitting ? (
-          <>
-            <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-            Aanvraag versturen...
-          </>
-        ) : (
-          <>
-            <Scissors className="mr-2 h-5 w-5" />
-            Aanvraag versturen
-          </>
-        )}
-      </Button>
     </div>
   );
 }

@@ -15,7 +15,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
-export function Stap3FotoUpload() {
+export function StapFotoUpload() {
   return (
     <div className="space-y-6">
       <CardHeader className="px-0 pt-0">
@@ -46,33 +46,33 @@ export function Stap3FotoUpload() {
       </div>
 
       {/* Instructies */}
-      <Card className="border-blue-100 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/40">
+      <Card className="border-blue-100 bg-blue-50/50">
         <CardContent className="pt-5 pb-5">
           <div className="flex items-start gap-3">
-            <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+            <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
             <div className="space-y-2">
-              <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">Tips voor goede foto&#39;s</p>
-              <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1 list-none">
+              <p className="text-sm font-semibold text-blue-900">Tips voor goede foto&#39;s</p>
+              <ul className="text-sm text-blue-800 space-y-1 list-none">
                 <li className="flex items-start gap-2">
-                  <span className="text-blue-500 dark:text-blue-400 font-bold">1.</span>
+                  <span className="text-blue-500 font-bold">1.</span>
                   Maak een overzichtsfoto van de gehele tuin
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-blue-500 dark:text-blue-400 font-bold">2.</span>
+                  <span className="text-blue-500 font-bold">2.</span>
                   Foto van de poort / doorgang naar de tuin
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-blue-500 dark:text-blue-400 font-bold">3.</span>
+                  <span className="text-blue-500 font-bold">3.</span>
                   Foto&#39;s van de huidige ondergrond (gras, tegels, e.d.)
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-blue-500 dark:text-blue-400 font-bold">4.</span>
+                  <span className="text-blue-500 font-bold">4.</span>
                   Eventuele probleemgebieden (waterplassen, kale plekken)
                 </li>
               </ul>
               <a
                 href="#"
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-700 hover:text-blue-900 dark:text-blue-300 dark:hover:text-blue-100 underline underline-offset-2 mt-1"
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-700 hover:text-blue-900 underline underline-offset-2 mt-1"
                 onClick={(e) => e.preventDefault()}
               >
                 Bekijk hoe u correct opmeet
@@ -83,9 +83,9 @@ export function Stap3FotoUpload() {
         </CardContent>
       </Card>
 
-      <div className="flex items-start gap-3 p-4 bg-amber-50 dark:bg-amber-950 border border-amber-100 dark:border-amber-900 rounded-lg">
-        <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-        <p className="text-sm text-amber-800 dark:text-amber-200">
+      <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-100 rounded-lg">
+        <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+        <p className="text-sm text-amber-800">
           <span className="font-semibold">Let op:</span> De foto&#39;s zijn niet verplicht
           voor het indienen van uw aanvraag, maar helpen ons bij een nauwkeurigere
           beoordeling en snellere afhandeling.

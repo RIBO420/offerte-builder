@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import {
   CheckCircle2Icon,
   ChevronLeftIcon,
@@ -70,10 +71,12 @@ export default function BoomschorsConfiguratorPage() {
     akkoordVoorwaarden: false,
   });
 
+  // WS9-stapvolgorde (keuzepunt 5): 1 specificaties (met live prijs) →
+  // 2 gegevens → 3 bevestiging. NAW wordt pas ná de prijsindicatie gevraagd.
   function volgendeStap() {
     let newErrors: FormErrors = {};
-    if (huidigeStap === 1) newErrors = validateStap1(klantGegevens);
-    if (huidigeStap === 2) newErrors = validateStap2(specificaties);
+    if (huidigeStap === 1) newErrors = validateStap2(specificaties);
+    if (huidigeStap === 2) newErrors = validateStap1(klantGegevens);
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -178,18 +181,31 @@ export default function BoomschorsConfiguratorPage() {
     }
   }
 
-  // Real-time price strip — show on stap 2 and 3
-  const berekening = huidigeStap >= 2 ? berekenPrijs(specificaties) : null;
+  // Real-time prijsstrip — vanaf stap 1 (specificaties), zodat de klant de
+  // prijsindicatie ziet vóórdat om gegevens wordt gevraagd (WS9).
+  const berekening = berekenPrijs(specificaties);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/30">
       <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 sm:py-12">
+        {/* Sfeerbeeld — eigen foto van Top Tuinen (hoofdsite) */}
+        <div className="relative mb-6 h-36 sm:h-44 overflow-hidden rounded-xl border border-border shadow-sm">
+          <Image
+            src="/images/configurator/boomschors.webp"
+            alt=""
+            fill
+            priority
+            sizes="(max-width: 768px) 100vw, 672px"
+            className="object-cover"
+          />
+        </div>
+
         {/* Header */}
         <div className="mb-8 text-center">
           <Badge variant="secondary" className="mb-3">
             Zelf bestellen
           </Badge>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+          <h1 className="font-display text-2xl sm:text-3xl font-semibold tracking-tight">
             Boomschors bestellen
           </h1>
           <p className="text-muted-foreground mt-2">
@@ -232,16 +248,16 @@ export default function BoomschorsConfiguratorPage() {
         <Card className="shadow-sm">
           <CardContent className="pt-6 pb-6">
             {huidigeStap === 1 && (
-              <Stap1Klantgegevens
-                gegevens={klantGegevens}
-                onChange={setKlantGegevens}
+              <Stap2Specificaties
+                specificaties={specificaties}
+                onChange={setSpecificaties}
                 errors={errors}
               />
             )}
             {huidigeStap === 2 && (
-              <Stap2Specificaties
-                specificaties={specificaties}
-                onChange={setSpecificaties}
+              <Stap1Klantgegevens
+                gegevens={klantGegevens}
+                onChange={setKlantGegevens}
                 errors={errors}
               />
             )}

@@ -15,12 +15,12 @@ export function StapIndicator({ huidigStap }: { huidigStap: number }) {
         </span>
         <Badge
           variant="outline"
-          className="text-green-700 dark:text-green-400 border-green-300 dark:border-green-800 bg-green-50 dark:bg-green-950"
+          className="text-primary border-primary/40 bg-primary/10"
         >
           {STAP_LABELS[huidigStap - 1]}
         </Badge>
       </div>
-      <Progress value={voortgang} className="h-2 [&>div]:bg-green-600" />
+      <Progress value={voortgang} className="h-2 [&>div]:bg-primary" />
       <div className="flex justify-between mt-3">
         {STAP_LABELS.map((label, index) => {
           const stapNummer = index + 1;
@@ -35,9 +35,9 @@ export function StapIndicator({ huidigStap }: { huidigStap: number }) {
                 className={cn(
                   "flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold border-2 transition-colors",
                   isKlaar
-                    ? "bg-green-600 border-green-600 text-white"
+                    ? "bg-primary border-primary text-primary-foreground"
                     : isActief
-                    ? "border-green-600 text-green-700 dark:text-green-400 bg-card"
+                    ? "border-primary text-primary bg-card"
                     : "border-border text-muted-foreground bg-card"
                 )}
               >
@@ -47,7 +47,7 @@ export function StapIndicator({ huidigStap }: { huidigStap: number }) {
                 className={cn(
                   "text-xs text-center max-w-16",
                   isActief
-                    ? "text-green-700 dark:text-green-400 font-medium"
+                    ? "text-primary font-medium"
                     : "text-muted-foreground"
                 )}
               >

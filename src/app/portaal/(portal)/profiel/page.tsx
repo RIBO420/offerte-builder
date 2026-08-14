@@ -67,7 +67,7 @@ export default function PortaalProfielPage() {
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
-        <h1 className="text-xl md:text-2xl font-bold text-[#1a2e1a] dark:text-white">
+        <h1 className="text-xl md:text-2xl font-bold text-foreground">
           Mijn profiel
         </h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
@@ -76,16 +76,16 @@ export default function PortaalProfielPage() {
       </div>
 
       {/* Personal details card */}
-      <Card className="bg-white dark:bg-[#1a2e1a] border-gray-200 dark:border-[#2a3e2a]">
+      <Card className="bg-card border-border">
         <div className="p-5 pb-3">
           <div className="flex items-center gap-2">
-            <User className="h-4 w-4 text-[#4ADE80]" />
-            <h2 className="text-[15px] font-semibold text-[#1a2e1a] dark:text-white">
+            <User className="h-4 w-4 text-primary" />
+            <h2 className="text-[15px] font-semibold text-foreground">
               Persoonlijke gegevens
             </h2>
           </div>
         </div>
-        <Separator className="bg-gray-100 dark:bg-[#2a3e2a]" />
+        <Separator className="bg-border" />
         <div className="p-5 space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-1.5">
@@ -94,7 +94,7 @@ export default function PortaalProfielPage() {
                 value={naam}
                 onChange={(e) => setNaam(e.target.value)}
                 placeholder="Uw naam"
-                className="bg-gray-50 dark:bg-[#111a11] border-gray-200 dark:border-[#2a3e2a] text-sm"
+                className="bg-muted border-border text-sm"
               />
             </div>
             <div className="space-y-1.5">
@@ -105,7 +105,7 @@ export default function PortaalProfielPage() {
               <Input
                 value={overzicht.klantNaam ? `${overzicht.klantNaam.toLowerCase().replace(/\s+/g, ".")}@...` : ""}
                 disabled
-                className="bg-gray-100 dark:bg-[#0a0f0a] border-gray-200 dark:border-[#2a3e2a] text-sm text-gray-500 cursor-not-allowed"
+                className="bg-muted border-border text-sm text-gray-500 cursor-not-allowed"
               />
             </div>
           </div>
@@ -115,7 +115,7 @@ export default function PortaalProfielPage() {
               value={telefoon}
               onChange={(e) => setTelefoon(e.target.value)}
               placeholder="06-12345678"
-              className="bg-gray-50 dark:bg-[#111a11] border-gray-200 dark:border-[#2a3e2a] text-sm"
+              className="bg-muted border-border text-sm"
             />
           </div>
           <div className="space-y-1.5">
@@ -124,7 +124,7 @@ export default function PortaalProfielPage() {
               value={adres}
               onChange={(e) => setAdres(e.target.value)}
               placeholder="Straatnaam 1"
-              className="bg-gray-50 dark:bg-[#111a11] border-gray-200 dark:border-[#2a3e2a] text-sm"
+              className="bg-muted border-border text-sm"
             />
           </div>
           <div className="grid gap-4 md:grid-cols-2">
@@ -134,7 +134,7 @@ export default function PortaalProfielPage() {
                 value={postcode}
                 onChange={(e) => setPostcode(e.target.value)}
                 placeholder="1234 AB"
-                className="bg-gray-50 dark:bg-[#111a11] border-gray-200 dark:border-[#2a3e2a] text-sm"
+                className="bg-muted border-border text-sm"
               />
             </div>
             <div className="space-y-1.5">
@@ -143,7 +143,7 @@ export default function PortaalProfielPage() {
                 value={plaats}
                 onChange={(e) => setPlaats(e.target.value)}
                 placeholder="Plaatsnaam"
-                className="bg-gray-50 dark:bg-[#111a11] border-gray-200 dark:border-[#2a3e2a] text-sm"
+                className="bg-muted border-border text-sm"
               />
             </div>
           </div>
@@ -151,30 +151,30 @@ export default function PortaalProfielPage() {
             <Button
               onClick={handleSave}
               disabled={saving}
-              className="bg-[#1a2e1a] hover:bg-[#2a3e2a] text-white dark:bg-[#4ADE80] dark:text-black dark:hover:bg-[#3bce70]"
+              className="bg-foreground hover:bg-foreground/90 text-background dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/85"
             >
               <Save className="h-4 w-4 mr-1.5" />
               {saving ? "Opslaan..." : "Opslaan"}
             </Button>
             {saved && (
-              <span className="text-sm text-[#4ADE80]">Opgeslagen!</span>
+              <span className="text-sm text-primary">Opgeslagen!</span>
             )}
           </div>
         </div>
       </Card>
 
       {/* Appearance card */}
-      <Card className="bg-white dark:bg-[#1a2e1a] border-gray-200 dark:border-[#2a3e2a]">
+      <Card className="bg-card border-border">
         <div className="p-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               {theme === "light" ? (
-                <Sun className="h-4 w-4 text-[#F59E0B]" />
+                <Sun className="h-4 w-4 text-accent-warm" />
               ) : (
-                <Moon className="h-4 w-4 text-[#60A5FA]" />
+                <Moon className="h-4 w-4 text-(--portal-info)" />
               )}
               <div>
-                <h2 className="text-[15px] font-semibold text-[#1a2e1a] dark:text-white">
+                <h2 className="text-[15px] font-semibold text-foreground">
                   Weergave
                 </h2>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
@@ -195,11 +195,11 @@ export default function PortaalProfielPage() {
       </Card>
 
       {/* Security card */}
-      <Card className="bg-white dark:bg-[#1a2e1a] border-gray-200 dark:border-[#2a3e2a]">
+      <Card className="bg-card border-border">
         <div className="p-5 pb-3">
           <div className="flex items-center gap-2">
-            <Shield className="h-4 w-4 text-[#60A5FA]" />
-            <h2 className="text-[15px] font-semibold text-[#1a2e1a] dark:text-white">
+            <Shield className="h-4 w-4 text-(--portal-info)" />
+            <h2 className="text-[15px] font-semibold text-foreground">
               Beveiliging
             </h2>
           </div>
@@ -207,7 +207,7 @@ export default function PortaalProfielPage() {
             Beheer uw wachtwoord en tweefactorauthenticatie (2FA).
           </p>
         </div>
-        <Separator className="bg-gray-100 dark:bg-[#2a3e2a]" />
+        <Separator className="bg-border" />
         <div className="p-5">
           <UserProfile
             appearance={{
@@ -220,7 +220,7 @@ export default function PortaalProfielPage() {
                 headerTitle: "hidden",
                 headerSubtitle: "hidden",
                 profileSectionPrimaryButton:
-                  "text-[#1a2e1a] dark:text-[#4ADE80]",
+                  "text-foreground dark:text-primary",
               },
             }}
           />

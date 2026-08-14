@@ -11,28 +11,31 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { Field } from "./stap1-klantgegevens";
+import { Field, PoortWaarschuwing } from "./stap1-klantgegevens";
 import type { GazonSpecs, TypeGras, Ondergrond } from "./types";
 import { TYPE_GRAS_CONFIG, ONDERGROND_CONFIG } from "./types";
 
-interface Stap2GazonSpecsProps {
+interface StapGazonSpecsProps {
   data: GazonSpecs;
   errors: Record<string, string>;
   onChange: <K extends keyof GazonSpecs>(field: K, value: GazonSpecs[K]) => void;
 }
 
-export function Stap2GazonSpecs({
+export function StapGazonSpecs({
   data,
   errors,
   onChange,
-}: Stap2GazonSpecsProps) {
+}: StapGazonSpecsProps) {
+  const poortBreedte = parseFloat(data.poortbreedte);
+  const isTeSmall = !isNaN(poortBreedte) && poortBreedte < 60;
+
   return (
     <div className="space-y-6">
       <CardHeader className="px-0 pt-0">
-        <CardTitle className="text-xl">Gazon specificaties</CardTitle>
+        <CardTitle className="text-xl font-display">Gazon specificaties</CardTitle>
         <CardDescription>
           Vertel ons over uw tuin en gewenste gazon. Wij controleren de
-          afmetingen later on-site.
+          afmetingen later ter plaatse.
         </CardDescription>
       </CardHeader>
 
@@ -62,8 +65,8 @@ export function Stap2GazonSpecs({
 
       {/* Type gras */}
       <div className="space-y-3">
-        <Label className={cn("text-sm font-medium", errors.typeGras && "text-red-600 dark:text-red-400")}>
-          Type gras <span className="text-red-500 dark:text-red-400">*</span>
+        <Label className={cn("text-sm font-medium", errors.typeGras && "text-red-600")}>
+          Type gras <span className="text-red-500">*</span>
         </Label>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {(Object.entries(TYPE_GRAS_CONFIG) as [TypeGras, typeof TYPE_GRAS_CONFIG[TypeGras]][]).map(
@@ -99,14 +102,14 @@ export function Stap2GazonSpecs({
           )}
         </div>
         {errors.typeGras && (
-          <p className="text-xs text-red-600 dark:text-red-400">{errors.typeGras}</p>
+          <p className="text-xs text-red-600">{errors.typeGras}</p>
         )}
       </div>
 
       {/* Ondergrond */}
       <div className="space-y-3">
-        <Label className={cn("text-sm font-medium", errors.ondergrond && "text-red-600 dark:text-red-400")}>
-          Huidige ondergrond <span className="text-red-500 dark:text-red-400">*</span>
+        <Label className={cn("text-sm font-medium", errors.ondergrond && "text-red-600")}>
+          Huidige ondergrond <span className="text-red-500">*</span>
         </Label>
         <div className="space-y-2">
           {(Object.entries(ONDERGROND_CONFIG) as [Ondergrond, typeof ONDERGROND_CONFIG[Ondergrond]][]).map(
@@ -118,7 +121,7 @@ export function Stap2GazonSpecs({
                 className={cn(
                   "w-full text-left px-4 py-3 rounded-lg border-2 transition-all cursor-pointer hover:shadow-sm flex items-start justify-between gap-4",
                   data.ondergrond === type
-                    ? "border-green-500 bg-green-50 dark:bg-green-950 shadow-sm"
+                    ? "border-green-500 bg-green-50 shadow-sm"
                     : "border-border hover:border-muted-foreground/40 bg-card"
                 )}
               >
@@ -130,7 +133,7 @@ export function Stap2GazonSpecs({
                   {config.toeslag && (
                     <Badge
                       variant="outline"
-                      className="text-xs text-amber-700 border-amber-300 bg-amber-50 dark:text-amber-300 dark:border-amber-800 dark:bg-amber-950"
+                      className="text-xs text-amber-700 border-amber-300 bg-amber-50"
                     >
                       Toeslag
                     </Badge>
@@ -141,7 +144,7 @@ export function Stap2GazonSpecs({
                     </span>
                   )}
                   {config.tarief === 0 && (
-                    <span className="text-xs font-medium text-green-700 dark:text-green-400">
+                    <span className="text-xs font-medium text-green-700">
                       Inbegrepen
                     </span>
                   )}
@@ -151,7 +154,7 @@ export function Stap2GazonSpecs({
           )}
         </div>
         {errors.ondergrond && (
-          <p className="text-xs text-red-600 dark:text-red-400">{errors.ondergrond}</p>
+          <p className="text-xs text-red-600">{errors.ondergrond}</p>
         )}
       </div>
 
@@ -195,7 +198,7 @@ export function Stap2GazonSpecs({
 
         {/* Opsluitbanden meters — alleen zichtbaar als toggle aan */}
         {data.opsluitbanden && (
-          <div className="ml-4 pl-4 border-l-2 border-green-200 dark:border-green-900">
+          <div className="ml-4 pl-4 border-l-2 border-green-200">
             <Field label="Aantal strekkende meters" error={errors.opsluitbandenMeters}>
               <div className="flex items-center gap-3">
                 <Input
@@ -218,6 +221,37 @@ export function Stap2GazonSpecs({
           </div>
         )}
       </div>
+
+      <Separator />
+
+      {/* Poortbreedte — bepaalt de machine-inzet en dus de prijs (WS9: bij de
+          specificaties, zodat de prijsindicatie vóór de NAW-stap compleet is). */}
+      <Field
+        label="Poortbreedte"
+        error={errors.poortbreedte}
+        hulptekst="De breedte van de smalste doorgang naar uw tuin, in centimeters. Dit bepaalt welke machines we kunnen inzetten."
+      >
+        <div className="flex items-center gap-3">
+          <Input
+            required
+            aria-required
+            type="number"
+            placeholder="120"
+            min={1}
+            max={500}
+            value={data.poortbreedte}
+            onChange={(e) => onChange("poortbreedte", e.target.value)}
+            className={cn(
+              "max-w-36",
+              (errors.poortbreedte || isTeSmall) &&
+                "border-red-400 focus-visible:ring-red-400"
+            )}
+          />
+          <span className="text-sm text-muted-foreground">cm</span>
+        </div>
+      </Field>
+
+      <PoortWaarschuwing breedte={data.poortbreedte} />
     </div>
   );
 }

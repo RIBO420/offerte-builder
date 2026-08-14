@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,15 +18,18 @@ import type { KlantGegevens, VerticuterenSpecs } from "./components/types";
 import { TOTAAL_STAPPEN, LEEG_KLANT, LEEG_SPECS } from "./components/constants";
 import {
   berekenPrijs,
-  validateStap1,
-  validateStap2,
-  validateStap3,
+  formatEuro,
+  validateKlant,
+  validateSpecs,
+  validateDatum,
 } from "./components/utils";
 import { StapIndicator } from "./components/stap-indicator";
-import { Stap1Klantgegevens } from "./components/stap1-klantgegevens";
-import { Stap2VerticuterenSpecs } from "./components/stap2-verticuteren-specs";
-import { Stap3DatumOverzicht } from "./components/stap3-datum-overzicht";
+import { StapKlantgegevens } from "./components/stap1-klantgegevens";
+import { StapVerticuterenSpecs } from "./components/stap2-verticuteren-specs";
+import { StapDatumPrijs } from "./components/stap3-datum-overzicht";
 import { SuccessDialog } from "./components/success-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { logger } from "@/lib/logger";
 
@@ -87,18 +91,20 @@ export default function VerticuterenConfiguratorPage() {
     [errors.gewensteDatum]
   );
 
+  // WS9-stapvolgorde (keuzepunt 5): 1 specificaties → 2 prijs & datum →
+  // 3 gegevens. NAW wordt pas ná de prijsindicatie gevraagd.
   const naarVolgendeStap = () => {
     let stapErrors: Record<string, string> = {};
 
     if (huidigStap === 1) {
-      stapErrors = validateStap1(klant);
-      const poort = parseFloat(klant.poortbreedte);
+      stapErrors = validateSpecs(specs);
+      const poort = parseFloat(specs.poortbreedte);
       if (!isNaN(poort) && poort < 60) {
         stapErrors.poortbreedte =
           "Poortbreedte te smal — wij kunnen hier helaas niet werken";
       }
     } else if (huidigStap === 2) {
-      stapErrors = validateStap2(specs);
+      stapErrors = validateDatum(gewensteDatum);
     }
 
     if (Object.keys(stapErrors).length > 0) {
@@ -119,16 +125,18 @@ export default function VerticuterenConfiguratorPage() {
   };
 
   const handleVersturen = async () => {
-    const datumErrors = validateStap3(gewensteDatum);
-    if (Object.keys(datumErrors).length > 0) {
-      setErrors(datumErrors);
+    // NAW is nu de slotstap: valideren vlak vóór het versturen.
+    const klantErrors = validateKlant(klant);
+    if (Object.keys(klantErrors).length > 0) {
+      setErrors(klantErrors);
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
+    setErrors({});
 
     if (!akkoordVoorwaarden) return;
 
-    const prijs = berekenPrijs(specs, klant.poortbreedte);
+    const prijs = berekenPrijs(specs);
     if (!prijs) return;
 
     setIsSubmitting(true);
@@ -147,7 +155,7 @@ export default function VerticuterenConfiguratorPage() {
           bijzaaien: specs.bijzaaien,
           topdressing: specs.topdressing,
           bemesting: specs.bemesting,
-          poortBreedte: parseFloat(klant.poortbreedte),
+          poortBreedte: parseFloat(specs.poortbreedte),
           gewensteDatum: gewensteDatum
             ? gewensteDatum.toISOString().split("T")[0]
             : null,
@@ -259,14 +267,26 @@ export default function VerticuterenConfiguratorPage() {
     window.scrollTo(0, 0);
   };
 
+  // Compacte herinnering aan de indicatieprijs op de slotstap (gegevens).
+  const prijsRecap = huidigStap === 3 ? berekenPrijs(specs) : null;
+
   return (
     <div className="container max-w-3xl mx-auto py-8 px-4">
+      {/* Sfeerbeeld — eigen foto van Top Tuinen (hoofdsite) */}
+      <div className="relative mb-6 h-36 sm:h-44 overflow-hidden rounded-xl border border-border shadow-sm">
+        <Image
+          src="/images/configurator/verticuteren.webp"
+          alt=""
+          fill
+          priority
+          sizes="(max-width: 768px) 100vw, 768px"
+          className="object-cover"
+        />
+      </div>
+
       {/* Paginatitel */}
       <div className="mb-8 text-center">
-        <div className="inline-flex items-center justify-center h-14 w-14 rounded-2xl bg-green-100 dark:bg-green-950 mb-4">
-          <Scissors className="h-7 w-7 text-green-700 dark:text-green-400" />
-        </div>
-        <h2 className="text-2xl sm:text-3xl font-bold text-foreground">
+        <h2 className="font-display text-2xl sm:text-3xl font-semibold text-foreground">
           Verticuteren
         </h2>
         <p className="text-muted-foreground mt-2 max-w-lg mx-auto">
@@ -280,43 +300,104 @@ export default function VerticuterenConfiguratorPage() {
 
       {/* Globale submit-fout */}
       {errors.submit && (
-        <div className="mb-4 flex items-start gap-3 p-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-900 rounded-lg text-sm">
-          <XCircle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
-          <p className="text-red-800 dark:text-red-200">{errors.submit}</p>
+        <div className="mb-4 flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg text-sm">
+          <XCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+          <p className="text-red-800">{errors.submit}</p>
         </div>
       )}
 
-      {/* Formulier kaart */}
+      {/* Formulier kaart — WS9-volgorde: specs → prijs & datum → gegevens */}
       <Card className="shadow-sm border-border">
         <CardContent className="pt-6 pb-6">
           {huidigStap === 1 && (
-            <Stap1Klantgegevens
-              data={klant}
-              errors={errors}
-              onChange={updateKlant}
-            />
-          )}
-          {huidigStap === 2 && (
-            <Stap2VerticuterenSpecs
+            <StapVerticuterenSpecs
               data={specs}
               errors={errors}
               onChange={updateSpecs}
             />
           )}
-          {huidigStap === 3 && (
-            <Stap3DatumOverzicht
-              klant={klant}
+          {huidigStap === 2 && (
+            <StapDatumPrijs
               specs={specs}
               gewensteDatum={gewensteDatum}
               opmerkingen={opmerkingen}
-              akkoordVoorwaarden={akkoordVoorwaarden}
               errors={errors}
               onDatumSelect={handleDatumSelect}
               onOpmerkingenChange={setOpmerkingen}
-              onAkkoordChange={setAkkoordVoorwaarden}
-              onVersturen={handleVersturen}
-              isSubmitting={isSubmitting}
             />
+          )}
+          {huidigStap === 3 && (
+            <div className="space-y-6">
+              <StapKlantgegevens
+                data={klant}
+                errors={errors}
+                onChange={updateKlant}
+              />
+
+              {/* Compacte prijs-herinnering boven de bevestiging */}
+              {prijsRecap && (
+                <div className="flex items-center justify-between rounded-lg bg-secondary border border-border px-4 py-3">
+                  <span className="text-sm text-secondary-foreground">
+                    Uw indicatieprijs
+                  </span>
+                  <span className="font-display text-lg font-semibold text-primary tabular-nums">
+                    {formatEuro(prijsRecap.totaal)}{" "}
+                    <span className="text-xs font-sans font-normal text-muted-foreground">incl. BTW</span>
+                  </span>
+                </div>
+              )}
+
+              {/* Algemene voorwaarden */}
+              <div
+                className="flex items-start gap-3 p-4 rounded-lg border-2 border-border hover:border-primary/40 transition-colors cursor-pointer"
+                onClick={() => setAkkoordVoorwaarden(!akkoordVoorwaarden)}
+              >
+                <Checkbox
+                  checked={akkoordVoorwaarden}
+                  onCheckedChange={(checked) =>
+                    setAkkoordVoorwaarden(checked === true)
+                  }
+                  className="mt-0.5 flex-shrink-0 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                  onClick={(e) => e.stopPropagation()}
+                />
+                <p className="text-sm text-foreground select-none">
+                  Ik ga akkoord met de{" "}
+                  <a
+                    href="#"
+                    className="text-primary font-medium underline underline-offset-2 hover:text-primary/80"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    algemene voorwaarden
+                  </a>{" "}
+                  van Top Tuinen. Ik begrijp dat dit een indicatieprijs is en dat
+                  de definitieve offerte na inspectie wordt opgesteld.
+                </p>
+              </div>
+
+              {/* Versturen knop */}
+              <Button
+                onClick={handleVersturen}
+                disabled={!akkoordVoorwaarden || isSubmitting}
+                size="lg"
+                className={cn(
+                  "w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold",
+                  (!akkoordVoorwaarden || isSubmitting) &&
+                    "opacity-50 cursor-not-allowed"
+                )}
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                    Aanvraag versturen...
+                  </>
+                ) : (
+                  <>
+                    <Scissors className="mr-2 h-5 w-5" />
+                    Aanvraag versturen
+                  </>
+                )}
+              </Button>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -336,8 +417,8 @@ export default function VerticuterenConfiguratorPage() {
         {huidigStap < TOTAAL_STAPPEN - 1 && (
           <Button
             onClick={naarVolgendeStap}
-            // green-700: wit op green-600 haalde maar 3,22:1 (AA vraagt 4,5:1)
-            className="gap-2 bg-green-700 hover:bg-green-800 text-white"
+            // --primary (loofgroen, L0.44) haalt ruim AA met witte tekst
+            className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             Volgende stap
             <ChevronRight className="h-4 w-4" />

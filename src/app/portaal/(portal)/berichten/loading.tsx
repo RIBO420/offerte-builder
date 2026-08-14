@@ -19,7 +19,7 @@ export default function PortaalBerichtenLoading() {
         {[1, 2, 3, 4].map((i) => (
           <div
             key={i}
-            className="rounded-xl border border-gray-200 dark:border-[#2a3e2a] bg-white dark:bg-[#1a2e1a] p-4"
+            className="rounded-xl border border-border bg-card p-4"
           >
             <div className="flex items-start gap-3">
               <Skeleton className="h-9 w-9 rounded-full" />

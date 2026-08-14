@@ -19,12 +19,12 @@ export {
   formatEuro,
   formatDatumVolledig,
   berekenPrijs,
-  validateStap1,
-  validateStap2,
+  validateKlant,
+  validateSpecs,
 } from "./utils";
 export { StapIndicator } from "./stap-indicator";
-export { Stap1Klantgegevens } from "./stap1-klantgegevens";
-export { Stap2GazonSpecs } from "./stap2-gazon-specs";
-export { Stap3FotoUpload } from "./stap3-foto-upload";
-export { Stap4Prijsoverzicht } from "./stap4-prijsoverzicht";
+export { StapKlantgegevens } from "./stap1-klantgegevens";
+export { StapGazonSpecs } from "./stap2-gazon-specs";
+export { StapFotoUpload } from "./stap3-foto-upload";
+export { StapPrijsoverzicht } from "./stap4-prijsoverzicht";
 export { SuccessDialog } from "./success-dialog";

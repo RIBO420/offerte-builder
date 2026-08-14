@@ -136,7 +136,7 @@ export function Stap1Klantgegevens({ gegevens, onChange, errors }: Stap1Props) {
             id="plaats"
             required
             aria-required
-            placeholder="Amsterdam"
+            placeholder="Echt"
             value={gegevens.plaats}
             onChange={(e) => handleChange("plaats", e.target.value)}
             aria-invalid={!!errors.plaats}
