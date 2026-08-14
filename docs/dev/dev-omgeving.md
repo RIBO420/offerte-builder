@@ -73,12 +73,21 @@ npm run seed:clear   # ongedaan maken
 
 ## Zie je je wijziging niet? — vaste diagnosevolgorde
 
+Vooraf: de grootste bron van dit probleem is gedicht. `next.config.ts` zette
+`cache-control: immutable` op `/_next/static` — óók in dev, waar Turbopack-
+chunknamen (bv. `_35b5f087._.js`) níét content-gehasht zijn. Browsers die de
+app eerder laadden hergebruikten daardoor eindeloos verouderde chunks, met
+hydration-mismatches, oude UI naast nieuwe server-HTML en spook-404's tot
+gevolg. Sinds commit `7a74f89` staan die cacheblokken achter een
+`NODE_ENV === "production"`-guard; in dev serveren chunks nu
+`no-store, must-revalidate` (geverifieerd). Zie je tóch iets ouds:
+
 1. **Merkteken eerst.** Zet een uniek woord (bv. `ZZTEST`) in de JSX, grep `.next/`
    om te zien of het in de build zit, kijk of het in de browser staat. Ruim het
    merkteken daarna op.
-2. Zit het wél in de build maar níét in beeld → **HTTP-cache van het browserpaneel**.
-   Ctrl-Shift-R helpt daar niet; alleen `navigate` met `force: true` (of een andere
-   echte cache-bypass).
+2. Zit het wél in de build maar níét in beeld → **HTTP-cache van het browserpaneel**
+   (kan nog voorkomen bij tabs die vóór de headerfix laadden). Ctrl-Shift-R helpt
+   daar niet; alleen `navigate` met `force: true` (of een andere echte cache-bypass).
 3. Zit het níét in de build → **stale dev-server**. Tailwind v4 + Turbopack serveert
    soms een verouderde stylesheet: classes staan in de DOM maar de CSS-regel ontbreekt
    (herken: `grid-cols-[…]` in de DOM, computed `grid-template-columns` één kolom).
@@ -89,6 +98,19 @@ npm run seed:clear   # ongedaan maken
 
 Elk van deze valkuilen heeft al minstens een half uur gekost; de volgorde hierboven
 voorkomt dat je servers herstart of `.next/` weggooit terwijl je naar een cache kijkt.
+
+## Turbopack-chunkbug: dode code verwijderen kan de app slopen
+
+Valt ná het verwijderen van ogenschijnlijk dode code élke pagina van een segment in
+de errorboundary met "Module […]/node_modules/… might have been deleted in an HMR
+update" — terwijl typecheck, lint en alle tests groen zijn — dan kan dat een
+Turbopack-bug zijn (gezien op Next 16.1.7): de client-chunkgraph verliest een module
+die de servergraph nog refereert, ook na een kóúde build met verse `.next/`.
+Concreet geval: het verwijderen van de ongebruikte `projectSubItems`-const uit
+`app-sidebar.tsx` liet een lucide-clientmodule uit de graph vallen (commit
+`3564dcd`). Aanpak: bisect met HMR-stappen, bevestig met een koude build, en laat
+desnoods de dode declaratie staan met een `void`-referentie en een commentaar dat
+naar deze sectie wijst.
 
 ## E2E-auth (pre-existing stuk)
 
