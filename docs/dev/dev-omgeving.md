@@ -94,7 +94,11 @@ gevolg. Sinds commit `7a74f89` staan die cacheblokken achter een
    merkteken daarna op.
 2. Zit het wél in de build maar níét in beeld → **HTTP-cache van het browserpaneel**
    (kan nog voorkomen bij tabs die vóór de headerfix laadden). Ctrl-Shift-R helpt
-   daar niet; alleen `navigate` met `force: true` (of een andere echte cache-bypass).
+   daar niet, en let op: `navigate force:true` verwijdert oude entries die mét
+   `immutable` in de disk-cache zijn beland óók niet — je draait dan een oude
+   componentversie terwijl de nieuwe code wél in `.next/` en in het serverantwoord
+   zit. Wat wél werkt: in de pagina alle `script[src]` onder `/_next/static/`
+   opnieuw ophalen met `fetch(src, {cache:'reload'})` en dán pas navigeren.
 3. Zit het níét in de build → **stale dev-server**. Tailwind v4 + Turbopack serveert
    soms een verouderde stylesheet: classes staan in de DOM maar de CSS-regel ontbreekt
    (herken: `grid-cols-[…]` in de DOM, computed `grid-template-columns` één kolom).
