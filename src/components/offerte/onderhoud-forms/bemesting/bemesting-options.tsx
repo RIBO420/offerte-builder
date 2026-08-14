@@ -67,7 +67,7 @@ export function BemestingOptions({ form, frequentie, grondanalyse }: BemestingOp
 
       {/* Kortingsmelding bij 2x+ */}
       {heeftMeerdereKeer && (
-        <div className="rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950 px-3 py-2 text-xs text-green-800 dark:text-green-200 font-medium flex items-center gap-1.5">
+        <div className="rounded-lg border border-status-geaccepteerd-border bg-status-geaccepteerd/40 px-3 py-2 text-xs text-status-geaccepteerd-text font-medium flex items-center gap-1.5">
           <TrendingUp className="h-3.5 w-3.5 shrink-0" />
           Bij meerdere beurten: 10% korting op arbeid
         </div>
@@ -115,11 +115,11 @@ export function BemestingOptions({ form, frequentie, grondanalyse }: BemestingOp
 
             {/* Grondanalyse upsell */}
             {grondanalyse && (
-              <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950 p-3 space-y-1">
-                <p className="text-xs font-semibold text-amber-900 dark:text-amber-200">
+              <div className="rounded-lg border border-status-herinnering-border bg-status-herinnering/40 p-3 space-y-1">
+                <p className="text-xs font-semibold text-status-herinnering-text">
                   Grondanalyse voor slechts €49
                 </p>
-                <p className="text-xs text-amber-800 dark:text-amber-200">
+                <p className="text-xs text-status-herinnering-text">
                   Weet exact wat uw tuin nodig heeft — gerichte bemesting zonder verspilling.
                 </p>
               </div>

@@ -83,7 +83,7 @@ export function FunderingsVisualisatie({ spec }: FunderingsVisualisatieProps) {
         </div>
 
         {/* Grond */}
-        <div className="mt-1 flex items-center justify-center rounded-b-md border border-dashed border-amber-700/40 bg-amber-900/10 px-3 py-1 text-xs text-amber-800 dark:border-amber-400/30 dark:bg-amber-900/20 dark:text-amber-300">
+        <div className="mt-1 flex items-center justify-center rounded-b-md border border-dashed border-status-herinnering-border bg-status-herinnering/40 px-3 py-1 text-xs text-status-herinnering-text">
           Ondergrond
         </div>
       </div>

@@ -99,40 +99,41 @@ export interface ScoreInfo {
 }
 
 export const SCORE_INFO: Record<number, ScoreInfo> = {
+  // Kleurladder op statustokens (WS10): 30 → 70 → 85 → 175 → 152.
   1: {
     label: "Zeer slecht — volledig opnieuw aanleggen",
     emoji: "\u{1F480}",
-    colorClass: "text-red-600",
-    bgClass: "bg-red-50",
-    borderClass: "border-red-200",
+    colorClass: "text-status-afgewezen-text",
+    bgClass: "bg-status-afgewezen/40",
+    borderClass: "border-status-afgewezen-border",
   },
   2: {
     label: "Slecht — veel kale plekken, mos",
     emoji: "\u{1F61F}",
-    colorClass: "text-orange-600",
-    bgClass: "bg-orange-50",
-    borderClass: "border-orange-200",
+    colorClass: "text-status-in-uitvoering-text",
+    bgClass: "bg-status-in-uitvoering/40",
+    borderClass: "border-status-in-uitvoering-border",
   },
   3: {
     label: "Matig — verbetering mogelijk",
     emoji: "\u{1F610}",
-    colorClass: "text-yellow-600",
-    bgClass: "bg-yellow-50",
-    borderClass: "border-yellow-200",
+    colorClass: "text-status-verzonden-text",
+    bgClass: "bg-status-verzonden/40",
+    borderClass: "border-status-verzonden-border",
   },
   4: {
     label: "Goed — licht onderhoud nodig",
     emoji: "\u{1F60A}",
-    colorClass: "text-lime-600",
-    bgClass: "bg-lime-50",
-    borderClass: "border-lime-200",
+    colorClass: "text-status-nacalculatie-text",
+    bgClass: "bg-status-nacalculatie/40",
+    borderClass: "border-status-nacalculatie-border",
   },
   5: {
     label: "Uitstekend — alleen bijhouden",
     emoji: "\u{1F33F}",
-    colorClass: "text-green-600",
-    bgClass: "bg-green-50",
-    borderClass: "border-green-200",
+    colorClass: "text-status-geaccepteerd-text",
+    bgClass: "bg-status-geaccepteerd/40",
+    borderClass: "border-status-geaccepteerd-border",
   },
 };
 

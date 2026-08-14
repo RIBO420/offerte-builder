@@ -219,27 +219,27 @@ export function WaterElektraForm({ data, onChange, onValidationChange }: WaterEl
           }}
         >
           <div className="overflow-hidden">
-          <Card className="border-orange-200 bg-orange-50/50 dark:border-orange-900 dark:bg-orange-950/20">
+          <Card className="border-status-herinnering-border bg-status-herinnering/40">
             <CardHeader>
               <div className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-orange-600" />
-                <CardTitle className="text-orange-900 dark:text-orange-100">Sleuven & Herstel (Verplicht)</CardTitle>
+                <AlertTriangle className="h-5 w-5 text-status-herinnering-text" />
+                <CardTitle className="text-status-herinnering-text">Sleuven & Herstel (Verplicht)</CardTitle>
               </div>
-              <CardDescription className="text-orange-700 dark:text-orange-300">
+              <CardDescription className="text-status-herinnering-text">
                 Elektra zonder sleufwerk en herstel is niet toegestaan in het systeem
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <Alert variant="default" className="border-orange-300 bg-orange-100/50">
-                <AlertTriangle className="h-4 w-4 text-orange-600" />
-                <AlertTitle className="text-orange-900">Automatisch inbegrepen</AlertTitle>
-                <AlertDescription className="text-orange-700">
+              <Alert variant="default" className="border-status-herinnering-border bg-status-herinnering/50">
+                <AlertTriangle className="h-4 w-4 text-status-herinnering-text" />
+                <AlertTitle className="text-status-herinnering-text">Automatisch inbegrepen</AlertTitle>
+                <AlertDescription className="text-status-herinnering-text">
                   Sleufwerk voor bekabeling en herstel van bestrating/grond worden automatisch meegenomen in de offerte.
                 </AlertDescription>
               </Alert>
 
               <div className="space-y-4">
-                <div className="flex items-center justify-between rounded-lg border border-orange-200 bg-muted/50 p-4 dark:border-orange-800 dark:bg-orange-950/30">
+                <div className="flex items-center justify-between rounded-lg border border-status-herinnering-border bg-muted/50 p-4">
                   <div className="space-y-0.5">
                     <div className="flex items-center gap-1.5">
                       <Label className="text-base">Sleuven graven</Label>
@@ -258,21 +258,21 @@ export function WaterElektraForm({ data, onChange, onValidationChange }: WaterEl
                       Verplicht voor veilige bekabeling
                     </p>
                   </div>
-                  <span className="text-sm font-medium text-orange-600">Inbegrepen</span>
+                  <span className="text-sm font-medium text-status-herinnering-text">Inbegrepen</span>
                 </div>
 
-                <div className="flex items-center justify-between rounded-lg border border-orange-200 bg-muted/50 p-4 dark:border-orange-800 dark:bg-orange-950/30">
+                <div className="flex items-center justify-between rounded-lg border border-status-herinnering-border bg-muted/50 p-4">
                   <div className="space-y-0.5">
                     <Label className="text-base">Herstelwerk</Label>
                     <p className="text-sm text-muted-foreground">
                       Dichten sleuven, herstel bestrating/gras
                     </p>
                   </div>
-                  <span className="text-sm font-medium text-orange-600">Inbegrepen</span>
+                  <span className="text-sm font-medium text-status-herinnering-text">Inbegrepen</span>
                 </div>
               </div>
 
-              <div className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground dark:bg-orange-950/30">
+              <div className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
                 <div className="font-medium mb-1">Automatisch berekend:</div>
                 <ul className="list-disc list-inside space-y-1">
                   <li>

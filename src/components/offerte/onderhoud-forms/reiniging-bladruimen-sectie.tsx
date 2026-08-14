@@ -65,7 +65,7 @@ export function ReinigingBladruimenSectie() {
                 <FormItem>
                   <FormLabel required>
                     Oppervlakte
-                    <span className="text-xs text-orange-600 font-normal ml-2">
+                    <span className="text-xs text-status-herinnering-text font-normal ml-2">
                       (verplicht)
                     </span>
                   </FormLabel>
@@ -78,7 +78,7 @@ export function ReinigingBladruimenSectie() {
                       onBlur={field.onBlur}
                       showStepper={false}
                       error={!!errors.bladruimenOppervlakte}
-                      className="border-orange-300"
+                      className="border-status-herinnering-border"
                     />
                   </FormControl>
                   <FormMessage />
@@ -93,7 +93,7 @@ export function ReinigingBladruimenSectie() {
                 <FormItem>
                   <FormLabel required>
                     Frequentie
-                    <span className="text-xs text-orange-600 font-normal ml-2">
+                    <span className="text-xs text-status-herinnering-text font-normal ml-2">
                       (verplicht)
                     </span>
                   </FormLabel>
@@ -104,7 +104,7 @@ export function ReinigingBladruimenSectie() {
                     <FormControl>
                       <SelectTrigger
                         id="bladruimen-frequentie"
-                        className="border-orange-300"
+                        className="border-status-herinnering-border"
                       >
                         <SelectValue placeholder="Selecteer frequentie" />
                       </SelectTrigger>

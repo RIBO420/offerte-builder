@@ -71,14 +71,14 @@ export const LAAG_KLEUREN: Record<string, { bg: string; border: string; text: st
     text: "text-stone-800 dark:text-stone-100",
   },
   zand: {
-    bg: "bg-yellow-200 dark:bg-yellow-700",
-    border: "border-yellow-300 dark:border-yellow-600",
-    text: "text-yellow-900 dark:text-yellow-100",
+    bg: "bg-status-verzonden",
+    border: "border-status-verzonden-border",
+    text: "text-status-verzonden-text",
   },
   brekerszand: {
-    bg: "bg-amber-300 dark:bg-amber-700",
-    border: "border-amber-400 dark:border-amber-600",
-    text: "text-amber-900 dark:text-amber-100",
+    bg: "bg-status-in-uitvoering",
+    border: "border-status-in-uitvoering-border",
+    text: "text-status-in-uitvoering-text",
   },
   stabiliser: {
     bg: "bg-gray-400 dark:bg-gray-600",

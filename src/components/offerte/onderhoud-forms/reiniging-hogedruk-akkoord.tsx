@@ -30,17 +30,17 @@ export function ReinigingHogedrukAkkoord() {
   const { control } = useFormContext<ReinigingFormData>();
 
   return (
-    <div className="space-y-3 rounded-lg border border-orange-200 bg-orange-50/50 p-3">
+    <div className="space-y-3 rounded-lg border border-status-herinnering-border bg-status-herinnering/40 p-3">
       <div className="flex items-center gap-2">
-        <AlertTriangle className="h-4 w-4 text-orange-600 shrink-0" />
-        <p className="text-sm font-medium text-orange-800">
+        <AlertTriangle className="h-4 w-4 text-status-herinnering-text shrink-0" />
+        <p className="text-sm font-medium text-status-herinnering-text">
           Akkoord hogedrukspuit
         </p>
         <Badge variant="destructive" className="text-xs">
           Verplicht
         </Badge>
       </div>
-      <p className="text-xs text-orange-700 leading-relaxed">
+      <p className="text-xs text-status-herinnering-text leading-relaxed">
         Bij gebruik van een hogedrukspuit kunnen er spatschade en/of
         waterschade ontstaan. De klant gaat akkoord met het gebruik.
       </p>

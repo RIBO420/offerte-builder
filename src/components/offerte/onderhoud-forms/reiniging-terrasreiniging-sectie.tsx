@@ -87,7 +87,7 @@ export function ReinigingTerrasreinigingSectie() {
                   <div className="flex items-center gap-1.5">
                     <FormLabel required>
                       Terras-type
-                      <span className="text-xs text-orange-600 font-normal ml-2">
+                      <span className="text-xs text-status-herinnering-text font-normal ml-2">
                         (verplicht)
                       </span>
                     </FormLabel>
@@ -109,7 +109,7 @@ export function ReinigingTerrasreinigingSectie() {
                     <FormControl>
                       <SelectTrigger
                         id="terras-type"
-                        className="border-orange-300"
+                        className="border-status-herinnering-border"
                       >
                         <SelectValue placeholder="Selecteer type" />
                       </SelectTrigger>
@@ -141,7 +141,7 @@ export function ReinigingTerrasreinigingSectie() {
                 <FormItem>
                   <FormLabel required>
                     Oppervlakte
-                    <span className="text-xs text-orange-600 font-normal ml-2">
+                    <span className="text-xs text-status-herinnering-text font-normal ml-2">
                       (verplicht)
                     </span>
                   </FormLabel>
@@ -154,7 +154,7 @@ export function ReinigingTerrasreinigingSectie() {
                       onBlur={field.onBlur}
                       showStepper={false}
                       error={!!errors.terrasOppervlakte}
-                      className="border-orange-300"
+                      className="border-status-herinnering-border"
                     />
                   </FormControl>
                   <FormMessage />

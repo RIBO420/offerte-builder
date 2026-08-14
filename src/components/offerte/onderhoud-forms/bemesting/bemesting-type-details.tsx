@@ -76,8 +76,8 @@ export function BemestingTypeDetails({ form, types, errors }: BemestingTypeDetai
     <>
       {/* Gazon details */}
       {types?.gazon && (
-        <div className="rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/40 p-3 space-y-3">
-          <p className="text-xs font-semibold text-green-800 dark:text-green-200">Gazonbemesting — details</p>
+        <div className="rounded-lg border border-status-geaccepteerd-border bg-status-geaccepteerd/40 p-3 space-y-3">
+          <p className="text-xs font-semibold text-status-geaccepteerd-text">Gazonbemesting — details</p>
           <div className="grid gap-3 sm:grid-cols-2">
             <FormField
               control={form.control}
@@ -107,8 +107,8 @@ export function BemestingTypeDetails({ form, types, errors }: BemestingTypeDetai
 
       {/* Borders details */}
       {types?.borders && (
-        <div className="rounded-lg border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-950/40 p-3 space-y-3">
-          <p className="text-xs font-semibold text-purple-800 dark:text-purple-200">Borderbemesting — details</p>
+        <div className="rounded-lg border border-status-nacalculatie-border bg-status-nacalculatie/40 p-3 space-y-3">
+          <p className="text-xs font-semibold text-status-nacalculatie-text">Borderbemesting — details</p>
           <div className="grid gap-3 sm:grid-cols-2">
             <FormField
               control={form.control}
@@ -138,8 +138,8 @@ export function BemestingTypeDetails({ form, types, errors }: BemestingTypeDetai
 
       {/* Bomen details */}
       {types?.bomen && (
-        <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-3 space-y-3">
-          <p className="text-xs font-semibold text-amber-800 dark:text-amber-200">Boombemesting — details</p>
+        <div className="rounded-lg border border-status-herinnering-border bg-status-herinnering/40 p-3 space-y-3">
+          <p className="text-xs font-semibold text-status-herinnering-text">Boombemesting — details</p>
           <div className="grid gap-3 sm:grid-cols-2">
             <FormField
               control={form.control}
@@ -169,8 +169,8 @@ export function BemestingTypeDetails({ form, types, errors }: BemestingTypeDetai
 
       {/* Universeel details */}
       {types?.universeel && (
-        <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 p-3 space-y-3">
-          <p className="text-xs font-semibold text-blue-800 dark:text-blue-200">Combinatie-pakket — details</p>
+        <div className="rounded-lg border border-status-gepland-border bg-status-gepland/40 p-3 space-y-3">
+          <p className="text-xs font-semibold text-status-gepland-text">Combinatie-pakket — details</p>
           <div className="grid gap-3 sm:grid-cols-2">
             <FormField
               control={form.control}

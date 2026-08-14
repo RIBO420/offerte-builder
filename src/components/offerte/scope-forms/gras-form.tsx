@@ -103,10 +103,10 @@ export function GrasForm({ data, onChange, onValidationChange }: GrasFormProps) 
               control={form.control}
               name="kunstgras"
               render={({ field }) => (
-                <FormItem className="flex items-center justify-between rounded-lg border border-green-200 bg-green-50/50 p-3 dark:border-green-900 dark:bg-green-950/20">
+                <FormItem className="flex items-center justify-between rounded-lg border border-status-geaccepteerd-border bg-status-geaccepteerd/40 p-3">
                   <div className="space-y-0">
                     <FormLabel className="text-sm font-medium flex items-center gap-1.5">
-                      <Sparkles className="h-3.5 w-3.5 text-green-600" />
+                      <Sparkles className="h-3.5 w-3.5 text-primary" />
                       Kunstgras
                     </FormLabel>
                     <FormDescription className="text-xs">
@@ -131,7 +131,7 @@ export function GrasForm({ data, onChange, onValidationChange }: GrasFormProps) 
               }}
             >
               <div className="overflow-hidden">
-                <div className="flex items-start gap-2 rounded-lg bg-blue-50 p-3 text-xs text-blue-700 dark:bg-blue-950/30 dark:text-blue-300">
+                <div className="flex items-start gap-2 rounded-lg bg-status-gepland/40 p-3 text-xs text-status-gepland-text">
                   <Info className="h-4 w-4 mt-0.5 shrink-0" />
                   <span>Kunstgras is een premium optie die geen onderhoud vereist. Type aanleg (zaaien/graszoden) is niet van toepassing bij kunstgras.</span>
                 </div>
@@ -251,7 +251,7 @@ export function GrasForm({ data, onChange, onValidationChange }: GrasFormProps) 
                 <FormItem className="flex items-center justify-between rounded-lg border p-3">
                   <div className="space-y-0">
                     <FormLabel className="text-sm flex items-center gap-1.5">
-                      <Droplets className="h-3.5 w-3.5 text-blue-500" />
+                      <Droplets className="h-3.5 w-3.5 text-status-gepland-text" />
                       Drainage nodig?
                     </FormLabel>
                     <FormDescription className="text-xs">
@@ -276,7 +276,7 @@ export function GrasForm({ data, onChange, onValidationChange }: GrasFormProps) 
               }}
             >
               <div className="overflow-hidden">
-                <div className="ml-4 space-y-3 border-l-2 border-blue-200 pl-4 dark:border-blue-800">
+                <div className="ml-4 space-y-3 border-l-2 border-status-gepland-border pl-4">
                   <FormField
                     control={form.control}
                     name="drainageMeters"
@@ -301,7 +301,7 @@ export function GrasForm({ data, onChange, onValidationChange }: GrasFormProps) 
                       </FormItem>
                     )}
                   />
-                  <div className="flex items-start gap-2 rounded-lg bg-blue-50 p-2.5 text-xs text-blue-700 dark:bg-blue-950/30 dark:text-blue-300">
+                  <div className="flex items-start gap-2 rounded-lg bg-status-gepland/40 p-2.5 text-xs text-status-gepland-text">
                     <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                     <span>PVC-buizen met kokos omhulsel voor optimale waterafvoer</span>
                   </div>
@@ -405,7 +405,7 @@ export function GrasForm({ data, onChange, onValidationChange }: GrasFormProps) 
                         </FormControl>
                       </div>
                       {field.value && (
-                        <div className="flex items-start gap-2 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-700 dark:bg-amber-950/30 dark:text-amber-300">
+                        <div className="flex items-start gap-2 rounded-lg bg-status-herinnering/40 p-2.5 text-xs text-status-herinnering-text">
                           <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                           <span>Verticuteren verwijdert mos en dood materiaal uit bestaand gras</span>
                         </div>

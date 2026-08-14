@@ -185,13 +185,13 @@ export function HoutwerkForm({ data, onChange, onValidationChange }: HoutwerkFor
         </Card>
 
         {/* Verplichte fundering sectie */}
-        <Card className="border-orange-200 bg-orange-50/50 dark:border-orange-900 dark:bg-orange-950/20">
+        <Card className="border-status-herinnering-border bg-status-herinnering/40">
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-orange-600" />
-              <CardTitle className="text-base text-orange-900 dark:text-orange-100">Fundering (Verplicht)</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-status-herinnering-text" />
+              <CardTitle className="text-base text-status-herinnering-text">Fundering (Verplicht)</CardTitle>
             </div>
-            <CardDescription className="text-xs text-orange-700 dark:text-orange-300">
+            <CardDescription className="text-xs text-status-herinnering-text">
               Wordt automatisch meegenomen in de offerte
             </CardDescription>
           </CardHeader>
@@ -236,7 +236,7 @@ export function HoutwerkForm({ data, onChange, onValidationChange }: HoutwerkFor
             />
 
             {watchedValues.afmeting > 0 && (
-              <div className="rounded-lg bg-muted/50 p-2 text-xs text-muted-foreground dark:bg-orange-950/30">
+              <div className="rounded-lg bg-muted/50 p-2 text-xs text-muted-foreground">
                 <span className="font-medium">Indicatie:</span>{" "}
                 {watchedValues.typeHoutwerk === "schutting"
                   ? `~${Math.ceil(watchedValues.afmeting / 1.8)} palen/poeren`

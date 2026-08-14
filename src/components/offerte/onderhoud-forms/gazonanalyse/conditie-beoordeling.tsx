@@ -24,7 +24,7 @@ import type { GazonanalyseFormData, ScoreInfo } from "./schema";
 function ScoreColorBar({ score }: { score: number }) {
   const percentage = ((score - 1) / 4) * 100;
   return (
-    <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gradient-to-r from-red-400 via-yellow-400 to-green-500">
+    <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gradient-to-r from-destructive via-chart-4 to-primary">
       <div
         className="h-full rounded-full bg-transparent outline outline-2 outline-white"
         style={{ width: `${percentage}%`, minWidth: "0.5rem" }}

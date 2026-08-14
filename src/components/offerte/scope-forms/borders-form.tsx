@@ -404,24 +404,24 @@ export function BordersForm({ data, onChange, onValidationChange }: BordersFormP
 
             {/* --- D) Plant-suggesties panel --- */}
             {plantSuggestie && (
-              <Card className="border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20">
+              <Card className="border-status-geaccepteerd-border bg-status-geaccepteerd/40">
                 <CardContent className="flex items-start gap-3 p-3">
-                  <div className="mt-0.5 rounded-full bg-green-100 p-1.5 dark:bg-green-900/40">
-                    <Leaf className="h-4 w-4 text-green-700 dark:text-green-400" />
+                  <div className="mt-0.5 rounded-full bg-status-geaccepteerd p-1.5">
+                    <Leaf className="h-4 w-4 text-status-geaccepteerd-text" />
                   </div>
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-green-900 dark:text-green-100">
+                      <span className="text-sm font-medium text-status-geaccepteerd-text">
                         {plantSuggestie.label}
                       </span>
-                      <Badge variant="outline" className="border-green-300 text-green-700 text-[10px] dark:border-green-700 dark:text-green-400">
+                      <Badge variant="outline" className="border-status-geaccepteerd-border text-status-geaccepteerd-text text-[10px]">
                         Aanbevolen
                       </Badge>
                     </div>
-                    <p className="text-xs text-green-700 dark:text-green-300">
+                    <p className="text-xs text-status-geaccepteerd-text">
                       {plantSuggestie.beschrijving}
                     </p>
-                    <p className="text-xs font-medium text-green-800 dark:text-green-200">
+                    <p className="text-xs font-medium text-status-geaccepteerd-text">
                       {plantSuggestie.planten}
                     </p>
                   </div>
@@ -490,17 +490,17 @@ export function BordersForm({ data, onChange, onValidationChange }: BordersFormP
                     {/* Visual distribution bar */}
                     <div className="flex h-4 w-full overflow-hidden rounded-full">
                       <div
-                        className="bg-amber-400 transition-all duration-200"
+                        className="bg-chart-4 transition-all duration-200"
                         style={{ width: `${bodemMix.zandPercentage}%` }}
                         title={`Zand: ${bodemMix.zandPercentage}%`}
                       />
                       <div
-                        className="bg-emerald-600 transition-all duration-200"
+                        className="bg-chart-1 transition-all duration-200"
                         style={{ width: `${bodemMix.compostPercentage}%` }}
                         title={`Compost: ${bodemMix.compostPercentage}%`}
                       />
                       <div
-                        className="bg-orange-800 transition-all duration-200"
+                        className="bg-scope-grondwerk transition-all duration-200"
                         style={{ width: `${bodemMix.teelaardPercentage}%` }}
                         title={`Teelaard: ${bodemMix.teelaardPercentage}%`}
                       />
@@ -509,15 +509,15 @@ export function BordersForm({ data, onChange, onValidationChange }: BordersFormP
                     {/* Legend */}
                     <div className="flex flex-wrap gap-3 text-[10px] text-muted-foreground">
                       <span className="flex items-center gap-1">
-                        <span className="inline-block h-2 w-2 rounded-full bg-amber-400" />
+                        <span className="inline-block h-2 w-2 rounded-full bg-chart-4" />
                         Zand
                       </span>
                       <span className="flex items-center gap-1">
-                        <span className="inline-block h-2 w-2 rounded-full bg-emerald-600" />
+                        <span className="inline-block h-2 w-2 rounded-full bg-chart-1" />
                         Compost
                       </span>
                       <span className="flex items-center gap-1">
-                        <span className="inline-block h-2 w-2 rounded-full bg-orange-800" />
+                        <span className="inline-block h-2 w-2 rounded-full bg-scope-grondwerk" />
                         Teelaard
                       </span>
                     </div>
@@ -535,7 +535,7 @@ export function BordersForm({ data, onChange, onValidationChange }: BordersFormP
                           min={0}
                           max={100}
                           step={5}
-                          className="[&_[data-slot=slider-range]]:bg-amber-400"
+                          className="[&_[data-slot=slider-range]]:bg-chart-4"
                         />
                       </div>
 
@@ -550,7 +550,7 @@ export function BordersForm({ data, onChange, onValidationChange }: BordersFormP
                           min={0}
                           max={100}
                           step={5}
-                          className="[&_[data-slot=slider-range]]:bg-emerald-600"
+                          className="[&_[data-slot=slider-range]]:bg-chart-1"
                         />
                       </div>
 
@@ -565,7 +565,7 @@ export function BordersForm({ data, onChange, onValidationChange }: BordersFormP
                           min={0}
                           max={100}
                           step={5}
-                          className="[&_[data-slot=slider-range]]:bg-orange-800"
+                          className="[&_[data-slot=slider-range]]:bg-scope-grondwerk"
                         />
                       </div>
                     </div>
@@ -606,16 +606,16 @@ export function BordersForm({ data, onChange, onValidationChange }: BordersFormP
               </div>
 
               {bemestingsschema && (
-                <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/20">
+                <Card className="border-status-gepland-border bg-status-gepland/40">
                   <CardContent className="flex items-start gap-3 p-3">
-                    <div className="mt-0.5 rounded-full bg-blue-100 p-1.5 dark:bg-blue-900/40">
-                      <Sprout className="h-4 w-4 text-blue-700 dark:text-blue-400" />
+                    <div className="mt-0.5 rounded-full bg-status-gepland p-1.5">
+                      <Sprout className="h-4 w-4 text-status-gepland-text" />
                     </div>
                     <div className="space-y-1">
-                      <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                      <span className="text-sm font-medium text-status-gepland-text">
                         Verlengd bemestingsschema
                       </span>
-                      <p className="text-xs text-blue-700 dark:text-blue-300">
+                      <p className="text-xs text-status-gepland-text">
                         Na de basisbemesting van 150 dagen adviseren wij een verlengd bemestingsschema
                         voor optimaal resultaat. Dit wordt meegenomen in het onderhoudsvoorstel.
                       </p>

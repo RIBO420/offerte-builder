@@ -94,7 +94,7 @@ export function BestratingZonesCard({
                   <span className="font-medium">Totaal zones:</span> {zones.length} zone{zones.length !== 1 ? "s" : ""},{" "}
                   {totalZoneOppervlakte.toFixed(1)} m&#178; totaal
                   {hoofdOppervlakte > 0 && totalZoneOppervlakte !== hoofdOppervlakte && (
-                    <span className="ml-1 text-amber-600 dark:text-amber-400">
+                    <span className="ml-1 text-status-herinnering-text">
                       (verschilt van hoofdoppervlakte: {hoofdOppervlakte} m&#178;)
                     </span>
                   )}

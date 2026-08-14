@@ -108,11 +108,11 @@ export function BordersOnderhoudForm({ data, onChange, onValidationChange }: Bor
                   <FormItem>
                     <FormLabel required>
                       Onderhoudsintensiteit
-                      <span className="text-xs text-orange-600 font-normal ml-2">(verplicht)</span>
+                      <span className="text-xs text-status-herinnering-text font-normal ml-2">(verplicht)</span>
                     </FormLabel>
                     <Select value={field.value} onValueChange={field.onChange}>
                       <FormControl>
-                        <SelectTrigger id="border-intensiteit" className="border-orange-300">
+                        <SelectTrigger id="border-intensiteit" className="border-status-herinnering-border">
                           <SelectValue placeholder="Selecteer intensiteit" />
                         </SelectTrigger>
                       </FormControl>

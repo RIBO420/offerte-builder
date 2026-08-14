@@ -69,7 +69,7 @@ export function ReinigingOnkruidSectie() {
                 <FormItem>
                   <FormLabel required>
                     Oppervlakte
-                    <span className="text-xs text-orange-600 dark:text-orange-400 font-normal ml-2">
+                    <span className="text-xs text-status-herinnering-text font-normal ml-2">
                       (verplicht)
                     </span>
                   </FormLabel>
@@ -82,7 +82,7 @@ export function ReinigingOnkruidSectie() {
                       onBlur={field.onBlur}
                       showStepper={false}
                       error={!!errors.onkruidOppervlakte}
-                      className="border-orange-300 dark:border-orange-700"
+                      className="border-status-herinnering-border"
                     />
                   </FormControl>
                   <FormMessage />
@@ -97,7 +97,7 @@ export function ReinigingOnkruidSectie() {
                 <FormItem>
                   <FormLabel required>
                     Methode
-                    <span className="text-xs text-orange-600 dark:text-orange-400 font-normal ml-2">
+                    <span className="text-xs text-status-herinnering-text font-normal ml-2">
                       (verplicht)
                     </span>
                   </FormLabel>
@@ -108,7 +108,7 @@ export function ReinigingOnkruidSectie() {
                     <FormControl>
                       <SelectTrigger
                         id="onkruid-methode"
-                        className="border-orange-300 dark:border-orange-700"
+                        className="border-status-herinnering-border"
                       >
                         <SelectValue placeholder="Selecteer methode" />
                       </SelectTrigger>
@@ -127,9 +127,9 @@ export function ReinigingOnkruidSectie() {
           </div>
 
           {onkruidMethode === "chemisch" && (
-            <div className="flex items-start gap-2 rounded-lg border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950 p-3">
-              <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400 mt-0.5 shrink-0" />
-              <p className="text-xs text-red-700 dark:text-red-300 leading-relaxed font-medium">
+            <div className="flex items-start gap-2 rounded-lg border border-status-vervallen-border bg-status-vervallen/40 p-3">
+              <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+              <p className="text-xs text-status-vervallen-text leading-relaxed font-medium">
                 Let op: chemische onkruidbestrijding is aan wettelijke
                 regels gebonden
               </p>

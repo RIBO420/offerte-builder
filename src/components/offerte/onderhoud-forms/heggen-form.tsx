@@ -152,7 +152,7 @@ export function HeggenForm({ data, onChange, onValidationChange }: HeggenFormPro
                   <FormItem>
                     <FormLabel required>
                       Lengte
-                      <span className="text-xs text-orange-600 dark:text-orange-400 font-normal ml-2">(verplicht)</span>
+                      <span className="text-xs text-status-herinnering-text font-normal ml-2">(verplicht)</span>
                     </FormLabel>
                     <FormControl>
                       <LengthInput
@@ -163,7 +163,7 @@ export function HeggenForm({ data, onChange, onValidationChange }: HeggenFormPro
                         onBlur={field.onBlur}
                         showStepper={false}
                         error={!!errors.lengte}
-                        className="border-orange-300 dark:border-orange-700"
+                        className="border-status-herinnering-border"
                       />
                     </FormControl>
                     <FormMessage />
@@ -178,7 +178,7 @@ export function HeggenForm({ data, onChange, onValidationChange }: HeggenFormPro
                   <FormItem>
                     <FormLabel required>
                       Hoogte
-                      <span className="text-xs text-orange-600 dark:text-orange-400 font-normal ml-2">(verplicht)</span>
+                      <span className="text-xs text-status-herinnering-text font-normal ml-2">(verplicht)</span>
                     </FormLabel>
                     <FormControl>
                       <LengthInput
@@ -189,11 +189,11 @@ export function HeggenForm({ data, onChange, onValidationChange }: HeggenFormPro
                         onBlur={field.onBlur}
                         showStepper={false}
                         error={!!errors.hoogte}
-                        className="border-orange-300 dark:border-orange-700"
+                        className="border-status-herinnering-border"
                       />
                     </FormControl>
                     {hoogte > 2 && !hoogwerkerMogelijkNodig && !hoogwerkerVerplicht && (
-                      <p className="text-xs text-orange-600 dark:text-orange-400">
+                      <p className="text-xs text-status-herinnering-text">
                         Hoogte &gt;2m: toeslag voor ladder/hoogwerker
                       </p>
                     )}
@@ -209,7 +209,7 @@ export function HeggenForm({ data, onChange, onValidationChange }: HeggenFormPro
                   <FormItem>
                     <FormLabel required>
                       Breedte
-                      <span className="text-xs text-orange-600 dark:text-orange-400 font-normal ml-2">(verplicht)</span>
+                      <span className="text-xs text-status-herinnering-text font-normal ml-2">(verplicht)</span>
                     </FormLabel>
                     <FormControl>
                       <LengthInput
@@ -220,7 +220,7 @@ export function HeggenForm({ data, onChange, onValidationChange }: HeggenFormPro
                         onBlur={field.onBlur}
                         showStepper={false}
                         error={!!errors.breedte}
-                        className="border-orange-300 dark:border-orange-700"
+                        className="border-status-herinnering-border"
                       />
                     </FormControl>
                     <FormMessage />
@@ -290,7 +290,7 @@ export function HeggenForm({ data, onChange, onValidationChange }: HeggenFormPro
                   <div className="flex items-center gap-2">
                     <Badge
                       variant="outline"
-                      className="gap-1.5 border-orange-400 dark:border-orange-700 text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-950"
+                      className="gap-1.5 border-status-herinnering-border text-status-herinnering-text bg-status-herinnering/40"
                     >
                       <AlertTriangle className="h-3 w-3" />
                       Hoogwerker mogelijk nodig
@@ -347,7 +347,7 @@ export function HeggenForm({ data, onChange, onValidationChange }: HeggenFormPro
                     </SelectContent>
                   </Select>
                   {heeftHaagsoortToeslag && haagsoort && (
-                    <FormDescription className="text-amber-700 dark:text-amber-300">
+                    <FormDescription className="text-status-herinnering-text">
                       Let op: {haagsoortToeslag[haagsoort]}
                     </FormDescription>
                   )}
@@ -552,13 +552,13 @@ export function HeggenForm({ data, onChange, onValidationChange }: HeggenFormPro
                 {watchedValues.afvoerSnoeisel &&
                   `, afval: ~${(volume * 0.1).toFixed(2)} m³`}
                 {hoogte > 2 && (
-                  <span className="text-orange-600 dark:text-orange-400"> (+30% hoogte)</span>
+                  <span className="text-status-herinnering-text"> (+30% hoogte)</span>
                 )}
                 {heeftHaagsoortToeslag && (
-                  <span className="text-amber-600 dark:text-amber-400"> (+25% haagsoort)</span>
+                  <span className="text-status-herinnering-text"> (+25% haagsoort)</span>
                 )}
                 {watchedValues.hoogwerkerInzetten && (
-                  <span className="text-blue-600 dark:text-blue-400"> (hoogwerker ingecalculeerd)</span>
+                  <span className="text-status-gepland-text"> (hoogwerker ingecalculeerd)</span>
                 )}
               </div>
             )}

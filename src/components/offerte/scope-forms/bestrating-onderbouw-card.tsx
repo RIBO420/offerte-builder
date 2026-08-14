@@ -36,13 +36,13 @@ export function BestratingOnderbouwCard({
   const { formState: { errors } } = form;
 
   return (
-    <Card className="border-orange-200 bg-orange-50/50 dark:border-orange-900 dark:bg-orange-950/20">
+    <Card className="border-status-herinnering-border bg-status-herinnering/40">
       <CardHeader className="pb-2">
         <div className="flex items-center gap-2">
-          <AlertTriangle className="h-4 w-4 text-orange-600" />
-          <CardTitle className="text-base text-orange-900 dark:text-orange-100">Onderbouw (Verplicht)</CardTitle>
+          <AlertTriangle className="h-4 w-4 text-status-herinnering-text" />
+          <CardTitle className="text-base text-status-herinnering-text">Onderbouw (Verplicht)</CardTitle>
         </div>
-        <CardDescription className="text-xs text-orange-700 dark:text-orange-300">
+        <CardDescription className="text-xs text-status-herinnering-text">
           Wordt automatisch meegenomen in de offerte
         </CardDescription>
       </CardHeader>
@@ -102,7 +102,7 @@ export function BestratingOnderbouwCard({
           control={form.control}
           name="onderbouw.opsluitbanden"
           render={({ field }) => (
-            <FormItem className="flex items-center justify-between rounded-lg border border-orange-200 bg-muted/50 p-3 dark:border-orange-800 dark:bg-orange-950/30">
+            <FormItem className="flex items-center justify-between rounded-lg border border-status-herinnering-border bg-muted/50 p-3">
               <div className="space-y-0">
                 <FormLabel className="text-sm">Opsluitbanden</FormLabel>
                 <FormDescription className="text-xs">
@@ -127,7 +127,7 @@ export function BestratingOnderbouwCard({
           }}
         >
           <div className="overflow-hidden">
-            <div className="rounded-lg bg-muted/50 p-2 text-xs text-muted-foreground dark:bg-orange-950/30">
+            <div className="rounded-lg bg-muted/50 p-2 text-xs text-muted-foreground">
               Geschat zandvolume: {estimatedZandVolume !== null ? estimatedZandVolume.toFixed(2) : "0"} m&#179;
             </div>
           </div>

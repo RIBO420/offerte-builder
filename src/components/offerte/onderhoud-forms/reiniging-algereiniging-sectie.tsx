@@ -67,7 +67,7 @@ export function ReinigingAlgereinigingSectie() {
                 <FormItem>
                   <FormLabel required>
                     Oppervlakte
-                    <span className="text-xs text-orange-600 font-normal ml-2">
+                    <span className="text-xs text-status-herinnering-text font-normal ml-2">
                       (verplicht)
                     </span>
                   </FormLabel>
@@ -80,7 +80,7 @@ export function ReinigingAlgereinigingSectie() {
                       onBlur={field.onBlur}
                       showStepper={false}
                       error={!!errors.algereinigingOppervlakte}
-                      className="border-orange-300"
+                      className="border-status-herinnering-border"
                     />
                   </FormControl>
                   <FormMessage />
@@ -95,7 +95,7 @@ export function ReinigingAlgereinigingSectie() {
                 <FormItem>
                   <FormLabel required>
                     Type oppervlak
-                    <span className="text-xs text-orange-600 font-normal ml-2">
+                    <span className="text-xs text-status-herinnering-text font-normal ml-2">
                       (verplicht)
                     </span>
                   </FormLabel>
@@ -106,7 +106,7 @@ export function ReinigingAlgereinigingSectie() {
                     <FormControl>
                       <SelectTrigger
                         id="algereiniging-type"
-                        className="border-orange-300"
+                        className="border-status-herinnering-border"
                       >
                         <SelectValue placeholder="Selecteer type" />
                       </SelectTrigger>
