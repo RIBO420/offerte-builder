@@ -282,7 +282,7 @@ export function KlantSelector({
                   <div className="py-6 text-center text-sm">
                     <p className="text-muted-foreground">Geen klanten gevonden</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Maak de klant direct aan of vul de gegevens hieronder in
+                      Maak de klant hier direct aan
                     </p>
                     <Button
                       variant="outline"
@@ -450,28 +450,21 @@ export function KlantSelector({
             </Command>
           </PopoverContent>
         </Popover>
-        <div className="flex flex-wrap items-center gap-1">
+        {/* "Nieuwe klant aanmaken" stond hier ook nog als losse knop, terwijl
+            de keuzelijst hierboven diezelfde actie al bovenaan toont — óók
+            terwijl je typt, en dan met de getypte naam erin. Twee knoppen voor
+            één handeling, dus deze is weg. */}
+        {(selectedKlantId || selectedLeadId) && (
           <Button
             variant="ghost"
             size="sm"
-            onClick={handleOpenNieuweKlant}
-            className="text-xs"
+            onClick={handleClearSelection}
+            className="text-xs text-muted-foreground"
           >
-            <UserPlus className="h-3 w-3 mr-1" />
-            Nieuwe klant aanmaken
+            <Plus className="h-3 w-3 mr-1 rotate-45" />
+            Selectie wissen
           </Button>
-          {(selectedKlantId || selectedLeadId) && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleClearSelection}
-              className="text-xs text-muted-foreground"
-            >
-              <Plus className="h-3 w-3 mr-1 rotate-45" />
-              Selectie wissen
-            </Button>
-          )}
-        </div>
+        )}
       </div>
 
       <NieuweKlantDialog
