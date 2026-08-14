@@ -35,7 +35,9 @@ Top Tuinen OS — a monorepo for a Dutch landscaping company (Top Tuinen) contai
 
 ### Web App
 ```bash
-npm run dev          # Next.js dev server
+npm run dev          # Next.js dev server (alleen Next — Convex draait dan NIET)
+npm run dev:all      # next dev + convex dev samen (scripts/dev-all.mjs) — normale start
+npm run dev:login    # log de browser in als staf-gebruiker, zonder wachtwoord (zie Testing)
 npm run build        # Production build
 npm run lint         # ESLint
 npm run typecheck    # TypeScript check (tsc --noEmit)
@@ -243,6 +245,40 @@ twee uiteen kunnen lopen; elke aanroeper houdt de volgorde die hij had.
 - **E2E setup:** `e2e/global-setup.ts` + `playwright.config.ts` loads `.env.local` via dotenv
 - **A11y tests:** `src/__tests__/a11y/` — axe-core checks on core UI components
 
+### Ingelogd in de browser komen (ook als agent) — `npm run dev:login`
+
+Vrijwel elk scherm zit achter Clerk. Bouw géén tijdelijke publieke "meetpagina" meer;
+log gewoon echt in met een **Clerk sign-in token** (geen wachtwoord, geen extra route
+in de app). Werkt alleen lokaal: het script weigert te draaien als de Clerk-sleutels
+geen `sk_test_`/`pk_test_` zijn of als de app-origin geen localhost is.
+
+```bash
+npm run dev:all      # next dev + convex dev samen (Convex moet draaien, anders hangen queries)
+npm run dev:login    # laat draaien; ruimt zichzelf na 120s op
+```
+
+`dev:login` legt een kortlevend ticket neer in `public/dev-login-ticket.js` (gitignored)
+en print het snippet hieronder. Draai dat **in de browserconsole op `http://localhost:3000/`**
+(bij Claude Code: `javascript_tool` op de tab), daarna navigeren naar `/dashboard`:
+
+```js
+(async () => { const r = await fetch('/dev-login-ticket.js', { cache: 'no-store' }); const { ticket } = await r.json(); await window.Clerk.load(); const s = await window.Clerk.client.signIn.create({ strategy: 'ticket', ticket }); if (s.status !== 'complete') return 'status=' + s.status; await window.Clerk.setActive({ session: s.createdSessionId }); return 'ok'; })()
+```
+
+Verwacht resultaat: `"ok"`, daarna is `/dashboard`, `/klanten`, `/offertes` enz. gewoon
+zichtbaar als `E2E_CLERK_USER_EMAIL`. De sessie blijft staan nadat het ticket is opgeruimd.
+
+Twee valkuilen die je anders opnieuw ontdekt:
+- **Geen eigen hulpserver op een andere poort.** `next.config.ts` zet een CSP met
+  `connect-src 'self'`, dus een fetch naar bv. `127.0.0.1:4599` wordt geblokkeerd
+  ("Failed to fetch"). Daarom staat het ticket same-origin onder `public/`.
+- **Extensie `.js`, niet `.json`.** De matcher in `src/proxy.ts` sluit statische
+  bestanden uit op extensie, maar `js(?!on)` laat `.json` er juist wél door: een
+  `.json` in `public/` wordt door clerkMiddleware afgeschermd (307 naar `/`).
+
+Ander account: `npm run dev:login -- --email iemand@toptuinen.nl`.
+Blijft er ooit een ticketbestand achter: `npm run dev:login -- --clean`.
+
 ## Openstaande acties (stand: 14 aug 2026)
 
 - **Places API (New) staat nog UIT** in Google Cloud voor `GOOGLE_MAPS_API_KEY`. Tot dat
@@ -254,9 +290,13 @@ twee uiteen kunnen lopen; elke aanroeper houdt de volgorde die hij had.
   Zodra kantoor eigen normuren/producten invoert, winnen die vanzelf.
 - **Vier tabellen alleen nagerekend, niet visueel gecontroleerd:** leveranciers,
   medewerkers, wagenpark, machines. De klantentabel is wél gemeten (820–1920px).
-- **E2E-auth is stuk (pre-existing):** `e2e/helpers/auth.ts` zoekt een veld `E-mailadres`
-  dat niet meer op de loginpagina staat, dus `login()` loopt vast op een timeout. Alle
-  geauthenticeerde Playwright-tests falen daardoor. Losstaand van de wijzigingen hierboven.
+- **E2E-auth is stuk (pre-existing) — diagnose klopte niet:** `src/app/page.tsx` heeft
+  wél degelijk `<Label htmlFor="email">E-mailadres</Label>` en `Wachtwoord`, dus de
+  selectors in `e2e/helpers/auth.ts` zijn niet de oorzaak. De echte oorzaak is nog niet
+  gevonden (denk aan bot-protection/Turnstile of `clerkSetup()`). Wie dit oppakt: overweeg
+  `login()` te laten inloggen via een sign-in token (zelfde ticket-strategie als
+  `scripts/dev-login.mjs`) in plaats van e-mail + wachtwoord — dan is er geen
+  wachtwoord en geen bot-detectie meer nodig.
 
 ## Important Notes
 

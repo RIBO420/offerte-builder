@@ -52,3 +52,6 @@ e2e/.auth/
 
 # Claude Code sessie-/geheugenbestanden horen niet in de repo
 .claude/
+
+# Kortlevend Clerk sign-in ticket van scripts/dev-login.mjs (nooit committen)
+public/dev-login-ticket.js

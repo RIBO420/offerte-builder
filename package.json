@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "dev:all": "node scripts/dev-all.mjs",
+    "dev:login": "node scripts/dev-login.mjs"
   },
   "dependencies": {
     "@clerk/localizations": "^3.35.3",
