@@ -56,7 +56,7 @@ function AanmaningDropdown({ aanmaningStatus, onSelectType }: AanmaningDropdownP
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="gap-2 text-orange-600 border-orange-200 hover:bg-orange-50 dark:text-orange-400 dark:border-orange-800 dark:hover:bg-orange-950">
+        <Button variant="outline" className="gap-2 text-status-herinnering-text border-status-herinnering-border hover:bg-status-herinnering/40">
           <Scale className="h-4 w-4" />
           Aanmaning
           <ChevronDown className="h-3 w-3" />
@@ -70,7 +70,7 @@ function AanmaningDropdown({ aanmaningStatus, onSelectType }: AanmaningDropdownP
           disabled={aanmaningStatus?.heeftEerste}
           className="flex items-start gap-3 py-3"
         >
-          <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+          <AlertCircle className="h-4 w-4 text-status-herinnering-dot mt-0.5 shrink-0" />
           <div>
             <p className="font-medium">1e Aanmaning</p>
             <p className="text-xs text-muted-foreground">Vriendelijk verzoek tot betaling</p>
@@ -84,7 +84,7 @@ function AanmaningDropdown({ aanmaningStatus, onSelectType }: AanmaningDropdownP
           disabled={!aanmaningStatus?.heeftEerste || aanmaningStatus?.heeftTweede}
           className="flex items-start gap-3 py-3"
         >
-          <AlertTriangle className="h-4 w-4 text-orange-500 mt-0.5 shrink-0" />
+          <AlertTriangle className="h-4 w-4 text-status-in-uitvoering-dot mt-0.5 shrink-0" />
           <div>
             <p className="font-medium">2e Aanmaning</p>
             <p className="text-xs text-muted-foreground">Formeel verzoek met waarschuwing</p>
@@ -98,7 +98,7 @@ function AanmaningDropdown({ aanmaningStatus, onSelectType }: AanmaningDropdownP
           disabled={!aanmaningStatus?.heeftTweede || aanmaningStatus?.heeftIngebrekestelling}
           className="flex items-start gap-3 py-3"
         >
-          <Gavel className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+          <Gavel className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
           <div>
             <p className="font-medium">Ingebrekestelling</p>
             <p className="text-xs text-muted-foreground">Juridische sommatie (art. 6:82 BW)</p>
@@ -130,7 +130,7 @@ function CreditnotaButton({
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <Button variant="outline" className="gap-2 text-red-600 border-red-200 hover:bg-red-50">
+        <Button variant="outline" className="gap-2 text-destructive border-status-vervallen-border hover:bg-destructive/5">
           <FileX className="h-4 w-4" />
           Creditnota
         </Button>
@@ -158,7 +158,7 @@ function CreditnotaButton({
           <AlertDialogAction
             onClick={onCreateCreditnota}
             disabled={isCreatingCreditnota || !creditnotaReden.trim()}
-            className="bg-red-600 hover:bg-red-700"
+            className="bg-destructive hover:bg-destructive/90 text-white"
           >
             {isCreatingCreditnota ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Creditnota Aanmaken
@@ -175,7 +175,7 @@ interface CreditnotaBadgeProps {
 
 function CreditnotaBadge({ factuurnummer }: CreditnotaBadgeProps) {
   return (
-    <Badge variant="outline" className="text-red-600 border-red-200">
+    <Badge variant="outline" className="text-destructive border-status-vervallen-border">
       <FileX className="h-3 w-3 mr-1" />
       Gecrediteerd: {factuurnummer}
     </Badge>
@@ -260,7 +260,7 @@ export function FactuurActionButtons({
             Download PDF
           </Button>
           {isKantoor && (
-            <Button className="gap-2 bg-green-600 hover:bg-green-700" onClick={handlers.handleSendFactuur} disabled={handlers.isSending}>
+            <Button className="gap-2" onClick={handlers.handleSendFactuur} disabled={handlers.isSending}>
               {handlers.isSending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
@@ -301,7 +301,7 @@ export function FactuurActionButtons({
           )}
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button className="gap-2 bg-green-600 hover:bg-green-700">
+              <Button className="gap-2">
                 <CheckCircle className="h-4 w-4" />
                 Markeer als Betaald
               </Button>
@@ -323,7 +323,7 @@ export function FactuurActionButtons({
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Annuleren</AlertDialogCancel>
-                <AlertDialogAction onClick={handlers.handleMarkAsPaid} disabled={handlers.isSaving} className="bg-green-600 hover:bg-green-700">
+                <AlertDialogAction onClick={handlers.handleMarkAsPaid} disabled={handlers.isSaving} className="">
                   {handlers.isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   Betaald
                 </AlertDialogAction>

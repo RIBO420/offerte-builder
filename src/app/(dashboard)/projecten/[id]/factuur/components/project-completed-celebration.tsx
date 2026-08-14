@@ -33,7 +33,7 @@ export function ProjectCompletedCelebration({
       initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={transitions.entrance}
-      className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-green-500 via-emerald-500 to-teal-600 p-8 text-white shadow-2xl"
+      className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary via-primary/90 to-chart-5 p-8 text-primary-foreground shadow-2xl"
     >
       {/* Animated background sparkles */}
       {!prefersReducedMotion && (

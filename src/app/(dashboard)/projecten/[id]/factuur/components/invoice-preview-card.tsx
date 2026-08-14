@@ -104,15 +104,15 @@ export function InvoicePreviewCard({
             <m.div
               initial={prefersReducedMotion ? {} : { opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
-              className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950"
+              className="flex items-start gap-3 rounded-lg border border-status-herinnering-border bg-status-herinnering/40 p-4"
             >
-              <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <AlertCircle className="h-5 w-5 text-status-herinnering-text flex-shrink-0 mt-0.5" />
               <div>
-                <p className="font-medium text-amber-800 dark:text-amber-200">
+                <p className="font-medium text-status-herinnering-text">
                   Afwijking in uren: {nacalculatie.afwijkingPercentage > 0 ? "+" : ""}
                   {nacalculatie.afwijkingPercentage.toFixed(1)}%
                 </p>
-                <p className="text-sm text-amber-700 dark:text-amber-300">
+                <p className="text-sm text-status-herinnering-text">
                   Overweeg correctieregels toe te voegen aan de factuur.
                 </p>
               </div>

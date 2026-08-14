@@ -22,10 +22,10 @@ export function InvoiceSentSuccess({
       initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={transitions.entrance}
-      className="rounded-xl border-2 border-green-200 bg-gradient-to-b from-green-50 to-white p-8 text-center dark:border-green-900 dark:from-green-950 dark:to-background"
+      className="rounded-xl border-2 border-status-geaccepteerd-border bg-gradient-to-b from-status-geaccepteerd/40 to-background p-8 text-center dark:to-background"
     >
       <m.div
-        className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-100 dark:bg-green-900"
+        className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-status-geaccepteerd"
         initial={prefersReducedMotion ? {} : { scale: 0 }}
         animate={{ scale: 1 }}
         transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.2 }}
@@ -35,14 +35,14 @@ export function InvoiceSentSuccess({
           animate={{ scale: 1 }}
           transition={{ delay: 0.4 }}
         >
-          <Send className="h-10 w-10 text-green-600 dark:text-green-400" />
+          <Send className="h-10 w-10 text-status-geaccepteerd-text" />
         </m.div>
       </m.div>
 
-      <h3 className="mb-2 text-2xl font-bold text-green-800 dark:text-green-200">
+      <h3 className="mb-2 text-2xl font-bold text-status-geaccepteerd-text">
         Factuur Verzonden!
       </h3>
-      <p className="mb-4 text-lg text-green-700 dark:text-green-300">
+      <p className="mb-4 text-lg text-status-geaccepteerd-text">
         Factuur {factuurNummer} is succesvol verstuurd
       </p>
       {klantEmail && (

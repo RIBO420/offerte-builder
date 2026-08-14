@@ -114,7 +114,7 @@ export function NoFactuurState({
                 </div>
               </div>
               <div className="flex gap-3">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-200 text-green-800 dark:bg-green-900 dark:text-green-200 text-sm font-medium">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-status-geaccepteerd text-status-geaccepteerd-text text-sm font-medium">
                   4
                 </div>
                 <div>

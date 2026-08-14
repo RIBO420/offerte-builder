@@ -38,7 +38,7 @@ export function WorkflowStepIndicator({
                 <div
                   className={`
                     relative flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all duration-300
-                    ${isCompleted ? "border-green-500 bg-green-500 text-white" : ""}
+                    ${isCompleted ? "border-primary bg-primary text-primary-foreground" : ""}
                     ${isCurrent ? "border-primary bg-primary text-white ring-4 ring-primary/20" : ""}
                     ${isUpcoming ? "border-muted-foreground/30 bg-muted text-muted-foreground" : ""}
                   `}
@@ -69,7 +69,7 @@ export function WorkflowStepIndicator({
               {index < workflowSteps.length - 1 && (
                 <div className="flex-1 mx-2 h-0.5 rounded-full bg-muted-foreground/20 relative overflow-hidden">
                   <m.div
-                    className="absolute inset-y-0 left-0 bg-green-500 rounded-full"
+                    className="absolute inset-y-0 left-0 bg-primary rounded-full"
                     initial={{ width: "0%" }}
                     animate={{ width: isCompleted ? "100%" : "0%" }}
                     transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.5, delay: index * 0.1 }}
