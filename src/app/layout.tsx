@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Fraunces, Geist, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { nlNL } from "@clerk/localizations";
 import { ConvexClientProvider } from "@/components/providers/convex-client-provider";
@@ -20,6 +20,20 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  // Mono is een niche-font (kentekens, codes, sneltoetsen) — niet preloaden (O12).
+  preload: false,
+});
+
+// Display-serif voor paginakoppen en heldcijfers ("Vakwerk in het groen").
+// Alleen beschikbaar als `font-display` (via --font-fraunces → --font-display in
+// globals.css); breed toepassen gebeurt in WS3/WS6/WS10. Geist blijft het werkpaard.
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  subsets: ["latin"],
+  axes: ["opsz"],
+  // Nog nergens toegepast; de browser downloadt het font pas zodra een
+  // `font-display`-element rendert — preload zou nu alleen bytes kosten.
+  preload: false,
 });
 
 export const metadata: Metadata = {
@@ -83,7 +97,7 @@ export default function RootLayout({
     <ClerkProvider localization={nlNL} signInUrl="/" telemetry={{ disabled: true }}>
       <html lang="nl" data-scroll-behavior="smooth" suppressHydrationWarning>
         <body
-          className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
+          className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} font-sans antialiased`}
         >
           <SkipLink />
           <ChunkReloadHandler />
