@@ -1,8 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { FolderKanban } from "lucide-react";
-import { DonutChart } from "@/components/ui/donut-chart";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -19,14 +17,6 @@ interface PipelineBentoProps {
   totalAcceptedCount: number;
   totalSentForConversion: number;
   averageOfferteValue: number;
-  projectStats: {
-    totaal: number;
-    gepland: number;
-    in_uitvoering: number;
-    afgerond: number;
-    nacalculatie_compleet: number;
-    gefactureerd: number;
-  };
   activeProjects: Array<{
     _id: string;
     naam: string;
@@ -69,51 +59,23 @@ function formatTimeAgo(timestamp: number): string {
   return `${Math.floor(days / 30)} maand`;
 }
 
-const statusConfig: Record<
-  string,
-  { label: string; color: string; valueColor: string }
-> = {
-  concept: {
-    label: "Concept aangemaakt",
-    color: "#64748b",
-    valueColor: "text-foreground",
-  },
-  voorcalculatie: {
-    label: "Voorcalculatie gemaakt",
-    color: "#f59e0b",
-    valueColor: "text-foreground",
-  },
-  verzonden: {
-    label: "Offerte verzonden",
-    color: "#3b82f6",
-    valueColor: "text-foreground",
-  },
-  geaccepteerd: {
-    label: "Offerte geaccepteerd",
-    color: "#22c55e",
-    valueColor: "text-green-600 dark:text-green-500",
-  },
-  afgewezen: {
-    label: "Offerte afgewezen",
-    color: "#ef4444",
-    valueColor: "text-red-600 dark:text-red-500",
-  },
+// Eén statussemantiek voor het hele dashboard: de dot-tokens uit globals.css
+// (Loof & Leem) zijn de enige kleurbron — geen eigen hexreeks meer naast de
+// statusbadges elders in de app.
+const statusDot: Record<string, string> = {
+  concept: "var(--status-concept-dot)",
+  voorcalculatie: "var(--status-voorcalculatie-dot)",
+  verzonden: "var(--status-verzonden-dot)",
+  geaccepteerd: "var(--status-geaccepteerd-dot)",
+  afgewezen: "var(--status-afgewezen-dot)",
 };
 
-const pipelineColors: Record<string, string> = {
-  concept: "#64748b",
-  voorcalculatie: "#f59e0b",
-  verzonden: "#3b82f6",
-  geaccepteerd: "#22c55e",
-  afgewezen: "#ef4444",
-};
-
-const pipelineNumberColors: Record<string, string> = {
-  concept: "#94a3b8",
-  voorcalculatie: "#f59e0b",
-  verzonden: "inherit",
-  geaccepteerd: "#22c55e",
-  afgewezen: "inherit",
+const statusLabel: Record<string, string> = {
+  concept: "Concept aangemaakt",
+  voorcalculatie: "Voorcalculatie gemaakt",
+  verzonden: "Offerte verzonden",
+  geaccepteerd: "Offerte geaccepteerd",
+  afgewezen: "Offerte afgewezen",
 };
 
 // ── Segmented Bar ────────────────────────────────────────────────────
@@ -143,7 +105,7 @@ function SegmentedBar({
             className="rounded-full transition-all duration-500"
             style={{
               width: `${widthPct}%`,
-              backgroundColor: pipelineColors[key],
+              backgroundColor: statusDot[key],
               minWidth: stats[key] > 0 ? 4 : 0,
             }}
           />
@@ -154,6 +116,10 @@ function SegmentedBar({
 }
 
 // ── Pipeline Card ────────────────────────────────────────────────────
+//
+// WS3a: de vier stat-boxen onder de bar zijn weg — ze herhaalden exact de
+// tellers van de segmenten. De bar krijgt nu een compacte legendaregel met
+// dot + label + aantal, direct eronder.
 
 function PipelineCard({
   stats,
@@ -169,9 +135,9 @@ function PipelineCard({
   ] as const;
 
   const labels: Record<string, string> = {
-    voorcalculatie: "Voorcalc.",
+    voorcalculatie: "Voorcalculatie",
     verzonden: "Verzonden",
-    geaccepteerd: "Geaccept.",
+    geaccepteerd: "Geaccepteerd",
     afgewezen: "Afgewezen",
   };
 
@@ -189,37 +155,24 @@ function PipelineCard({
       {/* Segmented bar */}
       <SegmentedBar stats={stats} />
 
-      {/* Status counts grid */}
-      <div className="grid grid-cols-4 gap-1.5 mt-3.5">
-        {keys.map((key) => {
-          const isAccepted = key === "geaccepteerd";
-          const isRejectedZero = key === "afgewezen" && stats[key] === 0;
-
-          return (
-            <div
-              key={key}
-              className={`text-center py-2 rounded-lg ${
-                isAccepted
-                  ? "bg-green-500/[0.05]"
-                  : "bg-muted/40"
-              }`}
-            >
-              <div
-                className="text-xl font-bold tabular-nums"
-                style={{
-                  color: isRejectedZero
-                    ? "var(--muted-foreground)"
-                    : pipelineNumberColors[key],
-                }}
-              >
-                {stats[key]}
-              </div>
-              <div className="text-[10px] text-muted-foreground mt-0.5">
-                {labels[key]}
-              </div>
-            </div>
-          );
-        })}
+      {/* Legenda: labels + tellers bij de segmenten */}
+      <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3">
+        {keys.map((key) => (
+          <span
+            key={key}
+            className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground"
+          >
+            <span
+              className="w-2 h-2 rounded-full shrink-0"
+              style={{ backgroundColor: statusDot[key] }}
+              aria-hidden="true"
+            />
+            {labels[key]}
+            <span className="font-semibold tabular-nums text-foreground">
+              {stats[key]}
+            </span>
+          </span>
+        ))}
       </div>
     </div>
   );
@@ -266,7 +219,7 @@ function ConversieRateCard({
           cy={50}
           r={40}
           fill="none"
-          stroke="#22c55e"
+          stroke="var(--chart-1)"
           strokeWidth={6}
           strokeDasharray={`${dashLength} ${circumference - dashLength}`}
           strokeDashoffset={circumference * 0.25}
@@ -281,208 +234,153 @@ function ConversieRateCard({
           dominantBaseline="central"
           fontSize={18}
           fontWeight={800}
-          fill="#22c55e"
+          fill="var(--primary)"
         >
           {Math.round(pct)}%
         </text>
       </svg>
 
       {/* Accepted count */}
-      <span className="text-[10px] text-muted-foreground/60 mt-1">
+      <span className="text-[11px] text-muted-foreground mt-1">
         {acceptedCount}/{sentForConversion} geaccepteerd
       </span>
 
       {/* Average value badge */}
-      <span className="bg-green-500/10 text-green-600 dark:text-green-400 text-[10px] font-semibold px-2 py-0.5 rounded mt-1.5">
+      <span className="bg-primary/10 text-primary text-[11px] font-semibold px-2 py-0.5 rounded mt-1.5">
         Gem. {formatCurrency(averageValue)}
       </span>
     </div>
   );
 }
 
-// ── Project Status Card ──────────────────────────────────────────────
+// ── Actueel Card ─────────────────────────────────────────────────────
+//
+// WS3a-fusie: de losse project-voortgangscards en "Recente Activiteit"
+// waren twee blikken op hetzelfde lopende werk. Eén kaart: eerst het werk
+// dat loopt (voortgang), daaronder de laatste offerte-events.
 
-function ProjectStatusCard({
-  stats,
-}: {
-  stats: PipelineBentoProps["projectStats"];
-}) {
-  const statusEntries = [
-    { label: "Gepland", value: stats.gepland, color: "#3b82f6" },
-    { label: "In uitvoering", value: stats.in_uitvoering, color: "#f97316" },
-    { label: "Afgerond", value: stats.afgerond, color: "#22c55e" },
-    {
-      label: "Nacalculatie",
-      value: stats.nacalculatie_compleet,
-      color: "#a855f7",
-    },
-    { label: "Gefactureerd", value: stats.gefactureerd, color: "#06b6d4" },
-  ];
-
-  const segments = statusEntries
-    .filter((s) => s.value > 0)
-    .map((s) => ({ label: s.label, value: s.value, color: s.color }));
-
-  const visibleEntries = statusEntries.filter((s) => s.value > 0);
-
-  return (
-    <div className="bg-card border border-border rounded-xl p-4">
-      <h3 className="text-[15px] font-semibold mb-3.5">Project Status</h3>
-
-      <div className="flex items-center gap-5">
-        {/* Donut chart */}
-        <div className="shrink-0">
-          <DonutChart
-            segments={segments}
-            size={110}
-            strokeWidth={16}
-            showTotal={true}
-            totalLabel="Projecten"
-            showLegend={false}
-            formatValue={(v) => String(v)}
-          />
-        </div>
-
-        {/* Custom legend */}
-        <div className="space-y-2.5 flex-1 min-w-0">
-          {visibleEntries.map((entry) => (
-            <div
-              key={entry.label}
-              className="flex items-center justify-between"
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                <div
-                  className="w-2 h-2 rounded-full shrink-0"
-                  style={{ backgroundColor: entry.color }}
-                />
-                <span className="text-xs text-muted-foreground truncate">
-                  {entry.label}
-                </span>
-              </div>
-              <span className="text-sm font-bold tabular-nums ml-2">
-                {entry.value}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Recente Activiteit Card ──────────────────────────────────────────
-
-function RecenteActiviteitCard({
+function ActueelCard({
+  projects,
   offertes,
 }: {
+  projects: PipelineBentoProps["activeProjects"];
   offertes: PipelineBentoProps["recentOffertes"];
 }) {
+  const heeftInhoud = projects.length > 0 || offertes.length > 0;
+
   return (
     <div className="bg-card border border-border rounded-xl p-4">
       {/* Header */}
-      <div className="flex items-center justify-between mb-3.5">
-        <h3 className="text-[15px] font-semibold">Recente Activiteit</h3>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-[15px] font-semibold">Actueel</h3>
         <Link
           href="/offertes"
-          className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+          className="inline-flex min-h-6 items-center text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
         >
-          Bekijk alle &rarr;
+          Alle offertes &rarr;
         </Link>
       </div>
 
-      {/* Timeline */}
-      <div className="space-y-3">
-        {offertes.map((offerte) => {
-          const config = statusConfig[offerte.status] ?? {
-            label: offerte.status,
-            color: "#64748b",
-            valueColor: "text-foreground",
-          };
+      {/* Lopend werk */}
+      {projects.length > 0 && (
+        <div className="mb-3">
+          <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium mb-1.5">
+            Lopend werk
+          </p>
+          <div className="space-y-1">
+            {projects.map((project) => {
+              const voortgangPct = Math.min(
+                100,
+                Math.max(0, project.voortgang)
+              );
+              return (
+                <Link
+                  key={project._id}
+                  href={`/projecten/${project._id}`}
+                  className="block rounded-lg px-2 py-2 -mx-2 hover:bg-accent/50 transition-colors"
+                >
+                  <div className="flex items-center justify-between gap-3 mb-1.5">
+                    <p className="text-xs font-medium truncate">
+                      {project.naam}
+                      <span className="text-muted-foreground font-normal">
+                        {" "}
+                        &middot; {project.klantNaam}
+                      </span>
+                    </p>
+                    <span className="text-xs font-semibold tabular-nums shrink-0">
+                      {voortgangPct}%
+                    </span>
+                  </div>
+                  {/* Voortgang in accent-warm (terracotta): voortgang is werk
+                      onderweg, geen succes — groen blijft voor "afgerond". */}
+                  <div className="bg-accent-warm/15 rounded h-1 overflow-hidden">
+                    <div
+                      className="bg-accent-warm h-full rounded transition-all duration-500"
+                      style={{ width: `${voortgangPct}%` }}
+                    />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground tabular-nums mt-1">
+                    {project.totaalUren} / {project.begroteUren} uur
+                  </p>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
-          return (
-            <div key={offerte._id} className="flex items-start gap-2.5">
-              {/* Status dot */}
-              <div
-                className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0"
-                style={{ backgroundColor: config.color }}
-              />
+      {/* Laatste offerte-events */}
+      {offertes.length > 0 && (
+        <div className={projects.length > 0 ? "border-t border-border pt-3" : ""}>
+          <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium mb-1.5">
+            Laatste offertes
+          </p>
+          <div className="space-y-2.5">
+            {offertes.map((offerte) => (
+              <div key={offerte._id} className="flex items-start gap-2.5">
+                {/* Status dot */}
+                <div
+                  className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0"
+                  style={{
+                    backgroundColor:
+                      statusDot[offerte.status] ?? "var(--status-concept-dot)",
+                  }}
+                />
 
-              {/* Content */}
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium truncate">{config.label}</p>
-                <p className="text-[11px] text-muted-foreground truncate">
-                  {offerte.offerteNummer} &middot;{" "}
-                  {formatTimeAgo(offerte.updatedAt)}
-                </p>
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium truncate">
+                    {statusLabel[offerte.status] ?? offerte.status}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground truncate">
+                    {offerte.offerteNummer} &middot;{" "}
+                    {formatTimeAgo(offerte.updatedAt)}
+                  </p>
+                </div>
+
+                {/* Amount — neutraal: de status zit al in dot + label */}
+                <span className="text-[13px] font-semibold tabular-nums shrink-0">
+                  {formatCurrency(offerte.totalen.totaalInclBtw)}
+                </span>
               </div>
+            ))}
+          </div>
+        </div>
+      )}
 
-              {/* Amount */}
-              <span
-                className={`text-[13px] font-semibold tabular-nums shrink-0 ${config.valueColor}`}
-              >
-                {formatCurrency(offerte.totalen.totaalInclBtw)}
-              </span>
-            </div>
-          );
-        })}
-
-        {offertes.length === 0 && (
-          <p className="text-xs text-muted-foreground text-center py-4">
-            Geen recente activiteit
-          </p>
-        )}
-      </div>
+      {!heeftInhoud && (
+        <p className="text-xs text-muted-foreground text-center py-4">
+          Geen recente activiteit
+        </p>
+      )}
     </div>
-  );
-}
-
-// ── Lopend Project Card ──────────────────────────────────────────────
-
-function LopendProjectCard({
-  project,
-}: {
-  project: PipelineBentoProps["activeProjects"][number];
-}) {
-  const voortgangPct = Math.min(100, Math.max(0, project.voortgang));
-
-  return (
-    <Link
-      href={`/projecten/${project._id}`}
-      className="bg-card border border-border rounded-xl p-3.5 cursor-pointer block hover:border-foreground/20 transition-colors"
-    >
-      {/* Header */}
-      <div className="flex items-center gap-2.5 mb-2.5">
-        <div className="bg-orange-500/[0.08] w-[34px] h-[34px] rounded-[9px] flex items-center justify-center shrink-0">
-          <FolderKanban className="w-4 h-4 text-orange-500" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold truncate">{project.naam}</p>
-          <p className="text-[11px] text-muted-foreground truncate">
-            {project.klantNaam}
-          </p>
-        </div>
-        <span className="text-[15px] font-bold text-orange-500 tabular-nums shrink-0">
-          {voortgangPct}%
-        </span>
-      </div>
-
-      {/* Progress bar */}
-      <div className="bg-orange-500/[0.08] rounded h-1 overflow-hidden mb-2">
-        <div
-          className="bg-orange-500 h-full rounded transition-all duration-500"
-          style={{ width: `${voortgangPct}%` }}
-        />
-      </div>
-
-      {/* Footer */}
-      <p className="text-[10px] text-muted-foreground tabular-nums">
-        {project.totaalUren} / {project.begroteUren} uur
-      </p>
-    </Link>
   );
 }
 
 // ── Main Component ───────────────────────────────────────────────────
+//
+// WS3a: de Project Status-donut is weg — dezelfde aantallen staan al in de
+// KPI "Actieve Projecten" en in de tabs op /projecten.
 
 export function PipelineBento({
   offerteStats,
@@ -490,7 +388,6 @@ export function PipelineBento({
   totalAcceptedCount,
   totalSentForConversion,
   averageOfferteValue,
-  projectStats,
   activeProjects,
   recentOffertes,
 }: PipelineBentoProps) {
@@ -502,7 +399,7 @@ export function PipelineBento({
       </h2>
 
       {/* Row 1: Pipeline (2fr) + Conversie Rate (1fr) */}
-      <div className="grid grid-cols-[2fr_1fr] gap-2 mb-2">
+      <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-2 mb-2">
         <PipelineCard stats={offerteStats} />
         <ConversieRateCard
           rate={conversionRate}
@@ -512,20 +409,8 @@ export function PipelineBento({
         />
       </div>
 
-      {/* Row 2: Project Status (1fr) + Recente Activiteit (1fr) */}
-      <div className="grid grid-cols-2 gap-2 mb-2">
-        <ProjectStatusCard stats={projectStats} />
-        <RecenteActiviteitCard offertes={recentOffertes} />
-      </div>
-
-      {/* Row 3: Lopende Projecten (conditional) */}
-      {activeProjects.length > 0 && (
-        <div className="grid grid-cols-2 gap-2">
-          {activeProjects.map((project) => (
-            <LopendProjectCard key={project._id} project={project} />
-          ))}
-        </div>
-      )}
+      {/* Row 2: Actueel — lopend werk + laatste offerte-events, gefuseerd */}
+      <ActueelCard projects={activeProjects} offertes={recentOffertes} />
     </section>
   );
 }

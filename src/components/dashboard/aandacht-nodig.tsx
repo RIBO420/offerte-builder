@@ -21,10 +21,13 @@ interface AandachtNodigProps {
   }>;
 }
 
+// Alleen prioriteit "hoog" krijgt kleur (amber, via de status-tokenreceptuur);
+// middel en laag blijven neutraal. Voorheen baadde het hele blok in amber en
+// was "hoog" niet van "laag" te onderscheiden.
 const PRIORITY_BADGE: Record<string, string> = {
-  hoog: "bg-red-500/15 text-red-700 dark:text-red-400",
-  middel: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
-  laag: "bg-blue-500/15 text-blue-700 dark:text-blue-400",
+  hoog: "bg-status-in-uitvoering text-status-in-uitvoering-text",
+  middel: "bg-muted text-muted-foreground",
+  laag: "bg-muted text-muted-foreground",
 };
 
 export function AandachtNodig({
@@ -36,14 +39,14 @@ export function AandachtNodig({
   if (totalCount === 0) return null;
 
   return (
-    <div className="bg-amber-500/5 border border-amber-500/12 border-l-[3px] border-l-amber-500 rounded-xl p-4">
+    // Neutrale kaart met één warme accentrand: het blok vraagt aandacht,
+    // maar hoeft niet zelf het luidste vlak van de pagina te zijn.
+    <div className="bg-card border border-border border-l-[3px] border-l-accent-warm rounded-xl p-3.5">
       {/* Header */}
-      <div className="flex items-center gap-2 mb-3">
-        <AlertTriangle className="h-4 w-4 text-amber-700 dark:text-amber-400 shrink-0" />
-        <span className="font-semibold text-amber-700 dark:text-amber-400 text-sm">
-          Aandacht nodig
-        </span>
-        <span className="bg-amber-500/15 text-amber-700 dark:text-amber-400 text-[11px] font-semibold px-2 py-0.5 rounded-md">
+      <div className="flex items-center gap-2 mb-2.5">
+        <AlertTriangle className="h-4 w-4 text-accent-warm shrink-0" aria-hidden="true" />
+        <span className="font-semibold text-sm">Aandacht nodig</span>
+        <span className="bg-accent-warm/15 text-foreground text-[11px] font-semibold px-2 py-0.5 rounded-md tabular-nums">
           {totalCount}
         </span>
       </div>
@@ -54,7 +57,7 @@ export function AandachtNodig({
         {acceptedWithoutProject.map((offerte) => (
           <div
             key={offerte._id}
-            className="bg-white/[0.03] border border-white/[0.05] rounded-lg px-3.5 py-2.5 flex items-center justify-between gap-3"
+            className="bg-muted/40 rounded-lg px-3 py-2 flex items-center justify-between gap-3"
           >
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium truncate">{offerte.klantNaam}</p>
@@ -65,7 +68,7 @@ export function AandachtNodig({
             <Button
               asChild
               size="sm"
-              className="shrink-0 bg-amber-500 text-black text-[11px] font-bold px-3 py-1 rounded-lg h-auto"
+              className="shrink-0 text-[11px] font-semibold px-3 py-1 rounded-lg h-auto min-h-6"
             >
               <Link href={`/projecten/nieuw?offerte=${offerte._id}`}>
                 Start Project
@@ -78,7 +81,7 @@ export function AandachtNodig({
         {warnings.map((warning) => (
           <div
             key={warning.id}
-            className="bg-white/[0.03] border border-white/[0.05] rounded-lg px-3.5 py-2.5"
+            className="bg-muted/40 rounded-lg px-3 py-2"
           >
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1 min-w-0">
@@ -97,7 +100,7 @@ export function AandachtNodig({
               {warning.link && (
                 <Link
                   href={warning.link}
-                  className="text-xs text-amber-700 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300 shrink-0 mt-0.5"
+                  className="inline-flex min-h-6 items-center text-xs font-medium text-primary hover:underline shrink-0"
                 >
                   Bekijk →
                 </Link>

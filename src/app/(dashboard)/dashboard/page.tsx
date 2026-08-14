@@ -358,13 +358,13 @@ export default function DashboardPage() {
                     </p>
                   </div>
                   <div className="flex gap-2">
-                    <Button asChild variant="outline" className="border-green-500/20 bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20 hover:text-green-800 dark:hover:text-green-300">
+                    <Button asChild variant="outline" className="border-primary/25 bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary">
                       <Link href="/offertes/nieuw/aanleg">
                         <Shovel className="mr-2 h-4 w-4" />
                         Nieuwe Aanleg
                       </Link>
                     </Button>
-                    <Button asChild variant="outline" className="border-green-500/12 bg-green-500/5 text-green-700 dark:text-green-300 hover:bg-green-500/15 hover:text-green-800 dark:hover:text-green-200">
+                    <Button asChild variant="outline" className="border-primary/15 bg-primary/5 text-primary hover:bg-primary/15 hover:text-primary">
                       <Link href="/offertes/nieuw/onderhoud">
                         <Trees className="mr-2 h-4 w-4" />
                         Nieuw Onderhoud
@@ -372,6 +372,26 @@ export default function DashboardPage() {
                     </Button>
                   </div>
                 </m.div>
+
+                {/* Section 2: Aandacht Nodig — direct onder de kop: het enige blok
+                    dat om actie vraagt, dus vóór alle cijfers. Bewust een gewone
+                    div en géén m.div met entrance-variants: die bleef in een
+                    verborgen/pre-gerenderde tab op opacity 0 hangen (WS3a-fix). */}
+                {((adminData.acceptedWithoutProject ?? []).length > 0 || warnings.length > 0) && (
+                  <div>
+                    <AandachtNodig
+                      acceptedWithoutProject={adminData.acceptedWithoutProject ?? []}
+                      warnings={warnings.map((w: { id: string; type: string; prioriteit: "hoog" | "middel" | "laag"; titel: string; beschrijving: string; actie?: string }) => ({
+                        id: w.id,
+                        type: w.type,
+                        prioriteit: w.prioriteit,
+                        titel: w.titel,
+                        beschrijving: w.beschrijving,
+                        actie: w.actie,
+                      }))}
+                    />
+                  </div>
+                )}
 
                 {/* Onboarding Checklist (admin) */}
                 {shouldShowChecklist && (
@@ -383,23 +403,6 @@ export default function DashboardPage() {
                       progressPercentage={onboardingProgress}
                       isComplete={onboardingComplete}
                       onDismiss={dismissOnboarding}
-                    />
-                  </m.div>
-                )}
-
-                {/* Section 2: Aandacht Nodig (conditional) */}
-                {((adminData.acceptedWithoutProject ?? []).length > 0 || warnings.length > 0) && (
-                  <m.div variants={itemVariants}>
-                    <AandachtNodig
-                      acceptedWithoutProject={adminData.acceptedWithoutProject ?? []}
-                      warnings={warnings.map((w: { id: string; type: string; prioriteit: "hoog" | "middel" | "laag"; titel: string; beschrijving: string; actie?: string }) => ({
-                        id: w.id,
-                        type: w.type,
-                        prioriteit: w.prioriteit,
-                        titel: w.titel,
-                        beschrijving: w.beschrijving,
-                        actie: w.actie,
-                      }))}
                     />
                   </m.div>
                 )}
@@ -416,13 +419,10 @@ export default function DashboardPage() {
                     actieveProjecten={adminData.projectStats?.in_uitvoering ?? 0}
                     totaalProjecten={adminData.projectStats?.totaal ?? 0}
                     afgerondeProjecten={adminData.projectStats?.afgerond ?? 0}
-                    openstaandeOffertes={adminData.offerteStats?.verzonden ?? 0}
                     openstaandBedrag={adminData.financieel?.openstaandBedrag ?? 0}
                     vervaldeAantal={adminData.financieel?.vervaldeAantal ?? 0}
                     vervaldenBedrag={adminData.financieel?.vervaldenBedrag ?? 0}
                     gefactureerdThisQ={adminData.kwartaalVergelijking?.gefactureerdThisQ ?? 0}
-                    gefactureerdPrevQ={adminData.kwartaalVergelijking?.gefactureerdPrevQ ?? 0}
-                    urenDezeMaand={adminData.urenDezeMaand ?? 0}
                     omzetTrendPercentage={computeTrendPct(adminData.kwartaalVergelijking?.revenueThisQ, adminData.kwartaalVergelijking?.revenuePrevQ)}
                     gefactureerdTrendPercentage={computeTrendPct(adminData.kwartaalVergelijking?.gefactureerdThisQ, adminData.kwartaalVergelijking?.gefactureerdPrevQ)}
                   />
@@ -436,7 +436,6 @@ export default function DashboardPage() {
                     totalAcceptedCount={adminData.revenueStats?.totalAcceptedCount ?? 0}
                     totalSentForConversion={(adminData.offerteStats?.verzonden ?? 0) + (adminData.offerteStats?.geaccepteerd ?? 0) + (adminData.offerteStats?.afgewezen ?? 0)}
                     averageOfferteValue={adminData.revenueStats?.averageOfferteValue ?? 0}
-                    projectStats={adminData.projectStats ?? { totaal: 0, gepland: 0, in_uitvoering: 0, afgerond: 0, nacalculatie_compleet: 0, gefactureerd: 0 }}
                     activeProjects={adminData.activeProjects ?? []}
                     recentOffertes={(adminData.recentOffertes ?? []).map((o) => ({
                       _id: o._id,

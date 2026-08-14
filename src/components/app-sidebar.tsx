@@ -133,6 +133,14 @@ const projectSubItems = [
   { title: "Kwaliteit", urlSuffix: "/kwaliteit", icon: CheckSquare },
 ];
 
+// Actieve staat in merkgroen ("Vakwerk in het groen"): tekst en icoon in
+// primary op een lichte primary-tint, met een 2px "grasrand" links als
+// inset-shadow — die schuift niet met de layout en blijft ook in de
+// ingeklapte 32px-knop zichtbaar. `relative` staat hier zodat de MenuTeller
+// zijn stip op de knop kan positioneren (zie MenuTeller-docstring).
+const menuKnopKlasse =
+  "relative data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:hover:bg-primary/15 data-[active=true]:hover:text-primary data-[active=true]:shadow-[inset_2px_0_0_0_var(--primary)]";
+
 
 /**
  * Teller bij een menu-item.
@@ -292,13 +300,19 @@ export function AppSidebar() {
 
   // Eén plek voor de tellers: welk menu-item, welk aantal, welke kleur. Voorheen
   // stonden dit vier bijna identieke blokken in de JSX.
+  //
+  // Eén stijl (WS3b): werkvoorraad-tellers (Leads/Meldingen/Concept-mails) in
+  // merkgroen — voorheen blauw/amber/groen door elkaar, drie kleuren zonder
+  // systeem. Alleen het Klanten-totaal blijft neutraal: dat is een bestandsteller,
+  // geen werkvoorraad.
+  const werkvoorraadBadge = "bg-primary text-primary-foreground hover:bg-primary";
   const tellers: Record<
     string,
     { aantal: number | undefined; klasse: string; stip?: boolean }
   > = {
     Leads: {
       aantal: aantalActieveLeads,
-      klasse: "bg-blue-600 text-white hover:bg-blue-600",
+      klasse: werkvoorraadBadge,
     },
     // Geen stip ingeklapt: dit is een totaal, geen werkvoorraad. Het aantal
     // klanten is nooit nul, dus die stip zou altijd branden zonder iets te
@@ -310,11 +324,11 @@ export function AppSidebar() {
     },
     Meldingen: {
       aantal: aantalOpenMeldingen,
-      klasse: "bg-amber-600 text-white hover:bg-amber-600",
+      klasse: werkvoorraadBadge,
     },
     "Concept-mails": {
       aantal: aantalConceptMails,
-      klasse: "bg-green-700 text-white hover:bg-green-700",
+      klasse: werkvoorraadBadge,
     },
   };
 
@@ -341,7 +355,9 @@ export function AppSidebar() {
                   <TopTuinenLogo variant="wit" size={22} className="size-[22px]" />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold" title="Top Tuinen OS">Top Tuinen OS</span>
+                  {/* Merkmoment (WS3b): het woordmerk in het displayfont — de
+                      eerste plek waar je het merk ziet, niet zomaar een label. */}
+                  <span className="truncate font-display text-[15px] font-semibold tracking-tight" title="Top Tuinen OS">Top Tuinen OS</span>
                 </div>
               </Link>
             </SidebarMenuButton>
@@ -368,7 +384,7 @@ export function AppSidebar() {
                       // enige signaal, en dan wil je alsnog weten om hoeveel
                       // het gaat zonder uit te klappen.
                       tooltip={toonTeller ? `${item.title} (${aantal})` : item.title}
-                      className="relative"
+                      className={menuKnopKlasse}
                     >
                       <Link href={item.url}>
                         <item.icon />
@@ -403,6 +419,7 @@ export function AppSidebar() {
                         asChild
                         isActive={pathname === item.url || pathname.startsWith(item.url + "/")}
                         tooltip={item.title}
+                        className={menuKnopKlasse}
                       >
                         <Link href={item.url}>
                           <item.icon />
@@ -431,6 +448,7 @@ export function AppSidebar() {
                         asChild
                         isActive={pathname === `/projecten/${currentProjectId}${item.urlSuffix}`}
                         tooltip={item.title}
+                        className={menuKnopKlasse}
                       >
                         <Link href={`/projecten/${currentProjectId}${item.urlSuffix}`}>
                           <item.icon />

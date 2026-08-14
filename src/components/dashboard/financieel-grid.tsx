@@ -1,9 +1,51 @@
 "use client";
 
-import { Euro, FolderKanban, FileText, Receipt, TrendingUp, Clock } from "lucide-react";
+import { FolderKanban, Receipt, TrendingUp } from "lucide-react";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import { Sparkline } from "@/components/ui/sparkline";
 import { formatMaandJaar, formatKwartaalJaar } from "@/lib/format";
+
+// ── TrendChip ───────────────────────────────────────────────────────────────
+//
+// De kleur volgt de richting van het cijfer, niet de huisstijl van de kaart:
+// een omzet van −21% mag nooit groen ogen. De status-tokenparen (bg + text)
+// zijn de enige AA-geverifieerde tintcombinaties, dus die lenen we hier.
+
+function TrendChip({ pct }: { pct: number }) {
+  const chipClass =
+    pct > 0
+      ? "bg-status-geaccepteerd text-status-geaccepteerd-text"
+      : pct < 0
+        ? "bg-status-vervallen text-status-vervallen-text"
+        : "bg-muted text-muted-foreground";
+
+  return (
+    <span
+      className={`${chipClass} text-[11px] font-semibold px-2 py-0.5 rounded-md inline-flex items-center gap-1`}
+    >
+      <svg
+        width="12"
+        height="12"
+        viewBox="0 0 12 12"
+        fill="none"
+        aria-hidden="true"
+        // Dezelfde zigzag, maar bij een daling verticaal gespiegeld — de
+        // richting van het lijntje en de kleur vertellen hetzelfde verhaal.
+        style={pct < 0 ? { transform: "scaleY(-1)" } : undefined}
+      >
+        <path
+          d="M1 8 L3 5 L5 6.5 L8 3 L11 4"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+      {pct > 0 ? "+" : ""}
+      {pct}%
+    </span>
+  );
+}
 
 // ── MetricCard ──────────────────────────────────────────────────────────────
 
@@ -11,12 +53,11 @@ interface MetricCardProps {
   title: string;
   value: number;
   format?: "currency" | "number";
-  icon: React.ReactNode;
-  iconColor: string;
+  icon?: React.ReactNode;
+  iconClass?: string;
   trendPercentage?: number;
-  trendColor?: string;
   subtitle?: string;
-  subtitleColor?: string;
+  subtitleClass?: string;
   sparklineData?: number[];
   sparklineColor?: string;
 }
@@ -26,24 +67,13 @@ function MetricCard({
   value,
   format = "number",
   icon,
-  iconColor,
+  iconClass,
   trendPercentage,
-  trendColor,
   subtitle,
-  subtitleColor,
+  subtitleClass,
   sparklineData,
   sparklineColor,
 }: MetricCardProps) {
-  const isCurrency = format === "currency";
-
-  // Trend badge color classes
-  const trendBgClass =
-    trendColor === "blue" ? "bg-blue-500/12" : "bg-green-500/12";
-  const trendTextClass =
-    trendColor === "blue"
-      ? "text-blue-600 dark:text-blue-400"
-      : "text-green-600 dark:text-green-400";
-
   return (
     <div className="bg-card border border-border rounded-xl p-4 relative overflow-hidden hover:-translate-y-px hover:shadow-md transition-all duration-200">
       {/* Header row */}
@@ -52,63 +82,27 @@ function MetricCard({
           {title}
         </span>
         {trendPercentage != null ? (
-          <span
-            className={`${trendBgClass} ${trendTextClass} text-[11px] font-semibold px-2 py-0.5 rounded-md inline-flex items-center gap-1`}
-          >
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 12 12"
-              fill="none"
-              aria-hidden="true"
-            >
-              <path
-                d="M1 8 L3 5 L5 6.5 L8 3 L11 4"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            {trendPercentage > 0 ? "+" : ""}
-            {trendPercentage}%
-          </span>
+          <TrendChip pct={trendPercentage} />
         ) : (
-          <span className={iconColor}>{icon}</span>
+          <span className={iconClass ?? "text-muted-foreground"}>{icon}</span>
         )}
       </div>
 
       {/* Value */}
-      {isCurrency ? (
-        <AnimatedNumber
-          value={value}
-          prefix="€ "
-          formatOptions={{
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0,
-          }}
-          locale="nl-NL"
-          className={`text-[28px] font-extrabold tracking-tight leading-none ${
-            iconColor === "text-green-500"
-              ? "text-green-600 dark:text-green-500"
-              : ""
-          }`}
-        />
-      ) : (
-        <AnimatedNumber
-          value={value}
-          formatOptions={{
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0,
-          }}
-          locale="nl-NL"
-          className="text-[28px] font-extrabold tracking-tight leading-none"
-        />
-      )}
+      <AnimatedNumber
+        value={value}
+        prefix={format === "currency" ? "€ " : ""}
+        formatOptions={{
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0,
+        }}
+        locale="nl-NL"
+        className="text-[28px] font-extrabold tracking-tight leading-none tabular-nums"
+      />
 
       {/* Subtitle */}
       {subtitle && (
-        <p className={`text-[11px] mt-1.5 ${subtitleColor ?? "text-muted-foreground"}`}>
+        <p className={`text-[11px] mt-1.5 ${subtitleClass ?? "text-muted-foreground"}`}>
           {subtitle}
         </p>
       )}
@@ -129,20 +123,71 @@ function MetricCard({
   );
 }
 
+// ── Heldcijfer: Totale Omzet ────────────────────────────────────────────────
+//
+// Eén cijfer mag domineren ("Vakwerk in het groen": één heldcijfer per
+// scherm). De omzet krijgt het displayfont (Fraunces) en een volle rij; de
+// waarde zelf blijft neutraal — de trendchip draagt het oordeel.
+
+function OmzetHeroCard({
+  value,
+  trendPercentage,
+  subtitle,
+}: {
+  value: number;
+  trendPercentage?: number;
+  subtitle: string;
+}) {
+  return (
+    <div className="bg-card border border-border rounded-xl p-5 relative overflow-hidden">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs text-muted-foreground font-medium">
+          Totale Omzet
+        </span>
+        {trendPercentage != null && <TrendChip pct={trendPercentage} />}
+      </div>
+
+      <AnimatedNumber
+        value={value}
+        prefix="€ "
+        formatOptions={{
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0,
+        }}
+        locale="nl-NL"
+        className="font-display text-[40px] md:text-[44px] font-semibold tracking-tight leading-none tabular-nums"
+      />
+
+      <p className="text-[11px] text-muted-foreground mt-2">{subtitle}</p>
+
+      <div className="absolute bottom-0 left-0 right-0 opacity-[0.12]">
+        <Sparkline
+          data={[10, 15, 12, 20, 18, 25, 30, 28, 35, 40, 38, 45]}
+          width={640}
+          height={36}
+          color="var(--chart-1)"
+          showArea
+        />
+      </div>
+    </div>
+  );
+}
+
 // ── FinancieelGrid ──────────────────────────────────────────────────────────
+//
+// WS3a: 6 → 4 KPI's. "Openstaande Offertes" verviel (dubbel met de
+// pipeline-kaart eronder) en "Uren deze Maand" verviel (leeft op /uren en
+// /rapportages). Wat blijft: omzet als heldcijfer, plus drie compacte kaarten.
 
 export interface FinancieelGridProps {
   totaleOmzet: number;
   actieveProjecten: number;
   totaalProjecten: number;
   afgerondeProjecten: number;
-  openstaandeOffertes: number;
   openstaandBedrag: number;
   vervaldeAantal: number;
   vervaldenBedrag: number;
   gefactureerdThisQ: number;
-  gefactureerdPrevQ: number;
-  urenDezeMaand: number;
   omzetTrendPercentage?: number;
   gefactureerdTrendPercentage?: number;
 }
@@ -152,12 +197,10 @@ export function FinancieelGrid({
   actieveProjecten,
   totaalProjecten,
   afgerondeProjecten,
-  openstaandeOffertes,
   openstaandBedrag,
   vervaldeAantal,
   vervaldenBedrag,
   gefactureerdThisQ,
-  urenDezeMaand,
   omzetTrendPercentage,
   gefactureerdTrendPercentage,
 }: FinancieelGridProps) {
@@ -166,21 +209,15 @@ export function FinancieelGrid({
   const maandLabel = formatMaandJaar(now);
   const kwartaalLabel = formatKwartaalJaar(now);
 
-  // Openstaande offertes subtitle
-  const offertesSubtitle =
-    openstaandeOffertes === 0
-      ? "Geen wachtend"
-      : `${openstaandeOffertes} wachtend op reactie`;
-
   // Openstaand bedrag subtitle (overdue)
   const openstaandSubtitle =
     vervaldeAantal === 0
       ? "Alles op tijd"
-      : `${vervaldeAantal} vervallen (€\u00A0${new Intl.NumberFormat("nl-NL", { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(vervaldenBedrag)})`;
-  const openstaandSubtitleColor =
+      : `${vervaldeAantal} vervallen (€ ${new Intl.NumberFormat("nl-NL", { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(vervaldenBedrag)})`;
+  const openstaandSubtitleClass =
     vervaldeAantal === 0
-      ? "text-green-600 dark:text-green-400"
-      : "text-red-600 dark:text-red-400";
+      ? "text-status-geaccepteerd-text"
+      : "text-status-vervallen-text";
 
   return (
     <section>
@@ -188,72 +225,47 @@ export function FinancieelGrid({
         Financieel &amp; Operationeel
       </h2>
 
-      <div className="grid grid-cols-3 gap-2">
-        {/* 1. Totale Omzet */}
-        <MetricCard
-          title="Totale Omzet"
+      <div className="grid grid-cols-1 gap-2">
+        {/* 1. Totale Omzet — het heldcijfer */}
+        <OmzetHeroCard
           value={totaleOmzet}
-          format="currency"
-          icon={<Euro className="h-4 w-4" />}
-          iconColor="text-green-500"
           trendPercentage={omzetTrendPercentage}
-          trendColor="green"
           subtitle={`t/m ${maandLabel}`}
-          sparklineData={[10, 15, 12, 20, 18, 25, 30, 28, 35, 40, 38, 45]}
-          sparklineColor="#22c55e"
         />
 
-        {/* 2. Actieve Projecten */}
-        <MetricCard
-          title="Actieve Projecten"
-          value={actieveProjecten}
-          icon={<FolderKanban className="h-4 w-4" />}
-          iconColor="text-orange-500"
-          subtitle={`${afgerondeProjecten} afgerond / ${totaalProjecten} totaal`}
-        />
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          {/* 2. Actieve Projecten */}
+          <MetricCard
+            title="Actieve Projecten"
+            value={actieveProjecten}
+            icon={<FolderKanban className="h-4 w-4" />}
+            iconClass="text-accent-warm"
+            subtitle={`${afgerondeProjecten} afgerond / ${totaalProjecten} totaal`}
+          />
 
-        {/* 3. Openstaande Offertes */}
-        <MetricCard
-          title="Openstaande Offertes"
-          value={openstaandeOffertes}
-          icon={<FileText className="h-4 w-4" />}
-          iconColor="text-blue-500"
-          subtitle={offertesSubtitle}
-        />
+          {/* 3. Openstaand */}
+          <MetricCard
+            title="Openstaand"
+            value={openstaandBedrag}
+            format="currency"
+            icon={<Receipt className="h-4 w-4" />}
+            iconClass="text-accent-warm"
+            subtitle={openstaandSubtitle}
+            subtitleClass={openstaandSubtitleClass}
+          />
 
-        {/* 4. Openstaand */}
-        <MetricCard
-          title="Openstaand"
-          value={openstaandBedrag}
-          format="currency"
-          icon={<Receipt className="h-4 w-4" />}
-          iconColor="text-amber-500"
-          subtitle={openstaandSubtitle}
-          subtitleColor={openstaandSubtitleColor}
-        />
-
-        {/* 5. Gefactureerd dit Q */}
-        <MetricCard
-          title="Gefactureerd dit Q"
-          value={gefactureerdThisQ}
-          format="currency"
-          icon={<TrendingUp className="h-4 w-4" />}
-          iconColor="text-blue-500"
-          trendPercentage={gefactureerdTrendPercentage}
-          trendColor="blue"
-          subtitle={kwartaalLabel}
-          sparklineData={[5, 8, 10, 15, 20, 22, 25, 30]}
-          sparklineColor="#3b82f6"
-        />
-
-        {/* 6. Uren deze Maand */}
-        <MetricCard
-          title="Uren deze Maand"
-          value={urenDezeMaand}
-          icon={<Clock className="h-4 w-4" />}
-          iconColor="text-orange-500"
-          subtitle={maandLabel}
-        />
+          {/* 4. Gefactureerd dit Q */}
+          <MetricCard
+            title="Gefactureerd dit Q"
+            value={gefactureerdThisQ}
+            format="currency"
+            icon={<TrendingUp className="h-4 w-4" />}
+            trendPercentage={gefactureerdTrendPercentage}
+            subtitle={kwartaalLabel}
+            sparklineData={[5, 8, 10, 15, 20, 22, 25, 30]}
+            sparklineColor="var(--chart-3)"
+          />
+        </div>
       </div>
     </section>
   );
