@@ -67,14 +67,26 @@ hoefde er geen regel voor te wijzigen.
 ### Tijdlijn-anatomie
 
 `KlantTijdlijn` tekent een doorlopende rail met per gebeurtenis een knoop (het
-kanaal-icoon in een schijfje). Twee dingen die je anders opnieuw ontdekt:
+kanaal-icoon in een schijfje). Vier dingen die je anders opnieuw ontdekt:
 
 - De railkolom heeft `-my-2` nodig. Zonder dat stopt hij bij de tekst en valt er
   16px rij-padding tussen twee rijen — een stippellijn in plaats van een lijn.
 - De rail is **niet** `bg-border`: die ligt op `--surface-primair` op 1,00:1, dus
-  onzichtbaar. `bg-muted-foreground/30` blijft een token en meet 1,53:1 (licht)
-  en 1,74:1 (donker). De rij-`divide-y` is weg: een streep dwars over de rail
-  knipt hem stuk; de datumkoppen dragen de leespauze.
+  onzichtbaar. `bg-muted-foreground/40` blijft een token en meet 1,78:1 (licht)
+  en 2,15:1 (donker). De rij-`divide-y` is weg: een streep dwars over de rail
+  knipt hem stuk.
+- **De rail loopt dóór de datumkoppen** en is alleen boven de allereerste en
+  onder de allerlaatste knoop afwezig — `isEerste`/`isLaatste` zijn dus
+  lijst-globaal, niet per datumgroep. De koppen zijn geen volle-breedte balken
+  meer maar een label in de tekstkolom met een eigen railsegment. De oude
+  per-groep-variant liet bij één entry per dag helemáál geen lijn zien (zo
+  ontdekt in de Chat-module, waar elke dag één entry had).
+- **Knoopkleur per kanaal** staat in `KANAAL_KNOOP`: telefoon `primary`,
+  WhatsApp `chart-5`, e-mail `chart-3`, intern `scope-houtwerk` (bewust niet
+  `chart-2`/`accent-warm`: die terracotta's meten 2,6 resp. 2,1:1 op hun
+  10%-schijf in licht; houtwerk haalt 4,1:1), systeem gedempt + gestippeld.
+  Iconen meten ≥3,3:1 op hun schijf in beide thema's; betekenis staat óók in
+  `title` + sr-only tekst, de kleur is ondersteuning.
 
 Drie patronen die daar zijn vastgelegd:
 

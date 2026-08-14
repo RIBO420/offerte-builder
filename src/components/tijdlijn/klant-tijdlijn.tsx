@@ -102,6 +102,32 @@ const KANAAL_ICONS: Record<Kanaal, React.ReactNode> = {
   systeem: <Bot className="size-3.5" />,
 };
 
+/**
+ * Knoopkleur per kanaal: een zachte tint uit de Loof & Leem-set zodat je al
+ * scannend ziet wélk soort contact het was — telefoon groen (primary),
+ * WhatsApp mosteal, e-mail steenblauw, intern terracotta. Decoratief
+ * (≥3:1 gemeten); de betekenis zelf staat in icoon, `title` en sr-only tekst.
+ * Systeem blijft gedempt en gestippeld: ruis waar je doorheen leest.
+ */
+const KANAAL_KNOOP: Record<Kanaal, string> = {
+  telefoon: "border-primary/35 bg-primary/10 text-primary",
+  whatsapp: "border-chart-5/40 bg-chart-5/10 text-chart-5",
+  email: "border-chart-3/40 bg-chart-3/10 text-chart-3",
+  // Niet `--chart-2`/`--accent-warm`: die terracotta's meten 2,6:1 resp.
+  // 2,1:1 op hun eigen 10%-schijf in licht. Het houtwerk-token is dezelfde
+  // warme as één stap dieper en haalt 4,1:1.
+  intern: "border-scope-houtwerk/45 bg-scope-houtwerk/10 text-scope-houtwerk",
+  systeem:
+    "border-dashed border-muted-foreground/25 bg-muted text-muted-foreground",
+};
+
+/**
+ * De rail zelf. Niet `bg-border`: die ligt op het werkstroomvlak op 1,00:1 —
+ * dan is er geen lijn. `muted-foreground/40` blijft een token en is in beide
+ * thema's een rustige maar échte lijn (decoratief, gemeten ≥1,8:1).
+ */
+const RAIL = "bg-muted-foreground/40";
+
 function formatDatumTijd(timestamp: number): string {
   return new Date(timestamp).toLocaleString("nl-NL", {
     day: "numeric",
@@ -232,9 +258,9 @@ function TijdlijnEntryRij({
   entry: TijdlijnEntryData;
   nu: Date;
   isNieuwste: boolean;
-  /** Bovenste entry onder een datumkop: geen rail bóven de knoop. */
+  /** Allereerste entry van de hele lijst: de rail begint pas bij deze knoop. */
   isEerste: boolean;
-  /** Onderste entry van een datumgroep: de rail stopt hier. */
+  /** Allerlaatste entry van de hele lijst: de rail stopt hier. */
   isLaatste: boolean;
 }) {
   // Systeem-entries zijn ruis waar je doorheen leest, geen gespreksnotitie:
@@ -258,32 +284,21 @@ function TijdlijnEntryRij({
           valt er 16px gat tussen twee rijen. De 9px boven de knoop zet hem op
           de hoogte van de eerste tekstregel. */}
       <span className="-my-2 flex flex-col items-center self-stretch">
-        {/* Niet `bg-border`: die ligt op het werkstroomvlak op 1,00:1 — dan is
-            er geen lijn. `muted-foreground/30` blijft een token en is in beide
-            thema's zichtbaar zonder een streep te trekken die schreeuwt. */}
         <span
           aria-hidden
-          className={cn(
-            "h-[9px] w-px shrink-0",
-            !isEerste && "bg-muted-foreground/30"
-          )}
+          className={cn("h-[9px] w-px shrink-0", !isEerste && RAIL)}
         />
         <span
           className={cn(
-            "relative flex size-[18px] shrink-0 items-center justify-center rounded-full border border-muted-foreground/25 [&>svg]:size-3",
-            isSysteem
-              ? "border-dashed bg-muted text-muted-foreground"
-              : "bg-card text-muted-foreground"
+            "relative flex size-[18px] shrink-0 items-center justify-center rounded-full border [&>svg]:size-3",
+            KANAAL_KNOOP[entry.kanaal]
           )}
           title={KANAAL_LABELS[entry.kanaal]}
         >
           {KANAAL_ICONS[entry.kanaal]}
           <span className="sr-only">{KANAAL_LABELS[entry.kanaal]}</span>
         </span>
-        <span
-          aria-hidden
-          className={cn("w-px flex-1", !isLaatste && "bg-muted-foreground/30")}
-        />
+        <span aria-hidden className={cn("w-px flex-1", !isLaatste && RAIL)} />
       </span>
       <div className="min-w-0">
         <p
@@ -957,12 +972,25 @@ export function KlantTijdlijn({
       ) : (
         // Geen `divide-y` meer: de rail met knopen scheidt de gebeurtenissen
         // al, en een streep dwars over die rail knipt hem juist stuk. De
-        // datumkoppen houden hun eigen vlak als leespauze.
+        // datumkoppen staan ín de tekstkolom zodat de rail er ononderbroken
+        // achterlangs kan lopen — vroeger waren het volle-breedte balken die
+        // de lijn per dag stukknipten; bij één entry per dag bleef er toen
+        // helemaal geen lijn over (precies wat er in de Chat-module opviel).
         <ul>
           {groepen.map((groep, groepIndex) => (
             <Fragment key={groep.sleutel}>
-              <li className="border-y bg-muted/30 px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                {groep.label}
+              <li className="grid grid-cols-[1.25rem_minmax(0,1fr)] items-stretch gap-x-2.5 px-3 pb-1 pt-2.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                {/* De rail loopt dóór de datumkop heen (behalve boven de
+                    allereerste); -mt/-mb heffen de rij-padding op zodat hij
+                    zonder gat aansluit op de rijen erboven en eronder. */}
+                <span
+                  aria-hidden
+                  className={cn(
+                    "-mb-1 -mt-2.5 w-px justify-self-center",
+                    groepIndex > 0 && RAIL
+                  )}
+                />
+                <span>{groep.label}</span>
               </li>
               {groep.items.map((entry, index) => (
                 <TijdlijnEntryRij
@@ -970,8 +998,11 @@ export function KlantTijdlijn({
                   entry={entry}
                   nu={nu}
                   isNieuwste={groepIndex === 0 && index === 0}
-                  isEerste={index === 0}
-                  isLaatste={index === groep.items.length - 1}
+                  isEerste={groepIndex === 0 && index === 0}
+                  isLaatste={
+                    groepIndex === groepen.length - 1 &&
+                    index === groep.items.length - 1
+                  }
                 />
               ))}
             </Fragment>

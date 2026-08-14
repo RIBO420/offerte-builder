@@ -711,7 +711,6 @@ function TaakRegel({
     <li
       className={cn(
         "group grid grid-cols-[1.25rem_minmax(0,1fr)_auto] items-start gap-x-2.5 px-3 py-2 transition-colors duration-100 hover:bg-muted/40",
-        isAfgerond && "opacity-55",
         isNieuw &&
           "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 motion-safe:duration-200"
       )}
@@ -739,17 +738,20 @@ function TaakRegel({
         <div className="flex min-w-0 items-center gap-1.5">
           {/* Prioriteitsstip op een vaste plek: zo beginnen alle titels op
               dezelfde x, ook zonder stip. Alleen `hoog` krijgt echt inkt —
-              een lijst waarin alles kleur heeft, wijst nergens meer naar. */}
+              een zachte halo eromheen laat hem branden zonder groter te
+              worden. Een lijst waarin alles kleur heeft, wijst nergens meer
+              naar; `laag` is daarom een open ringetje in plaats van een
+              tweede gevulde stip. */}
           <span
             className={cn(
               "size-1.5 shrink-0 rounded-full",
               isAfgerond
                 ? "bg-transparent"
                 : isHoog
-                  ? "bg-destructive"
+                  ? "bg-destructive ring-2 ring-destructive/20"
                   : taak.prioriteit === "laag"
-                    ? "bg-muted-foreground/20"
-                    : "bg-muted-foreground/35"
+                    ? "border border-muted-foreground/40"
+                    : "bg-muted-foreground/30"
             )}
             title={
               isAfgerond
@@ -759,11 +761,15 @@ function TaakRegel({
           >
             {isHoog && <span className="sr-only">Hoge prioriteit</span>}
           </span>
+          {/* Afgerond = gedempte tekst met een zachte doorhaling, geen
+              blanket-opacity over de hele rij: zo blijft het groene vinkje
+              vol van kleur staan als bewijs dat het gedaan is. */}
           <span
             className={cn(
               "truncate text-sm leading-snug transition-colors duration-200",
               isHoog && "font-medium",
-              isAfgerond && "line-through"
+              isAfgerond &&
+                "text-muted-foreground line-through decoration-muted-foreground/50"
             )}
             title={taak.titel}
           >

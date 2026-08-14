@@ -99,6 +99,80 @@ function formatDate(timestamp: number): string {
   });
 }
 
+/** Twee letters volstaan als monogram; de volle naam staat er direct naast. */
+function initialen(naam: string): string {
+  const delen = naam.trim().split(/\s+/).filter(Boolean);
+  if (delen.length === 0) return "?";
+  if (delen.length === 1) return delen[0].slice(0, 2).toUpperCase();
+  return (delen[0][0] + delen[delen.length - 1][0]).toUpperCase();
+}
+
+/**
+ * Stille contactchip: het hele gegeven is klikbaar (bellen, mailen, route),
+ * de kopieerknop verschijnt pas bij aanwijzen of toetsenbordfocus. Zo blijft
+ * de regel rustig zonder dat er functionaliteit verdwijnt.
+ */
+function ContactChip({
+  icoon,
+  href,
+  extern = false,
+  kopieer,
+  kopieerLabel,
+  titel,
+  className,
+  children,
+}: {
+  icoon: ReactNode;
+  href?: string;
+  /** Externe links (Maps) openen in een nieuw tabblad. */
+  extern?: boolean;
+  kopieer?: string;
+  kopieerLabel?: string;
+  titel?: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  const inhoud = (
+    <>
+      <span
+        aria-hidden
+        className="shrink-0 text-muted-foreground [&>svg]:size-4"
+      >
+        {icoon}
+      </span>
+      {children}
+    </>
+  );
+  return (
+    <span className="group/chip inline-flex min-w-0 items-center gap-0.5">
+      {href ? (
+        <a
+          href={href}
+          {...(extern
+            ? { target: "_blank", rel: "noopener noreferrer" }
+            : {})}
+          title={titel}
+          className={`inline-flex min-w-0 items-center gap-1.5 rounded-md px-1.5 py-1 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${className ?? ""}`}
+        >
+          {inhoud}
+        </a>
+      ) : (
+        <span
+          title={titel}
+          className={`inline-flex min-w-0 items-center gap-1.5 rounded-md px-1.5 py-1 ${className ?? ""}`}
+        >
+          {inhoud}
+        </span>
+      )}
+      {kopieer && (
+        <span className="shrink-0 opacity-0 transition-opacity duration-100 focus-within:opacity-100 group-hover/chip:opacity-100 max-sm:opacity-100">
+          <CopyButton value={kopieer} label={kopieerLabel} />
+        </span>
+      )}
+    </span>
+  );
+}
+
 /** Label links, waarde rechts — leest als een dossierregel, niet als een kaart. */
 function Feit({
   label,
@@ -240,13 +314,13 @@ export default function KlantDetailPage({
       <PageHeader customLabels={{ [`/klanten/${id}`]: klant.naam }} />
 
       <div className="flex flex-1 flex-col gap-5 p-4 md:p-6">
-        {/* Kop: identiteit links, acties rechts. Compact gehouden — de details
-            staan in de rechterkolom, niet in de titel. */}
         {/* Identiteitskop: wie is dit, en hoe bereik ik hem. Kantoor opent dit
             dossier het vaakst om te bellen of te mailen — dus staan telefoon en
             e-mail hier, niet onderin een rail die onder 1280px helemaal
-            wegzakt. */}
-        <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+            wegzakt. De hairline eronder maakt van de kop een podium: één
+            verankerd blok (monogram + naam + contact + kerncijfers) waar de
+            rest van het dossier onder hangt. */}
+        <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3 border-b pb-5">
           <div className="flex min-w-0 items-start gap-2">
             <Button
               variant="ghost"
@@ -259,7 +333,18 @@ export default function KlantDetailPage({
                 <ArrowLeft className="h-4 w-4" />
               </Link>
             </Button>
-            <div className="min-w-0 space-y-2">
+
+            {/* Monogram op een zachte primary-tint: geeft naam, badges en
+                contact één ankerpunt links — dezelfde initialen-regel als de
+                avatar in de sidebar. Puur decoratief; de naam staat ernaast. */}
+            <span
+              aria-hidden
+              className="mt-1 flex size-12 shrink-0 select-none items-center justify-center rounded-full border border-primary/15 bg-primary/10 font-display text-lg font-semibold tracking-wide text-primary"
+            >
+              {initialen(klant.naam)}
+            </span>
+
+            <div className="min-w-0 space-y-1.5 pl-1">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
                 <h1 className="truncate font-display text-[30px] leading-tight font-semibold tracking-tight">
                   {klant.naam}
@@ -280,68 +365,106 @@ export default function KlantDetailPage({
                 ))}
               </div>
 
-              {/* Contactregel: direct klikbaar, geen tussenscherm. Inkorten gaat
+              {/* Contactregel: stille chips, direct klikbaar (bellen, mailen,
+                  route in Maps), kopieerknop pas bij aanwijzen. Inkorten gaat
                   vóór uitwijken — elke waarde truncate't binnen zijn eigen
-                  breedte en houdt de volle tekst in `title`. */}
-              {(klant.telefoon || klant.email || adresregel) && (
-                <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
-                  {klant.telefoon && (
-                    <span className="inline-flex min-w-0 items-center gap-1.5">
-                      <Phone
-                        className="size-4 shrink-0 text-muted-foreground"
-                        aria-hidden
-                      />
-                      <a
-                        href={`tel:${klant.telefoon}`}
-                        className="truncate text-base font-medium tabular-nums hover:underline"
-                      >
-                        {klant.telefoon}
-                      </a>
-                      <CopyButton
-                        value={klant.telefoon}
-                        label="Kopieer telefoonnummer"
-                      />
+                  breedte en houdt de volle tekst in `title`. Ontbreekt een
+                  gegeven, dan staat er een gedempte toevoegen-affordance in
+                  plaats van niets. -ml-1.5 zet de chip-tekst op dezelfde x
+                  als de naam erboven. */}
+              <div className="-ml-1.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                {klant.telefoon ? (
+                  <ContactChip
+                    icoon={<Phone />}
+                    href={`tel:${klant.telefoon}`}
+                    kopieer={klant.telefoon}
+                    kopieerLabel="Kopieer telefoonnummer"
+                  >
+                    <span className="truncate text-base font-medium tabular-nums">
+                      {klant.telefoon}
                     </span>
-                  )}
-                  {klant.email && (
-                    <span className="inline-flex min-w-0 items-center gap-1.5">
-                      <Mail
-                        className="size-4 shrink-0 text-muted-foreground"
-                        aria-hidden
-                      />
-                      <a
-                        href={`mailto:${klant.email}`}
-                        className="max-w-[28ch] truncate text-sm hover:underline"
-                        title={klant.email}
-                      >
-                        {klant.email}
-                      </a>
-                      <CopyButton
-                        value={klant.email}
-                        label="Kopieer e-mailadres"
-                      />
-                    </span>
-                  )}
-                  {adresregel && (
-                    <span
-                      className="inline-flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground"
-                      title={adresregel}
+                  </ContactChip>
+                ) : (
+                  !isAnonymized && (
+                    <Link
+                      href="/klanten"
+                      title="Telefoonnummer toevoegen — bewerken kan via de klantenlijst"
+                      className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-sm text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
-                      <MapPin className="size-4 shrink-0" aria-hidden />
-                      <span className="truncate">{adresregel}</span>
+                      <Phone className="size-4 shrink-0" aria-hidden />
+                      Telefoon toevoegen
+                    </Link>
+                  )
+                )}
+                {klant.email ? (
+                  <ContactChip
+                    icoon={<Mail />}
+                    href={`mailto:${klant.email}`}
+                    kopieer={klant.email}
+                    kopieerLabel="Kopieer e-mailadres"
+                    titel={klant.email}
+                  >
+                    <span className="max-w-[28ch] truncate text-sm">
+                      {klant.email}
                     </span>
-                  )}
-                  {klant.contactpersoon && (
-                    <span
-                      className="inline-flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground"
-                      title={klant.contactpersoon}
+                  </ContactChip>
+                ) : (
+                  !isAnonymized && (
+                    <Link
+                      href="/klanten"
+                      title="E-mailadres toevoegen — bewerken kan via de klantenlijst"
+                      className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-sm text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
-                      <User className="size-4 shrink-0" aria-hidden />
-                      <span className="truncate">{klant.contactpersoon}</span>
+                      <Mail className="size-4 shrink-0" aria-hidden />
+                      E-mail toevoegen
+                    </Link>
+                  )
+                )}
+                {adresregel && (
+                  <ContactChip
+                    icoon={<MapPin />}
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(adresregel)}`}
+                    extern
+                    kopieer={adresregel}
+                    kopieerLabel="Kopieer adres"
+                    titel={`${adresregel} — route in Google Maps`}
+                    className="text-muted-foreground"
+                  >
+                    <span className="truncate text-sm">{adresregel}</span>
+                  </ContactChip>
+                )}
+                {klant.contactpersoon && (
+                  <ContactChip
+                    icoon={<User />}
+                    titel={klant.contactpersoon}
+                    className="text-muted-foreground"
+                  >
+                    <span className="truncate text-sm">
+                      {klant.contactpersoon}
                     </span>
-                  )}
-                </div>
-              )}
+                  </ContactChip>
+                )}
+              </div>
+
+              {/* Kerncijfers als stille metaregel: hoe lang klant, wat er
+                  omgaat. Eén regel voetnoot-grijs — geen kaart, geen
+                  heldcijfers; de bedragen zelf staan in het dossier. */}
+              <p className="text-xs text-muted-foreground tabular-nums">
+                Klant sinds {formatDate(klant.createdAt)}
+                {offertes.length === 0 ? (
+                  <> · nog geen offertes</>
+                ) : (
+                  <>
+                    {" · "}
+                    {offertes.length} offerte{offertes.length === 1 ? "" : "s"}
+                    {" · "}
+                    {formatCurrency(totalValue)}
+                    {" · "}
+                    {geaccepteerdAantal} geaccepteerd
+                    {acceptedValue > 0 && ` (${formatCurrency(acceptedValue)})`}
+                  </>
+                )}
+              </p>
             </div>
           </div>
 
@@ -396,14 +519,21 @@ export default function KlantDetailPage({
             scrollen: bij het lezen van de tijdlijn wil je het telefoonnummer
             binnen bereik houden. */}
         <div className="grid items-start gap-5 xl:grid-cols-[1fr_20rem]">
-          <div className="min-w-0 space-y-5">
-            {/* Taken vóór de tijdlijn: vooruitkijken vóór terugkijken. */}
-            <KlantTakenCard klantId={id as Id<"klanten">} />
+          <div className="min-w-0 space-y-6">
+            {/* Werkstroom als één cluster: Taken en Tijdlijn staan dicht op
+                elkaar (12px), het dossier-archief volgt op afstand (24px).
+                Twee spatiematen in plaats van één — zo leest de kolom als
+                twee gedachten in plaats van een stapel gelijke blokken, en
+                oogt ook een leeg dossier gecomponeerd in plaats van gestrand. */}
+            <div className="space-y-3">
+              {/* Taken vóór de tijdlijn: vooruitkijken vóór terugkijken. */}
+              <KlantTakenCard klantId={id as Id<"klanten">} />
 
-            {/* Klanttijdlijn (PRD §2.3) — vervangt het vrije Notities-veld
-                ("één waarheid"): filters op kanaal/klus, vrij zoeken en
-                entry-compositie voor kantoor. */}
-            <KlantTijdlijn klantId={id as Id<"klanten">} toonPaneel />
+              {/* Klanttijdlijn (PRD §2.3) — vervangt het vrije Notities-veld
+                  ("één waarheid"): filters op kanaal/klus, vrij zoeken en
+                  entry-compositie voor kantoor. */}
+              <KlantTijdlijn klantId={id as Id<"klanten">} toonPaneel />
+            </div>
 
             {/* Dossier: wat er vastligt. Eén paneel om alle drie heen in
                 plaats van drie losse dozen — dat geeft de onderkant van de
@@ -438,53 +568,48 @@ export default function KlantDetailPage({
             </section>
           </div>
 
+
           <aside className="space-y-4 xl:sticky xl:top-6">
-            {/* Contactpersoon, telefoon, e-mail en adres staan nu in de
-                identiteitskop: dáár zoekt kantoor ze, en dáár staan ze óók
-                onder 1280px bovenaan in plaats van onder vijf secties. Wat
-                hier overblijft is administratie. */}
+            {/* Contact staat in de identiteitskop en "klant sinds" plus de
+                cijfers in de metaregel dáár — wat hier overblijft is de
+                administratie die je zelden nodig hebt: KvK/BTW (alleen
+                zakelijk) en één instelling. Eén rustige kaart in plaats van
+                een halfleeg GEGEVENS-blok naast een losse instelling. */}
             <SectiePaneel titel="Gegevens">
-              <dl className="divide-y">
-                {klant.kvkNummer && (
-                  <Feit label="KvK">
-                    <span className="inline-flex items-center gap-1 tabular-nums">
-                      {klant.kvkNummer}
-                      <CopyButton
-                        value={klant.kvkNummer}
-                        label="Kopieer KvK-nummer"
-                      />
-                    </span>
-                  </Feit>
-                )}
-                {klant.btwNummer && (
-                  <Feit label="BTW">
-                    <span className="inline-flex items-center gap-1">
-                      {klant.btwNummer}
-                      <CopyButton
-                        value={klant.btwNummer}
-                        label="Kopieer BTW-nummer"
-                      />
-                    </span>
-                  </Feit>
-                )}
-                <Feit label="Klant sinds">{formatDate(klant.createdAt)}</Feit>
-              </dl>
-              {/* CIJFERS als één subregel (WS6): het aparte kaartblok herhaalde
-                  de OFFERTES-sectie ernaast regel voor regel. */}
-              <p className="border-t px-3 py-2.5 text-xs text-muted-foreground tabular-nums">
-                {offertes.length} offerte{offertes.length === 1 ? "" : "s"}
-                {" · "}
-                {formatCurrency(totalValue)}
-                {" · "}
-                {geaccepteerdAantal} geaccepteerd
-                {acceptedValue > 0 && ` (${formatCurrency(acceptedValue)})`}
-              </p>
+              {(klant.kvkNummer || klant.btwNummer) && (
+                <dl className="divide-y">
+                  {klant.kvkNummer && (
+                    <Feit label="KvK">
+                      <span className="inline-flex items-center gap-1 tabular-nums">
+                        {klant.kvkNummer}
+                        <CopyButton
+                          value={klant.kvkNummer}
+                          label="Kopieer KvK-nummer"
+                        />
+                      </span>
+                    </Feit>
+                  )}
+                  {klant.btwNummer && (
+                    <Feit label="BTW">
+                      <span className="inline-flex items-center gap-1">
+                        {klant.btwNummer}
+                        <CopyButton
+                          value={klant.btwNummer}
+                          label="Kopieer BTW-nummer"
+                        />
+                      </span>
+                    </Feit>
+                  )}
+                </dl>
+              )}
 
               {/* §2.7: opt-in inplanning-bevestigingsmail (default uit) — zet
                   bij inplannen een concept-mail klaar; kantoor keurt goed.
                   Staat bewust ín dit paneel: één instelling verdiende geen
-                  tweede kaart in een rail die verder maar drie regels telt. */}
-              <div className="flex items-start justify-between gap-3 border-t px-3 py-2.5">
+                  tweede kaart in een rail die verder hooguit twee regels telt. */}
+              <div
+                className={`flex items-start justify-between gap-3 px-3 py-2.5 ${klant.kvkNummer || klant.btwNummer ? "border-t" : ""}`}
+              >
                 <div className="min-w-0">
                   <p className="text-sm font-medium">
                     Bevestigingsmail bij inplannen
