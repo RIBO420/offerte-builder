@@ -246,7 +246,11 @@ export function AppSidebar() {
   const userEmail = user?.primaryEmailAddress?.emailAddress;
 
   return (
-    <Sidebar variant="inset" aria-label="Hoofdnavigatie">
+    // collapsible="icon" en niet de standaard "offcanvas": ingeklapt bleef er
+    // anders niets over en moest je hem uitklappen om te zien waar je heen kon.
+    // Nu blijft er een smalle balk met alleen de iconen staan; de labels zitten
+    // in de tooltips die de menu-items al meekregen.
+    <Sidebar variant="inset" collapsible="icon" aria-label="Hoofdnavigatie">
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -383,7 +387,10 @@ export function AppSidebar() {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <div className="flex items-center justify-between px-2">
+            {/* Ingeklapt is er geen ruimte voor avatar én bel naast elkaar in
+                een balk van 48px; dan onder elkaar, zodat allebei bereikbaar
+                blijft. */}
+            <div className="flex items-center justify-between px-2 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-1 group-data-[collapsible=icon]:px-0">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <SidebarMenuButton size="lg" className="flex-1 cursor-pointer">
