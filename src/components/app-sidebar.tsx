@@ -65,6 +65,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import { useCurrentUserRole } from "@/hooks/use-users";
 import { NotificationCenter } from "@/components/notification-center";
 import { useQuery } from "convex/react";
@@ -131,6 +132,38 @@ const projectSubItems = [
   { title: "Kwaliteit", urlSuffix: "/kwaliteit", icon: CheckSquare },
 ];
 
+
+/**
+ * Teller bij een menu-item.
+ *
+ * Uitgeklapt: een badge met het aantal, rechts uitgelijnd.
+ * Ingeklapt: een stip rechtsboven op het icoon. In een balk van 48px past geen
+ * getal, maar "hier staat iets open" mag je niet kwijtraken. Het aantal blijft
+ * leesbaar in de tooltip en voor schermlezers — het getal wordt alleen visueel
+ * weggedrukt (`text-[0px]`), niet uit de DOM gehaald.
+ *
+ * De stip is absoluut gepositioneerd; het icoon blijft daardoor gecentreerd.
+ * Dat werkt alleen omdat de knop zelf `relative` krijgt: `SidebarMenuItem` is
+ * ook relative, maar die is de volle balkbreedte terwijl de knop ingeklapt
+ * 32px is — positioneren op de li zet de stip dus naast het icoon.
+ */
+function MenuTeller({ aantal, klasse }: { aantal: number; klasse: string }) {
+  return (
+    <Badge
+      className={cn(
+        "ml-auto h-5 min-w-5 px-1 text-xs",
+        "group-data-[collapsible=icon]:absolute group-data-[collapsible=icon]:right-0.5 group-data-[collapsible=icon]:top-0.5",
+        "group-data-[collapsible=icon]:size-2.5 group-data-[collapsible=icon]:min-w-0 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:text-[0px]",
+        // Randje in de sidebar-kleur: anders loopt de stip visueel vast op een
+        // icoon dat er net achter zit.
+        "group-data-[collapsible=icon]:ring-2 group-data-[collapsible=icon]:ring-sidebar",
+        klasse
+      )}
+    >
+      {aantal}
+    </Badge>
+  );
+}
 
 function getInitials(name: string | null | undefined): string {
   if (!name) return "?";
@@ -241,6 +274,29 @@ export function AppSidebar() {
     signOut({ redirectUrl: "/" });
   };
 
+  // Eén plek voor de tellers: welk menu-item, welk aantal, welke kleur. Voorheen
+  // stonden dit vier bijna identieke blokken in de JSX.
+  const tellers: Record<string, { aantal: number | undefined; klasse: string }> = {
+    Leads: {
+      aantal: aantalActieveLeads,
+      klasse: "bg-blue-600 text-white hover:bg-blue-600",
+    },
+    // Bewust de rustige variant: dit is een totaal, geen werkvoorraad. De stip
+    // staat daardoor altijd aan en moet niet om aandacht schreeuwen.
+    Klanten: {
+      aantal: aantalKlanten,
+      klasse: "bg-secondary text-secondary-foreground",
+    },
+    Meldingen: {
+      aantal: aantalOpenMeldingen,
+      klasse: "bg-amber-600 text-white hover:bg-amber-600",
+    },
+    "Concept-mails": {
+      aantal: aantalConceptMails,
+      klasse: "bg-green-700 text-white hover:bg-green-700",
+    },
+  };
+
   const userInitials = getInitials(user?.fullName || user?.firstName);
   const userDisplayName = user?.fullName || user?.firstName || "Gebruiker";
   const userEmail = user?.primaryEmailAddress?.emailAddress;
@@ -277,52 +333,32 @@ export function AppSidebar() {
           <SidebarGroupLabel>Werk</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {filteredWerkItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname === item.url || pathname.startsWith(item.url + "/")}
-                    tooltip={item.title}
-                  >
-                    <Link href={item.url}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                      {item.title === "Leads" && aantalActieveLeads !== undefined && aantalActieveLeads > 0 && (
-                        <Badge
-                          variant="default"
-                          className="ml-auto text-xs h-5 min-w-5 px-1 bg-blue-600 hover:bg-blue-600"
-                        >
-                          {aantalActieveLeads}
-                        </Badge>
-                      )}
-                      {item.title === "Klanten" && aantalKlanten !== undefined && aantalKlanten > 0 && (
-                        <Badge
-                          variant="secondary"
-                          className="ml-auto text-xs h-5 min-w-5 px-1"
-                        >
-                          {aantalKlanten}
-                        </Badge>
-                      )}
-                      {item.title === "Meldingen" && aantalOpenMeldingen !== undefined && aantalOpenMeldingen > 0 && (
-                        <Badge
-                          variant="default"
-                          className="ml-auto text-xs h-5 min-w-5 px-1 bg-amber-600 hover:bg-amber-600"
-                        >
-                          {aantalOpenMeldingen}
-                        </Badge>
-                      )}
-                      {item.title === "Concept-mails" && aantalConceptMails !== undefined && aantalConceptMails > 0 && (
-                        <Badge
-                          variant="default"
-                          className="ml-auto text-xs h-5 min-w-5 px-1 bg-green-700 hover:bg-green-700"
-                        >
-                          {aantalConceptMails}
-                        </Badge>
-                      )}
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {filteredWerkItems.map((item) => {
+                const teller = tellers[item.title];
+                const aantal = teller?.aantal;
+                const toonTeller = aantal !== undefined && aantal > 0;
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={pathname === item.url || pathname.startsWith(item.url + "/")}
+                      // Het aantal mee in de tooltip: ingeklapt is de stip het
+                      // enige signaal, en dan wil je alsnog weten om hoeveel
+                      // het gaat zonder uit te klappen.
+                      tooltip={toonTeller ? `${item.title} (${aantal})` : item.title}
+                      className="relative"
+                    >
+                      <Link href={item.url}>
+                        <item.icon />
+                        <span>{item.title}</span>
+                        {toonTeller && (
+                          <MenuTeller aantal={aantal} klasse={teller.klasse} />
+                        )}
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
