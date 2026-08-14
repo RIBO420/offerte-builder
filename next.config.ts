@@ -71,7 +71,13 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' https: data: blob:",
               "font-src 'self' data:",
-              "connect-src 'self' data: blob: https://clerk.toptuinen.app https://*.convex.cloud https://*.clerk.accounts.dev https://*.clerk.dev https://api.clerk.dev wss://*.convex.cloud",
+              // browser.sentry-cdn.com staat hier alleen voor de sourcemaps van
+              // de Sentry-bundle; zonder deze host blokkeert de CSP het ophalen
+              // van replay.min.js.map en krijg je onleesbare stacktraces in
+              // devtools. Sentry-events zelf lopen via de tunnel op /monitoring
+              // en hebben dus genoeg aan 'self'. De host laadt hierboven al
+              // script-src, dus dit verbreedt het aanvalsoppervlak niet.
+              "connect-src 'self' data: blob: https://clerk.toptuinen.app https://*.convex.cloud https://*.clerk.accounts.dev https://*.clerk.dev https://api.clerk.dev wss://*.convex.cloud https://browser.sentry-cdn.com",
               "frame-src 'self' blob: https://clerk.toptuinen.app https://*.clerk.accounts.dev https://*.clerk.dev https://challenges.cloudflare.com",
               "worker-src 'self' blob:",
               "frame-ancestors 'none'",

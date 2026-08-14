@@ -1,6 +1,10 @@
 "use client";
 
-import { motion } from "framer-motion";
+// `m` en niet `motion`: de app draait binnen een `LazyMotion ... strict`
+// (src/components/providers/motion-provider.tsx). Een `motion`-component
+// daarbinnen gooit geen waarschuwing maar een échte fout, die de errorboundary
+// vangt — het blok verdwijnt dan zonder dat je ziet waarom.
+import { m } from "framer-motion";
 import {
   ArrowRight,
   Send,
@@ -23,7 +27,7 @@ export function FactuurNextStepHint({
   switch (factuurStatus) {
     case "concept":
       return (
-        <motion.div
+        <m.div
           initial={motionInitial}
           animate={motionAnimate}
           className="flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950"
@@ -37,11 +41,11 @@ export function FactuurNextStepHint({
               Controleer de factuur en maak deze definitief om te kunnen verzenden.
             </p>
           </div>
-        </motion.div>
+        </m.div>
       );
     case "definitief":
       return (
-        <motion.div
+        <m.div
           initial={motionInitial}
           animate={motionAnimate}
           className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-900 dark:bg-green-950"
@@ -55,11 +59,11 @@ export function FactuurNextStepHint({
               De factuur is definitief. Je kunt deze nu naar de klant versturen.
             </p>
           </div>
-        </motion.div>
+        </m.div>
       );
     case "verzonden":
       return (
-        <motion.div
+        <m.div
           initial={motionInitial}
           animate={motionAnimate}
           className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950"
@@ -73,11 +77,11 @@ export function FactuurNextStepHint({
               Markeer de factuur als betaald zodra de betaling is ontvangen.
             </p>
           </div>
-        </motion.div>
+        </m.div>
       );
     case "betaald":
       return (
-        <motion.div
+        <m.div
           initial={motionInitial}
           animate={motionAnimate}
           className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-900 dark:bg-green-950"
@@ -91,7 +95,7 @@ export function FactuurNextStepHint({
               De factuur is betaald. Dit project is succesvol afgerond.
             </p>
           </div>
-        </motion.div>
+        </m.div>
       );
     default:
       return null;
