@@ -1,35 +1,41 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { useMutation, useQuery } from "convex/react";
+import type { FunctionReturnType } from "convex/server";
 import {
-  CalendarClock,
+  AlertTriangle,
+  Briefcase,
   ListTodo,
-  Loader2,
+  MoreHorizontal,
   Plus,
   Trash2,
   User,
-  X,
 } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  SectieLegeStaat,
+  SectiePaneel,
+} from "@/components/ui/sectie-paneel";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { showErrorToast, showSuccessToast } from "@/lib/toast-utils";
@@ -38,20 +44,43 @@ import { Id } from "../../../convex/_generated/dataModel";
 
 type Prioriteit = "laag" | "normaal" | "hoog";
 
+/** Rijtype uit de query zelf afleiden — dan kan het niet uiteenlopen. */
+type VerrijkteKlantTaak = FunctionReturnType<
+  typeof api.klantTaken.listVoorKlant
+>[number];
+
 const PRIORITEIT_LABELS: Record<Prioriteit, string> = {
   laag: "Laag",
   normaal: "Normaal",
   hoog: "Hoog",
 };
 
-const PRIORITEIT_STIJL: Record<Prioriteit, string> = {
-  laag: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200",
-  normaal: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
-  hoog: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
+/** Alleen `hoog` verdient inkt in de lijst; `laag` staat lager in de sortering. */
+const PRIORITEIT_RANG: Record<Prioriteit, number> = {
+  hoog: 0,
+  normaal: 1,
+  laag: 2,
 };
 
 /** Sentinelwaarde: Radix Select accepteert geen lege string als item-value. */
 const NIEMAND = "__niemand__";
+
+const MS_PER_DAG = 86_400_000;
+
+const DATUM_KORT = new Intl.DateTimeFormat("nl-NL", {
+  day: "numeric",
+  month: "short",
+});
+const DATUM_KORT_WEEKDAG = new Intl.DateTimeFormat("nl-NL", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+});
+const DATUM_KORT_JAAR = new Intl.DateTimeFormat("nl-NL", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
 
 function vandaagISO(): string {
   // Lokale datum, niet toISOString() — die schuift bij ons een dag terug 's avonds.
@@ -61,13 +90,81 @@ function vandaagISO(): string {
   return `${nu.getFullYear()}-${maand}-${dag}`;
 }
 
+/** ISO-datum → lokale middernacht, zodat dagverschillen niet over een tijdzone struikelen. */
+function parseISODatum(iso: string): Date {
+  const [jaar, maand, dag] = iso.split("-").map(Number);
+  return new Date(jaar, maand - 1, dag);
+}
+
+function dagenVerschil(vanISO: string, totISO: string): number {
+  return Math.round(
+    (parseISODatum(totISO).getTime() - parseISODatum(vanISO).getTime()) /
+      MS_PER_DAG
+  );
+}
+
 function formatDeadline(deadline: string): string {
-  const [jaar, maand, dag] = deadline.split("-").map(Number);
-  return new Intl.DateTimeFormat("nl-NL", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(jaar, maand - 1, dag));
+  return DATUM_KORT_JAAR.format(parseISODatum(deadline));
+}
+
+interface DeadlineWeergave {
+  tekst: string;
+  teLaat: boolean;
+  /** Vandaag en te laat verdienen nadruk; de rest blijft voetnoot-grijs. */
+  nadruk: boolean;
+}
+
+/**
+ * "3 dagen te laat" leest sneller dan "11 aug" met een rode kleur: het getal
+ * doet het werk, niet de kleur alleen.
+ */
+function deadlineWeergave(deadline: string, vandaag: string): DeadlineWeergave {
+  const dagen = dagenVerschil(vandaag, deadline);
+  if (dagen < 0) {
+    const aantal = Math.abs(dagen);
+    return {
+      tekst: `${aantal} ${aantal === 1 ? "dag" : "dagen"} te laat`,
+      teLaat: true,
+      nadruk: true,
+    };
+  }
+  if (dagen === 0) return { tekst: "Vandaag", teLaat: false, nadruk: true };
+  if (dagen === 1) return { tekst: "Morgen", teLaat: false, nadruk: false };
+
+  const datum = parseISODatum(deadline);
+  if (dagen <= 7) {
+    return {
+      tekst: DATUM_KORT_WEEKDAG.format(datum),
+      teLaat: false,
+      nadruk: false,
+    };
+  }
+  const anderJaar = datum.getFullYear() !== parseISODatum(vandaag).getFullYear();
+  return {
+    tekst: (anderJaar ? DATUM_KORT_JAAR : DATUM_KORT).format(datum),
+    teLaat: false,
+    nadruk: false,
+  };
+}
+
+/** Twee letters volstaan als schijfje; de volle naam blijft in `title` staan. */
+function initialen(naam?: string): string {
+  const delen = (naam ?? "").trim().split(/\s+/).filter(Boolean);
+  if (delen.length === 0) return "—";
+  if (delen.length === 1) return delen[0].slice(0, 2).toUpperCase();
+  return (delen[0][0] + delen[delen.length - 1][0]).toUpperCase();
+}
+
+/**
+ * Sorteergroep van een open taak: te laat → vandaag → toekomstige deadline →
+ * zonder deadline. Zonder deadline onderaan, want die taak vraagt niets van je
+ * dag.
+ */
+function deadlineGroep(deadline: string | undefined, vandaag: string): number {
+  if (!deadline) return 3;
+  if (deadline < vandaag) return 0;
+  if (deadline === vandaag) return 1;
+  return 2;
 }
 
 interface KlantTakenCardProps {
@@ -77,6 +174,10 @@ interface KlantTakenCardProps {
 /**
  * Takenlijst per klant: wat moet er nog gebeuren voor deze klant, en wie doet
  * het. Bewust gescheiden van de klanttijdlijn (wat er gebeurd is).
+ *
+ * De sectie is één paneel met een `divide-y` lijst; de bovenste regel is de
+ * composer. Geen "Nieuwe taak"-knop die eerst een formulier moet openen — de
+ * snelste route van gedachte naar taak is klikken en typen.
  */
 export function KlantTakenCard({ klantId }: KlantTakenCardProps) {
   const taken = useQuery(api.klantTaken.listVoorKlant, { klantId });
@@ -87,27 +188,63 @@ export function KlantTakenCard({ klantId }: KlantTakenCardProps) {
   const updateTaak = useMutation(api.klantTaken.update);
   const removeTaak = useMutation(api.klantTaken.remove);
 
-  const [formOpen, setFormOpen] = useState(false);
+  const [open, setOpen] = useState(false);
   const [titel, setTitel] = useState("");
   const [omschrijving, setOmschrijving] = useState("");
+  const [toelichtingOpen, setToelichtingOpen] = useState(false);
   const [prioriteit, setPrioriteit] = useState<Prioriteit>("normaal");
   const [deadline, setDeadline] = useState("");
   const [toegewezenAan, setToegewezenAan] = useState<string>(NIEMAND);
   const [bezig, setBezig] = useState(false);
   const [toonAfgerond, setToonAfgerond] = useState(false);
+  const [nieuweTaakId, setNieuweTaakId] = useState<string | null>(null);
+  // Radix zet zijn Select-inhoud in een portal; zonder deze vlag klapt de
+  // composer dicht zodra je een keuzelijst opent.
+  const [keuzelijstOpen, setKeuzelijstOpen] = useState(false);
 
-  const openTaken = useMemo(
-    () => (taken ?? []).filter((t) => t.status === "open"),
-    [taken]
-  );
+  const titelRef = useRef<HTMLInputElement>(null);
+
+  const vandaag = vandaagISO();
+
+  const openTaken = useMemo(() => {
+    const nu = vandaagISO();
+    return (taken ?? [])
+      .filter((t) => t.status === "open")
+      .sort((a, b) => {
+        const groepVerschil =
+          deadlineGroep(a.deadline, nu) - deadlineGroep(b.deadline, nu);
+        if (groepVerschil !== 0) return groepVerschil;
+        if (a.deadline && b.deadline && a.deadline !== b.deadline) {
+          return a.deadline < b.deadline ? -1 : 1;
+        }
+        const prioVerschil =
+          PRIORITEIT_RANG[a.prioriteit] - PRIORITEIT_RANG[b.prioriteit];
+        if (prioVerschil !== 0) return prioVerschil;
+        return a.createdAt - b.createdAt;
+      });
+  }, [taken]);
+
   const afgerondeTaken = useMemo(
     () => (taken ?? []).filter((t) => t.status === "afgerond"),
     [taken]
   );
 
+  const medewerkerLijst = medewerkers ?? [];
+  const gekozenMedewerker = medewerkerLijst.find(
+    (m) => m._id === toegewezenAan
+  );
+
+  const heeftInvoer =
+    titel.trim() !== "" ||
+    omschrijving.trim() !== "" ||
+    deadline !== "" ||
+    toegewezenAan !== NIEMAND ||
+    prioriteit !== "normaal";
+
   const resetForm = () => {
     setTitel("");
     setOmschrijving("");
+    setToelichtingOpen(false);
     setPrioriteit("normaal");
     setDeadline("");
     setToegewezenAan(NIEMAND);
@@ -120,7 +257,7 @@ export function KlantTakenCard({ klantId }: KlantTakenCardProps) {
     }
     setBezig(true);
     try {
-      await createTaak({
+      const id = await createTaak({
         klantId,
         titel: titel.trim(),
         omschrijving: omschrijving.trim() || undefined,
@@ -132,8 +269,11 @@ export function KlantTakenCard({ klantId }: KlantTakenCardProps) {
             : (toegewezenAan as Id<"medewerkers">),
       });
       showSuccessToast("Taak toegevoegd");
+      setNieuweTaakId(id);
       resetForm();
-      setFormOpen(false);
+      // Composer blijft open en de cursor terug in het titelveld: vijf taken
+      // achter elkaar invoeren moet kunnen zonder opnieuw te klikken.
+      titelRef.current?.focus();
     } catch (error) {
       showErrorToast(
         error instanceof Error ? error.message : "Fout bij toevoegen taak"
@@ -173,6 +313,16 @@ export function KlantTakenCard({ klantId }: KlantTakenCardProps) {
     }
   };
 
+  const handlePrioriteit = async (id: Id<"klantTaken">, waarde: string) => {
+    try {
+      await updateTaak({ id, prioriteit: waarde as Prioriteit });
+    } catch (error) {
+      showErrorToast(
+        error instanceof Error ? error.message : "Fout bij bijwerken taak"
+      );
+    }
+  };
+
   const handleVerwijderen = async (id: Id<"klantTaken">) => {
     try {
       await removeTaak({ id });
@@ -184,275 +334,499 @@ export function KlantTakenCard({ klantId }: KlantTakenCardProps) {
     }
   };
 
-  const zichtbareTaken = toonAfgerond
-    ? [...openTaken, ...afgerondeTaken]
-    : openTaken;
+  const handleComposerBlur = (event: React.FocusEvent<HTMLDivElement>) => {
+    // Van veld naar veld tabben mag de strip niet dichtklappen — alleen als de
+    // focus de composer echt verlaat én er niets is ingevuld.
+    if (keuzelijstOpen) return;
+    if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+    if (heeftInvoer) return;
+    setOpen(false);
+  };
+
+  /**
+   * De tekstregel is maar ~19px hoog in een rij van ~35px, en het plus-icoon
+   * links is helemaal geen invoerveld. Wie op de regel klikt in plaats van
+   * precies op de tekst, kreeg dus niets — en omdat de strip met "Toevoegen"
+   * en de selects pas ná het openklappen bestaat, leest dat als "de knoppen
+   * doen het niet". De hele regel opent nu de composer.
+   */
+  const openViaRegel = (event: React.MouseEvent<HTMLDivElement>) => {
+    const doel = event.target as Element | null;
+    // Eigen controls houden hun eigen gedrag (knoppen, selects, tekstvelden).
+    if (doel?.closest("button, input, textarea, select, a, [role='combobox']")) {
+      return;
+    }
+    // preventDefault houdt de focus waar hij hoort: in het titelveld.
+    event.preventDefault();
+    titelRef.current?.focus();
+  };
+
+  const kaleTriggerClasses =
+    "h-7 min-h-0 w-auto gap-1 border-0 bg-transparent px-1.5 text-xs text-muted-foreground shadow-none hover:bg-accent hover:text-foreground dark:bg-transparent dark:hover:bg-accent";
+
+  const heeftTaken = openTaken.length > 0 || afgerondeTaken.length > 0;
+  const zichtbaarAfgerond = toonAfgerond ? afgerondeTaken : [];
+  const lijstLeeg = openTaken.length === 0 && zichtbaarAfgerond.length === 0;
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <ListTodo className="h-5 w-5" />
-              Taken
-              {openTaken.length > 0 && (
-                <Badge variant="secondary">{openTaken.length} open</Badge>
-              )}
-            </CardTitle>
-            <CardDescription>
-              Wat moet er nog gebeuren voor deze klant, en wie pakt het op.
-            </CardDescription>
-          </div>
-          <Button
-            size="sm"
-            variant={formOpen ? "ghost" : "default"}
-            onClick={() => {
-              setFormOpen((open) => !open);
-              if (formOpen) resetForm();
-            }}
-          >
-            {formOpen ? (
-              <>
-                <X className="mr-2 h-4 w-4" />
-                Annuleren
-              </>
-            ) : (
-              <>
-                <Plus className="mr-2 h-4 w-4" />
-                Nieuwe taak
-              </>
-            )}
-          </Button>
-        </div>
-      </CardHeader>
+    <SectiePaneel
+      titel="Taken"
+      icoon={<ListTodo />}
+      telling={openTaken.length}
+      uitleg="Losse to-do's voor deze klant: terugbellen, offerte narekenen, materiaal bestellen. Wijs een taak toe aan een collega en hij verschijnt ook op diens Mijn taken. Enter slaat direct op."
+    >
+      {/* Composer: één regel die pas openklapt zodra je hem aanraakt. */}
+      <div
+        data-open={open}
+        onBlur={handleComposerBlur}
+        onMouseDown={openViaRegel}
+        className="group/composer border-b px-3 py-2 data-[open=false]:cursor-text data-[open=false]:hover:bg-muted/30"
+      >
+        <div className="grid grid-cols-[1.25rem_minmax(0,1fr)] gap-x-2.5">
+          <Plus
+            className="mt-0.5 size-4 justify-self-center text-muted-foreground"
+            aria-hidden
+          />
+          <div className="min-w-0">
+            <input
+              ref={titelRef}
+              value={titel}
+              onChange={(e) => setTitel(e.target.value)}
+              onFocus={() => setOpen(true)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  void handleCreate();
+                  return;
+                }
+                if (e.key === "Escape" && !heeftInvoer) {
+                  setOpen(false);
+                  e.currentTarget.blur();
+                }
+              }}
+              aria-label="Nieuwe taak"
+              placeholder="Nieuwe taak — bijv. terugbellen over de oprit"
+              className="w-full border-0 bg-transparent p-0 text-sm leading-snug outline-none placeholder:text-muted-foreground focus-visible:ring-0"
+            />
 
-      <CardContent className="space-y-4">
-        {formOpen && (
-          <div className="space-y-3 rounded-lg border bg-muted/40 p-4">
-            <div className="space-y-2">
-              <Label htmlFor="taak-titel">Taak *</Label>
-              <Input
-                id="taak-titel"
-                placeholder="Bijv. terugbellen over de oprit"
-                value={titel}
-                onChange={(e) => setTitel(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    void handleCreate();
-                  }
-                }}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="taak-omschrijving">Toelichting</Label>
-              <Textarea
-                id="taak-omschrijving"
-                rows={2}
-                placeholder="Optionele extra context"
-                value={omschrijving}
-                onChange={(e) => setOmschrijving(e.target.value)}
-              />
-            </div>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="space-y-2">
-                <Label htmlFor="taak-medewerker">Toewijzen aan</Label>
-                <Select value={toegewezenAan} onValueChange={setToegewezenAan}>
-                  <SelectTrigger id="taak-medewerker">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NIEMAND}>Niemand</SelectItem>
-                    {(medewerkers ?? []).map((medewerker) => (
-                      <SelectItem key={medewerker._id} value={medewerker._id}>
-                        {medewerker.naam}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="taak-deadline">Deadline</Label>
-                <Input
-                  id="taak-deadline"
-                  type="date"
-                  min={vandaagISO()}
-                  value={deadline}
-                  onChange={(e) => setDeadline(e.target.value)}
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 motion-safe:duration-150 group-data-[open=false]/composer:hidden">
+              {toelichtingOpen ? (
+                <textarea
+                  value={omschrijving}
+                  onChange={(e) => setOmschrijving(e.target.value)}
+                  onInput={(e) => {
+                    // Meegroeien zonder de hoogte te animeren (§2.4).
+                    const el = e.currentTarget;
+                    el.style.height = "auto";
+                    el.style.height = `${el.scrollHeight}px`;
+                  }}
+                  rows={1}
+                  aria-label="Toelichting bij de taak"
+                  placeholder="Extra context…"
+                  className="max-h-36 w-full resize-none overflow-y-auto border-0 bg-transparent p-0 text-xs leading-snug outline-none placeholder:text-muted-foreground focus-visible:ring-0"
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="taak-prioriteit">Prioriteit</Label>
-                <Select
-                  value={prioriteit}
-                  onValueChange={(waarde) => setPrioriteit(waarde as Prioriteit)}
-                >
-                  <SelectTrigger id="taak-prioriteit">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(Object.keys(PRIORITEIT_LABELS) as Prioriteit[]).map(
-                      (waarde) => (
-                        <SelectItem key={waarde} value={waarde}>
-                          {PRIORITEIT_LABELS[waarde]}
-                        </SelectItem>
-                      )
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <Button onClick={handleCreate} disabled={bezig || !titel.trim()}>
-              {bezig ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
-                <Plus className="mr-2 h-4 w-4" />
-              )}
-              Taak toevoegen
-            </Button>
-          </div>
-        )}
-
-        {taken === undefined ? (
-          <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Taken laden…
-          </div>
-        ) : zichtbareTaken.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">
-            {openTaken.length === 0 && afgerondeTaken.length > 0
-              ? "Alle taken zijn afgerond."
-              : "Nog geen taken voor deze klant."}
-          </p>
-        ) : (
-          <ul className="divide-y rounded-lg border">
-            {zichtbareTaken.map((taak) => {
-              const isAfgerond = taak.status === "afgerond";
-              const isTeLaat =
-                !isAfgerond && taak.deadline && taak.deadline < vandaagISO();
-
-              return (
-                <li
-                  key={taak._id}
-                  className={cn(
-                    "flex items-start gap-3 p-3",
-                    isAfgerond && "opacity-60"
-                  )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="xs"
+                  className="h-7 min-h-0 px-1.5 text-xs text-muted-foreground"
+                  onClick={() => setToelichtingOpen(true)}
                 >
-                  <Checkbox
-                    className="mt-1"
-                    checked={isAfgerond}
-                    onCheckedChange={() => handleToggle(taak._id, taak.status)}
-                    aria-label={
-                      isAfgerond
-                        ? `Taak ${taak.titel} heropenen`
-                        : `Taak ${taak.titel} afronden`
-                    }
-                  />
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
+                  + Toelichting
+                </Button>
+              )}
+
+              <Select
+                value={toegewezenAan}
+                onValueChange={setToegewezenAan}
+                onOpenChange={setKeuzelijstOpen}
+              >
+                <SelectTrigger
+                  size="sm"
+                  aria-label="Taak toewijzen"
+                  className={cn(kaleTriggerClasses, "max-w-[10rem]")}
+                >
+                  <span className="flex min-w-0 items-center gap-1">
+                    <User className="size-3 shrink-0" />
+                    <span className="truncate">
+                      {gekozenMedewerker?.naam ?? "Toewijzen"}
+                    </span>
+                  </span>
+                </SelectTrigger>
+                {/* position="popper" is hier niet optioneel. `SelectContent`
+                    staat in deze repo standaard op "item-aligned", en die
+                    modus legt de lijst over de trigger heen door zelf top/left
+                    uit te rekenen. Bij deze compacte h-7-trigger komt daar
+                    top:1167px uit — ruim onder de vouw, dus de lijst opent
+                    buiten beeld en je kunt niets kiezen. "popper" gebruikt
+                    Radix' Popper mét collision detection, net als elke
+                    DropdownMenu in de app (die werken daarom wél). */}
+                <SelectContent position="popper">
+                  <SelectItem value={NIEMAND}>Niemand</SelectItem>
+                  {medewerkerLijst.map((medewerker) => (
+                    <SelectItem key={medewerker._id} value={medewerker._id}>
+                      {medewerker.naam}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Input
+                type="date"
+                min={vandaag}
+                value={deadline}
+                onChange={(e) => setDeadline(e.target.value)}
+                aria-label="Deadline"
+                className="h-7 w-auto min-h-0 border-0 bg-transparent px-1.5 text-xs shadow-none dark:bg-transparent"
+              />
+
+              <Select
+                value={prioriteit}
+                onValueChange={(waarde) => setPrioriteit(waarde as Prioriteit)}
+                onOpenChange={setKeuzelijstOpen}
+              >
+                <SelectTrigger
+                  size="sm"
+                  aria-label="Prioriteit"
+                  className={kaleTriggerClasses}
+                >
+                  <span className="flex items-center gap-1.5">
+                    {prioriteit === "hoog" && (
                       <span
-                        className={cn(
-                          "font-medium",
-                          isAfgerond && "line-through"
-                        )}
-                      >
-                        {taak.titel}
-                      </span>
-                      {!isAfgerond && taak.prioriteit !== "normaal" && (
-                        <Badge
-                          className={cn(
-                            "text-[10px]",
-                            PRIORITEIT_STIJL[taak.prioriteit]
-                          )}
-                        >
-                          {PRIORITEIT_LABELS[taak.prioriteit]}
-                        </Badge>
-                      )}
-                      {taak.deadline && (
-                        <span
-                          className={cn(
-                            "flex items-center gap-1 text-xs",
-                            isTeLaat
-                              ? "font-medium text-red-600 dark:text-red-400"
-                              : "text-muted-foreground"
-                          )}
-                        >
-                          <CalendarClock className="h-3 w-3" />
-                          {formatDeadline(taak.deadline)}
-                          {isTeLaat && " · te laat"}
-                        </span>
-                      )}
-                    </div>
-                    {taak.omschrijving && (
-                      <p className="text-sm text-muted-foreground">
-                        {taak.omschrijving}
-                      </p>
+                        className="size-1.5 shrink-0 rounded-full bg-destructive"
+                        aria-hidden
+                      />
                     )}
-                    {taak.werkitemNaam && (
-                      <p className="text-xs text-muted-foreground">
-                        Klus: {taak.werkitemNaam}
-                      </p>
+                    {prioriteit === "laag" && (
+                      <span
+                        className="size-1.5 shrink-0 rounded-full bg-muted-foreground/50"
+                        aria-hidden
+                      />
                     )}
-                  </div>
+                    <span>{PRIORITEIT_LABELS[prioriteit]}</span>
+                  </span>
+                </SelectTrigger>
+                {/* position="popper" is hier niet optioneel. `SelectContent`
+                    staat in deze repo standaard op "item-aligned", en die
+                    modus legt de lijst over de trigger heen door zelf top/left
+                    uit te rekenen. Bij deze compacte h-7-trigger komt daar
+                    top:1167px uit — ruim onder de vouw, dus de lijst opent
+                    buiten beeld en je kunt niets kiezen. "popper" gebruikt
+                    Radix' Popper mét collision detection, net als elke
+                    DropdownMenu in de app (die werken daarom wél). */}
+                <SelectContent position="popper">
+                  {(Object.keys(PRIORITEIT_LABELS) as Prioriteit[]).map(
+                    (waarde) => (
+                      <SelectItem key={waarde} value={waarde}>
+                        {PRIORITEIT_LABELS[waarde]}
+                      </SelectItem>
+                    )
+                  )}
+                </SelectContent>
+              </Select>
 
-                  <div className="flex shrink-0 items-center gap-1">
-                    <Select
-                      value={taak.toegewezenAanId ?? NIEMAND}
-                      onValueChange={(waarde) =>
-                        handleToewijzen(taak._id, waarde)
-                      }
-                    >
-                      <SelectTrigger
-                        className="h-8 w-[150px] text-xs"
-                        aria-label={`Toewijzing voor ${taak.titel}`}
-                      >
-                        <span className="flex items-center gap-1.5 truncate">
-                          <User className="h-3 w-3 shrink-0 text-muted-foreground" />
-                          <span className="truncate">
-                            {taak.toegewezenAanNaam ?? "Niet toegewezen"}
-                          </span>
-                        </span>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={NIEMAND}>Niet toegewezen</SelectItem>
-                        {(medewerkers ?? []).map((medewerker) => (
-                          <SelectItem key={medewerker._id} value={medewerker._id}>
-                            {medewerker.naam}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      aria-label={`Taak ${taak.titel} verwijderen`}
-                      onClick={() => handleVerwijderen(taak._id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+              <Button
+                type="button"
+                size="xs"
+                className="ml-auto h-7 min-h-0"
+                onClick={handleCreate}
+                disabled={bezig || !titel.trim()}
+              >
+                Toevoegen
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
 
-        {afgerondeTaken.length > 0 && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-xs text-muted-foreground"
+      {taken === undefined ? (
+        <ul className="divide-y">
+          {[0, 1].map((i) => (
+            <li
+              key={i}
+              className="grid grid-cols-[1.25rem_minmax(0,1fr)] gap-x-2.5 px-3 py-2"
+            >
+              <Skeleton className="mt-0.5 size-4 rounded-[4px]" />
+              <Skeleton className="mt-0.5 h-3.5 w-[55%]" />
+            </li>
+          ))}
+        </ul>
+      ) : lijstLeeg ? (
+        heeftTaken ? (
+          <SectieLegeStaat tekst="Alles afgevinkt." />
+        ) : (
+          <SectieLegeStaat tekst="Nog geen taken." />
+        )
+      ) : (
+        <ul className="divide-y">
+          {openTaken.map((taak) => (
+            <TaakRegel
+              key={taak._id}
+              taak={taak}
+              vandaag={vandaag}
+              medewerkers={medewerkerLijst}
+              isNieuw={taak._id === nieuweTaakId}
+              onToggle={handleToggle}
+              onToewijzen={handleToewijzen}
+              onPrioriteit={handlePrioriteit}
+              onVerwijderen={handleVerwijderen}
+            />
+          ))}
+
+          {zichtbaarAfgerond.length > 0 && (
+            <li className="bg-muted/30 px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              Afgerond
+            </li>
+          )}
+
+          {zichtbaarAfgerond.map((taak) => (
+            <TaakRegel
+              key={taak._id}
+              taak={taak}
+              vandaag={vandaag}
+              medewerkers={medewerkerLijst}
+              isNieuw={false}
+              onToggle={handleToggle}
+              onToewijzen={handleToewijzen}
+              onPrioriteit={handlePrioriteit}
+              onVerwijderen={handleVerwijderen}
+            />
+          ))}
+        </ul>
+      )}
+
+      {afgerondeTaken.length > 0 && (
+        <div className="border-t px-3 py-1.5">
+          <button
+            type="button"
             onClick={() => setToonAfgerond((waarde) => !waarde)}
+            className="rounded text-[11px] text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             {toonAfgerond
               ? "Afgeronde taken verbergen"
               : `${afgerondeTaken.length} afgeronde ta${afgerondeTaken.length === 1 ? "ak" : "ken"} tonen`}
-          </Button>
+          </button>
+        </div>
+      )}
+    </SectiePaneel>
+  );
+}
+
+interface TaakRegelProps {
+  taak: VerrijkteKlantTaak;
+  vandaag: string;
+  medewerkers: { _id: Id<"medewerkers">; naam: string }[];
+  isNieuw: boolean;
+  onToggle: (
+    id: Id<"klantTaken">,
+    huidigeStatus: "open" | "afgerond"
+  ) => Promise<void>;
+  onToewijzen: (id: Id<"klantTaken">, waarde: string) => Promise<void>;
+  onPrioriteit: (id: Id<"klantTaken">, waarde: string) => Promise<void>;
+  onVerwijderen: (id: Id<"klantTaken">) => Promise<void>;
+}
+
+/**
+ * Eén regel: titel boven, meta eronder. Je scant "wat moet er gebeuren", niet
+ * "wie was het ook alweer" — toegewezene, deadline en klus zijn de voetnoot.
+ */
+function TaakRegel({
+  taak,
+  vandaag,
+  medewerkers,
+  isNieuw,
+  onToggle,
+  onToewijzen,
+  onPrioriteit,
+  onVerwijderen,
+}: TaakRegelProps) {
+  const isAfgerond = taak.status === "afgerond";
+  const isHoog = taak.prioriteit === "hoog" && !isAfgerond;
+  const deadline =
+    taak.deadline && !isAfgerond
+      ? deadlineWeergave(taak.deadline, vandaag)
+      : null;
+
+  const metaDelen: ReactNode[] = [];
+
+  if (deadline && taak.deadline) {
+    metaDelen.push(
+      <time
+        key="deadline"
+        dateTime={taak.deadline}
+        title={formatDeadline(taak.deadline)}
+        className={cn(
+          "inline-flex items-center gap-1",
+          deadline.teLaat && "font-medium text-destructive",
+          !deadline.teLaat && deadline.nadruk && "font-medium text-foreground"
         )}
-      </CardContent>
-    </Card>
+      >
+        {deadline.teLaat && <AlertTriangle className="size-3 shrink-0" />}
+        {deadline.tekst}
+      </time>
+    );
+  }
+
+  metaDelen.push(
+    <span
+      key="toegewezen"
+      className="inline-flex min-w-0 items-center gap-1"
+      title={taak.toegewezenAanNaam ?? "Niet toegewezen"}
+    >
+      <span
+        aria-hidden
+        className="flex size-4 shrink-0 items-center justify-center rounded-full bg-muted text-[9px] font-medium leading-none text-muted-foreground"
+      >
+        {initialen(taak.toegewezenAanNaam)}
+      </span>
+      <span className="truncate @max-[30rem]/sectie:sr-only">
+        {taak.toegewezenAanNaam ?? "Niet toegewezen"}
+      </span>
+    </span>
+  );
+
+  if (taak.werkitemNaam) {
+    metaDelen.push(
+      <span
+        key="werkitem"
+        className="inline-flex min-w-0 items-center gap-1"
+        title={taak.werkitemNaam}
+      >
+        <Briefcase className="size-3 shrink-0" />
+        <span className="truncate @max-[30rem]/sectie:max-w-[8rem]">
+          {taak.werkitemNaam}
+        </span>
+      </span>
+    );
+  }
+
+  return (
+    <li
+      className={cn(
+        "group grid grid-cols-[1.25rem_minmax(0,1fr)_auto] items-start gap-x-2.5 px-3 py-2 transition-colors duration-100 hover:bg-muted/40",
+        isAfgerond && "opacity-55",
+        isNieuw &&
+          "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 motion-safe:duration-200"
+      )}
+    >
+      {/* De 44px-raakvlakwrapper van <Checkbox> zou de 20px-gutter uit elkaar
+          duwen op telefoon. Wrapper neutraliseren en het vinkje zelf een
+          onzichtbare hitzone geven houdt zowel de rij als de duim heel.
+          Die hitzone geldt óók op desktop: 16px is een klein doel voor iets
+          wat je de hele dag aanklikt. -inset-2 blijft binnen de 10px-gutter,
+          dus de titel ernaast blijft gewoon selecteerbaar. */}
+      <span className="mt-0.5 flex justify-center [&>span]:min-h-0 [&>span]:min-w-0">
+        <Checkbox
+          className="relative size-4 before:absolute before:-inset-3 before:content-[''] sm:before:-inset-2"
+          checked={isAfgerond}
+          onCheckedChange={() => onToggle(taak._id, taak.status)}
+          aria-label={
+            isAfgerond
+              ? `Taak ${taak.titel} heropenen`
+              : `Taak ${taak.titel} afronden`
+          }
+        />
+      </span>
+
+      <div className="min-w-0">
+        <div className="flex min-w-0 items-center gap-1.5">
+          {isHoog && (
+            <span
+              className="size-1.5 shrink-0 rounded-full bg-destructive"
+              title="Hoge prioriteit"
+            >
+              <span className="sr-only">Hoge prioriteit</span>
+            </span>
+          )}
+          <span
+            className={cn(
+              "truncate text-sm leading-snug transition-colors duration-200",
+              isHoog && "font-medium",
+              isAfgerond && "line-through"
+            )}
+            title={taak.titel}
+          >
+            {taak.titel}
+          </span>
+        </div>
+
+        <p className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 text-[11px] leading-tight text-muted-foreground">
+          {metaDelen.map((deel, index) => (
+            <Fragment key={index}>
+              {index > 0 && <span aria-hidden>·</span>}
+              {deel}
+            </Fragment>
+          ))}
+        </p>
+
+        {taak.omschrijving && (
+          <p
+            className="mt-0.5 line-clamp-2 break-words text-xs leading-snug text-muted-foreground/90 @max-[30rem]/sectie:line-clamp-1"
+            title={taak.omschrijving}
+          >
+            {taak.omschrijving}
+          </p>
+        )}
+      </div>
+
+      <div className="flex shrink-0 items-center opacity-0 transition-opacity duration-100 group-focus-within:opacity-100 group-hover:opacity-100 max-sm:opacity-100 @max-[30rem]/sectie:opacity-100">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              className="size-6 min-h-0"
+              aria-label={`Acties voor ${taak.titel}`}
+            >
+              <MoreHorizontal className="size-3.5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuLabel className="text-xs">
+              Toewijzen aan
+            </DropdownMenuLabel>
+            <DropdownMenuRadioGroup
+              value={taak.toegewezenAanId ?? NIEMAND}
+              onValueChange={(waarde) => onToewijzen(taak._id, waarde)}
+            >
+              <DropdownMenuRadioItem value={NIEMAND}>
+                Niet toegewezen
+              </DropdownMenuRadioItem>
+              {medewerkers.map((medewerker) => (
+                <DropdownMenuRadioItem
+                  key={medewerker._id}
+                  value={medewerker._id}
+                >
+                  {medewerker.naam}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-xs">Prioriteit</DropdownMenuLabel>
+            <DropdownMenuRadioGroup
+              value={taak.prioriteit}
+              onValueChange={(waarde) => onPrioriteit(taak._id, waarde)}
+            >
+              {(Object.keys(PRIORITEIT_LABELS) as Prioriteit[]).map((waarde) => (
+                <DropdownMenuRadioItem key={waarde} value={waarde}>
+                  {PRIORITEIT_LABELS[waarde]}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              variant="destructive"
+              onSelect={() => onVerwijderen(taak._id)}
+            >
+              <Trash2 className="size-3.5" />
+              Verwijderen
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </li>
   );
 }

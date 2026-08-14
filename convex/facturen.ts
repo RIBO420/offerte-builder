@@ -546,6 +546,62 @@ export const list = query({
 });
 
 /**
+ * Facturen van één klant, voor het klantdossier.
+ *
+ * Gaat via de `by_klant`-index en niet via `list` + filteren: dat laatste haalt
+ * élke factuur van het bedrijf op om er twee te tonen.
+ *
+ * Let op: `klantId` is optioneel in het schema. Facturen worden aangemaakt met
+ * de `klantId` van het project, dus in de praktijk is hij gevuld; mocht een
+ * hele oude rij hem missen, dan valt die hier buiten. Dat is bewust — een
+ * factuur zonder klantkoppeling hoort niet stilzwijgend bij een klant te
+ * belanden op basis van een gok.
+ */
+export const listVoorKlant = query({
+  args: { klantId: v.id("klanten") },
+  handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+
+    const klant = await ctx.db.get(args.klantId);
+    if (!klant || klant.userId.toString() !== userId.toString()) return [];
+
+    const facturen = await ctx.db
+      .query("facturen")
+      .withIndex("by_klant", (q) => q.eq("klantId", args.klantId))
+      .collect();
+
+    const nu = Date.now();
+
+    return facturen
+      // Tenant-scope (audit §2): de index staat niet op userId, dus hier nog
+      // een keer expliciet controleren.
+      .filter((f) => f.userId.toString() === userId.toString())
+      .sort((a, b) => b.factuurdatum - a.factuurdatum)
+      .map((factuur) => {
+        const { documentStatus, betaalStatus } = effectieveStatussen(factuur);
+        return {
+          _id: factuur._id,
+          // Een factuur wordt geopend via /projecten/<id>/factuur; zonder
+          // project is er geen detailpagina om naartoe te linken.
+          projectId: factuur.projectId ?? null,
+          factuurnummer: factuur.factuurnummer,
+          factuurdatum: factuur.factuurdatum,
+          vervaldatum: factuur.vervaldatum,
+          totaalInclBtw: factuur.totaalInclBtw,
+          documentStatus,
+          betaalStatus,
+          isArchived: factuur.isArchived === true,
+          // Te laat = verstuurd, nog niet betaald én vervaldatum voorbij.
+          isTeLaat:
+            betaalStatus !== "betaald" &&
+            documentStatus !== "concept" &&
+            factuur.vervaldatum < nu,
+        };
+      });
+  },
+});
+
+/**
  * Update een factuur (alleen mogelijk in concept status).
  */
 export const update = mutation({

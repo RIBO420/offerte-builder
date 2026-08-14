@@ -3,13 +3,8 @@
 import { use, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+
+
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/page-header";
@@ -23,22 +18,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+
+
 import {
   User,
-  FileText,
   Loader2,
   ArrowLeft,
   Shovel,
   Trees,
-  History,
   ShieldAlert,
 } from "lucide-react";
 import { useMutation, useQuery } from "convex/react";
@@ -48,22 +35,17 @@ import { useIsAdmin } from "@/hooks/use-users";
 import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import { CopyButton } from "@/components/ui/copy-button";
 import { Switch } from "@/components/ui/switch";
-import { EmptyState } from "@/components/ui/empty-state";
 import { Id } from "../../../../../convex/_generated/dataModel";
 import { LeadHistorieCard } from "@/components/leads/lead-historie-card";
 import { OnderhoudSectie } from "@/components/klanten/onderhoud-sectie";
 import { KlantTakenCard } from "@/components/klanten/klant-taken-card";
+import {
+  KlantFacturenSectie,
+  KlantOffertesSectie,
+} from "@/components/klanten/klant-documenten";
 import { KlantTijdlijn } from "@/components/tijdlijn/klant-tijdlijn";
 import { KlantReminderBanner } from "@/components/klant-reminder-banner";
 import { formatCurrency } from "@/lib/format/currency";
-
-const statusColors: Record<string, string> = {
-  concept: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100",
-  voorcalculatie: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
-  verzonden: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100",
-  geaccepteerd: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
-  afgewezen: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
-};
 
 // CRM-002: Pipeline status labels and colors
 type PipelineStatus = "lead" | "offerte_verzonden" | "getekend" | "in_uitvoering" | "opgeleverd" | "onderhoud";
@@ -103,14 +85,6 @@ const klantTypeColors: Record<KlantType, string> = {
   vve: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
   gemeente: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
   overig: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
-};
-
-const statusLabels: Record<string, string> = {
-  concept: "Concept",
-  voorcalculatie: "Voorcalculatie",
-  verzonden: "Verzonden",
-  geaccepteerd: "Geaccepteerd",
-  afgewezen: "Afgewezen",
 };
 
 function formatDate(timestamp: number): string {
@@ -372,94 +346,16 @@ export default function KlantDetailPage({
             {/* Klanttijdlijn (PRD §2.3) — vervangt het vrije Notities-veld
                 ("één waarheid"): filters op kanaal/klus, vrij zoeken en
                 entry-compositie voor kantoor. */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <History className="h-4 w-4" />
-                  Tijdlijn
-                </CardTitle>
-                <CardDescription>
-                  Wie heeft wat besproken, wanneer, via welk kanaal, over welke
-                  klus?
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <KlantTijdlijn klantId={id as Id<"klanten">} />
-              </CardContent>
-            </Card>
+            <KlantTijdlijn klantId={id as Id<"klanten">} toonPaneel />
 
             {/* Onderhoud (PRD §2.1): contracten + losse beurten */}
             <OnderhoudSectie klantId={id as Id<"klanten">} />
 
-            {/* Offertes */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <FileText className="h-4 w-4" />
-                  Offertes
-                  {offertes.length > 0 && (
-                    <Badge variant="secondary">{offertes.length}</Badge>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {offertes.length === 0 ? (
-                  <EmptyState
-                    compact
-                    icon={<FileText aria-hidden />}
-                    title="Nog geen offertes."
-                    description="Maak de eerste offerte voor deze klant."
-                  />
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Nummer</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Datum</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Bedrag</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {offertes.map((offerte) => (
-                        <TableRow key={offerte._id}>
-                          <TableCell>
-                            <Link
-                              href={`/offertes/${offerte._id}`}
-                              className="font-medium hover:underline"
-                            >
-                              {offerte.offerteNummer}
-                            </Link>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              {offerte.type === "aanleg" ? (
-                                <Shovel className="h-4 w-4 shrink-0 text-muted-foreground" />
-                              ) : (
-                                <Trees className="h-4 w-4 shrink-0 text-muted-foreground" />
-                              )}
-                              <span className="capitalize">{offerte.type}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap">
-                            {formatDate(offerte.createdAt)}
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={statusColors[offerte.status]}>
-                              {statusLabels[offerte.status]}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right font-medium tabular-nums">
-                            {formatCurrency(offerte.totalen?.totaalInclBtw || 0)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
+            <KlantOffertesSectie offertes={offertes} />
+
+            {/* Facturen: klanten hebben niet alleen offertes — het dossier was
+                pas compleet toen ook de geldkant erin stond. */}
+            <KlantFacturenSectie klantId={id as Id<"klanten">} />
           </div>
 
           <aside className="space-y-4 xl:sticky xl:top-6">

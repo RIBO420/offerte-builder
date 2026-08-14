@@ -6,20 +6,16 @@
  * samengevoegd. Vanaf hier kan kantoor ook een losse beurt aanmaken.
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+
+
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { SectieLegeStaat, SectiePaneel } from "@/components/ui/sectie-paneel";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -38,8 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ScrollText, Sprout, Plus, CalendarClock } from "lucide-react";
-import { EmptyState } from "@/components/ui/empty-state";
+import { ScrollText, Sprout, Plus } from "lucide-react";
 import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import { formatCurrency } from "@/lib/format/currency";
 
@@ -178,20 +173,16 @@ export function OnderhoudSectie({ klantId }: { klantId: Id<"klanten"> }) {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle>Onderhoud</CardTitle>
-            <CardDescription>
-              Contracten en losse beurten — aparte regels, elk met eigen
-              historie
-            </CardDescription>
-          </div>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+    <SectiePaneel
+      titel="Onderhoud"
+      icoon={<Sprout />}
+      telling={(contracten?.length ?? 0) + (losseBeurten?.length ?? 0)}
+      uitleg="Contracten en losse beurten staan hier als aparte regels, elk met een eigen historie. Een contract loopt door; een losse beurt is eenmalig of herhaalt volgens een ritme."
+      acties={
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" variant="outline">
-                <Plus className="h-4 w-4 mr-2" />
+              <Button size="xs" variant="ghost" className="h-7 min-h-0 px-2 text-xs sm:h-7">
+                <Plus className="size-3.5" />
                 Losse beurt
               </Button>
             </DialogTrigger>
@@ -388,80 +379,94 @@ export function OnderhoudSectie({ klantId }: { klantId: Id<"klanten"> }) {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-2">
+      }
+    >
         {contracten === undefined || losseBeurten === undefined ? (
-          <p className="text-sm text-muted-foreground py-4 text-center">
-            Laden...
-          </p>
+          <div className="space-y-2 px-3 py-2.5">
+            <Skeleton className="h-4 w-2/5" />
+            <Skeleton className="h-4 w-1/3" />
+          </div>
         ) : contracten.length === 0 && losseBeurten.length === 0 ? (
-          <EmptyState
-            compact
-            icon={<Sprout aria-hidden />}
-            title="Nog geen onderhoud."
-            description="Contracten en losse beurten verschijnen hier."
-          />
+          <SectieLegeStaat tekst="Nog geen onderhoud." />
         ) : (
-          <>
+          <ul className="divide-y">
             {contracten.map((c) => (
-              <Link
+              <OnderhoudRegel
                 key={c._id}
                 href={`/contracten/${c._id}`}
-                className="flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors"
-              >
-                <ScrollText className="h-4 w-4 text-muted-foreground shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">
-                    {c.naam}{" "}
-                    <span className="text-muted-foreground font-normal">
-                      · {c.contractNummer}
-                    </span>
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Contract · {formatDatum(c.startDatum)} –{" "}
-                    {formatDatum(c.eindDatum)} ·{" "}
-                    {formatCurrency(c.jaarlijksTarief)}/jaar
-                  </p>
-                </div>
-                <Badge variant="outline">
-                  {contractStatusLabels[c.status] ?? c.status}
-                </Badge>
-              </Link>
+                icoon={<ScrollText />}
+                titel={c.naam}
+                meta={`Contract ${c.contractNummer} · ${formatDatum(c.startDatum)} – ${formatDatum(c.eindDatum)} · ${formatCurrency(c.jaarlijksTarief)}/jaar`}
+                status={contractStatusLabels[c.status] ?? c.status}
+              />
             ))}
             {losseBeurten.map((b) => (
-              <Link
+              <OnderhoudRegel
                 key={b._id}
                 href={`/projecten/${b._id}`}
-                className="flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors"
-              >
-                <Sprout className="h-4 w-4 text-muted-foreground shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{b.naam}</p>
-                  <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    Losse beurt
-                    {b.ritme && (
-                      <>
-                        {" · "}
-                        <CalendarClock className="h-3 w-3" />
-                        {b.ritme.frequentiePerJaar
+                icoon={<Sprout />}
+                titel={b.naam}
+                meta={
+                  b.ritme
+                    ? `Losse beurt · ${
+                        b.ritme.frequentiePerJaar
                           ? `${b.ritme.frequentiePerJaar}× per jaar`
-                          : `elke ${b.ritme.intervalWeken} weken`}
-                        {b.volgendeVoorzieneDatum &&
-                          ` · volgende: ${formatDatum(b.volgendeVoorzieneDatum)}`}
-                      </>
-                    )}
-                    {!b.ritme && " · eenmalig"}
-                  </p>
-                </div>
-                <Badge variant="outline">
-                  {beurtStatusLabels[b.status] ?? b.status}
-                </Badge>
-              </Link>
+                          : `elke ${b.ritme.intervalWeken} weken`
+                      }${
+                        b.volgendeVoorzieneDatum
+                          ? ` · volgende: ${formatDatum(b.volgendeVoorzieneDatum)}`
+                          : ""
+                      }`
+                    : "Losse beurt · eenmalig"
+                }
+                status={beurtStatusLabels[b.status] ?? b.status}
+              />
             ))}
-          </>
+          </ul>
         )}
-      </CardContent>
-    </Card>
+    </SectiePaneel>
+  );
+}
+
+/**
+ * Eén onderhoudsregel. Zelfde anatomie als de offerte- en factuurregels:
+ * icoon in een smalle gutter, titel met meta eronder, status rechts. Bewust
+ * geen omrande kaartjes in een omrand paneel — dat leest als dozen in dozen.
+ */
+function OnderhoudRegel({
+  href,
+  icoon,
+  titel,
+  meta,
+  status,
+}: {
+  href: string;
+  icoon: ReactNode;
+  titel: string;
+  meta: string;
+  status: string;
+}) {
+  return (
+    <li>
+      <Link
+        href={href}
+        className="grid grid-cols-[1.25rem_minmax(0,1fr)_auto] items-start gap-x-2.5 px-3 py-2 transition-colors duration-100 hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none"
+      >
+        <span className="mt-0.5 flex size-5 items-center justify-center text-muted-foreground [&>svg]:size-3.5">
+          {icoon}
+        </span>
+        <span className="min-w-0">
+          <span className="block truncate text-sm leading-snug font-medium">
+            {titel}
+          </span>
+          <span className="mt-0.5 block truncate text-[11px] leading-tight text-muted-foreground">
+            {meta}
+          </span>
+        </span>
+        <span className="mt-0.5 shrink-0 text-[11px] leading-tight text-muted-foreground">
+          {status}
+        </span>
+      </Link>
+    </li>
   );
 }

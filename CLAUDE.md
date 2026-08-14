@@ -140,6 +140,44 @@ knop buiten de cel. Oplossing bij >3 acties: potlood-knop + `DropdownMenu` met
 `EmptyState` heeft een `compact`-variant (één regel i.p.v. ~180px). Gebruik die op
 overzichtspagina's met meerdere secties, anders is een lege sectie de grootste.
 
+### Werkschermsecties: `SectiePaneel`, niet `<Card>`
+
+`src/components/ui/sectie-paneel.tsx` is het frame voor secties in een dossier of
+werkscherm: één rand met een klein uppercase kopje, optioneel een teller en acties
+rechts. Bewust géén `<Card>` — die brengt een eigen kop-, padding- en schaduwlaag
+mee, en meerdere Cards onder elkaar lezen als losse eilanden. `SectieLegeStaat`
+hoort erbij: een lege sectie legt uit waar hij voor is en blijft de kléínste sectie.
+In gebruik door Tijdlijn (`components/tijdlijn/klant-tijdlijn.tsx`) en Taken
+(`components/klanten/klant-taken-card.tsx`).
+
+Twee patronen die daar zijn vastgelegd:
+
+- **Composer = één regel die openklapt bij focus.** De controlestrip hangt aan
+  `group-data-[open=false]/composer:hidden`. Let op: de selects erin renderen in een
+  portal, dus focus verlaat de composer — een naïeve `onBlur` klapt hem dicht terwijl
+  je een medewerker kiest. `src/__tests__/components/composer-openklappen.test.tsx`
+  bewaakt dat.
+- **Container-queries, geen viewport-breakpoints.** `SectiePaneel` zet
+  `@container/sectie`; smalle varianten schrijf je als `@max-[34rem]/sectie:…`.
+  Nodig omdat dezelfde tijdlijn zowel in de brede klantpagina als in de smallere
+  Chat-module staat — die moet niet meeliften op de schermbreedte.
+
+- **Het klikvlak is de hele regel, niet het invoerveld.** Het veld is ~19px hoog in
+  een regel van ~41px en het icoon links is geen invoerveld; klikken op de regel deed
+  daardoor niets. Omdat de knoppen pas ná het openklappen bestaan, leest dat als "de
+  knoppen werken niet". Een `onMouseDown` op de regel die `preventDefault()` doet en
+  het veld focust lost dat op — met een uitzondering voor echte controls
+  (`button, input, textarea, select, a, [role=combobox]`).
+
+**Val hier niet in:** ziet een `grid-cols-[…]` er in de DOM goed uit maar is de
+computed `grid-template-columns` één kolom, dan ontbreekt de regel in de stylesheet
+en is de dev-server stale. Herstart hem vóór je de code verdenkt — dit heeft al twee
+keer een half uur gekost.
+
+**En hier ook niet:** draai nooit `npm run build` terwijl `next dev` loopt. Ze delen
+`.next/`, de dev-server blijft daarna oude modules serveren en je meet een versie van
+je code die niet meer bestaat. Stop de dev-server, bouw, start hem opnieuw.
+
 ## Mobile App Structure
 
 - **Design system:** Premium Organic theme — dark mode with nature-green accents (#4ADE80 primary)

@@ -78,7 +78,8 @@ import {
 } from "@/components/ui/select";
 import { TagInput } from "@/components/ui/tag-input";
 import { toast } from "sonner";
-import { useKlanten, useKlantenSearch } from "@/hooks/use-klanten";
+import { useKlanten } from "@/hooks/use-klanten";
+import { klantMatcht, zoekbareTekst, zoektermen } from "@/lib/klant-zoeken";
 import { Id } from "../../../../convex/_generated/dataModel";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
@@ -190,8 +191,8 @@ function KlantenPageContent() {
 
   // Initialize filter state from URL search params
   const [searchTerm, setSearchTerm] = useState(searchParams.get("q") || "");
+  // Alleen nog voor de URL: het filteren zelf gebeurt direct op `searchTerm`.
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
-  const { results: searchResults } = useKlantenSearch(debouncedSearchTerm);
 
   // Export data query
   // Export is kantoor-functionaliteit (PRD §1.2): de query wordt voor andere
@@ -256,31 +257,37 @@ function KlantenPageContent() {
     (searchParams.get("type") as KlantType | "alle") || "alle"
   );
 
-  // Update URL when filters change
-  const updateUrlParams = useCallback((newPipeline: string, newType: string, newSearch: string) => {
+  /**
+   * De filters staan in de URL zodat je een zoekopdracht kunt delen of
+   * terugvinden met de terugknop. Bijwerken gebeurt op de gedebouncede term en
+   * niet per toetsaanslag: `router.replace` is een navigatie, en die per letter
+   * afvuren gaf merkbare vertraging tijdens het typen.
+   */
+  const urlParams = useMemo(() => {
     const params = new URLSearchParams();
-    if (newPipeline !== "alle") params.set("pipeline", newPipeline);
-    if (newType !== "alle") params.set("type", newType);
-    if (newSearch) params.set("q", newSearch);
+    if (pipelineFilter !== "alle") params.set("pipeline", pipelineFilter);
+    if (klantTypeFilter !== "alle") params.set("type", klantTypeFilter);
+    if (debouncedSearchTerm) params.set("q", debouncedSearchTerm);
+    return params.toString();
+  }, [pipelineFilter, klantTypeFilter, debouncedSearchTerm]);
 
-    const queryString = params.toString();
-    router.replace(queryString ? `?${queryString}` : "/klanten", { scroll: false });
-  }, [router]);
+  useEffect(() => {
+    // Staat de URL al goed (o.a. bij het eerste renderen), dan niet navigeren.
+    if (window.location.search.replace(/^\?/, "") === urlParams) return;
+    router.replace(urlParams ? `?${urlParams}` : "/klanten", { scroll: false });
+  }, [urlParams, router]);
 
   const handlePipelineFilterChange = useCallback((value: PipelineStatus | "alle") => {
     setPipelineFilter(value);
-    updateUrlParams(value, klantTypeFilter, searchTerm);
-  }, [updateUrlParams, klantTypeFilter, searchTerm]);
+  }, []);
 
   const handleKlantTypeFilterChange = useCallback((value: KlantType | "alle") => {
     setKlantTypeFilter(value);
-    updateUrlParams(pipelineFilter, value, searchTerm);
-  }, [updateUrlParams, pipelineFilter, searchTerm]);
+  }, []);
 
   const handleSearchTermChange = useCallback((value: string) => {
     setSearchTerm(value);
-    updateUrlParams(pipelineFilter, klantTypeFilter, value);
-  }, [updateUrlParams, pipelineFilter, klantTypeFilter]);
+  }, []);
 
   // Portal mutations
   const activatePortalMutation = useMutation(api.klanten.activatePortal);
@@ -387,8 +394,34 @@ function KlantenPageContent() {
       });
   }, [klanten, optimisticDeletedIds, optimisticUpdates]);
 
+  /**
+   * Zoekbare tekst per klant, één keer opgebouwd zolang de lijst niet wijzigt.
+   * Zonder dit wordt bij elke toetsaanslag voor elke klant opnieuw een string
+   * samengesteld.
+   */
+  const zoekIndex = useMemo(
+    () =>
+      new Map(
+        klantenWithOptimisticUpdates.map((klant) => [
+          klant._id,
+          zoekbareTekst(klant),
+        ])
+      ),
+    [klantenWithOptimisticUpdates]
+  );
+
   const filteredKlanten: Klant[] = useMemo(() => {
-    let base = (debouncedSearchTerm ? searchResults : klantenWithOptimisticUpdates) as Klant[];
+    let base = klantenWithOptimisticUpdates as Klant[];
+
+    // Client-side filteren op de al geladen lijst — zie lib/klant-zoeken.ts
+    // voor waarom dit niet meer via een Convex-query loopt.
+    const termen = zoektermen(searchTerm);
+    if (termen.length > 0) {
+      base = base.filter((klant) =>
+        klantMatcht(zoekIndex.get(klant._id) ?? "", termen)
+      );
+    }
+
     if (pipelineFilter !== "alle") {
       base = base.filter((klant) => klant.pipelineStatus === pipelineFilter);
     }
@@ -396,7 +429,7 @@ function KlantenPageContent() {
       base = base.filter((klant) => (klant.klantType ?? "particulier") === klantTypeFilter);
     }
     return base;
-  }, [debouncedSearchTerm, searchResults, klantenWithOptimisticUpdates, pipelineFilter, klantTypeFilter]);
+  }, [searchTerm, zoekIndex, klantenWithOptimisticUpdates, pipelineFilter, klantTypeFilter]);
 
   // Apply sorting to klanten
   const { sortedData: sortedKlanten, sortConfig, toggleSort } = useTableSort<Klant>(
