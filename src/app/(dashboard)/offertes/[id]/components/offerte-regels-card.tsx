@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import Link from "next/link";
 import {
   Card,
@@ -9,7 +10,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -20,6 +20,23 @@ import {
 } from "@/components/ui/table";
 import { FileText, Edit } from "lucide-react";
 import { formatCurrency, scopeLabels } from "./utils";
+
+// Regels gegroepeerd per scope (volgorde van eerste voorkomen) — de
+// scope-chip per regel is vervangen door één kopregel per scope.
+function groupRegelsByScope(regels: Regel[]): { scope: string; regels: Regel[] }[] {
+  const groups: { scope: string; regels: Regel[] }[] = [];
+  const byScope = new Map<string, Regel[]>();
+  for (const regel of regels) {
+    let group = byScope.get(regel.scope);
+    if (!group) {
+      group = [];
+      byScope.set(regel.scope, group);
+      groups.push({ scope: regel.scope, regels: group });
+    }
+    group.push(regel);
+  }
+  return groups;
+}
 
 interface Regel {
   id: string;
@@ -54,38 +71,44 @@ export function OfferteRegelsCard({ regels, id }: OfferteRegelsCardProps) {
             <TableHeader>
               <TableRow>
                 <TableHead>Omschrijving</TableHead>
-                <TableHead>Scope</TableHead>
                 <TableHead className="text-right">Hoeveelheid</TableHead>
                 <TableHead className="text-right">Prijs</TableHead>
                 <TableHead className="text-right">Totaal</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {regels.map((regel) => (
-                <TableRow key={regel.id}>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{regel.omschrijving}</p>
-                      <p className="text-sm text-muted-foreground capitalize">
-                        {regel.type}
-                      </p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">
-                      {scopeLabels[regel.scope] || regel.scope}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {regel.hoeveelheid} {regel.eenheid}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatCurrency(regel.prijsPerEenheid)}
-                  </TableCell>
-                  <TableCell className="text-right font-medium">
-                    {formatCurrency(regel.totaal)}
-                  </TableCell>
-                </TableRow>
+              {groupRegelsByScope(regels).map((groep) => (
+                <React.Fragment key={groep.scope}>
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell
+                      colSpan={4}
+                      className="py-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground"
+                    >
+                      {scopeLabels[groep.scope] || groep.scope}
+                    </TableCell>
+                  </TableRow>
+                  {groep.regels.map((regel) => (
+                    <TableRow key={regel.id}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{regel.omschrijving}</p>
+                          <p className="text-sm text-muted-foreground capitalize">
+                            {regel.type}
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {regel.hoeveelheid} {regel.eenheid}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatCurrency(regel.prijsPerEenheid)}
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        {formatCurrency(regel.totaal)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </React.Fragment>
               ))}
             </TableBody>
           </Table>

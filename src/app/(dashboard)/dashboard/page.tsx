@@ -10,11 +10,10 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
-  Shovel,
-  Trees,
   ArrowRight,
   FolderKanban,
   Clock,
+  Plus,
   Truck,
   Wrench,
 } from "lucide-react";
@@ -33,6 +32,7 @@ import { AandachtNodig } from "@/components/dashboard/aandacht-nodig";
 import { FinancieelGrid } from "@/components/dashboard/financieel-grid";
 import { PipelineBento } from "@/components/dashboard/pipeline-bento";
 import { VlootBadge } from "@/components/dashboard/vloot-badge";
+import { useShortcuts } from "@/components/providers/shortcuts-provider";
 import { getGreeting } from "@/lib/greeting";
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -50,6 +50,8 @@ const itemVariants = {
 export default function DashboardPage() {
   const { clerkUser, user, isLoading: isUserLoading } = useCurrentUser();
   const isAdmin = useIsAdmin();
+  // Eén ingang voor "nieuwe offerte" (keuzepunt 7)
+  const { setShowNewOfferteDialog } = useShortcuts();
 
   // Medewerker data — still uses the old batched query
   const {
@@ -357,20 +359,12 @@ export default function DashboardPage() {
                       {adminData.offerteStats?.totaal || 0} offertes • {adminData.projectStats?.totaal || 0} projecten
                     </p>
                   </div>
-                  <div className="flex gap-2">
-                    <Button asChild variant="outline" className="border-primary/25 bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary">
-                      <Link href="/offertes/nieuw/aanleg">
-                        <Shovel className="mr-2 h-4 w-4" />
-                        Nieuwe Aanleg
-                      </Link>
-                    </Button>
-                    <Button asChild variant="outline" className="border-primary/15 bg-primary/5 text-primary hover:bg-primary/15 hover:text-primary">
-                      <Link href="/offertes/nieuw/onderhoud">
-                        <Trees className="mr-2 h-4 w-4" />
-                        Nieuw Onderhoud
-                      </Link>
-                    </Button>
-                  </div>
+                  {/* Eén ingang voor "nieuwe offerte" (keuzepunt 7): de
+                      NewOfferteDialog uit de dashboard-layout, zelfde als ⌘N */}
+                  <Button onClick={() => setShowNewOfferteDialog(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Nieuwe offerte
+                  </Button>
                 </m.div>
 
                 {/* Section 2: Aandacht Nodig — direct onder de kop: het enige blok

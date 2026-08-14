@@ -27,7 +27,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ScrollableTable } from "@/components/ui/responsive-table";
-import { handleKeyboardActivation } from "@/lib/accessibility";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -347,58 +346,8 @@ function ProjectenPageContent() {
           </m.div>
         )}
 
-        {/* Stats */}
-        <m.div
-          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: reducedMotion ? 0 : 0.4,
-            delay: reducedMotion ? 0 : 0.2,
-          }}
-          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
-        >
-          {Object.entries(statusConfig)
-            .filter(([status]) => status !== "voorcalculatie") // Skip legacy status in stats grid
-            .map(([status, config]) => {
-            const Icon = config.icon;
-            const count = stats?.[status as Exclude<ProjectStatus, "voorcalculatie">] ?? 0;
-
-            return (
-              <Card
-                key={status}
-                role="button"
-                tabIndex={0}
-                aria-pressed={activeTab === status}
-                aria-label={`Filter op ${config.label}`}
-                className="cursor-pointer hover:shadow-md transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                onClick={() =>
-                  setActiveTab(activeTab === status ? "alle" : status)
-                }
-                onKeyDown={(e) =>
-                  handleKeyboardActivation(e, () =>
-                    setActiveTab(activeTab === status ? "alle" : status)
-                  )
-                }
-              >
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-2xl font-bold">{count}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {config.label}
-                      </p>
-                    </div>
-                    <div
-                      className={`h-10 w-10 rounded-full flex items-center justify-center ${config.color.bg} ${config.color.text}`}
-                    >
-                      <Icon className="h-5 w-5" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </m.div>
+        {/* KPI-cards vervallen (WS6): de statustabs hieronder tonen dezelfde
+            vier tellers, mét filterfunctie. */}
 
         {/* Search */}
         <m.div
@@ -446,6 +395,7 @@ function ProjectenPageContent() {
             onValueChange={handleTabChange}
             className="space-y-6"
           >
+            {/* Tellers in de tabs zelf — de vier KPI-cards erboven zijn weg */}
             <TabsList>
               <TabsTrigger value="alle">
                 Alle
@@ -453,10 +403,18 @@ function ProjectenPageContent() {
                   {stats?.totaal || 0}
                 </Badge>
               </TabsTrigger>
-              <TabsTrigger value="gepland">Gepland</TabsTrigger>
-              <TabsTrigger value="in_uitvoering">In Uitvoering</TabsTrigger>
-              <TabsTrigger value="afgerond">Afgerond</TabsTrigger>
-              <TabsTrigger value="nacalculatie_compleet">Nacalculatie</TabsTrigger>
+              <TabsTrigger value="gepland">
+                Gepland ({stats?.gepland ?? 0})
+              </TabsTrigger>
+              <TabsTrigger value="in_uitvoering">
+                In Uitvoering ({stats?.in_uitvoering ?? 0})
+              </TabsTrigger>
+              <TabsTrigger value="afgerond">
+                Afgerond ({stats?.afgerond ?? 0})
+              </TabsTrigger>
+              <TabsTrigger value="nacalculatie_compleet">
+                Nacalculatie ({stats?.nacalculatie_compleet ?? 0})
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value={activeTab} className="space-y-6">

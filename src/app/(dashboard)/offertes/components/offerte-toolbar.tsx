@@ -1,15 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { m } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { Shovel, Trees, Search, PenLine } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import {
   OfferteFiltersComponent,
   ActiveFilters,
@@ -22,6 +16,7 @@ import {
   offerteExportColumns,
 } from "@/components/export-dropdown";
 import { ConceptOpruimenDialog } from "./concept-opruimen-dialog";
+import { useShortcuts } from "@/components/providers/shortcuts-provider";
 
 interface OfferteToolbarProps {
   searchQuery: string;
@@ -62,6 +57,10 @@ export function OfferteToolbar({
   hasActiveFilters,
   reducedMotion,
 }: OfferteToolbarProps) {
+  // Eén ingang voor "nieuwe offerte": de NewOfferteDialog (8 tegels, TT-004)
+  // die in de dashboard-layout gemount staat — zelfde dialoog als ⌘N.
+  const { setShowNewOfferteDialog } = useShortcuts();
+
   return (
     <>
       <m.div
@@ -78,59 +77,14 @@ export function OfferteToolbar({
             Beheer al je aanleg- en onderhoudsoffertes
           </p>
         </div>
-        {/* flex-wrap: vier knoppen passen niet naast elkaar op 375px en de app
-            scrolt nergens zijwaarts (CLAUDE.md regel 1). */}
-        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-          {/* §5.3c: kantoor-actie om verweesde concepten op te ruimen */}
-          <ConceptOpruimenDialog />
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button asChild variant="outline" className="flex-1 sm:flex-none">
-                <Link href="/offertes/nieuw/vrij">
-                  <PenLine className="mr-2 h-4 w-4" />
-                  <span className="hidden sm:inline">Vrij</span>
-                  <span className="sm:hidden">Vrije Offerte</span>
-                </Link>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Maak een vrije offerte in de regel-editor</p>
-              <p className="text-xs text-muted-foreground">
-                Voor alles wat niet in een pakket past
-              </p>
-            </TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button asChild variant="outline" className="flex-1 sm:flex-none">
-                <Link href="/offertes/nieuw/onderhoud">
-                  <Trees className="mr-2 h-4 w-4" />
-                  <span className="hidden sm:inline">Onderhoud</span>
-                  <span className="sm:hidden">Onderhoud Offerte</span>
-                </Link>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Maak een nieuwe onderhoudsofferte</p>
-              <p className="text-xs text-muted-foreground">Voor periodiek tuinonderhoud</p>
-            </TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button asChild className="flex-1 sm:flex-none">
-                <Link href="/offertes/nieuw/aanleg">
-                  <Shovel className="mr-2 h-4 w-4" />
-                  <span className="hidden sm:inline">Aanleg</span>
-                  <span className="sm:hidden">Aanleg Offerte</span>
-                </Link>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Maak een nieuwe aanlegofferte</p>
-              <p className="text-xs text-muted-foreground">Voor tuinaanleg projecten</p>
-            </TooltipContent>
-          </Tooltip>
-        </div>
+        {/* Eén primaire ingang (keuzepunt 7): de dialoog kiest de werkzaamheid */}
+        <Button
+          className="w-full sm:w-auto"
+          onClick={() => setShowNewOfferteDialog(true)}
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          Nieuwe offerte
+        </Button>
       </m.div>
 
       <m.div
@@ -174,6 +128,8 @@ export function OfferteToolbar({
               onChange={onFiltersChange}
               onReset={onFiltersReset}
             />
+            {/* §5.3c: schoonmaakactie, gedegradeerd uit de headerregel */}
+            <ConceptOpruimenDialog />
           </div>
         </div>
         <ActiveFilters filters={filters} onChange={onFiltersChange} />

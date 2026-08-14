@@ -121,7 +121,6 @@ export function FactorenTab({
                     <TableHead>Type</TableHead>
                     <TableHead>Waarde</TableHead>
                     <TableHead className="text-right">Factor</TableHead>
-                    <TableHead>Status</TableHead>
                     <TableHead className="w-[150px]"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -138,7 +137,14 @@ export function FactorenTab({
                         {typeLabels[factor.type] || factor.type}
                       </TableCell>
                       <TableCell>
-                        {waardeLabels[factor.waarde] || factor.waarde}
+                        <span className="inline-flex items-center gap-2">
+                          {waardeLabels[factor.waarde] || factor.waarde}
+                          {/* Status-kolom vervallen (WS6): alléén markeren
+                              wat afwijkt van standaard */}
+                          {factor.userId && (
+                            <Badge variant="secondary">Aangepast</Badge>
+                          )}
+                        </span>
                       </TableCell>
                       <TableCell className="text-right">
                         {editingFactor?._id === factor._id ? (
@@ -167,13 +173,6 @@ export function FactorenTab({
                           >
                             {factor.factor.toFixed(2)}
                           </span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {factor.userId ? (
-                          <Badge variant="secondary">Aangepast</Badge>
-                        ) : (
-                          <Badge variant="outline">Standaard</Badge>
                         )}
                       </TableCell>
                       <TableCell>

@@ -953,7 +953,9 @@ export const vullen = internalMutation({
         klantType: k.type,
         ...(k.contactpersoon ? { contactpersoon: k.contactpersoon } : {}),
         pipelineStatus: pipelineVerdeling[i % pipelineVerdeling.length],
-        tags: k.type === "particulier" ? ["particulier"] : ["zakelijk", "contract"],
+        // Tag/type-dedupe (WS6): geen tags die het klantType herhalen — de
+        // type-badge zegt dat al. "contract" blijft als échte extra informatie.
+        tags: k.type === "particulier" ? [] : ["contract"],
         createdAt: nu - (120 - i * 3) * DAG,
         updatedAt: nu - (30 - (i % 20)) * DAG,
       });

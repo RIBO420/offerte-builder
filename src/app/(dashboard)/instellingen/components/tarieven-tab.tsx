@@ -148,28 +148,34 @@ export function TarievenTab({
                     { key: "houtwerk", label: "Houtwerk" },
                     { key: "water_elektra", label: "Verlichting" },
                     { key: "specials", label: "Specials" },
-                  ].map(({ key, label }) => (
-                    <div key={key} className="space-y-1">
-                      <Label htmlFor={`marge-${key}`} className="text-xs">{label}</Label>
-                      <div className="relative">
-                        <Input
-                          id={`marge-${key}`}
-                          type="number"
-                          step="1"
-                          className="h-8 text-sm pr-6"
-                          placeholder={String(tarieven.standaardMargePercentage)}
-                          value={scopeMarges[key as keyof ScopeMargesState] ?? ""}
-                          onChange={(e) =>
-                            setScopeMarges({
-                              ...scopeMarges,
-                              [key]: e.target.value ? parseInt(e.target.value) : undefined,
-                            })
-                          }
-                        />
-                        <span className="absolute right-2 top-2 text-xs text-muted-foreground">%</span>
+                  ].map(({ key, label }) => {
+                    const afwijkend =
+                      scopeMarges[key as keyof ScopeMargesState] !== undefined;
+                    return (
+                      <div key={key} className="space-y-1">
+                        <Label htmlFor={`marge-${key}`} className="text-xs">{label}</Label>
+                        <div className="relative">
+                          <Input
+                            id={`marge-${key}`}
+                            type="number"
+                            step="1"
+                            // Afwijking van de standaardmarge licht gemarkeerd
+                            className={`h-8 text-sm pr-6 ${afwijkend ? "border-primary/60" : ""}`}
+                            title={afwijkend ? "Wijkt af van de standaardmarge" : undefined}
+                            placeholder={String(tarieven.standaardMargePercentage)}
+                            value={scopeMarges[key as keyof ScopeMargesState] ?? ""}
+                            onChange={(e) =>
+                              setScopeMarges({
+                                ...scopeMarges,
+                                [key]: e.target.value ? parseInt(e.target.value) : undefined,
+                              })
+                            }
+                          />
+                          <span className="absolute right-2 top-2 text-xs text-muted-foreground">%</span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 <div className="text-xs font-medium text-muted-foreground pt-2">Onderhoud</div>
@@ -180,28 +186,33 @@ export function TarievenTab({
                     { key: "heggen", label: "Heggen" },
                     { key: "bomen", label: "Bomen" },
                     { key: "overig", label: "Overig" },
-                  ].map(({ key, label }) => (
-                    <div key={key} className="space-y-1">
-                      <Label htmlFor={`marge-${key}`} className="text-xs">{label}</Label>
-                      <div className="relative">
-                        <Input
-                          id={`marge-${key}`}
-                          type="number"
-                          step="1"
-                          className="h-8 text-sm pr-6"
-                          placeholder={String(tarieven.standaardMargePercentage)}
-                          value={scopeMarges[key as keyof ScopeMargesState] ?? ""}
-                          onChange={(e) =>
-                            setScopeMarges({
-                              ...scopeMarges,
-                              [key]: e.target.value ? parseInt(e.target.value) : undefined,
-                            })
-                          }
-                        />
-                        <span className="absolute right-2 top-2 text-xs text-muted-foreground">%</span>
+                  ].map(({ key, label }) => {
+                    const afwijkend =
+                      scopeMarges[key as keyof ScopeMargesState] !== undefined;
+                    return (
+                      <div key={key} className="space-y-1">
+                        <Label htmlFor={`marge-${key}`} className="text-xs">{label}</Label>
+                        <div className="relative">
+                          <Input
+                            id={`marge-${key}`}
+                            type="number"
+                            step="1"
+                            className={`h-8 text-sm pr-6 ${afwijkend ? "border-primary/60" : ""}`}
+                            title={afwijkend ? "Wijkt af van de standaardmarge" : undefined}
+                            placeholder={String(tarieven.standaardMargePercentage)}
+                            value={scopeMarges[key as keyof ScopeMargesState] ?? ""}
+                            onChange={(e) =>
+                              setScopeMarges({
+                                ...scopeMarges,
+                                [key]: e.target.value ? parseInt(e.target.value) : undefined,
+                              })
+                            }
+                          />
+                          <span className="absolute right-2 top-2 text-xs text-muted-foreground">%</span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>

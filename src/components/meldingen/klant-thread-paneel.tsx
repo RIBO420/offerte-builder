@@ -5,7 +5,9 @@
  *
  * KANTOOR↔KLANT-REGELS (hard):
  * - Dit paneel is visueel ONMISKENBAAR anders dan interne threads:
- *   banner "ZICHTBAAR VOOR KLANT" + amberkleurige achtergrond.
+ *   amberkleurige rand + oogje-markering "Zichtbaar voor klant" (WS6: de
+ *   knalgele banner is een rustige rand geworden; bij 0 berichten blijft
+ *   alleen één regel + de composer over).
  * - De composer staat STANDAARD op INTERN: het bericht landt dan als
  *   interne case-comment (melding) of tijdlijn-entry (werkitem) — de
  *   klant ziet er niets van.
@@ -131,29 +133,37 @@ export function KlantThreadPaneel({
     }
   };
 
-  return (
-    <div className="rounded-lg border-2 border-amber-400 dark:border-amber-500 overflow-hidden">
-      {/* Banner: onmiskenbaar klant-zichtbaar */}
-      <div className="bg-amber-400 dark:bg-amber-500 px-3 py-1.5 flex items-center gap-2">
-        <Eye className="h-4 w-4 text-amber-950" />
-        <span className="text-xs font-bold tracking-widest text-amber-950 uppercase">
-          Zichtbaar voor klant
-        </span>
-      </div>
+  const isLaden = threadId === undefined || (!!threadId && messages === undefined);
+  const heeftBerichten = !!threadId && !!messages && messages.length > 0;
 
-      <div className="bg-amber-50 dark:bg-amber-950/30 p-3 space-y-3">
-        {/* Berichten in de klantthread */}
-        <div className="max-h-64 overflow-y-auto space-y-2">
-          {threadId === undefined || (threadId && messages === undefined) ? (
-            <div className="flex justify-center py-4">
-              <Loader2 className="h-4 w-4 animate-spin text-amber-600" />
+  return (
+    <div className="rounded-lg border border-amber-400/60 dark:border-amber-500/50 overflow-hidden">
+      {/* Rustige rand + oogje i.p.v. knalgele banner (WS6): de markering
+          verschijnt pas zodra er klant-zichtbare inhoud staat. */}
+      {heeftBerichten && (
+        <div className="border-b border-amber-400/40 bg-amber-50/60 dark:bg-amber-950/20 px-3 py-1.5 flex items-center gap-2">
+          <Eye className="h-3.5 w-3.5 text-amber-700 dark:text-amber-400" />
+          <span className="text-[11px] font-medium tracking-wide text-amber-800 dark:text-amber-300 uppercase">
+            Zichtbaar voor klant
+          </span>
+        </div>
+      )}
+
+      <div className="p-3 space-y-3">
+        {/* Berichten in de klantthread — leeg = één rustige regel */}
+        <div className={cn(heeftBerichten && "max-h-64 overflow-y-auto space-y-2")}>
+          {isLaden ? (
+            <div className="flex justify-center py-2">
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
             </div>
-          ) : !threadId || !messages || messages.length === 0 ? (
-            <p className="text-xs text-amber-800/70 dark:text-amber-200/60 py-2 text-center">
-              Nog geen berichten in dit klantgesprek.
+          ) : !heeftBerichten ? (
+            <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Eye className="h-3.5 w-3.5 text-amber-700 dark:text-amber-400" />
+              Nog geen berichten — wat je hier naar de klant stuurt, ziet die in
+              het portaal.
             </p>
           ) : (
-            messages.map((m) => (
+            (messages ?? []).map((m) => (
               <div
                 key={m._id}
                 className={cn(

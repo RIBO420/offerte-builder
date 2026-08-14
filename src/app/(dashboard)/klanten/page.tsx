@@ -11,9 +11,7 @@ import { PageHeader } from "@/components/page-header";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,10 +45,7 @@ import {
   Plus,
   Search,
   Loader2,
-  Mail,
   Send,
-  Phone,
-  MapPin,
   Pencil,
   Archive,
   FileText,
@@ -607,68 +602,93 @@ function KlantenPageContent() {
         // Vaste breedtes: de tabel moet binnen de kaart passen zonder
         // zijwaarts scrollen — lange namen/adressen korten in.
         width: "w-[34%]",
-        render: (klant) => (
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <Link
-                href={`/klanten/${klant._id}`}
-                className="font-medium hover:underline truncate max-w-full"
-                title={klant.naam}
-              >
-                {klant.naam}
-              </Link>
-              {/* CRM-005: Opvolgherinnering indicator */}
-              {herinneringSet.has(klant._id) && (
-                <span title="Opvolging nodig" className="relative flex h-5 w-5 items-center justify-center">
-                  <Bell className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
-                  <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
-                </span>
-              )}
-              {/* Geen status = nog geen stadium, géén "Lead": deze lijst laat
-                  leads juist weg (hoortInKlantenLijst) en na een import zou
-                  anders élke klant als lead worden bestempeld. */}
-              {klant.pipelineStatus && (
-                <Badge className={`text-xs ${PIPELINE_COLORS[klant.pipelineStatus]}`}>
-                  {PIPELINE_LABELS[klant.pipelineStatus]}
-                </Badge>
-              )}
-              <Badge className={`text-xs ${KLANT_TYPE_COLORS[klant.klantType ?? "particulier"]}`}>
-                {KLANT_TYPE_LABELS[klant.klantType ?? "particulier"]}
-              </Badge>
-              {(openTakenPerKlant?.[klant._id] ?? 0) > 0 && (
-                <Badge
-                  variant="outline"
-                  className="text-[10px] gap-0.5"
-                  title={`${openTakenPerKlant?.[klant._id]} openstaande ta${openTakenPerKlant?.[klant._id] === 1 ? "ak" : "ken"}`}
+        render: (klant) => {
+          // Badge-budget per rij (WS6): pipeline + type + één signaal.
+          // Herinnering wint van taken, taken van portaal; de rest staat
+          // in het dossier.
+          const openTaken = openTakenPerKlant?.[klant._id] ?? 0;
+          const heeftHerinnering = herinneringSet.has(klant._id);
+          const signaal = heeftHerinnering
+            ? "herinnering"
+            : openTaken > 0
+              ? "taken"
+              : klant.portalEnabled
+                ? "portaal"
+                : null;
+
+          // Tag/type-dedupe (WS6): tags die alleen het klantType of de
+          // contract-status herhalen zijn ruis, geen informatie.
+          const typeLabel = KLANT_TYPE_LABELS[klant.klantType ?? "particulier"];
+          const zichtbareTags = (klant.tags ?? []).filter((tag) => {
+            const t = tag.trim().toLowerCase();
+            if (t === typeLabel.toLowerCase()) return false;
+            if (t === "contract" && klant.pipelineStatus === "onderhoud") return false;
+            return true;
+          });
+
+          return (
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Link
+                  href={`/klanten/${klant._id}`}
+                  className="font-medium hover:underline truncate max-w-full"
+                  title={klant.naam}
                 >
-                  <ListTodo className="h-3 w-3" />
-                  {openTakenPerKlant?.[klant._id]}
+                  {klant.naam}
+                </Link>
+                {/* Geen status = nog geen stadium, géén "Lead": deze lijst laat
+                    leads juist weg (hoortInKlantenLijst) en na een import zou
+                    anders élke klant als lead worden bestempeld. */}
+                {klant.pipelineStatus && (
+                  <Badge className={`text-xs ${PIPELINE_COLORS[klant.pipelineStatus]}`}>
+                    {PIPELINE_LABELS[klant.pipelineStatus]}
+                  </Badge>
+                )}
+                <Badge className={`text-xs ${KLANT_TYPE_COLORS[klant.klantType ?? "particulier"]}`}>
+                  {typeLabel}
                 </Badge>
-              )}
-              {klant.portalEnabled && klant.clerkUserId && (
-                <Badge className="text-[10px] bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                  <Globe className="h-3 w-3 mr-0.5" />
-                  Portaal actief
-                </Badge>
-              )}
-              {klant.portalEnabled && !klant.clerkUserId && (
-                <Badge className="text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-                  <Globe className="h-3 w-3 mr-0.5" />
-                  Uitgenodigd
-                </Badge>
+                {/* CRM-005: Opvolgherinnering indicator */}
+                {signaal === "herinnering" && (
+                  <span title="Opvolging nodig" className="relative flex h-5 w-5 items-center justify-center">
+                    <Bell className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                    <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                  </span>
+                )}
+                {signaal === "taken" && (
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] gap-0.5"
+                    title={`${openTaken} openstaande ta${openTaken === 1 ? "ak" : "ken"}`}
+                  >
+                    <ListTodo className="h-3 w-3" />
+                    {openTaken}
+                  </Badge>
+                )}
+                {signaal === "portaal" && (
+                  <Badge
+                    className={`text-[10px] ${
+                      klant.clerkUserId
+                        ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                        : "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200"
+                    }`}
+                  >
+                    <Globe className="h-3 w-3 mr-0.5" />
+                    {klant.clerkUserId ? "Portaal actief" : "Uitgenodigd"}
+                  </Badge>
+                )}
+              </div>
+              {zichtbareTags.length > 0 && (
+                <div className="flex items-center gap-1 flex-wrap">
+                  {zichtbareTags.map((tag) => (
+                    <Badge key={tag} variant="outline" className="text-[10px] px-1.5 py-0 h-5">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
               )}
             </div>
-            {klant.tags && klant.tags.length > 0 && (
-              <div className="flex items-center gap-1 flex-wrap">
-                {klant.tags.map((tag) => (
-                  <Badge key={tag} variant="outline" className="text-[10px] px-1.5 py-0 h-5">
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </div>
-        ),
+          );
+        },
       },
       {
         key: "plaats",
@@ -695,13 +715,14 @@ function KlantenPageContent() {
             );
           }
 
+          // Geen celicoon: de kolomkop zegt al dat dit het adres is (WS6)
           return (
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <MapPin className="h-3.5 w-3.5 shrink-0 hidden sm:inline" />
-              <span className="truncate" title={adresregel}>
-                {adresregel}
-              </span>
-            </div>
+            <span
+              className="block truncate text-sm text-muted-foreground"
+              title={adresregel}
+            >
+              {adresregel}
+            </span>
           );
         },
       },
@@ -715,10 +736,7 @@ function KlantenPageContent() {
         width: "w-[12%]",
         render: (klant) =>
           klant.telefoon ? (
-            <div className="flex items-center gap-1.5 text-sm">
-              <Phone className="h-3.5 w-3.5 text-muted-foreground hidden sm:inline" />
-              <span>{klant.telefoon}</span>
-            </div>
+            <span className="text-sm">{klant.telefoon}</span>
           ) : (
             <span className="text-muted-foreground">-</span>
           ),
@@ -733,10 +751,9 @@ function KlantenPageContent() {
         width: "w-[18%]",
         render: (klant) =>
           klant.email ? (
-            <div className="flex items-center gap-1.5 text-sm">
-              <Mail className="h-3.5 w-3.5 shrink-0 text-muted-foreground hidden sm:inline" />
-              <span className="truncate" title={klant.email}>{klant.email}</span>
-            </div>
+            <span className="block truncate text-sm" title={klant.email}>
+              {klant.email}
+            </span>
           ) : (
             <span className="text-muted-foreground">-</span>
           ),
@@ -1195,21 +1212,15 @@ function KlantenPageContent() {
       </div>
 
       <Card>
+        {/* Cardkop "Klantenlijst / n klanten" vervallen (WS6): de teller leeft
+            al in de filterpills. Alleen bij actieve zoek/filter blijft de
+            "x van y"-teller staan (WS1 B6). */}
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Klantenlijst
-              </CardTitle>
-              <CardDescription>
-                {/* Bij een actieve selectie klopt "in je bestand" niet meer:
-                    de teller volgt de selectie, niet het bestand (WS1 B6). */}
-                {searchTerm || pipelineFilter !== "alle" || klantTypeFilter !== "alle"
-                  ? `${filteredKlanten.length} van ${klantenWithOptimisticUpdates.length} klant${klantenWithOptimisticUpdates.length !== 1 ? "en" : ""}`
-                  : `${filteredKlanten.length} klant${filteredKlanten.length !== 1 ? "en" : ""} in je bestand`}
-              </CardDescription>
-            </div>
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-sm text-muted-foreground">
+              {(searchTerm || pipelineFilter !== "alle" || klantTypeFilter !== "alle") &&
+                `${filteredKlanten.length} van ${klantenWithOptimisticUpdates.length} klant${klantenWithOptimisticUpdates.length !== 1 ? "en" : ""}`}
+            </p>
             <div className="relative w-full sm:w-64">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input

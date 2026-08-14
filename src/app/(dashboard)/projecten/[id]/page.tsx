@@ -20,7 +20,6 @@ import { AlertTriangle, ArrowLeft, FileText } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { CopyButton } from "@/components/ui/copy-button";
 import { ThinProgressBar, type ProjectStatus } from "@/components/project/thin-progress-bar";
-import { ProjectFocusCards } from "@/components/project/project-focus-cards";
 import { ModulePills } from "@/components/project/module-pills";
 import { WerklocatieCard } from "@/components/project/werklocatie-card";
 import { KlantThreadPaneel } from "@/components/meldingen/klant-thread-paneel";
@@ -182,17 +181,8 @@ export default function ProjectDetailPage({
           </div>
         )}
 
-        {/* Focus Cards */}
-        <ProjectFocusCards
-          geregistreerdeUren={projectDetails.totaalGeregistreerdeUren}
-          normUrenTotaal={voorcalculatie?.normUrenTotaal ?? null}
-          geschatteDagen={voorcalculatie?.geschatteDagen ?? null}
-          teamGrootte={voorcalculatie?.teamGrootte ?? null}
-          totaleTaken={planningTaken.length}
-          afgerondeTaken={planningTaken.filter((t) => t.status === "afgerond").length}
-        />
-
-        {/* Module Pills */}
+        {/* Modules — de pills Planning/Uitvoering zíjn de voortgangscards
+            (WS6-fusie): geen aparte rij met dezelfde getallen erboven. */}
         <ModulePills
           projectId={id}
           projectStatus={project.status as ProjectStatus}
@@ -208,6 +198,8 @@ export default function ProjectDetailPage({
           normUrenTotaal={voorcalculatie?.normUrenTotaal ?? null}
           nacalculatieAfwijking={nacalculatie?.afwijkingPercentage ?? null}
           onWerklocatieClick={() => setWerklocatieOpen(true)}
+          geschatteDagen={voorcalculatie?.geschatteDagen ?? null}
+          teamGrootte={voorcalculatie?.teamGrootte ?? null}
         />
 
         {/* Klantthread bij dit werkitem (§3.1) — visueel onmiskenbaar

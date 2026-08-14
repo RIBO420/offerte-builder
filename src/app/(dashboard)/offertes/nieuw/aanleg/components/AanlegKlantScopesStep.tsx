@@ -83,12 +83,15 @@ interface AanlegKlantScopesStepProps {
   onPrev: () => void;
 }
 
+// WS6: geherformuleerd — "Klantvriendelijkheid (Lastig—Makkelijk)" was intern
+// jargon dat pijnlijk wordt zodra een klant meekijkt. De schaal beschrijft nu
+// de verwachte afstemming, niet de klant zelf.
 const KLANTVRIENDELIJKHEID_LABELS: Record<number, string> = {
-  1: "Lastig",
-  2: "Moeilijk",
+  1: "Veel afstemming",
+  2: "Extra afstemming",
   3: "Normaal",
-  4: "Prettig",
-  5: "Makkelijk",
+  4: "Soepel",
+  5: "Zeer soepel",
 };
 
 export function AanlegKlantScopesStep({
@@ -165,7 +168,7 @@ export function AanlegKlantScopesStep({
               <>
                 <Separator className="my-4" />
                 <div className="space-y-3">
-                  <Label>Klantvriendelijkheid</Label>
+                  <Label>Samenwerking met de klant</Label>
                   <div className="px-1">
                     <Slider
                       value={[klantvriendelijkheid]}
@@ -176,9 +179,9 @@ export function AanlegKlantScopesStep({
                     />
                   </div>
                   <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>1 - Lastig</span>
+                    <span>1 - Veel afstemming</span>
                     <span>3 - Normaal</span>
-                    <span>5 - Makkelijk</span>
+                    <span>5 - Zeer soepel</span>
                   </div>
                   <p className="text-xs text-muted-foreground">
                     Huidige inschatting:{" "}
@@ -201,17 +204,19 @@ export function AanlegKlantScopesStep({
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-0">
-            <div className="grid gap-2 md:grid-cols-2 lg:gap-3">
+            {/* Checklist-look (WS6): multi-select leest als aanvinklijst, niet
+                als hetzelfde grote tegelraster als de één-keuze-dialoog. */}
+            <div className="grid gap-1.5 md:grid-cols-2">
               {SCOPES.map((scope) => {
                 const isSelected = selectedScopes.includes(scope.id);
                 const Icon = SCOPE_ICONS[scope.id];
                 return (
                   <div
                     key={scope.id}
-                    className={`relative flex cursor-pointer items-start gap-3 rounded-lg border-2 p-3 transition-all duration-200 hover:shadow-md active:scale-[0.98] touch-manipulation ${
+                    className={`flex cursor-pointer items-start gap-2.5 rounded-md border px-3 py-2 transition-colors touch-manipulation ${
                       isSelected
-                        ? "border-primary bg-primary/5 shadow-sm"
-                        : "border-border hover:border-muted-foreground/30"
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:bg-muted/50"
                     }`}
                     onClick={() => onToggleScope(scope.id)}
                     role="checkbox"
@@ -224,38 +229,34 @@ export function AanlegKlantScopesStep({
                       }
                     }}
                   >
-                    <div
-                      className={`relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border-2 transition-all duration-200 ${
+                    <span
+                      className={`mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded border transition-colors ${
                         isSelected
-                          ? `${scope.color} border-transparent text-white scale-100`
-                          : "border-input bg-background scale-95"
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-input bg-background"
                       }`}
+                      aria-hidden="true"
                     >
-                      {isSelected ? (
-                        <Check className="h-5 w-5 animate-in zoom-in-50 duration-200" strokeWidth={3} />
-                      ) : (
-                        <Icon className="h-4 w-4 text-muted-foreground opacity-50" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
+                      {isSelected && <Check className="h-3 w-3" strokeWidth={3} />}
+                    </span>
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
-                        <Icon className={`h-4 w-4 shrink-0 transition-colors ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
-                        <Label htmlFor={scope.id} className="cursor-pointer font-medium text-sm">
-                          {scope.naam}
-                        </Label>
-                      </div>
-                      <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">
-                        {scope.beschrijving}
-                      </p>
-                      {scope.verplicht && (
-                        <div className="mt-1.5 flex flex-wrap gap-1">
-                          {scope.verplicht.map((v) => (
+                        <Icon
+                          className={`h-3.5 w-3.5 shrink-0 transition-colors ${
+                            isSelected ? "text-primary" : "text-muted-foreground"
+                          }`}
+                        />
+                        <span className="text-sm font-medium">{scope.naam}</span>
+                        {scope.verplicht &&
+                          scope.verplicht.map((v) => (
                             <Badge key={v} variant="secondary" className="text-[10px] px-1.5 py-0">
                               + {v}
                             </Badge>
                           ))}
-                        </div>
-                      )}
+                      </div>
+                      <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">
+                        {scope.beschrijving}
+                      </p>
                     </div>
                   </div>
                 );
@@ -276,66 +277,23 @@ export function AanlegKlantScopesStep({
         </Card>
       </div>
 
-      {/* Sidebar met samenvatting */}
+      {/* Rail: op deze stap alleen een compacte scopes-teller (WS6) — een
+          samenvatting die de velden ernaast letterlijk herhaalde, vatte niets
+          samen. De volledige samenvatting komt vanaf stap 3/review. */}
       <div className="space-y-3">
         <Card className="sticky top-4">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Samenvatting</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 pt-0">
-            <div className="flex items-start gap-2">
-              {klantData.naam && klantData.adres ? (
-                <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400 mt-0.5 shrink-0" />
-              ) : (
-                <Circle className="h-4 w-4 text-muted-foreground/50 mt-0.5 shrink-0" />
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-muted-foreground">Klant</p>
-                <p className="text-sm truncate" title={klantData.naam ? `${klantData.naam}${klantData.plaats ? `, ${klantData.plaats}` : ""}` : undefined}>
-                  {klantData.naam || "—"}
-                  {klantData.plaats && `, ${klantData.plaats}`}
-                </p>
-              </div>
-            </div>
-
-            <Separator />
-
-            <div className="flex items-start gap-2">
-              <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400 mt-0.5 shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">Bereikbaarheid</p>
-                <p className="text-sm capitalize">{bereikbaarheid}</p>
-              </div>
-            </div>
-
-            <Separator />
-
-            <div className="flex items-start gap-2">
+          <CardContent className="space-y-3 pt-4">
+            <div className="flex items-center gap-2 text-sm">
               {selectedScopes.length > 0 ? (
-                <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400 mt-0.5 shrink-0" />
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600 dark:text-green-400" />
               ) : (
-                <Circle className="h-4 w-4 text-muted-foreground/50 mt-0.5 shrink-0" />
+                <Circle className="h-4 w-4 shrink-0 text-muted-foreground/50" />
               )}
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground">
-                  Geselecteerde scopes ({selectedScopes.length})
-                </p>
-                {selectedScopes.length > 0 ? (
-                  <ul className="mt-2 space-y-1.5">
-                    {selectedScopes.map((scopeId) => {
-                      const scope = SCOPES.find((s) => s.id === scopeId);
-                      return (
-                        <li key={scopeId} className="flex items-center gap-2 text-sm animate-in fade-in slide-in-from-left-2 duration-200">
-                          <div className={`h-2 w-2 rounded-full ${scope?.color || "bg-primary"}`} />
-                          {scope?.naam}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Geen scopes geselecteerd</p>
-                )}
-              </div>
+              <span>
+                {selectedScopes.length > 0
+                  ? `${selectedScopes.length} scope${selectedScopes.length === 1 ? "" : "s"} geselecteerd`
+                  : "Nog geen scopes geselecteerd"}
+              </span>
             </div>
 
             <Separator />

@@ -86,6 +86,9 @@ interface EngagementTimelineProps {
   versions: OfferteVersion[];
   customerResponse?: CustomerResponse;
   createdAt: number;
+  /** Systeemdatums (voorheen aparte Tijdlijn-card) als events tussen de klant-events */
+  updatedAt?: number;
+  verzondenAt?: number;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -134,6 +137,8 @@ export function EngagementTimeline({
   versions,
   customerResponse,
   createdAt,
+  updatedAt,
+  verzondenAt,
 }: EngagementTimelineProps) {
   const events = useMemo(() => {
     const items: TimelineEvent[] = [];
@@ -297,6 +302,31 @@ export function EngagementTimeline({
       });
     }
 
+    // Systeemdatums als events (voorheen de aparte Tijdlijn-card)
+    if (verzondenAt) {
+      items.push({
+        id: "offerte-verzonden",
+        type: "email_verzonden",
+        description: "Offerte verzonden",
+        timestamp: verzondenAt,
+        icon: <Mail className="h-3.5 w-3.5" />,
+        iconColor: "text-muted-foreground",
+        dotColor: "bg-slate-400",
+      });
+    }
+
+    if (updatedAt && updatedAt !== createdAt) {
+      items.push({
+        id: "offerte-updated",
+        type: "versie_aangemaakt",
+        description: "Laatst gewijzigd",
+        timestamp: updatedAt,
+        icon: <History className="h-3.5 w-3.5" />,
+        iconColor: "text-muted-foreground",
+        dotColor: "bg-slate-400",
+      });
+    }
+
     // Offerte creation event
     items.push({
       id: "offerte-created",
@@ -312,14 +342,14 @@ export function EngagementTimeline({
     items.sort((a, b) => b.timestamp - a.timestamp);
 
     return items;
-  }, [emailLogs, versions, customerResponse, createdAt]);
+  }, [emailLogs, versions, customerResponse, createdAt, updatedAt, verzondenAt]);
 
   return (
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center gap-2">
           <Activity className="h-4 w-4 text-muted-foreground" />
-          Klantactiviteit
+          Tijdlijn
         </CardTitle>
       </CardHeader>
       <CardContent>

@@ -154,61 +154,6 @@ export const OfferteWorkflowStepper = memo(function OfferteWorkflowStepper({
 
   return (
     <div className="w-full space-y-6">
-      {/* Next step guidance banner */}
-      {showNextStepAction && nextStepInfo && currentStatus !== "afgewezen" && (
-        <div
-          className={cn(
-            "rounded-lg p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4",
-            nextStepInfo.variant === "primary" && "bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800",
-            nextStepInfo.variant === "success" && "bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800",
-            nextStepInfo.variant === "info" && "bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800"
-          )}
-        >
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <Info
-                className={cn(
-                  "h-4 w-4 shrink-0",
-                  nextStepInfo.variant === "primary" && "text-blue-600",
-                  nextStepInfo.variant === "success" && "text-green-600",
-                  nextStepInfo.variant === "info" && "text-amber-600"
-                )}
-              />
-              <p
-                className={cn(
-                  "font-medium text-sm",
-                  nextStepInfo.variant === "primary" && "text-blue-800 dark:text-blue-200",
-                  nextStepInfo.variant === "success" && "text-green-800 dark:text-green-200",
-                  nextStepInfo.variant === "info" && "text-amber-800 dark:text-amber-200"
-                )}
-              >
-                {nextStepInfo.title}
-              </p>
-            </div>
-            <p className="text-sm text-muted-foreground pl-6">
-              {nextStepInfo.description}
-            </p>
-          </div>
-          {nextStepInfo.actionLabel && nextStepInfo.actionHref && (
-            <div className="shrink-0 pl-6 sm:pl-0">
-              <Button
-                asChild
-                size="sm"
-                className={cn(
-                  nextStepInfo.variant === "primary" && "bg-blue-600 hover:bg-blue-700",
-                  nextStepInfo.variant === "success" && "bg-green-600 hover:bg-green-700"
-                )}
-              >
-                <Link href={nextStepInfo.actionHref}>
-                  {nextStepInfo.actionLabel}
-                  <ChevronRight className="ml-1 h-4 w-4" />
-                </Link>
-              </Button>
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Mobile view - vertical stepper */}
       <div className="md:hidden space-y-4">
         {stepStates.map((step, index) => {
@@ -224,7 +169,7 @@ export const OfferteWorkflowStepper = memo(function OfferteWorkflowStepper({
                     "flex h-8 w-8 items-center justify-center rounded-full border-2 transition-colors",
                     step.state === "completed" && "bg-primary border-primary text-primary-foreground",
                     step.state === "current" && "border-primary bg-primary/10 text-primary",
-                    step.state === "partially-complete" && "border-blue-600 bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+                    step.state === "partially-complete" && "border-primary bg-primary/20 text-primary",
                     step.state === "upcoming" && "border-muted-foreground/30 text-muted-foreground/50",
                     step.isRejected && "bg-red-500 border-red-500 text-white"
                   )}
@@ -282,7 +227,7 @@ export const OfferteWorkflowStepper = memo(function OfferteWorkflowStepper({
                     "flex h-10 w-10 items-center justify-center rounded-full border-2 transition-colors",
                     step.state === "completed" && "bg-primary border-primary text-primary-foreground",
                     step.state === "current" && "border-primary bg-primary/10 text-primary",
-                    step.state === "partially-complete" && "border-blue-600 bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+                    step.state === "partially-complete" && "border-primary bg-primary/20 text-primary",
                     step.state === "upcoming" && "border-muted-foreground/30 text-muted-foreground/50",
                     step.isRejected && "bg-red-500 border-red-500 text-white"
                   )}
@@ -324,6 +269,40 @@ export const OfferteWorkflowStepper = memo(function OfferteWorkflowStepper({
           );
         })}
       </div>
+
+      {/* CTA-regel van de stepper: één plek voor "wat nu?" (geen aparte banner) */}
+      {showNextStepAction && nextStepInfo && currentStatus !== "afgewezen" && (
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 border-t border-border pt-4">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <Info
+                className={cn(
+                  "h-4 w-4 shrink-0",
+                  nextStepInfo.variant === "info"
+                    ? "text-amber-600 dark:text-amber-400"
+                    : "text-primary"
+                )}
+              />
+              <p className="font-medium text-sm text-foreground">
+                {nextStepInfo.title}
+              </p>
+            </div>
+            <p className="text-sm text-muted-foreground pl-6">
+              {nextStepInfo.description}
+            </p>
+          </div>
+          {nextStepInfo.actionLabel && nextStepInfo.actionHref && (
+            <div className="shrink-0 pl-6 sm:pl-0">
+              <Button asChild size="sm">
+                <Link href={nextStepInfo.actionHref}>
+                  {nextStepInfo.actionLabel}
+                  <ChevronRight className="ml-1 h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 });

@@ -2,17 +2,15 @@
 
 import { useState, useMemo, Suspense } from "react";
 import { formatCurrency } from "@/lib/format";
-import { TrendingUp, Calculator, Target, Clock, CheckSquare, XSquare } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import { m, AnimatePresence } from "framer-motion";
+import { m } from "framer-motion";
 import { useReducedMotion } from "@/hooks/use-accessibility";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useTableSort } from "@/hooks/use-table-sort";
 import { RequireRole } from "@/components/require-admin";
 import { PageHeader } from "@/components/page-header";
-import { Button } from "@/components/ui/button";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useIsKantoor } from "@/hooks/use-users";
 import { toast } from "sonner";
@@ -318,85 +316,21 @@ function OffertesPageContent() {
           reducedMotion={reducedMotion}
         />
 
-        {/* Aggregate metrics */}
-        <m.div
+        {/* Eén rustige statregel i.p.v. vier KPI-cards (distill WS6) */}
+        <m.p
           initial={reducedMotion ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: reducedMotion ? 0 : 0.4, delay: reducedMotion ? 0 : 0.2 }}
-          className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4"
+          className="text-sm text-muted-foreground"
         >
-          <div className="rounded-lg border bg-card p-3 md:p-4 shadow-sm">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-              <TrendingUp className="h-3.5 w-3.5" />
-              <span>Totale waarde</span>
-            </div>
-            <p className="text-base md:text-lg font-semibold truncate">
-              {formatCurrency(aggregateMetrics.totaleWaarde)}
-            </p>
-          </div>
-          <div className="rounded-lg border bg-card p-3 md:p-4 shadow-sm">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-              <Calculator className="h-3.5 w-3.5" />
-              <span>Gemiddelde offerte</span>
-            </div>
-            <p className="text-base md:text-lg font-semibold truncate">
-              {formatCurrency(aggregateMetrics.gemiddelde)}
-            </p>
-          </div>
-          <div className="rounded-lg border bg-card p-3 md:p-4 shadow-sm">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-              <Target className="h-3.5 w-3.5" />
-              <span>Conversieratio</span>
-            </div>
-            <p className="text-base md:text-lg font-semibold">
-              {aggregateMetrics.conversieratio}%
-            </p>
-          </div>
-          <div className="rounded-lg border bg-card p-3 md:p-4 shadow-sm">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-              <Clock className="h-3.5 w-3.5" />
-              <span>Open offertes</span>
-            </div>
-            <p className="text-base md:text-lg font-semibold">
-              {aggregateMetrics.openOffertes}
-            </p>
-          </div>
-        </m.div>
-
-        {/* Quick select bar */}
-        <AnimatePresence>
-          {sortedOffertes.length > 0 && (
-            <m.div
-              initial={reducedMotion ? false : { opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={reducedMotion ? undefined : { opacity: 0, height: 0 }}
-              transition={{ duration: reducedMotion ? 0 : 0.2 }}
-              className="flex items-center gap-2"
-            >
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => toggleSelectAll(sortedOffertes)}
-                disabled={isAllSelected}
-                className="h-8 text-xs"
-              >
-                <CheckSquare className="mr-1.5 h-3.5 w-3.5" />
-                Selecteer alle zichtbare ({sortedOffertes.length})
-              </Button>
-              {selectedIds.size > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={clearSelection}
-                  className="h-8 text-xs"
-                >
-                  <XSquare className="mr-1.5 h-3.5 w-3.5" />
-                  Deselecteer alles ({selectedIds.size})
-                </Button>
-              )}
-            </m.div>
-          )}
-        </AnimatePresence>
+          {formatCurrency(aggregateMetrics.totaleWaarde)} totaal
+          <span aria-hidden="true"> · </span>
+          gem. {formatCurrency(aggregateMetrics.gemiddelde)}
+          <span aria-hidden="true"> · </span>
+          {aggregateMetrics.conversieratio}% conversie
+          <span aria-hidden="true"> · </span>
+          {aggregateMetrics.openOffertes} open
+        </m.p>
 
         <m.div
           initial={reducedMotion ? false : { opacity: 0, y: 10 }}

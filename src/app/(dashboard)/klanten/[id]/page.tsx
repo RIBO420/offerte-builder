@@ -237,7 +237,14 @@ export default function KlantDetailPage({
     .pipelineStatus;
   const klantType =
     (klant as { klantType?: KlantType }).klantType ?? "particulier";
-  const tags = (klant as { tags?: string[] }).tags ?? [];
+  // Headerbadge-dedupe (WS6): zelfde regel als de lijst — tags die alleen het
+  // klantType of de contract-status herhalen niet nogmaals als badge tonen.
+  const tags = ((klant as { tags?: string[] }).tags ?? []).filter((tag) => {
+    const t = tag.trim().toLowerCase();
+    if (t === klantTypeLabels[klantType].toLowerCase()) return false;
+    if (t === "contract" && pipelineStatus === "onderhoud") return false;
+    return true;
+  });
 
   const adresregel = [
     klant.adres,
@@ -428,27 +435,16 @@ export default function KlantDetailPage({
                 )}
                 <Feit label="Klant sinds">{formatDate(klant.createdAt)}</Feit>
               </dl>
-            </Paneel>
-
-            <Paneel titel="Cijfers">
-              <dl className="divide-y">
-                <Feit label="Offertes">
-                  <span className="tabular-nums">{offertes.length}</span>
-                </Feit>
-                <Feit label="Geaccepteerd">
-                  <span className="tabular-nums">{geaccepteerdAantal}</span>
-                </Feit>
-                <Feit label="Totale waarde">
-                  <span className="tabular-nums">
-                    {formatCurrency(totalValue)}
-                  </span>
-                </Feit>
-                <Feit label="Waarvan geaccepteerd">
-                  <span className="tabular-nums font-medium text-green-600 dark:text-green-400">
-                    {formatCurrency(acceptedValue)}
-                  </span>
-                </Feit>
-              </dl>
+              {/* CIJFERS als één subregel (WS6): het aparte kaartblok herhaalde
+                  de OFFERTES-sectie ernaast regel voor regel. */}
+              <p className="border-t px-4 py-2.5 text-xs text-muted-foreground tabular-nums">
+                {offertes.length} offerte{offertes.length === 1 ? "" : "s"}
+                {" · "}
+                {formatCurrency(totalValue)}
+                {" · "}
+                {geaccepteerdAantal} geaccepteerd
+                {acceptedValue > 0 && ` (${formatCurrency(acceptedValue)})`}
+              </p>
             </Paneel>
 
             {/* §2.7: opt-in inplanning-bevestigingsmail (default uit) — zet bij

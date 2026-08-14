@@ -46,6 +46,8 @@ interface StartOptie {
   route: string;
   /** Volledige breedte in het raster */
   breed?: boolean;
+  /** Corebusiness (Tuinaanleg/Onderhoud): zwaarder aangezet in het raster */
+  prominent?: boolean;
 }
 
 const START_OPTIES: StartOptie[] = [
@@ -57,6 +59,17 @@ const START_OPTIES: StartOptie[] = [
     stijl: "bg-primary/10 text-primary",
     toets: "a",
     route: "/offertes/nieuw/aanleg",
+    prominent: true,
+  },
+  {
+    id: "onderhoud",
+    naam: "Onderhoud",
+    beschrijving: "Periodiek onderhoud en contracten",
+    icon: Trees,
+    stijl: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+    toets: "o",
+    route: "/offertes/nieuw/onderhoud",
+    prominent: true,
   },
   {
     id: "tuinrenovatie",
@@ -67,15 +80,6 @@ const START_OPTIES: StartOptie[] = [
     toets: "r",
     // Renovatie is aanleg met de typische opknap-scopes alvast aangevinkt.
     route: "/offertes/nieuw/aanleg?scope=grondwerk&scope=borders&scope=gras",
-  },
-  {
-    id: "onderhoud",
-    naam: "Onderhoud",
-    beschrijving: "Periodiek onderhoud en contracten",
-    icon: Trees,
-    stijl: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-    toets: "o",
-    route: "/offertes/nieuw/onderhoud",
   },
   {
     id: "beregening",
@@ -167,25 +171,37 @@ export function NewOfferteDialog() {
               <Button
                 key={optie.id}
                 variant="outline"
-                className={`group relative flex h-auto flex-col items-center gap-2 py-5 ${
+                // h-auto! wint van de sm:h-10 uit de Button-basis (WS5
+                // touch-targets); anders drukt de vaste hoogte de tegel plat.
+                className={`group relative flex h-auto! flex-col items-center gap-2 ${
                   optie.breed ? "col-span-2" : ""
+                } ${
+                  // Corebusiness zwaarder aangezet dan de overige startpunten
+                  optie.prominent
+                    ? "border-primary/40 bg-primary/5 py-6 hover:bg-primary/10"
+                    : "py-4"
                 }`}
                 onClick={() => kies(optie.route)}
               >
                 <div
-                  className={`flex size-11 items-center justify-center rounded-lg ${optie.stijl}`}
+                  className={`flex items-center justify-center rounded-lg ${
+                    optie.prominent ? "size-12" : "size-10"
+                  } ${optie.stijl}`}
                 >
-                  <Icon className="size-5" />
+                  <Icon className={optie.prominent ? "size-6" : "size-5"} />
                 </div>
                 <div className="text-center">
-                  <div className="font-medium">{optie.naam}</div>
+                  <div className={optie.prominent ? "text-base font-semibold" : "font-medium"}>
+                    {optie.naam}
+                  </div>
                   <div className="whitespace-normal text-xs text-muted-foreground">
                     {optie.beschrijving}
                   </div>
                 </div>
+                {/* Sneltoetsletter altijd zichtbaar (was alleen bij hover) */}
                 <KeyboardHint
                   keys={[optie.toets.toUpperCase()]}
-                  className="absolute top-2 right-2 opacity-0 transition-opacity group-hover:opacity-100"
+                  className="absolute top-2 right-2"
                 />
               </Button>
             );

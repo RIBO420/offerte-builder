@@ -38,7 +38,7 @@ export function VoorcalculatieCard({ id, offerteStatus, voorcalculatie }: Voorca
       className={cn(
         "transition-all duration-300",
         voorcalculatie
-          ? "border-blue-300 dark:border-blue-700 bg-blue-50/50 dark:bg-blue-950/20"
+          ? "border-primary/30 bg-primary/5"
           : "border-amber-200 dark:border-amber-800 bg-amber-50/30 dark:bg-amber-950/10"
       )}
     >
@@ -46,11 +46,11 @@ export function VoorcalculatieCard({ id, offerteStatus, voorcalculatie }: Voorca
         <CardTitle className="text-base flex items-center gap-2">
           <Calculator className={cn(
             "h-4 w-4",
-            voorcalculatie ? "text-blue-600" : "text-amber-600"
+            voorcalculatie ? "text-primary" : "text-amber-600 dark:text-amber-400"
           )} />
           Voorcalculatie
           {voorcalculatie && (
-            <span className="ml-auto text-xs px-2 py-0.5 rounded-full font-medium bg-blue-200 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
+            <span className="ml-auto text-xs px-2 py-0.5 rounded-full font-medium bg-primary/15 text-primary">
               Ingevuld
             </span>
           )}
@@ -105,10 +105,7 @@ export function VoorcalculatieCard({ id, offerteStatus, voorcalculatie }: Voorca
                 Vul de voorcalculatie in om de offerte te kunnen verzenden naar de klant.
               </p>
             </div>
-            <Button
-              asChild
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-            >
+            <Button asChild className="w-full">
               <Link href={`/offertes/${id}/voorcalculatie`}>
                 <Calculator className="mr-2 h-4 w-4" />
                 Voorcalculatie invullen

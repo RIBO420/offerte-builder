@@ -32,7 +32,6 @@ import {
   OfferteRegelsCard,
   NotitiesCard,
   TotalenCard,
-  TijdlijnCard,
   ProjectCard,
   DeleteDialog,
   StatusChangeDialog,
@@ -335,16 +334,14 @@ export default function OfferteDetailPage({
           {/* Right column - Totals & Tijdlijn */}
           <div className="space-y-4">
             <TotalenCard totalen={offerte.totalen} />
-            <TijdlijnCard
-              createdAt={offerte.createdAt}
-              updatedAt={offerte.updatedAt}
-              verzondenAt={offerte.verzondenAt}
-            />
+            {/* Eén chronologische tijdlijn: systeemdatums + klantactiviteit */}
             <EngagementTimeline
               emailLogs={[]}
               versions={offerteVersions ?? []}
               customerResponse={offerte.customerResponse}
               createdAt={offerte.createdAt}
+              updatedAt={offerte.updatedAt}
+              verzondenAt={offerte.verzondenAt}
             />
             <ProjectCard
               id={id}

@@ -77,7 +77,7 @@ export function AanlegNavigation({
   // Final step has different actions
   if (currentStep === totalSteps - 1) {
     return (
-      <div className="space-y-2">
+      <div className="space-y-3">
         <Button
           className="w-full"
           disabled={isSubmitting}
@@ -92,20 +92,29 @@ export function AanlegNavigation({
           Offerte Aanmaken
         </Button>
 
-        <Button variant="outline" className="w-full" onClick={onPrev}>
-          <ChevronLeft className="mr-2 h-4 w-4" />
-          {getPrevButtonLabel()}
-        </Button>
-
-        <Button variant="ghost" className="w-full" asChild>
-          <Link href="/offertes">Annuleren</Link>
-        </Button>
+        {/* Eén primaire knop (WS6): terug en annuleren op tekstniveau */}
+        <div className="flex items-center justify-between text-sm">
+          <button
+            type="button"
+            onClick={onPrev}
+            className="inline-flex items-center gap-1 text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+            {getPrevButtonLabel()}
+          </button>
+          <Link
+            href="/offertes"
+            className="text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+          >
+            Annuleren
+          </Link>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <Button
         className="w-full"
         disabled={isNextDisabled()}
@@ -115,14 +124,24 @@ export function AanlegNavigation({
         <ChevronRight className="ml-2 h-4 w-4" />
       </Button>
 
-      <Button variant="outline" className="w-full" onClick={onPrev}>
-        <ChevronLeft className="mr-2 h-4 w-4" />
-        {getPrevButtonLabel()}
-      </Button>
-
-      <Button variant="ghost" className="w-full" asChild>
-        <Link href="/offertes">Annuleren</Link>
-      </Button>
+      {/* Eén primaire knop (WS6): "Terug naar Template" en Annuleren zijn
+          tekstlinks — drie gestapelde knoppen wedijverden om aandacht */}
+      <div className="flex items-center justify-between text-sm">
+        <button
+          type="button"
+          onClick={onPrev}
+          className="inline-flex items-center gap-1 text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+        >
+          <ChevronLeft className="h-3.5 w-3.5" />
+          {getPrevButtonLabel()}
+        </button>
+        <Link
+          href="/offertes"
+          className="text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+        >
+          Annuleren
+        </Link>
+      </div>
     </div>
   );
 }

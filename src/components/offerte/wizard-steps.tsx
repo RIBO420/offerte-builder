@@ -2,7 +2,6 @@
 
 import { Check, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Progress } from "@/components/ui/progress";
 import {
   Collapsible,
   CollapsibleContent,
@@ -37,7 +36,6 @@ export function WizardSteps({
   className,
 }: WizardStepsProps) {
   const [expandedSummary, setExpandedSummary] = useState<number | null>(null);
-  const progress = ((currentStep + 1) / steps.length) * 100;
 
   const canNavigateToStep = (stepIndex: number) => {
     if (!allowNavigation) return false;
@@ -55,13 +53,9 @@ export function WizardSteps({
 
   return (
     <div className={cn("space-y-3", className)}>
-      {/* Progress bar with percentage */}
-      <div className="flex items-center gap-2">
-        <Progress value={progress} className="h-1.5 flex-1" />
-        <span className="text-xs font-medium text-muted-foreground whitespace-nowrap min-w-[2.5rem] text-right">
-          {Math.round(progress)}%
-        </span>
-      </div>
+      {/* Eén voortgangsindicator (WS6): de stepper zelf. De progressbar met
+          percentage erboven is vervallen — drie indicatoren tegelijk was er
+          twee te veel. */}
 
       {/* Step indicators */}
       <nav aria-label="Wizard stappen">
@@ -201,8 +195,6 @@ export function WizardStepsCompact({
   allowNavigation = true,
   className,
 }: WizardStepsCompactProps) {
-  const progress = ((currentStep + 1) / steps.length) * 100;
-
   const canNavigateToStep = (stepIndex: number) => {
     if (!allowNavigation) return false;
     return stepIndex < currentStep;
@@ -242,14 +234,10 @@ export function WizardStepsCompact({
         })}
       </div>
 
-      {/* Current step name */}
+      {/* Current step name — het percentage is vervallen (WS6): de bolletjes
+          en de stapnaam zijn samen al de voortgangsindicator */}
       <span className="text-sm text-muted-foreground">
         {steps[currentStep]?.shortName || steps[currentStep]?.name}
-      </span>
-
-      {/* Progress percentage */}
-      <span className="text-sm font-medium text-muted-foreground">
-        {Math.round(progress)}%
       </span>
     </div>
   );

@@ -5,9 +5,13 @@
  * (max 4, dagen na verzending + escalatietype), aan/uit-schakelaar en de
  * eigenaar-kiezer voor trede-taken (default: bedrijfseigenaar — bewust
  * een instelling, geen hardcoded naam).
+ *
+ * WS6: de handmatige herinnering/aanmaning-velden van de Herinneringen-tab
+ * schuiven als sectie ín deze card (`extraSectie`) en slaan mee op via
+ * `onSaveExtra` — één systeem, één Opslaan.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import type { Id } from "../../../../../convex/_generated/dataModel";
@@ -42,7 +46,17 @@ interface TredeInvoer {
 
 const MAX_TREDEN = 4;
 
-export function DebiteurenladderCard() {
+interface DebiteurenladderCardProps {
+  /** Extra sectie (bijv. handmatige herinneringsvelden) binnen dezelfde card */
+  extraSectie?: ReactNode;
+  /** Slaat mee op met de ladder; retourneer false om het opslaan af te breken */
+  onSaveExtra?: () => Promise<boolean>;
+}
+
+export function DebiteurenladderCard({
+  extraSectie,
+  onSaveExtra,
+}: DebiteurenladderCardProps = {}) {
   const config = useQuery(api.debiteuren.getLadderInstellingen, {});
   const kantoorGebruikers = useQuery(api.debiteuren.listKantoorGebruikers, {});
   const update = useMutation(api.debiteuren.updateLadderInstellingen);
@@ -104,6 +118,12 @@ export function DebiteurenladderCard() {
     }
     setIsSaving(true);
     try {
+      // Eén Opslaan (WS6): de handmatige velden valideren en bewaren eerst;
+      // bij een fout daar blijft ook de ladder onaangeraakt.
+      if (onSaveExtra) {
+        const ok = await onSaveExtra();
+        if (!ok) return;
+      }
       await update({
         actief,
         taakEigenaarId:
@@ -117,7 +137,11 @@ export function DebiteurenladderCard() {
           actief: t.actief ?? true,
         })),
       });
-      toast.success("Debiteurenladder opgeslagen");
+      toast.success(
+        onSaveExtra
+          ? "Herinneringsinstellingen opgeslagen"
+          : "Debiteurenladder opgeslagen"
+      );
     } catch {
       toast.error("Fout bij opslaan van de debiteurenladder");
     } finally {
@@ -265,6 +289,8 @@ export function DebiteurenladderCard() {
           </p>
         </div>
 
+        {extraSectie}
+
         <div className="flex justify-end">
           <Button onClick={handleSave} disabled={isSaving} className="gap-2">
             {isSaving ? (
@@ -272,7 +298,7 @@ export function DebiteurenladderCard() {
             ) : (
               <Save className="h-4 w-4" />
             )}
-            Ladder opslaan
+            {onSaveExtra ? "Opslaan" : "Ladder opslaan"}
           </Button>
         </div>
       </CardContent>

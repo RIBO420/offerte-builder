@@ -9,6 +9,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -123,7 +126,9 @@ export function OfferteHeader({
   const versionCount = latestVersion ? latestVersion.versieNummer : 1;
   return (
     <>
-    <div className="flex items-center justify-between">
+    {/* flex-wrap: de actieknoppen vallen anders buiten beeld op smallere
+        vensters — de app scrolt nergens zijwaarts (CLAUDE.md regel 1). */}
+    <div className="flex flex-wrap items-center justify-between gap-y-3">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" asChild aria-label="Terug naar offertes">
           <Link href="/offertes">
@@ -174,62 +179,7 @@ export function OfferteHeader({
         </div>
       </div>
 
-      <div className="flex gap-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" disabled={isUpdating}>
-              {isUpdating ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Clock className="mr-2 h-4 w-4" />
-              )}
-              Status
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              onClick={() => onStatusChange("concept")}
-              disabled={offerte?.status !== "voorcalculatie"}
-            >
-              <Clock className="mr-2 h-4 w-4" />
-              Concept
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => onStatusChange("voorcalculatie")}
-              disabled={offerte?.status !== "concept" || !voorcalculatie}
-            >
-              <Calculator className="mr-2 h-4 w-4" />
-              Voorcalculatie
-            </DropdownMenuItem>
-            {/* PRD §1.2: versturen naar klant is kantoor-only — de optie
-                bestaat niet voor andere rollen (niet disabled, niet gerenderd) */}
-            {isKantoor && (
-              <DropdownMenuItem
-                onClick={() => onStatusChange("verzonden")}
-                disabled={offerte?.status !== "voorcalculatie"}
-              >
-                <Send className="mr-2 h-4 w-4" />
-                Verzonden
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => onStatusChange("geaccepteerd")}
-              disabled={offerte?.status !== "verzonden"}
-            >
-              <CheckCircle className="mr-2 h-4 w-4 text-green-600" />
-              Geaccepteerd
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => onStatusChange("afgewezen")}
-              disabled={offerte?.status !== "verzonden"}
-            >
-              <XCircle className="mr-2 h-4 w-4 text-red-600" />
-              Afgewezen
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
+      <div className="flex flex-wrap gap-2">
         {isGeaccepteerd ? (
           <Button
             variant="outline"
@@ -255,6 +205,7 @@ export function OfferteHeader({
           </Button>
         )}
 
+        {/* Eén PDF-knop: preview-modal (download zit ín de modal) */}
         <PDFDownloadButton
           offerte={offerte}
           bedrijfsgegevens={instellingen?.bedrijfsgegevens}
@@ -264,22 +215,67 @@ export function OfferteHeader({
           variant="outline"
           size="sm"
         />
-        <PDFDownloadButton
-          offerte={offerte}
-          bedrijfsgegevens={instellingen?.bedrijfsgegevens}
-          theme={pdfTheme}
-          voorwaarden={pdfVoorwaarden}
-          variant="outline"
-          size="sm"
-        />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" aria-label="Meer opties">
-              <MoreHorizontal className="h-4 w-4" />
+            <Button variant="outline" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" aria-label="Meer opties" disabled={isUpdating}>
+              {isUpdating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <MoreHorizontal className="h-4 w-4" />
+              )}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <Clock className="mr-2 h-4 w-4" />
+                Status wijzigen
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                <DropdownMenuItem
+                  onClick={() => onStatusChange("concept")}
+                  disabled={offerte?.status !== "voorcalculatie"}
+                >
+                  <Clock className="mr-2 h-4 w-4" />
+                  Concept
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => onStatusChange("voorcalculatie")}
+                  disabled={offerte?.status !== "concept" || !voorcalculatie}
+                >
+                  <Calculator className="mr-2 h-4 w-4" />
+                  Voorcalculatie
+                </DropdownMenuItem>
+                {/* PRD §1.2: versturen naar klant is kantoor-only — de optie
+                    bestaat niet voor andere rollen (niet disabled, niet gerenderd) */}
+                {isKantoor && (
+                  <DropdownMenuItem
+                    onClick={() => onStatusChange("verzonden")}
+                    disabled={offerte?.status !== "voorcalculatie"}
+                  >
+                    <Send className="mr-2 h-4 w-4" />
+                    Verzonden
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => onStatusChange("geaccepteerd")}
+                  disabled={offerte?.status !== "verzonden"}
+                >
+                  <CheckCircle className="mr-2 h-4 w-4 text-green-600" />
+                  Geaccepteerd
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => onStatusChange("afgewezen")}
+                  disabled={offerte?.status !== "verzonden"}
+                >
+                  <XCircle className="mr-2 h-4 w-4 text-red-600" />
+                  Afgewezen
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onDuplicate}>
               <Copy className="mr-2 h-4 w-4" />
               Dupliceren
