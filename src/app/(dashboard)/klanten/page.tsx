@@ -85,6 +85,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { RelatieImportDialog } from "@/components/import/relatie-import-dialog";
 import { BedrijfZoeken } from "@/components/klanten/bedrijf-zoeken";
+import { AdresVeld } from "@/components/klanten/adres-veld";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useIsKantoor } from "@/hooks/use-users";
 import {
@@ -843,7 +844,7 @@ function KlantenPageContent() {
   const isZakelijkeKlant = formData.klantType !== "particulier";
 
   const klantFormJsx = (
-    <div className="grid gap-4">
+    <div className="grid gap-3">
       {/* TT-006: zoeken vult de velden hieronder; handmatig kan altijd. */}
       <BedrijfZoeken
         onGevonden={(bedrijf) =>
@@ -961,11 +962,20 @@ function KlantenPageContent() {
 
       <div className="space-y-2">
         <Label htmlFor="adres">Adres *</Label>
-        <Input
+        {/* Suggesties in het veld zelf: bij een particulier begin je bij het
+            adres, niet bij een bedrijfsnaam. */}
+        <AdresVeld
           id="adres"
-          placeholder="Hoofdstraat 1"
-          value={formData.adres}
-          onChange={(e) => setFormData({ ...formData, adres: e.target.value })}
+          waarde={formData.adres}
+          onChange={(waarde) => setFormData({ ...formData, adres: waarde })}
+          onAdresGekozen={(adres) =>
+            setFormData((prev) => ({
+              ...prev,
+              adres: adres.adres,
+              postcode: adres.postcode || prev.postcode,
+              plaats: adres.plaats || prev.plaats,
+            }))
+          }
         />
       </div>
 

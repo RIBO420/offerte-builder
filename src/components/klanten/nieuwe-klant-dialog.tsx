@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { klantSchema } from "@/lib/validations/klant";
 import { BedrijfZoeken } from "@/components/klanten/bedrijf-zoeken";
+import { AdresVeld } from "@/components/klanten/adres-veld";
 import { showErrorToast, showSuccessToast } from "@/lib/toast-utils";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
@@ -199,12 +200,11 @@ export function NieuweKlantDialog({
             Nieuwe klant aanmaken
           </DialogTitle>
           <DialogDescription>
-            De klant wordt direct aan je klantenbestand toegevoegd en aan deze
-            offerte gekoppeld.
+            Wordt direct toegevoegd aan je klantenbestand.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
+        <div className="space-y-3 py-1">
           {/* TT-006: zoeken vult de velden hieronder, handmatig kan altijd. */}
           <BedrijfZoeken
             onGevonden={(bedrijf) => {
@@ -221,7 +221,7 @@ export function NieuweKlantDialog({
           />
 
           {/* Type eerst: die keuze bepaalt welke velden hieronder verschijnen. */}
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <Label htmlFor="nk-type">Type klant *</Label>
             <Select
               value={klantType}
@@ -240,8 +240,8 @@ export function NieuweKlantDialog({
             </Select>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
               <Label htmlFor="nk-naam">
                 {isZakelijk(klantType) ? "Bedrijfsnaam *" : "Naam *"}
               </Label>
@@ -259,7 +259,7 @@ export function NieuweKlantDialog({
               )}
             </div>
             {isZakelijk(klantType) && (
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label htmlFor="nk-contactpersoon">Contactpersoon</Label>
                 <Input
                   id="nk-contactpersoon"
@@ -272,8 +272,8 @@ export function NieuweKlantDialog({
           </div>
 
           {isZakelijk(klantType) && (
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
                 <Label htmlFor="nk-kvk">KvK-nummer</Label>
                 <Input
                   id="nk-kvk"
@@ -283,7 +283,7 @@ export function NieuweKlantDialog({
                   onChange={(e) => setVeld("kvkNummer", e.target.value)}
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label htmlFor="nk-btw">BTW-nummer</Label>
                 <Input
                   id="nk-btw"
@@ -295,22 +295,34 @@ export function NieuweKlantDialog({
             </div>
           )}
 
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <Label htmlFor="nk-adres">Adres *</Label>
-            <Input
+            {/* Suggesties in het veld zelf: bij een particulier begin je bij
+                het adres, niet bij een bedrijfsnaam. */}
+            <AdresVeld
               id="nk-adres"
-              placeholder="Hoofdstraat 1"
-              value={form.adres}
-              onChange={(e) => setVeld("adres", e.target.value)}
-              aria-invalid={Boolean(fouten.adres)}
+              waarde={form.adres}
+              ongeldig={Boolean(fouten.adres)}
+              onChange={(waarde) => setVeld("adres", waarde)}
+              onAdresGekozen={(adres) => {
+                setForm((prev) => ({
+                  ...prev,
+                  adres: adres.adres,
+                  // Alleen overschrijven als Places het weet; anders houdt hij
+                  // wat er al stond.
+                  postcode: adres.postcode || prev.postcode,
+                  plaats: adres.plaats || prev.plaats,
+                }));
+                setFouten({});
+              }}
             />
             {fouten.adres && (
               <p className="text-xs text-destructive">{fouten.adres}</p>
             )}
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="space-y-2">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="space-y-1.5">
               <Label htmlFor="nk-postcode">Postcode *</Label>
               <Input
                 id="nk-postcode"
@@ -323,7 +335,7 @@ export function NieuweKlantDialog({
                 <p className="text-xs text-destructive">{fouten.postcode}</p>
               )}
             </div>
-            <div className="space-y-2 sm:col-span-2">
+            <div className="space-y-1.5 sm:col-span-2">
               <Label htmlFor="nk-plaats">Plaats *</Label>
               <Input
                 id="nk-plaats"
@@ -338,8 +350,8 @@ export function NieuweKlantDialog({
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
               <Label htmlFor="nk-email">E-mail</Label>
               <Input
                 id="nk-email"
@@ -353,7 +365,7 @@ export function NieuweKlantDialog({
                 <p className="text-xs text-destructive">{fouten.email}</p>
               )}
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label htmlFor="nk-telefoon">Telefoon</Label>
               <Input
                 id="nk-telefoon"

@@ -53,8 +53,26 @@ export function KanbanColumn({
         </Badge>
       </div>
 
-      {/* Lead cards */}
-      <div className={cn("flex flex-col gap-2 flex-1 min-h-[120px]", isDragging ? "overflow-visible" : "overflow-y-auto")}>
+      {/*
+        Lead cards. De `overflow-y-auto` stond hier al, maar zonder plafond
+        scrolt er niets: de kolom groeit gewoon mee en dan groeit de pagina
+        mee. Met 87 leads in "Nieuw" werd dat een pagina van meters lang.
+
+        Vandaar de max-hoogte in viewport-eenheden: de kolom houdt op bij wat
+        er op het scherm past en scrolt binnenin. Bewust vh en geen vaste px —
+        op een laptop hoort de kolom korter te zijn dan op een groot scherm.
+
+        Tijdens slepen gaat het plafond eraf: dnd-kit tilt de kaart uit de
+        stapel, en binnen een scrollende container zou die worden afgekapt.
+      */}
+      <div
+        className={cn(
+          "flex min-h-[120px] flex-1 flex-col gap-2",
+          isDragging
+            ? "overflow-visible"
+            : "max-h-[calc(100vh-26rem)] overflow-y-auto"
+        )}
+      >
         {leads.map((lead) => (
           <LeadCard
             key={lead._id}

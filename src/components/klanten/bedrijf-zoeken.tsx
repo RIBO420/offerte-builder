@@ -1,30 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useAction } from "convex/react";
+import { useCallback, useState } from "react";
 import { Building2, Loader2, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { useDebounce } from "@/hooks/use-debounce";
-import { showErrorToast } from "@/lib/toast-utils";
-import { api } from "../../../convex/_generated/api";
+import {
+  usePlacesZoeken,
+  type PlacesDetails,
+  type PlacesSuggestie,
+} from "@/hooks/use-places-zoeken";
 
-export interface GevondenBedrijf {
-  naam: string;
-  adres: string;
-  postcode: string;
-  plaats: string;
-  telefoon?: string;
-  website?: string;
-}
-
-interface Suggestie {
-  placeId: string;
-  hoofdtekst: string;
-  subtekst: string;
-}
+export type GevondenBedrijf = PlacesDetails;
 
 interface BedrijfZoekenProps {
   /** Aangeroepen zodra een suggestie is gekozen en de details binnen zijn. */
@@ -50,103 +38,25 @@ export function BedrijfZoeken({
   label = "Zoek bedrijf of adres",
   placeholder = "Bijv. Bruls Prefab Beton Sittard",
 }: BedrijfZoekenProps) {
-  const zoekAction = useAction(api.places.zoek);
-  const detailsAction = useAction(api.places.details);
-  const beschikbaarAction = useAction(api.places.beschikbaar);
-
-  const [beschikbaar, setBeschikbaar] = useState<boolean | null>(null);
   const [invoer, setInvoer] = useState("");
-  const [suggesties, setSuggesties] = useState<Suggestie[]>([]);
-  const [zoekt, setZoekt] = useState(false);
-  const [haaltDetails, setHaaltDetails] = useState<string | null>(null);
   const [gekozen, setGekozen] = useState(false);
 
-  const debouncedInvoer = useDebounce(invoer, 350);
-
-  // Eén token per zoekactie: Google rekent het typen en de details dan samen af.
-  const sessionTokenRef = useRef<string>(crypto.randomUUID());
-
-  useEffect(() => {
-    let actief = true;
-    beschikbaarAction({})
-      .then((waarde) => {
-        if (actief) setBeschikbaar(waarde);
-      })
-      .catch(() => {
-        if (actief) setBeschikbaar(false);
-      });
-    return () => {
-      actief = false;
-    };
-  }, [beschikbaarAction]);
-
-  useEffect(() => {
-    if (gekozen || !beschikbaar) return;
-    if (debouncedInvoer.trim().length < 3) {
-      setSuggesties([]);
-      return;
-    }
-
-    let actief = true;
-    setZoekt(true);
-    zoekAction({
-      invoer: debouncedInvoer,
-      sessionToken: sessionTokenRef.current,
-    })
-      .then((resultaat) => {
-        if (actief) setSuggesties(resultaat);
-      })
-      .catch((error) => {
-        if (!actief) return;
-        setSuggesties([]);
-        // Alleen de rate limit is het melden waard; de rest degradeert stil.
-        if (error instanceof Error && error.message.includes("Te veel")) {
-          showErrorToast(error.message);
-        }
-      })
-      .finally(() => {
-        if (actief) setZoekt(false);
-      });
-
-    return () => {
-      actief = false;
-    };
-  }, [debouncedInvoer, zoekAction, gekozen, beschikbaar]);
-
-  const kies = useCallback(
-    async (suggestie: Suggestie) => {
-      setHaaltDetails(suggestie.placeId);
-      try {
-        const details = await detailsAction({
-          placeId: suggestie.placeId,
-          sessionToken: sessionTokenRef.current,
-        });
-        if (!details) {
-          showErrorToast("Gegevens ophalen mislukt — vul handmatig aan");
-          return;
-        }
-        onGevonden(details);
-        setGekozen(true);
-        setInvoer(details.naam || suggestie.hoofdtekst);
-        setSuggesties([]);
-        // Nieuwe zoekactie = nieuw token.
-        sessionTokenRef.current = crypto.randomUUID();
-      } catch (error) {
-        showErrorToast(
-          error instanceof Error ? error.message : "Gegevens ophalen mislukt"
-        );
-      } finally {
-        setHaaltDetails(null);
-      }
+  const verwerk = useCallback(
+    (details: PlacesDetails, suggestie: PlacesSuggestie) => {
+      onGevonden(details);
+      setGekozen(true);
+      setInvoer(details.naam || suggestie.hoofdtekst);
     },
-    [detailsAction, onGevonden]
+    [onGevonden]
   );
+
+  const { beschikbaar, suggesties, zoekt, haaltDetails, kies, herstart } =
+    usePlacesZoeken({ invoer, actief: !gekozen, onGekozen: verwerk });
 
   const wis = () => {
     setInvoer("");
-    setSuggesties([]);
     setGekozen(false);
-    sessionTokenRef.current = crypto.randomUUID();
+    herstart();
   };
 
   // Geen Places-sleutel op de deployment: dit blok bestaat dan niet.
@@ -219,8 +129,7 @@ export function BedrijfZoeken({
       )}
 
       <p className="text-xs text-muted-foreground">
-        Kies een suggestie om naam, adres en telefoonnummer automatisch in te
-        vullen. Je kunt daarna alles nog aanpassen.
+        Vult naam, adres en telefoonnummer in. Aanpassen kan daarna gewoon.
       </p>
     </div>
   );
