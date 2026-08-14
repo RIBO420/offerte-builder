@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import {
   Card,
   CardContent,
@@ -18,7 +18,6 @@ import {
   Sparkles,
   User,
   ChevronRight,
-  RefreshCw,
   Loader2,
 } from "lucide-react";
 import { useStandaardtuinen } from "@/hooks/use-standaardtuinen";
@@ -43,29 +42,13 @@ export function TemplateSelector({ type, onSelect, onSkip }: TemplateSelectorPro
     systemTemplates,
     userTemplates,
     isLoading,
-    initializeSystemTemplates,
   } = useStandaardtuinen(type);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [isInitializing, setIsInitializing] = useState(false);
 
-  const handleInitialize = useCallback(async () => {
-    setIsInitializing(true);
-    try {
-      await initializeSystemTemplates({});
-    } catch {
-      // Template initialization failed silently - user can retry
-    } finally {
-      setIsInitializing(false);
-    }
-  }, [initializeSystemTemplates]);
-
-  // Initialize system templates if none exist
-  useEffect(() => {
-    if (!isLoading && templates.length === 0) {
-      handleInitialize();
-    }
-  }, [isLoading, templates.length, handleInitialize]);
+  // Hier stond een effect dat zes hardgecodeerde pakketten aanmaakte zodra de
+  // lijst leeg was. Weghalen uit de database hielp dus niet: bij het volgende
+  // bezoek stonden ze er weer. Zie convex/standaardtuinen.ts.
 
   const handleContinue = () => {
     if (selectedId) {
@@ -81,14 +64,41 @@ export function TemplateSelector({ type, onSelect, onSkip }: TemplateSelectorPro
     onSelect(null);
   };
 
-  if (isLoading || isInitializing) {
+  if (isLoading) {
     return (
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-8">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          <p className="mt-3 text-xs text-muted-foreground">
-            {isInitializing ? "Templates initialiseren..." : "Templates laden..."}
+          <p className="mt-3 text-xs text-muted-foreground">Pakketten laden...</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Zolang er nog geen pakketten samengesteld zijn, is een keuzelijst met één
+  // optie zinloos: dan meteen door naar een lege offerte.
+  if (templates.length === 0) {
+    return (
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <LayoutTemplate className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-base">Pakketten</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3 pt-0">
+          <p className="text-sm text-muted-foreground">
+            Er zijn nog geen pakketten samengesteld. Je begint met een lege
+            offerte en kiest zelf de werkzaamheden.
           </p>
+          <p className="text-xs text-muted-foreground">
+            Een offerte die je vaker gebruikt, kun je bewaren met{" "}
+            <span className="font-medium text-foreground">
+              Opslaan als sjabloon
+            </span>
+            . Die staat hier de volgende keer als pakket.
+          </p>
+          <Button onClick={() => onSelect(null)}>Beginnen</Button>
         </CardContent>
       </Card>
     );
@@ -231,27 +241,6 @@ export function TemplateSelector({ type, onSelect, onSkip }: TemplateSelectorPro
             </>
           )}
         </RadioGroup>
-
-        {templates.length === 0 && (
-          <div className="text-center py-3">
-            <p className="text-xs text-muted-foreground mb-2">
-              Geen templates beschikbaar
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleInitialize}
-              disabled={isInitializing}
-            >
-              {isInitializing ? (
-                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <RefreshCw className="mr-2 h-3.5 w-3.5" />
-              )}
-              Templates laden
-            </Button>
-          </div>
-        )}
 
         <Separator />
 

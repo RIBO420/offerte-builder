@@ -173,7 +173,7 @@ export const SCOPES = [
   },
   {
     id: "parkeerplaats" as AanlegScope,
-    naam: "Parkeerplaats aanleggen",
+    naam: "Aanleg parkeerplaats",
     beschrijving: "Verharding + fundering op verkeersbelasting, kolken, belijning",
     verplicht: ["fundering"],
     color: "bg-zinc-600",

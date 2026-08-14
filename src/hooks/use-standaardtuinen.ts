@@ -19,7 +19,6 @@ export function useStandaardtuinen(type?: "aanleg" | "onderhoud") {
   const createTemplate = useMutation(api.standaardtuinen.create);
   const updateTemplate = useMutation(api.standaardtuinen.update);
   const deleteTemplate = useMutation(api.standaardtuinen.remove);
-  const initSystem = useMutation(api.standaardtuinen.initializeSystemTemplates);
   const createFromTemplate = useMutation(api.standaardtuinen.createOfferteFromTemplate);
 
   const create = async (data: {
@@ -84,7 +83,6 @@ export function useStandaardtuinen(type?: "aanleg" | "onderhoud") {
     create,
     update,
     delete: remove,
-    initializeSystemTemplates: initSystem,
     createOfferte,
   };
 }

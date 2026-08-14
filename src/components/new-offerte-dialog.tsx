@@ -97,7 +97,7 @@ const START_OPTIES: StartOptie[] = [
   },
   {
     id: "parkeerplaats",
-    naam: "Parkeerplaats aanleggen",
+    naam: "Aanleg parkeerplaats",
     beschrijving: "Fundering op verkeersbelasting, kolken en belijning",
     icon: SquareParking,
     stijl: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",

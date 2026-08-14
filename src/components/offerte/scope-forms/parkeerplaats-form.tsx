@@ -130,7 +130,7 @@ export function ParkeerplaatsForm({
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
               <SquareParking className="h-4 w-4 text-muted-foreground" />
-              <CardTitle className="text-base">Parkeerplaats aanleggen</CardTitle>
+              <CardTitle className="text-base">Aanleg parkeerplaats</CardTitle>
             </div>
             <CardDescription className="text-xs">
               Verharding met een fundering op de verkeersbelasting, inclusief
