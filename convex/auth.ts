@@ -6,11 +6,30 @@
  * instead of accepting userId from client arguments.
  */
 
+import { ConvexError } from "convex/values";
 import { QueryCtx, MutationCtx } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { normalizeRole } from "./roles";
 
-export class AuthError extends Error {
+/**
+ * Autorisatiefout die de gebruiker daadwerkelijk te zien krijgt.
+ *
+ * **Erft van `ConvexError`, niet van `Error`.** Convex levert alleen de inhoud
+ * van een ConvexError aan de client; een gewone Error wordt onderweg vervangen
+ * door een kale "Server Error" zonder tekst. Deze klasse erfde van Error, en
+ * daardoor kreeg de gebruiker bij élke van de 19 throw-plekken (verlopen
+ * sessie, mutatie die vuurt vóór het Clerk-token binnen is, een rol zonder
+ * schrijfrechten) alleen:
+ *
+ *     [CONVEX M(projecten:create)] [Request ID: …] Server Error
+ *
+ * terwijl in het serverlog netjes "Je moet ingelogd zijn…" stond. Onvindbaar
+ * voor wie de logs niet leest, en de client kon er ook niet op reageren.
+ *
+ * `instanceof AuthError` en `error.message` blijven werken: ConvexError erft
+ * zelf van Error.
+ */
+export class AuthError extends ConvexError<string> {
   constructor(message: string = "Niet geautoriseerd") {
     super(message);
     this.name = "AuthError";
