@@ -12,7 +12,9 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "dev:all": "node scripts/dev-all.mjs",
-    "dev:login": "node scripts/dev-login.mjs"
+    "dev:login": "node scripts/dev-login.mjs",
+    "seed:demo": "convex run demoSeed:vullen '{\"bevestigDeployment\":\"affable-rook-669\"}'",
+    "seed:clear": "convex run demoSeed:opruimen '{\"bevestigDeployment\":\"affable-rook-669\"}'"
   },
   "dependencies": {
     "@clerk/localizations": "^3.35.3",

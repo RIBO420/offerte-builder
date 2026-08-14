@@ -3926,4 +3926,31 @@ export default defineSchema({
     .index("by_dedupe", ["dedupeSleutel"])
     .index("by_klant", ["klantId"])
     .index("by_melding", ["meldingId"]),
+
+  // ============================================
+  // Demo-seed registratie (alleen dev, zie convex/demoSeed.ts)
+  // ============================================
+  //
+  // Dit is het hart van de ongedaan-knop. `demoSeed.vullen` schrijft hier per
+  // aangemaakt document één regel weg met de tabelnaam en het document-id;
+  // `demoSeed.opruimen` loopt UITSLUITEND deze regels af en verwijdert precies
+  // die documenten. Nooit "alles in tabel X" en nooit een naam-/e-mailpatroon:
+  // in deze deployment staat óók echte geïmporteerde klantdata (255 klanten uit
+  // een relatie-export), en die mag een opruimactie nooit raken.
+  //
+  // `tabel` is bewust een v.string() en geen union van tabelnamen: het
+  // opruimen doet een dynamische `ctx.db.delete(id)` en heeft de naam alleen
+  // nodig voor de rapportage per module. Een union zou bij elke nieuwe
+  // seed-tabel een schemawijziging afdwingen.
+  demoSeed: defineTable({
+    tabel: v.string(),
+    // Als string opgeslagen omdat de tabel per regel verschilt; bij het
+    // opruimen weer naar een Id gecast (ctx.db.normalizeId valideert dat).
+    documentId: v.string(),
+    // Alle regels van één seed-run delen dit tijdstip — zo is in de data te
+    // zien wanneer (en hoe vaak) er geseed is.
+    geseedOp: v.number(),
+  })
+    .index("by_tabel", ["tabel"])
+    .index("by_geseedOp", ["geseedOp"]),
 });

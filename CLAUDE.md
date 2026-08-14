@@ -279,6 +279,43 @@ Twee valkuilen die je anders opnieuw ontdekt:
 Ander account: `npm run dev:login -- --email iemand@toptuinen.nl`.
 Blijft er ooit een ticketbestand achter: `npm run dev:login -- --clean`.
 
+### Demo-data in de dev-deployment — `seed:demo` / `seed:clear`
+
+Een leeg scherm zegt niets over de UI. `convex/demoSeed.ts` vult daarom dezelfde
+dev-deployment die jij én een agent voor zich hebben (bewust geen aparte
+database, anders kijken jullie naar verschillende schermen):
+
+```bash
+npm run seed:demo    # ~365 records: 25 klanten, 15 leads over alle kanban-kolommen,
+                     # 20 offertes in alle statussen, 12 werkitems, uren, facturen, meldingen
+npm run seed:clear   # ongedaan maken
+```
+
+**Clear verwijdert alleen wat de seed heeft aangemaakt.** Elke insert legt een
+regel weg in de tabel `demoSeed` (tabelnaam + document-id); het opruimen loopt
+uitsluitend die registratie af. Nooit "alles in tabel X" en nooit een
+naampatroon — in deze deployment staat ook echte geïmporteerde klantdata, en die
+mag een opruimactie niet raken. Handmatig al verwijderde documenten worden
+overgeslagen, niet gecrasht. Seeden terwijl er al een registratie ligt weigert:
+eerst opruimen.
+
+**Productie-guard.** De mutation leest `process.env.CONVEX_CLOUD_URL` (systeem-
+variabele die Convex in elke functie klaarzet, staat niet in `convex env list`)
+en draait alleen op `affable-rook-669`. Op `impartial-dinosaur-829` (productie)
+of een onbekende deployment weigert hij hard. Kan de deployment niet worden
+vastgesteld, dan is de expliciete `bevestigDeployment`-parameter verplicht die
+de npm-scripts meegeven — de guard faalt dus dicht.
+
+**Contactgegevens zijn met opzet niet routeerbaar:** e-mail op het gereserveerde
+`.test`-TLD en telefoonnummers in het niet-uitgegeven blok `06-9…`. Niet
+"realistischer" maken — de app heeft mailtriggers en een concept-mail-wachtrij.
+
+Twee dingen die de seed-inhoud sturen (en die je bij uitbreiden moet aanhouden):
+`users.initializeDefaults` archiveert bij het laden van de app elk werkitem +
+offerte met een betaalde project-factuur, dus hangt maar één factuur aan een
+project en zijn de rest losse klant-facturen; en klanten met
+`pipelineStatus: "lead"` vallen uit /klanten (`hoortInKlantenLijst`).
+
 ## Openstaande acties (stand: 14 aug 2026)
 
 - **Places API (New) staat nog UIT** in Google Cloud voor `GOOGLE_MAPS_API_KEY`. Tot dat

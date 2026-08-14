@@ -37,6 +37,7 @@ import type * as dagkaartLogica from "../dagkaartLogica.js";
 import type * as dashboard from "../dashboard.js";
 import type * as debiteuren from "../debiteuren.js";
 import type * as debiteurenLogica from "../debiteurenLogica.js";
+import type * as demoSeed from "../demoSeed.js";
 import type * as emailLogs from "../emailLogs.js";
 import type * as emailTemplates from "../emailTemplates.js";
 import type * as export_ from "../export.js";
@@ -173,6 +174,7 @@ declare const fullApi: ApiFromModules<{
   dashboard: typeof dashboard;
   debiteuren: typeof debiteuren;
   debiteurenLogica: typeof debiteurenLogica;
+  demoSeed: typeof demoSeed;
   emailLogs: typeof emailLogs;
   emailTemplates: typeof emailTemplates;
   export: typeof export_;
