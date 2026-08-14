@@ -355,7 +355,7 @@ export default function KlantDetailPage({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setShowNewOfferteDialog(true)}
+                onClick={() => setShowNewOfferteDialog(true, { klantId: klant._id })}
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Nieuwe offerte
