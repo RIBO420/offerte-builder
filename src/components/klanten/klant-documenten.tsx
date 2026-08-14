@@ -144,7 +144,10 @@ export function KlantOffertesSectie({
       uitleg="Alle offertes voor deze klant, nieuwste eerst. Klik een regel om de offerte te openen."
     >
       {offertes.length === 0 ? (
-        <SectieLegeStaat tekst="Nog geen offertes." />
+        <SectieLegeStaat
+          tekst="Nog geen offertes."
+          hint="Start er één met Aanleg of Onderhoud rechtsboven."
+        />
       ) : (
         <ul className="divide-y">
           {offertes.map((offerte) => (
@@ -203,7 +206,12 @@ export function KlantFacturenSectie({ klantId }: { klantId: Id<"klanten"> }) {
       {facturen === undefined ? (
         <LaadRegels />
       ) : facturen.length === 0 ? (
-        <SectieLegeStaat tekst="Nog geen facturen." />
+        <SectieLegeStaat
+          tekst="Nog geen facturen."
+          // Facturen máák je hier niet: dat de eerste vanzelf verschijnt na
+          // de nacalculatie moet deze regel dus zelf uitleggen.
+          hint="Die ontstaan vanuit een project na de nacalculatie."
+        />
       ) : (
         <ul className="divide-y">
           {facturen.map((factuur) => {

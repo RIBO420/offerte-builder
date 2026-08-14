@@ -30,6 +30,13 @@ export default function SignInPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
+  // Wachtwoord-herstel via Clerks reset-flow, op dezelfde route: een aparte
+  // pagina zou een tweede publieke ingang naast de proxy-gate betekenen.
+  // "login" → "reset" zodra de herstelcode is verstuurd.
+  const [view, setView] = useState<"login" | "reset">("login");
+  const [resetCode, setResetCode] = useState("");
+  const [resetPassword, setResetPassword] = useState("");
+
   // Route signed-in users to their home: klanten → klantenportaal, staff → dashboard.
   // We read the role from Convex (set immediately on account linking) instead of the
   // Clerk session claim, which can lag right after sign-up and would otherwise drop
@@ -83,6 +90,68 @@ export default function SignInPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  /** Stap 1: herstelcode laten mailen. Vereist alleen een ingevuld e-mailadres. */
+  const handleWachtwoordVergeten = async () => {
+    if (!isLoaded) return;
+    if (!email.trim()) {
+      setError("Vul eerst je e-mailadres in; daar sturen we de herstelcode naartoe.");
+      return;
+    }
+    setIsLoading(true);
+    setError("");
+    try {
+      await signIn.create({
+        strategy: "reset_password_email_code",
+        identifier: email.trim(),
+      });
+      setView("reset");
+    } catch (err: unknown) {
+      const clerkError = err as { errors?: Array<{ message: string }> };
+      setError(
+        clerkError.errors?.[0]?.message ||
+          "Herstelcode versturen mislukt. Controleer het e-mailadres of neem contact op met kantoor."
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /** Stap 2: code + nieuw wachtwoord; bij succes logt Clerk meteen in. */
+  const handleResetSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isLoaded) return;
+    setIsLoading(true);
+    setError("");
+    try {
+      const result = await signIn.attemptFirstFactor({
+        strategy: "reset_password_email_code",
+        code: resetCode.trim(),
+        password: resetPassword,
+      });
+      if (result.status === "complete") {
+        await setActive({ session: result.createdSessionId });
+        // Bestemming regelt de rol-bewuste effect hierboven.
+      } else {
+        setError("Er is iets misgegaan. Probeer het opnieuw.");
+      }
+    } catch (err: unknown) {
+      const clerkError = err as { errors?: Array<{ message: string }> };
+      setError(
+        clerkError.errors?.[0]?.message ||
+          "Code klopt niet of is verlopen. Vraag zo nodig een nieuwe aan."
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const terugNaarLogin = () => {
+    setView("login");
+    setResetCode("");
+    setResetPassword("");
+    setError("");
   };
 
   const handleGoogleSignIn = async () => {
@@ -140,9 +209,13 @@ export default function SignInPage() {
                   er 4,95:1 op — het verloop bleef onder 3:1 hangen. */}
               <TopTuinenLogo variant="wit" size={32} className="h-8 w-8" priority />
             </m.div>
-            <CardTitle className="text-2xl">Welkom terug</CardTitle>
+            <CardTitle className="text-2xl">
+              {view === "login" ? "Welkom terug" : "Wachtwoord opnieuw instellen"}
+            </CardTitle>
             <CardDescription>
-              Log in bij Top Tuinen OS
+              {view === "login"
+                ? "Log in bij Top Tuinen OS"
+                : `We hebben een herstelcode gestuurd naar ${email.trim()}`}
             </CardDescription>
           </CardHeader>
 
@@ -157,76 +230,152 @@ export default function SignInPage() {
               </m.div>
             )}
 
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={handleGoogleSignIn}
-              disabled={isGoogleLoading || !isLoaded}
-            >
-              {isGoogleLoading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <GoogleIcon className="mr-2 h-4 w-4" />
-              )}
-              Doorgaan met Google
-            </Button>
-
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">
-                  Of met e-mail
-                </span>
-              </div>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">E-mailadres</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="naam@voorbeeld.nl"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  disabled={isLoading}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">Wachtwoord</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  disabled={isLoading}
-                />
-              </div>
-
-              <Button
-                type="submit"
-                className="w-full bg-gradient-to-r from-emerald-600 to-green-600 text-white shadow-lg shadow-emerald-500/20 hover:from-emerald-700 hover:to-green-700"
-                disabled={isLoading || !isLoaded}
-              >
-                {isLoading ? (
-                  <>
+            {view === "login" ? (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleGoogleSignIn}
+                  disabled={isGoogleLoading || !isLoaded}
+                >
+                  {isGoogleLoading ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Bezig met inloggen...
-                  </>
-                ) : (
-                  "Inloggen"
-                )}
-              </Button>
-            </form>
+                  ) : (
+                    <GoogleIcon className="mr-2 h-4 w-4" />
+                  )}
+                  Doorgaan met Google
+                </Button>
+
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-card px-2 text-muted-foreground">
+                      Of met e-mail
+                    </span>
+                  </div>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">E-mailadres</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="naam@voorbeeld.nl"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      disabled={isLoading}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="password">Wachtwoord</Label>
+                      <button
+                        type="button"
+                        onClick={() => void handleWachtwoordVergeten()}
+                        disabled={isLoading || !isLoaded}
+                        className="text-xs text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                      >
+                        Wachtwoord vergeten?
+                      </button>
+                    </div>
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      disabled={isLoading}
+                    />
+                  </div>
+
+                  <Button
+                    type="submit"
+                    className="w-full bg-gradient-to-r from-emerald-600 to-green-600 text-white shadow-lg shadow-emerald-500/20 hover:from-emerald-700 hover:to-green-700"
+                    disabled={isLoading || !isLoaded}
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Bezig met inloggen...
+                      </>
+                    ) : (
+                      "Inloggen"
+                    )}
+                  </Button>
+                </form>
+              </>
+            ) : (
+              <form onSubmit={handleResetSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="reset-code">Herstelcode</Label>
+                  <Input
+                    id="reset-code"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    placeholder="Code uit de e-mail"
+                    value={resetCode}
+                    onChange={(e) => setResetCode(e.target.value)}
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="reset-password">Nieuw wachtwoord</Label>
+                  <Input
+                    id="reset-password"
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder="••••••••"
+                    value={resetPassword}
+                    onChange={(e) => setResetPassword(e.target.value)}
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full bg-gradient-to-r from-emerald-600 to-green-600 text-white shadow-lg shadow-emerald-500/20 hover:from-emerald-700 hover:to-green-700"
+                  disabled={isLoading || !isLoaded}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Bezig met instellen...
+                    </>
+                  ) : (
+                    "Wachtwoord instellen"
+                  )}
+                </Button>
+
+                <button
+                  type="button"
+                  onClick={terugNaarLogin}
+                  className="mx-auto block text-xs text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                >
+                  Terug naar inloggen
+                </button>
+              </form>
+            )}
           </CardContent>
         </Card>
+
+        {/* Klanten komen binnen via een Clerk-uitnodiging, niet via dit
+            formulier; zonder deze regel stranden ze hier met een wachtwoord
+            dat ze nooit hebben gehad (onboard item 7). */}
+        <p className="mt-4 text-center text-xs text-muted-foreground">
+          Uitnodiging ontvangen? Gebruik de link uit de e-mail om je account te
+          activeren.
+        </p>
       </m.div>
     </div>
   );

@@ -15,6 +15,7 @@
  */
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 import { api } from "../../../../convex/_generated/api";
@@ -57,6 +58,7 @@ const STATUS_BADGE_VARIANT: Record<string, string> = {
 };
 
 export default function MachineparkPage() {
+  const router = useRouter();
   const role = useCurrentUserRole();
   const magBeheren =
     role === "directie" || role === "admin" || role === "projectleider";
@@ -141,6 +143,16 @@ export default function MachineparkPage() {
                 icon={<Truck aria-hidden />}
                 title="Nog geen materieel"
                 description="Voeg voertuigen toe via Wagenparkbeheer of machines via Machinebeheer; ze verschijnen hier automatisch."
+                // De beschrijving noemde de bestemmingen al, maar zonder knop
+                // moest je ze zelf in de sidebar zoeken (onboard item 10).
+                action={{
+                  label: "Naar wagenpark",
+                  onClick: () => router.push("/wagenpark"),
+                }}
+                secondaryAction={{
+                  label: "Naar machines",
+                  onClick: () => router.push("/instellingen/machines"),
+                }}
               />
             ) : (
               <div className="rounded-lg border">
@@ -255,6 +267,12 @@ export default function MachineparkPage() {
                 icon={<Truck aria-hidden />}
                 title="Nog geen actieve teams"
                 description="Maak eerst een team aan bij Medewerkers."
+                // Zelfde knop als de lege staten van het planbord (dagkaart/
+                // weekbord): één patroon voor "je mist nog een team".
+                action={{
+                  label: "Naar teams",
+                  onClick: () => router.push("/medewerkers/teams"),
+                }}
               />
             ) : (
               <div className="rounded-lg border">

@@ -97,9 +97,28 @@ export function SectiePaneel({
  * Lege staat: één regel, meer niet. De uitleg over waar de sectie voor dient
  * hoort in de `uitleg`-tooltip van `SectiePaneel` — die lees je één keer,
  * terwijl een alinea in beeld elke dag ruimte kost.
+ *
+ * `hint` is de uitzondering voor secties die zichzelf vullen of hun actie
+ * elders hebben: één gedempte vervolgregel die zegt wat hier verschijnt en
+ * wat de eerstvolgende actie is. Mét hint krijgt de eerste regel de
+ * titel-toon van `EmptyState compact` (foreground, medium), zodat de hint
+ * gedempt kán zijn zonder onder 4,5:1 contrast te zakken.
  */
-export function SectieLegeStaat({ tekst }: { tekst: string }) {
+export function SectieLegeStaat({
+  tekst,
+  hint,
+}: {
+  tekst: string;
+  hint?: string;
+}) {
   return (
-    <p className="px-3 py-3 text-xs text-muted-foreground">{tekst}</p>
+    <p className="px-3 py-3 text-xs text-muted-foreground">
+      {hint ? (
+        <span className="font-medium text-foreground">{tekst}</span>
+      ) : (
+        tekst
+      )}
+      {hint && <span className="mt-0.5 block">{hint}</span>}
+    </p>
   );
 }

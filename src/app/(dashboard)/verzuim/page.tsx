@@ -119,8 +119,10 @@ function VerzuimPageContent() {
         <TabsTrigger value="hersteld">Hersteld ({tabStats.hersteld})</TabsTrigger>
       </TabsList></Tabs>
 
+      {/* "Er zijn nog geen verzuimregistraties" was circulair; de lege staat
+          wijst nu op de Ziekmelding-knop die er al boven staat (onboard 11). */}
       {filteredRegistraties.length === 0 ? (
-        <Card><CardContent className="py-4"><EmptyState icon={<Thermometer />} title="Geen verzuimregistraties" description={activeTab === "actief" ? "Niemand is momenteel ziek gemeld." : "Er zijn nog geen verzuimregistraties."} /></CardContent></Card>
+        <Card><CardContent className="py-4"><EmptyState icon={<Thermometer />} title="Geen verzuimregistraties" description={activeTab === "actief" ? "Niemand is momenteel ziek gemeld." : "Meld een medewerker ziek met de knop Ziekmelding rechtsboven; de statistieken vullen zich vanzelf."} /></CardContent></Card>
       ) : (
         <div className="rounded-md border"><Table><TableHeader><TableRow><TableHead>Medewerker</TableHead><TableHead>Eerste ziektedag</TableHead><TableHead>Hersteld</TableHead><TableHead className="text-right">Dagen</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Acties</TableHead></TableRow></TableHeader>
           <TableBody>{filteredRegistraties.map((reg) => (

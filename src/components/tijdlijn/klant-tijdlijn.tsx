@@ -689,6 +689,15 @@ export function KlantTijdlijn({
 
   const filterActief =
     kanaalFilter !== "alle" || (!vasteWerkitemId && werkitemFilter !== "alle");
+
+  /**
+   * Zoek- en filtercontrols op een tijdlijn die in één oogopslag past zijn
+   * ruis: ze verschijnen pas als de lijst te lang wordt om te scannen
+   * (distill). Met een actieve zoekterm of filter blijven ze altijd staan —
+   * anders valt een filter dat nul resultaten oplevert niet meer te wissen.
+   */
+  const toonZoekEnFilter =
+    zoektermActief || filterActief || entries.length >= 8;
   const wisFilters = () => {
     setKanaalFilter("alle");
     setWerkitemFilter("alle");
@@ -811,14 +820,16 @@ export function KlantTijdlijn({
       {/* Bij `toonPaneel` staan de filters in de sectiekop; onder 34rem is die
           kop te vol en verhuizen ze naar deze eigen regel. Zonder paneel is er
           geen kop, dus staat de regel er altijd. */}
-      <div
-        className={cn(
-          "items-center gap-1.5 border-b px-2 py-1.5",
-          toonPaneel ? "hidden @max-[34rem]/sectie:flex" : "flex"
-        )}
-      >
-        {toolbarInhoud}
-      </div>
+      {toonZoekEnFilter && (
+        <div
+          className={cn(
+            "items-center gap-1.5 border-b px-2 py-1.5",
+            toonPaneel ? "hidden @max-[34rem]/sectie:flex" : "flex"
+          )}
+        >
+          {toolbarInhoud}
+        </div>
+      )}
 
       {/* Compositie: alleen kantoor — voor andere rollen bestaat het
           invoerveld niet in de UI (PRD §1.2-patroon); server dwingt af */}
@@ -860,7 +871,18 @@ export function KlantTijdlijn({
             </Button>
           </div>
         ) : (
-          <SectieLegeStaat tekst="Nog niets vastgelegd." />
+          <SectieLegeStaat
+            tekst="Nog niets vastgelegd."
+            // Zonder hint leest een lege tijdlijn als een leeg notitieblok;
+            // dat systeem-entries (offertes, mails) hier vanzelf landen moet
+            // de lege staat zelf vertellen. Kantoor krijgt de actie erbij,
+            // andere rollen hebben geen composer — dus ook geen "hierboven".
+            hint={
+              isKantoor
+                ? "Noteer hierboven wat je bespreekt — verstuurde offertes en mails verschijnen hier vanzelf."
+                : "Verstuurde offertes en mails verschijnen hier vanzelf."
+            }
+          />
         )
       ) : (
         <ul className="divide-y">
@@ -898,9 +920,11 @@ export function KlantTijdlijn({
             : "Elk telefoontje, appje en mailtje met deze klant hoort hier. Zodra kantoor een gesprek vastlegt, verschijnt het hier."
         }
         acties={
-          <div className="flex min-w-0 flex-1 items-center justify-end gap-1.5 @max-[34rem]/sectie:hidden">
-            {toolbarInhoud}
-          </div>
+          toonZoekEnFilter ? (
+            <div className="flex min-w-0 flex-1 items-center justify-end gap-1.5 @max-[34rem]/sectie:hidden">
+              {toolbarInhoud}
+            </div>
+          ) : undefined
         }
       >
         {inhoud}

@@ -287,6 +287,12 @@ function OffertesPageContent() {
     return { totaleWaarde, gemiddelde, conversieratio, openOffertes };
   }, [filteredOffertes]);
 
+  // De statregel rekent over de zichtbare selectie. Zonder label leest een
+  // zoekterm zonder treffers als "€ 0,00 totaal · 0% conversie" — één tel een
+  // bedrijf zonder omzet. Bij actieve zoek/filter dus "x van y offertes" erbij.
+  const selectieActief =
+    debouncedSearchQuery.trim() !== "" || hasActiveFilters;
+
   return (
     <>
       <PageHeader />
@@ -323,6 +329,16 @@ function OffertesPageContent() {
           transition={{ duration: reducedMotion ? 0 : 0.4, delay: reducedMotion ? 0 : 0.2 }}
           className="text-sm text-muted-foreground"
         >
+          {selectieActief && (
+            <>
+              <span className="font-medium text-foreground">
+                {(filteredOffertes ?? []).length} van{" "}
+                {offertesWithOptimisticUpdates.length}
+              </span>{" "}
+              offertes
+              <span aria-hidden="true"> · </span>
+            </>
+          )}
           {formatCurrency(aggregateMetrics.totaleWaarde)} totaal
           <span aria-hidden="true"> · </span>
           gem. {formatCurrency(aggregateMetrics.gemiddelde)}

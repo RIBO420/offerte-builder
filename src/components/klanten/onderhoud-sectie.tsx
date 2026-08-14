@@ -387,7 +387,10 @@ export function OnderhoudSectie({ klantId }: { klantId: Id<"klanten"> }) {
             <Skeleton className="h-4 w-1/3" />
           </div>
         ) : contracten.length === 0 && losseBeurten.length === 0 ? (
-          <SectieLegeStaat tekst="Nog geen onderhoud." />
+          <SectieLegeStaat
+            tekst="Nog geen onderhoud."
+            hint="Leg een contract vast of plan hierboven een losse beurt."
+          />
         ) : (
           <ul className="divide-y">
             {contracten.map((c) => (
