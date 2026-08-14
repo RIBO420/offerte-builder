@@ -55,12 +55,12 @@ function CustomTooltip({ active, payload, label }: {
       className="relative overflow-hidden rounded-xl border border-border bg-popover/95 text-popover-foreground backdrop-blur-xl p-4 shadow-2xl"
     >
       {/* Decorative gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 via-transparent to-orange-500/10 pointer-events-none" />
-      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 to-orange-500" />
+      <div className="absolute inset-0 bg-gradient-to-br from-chart-4/10 via-transparent to-accent-warm/10 pointer-events-none" />
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-chart-4 to-accent-warm" />
 
       <div className="relative">
         <div className="flex items-center gap-2 mb-2">
-          <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-orange-600">
+          <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-chart-4 to-accent-warm">
             <Calendar className="h-3 w-3 text-white" />
           </div>
           <p className="font-semibold text-foreground">{label}</p>
@@ -69,7 +69,7 @@ function CustomTooltip({ active, payload, label }: {
         <div className="space-y-1.5">
           <div className="flex items-center justify-between gap-4">
             <span className="text-sm text-muted-foreground">Omzet</span>
-            <span className="font-bold text-lg bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent">
+            <span className="font-bold text-lg bg-gradient-to-r from-chart-4 to-accent-warm bg-clip-text text-transparent">
               {formatCurrencyNoDecimals(data.value)}
             </span>
           </div>
@@ -129,13 +129,13 @@ export const RevenueChart = memo(function RevenueChart({ monthlyData, quarterlyD
       transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
       className="group"
     >
-      <Card className="relative overflow-hidden bg-card/80 backdrop-blur-sm border-white/10 dark:border-white/5 transition-all duration-300 hover:shadow-lg hover:shadow-amber-500/10 hover:border-amber-500/20">
+      <Card className="relative overflow-hidden bg-card/80 backdrop-blur-sm border-white/10 dark:border-white/5 transition-all duration-300 hover:shadow-lg hover:shadow-amber-500/10 hover:border-chart-4/20">
         {/* Decorative gradient orb */}
-        <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-bl from-amber-500/20 via-orange-500/10 to-transparent rounded-full blur-3xl opacity-50 group-hover:opacity-70 transition-opacity duration-500 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-bl from-chart-4/20 via-chart-4/10 to-transparent rounded-full blur-3xl opacity-50 group-hover:opacity-70 transition-opacity duration-500 pointer-events-none" />
 
         <CardHeader className="relative flex flex-row items-center justify-between space-y-0">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/30">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-chart-4 to-accent-warm shadow-lg shadow-amber-500/30">
               <TrendingUp className="h-5 w-5 text-white" />
             </div>
             <div>

@@ -34,17 +34,17 @@ const stageLabels = {
 };
 
 const stageColors = {
-  voorcalculatie: "bg-blue-100 dark:bg-blue-900/50",
-  verzonden: "bg-amber-100 dark:bg-amber-900/50",
-  afgehandeld: "bg-purple-100 dark:bg-purple-900/50",
-  geaccepteerd: "bg-green-100 dark:bg-green-900/50",
+  voorcalculatie: "bg-status-gepland",
+  verzonden: "bg-status-verzonden",
+  afgehandeld: "bg-status-nacalculatie",
+  geaccepteerd: "bg-status-geaccepteerd",
 };
 
 const stageTextColors = {
-  voorcalculatie: "text-blue-700 dark:text-blue-300",
-  verzonden: "text-amber-700 dark:text-amber-300",
-  afgehandeld: "text-purple-700 dark:text-purple-300",
-  geaccepteerd: "text-green-700 dark:text-green-300",
+  voorcalculatie: "text-status-gepland-text",
+  verzonden: "text-status-verzonden-text",
+  afgehandeld: "text-status-nacalculatie-text",
+  geaccepteerd: "text-status-geaccepteerd-text",
 };
 
 function ConversionArrow({ rate, label }: { rate: number; label: string }) {
@@ -58,15 +58,15 @@ function ConversionArrow({ rate, label }: { rate: number; label: string }) {
         <span
           className={cn(
             "font-semibold",
-            isLow && "text-red-600 dark:text-red-400",
-            isGood && "text-green-600 dark:text-green-400",
-            !isLow && !isGood && "text-amber-600 dark:text-amber-400"
+            isLow && "text-trend-negative",
+            isGood && "text-trend-positive",
+            !isLow && !isGood && "text-status-verzonden-dot"
           )}
         >
           {rate}%
         </span>
-        {isLow && <AlertTriangle className="h-3 w-3 text-red-500" />}
-        {isGood && <CheckCircle2 className="h-3 w-3 text-green-500" />}
+        {isLow && <AlertTriangle className="h-3 w-3 text-trend-negative" />}
+        {isGood && <CheckCircle2 className="h-3 w-3 text-trend-positive" />}
       </div>
       <span className="text-xs text-muted-foreground">{label}</span>
     </div>
@@ -108,7 +108,7 @@ export const PipelineFunnelChart = memo(function PipelineFunnelChart({ data, con
             <CardDescription>Conversie door het sales proces</CardDescription>
           </div>
           <div className="text-right">
-            <div className="text-2xl font-bold text-green-600">
+            <div className="text-2xl font-bold text-trend-positive">
               {conversionRates.overallConversion}%
             </div>
             <div className="text-xs text-muted-foreground">Totale conversie</div>
@@ -168,19 +168,19 @@ export const PipelineFunnelChart = memo(function PipelineFunnelChart({ data, con
           <h4 className="text-sm font-medium mb-2">Inzichten</h4>
           <div className="grid grid-cols-2 gap-2 text-xs">
             {conversionRates.voorcalculatieToVerzonden < 70 && (
-              <div className="flex items-start gap-1 text-amber-600 dark:text-amber-400">
+              <div className="flex items-start gap-1 text-status-verzonden-dot">
                 <AlertTriangle className="h-3 w-3 mt-0.5 flex-shrink-0" />
                 <span>Offertes blijven liggen na voorcalculatie</span>
               </div>
             )}
             {conversionRates.afgehandeldToWon >= 60 && (
-              <div className="flex items-start gap-1 text-green-600 dark:text-green-400">
+              <div className="flex items-start gap-1 text-trend-positive">
                 <CheckCircle2 className="h-3 w-3 mt-0.5 flex-shrink-0" />
                 <span>Sterke win rate bij verzonden offertes</span>
               </div>
             )}
             {conversionRates.overallConversion < 20 && (
-              <div className="flex items-start gap-1 text-red-600 dark:text-red-400">
+              <div className="flex items-start gap-1 text-trend-negative">
                 <AlertTriangle className="h-3 w-3 mt-0.5 flex-shrink-0" />
                 <span>Lage totale conversie - check bottlenecks</span>
               </div>

@@ -329,9 +329,9 @@ export const TrendForecastChart = memo(function TrendForecastChart({ data, forec
             <h4 className="text-sm font-medium mb-2">Forecast Samenvatting (komende 3 maanden)</h4>
             <div className="grid grid-cols-3 gap-4">
               {forecast.map((f, i) => (
-                <div key={i} className="text-center p-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900">
+                <div key={i} className="text-center p-2 rounded-lg bg-status-verzonden/40 border border-status-verzonden-border">
                   <div className="text-xs text-muted-foreground">{f.maand}</div>
-                  <div className="font-semibold text-amber-700 dark:text-amber-400">
+                  <div className="font-semibold text-status-verzonden-text">
                     {view === "aantal" ? `${f.forecastTotal} offertes` : formatCurrency(f.forecastOmzet)}
                   </div>
                 </div>

@@ -134,27 +134,27 @@ function BarTooltip({ active, payload }: {
       animate={{ opacity: 1, scale: 1 }}
       className="relative overflow-hidden rounded-xl border border-white/10 bg-card/95 backdrop-blur-xl p-4 shadow-2xl shadow-black/20 min-w-[180px]"
     >
-      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-blue-500" />
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-chart-1 to-chart-3" />
       <div className="relative">
         <p className="font-semibold text-foreground mb-3">{item.maand}</p>
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-4">
             <span className="text-sm text-muted-foreground">Omzet</span>
-            <span className="font-medium text-emerald-500">{formatCurrencyNoDecimals(item.omzet)}</span>
+            <span className="font-medium text-trend-positive">{formatCurrencyNoDecimals(item.omzet)}</span>
           </div>
           <div className="flex items-center justify-between gap-4">
             <span className="text-sm text-muted-foreground">Kosten</span>
-            <span className="font-medium text-red-400">{formatCurrencyNoDecimals(item.kosten)}</span>
+            <span className="font-medium text-trend-negative">{formatCurrencyNoDecimals(item.kosten)}</span>
           </div>
           <div className="flex items-center justify-between gap-4 pt-2 border-t border-white/10">
             <span className="text-sm text-muted-foreground">Winst</span>
-            <span className={`font-bold ${item.winst >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+            <span className={`font-bold ${item.winst >= 0 ? 'text-trend-positive' : 'text-trend-negative'}`}>
               {formatCurrencyNoDecimals(item.winst)}
             </span>
           </div>
           <div className="flex items-center justify-between gap-4">
             <span className="text-sm text-muted-foreground">Marge</span>
-            <span className={`font-bold ${item.marge >= 20 ? 'text-emerald-500' : item.marge >= 10 ? 'text-amber-500' : 'text-red-500'}`}>
+            <span className={`font-bold ${item.marge >= 20 ? 'text-trend-positive' : item.marge >= 10 ? 'text-status-verzonden-dot' : 'text-trend-negative'}`}>
               {item.marge.toFixed(1)}%
             </span>
           </div>
@@ -221,7 +221,7 @@ function FinancialKpiCard({
                 {suffix && <span className="text-lg text-muted-foreground">{suffix}</span>}
               </div>
               {change !== undefined && (
-                <div className={`flex items-center gap-1 text-xs ${isPositiveChange ? 'text-emerald-500' : 'text-red-500'}`}>
+                <div className={`flex items-center gap-1 text-xs ${isPositiveChange ? 'text-trend-positive' : 'text-trend-negative'}`}>
                   {isPositiveChange ? (
                     <ArrowUpRight className="h-3 w-3" />
                   ) : (
@@ -277,16 +277,16 @@ export const FinancieelOverzicht = memo(function FinancieelOverzicht({
             value={totaleOmzet}
             previousValue={previousTotaleOmzet}
             icon={Euro}
-            gradient="from-emerald-500/5 via-transparent to-green-500/5"
-            iconGradient="from-emerald-500 to-green-600"
+            gradient="from-chart-1/5 via-transparent to-primary/5"
+            iconGradient="from-chart-1 to-primary"
           />
           <FinancialKpiCard
             title="Totale Kosten"
             value={totaleKosten}
             previousValue={previousTotaleKosten}
             icon={Receipt}
-            gradient="from-red-500/5 via-transparent to-rose-500/5"
-            iconGradient="from-red-500 to-rose-600"
+            gradient="from-destructive/5 via-transparent to-destructive/5"
+            iconGradient="from-destructive to-destructive"
             delay={0.1}
             positiveIsGood={false}
           />
@@ -297,8 +297,8 @@ export const FinancieelOverzicht = memo(function FinancieelOverzicht({
             prefix=""
             suffix="%"
             icon={Percent}
-            gradient="from-blue-500/5 via-transparent to-cyan-500/5"
-            iconGradient="from-blue-500 to-cyan-600"
+            gradient="from-chart-3/5 via-transparent to-chart-5/5"
+            iconGradient="from-chart-3 to-chart-5"
             delay={0.2}
             isPercentage
           />
@@ -307,8 +307,8 @@ export const FinancieelOverzicht = memo(function FinancieelOverzicht({
             value={nettoWinst}
             previousValue={previousNettoWinst}
             icon={PiggyBank}
-            gradient="from-amber-500/5 via-transparent to-orange-500/5"
-            iconGradient="from-amber-500 to-orange-600"
+            gradient="from-chart-4/5 via-transparent to-accent-warm/5"
+            iconGradient="from-chart-4 to-accent-warm"
             delay={0.3}
           />
         </div>
@@ -337,16 +337,16 @@ export const FinancieelOverzicht = memo(function FinancieelOverzicht({
           value={totaleOmzet}
           previousValue={previousTotaleOmzet}
           icon={Euro}
-          gradient="from-emerald-500/5 via-transparent to-green-500/5"
-          iconGradient="from-emerald-500 to-green-600"
+          gradient="from-chart-1/5 via-transparent to-primary/5"
+          iconGradient="from-chart-1 to-primary"
         />
         <FinancialKpiCard
           title="Totale Kosten"
           value={totaleKosten}
           previousValue={previousTotaleKosten}
           icon={Receipt}
-          gradient="from-red-500/5 via-transparent to-rose-500/5"
-          iconGradient="from-red-500 to-rose-600"
+          gradient="from-destructive/5 via-transparent to-destructive/5"
+          iconGradient="from-destructive to-destructive"
           delay={0.1}
           positiveIsGood={false}
         />
@@ -357,8 +357,8 @@ export const FinancieelOverzicht = memo(function FinancieelOverzicht({
           prefix=""
           suffix="%"
           icon={Percent}
-          gradient="from-blue-500/5 via-transparent to-cyan-500/5"
-          iconGradient="from-blue-500 to-cyan-600"
+          gradient="from-chart-3/5 via-transparent to-chart-5/5"
+          iconGradient="from-chart-3 to-chart-5"
           delay={0.2}
           isPercentage
         />
@@ -367,8 +367,8 @@ export const FinancieelOverzicht = memo(function FinancieelOverzicht({
           value={nettoWinst}
           previousValue={previousNettoWinst}
           icon={PiggyBank}
-          gradient="from-amber-500/5 via-transparent to-orange-500/5"
-          iconGradient="from-amber-500 to-orange-600"
+          gradient="from-chart-4/5 via-transparent to-accent-warm/5"
+          iconGradient="from-chart-4 to-accent-warm"
           delay={0.3}
         />
       </div>
@@ -383,11 +383,11 @@ export const FinancieelOverzicht = memo(function FinancieelOverzicht({
             className="group"
           >
             <Card className="relative overflow-hidden bg-card/80 backdrop-blur-sm border-white/10 dark:border-white/5 transition-all duration-300 hover:shadow-lg hover:shadow-emerald-500/10">
-              <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-emerald-500/10 via-green-500/5 to-transparent rounded-full blur-3xl opacity-50 group-hover:opacity-70 transition-opacity duration-500 pointer-events-none" />
+              <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-chart-1/10 via-chart-1/5 to-transparent rounded-full blur-3xl opacity-50 group-hover:opacity-70 transition-opacity duration-500 pointer-events-none" />
 
               <CardHeader className="relative">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 shadow-lg shadow-emerald-500/30">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-chart-1 to-primary shadow-lg shadow-emerald-500/30">
                     <Wallet className="h-5 w-5 text-white" />
                   </div>
                   <div>
@@ -463,11 +463,11 @@ export const FinancieelOverzicht = memo(function FinancieelOverzicht({
             className="group"
           >
             <Card className="relative overflow-hidden bg-card/80 backdrop-blur-sm border-white/10 dark:border-white/5 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/10">
-              <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-bl from-blue-500/10 via-cyan-500/5 to-transparent rounded-full blur-3xl opacity-50 group-hover:opacity-70 transition-opacity duration-500 pointer-events-none" />
+              <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-bl from-chart-3/10 via-chart-5/5 to-transparent rounded-full blur-3xl opacity-50 group-hover:opacity-70 transition-opacity duration-500 pointer-events-none" />
 
               <CardHeader className="relative">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 shadow-lg shadow-blue-500/30">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-chart-3 to-chart-5 shadow-lg shadow-blue-500/30">
                     <BarChart3 className="h-5 w-5 text-white" />
                   </div>
                   <div>
@@ -572,13 +572,13 @@ export const FinancieelOverzicht = memo(function FinancieelOverzicht({
                       style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'both' }}
                     >
                       <TableCell className="font-medium">{maand.maand}</TableCell>
-                      <TableCell className="text-right text-emerald-500 font-medium">
+                      <TableCell className="text-right text-trend-positive font-medium">
                         {formatCurrencyNoDecimals(maand.omzet)}
                       </TableCell>
-                      <TableCell className="text-right text-red-400">
+                      <TableCell className="text-right text-trend-negative">
                         {formatCurrencyNoDecimals(maand.kosten)}
                       </TableCell>
-                      <TableCell className={`text-right font-bold ${maand.winst >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                      <TableCell className={`text-right font-bold ${maand.winst >= 0 ? 'text-trend-positive' : 'text-trend-negative'}`}>
                         {formatCurrencyNoDecimals(maand.winst)}
                       </TableCell>
                       <TableCell className="text-right">
@@ -586,12 +586,12 @@ export const FinancieelOverzicht = memo(function FinancieelOverzicht({
                           variant="secondary"
                           className={`${
                             maand.marge >= 25
-                              ? 'bg-emerald-500/10 text-emerald-500'
+                              ? 'bg-trend-positive/10 text-trend-positive'
                               : maand.marge >= 15
-                              ? 'bg-green-500/10 text-green-500'
+                              ? 'bg-trend-positive/10 text-trend-positive'
                               : maand.marge >= 10
-                              ? 'bg-amber-500/10 text-amber-500'
-                              : 'bg-red-500/10 text-red-500'
+                              ? 'bg-status-verzonden-dot/10 text-status-verzonden-dot'
+                              : 'bg-trend-negative/10 text-trend-negative'
                           }`}
                         >
                           {maand.marge.toFixed(1)}%
@@ -602,17 +602,17 @@ export const FinancieelOverzicht = memo(function FinancieelOverzicht({
                   {/* Totals Row */}
                   <TableRow className="border-white/10 bg-muted/30 font-semibold">
                     <TableCell>Totaal</TableCell>
-                    <TableCell className="text-right text-emerald-500">
+                    <TableCell className="text-right text-trend-positive">
                       {formatCurrencyNoDecimals(maandelijksOverzicht.reduce((sum, m) => sum + m.omzet, 0))}
                     </TableCell>
-                    <TableCell className="text-right text-red-400">
+                    <TableCell className="text-right text-trend-negative">
                       {formatCurrencyNoDecimals(maandelijksOverzicht.reduce((sum, m) => sum + m.kosten, 0))}
                     </TableCell>
-                    <TableCell className="text-right text-emerald-500">
+                    <TableCell className="text-right text-trend-positive">
                       {formatCurrencyNoDecimals(maandelijksOverzicht.reduce((sum, m) => sum + m.winst, 0))}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Badge variant="secondary" className="bg-blue-500/10 text-blue-500">
+                      <Badge variant="secondary" className="bg-chart-3/10 text-chart-3">
                         {(
                           (maandelijksOverzicht.reduce((sum, m) => sum + m.winst, 0) /
                            maandelijksOverzicht.reduce((sum, m) => sum + m.omzet, 0)) *

@@ -22,7 +22,7 @@ interface SecondaryKpiCardsProps {
 function GlassKpiCard({
   children,
   delay = 0,
-  gradient = "from-emerald-500/10 to-green-500/10",
+  gradient = "from-chart-1/10 to-primary/10",
   hoverGlow = "group-hover:shadow-emerald-500/20"
 }: {
   children: React.ReactNode;
@@ -71,7 +71,7 @@ export const SecondaryKpiCards = memo(function SecondaryKpiCards({ kpis }: Secon
       {/* Deal Cycle Time */}
       <GlassKpiCard
         delay={0.4}
-        gradient="from-purple-500/20 to-fuchsia-500/20"
+        gradient="from-chart-5/20 to-chart-3/20"
         hoverGlow="group-hover:shadow-purple-500/20"
       >
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -82,14 +82,14 @@ export const SecondaryKpiCards = memo(function SecondaryKpiCards({ kpis }: Secon
             initial={{ rotate: -180, opacity: 0 }}
             animate={{ rotate: 0, opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.6 }}
-            className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-purple-500 to-fuchsia-600 shadow-lg shadow-purple-500/30"
+            className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-chart-5 to-chart-3 shadow-lg shadow-purple-500/30"
           >
             <Clock className="h-4 w-4 text-white" />
           </m.div>
         </CardHeader>
         <CardContent className="space-y-2">
           <div className="flex items-baseline gap-1">
-            <span className="text-3xl font-bold bg-gradient-to-r from-purple-500 to-fuchsia-500 bg-clip-text text-transparent">
+            <span className="text-3xl font-bold bg-gradient-to-r from-chart-5 to-chart-3 bg-clip-text text-transparent">
               <AnimatedNumber
                 value={cycleTime}
                 duration={1000}
@@ -107,7 +107,7 @@ export const SecondaryKpiCards = memo(function SecondaryKpiCards({ kpis }: Secon
       {/* Response Time */}
       <GlassKpiCard
         delay={0.5}
-        gradient="from-orange-500/20 to-red-500/20"
+        gradient="from-chart-4/20 to-destructive/20"
         hoverGlow="group-hover:shadow-orange-500/20"
       >
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -121,10 +121,10 @@ export const SecondaryKpiCards = memo(function SecondaryKpiCards({ kpis }: Secon
             className={cn(
               "flex h-8 w-8 items-center justify-center rounded-lg shadow-lg",
               responseTime <= 7
-                ? "bg-gradient-to-br from-green-500 to-emerald-600 shadow-green-500/30"
+                ? "bg-gradient-to-br from-chart-1 to-primary shadow-green-500/30"
                 : responseTime <= 14
-                  ? "bg-gradient-to-br from-orange-500 to-amber-600 shadow-orange-500/30"
-                  : "bg-gradient-to-br from-red-500 to-rose-600 shadow-red-500/30"
+                  ? "bg-gradient-to-br from-chart-4 to-accent-warm shadow-orange-500/30"
+                  : "bg-gradient-to-br from-destructive to-destructive shadow-red-500/30"
             )}
           >
             <Zap className="h-4 w-4 text-white" />
@@ -135,10 +135,10 @@ export const SecondaryKpiCards = memo(function SecondaryKpiCards({ kpis }: Secon
             <span className={cn(
               "text-3xl font-bold bg-clip-text text-transparent",
               responseTime <= 7
-                ? "bg-gradient-to-r from-green-500 to-emerald-500"
+                ? "bg-gradient-to-r from-chart-1 to-primary"
                 : responseTime <= 14
-                  ? "bg-gradient-to-r from-orange-500 to-amber-500"
-                  : "bg-gradient-to-r from-red-500 to-rose-500"
+                  ? "bg-gradient-to-r from-chart-4 to-accent-warm"
+                  : "bg-gradient-to-r from-destructive to-destructive"
             )}>
               <AnimatedNumber
                 value={responseTime}
@@ -157,7 +157,7 @@ export const SecondaryKpiCards = memo(function SecondaryKpiCards({ kpis }: Secon
       {/* Repeat Customers */}
       <GlassKpiCard
         delay={0.6}
-        gradient="from-teal-500/20 to-cyan-500/20"
+        gradient="from-chart-5/20 to-chart-5/20"
         hoverGlow="group-hover:shadow-teal-500/20"
       >
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -168,21 +168,21 @@ export const SecondaryKpiCards = memo(function SecondaryKpiCards({ kpis }: Secon
             initial={{ rotate: -180, opacity: 0 }}
             animate={{ rotate: 0, opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.8 }}
-            className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-teal-500 to-cyan-600 shadow-lg shadow-teal-500/30"
+            className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-chart-5 to-chart-5 shadow-lg shadow-teal-500/30"
           >
             <Repeat className="h-4 w-4 text-white" />
           </m.div>
         </CardHeader>
         <CardContent className="space-y-2">
           <div className="flex items-baseline gap-1">
-            <span className="text-3xl font-bold bg-gradient-to-r from-teal-500 to-cyan-500 bg-clip-text text-transparent">
+            <span className="text-3xl font-bold bg-gradient-to-r from-chart-5 to-chart-5 bg-clip-text text-transparent">
               <AnimatedNumber
                 value={repeatPercentage}
                 duration={1000}
                 formatOptions={{ minimumFractionDigits: 0, maximumFractionDigits: 0 }}
               />
             </span>
-            <span className="text-xl font-bold text-teal-500">%</span>
+            <span className="text-xl font-bold text-chart-5">%</span>
           </div>
           <p className="text-xs text-muted-foreground">
             {kpis.repeatCustomerCount ?? 0} van {kpis.totalCustomers ?? 0} klanten
@@ -193,7 +193,7 @@ export const SecondaryKpiCards = memo(function SecondaryKpiCards({ kpis }: Secon
       {/* Overall Conversion */}
       <GlassKpiCard
         delay={0.7}
-        gradient="from-indigo-500/20 to-violet-500/20"
+        gradient="from-chart-3/20 to-chart-3/20"
         hoverGlow="group-hover:shadow-indigo-500/20"
       >
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -207,10 +207,10 @@ export const SecondaryKpiCards = memo(function SecondaryKpiCards({ kpis }: Secon
             className={cn(
               "flex h-8 w-8 items-center justify-center rounded-lg shadow-lg",
               overallConversion >= 30
-                ? "bg-gradient-to-br from-green-500 to-emerald-600 shadow-green-500/30"
+                ? "bg-gradient-to-br from-chart-1 to-primary shadow-green-500/30"
                 : overallConversion >= 15
-                  ? "bg-gradient-to-br from-amber-500 to-yellow-600 shadow-amber-500/30"
-                  : "bg-gradient-to-br from-red-500 to-rose-600 shadow-red-500/30"
+                  ? "bg-gradient-to-br from-chart-4 to-accent-warm shadow-amber-500/30"
+                  : "bg-gradient-to-br from-destructive to-destructive shadow-red-500/30"
             )}
           >
             <Users className="h-4 w-4 text-white" />
@@ -221,10 +221,10 @@ export const SecondaryKpiCards = memo(function SecondaryKpiCards({ kpis }: Secon
             <span className={cn(
               "text-3xl font-bold bg-clip-text text-transparent",
               overallConversion >= 30
-                ? "bg-gradient-to-r from-green-500 to-emerald-500"
+                ? "bg-gradient-to-r from-chart-1 to-primary"
                 : overallConversion >= 15
-                  ? "bg-gradient-to-r from-amber-500 to-yellow-500"
-                  : "bg-gradient-to-r from-red-500 to-rose-500"
+                  ? "bg-gradient-to-r from-chart-4 to-accent-warm"
+                  : "bg-gradient-to-r from-destructive to-destructive"
             )}>
               <AnimatedNumber
                 value={overallConversion}
@@ -235,10 +235,10 @@ export const SecondaryKpiCards = memo(function SecondaryKpiCards({ kpis }: Secon
             <span className={cn(
               "text-xl font-bold",
               overallConversion >= 30
-                ? "text-green-500"
+                ? "text-trend-positive"
                 : overallConversion >= 15
-                  ? "text-amber-500"
-                  : "text-red-500"
+                  ? "text-status-verzonden-dot"
+                  : "text-trend-negative"
             )}>%</span>
           </div>
           <p className="text-xs text-muted-foreground">

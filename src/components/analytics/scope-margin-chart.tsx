@@ -56,26 +56,26 @@ function formatCurrency(amount: number): string {
 function getMargeColor(percentage: number): { color: string; gradient: string } {
   if (percentage >= 30) return {
     color: "hsl(var(--chart-1))",
-    gradient: "from-emerald-500 to-green-500"
+    gradient: "from-chart-1 to-primary"
   };
   if (percentage >= 20) return {
     color: "hsl(var(--chart-2))",
-    gradient: "from-green-400 to-emerald-400"
+    gradient: "from-chart-1 to-primary"
   };
   if (percentage >= 10) return {
     color: "hsl(var(--chart-4))",
-    gradient: "from-amber-500 to-orange-500"
+    gradient: "from-chart-4 to-accent-warm"
   };
   return {
     color: "hsl(var(--chart-5))",
-    gradient: "from-red-500 to-rose-500"
+    gradient: "from-destructive to-destructive"
   };
 }
 
 function getMargeIcon(percentage: number) {
-  if (percentage >= 20) return <TrendingUp className="h-3 w-3 text-emerald-500" />;
-  if (percentage >= 10) return <Minus className="h-3 w-3 text-amber-500" />;
-  return <TrendingDown className="h-3 w-3 text-red-500" />;
+  if (percentage >= 20) return <TrendingUp className="h-3 w-3 text-trend-positive" />;
+  if (percentage >= 10) return <Minus className="h-3 w-3 text-status-verzonden-dot" />;
+  return <TrendingDown className="h-3 w-3 text-trend-negative" />;
 }
 
 // Custom tooltip component
@@ -167,19 +167,19 @@ export const ScopeMarginChart = memo(function ScopeMarginChart({ data }: ScopeMa
       transition={{ duration: 0.5, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
       className="group"
     >
-      <Card className="relative overflow-hidden bg-card/80 backdrop-blur-sm border-white/10 dark:border-white/5 transition-all duration-300 hover:shadow-lg hover:shadow-emerald-500/10 hover:border-emerald-500/20">
+      <Card className="relative overflow-hidden bg-card/80 backdrop-blur-sm border-white/10 dark:border-white/5 transition-all duration-300 hover:shadow-lg hover:shadow-emerald-500/10 hover:border-chart-1/20">
         {/* Decorative gradient orb */}
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-emerald-500/20 via-green-500/10 to-transparent rounded-full blur-3xl opacity-50 group-hover:opacity-70 transition-opacity duration-500 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-chart-1/20 via-chart-1/10 to-transparent rounded-full blur-3xl opacity-50 group-hover:opacity-70 transition-opacity duration-500 pointer-events-none" />
 
         <CardHeader className="relative">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 shadow-lg shadow-emerald-500/30">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-chart-1 to-primary shadow-lg shadow-emerald-500/30">
               <PieChart className="h-5 w-5 text-white" />
             </div>
             <div>
               <CardTitle>Marge per Scope</CardTitle>
               <CardDescription>
-                Gemiddeld: <span className={`font-semibold ${avgMargin >= 20 ? 'text-emerald-500' : avgMargin >= 10 ? 'text-amber-500' : 'text-red-500'}`}>{avgMargin}%</span>
+                Gemiddeld: <span className={`font-semibold ${avgMargin >= 20 ? 'text-trend-positive' : avgMargin >= 10 ? 'text-status-verzonden-dot' : 'text-trend-negative'}`}>{avgMargin}%</span>
               </CardDescription>
             </div>
           </div>

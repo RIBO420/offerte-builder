@@ -68,24 +68,24 @@ function formatCurrencyNoDecimals(amount: number): string {
 
 function getVarianceColor(percentage: number): string {
   const absPercentage = Math.abs(percentage);
-  if (absPercentage <= 5) return "text-emerald-500";
-  if (absPercentage <= 10) return "text-green-500";
-  if (absPercentage <= 20) return "text-amber-500";
-  return "text-red-500";
+  if (absPercentage <= 5) return "text-trend-positive";
+  if (absPercentage <= 10) return "text-trend-positive";
+  if (absPercentage <= 20) return "text-status-verzonden-dot";
+  return "text-trend-negative";
 }
 
 function getVarianceIcon(percentage: number) {
   const absPercentage = Math.abs(percentage);
-  if (absPercentage <= 10) return <CheckCircle2 className="h-4 w-4 text-emerald-500" />;
-  if (absPercentage <= 20) return <AlertTriangle className="h-4 w-4 text-amber-500" />;
-  return <AlertTriangle className="h-4 w-4 text-red-500" />;
+  if (absPercentage <= 10) return <CheckCircle2 className="h-4 w-4 text-trend-positive" />;
+  if (absPercentage <= 20) return <AlertTriangle className="h-4 w-4 text-status-verzonden-dot" />;
+  return <AlertTriangle className="h-4 w-4 text-trend-negative" />;
 }
 
 function getAccuracyLevel(score: number): { label: string; color: string; bgColor: string } {
-  if (score >= 90) return { label: "Uitstekend", color: "text-emerald-500", bgColor: "bg-emerald-500/10" };
-  if (score >= 75) return { label: "Goed", color: "text-green-500", bgColor: "bg-green-500/10" };
-  if (score >= 60) return { label: "Redelijk", color: "text-amber-500", bgColor: "bg-amber-500/10" };
-  return { label: "Verbetering nodig", color: "text-red-500", bgColor: "bg-red-500/10" };
+  if (score >= 90) return { label: "Uitstekend", color: "text-trend-positive", bgColor: "bg-trend-positive/10" };
+  if (score >= 75) return { label: "Goed", color: "text-trend-positive", bgColor: "bg-trend-positive/10" };
+  if (score >= 60) return { label: "Redelijk", color: "text-status-verzonden-dot", bgColor: "bg-status-verzonden-dot/10" };
+  return { label: "Verbetering nodig", color: "text-trend-negative", bgColor: "bg-trend-negative/10" };
 }
 
 // Custom tooltip for the chart
@@ -103,7 +103,7 @@ function CustomTooltip({ active, payload }: {
       animate={{ opacity: 1, x: 0, scale: 1 }}
       className="relative overflow-hidden rounded-xl border border-white/10 bg-card/95 backdrop-blur-xl p-4 shadow-2xl shadow-black/20 min-w-[220px]"
     >
-      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-cyan-500" />
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-chart-3 to-chart-5" />
 
       <div className="relative">
         <p className="font-semibold text-foreground mb-3">{item.displayName}</p>
@@ -111,11 +111,11 @@ function CustomTooltip({ active, payload }: {
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-4">
             <span className="text-sm text-muted-foreground">Voorcalculatie</span>
-            <span className="font-medium text-blue-500">{formatCurrencyNoDecimals(item.voorcalculatie)}</span>
+            <span className="font-medium text-chart-3">{formatCurrencyNoDecimals(item.voorcalculatie)}</span>
           </div>
           <div className="flex items-center justify-between gap-4">
             <span className="text-sm text-muted-foreground">Nacalculatie</span>
-            <span className="font-medium text-emerald-500">{formatCurrencyNoDecimals(item.nacalculatie)}</span>
+            <span className="font-medium text-trend-positive">{formatCurrencyNoDecimals(item.nacalculatie)}</span>
           </div>
           <div className="flex items-center justify-between gap-4 pt-2 border-t border-white/10">
             <span className="text-sm text-muted-foreground">Verschil</span>
@@ -152,14 +152,14 @@ function AccuracyScoreDisplay({
       className="relative overflow-hidden"
     >
       <Card className="relative overflow-hidden bg-card/80 backdrop-blur-sm border-white/10 dark:border-white/5">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-cyan-500/5 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-br from-chart-3/5 via-transparent to-chart-5/5 pointer-events-none" />
 
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <p className="text-sm font-medium text-muted-foreground">Calculatie Nauwkeurigheid</p>
               <div className="flex items-center gap-3">
-                <span className="text-4xl font-bold bg-gradient-to-r from-blue-500 to-cyan-500 bg-clip-text text-transparent">
+                <span className="text-4xl font-bold bg-gradient-to-r from-chart-3 to-chart-5 bg-clip-text text-transparent">
                   <AnimatedNumber
                     value={score}
                     duration={1200}
@@ -176,12 +176,12 @@ function AccuracyScoreDisplay({
             </div>
 
             <div className="flex flex-col items-end gap-2">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-600 shadow-lg shadow-blue-500/30">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-chart-3 to-chart-5 shadow-lg shadow-blue-500/30">
                 <Target className="h-7 w-7 text-white" />
               </div>
 
               {change !== undefined && (
-                <div className={`flex items-center gap-1 text-sm ${change >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                <div className={`flex items-center gap-1 text-sm ${change >= 0 ? 'text-trend-positive' : 'text-trend-negative'}`}>
                   {change >= 0 ? (
                     <TrendingUp className="h-3 w-3" />
                   ) : (
@@ -256,12 +256,12 @@ export const CalculatieVergelijking = memo(function CalculatieVergelijking({
         transition={{ duration: 0.5, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
         className="group"
       >
-        <Card className="relative overflow-hidden bg-card/80 backdrop-blur-sm border-white/10 dark:border-white/5 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/10 hover:border-blue-500/20">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-blue-500/10 via-cyan-500/5 to-transparent rounded-full blur-3xl opacity-50 group-hover:opacity-70 transition-opacity duration-500 pointer-events-none" />
+        <Card className="relative overflow-hidden bg-card/80 backdrop-blur-sm border-white/10 dark:border-white/5 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/10 hover:border-chart-3/20">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-chart-3/10 via-chart-5/5 to-transparent rounded-full blur-3xl opacity-50 group-hover:opacity-70 transition-opacity duration-500 pointer-events-none" />
 
           <CardHeader className="relative">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 shadow-lg shadow-blue-500/30">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-chart-3 to-chart-5 shadow-lg shadow-blue-500/30">
                 <Calculator className="h-5 w-5 text-white" />
               </div>
               <div className="flex-1">
@@ -348,7 +348,7 @@ export const CalculatieVergelijking = memo(function CalculatieVergelijking({
         transition={{ duration: 0.5, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
         className="group"
       >
-        <Card className="relative overflow-hidden bg-card/80 backdrop-blur-sm border-white/10 dark:border-white/5 transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/10 hover:border-cyan-500/20">
+        <Card className="relative overflow-hidden bg-card/80 backdrop-blur-sm border-white/10 dark:border-white/5 transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/10 hover:border-chart-5/20">
           <CardHeader className="relative">
             <CardTitle>Scope Breakdown</CardTitle>
             <CardDescription>Gedetailleerde variantie per werksoort</CardDescription>
@@ -372,10 +372,10 @@ export const CalculatieVergelijking = memo(function CalculatieVergelijking({
                     style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'both' }}
                   >
                     <TableCell className="font-medium">{item.displayName}</TableCell>
-                    <TableCell className="text-right text-blue-500">
+                    <TableCell className="text-right text-chart-3">
                       {formatCurrencyNoDecimals(item.voorcalculatie)}
                     </TableCell>
-                    <TableCell className="text-right text-emerald-500">
+                    <TableCell className="text-right text-trend-positive">
                       {formatCurrencyNoDecimals(item.nacalculatie)}
                     </TableCell>
                     <TableCell className={`text-right font-semibold ${getVarianceColor(item.variancePercentage)}`}>
@@ -392,10 +392,10 @@ export const CalculatieVergelijking = memo(function CalculatieVergelijking({
                 {/* Total Row */}
                 <TableRow className="border-white/10 bg-muted/30 font-semibold">
                   <TableCell>Totaal</TableCell>
-                  <TableCell className="text-right text-blue-500">
+                  <TableCell className="text-right text-chart-3">
                     {formatCurrencyNoDecimals(totalVoorcalculatie)}
                   </TableCell>
-                  <TableCell className="text-right text-emerald-500">
+                  <TableCell className="text-right text-trend-positive">
                     {formatCurrencyNoDecimals(totalNacalculatie)}
                   </TableCell>
                   <TableCell className={`text-right ${getVarianceColor(totalVariancePercentage)}`}>

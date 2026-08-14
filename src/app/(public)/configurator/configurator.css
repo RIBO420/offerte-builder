@@ -39,6 +39,31 @@
 
   background-color: var(--background);
   color: var(--foreground);
+
+  /* WS10 — statustokens die de configurator (status/page.tsx) gebruikt,
+     licht gepind: zonder deze regels zouden de :root/.dark-statuswaarden
+     uit globals.css meewisselen met het OS-thema terwijl de rest van de
+     configurator altijd licht is. Zelfde receptuur als globals.css :root. */
+  --status-gepland: oklch(0.93 0.045 245);
+  --status-gepland-text: oklch(0.32 0.10 245);
+  --status-gepland-border: oklch(0.75 0.08 245);
+  --status-gepland-dot: oklch(0.55 0.16 245);
+  --status-herinnering: oklch(0.93 0.045 85);
+  --status-herinnering-text: oklch(0.32 0.10 85);
+  --status-herinnering-border: oklch(0.75 0.08 85);
+  --status-herinnering-dot: oklch(0.55 0.16 85);
+  --status-geaccepteerd: oklch(0.93 0.045 152);
+  --status-geaccepteerd-text: oklch(0.32 0.10 152);
+  --status-geaccepteerd-border: oklch(0.75 0.08 152);
+  --status-geaccepteerd-dot: oklch(0.55 0.16 152);
+  --status-afgewezen: oklch(0.93 0.045 30);
+  --status-afgewezen-text: oklch(0.32 0.10 30);
+  --status-afgewezen-border: oklch(0.75 0.08 30);
+  --status-afgewezen-dot: oklch(0.55 0.16 30);
+  --status-nacalculatie: oklch(0.93 0.045 175);
+  --status-nacalculatie-text: oklch(0.32 0.10 175);
+  --status-nacalculatie-border: oklch(0.75 0.08 175);
+  --status-nacalculatie-dot: oklch(0.55 0.16 175);
 }
 
 /* Rustig botanisch grid als drager achter de wizardpagina's —

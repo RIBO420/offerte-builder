@@ -123,7 +123,7 @@ export const ScopeProfitabilityChart = memo(function ScopeProfitabilityChart({ d
       <CardHeader>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/30">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-chart-3 to-chart-3 shadow-lg shadow-blue-500/30">
               <Award className="h-5 w-5 text-white" />
             </div>
             <div>
@@ -154,26 +154,26 @@ export const ScopeProfitabilityChart = memo(function ScopeProfitabilityChart({ d
       <CardContent>
         {/* Summary Cards */}
         <div className="grid grid-cols-3 gap-4 mb-6">
-          <div className="text-center p-3 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
+          <div className="text-center p-3 rounded-lg bg-status-gepland/40 border border-status-gepland-border">
             <div className="text-xs text-muted-foreground mb-1">Totale Scope Omzet</div>
-            <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
+            <div className="text-lg font-bold text-status-gepland-text">
               {formatCurrencyCompact(totalOmzet)}
             </div>
           </div>
-          <div className="text-center p-3 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
+          <div className="text-center p-3 rounded-lg bg-status-geaccepteerd/40 border border-status-geaccepteerd-border">
             <div className="text-xs text-muted-foreground mb-1">Gem. Marge</div>
             <div className={cn(
               "text-lg font-bold",
-              avgMargin >= 25 ? "text-green-600 dark:text-green-400" :
-              avgMargin >= 15 ? "text-amber-600 dark:text-amber-400" :
-              "text-red-600 dark:text-red-400"
+              avgMargin >= 25 ? "text-trend-positive" :
+              avgMargin >= 15 ? "text-status-verzonden-dot" :
+              "text-trend-negative"
             )}>
               {avgMargin}%
             </div>
           </div>
-          <div className="text-center p-3 rounded-lg bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800">
+          <div className="text-center p-3 rounded-lg bg-status-nacalculatie/40 border border-status-nacalculatie-border">
             <div className="text-xs text-muted-foreground mb-1">Top Scope</div>
-            <div className="text-lg font-bold text-purple-600 dark:text-purple-400 truncate" title={topScope?.displayName ?? undefined}>
+            <div className="text-lg font-bold text-status-nacalculatie-text truncate" title={topScope?.displayName ?? undefined}>
               {topScope?.displayName ?? "-"}
             </div>
           </div>

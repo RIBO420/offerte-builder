@@ -82,8 +82,8 @@ const STATUS_CONFIG: Record<
     uitleg:
       "Uw aanvraag is ontvangen en wordt binnen 2 werkdagen beoordeeld.",
     badgeClass:
-      "bg-blue-100 text-blue-800 border-blue-200",
-    iconClass: "text-blue-600",
+      "bg-status-gepland text-status-gepland-text border-status-gepland-border",
+    iconClass: "text-status-gepland-text",
     Icon: ClipboardList,
   },
   in_behandeling: {
@@ -91,8 +91,8 @@ const STATUS_CONFIG: Record<
     uitleg:
       "Uw aanvraag wordt momenteel beoordeeld door ons team.",
     badgeClass:
-      "bg-amber-100 text-amber-800 border-amber-200",
-    iconClass: "text-amber-600",
+      "bg-status-herinnering text-status-herinnering-text border-status-herinnering-border",
+    iconClass: "text-status-herinnering-text",
     Icon: Clock,
   },
   goedgekeurd: {
@@ -100,8 +100,8 @@ const STATUS_CONFIG: Record<
     uitleg:
       "Uw aanvraag is goedgekeurd! U wordt binnenkort gecontacteerd voor de planning.",
     badgeClass:
-      "bg-green-100 text-green-800 border-green-200",
-    iconClass: "text-green-600",
+      "bg-status-geaccepteerd text-status-geaccepteerd-text border-status-geaccepteerd-border",
+    iconClass: "text-status-geaccepteerd-text",
     Icon: CheckCircle,
   },
   afgekeurd: {
@@ -109,8 +109,8 @@ const STATUS_CONFIG: Record<
     uitleg:
       "Helaas kunnen wij deze aanvraag niet uitvoeren. Neem contact op voor meer informatie.",
     badgeClass:
-      "bg-red-100 text-red-800 border-red-200",
-    iconClass: "text-red-600",
+      "bg-status-afgewezen text-status-afgewezen-text border-status-afgewezen-border",
+    iconClass: "text-status-afgewezen-text",
     Icon: XCircle,
   },
   voltooid: {
@@ -118,8 +118,8 @@ const STATUS_CONFIG: Record<
     uitleg:
       "De werkzaamheden zijn voltooid. Bedankt voor uw vertrouwen!",
     badgeClass:
-      "bg-green-100 text-green-800 border-green-200",
-    iconClass: "text-green-600",
+      "bg-status-geaccepteerd text-status-geaccepteerd-text border-status-geaccepteerd-border",
+    iconClass: "text-status-geaccepteerd-text",
     Icon: CheckCircle2,
   },
 };
@@ -132,11 +132,11 @@ const TYPE_LABELS: Record<AanvraagType, string> = {
 
 const TYPE_BADGE_CLASS: Record<AanvraagType, string> = {
   gazon:
-    "bg-green-50 text-green-700 border-green-200",
+    "bg-primary/10 text-primary border-primary/30",
   boomschors:
-    "bg-amber-50 text-amber-700 border-amber-200",
+    "bg-status-herinnering text-status-herinnering-text border-status-herinnering-border",
   verticuteren:
-    "bg-lime-50 text-lime-700 border-lime-200",
+    "bg-status-nacalculatie text-status-nacalculatie-text border-status-nacalculatie-border",
 };
 
 // ---------------------------------------------------------------------------
@@ -247,11 +247,11 @@ function Timeline({ status }: { status: Status }) {
                 className={cn(
                   "flex h-8 w-8 items-center justify-center rounded-full border-2 transition-colors z-10",
                   isKlaar
-                    ? "bg-green-600 border-green-600"
+                    ? "bg-primary border-primary"
                     : isHuidig
                     ? stap.key === "afgekeurd"
-                      ? "bg-red-600 border-red-600"
-                      : "bg-blue-600 border-blue-600"
+                      ? "bg-destructive border-destructive"
+                      : "bg-status-gepland-dot border-status-gepland-dot"
                     : "bg-card border-border"
                 )}
               >
@@ -272,7 +272,7 @@ function Timeline({ status }: { status: Status }) {
                 <div
                   className={cn(
                     "w-0.5 flex-1 min-h-[2rem]",
-                    isKlaar ? "bg-green-400" : "bg-border"
+                    isKlaar ? "bg-primary/60" : "bg-border"
                   )}
                 />
               )}
@@ -284,11 +284,11 @@ function Timeline({ status }: { status: Status }) {
                 className={cn(
                   "text-sm font-medium leading-tight",
                   isKlaar
-                    ? "text-green-700"
+                    ? "text-primary"
                     : isHuidig
                     ? stap.key === "afgekeurd"
-                      ? "text-red-700"
-                      : "text-blue-700"
+                      ? "text-destructive"
+                      : "text-status-gepland-text"
                     : "text-muted-foreground"
                 )}
               >
@@ -420,12 +420,12 @@ function AanvraagKaart({ aanvraag }: { aanvraag: Aanvraag }) {
                     <>
                       <div className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2.5">
-                          <EuroIcon className="h-4 w-4 text-green-600 flex-shrink-0" />
+                          <EuroIcon className="h-4 w-4 text-primary flex-shrink-0" />
                           <span className="text-muted-foreground font-medium">
                             Definitieve prijs
                           </span>
                         </div>
-                        <span className="font-bold text-green-700 text-base">
+                        <span className="font-bold text-primary text-base">
                           {formatPrijs(aanvraag.definitievePrijs)}
                         </span>
                       </div>
@@ -465,11 +465,11 @@ function AanvraagKaart({ aanvraag }: { aanvraag: Aanvraag }) {
 
 function NietGevonden() {
   return (
-    <Card className="shadow-sm border-red-100 bg-red-50/40">
+    <Card className="shadow-sm border-destructive/20 bg-destructive/5">
       <CardContent className="py-10">
         <div className="flex flex-col items-center text-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-100">
-            <AlertCircle className="h-7 w-7 text-red-600" />
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10">
+            <AlertCircle className="h-7 w-7 text-destructive" />
           </div>
           <div className="space-y-1.5">
             <CardTitle className="text-lg text-foreground">
@@ -487,7 +487,7 @@ function NietGevonden() {
               Hulp nodig?{" "}
               <a
                 href="mailto:info@toptuinen.nl"
-                className="text-green-700 font-medium hover:text-green-900 underline underline-offset-2"
+                className="text-primary font-medium hover:text-primary/80 underline underline-offset-2"
               >
                 Neem contact met ons op
               </a>
@@ -607,7 +607,7 @@ function StatusPageContent() {
                 className={cn(
                   "pl-9 font-mono text-sm h-11",
                   validatieFout &&
-                    "border-red-400 focus-visible:ring-red-400"
+                    "border-destructive focus-visible:ring-destructive"
                 )}
                 autoComplete="off"
                 spellCheck={false}
@@ -615,7 +615,7 @@ function StatusPageContent() {
             </div>
 
             {validatieFout && (
-              <p className="text-xs text-red-600 flex items-center gap-1.5">
+              <p className="text-xs text-destructive flex items-center gap-1.5">
                 <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
                 {validatieFout}
               </p>
@@ -623,7 +623,7 @@ function StatusPageContent() {
 
             <Button
               onClick={handleZoeken}
-              className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white gap-2"
+              className="w-full sm:w-auto gap-2"
             >
               <Search className="h-4 w-4" />
               Zoeken
@@ -649,7 +649,7 @@ function StatusPageContent() {
             Heeft u geen referentienummer?{" "}
             <a
               href="mailto:info@toptuinen.nl"
-              className="text-green-700 font-medium hover:text-green-900 underline underline-offset-2"
+              className="text-primary font-medium hover:text-primary/80 underline underline-offset-2"
             >
               Neem contact met ons op
             </a>

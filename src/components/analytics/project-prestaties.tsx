@@ -79,10 +79,10 @@ function getStatusConfig(status: ProjectData["status"]): {
 }
 
 function getMargeColor(marge: number): string {
-  if (marge >= 30) return "text-emerald-500";
-  if (marge >= 20) return "text-green-500";
-  if (marge >= 10) return "text-amber-500";
-  return "text-red-500";
+  if (marge >= 30) return "text-trend-positive";
+  if (marge >= 20) return "text-trend-positive";
+  if (marge >= 10) return "text-status-verzonden-dot";
+  return "text-trend-negative";
 }
 
 // KPI Card Component
@@ -132,7 +132,7 @@ function KpiCard({
               </div>
               <p className="text-xs text-muted-foreground">{description}</p>
               {change !== undefined && (
-                <div className={`flex items-center gap-1 text-xs ${change >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                <div className={`flex items-center gap-1 text-xs ${change >= 0 ? 'text-trend-positive' : 'text-trend-negative'}`}>
                   {change >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                   {change >= 0 ? '+' : ''}{change.toFixed(1)}{suffix} vs vorige periode
                 </div>
@@ -175,7 +175,7 @@ function StatusBreakdown({ data }: { data: ProjectData[] }) {
       <Card className="relative overflow-hidden bg-card/80 backdrop-blur-sm border-white/10 dark:border-white/5">
         <CardHeader>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/30">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-chart-3 to-chart-3 shadow-lg shadow-indigo-500/30">
               <FolderKanban className="h-5 w-5 text-white" />
             </div>
             <div>
@@ -246,7 +246,7 @@ export const ProjectPrestaties = memo(function ProjectPrestaties({
             value={onTimePercentage}
             suffix="%"
             icon={Clock}
-            gradient="from-emerald-500/5 via-transparent to-green-500/5"
+            gradient="from-chart-1/5 via-transparent to-primary/5"
             description="Projecten binnen deadline"
           />
           <KpiCard
@@ -254,7 +254,7 @@ export const ProjectPrestaties = memo(function ProjectPrestaties({
             value={budgetAccuracy}
             suffix="%"
             icon={Target}
-            gradient="from-blue-500/5 via-transparent to-cyan-500/5"
+            gradient="from-chart-3/5 via-transparent to-chart-5/5"
             description="Binnen 10% van budget"
             delay={0.1}
           />
@@ -263,7 +263,7 @@ export const ProjectPrestaties = memo(function ProjectPrestaties({
             value={averageDuration}
             suffix=" dagen"
             icon={Timer}
-            gradient="from-purple-500/5 via-transparent to-violet-500/5"
+            gradient="from-chart-5/5 via-transparent to-chart-3/5"
             description="Van start tot oplevering"
             delay={0.2}
           />
@@ -293,7 +293,7 @@ export const ProjectPrestaties = memo(function ProjectPrestaties({
           suffix="%"
           previousValue={previousOnTimePercentage}
           icon={Clock}
-          gradient="from-emerald-500/5 via-transparent to-green-500/5"
+          gradient="from-chart-1/5 via-transparent to-primary/5"
           description="Projecten binnen deadline"
         />
         <KpiCard
@@ -302,7 +302,7 @@ export const ProjectPrestaties = memo(function ProjectPrestaties({
           suffix="%"
           previousValue={previousBudgetAccuracy}
           icon={Target}
-          gradient="from-blue-500/5 via-transparent to-cyan-500/5"
+          gradient="from-chart-3/5 via-transparent to-chart-5/5"
           description="Binnen 10% van budget"
           delay={0.1}
         />
@@ -312,7 +312,7 @@ export const ProjectPrestaties = memo(function ProjectPrestaties({
           suffix=" dagen"
           previousValue={previousAverageDuration}
           icon={Timer}
-          gradient="from-purple-500/5 via-transparent to-violet-500/5"
+          gradient="from-chart-5/5 via-transparent to-chart-3/5"
           description="Van start tot oplevering"
           delay={0.2}
         />
@@ -330,12 +330,12 @@ export const ProjectPrestaties = memo(function ProjectPrestaties({
           className="lg:col-span-2 group"
         >
           <Card className="relative overflow-hidden bg-card/80 backdrop-blur-sm border-white/10 dark:border-white/5 transition-all duration-300 hover:shadow-lg">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-emerald-500/10 via-green-500/5 to-transparent rounded-full blur-3xl opacity-50 group-hover:opacity-70 transition-opacity duration-500 pointer-events-none" />
+            <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-chart-1/10 via-chart-1/5 to-transparent rounded-full blur-3xl opacity-50 group-hover:opacity-70 transition-opacity duration-500 pointer-events-none" />
 
             <CardHeader className="relative">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 shadow-lg shadow-emerald-500/30">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-chart-1 to-primary shadow-lg shadow-emerald-500/30">
                     <FolderKanban className="h-5 w-5 text-white" />
                   </div>
                   <div>
@@ -376,7 +376,7 @@ export const ProjectPrestaties = memo(function ProjectPrestaties({
                           <div className="flex flex-col">
                             <Link
                               href={`/projecten/${project.id}`}
-                              className="font-medium hover:text-emerald-500 transition-colors flex items-center gap-1 group/link"
+                              className="font-medium hover:text-trend-positive transition-colors flex items-center gap-1 group/link"
                             >
                               {project.naam}
                               <ExternalLink className="h-3 w-3 opacity-0 group-hover/link:opacity-100 transition-opacity" />
@@ -406,13 +406,13 @@ export const ProjectPrestaties = memo(function ProjectPrestaties({
                         <TableCell className="text-center">
                           {project.isOpTijd ? (
                             <div className="flex items-center justify-center">
-                              <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                              <CheckCircle2 className="h-5 w-5 text-trend-positive" />
                             </div>
                           ) : (
                             <div className="flex flex-col items-center">
-                              <AlertTriangle className="h-5 w-5 text-amber-500" />
+                              <AlertTriangle className="h-5 w-5 text-status-verzonden-dot" />
                               {project.dagenOverschrijding && (
-                                <span className="text-xs text-amber-500">
+                                <span className="text-xs text-status-verzonden-dot">
                                   +{project.dagenOverschrijding}d
                                 </span>
                               )}

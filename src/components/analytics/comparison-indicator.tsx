@@ -60,8 +60,8 @@ export const ComparisonIndicator = memo(function ComparisonIndicator({
 
   const getColorClasses = () => {
     if (isNeutral) return "text-muted-foreground bg-muted/50";
-    if (isGood) return "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10";
-    return "text-red-600 dark:text-red-400 bg-red-500/10";
+    if (isGood) return "text-trend-positive bg-trend-positive/10";
+    return "text-trend-negative bg-trend-negative/10";
   };
 
   const Icon = isNeutral
@@ -131,7 +131,7 @@ export const ComparisonArrow = memo(function ComparisonArrow({
       animate={{ opacity: 1, y: 0 }}
       className={cn(
         "inline-flex items-center gap-0.5 text-xs font-medium",
-        isGood ? "text-emerald-500" : "text-red-500",
+        isGood ? "text-trend-positive" : "text-trend-negative",
         className
       )}
     >
@@ -179,7 +179,7 @@ export const ComparisonDisplay = memo(function ComparisonDisplay({
     >
       <div className={cn(
         "flex items-center gap-1.5 text-sm font-semibold",
-        isNeutral ? "text-muted-foreground" : isGood ? "text-emerald-500" : "text-red-500"
+        isNeutral ? "text-muted-foreground" : isGood ? "text-trend-positive" : "text-trend-negative"
       )}>
         {isNeutral ? (
           <Minus className="h-4 w-4" />

@@ -46,7 +46,7 @@ function RankBadge({ rank }: { rank: number }) {
         initial={{ scale: 0, rotate: -180 }}
         animate={{ scale: 1, rotate: 0 }}
         transition={{ duration: 0.5, type: "spring", delay: 0.1 }}
-        className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-yellow-500 shadow-lg shadow-amber-500/40"
+        className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-chart-4 to-accent-warm shadow-lg shadow-amber-500/40"
       >
         <Trophy className="h-3.5 w-3.5 text-white" />
       </m.div>
@@ -70,7 +70,7 @@ function RankBadge({ rank }: { rank: number }) {
         initial={{ scale: 0, rotate: -180 }}
         animate={{ scale: 1, rotate: 0 }}
         transition={{ duration: 0.5, type: "spring", delay: 0.3 }}
-        className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-amber-600 to-orange-700 shadow-lg shadow-orange-500/30"
+        className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-chart-4 to-accent-warm shadow-lg shadow-orange-500/30"
       >
         <Award className="h-3.5 w-3.5 text-white" />
       </m.div>
@@ -116,13 +116,13 @@ export const TopKlantenTable = memo(function TopKlantenTable({ klanten }: TopKla
       transition={{ duration: 0.5, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
       className="group"
     >
-      <Card className="relative overflow-hidden bg-card/80 backdrop-blur-sm border-white/10 dark:border-white/5 transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/10 hover:border-purple-500/20">
+      <Card className="relative overflow-hidden bg-card/80 backdrop-blur-sm border-white/10 dark:border-white/5 transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/10 hover:border-chart-5/20">
         {/* Decorative gradient */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-purple-500/10 via-violet-500/5 to-transparent rounded-full blur-3xl opacity-50 group-hover:opacity-70 transition-opacity duration-500 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-chart-5/10 via-chart-5/5 to-transparent rounded-full blur-3xl opacity-50 group-hover:opacity-70 transition-opacity duration-500 pointer-events-none" />
 
         <CardHeader className="relative">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-violet-600 shadow-lg shadow-purple-500/30">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-chart-5 to-chart-3 shadow-lg shadow-purple-500/30">
               <Users className="h-5 w-5 text-white" />
             </div>
             <div className="flex-1">
@@ -131,7 +131,7 @@ export const TopKlantenTable = memo(function TopKlantenTable({ klanten }: TopKla
                 Totaal: <span className="font-semibold text-foreground">{formatCurrencyNoDecimals(totaalOmzet)}</span>
                 {repeatCustomers > 0 && (
                   <span className="ml-2">
-                    <Badge variant="secondary" className="gap-1 text-teal-600 dark:text-teal-400 border-teal-200 dark:border-teal-800">
+                    <Badge variant="secondary" className="gap-1 text-status-nacalculatie-text border-status-nacalculatie-border">
                       <Repeat className="h-3 w-3" />
                       {repeatCustomers} terugkerend
                     </Badge>
@@ -167,7 +167,7 @@ export const TopKlantenTable = memo(function TopKlantenTable({ klanten }: TopKla
                       {klant.klantId ? (
                         <Link
                           href={`/klanten/${klant.klantId}`}
-                          className="flex items-center gap-2 font-medium transition-colors hover:text-purple-500 dark:hover:text-purple-400 group/link"
+                          className="flex items-center gap-2 font-medium transition-colors hover:text-chart-5 dark:hover:text-chart-5 group/link"
                         >
                           <span>{klant.klantNaam}</span>
                           <ExternalLink className="h-3 w-3 text-muted-foreground opacity-0 group-hover/link:opacity-100 transition-opacity" />
@@ -176,7 +176,7 @@ export const TopKlantenTable = memo(function TopKlantenTable({ klanten }: TopKla
                         <span className="font-medium">{klant.klantNaam}</span>
                       )}
                       {klant.isRepeatCustomer && (
-                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400" title="Terugkerende klant">
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-status-nacalculatie text-status-nacalculatie-text" title="Terugkerende klant">
                           <Repeat className="h-3 w-3" />
                           <Star className="h-2.5 w-2.5" />
                         </span>
@@ -184,7 +184,7 @@ export const TopKlantenTable = memo(function TopKlantenTable({ klanten }: TopKla
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
-                    <span className={`font-bold ${index === 0 ? 'text-amber-500' : index < 3 ? 'text-foreground' : 'text-muted-foreground'}`}>
+                    <span className={`font-bold ${index === 0 ? 'text-status-verzonden-dot' : index < 3 ? 'text-foreground' : 'text-muted-foreground'}`}>
                       <AnimatedNumber
                         value={klant.totaalOmzet}
                         duration={1000}

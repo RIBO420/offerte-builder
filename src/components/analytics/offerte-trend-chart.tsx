@@ -58,14 +58,14 @@ function CustomTooltip({ active, payload, label }: {
       className="relative overflow-hidden rounded-xl border border-border bg-popover/95 text-popover-foreground backdrop-blur-xl p-4 shadow-2xl"
     >
       {/* Top gradient border */}
-      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-emerald-500 to-blue-500" />
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-chart-3 via-chart-1 to-chart-3" />
 
       {/* Decorative gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-emerald-500/5 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-br from-chart-3/5 via-transparent to-primary/5 pointer-events-none" />
 
       <div className="relative">
         <div className="flex items-center gap-2 mb-3">
-          <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-emerald-500">
+          <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-chart-3 to-primary">
             <Activity className="h-3 w-3 text-white" />
           </div>
           <p className="font-semibold text-foreground">{label}</p>
@@ -74,20 +74,20 @@ function CustomTooltip({ active, payload, label }: {
         <div className="space-y-2">
           {aanleg && (
             <div className="flex items-center gap-3">
-              <div className="flex h-5 w-5 items-center justify-center rounded bg-blue-500/20">
-                <Shovel className="h-3 w-3 text-blue-500" />
+              <div className="flex h-5 w-5 items-center justify-center rounded bg-chart-3/20">
+                <Shovel className="h-3 w-3 text-chart-3" />
               </div>
               <span className="text-sm text-muted-foreground flex-1">Aanleg</span>
-              <span className="font-bold text-blue-500">{aanleg.value}</span>
+              <span className="font-bold text-chart-3">{aanleg.value}</span>
             </div>
           )}
           {onderhoud && (
             <div className="flex items-center gap-3">
-              <div className="flex h-5 w-5 items-center justify-center rounded bg-emerald-500/20">
-                <Trees className="h-3 w-3 text-emerald-500" />
+              <div className="flex h-5 w-5 items-center justify-center rounded bg-trend-positive/20">
+                <Trees className="h-3 w-3 text-trend-positive" />
               </div>
               <span className="text-sm text-muted-foreground flex-1">Onderhoud</span>
-              <span className="font-bold text-emerald-500">{onderhoud.value}</span>
+              <span className="font-bold text-trend-positive">{onderhoud.value}</span>
             </div>
           )}
           <div className="flex items-center gap-3 pt-2 border-t border-border">
@@ -105,13 +105,13 @@ function CustomLegend() {
   return (
     <div className="flex items-center justify-center gap-6 mt-4">
       <div className="flex items-center gap-2">
-        <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 shadow-md shadow-blue-500/30">
+        <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-chart-3 to-chart-3 shadow-md shadow-blue-500/30">
           <Shovel className="h-3 w-3 text-white" />
         </div>
         <span className="text-sm font-medium text-muted-foreground">Aanleg</span>
       </div>
       <div className="flex items-center gap-2">
-        <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-green-600 shadow-md shadow-emerald-500/30">
+        <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-chart-1 to-primary shadow-md shadow-emerald-500/30">
           <Trees className="h-3 w-3 text-white" />
         </div>
         <span className="text-sm font-medium text-muted-foreground">Onderhoud</span>
@@ -150,22 +150,22 @@ export const OfferteTrendChart = memo(function OfferteTrendChart({ data }: Offer
       transition={{ duration: 0.5, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
       className="group"
     >
-      <Card className="relative overflow-hidden bg-card/80 backdrop-blur-sm border-white/10 dark:border-white/5 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/10 hover:border-blue-500/20">
+      <Card className="relative overflow-hidden bg-card/80 backdrop-blur-sm border-white/10 dark:border-white/5 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/10 hover:border-chart-3/20">
         {/* Decorative gradient orbs */}
-        <div className="absolute top-0 left-0 w-48 h-48 bg-gradient-to-br from-blue-500/20 via-transparent to-transparent rounded-full blur-3xl opacity-50 group-hover:opacity-70 transition-opacity duration-500 pointer-events-none" />
-        <div className="absolute bottom-0 right-0 w-48 h-48 bg-gradient-to-tl from-emerald-500/20 via-transparent to-transparent rounded-full blur-3xl opacity-50 group-hover:opacity-70 transition-opacity duration-500 pointer-events-none" />
+        <div className="absolute top-0 left-0 w-48 h-48 bg-gradient-to-br from-chart-3/20 via-transparent to-transparent rounded-full blur-3xl opacity-50 group-hover:opacity-70 transition-opacity duration-500 pointer-events-none" />
+        <div className="absolute bottom-0 right-0 w-48 h-48 bg-gradient-to-tl from-chart-1/20 via-transparent to-transparent rounded-full blur-3xl opacity-50 group-hover:opacity-70 transition-opacity duration-500 pointer-events-none" />
 
         <CardHeader className="relative">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-emerald-500 shadow-lg shadow-blue-500/30">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-chart-3 to-primary shadow-lg shadow-blue-500/30">
               <Activity className="h-5 w-5 text-white" />
             </div>
             <div>
               <CardTitle>Offertes per Maand</CardTitle>
               <CardDescription>
-                <span className="text-blue-500 font-medium">{totaalAanleg} aanleg</span>
+                <span className="text-chart-3 font-medium">{totaalAanleg} aanleg</span>
                 {" / "}
-                <span className="text-emerald-500 font-medium">{totaalOnderhoud} onderhoud</span>
+                <span className="text-trend-positive font-medium">{totaalOnderhoud} onderhoud</span>
               </CardDescription>
             </div>
           </div>

@@ -44,10 +44,10 @@ interface MedewerkerProductiviteitProps {
 }
 
 function getEfficiencyColor(ratio: number): { color: string; bgColor: string; gradient: string } {
-  if (ratio >= 90) return { color: "text-emerald-500", bgColor: "bg-emerald-500", gradient: "from-emerald-500 to-green-500" };
-  if (ratio >= 75) return { color: "text-green-500", bgColor: "bg-green-500", gradient: "from-green-500 to-lime-500" };
-  if (ratio >= 60) return { color: "text-amber-500", bgColor: "bg-amber-500", gradient: "from-amber-500 to-orange-500" };
-  return { color: "text-red-500", bgColor: "bg-red-500", gradient: "from-red-500 to-rose-500" };
+  if (ratio >= 90) return { color: "text-trend-positive", bgColor: "bg-chart-1", gradient: "from-chart-1 to-primary" };
+  if (ratio >= 75) return { color: "text-trend-positive", bgColor: "bg-chart-1", gradient: "from-chart-1 to-primary" };
+  if (ratio >= 60) return { color: "text-status-verzonden-dot", bgColor: "bg-chart-4", gradient: "from-chart-4 to-accent-warm" };
+  return { color: "text-trend-negative", bgColor: "bg-destructive", gradient: "from-destructive to-destructive" };
 }
 
 function getEfficiencyLabel(ratio: number): string {
@@ -90,7 +90,7 @@ function CustomTooltip({ active, payload }: {
           </div>
           <div className="flex items-center justify-between gap-4">
             <span className="text-sm text-muted-foreground">Declarabel</span>
-            <span className="font-medium text-emerald-500">{item.declarabeleUren.toFixed(1)}u</span>
+            <span className="font-medium text-trend-positive">{item.declarabeleUren.toFixed(1)}u</span>
           </div>
           <div className="flex items-center justify-between gap-4 pt-2 border-t border-white/10">
             <span className="text-sm text-muted-foreground">Projecten</span>
@@ -114,7 +114,7 @@ function RankBadge({ rank }: { rank: number }) {
         initial={{ scale: 0, rotate: -180 }}
         animate={{ scale: 1, rotate: 0 }}
         transition={{ duration: 0.5, type: "spring", delay: 0.1 }}
-        className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-yellow-500 shadow-lg shadow-amber-500/40"
+        className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-chart-4 to-accent-warm shadow-lg shadow-amber-500/40"
       >
         <Award className="h-3.5 w-3.5 text-white" />
       </m.div>
@@ -138,7 +138,7 @@ function RankBadge({ rank }: { rank: number }) {
         initial={{ scale: 0, rotate: -180 }}
         animate={{ scale: 1, rotate: 0 }}
         transition={{ duration: 0.5, type: "spring", delay: 0.2 }}
-        className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-amber-600 to-orange-700 shadow-lg shadow-orange-500/30"
+        className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-chart-4 to-accent-warm shadow-lg shadow-orange-500/30"
       >
         <Zap className="h-3.5 w-3.5 text-white" />
       </m.div>
@@ -207,25 +207,25 @@ export const MedewerkerProductiviteit = memo(function MedewerkerProductiviteit({
           transition={{ duration: 0.5, delay: 0.1 }}
         >
           <Card className="relative overflow-hidden bg-card/80 backdrop-blur-sm border-white/10 dark:border-white/5">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-cyan-500/5 pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-br from-chart-3/5 via-transparent to-chart-5/5 pointer-events-none" />
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Totaal Uren</p>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-bold text-blue-500">
+                    <span className="text-2xl font-bold text-chart-3">
                       <AnimatedNumber value={totaalUren} duration={1000} formatOptions={{ maximumFractionDigits: 0 }} />
                     </span>
                     <span className="text-sm text-muted-foreground">uur</span>
                   </div>
                   {urenChange !== undefined && (
-                    <div className={`flex items-center gap-1 text-xs ${urenChange >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                    <div className={`flex items-center gap-1 text-xs ${urenChange >= 0 ? 'text-trend-positive' : 'text-trend-negative'}`}>
                       {urenChange >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                       {urenChange >= 0 ? '+' : ''}{urenChange.toFixed(1)}% vs vorige periode
                     </div>
                   )}
                 </div>
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 shadow-lg shadow-blue-500/30">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-chart-3 to-chart-5 shadow-lg shadow-blue-500/30">
                   <Clock className="h-5 w-5 text-white" />
                 </div>
               </div>
@@ -240,7 +240,7 @@ export const MedewerkerProductiviteit = memo(function MedewerkerProductiviteit({
           transition={{ duration: 0.5, delay: 0.15 }}
         >
           <Card className="relative overflow-hidden bg-card/80 backdrop-blur-sm border-white/10 dark:border-white/5">
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-green-500/5 pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-br from-chart-1/5 via-transparent to-primary/5 pointer-events-none" />
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -255,7 +255,7 @@ export const MedewerkerProductiviteit = memo(function MedewerkerProductiviteit({
                   </div>
                   <p className="text-xs text-muted-foreground">Declarabele uren ratio</p>
                 </div>
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 shadow-lg shadow-emerald-500/30">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-chart-1 to-primary shadow-lg shadow-emerald-500/30">
                   <Zap className="h-5 w-5 text-white" />
                 </div>
               </div>
@@ -270,19 +270,19 @@ export const MedewerkerProductiviteit = memo(function MedewerkerProductiviteit({
           transition={{ duration: 0.5, delay: 0.2 }}
         >
           <Card className="relative overflow-hidden bg-card/80 backdrop-blur-sm border-white/10 dark:border-white/5">
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-violet-500/5 pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-br from-chart-5/5 via-transparent to-chart-3/5 pointer-events-none" />
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Actieve Projecten</p>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-bold text-purple-500">
+                    <span className="text-2xl font-bold text-chart-5">
                       <AnimatedNumber value={totalProjecten} duration={1000} formatOptions={{ maximumFractionDigits: 0 }} />
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground">{data.length} medewerkers</p>
                 </div>
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-violet-600 shadow-lg shadow-purple-500/30">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-chart-5 to-chart-3 shadow-lg shadow-purple-500/30">
                   <Briefcase className="h-5 w-5 text-white" />
                 </div>
               </div>
@@ -298,12 +298,12 @@ export const MedewerkerProductiviteit = memo(function MedewerkerProductiviteit({
         transition={{ duration: 0.5, delay: 0.25, ease: [0.16, 1, 0.3, 1] }}
         className="group"
       >
-        <Card className="relative overflow-hidden bg-card/80 backdrop-blur-sm border-white/10 dark:border-white/5 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/10 hover:border-blue-500/20">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-blue-500/10 via-purple-500/5 to-transparent rounded-full blur-3xl opacity-50 group-hover:opacity-70 transition-opacity duration-500 pointer-events-none" />
+        <Card className="relative overflow-hidden bg-card/80 backdrop-blur-sm border-white/10 dark:border-white/5 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/10 hover:border-chart-3/20">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-chart-3/10 via-chart-5/5 to-transparent rounded-full blur-3xl opacity-50 group-hover:opacity-70 transition-opacity duration-500 pointer-events-none" />
 
           <CardHeader className="relative">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg shadow-blue-500/30">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-chart-3 to-chart-3 shadow-lg shadow-blue-500/30">
                 <Users className="h-5 w-5 text-white" />
               </div>
               <div>
@@ -383,7 +383,7 @@ export const MedewerkerProductiviteit = memo(function MedewerkerProductiviteit({
         transition={{ duration: 0.5, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
         className="group"
       >
-        <Card className="relative overflow-hidden bg-card/80 backdrop-blur-sm border-white/10 dark:border-white/5 transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/10 hover:border-purple-500/20">
+        <Card className="relative overflow-hidden bg-card/80 backdrop-blur-sm border-white/10 dark:border-white/5 transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/10 hover:border-chart-5/20">
           <CardHeader>
             <CardTitle>Productiviteit Ranglijst</CardTitle>
             <CardDescription>Medewerkers gesorteerd op efficiëntie ratio</CardDescription>
@@ -426,7 +426,7 @@ export const MedewerkerProductiviteit = memo(function MedewerkerProductiviteit({
                       <TableCell className="text-right">
                         <div className="flex flex-col items-end">
                           <span className="font-medium">{medewerker.uren.toFixed(0)}u</span>
-                          <span className="text-xs text-emerald-500">
+                          <span className="text-xs text-trend-positive">
                             {medewerker.declarabeleUren.toFixed(0)}u declarabel
                           </span>
                         </div>
@@ -448,7 +448,7 @@ export const MedewerkerProductiviteit = memo(function MedewerkerProductiviteit({
                             </span>
                           </div>
                           {change !== undefined && (
-                            <div className={`flex items-center gap-1 text-xs ${change >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                            <div className={`flex items-center gap-1 text-xs ${change >= 0 ? 'text-trend-positive' : 'text-trend-negative'}`}>
                               {change >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                               {change >= 0 ? '+' : ''}{change.toFixed(1)}%
                             </div>

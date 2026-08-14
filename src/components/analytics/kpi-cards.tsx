@@ -50,7 +50,7 @@ const generateTrendData = (value: number, trend: "up" | "down" | "stable" = "up"
 function GlassKpiCard({
   children,
   delay = 0,
-  gradient = "from-emerald-500/10 to-green-500/10",
+  gradient = "from-chart-1/10 to-primary/10",
   hoverGlow = "group-hover:shadow-emerald-500/20",
   prefersReducedMotion = false,
 }: {
@@ -110,7 +110,7 @@ export const KpiCards = memo(function KpiCards({ kpis }: KpiCardsProps) {
       {/* Win Rate */}
       <GlassKpiCard
         delay={0}
-        gradient="from-green-500/20 to-emerald-500/20"
+        gradient="from-chart-1/20 to-primary/20"
         hoverGlow="group-hover:shadow-green-500/20"
         prefersReducedMotion={prefersReducedMotion}
       >
@@ -122,21 +122,21 @@ export const KpiCards = memo(function KpiCards({ kpis }: KpiCardsProps) {
             initial={prefersReducedMotion ? { opacity: 1 } : { rotate: -180, opacity: 0 }}
             animate={{ rotate: 0, opacity: 1 }}
             transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.6, delay: 0.2 }}
-            className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 shadow-optimized"
+            className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-chart-1 to-primary shadow-optimized"
           >
             <Target className="h-4 w-4 text-white" />
           </m.div>
         </CardHeader>
         <CardContent className="space-y-2">
           <div className="flex items-baseline gap-1">
-            <span className="text-3xl font-bold bg-gradient-to-r from-green-500 to-emerald-500 bg-clip-text text-transparent">
+            <span className="text-3xl font-bold bg-gradient-to-r from-chart-1 to-primary bg-clip-text text-transparent">
               <AnimatedNumber
                 value={kpis.winRate}
                 duration={1000}
                 formatOptions={{ minimumFractionDigits: 0, maximumFractionDigits: 0 }}
               />
             </span>
-            <span className="text-xl font-bold text-green-500">%</span>
+            <span className="text-xl font-bold text-trend-positive">%</span>
           </div>
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs text-muted-foreground truncate" title={`${kpis.geaccepteerdCount}/${kpis.geaccepteerdCount + kpis.afgewezenCount} gewonnen`}>
@@ -157,7 +157,7 @@ export const KpiCards = memo(function KpiCards({ kpis }: KpiCardsProps) {
       {/* Gemiddelde Waarde */}
       <GlassKpiCard
         delay={0.1}
-        gradient="from-blue-500/20 to-cyan-500/20"
+        gradient="from-chart-3/20 to-chart-5/20"
         hoverGlow="group-hover:shadow-blue-500/20"
         prefersReducedMotion={prefersReducedMotion}
       >
@@ -169,13 +169,13 @@ export const KpiCards = memo(function KpiCards({ kpis }: KpiCardsProps) {
             initial={prefersReducedMotion ? { opacity: 1 } : { rotate: -180, opacity: 0 }}
             animate={{ rotate: 0, opacity: 1 }}
             transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.6, delay: 0.3 }}
-            className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-cyan-600 shadow-optimized"
+            className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-chart-3 to-chart-5 shadow-optimized"
           >
             <Euro className="h-4 w-4 text-white" />
           </m.div>
         </CardHeader>
         <CardContent className="space-y-2">
-          <div className="text-3xl font-bold bg-gradient-to-r from-blue-500 to-cyan-500 bg-clip-text text-transparent">
+          <div className="text-3xl font-bold bg-gradient-to-r from-chart-3 to-chart-5 bg-clip-text text-transparent">
             <AnimatedNumber
               value={kpis.gemiddeldeWaarde}
               duration={1200}
@@ -202,7 +202,7 @@ export const KpiCards = memo(function KpiCards({ kpis }: KpiCardsProps) {
       {/* Totale Omzet */}
       <GlassKpiCard
         delay={0.2}
-        gradient="from-amber-500/20 to-orange-500/20"
+        gradient="from-chart-4/20 to-accent-warm/20"
         hoverGlow="group-hover:shadow-amber-500/20"
         prefersReducedMotion={prefersReducedMotion}
       >
@@ -214,13 +214,13 @@ export const KpiCards = memo(function KpiCards({ kpis }: KpiCardsProps) {
             initial={prefersReducedMotion ? { opacity: 1 } : { rotate: -180, opacity: 0 }}
             animate={{ rotate: 0, opacity: 1 }}
             transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.6, delay: 0.4 }}
-            className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 shadow-optimized"
+            className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-chart-4 to-accent-warm shadow-optimized"
           >
             <TrendingUp className="h-4 w-4 text-white" />
           </m.div>
         </CardHeader>
         <CardContent className="space-y-2">
-          <div className="text-3xl font-bold bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent">
+          <div className="text-3xl font-bold bg-gradient-to-r from-chart-4 to-accent-warm bg-clip-text text-transparent">
             <AnimatedNumber
               value={kpis.totaleOmzet}
               duration={1400}
@@ -247,7 +247,7 @@ export const KpiCards = memo(function KpiCards({ kpis }: KpiCardsProps) {
       {/* Aantal Offertes */}
       <GlassKpiCard
         delay={0.3}
-        gradient="from-purple-500/20 to-violet-500/20"
+        gradient="from-chart-5/20 to-chart-3/20"
         hoverGlow="group-hover:shadow-purple-500/20"
         prefersReducedMotion={prefersReducedMotion}
       >
@@ -259,13 +259,13 @@ export const KpiCards = memo(function KpiCards({ kpis }: KpiCardsProps) {
             initial={prefersReducedMotion ? { opacity: 1 } : { rotate: -180, opacity: 0 }}
             animate={{ rotate: 0, opacity: 1 }}
             transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.6, delay: 0.5 }}
-            className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-purple-500 to-violet-600 shadow-optimized"
+            className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-chart-5 to-chart-3 shadow-optimized"
           >
             <FileText className="h-4 w-4 text-white" />
           </m.div>
         </CardHeader>
         <CardContent className="space-y-2">
-          <div className="text-3xl font-bold bg-gradient-to-r from-purple-500 to-violet-500 bg-clip-text text-transparent">
+          <div className="text-3xl font-bold bg-gradient-to-r from-chart-5 to-chart-3 bg-clip-text text-transparent">
             <AnimatedNumber
               value={kpis.totaalOffertes}
               duration={1000}

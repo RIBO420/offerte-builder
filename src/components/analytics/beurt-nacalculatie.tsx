@@ -146,7 +146,7 @@ export function BeurtNacalculatie() {
                     <TableCell
                       className={
                         beurt.afwijkingUren !== null && beurt.afwijkingUren > 0
-                          ? "text-right text-red-600 dark:text-red-400"
+                          ? "text-right text-trend-negative"
                           : "text-right text-muted-foreground"
                       }
                     >
