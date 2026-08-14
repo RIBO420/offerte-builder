@@ -55,8 +55,6 @@ import {
   Thermometer,
   ClipboardList,
   ShoppingCart,
-  DollarSign,
-  CheckSquare,
   MessageSquare,
   Mail,
   ScrollText,
@@ -125,12 +123,6 @@ const assetsMenuItems = [
   { title: "Garanties", url: "/garanties", icon: ShieldCheck },
   // "Servicemeldingen" is vervangen door het §2.4-bord "Meldingen" (werkItems)
   { title: "Toolbox", url: "/toolbox", icon: ClipboardList },
-];
-
-// Project sub-items (shown within project context) - unchanged
-const projectSubItems = [
-  { title: "Kosten tracking", urlSuffix: "/kosten", icon: DollarSign },
-  { title: "Kwaliteit", urlSuffix: "/kwaliteit", icon: CheckSquare },
 ];
 
 // Actieve staat in merkgroen ("Vakwerk in het groen"): tekst en icoon in
@@ -282,12 +274,6 @@ export function AppSidebar() {
     return [];
   }, [role, isDirectieOrAdmin]);
 
-  // Extract current project ID from pathname if on a project page
-  const currentProjectId = useMemo(() => {
-    const match = pathname.match(/^\/projecten\/([^/]+)/);
-    return match ? match[1] : null;
-  }, [pathname]);
-
   // Prevent hydration mismatch
   useEffect(() => {
     const id = setTimeout(() => setMounted(true), 0);
@@ -434,34 +420,9 @@ export function AppSidebar() {
           </>
         )}
 
-        {/* Project Tools - context-sensitive, only on project pages */}
-        {currentProjectId && (
-          <>
-            <SidebarSeparator />
-            <SidebarGroup>
-              <SidebarGroupLabel>Project Tools</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {projectSubItems.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={pathname === `/projecten/${currentProjectId}${item.urlSuffix}`}
-                        tooltip={item.title}
-                        className={menuKnopKlasse}
-                      >
-                        <Link href={`/projecten/${currentProjectId}${item.urlSuffix}`}>
-                          <item.icon />
-                          <span>{item.title}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          </>
-        )}
+        {/* "Project Tools" is hier bewust weg (WS6-distill): kosten en
+            kwaliteit zijn bereikbaar via de voortgangscards op de
+            projectdetailpagina zelf — de sidebar dupliceerde die navigatie. */}
       </SidebarContent>
 
       <SidebarFooter>
