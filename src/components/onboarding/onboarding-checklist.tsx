@@ -59,22 +59,22 @@ export function OnboardingChecklist({
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
       >
-        <Card className="border-emerald-200 dark:border-emerald-900/50 bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-950/30 dark:to-green-950/30">
+        <Card className="border-status-geaccepteerd-border bg-gradient-to-r from-status-geaccepteerd/60 to-status-geaccepteerd/25">
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
               <m.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ type: "spring", delay: 0.2 }}
-                className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500 text-white"
+                className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground"
               >
                 <PartyPopper className="h-6 w-6" />
               </m.div>
               <div className="flex-1">
-                <h3 className="font-semibold text-emerald-900 dark:text-emerald-100">
+                <h3 className="font-semibold text-status-geaccepteerd-text">
                   Gefeliciteerd!
                 </h3>
-                <p className="text-sm text-emerald-700 dark:text-emerald-300">
+                <p className="text-sm text-status-geaccepteerd-text/90">
                   Je hebt alle stappen voltooid. Je bent klaar om te beginnen!
                 </p>
               </div>
@@ -96,18 +96,18 @@ export function OnboardingChecklist({
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <Card className="border-blue-200 dark:border-blue-900/50 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 overflow-hidden">
+      <Card className="border-primary/25 bg-gradient-to-r from-accent/70 to-accent/25 overflow-hidden">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500 text-white">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
                 <Rocket className="h-5 w-5" />
               </div>
               <div>
-                <CardTitle className="text-base text-blue-900 dark:text-blue-100">
+                <CardTitle className="text-base text-foreground">
                   Aan de slag
                 </CardTitle>
-                <CardDescription className="text-blue-700 dark:text-blue-300">
+                <CardDescription className="text-muted-foreground">
                   {completedSteps} van {totalSteps} stappen voltooid
                 </CardDescription>
               </div>
@@ -117,7 +117,7 @@ export function OnboardingChecklist({
                 variant="ghost"
                 size="icon"
                 onClick={onDismiss}
-                className="h-8 w-8 text-blue-600 hover:text-blue-800 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30"
+                className="h-8 w-8 text-primary hover:text-primary hover:bg-accent"
                 aria-label="Verbergen"
               >
                 <X className="h-4 w-4" />
@@ -126,7 +126,7 @@ export function OnboardingChecklist({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 text-blue-600 hover:text-blue-800 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30"
+                  className="h-8 w-8 text-primary hover:text-primary hover:bg-accent"
                   aria-label={isOpen ? "Inklappen" : "Uitklappen"}
                 >
                   {isOpen ? (
@@ -141,7 +141,7 @@ export function OnboardingChecklist({
           <div className="mt-3">
             <Progress
               value={progressPercentage}
-              className="h-2 bg-blue-200 dark:bg-blue-900/50"
+              className="h-2 bg-primary/15"
             />
           </div>
         </CardHeader>
@@ -163,7 +163,7 @@ export function OnboardingChecklist({
                       className={cn(
                         "group flex items-center gap-3 rounded-lg p-3 transition-all",
                         step.completed
-                          ? "bg-emerald-100/50 dark:bg-emerald-900/20"
+                          ? "bg-status-geaccepteerd/40"
                           : "bg-white/50 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10"
                       )}
                     >
@@ -171,8 +171,8 @@ export function OnboardingChecklist({
                         className={cn(
                           "flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors",
                           step.completed
-                            ? "bg-emerald-500 text-white"
-                            : "bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 group-hover:bg-blue-200 dark:group-hover:bg-blue-800/50"
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-accent text-accent-foreground group-hover:bg-primary/15"
                         )}
                       >
                         {step.completed ? (
@@ -186,13 +186,13 @@ export function OnboardingChecklist({
                           className={cn(
                             "font-medium text-sm",
                             step.completed
-                              ? "text-emerald-800 dark:text-emerald-200 line-through opacity-70"
-                              : "text-blue-900 dark:text-blue-100"
+                              ? "text-status-geaccepteerd-text line-through opacity-70"
+                              : "text-foreground"
                           )}
                         >
                           {step.label}
                           {step.adminOnly && (
-                            <span className="ml-2 text-xs font-normal text-blue-500 dark:text-blue-400">
+                            <span className="ml-2 text-xs font-normal text-muted-foreground">
                               (admin)
                             </span>
                           )}
@@ -201,15 +201,15 @@ export function OnboardingChecklist({
                           className={cn(
                             "text-xs",
                             step.completed
-                              ? "text-emerald-600/70 dark:text-emerald-400/70"
-                              : "text-blue-600 dark:text-blue-400"
+                              ? "text-status-geaccepteerd-text/70"
+                              : "text-muted-foreground"
                           )}
                         >
                           {step.description}
                         </p>
                       </div>
                       {!step.completed && (
-                        <ArrowRight className="h-4 w-4 text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <ArrowRight className="h-4 w-4 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
                       )}
                     </Link>
                   </m.div>
@@ -219,7 +219,7 @@ export function OnboardingChecklist({
 
             {/* Next action suggestion */}
             {!isComplete && (
-              <div className="mt-4 pt-3 border-t border-blue-200/50 dark:border-blue-800/50">
+              <div className="mt-4 pt-3 border-t border-primary/20">
                 {(() => {
                   const nextStep = steps.find((s) => !s.completed);
                   if (!nextStep) return null;
@@ -228,7 +228,7 @@ export function OnboardingChecklist({
                       <Button
                         variant="default"
                         size="sm"
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                        className="w-full"
                       >
                         <Sparkles className="mr-2 h-4 w-4" />
                         {nextStep.label}

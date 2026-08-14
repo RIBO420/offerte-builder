@@ -32,6 +32,29 @@ interface EmptyStateProps {
   compact?: boolean;
 }
 
+/**
+ * Beperkt blad-lijnmotief in merkgroen (WS10, critique "merk-delight"):
+ * alleen in de compacte variant, en alleen als de aanroeper geen eigen icoon
+ * meegeeft. Decoratief (aria-hidden), lijnwerk op currentColor.
+ */
+function BladMotief() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="size-4 shrink-0 text-primary/70"
+    >
+      <path d="M2.5 13.5C2.5 7.5 6.5 3 13.5 2.5 13 9.5 8.5 13.5 2.5 13.5Z" />
+      <path d="M3.5 12.5C6 9.5 8.5 7 12 3.9" />
+    </svg>
+  );
+}
+
 export function EmptyState({
   icon,
   title,
@@ -49,10 +72,12 @@ export function EmptyState({
           className
         )}
       >
-        {icon && (
+        {icon ? (
           <div className="size-4 shrink-0 text-muted-foreground [&>svg]:size-full">
             {icon}
           </div>
+        ) : (
+          <BladMotief />
         )}
         <p className="text-muted-foreground">
           <span className="font-medium text-foreground">{title}</span>

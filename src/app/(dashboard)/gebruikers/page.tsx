@@ -73,16 +73,16 @@ import { Id } from "../../../../convex/_generated/dataModel";
 
 // Role display configuration — all 7 new roles + legacy backward compat
 const roleConfig: Record<UserRole, { label: string; badgeClass: string; icon: React.ElementType }> = {
-  directie: { label: "Directie / Admin", badgeClass: "bg-red-100 text-red-800 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800", icon: Crown },
-  projectleider: { label: "Projectleider", badgeClass: "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800", icon: ClipboardList },
-  voorman: { label: "Voorman", badgeClass: "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800", icon: HardHat },
-  medewerker: { label: "Medewerker (veld)", badgeClass: "bg-green-100 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800", icon: Wrench },
-  klant: { label: "Klant", badgeClass: "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800", icon: UserRound },
-  onderaannemer_zzp: { label: "Onderaannemer / ZZP", badgeClass: "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-300 dark:border-yellow-800", icon: Handshake },
-  materiaalman: { label: "Materiaalman", badgeClass: "bg-cyan-100 text-cyan-800 border-cyan-200 dark:bg-cyan-950 dark:text-cyan-300 dark:border-cyan-800", icon: Package },
+  directie: { label: "Directie / Admin", badgeClass: "bg-status-afgewezen text-status-afgewezen-text border-status-afgewezen-border", icon: Crown },
+  projectleider: { label: "Projectleider", badgeClass: "bg-status-gepland text-status-gepland-text border-status-gepland-border", icon: ClipboardList },
+  voorman: { label: "Voorman", badgeClass: "bg-status-in-uitvoering text-status-in-uitvoering-text border-status-in-uitvoering-border", icon: HardHat },
+  medewerker: { label: "Medewerker (veld)", badgeClass: "bg-status-geaccepteerd text-status-geaccepteerd-text border-status-geaccepteerd-border", icon: Wrench },
+  klant: { label: "Klant", badgeClass: "bg-status-nacalculatie text-status-nacalculatie-text border-status-nacalculatie-border", icon: UserRound },
+  onderaannemer_zzp: { label: "Onderaannemer / ZZP", badgeClass: "bg-status-verzonden text-status-verzonden-text border-status-verzonden-border", icon: Handshake },
+  materiaalman: { label: "Materiaalman", badgeClass: "bg-status-definitief text-status-definitief-text border-status-definitief-border", icon: Package },
   // Legacy roles — still displayed correctly if present in DB
-  admin: { label: "Admin (oud)", badgeClass: "bg-red-100 text-red-800 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800", icon: ShieldCheck },
-  viewer: { label: "Viewer (oud)", badgeClass: "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800", icon: Eye },
+  admin: { label: "Admin (oud)", badgeClass: "bg-status-afgewezen text-status-afgewezen-text border-status-afgewezen-border", icon: ShieldCheck },
+  viewer: { label: "Viewer (oud)", badgeClass: "bg-status-concept text-status-concept-text border-status-concept-border", icon: Eye },
 };
 
 // Animation variants
@@ -263,9 +263,9 @@ export default function GebruikersPage() {
             className="flex flex-col items-center gap-4"
           >
             <div className="relative">
-              <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full" />
-              <div className="relative flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-green-600">
-                <Loader2 className="h-8 w-8 animate-spin text-white" />
+              <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full" />
+              <div className="relative flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/80">
+                <Loader2 className="h-8 w-8 animate-spin text-primary-foreground" />
               </div>
             </div>
             <p className="text-muted-foreground animate-pulse">Laden...</p>
@@ -307,7 +307,7 @@ export default function GebruikersPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Beheer</CardTitle>
-              <Crown className="h-4 w-4 text-red-600" />
+              <Crown className="h-4 w-4 text-status-afgewezen-text" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.beheer}</div>
@@ -318,7 +318,7 @@ export default function GebruikersPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Veldwerk</CardTitle>
-              <HardHat className="h-4 w-4 text-orange-600" />
+              <HardHat className="h-4 w-4 text-status-in-uitvoering-text" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.veldwerk}</div>
@@ -329,7 +329,7 @@ export default function GebruikersPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Extern</CardTitle>
-              <UserRound className="h-4 w-4 text-purple-600" />
+              <UserRound className="h-4 w-4 text-status-nacalculatie-text" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.extern}</div>
@@ -340,7 +340,7 @@ export default function GebruikersPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Gekoppeld</CardTitle>
-              <Link2 className="h-4 w-4 text-green-600" />
+              <Link2 className="h-4 w-4 text-status-geaccepteerd-text" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.linked}</div>
@@ -430,43 +430,43 @@ export default function GebruikersPage() {
                                 <SelectContent>
                                   <SelectItem value="directie">
                                     <div className="flex items-center gap-2">
-                                      <Crown className="h-4 w-4 text-red-600" />
+                                      <Crown className="h-4 w-4 text-status-afgewezen-text" />
                                       <span>Directie / Admin</span>
                                     </div>
                                   </SelectItem>
                                   <SelectItem value="projectleider">
                                     <div className="flex items-center gap-2">
-                                      <ClipboardList className="h-4 w-4 text-blue-600" />
+                                      <ClipboardList className="h-4 w-4 text-status-gepland-text" />
                                       <span>Projectleider</span>
                                     </div>
                                   </SelectItem>
                                   <SelectItem value="voorman">
                                     <div className="flex items-center gap-2">
-                                      <HardHat className="h-4 w-4 text-orange-600" />
+                                      <HardHat className="h-4 w-4 text-status-in-uitvoering-text" />
                                       <span>Voorman</span>
                                     </div>
                                   </SelectItem>
                                   <SelectItem value="medewerker">
                                     <div className="flex items-center gap-2">
-                                      <Wrench className="h-4 w-4 text-green-600" />
+                                      <Wrench className="h-4 w-4 text-status-geaccepteerd-text" />
                                       <span>Medewerker (veld)</span>
                                     </div>
                                   </SelectItem>
                                   <SelectItem value="klant">
                                     <div className="flex items-center gap-2">
-                                      <UserRound className="h-4 w-4 text-purple-600" />
+                                      <UserRound className="h-4 w-4 text-status-nacalculatie-text" />
                                       <span>Klant</span>
                                     </div>
                                   </SelectItem>
                                   <SelectItem value="onderaannemer_zzp">
                                     <div className="flex items-center gap-2">
-                                      <Handshake className="h-4 w-4 text-yellow-600" />
+                                      <Handshake className="h-4 w-4 text-status-verzonden-text" />
                                       <span>Onderaannemer / ZZP</span>
                                     </div>
                                   </SelectItem>
                                   <SelectItem value="materiaalman">
                                     <div className="flex items-center gap-2">
-                                      <Package className="h-4 w-4 text-cyan-600" />
+                                      <Package className="h-4 w-4 text-status-definitief-text" />
                                       <span>Materiaalman</span>
                                     </div>
                                   </SelectItem>

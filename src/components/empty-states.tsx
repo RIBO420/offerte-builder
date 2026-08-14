@@ -54,15 +54,15 @@ export function NoOffertes(_props: EmptyStateWithActionProps) {
             <CardContent>
               <ul className="space-y-1.5 text-sm text-muted-foreground">
                 <li className="flex items-center gap-2">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                  <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
                   Grondwerk, bestrating, borders
                 </li>
                 <li className="flex items-center gap-2">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                  <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
                   Houtwerk, verlichting, specials
                 </li>
                 <li className="flex items-center gap-2">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                  <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
                   Automatische urenberekening
                 </li>
               </ul>
@@ -74,15 +74,15 @@ export function NoOffertes(_props: EmptyStateWithActionProps) {
           </Link>
         </Card>
 
-        <Card className="group cursor-pointer transition-all hover:border-green-500/50 hover:shadow-md">
+        <Card className="group cursor-pointer transition-all hover:border-primary/50 hover:shadow-md">
           <Link href="/offertes/nieuw/onderhoud" className="block">
             <CardHeader className="pb-3">
               <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-green-100 dark:bg-green-900/30 group-hover:bg-green-200 dark:group-hover:bg-green-900/50 transition-colors">
-                  <Trees className="h-6 w-6 text-green-600" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                  <Trees className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <CardTitle className="text-lg group-hover:text-green-600 transition-colors">
+                  <CardTitle className="text-lg group-hover:text-primary transition-colors">
                     Onderhoud Offerte
                   </CardTitle>
                   <CardDescription>
@@ -94,19 +94,19 @@ export function NoOffertes(_props: EmptyStateWithActionProps) {
             <CardContent>
               <ul className="space-y-1.5 text-sm text-muted-foreground">
                 <li className="flex items-center gap-2">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                  <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
                   Gras, borders, heggen onderhoud
                 </li>
                 <li className="flex items-center gap-2">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                  <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
                   Bomen snoei, bladruimen
                 </li>
                 <li className="flex items-center gap-2">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                  <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
                   Periodieke werkzaamheden
                 </li>
               </ul>
-              <div className="mt-4 flex items-center text-sm font-medium text-green-600 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="mt-4 flex items-center text-sm font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity">
                 Start onderhoud offerte
                 <ArrowRight className="ml-1 h-4 w-4" />
               </div>
@@ -116,25 +116,25 @@ export function NoOffertes(_props: EmptyStateWithActionProps) {
       </div>
 
       {/* Tips Section */}
-      <Card className="bg-amber-50/50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800">
+      <Card className="bg-status-herinnering/40 border-status-herinnering-border">
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
-            <Lightbulb className="h-4 w-4 text-amber-600" />
+            <Lightbulb className="h-4 w-4 text-status-herinnering-text" />
             Tips voor je eerste offerte
           </CardTitle>
         </CardHeader>
         <CardContent>
           <ul className="space-y-2 text-sm text-muted-foreground">
             <li className="flex items-start gap-2">
-              <span className="text-amber-600 font-bold shrink-0">1.</span>
+              <span className="text-status-herinnering-text font-bold shrink-0">1.</span>
               <span><strong>Snelstart pakketten:</strong> Kies een vooraf ingesteld pakket voor veelvoorkomende projecten.</span>
             </li>
             <li className="flex items-start gap-2">
-              <span className="text-amber-600 font-bold shrink-0">2.</span>
+              <span className="text-status-herinnering-text font-bold shrink-0">2.</span>
               <span><strong>Klantgegevens:</strong> Selecteer een bestaande klant of voer nieuwe gegevens in.</span>
             </li>
             <li className="flex items-start gap-2">
-              <span className="text-amber-600 font-bold shrink-0">3.</span>
+              <span className="text-status-herinnering-text font-bold shrink-0">3.</span>
               <span><strong>Voorcalculatie:</strong> Na het aanmaken kun je de teamplanning en geschatte duur bepalen.</span>
             </li>
           </ul>
@@ -245,8 +245,8 @@ export function NoProjecten(_props: EmptyStateWithActionProps) {
         <Link href="/offertes?status=geaccepteerd" className="block">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-green-100 dark:bg-green-900/30 group-hover:bg-green-200 dark:group-hover:bg-green-900/50 transition-colors">
-                <FileText className="h-6 w-6 text-green-600" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                <FileText className="h-6 w-6 text-primary" />
               </div>
               <div>
                 <CardTitle className="text-lg group-hover:text-primary transition-colors">
@@ -261,15 +261,15 @@ export function NoProjecten(_props: EmptyStateWithActionProps) {
           <CardContent>
             <ul className="space-y-1.5 text-sm text-muted-foreground">
               <li className="flex items-center gap-2">
-                <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
                 Voorcalculatie uit offerte wordt overgenomen
               </li>
               <li className="flex items-center gap-2">
-                <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
                 Plan taken en team
               </li>
               <li className="flex items-center gap-2">
-                <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
                 Registreer uren en maak nacalculatie
               </li>
             </ul>
@@ -282,25 +282,25 @@ export function NoProjecten(_props: EmptyStateWithActionProps) {
       </Card>
 
       {/* Tips Section */}
-      <Card className="bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
+      <Card className="bg-status-gepland/40 border-status-gepland-border">
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
-            <Lightbulb className="h-4 w-4 text-blue-600" />
+            <Lightbulb className="h-4 w-4 text-status-gepland-text" />
             Workflow tip
           </CardTitle>
         </CardHeader>
         <CardContent>
           <ul className="space-y-2 text-sm text-muted-foreground">
             <li className="flex items-start gap-2">
-              <span className="text-blue-600 font-bold shrink-0">1.</span>
+              <span className="text-status-gepland-text font-bold shrink-0">1.</span>
               <span><strong>Offerte:</strong> Maak een offerte aan en vul de voorcalculatie in.</span>
             </li>
             <li className="flex items-start gap-2">
-              <span className="text-blue-600 font-bold shrink-0">2.</span>
+              <span className="text-status-gepland-text font-bold shrink-0">2.</span>
               <span><strong>Verzend:</strong> Stuur de offerte naar de klant en wacht op acceptatie.</span>
             </li>
             <li className="flex items-start gap-2">
-              <span className="text-blue-600 font-bold shrink-0">3.</span>
+              <span className="text-status-gepland-text font-bold shrink-0">3.</span>
               <span><strong>Project:</strong> Na acceptatie start je een project voor planning en uitvoering.</span>
             </li>
           </ul>

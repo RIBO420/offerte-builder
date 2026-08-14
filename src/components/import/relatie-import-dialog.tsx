@@ -85,16 +85,16 @@ function MeldingenLijst({
       className={cn(
         "rounded-md border p-3",
         isFout
-          ? "border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/30"
-          : "border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30"
+          ? "border-status-vervallen-border bg-status-vervallen/40"
+          : "border-status-herinnering-border bg-status-herinnering/40"
       )}
     >
       <p
         className={cn(
           "mb-1.5 flex items-center gap-1.5 text-sm font-medium",
           isFout
-            ? "text-red-700 dark:text-red-400"
-            : "text-amber-700 dark:text-amber-400"
+            ? "text-status-vervallen-text"
+            : "text-status-herinnering-text"
         )}
       >
         {isFout ? (
@@ -108,8 +108,8 @@ function MeldingenLijst({
         className={cn(
           "space-y-0.5 text-xs",
           isFout
-            ? "text-red-600 dark:text-red-400"
-            : "text-amber-700 dark:text-amber-300"
+            ? "text-status-vervallen-text"
+            : "text-status-herinnering-text"
         )}
       >
         {zichtbaar.map((melding, i) => (
@@ -124,7 +124,7 @@ function MeldingenLijst({
           size="sm"
           className={cn(
             "mt-1 h-auto p-0 text-xs",
-            isFout ? "text-red-700 dark:text-red-400" : "text-amber-700 dark:text-amber-400"
+            isFout ? "text-status-vervallen-text" : "text-status-herinnering-text"
           )}
           onClick={() => setUitgeklapt((v) => !v)}
         >
@@ -317,39 +317,39 @@ export function RelatieImportDialog({
           {resultaat ? (
             <div className="space-y-3">
               <div className="flex items-center gap-2 font-medium">
-                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                <CheckCircle2 className="h-5 w-5 text-status-geaccepteerd-dot" />
                 Import voltooid
               </div>
               <div className="grid grid-cols-4 gap-3">
-                <div className="rounded-md border border-green-200 bg-green-50 p-3 text-center dark:border-green-800 dark:bg-green-950/30">
-                  <p className="text-2xl font-bold text-green-700 dark:text-green-400">
+                <div className="rounded-md border border-status-geaccepteerd-border bg-status-geaccepteerd/40 p-3 text-center">
+                  <p className="text-2xl font-bold text-status-geaccepteerd-text">
                     {resultaat.imported}
                   </p>
-                  <p className="text-xs text-green-600 dark:text-green-500">
+                  <p className="text-xs text-status-geaccepteerd-text">
                     Nieuw
                   </p>
                 </div>
-                <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-center dark:border-blue-800 dark:bg-blue-950/30">
-                  <p className="text-2xl font-bold text-blue-700 dark:text-blue-400">
+                <div className="rounded-md border border-status-gepland-border bg-status-gepland/40 p-3 text-center">
+                  <p className="text-2xl font-bold text-status-gepland-text">
                     {resultaat.aangevuld}
                   </p>
-                  <p className="text-xs text-blue-600 dark:text-blue-500">
+                  <p className="text-xs text-status-gepland-text">
                     Aangevuld
                   </p>
                 </div>
-                <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-center dark:border-amber-800 dark:bg-amber-950/30">
-                  <p className="text-2xl font-bold text-amber-700 dark:text-amber-400">
+                <div className="rounded-md border border-status-herinnering-border bg-status-herinnering/40 p-3 text-center">
+                  <p className="text-2xl font-bold text-status-herinnering-text">
                     {resultaat.skipped}
                   </p>
-                  <p className="text-xs text-amber-600 dark:text-amber-500">
+                  <p className="text-xs text-status-herinnering-text">
                     Al compleet
                   </p>
                 </div>
-                <div className="rounded-md border border-red-200 bg-red-50 p-3 text-center dark:border-red-800 dark:bg-red-950/30">
-                  <p className="text-2xl font-bold text-red-700 dark:text-red-400">
+                <div className="rounded-md border border-status-vervallen-border bg-status-vervallen/40 p-3 text-center">
+                  <p className="text-2xl font-bold text-status-vervallen-text">
                     {resultaat.errors.length}
                   </p>
-                  <p className="text-xs text-red-600 dark:text-red-500">Fouten</p>
+                  <p className="text-xs text-status-vervallen-text">Fouten</p>
                 </div>
               </div>
               <MeldingenLijst
@@ -437,7 +437,7 @@ export function RelatieImportDialog({
               />
 
               {andereEntries.length > 0 && (
-                <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
+                <div className="rounded-md border border-status-gepland-border bg-status-gepland/40 p-3 text-sm text-status-gepland-text">
                   Dit bestand bevat ook {andereEntries.length}{" "}
                   {soort === "klant" ? "leveranciers" : "klanten"}. Die worden
                   hier niet meegenomen — importeer ze via de{" "}
@@ -590,7 +590,7 @@ function PreviewRij({
               <Badge
                 key={opmerking}
                 variant="outline"
-                className="border-amber-300 text-[10px] text-amber-700 dark:border-amber-800 dark:text-amber-400"
+                className="border-status-herinnering-border text-[10px] text-status-herinnering-text"
               >
                 {opmerking}
               </Badge>

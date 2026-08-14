@@ -92,7 +92,7 @@ interface ArchivedProject {
 function DeviationBadge({ percentage }: { percentage: number }) {
   if (percentage > 5) {
     return (
-      <Badge variant="outline" className="bg-red-200 text-red-800 dark:bg-red-900 dark:text-red-200">
+      <Badge variant="outline" className="bg-status-afgewezen text-status-afgewezen-text border-status-afgewezen-border">
         <TrendingUp className="h-3 w-3 mr-1" />
         +{percentage.toFixed(1)}%
       </Badge>
@@ -100,7 +100,7 @@ function DeviationBadge({ percentage }: { percentage: number }) {
   }
   if (percentage < -5) {
     return (
-      <Badge variant="outline" className="bg-green-200 text-green-800 dark:bg-green-900 dark:text-green-200">
+      <Badge variant="outline" className="bg-status-geaccepteerd text-status-geaccepteerd-text border-status-geaccepteerd-border">
         <TrendingDown className="h-3 w-3 mr-1" />
         {percentage.toFixed(1)}%
       </Badge>
@@ -144,8 +144,8 @@ function ArchivedProjectCard({ project }: { project: ArchivedProject }) {
           <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                  <Archive className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                <div className="h-10 w-10 rounded-lg bg-status-nacalculatie flex items-center justify-center">
+                  <Archive className="h-5 w-5 text-status-nacalculatie-text" />
                 </div>
                 <div>
                   <CardTitle className="text-base">{project.naam}</CardTitle>
@@ -191,7 +191,7 @@ function ArchivedProjectCard({ project }: { project: ArchivedProject }) {
                   {project.offerte && (
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 text-sm font-medium">
-                        <FileText className="h-4 w-4 text-blue-600" />
+                        <FileText className="h-4 w-4 text-status-voorcalculatie-text" />
                         Offerte Details
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-3 bg-muted/50 rounded-lg">
@@ -219,13 +219,13 @@ function ArchivedProjectCard({ project }: { project: ArchivedProject }) {
                   {(project.voorcalculatie || project.nacalculatie) && (
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 text-sm font-medium">
-                        <Calculator className="h-4 w-4 text-orange-600" />
+                        <Calculator className="h-4 w-4 text-status-nacalculatie-text" />
                         Voorcalculatie vs Nacalculatie
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {/* Voorcalculatie */}
-                        <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
-                          <p className="text-xs font-medium text-blue-700 dark:text-blue-400 mb-2">
+                        <div className="p-3 bg-status-voorcalculatie/40 rounded-lg border border-status-voorcalculatie-border">
+                          <p className="text-xs font-medium text-status-voorcalculatie-text mb-2">
                             Voorcalculatie
                           </p>
                           {project.voorcalculatie ? (
@@ -249,8 +249,8 @@ function ArchivedProjectCard({ project }: { project: ArchivedProject }) {
                         </div>
 
                         {/* Nacalculatie */}
-                        <div className="p-3 bg-orange-50 dark:bg-orange-950/30 rounded-lg border border-orange-200 dark:border-orange-800">
-                          <p className="text-xs font-medium text-orange-700 dark:text-orange-400 mb-2">
+                        <div className="p-3 bg-status-nacalculatie/40 rounded-lg border border-status-nacalculatie-border">
+                          <p className="text-xs font-medium text-status-nacalculatie-text mb-2">
                             Nacalculatie
                           </p>
                           {project.nacalculatie ? (
@@ -270,15 +270,15 @@ function ArchivedProjectCard({ project }: { project: ArchivedProject }) {
                         </div>
 
                         {/* Afwijking */}
-                        <div className="p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-200 dark:border-purple-800">
-                          <p className="text-xs font-medium text-purple-700 dark:text-purple-400 mb-2">
+                        <div className="p-3 bg-status-herinnering/40 rounded-lg border border-status-herinnering-border">
+                          <p className="text-xs font-medium text-status-herinnering-text mb-2">
                             Afwijking
                           </p>
                           {project.nacalculatie ? (
                             <div className="space-y-1">
                               <div className="flex justify-between text-sm items-center">
                                 <span className="text-muted-foreground">Uren:</span>
-                                <span className={`font-medium ${project.nacalculatie.afwijkingUren > 0 ? "text-red-600" : project.nacalculatie.afwijkingUren < 0 ? "text-green-600" : ""}`}>
+                                <span className={`font-medium ${project.nacalculatie.afwijkingUren > 0 ? "text-trend-negative" : project.nacalculatie.afwijkingUren < 0 ? "text-trend-positive" : ""}`}>
                                   {project.nacalculatie.afwijkingUren > 0 ? "+" : ""}
                                   {project.nacalculatie.afwijkingUren}
                                 </span>
@@ -300,7 +300,7 @@ function ArchivedProjectCard({ project }: { project: ArchivedProject }) {
                   {project.factuur && (
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 text-sm font-medium">
-                        <Receipt className="h-4 w-4 text-green-600" />
+                        <Receipt className="h-4 w-4 text-status-gefactureerd-text" />
                         Factuur Details
                       </div>
                       <div className="p-3 bg-muted/50 rounded-lg">
@@ -343,8 +343,8 @@ function EmptyArchive() {
   return (
     <Card className="border-dashed">
       <CardContent className="flex flex-col items-center justify-center py-12">
-        <div className="h-16 w-16 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mb-4">
-          <Archive className="h-8 w-8 text-purple-600 dark:text-purple-400" />
+        <div className="h-16 w-16 rounded-full bg-status-nacalculatie flex items-center justify-center mb-4">
+          <Archive className="h-8 w-8 text-status-nacalculatie-text" />
         </div>
         <h3 className="text-lg font-semibold mb-2">Geen gearchiveerde projecten</h3>
         <p className="text-muted-foreground text-center max-w-sm">
@@ -472,8 +472,8 @@ function ArchiefPageContent() {
                     Totaal voltooide projecten
                   </p>
                 </div>
-                <div className="h-12 w-12 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                  <FolderKanban className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                <div className="h-12 w-12 rounded-full bg-status-nacalculatie flex items-center justify-center">
+                  <FolderKanban className="h-6 w-6 text-status-nacalculatie-text" />
                 </div>
               </div>
             </CardContent>
@@ -491,8 +491,8 @@ function ArchiefPageContent() {
                     Totale omzet
                   </p>
                 </div>
-                <div className="h-12 w-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                  <Euro className="h-6 w-6 text-green-600 dark:text-green-400" />
+                <div className="h-12 w-12 rounded-full bg-status-betaald flex items-center justify-center">
+                  <Euro className="h-6 w-6 text-status-betaald-text" />
                 </div>
               </div>
             </CardContent>
