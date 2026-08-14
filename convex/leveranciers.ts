@@ -7,6 +7,8 @@ import {
   sanitizePhone,
   sanitizePostcode,
   normaliseerImportPostcode,
+  normaliseerImportTelefoon,
+  vergelijkbareRelatienaam,
   sanitizeKvkNummer,
   sanitizeBtwNummer,
   sanitizeIban,
@@ -240,21 +242,29 @@ export const importLeveranciers = mutation({
         // Bewust normaliseerImportPostcode i.p.v. sanitizePostcode: die laatste
         // gooit op elke niet-Nederlandse postcode en zou de batch breken.
         const postcode = normaliseerImportPostcode(rij.postcode) || undefined;
-        const tweede = sanitizePhone(rij.extraTelefoon);
+        const tweede = normaliseerImportTelefoon(rij.extraTelefoon);
 
         /**
          * Zelfde volgorde als bij klanten, en om dezelfde reden niet op e-mail
          * alleen: Amagard en Kranendonk B.V. delen `info@zierkiesundsplitt.de`
          * maar zijn twee leveranciers.
          */
-        const naamKlein = naam.toLowerCase();
+        const naamKlein = vergelijkbareRelatienaam(naam);
+        const postcodeKaal = (postcode ?? "").replace(/\s/g, "").toLowerCase();
         const bestaandeRij =
           (rij.klantnummer
             ? bestaande.find(
                 (b) => b.klantnummer && b.klantnummer === rij.klantnummer!.trim()
               )
             : undefined) ??
-          bestaande.find((b) => b.naam.toLowerCase().trim() === naamKlein);
+          bestaande.find((b) => {
+            if (vergelijkbareRelatienaam(b.naam) !== naamKlein) return false;
+            // Zelfde naam op een ander adres kan een tweede vestiging zijn.
+            // Weten we van allebei de postcode, dan moet die kloppen.
+            const bPostcode = (b.postcode ?? "").replace(/\s/g, "").toLowerCase();
+            if (bPostcode && postcodeKaal) return bPostcode === postcodeKaal;
+            return true;
+          });
 
         if (bestaandeRij) {
           // Aanvullen, nooit overschrijven — zie importKlanten.
@@ -267,7 +277,7 @@ export const importLeveranciers = mutation({
           };
 
           vulAan("email", email);
-          vulAan("telefoon", sanitizePhone(rij.telefoon));
+          vulAan("telefoon", normaliseerImportTelefoon(rij.telefoon));
           vulAan("adres", sanitizeOptionalString(rij.adres));
           vulAan("postcode", postcode);
           vulAan("plaats", sanitizeOptionalString(rij.plaats));
@@ -297,7 +307,7 @@ export const importLeveranciers = mutation({
           naam,
           contactpersoon: sanitizeOptionalString(rij.contactpersoon),
           email,
-          telefoon: sanitizePhone(rij.telefoon),
+          telefoon: normaliseerImportTelefoon(rij.telefoon),
           adres: sanitizeOptionalString(rij.adres),
           postcode,
           plaats: sanitizeOptionalString(rij.plaats),

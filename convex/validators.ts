@@ -807,6 +807,80 @@ export function sanitizePostcode(value: string | undefined | null): string | und
  * batch. Nederlandse postcodes worden netjes als "1234 AB" opgeslagen,
  * buitenlandse codes blijven staan zoals ze zijn, leeg blijft leeg.
  */
+/**
+ * Telefoonnummer voor een import: normaliseert, weigert nooit.
+ *
+ * `sanitizePhone` gooit op alles wat geen Nederlands nummer is, en omdat de
+ * import per rij afbreekt kostte dat niet het nummer maar de hele klant. In de
+ * relatie-export van Top Tuinen ging het om twaalf rijen: Belgische, Duitse en
+ * Amerikaanse nummers, en een rij waar een e-mailadres in de telefoonkolom
+ * stond.
+ *
+ * Spaties en streepjes gaan eruit, `00` aan het begin wordt `+`. Wat overblijft
+ * moet minstens zes cijfers hebben, anders is het geen nummer maar een notitie
+ * (of een e-mailadres) en laten we het weg.
+ */
+export function normaliseerImportTelefoon(
+  value: string | undefined | null
+): string | undefined {
+  const sanitized = sanitizeOptionalString(value);
+  if (!sanitized) return undefined;
+
+  const compact = sanitized.replace(/[\s\-.() ]/g, "");
+  const cijfers = compact.replace(/\D/g, "");
+  if (cijfers.length < 6) return undefined;
+
+  // Alleen cijfers en hooguit één leidende + overhouden: "tel: 06-12345678"
+  // levert anders een nummer met letters op.
+  const plus = compact.startsWith("+") || compact.startsWith("00");
+  const kaal = compact.replace(/^00/, "").replace(/\D/g, "");
+  return plus ? `+${kaal}` : kaal;
+}
+
+/**
+ * Bedrijfsvormen die in de relatie-export door elkaar worden geschreven:
+ * "Maxihuur Echt B.V." en "Maxihuur Echt BV" zijn dezelfde leverancier.
+ *
+ * Bewust alleen achteraan afgeknipt en alleen als losstaand woord. Zou je ze
+ * overal wegstrepen, dan wordt "BV Sport" ineens "Sport". En bewust géén
+ * afkortingen als "Stichting" of "VvE": dat zijn onderscheidende delen van de
+ * naam, geen rechtsvorm-suffix — twee VvE's uit elkaar houden is belangrijker
+ * dan ze samenvoegen.
+ */
+const RECHTSVORMEN = [
+  "b\\.?v\\.?",
+  "n\\.?v\\.?",
+  "v\\.?o\\.?f\\.?",
+  "c\\.?v\\.?",
+  "gmbh(\\s*&\\s*co\\.?\\s*kg)?",
+  "ag",
+  "kg",
+  "ug",
+  "e\\.?k\\.?",
+  "ltd\\.?",
+  "inc\\.?",
+  "s\\.?a\\.?",
+  "bvba",
+  "nv",
+];
+
+const RECHTSVORM_PATROON = new RegExp(
+  `(\\s+(${RECHTSVORMEN.join("|")}))+\\s*$`,
+  "i"
+);
+
+/**
+ * Naam voor het vergelijken van twee relaties: kleine letters, dubbele spaties
+ * weg, rechtsvorm eraf. Alleen voor matching — de opgeslagen naam blijft zoals
+ * hij in de bron staat.
+ */
+export function vergelijkbareRelatienaam(naam: string): string {
+  const basis = naam.trim().toLowerCase().replace(/\s+/g, " ");
+  const zonderVorm = basis.replace(RECHTSVORM_PATROON, "").trim();
+  // Bestaat de naam alléén uit een rechtsvorm, dan is afknippen zinloos.
+  return zonderVorm || basis;
+}
+
 export function normaliseerImportPostcode(value: string | undefined | null): string {
   const sanitized = sanitizeOptionalString(value);
   if (!sanitized) return "";

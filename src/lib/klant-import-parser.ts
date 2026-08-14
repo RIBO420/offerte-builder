@@ -499,6 +499,13 @@ export function processKlantImportData(
     for (const kolom of telefoonCols) {
       const waarde = lees(kolom);
       if (!waarde) continue;
+      // Niet elke waarde in een telefoonkolom is een nummer: in de export van
+      // Top Tuinen staat bij één klant een e-mailadres in "Telefoonnummer",
+      // met het echte nummer in "Mobiel". Zonder deze controle verdringt die
+      // rommel het goede nummer, want de eerste gevulde kolom wint.
+      if (waarde.includes("@")) continue;
+      if ((waarde.match(/\d/g)?.length ?? 0) < 6) continue;
+
       const kaal = waarde.replace(/[\s\-.()]/g, "");
       if (!nummers.some((n) => n.replace(/[\s\-.()]/g, "") === kaal)) {
         nummers.push(waarde);

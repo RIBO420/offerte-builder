@@ -8,6 +8,8 @@ import {
   sanitizePhone,
   validateRequiredPostcode,
   normaliseerImportPostcode,
+  normaliseerImportTelefoon,
+  vergelijkbareRelatienaam,
   sanitizeOptionalString,
   sanitizeKvkNummer,
   sanitizeBtwNummer,
@@ -816,7 +818,7 @@ export const importKlanten = mutation({
 
         // Sanitize fields
         const email = sanitizeEmail(klant.email);
-        const telefoon = sanitizePhone(klant.telefoon);
+        const telefoon = normaliseerImportTelefoon(klant.telefoon);
 
         /**
          * Bestaande klant zoeken.
@@ -832,7 +834,7 @@ export const importKlanten = mutation({
          * postcode, en als laatste e-mail én naam samen — voor het geval een
          * postcode is aangepast.
          */
-        const naamKlein = klant.naam.trim().toLowerCase();
+        const naamKlein = vergelijkbareRelatienaam(klant.naam);
         const postcodeKaal = postcode.replace(/\s/g, "").toLowerCase();
         const bestaand =
           (klant.klantnummer
@@ -840,17 +842,21 @@ export const importKlanten = mutation({
                 (e) => e.klantnummer && e.klantnummer === klant.klantnummer!.trim()
               )
             : undefined) ??
+          // Naam én postcode moeten allebei kloppen. Alleen naam is te grof:
+          // twee huishoudens met dezelfde achternaam in verschillende dorpen
+          // zijn geen dubbele klant.
           existingKlanten.find(
             (e) =>
-              e.naam.toLowerCase() === naamKlein &&
-              (e.postcode ?? "").replace(/\s/g, "").toLowerCase() === postcodeKaal
+              vergelijkbareRelatienaam(e.naam) === naamKlein &&
+              (e.postcode ?? "").replace(/\s/g, "").toLowerCase() === postcodeKaal &&
+              postcodeKaal !== ""
           ) ??
           (email
             ? existingKlanten.find(
                 (e) =>
                   e.email &&
                   e.email.toLowerCase() === email.toLowerCase() &&
-                  e.naam.toLowerCase() === naamKlein
+                  vergelijkbareRelatienaam(e.naam) === naamKlein
               )
             : undefined);
 
@@ -876,7 +882,7 @@ export const importKlanten = mutation({
           vulAan("website", sanitizeOptionalString(klant.website));
           vulAan("klantnummer", sanitizeOptionalString(klant.klantnummer));
 
-          const tweede = sanitizePhone(klant.extraTelefoon);
+          const tweede = normaliseerImportTelefoon(klant.extraTelefoon);
           if (tweede && !(bestaand.notities ?? "").includes(tweede)) {
             const regel = `Tweede telefoonnummer: ${tweede}`;
             patch.notities = bestaand.notities
@@ -894,7 +900,7 @@ export const importKlanten = mutation({
           continue;
         }
 
-        const tweedeNummer = sanitizePhone(klant.extraTelefoon);
+        const tweedeNummer = normaliseerImportTelefoon(klant.extraTelefoon);
         const notities = tweedeNummer
           ? `Tweede telefoonnummer: ${tweedeNummer}`
           : undefined;

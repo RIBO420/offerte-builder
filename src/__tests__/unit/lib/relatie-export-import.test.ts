@@ -16,6 +16,10 @@
 
 import { describe, it, expect } from "vitest";
 import { processKlantImportData } from "@/lib/klant-import-parser";
+import {
+  normaliseerImportTelefoon,
+  vergelijkbareRelatienaam,
+} from "../../../../convex/validators";
 
 const KOP =
   "Type;Klantnummer;Bedrijfsnaam;Aanhef;Voornaam;Achternaam;E-mail;Categorie;Plaats;Telefoonnummer;Mobiel;Website";
@@ -33,6 +37,10 @@ const RIJEN = [
   `Persoon;10045;;Dhr.;Loe;Bergevoet;loe@voorbeeld.nl;Klant;Kerkstraat 9, 6129 EM Urmond;;06 52605107;`,
   // bedrijf met contactpersoon en website
   `Bedrijf;1123;Amagard;Dhr.;Jan;Bakker;info@amagard.de;Leverancier;Königsbornerstraße 26a, 39175 Biederitz; +3139292599878;;http://www.amagard.com`,
+  // e-mailadres in de telefoonkolom; het echte nummer staat in Mobiel
+  `Persoon;1190;;Mw.;Alicia;Icario;alicia@voorbeeld.nl;Klant;Kerkweg 3, 6131 AA Sittard;alicia_icario@hotmail.com;06 10101021;`,
+  // buitenlands nummer — mag de rij niet laten sneuvelen
+  `Persoon;1191;;Dhr.;Jil;Peltzer;jil@voorbeeld.nl;Klant;Hauptstr. 5, 52538 Selfkant;;+49 1522 3065320;`,
 ].join("\n");
 
 function parse(csv: string) {
@@ -48,7 +56,12 @@ const zoek = (nr: string) => entries.find((e) => e.klantnummer === nr)!;
 
 describe("relatie-export inlezen", () => {
   it("leest alle rijen", () => {
-    expect(entries).toHaveLength(7);
+    expect(entries).toHaveLength(9);
+  });
+
+  it("negeert een e-mailadres in de telefoonkolom en pakt het echte nummer", () => {
+    expect(zoek("1190").telefoon).toBe("06 10101021");
+    expect(zoek("1190").extraTelefoon).toBeUndefined();
   });
 
   it("pakt het nummer ook als het alleen in Mobiel staat", () => {
@@ -84,6 +97,71 @@ describe("relatie-export inlezen", () => {
   });
 });
 
+describe("telefoonnummers overleven de import", () => {
+  it("laat buitenlandse nummers staan", () => {
+    // Deze twaalf rijen sneuvelden eerder volledig: de strenge NL-validatie
+    // gooide, en de import breekt per rij af — je verloor dus de hele klant.
+    expect(normaliseerImportTelefoon("+49 1522 3065320")).toBe("+4915223065320");
+    expect(normaliseerImportTelefoon("+1 510-316-8300")).toBe("+15103168300");
+    expect(normaliseerImportTelefoon("+32 483 13 69 57")).toBe("+32483136957");
+  });
+
+  it("normaliseert 00-notatie naar +", () => {
+    expect(normaliseerImportTelefoon("0032 483 136 957")).toBe("+32483136957");
+  });
+
+  it("laat een Nederlands nummer met spaties compact staan", () => {
+    expect(normaliseerImportTelefoon("06 21280584")).toBe("0621280584");
+  });
+
+  it("laat een nummer staan dat niet aan een lengte voldoet", () => {
+    // Dit staat zo in de bron; opschonen is aan kantoor, weggooien niet aan ons.
+    expect(normaliseerImportTelefoon("+31146132257488273")).toBe("+31146132257488273");
+  });
+
+  it("weigert wat geen nummer is", () => {
+    expect(normaliseerImportTelefoon("alicia_icario@hotmail.com")).toBeUndefined();
+    expect(normaliseerImportTelefoon("onbekend")).toBeUndefined();
+    expect(normaliseerImportTelefoon("-/-")).toBeUndefined();
+    expect(normaliseerImportTelefoon("")).toBeUndefined();
+  });
+});
+
+describe("rechtsvorm wegstrepen bij het vergelijken van namen", () => {
+  it("ziet dezelfde leverancier ondanks B.V. of BV", () => {
+    expect(vergelijkbareRelatienaam("Maxihuur Echt B.V.")).toBe(
+      vergelijkbareRelatienaam("Maxihuur Echt BV")
+    );
+  });
+
+  it("kent de vormen uit deze export", () => {
+    expect(vergelijkbareRelatienaam("REMONDIS GmbH & Co.KG")).toBe("remondis");
+    expect(vergelijkbareRelatienaam("Keizers Haaksbergen VOF")).toBe(
+      "keizers haaksbergen"
+    );
+    expect(vergelijkbareRelatienaam("Wildkamp B.V.")).toBe("wildkamp");
+  });
+
+  it("knipt alleen achteraan, niet middenin een naam", () => {
+    // Anders wordt "BV Sport" ineens "Sport" en matcht het met elke club.
+    expect(vergelijkbareRelatienaam("BV Sport")).toBe("bv sport");
+  });
+
+  it("laat VvE en Stichting met rust", () => {
+    // Dat zijn onderscheidende delen van de naam; twee VvE's uit elkaar houden
+    // is belangrijker dan ze samenvoegen.
+    expect(vergelijkbareRelatienaam("VvE Engelenkampstraat")).toBe(
+      "vve engelenkampstraat"
+    );
+    expect(vergelijkbareRelatienaam("Stichting Kasteel Limbricht")).toBe(
+      "stichting kasteel limbricht"
+    );
+    expect(vergelijkbareRelatienaam("VvE Engelenkampstraat")).not.toBe(
+      vergelijkbareRelatienaam("VvE Ir. Lelystraat")
+    );
+  });
+});
+
 /**
  * De matchvolgorde uit convex/klanten.ts, los nagebouwd zodat de regels
  * testbaar zijn zonder Convex-runtime. Belangrijkste eigenschap: e-mail alleen
@@ -93,7 +171,7 @@ function zoekBestaande<T extends Record<string, unknown>>(
   db: T[],
   rij: { naam: string; postcode: string; email?: string; klantnummer?: string }
 ): T | undefined {
-  const naamKlein = rij.naam.toLowerCase();
+  const naamKlein = vergelijkbareRelatienaam(rij.naam);
   const pc = rij.postcode.replace(/\s/g, "").toLowerCase();
   return (
     (rij.klantnummer
@@ -101,14 +179,14 @@ function zoekBestaande<T extends Record<string, unknown>>(
       : undefined) ??
     db.find(
       (d) =>
-        String(d.naam).toLowerCase() === naamKlein &&
+        vergelijkbareRelatienaam(String(d.naam)) === naamKlein &&
         String(d.postcode ?? "").replace(/\s/g, "").toLowerCase() === pc
     ) ??
     (rij.email
       ? db.find(
           (d) =>
             String(d.email ?? "").toLowerCase() === rij.email!.toLowerCase() &&
-            String(d.naam).toLowerCase() === naamKlein
+            vergelijkbareRelatienaam(String(d.naam)) === naamKlein
         )
       : undefined)
   );
