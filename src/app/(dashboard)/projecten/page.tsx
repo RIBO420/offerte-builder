@@ -32,6 +32,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ScrollableTable } from "@/components/ui/responsive-table";
+import { handleKeyboardActivation } from "@/lib/accessibility";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -393,9 +394,18 @@ function ProjectenPageContent() {
             return (
               <Card
                 key={status}
-                className="cursor-pointer hover:shadow-md transition-shadow"
+                role="button"
+                tabIndex={0}
+                aria-pressed={activeTab === status}
+                aria-label={`Filter op ${config.label}`}
+                className="cursor-pointer hover:shadow-md transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 onClick={() =>
                   setActiveTab(activeTab === status ? "alle" : status)
+                }
+                onKeyDown={(e) =>
+                  handleKeyboardActivation(e, () =>
+                    setActiveTab(activeTab === status ? "alle" : status)
+                  )
                 }
               >
                 <CardContent className="pt-6">
@@ -521,11 +531,18 @@ function ProjectenPageContent() {
                                     <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
                                       <FolderKanban className="h-4 w-4 text-primary" />
                                     </div>
-                                    <div>
-                                      <p className="font-medium">
-                                        {project.naam}
-                                      </p>
-                                    </div>
+                                    {/* Echte link (patroon klanten-/offertetabel):
+                                        toetsenbord, screenreader en cmd-klik
+                                        werken; de rij-klik blijft als extra.
+                                        stopPropagation zodat cmd-klik niet óók
+                                        de huidige tab laat navigeren. */}
+                                    <Link
+                                      href={`/projecten/${project._id}`}
+                                      className="font-medium hover:underline"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      {project.naam}
+                                    </Link>
                                   </div>
                                 </TableCell>
                                 <TableCell>

@@ -1075,7 +1075,9 @@ function KlantenPageContent() {
     <>
       <div className="flex items-center justify-between">
         <div />
-        <div className="flex items-center gap-2">
+        {/* flex-wrap: op 375px is deze actiebalk anders 419px breed en scrolt
+            <main> zijwaarts (CLAUDE.md regel 1). */}
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {isKantoor && (
             <ExportDropdown
               getData={() => exportData ?? []}

@@ -44,6 +44,8 @@ export function Stap2GazonSpecs({
       >
         <div className="flex items-center gap-3">
           <Input
+            required
+            aria-required
             type="number"
             placeholder="50"
             min={10}
@@ -197,6 +199,8 @@ export function Stap2GazonSpecs({
             <Field label="Aantal strekkende meters" error={errors.opsluitbandenMeters}>
               <div className="flex items-center gap-3">
                 <Input
+                  required
+                  aria-required
                   type="number"
                   placeholder="20"
                   min={1}

@@ -300,7 +300,8 @@ export function Stap4Prijsoverzicht({
         disabled={!akkoordVoorwaarden || isSubmitting}
         size="lg"
         className={cn(
-          "w-full bg-green-600 hover:bg-green-700 text-white font-semibold",
+          // green-700: wit op green-600 haalde maar 3,22:1 (AA vraagt 4,5:1)
+          "w-full bg-green-700 hover:bg-green-800 text-white font-semibold",
           (!akkoordVoorwaarden || isSubmitting) && "opacity-50 cursor-not-allowed"
         )}
       >

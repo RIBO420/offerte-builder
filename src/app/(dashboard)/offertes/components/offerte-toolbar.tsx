@@ -78,7 +78,9 @@ export function OfferteToolbar({
             Beheer al je aanleg- en onderhoudsoffertes
           </p>
         </div>
-        <div className="flex gap-2 w-full sm:w-auto">
+        {/* flex-wrap: vier knoppen passen niet naast elkaar op 375px en de app
+            scrolt nergens zijwaarts (CLAUDE.md regel 1). */}
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
           {/* §5.3c: kantoor-actie om verweesde concepten op te ruimen */}
           <ConceptOpruimenDialog />
           <Tooltip>
@@ -147,7 +149,7 @@ export function OfferteToolbar({
               onChange={(e) => onSearchChange(e.target.value)}
             />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {isKantoor && (
               <ExportDropdown
                 getData={() => exportData ?? []}

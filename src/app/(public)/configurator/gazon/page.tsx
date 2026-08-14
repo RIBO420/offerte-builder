@@ -298,7 +298,8 @@ export default function GazonConfiguratorPage() {
         {huidigStap < TOTAAL_STAPPEN && (
           <Button
             onClick={naarVolgendeStap}
-            className="gap-2 bg-green-600 hover:bg-green-700 text-white"
+            // green-700: wit op green-600 haalde maar 3,22:1 (AA vraagt 4,5:1)
+            className="gap-2 bg-green-700 hover:bg-green-800 text-white"
           >
             Volgende stap
             <ChevronRight className="h-4 w-4" />

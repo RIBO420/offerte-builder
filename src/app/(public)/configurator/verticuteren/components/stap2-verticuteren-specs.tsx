@@ -45,6 +45,8 @@ export function Stap2VerticuterenSpecs({
       >
         <div className="flex items-center gap-3">
           <Input
+            required
+            aria-required
             type="number"
             placeholder="75"
             min={20}

@@ -59,7 +59,10 @@ const scopeTagVariants = cva(
         bestrating: "bg-scope-bestrating/15 text-scope-bestrating",
         borders: "bg-scope-borders/15 text-scope-borders",
         gras: "bg-scope-gras/15 text-scope-gras",
-        houtwerk: "bg-scope-houtwerk/15 text-scope-houtwerk",
+        // Houtwerk-tekst in dark één stap lichter dan het token (L 0.6 → 0.7):
+        // op de /15-tint haalde het token maar 3,75:1; dit komt op ≈5:1.
+        houtwerk:
+          "bg-scope-houtwerk/15 text-scope-houtwerk dark:text-[oklch(0.7_0.12_55)]",
         water: "bg-scope-water/15 text-scope-water",
         specials: "bg-scope-specials/15 text-scope-specials",
       },

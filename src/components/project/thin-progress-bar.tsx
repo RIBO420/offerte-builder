@@ -68,11 +68,13 @@ export function ThinProgressBar({ projectId, projectStatus }: ThinProgressBarPro
           const href = stepHrefs[i];
           const label = STATUS_LABELS[status];
 
+          // 12px en volwaardig muted (geen /50): 11px extra-gedimd haalde
+          // de AA-contrasteis niet (gemeten 2,7:1 dark / 2,3:1 light).
           const labelClasses = cn(
-            "text-[11px] font-medium transition-colors",
+            "text-xs font-medium transition-colors",
             isActive && "text-primary",
             isCompleted && "text-muted-foreground",
-            isFuture && "text-muted-foreground/50"
+            isFuture && "text-muted-foreground"
           );
 
           if (href && !isFuture) {

@@ -35,6 +35,8 @@ export function Stap1Klantgegevens({ gegevens, onChange, errors }: Stap1Props) {
           </Label>
           <Input
             id="naam"
+            required
+            aria-required
             placeholder="Voor- en achternaam"
             value={gegevens.naam}
             onChange={(e) => handleChange("naam", e.target.value)}
@@ -51,6 +53,8 @@ export function Stap1Klantgegevens({ gegevens, onChange, errors }: Stap1Props) {
           </Label>
           <Input
             id="email"
+            required
+            aria-required
             type="email"
             placeholder="uw@email.nl"
             value={gegevens.email}
@@ -68,6 +72,8 @@ export function Stap1Klantgegevens({ gegevens, onChange, errors }: Stap1Props) {
           </Label>
           <Input
             id="telefoon"
+            required
+            aria-required
             type="tel"
             placeholder="06-12345678"
             value={gegevens.telefoon}
@@ -92,6 +98,8 @@ export function Stap1Klantgegevens({ gegevens, onChange, errors }: Stap1Props) {
           </Label>
           <Input
             id="adres"
+            required
+            aria-required
             placeholder="Voorbeeldstraat 12"
             value={gegevens.adres}
             onChange={(e) => handleChange("adres", e.target.value)}
@@ -108,6 +116,8 @@ export function Stap1Klantgegevens({ gegevens, onChange, errors }: Stap1Props) {
           </Label>
           <Input
             id="postcode"
+            required
+            aria-required
             placeholder="1234 AB"
             value={gegevens.postcode}
             onChange={(e) => handleChange("postcode", e.target.value)}
@@ -124,6 +134,8 @@ export function Stap1Klantgegevens({ gegevens, onChange, errors }: Stap1Props) {
           </Label>
           <Input
             id="plaats"
+            required
+            aria-required
             placeholder="Amsterdam"
             value={gegevens.plaats}
             onChange={(e) => handleChange("plaats", e.target.value)}

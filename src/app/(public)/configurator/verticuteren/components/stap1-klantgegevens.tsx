@@ -30,6 +30,8 @@ export function Stap1Klantgegevens({
 
       <Field label="Volledige naam" error={errors.naam}>
         <Input
+          required
+          aria-required
           placeholder="Jan de Vries"
           value={data.naam}
           onChange={(e) => onChange("naam", e.target.value)}
@@ -40,6 +42,8 @@ export function Stap1Klantgegevens({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Field label="E-mailadres" error={errors.email}>
           <Input
+            required
+            aria-required
             type="email"
             placeholder="jan@email.nl"
             value={data.email}
@@ -49,6 +53,8 @@ export function Stap1Klantgegevens({
         </Field>
         <Field label="Telefoonnummer" error={errors.telefoon}>
           <Input
+            required
+            aria-required
             type="tel"
             placeholder="06-12345678"
             value={data.telefoon}
@@ -62,6 +68,8 @@ export function Stap1Klantgegevens({
 
       <Field label="Straat en huisnummer" error={errors.adres}>
         <Input
+          required
+          aria-required
           placeholder="Tuinstraat 12"
           value={data.adres}
           onChange={(e) => onChange("adres", e.target.value)}
@@ -72,6 +80,8 @@ export function Stap1Klantgegevens({
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         <Field label="Postcode" error={errors.postcode}>
           <Input
+            required
+            aria-required
             placeholder="1234 AB"
             value={data.postcode}
             onChange={(e) => onChange("postcode", e.target.value)}
@@ -83,6 +93,8 @@ export function Stap1Klantgegevens({
         <div className="col-span-1 sm:col-span-2">
           <Field label="Plaats" error={errors.plaats}>
             <Input
+              required
+              aria-required
               placeholder="Amsterdam"
               value={data.plaats}
               onChange={(e) => onChange("plaats", e.target.value)}
@@ -103,6 +115,8 @@ export function Stap1Klantgegevens({
       >
         <div className="flex items-center gap-3">
           <Input
+            required
+            aria-required
             type="number"
             placeholder="120"
             min={1}

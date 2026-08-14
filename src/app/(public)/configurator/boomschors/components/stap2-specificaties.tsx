@@ -128,6 +128,8 @@ export function Stap2Specificaties({ specificaties, onChange, errors }: Stap2Pro
             </Label>
             <Input
               id="oppervlakte"
+              required
+              aria-required
               type="number"
               min="1"
               step="0.5"
@@ -286,6 +288,8 @@ export function Stap2Specificaties({ specificaties, onChange, errors }: Stap2Pro
               </Label>
               <Input
                 id="bezorgPostcode"
+                required
+                aria-required
                 placeholder="1234 AB"
                 value={specificaties.bezorgPostcode}
                 onChange={(e) =>

@@ -273,7 +273,9 @@ export default function InstellingenPage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList>
+          {/* flex-wrap i.p.v. overflow-x-auto: de app scrolt nergens zijwaarts
+              (CLAUDE.md regel 1); de 10 tabs wrappen op smalle schermen. */}
+          <TabsList className="flex-wrap justify-start overflow-x-visible group-data-[orientation=horizontal]/tabs:h-auto group-data-[orientation=horizontal]/tabs:sm:h-auto">
             <TabsTrigger value="tarieven" className="flex items-center gap-2">
               <Calculator className="h-4 w-4" />
               Tarieven

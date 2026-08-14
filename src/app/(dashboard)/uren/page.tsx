@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, Suspense } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { m } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import { useQuery } from "convex/react";
@@ -22,14 +22,9 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/page-header";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { ScrollableTable } from "@/components/ui/responsive-table";
+  ResponsiveTable,
+  type ResponsiveColumn,
+} from "@/components/ui/responsive-table";
 import {
   Select,
   SelectContent,
@@ -117,6 +112,7 @@ export default function UrenPage() {
 
 // Inner component that uses useSearchParams
 function UrenPageContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const { user, isLoading: isUserLoading } = useCurrentUser();
   const isAdmin = useIsAdmin();
@@ -270,6 +266,118 @@ function UrenPageContent() {
     const total = sortedEntries.reduce((sum, e) => sum + e.uren, 0);
     return Math.round(total * 10) / 10;
   }, [sortedEntries]);
+
+  // Kolommen voor ResponsiveTable: vaste breedtes => table-fixed, zodat de
+  // tabel nooit breder wordt dan zijn container (CLAUDE.md regel 1). Onder
+  // `sm` toont ResponsiveTable kaarten in plaats van een scrollende tabel.
+  type UrenEntry = (typeof paginatedEntries)[number];
+  const urenColumns = useMemo(() => {
+    const cols: ResponsiveColumn<UrenEntry>[] = [
+      {
+        key: "datum",
+        header: "Datum",
+        width: "w-[110px]",
+        isSecondary: true,
+        render: (entry) => (
+          <span className="font-medium">{formatDate(entry.datum)}</span>
+        ),
+      },
+      ...(isAdmin
+        ? [
+            {
+              key: "medewerker",
+              header: "Medewerker",
+              width: "w-[18%]",
+              render: (entry) => (
+                <div className="flex items-center gap-2">
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                    <User className="h-3 w-3 text-primary" />
+                  </div>
+                  <span className="truncate">{entry.medewerker}</span>
+                </div>
+              ),
+            } satisfies ResponsiveColumn<UrenEntry>,
+          ]
+        : []),
+      {
+        key: "project",
+        header: "Project",
+        isPrimary: true,
+        width: "w-[22%]",
+        render: (entry) => (
+          <span className="truncate block" title={entry.projectNaam}>
+            {entry.projectNaam}
+          </span>
+        ),
+      },
+      {
+        key: "scope",
+        header: "Scope",
+        width: "w-[14%]",
+        render: (entry) =>
+          entry.scope ? (
+            <Badge variant="outline">{entry.scope}</Badge>
+          ) : (
+            <span className="text-muted-foreground">-</span>
+          ),
+      },
+      {
+        key: "uren",
+        header: "Uren",
+        align: "right",
+        width: "w-[80px]",
+        render: (entry) => (
+          <span className="font-medium">{formatHours(entry.uren)}</span>
+        ),
+      },
+      {
+        key: "notities",
+        header: "Notities",
+        render: (entry) => (
+          <span
+            className="text-muted-foreground truncate block"
+            title={entry.notities || undefined}
+          >
+            {entry.notities || "-"}
+          </span>
+        ),
+      },
+      {
+        key: "acties",
+        header: "",
+        width: "w-[56px]",
+        // Knoppenkolom: mag nooit worden afgeknipt door table-fixed.
+        allowOverflow: true,
+        showInCard: false,
+        render: (entry) => (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 sm:h-8 sm:w-8"
+            asChild
+            aria-label="Bekijk project"
+          >
+            <Link
+              href={`/projecten/${entry.projectId}/uitvoering`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <ExternalLink className="h-4 w-4" />
+            </Link>
+          </Button>
+        ),
+      },
+    ];
+    return cols;
+  }, [isAdmin]);
+
+  // Rij-klik als extra ingang naar het project — maakt de mobiele kaarten
+  // navigeerbaar en de rijen toetsenbord-bereikbaar.
+  const handleRowClick = useCallback(
+    (entry: UrenEntry) => {
+      router.push(`/projecten/${entry.projectId}/uitvoering`);
+    },
+    [router]
+  );
 
   const handleClearFilters = useCallback(() => {
     setSearchTerm("");
@@ -653,67 +761,13 @@ function UrenPageContent() {
                 </div>
               ) : (
                 <>
-                <ScrollableTable>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Datum</TableHead>
-                        {isAdmin && <TableHead>Medewerker</TableHead>}
-                        <TableHead>Project</TableHead>
-                        <TableHead>Scope</TableHead>
-                        <TableHead className="text-right">Uren</TableHead>
-                        <TableHead>Notities</TableHead>
-                        <TableHead className="w-[50px]"></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {paginatedEntries.map((entry) => (
-                        <TableRow key={entry._id}>
-                          <TableCell className="font-medium">
-                            {formatDate(entry.datum)}
-                          </TableCell>
-                          {isAdmin && (
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10">
-                                  <User className="h-3 w-3 text-primary" />
-                                </div>
-                                {entry.medewerker}
-                              </div>
-                            </TableCell>
-                          )}
-                          <TableCell>
-                            <span className="truncate max-w-[150px] block" title={entry.projectNaam}>
-                              {entry.projectNaam}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            {entry.scope ? (
-                              <Badge variant="outline">{entry.scope}</Badge>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right font-medium">
-                            {formatHours(entry.uren)}
-                          </TableCell>
-                          <TableCell>
-                            <span className="text-muted-foreground truncate max-w-[150px] block" title={entry.notities || undefined}>
-                              {entry.notities || "-"}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" asChild aria-label="Bekijk project">
-                              <Link href={`/projecten/${entry.projectId}/uitvoering`}>
-                                <ExternalLink className="h-4 w-4" />
-                              </Link>
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </ScrollableTable>
+                <ResponsiveTable
+                  data={paginatedEntries}
+                  columns={urenColumns}
+                  keyExtractor={(entry) => entry._id}
+                  onRowClick={handleRowClick}
+                  emptyMessage="Geen uren gevonden"
+                />
                 {/* Pagination */}
                 {totalCount > 0 && (
                   <Pagination

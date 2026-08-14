@@ -335,7 +335,7 @@ function FacturenPageContent() {
             duration: reducedMotion ? 0 : 0.4,
             delay: reducedMotion ? 0 : 0.1,
           }}
-          className="flex items-center justify-between"
+          className="flex flex-wrap items-center justify-between gap-3"
         >
           <div>
             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
@@ -345,7 +345,9 @@ function FacturenPageContent() {
               Overzicht van al je facturen en betalingen
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          {/* flex-wrap: op 375px liep deze knoppenrij 36px buiten beeld
+              (CLAUDE.md regel 1: nooit zijwaarts scrollen). */}
+          <div className="flex flex-wrap items-center gap-2">
             {isKantoor && (
               <Button onClick={() => router.push("/facturen/nieuw")}>
                 <FilePlus2 className="h-4 w-4 mr-2" />
@@ -479,7 +481,9 @@ function FacturenPageContent() {
             onValueChange={handleTabChange}
             className="space-y-6"
           >
-            <TabsList>
+            {/* flex-wrap i.p.v. overflow-x-auto: de app scrolt nergens zijwaarts
+                (CLAUDE.md regel 1); op smalle schermen wrappen de 7 tabs. */}
+            <TabsList className="flex-wrap justify-start overflow-x-visible group-data-[orientation=horizontal]/tabs:h-auto group-data-[orientation=horizontal]/tabs:sm:h-auto">
               <TabsTrigger value="alle">
                 Alle
                 <Badge variant="secondary" className="ml-2">

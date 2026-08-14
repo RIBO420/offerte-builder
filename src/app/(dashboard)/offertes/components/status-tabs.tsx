@@ -119,7 +119,9 @@ export function StatusTabs({
   return (
     <Tabs value={activeTab} onValueChange={onTabChange} className="space-y-6">
       <div className="flex items-center justify-between gap-4">
-        <TabsList className="flex-1 justify-start overflow-x-auto scrollbar-hide">
+        {/* flex-wrap i.p.v. overflow-x-auto: de app scrolt nergens zijwaarts
+            (CLAUDE.md regel 1); onder md wrappen de tabs naar meerdere regels. */}
+        <TabsList className="flex-1 flex-wrap justify-start overflow-x-visible group-data-[orientation=horizontal]/tabs:h-auto group-data-[orientation=horizontal]/tabs:sm:h-auto">
           <TabsTrigger value="alle" className="shrink-0">
             Alle
             <Badge variant="secondary" className="ml-2">

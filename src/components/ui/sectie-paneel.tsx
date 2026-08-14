@@ -72,7 +72,9 @@ export function SectiePaneel({
               <button
                 type="button"
                 aria-label={`Wat is ${titel.toLowerCase()}?`}
-                className="shrink-0 rounded text-muted-foreground/70 transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                // p-1.5 om het 14px-icoon: klikvlak 26px (≥24px, WCAG 2.5.8).
+                // De negatieve marge houdt de koplayout exact gelijk.
+                className="shrink-0 -m-1.5 rounded p-1.5 text-muted-foreground/70 transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               >
                 <Info className="size-3.5" />
               </button>
