@@ -68,6 +68,122 @@ interface ResponsiveTableProps<T, SortKey = string> {
   onSort?: (key: SortKey) => void;
 }
 
+// ── Interne rijcomponenten (optimize O6) ────────────────────────────────────
+// Alleen memoization: de JSX, kolomlogica en het truncate-gedrag zijn 1-op-1
+// overgenomen uit de map-body die hier eerst inline stond. Met React.memo
+// her-rendert bij een wijziging (selectie, één gemuteerde rij) niet meer
+// elke rij van de tabel — merkbaar op de grote lijsten (klanten, offertes).
+// Werkt alleen als de consument `columns`/`onRowClick` referentieel stabiel
+// houdt (useMemo/useCallback); zo niet, dan is het gedrag identiek aan vóór
+// de memoization.
+
+interface TabelRijProps<T, SortKey> {
+  item: T;
+  columns: ResponsiveColumn<T, SortKey>[];
+  heeftVasteBreedtes: boolean;
+  onRowClick?: (item: T) => void;
+}
+
+function TabelRijInner<T, SortKey>({
+  item,
+  columns,
+  heeftVasteBreedtes,
+  onRowClick,
+}: TabelRijProps<T, SortKey>) {
+  return (
+    <TableRow
+      role={onRowClick ? "button" : undefined}
+      tabIndex={onRowClick ? 0 : undefined}
+      onClick={() => onRowClick?.(item)}
+      onKeyDown={onRowClick ? (e) => handleKeyboardActivation(e, () => onRowClick(item)) : undefined}
+      className={cn(onRowClick && "cursor-pointer hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring")}
+    >
+      {columns.map((column) => (
+        <TableCell
+          key={column.key}
+          className={cn(
+            column.align === "right" && "text-right",
+            column.align === "center" && "text-center",
+            // Nodig om truncate binnen een vaste kolom te laten werken
+            heeftVasteBreedtes && !column.allowOverflow && "overflow-hidden"
+          )}
+        >
+          {column.render(item)}
+        </TableCell>
+      ))}
+    </TableRow>
+  );
+}
+
+// React.memo laat de generics van de inner-functie vallen; de cast zet de
+// oorspronkelijke signatuur terug zonder het runtime-gedrag te veranderen.
+const TabelRij = React.memo(TabelRijInner) as typeof TabelRijInner;
+
+interface KaartRijProps<T, SortKey> {
+  item: T;
+  primaryColumn?: ResponsiveColumn<T, SortKey>;
+  secondaryColumn?: ResponsiveColumn<T, SortKey>;
+  cardColumns: ResponsiveColumn<T, SortKey>[];
+  onRowClick?: (item: T) => void;
+}
+
+function KaartRijInner<T, SortKey>({
+  item,
+  primaryColumn,
+  secondaryColumn,
+  cardColumns,
+  onRowClick,
+}: KaartRijProps<T, SortKey>) {
+  return (
+    <div
+      role={onRowClick ? "button" : undefined}
+      tabIndex={onRowClick ? 0 : undefined}
+      onClick={() => onRowClick?.(item)}
+      onKeyDown={onRowClick ? (e) => handleKeyboardActivation(e, () => onRowClick(item)) : undefined}
+      className={cn(
+        "rounded-lg border bg-card p-4 space-y-3",
+        onRowClick && "cursor-pointer hover:bg-muted/50 active:bg-muted transition-colors focus-visible:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      )}
+    >
+      {/* Primary and secondary info */}
+      {(primaryColumn || secondaryColumn) && (
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-1 min-w-0 flex-1">
+            {primaryColumn && (
+              <div className="font-medium truncate">
+                {primaryColumn.render(item)}
+              </div>
+            )}
+            {secondaryColumn && (
+              <div className="text-sm text-muted-foreground truncate">
+                {secondaryColumn.render(item)}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Other fields in a grid */}
+      {cardColumns.length > 0 && (
+        <div className="grid grid-cols-2 gap-2 text-sm">
+          {cardColumns.slice(0, 4).map((column) => (
+            <div key={column.key} className="space-y-0.5">
+              <div className="text-muted-foreground text-xs">
+                {column.mobileLabel || column.header}
+              </div>
+              <div className="font-medium truncate">
+                {column.render(item)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const KaartRij = React.memo(KaartRijInner) as typeof KaartRijInner;
+
 export function ResponsiveTable<T, SortKey = string>({
   data,
   columns,
@@ -91,11 +207,22 @@ export function ResponsiveTable<T, SortKey = string>({
     lg: "lg:hidden",
   }[mobileBreakpoint];
 
-  // Get columns for different views
-  const primaryColumn = columns.find((col) => col.isPrimary);
-  const secondaryColumn = columns.find((col) => col.isSecondary);
-  const cardColumns = columns.filter(
-    (col) => col.showInCard !== false && !col.isPrimary && !col.isSecondary
+  // Get columns for different views. Gememoizeerd zodat de rij-memoization
+  // (O6) niet stukloopt op verse array-referenties per render.
+  const primaryColumn = React.useMemo(
+    () => columns.find((col) => col.isPrimary),
+    [columns]
+  );
+  const secondaryColumn = React.useMemo(
+    () => columns.find((col) => col.isSecondary),
+    [columns]
+  );
+  const cardColumns = React.useMemo(
+    () =>
+      columns.filter(
+        (col) => col.showInCard !== false && !col.isPrimary && !col.isSecondary
+      ),
+    [columns]
   );
 
   if (data.length === 0) {
@@ -167,28 +294,13 @@ export function ResponsiveTable<T, SortKey = string>({
           </TableHeader>
           <TableBody>
             {data.map((item) => (
-              <TableRow
+              <TabelRij
                 key={keyExtractor(item)}
-                role={onRowClick ? "button" : undefined}
-                tabIndex={onRowClick ? 0 : undefined}
-                onClick={() => onRowClick?.(item)}
-                onKeyDown={onRowClick ? (e) => handleKeyboardActivation(e, () => onRowClick(item)) : undefined}
-                className={cn(onRowClick && "cursor-pointer hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring")}
-              >
-                {columns.map((column) => (
-                  <TableCell
-                    key={column.key}
-                    className={cn(
-                      column.align === "right" && "text-right",
-                      column.align === "center" && "text-center",
-                      // Nodig om truncate binnen een vaste kolom te laten werken
-                      heeftVasteBreedtes && !column.allowOverflow && "overflow-hidden"
-                    )}
-                  >
-                    {column.render(item)}
-                  </TableCell>
-                ))}
-              </TableRow>
+                item={item}
+                columns={columns}
+                heeftVasteBreedtes={heeftVasteBreedtes}
+                onRowClick={onRowClick}
+              />
             ))}
           </TableBody>
         </Table>
@@ -197,51 +309,14 @@ export function ResponsiveTable<T, SortKey = string>({
       {/* Mobile Card View */}
       <div className={cn("space-y-3", cardBreakpointClass)}>
         {data.map((item) => (
-          <div
+          <KaartRij
             key={keyExtractor(item)}
-            role={onRowClick ? "button" : undefined}
-            tabIndex={onRowClick ? 0 : undefined}
-            onClick={() => onRowClick?.(item)}
-            onKeyDown={onRowClick ? (e) => handleKeyboardActivation(e, () => onRowClick(item)) : undefined}
-            className={cn(
-              "rounded-lg border bg-card p-4 space-y-3",
-              onRowClick && "cursor-pointer hover:bg-muted/50 active:bg-muted transition-colors focus-visible:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            )}
-          >
-            {/* Primary and secondary info */}
-            {(primaryColumn || secondaryColumn) && (
-              <div className="flex items-start justify-between gap-4">
-                <div className="space-y-1 min-w-0 flex-1">
-                  {primaryColumn && (
-                    <div className="font-medium truncate">
-                      {primaryColumn.render(item)}
-                    </div>
-                  )}
-                  {secondaryColumn && (
-                    <div className="text-sm text-muted-foreground truncate">
-                      {secondaryColumn.render(item)}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Other fields in a grid */}
-            {cardColumns.length > 0 && (
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                {cardColumns.slice(0, 4).map((column) => (
-                  <div key={column.key} className="space-y-0.5">
-                    <div className="text-muted-foreground text-xs">
-                      {column.mobileLabel || column.header}
-                    </div>
-                    <div className="font-medium truncate">
-                      {column.render(item)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+            item={item}
+            primaryColumn={primaryColumn}
+            secondaryColumn={secondaryColumn}
+            cardColumns={cardColumns}
+            onRowClick={onRowClick}
+          />
         ))}
       </div>
     </div>

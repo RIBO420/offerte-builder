@@ -374,17 +374,21 @@ export default function NacalculatiePage({
                   <div className="relative h-3 bg-muted rounded-full overflow-hidden">
                     {/* Budget marker at 50% */}
                     <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-foreground/30 z-10" />
-                    {/* Progress fill */}
+                    {/* Progress fill — translateX i.p.v. width (optimize O7):
+                        GPU-composited, geen reflow per frame. De balk is op
+                        volle breedte en schuift van links in; de ouder heeft
+                        overflow-hidden, dus de eindkap blijft mooi rond
+                        (scaleX zou de radius in rust vervormen). */}
                     <m.div
-                      className={`h-full rounded-full ${
+                      className={`h-full w-full rounded-full ${
                         budgetStatus.status === "good"
                           ? "bg-status-geaccepteerd-dot"
                           : budgetStatus.status === "warning"
                           ? "bg-status-in-uitvoering-dot"
                           : "bg-status-afgewezen-dot"
                       }`}
-                      initial={{ width: 0 }}
-                      animate={{ width: `${Math.min(budgetStatus.progressValue / 2, 100)}%` }}
+                      initial={{ x: "-100%" }}
+                      animate={{ x: `${Math.min(budgetStatus.progressValue / 2, 100) - 100}%` }}
                       transition={{ duration: 0.5, ease: "easeOut" }}
                     />
                   </div>

@@ -68,10 +68,13 @@ export function WorkflowStepIndicator({
               {/* Connector line */}
               {index < workflowSteps.length - 1 && (
                 <div className="flex-1 mx-2 h-0.5 rounded-full bg-muted-foreground/20 relative overflow-hidden">
+                  {/* scaleX i.p.v. width (optimize O7): GPU-composited, geen
+                      reflow per frame. Eindstanden zijn 0 of 1, dus de
+                      border-radius vervormt in rust niet. */}
                   <m.div
-                    className="absolute inset-y-0 left-0 bg-primary rounded-full"
-                    initial={{ width: "0%" }}
-                    animate={{ width: isCompleted ? "100%" : "0%" }}
+                    className="absolute inset-0 origin-left bg-primary rounded-full"
+                    initial={{ scaleX: 0 }}
+                    animate={{ scaleX: isCompleted ? 1 : 0 }}
                     transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.5, delay: index * 0.1 }}
                   />
                 </div>

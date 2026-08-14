@@ -247,13 +247,17 @@ export function KilometerLog({
         </CardHeader>
 
         <AnimatePresence>
+          {/* Uitklap via grid-template-rows i.p.v. height (optimize O8):
+              geen reflow per frame van de log-tabel eronder. */}
           {isAdding && (
             <m.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
+              initial={{ gridTemplateRows: "0fr", opacity: 0 }}
+              animate={{ gridTemplateRows: "1fr", opacity: 1 }}
+              exit={{ gridTemplateRows: "0fr", opacity: 0 }}
               transition={{ duration: 0.2 }}
+              className="grid"
             >
+              <div className="min-h-0 overflow-hidden">
               <CardContent className="border-t pt-4">
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="grid gap-4 sm:grid-cols-2">
@@ -314,6 +318,7 @@ export function KilometerLog({
                   </div>
                 </form>
               </CardContent>
+              </div>
             </m.div>
           )}
         </AnimatePresence>

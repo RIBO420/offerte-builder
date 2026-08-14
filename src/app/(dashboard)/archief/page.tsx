@@ -178,13 +178,18 @@ function ArchivedProjectCard({ project }: { project: ArchivedProject }) {
 
         <CollapsibleContent>
           <AnimatePresence>
+            {/* Uitklap via grid-template-rows i.p.v. height (optimize O8):
+                een height-animatie forceert elke frame een reflow van alle
+                content eronder; 0fr→1fr geeft dezelfde beweging. */}
             {isOpen && (
               <m.div
-                initial={reducedMotion ? false : { opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={reducedMotion ? undefined : { opacity: 0, height: 0 }}
+                initial={reducedMotion ? false : { opacity: 0, gridTemplateRows: "0fr" }}
+                animate={{ opacity: 1, gridTemplateRows: "1fr" }}
+                exit={reducedMotion ? undefined : { opacity: 0, gridTemplateRows: "0fr" }}
                 transition={{ duration: reducedMotion ? 0 : 0.2 }}
+                className="grid"
               >
+                <div className="min-h-0 overflow-hidden">
                 <Separator />
                 <CardContent className="pt-4 space-y-4">
                   {/* Offerte Details */}
@@ -330,6 +335,7 @@ function ArchivedProjectCard({ project }: { project: ArchivedProject }) {
                     </div>
                   )}
                 </CardContent>
+                </div>
               </m.div>
             )}
           </AnimatePresence>
