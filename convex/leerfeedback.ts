@@ -11,6 +11,7 @@ import { mutation, query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
 import { requireNotViewer } from "./roles";
 import { Id } from "./_generated/dataModel";
+import { voorcalculatieVanProject } from "./lib/voorcalculatieLookup";
 
 // Minimum number of projects required for a reliable suggestion
 const MIN_PROJECTS_FOR_SUGGESTION = 3;
@@ -60,10 +61,7 @@ export const getSuggesties = query({
         .withIndex("by_project", (q) => q.eq("projectId", project._id))
         .unique();
 
-      const voorcalculatie = await ctx.db
-        .query("voorcalculaties")
-        .withIndex("by_project", (q) => q.eq("projectId", project._id))
-        .unique();
+      const voorcalculatie = await voorcalculatieVanProject(ctx, project._id);
 
       if (nacalculatie && voorcalculatie) {
         nacalculatieData.push({

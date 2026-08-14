@@ -4,6 +4,7 @@ import { requireAuthUserId } from "./auth";
 import { requireNotViewer } from "./roles";
 import { Id } from "./_generated/dataModel";
 import { laadDocsMap } from "./lib/batchLoad";
+import { voorcalculatieVanProject, voorcalculatieVanOfferte } from "./lib/voorcalculatieLookup";
 
 /**
  * Task templates per scope - must match src/lib/planning-templates.ts
@@ -63,17 +64,11 @@ export const generateFromVoorcalculatie = mutation({
     const { project } = await getOwnedProject(ctx, args.projectId);
 
     // Get the voorcalculatie - first try by offerte (new workflow), then by project (legacy)
-    let voorcalculatie = await ctx.db
-      .query("voorcalculaties")
-      .withIndex("by_offerte", (q) => q.eq("offerteId", project.offerteId))
-      .unique();
+    let voorcalculatie = await voorcalculatieVanOfferte(ctx, project.offerteId);
 
     // Fallback to project-based voorcalculatie for legacy data
     if (!voorcalculatie) {
-      voorcalculatie = await ctx.db
-        .query("voorcalculaties")
-        .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-        .unique();
+      voorcalculatie = await voorcalculatieVanProject(ctx, args.projectId);
     }
 
     if (!voorcalculatie) {

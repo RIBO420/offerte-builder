@@ -13,6 +13,11 @@ import { requireAuth, requireAuthUserId, verifyOwnership } from "./auth";
 import { Id } from "./_generated/dataModel";
 import { getUserRole, getLinkedMedewerker, requireNotViewer, requireDirectieOrProjectleider, getCompanyUserId } from "./roles";
 import { upgradeKlantPipeline } from "./pipelineHelpers";
+import {
+  voorcalculatieVanOfferte,
+  voorcalculatieVanProject,
+  voorcalculatieVoorProject,
+} from "./lib/voorcalculatieLookup";
 
 // Status validator for project status
 // Note: voorcalculatie is now done at offerte level before a project is created
@@ -650,19 +655,8 @@ export const getWithDetails = query({
     // Get related offerte (optioneel sinds werkitem-generalisatie, B1)
     const offerte = project.offerteId ? await ctx.db.get(project.offerteId) : null;
 
-    // Get voorcalculatie - first check project-level (copied/linked)
-    let voorcalculatie = await ctx.db
-      .query("voorcalculaties")
-      .withIndex("by_project", (q) => q.eq("projectId", args.id))
-      .unique();
-
-    // If no project-level voorcalculatie, check offerte-level (new workflow)
-    if (!voorcalculatie) {
-      voorcalculatie = await ctx.db
-        .query("voorcalculaties")
-        .withIndex("by_offerte", (q) => q.eq("offerteId", project.offerteId))
-        .unique();
-    }
+    // Voorcalculatie: eerst project-niveau (gekopieerd/gekoppeld), dan offerte.
+    const voorcalculatie = await voorcalculatieVoorProject(ctx, project, "project");
 
     // Get planning taken
     const planningTaken = await ctx.db
@@ -801,21 +795,11 @@ export const listForPlanning = query({
     const [voorcalculatiesByProject, voorcalculatiesByOfferte] = await Promise.all([
       // Batch 1: Fetch voorcalculaties by project IDs
       Promise.all(
-        projectIds.map((projectId) =>
-          ctx.db
-            .query("voorcalculaties")
-            .withIndex("by_project", (q) => q.eq("projectId", projectId))
-            .first()
-        )
+        projectIds.map((projectId) => voorcalculatieVanProject(ctx, projectId))
       ),
       // Batch 2: Fetch voorcalculaties by offerte IDs (fallback)
       Promise.all(
-        offerteIds.map((offerteId) =>
-          ctx.db
-            .query("voorcalculaties")
-            .withIndex("by_offerte", (q) => q.eq("offerteId", offerteId))
-            .first()
-        )
+        offerteIds.map((offerteId) => voorcalculatieVanOfferte(ctx, offerteId))
       ),
     ]);
 
@@ -1068,21 +1052,11 @@ export const getActiveProjectsWithProgress = query({
       Promise.all(offerteIds.map((id) => (id ? ctx.db.get(id) : null))),
       // Batch 2: Fetch voorcalculaties by project IDs
       Promise.all(
-        projectIds.map((projectId) =>
-          ctx.db
-            .query("voorcalculaties")
-            .withIndex("by_project", (q) => q.eq("projectId", projectId))
-            .unique()
-        )
+        projectIds.map((projectId) => voorcalculatieVanProject(ctx, projectId))
       ),
       // Batch 3: Fetch voorcalculaties by offerte IDs (fallback)
       Promise.all(
-        offerteIds.map((offerteId) =>
-          ctx.db
-            .query("voorcalculaties")
-            .withIndex("by_offerte", (q) => q.eq("offerteId", offerteId))
-            .unique()
-        )
+        offerteIds.map((offerteId) => voorcalculatieVanOfferte(ctx, offerteId))
       ),
       // Batch 4: Fetch urenRegistraties by project IDs
       Promise.all(

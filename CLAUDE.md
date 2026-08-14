@@ -177,6 +177,24 @@ overzichtspagina's met meerdere secties, anders is een lege sectie de grootste.
   `normaliseerImportPostcode` (normaliseert, weigert nooit) i.p.v. de strenge varianten.
   Eén gedeelde dialog: `src/components/import/relatie-import-dialog.tsx`.
 
+### Optionele velden in een index: `q.eq(veld, undefined)` is géén lege zoekopdracht
+
+`withIndex("by_offerte", (q) => q.eq("offerteId", project.offerteId))` matcht bij een
+ontbrekende `offerteId` **alle** documenten die zelf geen `offerteId` hebben — niet nul.
+Met `.unique()` erachter klapt de query zodra er twee van zijn. Zo sloopte één werkitem
+zonder offerte de projectdetailpagina, planning, nacalculatie, projectkosten, archief,
+dashboard, analytics en rapportages tegelijk (`unique() query returned more than one
+result from table voorcalculaties`). Het was een queryfout, geen dubbele data.
+
+Regel: **guard elk optioneel veld voordat je het in een index stopt**, en gebruik
+`.unique()` alleen waar het schema uniciteit echt afdwingt — een leesquery mag nooit een
+scherm slopen om een dubbele rij. Voor voorcalculaties doet
+`convex/lib/voorcalculatieLookup.ts` dit: `voorcalculatieVanProject`,
+`voorcalculatieVanOfferte` (undefined → `null`) en `voorcalculatieVoorProject(ctx,
+project, voorkeur)`. De `voorkeur` is een parameter omdat bij `createFromOfferte` met
+`copyVoorcalculatie` een projectkopie náást het origineel op de offerte bestaat en die
+twee uiteen kunnen lopen; elke aanroeper houdt de volgorde die hij had.
+
 ## Testing
 
 - **Unit tests:** Vitest + @testing-library/react (1986 tests, 86% coverage)

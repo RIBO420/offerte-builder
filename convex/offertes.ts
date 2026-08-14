@@ -15,6 +15,7 @@ import {
 } from "./acceptatieKeten";
 import { logTijdlijnEvent } from "./tijdlijn";
 import { zetTriggerMailKlaar } from "./mailTriggers";
+import { voorcalculatieVanProject, voorcalculatieVanOfferte } from "./lib/voorcalculatieLookup";
 
 const klantValidator = v.object({
   naam: v.string(),
@@ -308,19 +309,13 @@ export const getFullDashboardData = query({
       // Batch 1: Fetch voorcalculaties by project IDs
       Promise.all(
         projectIds.map((projectId) =>
-          ctx.db
-            .query("voorcalculaties")
-            .withIndex("by_project", (q) => q.eq("projectId", projectId))
-            .unique()
+          voorcalculatieVanProject(ctx, projectId)
         )
       ),
       // Batch 2: Fetch voorcalculaties by offerte IDs (fallback)
       Promise.all(
         offerteIdsForProjects.map((offerteId) =>
-          ctx.db
-            .query("voorcalculaties")
-            .withIndex("by_offerte", (q) => q.eq("offerteId", offerteId))
-            .unique()
+          voorcalculatieVanOfferte(ctx, offerteId)
         )
       ),
       // Batch 3: Fetch urenRegistraties by project IDs
@@ -538,10 +533,7 @@ export const getWithVoorcalculatie = query({
     }
 
     // Get the voorcalculatie for this offerte
-    const voorcalculatie = await ctx.db
-      .query("voorcalculaties")
-      .withIndex("by_offerte", (q) => q.eq("offerteId", args.id))
-      .first();
+    const voorcalculatie = await voorcalculatieVanOfferte(ctx, args.id);
 
     return {
       ...offerte,
@@ -1088,10 +1080,7 @@ export const updateStatus = mutation({
     // When changing to "verzonden", check that a voorcalculatie exists
     // (niet voor vrije offertes: die kennen geen voorcalculatie-record)
     if (args.status === "verzonden" && !isVrijeOfferte) {
-      const voorcalculatie = await ctx.db
-        .query("voorcalculaties")
-        .withIndex("by_offerte", (q) => q.eq("offerteId", args.id))
-        .first();
+      const voorcalculatie = await voorcalculatieVanOfferte(ctx, args.id);
 
       if (!voorcalculatie) {
         throw new ConvexError(
@@ -1519,10 +1508,7 @@ export const bulkUpdateStatus = mutation({
 
       // When changing to "verzonden", check that a voorcalculatie exists
       if (args.status === "verzonden") {
-        const voorcalculatie = await ctx.db
-          .query("voorcalculaties")
-          .withIndex("by_offerte", (q) => q.eq("offerteId", id))
-          .first();
+        const voorcalculatie = await voorcalculatieVanOfferte(ctx, id);
 
         if (!voorcalculatie) {
           throw new ConvexError(

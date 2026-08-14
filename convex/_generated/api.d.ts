@@ -60,6 +60,7 @@ import type * as lib_batchLoad from "../lib/batchLoad.js";
 import type * as lib_mailGuard from "../lib/mailGuard.js";
 import type * as lib_mailRender from "../lib/mailRender.js";
 import type * as lib_pipelineKpis from "../lib/pipelineKpis.js";
+import type * as lib_voorcalculatieLookup from "../lib/voorcalculatieLookup.js";
 import type * as losseBeurten from "../losseBeurten.js";
 import type * as machineGebruik from "../machineGebruik.js";
 import type * as machinepark from "../machinepark.js";
@@ -195,6 +196,7 @@ declare const fullApi: ApiFromModules<{
   "lib/mailGuard": typeof lib_mailGuard;
   "lib/mailRender": typeof lib_mailRender;
   "lib/pipelineKpis": typeof lib_pipelineKpis;
+  "lib/voorcalculatieLookup": typeof lib_voorcalculatieLookup;
   losseBeurten: typeof losseBeurten;
   machineGebruik: typeof machineGebruik;
   machinepark: typeof machinepark;

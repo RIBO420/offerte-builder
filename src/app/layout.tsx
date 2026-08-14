@@ -77,7 +77,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider localization={nlNL} signInUrl="/">
+    // telemetry uit: clerk-telemetry.com staat niet in onze CSP (en hoort daar
+    // ook niet), dus elke pageview leverde twee rode console-fouten op.
+    <ClerkProvider localization={nlNL} signInUrl="/" telemetry={{ disabled: true }}>
       <html lang="nl" data-scroll-behavior="smooth" suppressHydrationWarning>
         <body
           className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}

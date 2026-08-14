@@ -9,6 +9,7 @@ import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
 import { Doc } from "./_generated/dataModel";
+import { voorcalculatieVanProject, voorcalculatieVanOfferte } from "./lib/voorcalculatieLookup";
 
 // Helper to get month key from timestamp
 function getMonthKey(timestamp: number): string {
@@ -76,16 +77,10 @@ export const getProjectPrestaties = query({
     const [voorcalculatiesResults, nacalculatiesResults, offertesResults, factuurResults] = await Promise.all([
       Promise.all([
         ...projectIds.map((id) =>
-          ctx.db
-            .query("voorcalculaties")
-            .withIndex("by_project", (q) => q.eq("projectId", id))
-            .unique()
+          voorcalculatieVanProject(ctx, id)
         ),
         ...offerteIds.map((id) =>
-          ctx.db
-            .query("voorcalculaties")
-            .withIndex("by_offerte", (q) => q.eq("offerteId", id))
-            .unique()
+          voorcalculatieVanOfferte(ctx, id)
         ),
       ]),
       Promise.all(
@@ -463,16 +458,10 @@ export const getProjectVoortgang = query({
     ] = await Promise.all([
       Promise.all([
         ...projectIds.map((id) =>
-          ctx.db
-            .query("voorcalculaties")
-            .withIndex("by_project", (q) => q.eq("projectId", id))
-            .unique()
+          voorcalculatieVanProject(ctx, id)
         ),
         ...offerteIds.map((id) =>
-          ctx.db
-            .query("voorcalculaties")
-            .withIndex("by_offerte", (q) => q.eq("offerteId", id))
-            .unique()
+          voorcalculatieVanOfferte(ctx, id)
         ),
       ]),
       Promise.all(

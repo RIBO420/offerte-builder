@@ -5,6 +5,7 @@ import {
   berekenConversionRates,
   berekenPipelineFunnel,
 } from "./lib/pipelineKpis";
+import { voorcalculatieVanProject, voorcalculatieVanOfferte } from "./lib/voorcalculatieLookup";
 
 // Helper to get month key from timestamp
 function getMonthKey(timestamp: number): string {
@@ -480,16 +481,10 @@ export const getVoorcalculatieNacalculatieVergelijking = query({
       // Get voorcalculaties by project and offerte
       Promise.all([
         ...projectIds.map((id) =>
-          ctx.db
-            .query("voorcalculaties")
-            .withIndex("by_project", (q) => q.eq("projectId", id))
-            .unique()
+          voorcalculatieVanProject(ctx, id)
         ),
         ...offerteIds.map((id) =>
-          ctx.db
-            .query("voorcalculaties")
-            .withIndex("by_offerte", (q) => q.eq("offerteId", id))
-            .unique()
+          voorcalculatieVanOfferte(ctx, id)
         ),
       ]),
       // Get nacalculaties
@@ -716,14 +711,8 @@ export const getVoorcalculatieNacalculatieVergelijking = query({
 
       for (const project of prevProjecten) {
         const voorcalculatie =
-          (await ctx.db
-            .query("voorcalculaties")
-            .withIndex("by_offerte", (q) => q.eq("offerteId", project.offerteId))
-            .unique()) ||
-          (await ctx.db
-            .query("voorcalculaties")
-            .withIndex("by_project", (q) => q.eq("projectId", project._id))
-            .unique());
+          (await voorcalculatieVanOfferte(ctx, project.offerteId)) ||
+          (await voorcalculatieVanProject(ctx, project._id));
 
         const nacalculatie = await ctx.db
           .query("nacalculaties")

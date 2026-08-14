@@ -53,6 +53,14 @@ function createQueryBuilder(docs: FakeDoc[]) {
       current = current.filter((doc) => predicates.every((p) => p(doc)));
       return builder;
     },
+    order(richting: "asc" | "desc") {
+      current = [...current].sort((a, b) =>
+        richting === "desc"
+          ? (b._creationTime ?? 0) - (a._creationTime ?? 0)
+          : (a._creationTime ?? 0) - (b._creationTime ?? 0)
+      );
+      return builder;
+    },
     async collect(): Promise<FakeDoc[]> {
       return [...current];
     },

@@ -12,6 +12,7 @@
 import { query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
 import { filterConceptenUit } from "./lib/pipelineKpis";
+import { voorcalculatieVanProject, voorcalculatieVanOfferte } from "./lib/voorcalculatieLookup";
 
 // ── Quarter helpers ──────────────────────────────────────────────────
 
@@ -220,18 +221,12 @@ export const getAdminDashboardData = query({
       await Promise.all([
         Promise.all(
           projectIds.map((projectId) =>
-            ctx.db
-              .query("voorcalculaties")
-              .withIndex("by_project", (q) => q.eq("projectId", projectId))
-              .unique()
+            voorcalculatieVanProject(ctx, projectId)
           )
         ),
         Promise.all(
           offerteIdsForProjects.map((offerteId) =>
-            ctx.db
-              .query("voorcalculaties")
-              .withIndex("by_offerte", (q) => q.eq("offerteId", offerteId))
-              .unique()
+            voorcalculatieVanOfferte(ctx, offerteId)
           )
         ),
         Promise.all(

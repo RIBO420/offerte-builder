@@ -13,6 +13,7 @@ import { requireAuth } from "./auth";
 import { requireAdmin, normalizeRole, getLinkedMedewerker } from "./roles";
 import type { Doc } from "./_generated/dataModel";
 import type { QueryCtx, MutationCtx } from "./_generated/server";
+import { voorcalculatieVanProject, voorcalculatieVanOfferte } from "./lib/voorcalculatieLookup";
 
 /**
  * Zoek het medewerker-record van de ingelogde gebruiker.
@@ -164,17 +165,11 @@ export const getProjectDetailsForMedewerker = query({
 
     // Get voorcalculatie to check team membership
     // First check project-level voorcalculatie
-    let voorcalculatie = await ctx.db
-      .query("voorcalculaties")
-      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-      .first();
+    let voorcalculatie = await voorcalculatieVanProject(ctx, args.projectId);
 
     // If not found, check offerte-level voorcalculatie
     if (!voorcalculatie) {
-      voorcalculatie = await ctx.db
-        .query("voorcalculaties")
-        .withIndex("by_offerte", (q) => q.eq("offerteId", project.offerteId))
-        .first();
+      voorcalculatie = await voorcalculatieVanOfferte(ctx, project.offerteId);
     }
 
     // Check if medewerker is in the team (admins bypass team check)

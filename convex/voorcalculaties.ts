@@ -2,6 +2,7 @@ import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId, requireAuth } from "./auth";
 import { requireNotViewer } from "./roles";
+import { voorcalculatieVanProject, voorcalculatieVanOfferte } from "./lib/voorcalculatieLookup";
 
 // Get voorcalculatie by ID
 export const get = query({
@@ -44,10 +45,7 @@ export const getByProject = query({
       return null;
     }
 
-    return await ctx.db
-      .query("voorcalculaties")
-      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-      .unique();
+    return await voorcalculatieVanProject(ctx, args.projectId);
   },
 });
 
@@ -63,10 +61,7 @@ export const getByOfferte = query({
       return null;
     }
 
-    return await ctx.db
-      .query("voorcalculaties")
-      .withIndex("by_offerte", (q) => q.eq("offerteId", args.offerteId))
-      .unique();
+    return await voorcalculatieVanOfferte(ctx, args.offerteId);
   },
 });
 
@@ -99,10 +94,7 @@ export const create = mutation({
       }
 
       // Check if voorcalculatie already exists for project
-      const existingByProject = await ctx.db
-        .query("voorcalculaties")
-        .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-        .unique();
+      const existingByProject = await voorcalculatieVanProject(ctx, args.projectId);
 
       if (existingByProject) {
         throw new ConvexError("Voorcalculatie bestaat al voor dit project");
@@ -116,10 +108,7 @@ export const create = mutation({
       }
 
       // Check if voorcalculatie already exists for offerte
-      const existingByOfferte = await ctx.db
-        .query("voorcalculaties")
-        .withIndex("by_offerte", (q) => q.eq("offerteId", args.offerteId))
-        .unique();
+      const existingByOfferte = await voorcalculatieVanOfferte(ctx, args.offerteId);
 
       if (existingByOfferte) {
         throw new ConvexError("Voorcalculatie bestaat al voor deze offerte");

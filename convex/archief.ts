@@ -8,6 +8,7 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
+import { voorcalculatieVanProject, voorcalculatieVanOfferte } from "./lib/voorcalculatieLookup";
 
 /**
  * List all archived projects for the authenticated user.
@@ -50,16 +51,10 @@ export const listArchivedProjects = query({
           .unique();
 
         // Get voorcalculatie - first check offerte-level (new workflow), then project-level (legacy)
-        let voorcalculatie = await ctx.db
-          .query("voorcalculaties")
-          .withIndex("by_offerte", (q) => q.eq("offerteId", project.offerteId))
-          .unique();
+        let voorcalculatie = await voorcalculatieVanOfferte(ctx, project.offerteId);
 
         if (!voorcalculatie) {
-          voorcalculatie = await ctx.db
-            .query("voorcalculaties")
-            .withIndex("by_project", (q) => q.eq("projectId", project._id))
-            .unique();
+          voorcalculatie = await voorcalculatieVanProject(ctx, project._id);
         }
 
         // Get nacalculatie
@@ -168,16 +163,10 @@ export const getArchivedProjectDetails = query({
       .unique();
 
     // Get voorcalculatie - first check offerte-level (new workflow), then project-level (legacy)
-    let voorcalculatie = await ctx.db
-      .query("voorcalculaties")
-      .withIndex("by_offerte", (q) => q.eq("offerteId", project.offerteId))
-      .unique();
+    let voorcalculatie = await voorcalculatieVanOfferte(ctx, project.offerteId);
 
     if (!voorcalculatie) {
-      voorcalculatie = await ctx.db
-        .query("voorcalculaties")
-        .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-        .unique();
+      voorcalculatie = await voorcalculatieVanProject(ctx, args.projectId);
     }
 
     // Get nacalculatie with full details

@@ -17,6 +17,7 @@ import { requireAuth, requireAuthUserId, verifyOwnership } from "./auth";
 import { requireNotViewer } from "./roles";
 import { Id } from "./_generated/dataModel";
 import { validatePositive, sanitizeOptionalString } from "./validators";
+import { voorcalculatieVanProject, voorcalculatieVanOfferte } from "./lib/voorcalculatieLookup";
 
 // Cost types for categorization
 const kostenTypeValidator = v.union(
@@ -831,16 +832,10 @@ export const getBudgetVergelijking = query({
     const project = await getOwnedProject(ctx, args.projectId);
 
     // Get voorcalculatie - first try by offerte, then by project
-    let voorcalculatie = await ctx.db
-      .query("voorcalculaties")
-      .withIndex("by_offerte", (q) => q.eq("offerteId", project.offerteId))
-      .unique();
+    let voorcalculatie = await voorcalculatieVanOfferte(ctx, project.offerteId);
 
     if (!voorcalculatie) {
-      voorcalculatie = await ctx.db
-        .query("voorcalculaties")
-        .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-        .unique();
+      voorcalculatie = await voorcalculatieVanProject(ctx, args.projectId);
     }
 
     // Get offerte for planned costs (offerteId kan ontbreken bij losse werkitems)
@@ -1096,16 +1091,10 @@ export const getProjectOverzicht = query({
       ? await ctx.db.get(project.offerteId)
       : null;
 
-    let voorcalculatie = await ctx.db
-      .query("voorcalculaties")
-      .withIndex("by_offerte", (q) => q.eq("offerteId", project.offerteId))
-      .unique();
+    let voorcalculatie = await voorcalculatieVanOfferte(ctx, project.offerteId);
 
     if (!voorcalculatie) {
-      voorcalculatie = await ctx.db
-        .query("voorcalculaties")
-        .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-        .unique();
+      voorcalculatie = await voorcalculatieVanProject(ctx, args.projectId);
     }
 
     // Get all costs

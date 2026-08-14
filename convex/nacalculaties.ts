@@ -10,6 +10,7 @@ import { mutation, query } from "./_generated/server";
 import { requireAuth, requireAuthUserId, verifyOwnership } from "./auth";
 import { requireNotViewer } from "./roles";
 import { Id } from "./_generated/dataModel";
+import { voorcalculatieVanProject, voorcalculatieVanOfferte } from "./lib/voorcalculatieLookup";
 
 /**
  * Get a project and verify ownership.
@@ -54,17 +55,11 @@ export const calculate = query({
     const project = await getOwnedProject(ctx, args.projectId);
 
     // Get voorcalculatie - first try by offerte (new workflow), then by project (legacy)
-    let voorcalculatie = await ctx.db
-      .query("voorcalculaties")
-      .withIndex("by_offerte", (q) => q.eq("offerteId", project.offerteId))
-      .unique();
+    let voorcalculatie = await voorcalculatieVanOfferte(ctx, project.offerteId);
 
     // Fallback to project-based lookup for legacy data
     if (!voorcalculatie) {
-      voorcalculatie = await ctx.db
-        .query("voorcalculaties")
-        .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-        .unique();
+      voorcalculatie = await voorcalculatieVanProject(ctx, args.projectId);
     }
 
     if (!voorcalculatie) {
@@ -314,10 +309,7 @@ export const listAll = query({
       ),
       Promise.all(
         projectIds.map((projectId) =>
-          ctx.db
-            .query("voorcalculaties")
-            .withIndex("by_project", (q) => q.eq("projectId", projectId))
-            .unique()
+          voorcalculatieVanProject(ctx, projectId)
         )
       ),
     ]);
@@ -372,17 +364,11 @@ export const getWithDetails = query({
       : null;
 
     // Get voorcalculatie - first try by offerte (new workflow), then by project (legacy)
-    let voorcalculatie = await ctx.db
-      .query("voorcalculaties")
-      .withIndex("by_offerte", (q) => q.eq("offerteId", project.offerteId))
-      .unique();
+    let voorcalculatie = await voorcalculatieVanOfferte(ctx, project.offerteId);
 
     // Fallback to project-based lookup for legacy data
     if (!voorcalculatie) {
-      voorcalculatie = await ctx.db
-        .query("voorcalculaties")
-        .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-        .unique();
+      voorcalculatie = await voorcalculatieVanProject(ctx, args.projectId);
     }
 
     // Get uren registraties

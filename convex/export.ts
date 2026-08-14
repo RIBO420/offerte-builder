@@ -11,6 +11,7 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { requireAdmin, requireKantoor } from "./roles";
+import { voorcalculatieVanProject, voorcalculatieVanOfferte } from "./lib/voorcalculatieLookup";
 
 // ============================================
 // Status and Type Labels
@@ -177,16 +178,10 @@ export const exportProjecten = query({
           : null;
 
         // Get voorcalculatie for begrote uren
-        let voorcalculatie = await ctx.db
-          .query("voorcalculaties")
-          .withIndex("by_project", (q) => q.eq("projectId", project._id))
-          .first();
+        let voorcalculatie = await voorcalculatieVanProject(ctx, project._id);
 
         if (!voorcalculatie) {
-          voorcalculatie = await ctx.db
-            .query("voorcalculaties")
-            .withIndex("by_offerte", (q) => q.eq("offerteId", project.offerteId))
-            .first();
+          voorcalculatie = await voorcalculatieVanOfferte(ctx, project.offerteId);
         }
 
         // Get totaal geregistreerde uren

@@ -27,6 +27,7 @@ import {
   type DocumentStatus,
 } from "./facturatieLogica";
 import { logTijdlijnEvent } from "./tijdlijn";
+import { voorcalculatieVanProject } from "./lib/voorcalculatieLookup";
 
 /**
  * Validator voor klantgegevens op factuur
@@ -1571,10 +1572,7 @@ export const getWithDetails = query({
 
     // Haal voorcalculatie op indien beschikbaar
     const voorcalculatie = projectId
-      ? await ctx.db
-          .query("voorcalculaties")
-          .withIndex("by_project", (q) => q.eq("projectId", projectId))
-          .unique()
+      ? await voorcalculatieVanProject(ctx, projectId)
       : null;
 
     return {
