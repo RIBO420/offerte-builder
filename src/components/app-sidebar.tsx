@@ -224,26 +224,21 @@ export function AppSidebar() {
   // "Klanten" telt echte klanten. Gearchiveerde records en gepromoveerde
   // (gewonnen) of verloren leads tellen niet mee — dit lost het verwarrende
   // gecombineerde aantal op het oude Klanten-item op.
-  const aantalActieveLeads = useQuery(
-    api.configuratorAanvragen.countActieveLeads,
-    isKantoor ? {} : "skip"
-  );
-  const aantalKlanten = useQuery(
-    api.klanten.countKlanten,
-    isKantoor ? {} : "skip"
-  );
-  // §2.4: teller-badge open meldingen — stafrollen die het bord zien
+  //
+  // Eén gebundelde query i.p.v. vier losse subscriptions per pagina
+  // (optimize O9). De rolverdeling zit server-side: interne niet-kantoor-
+  // rollen krijgen alleen openMeldingen (rest null); rollen zonder tellers
+  // (§2.4-bordrollen uitgezonderd) skippen de query helemaal.
   const isMeldingenRol =
     isKantoor || role === "voorman" || role === "medewerker";
-  const aantalOpenMeldingen = useQuery(
-    api.servicemeldingen.telOpenMeldingen,
+  const tellingen = useQuery(
+    api.sidebarTellingen.overzicht,
     isMeldingenRol ? {} : "skip"
   );
-  // §2.7: teller-badge concept-mails in de goedkeurings-wachtrij (kantoor)
-  const aantalConceptMails = useQuery(
-    api.conceptMails.countWachtrij,
-    isKantoor ? {} : "skip"
-  );
+  const aantalActieveLeads = tellingen?.actieveLeads ?? undefined;
+  const aantalKlanten = tellingen?.klanten ?? undefined;
+  const aantalOpenMeldingen = tellingen?.openMeldingen ?? undefined;
+  const aantalConceptMails = tellingen?.conceptMails ?? undefined;
 
   // Close mobile sidebar when navigating to a new page
   useEffect(() => {

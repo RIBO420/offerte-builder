@@ -107,6 +107,7 @@ import type * as reistijdLogica from "../reistijdLogica.js";
 import type * as roles from "../roles.js";
 import type * as security from "../security.js";
 import type * as servicemeldingen from "../servicemeldingen.js";
+import type * as sidebarTellingen from "../sidebarTellingen.js";
 import type * as smartAnalytics from "../smartAnalytics.js";
 import type * as softDelete from "../softDelete.js";
 import type * as standaardtuinen from "../standaardtuinen.js";
@@ -244,6 +245,7 @@ declare const fullApi: ApiFromModules<{
   roles: typeof roles;
   security: typeof security;
   servicemeldingen: typeof servicemeldingen;
+  sidebarTellingen: typeof sidebarTellingen;
   smartAnalytics: typeof smartAnalytics;
   softDelete: typeof softDelete;
   standaardtuinen: typeof standaardtuinen;
