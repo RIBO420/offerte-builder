@@ -108,7 +108,11 @@ export function getDeviationStatus(
 }
 
 /**
- * Get color class based on deviation status
+ * Get color class based on deviation status.
+ *
+ * Loof & Leem-semantiek (WS10): positief → merkgroen 152, waarschuwing →
+ * amber 70, negatief → terracottarood 30. De statustokens wisselen zelf
+ * mee met light/dark, dus geen `dark:`-duo's meer nodig.
  */
 export function getDeviationColor(status: "good" | "warning" | "critical"): {
   text: string;
@@ -118,21 +122,21 @@ export function getDeviationColor(status: "good" | "warning" | "critical"): {
   switch (status) {
     case "good":
       return {
-        text: "text-green-600 dark:text-green-400",
-        bg: "bg-green-100 dark:bg-green-900/30",
-        border: "border-green-500",
+        text: "text-status-geaccepteerd-text",
+        bg: "bg-status-geaccepteerd",
+        border: "border-status-geaccepteerd-border",
       };
     case "warning":
       return {
-        text: "text-yellow-600 dark:text-yellow-400",
-        bg: "bg-yellow-100 dark:bg-yellow-900/30",
-        border: "border-yellow-500",
+        text: "text-status-in-uitvoering-text",
+        bg: "bg-status-in-uitvoering",
+        border: "border-status-in-uitvoering-border",
       };
     case "critical":
       return {
-        text: "text-red-600 dark:text-red-400",
-        bg: "bg-red-100 dark:bg-red-900/30",
-        border: "border-red-500",
+        text: "text-status-afgewezen-text",
+        bg: "bg-status-afgewezen",
+        border: "border-status-afgewezen-border",
       };
   }
 }

@@ -298,10 +298,10 @@ export default function NacalculatiePage({
           >
             <Card className={`border-2 ${
               budgetStatus.status === "good"
-                ? "border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/20"
+                ? "border-status-geaccepteerd-border bg-status-geaccepteerd/40"
                 : budgetStatus.status === "warning"
-                ? "border-yellow-200 dark:border-yellow-800 bg-yellow-50/50 dark:bg-yellow-950/20"
-                : "border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-950/20"
+                ? "border-status-in-uitvoering-border bg-status-in-uitvoering/40"
+                : "border-status-afgewezen-border bg-status-afgewezen/40"
             }`}>
               <CardContent className="py-4 px-4 md:px-6">
                 <div className="flex flex-col md:flex-row md:items-center gap-4">
@@ -309,27 +309,27 @@ export default function NacalculatiePage({
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div className={`h-12 w-12 md:h-14 md:w-14 rounded-full flex items-center justify-center shrink-0 ${
                       budgetStatus.status === "good"
-                        ? "bg-green-100 dark:bg-green-900/50"
+                        ? "bg-status-geaccepteerd"
                         : budgetStatus.status === "warning"
-                        ? "bg-yellow-100 dark:bg-yellow-900/50"
-                        : "bg-red-100 dark:bg-red-900/50"
+                        ? "bg-status-in-uitvoering"
+                        : "bg-status-afgewezen"
                     }`}>
                       {budgetStatus.isOverBudget ? (
                         <TrendingUp className={`h-6 w-6 md:h-7 md:w-7 ${
                           budgetStatus.status === "good"
-                            ? "text-green-600 dark:text-green-400"
+                            ? "text-status-geaccepteerd-text"
                             : budgetStatus.status === "warning"
-                            ? "text-yellow-600 dark:text-yellow-400"
-                            : "text-red-600 dark:text-red-400"
+                            ? "text-status-in-uitvoering-text"
+                            : "text-status-afgewezen-text"
                         }`} />
                       ) : budgetStatus.isUnderBudget ? (
                         <TrendingDown className={`h-6 w-6 md:h-7 md:w-7 ${
                           budgetStatus.status === "good"
-                            ? "text-green-600 dark:text-green-400"
-                            : "text-blue-600 dark:text-blue-400"
+                            ? "text-status-geaccepteerd-text"
+                            : "text-status-gepland-text"
                         }`} />
                       ) : (
-                        <Target className="h-6 w-6 md:h-7 md:w-7 text-green-600 dark:text-green-400" />
+                        <Target className="h-6 w-6 md:h-7 md:w-7 text-status-geaccepteerd-text" />
                       )}
                     </div>
                     <div className="min-w-0">
@@ -378,10 +378,10 @@ export default function NacalculatiePage({
                     <m.div
                       className={`h-full rounded-full ${
                         budgetStatus.status === "good"
-                          ? "bg-green-500"
+                          ? "bg-status-geaccepteerd-dot"
                           : budgetStatus.status === "warning"
-                          ? "bg-yellow-500"
-                          : "bg-red-500"
+                          ? "bg-status-in-uitvoering-dot"
+                          : "bg-status-afgewezen-dot"
                       }`}
                       initial={{ width: 0 }}
                       animate={{ width: `${Math.min(budgetStatus.progressValue / 2, 100)}%` }}
@@ -428,10 +428,10 @@ export default function NacalculatiePage({
           <div className="grid gap-4 md:grid-cols-2">
             {/* No Voorcalculatie */}
             {!hasVoorcalculatie && (
-              <Card className="border-orange-200 dark:border-orange-800 bg-orange-50/50 dark:bg-orange-950/20">
+              <Card className="border-status-herinnering-border bg-status-herinnering/40">
                 <CardContent className="flex flex-col items-center justify-center py-8">
-                  <div className="h-12 w-12 rounded-full bg-orange-100 dark:bg-orange-900/50 flex items-center justify-center mb-4">
-                    <Calculator className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+                  <div className="h-12 w-12 rounded-full bg-status-herinnering flex items-center justify-center mb-4">
+                    <Calculator className="h-6 w-6 text-status-herinnering-text" />
                   </div>
                   <h3 className="text-lg font-semibold text-center">
                     Geen voorcalculatie
@@ -452,10 +452,10 @@ export default function NacalculatiePage({
 
             {/* No Uren Registraties */}
             {!hasUrenRegistraties && (
-              <Card className="border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20">
+              <Card className="border-status-gepland-border bg-status-gepland/40">
                 <CardContent className="flex flex-col items-center justify-center py-8">
-                  <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center mb-4">
-                    <Clock className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                  <div className="h-12 w-12 rounded-full bg-status-gepland flex items-center justify-center mb-4">
+                    <Clock className="h-6 w-6 text-status-gepland-text" />
                   </div>
                   <h3 className="text-lg font-semibold text-center">
                     Geen urenregistraties
@@ -509,7 +509,7 @@ export default function NacalculatiePage({
                   <Card>
                     <CardHeader className="pb-3">
                       <CardTitle className="flex items-center gap-2 text-base md:text-lg">
-                        <Lightbulb className="h-4 w-4 md:h-5 md:w-5 text-amber-500" />
+                        <Lightbulb className="h-4 w-4 md:h-5 md:w-5 text-accent-warm" />
                         Belangrijkste Inzichten
                       </CardTitle>
                     </CardHeader>
@@ -517,10 +517,10 @@ export default function NacalculatiePage({
                       <div className="grid gap-2 md:gap-3">
                         {clientCalculation.insights.slice(0, 3).map((insight, index) => {
                           const iconMap = {
-                            success: <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />,
-                            warning: <AlertTriangle className="h-4 w-4 text-yellow-500 shrink-0" />,
-                            critical: <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />,
-                            info: <Info className="h-4 w-4 text-blue-500 shrink-0" />,
+                            success: <CheckCircle className="h-4 w-4 text-status-geaccepteerd-text shrink-0" />,
+                            warning: <AlertTriangle className="h-4 w-4 text-status-in-uitvoering-text shrink-0" />,
+                            critical: <AlertTriangle className="h-4 w-4 text-status-afgewezen-text shrink-0" />,
+                            info: <Info className="h-4 w-4 text-status-gepland-text shrink-0" />,
                           };
                           return (
                             <m.div
@@ -530,12 +530,12 @@ export default function NacalculatiePage({
                               transition={{ delay: index * 0.05 }}
                               className={`flex items-start gap-3 p-3 rounded-lg ${
                                 insight.type === "success"
-                                  ? "bg-green-50 dark:bg-green-950/30"
+                                  ? "bg-status-geaccepteerd/40"
                                   : insight.type === "warning"
-                                  ? "bg-yellow-50 dark:bg-yellow-950/30"
+                                  ? "bg-status-in-uitvoering/40"
                                   : insight.type === "critical"
-                                  ? "bg-red-50 dark:bg-red-950/30"
-                                  : "bg-blue-50 dark:bg-blue-950/30"
+                                  ? "bg-status-afgewezen/40"
+                                  : "bg-status-gepland/40"
                               }`}
                             >
                               {iconMap[insight.type]}
@@ -630,11 +630,11 @@ export default function NacalculatiePage({
 
                 {/* Factuur CTA Card - Only show if already saved */}
                 {details?.project?.status === "nacalculatie_compleet" && (
-                  <Card className="border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/20">
+                  <Card className="border-status-geaccepteerd-border bg-status-geaccepteerd/40">
                     <CardContent className="flex flex-col sm:flex-row items-center justify-between gap-4 py-4 md:py-6">
                       <div className="flex items-center gap-3 md:gap-4">
-                        <div className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-green-100 dark:bg-green-900/50 flex items-center justify-center">
-                          <CheckCircle className="h-5 w-5 md:h-6 md:w-6 text-green-600 dark:text-green-400" />
+                        <div className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-status-geaccepteerd flex items-center justify-center">
+                          <CheckCircle className="h-5 w-5 md:h-6 md:w-6 text-status-geaccepteerd-text" />
                         </div>
                         <div>
                           <h3 className="text-base md:text-lg font-semibold">
@@ -645,7 +645,7 @@ export default function NacalculatiePage({
                           </p>
                         </div>
                       </div>
-                      <Button asChild className="bg-green-600 hover:bg-green-700 w-full sm:w-auto">
+                      <Button asChild className="w-full sm:w-auto">
                         <Link href={`/projecten/${id}/factuur`}>
                           <Receipt className="mr-2 h-4 w-4" />
                           Ga naar Factuur
@@ -684,12 +684,12 @@ export default function NacalculatiePage({
           {/* Leerfeedback Tab */}
           <TabsContent value="leerfeedback" className="space-y-6">
             {/* Warning banner */}
-            <Alert className="border-amber-500 bg-amber-50 dark:bg-amber-950/30">
-              <AlertTriangle className="h-4 w-4 text-amber-600" />
-              <AlertTitle className="text-amber-800 dark:text-amber-200">
+            <Alert className="border-status-herinnering-border bg-status-herinnering/40">
+              <AlertTriangle className="h-4 w-4 text-status-herinnering-text" />
+              <AlertTitle className="text-status-herinnering-text">
                 Handmatige aanpassingen
               </AlertTitle>
-              <AlertDescription className="text-amber-700 dark:text-amber-300">
+              <AlertDescription className="text-status-herinnering-text/90">
                 Normuur aanpassingen gebeuren alleen op basis van jouw
                 expliciete goedkeuring. Er worden geen automatische wijzigingen
                 doorgevoerd. Elke aanpassing wordt gelogd en kan worden
@@ -726,7 +726,7 @@ export default function NacalculatiePage({
               ) : (
                 <Card>
                   <CardContent className="py-8 text-center text-muted-foreground">
-                    <CheckCircle className="h-8 w-8 mx-auto mb-2 text-green-500" />
+                    <CheckCircle className="h-8 w-8 mx-auto mb-2 text-status-geaccepteerd-dot" />
                     <p className="font-medium">Geen suggesties beschikbaar</p>
                     <p className="text-sm mt-1">
                       {totaalAnalyseerdeProjecten < minimumVoorSuggestie
@@ -770,7 +770,7 @@ export default function NacalculatiePage({
               )}
             </Button>
             {details?.project?.status === "nacalculatie_compleet" ? (
-              <Button asChild className="flex-1 bg-green-600 hover:bg-green-700">
+              <Button asChild className="flex-1">
                 <Link href={`/projecten/${id}/factuur`}>
                   <Receipt className="mr-2 h-4 w-4" />
                   Ga naar Factuur

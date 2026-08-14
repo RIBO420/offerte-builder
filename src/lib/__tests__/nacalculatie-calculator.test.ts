@@ -98,35 +98,38 @@ describe("getDeviationStatus", () => {
 // ===========================================================================
 
 describe("getDeviationColor", () => {
-  it("returns green-based classes for good status", () => {
+  it("returns succes-token classes (merkgroen) for good status", () => {
     const colors = getDeviationColor("good");
 
-    expect(colors.text).toContain("green");
-    expect(colors.bg).toContain("green");
-    expect(colors.border).toContain("green");
+    expect(colors.text).toContain("status-geaccepteerd");
+    expect(colors.bg).toContain("status-geaccepteerd");
+    expect(colors.border).toContain("status-geaccepteerd");
   });
 
-  it("returns yellow-based classes for warning status", () => {
+  it("returns waarschuwing-token classes (amber) for warning status", () => {
     const colors = getDeviationColor("warning");
 
-    expect(colors.text).toContain("yellow");
-    expect(colors.bg).toContain("yellow");
-    expect(colors.border).toContain("yellow");
+    expect(colors.text).toContain("status-in-uitvoering");
+    expect(colors.bg).toContain("status-in-uitvoering");
+    expect(colors.border).toContain("status-in-uitvoering");
   });
 
-  it("returns red-based classes for critical status", () => {
+  it("returns negatief-token classes for critical status", () => {
     const colors = getDeviationColor("critical");
 
-    expect(colors.text).toContain("red");
-    expect(colors.bg).toContain("red");
-    expect(colors.border).toContain("red");
+    expect(colors.text).toContain("status-afgewezen");
+    expect(colors.bg).toContain("status-afgewezen");
+    expect(colors.border).toContain("status-afgewezen");
   });
 
-  it("includes dark mode variants", () => {
+  it("uses theme tokens instead of dark: duo classes", () => {
     for (const status of ["good", "warning", "critical"] as const) {
       const colors = getDeviationColor(status);
-      expect(colors.text).toContain("dark:");
-      expect(colors.bg).toContain("dark:");
+      expect(colors.text).not.toContain("dark:");
+      expect(colors.bg).not.toContain("dark:");
+      expect(colors.text).toMatch(/^text-status-/);
+      expect(colors.bg).toMatch(/^bg-status-/);
+      expect(colors.border).toMatch(/^border-status-/);
     }
   });
 });

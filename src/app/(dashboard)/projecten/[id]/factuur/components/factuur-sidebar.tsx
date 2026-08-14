@@ -101,8 +101,8 @@ export function FactuurStatusInfo({
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-start gap-3">
-          <div className={`p-2 rounded-full ${factuurStatus === 'betaald' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-muted'}`}>
-            <Receipt className={`h-4 w-4 ${factuurStatus === 'betaald' ? 'text-green-600' : 'text-muted-foreground'}`} />
+          <div className={`p-2 rounded-full ${factuurStatus === 'betaald' ? 'bg-status-betaald' : 'bg-muted'}`}>
+            <Receipt className={`h-4 w-4 ${factuurStatus === 'betaald' ? 'text-status-betaald-text' : 'text-muted-foreground'}`} />
           </div>
           <div>
             <p className="font-medium">Aangemaakt</p>
@@ -114,8 +114,8 @@ export function FactuurStatusInfo({
 
         {(factuurStatus === 'verzonden' || factuurStatus === 'betaald' || factuurStatus === 'vervallen') && verzondenAt && (
           <div className="flex items-start gap-3">
-            <div className={`p-2 rounded-full ${factuurStatus === 'betaald' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-muted'}`}>
-              <Mail className={`h-4 w-4 ${factuurStatus === 'betaald' ? 'text-green-600' : 'text-muted-foreground'}`} />
+            <div className={`p-2 rounded-full ${factuurStatus === 'betaald' ? 'bg-status-betaald' : 'bg-muted'}`}>
+              <Mail className={`h-4 w-4 ${factuurStatus === 'betaald' ? 'text-status-betaald-text' : 'text-muted-foreground'}`} />
             </div>
             <div>
               <p className="font-medium">Verzonden</p>
@@ -128,8 +128,8 @@ export function FactuurStatusInfo({
 
         {factuurStatus === 'betaald' && betaaldAt && (
           <div className="flex items-start gap-3">
-            <div className="p-2 rounded-full bg-green-100 dark:bg-green-900/30">
-              <CheckCircle className="h-4 w-4 text-green-600" />
+            <div className="p-2 rounded-full bg-status-betaald">
+              <CheckCircle className="h-4 w-4 text-status-betaald-text" />
             </div>
             <div>
               <p className="font-medium">Betaald</p>
@@ -142,8 +142,8 @@ export function FactuurStatusInfo({
 
         {factuurStatus === 'vervallen' && (
           <div className="flex items-start gap-3">
-            <div className="p-2 rounded-full bg-red-100 dark:bg-red-900/30">
-              <AlertCircle className="h-4 w-4 text-red-600" />
+            <div className="p-2 rounded-full bg-status-vervallen">
+              <AlertCircle className="h-4 w-4 text-status-vervallen-text" />
             </div>
             <div>
               <p className="font-medium">Vervallen</p>
@@ -201,11 +201,11 @@ export function AanmaningStatusCard({ aanmaningStatus }: AanmaningStatusCardProp
   return (
     <Card className={
       aanmaningStatus.heeftIngebrekestelling
-        ? "border-red-200 dark:border-red-900"
+        ? "border-status-vervallen-border"
         : aanmaningStatus.heeftTweede
-          ? "border-orange-200 dark:border-orange-900"
+          ? "border-accent-warm/60"
           : aanmaningStatus.heeftEerste
-            ? "border-amber-200 dark:border-amber-900"
+            ? "border-status-herinnering-border"
             : ""
     }>
       <CardHeader className="pb-3">
@@ -227,9 +227,9 @@ export function AanmaningStatusCard({ aanmaningStatus }: AanmaningStatusCardProp
       <CardContent>
         {/* Escalation level indicators */}
         <div className="flex items-center gap-2 mb-4">
-          <div className={`flex-1 h-2 rounded-full ${aanmaningStatus.heeftEerste ? "bg-amber-400" : "bg-muted"}`} />
-          <div className={`flex-1 h-2 rounded-full ${aanmaningStatus.heeftTweede ? "bg-orange-400" : "bg-muted"}`} />
-          <div className={`flex-1 h-2 rounded-full ${aanmaningStatus.heeftIngebrekestelling ? "bg-red-500" : "bg-muted"}`} />
+          <div className={`flex-1 h-2 rounded-full ${aanmaningStatus.heeftEerste ? "bg-status-herinnering-dot" : "bg-muted"}`} />
+          <div className={`flex-1 h-2 rounded-full ${aanmaningStatus.heeftTweede ? "bg-accent-warm" : "bg-muted"}`} />
+          <div className={`flex-1 h-2 rounded-full ${aanmaningStatus.heeftIngebrekestelling ? "bg-destructive" : "bg-muted"}`} />
         </div>
         <div className="flex justify-between text-xs text-muted-foreground mb-3">
           <span>1e Aanmaning</span>
@@ -262,11 +262,13 @@ const typeLabelsMap: Record<string, string> = {
   ingebrekestelling: "Ingebrekestelling",
 };
 
+// Escalatietrap: wachten (oker 85) → actief aanmanen (amber 70) → negatief (30);
+// ingebrekestelling krijgt dezelfde negatieve tint met een rand als zwaarste stap.
 const typeColors: Record<string, string> = {
-  herinnering: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200",
-  eerste_aanmaning: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-200",
-  tweede_aanmaning: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200",
-  ingebrekestelling: "bg-red-200 text-red-900 dark:bg-red-900/50 dark:text-red-100",
+  herinnering: "bg-status-herinnering text-status-herinnering-text",
+  eerste_aanmaning: "bg-status-in-uitvoering text-status-in-uitvoering-text",
+  tweede_aanmaning: "bg-status-vervallen text-status-vervallen-text",
+  ingebrekestelling: "bg-status-vervallen text-status-vervallen-text border border-status-vervallen-border",
 };
 
 const typeIcons: Record<string, typeof Bell> = {
@@ -350,9 +352,9 @@ interface CreditnotaInfoProps {
 
 export function CreditnotaInfo({ creditnota }: CreditnotaInfoProps) {
   return (
-    <Card className="border-red-200 dark:border-red-900">
+    <Card className="border-status-vervallen-border">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-red-600">
+        <CardTitle className="flex items-center gap-2 text-destructive">
           <FileX className="h-4 w-4" />
           Creditnota
         </CardTitle>
@@ -368,7 +370,7 @@ export function CreditnotaInfo({ creditnota }: CreditnotaInfoProps) {
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">Bedrag</span>
-          <span className="font-bold text-red-600">{formatCurrency(creditnota.totaalInclBtw)}</span>
+          <span className="font-bold text-destructive">{formatCurrency(creditnota.totaalInclBtw)}</span>
         </div>
         {creditnota.creditnotaReden && (
           <>
@@ -412,20 +414,20 @@ const syncStatusConfig: Record<string, {
 }> = {
   synced: {
     label: "Gesynchroniseerd",
-    color: "text-green-600",
-    bgColor: "bg-green-100 dark:bg-green-900/30",
+    color: "text-status-betaald-text",
+    bgColor: "bg-status-betaald",
     icon: CheckCircle,
   },
   pending: {
     label: "Wacht op synchronisatie",
-    color: "text-amber-600",
-    bgColor: "bg-amber-100 dark:bg-amber-900/30",
+    color: "text-status-herinnering-text",
+    bgColor: "bg-status-herinnering",
     icon: Clock,
   },
   error: {
     label: "Synchronisatie mislukt",
-    color: "text-red-600",
-    bgColor: "bg-red-100 dark:bg-red-900/30",
+    color: "text-destructive",
+    bgColor: "bg-destructive/10",
     icon: AlertCircle,
   },
   not_synced: {
@@ -516,12 +518,12 @@ export function BoekhoudSyncStatusCard({ syncStatus }: BoekhoudSyncStatusCardPro
 
         {/* Error message */}
         {status === "error" && entry?.errorMessage && (
-          <div className="rounded-md bg-red-50 dark:bg-red-950/30 p-2.5">
-            <p className="text-xs text-red-700 dark:text-red-300">
+          <div className="rounded-md bg-destructive/10 p-2.5">
+            <p className="text-xs text-destructive">
               {entry.errorMessage}
             </p>
             {entry.retryCount != null && entry.retryCount > 0 && (
-              <p className="text-xs text-red-500 dark:text-red-400 mt-1">
+              <p className="text-xs text-destructive mt-1">
                 {entry.retryCount} poging(en) mislukt
               </p>
             )}

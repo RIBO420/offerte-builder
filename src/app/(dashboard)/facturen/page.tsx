@@ -351,8 +351,8 @@ function FacturenPageContent() {
                     Totaal facturen
                   </p>
                 </div>
-                <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-950 flex items-center justify-center">
-                  <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                <div className="h-10 w-10 rounded-full bg-status-gepland flex items-center justify-center">
+                  <FileText className="h-5 w-5 text-status-gepland-text" />
                 </div>
               </div>
             </CardContent>
@@ -369,8 +369,8 @@ function FacturenPageContent() {
                     Totale omzet (betaald)
                   </p>
                 </div>
-                <div className="h-10 w-10 rounded-full bg-green-100 dark:bg-green-950 flex items-center justify-center">
-                  <TrendingUp className="h-5 w-5 text-green-600 dark:text-green-400" />
+                <div className="h-10 w-10 rounded-full bg-status-betaald flex items-center justify-center">
+                  <TrendingUp className="h-5 w-5 text-status-betaald-text" />
                 </div>
               </div>
             </CardContent>
@@ -387,26 +387,26 @@ function FacturenPageContent() {
                     Openstaand bedrag
                   </p>
                 </div>
-                <div className="h-10 w-10 rounded-full bg-amber-100 dark:bg-amber-950 flex items-center justify-center">
-                  <Euro className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                <div className="h-10 w-10 rounded-full bg-status-herinnering flex items-center justify-center">
+                  <Euro className="h-5 w-5 text-status-herinnering-text" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className={stats.verlopen > 0 ? "border-red-200 dark:border-red-900" : ""}>
+          <Card className={stats.verlopen > 0 ? "border-status-vervallen-border" : ""}>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className={`text-2xl font-bold ${stats.verlopen > 0 ? "text-red-600 dark:text-red-400" : ""}`}>
+                  <p className={`text-2xl font-bold ${stats.verlopen > 0 ? "text-destructive" : ""}`}>
                     {stats.verlopen}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Verlopen facturen
                   </p>
                 </div>
-                <div className={`h-10 w-10 rounded-full flex items-center justify-center ${stats.verlopen > 0 ? "bg-red-100 dark:bg-red-950" : "bg-gray-100 dark:bg-gray-950"}`}>
-                  <AlertTriangle className={`h-5 w-5 ${stats.verlopen > 0 ? "text-red-600 dark:text-red-400" : "text-gray-400 dark:text-gray-600"}`} />
+                <div className={`h-10 w-10 rounded-full flex items-center justify-center ${stats.verlopen > 0 ? "bg-status-vervallen" : "bg-muted"}`}>
+                  <AlertTriangle className={`h-5 w-5 ${stats.verlopen > 0 ? "text-status-vervallen-text" : "text-muted-foreground"}`} />
                 </div>
               </div>
             </CardContent>
@@ -627,7 +627,7 @@ function FacturenPageContent() {
                               return (
                               <TableRow
                                 key={factuur._id}
-                                className={`${factuur.projectId ? "cursor-pointer" : ""} hover:bg-muted/50 ${isCreditnota ? "bg-red-50/50 dark:bg-red-950/20" : ""}`}
+                                className={`${factuur.projectId ? "cursor-pointer" : ""} hover:bg-muted/50 ${isCreditnota ? "bg-destructive/5" : ""}`}
                                 onClick={() => handleNavigate(factuur.projectId)}
                               >
                                 {isWachtrijTab && isKantoor && (
@@ -648,29 +648,29 @@ function FacturenPageContent() {
                                   <div className="flex items-center gap-3">
                                     <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${
                                       isCreditnota
-                                        ? "bg-red-100 dark:bg-red-950"
+                                        ? "bg-status-vervallen"
                                         : isMeerwerk
-                                          ? "bg-orange-100 dark:bg-orange-950"
+                                          ? "bg-status-in-uitvoering"
                                           : isDeelfactuur
-                                            ? "bg-purple-100 dark:bg-purple-950"
+                                            ? "bg-status-gepland"
                                             : "bg-primary/10"
                                     }`}>
                                       {isCreditnota ? (
-                                        <FileX className="h-4 w-4 text-red-600 dark:text-red-400" />
+                                        <FileX className="h-4 w-4 text-status-vervallen-text" />
                                       ) : isMeerwerk ? (
-                                        <Wrench className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                                        <Wrench className="h-4 w-4 text-status-in-uitvoering-text" />
                                       ) : isDeelfactuur ? (
-                                        <FileStack className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                                        <FileStack className="h-4 w-4 text-status-gepland-text" />
                                       ) : (
                                         <FileText className="h-4 w-4 text-primary" />
                                       )}
                                     </div>
                                     <div>
-                                      <p className={`font-medium ${isCreditnota ? "text-red-700 dark:text-red-400" : ""}`}>
+                                      <p className={`font-medium ${isCreditnota ? "text-destructive" : ""}`}>
                                         {factuur.factuurnummer}
                                       </p>
                                       {isCreditnota && factuur.creditnotaReden && (
-                                        <p className="text-xs text-red-500 dark:text-red-400 truncate max-w-[200px]" title={factuur.creditnotaReden}>
+                                        <p className="text-xs text-destructive truncate max-w-[200px]" title={factuur.creditnotaReden}>
                                           {factuur.creditnotaReden}
                                         </p>
                                       )}
@@ -687,23 +687,23 @@ function FacturenPageContent() {
                                 </TableCell>
                                 <TableCell>
                                   {isCreditnota ? (
-                                    <Badge variant="outline" className="bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200 border-red-200 dark:border-red-800">
+                                    <Badge variant="outline" className="bg-status-vervallen text-status-vervallen-text border-status-vervallen-border">
                                       <MinusCircle className="h-3 w-3 mr-1" />
                                       Creditnota
                                     </Badge>
                                   ) : isMeerwerk ? (
-                                    <Badge variant="outline" className="bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-200 border-orange-200 dark:border-orange-800">
+                                    <Badge variant="outline" className="bg-status-in-uitvoering text-status-in-uitvoering-text border-status-in-uitvoering-border">
                                       Meerwerk
                                     </Badge>
                                   ) : isDeelfactuur ? (
-                                    <Badge variant="outline" className="bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-200 border-purple-200 dark:border-purple-800">
+                                    <Badge variant="outline" className="bg-status-gepland text-status-gepland-text border-status-gepland-border">
                                       Deel {factuur.deelfactuurNummer} ({factuur.deelfactuurPercentage}%)
                                     </Badge>
                                   ) : (
                                     <span className="text-xs text-muted-foreground">Volledig</span>
                                   )}
                                 </TableCell>
-                                <TableCell className={`font-medium ${isCreditnota ? "text-red-600 dark:text-red-400" : ""}`}>
+                                <TableCell className={`font-medium ${isCreditnota ? "text-destructive" : ""}`}>
                                   {formatCurrency(factuur.totaalInclBtw)}
                                 </TableCell>
                                 <TableCell className="text-muted-foreground">
@@ -716,20 +716,20 @@ function FacturenPageContent() {
                                     return (
                                       <div className="space-y-1">
                                         <div className="flex items-center gap-2">
-                                          <span className={factuurOverdue ? "text-red-600 dark:text-red-400 font-medium" : "text-muted-foreground"}>
+                                          <span className={factuurOverdue ? "text-destructive font-medium" : "text-muted-foreground"}>
                                             {formatDate(factuur.vervaldatum)}
                                           </span>
                                           {factuurOverdue && (
-                                            <AlertTriangle className="h-4 w-4 text-red-500" />
+                                            <AlertTriangle className="h-4 w-4 text-destructive" />
                                           )}
                                         </div>
                                         {factuurOverdue && overdueInfo && (
                                           <div className="flex items-center gap-1.5">
-                                            <span className="text-xs text-red-600 dark:text-red-400 font-medium">
+                                            <span className="text-xs text-destructive font-medium">
                                               {overdueInfo.dagenVervallen}d verlopen
                                             </span>
                                             {overdueInfo.aantalHerinneringen > 0 && (
-                                              <Badge variant="outline" className="h-5 px-1.5 text-[10px] bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800">
+                                              <Badge variant="outline" className="h-5 px-1.5 text-[10px] bg-status-herinnering text-status-herinnering-text border-status-herinnering-border">
                                                 <Bell className="h-2.5 w-2.5 mr-0.5" />
                                                 {overdueInfo.aantalHerinneringen}
                                               </Badge>

@@ -57,28 +57,28 @@ describe("Nacalculatie Calculator - getDeviationStatus", () => {
 });
 
 describe("Nacalculatie Calculator - getDeviationColor", () => {
-  it("returns green colors for 'good' status", () => {
+  it("returns succes-token colors for 'good' status", () => {
     const colors = getDeviationColor("good");
 
-    expect(colors.text).toContain("green");
-    expect(colors.bg).toContain("green");
-    expect(colors.border).toContain("green");
+    expect(colors.text).toContain("status-geaccepteerd");
+    expect(colors.bg).toContain("status-geaccepteerd");
+    expect(colors.border).toContain("status-geaccepteerd");
   });
 
-  it("returns yellow colors for 'warning' status", () => {
+  it("returns waarschuwing-token colors for 'warning' status", () => {
     const colors = getDeviationColor("warning");
 
-    expect(colors.text).toContain("yellow");
-    expect(colors.bg).toContain("yellow");
-    expect(colors.border).toContain("yellow");
+    expect(colors.text).toContain("status-in-uitvoering");
+    expect(colors.bg).toContain("status-in-uitvoering");
+    expect(colors.border).toContain("status-in-uitvoering");
   });
 
-  it("returns red colors for 'critical' status", () => {
+  it("returns negatief-token colors for 'critical' status", () => {
     const colors = getDeviationColor("critical");
 
-    expect(colors.text).toContain("red");
-    expect(colors.bg).toContain("red");
-    expect(colors.border).toContain("red");
+    expect(colors.text).toContain("status-afgewezen");
+    expect(colors.bg).toContain("status-afgewezen");
+    expect(colors.border).toContain("status-afgewezen");
   });
 });
 
