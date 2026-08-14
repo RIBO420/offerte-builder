@@ -92,6 +92,14 @@ const nextConfig: NextConfig = {
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
         ],
       },
+      // De drie cache-blokken hieronder alleen in productie. In dev stuurde
+      // `immutable` op /_next/static het browserpaneel keer op keer verouderde
+      // chunks (elke verificatieronde had fetch cache:"reload"-trucs nodig, en
+      // het heeft één keer een onterecht weggegooide .next/ gekost). Turbopack
+      // cachet in dev zelf al correct; deze headers voegen daar niets toe.
+      ...(process.env.NODE_ENV !== "production"
+        ? []
+        : [
       {
         // Static assets (fonts, images in _next/static)
         source: "/_next/static/:path*",
@@ -122,6 +130,7 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+        ]),
     ];
   },
 };
