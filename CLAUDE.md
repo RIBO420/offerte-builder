@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Top Tuinen Offerte Calculator — a monorepo for a Dutch landscaping company (Top Tuinen) containing a web app for quote/project management and a mobile app for field workers. All UI text is in Dutch.
+Top Tuinen OS — a monorepo for a Dutch landscaping company (Top Tuinen) containing a web app for the whole back office (leads, klanten, offertes, projecten, planning, uren, facturen, klantportaal) and a mobile app for field workers. All UI text is in Dutch. Naming rule: internal product chrome says **Top Tuinen OS**, anything the customer sees (klantportaal, PDF's, e-mail, publieke configurator) says plain **Top Tuinen**.
 
 ## Architecture
 

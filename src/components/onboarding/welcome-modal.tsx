@@ -68,7 +68,7 @@ export function WelcomeModal({ open, onClose, userName }: WelcomeModalProps) {
             Welkom{userName ? `, ${userName}` : ""}!
           </DialogTitle>
           <DialogDescription className="text-base">
-            Je bent klaar om te beginnen met TOP Offerte Calculator.
+            Je bent klaar om te beginnen met Top Tuinen OS.
             Hier kun je snel en eenvoudig offertes maken voor je tuinprojecten.
           </DialogDescription>
         </DialogHeader>

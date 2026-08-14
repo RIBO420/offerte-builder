@@ -207,8 +207,8 @@ export default function TekstblokkenPage() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Tekstblokken</h1>
             <p className="text-sm text-muted-foreground">
-              Herbruikbare teksten voor de offerte-builder — platte tekst, de
-              huisstijl zit in de template.
+              Herbruikbare teksten voor het opstellen van offertes — platte
+              tekst, de huisstijl zit in de template.
             </p>
           </div>
           <Button onClick={openNieuw}>

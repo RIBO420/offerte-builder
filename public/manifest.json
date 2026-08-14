@@ -1,7 +1,7 @@
 {
-  "name": "TOP Offerte Calculator",
-  "short_name": "TOP Offerte",
-  "description": "Offerte en project management voor hoveniers",
+  "name": "Top Tuinen OS",
+  "short_name": "Top Tuinen OS",
+  "description": "Bedrijfssoftware voor hoveniers: leads, klanten, offertes, projecten, planning, uren en facturen",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

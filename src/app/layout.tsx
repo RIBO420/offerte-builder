@@ -23,10 +23,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TOP Offerte Calculator",
+  // Productnaam van het interne systeem: browsertitel en PWA heten "Top Tuinen OS".
+  // openGraph/twitter hieronder houden bewust "Top Tuinen" — een gedeelde link komt
+  // bij de klant terecht en die hoort de naam van ons interne systeem niet te zien.
+  title: "Top Tuinen OS",
   description:
-    "Offerte en project management voor hoveniers",
-  keywords: ["offerte", "hovenier", "tuinaanleg", "tuinonderhoud", "calculator"],
+    "Bedrijfssoftware voor hoveniers: leads, klanten, offertes, projecten, planning, uren en facturen",
+  keywords: ["hovenier", "offerte", "tuinaanleg", "tuinonderhoud", "projectmanagement"],
   manifest: "/manifest.json",
   icons: {
     icon: "/favicon.ico",
@@ -37,7 +40,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "TOP Offerte",
+    title: "Top Tuinen OS",
   },
   formatDetection: {
     telephone: false,
@@ -49,17 +52,15 @@ export const metadata: Metadata = {
     "mobile-web-app-capable": "yes",
   },
   openGraph: {
-    title: "TOP Offerte Calculator",
-    description:
-      "Offerte en project management voor hoveniers",
+    title: "Top Tuinen",
+    description: "Hovenier voor tuinaanleg, tuinrenovatie en tuinonderhoud",
     type: "website",
     locale: "nl_NL",
   },
   twitter: {
     card: "summary_large_image",
-    title: "TOP Offerte Calculator",
-    description:
-      "Offerte en project management voor hoveniers",
+    title: "Top Tuinen",
+    description: "Hovenier voor tuinaanleg, tuinrenovatie en tuinonderhoud",
   },
 };
 

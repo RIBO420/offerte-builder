@@ -1,4 +1,4 @@
-// Offerte types voor de Offerte Builder
+// Offerte types voor Top Tuinen OS
 
 export type OfferteType = "aanleg" | "onderhoud";
 

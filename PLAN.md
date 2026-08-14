@@ -1,4 +1,4 @@
-# Offerte Builder UX Verbeterplan
+# Top Tuinen OS UX Verbeterplan
 
 > Status: Ready for execution
 > Datum: 2026-03-18
