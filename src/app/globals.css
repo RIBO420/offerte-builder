@@ -152,6 +152,10 @@ body {
   --color-status-gefactureerd-border: var(--status-gefactureerd-border);
   --color-status-gefactureerd-dot: var(--status-gefactureerd-dot);
   /* Status colors - Factuur */
+  --color-status-definitief: var(--status-definitief);
+  --color-status-definitief-text: var(--status-definitief-text);
+  --color-status-definitief-border: var(--status-definitief-border);
+  --color-status-definitief-dot: var(--status-definitief-dot);
   --color-status-betaald: var(--status-betaald);
   --color-status-betaald-text: var(--status-betaald-text);
   --color-status-betaald-border: var(--status-betaald-border);
@@ -373,6 +377,11 @@ body {
   --status-gefactureerd-dot: oklch(0.55 0.16 160);
 
   /* Factuur */
+  --status-definitief: oklch(0.93 0.045 215);   /* Leisteenblauw - vastgesteld document (eigen tint naast 245) */
+  --status-definitief-text: oklch(0.32 0.10 215);
+  --status-definitief-border: oklch(0.75 0.08 215);
+  --status-definitief-dot: oklch(0.55 0.16 215);
+
   --status-betaald: oklch(0.93 0.045 152);      /* Merkgroen - succes */
   --status-betaald-text: oklch(0.32 0.10 152);
   --status-betaald-border: oklch(0.75 0.08 152);
@@ -574,6 +583,11 @@ body {
   --status-gefactureerd-dot: oklch(0.68 0.14 160);
 
   /* Factuur */
+  --status-definitief: oklch(0.26 0.05 215);
+  --status-definitief-text: oklch(0.85 0.09 215);
+  --status-definitief-border: oklch(0.42 0.08 215);
+  --status-definitief-dot: oklch(0.68 0.14 215);
+
   --status-betaald: oklch(0.26 0.05 152);
   --status-betaald-text: oklch(0.85 0.09 152);
   --status-betaald-border: oklch(0.42 0.08 152);

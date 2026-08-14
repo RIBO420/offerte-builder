@@ -240,17 +240,17 @@ export const FACTUUR_STATUS_CONFIG: Record<FactuurStatus, StatusConfig> = {
       dot: "bg-status-concept-dot",
     },
   },
-  // Geen eigen `--status-definitief`-tokengroep (zie WS4-rapport); deelt de
-  // informatie-hue 245 met "verzonden".
+  // Eigen tokengroep (WS10): leisteenblauw 215 — vastgesteld document,
+  // informatie-familie maar duidelijk te onderscheiden van verzonden (245).
   definitief: {
     label: "Definitief",
     description: "Factuur is definitief gemaakt en klaar om te verzenden",
     icon: FileText,
     color: {
-      bg: "bg-status-voorcalculatie",
-      text: "text-status-voorcalculatie-text",
-      border: "border-status-voorcalculatie-border",
-      dot: "bg-status-voorcalculatie-dot",
+      bg: "bg-status-definitief",
+      text: "text-status-definitief-text",
+      border: "border-status-definitief-border",
+      dot: "bg-status-definitief-dot",
     },
   },
   // Contracttermijn die nog gefactureerd moet worden.
