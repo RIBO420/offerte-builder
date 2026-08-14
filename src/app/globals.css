@@ -315,8 +315,10 @@ body {
   --scope-specials: oklch(0.55 0.2 300);       /* Paars specials */
 
   /* Trend kleuren */
-  --trend-positive: oklch(0.6 0.2 145);        /* Groen */
-  --trend-negative: oklch(0.6 0.2 25);         /* Rood */
+  /* L 0.52 i.p.v. 0.6: op de licht-achtergrond (L 0.982) haalde 0.6 maar
+     ~3,5:1 — onder AA voor de kleine trendtekst. Gemeten na WS10-sweep. */
+  --trend-positive: oklch(0.52 0.17 145);      /* Groen */
+  --trend-negative: oklch(0.52 0.19 25);       /* Rood */
   --trend-neutral: oklch(0.5 0 0);             /* Grijs */
 
   /* Status kleuren — Loof & Leem-receptuur light:
