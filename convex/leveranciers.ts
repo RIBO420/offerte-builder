@@ -201,6 +201,10 @@ export const importLeveranciers = mutation({
         adres: v.optional(v.string()),
         postcode: v.optional(v.string()),
         plaats: v.optional(v.string()),
+        /** Tweede nummer uit de export (vast én mobiel); gaat naar notities. */
+        extraTelefoon: v.optional(v.string()),
+        website: v.optional(v.string()),
+        klantnummer: v.optional(v.string()),
       })
     ),
   },
@@ -209,19 +213,15 @@ export const importLeveranciers = mutation({
     const userId = await requireAuthUserId(ctx);
     const now = Date.now();
 
+    // Hele documenten, niet alleen naam+e-mail: een bestaande leverancier moet
+    // aangevuld kunnen worden en daarvoor moet je weten wat er al staat.
     const bestaande = await ctx.db
       .query("leveranciers")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
 
-    // Alleen de velden die we nodig hebben voor duplicaatdetectie, zodat een
-    // net ingevoegde leverancier ook meetelt binnen dezelfde batch.
-    const gezien = bestaande.map((l) => ({
-      naam: l.naam.toLowerCase().trim(),
-      email: l.email?.toLowerCase().trim(),
-    }));
-
     let imported = 0;
+    let aangevuld = 0;
     let skipped = 0;
     const errors: string[] = [];
 
@@ -237,33 +237,80 @@ export const importLeveranciers = mutation({
         }
 
         const email = sanitizeEmail(rij.email);
-        const isDuplicaat = gezien.some(
-          (b) =>
-            (email && b.email && b.email === email) ||
-            b.naam === naam.toLowerCase()
-        );
-        if (isDuplicaat) {
-          skipped++;
+        // Bewust normaliseerImportPostcode i.p.v. sanitizePostcode: die laatste
+        // gooit op elke niet-Nederlandse postcode en zou de batch breken.
+        const postcode = normaliseerImportPostcode(rij.postcode) || undefined;
+        const tweede = sanitizePhone(rij.extraTelefoon);
+
+        /**
+         * Zelfde volgorde als bij klanten, en om dezelfde reden niet op e-mail
+         * alleen: Amagard en Kranendonk B.V. delen `info@zierkiesundsplitt.de`
+         * maar zijn twee leveranciers.
+         */
+        const naamKlein = naam.toLowerCase();
+        const bestaandeRij =
+          (rij.klantnummer
+            ? bestaande.find(
+                (b) => b.klantnummer && b.klantnummer === rij.klantnummer!.trim()
+              )
+            : undefined) ??
+          bestaande.find((b) => b.naam.toLowerCase().trim() === naamKlein);
+
+        if (bestaandeRij) {
+          // Aanvullen, nooit overschrijven — zie importKlanten.
+          const patch: Record<string, unknown> = {};
+          const vulAan = (veld: string, waarde: string | undefined) => {
+            const huidig = (bestaandeRij as unknown as Record<string, unknown>)[veld];
+            if (waarde && !(typeof huidig === "string" && huidig.trim())) {
+              patch[veld] = waarde;
+            }
+          };
+
+          vulAan("email", email);
+          vulAan("telefoon", sanitizePhone(rij.telefoon));
+          vulAan("adres", sanitizeOptionalString(rij.adres));
+          vulAan("postcode", postcode);
+          vulAan("plaats", sanitizeOptionalString(rij.plaats));
+          vulAan("contactpersoon", sanitizeOptionalString(rij.contactpersoon));
+          vulAan("website", sanitizeOptionalString(rij.website));
+          vulAan("klantnummer", sanitizeOptionalString(rij.klantnummer));
+
+          if (tweede && !(bestaandeRij.notities ?? "").includes(tweede)) {
+            const regel = `Tweede telefoonnummer: ${tweede}`;
+            patch.notities = bestaandeRij.notities
+              ? `${bestaandeRij.notities}\n${regel}`
+              : regel;
+          }
+
+          if (Object.keys(patch).length > 0) {
+            await ctx.db.patch(bestaandeRij._id, { ...patch, updatedAt: now });
+            Object.assign(bestaandeRij, patch);
+            aangevuld++;
+          } else {
+            skipped++;
+          }
           continue;
         }
 
-        await ctx.db.insert("leveranciers", {
+        const nieuweVelden = {
           userId,
           naam,
           contactpersoon: sanitizeOptionalString(rij.contactpersoon),
           email,
           telefoon: sanitizePhone(rij.telefoon),
           adres: sanitizeOptionalString(rij.adres),
-          // Bewust normaliseerImportPostcode i.p.v. sanitizePostcode: die laatste
-          // gooit op elke niet-Nederlandse postcode en zou de batch breken.
-          postcode: normaliseerImportPostcode(rij.postcode) || undefined,
+          postcode,
           plaats: sanitizeOptionalString(rij.plaats),
+          website: sanitizeOptionalString(rij.website),
+          klantnummer: sanitizeOptionalString(rij.klantnummer),
+          notities: tweede ? `Tweede telefoonnummer: ${tweede}` : undefined,
           isActief: true,
           createdAt: now,
           updatedAt: now,
-        });
+        };
 
-        gezien.push({ naam: naam.toLowerCase(), email });
+        const nieuwId = await ctx.db.insert("leveranciers", nieuweVelden);
+        bestaande.push({ _id: nieuwId, _creationTime: now, ...nieuweVelden });
         imported++;
       } catch (e) {
         const message = e instanceof Error ? e.message : "Onbekende fout";
@@ -271,7 +318,7 @@ export const importLeveranciers = mutation({
       }
     }
 
-    return { imported, skipped, errors };
+    return { imported, aangevuld, skipped, errors };
   },
 });
 

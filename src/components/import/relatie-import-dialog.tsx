@@ -54,7 +54,11 @@ interface RelatieImportDialogProps {
 }
 
 interface ImportResultaat {
+  /** Nieuw aangemaakt. */
   imported: number;
+  /** Bestond al en had lege velden die de export wél had. */
+  aangevuld: number;
+  /** Bestond al en had niets nieuws te halen. */
   skipped: number;
   errors: string[];
 }
@@ -222,6 +226,9 @@ export function RelatieImportDialog({
                 postcode: e.postcode,
                 plaats: e.plaats,
                 contactpersoon: e.contactpersoon,
+                extraTelefoon: e.extraTelefoon,
+                website: e.website,
+                klantnummer: e.klantnummer,
                 klantType: e.klantType,
               })),
             })
@@ -234,14 +241,26 @@ export function RelatieImportDialog({
                 adres: e.adres,
                 postcode: e.postcode,
                 plaats: e.plaats,
+                extraTelefoon: e.extraTelefoon,
+                website: e.website,
+                klantnummer: e.klantnummer,
               })),
             });
 
       setResultaat(uitkomst);
-      if (uitkomst.imported > 0) {
-        showSuccessToast(
-          `${uitkomst.imported} ${uitkomst.imported === 1 ? enkelvoud : meervoud} geïmporteerd`
-        );
+      // Ook melden als er niets nieuws bij kwam maar wel iets is aangevuld —
+      // anders lijkt een tweede import op een bestaand bestand mislukt.
+      if (uitkomst.imported > 0 || uitkomst.aangevuld > 0) {
+        const delen: string[] = [];
+        if (uitkomst.imported > 0) {
+          delen.push(
+            `${uitkomst.imported} nieuw${uitkomst.imported === 1 ? "e " + enkelvoud : "e " + meervoud}`
+          );
+        }
+        if (uitkomst.aangevuld > 0) {
+          delen.push(`${uitkomst.aangevuld} aangevuld`);
+        }
+        showSuccessToast(delen.join(", "));
         onImported?.();
       }
     } catch (error) {
@@ -301,13 +320,21 @@ export function RelatieImportDialog({
                 <CheckCircle2 className="h-5 w-5 text-green-600" />
                 Import voltooid
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-4 gap-3">
                 <div className="rounded-md border border-green-200 bg-green-50 p-3 text-center dark:border-green-800 dark:bg-green-950/30">
                   <p className="text-2xl font-bold text-green-700 dark:text-green-400">
                     {resultaat.imported}
                   </p>
                   <p className="text-xs text-green-600 dark:text-green-500">
-                    Geïmporteerd
+                    Nieuw
+                  </p>
+                </div>
+                <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-center dark:border-blue-800 dark:bg-blue-950/30">
+                  <p className="text-2xl font-bold text-blue-700 dark:text-blue-400">
+                    {resultaat.aangevuld}
+                  </p>
+                  <p className="text-xs text-blue-600 dark:text-blue-500">
+                    Aangevuld
                   </p>
                 </div>
                 <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-center dark:border-amber-800 dark:bg-amber-950/30">
@@ -315,7 +342,7 @@ export function RelatieImportDialog({
                     {resultaat.skipped}
                   </p>
                   <p className="text-xs text-amber-600 dark:text-amber-500">
-                    Overgeslagen (duplicaat)
+                    Al compleet
                   </p>
                 </div>
                 <div className="rounded-md border border-red-200 bg-red-50 p-3 text-center dark:border-red-800 dark:bg-red-950/30">

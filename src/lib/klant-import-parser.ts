@@ -32,7 +32,18 @@ export interface ParsedKlantEntry {
   plaats: string;
   klantType: KlantType;
   soort: RelatieSoort;
-  /** Externe referentie uit het bronsysteem, puur informatief in het voorbeeld. */
+  /**
+   * Tweede nummer als de export er twee heeft (vast én mobiel). Belandt in de
+   * notities; het schema kent één telefoonveld en dat blijft het nummer waar
+   * je op belt.
+   */
+  extraTelefoon?: string;
+  website?: string;
+  /**
+   * Externe referentie uit het bronsysteem. Dit is de sleutel waarop een
+   * herhaalde import bestaande relaties terugvindt in plaats van ze dubbel
+   * aan te maken — in beide exports uniek (272/272 en 45/45).
+   */
   klantnummer?: string;
   /** Wat er aan deze rij mankeerde — getoond in de preview, blokkeert niets. */
   opmerkingen: string[];
@@ -61,6 +72,7 @@ const columnMappings: Record<string, string[]> = {
   type: ["type", "klanttype", "klant_type", "soort"],
   categorie: ["categorie", "category", "relatiesoort"],
   klantnummer: ["klantnummer", "relatienummer", "debiteurnummer", "nummer_klant"],
+  website: ["website", "site", "url", "homepage"],
 };
 
 const VALID_KLANT_TYPES: KlantType[] = ["particulier", "zakelijk", "vve", "gemeente", "overig"];
@@ -173,18 +185,42 @@ function findColumn(
   row: Record<string, string>,
   possibleNames: string[]
 ): string | undefined {
+  return findColumns(row, possibleNames)[0];
+}
+
+/**
+ * Álle kolommen die op een van de namen passen, in bestandsvolgorde.
+ *
+ * Nodig omdat een export het telefoonnummer over meerdere kolommen kan
+ * verdelen. De relatie-export van Top Tuinen heeft "Telefoonnummer" én
+ * "Mobiel": bij de klanten staat het nummer in 182 van de 272 gevallen alleen
+ * in "Mobiel". Met één kolom pakken verloor je die allemaal.
+ */
+function findColumns(
+  row: Record<string, string>,
+  possibleNames: string[]
+): string[] {
   const keys = Object.keys(row);
   const lowerKeys = keys.map((k) => k.toLowerCase().trim());
+  const gevonden: string[] = [];
 
+  const voegToe = (index: number) => {
+    if (index !== -1 && !gevonden.includes(keys[index])) gevonden.push(keys[index]);
+  };
+
+  // Exacte treffers eerst: "Telefoonnummer" vóór een kolom die het woord
+  // toevallig bevat.
   for (const name of possibleNames) {
-    const index = lowerKeys.findIndex((k) => k === name.toLowerCase());
-    if (index !== -1) return keys[index];
+    lowerKeys.forEach((k, i) => {
+      if (k === name.toLowerCase()) voegToe(i);
+    });
   }
   for (const name of possibleNames) {
-    const index = lowerKeys.findIndex((k) => k.includes(name.toLowerCase()));
-    if (index !== -1) return keys[index];
+    lowerKeys.forEach((k, i) => {
+      if (k.includes(name.toLowerCase())) voegToe(i);
+    });
   }
-  return undefined;
+  return gevonden;
 }
 
 function normalizeKlantType(value: string | undefined, naam: string): KlantType {
@@ -349,7 +385,7 @@ export function processKlantImportData(
   const voornaamCol = findColumn(firstRow, columnMappings.voornaam);
   const achternaamCol = findColumn(firstRow, columnMappings.achternaam);
   const emailCol = findColumn(firstRow, columnMappings.email);
-  const telefoonCol = findColumn(firstRow, columnMappings.telefoon);
+  const telefoonCols = findColumns(firstRow, columnMappings.telefoon);
   const straatCol = findColumn(firstRow, columnMappings.straat);
   const huisnummerCol = findColumn(firstRow, columnMappings.huisnummer);
   const postcodeCol = findColumn(firstRow, columnMappings.postcode);
@@ -357,6 +393,7 @@ export function processKlantImportData(
   const typeCol = findColumn(firstRow, columnMappings.type);
   const categorieCol = findColumn(firstRow, columnMappings.categorie);
   const klantnummerCol = findColumn(firstRow, columnMappings.klantnummer);
+  const websiteCol = findColumn(firstRow, columnMappings.website);
 
   const heeftNaamBron = Boolean(naamCol || bedrijfsnaamCol || achternaamCol || voornaamCol);
   if (!heeftNaamBron) {
@@ -455,10 +492,25 @@ export function processKlantImportData(
       zonderEmail++;
     }
 
-    const telefoon = lees(telefoonCol) || undefined;
+    // Alle telefoonkolommen langslopen; een export zet het nummer nu eens in
+    // "Telefoonnummer" en dan weer in "Mobiel". Identieke nummers tellen één
+    // keer, zodat een dubbel ingevulde export geen dubbele notitie oplevert.
+    const nummers: string[] = [];
+    for (const kolom of telefoonCols) {
+      const waarde = lees(kolom);
+      if (!waarde) continue;
+      const kaal = waarde.replace(/[\s\-.()]/g, "");
+      if (!nummers.some((n) => n.replace(/[\s\-.()]/g, "") === kaal)) {
+        nummers.push(waarde);
+      }
+    }
+    const telefoon = nummers[0] || undefined;
+    const extraTelefoon = nummers[1] || undefined;
+
     const klantType = normalizeKlantType(lees(typeCol), naam);
     const soort = normalizeSoort(lees(categorieCol)) ?? "klant";
     const klantnummer = lees(klantnummerCol) || undefined;
+    const website = lees(websiteCol) || undefined;
 
     // Dubbelen binnen hetzelfde bestand markeren (e-mail, anders naam+postcode).
     const sleutel = email
@@ -481,6 +533,8 @@ export function processKlantImportData(
       plaats,
       klantType,
       soort,
+      extraTelefoon,
+      website,
       klantnummer,
       opmerkingen,
     });

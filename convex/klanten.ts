@@ -765,6 +765,10 @@ export const importKlanten = mutation({
         plaats: v.optional(v.string()),
         // TT-002: bij een bedrijfsrij is dit de persoon achter de bedrijfsnaam
         contactpersoon: v.optional(v.string()),
+        /** Tweede nummer uit de export (vast én mobiel); gaat naar notities. */
+        extraTelefoon: v.optional(v.string()),
+        website: v.optional(v.string()),
+        klantnummer: v.optional(v.string()),
         klantType: v.optional(
           v.union(
             v.literal("particulier"),
@@ -789,6 +793,7 @@ export const importKlanten = mutation({
       .collect();
 
     let imported = 0;
+    let aangevuld = 0;
     let skipped = 0;
     const errors: string[] = [];
 
@@ -809,56 +814,95 @@ export const importKlanten = mutation({
         const adres = (klant.adres ?? "").trim();
         const plaats = (klant.plaats ?? "").trim();
 
-        // Check for duplicates
-        const isDuplicate = existingKlanten.some((existing) => {
-          // Check email match
-          if (
-            klant.email &&
-            existing.email &&
-            klant.email.trim().toLowerCase() === existing.email.toLowerCase()
-          ) {
-            return true;
-          }
-
-          // Check naam + postcode combo
-          if (
-            klant.naam.trim().toLowerCase() === existing.naam.toLowerCase() &&
-            postcode.replace(/\s/g, "").toLowerCase() ===
-              (existing.postcode ?? "").replace(/\s/g, "").toLowerCase()
-          ) {
-            return true;
-          }
-
-          return false;
-        });
-
-        if (isDuplicate) {
-          skipped++;
-          continue;
-        }
-
         // Sanitize fields
         const email = sanitizeEmail(klant.email);
         const telefoon = sanitizePhone(klant.telefoon);
 
-        const newId = await ctx.db.insert("klanten", {
-          userId,
-          naam: klant.naam.trim(),
-          adres,
-          postcode,
-          plaats,
-          email,
-          telefoon,
-          // PRD §1.3: geen "lead"-default meer (zie leadsKlantenHelpers.ts)
-          klantType: klant.klantType ?? "particulier",
-          createdAt: now,
-          updatedAt: now,
-        });
+        /**
+         * Bestaande klant zoeken.
+         *
+         * Bewust NIET op e-mail alleen. In de relatie-export van Top Tuinen
+         * delen verschillende relaties één mailbox: `beheer@hetonvve.nl` staat
+         * bij twee verschillende VvE's, `rbecker@fbaivastgoed.com` bij twee
+         * verschillende bedrijven. Matchen op e-mail zou die samenvoegen tot
+         * één klant, en dat is erger dan een dubbele rij die je later
+         * samenvoegt.
+         *
+         * Het relatienummer is exact en staat op elke rij. Daarna naam +
+         * postcode, en als laatste e-mail én naam samen — voor het geval een
+         * postcode is aangepast.
+         */
+        const naamKlein = klant.naam.trim().toLowerCase();
+        const postcodeKaal = postcode.replace(/\s/g, "").toLowerCase();
+        const bestaand =
+          (klant.klantnummer
+            ? existingKlanten.find(
+                (e) => e.klantnummer && e.klantnummer === klant.klantnummer!.trim()
+              )
+            : undefined) ??
+          existingKlanten.find(
+            (e) =>
+              e.naam.toLowerCase() === naamKlein &&
+              (e.postcode ?? "").replace(/\s/g, "").toLowerCase() === postcodeKaal
+          ) ??
+          (email
+            ? existingKlanten.find(
+                (e) =>
+                  e.email &&
+                  e.email.toLowerCase() === email.toLowerCase() &&
+                  e.naam.toLowerCase() === naamKlein
+              )
+            : undefined);
 
-        // Add to existing list for further duplicate checking within same batch
-        existingKlanten.push({
-          _id: newId,
-          _creationTime: now,
+        if (bestaand) {
+          /**
+           * Aanvullen, nooit overschrijven. Wat in de app is bijgewerkt is
+           * recenter dan de export, dus alleen lege velden worden gevuld.
+           */
+          const patch: Record<string, unknown> = {};
+          const vulAan = (veld: string, waarde: string | undefined) => {
+            const huidig = (bestaand as unknown as Record<string, unknown>)[veld];
+            if (waarde && !(typeof huidig === "string" && huidig.trim())) {
+              patch[veld] = waarde;
+            }
+          };
+
+          vulAan("email", email);
+          vulAan("telefoon", telefoon);
+          vulAan("adres", adres);
+          vulAan("postcode", postcode);
+          vulAan("plaats", plaats);
+          vulAan("contactpersoon", sanitizeOptionalString(klant.contactpersoon));
+          vulAan("website", sanitizeOptionalString(klant.website));
+          vulAan("klantnummer", sanitizeOptionalString(klant.klantnummer));
+
+          const tweede = sanitizePhone(klant.extraTelefoon);
+          if (tweede && !(bestaand.notities ?? "").includes(tweede)) {
+            const regel = `Tweede telefoonnummer: ${tweede}`;
+            patch.notities = bestaand.notities
+              ? `${bestaand.notities}\n${regel}`
+              : regel;
+          }
+
+          if (Object.keys(patch).length > 0) {
+            await ctx.db.patch(bestaand._id, { ...patch, updatedAt: now });
+            Object.assign(bestaand, patch);
+            aangevuld++;
+          } else {
+            skipped++;
+          }
+          continue;
+        }
+
+        const tweedeNummer = sanitizePhone(klant.extraTelefoon);
+        const notities = tweedeNummer
+          ? `Tweede telefoonnummer: ${tweedeNummer}`
+          : undefined;
+
+        // `contactpersoon` stond hier eerder alleen in de cache-regel hieronder
+        // en niet in de insert zelf, waardoor hij bij import stilzwijgend
+        // verdween — vandaar dat hij nu expliciet in dit object staat.
+        const nieuweVelden = {
           userId,
           naam: klant.naam.trim(),
           adres,
@@ -867,9 +911,23 @@ export const importKlanten = mutation({
           email,
           telefoon,
           contactpersoon: sanitizeOptionalString(klant.contactpersoon),
+          website: sanitizeOptionalString(klant.website),
+          klantnummer: sanitizeOptionalString(klant.klantnummer),
+          notities,
+          // PRD §1.3: geen "lead"-default meer (zie leadsKlantenHelpers.ts)
           klantType: klant.klantType ?? "particulier",
           createdAt: now,
           updatedAt: now,
+        };
+
+        const newId = await ctx.db.insert("klanten", nieuweVelden);
+
+        // Meteen in de lijst zetten, zodat een tweede rij met dezelfde klant
+        // binnen ditzelfde bestand als bestaand wordt herkend.
+        existingKlanten.push({
+          _id: newId,
+          _creationTime: now,
+          ...nieuweVelden,
         });
 
         imported++;
@@ -879,7 +937,9 @@ export const importKlanten = mutation({
       }
     }
 
-    return { imported, skipped, errors };
+    // `skipped` telt nu alleen rijen die niets nieuws brachten; wat wél iets
+    // toevoegde staat apart onder `aangevuld`.
+    return { imported, aangevuld, skipped, errors };
   },
 });
 

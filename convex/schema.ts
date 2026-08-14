@@ -96,6 +96,14 @@ export default defineSchema({
     contactpersoon: v.optional(v.string()),
     kvkNummer: v.optional(v.string()),
     btwNummer: v.optional(v.string()),
+    website: v.optional(v.string()),
+    /**
+     * Relatienummer uit het bronsysteem waar de relatie-export vandaan komt.
+     * Hierop herkent een herhaalde import een bestaande klant, in plaats van
+     * hem opnieuw aan te maken of over te slaan; e-mail en naam+postcode zijn
+     * de terugvalopties voor rijen zonder nummer.
+     */
+    klantnummer: v.optional(v.string()),
     // CRM-003: Vrije tags voor segmentatie
     tags: v.optional(v.array(v.string())),
     // CRM-005: Opvolgherinneringen op klant-niveau
@@ -2523,6 +2531,9 @@ export default defineSchema({
     plaats: v.optional(v.string()),
     kvkNummer: v.optional(v.string()),
     btwNummer: v.optional(v.string()),
+    website: v.optional(v.string()),
+    /** Relatienummer uit het bronsysteem; zie de toelichting bij `klanten`. */
+    klantnummer: v.optional(v.string()),
     iban: v.optional(v.string()),
     betalingstermijn: v.optional(v.number()), // dagen
     notities: v.optional(v.string()),
