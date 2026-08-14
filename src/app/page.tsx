@@ -5,9 +5,10 @@ import { useSignIn, useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useQuery, useConvexAuth } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { Trees, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { m } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { TopTuinenLogo } from "@/components/ui/top-tuinen-logo";
 import { GoogleIcon } from "@/components/icons";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -131,13 +132,17 @@ export default function SignInPage() {
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5, delay: 0.2 }}
-              className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-green-600 text-white shadow-lg shadow-emerald-500/25"
+              className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-green-700 shadow-lg shadow-emerald-500/25"
             >
-              <Trees className="h-6 w-6" />
+              {/* De kaart is licht in light mode, dus het witte merkteken houdt
+                  een groene drager. Vlak groen i.p.v. het oude emerald-verloop:
+                  dezelfde tint als de sidebar en de configurator, en wit haalt
+                  er 4,95:1 op — het verloop bleef onder 3:1 hangen. */}
+              <TopTuinenLogo variant="wit" size={32} className="h-8 w-8" priority />
             </m.div>
             <CardTitle className="text-2xl">Welkom terug</CardTitle>
             <CardDescription>
-              Log in bij Top Tuinen Offerte Builder
+              Log in bij Top Tuinen OS
             </CardDescription>
           </CardHeader>
 

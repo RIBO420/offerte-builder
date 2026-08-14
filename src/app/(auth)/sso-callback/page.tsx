@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { AuthenticateWithRedirectCallback } from "@clerk/nextjs";
-import { Loader2, Trees, AlertCircle, Clock, RefreshCw } from "lucide-react";
+import { Loader2, AlertCircle, Clock, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { TopTuinenLogo } from "@/components/ui/top-tuinen-logo";
 import { Progress } from "@/components/ui/progress";
 import Link from "next/link";
 
@@ -74,8 +75,11 @@ export default function SSOCallbackPage() {
     <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Trees className="h-6 w-6" />
+          {/* Hier staat "Top Tuinen" niet als tekst naast het logo, dus wél een
+              echte alt. Groene drager i.p.v. bg-primary: die is in dark mode
+              bijna wit en dan verdwijnt het witte merkteken erin. */}
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-green-700">
+            <TopTuinenLogo variant="wit" size={32} className="h-8 w-8" alt="Top Tuinen" />
           </div>
           <CardTitle className="text-xl">Even geduld...</CardTitle>
         </CardHeader>

@@ -68,6 +68,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useCurrentUserRole } from "@/hooks/use-users";
 import { NotificationCenter } from "@/components/notification-center";
+import { TopTuinenLogo } from "@/components/ui/top-tuinen-logo";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
@@ -312,14 +313,15 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <Link href="/dashboard">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <Trees className="size-4" aria-hidden="true" />
+                {/* Groene drager onder het witte merkteken: bg-sidebar is licht
+                    in light mode, daar zou wit op wit verdwijnen. Bewust een
+                    vaste groentint en niet bg-primary — die is in dark mode
+                    juist bijna wit. */}
+                <div className="flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg bg-green-700">
+                  <TopTuinenLogo variant="wit" size={22} className="size-[22px]" />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold" title="Top Tuinen">Top Tuinen</span>
-                  <span className="truncate text-xs text-muted-foreground" title="Offerte Builder">
-                    Offerte Builder
-                  </span>
+                  <span className="truncate font-semibold" title="Top Tuinen OS">Top Tuinen OS</span>
                 </div>
               </Link>
             </SidebarMenuButton>

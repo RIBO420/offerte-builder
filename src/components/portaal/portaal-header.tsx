@@ -4,6 +4,7 @@ import { UserButton } from "@clerk/nextjs";
 import { Sun, Moon, Menu } from "lucide-react";
 import { usePortaalTheme } from "./portaal-theme-provider";
 import { Button } from "@/components/ui/button";
+import { TopTuinenLogo } from "@/components/ui/top-tuinen-logo";
 
 interface PortaalHeaderProps {
   klantNaam?: string;
@@ -25,9 +26,8 @@ export function PortaalHeader({ klantNaam, onMenuToggle }: PortaalHeaderProps) {
         >
           <Menu className="h-5 w-5" />
         </Button>
-        <div className="bg-[#4ADE80] w-8 h-8 rounded-lg flex items-center justify-center font-bold text-black text-sm">
-          TT
-        </div>
+        {/* De balk is in beide thema's donkergroen, dus altijd de witte variant. */}
+        <TopTuinenLogo variant="wit" size={32} className="w-8 h-8 shrink-0" priority />
         <span className="text-white font-semibold text-base">Top Tuinen</span>
         <span className="text-[#4ADE80] text-xs opacity-70 hidden sm:inline">
           Klantenportaal

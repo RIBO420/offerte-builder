@@ -1,5 +1,6 @@
-import { Leaf, Phone, Mail, MapPin, ExternalLink } from "lucide-react";
+import { Phone, Mail, MapPin, ExternalLink } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { TopTuinenLogo } from "@/components/ui/top-tuinen-logo";
 
 export default function ConfiguratorLayout({
   children,
@@ -11,8 +12,10 @@ export default function ConfiguratorLayout({
       {/* Header */}
       <header className="border-b bg-card/80 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
         <div className="container max-w-4xl mx-auto px-4 py-4 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-600 shadow-sm">
-            <Leaf className="h-5 w-5 text-white" />
+          {/* De header staat op bg-card (licht in light mode), dus houdt het
+              witte merkteken een groene drager. */}
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-700 shadow-sm">
+            <TopTuinenLogo variant="wit" size={28} className="h-7 w-7" />
           </div>
           <div>
             <h1 className="text-lg font-bold text-foreground leading-tight">
@@ -36,8 +39,8 @@ export default function ConfiguratorLayout({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <div className="flex h-7 w-7 items-center justify-center rounded bg-green-600">
-                  <Leaf className="h-4 w-4 text-white" />
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-green-700">
+                  <TopTuinenLogo variant="wit" size={20} className="h-5 w-5" />
                 </div>
                 <span className="font-semibold text-foreground">Top Tuinen</span>
               </div>
