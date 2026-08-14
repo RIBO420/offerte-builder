@@ -55,6 +55,8 @@ import {
   Thermometer,
   ClipboardList,
   ShoppingCart,
+  DollarSign,
+  CheckSquare,
   MessageSquare,
   Mail,
   ScrollText,
@@ -124,6 +126,20 @@ const assetsMenuItems = [
   // "Servicemeldingen" is vervangen door het §2.4-bord "Meldingen" (werkItems)
   { title: "Toolbox", url: "/toolbox", icon: ClipboardList },
 ];
+
+// "Project Tools" is uit deze sidebar verwijderd (WS6-distill): kosten en
+// kwaliteit zijn bereikbaar via de voortgangscards op de projectdetailpagina.
+// LET OP: projectSubItems en currentProjectId hieronder staan er nog bewust —
+// het volledig verwijderen ervan laat Turbopack (Next 16.1.7, dev) een client-
+// module van lucide-react uit de chunkgraph verliezen, waarna élke
+// dashboardpagina in de errorboundary valt ("Module ... might have been
+// deleted in an HMR update"), ook na een koude build. Empirisch gebisect op
+// 14 aug 2026; de `void`-referenties houden lint stil.
+const projectSubItems = [
+  { title: "Kosten tracking", urlSuffix: "/kosten", icon: DollarSign },
+  { title: "Kwaliteit", urlSuffix: "/kwaliteit", icon: CheckSquare },
+];
+void projectSubItems;
 
 // Actieve staat in merkgroen ("Vakwerk in het groen"): tekst en icoon in
 // primary op een lichte primary-tint, met een 2px "grasrand" links als
@@ -274,6 +290,13 @@ export function AppSidebar() {
     return [];
   }, [role, isDirectieOrAdmin]);
 
+  // Extract current project ID from pathname if on a project page
+  const currentProjectId = useMemo(() => {
+    const match = pathname.match(/^\/projecten\/([^/]+)/);
+    return match ? match[1] : null;
+  }, [pathname]);
+  void currentProjectId;
+
   // Prevent hydration mismatch
   useEffect(() => {
     const id = setTimeout(() => setMounted(true), 0);
@@ -420,9 +443,6 @@ export function AppSidebar() {
           </>
         )}
 
-        {/* "Project Tools" is hier bewust weg (WS6-distill): kosten en
-            kwaliteit zijn bereikbaar via de voortgangscards op de
-            projectdetailpagina zelf — de sidebar dupliceerde die navigatie. */}
       </SidebarContent>
 
       <SidebarFooter>
