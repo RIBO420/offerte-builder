@@ -67,28 +67,27 @@ export function usePrefetchProductenData() {
 }
 
 /**
- * Comprehensive prefetch hook that preloads all common data.
- * Use this in the main dashboard layout to warm caches
- * for a faster overall experience.
+ * Prefetch hook for the dashboard layout.
+ *
+ * Bewust versoberd (optimize O10): Convex `useQuery` is een LIVE
+ * subscription, geen eenmalige prefetch. Toen hier ook
+ * `berekeningen.getCalculationData` en `klanten.listWithRecent` stonden,
+ * hield élke stafpagina (ook /uren, /chat, …) permanent de volledige
+ * klantenlijst (±300 records) en alle calculatiedata live: elke mutatie
+ * pushte een verse payload naar elk open scherm. De consumenten laden die
+ * data zelf al op het moment dat ze hem nodig hebben
+ * (`useOfferteCalculation` in de wizard, `useKlanten` op /klanten) — hier
+ * niets terugzetten; gerichte prefetch kan met `usePrefetchCalculationData`
+ * / `usePrefetchKlantenData` op een concrete entry, of hover-prefetch via
+ * `usePrefetchOnInteraction`.
  */
 export function usePrefetchAllCommonData() {
   const { user } = useCurrentUser();
 
-  // Full dashboard data (batched query for all dashboard needs)
+  // Full dashboard data (batched query for all dashboard needs) — het
+  // dashboard is het meest bezochte scherm en dit is één gebatchte query.
   useQuery(
     api.offertes.getFullDashboardData,
-    user?._id ? {} : "skip"
-  );
-
-  // Calculation data (normuren, correctiefactoren, producten, instellingen)
-  useQuery(
-    api.berekeningen.getCalculationData,
-    user?._id ? {} : "skip"
-  );
-
-  // Klanten data
-  useQuery(
-    api.klanten.listWithRecent,
     user?._id ? {} : "skip"
   );
 }
