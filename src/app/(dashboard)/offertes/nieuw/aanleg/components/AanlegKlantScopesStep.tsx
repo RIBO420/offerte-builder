@@ -76,6 +76,8 @@ interface AanlegKlantScopesStepProps {
   onKlantSelect: (klantId: string | null) => void;
   onLeadSelect?: (leadId: string | null) => void;
   initialLeadId?: Id<"configuratorAanvragen">;
+  /** `?klantId=…` uit de URL: selecteert die klant alvast voor. */
+  initialKlantId?: string;
   onBereikbaarheidChange: (value: Bereikbaarheid) => void;
   onToggleScope: (scopeId: AanlegScope) => void;
   onKlantvriendelijkheidChange?: (value: number) => void;
@@ -107,6 +109,7 @@ export function AanlegKlantScopesStep({
   onKlantSelect,
   onLeadSelect,
   initialLeadId,
+  initialKlantId,
   onBereikbaarheidChange,
   onToggleScope,
   onKlantvriendelijkheidChange,
@@ -131,6 +134,7 @@ export function AanlegKlantScopesStep({
               onKlantSelect={(klantId) => onKlantSelect(klantId as string | null)}
               onLeadSelect={(leadId) => onLeadSelect?.(leadId as string)}
               initialLeadId={initialLeadId}
+              initialKlantId={initialKlantId}
             />
           </CardContent>
         </Card>

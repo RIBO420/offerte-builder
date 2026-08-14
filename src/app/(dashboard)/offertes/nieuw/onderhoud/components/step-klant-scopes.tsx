@@ -46,6 +46,8 @@ interface StepKlantScopesProps {
   setSelectedKlantId: (id: string | null) => void;
   setSelectedLeadId?: (id: string | null) => void;
   initialLeadId?: Id<"configuratorAanvragen">;
+  /** `?klantId=…` uit de URL: selecteert die klant alvast voor. */
+  initialKlantId?: string;
   tuinOppervlakte: string;
   setTuinOppervlakte: (value: string) => void;
   bereikbaarheid: Bereikbaarheid;
@@ -66,6 +68,7 @@ export function StepKlantScopes({
   setSelectedKlantId,
   setSelectedLeadId,
   initialLeadId,
+  initialKlantId,
   tuinOppervlakte,
   setTuinOppervlakte,
   bereikbaarheid,
@@ -97,6 +100,7 @@ export function StepKlantScopes({
               onKlantSelect={(klantId) => setSelectedKlantId(klantId as string | null)}
               onLeadSelect={(leadId) => setSelectedLeadId?.(leadId as string)}
               initialLeadId={initialLeadId}
+              initialKlantId={initialKlantId}
             />
           </CardContent>
         </Card>

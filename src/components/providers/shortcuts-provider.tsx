@@ -1,6 +1,13 @@
 "use client";
 
-import { createContext, useContext, useState, useMemo, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useState,
+  useMemo,
+  type ReactNode,
+} from "react";
 import { useRouter } from "next/navigation";
 import {
   useKeyboardShortcuts,
@@ -9,11 +16,28 @@ import {
   type SequenceShortcut,
 } from "@/hooks/use-keyboard-shortcuts";
 import { useCommand } from "./command-provider";
+import { Id } from "../../../convex/_generated/dataModel";
+
+/** Extra's waarmee de opener van de Nieuwe-offerte-dialog context meegeeft. */
+export interface NieuweOfferteOpties {
+  /** Klant die al vaststaat, bv. omdat je de dialog vanuit zijn dossier opent. */
+  klantId?: Id<"klanten">;
+}
 
 interface ShortcutsContextValue {
   /** Whether the new offerte type selector dialog is open */
   showNewOfferteDialog: boolean;
-  setShowNewOfferteDialog: (show: boolean) => void;
+  /**
+   * Het tweede argument is optioneel: bestaande aanroepers (⌘N, dashboard,
+   * offertetoolbar) openen de dialog zonder klant en blijven ongewijzigd.
+   */
+  setShowNewOfferteDialog: (show: boolean, opties?: NieuweOfferteOpties) => void;
+  /**
+   * Klant die aan de openstaande dialog hangt, of `null`. Wordt gewist zodra de
+   * dialog sluit — anders zou de volgende ⌘N vanaf een willekeurige pagina de
+   * vorige klant stilzwijgend meedragen.
+   */
+  nieuweOfferteKlantId: Id<"klanten"> | null;
   /** Whether the shortcuts help dialog is open */
   showShortcutsHelp: boolean;
   setShowShortcutsHelp: (show: boolean) => void;
@@ -26,8 +50,22 @@ const ShortcutsContext = createContext<ShortcutsContextValue | undefined>(undefi
 export function ShortcutsProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { setOpen: setCommandOpen } = useCommand();
-  const [showNewOfferteDialog, setShowNewOfferteDialog] = useState(false);
+  const [showNewOfferteDialog, setShowNewOfferteDialogState] = useState(false);
+  const [nieuweOfferteKlantId, setNieuweOfferteKlantId] =
+    useState<Id<"klanten"> | null>(null);
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
+
+  const setShowNewOfferteDialog = useCallback(
+    (show: boolean, opties?: NieuweOfferteOpties) => {
+      setShowNewOfferteDialogState(show);
+      // Altijd overschrijven — óók bij sluiten (Escape, annuleren, keuze
+      // gemaakt) en bij openen zonder opties. Zou de klant blijven staan, dan
+      // startte de eerstvolgende ⌘N vanaf een andere pagina ongemerkt een
+      // offerte voor de vorige klant.
+      setNieuweOfferteKlantId(show ? (opties?.klantId ?? null) : null);
+    },
+    []
+  );
 
   // Navigation shortcuts using Cmd/Ctrl + number
   const navigationShortcuts = useMemo<Shortcut[]>(
@@ -132,7 +170,13 @@ export function ShortcutsProvider({ children }: { children: ReactNode }) {
         allowInInput: true,
       },
     ],
-    [router, setCommandOpen, showShortcutsHelp, showNewOfferteDialog]
+    [
+      router,
+      setCommandOpen,
+      setShowNewOfferteDialog,
+      showShortcutsHelp,
+      showNewOfferteDialog,
+    ]
   );
 
   // Sequence shortcuts (G then X for navigation)
@@ -210,11 +254,18 @@ export function ShortcutsProvider({ children }: { children: ReactNode }) {
     () => ({
       showNewOfferteDialog,
       setShowNewOfferteDialog,
+      nieuweOfferteKlantId,
       showShortcutsHelp,
       setShowShortcutsHelp,
       pendingSequenceKeys,
     }),
-    [showNewOfferteDialog, showShortcutsHelp, pendingSequenceKeys]
+    [
+      showNewOfferteDialog,
+      setShowNewOfferteDialog,
+      nieuweOfferteKlantId,
+      showShortcutsHelp,
+      pendingSequenceKeys,
+    ]
   );
 
   return (

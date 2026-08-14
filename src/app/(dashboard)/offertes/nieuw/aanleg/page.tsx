@@ -40,6 +40,10 @@ import {
 export default function NieuweAanlegOffertePage() {
   const searchParams = useSearchParams();
   const leadIdParam = searchParams.get("leadId");
+  // ?klantId=… selecteert de klant alvast voor, zodat je hem niet opnieuw hoeft
+  // op te zoeken als je de offerte vanuit een klantdossier start. Leeg of onzin
+  // → `undefined`; `klanten.getVoorSelector` negeert een onbekend id stil.
+  const klantIdParam = searchParams.get("klantId")?.trim() || undefined;
   // ?scope=…&scope=… selecteert scopes alvast voor. Zo kan de Nieuwe-Offerte
   // dialog werkzaamheden als "Parkeerplaats" of "Tuinrenovatie" aanbieden
   // zonder dat daar een aparte wizard voor nodig is (TT-004).
@@ -511,6 +515,7 @@ export default function NieuweAanlegOffertePage() {
             onKlantSelect={wizard.setSelectedKlantId}
             onLeadSelect={wizard.setSelectedLeadId}
             initialLeadId={leadIdParam as Id<"configuratorAanvragen"> | undefined}
+            initialKlantId={klantIdParam}
             onBereikbaarheidChange={wizard.setBereikbaarheid}
             onToggleScope={wizard.toggleScope}
             onKlantvriendelijkheidChange={wizard.setKlantvriendelijkheid}

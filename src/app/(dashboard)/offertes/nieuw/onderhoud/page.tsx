@@ -32,6 +32,10 @@ import {
 export default function NieuweOnderhoudOffertePage() {
   const searchParams = useSearchParams();
   const leadIdParam = searchParams.get("leadId");
+  // ?klantId=… selecteert de klant alvast voor, zodat je hem niet opnieuw hoeft
+  // op te zoeken als je de offerte vanuit een klantdossier start. Leeg of onzin
+  // → `undefined`; `klanten.getVoorSelector` negeert een onbekend id stil.
+  const klantIdParam = searchParams.get("klantId")?.trim() || undefined;
   // TT-004: ?scope=reiniging opent deze wizard met de scope alvast aangevinkt.
   const scopeParams = searchParams.getAll("scope");
 
@@ -285,6 +289,7 @@ export default function NieuweOnderhoudOffertePage() {
             setSelectedKlantId={setSelectedKlantId}
             setSelectedLeadId={setSelectedLeadId}
             initialLeadId={leadIdParam as Id<"configuratorAanvragen"> | undefined}
+            initialKlantId={klantIdParam}
             tuinOppervlakte={tuinOppervlakte}
             setTuinOppervlakte={setTuinOppervlakte}
             bereikbaarheid={bereikbaarheid}

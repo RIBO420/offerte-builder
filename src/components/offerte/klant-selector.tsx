@@ -94,6 +94,14 @@ interface KlantSelectorProps {
   onKlantSelect?: (klantId: Id<"klanten"> | null) => void;
   onLeadSelect?: (leadId: Id<"configuratorAanvragen">) => void;
   initialLeadId?: Id<"configuratorAanvragen">;
+  /**
+   * Klant die alvast geselecteerd moet staan, bv. `?klantId=…` uit de URL als
+   * je de offerte vanuit een klantdossier start. Bewust een losse `string`:
+   * wat in de URL staat is ongevalideerd, en `klanten.getVoorSelector` geeft
+   * bij onzin gewoon `null` terug. Voorselecteren, niet vastzetten — de keuze
+   * blijft in de lijst hierboven te wijzigen.
+   */
+  initialKlantId?: string;
 }
 
 export function KlantSelector({
@@ -102,6 +110,7 @@ export function KlantSelector({
   onKlantSelect,
   onLeadSelect,
   initialLeadId,
+  initialKlantId,
 }: KlantSelectorProps) {
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -145,6 +154,33 @@ export function KlantSelector({
       }
     }
   }, [initialLead, initialLeadId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Klant uit de URL ophalen. `"skip"` bij een lege parameter (`?klantId=`),
+  // en de query zelf slikt een ongeldig of onbekend id met een `null`.
+  const initialKlant = useQuery(
+    api.klanten.getVoorSelector,
+    initialKlantId ? { id: initialKlantId } : "skip"
+  );
+
+  // Zelfde eenmalige prefill als hierboven voor de lead. Een lead in de URL
+  // wint: die vult zichzelf al in en koppelt zo nodig zijn eigen klant.
+  useEffect(() => {
+    if (initialLeadId) return;
+    if (!initialKlantId || !initialKlant) return;
+    if (selectedKlantId || selectedLeadId || value.naam) return;
+
+    onChange({
+      naam: initialKlant.naam,
+      adres: initialKlant.adres,
+      postcode: initialKlant.postcode,
+      plaats: initialKlant.plaats,
+      email: initialKlant.email || "",
+      telefoon: initialKlant.telefoon || "",
+    });
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- eenmalige prefill vanuit async geladen klant-data
+    setSelectedKlantId(initialKlant._id);
+    onKlantSelect?.(initialKlant._id);
+  }, [initialKlant, initialKlantId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const typedSearchResults = searchResults as Klant[];
   const typedEnrichedKlanten = enrichedKlanten as EnrichedKlant[];

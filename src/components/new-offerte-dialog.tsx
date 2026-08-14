@@ -131,16 +131,37 @@ const START_OPTIES: StartOptie[] = [
 ];
 
 /**
+ * Hangt `klantId` aan een tegel-route. Die routes dragen al een querystring
+ * (`?scope=…`, soms twee keer), dus samenvoegen gaat via `URLSearchParams` en
+ * niet met string-plakwerk — dat zou bij `?scope=beregening` een tweede `?`
+ * opleveren en de scope onbereikbaar maken.
+ */
+function routeMetKlant(route: string, klantId: string | null): string {
+  if (!klantId) return route;
+  const [pad, querystring = ""] = route.split("?");
+  const params = new URLSearchParams(querystring);
+  params.set("klantId", klantId);
+  return `${pad}?${params.toString()}`;
+}
+
+/**
  * Dialog for selecting the type of new offerte to create
  * Triggered by Cmd+N or Cmd+Shift+N
+ *
+ * Eén instantie, gemonteerd in de dashboard-layout; openen gaat via
+ * `setShowNewOfferteDialog` uit de shortcuts-context. Wie de dialog vanuit een
+ * klantdossier opent geeft die klant mee als tweede argument, en dan reist hij
+ * als `?klantId=…` mee naar de wizard.
  */
 export function NewOfferteDialog() {
   const router = useRouter();
-  const { showNewOfferteDialog, setShowNewOfferteDialog } = useShortcuts();
+  const { showNewOfferteDialog, setShowNewOfferteDialog, nieuweOfferteKlantId } =
+    useShortcuts();
 
   const kies = (route: string) => {
+    const doel = routeMetKlant(route, nieuweOfferteKlantId);
     setShowNewOfferteDialog(false);
-    router.push(route);
+    router.push(doel);
   };
 
   useKeyboardShortcuts(

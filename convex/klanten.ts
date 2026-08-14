@@ -64,6 +64,37 @@ export const get = query({
   },
 });
 
+/**
+ * Tolerante variant van `get`, voor het voorselecteren van een klant vanuit de
+ * URL (`/offertes/nieuw/…?klantId=…`). Het argument is bewust `v.string()`:
+ * met `v.id("klanten")` kaatst Convex een onzin-id of een id uit een andere
+ * tabel terug als argumentfout, en die gooit `useQuery` in de errorboundary —
+ * precies de witte stap die een half-getypte URL niet mag veroorzaken.
+ * `normalizeId` geeft in dat geval gewoon `null`, net als bij een verwijderde
+ * klant of een klant van een andere gebruiker.
+ *
+ * Bewust géén `hoortInKlantenLijst`-filter: een record dat (nog) als lead in de
+ * pipeline staat mag je wel degelijk voorselecteren — het is een geldige klant
+ * om een offerte voor te maken, hij staat alleen niet in de Klanten-lijst.
+ */
+export const getVoorSelector = query({
+  args: { id: v.string() },
+  handler: async (ctx, args) => {
+    const klantId = ctx.db.normalizeId("klanten", args.id);
+    if (!klantId) return null;
+
+    const klant = await ctx.db.get(klantId);
+    if (!klant) return null;
+
+    const user = await requireAuth(ctx);
+    if (klant.userId.toString() !== user._id.toString()) {
+      return null;
+    }
+
+    return klant;
+  },
+});
+
 // Get klant with their offertes (with ownership verification)
 export const getWithOffertes = query({
   args: { id: v.id("klanten") },
