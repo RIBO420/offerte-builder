@@ -75,6 +75,40 @@ export function PackageSelector({
     }
   };
 
+  // Zolang er geen pakketten samengesteld zijn, is deze stap geen keuze maar
+  // een drempel: dan alleen de doorstart tonen, geen lege tabbladen met (0).
+  if (packages.length === 0) {
+    return (
+      <div className="mx-auto max-w-lg space-y-4 text-center">
+        <div className="flex items-center justify-center gap-2">
+          <Sparkles className="h-5 w-5 text-muted-foreground" />
+          <h2 className="text-xl font-bold">Nieuwe offerte</h2>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Er zijn nog geen pakketten samengesteld. Je begint blanco en kiest in
+          de volgende stap zelf de werkzaamheden.
+        </p>
+        <Button size="lg" onClick={onSkip}>
+          Beginnen
+          <ChevronRight className="ml-2 h-4 w-4" />
+        </Button>
+        {onSelectTemplate && (
+          <p className="text-xs text-muted-foreground">
+            Eerder opgeslagen sjablonen staan onder{" "}
+            <button
+              type="button"
+              onClick={onSelectTemplate}
+              className="font-medium text-foreground underline underline-offset-2"
+            >
+              mijn sjablonen
+            </button>
+            .
+          </p>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       {/* Header */}

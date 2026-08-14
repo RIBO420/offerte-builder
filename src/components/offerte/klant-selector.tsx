@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "convex/react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -482,87 +481,47 @@ export function KlantSelector({
         onCreated={handleKlantAangemaakt}
       />
 
-      {/* Handmatige invoer */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="naam">Naam *</Label>
-          <Input
-            id="naam"
-            placeholder="Jan Jansen"
-            value={value.naam}
-            onChange={(e) => {
-              onChange({ ...value, naam: e.target.value });
-              if (selectedKlantId || selectedLeadId) handleClearSelection();
-            }}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="telefoon">Telefoon</Label>
-          <Input
-            id="telefoon"
-            placeholder="06-12345678"
-            value={value.telefoon}
-            onChange={(e) => {
-              onChange({ ...value, telefoon: e.target.value });
-              if (selectedKlantId || selectedLeadId) handleClearSelection();
-            }}
-          />
-        </div>
-      </div>
+      {/*
+        Hier stond dezelfde set velden (naam, telefoon, adres, postcode, plaats,
+        e-mail) nog een keer als los formulier. Sinds "Nieuwe klant aanmaken"
+        een eigen modal heeft, was dat een tweede plek om hetzelfde in te vullen
+        — met als risico dat je een klant aanmaakt die niet in de klantenlijst
+        belandt. Wat je kiest of aanmaakt tonen we nu alleen ter controle.
+      */}
+      {value.naam && <GekozenKlant klant={value} />}
+    </div>
+  );
+}
 
-      <div className="space-y-2">
-        <Label htmlFor="adres">Adres *</Label>
-        <Input
-          id="adres"
-          placeholder="Hoofdstraat 1"
-          value={value.adres}
-          onChange={(e) => {
-            onChange({ ...value, adres: e.target.value });
-            if (selectedKlantId || selectedLeadId) handleClearSelection();
-          }}
-        />
-      </div>
+/** Leesbare samenvatting van de gekozen klant; het werkadres moet zichtbaar blijven. */
+function GekozenKlant({ klant }: { klant: KlantData }) {
+  const adresregel = [
+    klant.adres,
+    [klant.postcode, klant.plaats].filter(Boolean).join(" "),
+  ]
+    .filter(Boolean)
+    .join(", ");
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="space-y-2">
-          <Label htmlFor="postcode">Postcode *</Label>
-          <Input
-            id="postcode"
-            placeholder="1234 AB"
-            value={value.postcode}
-            onChange={(e) => {
-              onChange({ ...value, postcode: e.target.value });
-              if (selectedKlantId || selectedLeadId) handleClearSelection();
-            }}
-          />
-        </div>
-        <div className="space-y-2 md:col-span-2">
-          <Label htmlFor="plaats">Plaats *</Label>
-          <Input
-            id="plaats"
-            placeholder="Amsterdam"
-            value={value.plaats}
-            onChange={(e) => {
-              onChange({ ...value, plaats: e.target.value });
-              if (selectedKlantId || selectedLeadId) handleClearSelection();
-            }}
-          />
-        </div>
-      </div>
+  const contact = [klant.telefoon, klant.email].filter(Boolean).join(" · ");
 
-      <div className="space-y-2">
-        <Label htmlFor="email">E-mail</Label>
-        <Input
-          id="email"
-          type="email"
-          placeholder="jan@voorbeeld.nl"
-          value={value.email}
-          onChange={(e) => {
-            onChange({ ...value, email: e.target.value });
-            if (selectedKlantId || selectedLeadId) handleClearSelection();
-          }}
-        />
-      </div>
+  return (
+    <div className="rounded-lg border bg-muted/30 px-3 py-2.5">
+      <p className="text-sm leading-snug font-medium">{klant.naam}</p>
+      {adresregel && (
+        <p className="mt-0.5 text-xs leading-tight text-muted-foreground">
+          {adresregel}
+        </p>
+      )}
+      {contact && (
+        <p className="mt-0.5 text-xs leading-tight text-muted-foreground">
+          {contact}
+        </p>
+      )}
+      {!adresregel && (
+        <p className="mt-1 text-xs leading-tight text-amber-600 dark:text-amber-400">
+          Deze klant heeft nog geen adres. Vul dat aan op de klantpagina.
+        </p>
+      )}
     </div>
   );
 }
