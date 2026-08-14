@@ -147,17 +147,32 @@ const projectSubItems = [
  * Dat werkt alleen omdat de knop zelf `relative` krijgt: `SidebarMenuItem` is
  * ook relative, maar die is de volle balkbreedte terwijl de knop ingeklapt
  * 32px is — positioneren op de li zet de stip dus naast het icoon.
+ *
+ * `stip: false` voor tellers die een totaal tonen in plaats van werkvoorraad.
+ * Zo'n stip staat altijd aan en betekent dus niets; ingeklapt laten we die weg.
  */
-function MenuTeller({ aantal, klasse }: { aantal: number; klasse: string }) {
+function MenuTeller({
+  aantal,
+  klasse,
+  stip = true,
+}: {
+  aantal: number;
+  klasse: string;
+  stip?: boolean;
+}) {
   return (
     <Badge
       className={cn(
         "ml-auto h-5 min-w-5 px-1 text-xs",
-        "group-data-[collapsible=icon]:absolute group-data-[collapsible=icon]:right-0.5 group-data-[collapsible=icon]:top-0.5",
-        "group-data-[collapsible=icon]:size-2.5 group-data-[collapsible=icon]:min-w-0 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:text-[0px]",
-        // Randje in de sidebar-kleur: anders loopt de stip visueel vast op een
-        // icoon dat er net achter zit.
-        "group-data-[collapsible=icon]:ring-2 group-data-[collapsible=icon]:ring-sidebar",
+        stip
+          ? [
+              "group-data-[collapsible=icon]:absolute group-data-[collapsible=icon]:right-0.5 group-data-[collapsible=icon]:top-0.5",
+              "group-data-[collapsible=icon]:size-2.5 group-data-[collapsible=icon]:min-w-0 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:text-[0px]",
+              // Randje in de sidebar-kleur: anders loopt de stip visueel vast
+              // op een icoon dat er net achter zit.
+              "group-data-[collapsible=icon]:ring-2 group-data-[collapsible=icon]:ring-sidebar",
+            ]
+          : "group-data-[collapsible=icon]:hidden",
         klasse
       )}
     >
@@ -277,16 +292,21 @@ export function AppSidebar() {
 
   // Eén plek voor de tellers: welk menu-item, welk aantal, welke kleur. Voorheen
   // stonden dit vier bijna identieke blokken in de JSX.
-  const tellers: Record<string, { aantal: number | undefined; klasse: string }> = {
+  const tellers: Record<
+    string,
+    { aantal: number | undefined; klasse: string; stip?: boolean }
+  > = {
     Leads: {
       aantal: aantalActieveLeads,
       klasse: "bg-blue-600 text-white hover:bg-blue-600",
     },
-    // Bewust de rustige variant: dit is een totaal, geen werkvoorraad. De stip
-    // staat daardoor altijd aan en moet niet om aandacht schreeuwen.
+    // Geen stip ingeklapt: dit is een totaal, geen werkvoorraad. Het aantal
+    // klanten is nooit nul, dus die stip zou altijd branden zonder iets te
+    // melden. Uitgeklapt blijft het getal wel staan.
     Klanten: {
       aantal: aantalKlanten,
       klasse: "bg-secondary text-secondary-foreground",
+      stip: false,
     },
     Meldingen: {
       aantal: aantalOpenMeldingen,
@@ -354,7 +374,11 @@ export function AppSidebar() {
                         <item.icon />
                         <span>{item.title}</span>
                         {toonTeller && (
-                          <MenuTeller aantal={aantal} klasse={teller.klasse} />
+                          <MenuTeller
+                            aantal={aantal}
+                            klasse={teller.klasse}
+                            stip={teller.stip}
+                          />
                         )}
                       </Link>
                     </SidebarMenuButton>

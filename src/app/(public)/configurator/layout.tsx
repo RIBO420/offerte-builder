@@ -1,6 +1,17 @@
+import type { Metadata } from "next";
 import { Phone, Mail, MapPin, ExternalLink } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { TopTuinenLogo } from "@/components/ui/top-tuinen-logo";
+
+/**
+ * De configurator is publiek en klantgericht: die tab hoort "Top Tuinen" te
+ * heten, niet "Top Tuinen OS". Zonder deze export erft hij de root-titel, en
+ * dan staat de interne productnaam in de browsertab van een bezoeker en in
+ * elke gedeelde link.
+ */
+export const metadata: Metadata = {
+  title: "Top Tuinen",
+};
 
 export default function ConfiguratorLayout({
   children,
