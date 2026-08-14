@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { QC_STATUS_CONFIG, statusClasses, type QCStatus } from "@/lib/constants/statuses";
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
@@ -20,8 +21,6 @@ import {
   ClipboardCheck,
   Check,
   X,
-  Clock,
-  AlertCircle,
   ChevronDown,
   ChevronUp,
   Loader2,
@@ -31,7 +30,15 @@ import { logger } from "@/lib/logger";
 import { showErrorToast } from "@/lib/toast-utils";
 
 // QC Status types and labels
-type QCStatus = "open" | "in_uitvoering" | "goedgekeurd" | "afgekeurd";
+// Statuskleuren uit de centrale bron (WS4): zelfde status = zelfde kleur.
+function qcEntry(status: QCStatus) {
+  const config = QC_STATUS_CONFIG[status];
+  return {
+    label: config.label,
+    color: statusClasses(config),
+    icon: config.icon as React.ComponentType<{ className?: string }>,
+  };
+}
 
 const statusConfig: Record<
   QCStatus,
@@ -41,26 +48,10 @@ const statusConfig: Record<
     icon: React.ComponentType<{ className?: string }>;
   }
 > = {
-  open: {
-    label: "Open",
-    color: "bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
-    icon: Clock,
-  },
-  in_uitvoering: {
-    label: "In uitvoering",
-    color: "bg-amber-200 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
-    icon: AlertCircle,
-  },
-  goedgekeurd: {
-    label: "Goedgekeurd",
-    color: "bg-green-200 text-green-800 dark:bg-green-900 dark:text-green-200",
-    icon: Check,
-  },
-  afgekeurd: {
-    label: "Afgekeurd",
-    color: "bg-red-200 text-red-800 dark:bg-red-900 dark:text-red-200",
-    icon: X,
-  },
+  open: qcEntry("open"),
+  in_uitvoering: qcEntry("in_uitvoering"),
+  goedgekeurd: qcEntry("goedgekeurd"),
+  afgekeurd: qcEntry("afgekeurd"),
 };
 
 // Scope display names

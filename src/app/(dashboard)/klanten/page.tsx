@@ -92,6 +92,7 @@ import {
   ExportDropdown,
   klantenExportColumns,
 } from "@/components/export-dropdown";
+import { KLANT_PIPELINE_CONFIG, statusClasses } from "@/lib/constants/statuses";
 
 type PipelineStatus = "lead" | "offerte_verzonden" | "getekend" | "in_uitvoering" | "opgeleverd" | "onderhoud";
 
@@ -166,14 +167,13 @@ const PIPELINE_LABELS: Record<PipelineStatus, string> = {
   onderhoud: "Onderhoud",
 };
 
-const PIPELINE_COLORS: Record<PipelineStatus, string> = {
-  lead: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
-  offerte_verzonden: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  getekend: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-  in_uitvoering: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
-  opgeleverd: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
-  onderhoud: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-};
+// Statuskleuren uit de centrale bron (WS4): zelfde status = zelfde kleur.
+const PIPELINE_COLORS: Record<PipelineStatus, string> = Object.fromEntries(
+  Object.entries(KLANT_PIPELINE_CONFIG).map(([key, config]) => [
+    key,
+    statusClasses(config),
+  ])
+) as Record<PipelineStatus, string>;
 
 const ALL_PIPELINE_STATUSES: PipelineStatus[] = [
   "lead",

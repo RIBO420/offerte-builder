@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
+import { LEAD_STATUS_CONFIG, statusClasses } from "@/lib/constants/statuses";
 import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import { formatDistanceToNow } from "date-fns";
 import { nl } from "@/lib/date-locale";
@@ -71,58 +72,25 @@ type PipelineStatus =
   | "gewonnen"
   | "verloren";
 
+// Statuskleuren uit de centrale bron (WS4): `--lead-*`-tokens, zelfde kleur
+// als de kolommen op het bord.
 const statusBadgeConfig: Record<
   PipelineStatus,
   { label: string; className: string }
-> = {
-  nieuw: {
-    label: "Nieuw",
-    className:
-      "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
-  },
-  contact_gehad: {
-    label: "Contact gehad",
-    className:
-      "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300",
-  },
-  offerte_verstuurd: {
-    label: "Offerte verstuurd",
-    className:
-      "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300",
-  },
-  gewonnen: {
-    label: "Gewonnen",
-    className:
-      "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300",
-  },
-  verloren: {
-    label: "Verloren",
-    className:
-      "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
-  },
-};
+> = Object.fromEntries(
+  Object.entries(LEAD_STATUS_CONFIG).map(([key, config]) => [
+    key,
+    { label: config.label, className: statusClasses(config) },
+  ])
+) as Record<PipelineStatus, { label: string; className: string }>;
 
+// WS4 (critique): het type/de bron is bijzaak — neutrale secondary-badge,
+// geen eigen kleurensysteem meer.
 const typeBadgeConfig: Record<string, { label: string; className: string }> = {
-  gazon: {
-    label: "Gazon",
-    className:
-      "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
-  },
-  boomschors: {
-    label: "Boomschors",
-    className:
-      "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
-  },
-  verticuteren: {
-    label: "Verticuteren",
-    className:
-      "bg-lime-100 text-lime-800 dark:bg-lime-900/40 dark:text-lime-300",
-  },
-  contact: {
-    label: "Website",
-    className:
-      "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
-  },
+  gazon: { label: "Gazon", className: "" },
+  boomschors: { label: "Boomschors", className: "" },
+  verticuteren: { label: "Verticuteren", className: "" },
+  contact: { label: "Website", className: "" },
 };
 
 // Quick action mapping: current status → next status
@@ -450,7 +418,7 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
   const statusConfig = statusBadgeConfig[pipelineStatus];
   const typeConfig = typeBadgeConfig[lead.type] ?? {
     label: lead.type,
-    className: "bg-gray-100 text-gray-800",
+    className: "",
   };
   const quickAction = quickActionMap[pipelineStatus];
 

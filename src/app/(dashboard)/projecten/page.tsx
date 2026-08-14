@@ -14,11 +14,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   FolderKanban,
   Search,
-  Calendar,
-  Play,
-  CheckCircle2,
-  ClipboardCheck,
-  Calculator,
   Plus,
 } from "lucide-react";
 import { ProjectenPageSkeleton, ListSkeleton } from "@/components/ui/skeleton-card";
@@ -48,41 +43,18 @@ import {
   ExportDropdown,
   projectenExportColumns,
 } from "@/components/export-dropdown";
+import { PROJECT_STATUS_CONFIG, statusClasses } from "@/lib/constants/statuses";
 
-// Status configuration - voorcalculatie is now at offerte level
-// Projects start at "gepland" status
-// Note: voorcalculatie kept for backwards compatibility with existing projects
-// WCAG AA compliant colors (4.5:1 contrast ratio)
+// Statuskleuren uit de centrale bron (WS4): zelfde status = zelfde kleur.
+// Dit scherm toont bewust alleen deze statussen (zelfde keys als voorheen);
+// voorcalculatie blijft erin voor bestaande projecten.
 const statusConfig = {
-  voorcalculatie: {
-    label: "Voorcalculatie",
-    icon: Calculator,
-    color:
-      "bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  },
-  gepland: {
-    label: "Gepland",
-    icon: Calendar,
-    color:
-      "bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  },
-  in_uitvoering: {
-    label: "In Uitvoering",
-    icon: Play,
-    color:
-      "bg-orange-200 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
-  },
-  afgerond: {
-    label: "Afgerond",
-    icon: CheckCircle2,
-    color: "bg-green-200 text-green-800 dark:bg-green-900 dark:text-green-200",
-  },
-  nacalculatie_compleet: {
-    label: "Nacalculatie",
-    icon: ClipboardCheck,
-    color: "bg-purple-200 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-  },
-};
+  voorcalculatie: PROJECT_STATUS_CONFIG.voorcalculatie,
+  gepland: PROJECT_STATUS_CONFIG.gepland,
+  in_uitvoering: PROJECT_STATUS_CONFIG.in_uitvoering,
+  afgerond: PROJECT_STATUS_CONFIG.afgerond,
+  nacalculatie_compleet: PROJECT_STATUS_CONFIG.nacalculatie_compleet,
+} as const;
 
 type ProjectStatus = keyof typeof statusConfig;
 
@@ -99,7 +71,7 @@ function StatusBadge({ status }: { status: ProjectStatus }) {
   const Icon = config.icon;
 
   return (
-    <Badge variant="outline" className={config.color}>
+    <Badge variant="outline" className={statusClasses(config)}>
       <Icon className="h-3 w-3 mr-1" />
       {config.label}
     </Badge>
@@ -417,7 +389,7 @@ function ProjectenPageContent() {
                       </p>
                     </div>
                     <div
-                      className={`h-10 w-10 rounded-full flex items-center justify-center ${config.color}`}
+                      className={`h-10 w-10 rounded-full flex items-center justify-center ${config.color.bg} ${config.color.text}`}
                     >
                       <Icon className="h-5 w-5" />
                     </div>

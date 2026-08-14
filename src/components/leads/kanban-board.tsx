@@ -18,6 +18,7 @@ import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import { KanbanColumn } from "./kanban-column";
 import { VerliesRedenDialog } from "./verlies-reden-dialog";
 import type { Lead } from "./lead-card";
+import { LEAD_STATUS_CONFIG } from "@/lib/constants/statuses";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,12 +48,35 @@ interface ColumnDef {
   isLost?: boolean;
 }
 
+// Kolomstippen uit het statussysteem (WS4): `--lead-*`-tokens, geen ad-hoc
+// vijfkleurenmapping meer.
 const columns: ColumnDef[] = [
-  { id: "nieuw", label: "Nieuw", colorClass: "bg-blue-500" },
-  { id: "contact_gehad", label: "Contact gehad", colorClass: "bg-amber-500" },
-  { id: "offerte_verstuurd", label: "Offerte verstuurd", colorClass: "bg-violet-500" },
-  { id: "gewonnen", label: "Gewonnen", colorClass: "bg-emerald-500" },
-  { id: "verloren", label: "Verloren", colorClass: "bg-red-500", isLost: true },
+  {
+    id: "nieuw",
+    label: LEAD_STATUS_CONFIG.nieuw.label,
+    colorClass: LEAD_STATUS_CONFIG.nieuw.color.dot,
+  },
+  {
+    id: "contact_gehad",
+    label: LEAD_STATUS_CONFIG.contact_gehad.label,
+    colorClass: LEAD_STATUS_CONFIG.contact_gehad.color.dot,
+  },
+  {
+    id: "offerte_verstuurd",
+    label: LEAD_STATUS_CONFIG.offerte_verstuurd.label,
+    colorClass: LEAD_STATUS_CONFIG.offerte_verstuurd.color.dot,
+  },
+  {
+    id: "gewonnen",
+    label: LEAD_STATUS_CONFIG.gewonnen.label,
+    colorClass: LEAD_STATUS_CONFIG.gewonnen.color.dot,
+  },
+  {
+    id: "verloren",
+    label: LEAD_STATUS_CONFIG.verloren.label,
+    colorClass: LEAD_STATUS_CONFIG.verloren.color.dot,
+    isLost: true,
+  },
 ];
 
 // ============================================

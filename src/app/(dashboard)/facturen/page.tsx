@@ -14,11 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   FileText,
   Search,
-  Pencil,
   Send,
-  CheckCircle2,
-  Clock,
-  AlertCircle,
   Euro,
   TrendingUp,
   FileStack,
@@ -54,43 +50,14 @@ import {
 } from "@/components/export-dropdown";
 import { formatCurrency } from "@/lib/format/currency";
 import { OpenstaandOverzicht } from "@/components/facturen/openstaand-overzicht";
+import {
+  FACTUUR_STATUS_CONFIG,
+  statusClasses,
+  type FactuurStatus,
+} from "@/lib/constants/statuses";
 
-// Status configuration for facturen - WCAG AA compliant colors (4.5:1 contrast ratio)
-const statusConfig = {
-  concept: {
-    label: "Concept",
-    icon: Pencil,
-    color: "bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
-  },
-  definitief: {
-    label: "Definitief",
-    icon: FileText,
-    color: "bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  },
-  verzonden: {
-    label: "Verzonden",
-    icon: Send,
-    color: "bg-amber-200 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
-  },
-  betaald: {
-    label: "Betaald",
-    icon: CheckCircle2,
-    color: "bg-green-200 text-green-800 dark:bg-green-900 dark:text-green-200",
-  },
-  vervallen: {
-    label: "Vervallen",
-    icon: AlertCircle,
-    color: "bg-red-200 text-red-800 dark:bg-red-900 dark:text-red-200",
-  },
-  // §2.8 statussplitsing: deelbetaling zichtbaar in de lijst
-  gedeeltelijk_betaald: {
-    label: "Deels betaald",
-    icon: Clock,
-    color: "bg-teal-200 text-teal-800 dark:bg-teal-900 dark:text-teal-200",
-  },
-};
-
-type FactuurStatus = keyof typeof statusConfig;
+// Statuskleuren uit de centrale bron (WS4): zelfde status = zelfde kleur.
+const statusConfig = FACTUUR_STATUS_CONFIG;
 
 /**
  * Weergavestatus op basis van de gesplitste statussen (§2.8):
@@ -139,7 +106,7 @@ function StatusBadge({ status }: { status: FactuurStatus }) {
   const Icon = config.icon;
 
   return (
-    <Badge variant="outline" className={config.color}>
+    <Badge variant="outline" className={statusClasses(config)}>
       <Icon className="h-3 w-3 mr-1" />
       {config.label}
     </Badge>

@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useState } from "react";
+import { QC_STATUS_CONFIG } from "@/lib/constants/statuses";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
@@ -75,32 +76,16 @@ const scopeLabels: Record<string, string> = {
   overig: "Overig",
 };
 
-// Status summary config
+// Statuskleuren uit de centrale bron (WS4): zelfde status = zelfde kleur.
 const statusSummaryConfig: Record<
   QCStatus,
   { label: string; color: string; bgColor: string }
-> = {
-  open: {
-    label: "Open",
-    color: "text-gray-600 dark:text-gray-400",
-    bgColor: "bg-gray-100 dark:bg-gray-800",
-  },
-  in_uitvoering: {
-    label: "In uitvoering",
-    color: "text-amber-600 dark:text-amber-400",
-    bgColor: "bg-amber-100 dark:bg-amber-900/30",
-  },
-  goedgekeurd: {
-    label: "Goedgekeurd",
-    color: "text-green-600 dark:text-green-400",
-    bgColor: "bg-green-100 dark:bg-green-900/30",
-  },
-  afgekeurd: {
-    label: "Afgekeurd",
-    color: "text-red-600 dark:text-red-400",
-    bgColor: "bg-red-100 dark:bg-red-900/30",
-  },
-};
+> = Object.fromEntries(
+  Object.entries(QC_STATUS_CONFIG).map(([key, config]) => [
+    key,
+    { label: config.label, color: config.color.text, bgColor: config.color.bg },
+  ])
+) as Record<QCStatus, { label: string; color: string; bgColor: string }>;
 
 export default function KwaliteitscontrolePage({
   params,

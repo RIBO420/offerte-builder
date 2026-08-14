@@ -33,28 +33,11 @@ import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { StatsGridSkeleton, CardTableSkeleton } from "@/components/ui/skeleton-card";
-
-// Status configuration with WCAG AA colors
-const statusConfig = {
-  concept: {
-    label: "Concept",
-    color: "bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
-  },
-  actief: {
-    label: "Actief",
-    color: "bg-green-200 text-green-800 dark:bg-green-900 dark:text-green-200",
-  },
-  verlopen: {
-    label: "Verlopen",
-    color: "bg-red-200 text-red-800 dark:bg-red-900 dark:text-red-200",
-  },
-  opgezegd: {
-    label: "Opgezegd",
-    color: "bg-orange-200 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
-  },
-} as const;
-
-type ContractStatus = keyof typeof statusConfig;
+import {
+  CONTRACT_STATUS_CONFIG,
+  statusClasses,
+  type ContractStatus,
+} from "@/lib/constants/statuses";
 
 const frequentieLabels: Record<string, string> = {
   maandelijks: "Maandelijks",
@@ -64,9 +47,9 @@ const frequentieLabels: Record<string, string> = {
 };
 
 function StatusBadge({ status }: { status: ContractStatus }) {
-  const config = statusConfig[status] || statusConfig.concept;
+  const config = CONTRACT_STATUS_CONFIG[status] || CONTRACT_STATUS_CONFIG.concept;
   return (
-    <Badge variant="outline" className={config.color}>
+    <Badge variant="outline" className={statusClasses(config)}>
       {config.label}
     </Badge>
   );

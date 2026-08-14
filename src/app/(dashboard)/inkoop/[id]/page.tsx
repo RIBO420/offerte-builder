@@ -41,10 +41,7 @@ import {
   Package,
   Building2,
   Calendar,
-  FileText,
-  ShoppingCart,
   Truck,
-  Receipt,
   FolderKanban,
   Pencil,
   Trash2,
@@ -55,6 +52,11 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format/currency";
+import {
+  INKOOP_STATUS_CONFIG,
+  statusClasses,
+  type InkoopStatus,
+} from "@/lib/constants/statuses";
 
 const dateFormatter = new Intl.DateTimeFormat("nl-NL", {
   day: "numeric",
@@ -66,35 +68,10 @@ function formatDate(timestamp: number): string {
   return dateFormatter.format(new Date(timestamp));
 }
 
-// Status configuratie
-const STATUS_CONFIG = {
-  concept: {
-    label: "Concept",
-    color: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
-    icon: FileText,
-    description: "Order is nog niet geplaatst",
-  },
-  besteld: {
-    label: "Besteld",
-    color: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
-    icon: ShoppingCart,
-    description: "Order is geplaatst bij leverancier",
-  },
-  geleverd: {
-    label: "Geleverd",
-    color: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
-    icon: Truck,
-    description: "Materialen zijn ontvangen",
-  },
-  gefactureerd: {
-    label: "Gefactureerd",
-    color: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300",
-    icon: Receipt,
-    description: "Factuur is verwerkt",
-  },
-} as const;
+// Statuskleuren uit de centrale bron (WS4): zelfde status = zelfde kleur.
+const STATUS_CONFIG = INKOOP_STATUS_CONFIG;
 
-type InkooporderStatus = keyof typeof STATUS_CONFIG;
+type InkooporderStatus = InkoopStatus;
 
 // Status workflow
 const STATUS_WORKFLOW: Record<InkooporderStatus, InkooporderStatus | null> = {
@@ -215,7 +192,7 @@ export default function InkoopDetailPage({
                 <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
                   {inkooporder.orderNummer}
                 </h1>
-                <Badge className={`${statusConfig.color} gap-1`}>
+                <Badge className={`${statusClasses(statusConfig)} gap-1`}>
                   <StatusIcon className="h-3 w-3" />
                   {statusConfig.label}
                 </Badge>

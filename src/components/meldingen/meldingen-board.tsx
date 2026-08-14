@@ -23,14 +23,32 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import { showErrorToast, showSuccessToast } from "@/lib/toast-utils";
 import { MeldingColumn } from "./melding-column";
 import type { MeldingKaart } from "./melding-card";
+import { MELDING_STATUS_CONFIG } from "@/lib/constants/statuses";
 
 type BordKolom = "nieuw" | "in_behandeling" | "wacht_op_derden" | "opgelost";
 
+// Kolomstippen uit het statussysteem (WS4): `--melding-*`-tokens.
 const columns: { id: BordKolom; label: string; colorClass: string }[] = [
-  { id: "nieuw", label: "Nieuw", colorClass: "bg-blue-500" },
-  { id: "in_behandeling", label: "In behandeling", colorClass: "bg-amber-500" },
-  { id: "wacht_op_derden", label: "Wacht op derden", colorClass: "bg-violet-500" },
-  { id: "opgelost", label: "Opgelost", colorClass: "bg-green-500" },
+  {
+    id: "nieuw",
+    label: MELDING_STATUS_CONFIG.nieuw.label,
+    colorClass: MELDING_STATUS_CONFIG.nieuw.color.dot,
+  },
+  {
+    id: "in_behandeling",
+    label: MELDING_STATUS_CONFIG.in_behandeling.label,
+    colorClass: MELDING_STATUS_CONFIG.in_behandeling.color.dot,
+  },
+  {
+    id: "wacht_op_derden",
+    label: MELDING_STATUS_CONFIG.wacht_op_derden.label,
+    colorClass: MELDING_STATUS_CONFIG.wacht_op_derden.color.dot,
+  },
+  {
+    id: "opgelost",
+    label: MELDING_STATUS_CONFIG.opgelost.label,
+    colorClass: MELDING_STATUS_CONFIG.opgelost.color.dot,
+  },
 ];
 
 interface MeldingenBoardProps {

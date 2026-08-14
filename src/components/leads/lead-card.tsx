@@ -2,7 +2,6 @@
 
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { nl } from "@/lib/date-locale";
@@ -27,37 +26,19 @@ const handmatigeBronnen: LeadBron[] = [
 ];
 
 // ============================================
-// Type badge config
+// Bron/type-label
 // ============================================
 
-const typeBadgeConfig: Record<
-  LeadType | "handmatig" | "website",
-  { label: string; className: string }
-> = {
-  gazon: {
-    label: "Gazon",
-    className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
-  },
-  boomschors: {
-    label: "Boomschors",
-    className: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
-  },
-  verticuteren: {
-    label: "Verticuteren",
-    className: "bg-lime-100 text-lime-800 dark:bg-lime-900/40 dark:text-lime-300",
-  },
-  contact: {
-    label: "Website",
-    className: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
-  },
-  handmatig: {
-    label: "Handmatig",
-    className: "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300",
-  },
-  website: {
-    label: "Website",
-    className: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
-  },
+// WS4 (critique): de bron van een lead is bijzaak — een klein grijs
+// tekstlabel, geen gekleurde badge of gekleurde rand. Waarde en ouderdom
+// zijn waar een verkoper op stuurt.
+const typeLabels: Record<LeadType | "handmatig" | "website", string> = {
+  gazon: "Gazon",
+  boomschors: "Boomschors",
+  verticuteren: "Verticuteren",
+  contact: "Website",
+  handmatig: "Handmatig",
+  website: "Website",
 };
 
 // ============================================
@@ -104,7 +85,7 @@ export function LeadCard({ lead, onClick, onDelete }: LeadCardProps) {
     : isHandmatig
       ? "handmatig"
       : lead.type;
-  const badgeConfig = typeBadgeConfig[badgeKey];
+  const bronLabel = typeLabels[badgeKey];
 
   const waarde = lead.geschatteWaarde ?? lead.definitievePrijs ?? lead.indicatiePrijs ?? 0;
 
@@ -135,7 +116,6 @@ export function LeadCard({ lead, onClick, onDelete }: LeadCardProps) {
       onClick={() => onClick?.(lead)}
       className={cn(
         "group relative rounded-lg border bg-card p-3 cursor-grab active:cursor-grabbing transition-shadow",
-        isHandmatig && "border-l-4 border-l-purple-500",
         isDragging && "shadow-xl",
         !isDragging && "hover:shadow-md"
       )}
@@ -159,12 +139,9 @@ export function LeadCard({ lead, onClick, onDelete }: LeadCardProps) {
         <p className="font-medium text-sm leading-tight truncate">
           {lead.klantNaam}
         </p>
-        <Badge
-          variant="secondary"
-          className={cn("text-[10px] shrink-0", badgeConfig.className)}
-        >
-          {badgeConfig.label}
-        </Badge>
+        <span className="shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground">
+          {bronLabel}
+        </span>
       </div>
 
       {(lead.klantPlaats || onderwerpLabel) && (
@@ -181,11 +158,12 @@ export function LeadCard({ lead, onClick, onDelete }: LeadCardProps) {
         </div>
       )}
 
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span className="font-semibold text-foreground">
+      {/* WS4 (critique): bedrag prominent — hier stuurt een verkoper op. */}
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-base font-semibold tabular-nums tracking-tight text-foreground">
           {priceFormatter.format(waarde)}
         </span>
-        <span>{relativeDate}</span>
+        <span className="text-xs text-muted-foreground">{relativeDate}</span>
       </div>
     </div>
   );

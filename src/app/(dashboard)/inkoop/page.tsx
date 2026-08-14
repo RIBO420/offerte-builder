@@ -29,7 +29,6 @@ import {
   Package,
   ShoppingCart,
   Truck,
-  Receipt,
   FileText,
   TrendingUp,
 } from "lucide-react";
@@ -71,6 +70,11 @@ import { ScrollableTable } from "@/components/ui/responsive-table";
 import { toast } from "sonner";
 import { InkoopTabs } from "@/components/inkoop/inkoop-tabs";
 import { formatCurrency } from "@/lib/format/currency";
+import {
+  INKOOP_STATUS_CONFIG,
+  statusClasses,
+  type InkoopStatus,
+} from "@/lib/constants/statuses";
 
 const dateFormatter = new Intl.DateTimeFormat("nl-NL", {
   day: "numeric",
@@ -82,31 +86,10 @@ function formatDate(timestamp: number): string {
   return dateFormatter.format(new Date(timestamp));
 }
 
-// Status configuratie met kleuren en iconen
-const STATUS_CONFIG = {
-  concept: {
-    label: "Concept",
-    color: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
-    icon: FileText,
-  },
-  besteld: {
-    label: "Besteld",
-    color: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
-    icon: ShoppingCart,
-  },
-  geleverd: {
-    label: "Geleverd",
-    color: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
-    icon: Truck,
-  },
-  gefactureerd: {
-    label: "Gefactureerd",
-    color: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300",
-    icon: Receipt,
-  },
-} as const;
+// Statuskleuren uit de centrale bron (WS4): zelfde status = zelfde kleur.
+const STATUS_CONFIG = INKOOP_STATUS_CONFIG;
 
-type InkooporderStatus = keyof typeof STATUS_CONFIG;
+type InkooporderStatus = InkoopStatus;
 
 // Status Badge Component
 function InkoopStatusBadge({ status }: { status: string }) {
@@ -114,7 +97,7 @@ function InkoopStatusBadge({ status }: { status: string }) {
   const Icon = config.icon;
 
   return (
-    <Badge className={`${config.color} gap-1`}>
+    <Badge className={`${statusClasses(config)} gap-1`}>
       <Icon className="h-3 w-3" />
       {config.label}
     </Badge>

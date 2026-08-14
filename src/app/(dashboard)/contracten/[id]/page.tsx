@@ -82,41 +82,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { logger } from "@/lib/logger";
 import type { Id } from "../../../../../convex/_generated/dataModel";
+import {
+  CONTRACT_STATUS_CONFIG,
+  TERMIJN_STATUS_CONFIG,
+  statusClasses,
+} from "@/lib/constants/statuses";
 
-// Status badge colors
-const statusConfig = {
-  concept: {
-    label: "Concept",
-    color: "bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
-  },
-  actief: {
-    label: "Actief",
-    color: "bg-green-200 text-green-800 dark:bg-green-900 dark:text-green-200",
-  },
-  verlopen: {
-    label: "Verlopen",
-    color: "bg-red-200 text-red-800 dark:bg-red-900 dark:text-red-200",
-  },
-  opgezegd: {
-    label: "Opgezegd",
-    color: "bg-orange-200 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
-  },
-} as const;
-
-const factuurStatusConfig = {
-  gepland: {
-    label: "Gepland",
-    color: "bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
-  },
-  gefactureerd: {
-    label: "Gefactureerd",
-    color: "bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  },
-  betaald: {
-    label: "Betaald",
-    color: "bg-green-200 text-green-800 dark:bg-green-900 dark:text-green-200",
-  },
-} as const;
+// Statuskleuren uit de centrale bron (WS4): zelfde status = zelfde kleur.
+const statusConfig = CONTRACT_STATUS_CONFIG;
+const factuurStatusConfig = TERMIJN_STATUS_CONFIG;
 
 const seizoenConfig = {
   voorjaar: { label: "Voorjaar", icon: Leaf, months: "Mrt - Mei" },
@@ -639,7 +613,7 @@ function ContractDetailContent() {
               <h1 className="text-2xl font-bold tracking-tight">
                 {contract.naam}
               </h1>
-              <Badge variant="outline" className={statusConf.color}>
+              <Badge variant="outline" className={statusClasses(statusConf)}>
                 {statusConf.label}
               </Badge>
             </div>
@@ -1008,7 +982,7 @@ function ContractDetailContent() {
                                 <TableCell>
                                   <Badge
                                     variant="outline"
-                                    className={fStatus.color}
+                                    className={statusClasses(fStatus)}
                                   >
                                     {fStatus.label}
                                   </Badge>

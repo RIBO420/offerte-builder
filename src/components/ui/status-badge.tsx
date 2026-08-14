@@ -9,10 +9,16 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { getStatusConfig, type OfferteStatus } from "@/lib/constants/statuses";
+import {
+  getStatusConfig,
+  type OfferteStatus,
+  type StatusDomain,
+} from "@/lib/constants/statuses";
 
 interface StatusBadgeProps {
   status: OfferteStatus | string;
+  /** Statusdomein (offerte, project, factuur, lead, melding, …). */
+  domain?: StatusDomain;
   showIcon?: boolean;
   showTooltip?: boolean;
   size?: "sm" | "md" | "lg";
@@ -40,6 +46,7 @@ const sizeClasses = {
 
 export const StatusBadge = memo(function StatusBadge({
   status,
+  domain = "offerte",
   showIcon = true,
   showTooltip = true,
   size = "md",
@@ -47,7 +54,7 @@ export const StatusBadge = memo(function StatusBadge({
   className,
 }: StatusBadgeProps) {
   // Memoize config lookup
-  const config = useMemo(() => getStatusConfig(status), [status]);
+  const config = useMemo(() => getStatusConfig(status, domain), [status, domain]);
   const Icon = config.icon;
   const sizes = sizeClasses[size];
 
@@ -97,11 +104,12 @@ export const StatusBadge = memo(function StatusBadge({
 // Simplified dot indicator for compact displays
 interface StatusDotProps {
   status: OfferteStatus | string;
+  domain?: StatusDomain;
   className?: string;
 }
 
-export const StatusDot = memo(function StatusDot({ status, className }: StatusDotProps) {
-  const config = useMemo(() => getStatusConfig(status), [status]);
+export const StatusDot = memo(function StatusDot({ status, domain = "offerte", className }: StatusDotProps) {
+  const config = useMemo(() => getStatusConfig(status, domain), [status, domain]);
 
   return (
     <TooltipProvider>

@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CalendarDays } from "lucide-react";
+import { VERLOF_STATUS_CONFIG, statusClasses } from "@/lib/constants/statuses";
 
 type VerlofAanvraag = {
   _id: string;
@@ -26,13 +27,13 @@ const TYPE_COLORS: Record<string, string> = {
     "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
 };
 
-const STATUS_COLORS: Record<string, string> = {
-  aangevraagd:
-    "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-  goedgekeurd:
-    "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-  afgekeurd: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-};
+// Statuskleuren uit de centrale bron (WS4): zelfde status = zelfde kleur.
+const STATUS_COLORS: Record<string, string> = Object.fromEntries(
+  Object.entries(VERLOF_STATUS_CONFIG).map(([key, config]) => [
+    key,
+    statusClasses(config),
+  ])
+);
 
 interface VerlofKalenderProps {
   aanvragen: VerlofAanvraag[];

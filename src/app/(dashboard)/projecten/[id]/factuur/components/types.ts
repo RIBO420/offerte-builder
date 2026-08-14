@@ -1,22 +1,17 @@
 import { FileText, Eye, Send, CheckCircle } from "lucide-react";
+import { FACTUUR_STATUS_CONFIG, statusClasses } from "@/lib/constants/statuses";
 
-// Factuur status colors - WCAG AA compliant (4.5:1 contrast ratio)
-export const statusColors: Record<string, string> = {
-  concept: "bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
-  definitief: "bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  verzonden: "bg-amber-200 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
-  betaald: "bg-green-200 text-green-800 dark:bg-green-900 dark:text-green-200",
-  vervallen: "bg-red-200 text-red-800 dark:bg-red-900 dark:text-red-200",
-};
+// Statuskleuren/-labels uit de centrale bron (WS4): zelfde status = zelfde kleur.
+export const statusColors: Record<string, string> = Object.fromEntries(
+  Object.entries(FACTUUR_STATUS_CONFIG).map(([key, config]) => [
+    key,
+    statusClasses(config),
+  ])
+);
 
-// Factuur status labels
-export const statusLabels: Record<string, string> = {
-  concept: "Concept",
-  definitief: "Definitief",
-  verzonden: "Verzonden",
-  betaald: "Betaald",
-  vervallen: "Vervallen",
-};
+export const statusLabels: Record<string, string> = Object.fromEntries(
+  Object.entries(FACTUUR_STATUS_CONFIG).map(([key, config]) => [key, config.label])
+);
 
 // Workflow steps for the invoice process
 export const workflowSteps = [

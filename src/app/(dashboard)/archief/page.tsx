@@ -36,6 +36,7 @@ import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { formatCurrency } from "@/lib/format/currency";
+import { getStatusConfig, statusClasses } from "@/lib/constants/statuses";
 import { GearchiveerdeItems } from "./components/gearchiveerde-items";
 
 function formatDate(timestamp: number): string {
@@ -113,35 +114,12 @@ function DeviationBadge({ percentage }: { percentage: number }) {
   );
 }
 
-// WCAG AA compliant colors (4.5:1 contrast ratio)
+// Statuskleuren uit de centrale bron (WS4): zelfde status = zelfde kleur.
 function FactuurStatusBadge({ status }: { status: string }) {
-  const statusConfig: Record<string, { label: string; className: string }> = {
-    concept: {
-      label: "Concept",
-      className: "bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
-    },
-    definitief: {
-      label: "Definitief",
-      className: "bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-    },
-    verzonden: {
-      label: "Verzonden",
-      className: "bg-amber-200 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
-    },
-    betaald: {
-      label: "Betaald",
-      className: "bg-green-200 text-green-800 dark:bg-green-900 dark:text-green-200",
-    },
-    vervallen: {
-      label: "Vervallen",
-      className: "bg-red-200 text-red-800 dark:bg-red-900 dark:text-red-200",
-    },
-  };
-
-  const config = statusConfig[status] || statusConfig.concept;
+  const config = getStatusConfig(status, "factuur");
 
   return (
-    <Badge variant="outline" className={config.className}>
+    <Badge variant="outline" className={statusClasses(config)}>
       {config.label}
     </Badge>
   );

@@ -46,6 +46,7 @@ import {
 import { KlantTijdlijn } from "@/components/tijdlijn/klant-tijdlijn";
 import { KlantReminderBanner } from "@/components/klant-reminder-banner";
 import { formatCurrency } from "@/lib/format/currency";
+import { KLANT_PIPELINE_CONFIG, statusClasses } from "@/lib/constants/statuses";
 
 // CRM-002: Pipeline status labels and colors
 type PipelineStatus = "lead" | "offerte_verzonden" | "getekend" | "in_uitvoering" | "opgeleverd" | "onderhoud";
@@ -59,14 +60,13 @@ const pipelineLabels: Record<PipelineStatus, string> = {
   onderhoud: "Onderhoud",
 };
 
-const pipelineColors: Record<PipelineStatus, string> = {
-  lead: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
-  offerte_verzonden: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  getekend: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-  in_uitvoering: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
-  opgeleverd: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
-  onderhoud: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-};
+// Statuskleuren uit de centrale bron (WS4): zelfde status = zelfde kleur.
+const pipelineColors: Record<PipelineStatus, string> = Object.fromEntries(
+  Object.entries(KLANT_PIPELINE_CONFIG).map(([key, config]) => [
+    key,
+    statusClasses(config),
+  ])
+) as Record<PipelineStatus, string>;
 
 // CRM-003: Klant type labels and colors
 type KlantType = "particulier" | "zakelijk" | "vve" | "gemeente" | "overig";

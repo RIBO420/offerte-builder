@@ -20,8 +20,6 @@ import {
   Users,
   CalendarDays,
   Play,
-  CheckCircle2,
-  ClipboardCheck,
   CalendarRange,
   BarChart3,
 } from "lucide-react";
@@ -35,50 +33,16 @@ import {
 import { MaandKalender } from "@/components/planning/maand-kalender";
 import { KwartaalOverzicht } from "@/components/planning/kwartaal-overzicht";
 import { JaarOverzicht } from "@/components/planning/jaar-overzicht";
+import {
+  PROJECT_STATUS_CONFIG,
+  statusClasses,
+  type ProjectStatus,
+} from "@/lib/constants/statuses";
 
 type PlanningView = "week" | "maand" | "kwartaal" | "jaar";
 
-// Project status configuration - WCAG AA compliant colors (4.5:1 contrast ratio)
-const statusConfig = {
-  gepland: {
-    label: "Gepland",
-    icon: Calendar,
-    color: "bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-    borderColor: "border-blue-300 dark:border-blue-700",
-  },
-  in_uitvoering: {
-    label: "In Uitvoering",
-    icon: Play,
-    color: "bg-orange-200 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
-    borderColor: "border-orange-300 dark:border-orange-700",
-  },
-  afgerond: {
-    label: "Afgerond",
-    icon: CheckCircle2,
-    color: "bg-green-200 text-green-800 dark:bg-green-900 dark:text-green-200",
-    borderColor: "border-green-300 dark:border-green-700",
-  },
-  nacalculatie_compleet: {
-    label: "Nacalculatie",
-    icon: ClipboardCheck,
-    color: "bg-purple-200 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-    borderColor: "border-purple-300 dark:border-purple-700",
-  },
-  gefactureerd: {
-    label: "Gefactureerd",
-    icon: CheckCircle2,
-    color: "bg-emerald-200 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
-    borderColor: "border-emerald-300 dark:border-emerald-700",
-  },
-  voorcalculatie: {
-    label: "Voorcalculatie",
-    icon: Calendar,
-    color: "bg-slate-200 text-slate-800 dark:bg-slate-900 dark:text-slate-200",
-    borderColor: "border-slate-300 dark:border-slate-700",
-  },
-} as const;
-
-type ProjectStatus = keyof typeof statusConfig;
+// Statuskleuren uit de centrale bron (WS4): zelfde status = zelfde kleur.
+const statusConfig = PROJECT_STATUS_CONFIG;
 
 // Type for project from API
 interface ProjectVoortgang {
@@ -127,7 +91,7 @@ function StatusBadge({ status }: { status: string }) {
   const Icon = config.icon;
 
   return (
-    <Badge variant="outline" className={config.color}>
+    <Badge variant="outline" className={statusClasses(config)}>
       <Icon className="h-3 w-3 mr-1" />
       {config.label}
     </Badge>
@@ -141,11 +105,11 @@ function ProjectCard({ project }: { project: ProjectVoortgang }) {
 
   return (
     <Link href={`/projecten/${project.projectId}/planning`} className="block group">
-      <Card className={`transition-all hover:shadow-md hover:${config.borderColor}`}>
+      <Card className="transition-all hover:shadow-md">
         <CardContent className="p-4">
           <div className="flex items-start justify-between gap-3 mb-3">
             <div className="flex items-center gap-3 min-w-0">
-              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${config.color}`}>
+              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${config.color.bg} ${config.color.text}`}>
                 <FolderKanban className="h-5 w-5" />
               </div>
               <div className="min-w-0">
@@ -596,7 +560,7 @@ function PlanningPageContent() {
                       .filter(([key]) => key === "gepland" || key === "in_uitvoering")
                       .map(([key, config]) => (
                         <div key={key} className="flex items-center gap-1.5">
-                          <div className={`h-2 w-2 rounded-full ${config.color}`} />
+                          <div className={`h-2 w-2 rounded-full ${config.color.dot}`} />
                           <span className="text-muted-foreground">{config.label}</span>
                         </div>
                       ))}

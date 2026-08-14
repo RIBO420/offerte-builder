@@ -9,6 +9,7 @@
 import { useDraggable } from "@dnd-kit/core";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { MELDING_TYPE_CONFIG, statusClasses } from "@/lib/constants/statuses";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { AlertTriangle, CalendarClock, User } from "lucide-react";
 
@@ -30,16 +31,23 @@ export interface MeldingKaart {
   updatedAt: number;
 }
 
-const TYPE_LABELS: Record<string, string> = {
-  serviceverzoek: "Serviceverzoek",
-  klacht: "Klacht",
-  schade: "Schade",
-};
+// Typekleuren uit de centrale bron (WS4): `--melding-*`-tokens. Klacht en
+// schade dragen hun urgentie óók op de kaart zelf (gekleurde linkerrand),
+// zodat dit bord op afstand niet verwisselbaar is met het leadsbord.
+const TYPE_LABELS: Record<string, string> = Object.fromEntries(
+  Object.entries(MELDING_TYPE_CONFIG).map(([key, config]) => [key, config.label])
+);
 
-const TYPE_KLEUREN: Record<string, string> = {
-  serviceverzoek: "bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-100",
-  klacht: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100",
-  schade: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
+const TYPE_KLEUREN: Record<string, string> = Object.fromEntries(
+  Object.entries(MELDING_TYPE_CONFIG).map(([key, config]) => [
+    key,
+    statusClasses(config),
+  ])
+);
+
+const TYPE_KAART_RAND: Record<string, string> = {
+  klacht: "border-l-4 border-l-melding-klacht-dot",
+  schade: "border-l-4 border-l-melding-schade-dot",
 };
 
 interface MeldingCardProps {
@@ -68,19 +76,24 @@ export function MeldingCard({ melding, onClick }: MeldingCardProps) {
       onClick={() => onClick(melding)}
       className={cn(
         "rounded-lg border bg-card p-3 shadow-sm cursor-pointer space-y-2 text-left",
+        // WS4: klacht/schade visueel onderscheiden van serviceverzoek
+        !isPlantaak &&
+          !isDebiteurentaak &&
+          melding.type &&
+          TYPE_KAART_RAND[melding.type],
         isDragging && "opacity-60 z-50 relative",
         // Escalatie-markering (§2.1/§8.12): visueel, geen mail
         melding.geescaleerd &&
-          "border-red-500 ring-1 ring-red-500/60 bg-red-50 dark:bg-red-950/40"
+          "border-destructive ring-1 ring-destructive/60 bg-destructive/5"
       )}
     >
       <div className="flex items-center gap-1.5 flex-wrap">
         {isDebiteurentaak ? (
-          <Badge className="bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-100 text-[10px]">
+          <Badge className="bg-status-herinnering text-status-herinnering-text border-status-herinnering-border text-[10px]">
             Debiteurentaak
           </Badge>
         ) : isPlantaak ? (
-          <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100 text-[10px]">
+          <Badge className="bg-status-afgerond text-status-afgerond-text border-status-afgerond-border text-[10px]">
             Plantaak
           </Badge>
         ) : (
@@ -102,7 +115,7 @@ export function MeldingCard({ melding, onClick }: MeldingCardProps) {
         )}
         {melding.geescaleerd && (
           <AlertTriangle
-            className="size-3.5 text-red-600 ml-auto shrink-0"
+            className="size-3.5 text-destructive ml-auto shrink-0"
             aria-label="Geëscaleerd"
           />
         )}

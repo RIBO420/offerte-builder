@@ -1,3 +1,5 @@
+import { TAAK_STATUS_CONFIG, type TaakStatus } from "@/lib/constants/statuses";
+
 /**
  * Planning Task Templates per Scope
  *
@@ -96,24 +98,18 @@ export function getScopeColor(scope: string): string {
 }
 
 /**
- * Status display configuration
+ * Status display configuration.
+ * Kleuren uit de centrale statusbron (WS4): zelfde status = zelfde kleur.
  */
-export const statusConfig: Record<string, { label: string; color: string; bgColor: string }> = {
-  gepland: {
-    label: "Gepland",
-    color: "text-gray-700 dark:text-gray-300",
-    bgColor: "bg-gray-100 dark:bg-gray-800",
-  },
-  gestart: {
-    label: "Gestart",
-    color: "text-blue-700 dark:text-blue-300",
-    bgColor: "bg-blue-100 dark:bg-blue-900",
-  },
-  afgerond: {
-    label: "Afgerond",
-    color: "text-green-700 dark:text-green-300",
-    bgColor: "bg-green-100 dark:bg-green-900",
-  },
-};
+export const statusConfig: Record<string, { label: string; color: string; bgColor: string }> = Object.fromEntries(
+  Object.entries(TAAK_STATUS_CONFIG).map(([key, config]) => [
+    key,
+    {
+      label: config.label,
+      color: config.color.text,
+      bgColor: config.color.bg,
+    },
+  ])
+);
 
-export type TaakStatus = "gepland" | "gestart" | "afgerond";
+export type { TaakStatus };

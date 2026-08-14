@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { Id } from "../../../../../convex/_generated/dataModel";
+import { PROJECT_STATUS_CONFIG, statusClasses } from "@/lib/constants/statuses";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -25,21 +26,17 @@ import { WerklocatieCard } from "@/components/project/werklocatie-card";
 import { KlantThreadPaneel } from "@/components/meldingen/klant-thread-paneel";
 import { ProjectDetailSkeleton } from "@/components/skeletons";
 
-const statusColors: Record<string, string> = {
-  voorcalculatie: "bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  gepland: "bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  in_uitvoering: "bg-amber-200 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
-  afgerond: "bg-green-200 text-green-800 dark:bg-green-900 dark:text-green-200",
-  nacalculatie_compleet: "bg-purple-200 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-};
+// Statuskleuren uit de centrale bron (WS4): zelfde status = zelfde kleur.
+const statusColors: Record<string, string> = Object.fromEntries(
+  Object.entries(PROJECT_STATUS_CONFIG).map(([key, config]) => [
+    key,
+    statusClasses(config),
+  ])
+);
 
-const statusLabels: Record<string, string> = {
-  voorcalculatie: "Voorcalculatie",
-  gepland: "Gepland",
-  in_uitvoering: "In Uitvoering",
-  afgerond: "Afgerond",
-  nacalculatie_compleet: "Nacalculatie Compleet",
-};
+const statusLabels: Record<string, string> = Object.fromEntries(
+  Object.entries(PROJECT_STATUS_CONFIG).map(([key, config]) => [key, config.label])
+);
 
 function formatDate(timestamp: number): string {
   return new Date(timestamp).toLocaleDateString("nl-NL", {

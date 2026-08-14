@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useMemo } from "react";
+import { getStatusConfig as getCentralStatusConfig } from "@/lib/constants/statuses";
 import { m } from "framer-motion";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,8 +22,6 @@ import {
   Target,
   TrendingUp,
   TrendingDown,
-  Calendar,
-  Euro,
   AlertTriangle,
   ExternalLink,
   FolderKanban,
@@ -69,18 +68,14 @@ function getStatusConfig(status: ProjectData["status"]): {
   bgColor: string;
   icon: typeof CheckCircle2;
 } {
-  switch (status) {
-    case "gepland":
-      return { label: "Gepland", color: "text-blue-500", bgColor: "bg-blue-500/10", icon: Calendar };
-    case "in_uitvoering":
-      return { label: "In Uitvoering", color: "text-amber-500", bgColor: "bg-amber-500/10", icon: Clock };
-    case "afgerond":
-      return { label: "Afgerond", color: "text-emerald-500", bgColor: "bg-emerald-500/10", icon: CheckCircle2 };
-    case "gefactureerd":
-      return { label: "Gefactureerd", color: "text-purple-500", bgColor: "bg-purple-500/10", icon: Euro };
-    default:
-      return { label: status, color: "text-muted-foreground", bgColor: "bg-muted", icon: FolderKanban };
-  }
+  // Statuskleuren uit de centrale bron (WS4): zelfde status = zelfde kleur.
+  const config = getCentralStatusConfig(status, "project");
+  return {
+    label: config.label,
+    color: config.color.text,
+    bgColor: config.color.bg,
+    icon: config.icon,
+  };
 }
 
 function getMargeColor(marge: number): string {

@@ -30,6 +30,7 @@ import {
   Plus,
 } from "lucide-react";
 import { Id } from "../../../../../convex/_generated/dataModel";
+import { GARANTIE_STATUS_CONFIG, statusClasses } from "@/lib/constants/statuses";
 
 function formatDate(dateStr: string): string {
   const [year, month, day] = dateStr.split("-");
@@ -50,12 +51,13 @@ const prioriteitConfig: Record<string, { label: string; color: string }> = {
   urgent: { label: "Urgent", color: "bg-red-200 text-red-800 dark:bg-red-900 dark:text-red-200" },
 };
 
-const statusConfig: Record<string, { label: string; color: string }> = {
-  nieuw: { label: "Nieuw", color: "bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200" },
-  in_behandeling: { label: "In behandeling", color: "bg-yellow-200 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200" },
-  ingepland: { label: "Ingepland", color: "bg-purple-200 text-purple-800 dark:bg-purple-900 dark:text-purple-200" },
-  afgehandeld: { label: "Afgehandeld", color: "bg-green-200 text-green-800 dark:bg-green-900 dark:text-green-200" },
-};
+// Statuskleuren uit de centrale bron (WS4): zelfde status = zelfde kleur.
+const statusConfig: Record<string, { label: string; color: string }> = Object.fromEntries(
+  Object.entries(GARANTIE_STATUS_CONFIG).map(([key, config]) => [
+    key,
+    { label: config.label, color: statusClasses(config) },
+  ])
+);
 
 export default function GarantieDetailPage({
   params,
