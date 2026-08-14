@@ -15,7 +15,7 @@ import { useQuery } from "convex/react";
 import { AlertTriangle, FileText, Receipt, Shovel, Trees } from "lucide-react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
-import { SectieLegeStaat, SectiePaneel } from "@/components/ui/sectie-paneel";
+import { SectiePaneel } from "@/components/ui/sectie-paneel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/lib/format/currency";
 import { cn } from "@/lib/utils";
@@ -133,22 +133,31 @@ export type KlantOfferte = {
 
 export function KlantOffertesSectie({
   offertes,
+  className,
 }: {
   offertes: KlantOfferte[];
+  /** Zodat de sectie zich in het dossierpaneel als rij kan gedragen. */
+  className?: string;
 }) {
   return (
     <SectiePaneel
       titel="Offertes"
       icoon={<FileText />}
+      className={className}
       telling={offertes.length}
+      // Naslag, en zonder offertes valt er niets na te slaan.
+      gewicht={offertes.length === 0 ? "voetnoot" : "secundair"}
+      legeRegel={
+        offertes.length === 0
+          ? {
+              tekst: "Nog geen offertes.",
+              hint: "Start er één met Nieuwe offerte rechtsboven.",
+            }
+          : undefined
+      }
       uitleg="Alle offertes voor deze klant, nieuwste eerst. Klik een regel om de offerte te openen."
     >
-      {offertes.length === 0 ? (
-        <SectieLegeStaat
-          tekst="Nog geen offertes."
-          hint="Start er één met Aanleg of Onderhoud rechtsboven."
-        />
-      ) : (
+      {offertes.length === 0 ? null : (
         <ul className="divide-y">
           {offertes.map((offerte) => (
             <DocumentRegel
@@ -182,18 +191,39 @@ const BETAAL_STATUS: Record<string, string> = {
   vervallen: "Vervallen",
 };
 
-export function KlantFacturenSectie({ klantId }: { klantId: Id<"klanten"> }) {
+export function KlantFacturenSectie({
+  klantId,
+  className,
+}: {
+  klantId: Id<"klanten">;
+  /** Zodat de sectie zich in het dossierpaneel als rij kan gedragen. */
+  className?: string;
+}) {
   const facturen = useQuery(api.facturen.listVoorKlant, { klantId });
 
   const openstaand = (facturen ?? [])
     .filter((f) => f.betaalStatus !== "betaald" && f.documentStatus !== "concept")
     .reduce((som, f) => som + f.totaalInclBtw, 0);
 
+  const isLeeg = facturen !== undefined && facturen.length === 0;
+
   return (
     <SectiePaneel
       titel="Facturen"
       icoon={<Receipt />}
+      className={className}
       telling={facturen?.length ?? 0}
+      gewicht={isLeeg ? "voetnoot" : "secundair"}
+      legeRegel={
+        isLeeg
+          ? {
+              tekst: "Nog geen facturen.",
+              // Facturen máák je hier niet: dat de eerste vanzelf verschijnt
+              // na de nacalculatie moet deze regel dus zelf uitleggen.
+              hint: "Die ontstaan vanuit een project na de nacalculatie.",
+            }
+          : undefined
+      }
       uitleg="Facturen die aan deze klant gekoppeld zijn. Een factuur telt als te laat zodra hij verstuurd is, nog niet betaald en de vervaldatum voorbij is."
       acties={
         openstaand > 0 ? (
@@ -205,14 +235,7 @@ export function KlantFacturenSectie({ klantId }: { klantId: Id<"klanten"> }) {
     >
       {facturen === undefined ? (
         <LaadRegels />
-      ) : facturen.length === 0 ? (
-        <SectieLegeStaat
-          tekst="Nog geen facturen."
-          // Facturen máák je hier niet: dat de eerste vanzelf verschijnt na
-          // de nacalculatie moet deze regel dus zelf uitleggen.
-          hint="Die ontstaan vanuit een project na de nacalculatie."
-        />
-      ) : (
+      ) : facturen.length === 0 ? null : (
         <ul className="divide-y">
           {facturen.map((factuur) => {
             const betaald = factuur.betaalStatus === "betaald";

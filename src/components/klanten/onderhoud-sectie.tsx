@@ -15,7 +15,7 @@ import { Id } from "../../../convex/_generated/dataModel";
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SectieLegeStaat, SectiePaneel } from "@/components/ui/sectie-paneel";
+import { SectiePaneel } from "@/components/ui/sectie-paneel";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -66,7 +66,14 @@ function formatDatum(iso?: string): string {
 
 type RitmeKeuze = "eenmalig" | "per_jaar" | "interval";
 
-export function OnderhoudSectie({ klantId }: { klantId: Id<"klanten"> }) {
+export function OnderhoudSectie({
+  klantId,
+  className,
+}: {
+  klantId: Id<"klanten">;
+  /** Zodat de sectie zich in het dossierpaneel als rij kan gedragen. */
+  className?: string;
+}) {
   const contracten = useQuery(api.onderhoudscontracten.getByKlant, { klantId });
   const losseBeurten = useQuery(api.losseBeurten.listByKlant, { klantId });
   const bouwstenen = useQuery(api.onderhoudscontracten.getBouwsteenDefaults, {});
@@ -172,11 +179,31 @@ export function OnderhoudSectie({ klantId }: { klantId: Id<"klanten"> }) {
     }
   };
 
+  // Onderhoud is naslag, geen werkstroom: secundair. Zonder contract én zonder
+  // losse beurt blijft er niets na te slaan — dan één regel in plaats van een
+  // paneel van 105px. De actie `Losse beurt` staat in de kop en blijft dus ook
+  // in de voetnoot-variant bereikbaar.
+  const isLeeg =
+    contracten !== undefined &&
+    losseBeurten !== undefined &&
+    contracten.length === 0 &&
+    losseBeurten.length === 0;
+
   return (
     <SectiePaneel
       titel="Onderhoud"
       icoon={<Sprout />}
+      className={className}
       telling={(contracten?.length ?? 0) + (losseBeurten?.length ?? 0)}
+      gewicht={isLeeg ? "voetnoot" : "secundair"}
+      legeRegel={
+        isLeeg
+          ? {
+              tekst: "Nog geen onderhoud.",
+              hint: "Leg een contract vast of plan hiernaast een losse beurt.",
+            }
+          : undefined
+      }
       uitleg="Contracten en losse beurten staan hier als aparte regels, elk met een eigen historie. Een contract loopt door; een losse beurt is eenmalig of herhaalt volgens een ritme."
       acties={
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -386,12 +413,7 @@ export function OnderhoudSectie({ klantId }: { klantId: Id<"klanten"> }) {
             <Skeleton className="h-4 w-2/5" />
             <Skeleton className="h-4 w-1/3" />
           </div>
-        ) : contracten.length === 0 && losseBeurten.length === 0 ? (
-          <SectieLegeStaat
-            tekst="Nog geen onderhoud."
-            hint="Leg een contract vast of plan hierboven een losse beurt."
-          />
-        ) : (
+        ) : contracten.length === 0 && losseBeurten.length === 0 ? null : (
           <ul className="divide-y">
             {contracten.map((c) => (
               <OnderhoudRegel

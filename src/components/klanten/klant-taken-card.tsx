@@ -17,10 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  SectieLegeStaat,
-  SectiePaneel,
-} from "@/components/ui/sectie-paneel";
+import { SectiePaneel } from "@/components/ui/sectie-paneel";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -368,11 +365,22 @@ export function KlantTakenCard({ klantId }: KlantTakenCardProps) {
   const zichtbaarAfgerond = toonAfgerond ? afgerondeTaken : [];
   const lijstLeeg = openTaken.length === 0 && zichtbaarAfgerond.length === 0;
 
+  // Taken zijn werkstroom: vooruitkijken staat bovenaan het dossier en weegt
+  // zwaarder dan het archief eronder. Ook zónder taken blijft dit een paneel —
+  // de composer is hier de reden dat je er bent. Wat wél verdwijnt is het lege
+  // blok eronder: dat wordt één regel achter het kopje.
+  const legeRegel =
+    taken !== undefined && lijstLeeg
+      ? { tekst: heeftTaken ? "Alles afgevinkt." : "Nog geen taken." }
+      : undefined;
+
   return (
     <SectiePaneel
       titel="Taken"
       icoon={<ListTodo />}
       telling={openTaken.length}
+      gewicht="primair"
+      legeRegel={legeRegel}
       uitleg="Losse to-do's voor deze klant: terugbellen, offerte narekenen, materiaal bestellen. Wijs een taak toe aan een collega en hij verschijnt ook op diens Mijn taken. Enter slaat direct op."
     >
       {/* Composer: één regel die pas openklapt zodra je hem aanraakt. */}
@@ -380,7 +388,11 @@ export function KlantTakenCard({ klantId }: KlantTakenCardProps) {
         data-open={open}
         onBlur={handleComposerBlur}
         onMouseDown={openViaRegel}
-        className="group/composer border-b px-3 py-2 data-[open=false]:cursor-text data-[open=false]:hover:bg-muted/30"
+        className={cn(
+          "group/composer px-3 py-2 data-[open=false]:cursor-text data-[open=false]:hover:bg-muted/30",
+          // Zonder taken eronder is er niets om van te scheiden.
+          !lijstLeeg && "border-b"
+        )}
       >
         <div className="grid grid-cols-[1.25rem_minmax(0,1fr)] gap-x-2.5">
           <Plus
@@ -552,13 +564,7 @@ export function KlantTakenCard({ klantId }: KlantTakenCardProps) {
             </li>
           ))}
         </ul>
-      ) : lijstLeeg ? (
-        heeftTaken ? (
-          <SectieLegeStaat tekst="Alles afgevinkt." />
-        ) : (
-          <SectieLegeStaat tekst="Nog geen taken." />
-        )
-      ) : (
+      ) : lijstLeeg ? null : (
         <ul className="divide-y">
           {openTaken.map((taak) => (
             <TaakRegel
@@ -731,14 +737,28 @@ function TaakRegel({
 
       <div className="min-w-0">
         <div className="flex min-w-0 items-center gap-1.5">
-          {isHoog && (
-            <span
-              className="size-1.5 shrink-0 rounded-full bg-destructive"
-              title="Hoge prioriteit"
-            >
-              <span className="sr-only">Hoge prioriteit</span>
-            </span>
-          )}
+          {/* Prioriteitsstip op een vaste plek: zo beginnen alle titels op
+              dezelfde x, ook zonder stip. Alleen `hoog` krijgt echt inkt —
+              een lijst waarin alles kleur heeft, wijst nergens meer naar. */}
+          <span
+            className={cn(
+              "size-1.5 shrink-0 rounded-full",
+              isAfgerond
+                ? "bg-transparent"
+                : isHoog
+                  ? "bg-destructive"
+                  : taak.prioriteit === "laag"
+                    ? "bg-muted-foreground/20"
+                    : "bg-muted-foreground/35"
+            )}
+            title={
+              isAfgerond
+                ? undefined
+                : `Prioriteit: ${PRIORITEIT_LABELS[taak.prioriteit]}`
+            }
+          >
+            {isHoog && <span className="sr-only">Hoge prioriteit</span>}
+          </span>
           <span
             className={cn(
               "truncate text-sm leading-snug transition-colors duration-200",

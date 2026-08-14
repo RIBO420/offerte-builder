@@ -32,6 +32,7 @@ import { FotoViewer } from "@/components/ui/foto-viewer";
 import {
   SectieLegeStaat,
   SectiePaneel,
+  type SectieLegeRegel,
 } from "@/components/ui/sectie-paneel";
 import {
   Select,
@@ -225,10 +226,16 @@ function TijdlijnEntryRij({
   entry,
   nu,
   isNieuwste,
+  isEerste,
+  isLaatste,
 }: {
   entry: TijdlijnEntryData;
   nu: Date;
   isNieuwste: boolean;
+  /** Bovenste entry onder een datumkop: geen rail bóven de knoop. */
+  isEerste: boolean;
+  /** Onderste entry van een datumgroep: de rail stopt hier. */
+  isLaatste: boolean;
 }) {
   // Systeem-entries zijn ruis waar je doorheen leest, geen gespreksnotitie:
   // dimmen in plaats van een eigen kleur of badge.
@@ -241,15 +248,42 @@ function TijdlijnEntryRij({
           "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 motion-safe:duration-200"
       )}
     >
-      <span
-        className={cn(
-          "mt-0.5 flex size-5 items-center justify-center",
-          isSysteem ? "text-muted-foreground/60" : "text-muted-foreground"
-        )}
-        title={KANAAL_LABELS[entry.kanaal]}
-      >
-        {KANAAL_ICONS[entry.kanaal]}
-        <span className="sr-only">{KANAAL_LABELS[entry.kanaal]}</span>
+      {/* Tijdlijn-anatomie: een doorlopende rail met per gebeurtenis een knoop
+          erop. De rail zit in twee stukken (boven en onder de knoop) in plaats
+          van er dwars doorheen — dan is er geen ring in de paneelkleur nodig en
+          klopt het beeld ook in de Chat-module, waar het vlak anders is.
+          De kolom rekt mee met de rijhoogte, dus de rail sluit zonder gaten aan
+          op de rij eronder. */}
+      {/* -my-2 heft de rij-padding op: zonder dat stopt de rail bij de tekst en
+          valt er 16px gat tussen twee rijen. De 9px boven de knoop zet hem op
+          de hoogte van de eerste tekstregel. */}
+      <span className="-my-2 flex flex-col items-center self-stretch">
+        {/* Niet `bg-border`: die ligt op het werkstroomvlak op 1,00:1 — dan is
+            er geen lijn. `muted-foreground/30` blijft een token en is in beide
+            thema's zichtbaar zonder een streep te trekken die schreeuwt. */}
+        <span
+          aria-hidden
+          className={cn(
+            "h-[9px] w-px shrink-0",
+            !isEerste && "bg-muted-foreground/30"
+          )}
+        />
+        <span
+          className={cn(
+            "relative flex size-[18px] shrink-0 items-center justify-center rounded-full border border-muted-foreground/25 [&>svg]:size-3",
+            isSysteem
+              ? "border-dashed bg-muted text-muted-foreground"
+              : "bg-card text-muted-foreground"
+          )}
+          title={KANAAL_LABELS[entry.kanaal]}
+        >
+          {KANAAL_ICONS[entry.kanaal]}
+          <span className="sr-only">{KANAAL_LABELS[entry.kanaal]}</span>
+        </span>
+        <span
+          aria-hidden
+          className={cn("w-px flex-1", !isLaatste && "bg-muted-foreground/30")}
+        />
       </span>
       <div className="min-w-0">
         <p
@@ -298,10 +332,17 @@ function TijdlijnComposer({
   klantId,
   werkitems,
   vasteWerkitemId,
+  compact = false,
 }: {
   klantId: Id<"klanten">;
   werkitems: { _id: Id<"projecten">; naam: string }[];
   vasteWerkitemId?: Id<"projecten">;
+  /**
+   * Staat de composer in een voetnoot-sectie? Dan zit hij al binnen de
+   * kop-padding en is er geen paneel om een scheidingslijn in te trekken.
+   * Alleen opmaak — het openklap- en klikvlakgedrag blijft identiek.
+   */
+  compact?: boolean;
 }) {
   const voegEntryToe = useMutation(api.tijdlijn.voegEntryToe);
   const { uploadFotos, storageIds, reset, isBezig, voortgangen } =
@@ -392,7 +433,11 @@ function TijdlijnComposer({
     <div
       data-open={open}
       onMouseDown={openViaRegel}
-      className="group/composer border-b px-3 py-2 data-[open=false]:cursor-text data-[open=false]:hover:bg-muted/30"
+      className={cn(
+        "group/composer px-3 py-2 data-[open=false]:cursor-text data-[open=false]:hover:bg-muted/30",
+        // Zonder entries eronder is er niets om van te scheiden.
+        !compact && "border-b"
+      )}
       onBlur={(e) => {
         // Blijft open zolang de focus binnen de composer valt; daarbuiten pas
         // sluiten als er niets is ingevuld — halve notities mogen niet weg.
@@ -704,6 +749,28 @@ export function KlantTijdlijn({
     setZoekterm("");
   };
 
+  /**
+   * De tijdlijn ís het dossier (PRD §2.3) en weegt daarom primair, ook leeg —
+   * de composer is hier de reden dat je er bent. Wat wél verdwijnt is het lege
+   * blok van 90px: dat wordt één regel achter het kopje. Een leeg zoekresultaat
+   * telt niet als leeg (er ís inhoud, alleen niet zichtbaar) en houdt daarom
+   * zijn eigen blok met de knop "Filters wissen".
+   */
+  const isEchtLeeg =
+    !isLoading && entries.length === 0 && !zoektermActief && !filterActief;
+  const legeRegel: SectieLegeRegel | undefined = isEchtLeeg
+    ? {
+        tekst: "Nog niets vastgelegd.",
+        // Zonder hint leest een lege tijdlijn als een leeg notitieblok; dat
+        // systeem-entries (offertes, mails) hier vanzelf landen moet de lege
+        // staat zelf vertellen. Kantoor krijgt de actie erbij, andere rollen
+        // hebben geen composer — dus ook geen "hierboven".
+        hint: isKantoor
+          ? "Noteer hierboven wat je bespreekt — verstuurde offertes en mails verschijnen hier vanzelf."
+          : "Verstuurde offertes en mails verschijnen hier vanzelf.",
+      }
+    : undefined;
+
   const actieveFilterZin = [
     kanaalFilter !== "alle" ? KANAAL_LABELS[kanaalFilter as Kanaal] : null,
     !vasteWerkitemId && werkitemFilter !== "alle"
@@ -838,6 +905,7 @@ export function KlantTijdlijn({
           klantId={klantId}
           werkitems={werkitems ?? []}
           vasteWerkitemId={vasteWerkitemId}
+          compact={toonPaneel && isEchtLeeg}
         />
       )}
 
@@ -870,13 +938,15 @@ export function KlantTijdlijn({
               Filters wissen
             </Button>
           </div>
+        ) : toonPaneel ? (
+          // Mét paneel staat de lege staat als één regel in de kop
+          // (`legeRegel`); een blok hier zou hem verdubbelen.
+          null
         ) : (
+          // Zonder paneel (Chat-module) is er geen kop om achter te schuiven,
+          // dus blijft het blok — mét dezelfde WS7-hint.
           <SectieLegeStaat
             tekst="Nog niets vastgelegd."
-            // Zonder hint leest een lege tijdlijn als een leeg notitieblok;
-            // dat systeem-entries (offertes, mails) hier vanzelf landen moet
-            // de lege staat zelf vertellen. Kantoor krijgt de actie erbij,
-            // andere rollen hebben geen composer — dus ook geen "hierboven".
             hint={
               isKantoor
                 ? "Noteer hierboven wat je bespreekt — verstuurde offertes en mails verschijnen hier vanzelf."
@@ -885,10 +955,13 @@ export function KlantTijdlijn({
           />
         )
       ) : (
-        <ul className="divide-y">
+        // Geen `divide-y` meer: de rail met knopen scheidt de gebeurtenissen
+        // al, en een streep dwars over die rail knipt hem juist stuk. De
+        // datumkoppen houden hun eigen vlak als leespauze.
+        <ul>
           {groepen.map((groep, groepIndex) => (
             <Fragment key={groep.sleutel}>
-              <li className="bg-muted/30 px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              <li className="border-y bg-muted/30 px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                 {groep.label}
               </li>
               {groep.items.map((entry, index) => (
@@ -897,6 +970,8 @@ export function KlantTijdlijn({
                   entry={entry}
                   nu={nu}
                   isNieuwste={groepIndex === 0 && index === 0}
+                  isEerste={index === 0}
+                  isLaatste={index === groep.items.length - 1}
                 />
               ))}
             </Fragment>
@@ -914,6 +989,8 @@ export function KlantTijdlijn({
         titel={titel}
         icoon={<History />}
         className={className}
+        gewicht="primair"
+        legeRegel={legeRegel}
         uitleg={
           isKantoor
             ? "Elk telefoontje, appje en mailtje met deze klant hoort hier, zodat de volgende collega het terugleest. Kies het kanaal, koppel het aan een klus en sla op met ⌘/Ctrl + Enter."

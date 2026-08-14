@@ -24,8 +24,10 @@ import {
   User,
   Loader2,
   ArrowLeft,
-  Shovel,
-  Trees,
+  Mail,
+  MapPin,
+  Phone,
+  Plus,
   ShieldAlert,
 } from "lucide-react";
 import { useMutation, useQuery } from "convex/react";
@@ -35,6 +37,8 @@ import { useIsAdmin } from "@/hooks/use-users";
 import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import { CopyButton } from "@/components/ui/copy-button";
 import { Switch } from "@/components/ui/switch";
+import { SectiePaneel } from "@/components/ui/sectie-paneel";
+import { useShortcuts } from "@/components/providers/shortcuts-provider";
 import { Id } from "../../../../../convex/_generated/dataModel";
 import { LeadHistorieCard } from "@/components/leads/lead-historie-card";
 import { OnderhoudSectie } from "@/components/klanten/onderhoud-sectie";
@@ -95,29 +99,6 @@ function formatDate(timestamp: number): string {
   });
 }
 
-/**
- * Paneel in de rechterkolom. Bewust géén <Card>: die brengt een eigen
- * kop-, padding- en schaduwlaag mee, en drie Cards onder elkaar in een smalle
- * kolom leest als drie losse eilanden. Eén rand met een klein kopje houdt het
- * dossier rustig.
- */
-function Paneel({
-  titel,
-  children,
-}: {
-  titel: string;
-  children: ReactNode;
-}) {
-  return (
-    <section className="rounded-lg border bg-card">
-      <h2 className="border-b px-4 py-2.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {titel}
-      </h2>
-      {children}
-    </section>
-  );
-}
-
 /** Label links, waarde rechts — leest als een dossierregel, niet als een kaart. */
 function Feit({
   label,
@@ -131,14 +112,14 @@ function Feit({
 }) {
   if (uitlijnen === "onder") {
     return (
-      <div className="px-4 py-2.5">
+      <div className="px-3 py-2.5">
         <dt className="text-xs text-muted-foreground">{label}</dt>
         <dd className="mt-0.5 text-sm">{children}</dd>
       </div>
     );
   }
   return (
-    <div className="flex items-baseline justify-between gap-3 px-4 py-2.5">
+    <div className="flex items-baseline justify-between gap-3 px-3 py-2.5">
       <dt className="shrink-0 text-xs text-muted-foreground">{label}</dt>
       <dd className="min-w-0 text-right text-sm">{children}</dd>
     </div>
@@ -153,6 +134,7 @@ export default function KlantDetailPage({
   const { id } = use(params);
   const router = useRouter();
   const isAdmin = useIsAdmin();
+  const { setShowNewOfferteDialog } = useShortcuts();
   const { klant, isLoading } = useKlantWithOffertes(id as Id<"klanten">);
   const gdprAnonymize = useMutation(api.klanten.gdprAnonymize);
   const setInplanMail = useMutation(api.klanten.setInplanBevestigingsMail);
@@ -260,12 +242,16 @@ export default function KlantDetailPage({
       <div className="flex flex-1 flex-col gap-5 p-4 md:p-6">
         {/* Kop: identiteit links, acties rechts. Compact gehouden — de details
             staan in de rechterkolom, niet in de titel. */}
+        {/* Identiteitskop: wie is dit, en hoe bereik ik hem. Kantoor opent dit
+            dossier het vaakst om te bellen of te mailen — dus staan telefoon en
+            e-mail hier, niet onderin een rail die onder 1280px helemaal
+            wegzakt. */}
         <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
           <div className="flex min-w-0 items-start gap-2">
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 shrink-0"
+              className="mt-1 h-8 w-8 shrink-0"
               asChild
               aria-label="Terug naar klanten"
             >
@@ -273,9 +259,9 @@ export default function KlantDetailPage({
                 <ArrowLeft className="h-4 w-4" />
               </Link>
             </Button>
-            <div className="min-w-0">
+            <div className="min-w-0 space-y-2">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-                <h1 className="truncate text-2xl font-semibold tracking-tight">
+                <h1 className="truncate font-display text-[30px] leading-tight font-semibold tracking-tight">
                   {klant.naam}
                 </h1>
                 {/* Geen status = nog geen stadium, géén "Lead" verzinnen */}
@@ -293,22 +279,86 @@ export default function KlantDetailPage({
                   </Badge>
                 ))}
               </div>
+
+              {/* Contactregel: direct klikbaar, geen tussenscherm. Inkorten gaat
+                  vóór uitwijken — elke waarde truncate't binnen zijn eigen
+                  breedte en houdt de volle tekst in `title`. */}
+              {(klant.telefoon || klant.email || adresregel) && (
+                <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
+                  {klant.telefoon && (
+                    <span className="inline-flex min-w-0 items-center gap-1.5">
+                      <Phone
+                        className="size-4 shrink-0 text-muted-foreground"
+                        aria-hidden
+                      />
+                      <a
+                        href={`tel:${klant.telefoon}`}
+                        className="truncate text-base font-medium tabular-nums hover:underline"
+                      >
+                        {klant.telefoon}
+                      </a>
+                      <CopyButton
+                        value={klant.telefoon}
+                        label="Kopieer telefoonnummer"
+                      />
+                    </span>
+                  )}
+                  {klant.email && (
+                    <span className="inline-flex min-w-0 items-center gap-1.5">
+                      <Mail
+                        className="size-4 shrink-0 text-muted-foreground"
+                        aria-hidden
+                      />
+                      <a
+                        href={`mailto:${klant.email}`}
+                        className="max-w-[28ch] truncate text-sm hover:underline"
+                        title={klant.email}
+                      >
+                        {klant.email}
+                      </a>
+                      <CopyButton
+                        value={klant.email}
+                        label="Kopieer e-mailadres"
+                      />
+                    </span>
+                  )}
+                  {adresregel && (
+                    <span
+                      className="inline-flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground"
+                      title={adresregel}
+                    >
+                      <MapPin className="size-4 shrink-0" aria-hidden />
+                      <span className="truncate">{adresregel}</span>
+                    </span>
+                  )}
+                  {klant.contactpersoon && (
+                    <span
+                      className="inline-flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground"
+                      title={klant.contactpersoon}
+                    >
+                      <User className="size-4 shrink-0" aria-hidden />
+                      <span className="truncate">{klant.contactpersoon}</span>
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
           {!isAnonymized && (
             <div className="flex shrink-0 flex-wrap gap-2">
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/offertes/nieuw/aanleg">
-                  <Shovel className="mr-2 h-4 w-4" />
-                  Aanleg
-                </Link>
-              </Button>
-              <Button size="sm" asChild>
-                <Link href="/offertes/nieuw/onderhoud">
-                  <Trees className="mr-2 h-4 w-4" />
-                  Onderhoud
-                </Link>
+              {/* Eén ingang voor een nieuwe offerte (WS6): dezelfde dialog als
+                  ⌘N, het dashboard en de offertetoolbar. De twee losse
+                  wizard-links die hier stonden omzeilden die ingang én raakten
+                  de klant kwijt. TT-004 blijft ongemoeid: de dialog levert
+                  alleen startpunten, geen nieuwe `offertes.type`-waarden. */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowNewOfferteDialog(true)}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Nieuwe offerte
               </Button>
             </div>
           )}
@@ -355,62 +405,46 @@ export default function KlantDetailPage({
                 entry-compositie voor kantoor. */}
             <KlantTijdlijn klantId={id as Id<"klanten">} toonPaneel />
 
-            {/* Onderhoud (PRD §2.1): contracten + losse beurten */}
-            <OnderhoudSectie klantId={id as Id<"klanten">} />
+            {/* Dossier: wat er vastligt. Eén paneel om alle drie heen in
+                plaats van drie losse dozen — dat geeft de onderkant van de
+                pagina een anker, ook als de secties leeg zijn. Een lege sectie
+                is dan één nette rij binnen dit kader; een gevulde brengt zijn
+                eigen kop met rijen mee. `rounded-none border-0` haalt het
+                eigen frame van de secties weg: het kader is nu van de groep.
+                Een losse zwevende scheidingslijn zou hier niets structureren. */}
+            <section className="overflow-hidden rounded-lg border bg-card">
+              <h2 className="border-b bg-muted/40 px-3 py-2 text-xs font-medium uppercase tracking-wide leading-4 text-muted-foreground">
+                Dossier
+              </h2>
+              <div className="divide-y">
+                {/* Onderhoud (PRD §2.1): contracten + losse beurten */}
+                <OnderhoudSectie
+                  klantId={id as Id<"klanten">}
+                  className="rounded-none border-0 bg-transparent"
+                />
 
-            <KlantOffertesSectie offertes={offertes} />
+                <KlantOffertesSectie
+                  offertes={offertes}
+                  className="rounded-none border-0 bg-transparent"
+                />
 
-            {/* Facturen: klanten hebben niet alleen offertes — het dossier was
-                pas compleet toen ook de geldkant erin stond. */}
-            <KlantFacturenSectie klantId={id as Id<"klanten">} />
+                {/* Facturen: klanten hebben niet alleen offertes — het dossier
+                    was pas compleet toen ook de geldkant erin stond. */}
+                <KlantFacturenSectie
+                  klantId={id as Id<"klanten">}
+                  className="rounded-none border-0 bg-transparent"
+                />
+              </div>
+            </section>
           </div>
 
           <aside className="space-y-4 xl:sticky xl:top-6">
-            <Paneel titel="Gegevens">
+            {/* Contactpersoon, telefoon, e-mail en adres staan nu in de
+                identiteitskop: dáár zoekt kantoor ze, en dáár staan ze óók
+                onder 1280px bovenaan in plaats van onder vijf secties. Wat
+                hier overblijft is administratie. */}
+            <SectiePaneel titel="Gegevens">
               <dl className="divide-y">
-                {klant.contactpersoon && (
-                  <Feit label="Contactpersoon">{klant.contactpersoon}</Feit>
-                )}
-                {klant.telefoon && (
-                  <Feit label="Telefoon">
-                    <span className="inline-flex items-center gap-1">
-                      <a
-                        href={`tel:${klant.telefoon}`}
-                        className="hover:underline"
-                      >
-                        {klant.telefoon}
-                      </a>
-                      <CopyButton
-                        value={klant.telefoon}
-                        label="Kopieer telefoonnummer"
-                      />
-                    </span>
-                  </Feit>
-                )}
-                {klant.email && (
-                  <Feit label="E-mail" uitlijnen="onder">
-                    <span className="flex items-center gap-1">
-                      <a
-                        href={`mailto:${klant.email}`}
-                        className="truncate hover:underline"
-                        title={klant.email}
-                      >
-                        {klant.email}
-                      </a>
-                      <CopyButton
-                        value={klant.email}
-                        label="Kopieer e-mailadres"
-                      />
-                    </span>
-                  </Feit>
-                )}
-                <Feit label="Adres" uitlijnen="onder">
-                  {adresregel || (
-                    <span className="text-muted-foreground">
-                      Geen adres bekend
-                    </span>
-                  )}
-                </Feit>
                 {klant.kvkNummer && (
                   <Feit label="KvK">
                     <span className="inline-flex items-center gap-1 tabular-nums">
@@ -437,7 +471,7 @@ export default function KlantDetailPage({
               </dl>
               {/* CIJFERS als één subregel (WS6): het aparte kaartblok herhaalde
                   de OFFERTES-sectie ernaast regel voor regel. */}
-              <p className="border-t px-4 py-2.5 text-xs text-muted-foreground tabular-nums">
+              <p className="border-t px-3 py-2.5 text-xs text-muted-foreground tabular-nums">
                 {offertes.length} offerte{offertes.length === 1 ? "" : "s"}
                 {" · "}
                 {formatCurrency(totalValue)}
@@ -445,17 +479,17 @@ export default function KlantDetailPage({
                 {geaccepteerdAantal} geaccepteerd
                 {acceptedValue > 0 && ` (${formatCurrency(acceptedValue)})`}
               </p>
-            </Paneel>
 
-            {/* §2.7: opt-in inplanning-bevestigingsmail (default uit) — zet bij
-                inplannen een concept-mail klaar; kantoor keurt goed */}
-            <Paneel titel="Instellingen">
-              <div className="flex items-start justify-between gap-3 px-4 py-3">
+              {/* §2.7: opt-in inplanning-bevestigingsmail (default uit) — zet
+                  bij inplannen een concept-mail klaar; kantoor keurt goed.
+                  Staat bewust ín dit paneel: één instelling verdiende geen
+                  tweede kaart in een rail die verder maar drie regels telt. */}
+              <div className="flex items-start justify-between gap-3 border-t px-3 py-2.5">
                 <div className="min-w-0">
                   <p className="text-sm font-medium">
                     Bevestigingsmail bij inplannen
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="mt-0.5 text-xs text-muted-foreground">
                     Zet een concept-mail klaar in Concept-mails
                   </p>
                 </div>
@@ -480,24 +514,27 @@ export default function KlantDetailPage({
                   aria-label="Bevestigingsmail bij inplannen"
                 />
               </div>
-            </Paneel>
+            </SectiePaneel>
 
-            {/* Lead-historie (PRD §1.3): herkomst + activiteiten van de
+            {/* Lead-historie (PRD §1.3): tweede blok in de rail: herkomst + activiteiten van de
                 gepromoveerde lead blijven vanaf de klant bereikbaar.
                 Rendert niets als deze klant geen lead-verleden heeft. */}
             <LeadHistorieCard klantId={id as Id<"klanten">} />
 
-            {/* Onomkeerbaar, dus onderaan en visueel apart van de dagelijkse acties. */}
+            {/* Onomkeerbaar én zeldzaam: bereikbaar, maar stil. Als rode knop
+                over de volle railbreedte was dit het opvallendste element van
+                de pagina — meer visueel oppervlak dan het telefoonnummer,
+                terwijl kantoor hier hooguit een paar keer per jaar op klikt.
+                Nu een gewone tekstregel die pas bij aanwijzen rood wordt. */}
             {isAdmin && !isAnonymized && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full justify-start text-destructive hover:bg-destructive/10 hover:text-destructive"
+              <button
+                type="button"
                 onClick={() => setShowGdprDialog(true)}
+                className="inline-flex items-center gap-1.5 rounded px-1 py-0.5 text-[11px] text-muted-foreground transition-colors hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               >
-                <ShieldAlert className="mr-2 h-4 w-4" />
+                <ShieldAlert className="size-3 shrink-0" aria-hidden />
                 GDPR-verwijderverzoek
-              </Button>
+              </button>
             )}
           </aside>
         </div>
