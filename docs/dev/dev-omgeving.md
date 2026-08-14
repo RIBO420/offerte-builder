@@ -19,6 +19,13 @@ npm run dev:all      # next dev + convex dev samen (Convex moet draaien, anders 
 npm run dev:login    # laat draaien; ruimt zichzelf na 120s op
 ```
 
+**Let op: de preview-manager van Claude Code start alleen `next dev`,** ook al wijst
+`.claude/launch.json` naar `npm run dev:all` — `convex dev` draait dan dus NIET mee
+(empirisch vastgesteld 14 aug 2026: geen convex-proces, geen convex-regels in de
+logs). De app blijft werken omdat hij rechtstreeks met de cloud-dev-deployment
+praat, maar wijzigingen onder `convex/` bereiken die deployment pas na een sync:
+draai na elke convex-wijziging `npx convex dev --once` (eenmalig, geen server).
+
 `dev:login` legt een kortlevend ticket in `public/dev-login-ticket.js` (gitignored)
 en print een snippet. Draai dat **in de browserconsole op `http://localhost:3000/`**
 (bij Claude Code: `javascript_tool` op de tab), daarna navigeren naar `/dashboard`:
