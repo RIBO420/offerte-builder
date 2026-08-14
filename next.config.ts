@@ -18,21 +18,6 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  // Webpack optimizations for production builds
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      // Reduce bundle size by excluding server-only modules from client bundle
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-        net: false,
-        tls: false,
-        crypto: false,
-      };
-    }
-    return config;
-  },
-
   // Image optimization configuration
   images: {
     // Enable modern image formats for better compression

@@ -45,7 +45,9 @@ import {
 } from "lucide-react";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { CopyButton } from "@/components/ui/copy-button";
-import { DynamicPDFDownloadButton as PDFDownloadButton } from "@/components/pdf";
+// Bewust uit ./dynamic en niet uit de barrel: de barrel sleepte de statische
+// react-pdf-keten (~500 KB) mee in de offertedetail-bundle (optimize O1).
+import { DynamicPDFDownloadButton as PDFDownloadButton } from "@/components/pdf/dynamic";
 import type { OfferteStatus } from "@/lib/constants/statuses";
 import type { PdfTheme } from "@/components/pdf/pdf-theme";
 import { formatDate } from "./utils";

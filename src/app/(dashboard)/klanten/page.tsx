@@ -187,7 +187,8 @@ function KlantenPageContent() {
 
   // Initialize filter state from URL search params
   const [searchTerm, setSearchTerm] = useState(searchParams.get("q") || "");
-  // Alleen nog voor de URL: het filteren zelf gebeurt direct op `searchTerm`.
+  // Voor de URL én het filteren (optimize O5): filteren op de rauwe searchTerm
+  // her-renderde bij elke toetsaanslag de volledige lijst van ±300 rijen.
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
   // Export data query
@@ -410,8 +411,10 @@ function KlantenPageContent() {
     let base = klantenWithOptimisticUpdates as Klant[];
 
     // Client-side filteren op de al geladen lijst — zie lib/klant-zoeken.ts
-    // voor waarom dit niet meer via een Convex-query loopt.
-    const termen = zoektermen(searchTerm);
+    // voor waarom dit niet meer via een Convex-query loopt. Bewust op de
+    // gedebouncede term (O5), zodat typen niet elke toetsaanslag de hele
+    // tabel opnieuw filtert en rendert.
+    const termen = zoektermen(debouncedSearchTerm);
     if (termen.length > 0) {
       base = base.filter((klant) =>
         klantMatcht(zoekIndex.get(klant._id) ?? "", termen)
@@ -425,7 +428,7 @@ function KlantenPageContent() {
       base = base.filter((klant) => (klant.klantType ?? "particulier") === klantTypeFilter);
     }
     return base;
-  }, [searchTerm, zoekIndex, klantenWithOptimisticUpdates, pipelineFilter, klantTypeFilter]);
+  }, [debouncedSearchTerm, zoekIndex, klantenWithOptimisticUpdates, pipelineFilter, klantTypeFilter]);
 
   // Apply sorting to klanten
   const { sortedData: sortedKlanten, sortConfig, toggleSort } = useTableSort<Klant>(

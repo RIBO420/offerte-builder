@@ -11,8 +11,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Download, BarChart3, Loader2, Calculator, Users, FolderKanban } from "lucide-react";
 import { useReducedMotion } from "@/hooks/use-accessibility";
 import { useAnalytics } from "@/hooks/use-analytics";
+// Bewust rechtstreeks uit ./dynamic en ./enhanced-date-filter, niet uit de
+// barrel: die re-exporteerde ook de statische recharts-componenten en trok
+// recharts (~200 KB) daarmee alsnog de eerste rapportages-chunk in (optimize O4).
 import {
-  EnhancedDateFilter,
   // Use dynamic imports for heavy chart components (recharts ~200KB)
   DynamicKpiCards as KpiCards,
   DynamicSecondaryKpiCards as SecondaryKpiCards,
@@ -28,8 +30,9 @@ import {
   DynamicMedewerkerProductiviteit as MedewerkerProductiviteit,
   DynamicProjectPrestaties as ProjectPrestaties,
   DynamicFinancieelOverzicht as FinancieelOverzicht,
-} from "@/components/analytics";
-import type { DateRangePreset } from "@/components/analytics";
+} from "@/components/analytics/dynamic";
+import { EnhancedDateFilter } from "@/components/analytics/enhanced-date-filter";
+import type { DateRangePreset } from "@/components/analytics/enhanced-date-filter";
 import { BeurtNacalculatie } from "@/components/analytics/beurt-nacalculatie";
 import { NormuurSuggesties } from "@/components/catalogus/normuur-suggesties";
 
