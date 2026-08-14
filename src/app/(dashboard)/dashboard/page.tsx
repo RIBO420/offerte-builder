@@ -358,13 +358,13 @@ export default function DashboardPage() {
                     </p>
                   </div>
                   <div className="flex gap-2">
-                    <Button asChild variant="outline" className="border-green-500/20 bg-green-500/10 text-green-400 hover:bg-green-500/20 hover:text-green-300">
+                    <Button asChild variant="outline" className="border-green-500/20 bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20 hover:text-green-800 dark:hover:text-green-300">
                       <Link href="/offertes/nieuw/aanleg">
                         <Shovel className="mr-2 h-4 w-4" />
                         Nieuwe Aanleg
                       </Link>
                     </Button>
-                    <Button asChild variant="outline" className="border-green-500/12 bg-green-500/5 text-green-300 hover:bg-green-500/15 hover:text-green-200">
+                    <Button asChild variant="outline" className="border-green-500/12 bg-green-500/5 text-green-700 dark:text-green-300 hover:bg-green-500/15 hover:text-green-800 dark:hover:text-green-200">
                       <Link href="/offertes/nieuw/onderhoud">
                         <Trees className="mr-2 h-4 w-4" />
                         Nieuw Onderhoud

@@ -94,7 +94,9 @@ export function MeldingenBoard({
       onDragStart={() => setIsDragging(true)}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex gap-4 pb-4 overflow-x-auto">
+      {/* WS1 B7: nooit breder dan de container — grid met minmax(0,1fr),
+          onder `lg` stapelen (zie kanban-board.tsx). */}
+      <div className="grid grid-cols-1 gap-4 pb-4 lg:grid-cols-[repeat(4,minmax(0,1fr))]">
         {columns.map((col) => (
           <MeldingColumn
             key={col.id}

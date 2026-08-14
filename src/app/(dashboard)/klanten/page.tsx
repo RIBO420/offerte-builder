@@ -1201,7 +1201,11 @@ function KlantenPageContent() {
                 Klantenlijst
               </CardTitle>
               <CardDescription>
-                {filteredKlanten.length} klant{filteredKlanten.length !== 1 ? "en" : ""}{pipelineFilter !== "alle" ? ` (${PIPELINE_LABELS[pipelineFilter]})` : ""} in je bestand
+                {/* Bij een actieve selectie klopt "in je bestand" niet meer:
+                    de teller volgt de selectie, niet het bestand (WS1 B6). */}
+                {searchTerm || pipelineFilter !== "alle" || klantTypeFilter !== "alle"
+                  ? `${filteredKlanten.length} van ${klantenWithOptimisticUpdates.length} klant${klantenWithOptimisticUpdates.length !== 1 ? "en" : ""}`
+                  : `${filteredKlanten.length} klant${filteredKlanten.length !== 1 ? "en" : ""} in je bestand`}
               </CardDescription>
             </div>
             <div className="relative w-full sm:w-64">
@@ -1217,18 +1221,48 @@ function KlantenPageContent() {
         </CardHeader>
         <CardContent>
           {sortedKlanten.length === 0 ? (
+            /* Drie lege-staat-varianten (WS1 B6): zoekterm, filter, echt leeg.
+               Voorheen keek de conditie alleen naar searchTerm, waardoor een
+               0-filterresultaat de first-use-copy toonde bij 27 klanten. */
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Users className="h-12 w-12 text-muted-foreground/50 mb-4" />
               <h3 className="text-lg font-medium">
-                {searchTerm
+                {searchTerm || pipelineFilter !== "alle" || klantTypeFilter !== "alle"
                   ? "Geen klanten gevonden"
                   : "Nog geen klanten"}
               </h3>
               <p className="text-sm text-muted-foreground mt-1 max-w-sm">
                 {searchTerm
                   ? `Geen resultaten voor "${searchTerm}"`
-                  : "Voeg je eerste klant toe om te beginnen."}
+                  : pipelineFilter !== "alle" || klantTypeFilter !== "alle"
+                    ? "Geen klanten met deze status of dit type."
+                    : "Voeg je eerste klant toe om te beginnen."}
               </p>
+              {(searchTerm || pipelineFilter !== "alle" || klantTypeFilter !== "alle") && (
+                <div className="flex flex-wrap justify-center gap-2 mt-4">
+                  {searchTerm && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleSearchTermChange("")}
+                    >
+                      Zoekopdracht wissen
+                    </Button>
+                  )}
+                  {(pipelineFilter !== "alle" || klantTypeFilter !== "alle") && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        handlePipelineFilterChange("alle");
+                        handleKlantTypeFilterChange("alle");
+                      }}
+                    >
+                      Filters wissen
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
             <ResponsiveTable

@@ -40,10 +40,12 @@ function MetricCard({
   const trendBgClass =
     trendColor === "blue" ? "bg-blue-500/12" : "bg-green-500/12";
   const trendTextClass =
-    trendColor === "blue" ? "text-blue-400" : "text-green-400";
+    trendColor === "blue"
+      ? "text-blue-600 dark:text-blue-400"
+      : "text-green-600 dark:text-green-400";
 
   return (
-    <div className="bg-[#141414] border border-white/[0.06] rounded-xl p-4 relative overflow-hidden hover:-translate-y-px hover:shadow-md transition-all duration-200">
+    <div className="bg-card border border-border rounded-xl p-4 relative overflow-hidden hover:-translate-y-px hover:shadow-md transition-all duration-200">
       {/* Header row */}
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs text-muted-foreground font-medium">
@@ -87,7 +89,9 @@ function MetricCard({
           }}
           locale="nl-NL"
           className={`text-[28px] font-extrabold tracking-tight leading-none ${
-            iconColor === "text-green-500" ? "text-green-500" : ""
+            iconColor === "text-green-500"
+              ? "text-green-600 dark:text-green-500"
+              : ""
           }`}
         />
       ) : (
@@ -174,7 +178,9 @@ export function FinancieelGrid({
       ? "Alles op tijd"
       : `${vervaldeAantal} vervallen (€\u00A0${new Intl.NumberFormat("nl-NL", { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(vervaldenBedrag)})`;
   const openstaandSubtitleColor =
-    vervaldeAantal === 0 ? "text-green-400" : "text-red-400";
+    vervaldeAantal === 0
+      ? "text-green-600 dark:text-green-400"
+      : "text-red-600 dark:text-red-400";
 
   return (
     <section>

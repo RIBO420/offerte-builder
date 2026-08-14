@@ -91,12 +91,12 @@ const statusConfig: Record<
   geaccepteerd: {
     label: "Offerte geaccepteerd",
     color: "#22c55e",
-    valueColor: "text-green-500",
+    valueColor: "text-green-600 dark:text-green-500",
   },
   afgewezen: {
     label: "Offerte afgewezen",
     color: "#ef4444",
-    valueColor: "text-red-500",
+    valueColor: "text-red-600 dark:text-red-500",
   },
 };
 
@@ -176,7 +176,7 @@ function PipelineCard({
   };
 
   return (
-    <div className="bg-[#141414] border border-white/[0.06] rounded-xl p-4">
+    <div className="bg-card border border-border rounded-xl p-4">
       {/* Header */}
       <div className="flex items-center justify-between mb-3.5">
         <h3 className="text-[15px] font-semibold">Offerte Pipeline</h3>
@@ -201,14 +201,14 @@ function PipelineCard({
               className={`text-center py-2 rounded-lg ${
                 isAccepted
                   ? "bg-green-500/[0.05]"
-                  : "bg-white/[0.02]"
+                  : "bg-muted/40"
               }`}
             >
               <div
                 className="text-xl font-bold tabular-nums"
                 style={{
                   color: isRejectedZero
-                    ? "hsl(var(--muted-foreground))"
+                    ? "var(--muted-foreground)"
                     : pipelineNumberColors[key],
                 }}
               >
@@ -244,7 +244,7 @@ function ConversieRateCard({
   const dashLength = (pct / 100) * circumference;
 
   return (
-    <div className="bg-[#141414] border border-white/[0.06] rounded-xl p-4 flex flex-col items-center justify-center">
+    <div className="bg-card border border-border rounded-xl p-4 flex flex-col items-center justify-center">
       <span className="text-xs text-muted-foreground font-medium mb-3">
         Conversie Rate
       </span>
@@ -257,7 +257,7 @@ function ConversieRateCard({
           cy={50}
           r={40}
           fill="none"
-          stroke="rgba(255,255,255,0.06)"
+          stroke="var(--border)"
           strokeWidth={6}
         />
         {/* Fill */}
@@ -293,7 +293,7 @@ function ConversieRateCard({
       </span>
 
       {/* Average value badge */}
-      <span className="bg-green-500/10 text-green-400 text-[10px] font-semibold px-2 py-0.5 rounded mt-1.5">
+      <span className="bg-green-500/10 text-green-600 dark:text-green-400 text-[10px] font-semibold px-2 py-0.5 rounded mt-1.5">
         Gem. {formatCurrency(averageValue)}
       </span>
     </div>
@@ -326,7 +326,7 @@ function ProjectStatusCard({
   const visibleEntries = statusEntries.filter((s) => s.value > 0);
 
   return (
-    <div className="bg-[#141414] border border-white/[0.06] rounded-xl p-4">
+    <div className="bg-card border border-border rounded-xl p-4">
       <h3 className="text-[15px] font-semibold mb-3.5">Project Status</h3>
 
       <div className="flex items-center gap-5">
@@ -378,7 +378,7 @@ function RecenteActiviteitCard({
   offertes: PipelineBentoProps["recentOffertes"];
 }) {
   return (
-    <div className="bg-[#141414] border border-white/[0.06] rounded-xl p-4">
+    <div className="bg-card border border-border rounded-xl p-4">
       {/* Header */}
       <div className="flex items-center justify-between mb-3.5">
         <h3 className="text-[15px] font-semibold">Recente Activiteit</h3>
@@ -448,7 +448,7 @@ function LopendProjectCard({
   return (
     <Link
       href={`/projecten/${project._id}`}
-      className="bg-[#141414] border border-white/[0.06] rounded-xl p-3.5 cursor-pointer block hover:border-white/[0.12] transition-colors"
+      className="bg-card border border-border rounded-xl p-3.5 cursor-pointer block hover:border-foreground/20 transition-colors"
     >
       {/* Header */}
       <div className="flex items-center gap-2.5 mb-2.5">

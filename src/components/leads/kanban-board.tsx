@@ -15,7 +15,6 @@ import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
-import { cn } from "@/lib/utils";
 import { KanbanColumn } from "./kanban-column";
 import { VerliesRedenDialog } from "./verlies-reden-dialog";
 import type { Lead } from "./lead-card";
@@ -210,7 +209,11 @@ export function KanbanBoard({ leads, onLeadClick }: KanbanBoardProps) {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className={cn("flex gap-4 pb-4", isDragging ? "overflow-visible" : "overflow-x-auto")}>
+        {/* WS1 B7: het bord mag nooit breder zijn dan zijn container (geen
+            h-scroll). Kolommen delen de breedte via een grid met minmax(0,1fr);
+            onder `lg` stapelen ze. Geen overflow-container meer nodig — de
+            geliftte kaart van dnd-kit wordt zo ook nergens afgekapt. */}
+        <div className="grid grid-cols-1 gap-4 pb-4 lg:grid-cols-[repeat(5,minmax(0,1fr))]">
           {columns.map((col) => (
             <KanbanColumn
               key={col.id}

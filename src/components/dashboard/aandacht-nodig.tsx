@@ -22,9 +22,9 @@ interface AandachtNodigProps {
 }
 
 const PRIORITY_BADGE: Record<string, string> = {
-  hoog: "bg-red-500/15 text-red-400",
-  middel: "bg-amber-500/15 text-amber-400",
-  laag: "bg-blue-500/15 text-blue-400",
+  hoog: "bg-red-500/15 text-red-700 dark:text-red-400",
+  middel: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
+  laag: "bg-blue-500/15 text-blue-700 dark:text-blue-400",
 };
 
 export function AandachtNodig({
@@ -39,11 +39,11 @@ export function AandachtNodig({
     <div className="bg-amber-500/5 border border-amber-500/12 border-l-[3px] border-l-amber-500 rounded-xl p-4">
       {/* Header */}
       <div className="flex items-center gap-2 mb-3">
-        <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
-        <span className="font-semibold text-amber-400 text-sm">
+        <AlertTriangle className="h-4 w-4 text-amber-700 dark:text-amber-400 shrink-0" />
+        <span className="font-semibold text-amber-700 dark:text-amber-400 text-sm">
           Aandacht nodig
         </span>
-        <span className="bg-amber-500/15 text-amber-400 text-[11px] font-semibold px-2 py-0.5 rounded-md">
+        <span className="bg-amber-500/15 text-amber-700 dark:text-amber-400 text-[11px] font-semibold px-2 py-0.5 rounded-md">
           {totalCount}
         </span>
       </div>
@@ -97,7 +97,7 @@ export function AandachtNodig({
               {warning.link && (
                 <Link
                   href={warning.link}
-                  className="text-xs text-amber-400 hover:text-amber-300 shrink-0 mt-0.5"
+                  className="text-xs text-amber-700 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300 shrink-0 mt-0.5"
                 >
                   Bekijk →
                 </Link>
