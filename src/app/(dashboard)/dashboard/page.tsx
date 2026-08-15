@@ -13,12 +13,11 @@ import {
   ArrowRight,
   FolderKanban,
   Clock,
-  Plus,
   Truck,
   Wrench,
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
-import { DashboardSkeleton, AdminDashboardSkeleton } from "@/components/ui/skeleton-card";
+import { DashboardSkeleton } from "@/components/ui/skeleton-card";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useFullDashboardData } from "@/hooks/use-offertes";
 import { useIsAdmin } from "@/hooks/use-users";
@@ -26,32 +25,37 @@ import { useOnboarding } from "@/hooks/use-onboarding";
 import { WelcomeModal, OnboardingChecklist } from "@/components/onboarding";
 import { VoormanDashboard } from "@/components/dashboard/voorman-dashboard";
 import { WarningsFeed } from "@/components/dashboard/warnings-feed";
-import { MijnTaken } from "@/components/dashboard/mijn-taken";
+import { MijnTaken, useMijnTaken } from "@/components/dashboard/mijn-taken";
 import { useAdminDashboardData } from "@/hooks/use-dashboard";
 import { AandachtNodig } from "@/components/dashboard/aandacht-nodig";
-import { FinancieelGrid } from "@/components/dashboard/financieel-grid";
-import { PipelineBento } from "@/components/dashboard/pipeline-bento";
+import {
+  Cijferbalk,
+  berekenVerschilPct,
+} from "@/components/dashboard/cijferbalk";
+import {
+  ConversiePaneel,
+  PipelinePaneel,
+} from "@/components/dashboard/pipeline-paneel";
+import {
+  LaatsteOffertesPaneel,
+  LopendWerkPaneel,
+} from "@/components/dashboard/werk-panelen";
+import {
+  BentoBlok,
+  DAGSTAAT_SPAN,
+  DagstaatBento,
+  DagstaatReveal,
+  DagstaatRevealStijl,
+} from "@/components/dashboard/dagstaat-bento";
+import { DagstaatKop } from "@/components/dashboard/dagstaat-kop";
+import { DagstaatSkelet } from "@/components/dashboard/dagstaat-skelet";
+import { NieuweOfferteSplitButton } from "@/components/offerte/nieuwe-offerte-split-button";
 import { VlootBadge } from "@/components/dashboard/vloot-badge";
-import { useShortcuts } from "@/components/providers/shortcuts-provider";
 import { getGreeting } from "@/lib/greeting";
-
-// ── Helpers ──────────────────────────────────────────────────────────
-
-function computeTrendPct(current?: number, previous?: number): number {
-  if (!current || !previous || previous === 0) return current && current > 0 ? 100 : 0;
-  return Math.round(((current - previous) / previous) * 100);
-}
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 8 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.25 } },
-};
 
 export default function DashboardPage() {
   const { clerkUser, user, isLoading: isUserLoading } = useCurrentUser();
   const isAdmin = useIsAdmin();
-  // Eén ingang voor "nieuwe offerte" (keuzepunt 7)
-  const { setShowNewOfferteDialog } = useShortcuts();
 
   // Medewerker data — still uses the old batched query
   const {
@@ -63,6 +67,10 @@ export default function DashboardPage() {
 
   // Admin data — consolidated single query
   const adminData = useAdminDashboardData();
+
+  // Zelfde abonnement als het takenpaneel (Convex dedupliceert op query+args);
+  // de kop heeft alleen de teller nodig.
+  const mijnTaken = useMijnTaken();
 
   // Proactive warnings (used by admin AandachtNodig) — wait for Convex auth so we
   // don't fire this during the brief Clerk→Convex token handshake on first load.
@@ -123,9 +131,9 @@ export default function DashboardPage() {
 
       <PageHeader />
 
-      <div className="flex flex-1 flex-col gap-6 p-6 md:p-8 max-w-7xl">
-        {/* Medewerker Dashboard */}
-        {!isAdmin && (
+      {/* Medewerker Dashboard */}
+      {!isAdmin && (
+        <div className="flex flex-1 flex-col gap-6 p-6 md:p-8 max-w-7xl">
           <>
             {/* Welcome Section (medewerker) */}
             <m.div
@@ -329,132 +337,164 @@ export default function DashboardPage() {
               </div>
             </m.div>
           </>
-        )}
+        </div>
+      )}
 
-        {/* Admin Dashboard */}
-        {isAdmin && (
-          <>
-            {adminData.isLoading ? (
-              <AdminDashboardSkeleton />
-            ) : (
-              <m.div
-                variants={{
-                  hidden: {},
-                  show: { transition: { staggerChildren: 0.04, delayChildren: 0.1 } },
-                }}
-                initial="hidden"
-                animate="show"
-                className="space-y-6"
-              >
-                {/* Section 1: Welcome + Quick Start */}
-                <m.div
-                  variants={itemVariants}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-                >
-                  <div>
-                    <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-                      {getGreeting(clerkUser?.firstName ?? undefined)}
-                    </h1>
-                    <p className="text-muted-foreground mt-1">
-                      {adminData.offerteStats?.totaal || 0} offertes • {adminData.projectStats?.totaal || 0} projecten
-                    </p>
-                  </div>
-                  {/* Eén ingang voor "nieuwe offerte" (keuzepunt 7): de
-                      NewOfferteDialog uit de dashboard-layout, zelfde als ⌘N */}
-                  <Button onClick={() => setShowNewOfferteDialog(true)}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Nieuwe offerte
-                  </Button>
-                </m.div>
+      {/* ── Admin: de dagstaat ───────────────────────────────────────────
+          Werk vóór cijfers, cijfers vóór naslag. De volgorde in de DOM ís de
+          prioriteitsvolgorde, zodat mobiel (één kolom) exact dezelfde lezing
+          krijgt als de bento op breed — indikken, niet verstoppen.
 
-                {/* Section 2: Aandacht Nodig — direct onder de kop: het enige blok
-                    dat om actie vraagt, dus vóór alle cijfers. Bewust een gewone
-                    div en géén m.div met entrance-variants: die bleef in een
-                    verborgen/pre-gerenderde tab op opacity 0 hangen (WS3a-fix). */}
-                {((adminData.acceptedWithoutProject ?? []).length > 0 || warnings.length > 0) && (
-                  <div>
-                    <AandachtNodig
-                      acceptedWithoutProject={adminData.acceptedWithoutProject ?? []}
-                      warnings={warnings.map((w: { id: string; type: string; prioriteit: "hoog" | "middel" | "laag"; titel: string; beschrijving: string; actie?: string }) => ({
+          `@container/dagstaat` staat hier: de blokken kiezen hun kolomspan op
+          de breedte van deze wrapper, niet op de viewport. Geen `max-w-7xl`
+          meer — die kapte op 1680px 136px zinvolle breedte af en duwde de
+          pagina daarmee juist langer. */}
+      {isAdmin && (
+        <div className="@container/dagstaat flex flex-1 flex-col gap-4 p-6 md:p-8">
+          {adminData.isLoading ? (
+            <DagstaatSkelet />
+          ) : (
+            <>
+              <DagstaatRevealStijl />
+              <DagstaatReveal stap={0}>
+                <DagstaatKop
+                  groet={getGreeting(clerkUser?.firstName ?? undefined)}
+                  cijfers={{
+                    aandacht:
+                      (adminData.acceptedWithoutProject ?? []).length +
+                      warnings.length,
+                    takenOpen: mijnTaken?.length ?? 0,
+                    projectenLopend: adminData.projectStats?.in_uitvoering ?? 0,
+                    offertesPipeline: adminData.offerteStats?.totaal ?? 0,
+                  }}
+                  actie={
+                    /* Ingang "nieuwe offerte" — eigendom van offerte-entree-bouw
+                       (commit 4c2e64e), bewust zonder className: de knop bepaalt
+                       zijn eigen vorm, de dagstaat alleen zijn plek. */
+                    <NieuweOfferteSplitButton />
+                  }
+                />
+              </DagstaatReveal>
+
+              {/* Onboarding staat buiten de bento: hij is tijdelijk en zou het
+                  raster anders elke keer opnieuw indelen. */}
+              {shouldShowChecklist && (
+                <DagstaatReveal stap={1}>
+                  <OnboardingChecklist
+                    steps={onboardingSteps}
+                    completedSteps={onboardingCompletedSteps}
+                    totalSteps={onboardingTotalSteps}
+                    progressPercentage={onboardingProgress}
+                    isComplete={onboardingComplete}
+                    onDismiss={dismissOnboarding}
+                  />
+                </DagstaatReveal>
+              )}
+
+              <DagstaatBento>
+                {/* Werkstrook: wat je moet dóén staat boven wat je moet wéten. */}
+                <BentoBlok span={DAGSTAAT_SPAN.aandacht} stap={1}>
+                  <AandachtNodig
+                    acceptedWithoutProject={adminData.acceptedWithoutProject ?? []}
+                    warnings={warnings.map(
+                      (w: {
+                        id: string;
+                        type: string;
+                        prioriteit: "hoog" | "middel" | "laag";
+                        titel: string;
+                        beschrijving: string;
+                        actie?: string;
+                      }) => ({
                         id: w.id,
                         type: w.type,
                         prioriteit: w.prioriteit,
                         titel: w.titel,
                         beschrijving: w.beschrijving,
                         actie: w.actie,
-                      }))}
-                    />
-                  </div>
-                )}
+                      })
+                    )}
+                  />
+                </BentoBlok>
 
-                {/* Onboarding Checklist (admin) */}
-                {shouldShowChecklist && (
-                  <m.div variants={itemVariants}>
-                    <OnboardingChecklist
-                      steps={onboardingSteps}
-                      completedSteps={onboardingCompletedSteps}
-                      totalSteps={onboardingTotalSteps}
-                      progressPercentage={onboardingProgress}
-                      isComplete={onboardingComplete}
-                      onDismiss={dismissOnboarding}
-                    />
-                  </m.div>
-                )}
+                <BentoBlok span={DAGSTAAT_SPAN.taken} stap={2}>
+                  <MijnTaken verbergAlsLeeg={false} />
+                </BentoBlok>
 
-                {/* Klanttaken die aan mij zijn toegewezen (rendert niets als leeg) */}
-                <m.div variants={itemVariants}>
-                  <MijnTaken />
-                </m.div>
-
-                {/* Section 3: Financieel Grid */}
-                <m.div variants={itemVariants}>
-                  <FinancieelGrid
-                    totaleOmzet={adminData.revenueStats?.totalAcceptedValue ?? 0}
-                    actieveProjecten={adminData.projectStats?.in_uitvoering ?? 0}
-                    totaalProjecten={adminData.projectStats?.totaal ?? 0}
-                    afgerondeProjecten={adminData.projectStats?.afgerond ?? 0}
+                {/* Cijferstrook — gevoed door de gedeelde omzetdefinities, dus
+                    dashboard en /rapportages tonen nooit een andere omzet. */}
+                <BentoBlok span={DAGSTAAT_SPAN.cijfers} stap={3}>
+                  <Cijferbalk
+                    getekendeOmzet={adminData.revenueStats?.totalAcceptedValue ?? 0}
+                    omzetTrendPct={berekenVerschilPct(
+                      adminData.kwartaalVergelijking?.revenueThisQ,
+                      adminData.kwartaalVergelijking?.revenuePrevQ
+                    )}
                     openstaandBedrag={adminData.financieel?.openstaandBedrag ?? 0}
                     vervaldeAantal={adminData.financieel?.vervaldeAantal ?? 0}
                     vervaldenBedrag={adminData.financieel?.vervaldenBedrag ?? 0}
-                    gefactureerdThisQ={adminData.kwartaalVergelijking?.gefactureerdThisQ ?? 0}
-                    omzetTrendPercentage={computeTrendPct(adminData.kwartaalVergelijking?.revenueThisQ, adminData.kwartaalVergelijking?.revenuePrevQ)}
-                    gefactureerdTrendPercentage={computeTrendPct(adminData.kwartaalVergelijking?.gefactureerdThisQ, adminData.kwartaalVergelijking?.gefactureerdPrevQ)}
+                    gefactureerdDitKwartaal={
+                      adminData.kwartaalVergelijking?.gefactureerdThisQ ?? 0
+                    }
+                    gefactureerdTrendPct={berekenVerschilPct(
+                      adminData.kwartaalVergelijking?.gefactureerdThisQ,
+                      adminData.kwartaalVergelijking?.gefactureerdPrevQ
+                    )}
+                    actieveProjecten={adminData.projectStats?.in_uitvoering ?? 0}
+                    afgerondeProjecten={adminData.projectStats?.afgerond ?? 0}
+                    totaalProjecten={adminData.projectStats?.totaal ?? 0}
                   />
-                </m.div>
+                </BentoBlok>
 
-                {/* Section 4: Pipeline Bento */}
-                <m.div variants={itemVariants}>
-                  <PipelineBento
-                    offerteStats={adminData.offerteStats ?? { concept: 0, voorcalculatie: 0, verzonden: 0, geaccepteerd: 0, afgewezen: 0, totaal: 0 }}
-                    conversionRate={adminData.revenueStats?.conversionRate ?? 0}
-                    totalAcceptedCount={adminData.revenueStats?.totalAcceptedCount ?? 0}
-                    totalSentForConversion={(adminData.offerteStats?.verzonden ?? 0) + (adminData.offerteStats?.geaccepteerd ?? 0) + (adminData.offerteStats?.afgewezen ?? 0)}
-                    averageOfferteValue={adminData.revenueStats?.averageOfferteValue ?? 0}
-                    activeProjects={adminData.activeProjects ?? []}
-                    recentOffertes={(adminData.recentOffertes ?? []).map((o) => ({
-                      _id: o._id,
-                      offerteNummer: o.offerteNummer,
-                      klant: { naam: o.klantNaam },
-                      status: o.status,
-                      totalen: { totaalInclBtw: o.totaal },
-                      updatedAt: o.updatedAt,
-                    }))}
+                <BentoBlok span={DAGSTAAT_SPAN.pipeline} stap={4}>
+                  <PipelinePaneel
+                    stats={
+                      adminData.offerteStats ?? {
+                        concept: 0,
+                        voorcalculatie: 0,
+                        verzonden: 0,
+                        geaccepteerd: 0,
+                        afgewezen: 0,
+                        totaal: 0,
+                      }
+                    }
                   />
-                </m.div>
+                </BentoBlok>
 
-                {/* Section 5: Vloot Badge */}
-                <m.div variants={itemVariants}>
+                <BentoBlok span={DAGSTAAT_SPAN.conversie} stap={5}>
+                  <ConversiePaneel
+                    rate={adminData.revenueStats?.conversionRate ?? 0}
+                    aantalGetekend={adminData.revenueStats?.totalAcceptedCount ?? 0}
+                    aantalVerstuurd={
+                      (adminData.offerteStats?.verzonden ?? 0) +
+                      (adminData.offerteStats?.geaccepteerd ?? 0) +
+                      (adminData.offerteStats?.afgewezen ?? 0)
+                    }
+                    gemiddeldeWaarde={
+                      adminData.revenueStats?.averageOfferteValue ?? 0
+                    }
+                  />
+                </BentoBlok>
+
+                <BentoBlok span={DAGSTAAT_SPAN.lopendWerk} stap={6}>
+                  <LopendWerkPaneel projecten={adminData.activeProjects ?? []} />
+                </BentoBlok>
+
+                <BentoBlok span={DAGSTAAT_SPAN.laatsteOffertes} stap={7}>
+                  <LaatsteOffertesPaneel offertes={adminData.recentOffertes ?? []} />
+                </BentoBlok>
+
+                <BentoBlok span={DAGSTAAT_SPAN.vloot} stap={8}>
                   <VlootBadge
                     hasIssues={adminData.vlootSummary?.hasIssues ?? false}
                     issueCount={adminData.vlootSummary?.issueCount ?? 0}
                     summary={adminData.vlootSummary?.summary ?? "Alles operationeel"}
                   />
-                </m.div>
-              </m.div>
-            )}
-          </>
-        )}
-      </div>
+                </BentoBlok>
+              </DagstaatBento>
+            </>
+          )}
+        </div>
+      )}
     </>
   );
 }

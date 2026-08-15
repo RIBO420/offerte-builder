@@ -4,21 +4,23 @@ import Link from "next/link";
 import { useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { CalendarClock, ListTodo } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { SectiePaneel } from "@/components/ui/sectie-paneel";
 import { cn } from "@/lib/utils";
 import { showErrorToast } from "@/lib/toast-utils";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
 
-const MAX_ZICHTBAAR = 6;
+const STANDAARD_ZICHTBAAR = 5;
+
+/**
+ * Eén abonnement voor twee lezers: de kop van de dagstaat telt de open taken en
+ * dit paneel toont ze. Convex dedupliceert op (query, args), dus dit is
+ * dezelfde subscriptie — geen extra round-trip.
+ */
+export function useMijnTaken() {
+  return useQuery(api.klantTaken.mijnTaken, { limit: 25 });
+}
 
 function vandaagISO(): string {
   const nu = new Date();
@@ -36,17 +38,41 @@ function formatDeadline(deadline: string): string {
 }
 
 /**
- * "Mijn taken" op het dashboard: openstaande klanttaken van de ingelogde
- * medewerker (kantoor zonder gekoppeld medewerkerprofiel ziet alle open taken
- * van het bedrijf — zie klantTaken.mijnTaken). Rendert niets als er niets
- * openstaat, zodat het dashboard niet volloopt met lege kaarten.
+ * "Mijn taken": openstaande klanttaken van de ingelogde medewerker (kantoor
+ * zonder gekoppeld medewerkerprofiel ziet alle open taken van het bedrijf —
+ * zie `klantTaken.mijnTaken`).
+ *
+ * Gewicht `primair`, net als op het klantdossier: taken zijn werkstroom, geen
+ * naslag. Het warme anker houdt "Aandacht nodig" ernaast wél het zwaarste blok.
+ *
+ * `verbergAlsLeeg` is de default, zodat de medewerkerpagina (een enkele kolom
+ * kaarten) niet volloopt met lege dozen. De dagstaat zet hem uit: daar is een
+ * gat in het raster erger dan één lege regel.
  */
-export function MijnTaken() {
-  const taken = useQuery(api.klantTaken.mijnTaken, { limit: 25 });
+export function MijnTaken({
+  verbergAlsLeeg = true,
+}: {
+  verbergAlsLeeg?: boolean;
+} = {}) {
+  const taken = useMijnTaken();
   const setStatus = useMutation(api.klantTaken.setStatus);
   const [bezigMet, setBezigMet] = useState<Id<"klantTaken"> | null>(null);
+  const [toonAlles, setToonAlles] = useState(false);
 
-  if (!taken || taken.length === 0) return null;
+  if (!taken || taken.length === 0) {
+    if (verbergAlsLeeg) return null;
+    return (
+      <SectiePaneel
+        titel="Mijn taken"
+        icoon={<ListTodo />}
+        gewicht="primair"
+        legeRegel={{
+          tekst: "Geen open taken",
+          hint: "Taken die je op een klantdossier aan jezelf toewijst staan hier.",
+        }}
+      />
+    );
+  }
 
   const handleAfronden = async (id: Id<"klantTaken">) => {
     setBezigMet(id);
@@ -61,43 +87,34 @@ export function MijnTaken() {
     }
   };
 
-  const zichtbaar = taken.slice(0, MAX_ZICHTBAAR);
-  const rest = taken.length - zichtbaar.length;
+  const zichtbaar = toonAlles ? taken : taken.slice(0, STANDAARD_ZICHTBAAR);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <ListTodo className="h-5 w-5" />
-          Mijn taken
-          <Badge variant="secondary">{taken.length}</Badge>
-        </CardTitle>
-        <CardDescription>
-          Openstaande klanttaken die aan jou zijn toegewezen.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-1">
+    <SectiePaneel titel="Mijn taken" icoon={<ListTodo />} telling={taken.length} gewicht="primair">
+      <ul className="divide-y divide-border/60">
         {zichtbaar.map((taak) => {
           const isTeLaat = taak.deadline && taak.deadline < vandaagISO();
           return (
-            <div
-              key={taak._id}
-              className="flex items-start gap-3 rounded-md px-2 py-2 hover:bg-muted/50"
-            >
+            <li key={taak._id} className="flex items-center gap-2.5 px-3 py-1.5">
               <Checkbox
-                className="mt-0.5"
+                className="shrink-0"
                 checked={false}
                 disabled={bezigMet === taak._id}
                 onCheckedChange={() => handleAfronden(taak._id)}
                 aria-label={`Taak ${taak.titel} afronden`}
               />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{taak.titel}</p>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+              <div className="min-w-0 flex-1 @[24rem]/sectie:flex @[24rem]/sectie:items-baseline @[24rem]/sectie:gap-2">
+                <p
+                  className="truncate text-[13px] leading-5 font-medium @[24rem]/sectie:max-w-[60%] @[24rem]/sectie:shrink-0"
+                  title={taak.titel}
+                >
+                  {taak.titel}
+                </p>
+                <div className="flex min-w-0 items-center gap-2 text-xs leading-4 text-muted-foreground @[24rem]/sectie:leading-5">
                   {taak.klantNaam && (
                     <Link
                       href={`/klanten/${taak.klantId}`}
-                      className="hover:underline"
+                      className="truncate hover:underline"
                     >
                       {taak.klantNaam}
                     </Link>
@@ -105,31 +122,36 @@ export function MijnTaken() {
                   {taak.deadline && (
                     <span
                       className={cn(
-                        "flex items-center gap-1",
-                        isTeLaat && "font-medium text-red-600 dark:text-red-400"
+                        "flex shrink-0 items-center gap-1 tabular-nums",
+                        isTeLaat && "font-medium text-status-vervallen-text"
                       )}
                     >
-                      <CalendarClock className="h-3 w-3" />
+                      <CalendarClock className="size-3" aria-hidden="true" />
                       {formatDeadline(taak.deadline)}
                       {isTeLaat && " · te laat"}
                     </span>
                   )}
-                  {taak.prioriteit === "hoog" && (
-                    <span className="font-medium text-red-600 dark:text-red-400">
-                      Hoge prioriteit
-                    </span>
-                  )}
                 </div>
               </div>
-            </div>
+              {taak.prioriteit === "hoog" && (
+                <span className="shrink-0 rounded bg-accent-warm/15 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-foreground uppercase">
+                  hoog
+                </span>
+              )}
+            </li>
           );
         })}
-        {rest > 0 && (
-          <p className="px-2 pt-1 text-xs text-muted-foreground">
-            + nog {rest} ta{rest === 1 ? "ak" : "ken"}
-          </p>
-        )}
-      </CardContent>
-    </Card>
+      </ul>
+      {taken.length > STANDAARD_ZICHTBAAR && (
+        <button
+          type="button"
+          onClick={() => setToonAlles((vorig) => !vorig)}
+          aria-expanded={toonAlles}
+          className="flex min-h-7 w-full items-center border-t px-3 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          {toonAlles ? "Minder tonen" : `Alle ${taken.length} tonen`} &rarr;
+        </button>
+      )}
+    </SectiePaneel>
   );
 }

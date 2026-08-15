@@ -10,7 +10,9 @@ interface VlootBadgeProps {
 
 export function VlootBadge({ hasIssues, issueCount: _issueCount, summary }: VlootBadgeProps) {
   return (
-    <div className="bg-card border border-border rounded-[10px] px-4 py-2.5 flex items-center gap-2">
+    // rounded-lg (niet 10px): de voetstrook deelt zijn hoek met de panelen
+    // erboven, anders leest hij als een los element uit een ander ontwerp.
+    <div className="bg-card border border-border rounded-lg px-3 py-2 flex items-center gap-2">
       <span
         className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
           hasIssues ? "bg-destructive" : "bg-status-geaccepteerd-dot"
