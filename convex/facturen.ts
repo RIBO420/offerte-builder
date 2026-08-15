@@ -488,12 +488,23 @@ export const getByProject = query({
     // Verifieer eigenaarschap van project
     await getOwnedProject(ctx, args.projectId);
 
-    const factuur = await ctx.db
+    // Meerdere facturen per project zijn legitiem (deelfacturen FAC-001,
+    // meerwerk FAC-003, creditnota's FAC-008); .unique() gooide dan een
+    // serverfout. Deze query levert de hoofdfactuur voor de projectpagina:
+    // de oudste reguliere factuur, met de rest als terugvaloptie.
+    const facturen = await ctx.db
       .query("facturen")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-      .unique();
+      .collect();
 
-    return factuur;
+    if (facturen.length === 0) {
+      return null;
+    }
+
+    const regulier = facturen.filter((f) => !f.isCreditnota && !f.meerwerkId);
+    const kandidaten = regulier.length > 0 ? regulier : facturen;
+    kandidaten.sort((a, b) => a._creationTime - b._creationTime);
+    return kandidaten[0];
   },
 });
 

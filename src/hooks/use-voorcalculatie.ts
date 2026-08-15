@@ -176,8 +176,14 @@ export function useOfferteVoorcalculatie(offerteId: Id<"offertes"> | null) {
     if (!offerteId) {
       throw new Error("Offerte not available");
     }
+    // De werkbank zet de status al op "voorcalculatie" bij het definitief
+    // maken; de server weigert een gelijke-status-overgang, dus afronden
+    // moet dan geen statuswijziging meer sturen.
+    if (offerteData?.status === "voorcalculatie") {
+      return;
+    }
     return updateOfferteStatus({ id: offerteId, status: "voorcalculatie" });
-  }, [offerteId, updateOfferteStatus]);
+  }, [offerteId, offerteData?.status, updateOfferteStatus]);
 
   // Memoized data
   const hasVoorcalculatie = useMemo(
