@@ -1,7 +1,6 @@
 "use client";
 
 import { useFormContext } from "react-hook-form";
-import { m } from "framer-motion";
 import { Textarea } from "@/components/ui/textarea";
 import {
   FormControl,
@@ -15,10 +14,7 @@ export function MedewerkerFormNotities() {
   const form = useFormContext<MedewerkerFormData>();
 
   return (
-    <m.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-    >
+    <div>
       <FormField
         control={form.control}
         name="notities"
@@ -35,6 +31,6 @@ export function MedewerkerFormNotities() {
           </FormItem>
         )}
       />
-    </m.div>
+    </div>
   );
 }

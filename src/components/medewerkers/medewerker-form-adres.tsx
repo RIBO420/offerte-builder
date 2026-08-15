@@ -1,7 +1,6 @@
 "use client";
 
 import { useFormContext } from "react-hook-form";
-import { m } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import {
   FormControl,
@@ -17,11 +16,7 @@ export function MedewerkerFormAdres() {
   const form = useFormContext<MedewerkerFormData>();
 
   return (
-    <m.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="grid gap-4"
-    >
+    <div className="grid gap-4">
       <FormField
         control={form.control}
         name="straat"
@@ -73,6 +68,6 @@ export function MedewerkerFormAdres() {
           )}
         />
       </div>
-    </m.div>
+    </div>
   );
 }

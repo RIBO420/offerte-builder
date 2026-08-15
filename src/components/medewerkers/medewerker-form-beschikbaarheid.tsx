@@ -2,7 +2,6 @@
 
 import { useCallback } from "react";
 import { useFormContext } from "react-hook-form";
-import { m } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -30,11 +29,7 @@ export function MedewerkerFormBeschikbaarheid() {
   );
 
   return (
-    <m.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="space-y-4"
-    >
+    <div className="space-y-4">
       {/* Werkdagen */}
       <div className="space-y-3">
         <Label>Werkdagen</Label>
@@ -102,6 +97,6 @@ export function MedewerkerFormBeschikbaarheid() {
           )}
         />
       </div>
-    </m.div>
+    </div>
   );
 }

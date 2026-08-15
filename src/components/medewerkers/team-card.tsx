@@ -1,6 +1,6 @@
 "use client";
 
-import { m } from "framer-motion";
+import { REVEAL_KLASSE } from "@/components/pagina-reveal";
 import {
   Card,
   CardContent,
@@ -57,11 +57,7 @@ export function TeamCard({
   const activeMedewerkers = team.medewerkersDetails.filter((m) => m.isActief);
 
   return (
-    <m.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-    >
+    <div className={REVEAL_KLASSE}>
       <Card className={!team.isActief ? "opacity-60" : ""}>
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
@@ -210,7 +206,7 @@ export function TeamCard({
           )}
         </CardContent>
       </Card>
-    </m.div>
+    </div>
   );
 }
 
@@ -225,9 +221,7 @@ export function TeamCardCompact({
   const activeMedewerkers = team.medewerkersDetails.filter((m) => m.isActief);
 
   return (
-    <m.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
+    <div
       className={`flex items-center justify-between p-4 rounded-lg border hover:bg-accent/50 cursor-pointer transition-colors ${
         !team.isActief ? "opacity-60" : ""
       }`}
@@ -272,6 +266,6 @@ export function TeamCardCompact({
           </div>
         )}
       </div>
-    </m.div>
+    </div>
   );
 }

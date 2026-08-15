@@ -4,7 +4,6 @@ import { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { m, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -202,36 +201,31 @@ export function TeamForm({
           {/* Selected members preview */}
           {selectedMedewerkers.length > 0 && (
             <div className="flex flex-wrap gap-2">
-              <AnimatePresence mode="popLayout">
-                {selectedMedewerkers.map((medewerker) => (
-                  <m.div
-                    key={medewerker._id}
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    className="flex items-center gap-1.5 rounded-full bg-primary/10 text-primary px-2 py-1"
+              {selectedMedewerkers.map((medewerker) => (
+                <div
+                  key={medewerker._id}
+                  className="flex items-center gap-1.5 rounded-full bg-primary/10 text-primary px-2 py-1"
+                >
+                  <Avatar className="h-5 w-5">
+                    <AvatarFallback className="text-[10px]">
+                      {medewerker.naam
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")
+                        .toUpperCase()
+                        .slice(0, 2)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-sm">{medewerker.naam.split(" ")[0]}</span>
+                  <button
+                    type="button"
+                    onClick={() => toggleMedewerker(medewerker._id)}
+                    className="ml-1 rounded-full hover:bg-primary/20 p-0.5"
                   >
-                    <Avatar className="h-5 w-5">
-                      <AvatarFallback className="text-[10px]">
-                        {medewerker.naam
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")
-                          .toUpperCase()
-                          .slice(0, 2)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="text-sm">{medewerker.naam.split(" ")[0]}</span>
-                    <button
-                      type="button"
-                      onClick={() => toggleMedewerker(medewerker._id)}
-                      className="ml-1 rounded-full hover:bg-primary/20 p-0.5"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </m.div>
-                ))}
-              </AnimatePresence>
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
             </div>
           )}
 
@@ -262,17 +256,11 @@ export function TeamForm({
                 filteredMedewerkers.map((medewerker) => {
                   const isSelected = ledenValue.includes(medewerker._id);
                   return (
-                    <m.div
+                    <div
                       key={medewerker._id}
-                      initial={false}
-                      animate={{
-                        backgroundColor: isSelected
-                          ? "hsl(var(--primary) / 0.1)"
-                          : "transparent",
-                      }}
                       className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-accent transition-colors ${
-                        !medewerker.isActief ? "opacity-60" : ""
-                      }`}
+                        isSelected ? "bg-primary/10" : ""
+                      } ${!medewerker.isActief ? "opacity-60" : ""}`}
                       onClick={() => toggleMedewerker(medewerker._id)}
                     >
                       <Checkbox
@@ -306,7 +294,7 @@ export function TeamForm({
                       {isSelected && (
                         <Check className="h-4 w-4 text-primary shrink-0" />
                       )}
-                    </m.div>
+                    </div>
                   );
                 })
               )}

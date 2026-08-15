@@ -1,6 +1,5 @@
 "use client";
 
-import { m } from "framer-motion";
 import { format } from "date-fns";
 import { nl } from "@/lib/date-locale";
 import {
@@ -224,9 +223,7 @@ export function MedewerkerDetailDialog({
           <ScrollArea className="flex-1 pr-4">
             {/* Profiel Tab */}
             <TabsContent value="profiel" className="mt-0 space-y-6">
-              <m.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
+              <div
                 className="space-y-4"
               >
                 {/* Contact Info */}
@@ -368,14 +365,12 @@ export function MedewerkerDetailDialog({
                     })}
                   </span>
                 </div>
-              </m.div>
+              </div>
             </TabsContent>
 
             {/* Specialisaties Tab */}
             <TabsContent value="specialisaties" className="mt-0 space-y-4">
-              <m.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
+              <div
                 className="space-y-4"
               >
                 {specialisaties.length === 0 ? (
@@ -431,14 +426,12 @@ export function MedewerkerDetailDialog({
                     })}
                   </div>
                 )}
-              </m.div>
+              </div>
             </TabsContent>
 
             {/* Certificaten Tab */}
             <TabsContent value="certificaten" className="mt-0 space-y-4">
-              <m.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
+              <div
                 className="space-y-4"
               >
                 {/* Warning banner for expired certificates */}
@@ -546,14 +539,12 @@ export function MedewerkerDetailDialog({
                     })}
                   </div>
                 )}
-              </m.div>
+              </div>
             </TabsContent>
 
             {/* Prestaties Tab */}
             <TabsContent value="prestaties" className="mt-0 space-y-4">
-              <m.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
+              <div
                 className="space-y-6"
               >
                 {/* Stats */}
@@ -611,7 +602,7 @@ export function MedewerkerDetailDialog({
                     </p>
                   </div>
                 )}
-              </m.div>
+              </div>
             </TabsContent>
           </ScrollArea>
         </Tabs>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useFormContext } from "react-hook-form";
-import { m } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -28,11 +27,7 @@ export function MedewerkerFormBasicInfo() {
   const form = useFormContext<MedewerkerFormData>();
 
   return (
-    <m.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="grid gap-4"
-    >
+    <div className="grid gap-4">
       {/* Naam en Functie */}
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField
@@ -180,6 +175,6 @@ export function MedewerkerFormBasicInfo() {
           )}
         />
       </div>
-    </m.div>
+    </div>
   );
 }
