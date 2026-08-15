@@ -271,6 +271,15 @@ export const generate = mutation({
     if (!offerte) {
       throw new ConvexError("Offerte niet gevonden voor dit project");
     }
+    // Een factuur kan niet zonder tenaamstelling. In de praktijk kan dit niet
+    // gebeuren (een offerte zonder klant komt nooit verder dan concept), maar
+    // sinds klant optioneel is bij concept moet het pad expliciet dichtliggen.
+    const offerteKlant = offerte.klant;
+    if (!offerteKlant) {
+      throw new ConvexError(
+        "Deze offerte heeft geen klantgegevens — koppel eerst een klant voordat je factureert."
+      );
+    }
 
     // Haal nacalculatie op (optioneel, voor correcties)
     const nacalculatie = await ctx.db
@@ -346,12 +355,12 @@ export const generate = mutation({
       offerteId: project.offerteId,
       klantId: project.klantId,
       klant: {
-        naam: offerte.klant.naam,
-        adres: offerte.klant.adres,
-        postcode: offerte.klant.postcode,
-        plaats: offerte.klant.plaats,
-        email: offerte.klant.email,
-        telefoon: offerte.klant.telefoon,
+        naam: offerteKlant.naam,
+        adres: offerteKlant.adres,
+        postcode: offerteKlant.postcode,
+        plaats: offerteKlant.plaats,
+        email: offerteKlant.email,
+        telefoon: offerteKlant.telefoon,
       },
       bedrijf: {
         naam: instellingen.bedrijfsgegevens.naam,

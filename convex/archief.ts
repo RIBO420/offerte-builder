@@ -9,6 +9,7 @@ import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
 import { voorcalculatieVanProject, voorcalculatieVanOfferte } from "./lib/voorcalculatieLookup";
+import { klantNaam } from "./lib/offerteKlant";
 
 /**
  * List all archived projects for the authenticated user.
@@ -77,7 +78,7 @@ export const listArchivedProjects = query({
             ? {
                 _id: offerte._id,
                 offerteNummer: offerte.offerteNummer,
-                klantNaam: offerte.klant.naam,
+                klantNaam: klantNaam(offerte.klant),
                 type: offerte.type,
                 totalen: {
                   totaalExBtw: offerte.totalen.totaalExBtw,

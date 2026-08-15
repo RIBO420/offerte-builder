@@ -1,4 +1,5 @@
 "use client";
+import { klantNaam } from "@convex/lib/offerteKlant";
 
 import { use, useState, useEffect } from "react";
 import Link from "next/link";
@@ -330,7 +331,8 @@ export default function OfferteEditPage({
                   {offerte.offerteNummer} bewerken
                 </h1>
                 <p className="text-muted-foreground">
-                  {offerte.klant.naam} • {offerte.klant.plaats}
+                  {klantNaam(offerte.klant)}
+                  {offerte.klant?.plaats ? ` • ${offerte.klant.plaats}` : ""}
                 </p>
               </div>
             </div>

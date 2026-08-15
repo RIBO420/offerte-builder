@@ -2,6 +2,7 @@ import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
 import { requireNotViewer } from "./roles";
+import { reserveerOfferteNummer } from "./lib/offerteNummer";
 
 /**
  * Pakketten ("standaardtuinen") zijn sjablonen waarmee je een offerte voorgevuld
@@ -150,27 +151,40 @@ export const remove = mutation({
   },
 });
 
-// Create offerte from template
+/**
+ * Offerte uit een sjabloon — de "Templates"-ingang van de offerte-entree.
+ *
+ * Alles wat niet strikt nodig is, is optioneel: `createOfferteFromTemplate({
+ * templateId })` levert een concept met de scopes en defaultwaarden van het
+ * sjabloon, zonder klant en met een server-side gereserveerd nummer. De klant
+ * kan daarna met `offertes.koppelKlant` worden gekoppeld; vóór de eerste
+ * statusovergang is hij verplicht (convex/lib/offerteKlant.ts).
+ */
 export const createOfferteFromTemplate = mutation({
   args: {
     templateId: v.id("standaardtuinen"),
-    offerteNummer: v.string(),
-    klant: v.object({
-      naam: v.string(),
-      adres: v.string(),
-      postcode: v.string(),
-      plaats: v.string(),
-      email: v.optional(v.string()),
-      telefoon: v.optional(v.string()),
-    }),
-    bereikbaarheid: v.union(
-      v.literal("goed"),
-      v.literal("beperkt"),
-      v.literal("slecht")
+    // Laat weg: dan reserveert deze mutation het nummer zelf (race-vrij).
+    offerteNummer: v.optional(v.string()),
+    // Optioneel bij concept — losse klantgegevens of een dossier-koppeling.
+    klant: v.optional(
+      v.object({
+        naam: v.string(),
+        adres: v.string(),
+        postcode: v.string(),
+        plaats: v.string(),
+        email: v.optional(v.string()),
+        telefoon: v.optional(v.string()),
+      })
+    ),
+    klantId: v.optional(v.id("klanten")),
+    bereikbaarheid: v.optional(
+      v.union(v.literal("goed"), v.literal("beperkt"), v.literal("slecht"))
     ),
     achterstalligheid: v.optional(
       v.union(v.literal("laag"), v.literal("gemiddeld"), v.literal("hoog"))
     ),
+    // TT-004 blijft: `type` komt uit het sjabloon, hier alleen de aanmaakroute.
+    bron: v.optional(v.union(v.literal("wizard"), v.literal("vrij"))),
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
@@ -191,32 +205,83 @@ export const createOfferteFromTemplate = mutation({
 
     const now = Date.now();
 
-    return await ctx.db.insert("offertes", {
+    // Klant uit het dossier wint van losse velden (zelfde regel als
+    // offertes.create), zodat klantId en klantgegevens nooit uiteenlopen.
+    let klant = args.klant;
+    if (args.klantId) {
+      const klantDoc = await ctx.db.get(args.klantId);
+      if (klantDoc && klantDoc.userId.toString() === userId.toString()) {
+        klant = klant ?? {
+          naam: klantDoc.naam,
+          adres: klantDoc.adres,
+          postcode: klantDoc.postcode,
+          plaats: klantDoc.plaats,
+          email: klantDoc.email,
+          telefoon: klantDoc.telefoon,
+        };
+      }
+    }
+
+    const offerteNummer =
+      args.offerteNummer ?? (await reserveerOfferteNummer(ctx, userId));
+
+    const totalen = {
+      materiaalkosten: 0,
+      arbeidskosten: 0,
+      totaalUren: 0,
+      subtotaal: 0,
+      marge: 0,
+      margePercentage: 0,
+      totaalExBtw: 0,
+      btw: 0,
+      totaalInclBtw: 0,
+    };
+
+    const offerteId = await ctx.db.insert("offertes", {
       userId,
       type: template.type,
       status: "concept",
-      offerteNummer: args.offerteNummer,
-      klant: args.klant,
+      // Sjabloon-offertes zijn scope-offertes: dezelfde bewerkroute als de
+      // wizard (PRD §2.5b onderscheidt alleen wizard vs. vrij).
+      bron: args.bron ?? "wizard",
+      offerteNummer,
+      klant,
+      klantId: args.klantId,
       algemeenParams: {
-        bereikbaarheid: args.bereikbaarheid,
+        bereikbaarheid: args.bereikbaarheid ?? "goed",
         achterstalligheid: args.achterstalligheid,
       },
       scopes: template.scopes,
       scopeData: template.defaultWaarden,
-      totalen: {
-        materiaalkosten: 0,
-        arbeidskosten: 0,
-        totaalUren: 0,
-        subtotaal: 0,
-        marge: 0,
-        margePercentage: 0,
-        totaalExBtw: 0,
-        btw: 0,
-        totaalInclBtw: 0,
-      },
+      totalen,
       regels: [],
       createdAt: now,
       updatedAt: now,
     });
+
+    // Versie 1, net als bij offertes.create — anders begint de historie van een
+    // sjabloon-offerte pas bij haar eerste wijziging.
+    await ctx.db.insert("offerte_versions", {
+      offerteId,
+      userId,
+      versieNummer: 1,
+      snapshot: {
+        status: "concept",
+        klant,
+        algemeenParams: {
+          bereikbaarheid: args.bereikbaarheid ?? "goed",
+          achterstalligheid: args.achterstalligheid,
+        },
+        scopes: template.scopes,
+        scopeData: template.defaultWaarden,
+        totalen,
+        regels: [],
+      },
+      actie: "aangemaakt",
+      omschrijving: `Offerte ${offerteNummer} aangemaakt vanuit sjabloon "${template.naam}"`,
+      createdAt: now,
+    });
+
+    return offerteId;
   },
 });

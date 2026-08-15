@@ -1,4 +1,5 @@
 "use client";
+import { klantNaam } from "@convex/lib/offerteKlant";
 
 import Link from "next/link";
 import { Doc } from "../../../../../../../convex/_generated/dataModel";
@@ -136,9 +137,9 @@ export function NoFactuurState({
               <CardContent className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Klant</span>
-                  <span className="font-medium">{offerte.klant.naam}</span>
+                  <span className="font-medium">{klantNaam(offerte.klant)}</span>
                 </div>
-                {offerte.klant.email && (
+                {offerte.klant?.email && (
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">E-mail</span>
                     <span className="font-medium truncate max-w-[150px]" title={offerte.klant.email}>

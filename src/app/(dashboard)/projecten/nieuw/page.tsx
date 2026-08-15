@@ -1,4 +1,5 @@
 "use client";
+import { klantNaam } from "@convex/lib/offerteKlant";
 
 import { Suspense, useCallback, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -83,7 +84,7 @@ function NieuwProjectPageContent() {
 
   // Default project name
   const defaultNaam = offerte
-    ? `Project ${offerte.offerteNummer} - ${offerte.klant.naam}`
+    ? `Project ${offerte.offerteNummer} - ${klantNaam(offerte.klant)}`
     : "";
 
   const handleCreate = useCallback(async () => {
@@ -203,7 +204,7 @@ function NieuwProjectPageContent() {
                       </p>
                       <div className="flex items-center gap-2 mt-1">
                         <User className="h-4 w-4 text-muted-foreground" />
-                        <p className="font-semibold">{offerte.klant.naam}</p>
+                        <p className="font-semibold">{klantNaam(offerte.klant)}</p>
                       </div>
                     </div>
                     <div>
@@ -213,7 +214,7 @@ function NieuwProjectPageContent() {
                       <div className="flex items-center gap-2 mt-1">
                         <MapPin className="h-4 w-4 text-muted-foreground" />
                         <p className="text-sm">
-                          {offerte.klant.plaats}
+                          {offerte.klant?.plaats ?? "—"}
                         </p>
                       </div>
                     </div>

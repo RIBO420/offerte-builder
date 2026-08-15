@@ -4,6 +4,10 @@ import { requireAuthUserId } from "./auth";
 import { getCompanyUserId, requireKantoor, requireNotViewer } from "./roles";
 import { isGeldigeTijd, naarMinuten } from "./dagkaartLogica";
 import { isGeldigeSuggestieDrempel } from "./beurtNacalculatieLogica";
+import {
+  formatteerOfferteNummer,
+  reserveerOfferteNummer,
+} from "./lib/offerteNummer";
 
 const bedrijfsgegevensValidator = v.object({
   naam: v.string(),
@@ -327,11 +331,32 @@ export const updateNacalculatieInstellingen = mutation({
   },
 });
 
-// Get next offerte number and increment counter
+/**
+ * Nummer reserveren en de teller ophogen.
+ *
+ * LET OP (masterplan A6): nieuwe code roept dit **niet** meer aan vóór
+ * `offertes.create` — die mutation reserveert het nummer zelf, in dezelfde
+ * transactie als de insert, en is daarmee race-vrij. Deze mutation blijft
+ * bestaan voor bestaande aanroepers (o.a. de vrije-offerte-start) en voor
+ * paden die een nummer nodig hebben zónder direct een offerte te maken.
+ */
 export const getNextOfferteNummer = mutation({
   args: {},
   handler: async (ctx) => {
     await requireNotViewer(ctx);
+    const userId = await requireAuthUserId(ctx);
+    return await reserveerOfferteNummer(ctx, userId);
+  },
+});
+
+/**
+ * Voorbeeld van het eerstvolgende nummer — leest alleen, hoogt niets op.
+ * Bedoeld om in de UI te tonen ("wordt OFF-2026-014"); het echte nummer komt
+ * pas bij `offertes.create` vast te liggen en kan dus afwijken.
+ */
+export const previewNextOfferteNummer = query({
+  args: {},
+  handler: async (ctx) => {
     const userId = await requireAuthUserId(ctx);
 
     const settings = await ctx.db
@@ -339,19 +364,13 @@ export const getNextOfferteNummer = mutation({
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .unique();
 
-    if (!settings) {
-      throw new ConvexError("Instellingen niet gevonden");
-    }
+    if (!settings) return null;
 
-    const nextNumber = settings.laatsteOfferteNummer + 1;
-    const year = new Date().getFullYear();
-    const offerteNummer = `${settings.offerteNummerPrefix}${year}-${String(nextNumber).padStart(3, "0")}`;
-
-    await ctx.db.patch(settings._id, {
-      laatsteOfferteNummer: nextNumber,
-    });
-
-    return offerteNummer;
+    return formatteerOfferteNummer(
+      settings.offerteNummerPrefix,
+      new Date().getFullYear(),
+      settings.laatsteOfferteNummer + 1
+    );
   },
 });
 

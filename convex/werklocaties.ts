@@ -11,6 +11,7 @@ import { mutation, query } from "./_generated/server";
 import { requireAuth, requireAuthUserId, verifyOwnership } from "./auth";
 import { requireNotViewer } from "./roles";
 import { Id } from "./_generated/dataModel";
+import { klantNaam, klantVeld } from "./lib/offerteKlant";
 
 // Foto type validator matching schema
 const fotoValidator = v.object({
@@ -319,10 +320,18 @@ export const createFromOfferte = mutation({
       throw new ConvexError("Offerte niet gevonden voor dit project");
     }
 
-    // Use override values or fall back to offerte klant data
-    const adres = args.adresOverride ?? offerte.klant.adres;
-    const postcode = args.postcodeOverride ?? offerte.klant.postcode;
-    const plaats = args.plaatsOverride ?? offerte.klant.plaats;
+    // Use override values or fall back to offerte klant data.
+    // Een concept zonder klant heeft geen adres: dan moeten de overrides het
+    // doen, anders is er niets om een werklocatie op te hangen.
+    const adres = args.adresOverride ?? klantVeld(offerte.klant, "adres");
+    const postcode = args.postcodeOverride ?? klantVeld(offerte.klant, "postcode");
+    const plaats = args.plaatsOverride ?? klantVeld(offerte.klant, "plaats");
+
+    if (!adres || !postcode || !plaats) {
+      throw new ConvexError(
+        "Deze offerte heeft nog geen klantadres — koppel eerst een klant of geef adres, postcode en plaats mee."
+      );
+    }
 
     // Create the werklocatie with data from offerte
     const werklocatieId = await ctx.db.insert("werklocaties", {
@@ -333,8 +342,8 @@ export const createFromOfferte = mutation({
       plaats,
       // Contact info from offerte klant
       contactOpLocatie: {
-        naam: offerte.klant.naam,
-        telefoon: offerte.klant.telefoon,
+        naam: klantNaam(offerte.klant),
+        telefoon: offerte.klant?.telefoon,
       },
       createdAt: now,
       updatedAt: now,

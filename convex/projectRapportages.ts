@@ -10,6 +10,7 @@ import { query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
 import { Doc } from "./_generated/dataModel";
 import { voorcalculatieVanProject, voorcalculatieVanOfferte } from "./lib/voorcalculatieLookup";
+import { klantNaam, klantVeld } from "./lib/offerteKlant";
 
 // Helper to get month key from timestamp
 function getMonthKey(timestamp: number): string {
@@ -286,7 +287,7 @@ export const getProjectPrestaties = query({
       projectPrestaties.push({
         projectId: project._id.toString(),
         projectNaam: project.naam,
-        klantNaam: offerte.klant.naam,
+        klantNaam: klantNaam(offerte.klant),
         type: offerte.type,
         status: project.status,
         createdAt: project.createdAt,
@@ -596,8 +597,10 @@ export const getProjectVoortgang = query({
       projectVoortgangList.push({
         projectId: project._id.toString(),
         projectNaam: project.naam,
-        klantNaam: offerte.klant.naam,
-        klantAdres: `${offerte.klant.adres}, ${offerte.klant.plaats}`,
+        klantNaam: klantNaam(offerte.klant),
+        klantAdres: [klantVeld(offerte.klant, "adres"), klantVeld(offerte.klant, "plaats")]
+          .filter(Boolean)
+          .join(", "),
         type: offerte.type,
         status: project.status,
         statusLabel: statusLabels[project.status] || project.status,

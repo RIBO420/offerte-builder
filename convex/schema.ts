@@ -163,15 +163,23 @@ export default defineSchema({
     ),
     offerteNummer: v.string(),
 
-    // Klantgegevens
-    klant: v.object({
-      naam: v.string(),
-      adres: v.string(),
-      postcode: v.string(),
-      plaats: v.string(),
-      email: v.optional(v.string()),
-      telefoon: v.optional(v.string()),
-    }),
+    // Klantgegevens — OPTIONEEL bij een concept (offerte-entree, masterplan A3):
+    // "klik → leeg document" moet kunnen zonder eerst een klant te kiezen.
+    // Vanaf de eerste statusovergang wég van concept (voorcalculatie, verzonden,
+    // geaccepteerd, afgewezen) is een complete klant verplicht; die harde guard
+    // leeft in convex/lib/offerteKlant.ts en wordt door offertes.updateStatus en
+    // offertes.bulkUpdateStatus afgedwongen. Lezers gebruiken klantNaam()/
+    // klantVeld() uit datzelfde bestand, nooit `offerte.klant.naam` rechtstreeks.
+    klant: v.optional(
+      v.object({
+        naam: v.string(),
+        adres: v.string(),
+        postcode: v.string(),
+        plaats: v.string(),
+        email: v.optional(v.string()),
+        telefoon: v.optional(v.string()),
+      })
+    ),
 
     // Algemene parameters
     algemeenParams: v.object({
@@ -631,14 +639,18 @@ export default defineSchema({
     // Snapshot van de offerte op dit moment
     snapshot: v.object({
       status: v.string(),
-      klant: v.object({
-        naam: v.string(),
-        adres: v.string(),
-        postcode: v.string(),
-        plaats: v.string(),
-        email: v.optional(v.string()),
-        telefoon: v.optional(v.string()),
-      }),
+      // Optioneel, net als offertes.klant: een concept zonder klant heeft ook
+      // versies (aangemaakt, regels gewijzigd) vóór er een klant gekoppeld is.
+      klant: v.optional(
+        v.object({
+          naam: v.string(),
+          adres: v.string(),
+          postcode: v.string(),
+          plaats: v.string(),
+          email: v.optional(v.string()),
+          telefoon: v.optional(v.string()),
+        })
+      ),
       algemeenParams: v.object({
         bereikbaarheid: v.string(),
         achterstalligheid: v.optional(v.string()),

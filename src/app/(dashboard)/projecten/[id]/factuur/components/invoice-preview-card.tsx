@@ -1,4 +1,5 @@
 "use client";
+import { klantNaam } from "@convex/lib/offerteKlant";
 
 import { m } from "framer-motion";
 import { Doc } from "../../../../../../../convex/_generated/dataModel";
@@ -61,10 +62,10 @@ export function InvoicePreviewCard({
                 <p className="text-xs text-muted-foreground">FACTUUR VOOR</p>
                 {offerte && (
                   <>
-                    <p className="font-semibold">{offerte.klant.naam}</p>
-                    <p className="text-sm text-muted-foreground">{offerte.klant.adres}</p>
+                    <p className="font-semibold">{klantNaam(offerte.klant)}</p>
+                    <p className="text-sm text-muted-foreground">{offerte.klant?.adres}</p>
                     <p className="text-sm text-muted-foreground">
-                      {offerte.klant.postcode} {offerte.klant.plaats}
+                      {offerte.klant?.postcode} {offerte.klant?.plaats}
                     </p>
                   </>
                 )}

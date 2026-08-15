@@ -6,6 +6,7 @@ import {
   berekenPipelineFunnel,
 } from "./lib/pipelineKpis";
 import { voorcalculatieVanProject, voorcalculatieVanOfferte } from "./lib/voorcalculatieLookup";
+import { klantNaam, klantVeld } from "./lib/offerteKlant";
 
 // Helper to get month key from timestamp
 function getMonthKey(timestamp: number): string {
@@ -238,11 +239,11 @@ export const getAnalyticsData = query({
       }
 
       // Customer aggregation - enhanced with repeat customer tracking
-      const customerKey = offerte.klant.naam;
+      const customerKey = klantNaam(offerte.klant);
       if (!customerData[customerKey]) {
         customerData[customerKey] = {
           klantId: offerte.klantId ?? null,
-          klantNaam: offerte.klant.naam,
+          klantNaam: klantNaam(offerte.klant),
           totaalOmzet: 0,
           aantalOffertes: 0,
           aantalGeaccepteerd: 0,
@@ -385,12 +386,12 @@ export const getAnalyticsData = query({
       offerteNummer: o.offerteNummer,
       type: o.type,
       status: o.status,
-      klantNaam: o.klant.naam,
-      klantAdres: o.klant.adres,
-      klantPostcode: o.klant.postcode,
-      klantPlaats: o.klant.plaats,
-      klantEmail: o.klant.email ?? "",
-      klantTelefoon: o.klant.telefoon ?? "",
+      klantNaam: klantVeld(o.klant, "naam"),
+      klantAdres: klantVeld(o.klant, "adres"),
+      klantPostcode: klantVeld(o.klant, "postcode"),
+      klantPlaats: klantVeld(o.klant, "plaats"),
+      klantEmail: klantVeld(o.klant, "email"),
+      klantTelefoon: klantVeld(o.klant, "telefoon"),
       materiaalkosten: o.totalen.materiaalkosten,
       arbeidskosten: o.totalen.arbeidskosten,
       totaalUren: o.totalen.totaalUren,
@@ -614,7 +615,7 @@ export const getVoorcalculatieNacalculatieVergelijking = query({
       projectVergelijkingen.push({
         projectId: project._id.toString(),
         projectNaam: project.naam,
-        klantNaam: offerte?.klant.naam || "Onbekend",
+        klantNaam: klantNaam(offerte?.klant, "Onbekend"),
         createdAt: project.createdAt,
         maand: getMonthName(getMonthKey(project.createdAt)),
         geplandeUren,

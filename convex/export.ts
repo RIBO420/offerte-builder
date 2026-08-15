@@ -10,6 +10,7 @@
 
 import { v } from "convex/values";
 import { query } from "./_generated/server";
+import { klantVeld } from "./lib/offerteKlant";
 import { requireAdmin, requireKantoor } from "./roles";
 import { voorcalculatieVanProject, voorcalculatieVanOfferte } from "./lib/voorcalculatieLookup";
 
@@ -72,12 +73,12 @@ export const exportOffertes = query({
       offerteNummer: offerte.offerteNummer,
       type: offerteTypeLabels[offerte.type] ?? offerte.type,
       status: offerteStatusLabels[offerte.status] ?? offerte.status,
-      klantNaam: offerte.klant.naam,
-      klantAdres: offerte.klant.adres,
-      klantPostcode: offerte.klant.postcode,
-      klantPlaats: offerte.klant.plaats,
-      klantEmail: offerte.klant.email ?? "",
-      klantTelefoon: offerte.klant.telefoon ?? "",
+      klantNaam: klantVeld(offerte.klant, "naam"),
+      klantAdres: klantVeld(offerte.klant, "adres"),
+      klantPostcode: klantVeld(offerte.klant, "postcode"),
+      klantPlaats: klantVeld(offerte.klant, "plaats"),
+      klantEmail: klantVeld(offerte.klant, "email"),
+      klantTelefoon: klantVeld(offerte.klant, "telefoon"),
       materiaalkosten: offerte.totalen.materiaalkosten,
       arbeidskosten: offerte.totalen.arbeidskosten,
       totaalUren: offerte.totalen.totaalUren,

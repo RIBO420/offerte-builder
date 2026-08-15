@@ -1,4 +1,5 @@
 "use client";
+import { klantNaam } from "@convex/lib/offerteKlant";
 
 import { useState, useMemo, useCallback, Suspense } from "react";
 import Link from "next/link";
@@ -336,7 +337,7 @@ function ProjectenPageContent() {
                         href={`/projecten/nieuw?offerte=${offerte._id}`}
                       >
                         <FolderKanban className="h-3.5 w-3.5 mr-1.5" />
-                        {offerte.offerteNummer} - {offerte.klant.naam}
+                        {offerte.offerteNummer} - {klantNaam(offerte.klant)}
                       </Link>
                     </Button>
                   ))}

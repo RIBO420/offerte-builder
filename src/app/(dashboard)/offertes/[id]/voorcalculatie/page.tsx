@@ -1,4 +1,5 @@
 "use client";
+import { klantNaam } from "@convex/lib/offerteKlant";
 
 import { use, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
@@ -266,7 +267,7 @@ export default function OfferteVoorcalculatiePage({
                   Voorcalculatie
                 </h1>
                 <p className="text-muted-foreground">
-                  {offerte.offerteNummer} - {offerte.klant.naam}
+                  {offerte.offerteNummer} - {klantNaam(offerte.klant)}
                 </p>
               </div>
             </div>

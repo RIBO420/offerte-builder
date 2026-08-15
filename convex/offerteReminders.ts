@@ -29,6 +29,7 @@ import { getOwnedOfferte } from "./auth";
 import { requireNotViewer } from "./roles";
 import { DEFAULT_TEMPLATES } from "./emailTemplates";
 import { zetTriggerMailKlaar } from "./mailTriggers";
+import { klantNaam } from "./lib/offerteKlant";
 import {
   isEmailVerzendenActief,
   SANDBOX_EMAIL_REDEN,
@@ -116,9 +117,10 @@ async function verwerkOpvolgingsKlantmail(
   reminder: Doc<"offerte_reminders">,
   offerte: Doc<"offertes">
 ): Promise<void> {
-  if (!offerte.klant.email) {
+  const klant = offerte.klant;
+  if (!klant?.email) {
     console.warn(
-      `[offerteReminders] No email address for klant "${offerte.klant.naam}" — skipping email for reminder ${reminder._id}`
+      `[offerteReminders] No email address for klant "${klantNaam(offerte.klant)}" — skipping email for reminder ${reminder._id}`
     );
     return;
   }
@@ -143,10 +145,10 @@ async function verwerkOpvolgingsKlantmail(
     await zetTriggerMailKlaar(ctx, {
       event: "offerte_opvolging",
       userId: reminder.userId,
-      ontvangerEmail: offerte.klant.email,
-      ontvangerNaam: offerte.klant.naam,
+      ontvangerEmail: klant.email,
+      ontvangerNaam: klant.naam,
       variabelen: {
-        klantnaam: offerte.klant.naam,
+        klantnaam: klant.naam,
         offerteNummer: offerte.offerteNummer,
         offerteBedrag: formatCurrency(offerte.totalen.totaalInclBtw),
         offerteLink,
@@ -166,8 +168,8 @@ async function verwerkOpvolgingsKlantmail(
     offerteId: reminder.offerteId,
     userId: reminder.userId,
     reminderType: reminder.type,
-    klantEmail: offerte.klant.email,
-    klantNaam: offerte.klant.naam,
+    klantEmail: klant.email,
+    klantNaam: klant.naam,
     offerteNummer: offerte.offerteNummer,
     offerteBedrag: formatCurrency(offerte.totalen.totaalInclBtw),
     shareToken: offerte.shareToken ?? undefined,
@@ -295,7 +297,7 @@ export const processReminder = internalMutation({
       userId: reminder.userId,
       offerteId: reminder.offerteId,
       offerteNummer: offerte.offerteNummer,
-      klantNaam: offerte.klant.naam,
+      klantNaam: klantNaam(offerte.klant),
       reminderType: reminder.type,
     });
 
@@ -352,7 +354,7 @@ export const processDueReminders = internalMutation({
         userId: reminder.userId,
         offerteId: reminder.offerteId,
         offerteNummer: offerte.offerteNummer,
-        klantNaam: offerte.klant.naam,
+        klantNaam: klantNaam(offerte.klant),
         reminderType: reminder.type,
       });
 

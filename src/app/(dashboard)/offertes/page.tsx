@@ -1,4 +1,5 @@
 "use client";
+import { klantNaam, GEEN_KLANT_LABEL } from "@convex/lib/offerteKlant";
 
 import { useState, useMemo, Suspense } from "react";
 import { formatCurrency } from "@/lib/format";
@@ -229,12 +230,12 @@ function OffertesPageContent() {
       const searchLower = debouncedSearchQuery.toLowerCase();
       const matchesSearch =
         debouncedSearchQuery === "" ||
-        offerte.klant.naam.toLowerCase().includes(searchLower) ||
+        klantNaam(offerte.klant).toLowerCase().includes(searchLower) ||
         offerte.offerteNummer.toLowerCase().includes(searchLower) ||
-        (offerte.klant.adres && offerte.klant.adres.toLowerCase().includes(searchLower)) ||
-        (offerte.klant.plaats && offerte.klant.plaats.toLowerCase().includes(searchLower)) ||
-        (offerte.klant.email && offerte.klant.email.toLowerCase().includes(searchLower)) ||
-        (offerte.klant.telefoon && offerte.klant.telefoon.toLowerCase().includes(searchLower));
+        (offerte.klant?.adres?.toLowerCase().includes(searchLower) ?? false) ||
+        (offerte.klant?.plaats?.toLowerCase().includes(searchLower) ?? false) ||
+        (offerte.klant?.email?.toLowerCase().includes(searchLower) ?? false) ||
+        (offerte.klant?.telefoon?.toLowerCase().includes(searchLower) ?? false);
       const matchesStatus = activeTab === "alle" || offerte.status === activeTab;
       const matchesType = filters.type === "alle" || offerte.type === filters.type;
       const offerteDate = new Date(offerte.updatedAt);
@@ -250,17 +251,25 @@ function OffertesPageContent() {
 
   // Transform filtered offertes to sortable format
   const sortableOffertes = useMemo<SortableOfferte[]>(() => {
-    return (filteredOffertes ?? []).map((offerte) => ({
-      _id: offerte._id,
-      type: offerte.type,
-      offerteNummer: offerte.offerteNummer,
-      klantNaam: offerte.klant.naam,
-      klantPlaats: offerte.klant.plaats,
-      bedrag: offerte.totalen.totaalInclBtw,
-      status: offerte.status,
-      datum: offerte.updatedAt,
-      original: offerte,
-    }));
+    return (filteredOffertes ?? []).map((offerte) => {
+      // Een concept zonder gekoppelde klant blijft gewoon in de lijst staan.
+      const klant = offerte.klant ?? {
+        naam: GEEN_KLANT_LABEL,
+        adres: "",
+        plaats: "",
+      };
+      return {
+        _id: offerte._id,
+        type: offerte.type,
+        offerteNummer: offerte.offerteNummer,
+        klantNaam: klant.naam,
+        klantPlaats: klant.plaats,
+        bedrag: offerte.totalen.totaalInclBtw,
+        status: offerte.status,
+        datum: offerte.updatedAt,
+        original: { ...offerte, klant },
+      };
+    });
   }, [filteredOffertes]);
 
   // Apply sorting

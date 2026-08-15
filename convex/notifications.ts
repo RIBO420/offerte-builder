@@ -12,6 +12,7 @@
  */
 
 import { v, ConvexError } from "convex/values";
+import { klantNaam } from "./lib/offerteKlant";
 import {
   internalAction,
   internalMutation,
@@ -1218,12 +1219,12 @@ export const notifyOfferteStatusChange = internalMutation({
       case "geaccepteerd":
         notificationType = "offerte_geaccepteerd";
         title = "Offerte geaccepteerd!";
-        message = `${offerte.klant.naam} heeft offerte ${offerte.offerteNummer} geaccepteerd.`;
+        message = `${klantNaam(offerte.klant)} heeft offerte ${offerte.offerteNummer} geaccepteerd.`;
         break;
       case "afgewezen":
         notificationType = "offerte_afgewezen";
         title = "Offerte afgewezen";
-        message = `${offerte.klant.naam} heeft offerte ${offerte.offerteNummer} afgewezen.`;
+        message = `${klantNaam(offerte.klant)} heeft offerte ${offerte.offerteNummer} afgewezen.`;
         if (args.comment) {
           message += ` Reden: "${truncateMessage(args.comment, 50)}"`;
         }
@@ -1231,7 +1232,7 @@ export const notifyOfferteStatusChange = internalMutation({
       case "verzonden":
         notificationType = "offerte_verzonden";
         title = "Offerte verzonden";
-        message = `Offerte ${offerte.offerteNummer} is verzonden naar ${offerte.klant.naam}.`;
+        message = `Offerte ${offerte.offerteNummer} is verzonden naar ${klantNaam(offerte.klant)}.`;
         break;
       default:
         // Don't send notifications for other status changes
@@ -1256,7 +1257,7 @@ export const notifyOfferteStatusChange = internalMutation({
           message,
           offerteId: args.offerteId,
           offerteNummer: offerte.offerteNummer,
-          klantNaam: offerte.klant.naam,
+          klantNaam: klantNaam(offerte.klant),
           isRead: false,
           isDismissed: false,
           triggeredBy: args.triggeredBy,
@@ -1305,10 +1306,10 @@ export const notifyOfferteViewed = internalMutation({
           userId: recipientId,
           type: "offerte_bekeken",
           title: "Offerte bekeken",
-          message: `${offerte.klant.naam} heeft offerte ${offerte.offerteNummer} bekeken.`,
+          message: `${klantNaam(offerte.klant)} heeft offerte ${offerte.offerteNummer} bekeken.`,
           offerteId: args.offerteId,
           offerteNummer: offerte.offerteNummer,
-          klantNaam: offerte.klant.naam,
+          klantNaam: klantNaam(offerte.klant),
           isRead: false,
           isDismissed: false,
           triggeredBy: "klant",
@@ -1363,10 +1364,10 @@ export const notifyOfferteCreated = internalMutation({
           userId: recipientId,
           type: "offerte_aangemaakt",
           title: "Nieuwe offerte aangemaakt",
-          message: `${createdByUser?.name || "Iemand"} heeft een nieuwe offerte aangemaakt: ${offerte.offerteNummer} voor ${offerte.klant.naam}.`,
+          message: `${createdByUser?.name || "Iemand"} heeft een nieuwe offerte aangemaakt: ${offerte.offerteNummer} voor ${klantNaam(offerte.klant)}.`,
           offerteId: args.offerteId,
           offerteNummer: offerte.offerteNummer,
-          klantNaam: offerte.klant.naam,
+          klantNaam: klantNaam(offerte.klant),
           isRead: false,
           isDismissed: false,
           triggeredBy: args.createdByUserId.toString(),

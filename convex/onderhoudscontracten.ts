@@ -9,6 +9,7 @@ import { v, ConvexError } from "convex/values";
 import { mutation, query, MutationCtx } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
 import { requireAuth, requireAuthUserId } from "./auth";
+import { klantVeld } from "./lib/offerteKlant";
 import {
   requireDirectieOrProjectleider,
   requireKantoor,
@@ -1569,9 +1570,9 @@ export async function maakContractVanGeaccepteerdeOfferte(
       contractNummer,
       naam: `Onderhoudscontract ${klant.naam}`,
       locatie: {
-        adres: offerte.klant.adres,
-        postcode: offerte.klant.postcode,
-        plaats: offerte.klant.plaats,
+        adres: klantVeld(offerte.klant, "adres", klant.adres),
+        postcode: klantVeld(offerte.klant, "postcode", klant.postcode),
+        plaats: klantVeld(offerte.klant, "plaats", klant.plaats),
       },
       startDatum,
       eindDatum,

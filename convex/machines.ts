@@ -3,6 +3,7 @@ import { mutation, query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
 import { requireNotViewer } from "./roles";
 import { laadDocsMap } from "./lib/batchLoad";
+import { klantNaam } from "./lib/offerteKlant";
 
 // List all machines for authenticated user
 export const list = query({
@@ -211,7 +212,7 @@ export const getUsageStats = query({
           _id: project._id,
           naam: project.naam,
           status: project.status,
-          klantNaam: offerte?.klant.naam || "Onbekend",
+          klantNaam: klantNaam(offerte?.klant, "Onbekend"),
         };
       });
 

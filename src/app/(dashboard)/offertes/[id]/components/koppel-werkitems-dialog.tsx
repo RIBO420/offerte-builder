@@ -1,4 +1,5 @@
 "use client";
+import { klantNaam, klantVeld } from "@convex/lib/offerteKlant";
 
 import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
@@ -171,7 +172,7 @@ export function KoppelWerkitemsDialog({
           naam: t.naam,
           offerteId: offerte._id,
           offerteRegelIds: t.regelIds,
-          adres: offerte.klant.adres,
+          adres: klantVeld(offerte.klant, "adres"),
         });
       }
 
@@ -289,7 +290,7 @@ export function KoppelWerkitemsDialog({
                 ? `Project ${offerte.offerteNummer}`
                 : nieuwType === "onderhoudsbeurt"
                   ? "Snoeibeurt najaar"
-                  : `Onderhoudscontract ${offerte.klant.naam}`
+                  : `Onderhoudscontract ${klantNaam(offerte.klant)}`
             })`}
             aria-label="Naam werkitem"
             className="flex-1"

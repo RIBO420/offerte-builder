@@ -1,4 +1,5 @@
 "use client";
+import { klantNaam } from "@convex/lib/offerteKlant";
 
 import { use, useState } from "react";
 import Link from "next/link";
@@ -126,7 +127,7 @@ export default function ProjectDetailPage({
                 <>
                   <span>{offerte.offerteNummer}</span>
                   <CopyButton value={offerte.offerteNummer} label="Kopieer offertenummer" />
-                  <span>&middot; {offerte.klant.naam} &middot;</span>
+                  <span>&middot; {klantNaam(offerte.klant)} &middot;</span>
                 </>
               )}
               <span>Aangemaakt {formatDate(project.createdAt)}</span>

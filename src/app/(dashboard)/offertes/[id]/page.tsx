@@ -325,7 +325,7 @@ export default function OfferteDetailPage({
         >
           {/* Left column - Details */}
           <div className="space-y-4 lg:col-span-2">
-            <KlantDetailsCard klant={offerte.klant} />
+            {offerte.klant && <KlantDetailsCard klant={offerte.klant} />}
             <ScopesCard scopes={offerte.scopes} algemeenParams={offerte.algemeenParams} />
             <OfferteRegelsCard regels={offerte.regels} id={id} />
             <NotitiesCard notities={offerte.notities} />
@@ -387,7 +387,7 @@ export default function OfferteDetailPage({
           type: offerte.type,
           scopes: offerte.scopes,
           scopeData: offerte.scopeData as Record<string, unknown> | undefined,
-          klant: offerte.klant,
+          klant: offerte.klant ?? { naam: "" },
         }}
       />
 

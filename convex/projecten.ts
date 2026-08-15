@@ -11,6 +11,7 @@ import { mutation, query, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { requireAuth, requireAuthUserId, verifyOwnership } from "./auth";
 import { Id } from "./_generated/dataModel";
+import { klantNaam } from "./lib/offerteKlant";
 import { getUserRole, getLinkedMedewerker, requireNotViewer, requireDirectieOrProjectleider, getCompanyUserId } from "./roles";
 import { upgradeKlantPipeline } from "./pipelineHelpers";
 import {
@@ -101,7 +102,7 @@ export const create = mutation({
 
     // Use provided name or derive from offerte
     const projectNaam =
-      args.naam || `Project ${offerte.offerteNummer} - ${offerte.klant.naam}`;
+      args.naam || `Project ${offerte.offerteNummer} - ${klantNaam(offerte.klant)}`;
 
     // Create the project with status "gepland" (voorcalculatie is now at offerte level)
     const projectId = await ctx.db.insert("projecten", {
@@ -889,7 +890,7 @@ export const search = query({
         if (offerte.offerteNummer.toLowerCase().includes(searchTerm)) {
           return true;
         }
-        if (offerte.klant.naam.toLowerCase().includes(searchTerm)) {
+        if (klantNaam(offerte.klant).toLowerCase().includes(searchTerm)) {
           return true;
         }
       }

@@ -4,6 +4,7 @@ import {
   requireAuth,
   requireAuthUserId,
   getOwnedOfferte,
+  getOwnedKlant,
 } from "./auth";
 import { requireNotViewer, assertKanNaarKlantVersturen } from "./roles";
 import { internal } from "./_generated/api";
@@ -16,6 +17,29 @@ import {
 import { logTijdlijnEvent } from "./tijdlijn";
 import { zetTriggerMailKlaar } from "./mailTriggers";
 import { voorcalculatieVanProject, voorcalculatieVanOfferte } from "./lib/voorcalculatieLookup";
+import {
+  assertKlantVoorStatus,
+  klantNaam,
+  type OfferteKlant,
+} from "./lib/offerteKlant";
+import { reserveerOfferteNummer } from "./lib/offerteNummer";
+import { Doc, Id } from "./_generated/dataModel";
+
+/**
+ * Klantdossier → de klantgegevens zoals ze op de offerte worden vastgelegd.
+ * De offerte houdt bewust een eigen kopie: latere adreswijzigingen in het
+ * dossier mogen een verstuurde offerte niet met terugwerkende kracht wijzigen.
+ */
+function klantSnapshot(klant: Doc<"klanten">): OfferteKlant {
+  return {
+    naam: klant.naam,
+    adres: klant.adres,
+    postcode: klant.postcode,
+    plaats: klant.plaats,
+    email: klant.email,
+    telefoon: klant.telefoon,
+  };
+}
 
 const klantValidator = v.object({
   naam: v.string(),
@@ -269,7 +293,7 @@ export const getFullDashboardData = query({
       .map((o) => ({
         _id: o._id,
         offerteNummer: o.offerteNummer,
-        klantNaam: o.klant.naam,
+        klantNaam: klantNaam(o.klant),
         totaal: o.totalen.totaalInclBtw,
         datum: o.createdAt,
       }));
@@ -559,12 +583,24 @@ export const getByNummer = query({
   },
 });
 
-// Create new offerte
+/**
+ * Nieuwe offerte — altijd als concept.
+ *
+ * Twee dingen zijn hier bewust optioneel (masterplan offerte-entree):
+ *
+ * - **`klant`** (A3): een concept mag leeg beginnen, zodat "klik → leeg
+ *   document" echt één klik is. Vanaf de eerste statusovergang wég van concept
+ *   dwingt `assertKlantVoorStatus` een complete klant af.
+ * - **`offerteNummer`** (A6): laat 'm weg, dan reserveert deze mutation het
+ *   nummer zélf in dezelfde transactie als de insert — race-vrij. Meesturen mag
+ *   nog (bestaande aanroepers), maar dan ben je zelf verantwoordelijk voor de
+ *   uniciteit.
+ */
 export const create = mutation({
   args: {
     type: v.union(v.literal("aanleg"), v.literal("onderhoud")),
-    offerteNummer: v.string(),
-    klant: klantValidator,
+    offerteNummer: v.optional(v.string()),
+    klant: v.optional(klantValidator),
     algemeenParams: algemeenParamsValidator,
     scopes: v.optional(v.array(v.string())),
     scopeData: v.optional(v.any()),
@@ -579,13 +615,26 @@ export const create = mutation({
     const userId = await requireAuthUserId(ctx);
     const now = Date.now();
 
+    // Klant uit het dossier wint van losse velden: zo staat er nooit een
+    // klantId op de offerte met andere naam/adresgegevens ernaast.
+    let klant = args.klant;
+    if (args.klantId) {
+      const klantDoc = await ctx.db.get(args.klantId);
+      if (klantDoc && klantDoc.userId.toString() === userId.toString()) {
+        klant = klant ?? klantSnapshot(klantDoc);
+      }
+    }
+
+    const offerteNummer =
+      args.offerteNummer ?? (await reserveerOfferteNummer(ctx, userId));
+
     const offerteId = await ctx.db.insert("offertes", {
       userId,
       type: args.type,
       status: "concept",
       bron: args.bron,
-      offerteNummer: args.offerteNummer,
-      klant: args.klant,
+      offerteNummer,
+      klant,
       klantId: args.klantId,
       leadId: args.leadId,
       algemeenParams: args.algemeenParams,
@@ -629,7 +678,7 @@ export const create = mutation({
           notities: offerte.notities,
         },
         actie: "aangemaakt",
-        omschrijving: `Offerte ${args.offerteNummer} aangemaakt`,
+        omschrijving: `Offerte ${offerteNummer} aangemaakt`,
         createdAt: now,
       });
 
@@ -652,7 +701,7 @@ export const create = mutation({
       await ctx.db.insert("leadActiviteiten", {
         leadId: args.leadId,
         type: "offerte_gekoppeld",
-        beschrijving: `Offerte ${args.offerteNummer} aangemaakt`,
+        beschrijving: `Offerte ${offerteNummer} aangemaakt`,
         gebruikerId: userId,
         createdAt: now,
       });
@@ -798,6 +847,112 @@ export const update = mutation({
     }
 
     return id;
+  },
+});
+
+/**
+ * Klant koppelen aan (of wisselen op) een bestaande offerte.
+ *
+ * Hoort bij de vrije offerte-entree (masterplan A3): het concept bestaat al —
+ * eventueel zonder klant — en krijgt hier zijn klant. Drie vormen:
+ *
+ *   koppelKlant({ id, klantId })   → klant uit het dossier (klantgegevens
+ *                                    worden als momentopname overgenomen)
+ *   koppelKlant({ id, klant })     → losse klantgegevens, zonder dossier
+ *                                    (bestaande dossierkoppeling vervalt)
+ *   koppelKlant({ id, ontkoppelen: true }) → klant weer weghalen (alleen concept)
+ *
+ * Wisselen mag zolang de offerte niet naar de klant is gegaan: bij verzonden,
+ * geaccepteerd en afgewezen ligt de tenaamstelling vast.
+ */
+export const koppelKlant = mutation({
+  args: {
+    id: v.id("offertes"),
+    klantId: v.optional(v.id("klanten")),
+    klant: v.optional(klantValidator),
+    ontkoppelen: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireNotViewer(ctx);
+    const offerte = await getOwnedOfferte(ctx, args.id);
+
+    if (offerte.status !== "concept" && offerte.status !== "voorcalculatie") {
+      throw new ConvexError(
+        "De klant van een verstuurde of getekende offerte kan niet meer worden gewijzigd — zet de offerte eerst terug naar concept."
+      );
+    }
+
+    const now = Date.now();
+    let nieuweKlant: OfferteKlant | undefined;
+    let nieuwKlantId: Id<"klanten"> | undefined;
+    let omschrijving: string;
+
+    if (args.ontkoppelen) {
+      if (offerte.status !== "concept") {
+        throw new ConvexError(
+          "Een klant loskoppelen kan alleen zolang de offerte een concept is."
+        );
+      }
+      omschrijving = "Klant losgekoppeld van de offerte";
+    } else if (args.klantId) {
+      const klantDoc = await getOwnedKlant(ctx, args.klantId);
+      nieuwKlantId = klantDoc._id;
+      nieuweKlant = { ...klantSnapshot(klantDoc), ...(args.klant ?? {}) };
+      omschrijving = `Klant gekoppeld: ${klantNaam(nieuweKlant)}`;
+    } else if (args.klant) {
+      nieuweKlant = args.klant;
+      omschrijving = `Klantgegevens gewijzigd: ${klantNaam(nieuweKlant)}`;
+    } else {
+      throw new ConvexError(
+        "Geef een klant op om te koppelen (klantId of klantgegevens), of zet ontkoppelen op true."
+      );
+    }
+
+    await ctx.db.patch(args.id, {
+      klant: nieuweKlant,
+      klantId: nieuwKlantId,
+      updatedAt: now,
+    });
+
+    // Versieregel zodat de klantwissel in de offertehistorie terugkomt.
+    const versions = await ctx.db
+      .query("offerte_versions")
+      .withIndex("by_offerte", (q) => q.eq("offerteId", args.id))
+      .order("desc")
+      .take(1);
+
+    await ctx.db.insert("offerte_versions", {
+      offerteId: args.id,
+      userId: user._id,
+      versieNummer: (versions[0]?.versieNummer ?? 0) + 1,
+      snapshot: {
+        status: offerte.status,
+        klant: nieuweKlant,
+        algemeenParams: {
+          bereikbaarheid: offerte.algemeenParams.bereikbaarheid,
+          achterstalligheid: offerte.algemeenParams.achterstalligheid,
+        },
+        scopes: offerte.scopes,
+        scopeData: offerte.scopeData,
+        totalen: offerte.totalen,
+        regels: offerte.regels.map((r) => ({
+          id: r.id,
+          scope: r.scope,
+          omschrijving: r.omschrijving,
+          eenheid: r.eenheid,
+          hoeveelheid: r.hoeveelheid,
+          prijsPerEenheid: r.prijsPerEenheid,
+          totaal: r.totaal,
+          type: r.type,
+        })),
+        notities: offerte.notities,
+      },
+      actie: "gewijzigd",
+      omschrijving,
+      createdAt: now,
+    });
+
+    return args.id;
   },
 });
 
@@ -1076,6 +1231,11 @@ export const updateStatus = mutation({
         `Ongeldige statuswijziging: ${oldStatus} → ${args.status}`
       );
     }
+
+    // HARDE GUARD (masterplan A3): een concept mag zonder klant bestaan, maar
+    // zodra de offerte de conceptfase verlaat moeten naam, adres, postcode en
+    // plaats gevuld zijn — daar draaien PDF, mail, project en factuur op.
+    assertKlantVoorStatus(oldOfferte, args.status);
 
     // When changing to "verzonden", check that a voorcalculatie exists
     // (niet voor vrije offertes: die kennen geen voorcalculatie-record)
@@ -1504,7 +1664,11 @@ export const bulkUpdateStatus = mutation({
 
     for (const id of args.ids) {
       // Verify ownership for each offerte
-      await getOwnedOfferte(ctx, id);
+      const bestaande = await getOwnedOfferte(ctx, id);
+
+      // Zelfde harde klant-guard als in updateStatus: bulk mag geen sluiproute
+      // zijn om een concept zonder klant op verzonden/geaccepteerd te zetten.
+      assertKlantVoorStatus(bestaande, args.status);
 
       // When changing to "verzonden", check that a voorcalculatie exists
       if (args.status === "verzonden") {
@@ -1628,7 +1792,7 @@ export const getAcceptedOffertesWithoutProject = query({
       .map((o) => ({
         _id: o._id,
         offerteNummer: o.offerteNummer,
-        klantNaam: o.klant.naam,
+        klantNaam: klantNaam(o.klant),
         totaal: o.totalen.totaalInclBtw,
         datum: o.createdAt,
       }));

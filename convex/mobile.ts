@@ -12,6 +12,7 @@ import { mutation, query } from "./_generated/server";
 import { requireAuth } from "./auth";
 import { requireAdmin, normalizeRole, getLinkedMedewerker } from "./roles";
 import type { Doc } from "./_generated/dataModel";
+import { klantNaam, klantVeld } from "./lib/offerteKlant";
 import type { QueryCtx, MutationCtx } from "./_generated/server";
 import { voorcalculatieVanProject, voorcalculatieVanOfferte } from "./lib/voorcalculatieLookup";
 
@@ -190,11 +191,11 @@ export const getProjectDetailsForMedewerker = query({
           type: offerte.type,
           status: offerte.status,
           klant: {
-            naam: offerte.klant.naam,
-            adres: offerte.klant.adres,
-            postcode: offerte.klant.postcode,
-            plaats: offerte.klant.plaats,
-            telefoon: offerte.klant.telefoon,
+            naam: klantNaam(offerte.klant),
+            adres: klantVeld(offerte.klant, "adres"),
+            postcode: klantVeld(offerte.klant, "postcode"),
+            plaats: klantVeld(offerte.klant, "plaats"),
+            telefoon: offerte.klant?.telefoon,
           },
           algemeenParams: offerte.algemeenParams,
           scopes: offerte.scopes,

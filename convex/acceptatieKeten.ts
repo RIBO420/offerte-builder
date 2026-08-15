@@ -17,6 +17,7 @@ import {
 } from "./acceptatieRegels";
 import { maakContractVanGeaccepteerdeOfferte } from "./onderhoudscontracten";
 import { upgradeKlantPipeline } from "./pipelineHelpers";
+import { klantNaam } from "./lib/offerteKlant";
 
 /** Keten-actie die de mutation bij acceptatie moet uitvoeren. */
 export type KetenActie = "geen" | "contract_aanmaken" | "project_aanmaken";
@@ -78,7 +79,7 @@ export async function voerKetenActieUit(
       type: "project",
       offerteId: offerte._id,
       klantId: offerte.klantId,
-      naam: `Project ${offerte.offerteNummer} - ${offerte.klant.naam}`,
+      naam: `Project ${offerte.offerteNummer} - ${klantNaam(offerte.klant)}`,
       status: "gepland",
       createdAt: now,
       updatedAt: now,

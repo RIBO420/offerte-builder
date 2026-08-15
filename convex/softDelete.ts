@@ -12,6 +12,7 @@ import { v } from "convex/values";
 import { query, internalMutation, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { requireAuthUserId } from "./auth";
+import { klantNaam } from "./lib/offerteKlant";
 
 // 30 days in milliseconds
 const SOFT_DELETE_RETENTION_DAYS = 30;
@@ -328,7 +329,7 @@ export const getDeletedItems = query({
       .map((o) => ({
         _id: o._id,
         offerteNummer: o.offerteNummer,
-        klantNaam: o.klant.naam,
+        klantNaam: klantNaam(o.klant),
         type: o.type,
         totaalInclBtw: o.totalen.totaalInclBtw,
         deletedAt: o.deletedAt!,
