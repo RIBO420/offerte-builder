@@ -1,7 +1,8 @@
 "use client";
 
 /**
- * Stap "Bouwstenen" van de onderhoud-wizard (PRD §2.5a + bijlage A).
+ * De bouwstenenkiezer: het onderhoudscontract binnen de offerte
+ * (PRD §2.5a + bijlage A).
  *
  * Pakket-tegels (Onderhoud Tuin / Reiniging / Compleet) bovenin,
  * daaronder de actieve catalogus-bouwstenen als aan/uit-regels met
@@ -10,8 +11,10 @@
  * de zand-keuzeregel met twee prijzen. Onderaan live jaarprijs,
  * maandbedrag en eenmalig totaal.
  *
- * Deze stap is een laag BOVENOP de bestaande wizard: overslaan mag,
- * de bestaande scope-calculatie blijft ongewijzigd doorlopen.
+ * Dit is een laag BOVENOP de scope-calculatie: overslaan mag, de bestaande
+ * engine blijft ongewijzigd doorlopen. Zat eerder als wizardstap
+ * "Bouwstenen & Pakketten" in de onderhoud-wizard; in het werkblad is het een
+ * sectie in het document.
  */
 
 import {
@@ -24,7 +27,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { CurrencyInput, QuantityInput } from "@/components/ui/number-input";
@@ -35,8 +37,6 @@ import {
 } from "@/components/ui/tooltip";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
-  ChevronLeft,
-  ChevronRight,
   Info,
   Loader2,
   ListOrdered,
@@ -75,7 +75,7 @@ const PAKKET_ICONS: Record<PakketId, typeof Package> = {
   compleet: Sparkles,
 };
 
-interface StepBouwstenenProps {
+interface BouwstenenKiezerProps {
   bouwstenen: BouwsteenDefault[] | undefined;
   catalogus: CatalogusSelectie;
   setCatalogus: (
@@ -83,17 +83,13 @@ interface StepBouwstenenProps {
       | CatalogusSelectie
       | ((prev: CatalogusSelectie) => CatalogusSelectie)
   ) => void;
-  nextStep: () => void;
-  prevStep: () => void;
 }
 
-export function StepBouwstenen({
+export function BouwstenenKiezer({
   bouwstenen,
   catalogus,
   setCatalogus,
-  nextStep,
-  prevStep,
-}: StepBouwstenenProps) {
+}: BouwstenenKiezerProps) {
   const isLoading = bouwstenen === undefined;
   const lijst = bouwstenen ?? [];
 
@@ -149,8 +145,8 @@ export function StepBouwstenen({
   })).filter((groep) => groep.bouwstenen.length > 0);
 
   return (
-    <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
-      <div className="lg:col-span-2 space-y-4 lg:space-y-5">
+    <div className="space-y-4">
+      <div className="space-y-4">
         {/* Pakket-tegels (bijlage A) */}
         <Card>
           <CardHeader className="pb-2">
@@ -442,9 +438,9 @@ export function StepBouwstenen({
         )}
       </div>
 
-      {/* Sidebar: live doorrekening + navigatie */}
-      <div className="space-y-3">
-        <Card className="sticky top-3">
+      {/* Live doorrekening van het contract */}
+      <div>
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Doorrekening</CardTitle>
             <CardDescription className="text-xs">
@@ -494,18 +490,6 @@ export function StepBouwstenen({
               </p>
             </div>
 
-            <Separator />
-
-            <div className="space-y-2">
-              <Button className="w-full" onClick={nextStep}>
-                Verder naar Bevestigen
-                <ChevronRight className="ml-2 h-4 w-4" />
-              </Button>
-              <Button variant="outline" className="w-full" onClick={prevStep}>
-                <ChevronLeft className="mr-2 h-4 w-4" />
-                Terug naar Details
-              </Button>
-            </div>
           </CardContent>
         </Card>
       </div>

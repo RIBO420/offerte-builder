@@ -12,7 +12,7 @@ import { useState } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, beforeAll } from "vitest";
-import { StepBouwstenen } from "@/app/(dashboard)/offertes/nieuw/onderhoud/components/step-bouwstenen";
+import { BouwstenenKiezer } from "@/components/offerte/bouwstenen-kiezer";
 import {
   LEGE_CATALOGUS_SELECTIE,
   type BouwsteenDefault,
@@ -98,7 +98,7 @@ function Harness({
 }) {
   const [catalogus, setCatalogus] = useState<CatalogusSelectie>(start);
   return (
-    <StepBouwstenen
+    <BouwstenenKiezer
       bouwstenen={bouwstenen}
       catalogus={catalogus}
       setCatalogus={(updater) =>
@@ -106,13 +106,11 @@ function Harness({
           typeof updater === "function" ? updater(prev) : updater
         )
       }
-      nextStep={() => {}}
-      prevStep={() => {}}
     />
   );
 }
 
-describe("StepBouwstenen", () => {
+describe("BouwstenenKiezer", () => {
   it("toont de drie pakket-tegels uit bijlage A en de bouwstenen per categorie", () => {
     render(<Harness />);
     expect(

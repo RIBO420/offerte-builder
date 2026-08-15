@@ -66,6 +66,7 @@ const TITEL: Record<SectieGewicht, string> = {
  * zoals het altijd was.
  */
 export function SectiePaneel({
+  id,
   titel,
   icoon,
   telling,
@@ -76,6 +77,8 @@ export function SectiePaneel({
   children,
   className,
 }: {
+  /** Anker om deze sectie aan te kunnen wijzen (focus, scrollIntoView, `#id`). */
+  id?: string;
   titel: string;
   icoon?: ReactNode;
   /** Klein getal rechts van de titel (open taken, aantal entries). */
@@ -104,7 +107,7 @@ export function SectiePaneel({
   return (
     // @container: de sectie staat in een smalle kolom, niet in de viewport —
     // breakpoints moeten dus op de containerbreedte reageren, niet op het scherm.
-    <section className={cn("@container/sectie", FRAME[gewicht], className)}>
+    <section id={id} className={cn("@container/sectie", FRAME[gewicht], className)}>
       <header className={KOP[gewicht]}>
         {icoon && (
           <span className="shrink-0 text-muted-foreground [&>svg]:size-3.5">
