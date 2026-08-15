@@ -664,7 +664,11 @@ function TaakRegel({
         title={formatDeadline(taak.deadline)}
         className={cn(
           "inline-flex items-center gap-1",
-          deadline.teLaat && "font-medium text-destructive",
+          // `text-destructive` haalt op het werkvlak gemeten 4,2:1 — onder AA
+          // voor deze 11px-regel. `--status-vervallen-text` is dezelfde
+          // betekenis uit de ene statusbron en meet 10,2:1 (licht) / 9,1:1
+          // (donker). De dagstaat gebruikte die al; hier stond hij nog niet.
+          deadline.teLaat && "font-medium text-status-vervallen-text",
           !deadline.teLaat && deadline.nadruk && "font-medium text-foreground"
         )}
       >

@@ -38,14 +38,36 @@ hoefde er geen regel voor te wijzigen.
 
 | Gewicht | Waarvoor | Frame | Kopje |
 |---|---|---|---|
-| `primair` | werkstroom (taken, tijdlijn) | rand + `bg-surface-primair` + `shadow-xs` | 13px semibold, `text-foreground` |
+| `primair` | werkstroom (taken, tijdlijn) | rand + `bg-surface-primair` + `shadow-sm` | 13px semibold, `text-foreground` |
 | `secundair` (default) | gevulde naslag (onderhoud, offertes, facturen, gegevens) | rand + `bg-card`, kop `bg-muted/40` | 12px uppercase muted |
 | `voetnoot` | sectie zonder inhoud | geen doos: leunt op het frame eromheen | 12px uppercase muted |
 
 - **De vlakstap is een token, geen randtruc.** `--card` scheelt 1,05:1 van
   `--background` en kan dus geen hiërarchie dragen. `--surface-primair`
-  (`globals.css`, licht én donker) haalt gemeten 1,25:1 resp. 1,26:1. Nooit een
+  (`globals.css`, licht én donker) haalt gemeten 1,22:1 resp. 1,29:1. Nooit een
   ad-hoc `bg-[#…]`.
+- **Twee werkvlakken, niet één** (15 aug 2026). De eerste versie was één
+  salietint voor de hele werkstrook, met chroma 0,011 — dat leest niet als
+  kleur maar als vuil, en zo kwam het ook bij de eigenaar binnen ("de grijs
+  groene achtergrond"). Nu: `--surface-primair` loofgroen voor werk dat van
+  jóú is (taken, tijdlijn, werkbankpalet) en `--surface-aandacht` leem/amber
+  voor wat je aandacht vraagt (alleen "Aandacht nodig"). Een aanroeper kiest
+  het andere vlak met `className="bg-surface-aandacht"` — tailwind-merge laat
+  die winnen van `FRAME`. Meetwaarden en grenzen staan in
+  `src/__tests__/design/werkvlak-contrast.test.ts`; die test faalt als iemand
+  de tint terugdraait naar "iets neutraler".
+- **Het afvinkhokje van een taak is `TaakCheckbox`, niet `Checkbox`**
+  (`components/taken/taak-checkbox.tsx`). De basiscomponent tekent zijn rand
+  met `border-input`: gemeten 1,03:1 op het werkvlak en 1,32:1 op `--card` —
+  onzichtbaar, en ver onder de 3:1 van WCAG 1.4.11. `TaakCheckbox` geeft hem
+  een merkgroene rand op 75% (3,49:1 licht, 5,08:1 donker), een `--card`-
+  vulling en de hitzone/wrapper-neutralisatie die de rij compact houdt.
+  Dagstaat en klantdossier delen hem. Opvolgpunt: `border-input` is app-breed
+  te licht voor een 3:1-rand.
+- **`--destructive` is op deze vlakken géén tekstkleur.** Gemeten 4,2:1 —
+  goed genoeg voor een prioriteitsstip (3:1), niet voor de 11px-regel
+  "3 dagen te laat". Die gebruikt `--status-vervallen-text` (10,2:1 licht,
+  9,1:1 donker) uit de ene statusbron.
 - **Lege staat = `legeRegel`, niet `SectieLegeStaat`.** Heeft een sectie een kop,
   geef dan `legeRegel={{ tekst, hint }}` mee: die rendert áchter het kopje op
   dezelfde basislijn (zelfde `font-size`-box en `leading-4`, gemeten Δtop = 0px).
@@ -95,6 +117,17 @@ Drie patronen die daar zijn vastgelegd:
   portal, dus focus verlaat de composer — een naïeve `onBlur` klapt hem dicht terwijl
   je een medewerker kiest. `src/__tests__/components/composer-openklappen.test.tsx`
   bewaakt dat.
+  Op de dagstaat staat dezelfde composer in "Mijn taken"
+  (`components/dashboard/taak-composer.tsx`), met één verschil: daar staat de
+  klant niet vast, dus de strip begint met een compacte klantkiezer en zonder
+  klant slaat hij niet op. De taak komt op naam van de ingelogde medewerker —
+  het blok heet "Mijn taken"; toewijzen aan een collega blijft op het
+  klantdossier. De kiezer is bewust níét de `KlantKiezer` uit
+  `offerte/klant-koppeling.tsx` (offertehistorie, leads, "nieuwe klant" — veel
+  te zwaar voor één regel in een bento-cel); gedeeld zijn alleen `useKlanten`
+  en `useKlantenSearch`. De strip monteert pas ná de eerste opening, zodat de
+  klantenlijst niet meelift op het laden van het dashboard. In tests: cmdk
+  selecteert in jsdom alleen op `fireEvent.click`, niet op `userEvent.click`.
 - **Container-queries, geen viewport-breakpoints.** `SectiePaneel` zet
   `@container/sectie`; smalle varianten schrijf je als `@max-[34rem]/sectie:…`.
   Nodig omdat dezelfde tijdlijn zowel in de brede klantpagina als in de smallere
