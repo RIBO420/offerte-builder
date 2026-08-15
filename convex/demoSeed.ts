@@ -174,6 +174,28 @@ function afgerond(bedrag: number): number {
   return Math.round(bedrag * 100) / 100;
 }
 
+/**
+ * Tijdstip in het VORIGE kalenderjaar, op maand/dag, 10:00 lokale tijd.
+ *
+ * De historie-offertes rekenen bewust niet in "zoveel dagen geleden" zoals de
+ * rest van de seed. De rapportage vergelijkt op kalendergrenzen ("2025" versus
+ * "2026", "Zomer 2025" versus "Zomer 2026"); een vaste dagafstand valt bij een
+ * seed-run in een andere maand net aan de verkeerde kant van 1 januari. Een
+ * anker op het vorige kalenderjaar ligt per definitie altijd volledig in het
+ * verleden én volledig in "vorig jaar", wanneer je ook seedt.
+ */
+function vorigJaarOp(basis: number, maand: number, dag: number): number {
+  return new Date(
+    new Date(basis).getFullYear() - 1,
+    maand,
+    dag,
+    10,
+    0,
+    0,
+    0
+  ).getTime();
+}
+
 // ============================================================
 // 4. De demo-gegevens (regio Zuid-Limburg)
 // ============================================================
@@ -747,6 +769,325 @@ const OFFERTES: OfferteSpec[] = [
 ];
 
 /**
+ * Historie: het vorige kalenderjaar, seizoen voor seizoen.
+ * =======================================================
+ *
+ * De rapportagepagina (`api.rapportage.getRapportage`) zet elke periode naast
+ * twee vergelijkingen: de vorige periode én **dezelfde periode vorig jaar**.
+ * Die tweede is voor een hovenier de interessantste — een natte mei vergelijk
+ * je met mei, niet met april. De rest van deze seed spant maar ~120 dagen, dus
+ * "Zomer 2025" en "2025" stonden allebei stug op € 0 en las de UI als kapot.
+ *
+ * Daarom deze twaalf offertes, verspreid over voorjaar, zomer en najaar van
+ * het vorige kalenderjaar. Drie dingen die de opzet bepalen:
+ *
+ *  1. **De peildatum van getekende omzet is het TEKENMOMENT**, niet de
+ *     aanmaakdatum: `peildatumGetekend` in `convex/lib/omzetDefinities.ts`
+ *     leest `customerResponse.respondedAt` en valt pas daarna terug op
+ *     `updatedAt`. Elke historie-offerte zet dus allebei in het verleden;
+ *     zou `updatedAt` op "nu" staan, dan telde een offerte van vorig jaar
+ *     stilletjes mee in de omzet van deze maand.
+ *  2. **Geen werkitems eraan.** `users.initializeDefaults` archiveert bij het
+ *     laden van de app elke offerte met een betaalde PROJECT-factuur, en
+ *     gearchiveerde offertes tellen nergens meer mee (`isTelbaar`). De
+ *     historische facturen hangen daarom aan de klant (`bron: "handmatig"`,
+ *     geen `projectId`) — precies waar dat veld optioneel voor is. Zo blijft
+ *     de omzet van vorig jaar staan in plaats van binnen een seconde na het
+ *     seeden weg te archiveren.
+ *  3. **Kalenderanker, geen dagafstand.** Zie `vorigJaarOp`.
+ */
+type HistorieSpec = {
+  /** Index in KLANTEN. */
+  klant: number;
+  type: "aanleg" | "onderhoud";
+  status: "geaccepteerd" | "afgewezen";
+  scopes: string[];
+  scopeData: Record<string, unknown>;
+  regels: RegelSpec[];
+  /** [maand 0-11, dag] van aanmaken, in het vorige kalenderjaar. */
+  gemaakt: [number, number];
+  /** [maand 0-11, dag] van het tekenmoment — de omzet-peildatum. */
+  getekend: [number, number];
+  /**
+   * Bijbehorende losse factuur op de klant. `betaald: false` levert een
+   * verzonden factuur die allang over zijn vervaldatum is — die vult de
+   * "90+ dagen"-emmer van het openstaand-overzicht, die anders leeg blijft.
+   */
+  factuur?: { datum: [number, number]; betaald: boolean };
+};
+
+const HISTORIE: HistorieSpec[] = [
+  // ── voorjaar vorig jaar (mrt–mei) ───────────────────────────────────
+  {
+    klant: 7,
+    type: "aanleg",
+    status: "geaccepteerd",
+    scopes: ["grondwerk", "bestrating"],
+    scopeData: {
+      grondwerk: { oppervlakte: 130, diepte: "standaard", afvoerGrond: true },
+      bestrating: {
+        oppervlakte: 92,
+        typeBestrating: "tegel",
+        snijwerk: "gemiddeld",
+        onderbouw: { type: "zand_fundering", dikteOnderlaag: 20, opsluitbanden: true },
+        bestratingtype: "terrein",
+      },
+    },
+    regels: [
+      { scope: "grondwerk", omschrijving: "Ontgraven en afvoeren grond", eenheid: "m³", hoeveelheid: 32, prijs: 44, soort: "materiaal" },
+      { scope: "grondwerk", omschrijving: "Grondwerk uitvoeren", eenheid: "uur", hoeveelheid: 18, prijs: 46, soort: "arbeid" },
+      { scope: "bestrating", omschrijving: "Betontegel 60x60 antraciet", eenheid: "m²", hoeveelheid: 92, prijs: 31, soort: "materiaal" },
+      { scope: "bestrating", omschrijving: "Terras bestraten", eenheid: "uur", hoeveelheid: 40, prijs: 47, soort: "arbeid" },
+    ],
+    gemaakt: [2, 12],
+    getekend: [2, 24],
+    factuur: { datum: [3, 22], betaald: true },
+  },
+  {
+    klant: 14,
+    type: "onderhoud",
+    status: "geaccepteerd",
+    scopes: ["gras", "borders", "heggen"],
+    scopeData: {
+      tuinOppervlakte: 1250,
+      gras: { grasAanwezig: true, grasOppervlakte: 660, maaien: true, kantenSteken: true, verticuteren: true, afvoerGras: true },
+      borders: { borderOppervlakte: 180, onderhoudsintensiteit: "gemiddeld", onkruidVerwijderen: true, snoeiInBorders: "licht", bodem: "bedekt", afvoerGroenafval: true },
+      heggen: { lengte: 120, hoogte: 1.4, breedte: 0.5, snoei: "beide", afvoerSnoeisel: true, haagsoort: "beuk", snoeiFrequentie: "2x" },
+    },
+    regels: [
+      { scope: "gras", omschrijving: "Maaien en kanten steken (per beurt)", eenheid: "beurt", hoeveelheid: 20, prijs: 138, soort: "arbeid" },
+      { scope: "borders", omschrijving: "Borderonderhoud (per beurt)", eenheid: "beurt", hoeveelheid: 10, prijs: 92, soort: "arbeid" },
+      { scope: "heggen", omschrijving: "Beukenhaag snoeien incl. afvoer", eenheid: "beurt", hoeveelheid: 2, prijs: 480, soort: "arbeid" },
+    ],
+    gemaakt: [3, 8],
+    getekend: [3, 18],
+    factuur: { datum: [4, 16], betaald: true },
+  },
+  {
+    klant: 18,
+    type: "aanleg",
+    status: "geaccepteerd",
+    scopes: ["gras", "borders"],
+    scopeData: {
+      gras: { oppervlakte: 210, type: "graszoden", ondergrond: "nieuw", afwateringNodig: false, opsluitbanden: true, opsluitbandenMeters: 60 },
+      borders: { oppervlakte: 48, beplantingsintensiteit: "gemiddeld", bodemverbetering: true, afwerking: "schors", orientatie: "zuid" },
+    },
+    regels: [
+      { scope: "gras", omschrijving: "Graszoden incl. leveren", eenheid: "m²", hoeveelheid: 210, prijs: 7.1, soort: "materiaal" },
+      { scope: "gras", omschrijving: "Grondbewerking en zoden leggen", eenheid: "uur", hoeveelheid: 24, prijs: 46, soort: "arbeid" },
+      { scope: "borders", omschrijving: "Vaste planten en heesters", eenheid: "m²", hoeveelheid: 48, prijs: 39, soort: "materiaal" },
+      { scope: "borders", omschrijving: "Beplanten borders", eenheid: "uur", hoeveelheid: 16, prijs: 46, soort: "arbeid" },
+    ],
+    gemaakt: [4, 15],
+    getekend: [4, 27],
+    factuur: { datum: [5, 24], betaald: true },
+  },
+
+  // ── zomer vorig jaar (jun–aug) — het drukste seizoen ─────────────────
+  {
+    klant: 9,
+    type: "aanleg",
+    status: "geaccepteerd",
+    scopes: ["bestrating", "gras"],
+    scopeData: {
+      bestrating: {
+        oppervlakte: 58,
+        typeBestrating: "klinker",
+        snijwerk: "laag",
+        onderbouw: { type: "zandbed", dikteOnderlaag: 15, opsluitbanden: true },
+        bestratingtype: "oprit",
+      },
+      gras: { oppervlakte: 130, type: "graszoden", ondergrond: "bestaand", afwateringNodig: false },
+    },
+    regels: [
+      { scope: "bestrating", omschrijving: "Waalformaat klinker", eenheid: "m²", hoeveelheid: 58, prijs: 29, soort: "materiaal" },
+      { scope: "bestrating", omschrijving: "Oprit bestraten", eenheid: "uur", hoeveelheid: 26, prijs: 47, soort: "arbeid" },
+      { scope: "gras", omschrijving: "Graszoden incl. leveren", eenheid: "m²", hoeveelheid: 130, prijs: 7.1, soort: "materiaal" },
+      { scope: "gras", omschrijving: "Zoden leggen", eenheid: "uur", hoeveelheid: 12, prijs: 46, soort: "arbeid" },
+    ],
+    gemaakt: [5, 3],
+    getekend: [5, 16],
+    factuur: { datum: [6, 14], betaald: true },
+  },
+  {
+    klant: 24,
+    type: "onderhoud",
+    status: "geaccepteerd",
+    scopes: ["gras", "reiniging"],
+    scopeData: {
+      tuinOppervlakte: 4800,
+      gras: { grasAanwezig: true, grasOppervlakte: 2900, maaien: true, kantenSteken: false, verticuteren: false, afvoerGras: true },
+      reiniging: { terrasReiniging: true, terrasType: "beton", terrasOppervlakte: 420, bladruimen: true },
+    },
+    regels: [
+      { scope: "gras", omschrijving: "Maaien openbaar groen (per beurt)", eenheid: "beurt", hoeveelheid: 24, prijs: 395, soort: "arbeid" },
+      { scope: "reiniging", omschrijving: "Verharding reinigen hogedruk", eenheid: "m²", hoeveelheid: 420, prijs: 3.1, soort: "arbeid" },
+      { scope: "reiniging", omschrijving: "Hogedrukreiniger inzet", eenheid: "dag", hoeveelheid: 3, prijs: 105, soort: "machine" },
+    ],
+    gemaakt: [5, 24],
+    getekend: [6, 4],
+    factuur: { datum: [7, 2], betaald: true },
+  },
+  {
+    klant: 20,
+    type: "aanleg",
+    status: "geaccepteerd",
+    scopes: ["grondwerk", "parkeerplaats"],
+    scopeData: {
+      grondwerk: { oppervlakte: 140, diepte: "zwaar", afvoerGrond: true },
+      parkeerplaats: {
+        oppervlakte: 132,
+        aantalPlaatsen: 9,
+        verharding: "betonklinker",
+        draagkracht: "bestelbus",
+        ontgraven: true,
+        opsluitbanden: true,
+        opsluitbandenMeters: 54,
+        afwatering: "kolken",
+        aantalKolken: 2,
+        belijning: true,
+      },
+    },
+    regels: [
+      { scope: "grondwerk", omschrijving: "Ontgraven cunet incl. afvoer", eenheid: "m³", hoeveelheid: 66, prijs: 43, soort: "materiaal" },
+      { scope: "grondwerk", omschrijving: "Graafmachine 5 ton", eenheid: "dag", hoeveelheid: 2, prijs: 310, soort: "machine" },
+      { scope: "parkeerplaats", omschrijving: "Gebroken puin 0/40 fundering", eenheid: "ton", hoeveelheid: 64, prijs: 25, soort: "materiaal" },
+      { scope: "parkeerplaats", omschrijving: "Betonklinker zwaar verkeer", eenheid: "m²", hoeveelheid: 132, prijs: 27, soort: "materiaal" },
+      { scope: "parkeerplaats", omschrijving: "Bestraten parkeerterrein", eenheid: "uur", hoeveelheid: 62, prijs: 47, soort: "arbeid" },
+    ],
+    gemaakt: [6, 7],
+    getekend: [6, 18],
+    factuur: { datum: [7, 20], betaald: true },
+  },
+  {
+    klant: 15,
+    type: "aanleg",
+    status: "geaccepteerd",
+    scopes: ["houtwerk", "water_elektra"],
+    scopeData: {
+      houtwerk: { typeHoutwerk: "vlonder", afmeting: 34, fundering: "standaard" },
+      water_elektra: { verlichting: "basis", aantalPunten: 8, sleuvenNodig: true },
+    },
+    regels: [
+      { scope: "houtwerk", omschrijving: "Vlonderplanken hardhout", eenheid: "m²", hoeveelheid: 34, prijs: 92, soort: "materiaal" },
+      { scope: "houtwerk", omschrijving: "Onderconstructie en montage", eenheid: "uur", hoeveelheid: 26, prijs: 46, soort: "arbeid" },
+      { scope: "water_elektra", omschrijving: "LED-tuinspot 12V", eenheid: "stuk", hoeveelheid: 8, prijs: 64, soort: "materiaal" },
+      { scope: "water_elektra", omschrijving: "Sleuven graven en bekabelen", eenheid: "uur", hoeveelheid: 10, prijs: 46, soort: "arbeid" },
+    ],
+    gemaakt: [6, 21],
+    getekend: [7, 1],
+  },
+  {
+    klant: 22,
+    type: "onderhoud",
+    status: "geaccepteerd",
+    scopes: ["gras", "borders", "bomen"],
+    scopeData: {
+      tuinOppervlakte: 1450,
+      gras: { grasAanwezig: true, grasOppervlakte: 780, maaien: true, kantenSteken: true, verticuteren: false, afvoerGras: true },
+      borders: { borderOppervlakte: 210, onderhoudsintensiteit: "gemiddeld", onkruidVerwijderen: true, snoeiInBorders: "licht", bodem: "bedekt", afvoerGroenafval: true },
+      bomen: { aantalBomen: 18, snoei: "licht", hoogteklasse: "middel", afvoer: true, inspectieType: "visueel" },
+    },
+    regels: [
+      { scope: "gras", omschrijving: "Maaibeurt incl. afvoer", eenheid: "beurt", hoeveelheid: 20, prijs: 142, soort: "arbeid" },
+      { scope: "borders", omschrijving: "Borderonderhoud", eenheid: "beurt", hoeveelheid: 11, prijs: 104, soort: "arbeid" },
+      { scope: "bomen", omschrijving: "Boomveiligheidscontrole (VTA)", eenheid: "stuk", hoeveelheid: 18, prijs: 21, soort: "arbeid" },
+    ],
+    gemaakt: [7, 4],
+    getekend: [7, 14],
+    factuur: { datum: [8, 10], betaald: true },
+  },
+  {
+    klant: 1,
+    type: "aanleg",
+    status: "afgewezen",
+    scopes: ["beregening", "gras"],
+    scopeData: {
+      beregening: {
+        oppervlakte: 260,
+        aantalZones: 3,
+        sproeierType: "popup",
+        waterbron: "waterleiding",
+        regelkast: true,
+        wintervast: true,
+      },
+      gras: { oppervlakte: 260, type: "zaaien", ondergrond: "bestaand", afwateringNodig: false },
+    },
+    regels: [
+      { scope: "beregening", omschrijving: "Pop-up sproeier incl. plaatsing", eenheid: "stuk", hoeveelheid: 18, prijs: 43, soort: "materiaal" },
+      { scope: "beregening", omschrijving: "Aanleg beregeningsinstallatie", eenheid: "uur", hoeveelheid: 22, prijs: 46, soort: "arbeid" },
+      { scope: "gras", omschrijving: "Graszaad speelgazon", eenheid: "m²", hoeveelheid: 260, prijs: 1.1, soort: "materiaal" },
+    ],
+    gemaakt: [7, 18],
+    getekend: [7, 28],
+  },
+
+  // ── najaar vorig jaar (sep–nov) ─────────────────────────────────────
+  {
+    klant: 3,
+    type: "aanleg",
+    status: "geaccepteerd",
+    scopes: ["bestrating", "borders"],
+    scopeData: {
+      bestrating: {
+        oppervlakte: 44,
+        typeBestrating: "natuursteen",
+        snijwerk: "gemiddeld",
+        onderbouw: { type: "zware_fundering", dikteOnderlaag: 25, opsluitbanden: true },
+        bestratingtype: "pad",
+      },
+      borders: { oppervlakte: 38, beplantingsintensiteit: "veel", bodemverbetering: true, afwerking: "grind", orientatie: "west" },
+    },
+    regels: [
+      { scope: "bestrating", omschrijving: "Natuursteen keramisch 60x60", eenheid: "m²", hoeveelheid: 44, prijs: 71, soort: "materiaal" },
+      { scope: "bestrating", omschrijving: "Bestraten incl. snijwerk", eenheid: "uur", hoeveelheid: 24, prijs: 47, soort: "arbeid" },
+      { scope: "borders", omschrijving: "Beplanting hoge dichtheid", eenheid: "m²", hoeveelheid: 38, prijs: 51, soort: "materiaal" },
+      { scope: "borders", omschrijving: "Aanplant en afwerking", eenheid: "uur", hoeveelheid: 14, prijs: 46, soort: "arbeid" },
+    ],
+    gemaakt: [8, 9],
+    getekend: [8, 20],
+    factuur: { datum: [9, 18], betaald: true },
+  },
+  {
+    klant: 23,
+    type: "onderhoud",
+    status: "geaccepteerd",
+    scopes: ["heggen", "bomen"],
+    scopeData: {
+      tuinOppervlakte: 2600,
+      heggen: { lengte: 240, hoogte: 1.8, breedte: 0.6, snoei: "beide", afvoerSnoeisel: true, haagsoort: "liguster", snoeiFrequentie: "2x" },
+      bomen: { aantalBomen: 22, snoei: "licht", hoogteklasse: "hoog", afvoer: true, inspectieType: "gecertificeerd" },
+    },
+    regels: [
+      { scope: "heggen", omschrijving: "Haagsnoei incl. afvoer", eenheid: "beurt", hoeveelheid: 2, prijs: 760, soort: "arbeid" },
+      { scope: "bomen", omschrijving: "Boomveiligheidscontrole (VTA)", eenheid: "stuk", hoeveelheid: 22, prijs: 22, soort: "arbeid" },
+      { scope: "bomen", omschrijving: "Hoogwerker inzet", eenheid: "dag", hoeveelheid: 2, prijs: 365, soort: "machine" },
+    ],
+    gemaakt: [9, 6],
+    getekend: [9, 15],
+    factuur: { datum: [10, 12], betaald: false },
+  },
+  {
+    klant: 11,
+    type: "aanleg",
+    status: "afgewezen",
+    scopes: ["houtwerk", "specials"],
+    scopeData: {
+      houtwerk: { typeHoutwerk: "pergola", afmeting: 22, fundering: "zwaar" },
+      specials: { items: [{ type: "sauna", omschrijving: "Buitensauna 2,4 x 2,0 m incl. fundering" }] },
+    },
+    regels: [
+      { scope: "houtwerk", omschrijving: "Pergola hardhout op maat", eenheid: "m²", hoeveelheid: 22, prijs: 205, soort: "materiaal" },
+      { scope: "houtwerk", omschrijving: "Montage pergola", eenheid: "uur", hoeveelheid: 24, prijs: 48, soort: "arbeid" },
+      { scope: "specials", omschrijving: "Betonplaat buitensauna incl. wapening", eenheid: "post", hoeveelheid: 1, prijs: 1850, soort: "materiaal" },
+      { scope: "specials", omschrijving: "Fundering aanleggen en aansluiten", eenheid: "uur", hoeveelheid: 28, prijs: 48, soort: "arbeid" },
+    ],
+    gemaakt: [10, 4],
+    getekend: [10, 14],
+  },
+];
+
+/**
  * Projecten (werkitems). Elk project verwijst naar een offerte — bewust:
  * een werkitem zónder `offerteId` maakt van `q.eq("offerteId", undefined)` een
  * zoekopdracht die álle offerte-loze voorcalculaties matcht (zie
@@ -1024,32 +1365,12 @@ export const vullen = internalMutation({
     for (const [i, o] of OFFERTES.entries()) {
       const k = KLANTEN[o.klant];
       const aangemaakt = nu - o.dagenGeleden * DAG;
-      const regels = o.regels.map((r, n) => ({
-        id: `demo-${i}-${n}`,
-        scope: r.scope,
-        omschrijving: r.omschrijving,
-        eenheid: r.eenheid,
-        hoeveelheid: r.hoeveelheid,
-        prijsPerEenheid: r.prijs,
-        totaal: afgerond(r.hoeveelheid * r.prijs),
-        type: r.soort,
-      }));
-
-      const materiaalkosten = afgerond(
-        regels.filter((r) => r.type !== "arbeid").reduce((s, r) => s + r.totaal, 0)
+      const { regels, totalen } = maakRegelsEnTotalen(
+        o.regels,
+        `demo-${i}`,
+        margePercentage,
+        btwPercentage
       );
-      const arbeidskosten = afgerond(
-        regels.filter((r) => r.type === "arbeid").reduce((s, r) => s + r.totaal, 0)
-      );
-      const totaalUren = afgerond(
-        o.regels
-          .filter((r) => r.soort === "arbeid" && r.eenheid === "uur")
-          .reduce((s, r) => s + r.hoeveelheid, 0)
-      );
-      const subtotaal = afgerond(materiaalkosten + arbeidskosten);
-      const marge = afgerond((subtotaal * margePercentage) / 100);
-      const totaalExBtw = afgerond(subtotaal + marge);
-      const btw = afgerond((totaalExBtw * btwPercentage) / 100);
 
       const offerteId = await bewaar(ctx, geseedOp, "offertes", {
         userId,
@@ -1074,17 +1395,7 @@ export const vullen = internalMutation({
         },
         scopes: o.scopes,
         scopeData: o.scopeData as never,
-        totalen: {
-          materiaalkosten,
-          arbeidskosten,
-          totaalUren,
-          subtotaal,
-          marge,
-          margePercentage,
-          totaalExBtw,
-          btw,
-          totaalInclBtw: afgerond(totaalExBtw + btw),
-        },
+        totalen,
         regels,
         bron: "wizard",
         notities: `Demo-offerte (${o.type}) — ${o.scopes.join(", ")}`,
@@ -1121,13 +1432,7 @@ export const vullen = internalMutation({
       if (o.status !== "concept") {
         const teamGrootte = ([2, 3, 4] as const)[i % 3];
         const effectieveUrenPerDag = 7;
-        const normUrenPerScope: Record<string, number> = {};
-        for (const scope of o.scopes) {
-          const scopeUren = o.regels
-            .filter((r) => r.scope === scope && r.soort === "arbeid" && r.eenheid === "uur")
-            .reduce((s, r) => s + r.hoeveelheid, 0);
-          normUrenPerScope[scope] = scopeUren > 0 ? scopeUren : 8;
-        }
+        const normUrenPerScope = normUrenPerScopeVan(o.regels, o.scopes);
         const normUrenTotaal = Object.values(normUrenPerScope).reduce((s, u) => s + u, 0);
         await bewaar(ctx, geseedOp, "voorcalculaties", {
           userId,
@@ -1145,6 +1450,143 @@ export const vullen = internalMutation({
           updatedAt: aangemaakt + DAG,
         });
       }
+    }
+
+    // ── Historie: vorig kalenderjaar ──────────────────────────────────
+    // Losstaand van OFFERTES: deze reeks hangt bewust aan géén werkitem, en
+    // hij mag ook niet in `offerteIds` belanden — PROJECTEN indexeert daarin.
+    // Zie de toelichting bij `HISTORIE` voor het waarom van elke datum.
+    let aantalHistorieFacturen = 0;
+    for (const [i, h] of HISTORIE.entries()) {
+      const k = KLANTEN[h.klant];
+      const aangemaakt = vorigJaarOp(nu, h.gemaakt[0], h.gemaakt[1]);
+      const getekend = vorigJaarOp(nu, h.getekend[0], h.getekend[1]);
+      const historieJaar = new Date(aangemaakt).getFullYear();
+      const { regels, totalen } = maakRegelsEnTotalen(
+        h.regels,
+        `demo-h-${i}`,
+        margePercentage,
+        btwPercentage
+      );
+      const klantSnapshot = {
+        naam: k.naam,
+        adres: k.adres,
+        postcode: k.postcode,
+        plaats: k.plaats,
+        email: demoEmail(k.naam),
+        telefoon: demoTelefoon(h.klant),
+      };
+
+      const offerteId = await bewaar(ctx, geseedOp, "offertes", {
+        userId,
+        klantId: klantIds[h.klant],
+        type: h.type,
+        status: h.status,
+        offerteNummer: `TOPTUINEN${historieJaar}-${String(301 + i)}`,
+        klant: klantSnapshot,
+        algemeenParams: {
+          bereikbaarheid: (["goed", "beperkt", "slecht"] as const)[i % 3],
+          achterstalligheid: (["laag", "gemiddeld", "hoog"] as const)[i % 3],
+          klantvriendelijkheid: 3 + (i % 3),
+          // Bewust zonder `random()`: die stroom bedient de bestaande
+          // planningstaken en uren, en die mogen niet verschuiven.
+          afstandVanLoods: 5 + ((i * 7) % 23),
+          typeWerkzaamheden: h.scopes,
+        },
+        scopes: h.scopes,
+        scopeData: h.scopeData as never,
+        totalen,
+        regels,
+        bron: "wizard",
+        notities: `Demo-historie ${historieJaar} (${h.type}) — ${h.scopes.join(", ")}`,
+        createdAt: aangemaakt,
+        // `updatedAt` is de TERUGVAL-peildatum van getekende omzet
+        // (peildatumGetekend, lib/omzetDefinities.ts). Op "nu" laten staan zou
+        // deze offerte alsnog in de omzet van deze maand duwen.
+        updatedAt: getekend,
+        verzondenAt: aangemaakt + 2 * DAG,
+        customerResponse: {
+          status: h.status,
+          respondedAt: getekend,
+          viewedAt: aangemaakt + 3 * DAG,
+          comment:
+            h.status === "geaccepteerd"
+              ? "Akkoord, graag inplannen."
+              : "Helaas buiten budget.",
+        },
+      });
+
+      const teamGrootte = ([2, 3, 4] as const)[i % 3];
+      const effectieveUrenPerDag = 7;
+      const normUrenPerScope = normUrenPerScopeVan(h.regels, h.scopes);
+      const normUrenTotaal = Object.values(normUrenPerScope).reduce((s, u) => s + u, 0);
+      await bewaar(ctx, geseedOp, "voorcalculaties", {
+        userId,
+        offerteId,
+        teamGrootte,
+        teamleden: TEAMS[i % TEAMS.length].ledenIndex.map((n) => MEDEWERKERS[n].naam),
+        effectieveUrenPerDag,
+        normUrenTotaal,
+        geschatteDagen: Math.max(
+          1,
+          Math.ceil(normUrenTotaal / (teamGrootte * effectieveUrenPerDag))
+        ),
+        normUrenPerScope,
+        createdAt: aangemaakt + DAG,
+        updatedAt: aangemaakt + DAG,
+      });
+
+      if (!h.factuur) continue;
+
+      const factuurdatum = vorigJaarOp(nu, h.factuur.datum[0], h.factuur.datum[1]);
+      const factuurRegels = h.regels.slice(0, 4).map((r, n) => ({
+        id: `demo-hf-${i}-${n}`,
+        omschrijving: r.omschrijving,
+        hoeveelheid: r.hoeveelheid,
+        eenheid: r.eenheid,
+        prijsPerEenheid: afgerond(r.prijs * 1.22),
+        totaal: afgerond(r.hoeveelheid * r.prijs * 1.22),
+        btwCode: 21 as const,
+        scope: r.scope,
+      }));
+      const factuurSubtotaal = afgerond(
+        factuurRegels.reduce((s, r) => s + r.totaal, 0)
+      );
+      const factuurBtw = afgerond((factuurSubtotaal * btwPercentage) / 100);
+      const factuurTotaal = afgerond(factuurSubtotaal + factuurBtw);
+
+      await bewaar(ctx, geseedOp, "facturen", {
+        userId,
+        // GEEN projectId — dat is precies wat deze reeks uit de archiveer-
+        // migratie van `users.initializeDefaults` houdt (zie HISTORIE).
+        klantId: klantIds[h.klant],
+        offerteId,
+        factuurnummer: `FAC-${new Date(factuurdatum).getFullYear()}-${String(101 + i)}`,
+        status: h.factuur.betaald ? "betaald" : "vervallen",
+        documentStatus: "verzonden",
+        betaalStatus: h.factuur.betaald ? "betaald" : "vervallen",
+        betaaldBedrag: h.factuur.betaald ? factuurTotaal : 0,
+        factuurType: "regulier",
+        klant: klantSnapshot,
+        bedrijf,
+        regels: factuurRegels,
+        subtotaal: factuurSubtotaal,
+        btwPercentage,
+        btwBedrag: factuurBtw,
+        totaalInclBtw: factuurTotaal,
+        btwUitsplitsing: [
+          { percentage: btwPercentage, grondslag: factuurSubtotaal, bedrag: factuurBtw },
+        ],
+        factuurdatum,
+        vervaldatum: factuurdatum + 30 * DAG,
+        betalingstermijnDagen: 30,
+        bron: "handmatig",
+        verzondenAt: factuurdatum + DAG,
+        ...(h.factuur.betaald ? { betaaldAt: factuurdatum + 21 * DAG } : {}),
+        createdAt: factuurdatum,
+        updatedAt: factuurdatum + DAG,
+      });
+      aantalHistorieFacturen++;
     }
 
     // ── Projecten (werkitems) + planningstaken ────────────────────────
@@ -1452,6 +1894,12 @@ export const vullen = internalMutation({
       perTabel: telPerTabel(registraties),
       urenRegistraties: aantalUren,
       weekPlanning: aantalWeekPlanning,
+      historie: {
+        jaar: new Date(nu).getFullYear() - 1,
+        offertes: HISTORIE.length,
+        getekend: HISTORIE.filter((h) => h.status === "geaccepteerd").length,
+        facturen: aantalHistorieFacturen,
+      },
     };
   },
 });
@@ -1531,6 +1979,75 @@ export const stand = internalQuery({
 // ============================================================
 // 8. Kleine hulpjes onderaan (leesvolgorde: eerst het verhaal)
 // ============================================================
+
+/**
+ * Regels + totalen zoals de calculator ze oplevert. Gedeeld door de lopende
+ * offertes en de historie: twee reeksen die elk hun eigen sommetje maken
+ * zouden vroeg of laat uit elkaar lopen, en dan liegt de vergelijking.
+ */
+function maakRegelsEnTotalen(
+  regels: RegelSpec[],
+  idPrefix: string,
+  margePercentage: number,
+  btwPercentage: number
+) {
+  const opgemaakt = regels.map((r, n) => ({
+    id: `${idPrefix}-${n}`,
+    scope: r.scope,
+    omschrijving: r.omschrijving,
+    eenheid: r.eenheid,
+    hoeveelheid: r.hoeveelheid,
+    prijsPerEenheid: r.prijs,
+    totaal: afgerond(r.hoeveelheid * r.prijs),
+    type: r.soort,
+  }));
+
+  const materiaalkosten = afgerond(
+    opgemaakt.filter((r) => r.type !== "arbeid").reduce((s, r) => s + r.totaal, 0)
+  );
+  const arbeidskosten = afgerond(
+    opgemaakt.filter((r) => r.type === "arbeid").reduce((s, r) => s + r.totaal, 0)
+  );
+  const totaalUren = afgerond(
+    regels
+      .filter((r) => r.soort === "arbeid" && r.eenheid === "uur")
+      .reduce((s, r) => s + r.hoeveelheid, 0)
+  );
+  const subtotaal = afgerond(materiaalkosten + arbeidskosten);
+  const marge = afgerond((subtotaal * margePercentage) / 100);
+  const totaalExBtw = afgerond(subtotaal + marge);
+  const btw = afgerond((totaalExBtw * btwPercentage) / 100);
+
+  return {
+    regels: opgemaakt,
+    totalen: {
+      materiaalkosten,
+      arbeidskosten,
+      totaalUren,
+      subtotaal,
+      marge,
+      margePercentage,
+      totaalExBtw,
+      btw,
+      totaalInclBtw: afgerond(totaalExBtw + btw),
+    },
+  };
+}
+
+/** Arbeidsuren per scope; scopes zonder uurregel krijgen een minimum van 8. */
+function normUrenPerScopeVan(
+  regels: RegelSpec[],
+  scopes: string[]
+): Record<string, number> {
+  const perScope: Record<string, number> = {};
+  for (const scope of scopes) {
+    const uren = regels
+      .filter((r) => r.scope === scope && r.soort === "arbeid" && r.eenheid === "uur")
+      .reduce((s, r) => s + r.hoeveelheid, 0);
+    perScope[scope] = uren > 0 ? uren : 8;
+  }
+  return perScope;
+}
 
 /**
  * E-mailadres op het gereserveerde `.test`-domein (RFC 2606). Kan per

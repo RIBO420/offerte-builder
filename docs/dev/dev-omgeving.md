@@ -56,7 +56,7 @@ dev-deployment die jij én een agent voor je hebben (bewust geen aparte database
 anders kijken jullie naar verschillende schermen):
 
 ```bash
-npm run seed:demo    # ~365 records: 25 klanten, 15 leads over alle kanban-kolommen,
+npm run seed:demo    # ~380 records: 25 klanten, 15 leads over alle kanban-kolommen,
                      # 20 offertes in alle statussen, 12 werkitems, uren, facturen, meldingen
 npm run seed:clear   # ongedaan maken
 ```
@@ -73,6 +73,14 @@ npm run seed:clear   # ongedaan maken
 - **Contactgegevens zijn met opzet niet routeerbaar:** e-mail op `.test`,
   telefoonnummers in het niet-uitgegeven blok `06-9…`. Niet "realistischer" maken —
   de app heeft mailtriggers en een concept-mail-wachtrij.
+- **Historie van vorig jaar.** Bovenop de ~120 dagen lopende data staan 12 offertes
+  (10 getekend) verspreid over voorjaar/zomer/najaar van het vórige kalenderjaar, met
+  9 bijbehorende losse facturen. Zonder die reeks vergelijkt /rapportages "zelfde
+  seizoen vorig jaar" tegen € 0. Peildatum van getekende omzet is het TEKENMOMENT
+  (`customerResponse.respondedAt`, terugval `updatedAt` — zie
+  `convex/lib/omzetDefinities.ts`), dus die twee staan allebei in het verleden. De
+  historische facturen hangen bewust aan de klant en niet aan een werkitem: anders
+  archiveert `initializeDefaults` ze meteen weg en is de omzet van vorig jaar wéér € 0.
 - Twee dingen die de seed-inhoud sturen: `users.initializeDefaults` archiveert bij het
   laden van de app elk werkitem + offerte met een betaalde project-factuur (dus hangt
   maar één factuur aan een project); en klanten met `pipelineStatus: "lead"` vallen
