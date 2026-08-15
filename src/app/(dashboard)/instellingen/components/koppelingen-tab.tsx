@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { m } from "framer-motion";
 import {
   Card,
   CardContent,
@@ -60,10 +59,6 @@ import { BoekhoudingSyncLog } from "./boekhouding-sync-log";
 // Types
 // ============================================================================
 
-interface KoppelingenTabProps {
-  reducedMotion: boolean;
-}
-
 type Provider = "moneybird" | "exact_online" | "twinfield" | "geen";
 
 interface ProviderInfo {
@@ -96,15 +91,9 @@ const PROVIDERS: ProviderInfo[] = [
 // Main Component
 // ============================================================================
 
-export function KoppelingenTab({ reducedMotion }: KoppelingenTabProps) {
+export function KoppelingenTab() {
   return (
-    <m.div
-      key="koppelingen"
-      initial={reducedMotion ? false : { opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={reducedMotion ? undefined : { opacity: 0, y: -8 }}
-      transition={{ duration: reducedMotion ? 0 : 0.2 }}
-    >
+    <div>
       <TabsContent value="koppelingen" className="space-y-4" forceMount>
         <div className="space-y-6">
           {/* Boekhoudkoppeling */}
@@ -128,7 +117,7 @@ export function KoppelingenTab({ reducedMotion }: KoppelingenTabProps) {
           <BeveiligingInfoBlok />
         </div>
       </TabsContent>
-    </m.div>
+    </div>
   );
 }
 

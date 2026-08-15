@@ -11,7 +11,6 @@
  */
 
 import { useState, useCallback } from "react";
-import { m } from "framer-motion";
 import { useMutation } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { toast } from "sonner";
@@ -27,12 +26,10 @@ interface HerinneringenInstellingen {
 }
 
 interface HerinneringenTabProps {
-  reducedMotion: boolean;
   herinneringInstellingen?: HerinneringenInstellingen;
 }
 
 export function HerinneringenTab({
-  reducedMotion,
   herinneringInstellingen,
 }: HerinneringenTabProps) {
   const updateHerinneringen = useMutation(
@@ -225,20 +222,13 @@ export function HerinneringenTab({
   );
 
   return (
-    <m.div
-      key="herinneringen"
-      initial={reducedMotion ? false : { opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={reducedMotion ? undefined : { opacity: 0, y: -20 }}
-      transition={{ duration: reducedMotion ? 0 : 0.3 }}
-      className="space-y-6"
-    >
+    <div className="space-y-6">
       {/* Debiteurenladder (PRD §3.2) mét de handmatige velden als sectie:
           één systeem, één Opslaan (WS6). */}
       <DebiteurenladderCard
         extraSectie={handmatigeSectie}
         onSaveExtra={saveHandmatigeVelden}
       />
-    </m.div>
+    </div>
   );
 }

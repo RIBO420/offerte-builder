@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import { m } from "framer-motion";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { Id } from "../../../../../convex/_generated/dataModel";
@@ -153,11 +152,7 @@ const EMPTY_FORM: FormState = {
 
 // ── Component ────────────────────────────────────────────────────────
 
-interface EmailTemplatesTabProps {
-  reducedMotion: boolean;
-}
-
-export function EmailTemplatesTab({ reducedMotion }: EmailTemplatesTabProps) {
+export function EmailTemplatesTab() {
   const templates = useQuery(api.emailTemplates.list, {});
   const createTemplate = useMutation(api.emailTemplates.create);
   const updateTemplate = useMutation(api.emailTemplates.update);
@@ -364,26 +359,14 @@ export function EmailTemplatesTab({ reducedMotion }: EmailTemplatesTabProps) {
 
   if (isLoading) {
     return (
-      <m.div
-        key="email-templates"
-        initial={reducedMotion ? {} : { opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-center py-12"
-      >
+      <div className="flex items-center justify-center py-12">
         <LaadIndicator formaat="sectie" className="min-h-0" />
-      </m.div>
+      </div>
     );
   }
 
   return (
-    <m.div
-      key="email-templates"
-      initial={reducedMotion ? {} : { opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={reducedMotion ? {} : { opacity: 0, y: -10 }}
-      transition={{ duration: 0.3 }}
-      className="space-y-6"
-    >
+    <div className="space-y-6">
       {/* Header Card */}
       <Card>
         <CardHeader>
@@ -793,6 +776,6 @@ export function EmailTemplatesTab({ reducedMotion }: EmailTemplatesTabProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </m.div>
+    </div>
   );
 }

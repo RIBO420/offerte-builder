@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { m } from "framer-motion";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { toast } from "sonner";
@@ -46,11 +45,7 @@ interface Template {
   stappen: Stap[];
 }
 
-interface DeelfactuurTemplatesTabProps {
-  reducedMotion: boolean;
-}
-
-export function DeelfactuurTemplatesTab({ reducedMotion }: DeelfactuurTemplatesTabProps) {
+export function DeelfactuurTemplatesTab() {
   const templates = useQuery(api.instellingen.getDeelfactuurTemplates) ?? [];
   const upsertTemplate = useMutation(api.instellingen.upsertDeelfactuurTemplate);
   const deleteTemplate = useMutation(api.instellingen.deleteDeelfactuurTemplate);
@@ -149,14 +144,7 @@ export function DeelfactuurTemplatesTab({ reducedMotion }: DeelfactuurTemplatesT
   }
 
   return (
-    <m.div
-      key="deelfactuur-templates"
-      initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={reducedMotion ? undefined : { opacity: 0, y: -10 }}
-      transition={{ duration: reducedMotion ? 0 : 0.3 }}
-      className="space-y-6"
-    >
+    <div className="space-y-6">
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -370,6 +358,6 @@ export function DeelfactuurTemplatesTab({ reducedMotion }: DeelfactuurTemplatesT
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </m.div>
+    </div>
   );
 }

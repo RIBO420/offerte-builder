@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import { m } from "framer-motion";
+import { PaginaReveal } from "@/components/pagina-reveal";
 import {
   Card,
   CardContent,
@@ -310,12 +310,7 @@ export default function MachinesPage() {
     <>
       <PageHeader />
 
-      <m.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
-      >
+      <PaginaReveal className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
@@ -474,7 +469,7 @@ export default function MachinesPage() {
             </CardContent>
           </Card>
         )}
-      </m.div>
+      </PaginaReveal>
 
       {/* Machine Form Dialog */}
       <MachineForm

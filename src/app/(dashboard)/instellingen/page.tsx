@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { m, AnimatePresence } from "framer-motion";
-import { useReducedMotion } from "@/hooks/use-accessibility";
+import { PaginaReveal } from "@/components/pagina-reveal";
 import { PageHeader } from "@/components/page-header";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calculator, CalendarClock, Clock, Sliders, Link2, FileStack, Bell, Mail, Paintbrush } from "lucide-react";
@@ -28,7 +27,6 @@ import { DagkaartTab } from "./components/dagkaart-tab";
 import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 export default function InstellingenPage() {
-  const reducedMotion = useReducedMotion();
   const [activeTab, setActiveTab] = useState("tarieven");
   const { isLoading: isUserLoading } = useCurrentUser();
   const { instellingen, isLoading: isSettingsLoading, update } = useInstellingen();
@@ -247,12 +245,10 @@ export default function InstellingenPage() {
     <>
       <PageHeader />
 
-      <m.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
-      >
+      {/* Eén reveal op de buitenkant, geen gestapelde delays eronder: de
+          tabs zijn gewone divs en staan er dus ook als er nul animatieframes
+          vallen. → src/components/pagina-reveal.tsx */}
+      <PaginaReveal className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
         <div>
           <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
             Instellingen
@@ -328,8 +324,7 @@ export default function InstellingenPage() {
                 geen enkele instelling. */}
           </TabsList>
 
-          <AnimatePresence mode="wait">
-            {activeTab === "tarieven" && (
+          {activeTab === "tarieven" && (
               <TarievenTab
                 tarieven={tarieven}
                 setTarieven={setTarieven}
@@ -337,7 +332,6 @@ export default function InstellingenPage() {
                 setScopeMarges={setScopeMarges}
                 isSaving={isSaving}
                 onSave={handleSaveTarieven}
-                reducedMotion={reducedMotion}
               />
             )}
 
@@ -353,7 +347,6 @@ export default function InstellingenPage() {
                   setNormuurToDelete(normuur);
                   setShowDeleteNormuurDialog(true);
                 }}
-                reducedMotion={reducedMotion}
               />
             )}
 
@@ -372,47 +365,34 @@ export default function InstellingenPage() {
                 onSaveFactor={handleSaveFactor}
                 onCancelEdit={() => setEditingFactor(null)}
                 onResetFactor={handleResetFactor}
-                reducedMotion={reducedMotion}
               />
             )}
 
-            {activeTab === "koppelingen" && (
-              <KoppelingenTab reducedMotion={reducedMotion} />
-            )}
+            {activeTab === "koppelingen" && <KoppelingenTab />}
 
-            {activeTab === "deelfacturen" && (
-              <DeelfactuurTemplatesTab reducedMotion={reducedMotion} />
-            )}
+            {activeTab === "deelfacturen" && <DeelfactuurTemplatesTab />}
 
             {activeTab === "herinneringen" && (
               <HerinneringenTab
-                reducedMotion={reducedMotion}
                 herinneringInstellingen={instellingen?.herinneringInstellingen ?? undefined}
               />
             )}
 
-            {activeTab === "email-templates" && (
-              <EmailTemplatesTab reducedMotion={reducedMotion} />
-            )}
+            {activeTab === "email-templates" && <EmailTemplatesTab />}
 
             {activeTab === "huisstijl" && (
-              <HuisstijlTab
-                reducedMotion={reducedMotion}
-                instellingen={instellingen ?? null}
-              />
+              <HuisstijlTab instellingen={instellingen ?? null} />
             )}
 
             {activeTab === "dagkaart" && (
               <DagkaartTab
-                reducedMotion={reducedMotion}
                 dagkaartInstellingen={
                   instellingen?.dagkaartInstellingen ?? undefined
                 }
               />
             )}
-          </AnimatePresence>
         </Tabs>
-      </m.div>
+      </PaginaReveal>
 
       {/* Normuur Dialog */}
       <NormuurDialog

@@ -9,7 +9,6 @@
  */
 
 import { useState } from "react";
-import { m } from "framer-motion";
 import { useMutation } from "convex/react";
 import { toast } from "sonner";
 import { api } from "@convex/_generated/api";
@@ -35,10 +34,8 @@ interface DagkaartInstellingenWaarden {
 }
 
 export function DagkaartTab({
-  reducedMotion,
   dagkaartInstellingen,
 }: {
-  reducedMotion: boolean | null;
   dagkaartInstellingen?: DagkaartInstellingenWaarden;
 }) {
   const opslaan = useMutation(api.instellingen.updateDagkaartInstellingen);
@@ -70,13 +67,7 @@ export function DagkaartTab({
   };
 
   return (
-    <m.div
-      key="dagkaart"
-      initial={reducedMotion ? {} : { opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={reducedMotion ? {} : { opacity: 0, y: -10 }}
-      transition={{ duration: 0.2 }}
-    >
+    <div>
       <Card>
         <CardHeader>
           <CardTitle>Dagkaart — standaardblokken</CardTitle>
@@ -168,6 +159,6 @@ export function DagkaartTab({
           </Button>
         </CardContent>
       </Card>
-    </m.div>
+    </div>
   );
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { m } from "framer-motion";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { Id } from "../../../../../convex/_generated/dataModel";
@@ -40,7 +39,6 @@ import { LaadRing } from "@/components/ui/laad-indicator";
 // ── Types ───────────────────────────────────────────────────────────
 
 interface HuisstijlTabProps {
-  reducedMotion: boolean;
   instellingen: {
     pdfLogoStorageId?: Id<"_storage">;
     pdfPrimaireKleur?: string;
@@ -129,10 +127,7 @@ const DUMMY_OFFERTE = {
 
 // ── Component ───────────────────────────────────────────────────────
 
-export function HuisstijlTab({
-  reducedMotion,
-  instellingen,
-}: HuisstijlTabProps) {
+export function HuisstijlTab({ instellingen }: HuisstijlTabProps) {
   const updatePdfBranding = useMutation(api.instellingen.updatePdfBranding);
   const generateUploadUrl = useMutation(api.fotoStorage.generateUploadUrl);
   const deleteFile = useMutation(api.fotoStorage.deleteFile);
@@ -402,14 +397,7 @@ export function HuisstijlTab({
   // ── Render ──────────────────────────────────────────────────────
 
   return (
-    <m.div
-      key="huisstijl"
-      initial={reducedMotion ? false : { opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={reducedMotion ? undefined : { opacity: 0, y: -20 }}
-      transition={{ duration: reducedMotion ? 0 : 0.3 }}
-      className="space-y-6"
-    >
+    <div className="space-y-6">
       {/* ── Sectie 1: Logo ──────────────────────────────────────── */}
       <Card>
         <CardHeader>
@@ -711,7 +699,7 @@ export function HuisstijlTab({
           Opslaan...
         </div>
       )}
-    </m.div>
+    </div>
   );
 }
 

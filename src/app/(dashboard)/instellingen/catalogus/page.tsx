@@ -10,7 +10,7 @@
  */
 
 import { useCallback, useMemo, useState } from "react";
-import { m } from "framer-motion";
+import { PaginaReveal } from "@/components/pagina-reveal";
 import { useQuery, useMutation } from "convex/react";
 import { toast } from "sonner";
 import {
@@ -206,12 +206,7 @@ export default function CatalogusPage() {
     <>
       <PageHeader />
 
-      <m.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
-      >
+      <PaginaReveal className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
         <div className="flex items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Catalogus onderhoud</h1>
@@ -357,7 +352,7 @@ export default function CatalogusPage() {
             );
           })
         )}
-      </m.div>
+      </PaginaReveal>
 
       <BouwsteenForm
         open={showForm}

@@ -1,6 +1,5 @@
 "use client";
 
-import { m } from "framer-motion";
 import {
   Card,
   CardContent,
@@ -39,7 +38,6 @@ interface NormurenTabProps {
   isNormurenLoading: boolean | null | undefined;
   onOpenDialog: (normuur?: Normuur) => void;
   onDeleteNormuur: (normuur: Normuur) => void;
-  reducedMotion: boolean;
 }
 
 export function NormurenTab({
@@ -50,16 +48,9 @@ export function NormurenTab({
   isNormurenLoading,
   onOpenDialog,
   onDeleteNormuur,
-  reducedMotion,
 }: NormurenTabProps) {
   return (
-    <m.div
-      key="normuren"
-      initial={reducedMotion ? false : { opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={reducedMotion ? undefined : { opacity: 0, y: -8 }}
-      transition={{ duration: reducedMotion ? 0 : 0.2 }}
-    >
+    <div>
       <TabsContent value="normuren" className="space-y-4" forceMount>
         <Card>
           <CardHeader>
@@ -111,14 +102,8 @@ export function NormurenTab({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredNormuren.map((normuur, index) => (
-                    <m.tr
-                      key={normuur._id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
-                    >
+                  {filteredNormuren.map((normuur) => (
+                    <TableRow key={normuur._id}>
                       <TableCell className="font-medium">
                         {normuur.activiteit}
                       </TableCell>
@@ -156,7 +141,7 @@ export function NormurenTab({
                           </Button>
                         </div>
                       </TableCell>
-                    </m.tr>
+                    </TableRow>
                   ))}
                 </TableBody>
               </Table>
@@ -178,6 +163,6 @@ export function NormurenTab({
           </CardContent>
         </Card>
       </TabsContent>
-    </m.div>
+    </div>
   );
 }

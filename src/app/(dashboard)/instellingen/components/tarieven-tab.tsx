@@ -1,6 +1,5 @@
 "use client";
 
-import { m } from "framer-motion";
 import {
   Card,
   CardContent,
@@ -22,7 +21,6 @@ interface TarievenTabProps {
   setScopeMarges: (marges: ScopeMargesState) => void;
   isSaving: boolean;
   onSave: () => void;
-  reducedMotion: boolean;
 }
 
 export function TarievenTab({
@@ -32,16 +30,9 @@ export function TarievenTab({
   setScopeMarges,
   isSaving,
   onSave,
-  reducedMotion,
 }: TarievenTabProps) {
   return (
-    <m.div
-      key="tarieven"
-      initial={reducedMotion ? false : { opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={reducedMotion ? undefined : { opacity: 0, y: -8 }}
-      transition={{ duration: reducedMotion ? 0 : 0.2 }}
-    >
+    <div>
       <TabsContent value="tarieven" className="space-y-4" forceMount>
         <Card>
           <CardHeader>
@@ -230,6 +221,6 @@ export function TarievenTab({
           </CardContent>
         </Card>
       </TabsContent>
-    </m.div>
+    </div>
   );
 }

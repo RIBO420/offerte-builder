@@ -1,6 +1,5 @@
 "use client";
 
-import { m } from "framer-motion";
 import {
   Card,
   CardContent,
@@ -46,7 +45,6 @@ interface FactorenTabProps {
   onSaveFactor: () => void;
   onCancelEdit: () => void;
   onResetFactor: (factor: Correctiefactor) => void;
-  reducedMotion: boolean;
 }
 
 export function FactorenTab({
@@ -63,16 +61,9 @@ export function FactorenTab({
   onSaveFactor,
   onCancelEdit,
   onResetFactor,
-  reducedMotion,
 }: FactorenTabProps) {
   return (
-    <m.div
-      key="factoren"
-      initial={reducedMotion ? false : { opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={reducedMotion ? undefined : { opacity: 0, y: -8 }}
-      transition={{ duration: reducedMotion ? 0 : 0.2 }}
-    >
+    <div>
       <TabsContent value="factoren" className="space-y-4" forceMount>
         <Card>
           <CardHeader>
@@ -114,14 +105,8 @@ export function FactorenTab({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredFactoren.map((factor, index) => (
-                    <m.tr
-                      key={factor._id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
-                    >
+                  {filteredFactoren.map((factor) => (
+                    <TableRow key={factor._id}>
                       <TableCell className="font-medium">
                         {typeLabels[factor.type] || factor.type}
                       </TableCell>
@@ -218,7 +203,7 @@ export function FactorenTab({
                           )}
                         </div>
                       </TableCell>
-                    </m.tr>
+                    </TableRow>
                   ))}
                 </TableBody>
               </Table>
@@ -233,6 +218,6 @@ export function FactorenTab({
           </CardContent>
         </Card>
       </TabsContent>
-    </m.div>
+    </div>
   );
 }
