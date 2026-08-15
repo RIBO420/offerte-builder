@@ -113,7 +113,7 @@ export function WerkbankPalet({
                     {mist && (
                       <span
                         title="Nog gegevens nodig"
-                        className="size-1.5 shrink-0 rounded-full bg-chart-2"
+                        className="size-1.5 shrink-0 rounded-full bg-scope-houtwerk"
                       />
                     )}
                   </span>

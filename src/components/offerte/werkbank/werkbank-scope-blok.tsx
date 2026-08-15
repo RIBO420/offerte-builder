@@ -72,7 +72,7 @@ export function WerkbankScopeBlok({
         <span
           className={cn(
             "shrink-0 text-[11px] leading-4",
-            compleet ? "text-muted-foreground" : "text-chart-2"
+            compleet ? "text-muted-foreground" : "text-scope-houtwerk"
           )}
         >
           {compleet

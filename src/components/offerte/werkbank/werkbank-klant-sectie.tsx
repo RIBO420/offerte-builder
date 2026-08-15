@@ -90,7 +90,7 @@ export function WerkbankKlantSectie({
                 {adresregel}
               </p>
             ) : (
-              <p className="mt-0.5 text-xs leading-tight text-chart-2">
+              <p className="mt-0.5 text-xs leading-tight text-scope-houtwerk">
                 Nog geen adres — vul dat aan vóór je de offerte verstuurt.
               </p>
             )}
