@@ -21,6 +21,10 @@ const eslintConfig = defineConfig([
     "test-results/**",
     // Mobile heeft een eigen Expo-eslint-config (mobile/eslint.config.js):
     "mobile/**",
+    // Kortlevend Clerk-ticket van `npm run dev:login` (JSON, gitignored) —
+    // eslint leest .gitignore niet en struikelt anders zodra iemand inlogt.
+    // Bewust niet heel public/**: sw.js is handgeschreven en blijft gelint.
+    "public/dev-login-ticket.js",
   ]),
   {
     plugins: {
