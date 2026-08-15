@@ -325,72 +325,72 @@ export default function InstellingenPage() {
           </TabsList>
 
           {activeTab === "tarieven" && (
-              <TarievenTab
-                tarieven={tarieven}
-                setTarieven={setTarieven}
-                scopeMarges={scopeMarges}
-                setScopeMarges={setScopeMarges}
-                isSaving={isSaving}
-                onSave={handleSaveTarieven}
-              />
-            )}
+            <TarievenTab
+              tarieven={tarieven}
+              setTarieven={setTarieven}
+              scopeMarges={scopeMarges}
+              setScopeMarges={setScopeMarges}
+              isSaving={isSaving}
+              onSave={handleSaveTarieven}
+            />
+          )}
 
-            {activeTab === "normuren" && (
-              <NormurenTab
-                filteredNormuren={filteredNormuren as Normuur[]}
-                scopes={scopes}
-                activeScope={activeScope}
-                setActiveScope={setActiveScope}
-                isNormurenLoading={isNormurenLoading}
-                onOpenDialog={handleOpenNormuurDialog}
-                onDeleteNormuur={(normuur) => {
-                  setNormuurToDelete(normuur);
-                  setShowDeleteNormuurDialog(true);
-                }}
-              />
-            )}
+          {activeTab === "normuren" && (
+            <NormurenTab
+              filteredNormuren={filteredNormuren as Normuur[]}
+              scopes={scopes}
+              activeScope={activeScope}
+              setActiveScope={setActiveScope}
+              isNormurenLoading={isNormurenLoading}
+              onOpenDialog={handleOpenNormuurDialog}
+              onDeleteNormuur={(normuur) => {
+                setNormuurToDelete(normuur);
+                setShowDeleteNormuurDialog(true);
+              }}
+            />
+          )}
 
-            {activeTab === "factoren" && (
-              <FactorenTab
-                filteredFactoren={filteredFactoren as Correctiefactor[]}
-                types={types}
-                activeType={activeType}
-                setActiveType={setActiveType}
-                isFactorenLoading={isFactorenLoading}
-                editingFactor={editingFactor}
-                factorValue={factorValue}
-                setFactorValue={setFactorValue}
-                isSaving={isSaving}
-                onEditFactor={handleEditFactor}
-                onSaveFactor={handleSaveFactor}
-                onCancelEdit={() => setEditingFactor(null)}
-                onResetFactor={handleResetFactor}
-              />
-            )}
+          {activeTab === "factoren" && (
+            <FactorenTab
+              filteredFactoren={filteredFactoren as Correctiefactor[]}
+              types={types}
+              activeType={activeType}
+              setActiveType={setActiveType}
+              isFactorenLoading={isFactorenLoading}
+              editingFactor={editingFactor}
+              factorValue={factorValue}
+              setFactorValue={setFactorValue}
+              isSaving={isSaving}
+              onEditFactor={handleEditFactor}
+              onSaveFactor={handleSaveFactor}
+              onCancelEdit={() => setEditingFactor(null)}
+              onResetFactor={handleResetFactor}
+            />
+          )}
 
-            {activeTab === "koppelingen" && <KoppelingenTab />}
+          {activeTab === "koppelingen" && <KoppelingenTab />}
 
-            {activeTab === "deelfacturen" && <DeelfactuurTemplatesTab />}
+          {activeTab === "deelfacturen" && <DeelfactuurTemplatesTab />}
 
-            {activeTab === "herinneringen" && (
-              <HerinneringenTab
-                herinneringInstellingen={instellingen?.herinneringInstellingen ?? undefined}
-              />
-            )}
+          {activeTab === "herinneringen" && (
+            <HerinneringenTab
+              herinneringInstellingen={instellingen?.herinneringInstellingen ?? undefined}
+            />
+          )}
 
-            {activeTab === "email-templates" && <EmailTemplatesTab />}
+          {activeTab === "email-templates" && <EmailTemplatesTab />}
 
-            {activeTab === "huisstijl" && (
-              <HuisstijlTab instellingen={instellingen ?? null} />
-            )}
+          {activeTab === "huisstijl" && (
+            <HuisstijlTab instellingen={instellingen ?? null} />
+          )}
 
-            {activeTab === "dagkaart" && (
-              <DagkaartTab
-                dagkaartInstellingen={
-                  instellingen?.dagkaartInstellingen ?? undefined
-                }
-              />
-            )}
+          {activeTab === "dagkaart" && (
+            <DagkaartTab
+              dagkaartInstellingen={
+                instellingen?.dagkaartInstellingen ?? undefined
+              }
+            />
+          )}
         </Tabs>
       </PaginaReveal>
 
