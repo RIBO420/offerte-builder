@@ -349,6 +349,12 @@ export function KlantTakenCard({ klantId }: KlantTakenCardProps) {
    */
   const openViaRegel = (event: React.MouseEvent<HTMLDivElement>) => {
     const doel = event.target as Element | null;
+    // Portalinhoud (select-menu's) borrelt via de React-boom hierheen maar
+    // zit niet in de regel-DOM; focus stelen sluit dan het open menu vóór de
+    // keuze landt (zelfde valkuil als de dagstaat-klantkiezer, 16 aug).
+    if (doel && !event.currentTarget.contains(doel)) {
+      return;
+    }
     // Eigen controls houden hun eigen gedrag (knoppen, selects, tekstvelden).
     if (doel?.closest("button, input, textarea, select, a, [role='combobox']")) {
       return;

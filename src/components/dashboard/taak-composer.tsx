@@ -277,6 +277,14 @@ export function DagstaatTaakComposer({
    */
   const openViaRegel = (event: React.MouseEvent<HTMLDivElement>) => {
     const doel = event.target as Element | null;
+    // Portalinhoud (de klantkiezer-popover, select-menu's) borrelt via de
+    // Réact-boom naar deze handler maar zit niet in de regel-DOM. Zonder deze
+    // check steelt preventDefault+focus de klik: Radix ziet de focus buiten
+    // de popover en sluit hem vóór de keuze landt — een aangeklikt
+    // zoekresultaat ging zo verloren (melding 16 aug).
+    if (doel && !event.currentTarget.contains(doel)) {
+      return;
+    }
     if (doel?.closest("button, input, textarea, select, a, [role='combobox']")) {
       return;
     }

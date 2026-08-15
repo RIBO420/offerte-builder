@@ -65,7 +65,15 @@ vi.mock("@/hooks/use-klanten", () => ({
     ],
     recentKlanten: [],
   }),
-  useKlantenSearch: () => ({ results: [], isLoading: false }),
+  // Gedraagt zich als de echte zoekindex: pas resultaten bij een term, en
+  // die resultaten hoeven NIET in de gewone lijst te staan (het gemelde
+  // geval: een gezochte klant buiten de eerste acht).
+  useKlantenSearch: (term: string) => ({
+    results: term.trim().toLowerCase().includes("weller")
+      ? [{ _id: "k9", naam: "Stichting Weller Wonen", plaats: "Heerlen" }]
+      : [],
+    isLoading: false,
+  }),
 }));
 
 vi.mock("@/lib/toast-utils", () => ({
@@ -149,6 +157,34 @@ describe("Mijn taken: de composer klapt open", () => {
       expect(screen.getByPlaceholderText("Zoek klant…")).toBeInTheDocument()
     );
     expect(regel.getAttribute("data-open")).toBe("true");
+  });
+});
+
+describe("Mijn taken: de klantkiezer", () => {
+  it("kiest ook een klant die via zoeken gevonden is (melding 16 aug)", async () => {
+    const gebruiker = userEvent.setup();
+    await toonBlok([]);
+
+    const regel = composerRegel();
+    await gebruiker.click(regel);
+    await waitFor(() => expect(regel.getAttribute("data-open")).toBe("true"));
+
+    await gebruiker.click(screen.getByRole("combobox", { name: "Klant kiezen" }));
+    const zoekveld = await screen.findByPlaceholderText("Zoek klant…");
+    await gebruiker.type(zoekveld, "Weller");
+
+    // Bewust userEvent (volledige pointer-reeks): precies die reeks liet de
+    // keuze verloren gaan doordat het regel-klikvlak de focus stal.
+    const resultaat = await screen.findByText("Stichting Weller Wonen");
+    await gebruiker.click(resultaat);
+
+    // De keuze moet landen op de kiezer-knop; blijft hij op "Klant kiezen"
+    // staan, dan is de klik op een zoekresultaat verloren gegaan.
+    await waitFor(() =>
+      expect(
+        screen.getByRole("combobox", { name: "Klant kiezen" })
+      ).toHaveTextContent("Stichting Weller Wonen")
+    );
   });
 });
 
