@@ -24,6 +24,26 @@ interface NumberInputProps
   roundToStep?: boolean;
 }
 
+/**
+ * Haalt de voorloopnul weg zodra er een cijfer achter komt.
+ *
+ * Het veld start op de default (meestal `0`) en die staat niet geselecteerd, dus
+ * wie "50" typt ziet "050" tot hij het veld verlaat. Het veld is bewust
+ * `type="text"` + `inputmode="decimal"` (zie CLAUDE.md), dus de browser doet dit
+ * niet voor ons.
+ *
+ * Wat blijft staan: "0" zelf, "0." en "0.5" — daar volgt geen cijfer direct op de
+ * nul, en die tussenstappen zijn nodig om een decimaal te kunnen typen. "-05"
+ * wordt "-5". De regex laat één nul staan zodra de rest met een punt begint
+ * ("00.5" → "0.5"), zodat een dubbele tik nooit "0.5" tot ".5" verminkt.
+ */
+function zonderVoorloopnul(invoer: string): string {
+  const negatief = invoer.startsWith("-");
+  const cijfers = negatief ? invoer.slice(1) : invoer;
+  const geschoond = cijfers.replace(/^0+(?=\d)/, "");
+  return negatief ? `-${geschoond}` : geschoond;
+}
+
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = React.useState<T>(value);
 
@@ -96,7 +116,7 @@ const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
       const newValue = e.target.value;
       // Allow empty, numbers, and decimal point
       if (newValue === "" || /^-?\d*\.?\d*$/.test(newValue)) {
-        setInternalValue(newValue);
+        setInternalValue(zonderVoorloopnul(newValue));
       }
     };
 
