@@ -182,7 +182,7 @@ function VrijeOfferteEditor({
           <p className="text-muted-foreground">
             {offerte.type === "aanleg"
               ? "Aanleg — eenmalig werk of maatwerk"
-              : "Onderhoud"}
+              : "Onderhoud — terugkerend werk"}
           </p>
         </div>
         <div className="flex items-center gap-2">
