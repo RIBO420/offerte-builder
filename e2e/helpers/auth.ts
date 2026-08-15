@@ -103,16 +103,15 @@ export async function navigateToOffertes(page: Page): Promise<void> {
 }
 
 /**
- * Navigate to a new aanleg offerte wizard.
+ * Open het werkblad voor een aanleg-offerte (fase B: geen wizard meer —
+ * bij binnenkomst bestaat het concept al).
  */
 export async function navigateToNieuweAanleg(page: Page): Promise<void> {
   await page.goto('/offertes/nieuw/aanleg');
   await page.waitForLoadState('networkidle');
 }
 
-/**
- * Navigate to a new onderhoud offerte wizard.
- */
+/** Open het werkblad voor een onderhoud-offerte. */
 export async function navigateToNieuwOnderhoud(page: Page): Promise<void> {
   await page.goto('/offertes/nieuw/onderhoud');
   await page.waitForLoadState('networkidle');
@@ -157,173 +156,34 @@ export async function waitForConvexData(
 // ---------------------------------------------------------------------------
 
 /**
- * Fill in the klant (customer) data manually in the wizard form.
+ * Koppel een klant in het werkblad.
+ *
+ * Het werkblad heeft geen losse naam/adres-velden meer: je kiest een klant
+ * (of lead) uit de lijst, precies zoals kantoor dat doet. Daarom pakt deze
+ * helper de eerste klant uit "Recente klanten".
  */
-export async function fillKlantData(
+export async function koppelEersteKlant(page: Page): Promise<string | null> {
+  const sectie = page.locator("#werkbank-klant");
+  await sectie.getByRole("combobox").first().click();
+  const eerste = page.getByRole("option").first();
+  await eerste.waitFor({ state: "visible", timeout: 10_000 });
+  const naam = await eerste.textContent();
+  await eerste.click();
+  return naam?.trim() ?? null;
+}
+
+/**
+ * Zet een scope in het document via het palet (of haal hem eruit).
+ * De knop draagt de lettertoets en de scopenaam.
+ */
+export async function kiesScopeInPalet(
   page: Page,
-  data: {
-    naam: string;
-    adres: string;
-    postcode: string;
-    plaats: string;
-    email?: string;
-    telefoon?: string;
-  },
+  scopeNaam: string,
 ): Promise<void> {
-  // Fill in the required customer fields
-  const naamInput = page
-    .locator('input[name="naam"], label:has-text("Naam") + input, label:has-text("Naam") ~ input')
-    .first();
-  await naamInput.fill(data.naam);
-
-  const adresInput = page
-    .locator('input[name="adres"], label:has-text("Adres") + input, label:has-text("Adres") ~ input')
-    .first();
-  await adresInput.fill(data.adres);
-
-  const postcodeInput = page
-    .locator(
-      'input[name="postcode"], label:has-text("Postcode") + input, label:has-text("Postcode") ~ input',
-    )
-    .first();
-  await postcodeInput.fill(data.postcode);
-
-  const plaatsInput = page
-    .locator(
-      'input[name="plaats"], label:has-text("Plaats") + input, label:has-text("Plaats") ~ input',
-    )
-    .first();
-  await plaatsInput.fill(data.plaats);
-
-  if (data.email) {
-    const emailInput = page
-      .locator(
-        'input[name="email"], label:has-text("Email") + input, label:has-text("E-mail") ~ input',
-      )
-      .first();
-    await emailInput.fill(data.email);
-  }
-
-  if (data.telefoon) {
-    const telefoonInput = page
-      .locator(
-        'input[name="telefoon"], label:has-text("Telefoon") + input, label:has-text("Telefoon") ~ input',
-      )
-      .first();
-    await telefoonInput.fill(data.telefoon);
-  }
-}
-
-/**
- * Click the "Volgende" (Next) button in a wizard step.
- *
- * The button text varies by step:
- * - Garantie step: "Volgende"
- * - AanlegNavigation: "Volgende: Scope Details", "Volgende: Garantie", etc.
- */
-export async function clickVolgende(page: Page): Promise<void> {
-  const button = page.locator('button:has-text("Volgende")').first();
-  await button.click();
-}
-
-/**
- * Click the "Vorige" / "Terug" (Previous) button in a wizard step.
- *
- * The button text varies by step:
- * - Garantie step: "Vorige"
- * - AanlegNavigation: "Terug", "Terug naar Template", "Terug naar Scope Details", etc.
- */
-export async function clickVorige(page: Page): Promise<void> {
-  const button = page.locator('button:has-text("Vorige")').or(
-    page.locator('button:has-text("Terug")')
-  ).first();
-  await button.click();
-}
-
-/**
- * Select a scope by clicking on it (checkbox-style toggle).
- *
- * Aanleg wizard: wrapping div has role="checkbox" with scope name text inside.
- * Onderhoud wizard: wrapping div contains a shadcn Checkbox + Label with scope name.
- *
- * This helper tries both patterns.
- */
-export async function selectScope(page: Page, scopeNaam: string): Promise<void> {
-  // First try: aanleg pattern — div[role="checkbox"] that contains the scope name
-  const aanlegScope = page.locator(`[role="checkbox"]:has-text("${scopeNaam}")`);
-  if (await aanlegScope.first().isVisible().catch(() => false)) {
-    await aanlegScope.first().click();
-    return;
-  }
-
-  // Second try: onderhoud pattern — click the wrapping div that contains the scope label
-  const onderhoudScope = page.locator(`label:has-text("${scopeNaam}")`).first();
-  if (await onderhoudScope.isVisible().catch(() => false)) {
-    await onderhoudScope.click();
-    return;
-  }
-
-  // Fallback: click any element containing the scope name text
-  await page.getByText(scopeNaam, { exact: true }).first().click();
-}
-
-/**
- * Fill all visible number inputs on the scope details step with a default value.
- * This ensures scope validation passes so the "Volgende" button becomes enabled.
- *
- * Note: NumberInput/AreaInput components render type="text" with inputMode="decimal",
- * not type="number". We target both patterns plus known scope input IDs.
- */
-export async function fillAllNumberInputs(page: Page, value = '100'): Promise<void> {
-  // NumberInput renders type="text" with inputMode="decimal"
-  const numberInputs = page.locator('input[type="number"], input[inputmode="decimal"]');
-  const inputCount = await numberInputs.count();
-  for (let i = 0; i < inputCount; i++) {
-    const input = numberInputs.nth(i);
-    if (await input.isVisible()) {
-      const currentValue = await input.inputValue();
-      if (currentValue === '0' || currentValue === '') {
-        await input.fill(value);
-        await input.blur();
-      }
-    }
-  }
-  // Allow time for debounced onChange (300ms) + form state update
-  await page.waitForTimeout(500);
-}
-
-/**
- * Click the "Volgende" button, waiting for it to become enabled first.
- * This is useful after filling scope detail forms where validation
- * may take a moment to update.
- */
-export async function clickVolgendeWhenReady(page: Page): Promise<void> {
-  const button = page.locator('button:has-text("Volgende")').first();
-  // Wait for the button to become enabled (validation passes)
-  await button.waitFor({ state: 'visible', timeout: 10_000 });
-  // Some scope forms need time for validation to update
-  await page.waitForTimeout(500);
-  // If button is still disabled, try filling any remaining empty number inputs
-  if (await button.isDisabled()) {
-    await fillAllNumberInputs(page, '50');
-    await page.waitForTimeout(500);
-  }
-  await button.click();
-}
-
-/**
- * Generate unique test klant data for use in wizard flows.
- */
-export function getTestKlantData() {
-  const timestamp = Date.now();
-  return {
-    naam: `E2E Test Klant ${timestamp}`,
-    adres: 'Teststraat 123',
-    postcode: '1234 AB',
-    plaats: 'Teststad',
-    email: `test-${timestamp}@example.com`,
-    telefoon: '0612345678',
-  };
+  await page
+    .getByRole("button", { name: new RegExp(scopeNaam, "i") })
+    .first()
+    .click();
 }
 
 // ---------------------------------------------------------------------------

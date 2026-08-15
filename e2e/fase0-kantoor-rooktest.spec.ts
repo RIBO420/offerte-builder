@@ -12,13 +12,7 @@
  */
 
 import { test, expect, type Page } from "@playwright/test";
-import {
-  login,
-  fillKlantData,
-  selectScope,
-  clickVolgende,
-  getTestKlantData,
-} from "./helpers/auth";
+import { login, kiesScopeInPalet } from "./helpers/auth";
 
 const consoleFouten: { pagina: string; melding: string }[] = [];
 let huidigePagina = "login";
@@ -126,54 +120,34 @@ test("fase 0 kantoor-rooktest: alle pagina's + archiveer/herstel", async ({
     ).toBeVisible({ timeout: 15_000 });
   });
 
-  await test.step("wizard: autosave-indicator + concept-testrecord", async () => {
-    // Het e2e-account heeft geen eigen offertes (data is user-scoped);
-    // maak via de onderhoud-wizard één concept aan. De autosave (§5.3a)
-    // slaat dit op en toont de indicator — dat concept is meteen het
-    // testrecord voor de archiveer/herstel-stap hieronder.
-    await gaNaar(page, "/offertes/nieuw/onderhoud", "onderhoud-wizard");
-    await page
-      .getByRole("button", { name: "Start vanaf nul" })
-      .click({ timeout: 20_000 });
-    const klantData = getTestKlantData();
-    await fillKlantData(page, klantData);
-    await selectScope(page, "Gras onderhoud");
-    await clickVolgende(page);
-    await expect(page.getByText("Stap 3 van 4")).toBeVisible({
-      timeout: 15_000,
-    });
-    // Autosave-indicator: "Auto-save aan" direct, "Concept opgeslagen om HH:mm"
-    // zodra de autosave heeft gedraaid.
-    await expect(
-      page.getByText(/Concept opgeslagen om|Auto-save aan/).first()
-    ).toBeVisible({ timeout: 15_000 });
-    await expect
-      .soft(
-        page.getByText(/Concept opgeslagen om/).first(),
-        "autosave heeft het concept opgeslagen (indicator met timestamp)"
-      )
-      .toBeVisible({ timeout: 45_000 });
+  await test.step("werkblad: concept bestaat meteen + autosave-indicator", async () => {
+    // Het e2e-account heeft geen eigen offertes (data is user-scoped). Sinds
+    // fase B hoeft daar geen wizard meer voor doorlopen te worden: het
+    // werkblad maakt bij binnenkomst zelf een concept aan — dat concept is
+    // meteen het testrecord voor de archiveer/herstel-stap hieronder.
+    await gaNaar(page, "/offertes/nieuw/onderhoud", "werkblad-onderhoud");
 
-    // Wizard afmaken zodat er een echt offerte-record bestaat voor de
-    // archiveer/herstel-stap (autosave is een lokale draft, geen record).
+    const kop = page.getByRole("heading", { level: 1 });
+    await expect(kop).toContainText(/OFF-\d{4}-\d+/, { timeout: 30_000 });
+    nieuwOfferteNummer =
+      (await kop.textContent())?.match(/OFF-\d{4}-\d+/)?.[0] ?? "";
+    expect(nieuwOfferteNummer.length).toBeGreaterThan(0);
+    console.log(`[rooktest] concept-offerte aangemaakt: ${nieuwOfferteNummer}`);
+
+    // Een wijziging in het document moet zichzelf opslaan (§5.3a): de
+    // indicator gaat van "Alles wordt automatisch bewaard" naar een tijdstip.
+    await kiesScopeInPalet(page, "Gras onderhoud");
     const grasInput = page.locator('input[inputmode="decimal"]').first();
     await grasInput.click();
     await grasInput.fill("100");
     await grasInput.blur();
-    await page.waitForTimeout(500);
-    await clickVolgende(page);
-    await expect(page.getByText("Stap 4 van 4: Bevestigen")).toBeVisible({
-      timeout: 15_000,
-    });
-    await page.getByRole("button", { name: "Offerte Aanmaken" }).click();
-    // Succes-dialoog: "Offerte OFF-XXXX-XXX aangemaakt!"
-    const succesHeading = page.getByRole("heading", { name: /aangemaakt!/i });
-    await expect(succesHeading).toBeVisible({ timeout: 30_000 });
-    const succesTekst = (await succesHeading.textContent()) ?? "";
-    nieuwOfferteNummer =
-      succesTekst.match(/Offerte\s+(\S+)\s+aangemaakt/i)?.[1] ?? "";
-    expect(nieuwOfferteNummer.length).toBeGreaterThan(0);
-    console.log(`[rooktest] concept-offerte aangemaakt: ${nieuwOfferteNummer}`);
+
+    await expect
+      .soft(
+        page.getByText(/Opgeslagen om/).first(),
+        "autosave heeft het concept opgeslagen (indicator met tijdstip)"
+      )
+      .toBeVisible({ timeout: 45_000 });
   });
 
   await test.step("/archief: Recent gearchiveerd", async () => {

@@ -10,7 +10,8 @@
  * - /instellingen/tekstblokken
  * - /contracten/nieuw (bouwsteen-kiezer, jaarprijs/maandbedrag, facturatie)
  * - klant-detail onderhoud-sectie (contracten + losse beurten)
- * - offerte-wizard stap Bouwstenen (tegels, live doorrekening, zand-keuze)
+ * - werkblad onderhoud: sectie Onderhoudscontract (tegels, live doorrekening,
+ *   zand-keuze)
  * - /offertes/nieuw/vrij + regel-editor (picker, marge↔verkoop, overzichts-
  *   blok, tekstblok-kiezer)
  * - /leveranciers (import-dialoog opent)
@@ -20,7 +21,7 @@
  */
 
 import { test, expect, type Page } from "@playwright/test";
-import { login, fillKlantData, getTestKlantData } from "./helpers/auth";
+import { login } from "./helpers/auth";
 
 const consoleFouten: { pagina: string; melding: string }[] = [];
 let huidigePagina = "login";
@@ -128,37 +129,19 @@ test("fase 1 rooktest: nieuwe offerte-schermen", async ({ page }) => {
     ).toBeVisible();
   });
 
-  await test.step("offerte-wizard stap Bouwstenen: tegels + doorrekening + zand", async () => {
-    await gaNaar(page, "/offertes/nieuw/onderhoud", "wizard-onderhoud");
-    // Stap 1 is altijd Snelstart: expliciet wachten en doorklikken — een
-    // stille if-check liet de test eerder op stap 1 achter, waarna
-    // fillKlantData een naam-veld zocht dat daar niet bestaat.
-    const startKnop = page.getByRole("button", { name: /start vanaf nul/i });
-    await expect(startKnop).toBeVisible({ timeout: 20_000 });
-    await startKnop.click();
-    await expect(page.getByText(/Stap 2 van \d+/)).toBeVisible({
-      timeout: 20_000,
+  await test.step("werkblad onderhoud: sectie Onderhoudscontract", async () => {
+    // Fase B: geen wizard meer. Het werkblad maakt bij binnenkomst zelf een
+    // concept aan en het onderhoudscontract is een sectie in het document —
+    // geen stap waar je eerst vier schermen voor door moet klikken.
+    await gaNaar(page, "/offertes/nieuw/onderhoud", "werkblad-onderhoud");
+    await expect(page.getByText("Werkblad · Onderhoud")).toBeVisible({
+      timeout: 30_000,
     });
-    await fillKlantData(page, getTestKlantData());
-    // "Volgende: Details" blijft disabled tot er minstens één
-    // werkzaamheid is aangevinkt. Kies Reiniging: die scope heeft geen
-    // verplichte detailvelden op stap 3 (gras zou daar blokkeren op
-    // oppervlakte > 0) én raakt de reinigingsreceptuur in de Bouwstenen-stap.
-    await page.getByRole("checkbox", { name: /^reiniging/i }).check();
-    // Doorklikken tot de Bouwstenen-stap zichtbaar is (max 4 stappen)
-    for (let i = 0; i < 4; i++) {
-      const opBouwstenen = await page
-        .getByText(/Stap \d+ van \d+: Bouwstenen/)
-        .isVisible()
-        .catch(() => false);
-      if (opBouwstenen) break;
-      await page.getByRole("button", { name: /volgende/i }).click();
-      await page.waitForTimeout(1_500);
-    }
-    await expect(page.getByText(/Stap \d+ van \d+: Bouwstenen/)).toBeVisible({
-      timeout: 20_000,
-    });
-    // Pakket-tegels bovenin (bijlage A)
+    await expect(
+      page.getByRole("heading", { name: "Onderhoudscontract" })
+    ).toBeVisible({ timeout: 20_000 });
+
+    // Pakket-tegels (bijlage A)
     await expect(page.getByText(/compleet/i).first()).toBeVisible();
     // Live doorrekening: zet een bouwsteen aan → jaarprijs/maandbedrag vullen
     const eersteSwitch = page.getByRole("switch", { name: / aan\/uit$/ });
@@ -175,7 +158,7 @@ test("fase 1 rooktest: nieuwe offerte-schermen", async ({ page }) => {
       ).toBeVisible();
       await expect(page.getByText("Straatzand").first()).toBeVisible();
     }
-    // Wizard verlaten zonder op te slaan
+    // Het werkblad verlaten; het concept blijft als offerte bestaan.
     await gaNaar(page, "/offertes", "offertes");
   });
 
