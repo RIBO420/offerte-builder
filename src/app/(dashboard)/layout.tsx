@@ -14,6 +14,7 @@ import { ShortcutsProvider } from "@/components/providers/shortcuts-provider";
 import { CommandPalette } from "@/components/command-palette";
 import { GlobalShortcutsHelp } from "@/components/global-shortcuts-help";
 import { NewOfferteDialog } from "@/components/new-offerte-dialog";
+import { TemplatesSheet } from "@/components/offerte/templates-sheet";
 import { SequenceKeyIndicator } from "@/components/sequence-key-indicator";
 import { PageTransition } from "@/components/page-transition";
 import { NavigationProgress } from "@/components/ui/navigation-progress";
@@ -45,6 +46,9 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           <CommandPalette />
           <GlobalShortcutsHelp />
           <NewOfferteDialog />
+          {/* Derde ingang van het entree-menu; net als de dialog één instantie,
+              zodat elke "Nieuwe offerte"-knop dezelfde Sheet opent. */}
+          <TemplatesSheet />
           <SequenceKeyIndicator />
         </SidebarProvider>
       </ShortcutsProvider>

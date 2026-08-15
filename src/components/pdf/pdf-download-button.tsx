@@ -38,7 +38,8 @@ interface Offerte {
   offerteNummer: string;
   type: "aanleg" | "onderhoud";
   status: string;
-  klant: {
+  // Optioneel: een concept mag zonder klant bestaan (offerte-entree A3).
+  klant?: {
     naam: string;
     adres: string;
     postcode: string;
@@ -93,7 +94,8 @@ export function PDFDownloadButton({
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `${offerte.offerteNummer}-${offerte.klant.naam.replace(/\s+/g, "-")}.pdf`;
+      const klantDeel = (offerte.klant?.naam ?? "zonder-klant").replace(/\s+/g, "-");
+      link.download = `${offerte.offerteNummer}-${klantDeel}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -110,7 +112,7 @@ export function PDFDownloadButton({
         operationName: "pdf-generation",
         extra: {
           offerteNummer: offerte.offerteNummer,
-          klantNaam: offerte.klant.naam,
+          klantNaam: offerte.klant?.naam,
           regelsCount: offerte.regels.length,
         },
       });

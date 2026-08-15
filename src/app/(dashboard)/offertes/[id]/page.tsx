@@ -11,6 +11,7 @@ import { FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/format";
 import { SaveAsTemplateDialog } from "@/components/offerte/save-as-template-dialog";
+import { KlantKoppelStrip } from "@/components/offerte/klant-koppel-strip";
 import { OfferteWorkflowStepper } from "@/components/offerte/offerte-workflow-stepper";
 import { EngagementTimeline } from "@/components/offerte/engagement-timeline";
 import { useQuery } from "convex/react";
@@ -325,7 +326,19 @@ export default function OfferteDetailPage({
         >
           {/* Left column - Details */}
           <div className="space-y-4 lg:col-span-2">
-            {offerte.klant && <KlantDetailsCard klant={offerte.klant} />}
+            {offerte.klant ? (
+              <KlantDetailsCard klant={offerte.klant} />
+            ) : (
+              /* Een concept mag zonder klant bestaan (bv. gestart vanuit een
+                 template of als vrije offerte). Dan hoort hier geen gat te
+                 vallen maar de plek waar je hem koppelt — vóórdat de statusknop
+                 hem alsnog eist. */
+              <KlantKoppelStrip
+                offerteId={id as Id<"offertes">}
+                klant={null}
+                status={offerte.status}
+              />
+            )}
             <ScopesCard scopes={offerte.scopes} algemeenParams={offerte.algemeenParams} />
             <OfferteRegelsCard regels={offerte.regels} id={id} />
             <NotitiesCard notities={offerte.notities} />

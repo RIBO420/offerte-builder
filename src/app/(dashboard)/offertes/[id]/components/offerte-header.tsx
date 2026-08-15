@@ -284,7 +284,7 @@ export function OfferteHeader({
             </DropdownMenuItem>
             <DropdownMenuItem onClick={onShowTemplateDialog}>
               <BookmarkPlus className="mr-2 h-4 w-4" />
-              Opslaan als Template
+              Opslaan als template
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link href={`/offertes/${id}/history`}>

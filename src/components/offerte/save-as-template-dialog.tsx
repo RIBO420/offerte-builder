@@ -94,7 +94,7 @@ export function SaveAsTemplateDialog({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Opslaan als Template</DialogTitle>
+          <DialogTitle>Opslaan als template</DialogTitle>
           <DialogDescription>
             Sla deze offerte op als herbruikbare template. De klantgegevens
             worden niet meegenomen, alleen de scopes en instellingen.
@@ -109,10 +109,10 @@ export function SaveAsTemplateDialog({
                 name="naam"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Template Naam *</FormLabel>
+                    <FormLabel>Naam</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder={`Bijv. "${offerte.klant.naam} tuin stijl"`}
+                        placeholder={`Bijv. "${offerte.klant.naam?.trim() || "Strakke stadstuin"}"`}
                         disabled={isSaving}
                         {...field}
                       />
@@ -130,7 +130,7 @@ export function SaveAsTemplateDialog({
                     <FormLabel>Omschrijving</FormLabel>
                     <FormControl>
                       <Textarea
-                        placeholder="Optionele beschrijving van deze template..."
+                        placeholder="Waarvoor gebruik je dit sjabloon?"
                         disabled={isSaving}
                         rows={3}
                         {...field}

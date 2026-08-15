@@ -1,208 +1,80 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useMutation } from "convex/react";
-import { PenLine, ArrowRight, Loader2, UserPlus } from "lucide-react";
-import { toast } from "sonner";
+import { useCallback, useEffect, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Loader2, PenLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { PageHeader } from "@/components/page-header";
-import {
-  NieuweKlantDialog,
-  type AangemaakteKlant,
-} from "@/components/klanten/nieuwe-klant-dialog";
-import { useKlanten } from "@/hooks/use-klanten";
-import { api } from "../../../../../../convex/_generated/api";
+import { useNieuweVrijeOfferte } from "@/hooks/use-nieuwe-vrije-offerte";
 import type { Id } from "../../../../../../convex/_generated/dataModel";
 
 /**
- * Route 2 — vrije offerte (PRD §2.5b): klant kiezen, dan door naar de
- * regel-editor. De offerte wordt direct als concept aangemaakt zodat de
- * editor op een bestaand offerte-record werkt (zelfde record en zelfde
- * PDF-template als de wizards — "twee routes, één uitgang").
+ * Route 2 — vrije offerte. Dit was een tussenscherm waarin je eerst een klant
+ * en een soort werk koos; sinds de klant optioneel is bij concept (masterplan
+ * A3) is dat scherm overbodig. Wat overblijft is een doorgeefluik: de offerte
+ * wordt meteen aangemaakt en je landt in de regel-editor, waar "Klant koppelen"
+ * bovenin staat.
+ *
+ * Daarmee is meteen de `?klantId=`-bug weg: die parameter kwam hier binnen maar
+ * werd nooit gelezen, dus vanuit een klantdossier raakte je de klant kwijt.
+ *
+ * Parameters: `?klantId=` (klant uit het dossier) en `?type=onderhoud` (TT-004;
+ * standaard `aanleg` — eenmalig werk en maatwerk).
  */
 export default function NieuweVrijeOffertePage() {
   const router = useRouter();
-  const { klanten, isLoading } = useKlanten();
-  const getNextOfferteNummer = useMutation(api.instellingen.getNextOfferteNummer);
-  const createOfferte = useMutation(api.offertes.create);
+  const searchParams = useSearchParams();
+  const { startVrijeOfferte, mislukt } = useNieuweVrijeOfferte();
+  // Zonder deze vlag maakt Reacts dubbele effect-run in dev twee lege concepten.
+  const gestart = useRef(false);
 
-  const [klantId, setKlantId] = useState<string>("");
-  const [type, setType] = useState<"aanleg" | "onderhoud">("aanleg");
-  const [bezig, setBezig] = useState(false);
-  const [showNieuweKlant, setShowNieuweKlant] = useState(false);
-  // Een net aangemaakte klant zit nog niet noodzakelijk in `klanten` (de query
-  // moet eerst opnieuw binnenkomen), dus houden we hem hier apart bij.
-  const [nieuweKlant, setNieuweKlant] = useState<AangemaakteKlant | null>(null);
+  const klantId = searchParams.get("klantId") ?? undefined;
+  const type = searchParams.get("type") === "onderhoud" ? "onderhoud" : "aanleg";
 
-  const klantOpties = useMemo(() => {
-    if (!nieuweKlant || klanten.some((k) => k._id === nieuweKlant._id)) {
-      return klanten;
-    }
-    return [nieuweKlant, ...klanten];
-  }, [klanten, nieuweKlant]);
-
-  const handleKlantAangemaakt = (klant: AangemaakteKlant) => {
-    setNieuweKlant(klant);
-    setKlantId(klant._id);
-  };
-
-  const start = async () => {
-    const klant = klantOpties.find((k) => k._id === klantId);
-    if (!klant) {
-      toast.error("Kies eerst een klant");
-      return;
-    }
-    setBezig(true);
-    try {
-      const offerteNummer = await getNextOfferteNummer({});
-      const id = await createOfferte({
+  const start = useCallback(
+    () =>
+      startVrijeOfferte({
+        klantId: klantId as Id<"klanten"> | undefined,
         type,
-        offerteNummer,
-        bron: "vrij",
-        klantId: klant._id as Id<"klanten">,
-        klant: {
-          naam: klant.naam,
-          adres: klant.adres,
-          postcode: klant.postcode,
-          plaats: klant.plaats,
-          email: klant.email ?? undefined,
-          telefoon: klant.telefoon ?? undefined,
-        },
-        algemeenParams: { bereikbaarheid: "goed" },
-      });
-      router.push(`/offertes/${id}/vrij`);
-    } catch (e) {
-      toast.error("Offerte aanmaken mislukt", {
-        description: e instanceof Error ? e.message : undefined,
-      });
-      setBezig(false);
-    }
-  };
+      }),
+    [startVrijeOfferte, klantId, type]
+  );
+
+  useEffect(() => {
+    if (gestart.current) return;
+    gestart.current = true;
+    void start();
+  }, [start]);
 
   return (
-    <>
-      <PageHeader />
-      <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
-            Vrije offerte
-          </h1>
-          <p className="text-muted-foreground">
-            Regel-editor: artikelen aanklikken of vrije regels typen, prijs en
-            marge per regel. Voor alles wat niet in een pakket past.
+    <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
+      {mislukt ? (
+        <>
+          <PenLine className="size-5 text-muted-foreground" aria-hidden="true" />
+          <p className="text-sm font-medium">
+            De offerte kon niet worden aangemaakt
           </p>
-        </div>
-        <div className="max-w-xl">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <PenLine className="h-5 w-5" />
-            Voor wie is de offerte?
-          </CardTitle>
-          <CardDescription>
-            Kies de klant en het soort werk; daarna bouw je de offerte regel
-            voor regel op.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium" htmlFor="klant-select">
-              Klant
-            </label>
-            <div className="flex items-center gap-2">
-              <Select value={klantId} onValueChange={setKlantId}>
-                <SelectTrigger
-                  id="klant-select"
-                  aria-label="Kies klant"
-                  className="flex-1"
-                >
-                  <SelectValue
-                    placeholder={isLoading ? "Klanten laden…" : "Kies een klant"}
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {klantOpties.map((klant) => (
-                    <SelectItem key={klant._id} value={klant._id}>
-                      {klant.naam} — {klant.plaats}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowNieuweKlant(true)}
-              >
-                <UserPlus className="mr-2 h-4 w-4" />
-                Nieuw
-              </Button>
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium" htmlFor="type-select">
-              Soort werk
-            </label>
-            <Select
-              value={type}
-              onValueChange={(t) => setType(t as "aanleg" | "onderhoud")}
+          <div className="flex gap-2">
+            <Button size="sm" onClick={() => void start()}>
+              Opnieuw proberen
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => router.push("/offertes")}
             >
-              <SelectTrigger id="type-select" aria-label="Kies soort werk">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="aanleg">
-                  Aanleg / eenmalige klus / maatwerk
-                </SelectItem>
-                <SelectItem value="onderhoud">Onderhoud</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              Bij onderhoud kan kantoor de regels bij acceptatie aan een
-              concept-contract koppelen.
-            </p>
+              Terug naar offertes
+            </Button>
           </div>
-          <Button
-            onClick={start}
-            disabled={!klantId || bezig}
-            className="w-full"
-          >
-            {bezig ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <ArrowRight className="mr-2 h-4 w-4" />
-            )}
-            Naar de regel-editor
-          </Button>
-          {!klantId && !isLoading && (
-            <p className="text-center text-xs text-muted-foreground">
-              Kies eerst een klant om verder te gaan.
-            </p>
-          )}
-        </CardContent>
-      </Card>
-        </div>
-      </div>
-
-      <NieuweKlantDialog
-        open={showNieuweKlant}
-        onOpenChange={setShowNieuweKlant}
-        onCreated={handleKlantAangemaakt}
-      />
-    </>
+        </>
+      ) : (
+        <p
+          className="flex items-center gap-2 text-sm text-muted-foreground"
+          role="status"
+        >
+          <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+          Lege offerte wordt aangemaakt…
+        </p>
+      )}
+    </div>
   );
 }

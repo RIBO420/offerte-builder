@@ -32,10 +32,19 @@ interface ShortcutsContextValue {
    * offertetoolbar) openen de dialog zonder klant en blijven ongewijzigd.
    */
   setShowNewOfferteDialog: (show: boolean, opties?: NieuweOfferteOpties) => void;
+  /** Staat de Templates-Sheet (derde ingang van het entree-menu) open? */
+  showTemplatesSheet: boolean;
   /**
-   * Klant die aan de openstaande dialog hangt, of `null`. Wordt gewist zodra de
-   * dialog sluit — anders zou de volgende ⌘N vanaf een willekeurige pagina de
-   * vorige klant stilzwijgend meedragen.
+   * Zelfde vorm en zelfde klantregel als `setShowNewOfferteDialog`: beide
+   * ingangen delen één klantcontext, zodat een klant nooit van de ene ingang
+   * naar de andere lekt.
+   */
+  setShowTemplatesSheet: (show: boolean, opties?: NieuweOfferteOpties) => void;
+  /**
+   * Klant die aan de openstaande entree-ingang (tegel-dialog of Templates-
+   * Sheet) hangt, of `null`. Wordt gewist zodra die sluit — anders zou de
+   * volgende ⌘N vanaf een willekeurige pagina de vorige klant stilzwijgend
+   * meedragen.
    */
   nieuweOfferteKlantId: Id<"klanten"> | null;
   /** Whether the shortcuts help dialog is open */
@@ -51,6 +60,7 @@ export function ShortcutsProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { setOpen: setCommandOpen } = useCommand();
   const [showNewOfferteDialog, setShowNewOfferteDialogState] = useState(false);
+  const [showTemplatesSheet, setShowTemplatesSheetState] = useState(false);
   const [nieuweOfferteKlantId, setNieuweOfferteKlantId] =
     useState<Id<"klanten"> | null>(null);
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
@@ -63,6 +73,18 @@ export function ShortcutsProvider({ children }: { children: ReactNode }) {
       // startte de eerstvolgende ⌘N vanaf een andere pagina ongemerkt een
       // offerte voor de vorige klant.
       setNieuweOfferteKlantId(show ? (opties?.klantId ?? null) : null);
+      // Twee entree-ingangen tegelijk open is nooit bedoeld: het menu opent er
+      // precies één. De ander gaat dicht i.p.v. onzichtbaar te blijven staan.
+      if (show) setShowTemplatesSheetState(false);
+    },
+    []
+  );
+
+  const setShowTemplatesSheet = useCallback(
+    (show: boolean, opties?: NieuweOfferteOpties) => {
+      setShowTemplatesSheetState(show);
+      setNieuweOfferteKlantId(show ? (opties?.klantId ?? null) : null);
+      if (show) setShowNewOfferteDialogState(false);
     },
     []
   );
@@ -165,6 +187,8 @@ export function ShortcutsProvider({ children }: { children: ReactNode }) {
             setShowShortcutsHelp(false);
           } else if (showNewOfferteDialog) {
             setShowNewOfferteDialog(false);
+          } else if (showTemplatesSheet) {
+            setShowTemplatesSheet(false);
           }
         },
         allowInInput: true,
@@ -174,8 +198,10 @@ export function ShortcutsProvider({ children }: { children: ReactNode }) {
       router,
       setCommandOpen,
       setShowNewOfferteDialog,
+      setShowTemplatesSheet,
       showShortcutsHelp,
       showNewOfferteDialog,
+      showTemplatesSheet,
     ]
   );
 
@@ -254,6 +280,8 @@ export function ShortcutsProvider({ children }: { children: ReactNode }) {
     () => ({
       showNewOfferteDialog,
       setShowNewOfferteDialog,
+      showTemplatesSheet,
+      setShowTemplatesSheet,
       nieuweOfferteKlantId,
       showShortcutsHelp,
       setShowShortcutsHelp,
@@ -262,6 +290,8 @@ export function ShortcutsProvider({ children }: { children: ReactNode }) {
     [
       showNewOfferteDialog,
       setShowNewOfferteDialog,
+      showTemplatesSheet,
+      setShowTemplatesSheet,
       nieuweOfferteKlantId,
       showShortcutsHelp,
       pendingSequenceKeys,

@@ -43,7 +43,10 @@ interface Offerte {
   offerteNummer: string;
   type: "aanleg" | "onderhoud";
   status: string;
-  klant: {
+  // Optioneel: een concept mag sinds de nieuwe entree zonder klant bestaan
+  // (convex/lib/offerteKlant.ts). Vóór versturen is hij weer verplicht — dat
+  // bewaakt de server, hier zorgen we alleen dat een voorbeeld niet crasht.
+  klant?: {
     naam: string;
     adres: string;
     postcode: string;
@@ -316,22 +319,26 @@ export function OffertePDF({ offerte, bedrijfsgegevens, theme, voorwaarden }: Of
           <Text style={s.sectionTitle}>Klantgegevens</Text>
           <View style={s.row}>
             <Text style={s.label}>Naam:</Text>
-            <Text style={s.value}>{offerte.klant.naam}</Text>
-          </View>
-          <View style={s.row}>
-            <Text style={s.label}>Adres:</Text>
             <Text style={s.value}>
-              {offerte.klant.adres}, {offerte.klant.postcode}{" "}
-              {offerte.klant.plaats}
+              {offerte.klant?.naam ?? "— nog geen klant gekoppeld —"}
             </Text>
           </View>
-          {offerte.klant.telefoon && (
+          {offerte.klant && (
+            <View style={s.row}>
+              <Text style={s.label}>Adres:</Text>
+              <Text style={s.value}>
+                {offerte.klant.adres}, {offerte.klant.postcode}{" "}
+                {offerte.klant.plaats}
+              </Text>
+            </View>
+          )}
+          {offerte.klant?.telefoon && (
             <View style={s.row}>
               <Text style={s.label}>Telefoon:</Text>
               <Text style={s.value}>{offerte.klant.telefoon}</Text>
             </View>
           )}
-          {offerte.klant.email && (
+          {offerte.klant?.email && (
             <View style={s.row}>
               <Text style={s.label}>E-mail:</Text>
               <Text style={s.value}>{offerte.klant.email}</Text>

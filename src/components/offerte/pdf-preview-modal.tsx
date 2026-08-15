@@ -45,7 +45,8 @@ interface Offerte {
   offerteNummer: string;
   type: "aanleg" | "onderhoud";
   status: string;
-  klant: {
+  // Optioneel: een concept mag zonder klant bestaan (offerte-entree A3).
+  klant?: {
     naam: string;
     adres: string;
     postcode: string;
@@ -105,7 +106,7 @@ export function PdfPreviewModal({
         operationName: "pdf-preview-generation",
         extra: {
           offerteNummer: offerte.offerteNummer,
-          klantNaam: offerte.klant.naam,
+          klantNaam: offerte.klant?.naam,
         },
       });
     } finally {
@@ -132,7 +133,8 @@ export function PdfPreviewModal({
 
     const link = document.createElement("a");
     link.href = pdfUrl;
-    link.download = `${offerte.offerteNummer}-${offerte.klant.naam.replace(/\s+/g, "-")}.pdf`;
+    const klantDeel = (offerte.klant?.naam ?? "zonder-klant").replace(/\s+/g, "-");
+    link.download = `${offerte.offerteNummer}-${klantDeel}.pdf`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -156,7 +158,7 @@ export function PdfPreviewModal({
           </DialogTitle>
           <DialogDescription>
             Voorbeeld van offerte {offerte.offerteNummer} voor{" "}
-            {offerte.klant.naam}.
+            {offerte.klant?.naam ?? "een offerte zonder klant"}.
           </DialogDescription>
         </DialogHeader>
 

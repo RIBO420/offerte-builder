@@ -27,7 +27,6 @@ import {
   Mail,
   MapPin,
   Phone,
-  Plus,
   ShieldAlert,
 } from "lucide-react";
 import { useMutation, useQuery } from "convex/react";
@@ -38,7 +37,7 @@ import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import { CopyButton } from "@/components/ui/copy-button";
 import { Switch } from "@/components/ui/switch";
 import { SectiePaneel } from "@/components/ui/sectie-paneel";
-import { useShortcuts } from "@/components/providers/shortcuts-provider";
+import { NieuweOfferteSplitButton } from "@/components/offerte/nieuwe-offerte-split-button";
 import { Id } from "../../../../../convex/_generated/dataModel";
 import { LeadHistorieCard } from "@/components/leads/lead-historie-card";
 import { OnderhoudSectie } from "@/components/klanten/onderhoud-sectie";
@@ -208,7 +207,6 @@ export default function KlantDetailPage({
   const { id } = use(params);
   const router = useRouter();
   const isAdmin = useIsAdmin();
-  const { setShowNewOfferteDialog } = useShortcuts();
   const { klant, isLoading } = useKlantWithOffertes(id as Id<"klanten">);
   const gdprAnonymize = useMutation(api.klanten.gdprAnonymize);
   const setInplanMail = useMutation(api.klanten.setInplanBevestigingsMail);
@@ -470,19 +468,13 @@ export default function KlantDetailPage({
 
           {!isAnonymized && (
             <div className="flex shrink-0 flex-wrap gap-2">
-              {/* Eén ingang voor een nieuwe offerte (WS6): dezelfde dialog als
-                  ⌘N, het dashboard en de offertetoolbar. De twee losse
+              {/* Eén ingang voor een nieuwe offerte (WS6): dezelfde knop als op
+                  het dashboard en in de offertetoolbar. De twee losse
                   wizard-links die hier stonden omzeilden die ingang én raakten
-                  de klant kwijt. TT-004 blijft ongemoeid: de dialog levert
-                  alleen startpunten, geen nieuwe `offertes.type`-waarden. */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowNewOfferteDialog(true, { klantId: klant._id })}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Nieuwe offerte
-              </Button>
+                  de klant kwijt; nu reist `klantId` mee door álle drie de paden
+                  (tegels, vrije offerte, templates). TT-004 blijft ongemoeid:
+                  het zijn startpunten, geen nieuwe `offertes.type`-waarden. */}
+              <NieuweOfferteSplitButton size="sm" klantId={klant._id} />
             </div>
           )}
         </header>

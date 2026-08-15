@@ -1,5 +1,4 @@
 "use client";
-import { klantNaam } from "@convex/lib/offerteKlant";
 
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
@@ -15,6 +14,7 @@ import {
   TekstblokKiezer,
   type VrijeTeksten,
 } from "@/components/offerte/vrije-builder";
+import { KlantKoppelStrip } from "@/components/offerte/klant-koppel-strip";
 import { api } from "../../../../../../convex/_generated/api";
 import type { Id } from "../../../../../../convex/_generated/dataModel";
 import type { VrijeRegel } from "../../../../../../convex/vrijeOfferteBerekening";
@@ -104,12 +104,15 @@ export default function VrijeOfferteEditorPage({
     <div className="space-y-6 p-4 md:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1 className="font-display text-2xl font-bold tracking-tight">
             Vrije offerte {offerte.offerteNummer}
           </h1>
+          {/* De klant staat in de koppelstrip hieronder — één plek, en daar is
+              hij ook te wijzigen. Hier het soort werk, dat ná aanmaken vastligt. */}
           <p className="text-muted-foreground">
-            {klantNaam(offerte.klant)}
-            {offerte.klant?.plaats ? ` — ${offerte.klant.plaats}` : ""}
+            {offerte.type === "aanleg"
+              ? "Aanleg — eenmalig werk of maatwerk"
+              : "Onderhoud"}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -134,6 +137,12 @@ export default function VrijeOfferteEditorPage({
           </Button>
         </div>
       </div>
+
+      <KlantKoppelStrip
+        offerteId={offerteId}
+        klant={offerte.klant}
+        status={offerte.status}
+      />
 
       {vergrendeld && (
         <p className="flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-300">

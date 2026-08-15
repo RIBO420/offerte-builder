@@ -1,9 +1,9 @@
 "use client";
 
 import { m } from "framer-motion";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search } from "lucide-react";
+import { Search } from "lucide-react";
+import { NieuweOfferteSplitButton } from "@/components/offerte/nieuwe-offerte-split-button";
 import {
   OfferteFiltersComponent,
   ActiveFilters,
@@ -16,7 +16,6 @@ import {
   offerteExportColumns,
 } from "@/components/export-dropdown";
 import { ConceptOpruimenDialog } from "./concept-opruimen-dialog";
-import { useShortcuts } from "@/components/providers/shortcuts-provider";
 
 interface OfferteToolbarProps {
   searchQuery: string;
@@ -57,10 +56,6 @@ export function OfferteToolbar({
   hasActiveFilters,
   reducedMotion,
 }: OfferteToolbarProps) {
-  // Eén ingang voor "nieuwe offerte": de NewOfferteDialog (8 tegels, TT-004)
-  // die in de dashboard-layout gemount staat — zelfde dialoog als ⌘N.
-  const { setShowNewOfferteDialog } = useShortcuts();
-
   return (
     <>
       <m.div
@@ -77,14 +72,9 @@ export function OfferteToolbar({
             Beheer al je aanleg- en onderhoudsoffertes
           </p>
         </div>
-        {/* Eén primaire ingang (keuzepunt 7): de dialoog kiest de werkzaamheid */}
-        <Button
-          className="w-full sm:w-auto"
-          onClick={() => setShowNewOfferteDialog(true)}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Nieuwe offerte
-        </Button>
+        {/* Eén primaire ingang (keuzepunt 7): hoofdklik opent de tegel-dialog,
+            de chevron de twee andere manieren om te beginnen. */}
+        <NieuweOfferteSplitButton className="w-full sm:w-auto" />
       </m.div>
 
       <m.div
