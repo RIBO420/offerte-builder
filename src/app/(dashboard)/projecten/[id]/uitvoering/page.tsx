@@ -4,7 +4,7 @@ import { useState, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../../convex/_generated/api";
-import { m } from "framer-motion";
+import { PaginaReveal } from "@/components/pagina-reveal";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
@@ -329,12 +329,10 @@ export default function UitvoeringPage() {
     <>
       <PageHeader />
 
-      <m.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
-      >
+      {/* Eén reveal op de buitenkant; de blokken eronder zijn gewone divs en
+          staan er dus ook als er nul animatieframes vallen.
+          → src/components/pagina-reveal.tsx */}
+      <PaginaReveal className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
@@ -493,7 +491,7 @@ export default function UitvoeringPage() {
             />
           </TabsContent>
         </Tabs>
-      </m.div>
+      </PaginaReveal>
 
       {/* Uren Entry Form */}
       <UrenEntryForm

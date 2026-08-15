@@ -15,8 +15,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { m } from "framer-motion";
-import { useReducedMotion } from "@/hooks/use-accessibility";
+import { REVEAL_KLASSE } from "@/components/pagina-reveal";
 import { cn } from "@/lib/utils";
 
 /** Anker-ids; ook de sleutels van de scroll-spy en de oude `?tab=`-omleiding. */
@@ -29,16 +28,20 @@ export const SECTIES = [
 
 export type SectieId = (typeof SECTIES)[number]["id"];
 
-/** ease-out-quint — echte objecten remmen af, ze stuiteren niet. */
-const REM = [0.23, 1, 0.32, 1] as const;
-
 export function AntwoordBlok({
   id,
   vraag,
   /** Waar dit blok over gaat qua tijd: "Augustus 2026" of "Los van de periode". */
   reikwijdte,
-  /** Volgnummer voor de gestaggerde intro (~80 ms per sectie). */
-  index = 0,
+  /**
+   * Volgnummer. Stond hier voor een gestaggerde intro van ~80 ms per sectie;
+   * die is eruit. Een stagger heeft `animation-fill-mode: both` nodig om vóór
+   * zijn start niets te tonen, en dan is een blok met delay 240 ms een kwart
+   * seconde blanco — of blijft het blanco zodra `requestAnimationFrame` wordt
+   * afgeknepen. De prop blijft staan zodat de aanroepplekken ongemoeid
+   * blijven; hij stuurt geen beweging meer aan.
+   */
+  index: _index = 0,
   children,
 }: {
   id: SectieId;
@@ -47,22 +50,18 @@ export function AntwoordBlok({
   index?: number;
   children: ReactNode;
 }) {
-  const reducedMotion = useReducedMotion();
-
   return (
-    <m.section
+    <section
       id={id}
       data-sectie={id}
       // scroll-mt houdt de kop vrij van de sticky ankerbalk (~44 px) plus lucht.
-      className="scroll-mt-20 border-t border-border/70 py-12 first:border-t-0 first:pt-2 md:py-16 @container/blok"
+      // De reveal is CSS (zie pagina-reveal.tsx): draait hij niet, dan staat de
+      // sectie er gewoon.
+      className={cn(
+        "scroll-mt-20 border-t border-border/70 py-12 first:border-t-0 first:pt-2 md:py-16 @container/blok",
+        REVEAL_KLASSE
+      )}
       aria-labelledby={`${id}-kop`}
-      initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{
-        duration: reducedMotion ? 0 : 0.5,
-        delay: reducedMotion ? 0 : index * 0.08,
-        ease: REM,
-      }}
     >
       <header className="mb-7">
         <p className="text-[11px] font-medium tracking-[0.14em] text-muted-foreground uppercase">
@@ -76,7 +75,7 @@ export function AntwoordBlok({
         </h2>
       </header>
       {children}
-    </m.section>
+    </section>
   );
 }
 

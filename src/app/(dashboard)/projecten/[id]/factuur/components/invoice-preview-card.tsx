@@ -1,7 +1,6 @@
 "use client";
 import { klantNaam } from "@convex/lib/offerteKlant";
 
-import { m } from "framer-motion";
 import { Doc } from "../../../../../../../convex/_generated/dataModel";
 import {
   Card,
@@ -13,8 +12,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { FileText, Loader2, AlertCircle, ChevronRight } from "lucide-react";
-import { useReducedMotion } from "@/hooks/use-accessibility";
-import { transitions, fadeInUp } from "@/lib/motion-config";
+import { cn } from "@/lib/utils";
+import { PaginaReveal, REVEAL_KLASSE } from "@/components/pagina-reveal";
 import { formatCurrency } from "./types";
 
 export function InvoicePreviewCard({
@@ -30,24 +29,16 @@ export function InvoicePreviewCard({
   onGenerate: () => void;
   isGenerating: boolean;
 }) {
-  const prefersReducedMotion = useReducedMotion();
-
   return (
-    <m.div
-      variants={fadeInUp}
-      initial="initial"
-      animate="animate"
-      transition={prefersReducedMotion ? { duration: 0 } : transitions.entrance}
-    >
+    <PaginaReveal>
       <Card className="border-2 border-dashed border-primary/30 bg-gradient-to-b from-primary/5 to-transparent">
         <CardHeader className="text-center pb-4">
-          <m.div
-            className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10"
-            animate={prefersReducedMotion ? {} : { y: [0, -5, 0] }}
-            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-          >
+          {/* Het zwevende icoon was een oneindige framer-lus. Die had geen
+              verborgen beginstaat, maar hij hield wel framer-motion in dit
+              bestand; een rustig icoon is hier geen verlies. */}
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
             <FileText className="h-8 w-8 text-primary" />
-          </m.div>
+          </div>
           <CardTitle className="text-xl">Factuur Voorvertoning</CardTitle>
           <CardDescription>
             Bekijk de gegevens voordat je de factuur genereert
@@ -102,10 +93,11 @@ export function InvoicePreviewCard({
 
           {/* Nacalculatie warning if applicable */}
           {nacalculatie && Math.abs(nacalculatie.afwijkingPercentage) > 10 && (
-            <m.div
-              initial={prefersReducedMotion ? {} : { opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="flex items-start gap-3 rounded-lg border border-status-herinnering-border bg-status-herinnering/40 p-4"
+            <div
+              className={cn(
+                "flex items-start gap-3 rounded-lg border border-status-herinnering-border bg-status-herinnering/40 p-4",
+                REVEAL_KLASSE
+              )}
             >
               <AlertCircle className="h-5 w-5 text-status-herinnering-text flex-shrink-0 mt-0.5" />
               <div>
@@ -117,7 +109,7 @@ export function InvoicePreviewCard({
                   Overweeg correctieregels toe te voegen aan de factuur.
                 </p>
               </div>
-            </m.div>
+            </div>
           )}
 
           {/* Generate button */}
@@ -144,6 +136,6 @@ export function InvoicePreviewCard({
           </div>
         </CardContent>
       </Card>
-    </m.div>
+    </PaginaReveal>
   );
 }

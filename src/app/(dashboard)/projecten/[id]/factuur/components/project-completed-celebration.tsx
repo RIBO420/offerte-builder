@@ -4,7 +4,8 @@ import { m } from "framer-motion";
 import { PartyPopper, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useReducedMotion } from "@/hooks/use-accessibility";
-import { transitions } from "@/lib/motion-config";
+import { REVEAL_KLASSE } from "@/components/pagina-reveal";
+import { cn } from "@/lib/utils";
 import { formatCurrency } from "./types";
 
 // Pre-computed sparkle positions for celebration animation
@@ -29,11 +30,16 @@ export function ProjectCompletedCelebration({
   const prefersReducedMotion = useReducedMotion();
 
   return (
-    <m.div
-      initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={transitions.entrance}
-      className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary via-primary/90 to-chart-5 p-8 text-primary-foreground shadow-2xl"
+    /* Het feest blijft (de sparkles en de zwaaiende popper hieronder), maar de
+       tekst, het bedrag en de knop hangen niet meer aan een animatieframe: de
+       kaart komt binnen met de CSS-reveal (`fill-mode: none`), dus zonder ook
+       maar één frame staat alles er gewoon — inclusief "Bekijk Details".
+       → src/components/pagina-reveal.tsx */
+    <div
+      className={cn(
+        REVEAL_KLASSE,
+        "relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary via-primary/90 to-chart-5 p-8 text-primary-foreground shadow-2xl"
+      )}
     >
       {/* Animated background sparkles */}
       {!prefersReducedMotion && (
@@ -42,6 +48,10 @@ export function ProjectCompletedCelebration({
             <m.div
               key={i}
               className="absolute"
+              // blanco-beginstaat-ok: losse versiersels in een oneindige lus,
+              // absoluut gepositioneerd achter de kaart. Ze dragen geen tekst
+              // en geen bediening, dus staat requestAnimationFrame stil, dan
+              // verdwijnt alleen de glitter — niet de inhoud.
               initial={{ opacity: 0 }}
               animate={{
                 opacity: [0, 1, 0],
@@ -79,55 +89,30 @@ export function ProjectCompletedCelebration({
         </m.div>
 
         {/* Title */}
-        <m.h2
-          className="mb-2 text-center text-2xl font-bold md:text-3xl"
-          initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
+        <h2 className="mb-2 text-center text-2xl font-bold md:text-3xl">
           Project Voltooid!
-        </m.h2>
+        </h2>
 
         {/* Project name */}
-        <m.p
-          className="mb-4 text-center text-lg text-white/90"
-          initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-        >
+        <p className="mb-4 text-center text-lg text-white/90">
           {projectNaam}
-        </m.p>
+        </p>
 
         {/* Amount */}
-        <m.div
-          className="mb-6 text-center"
-          initial={prefersReducedMotion ? {} : { opacity: 0, scale: 0.5 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.4, type: "spring", stiffness: 200 }}
-        >
+        <div className="mb-6 text-center">
           <div className="inline-block rounded-xl bg-white/20 px-6 py-3 backdrop-blur-sm">
             <p className="text-sm text-white/80">Totaal ontvangen</p>
             <p className="text-3xl font-bold">{formatCurrency(bedrag)}</p>
           </div>
-        </m.div>
+        </div>
 
         {/* Message */}
-        <m.p
-          className="mb-6 text-center text-white/80"
-          initial={prefersReducedMotion ? {} : { opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-        >
+        <p className="mb-6 text-center text-white/80">
           Gefeliciteerd! De factuur is betaald en het project is succesvol afgerond.
-        </m.p>
+        </p>
 
         {/* Dismiss button */}
-        <m.div
-          className="flex justify-center"
-          initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-        >
+        <div className="flex justify-center">
           <Button
             onClick={onDismiss}
             variant="secondary"
@@ -135,8 +120,8 @@ export function ProjectCompletedCelebration({
           >
             Bekijk Details
           </Button>
-        </m.div>
+        </div>
       </div>
-    </m.div>
+    </div>
   );
 }

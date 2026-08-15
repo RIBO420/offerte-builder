@@ -24,7 +24,6 @@ import { klantNaam } from "@convex/lib/offerteKlant";
 import { use, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { m } from "framer-motion";
 import { toast } from "sonner";
 import {
   AlertTriangle,
@@ -36,7 +35,6 @@ import {
   PenLine,
   ShieldCheck,
 } from "lucide-react";
-import { useReducedMotion } from "@/hooks/use-accessibility";
 import { useAutoSave } from "@/hooks/use-auto-save";
 import { useOfferteVoorcalculatie } from "@/hooks/use-voorcalculatie";
 import { Button } from "@/components/ui/button";
@@ -73,7 +71,6 @@ export default function OfferteVoorcalculatiePage({
 }) {
   const { id } = use(params);
   const router = useRouter();
-  const reducedMotion = useReducedMotion();
 
   const {
     offerte,
@@ -272,15 +269,7 @@ export default function OfferteVoorcalculatiePage({
             )}
           </aside>
 
-          <m.div
-            initial={reducedMotion ? false : { opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{
-              duration: reducedMotion ? 0 : 0.4,
-              ease: [0.16, 1, 0.3, 1],
-            }}
-            className="order-2 min-w-0 space-y-3 @min-[68rem]/voorcalc:order-1"
-          >
+          <div className="order-2 min-w-0 space-y-3 @min-[68rem]/voorcalc:order-1">
             {calculation ? (
               <VoorcalculatieUrenblad
                 normUrenPerScope={calculation.normUrenPerScope}
@@ -307,7 +296,7 @@ export default function OfferteVoorcalculatiePage({
                 </span>
               </p>
             )}
-          </m.div>
+          </div>
         </div>
       </div>
 

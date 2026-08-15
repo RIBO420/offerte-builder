@@ -1,11 +1,17 @@
 "use client";
 
-import { m } from "framer-motion";
 import { Send, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useReducedMotion } from "@/hooks/use-accessibility";
-import { transitions } from "@/lib/motion-config";
 
+/**
+ * De bevestiging na het verzenden. Was framer-motion met een veer en twee
+ * delays; dat betekende dat de hele kaart (én het bolletje met het icoon) op
+ * `opacity: 0` respectievelijk `scale: 0` bleef staan zodra
+ * `requestAnimationFrame` werd afgeknepen — je las dan "niets" na de meest
+ * geruststellende actie van de hele flow. Nu CSS: `animate-in` draait met
+ * `fill-mode: none`, dus buiten de animatie geldt gewoon de eindstaat, en
+ * `motion-safe:` doet het respect voor `prefers-reduced-motion`.
+ */
 export function InvoiceSentSuccess({
   factuurNummer,
   klantEmail,
@@ -15,29 +21,11 @@ export function InvoiceSentSuccess({
   klantEmail?: string;
   onContinue: () => void;
 }) {
-  const prefersReducedMotion = useReducedMotion();
-
   return (
-    <m.div
-      initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={transitions.entrance}
-      className="rounded-xl border-2 border-status-geaccepteerd-border bg-gradient-to-b from-status-geaccepteerd/40 to-background p-8 text-center dark:to-background"
-    >
-      <m.div
-        className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-status-geaccepteerd"
-        initial={prefersReducedMotion ? {} : { scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.2 }}
-      >
-        <m.div
-          initial={prefersReducedMotion ? {} : { scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ delay: 0.4 }}
-        >
-          <Send className="h-10 w-10 text-status-geaccepteerd-text" />
-        </m.div>
-      </m.div>
+    <div className="rounded-xl border-2 border-status-geaccepteerd-border bg-gradient-to-b from-status-geaccepteerd/40 to-background p-8 text-center motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-300 motion-safe:ease-out dark:to-background">
+      <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-status-geaccepteerd motion-safe:animate-in motion-safe:zoom-in-50 motion-safe:duration-500 motion-safe:ease-out">
+        <Send className="h-10 w-10 text-status-geaccepteerd-text" />
+      </div>
 
       <h3 className="mb-2 text-2xl font-bold text-status-geaccepteerd-text">
         Factuur Verzonden!
@@ -58,14 +46,9 @@ export function InvoiceSentSuccess({
         </Button>
       </div>
 
-      <m.p
-        className="mt-6 text-sm text-muted-foreground"
-        initial={prefersReducedMotion ? {} : { opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.6 }}
-      >
+      <p className="mt-6 text-sm text-muted-foreground motion-safe:animate-in motion-safe:fade-in motion-safe:duration-500">
         Vergeet niet de factuur als betaald te markeren wanneer de betaling is ontvangen.
-      </m.p>
-    </m.div>
+      </p>
+    </div>
   );
 }

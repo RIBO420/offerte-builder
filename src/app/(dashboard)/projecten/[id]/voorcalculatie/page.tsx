@@ -2,8 +2,7 @@
 
 import { use } from "react";
 import Link from "next/link";
-import { m } from "framer-motion";
-import { useReducedMotion } from "@/hooks/use-accessibility";
+import { PaginaReveal } from "@/components/pagina-reveal";
 import {
   Card,
   CardContent,
@@ -43,7 +42,6 @@ export default function VoorcalculatiePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const reducedMotion = useReducedMotion();
 
   const {
     project,
@@ -93,22 +91,12 @@ export default function VoorcalculatiePage({
     <>
       <PageHeader customLabels={{ [`/projecten/${id}`]: project.naam }} />
 
-      <m.div
-        initial={reducedMotion ? false : { opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: reducedMotion ? 0 : 0.5, ease: "easeOut" }}
-        className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
-      >
+      {/* Eén reveal op de buitenkant; de blokken eronder zijn gewone divs en
+          staan er dus ook als er nul animatieframes vallen.
+          → src/components/pagina-reveal.tsx */}
+      <PaginaReveal className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
         {/* Header */}
-        <m.div
-          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: reducedMotion ? 0 : 0.4,
-            delay: reducedMotion ? 0 : 0.1,
-          }}
-          className="flex items-center justify-between"
-        >
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" asChild aria-label="Terug naar project">
               <Link href={`/projecten/${id}`}>
@@ -142,17 +130,10 @@ export default function VoorcalculatiePage({
               <ExternalLink className="ml-2 h-3 w-3" />
             </Link>
           </Button>
-        </m.div>
+        </div>
 
         {/* Info Banner */}
-        <m.div
-          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: reducedMotion ? 0 : 0.4,
-            delay: reducedMotion ? 0 : 0.15,
-          }}
-        >
+        <div>
           <Card className="bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
             <CardContent className="flex items-start gap-3 py-4">
               <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
@@ -168,7 +149,7 @@ export default function VoorcalculatiePage({
               </div>
             </CardContent>
           </Card>
-        </m.div>
+        </div>
 
         {/* Progress Stepper - Shows actual project status from database */}
         <Card className="p-4 md:p-6">
@@ -185,15 +166,7 @@ export default function VoorcalculatiePage({
         {voorcalculatie ? (
           <>
             {/* Summary Stats */}
-            <m.div
-              initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{
-                duration: reducedMotion ? 0 : 0.4,
-                delay: reducedMotion ? 0 : 0.2,
-              }}
-              className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
-            >
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <Card>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-3">
@@ -249,17 +222,10 @@ export default function VoorcalculatiePage({
                   </div>
                 </CardContent>
               </Card>
-            </m.div>
+            </div>
 
             {/* Uren Overzicht */}
-            <m.div
-              initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{
-                duration: reducedMotion ? 0 : 0.4,
-                delay: reducedMotion ? 0 : 0.3,
-              }}
-            >
+            <div>
               {calculation ? (
                 <UrenOverzicht
                   normUrenPerScope={calculation.normUrenPerScope}
@@ -281,17 +247,10 @@ export default function VoorcalculatiePage({
                   </CardContent>
                 </Card>
               )}
-            </m.div>
+            </div>
           </>
         ) : (
-          <m.div
-            initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{
-              duration: reducedMotion ? 0 : 0.4,
-              delay: reducedMotion ? 0 : 0.2,
-            }}
-          >
+          <div>
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-16">
                 <Calculator className="h-12 w-12 text-muted-foreground/50" />
@@ -310,9 +269,9 @@ export default function VoorcalculatiePage({
                 </Button>
               </CardContent>
             </Card>
-          </m.div>
+          </div>
         )}
-      </m.div>
+      </PaginaReveal>
     </>
   );
 }

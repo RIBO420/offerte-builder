@@ -17,10 +17,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useQuery } from "convex/react";
-import { m } from "framer-motion";
 import { FileDown } from "lucide-react";
 import { api } from "@convex/_generated/api";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { useReducedMotion } from "@/hooks/use-accessibility";
 import {
   isPeriodePreset,
@@ -208,13 +208,14 @@ export function RapportageVerhaal() {
             <RapportageSkelet />
           </div>
         ) : (
-          <m.div
-            className="mx-auto max-w-5xl pt-8"
-            animate={{ opacity: laadt ? 0.45 : 1 }}
-            transition={{
-              duration: reducedMotion ? 0 : 0.28,
-              ease: [0.23, 1, 0.32, 1],
-            }}
+          // Het dimmen tijdens het herladen is een CSS-transition en geen
+          // JS-animatie: de eindwaarde staat in de klasse, dus zonder een
+          // enkel animatieframe klopt de opaciteit meteen.
+          <div
+            className={cn(
+              "mx-auto max-w-5xl pt-8 transition-opacity duration-300 ease-out motion-reduce:transition-none",
+              laadt ? "opacity-45" : "opacity-100"
+            )}
             aria-busy={laadt}
           >
             {!getoond.meta.heeftData ? (
@@ -273,7 +274,7 @@ export function RapportageVerhaal() {
                 </AntwoordBlok>
               </>
             )}
-          </m.div>
+          </div>
         )}
       </div>
     </>

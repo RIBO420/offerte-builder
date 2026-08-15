@@ -1,10 +1,10 @@
 "use client";
 
-// `m` en niet `motion`: de app draait binnen een `LazyMotion ... strict`
-// (src/components/providers/motion-provider.tsx). Een `motion`-component
-// daarbinnen gooit geen waarschuwing maar een échte fout, die de errorboundary
-// vangt — het blok verdwijnt dan zonder dat je ziet waarom.
-import { m } from "framer-motion";
+// De hint is een CSS-reveal, geen framer-motion: met `initial` opacity 0 hing
+// de zichtbaarheid van dit blok aan een rAF-frame, en dat frame valt in een
+// achtergrondtab niet. → src/components/pagina-reveal.tsx
+import { cn } from "@/lib/utils";
+import { REVEAL_KLASSE } from "@/components/pagina-reveal";
 import {
   ArrowRight,
   Send,
@@ -19,19 +19,15 @@ interface FactuurNextStepHintProps {
 
 export function FactuurNextStepHint({
   factuurStatus,
-  prefersReducedMotion,
+  // Blijft in de signatuur staan zodat de aanroepplek niet hoeft te wijzigen;
+  // prefers-reduced-motion zit nu in CSS (motion-safe:) in plaats van in JS.
+  prefersReducedMotion: _prefersReducedMotion,
 }: FactuurNextStepHintProps) {
-  const motionInitial = prefersReducedMotion ? {} : { opacity: 0, y: 10 };
-  const motionAnimate = { opacity: 1, y: 0 };
 
   switch (factuurStatus) {
     case "concept":
       return (
-        <m.div
-          initial={motionInitial}
-          animate={motionAnimate}
-          className="flex items-center gap-3 rounded-lg border border-status-gepland-border bg-status-gepland/40 p-4"
-        >
+        <div className={cn("flex items-center gap-3 rounded-lg border border-status-gepland-border bg-status-gepland/40 p-4", REVEAL_KLASSE)}>
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-status-gepland">
             <ArrowRight className="h-5 w-5 text-status-gepland-text" />
           </div>
@@ -41,15 +37,11 @@ export function FactuurNextStepHint({
               Controleer de factuur en maak deze definitief om te kunnen verzenden.
             </p>
           </div>
-        </m.div>
+        </div>
       );
     case "definitief":
       return (
-        <m.div
-          initial={motionInitial}
-          animate={motionAnimate}
-          className="flex items-center gap-3 rounded-lg border border-status-geaccepteerd-border bg-status-geaccepteerd/40 p-4"
-        >
+        <div className={cn("flex items-center gap-3 rounded-lg border border-status-geaccepteerd-border bg-status-geaccepteerd/40 p-4", REVEAL_KLASSE)}>
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-status-geaccepteerd">
             <Send className="h-5 w-5 text-status-geaccepteerd-text" />
           </div>
@@ -59,15 +51,11 @@ export function FactuurNextStepHint({
               De factuur is definitief. Je kunt deze nu naar de klant versturen.
             </p>
           </div>
-        </m.div>
+        </div>
       );
     case "verzonden":
       return (
-        <m.div
-          initial={motionInitial}
-          animate={motionAnimate}
-          className="flex items-center gap-3 rounded-lg border border-status-herinnering-border bg-status-herinnering/40 p-4"
-        >
+        <div className={cn("flex items-center gap-3 rounded-lg border border-status-herinnering-border bg-status-herinnering/40 p-4", REVEAL_KLASSE)}>
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-status-herinnering">
             <Clock className="h-5 w-5 text-status-herinnering-text" />
           </div>
@@ -77,15 +65,11 @@ export function FactuurNextStepHint({
               Markeer de factuur als betaald zodra de betaling is ontvangen.
             </p>
           </div>
-        </m.div>
+        </div>
       );
     case "betaald":
       return (
-        <m.div
-          initial={motionInitial}
-          animate={motionAnimate}
-          className="flex items-center gap-3 rounded-lg border border-status-geaccepteerd-border bg-status-geaccepteerd/40 p-4"
-        >
+        <div className={cn("flex items-center gap-3 rounded-lg border border-status-geaccepteerd-border bg-status-geaccepteerd/40 p-4", REVEAL_KLASSE)}>
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-status-geaccepteerd">
             <CheckCircle className="h-5 w-5 text-status-geaccepteerd-text" />
           </div>
@@ -95,7 +79,7 @@ export function FactuurNextStepHint({
               De factuur is betaald. Dit project is succesvol afgerond.
             </p>
           </div>
-        </m.div>
+        </div>
       );
     default:
       return null;

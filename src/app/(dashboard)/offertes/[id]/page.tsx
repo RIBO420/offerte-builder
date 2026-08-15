@@ -3,7 +3,7 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { m } from "framer-motion";
+import { PaginaReveal } from "@/components/pagina-reveal";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
@@ -218,14 +218,9 @@ export default function OfferteDetailPage({
       <>
         <PageHeader customLabels={{ [`/offertes/${id}`]: "Laden..." }} />
 
-        <m.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: "easeOut" }}
-          className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
-        >
+        <PaginaReveal className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
           <OfferteDetailSkeleton />
-        </m.div>
+        </PaginaReveal>
       </>
     );
   }
@@ -264,18 +259,12 @@ export default function OfferteDetailPage({
         </Badge>
       </PageHeader>
 
-      <m.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
-        className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
-      >
+      {/* Eén reveal op de buitenkant; de blokken eronder zijn gewone divs en
+          staan er dus ook als er nul animatieframes vallen.
+          → src/components/pagina-reveal.tsx */}
+      <PaginaReveal className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
         {/* Header */}
-        <m.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.1 }}
-        >
+        <div>
           <OfferteHeader
             offerte={offerte}
             id={id}
@@ -291,14 +280,10 @@ export default function OfferteDetailPage({
             onShowTemplateDialog={() => setShowTemplateDialog(true)}
             onShowDeleteDialog={() => setShowDeleteDialog(true)}
           />
-        </m.div>
+        </div>
 
         {/* Workflow Stepper */}
-        <m.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.15 }}
-        >
+        <div>
           <Card className="p-4 md:p-6">
             <OfferteWorkflowStepper
               currentStatus={displayStatus as "concept" | "voorcalculatie" | "verzonden" | "geaccepteerd" | "afgewezen"}
@@ -307,29 +292,20 @@ export default function OfferteDetailPage({
               showNextStepAction={true}
             />
           </Card>
-        </m.div>
+        </div>
 
         {/* Voorcalculatie Card */}
         {(offerte.status === "concept" || voorcalculatie) && (
-          <m.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.18 }}
-          >
+          <div>
             <VoorcalculatieCard
               id={id}
               offerteStatus={offerte.status}
               voorcalculatie={voorcalculatie}
             />
-          </m.div>
+          </div>
         )}
 
-        <m.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.2 }}
-          className="grid gap-4 lg:grid-cols-3"
-        >
+        <div className="grid gap-4 lg:grid-cols-3">
           {/* Left column - Details */}
           <div className="space-y-4 lg:col-span-2">
             {offerte.klant ? (
@@ -375,8 +351,8 @@ export default function OfferteDetailPage({
               existingProject={existingProject}
             />
           </div>
-        </m.div>
-      </m.div>
+        </div>
+      </PaginaReveal>
 
       {/* Delete confirmation dialog */}
       <DeleteDialog

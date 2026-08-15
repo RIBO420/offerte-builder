@@ -2,7 +2,6 @@
 
 import { use, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { m } from "framer-motion";
 import { Id } from "../../../../../../convex/_generated/dataModel";
 import { useNacalculatie } from "@/hooks/use-nacalculatie";
 import { useLeerfeedback } from "@/hooks/use-leerfeedback";
@@ -292,11 +291,7 @@ export default function NacalculatiePage({
 
         {/* Quick Status Summary - Visual budget indicator */}
         {clientCalculation && budgetStatus && (
-          <m.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-          >
+          <div>
             <Card className={`border-2 ${
               budgetStatus.status === "good"
                 ? "border-status-geaccepteerd-border bg-status-geaccepteerd/40"
@@ -379,24 +374,29 @@ export default function NacalculatiePage({
                         GPU-composited, geen reflow per frame. De balk is op
                         volle breedte en schuift van links in; de ouder heeft
                         overflow-hidden, dus de eindkap blijft mooi rond
-                        (scaleX zou de radius in rust vervormen). */}
-                    <m.div
-                      className={`h-full w-full rounded-full ${
+                        (scaleX zou de radius in rust vervormen).
+                        De eindstand staat in `style`, niet in een animatie:
+                        zonder animatieframe (achtergrondtab) stond de balk
+                        anders op -100% en las de gebruiker 0% afwijking. De
+                        CSS-transitie doet alleen nog het schuiven bij een
+                        nieuwe waarde. → src/components/pagina-reveal.tsx */}
+                    <div
+                      className={`h-full w-full rounded-full transition-transform duration-500 ease-out ${
                         budgetStatus.status === "good"
                           ? "bg-status-geaccepteerd-dot"
                           : budgetStatus.status === "warning"
                           ? "bg-status-in-uitvoering-dot"
                           : "bg-status-afgewezen-dot"
                       }`}
-                      initial={{ x: "-100%" }}
-                      animate={{ x: `${Math.min(budgetStatus.progressValue / 2, 100) - 100}%` }}
-                      transition={{ duration: 0.5, ease: "easeOut" }}
+                      style={{
+                        transform: `translateX(${Math.min(budgetStatus.progressValue / 2, 100) - 100}%)`,
+                      }}
                     />
                   </div>
                 </div>
               </CardContent>
             </Card>
-          </m.div>
+          </div>
         )}
 
         {/* Progress Stepper - Collapsed on mobile */}
@@ -528,11 +528,8 @@ export default function NacalculatiePage({
                             info: <Info className="h-4 w-4 text-status-gepland-text shrink-0" />,
                           };
                           return (
-                            <m.div
+                            <div
                               key={index}
-                              initial={{ opacity: 0, y: 5 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ delay: index * 0.05 }}
                               className={`flex items-start gap-3 p-3 rounded-lg ${
                                 insight.type === "success"
                                   ? "bg-status-geaccepteerd/40"
@@ -550,7 +547,7 @@ export default function NacalculatiePage({
                                   {insight.description}
                                 </p>
                               </div>
-                            </m.div>
+                            </div>
                           );
                         })}
                       </div>
@@ -755,11 +752,7 @@ export default function NacalculatiePage({
 
       {/* Mobile Sticky Bottom Action Bar */}
       {clientCalculation && (
-        <m.div
-          initial={{ y: 100 }}
-          animate={{ y: 0 }}
-          className="fixed bottom-0 left-0 right-0 md:hidden bg-background border-t shadow-lg z-50 safe-area-bottom"
-        >
+        <div className="fixed bottom-0 left-0 right-0 md:hidden bg-background border-t shadow-lg z-50 safe-area-bottom">
           <div className="p-4 flex gap-2">
             <Button
               variant="outline"
@@ -798,7 +791,7 @@ export default function NacalculatiePage({
               </Button>
             )}
           </div>
-        </m.div>
+        </div>
       )}
 
       {/* Success Dialog */}
