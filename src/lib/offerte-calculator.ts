@@ -28,6 +28,9 @@ import type {
 } from "@/types/offerte";
 
 import { roundToQuarter } from "@/lib/time-utils";
+// De normbron: één definitie van "hoeveel uur kost dit werk?", gedeeld met de
+// voorcalculatie. Zie convex/lib/normuren.ts voor de definitie zelf.
+import { normurenTotaal } from "@convex/lib/normuren";
 
 // ==================== CONSTANTS ====================
 
@@ -2587,7 +2590,6 @@ export function calculateTotals(
 ) {
   let materiaalkosten = 0;
   let arbeidskosten = 0;
-  let totaalUren = 0;
   let totaleMarge = 0;
 
   for (const regel of regels) {
@@ -2597,13 +2599,16 @@ export function calculateTotals(
 
     if (regel.type === "materiaal") {
       materiaalkosten += regel.totaal;
-    } else if (regel.type === "arbeid") {
-      arbeidskosten += regel.totaal;
-      totaalUren += regel.hoeveelheid;
-    } else if (regel.type === "machine") {
+    } else if (regel.type === "arbeid" || regel.type === "machine") {
       arbeidskosten += regel.totaal;
     }
   }
+
+  // Uren komen uit de normbron, niet uit een eigen optelling: het werkblad en
+  // de voorcalculatie tonen daardoor per definitie hetzelfde getal. Het telt
+  // alleen échte urenregels — een arbeidsregel in "beurt", "boom" of "vast"
+  // is geen tijd.
+  const totaalUren = normurenTotaal(regels);
 
   const subtotaal = materiaalkosten + arbeidskosten;
   // Gebruik de berekende totale marge i.p.v. simpele percentage berekening
@@ -2617,7 +2622,7 @@ export function calculateTotals(
   return {
     materiaalkosten: Math.round(materiaalkosten * 100) / 100,
     arbeidskosten: Math.round(arbeidskosten * 100) / 100,
-    totaalUren: roundToQuarter(totaalUren),
+    totaalUren,
     subtotaal: Math.round(subtotaal * 100) / 100,
     marge: Math.round(marge * 100) / 100,
     margePercentage: Math.round(effectiefMargePercentage * 100) / 100,

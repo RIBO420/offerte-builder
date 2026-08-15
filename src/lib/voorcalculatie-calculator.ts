@@ -1,44 +1,28 @@
 /**
- * Voorcalculatie Calculator
+ * Voorcalculatie — projectduur en weergave.
  *
- * Provides calculation logic for project hours and duration
- * based on offerte data, normuren, and correction factors.
+ * **Let op: hier wordt niet meer gerekend aan uren.** De normuren van een
+ * offerte komen uit één bron: `convex/lib/normuren.ts`. Tot 15 aug 2026 stond
+ * hier een tweede scope-engine die op dezelfde offerte een ánder aantal uren
+ * gaf dan het werkblad (12,50 vs 11,25 — zie de definitie in dat bestand).
+ * Die engine is weg; wat overblijft is de vertaling van uren naar dagen en de
+ * weergave.
  */
 
-// Types for scope data
-export interface OfferteData {
-  scopes: string[];
-  scopeData?: Record<string, Record<string, unknown>>;
-  algemeenParams: {
-    bereikbaarheid: "goed" | "beperkt" | "slecht";
-    achterstalligheid?: "laag" | "gemiddeld" | "hoog";
-  };
-  regels: Array<{
-    scope: string;
-    type: "materiaal" | "arbeid" | "machine";
-    hoeveelheid: number;
-  }>;
-}
+import {
+  geschatteWerkdagen,
+  normurenUitRegels,
+  type NormuurBronRegel,
+  type NormurenUitkomst,
+} from "@convex/lib/normuren";
+import { formatDagen as formatDagenNl, formatHoursWithUnit } from "@/lib/format/number";
 
-export interface Normuur {
-  activiteit: string;
-  scope: string;
-  normuurPerEenheid: number;
-  eenheid: string;
-}
-
-export interface Correctiefactor {
-  type: string;
-  waarde: string;
-  factor: number;
-}
-
-export interface VoorcalculatieResult {
-  normUrenPerScope: Record<string, number>;
-  normUrenTotaal: number;
-  bereikbaarheidFactor: number;
-  achterstallijkheidFactor: number;
-}
+export {
+  geschatteWerkdagen,
+  normurenUitRegels,
+  type NormuurBronRegel,
+  type NormurenUitkomst,
+};
 
 export interface ProjectDurationResult {
   geschatteDagen: number;
@@ -46,418 +30,6 @@ export interface ProjectDurationResult {
   teamGrootte: number;
   normUrenTotaal: number;
   teamCapaciteitPerDag: number;
-}
-
-/**
- * Get correction factor by type and value
- */
-function getFactor(
-  factoren: Correctiefactor[],
-  type: string,
-  waarde: string
-): number {
-  const factor = factoren.find((f) => f.type === type && f.waarde === waarde);
-  return factor?.factor ?? 1.0;
-}
-
-/**
- * Calculate normuren for a specific scope based on offerte data
- */
-function calculateScopeNormuren(
-  scope: string,
-  data: Record<string, unknown> | undefined,
-  scopeNormuren: Normuur[],
-  factoren: Correctiefactor[]
-): number {
-  let scopeUren = 0;
-
-  switch (scope) {
-    case "grondwerk": {
-      const oppervlakte = typeof data?.oppervlakte === 'number' ? data.oppervlakte : 0;
-      const diepte = typeof data?.diepte === 'string' ? data.diepte : "standaard";
-      const afvoerGrond = typeof data?.afvoerGrond === 'boolean' ? data.afvoerGrond : false;
-
-      const diepteFactor = getFactor(factoren, "diepte", diepte);
-
-      const ontgravenNormuur = scopeNormuren.find((n) =>
-        n.activiteit.toLowerCase().includes("ontgraven")
-      );
-      scopeUren +=
-        oppervlakte *
-        (ontgravenNormuur?.normuurPerEenheid || 0.25) *
-        diepteFactor;
-
-      if (afvoerGrond) {
-        const afvoerNormuur = scopeNormuren.find((n) =>
-          n.activiteit.toLowerCase().includes("afvoer")
-        );
-        const volume =
-          oppervlakte *
-          (diepte === "licht" ? 0.15 : diepte === "zwaar" ? 0.5 : 0.3);
-        scopeUren += volume * (afvoerNormuur?.normuurPerEenheid || 0.1);
-      }
-      break;
-    }
-
-    case "bestrating": {
-      const oppervlakte = (data?.oppervlakte as number) || 0;
-      const typeBestrating = (data?.typeBestrating as string) || "tegel";
-      const snijwerk = (data?.snijwerk as string) || "laag";
-
-      const snijwerkFactor = getFactor(factoren, "snijwerk", snijwerk);
-
-      const bestratingNormuur =
-        scopeNormuren.find((n) =>
-          n.activiteit.toLowerCase().includes(typeBestrating)
-        ) ||
-        scopeNormuren.find((n) =>
-          n.activiteit.toLowerCase().includes("leggen")
-        );
-
-      scopeUren +=
-        oppervlakte *
-        (bestratingNormuur?.normuurPerEenheid || 0.4) *
-        snijwerkFactor;
-
-      const zandbedNormuur = scopeNormuren.find((n) =>
-        n.activiteit.toLowerCase().includes("zandbed")
-      );
-      scopeUren += oppervlakte * (zandbedNormuur?.normuurPerEenheid || 0.1);
-      break;
-    }
-
-    case "parkeerplaats": {
-      // Zelfde opbouw als calculateParkeerplaats in offerte-calculator:
-      // ontgraven + fundering (op m³) + verharding + banden/kolken/belijning.
-      const oppervlakte = (data?.oppervlakte as number) || 0;
-      const verharding = (data?.verharding as string) || "betonklinker";
-      const draagkracht = (data?.draagkracht as string) || "personenauto";
-      const ontgraven = data?.ontgraven !== false;
-
-      const funderingCm =
-        draagkracht === "vrachtverkeer"
-          ? { puin: 50, zand: 15 }
-          : draagkracht === "bestelbus"
-            ? { puin: 35, zand: 10 }
-            : { puin: 25, zand: 10 };
-      const lagen = (data?.funderingslagen as
-        | { gebrokenPuin?: number; zand?: number }
-        | undefined) ?? { gebrokenPuin: funderingCm.puin, zand: funderingCm.zand };
-      const puinM3 = (oppervlakte * (lagen.gebrokenPuin ?? 0)) / 100;
-      const zandM3 = (oppervlakte * (lagen.zand ?? 0)) / 100;
-
-      if (ontgraven) {
-        const ontgraafDiepteM =
-          ((lagen.gebrokenPuin ?? 0) + (lagen.zand ?? 0) + 8) / 100;
-        scopeUren += oppervlakte * 0.25;
-        scopeUren += oppervlakte * ontgraafDiepteM * 0.1; // afvoeren per m³
-      }
-
-      const funderingNormuur = scopeNormuren.find((n) =>
-        n.activiteit.toLowerCase().includes("fundering")
-      );
-      scopeUren +=
-        (puinM3 + zandM3) * (funderingNormuur?.normuurPerEenheid || 0.35);
-
-      const verhardingUrenPerM2: Record<string, number> = {
-        betonklinker: 0.45,
-        grasbetontegel: 0.35,
-        halfverharding: 0.12,
-        asfalt: 0.08,
-      };
-      const verhardingNormuur = scopeNormuren.find((n) =>
-        n.activiteit.toLowerCase().includes(verharding)
-      );
-      scopeUren +=
-        oppervlakte *
-        (verhardingNormuur?.normuurPerEenheid ??
-          verhardingUrenPerM2[verharding] ??
-          0.45);
-
-      if (data?.opsluitbanden) {
-        const meters =
-          (data?.opsluitbandenMeters as number) ||
-          (oppervlakte > 0 ? 4 * Math.sqrt(oppervlakte) : 0);
-        scopeUren += meters * 0.25;
-      }
-      if (data?.afwatering === "kolken") {
-        const kolken =
-          (data?.aantalKolken as number) ||
-          Math.max(1, Math.ceil(oppervlakte / 150));
-        scopeUren += kolken * 2.5;
-      } else if (data?.afwatering === "infiltratie") {
-        scopeUren += oppervlakte * 0.1;
-      }
-      if (data?.belijning) {
-        const vakken =
-          (data?.aantalPlaatsen as number) ||
-          Math.max(1, Math.round(oppervlakte / 25));
-        scopeUren += vakken * 0.25;
-      }
-      break;
-    }
-
-    case "beregening": {
-      // Zelfde opbouw als calculateBeregening: bron + leidingwerk + zones +
-      // sproeipunten + besturing.
-      const oppervlakte = (data?.oppervlakte as number) || 0;
-      const zones = Math.max(1, (data?.aantalZones as number) || 1);
-      const type = (data?.sproeierType as string) || "popup";
-      const bron = (data?.waterbron as string) || "waterleiding";
-
-      scopeUren +=
-        bron === "regenwater" ? 5 : bron === "put" ? 4 : 1.5;
-
-      const leiding =
-        (data?.leidinglengte as number) ||
-        (oppervlakte > 0
-          ? Math.round(4 * Math.sqrt(oppervlakte) + zones * Math.sqrt(oppervlakte))
-          : 0);
-      const sleufNormuur = scopeNormuren.find((n) =>
-        n.activiteit.toLowerCase().includes("sleuf")
-      );
-      scopeUren += leiding * (sleufNormuur?.normuurPerEenheid || 0.15);
-      scopeUren += leiding * 0.05;
-
-      scopeUren += zones * 0.75;
-
-      const m2PerSproeier: Record<string, number> = {
-        popup: 25,
-        sproeidop: 15,
-        druppelslang: 2,
-        combinatie: 20,
-      };
-      const urenPerSproeier: Record<string, number> = {
-        popup: 0.5,
-        sproeidop: 0.25,
-        druppelslang: 0.06,
-        combinatie: 0.35,
-      };
-      const aantal =
-        oppervlakte > 0
-          ? Math.max(1, Math.ceil(oppervlakte / (m2PerSproeier[type] ?? 25)))
-          : 0;
-      scopeUren += aantal * (urenPerSproeier[type] ?? 0.5);
-
-      if (data?.regelkast) {
-        scopeUren += 2;
-        if (data?.wifiModule) scopeUren += 0.5;
-      }
-      if (data?.wintervast) scopeUren += 1;
-      break;
-    }
-
-    case "borders": {
-      const oppervlakte = (data?.oppervlakte as number) || 0;
-      const intensiteit =
-        (data?.beplantingsintensiteit as string) || "gemiddeld";
-
-      const intensiteitFactor = getFactor(factoren, "intensiteit", intensiteit);
-
-      const grondNormuur = scopeNormuren.find((n) =>
-        n.activiteit.toLowerCase().includes("grondbewerking")
-      );
-      scopeUren += oppervlakte * (grondNormuur?.normuurPerEenheid || 0.2);
-
-      const plantenNormuur =
-        scopeNormuren.find((n) =>
-          n.activiteit.toLowerCase().includes(intensiteit)
-        ) ||
-        scopeNormuren.find((n) =>
-          n.activiteit.toLowerCase().includes("planten")
-        );
-      scopeUren +=
-        oppervlakte *
-        (plantenNormuur?.normuurPerEenheid || 0.25) *
-        intensiteitFactor;
-      break;
-    }
-
-    case "gras": {
-      const oppervlakte = (data?.oppervlakte as number) || 0;
-      const type = (data?.type as string) || "graszoden";
-
-      const grasNormuur = scopeNormuren.find((n) =>
-        n.activiteit.toLowerCase().includes(type)
-      );
-      scopeUren +=
-        oppervlakte *
-        (grasNormuur?.normuurPerEenheid ||
-          (type === "graszoden" ? 0.12 : 0.05));
-      break;
-    }
-
-    case "houtwerk": {
-      const afmeting = (data?.afmeting as number) || 0;
-      const typeHoutwerk = (data?.typeHoutwerk as string) || "schutting";
-      const fundering = (data?.fundering as string) || "standaard";
-
-      const houtwerkNormuur = scopeNormuren.find((n) =>
-        n.activiteit.toLowerCase().includes(typeHoutwerk)
-      );
-      scopeUren += afmeting * (houtwerkNormuur?.normuurPerEenheid || 0.8);
-
-      const funderingNormuur = scopeNormuren.find(
-        (n) =>
-          n.activiteit.toLowerCase().includes("fundering") &&
-          n.activiteit.toLowerCase().includes(fundering)
-      );
-      const aantalPalen =
-        typeHoutwerk === "schutting" ? Math.ceil(afmeting / 2) : 4;
-      scopeUren += aantalPalen * (funderingNormuur?.normuurPerEenheid || 0.5);
-      break;
-    }
-
-    case "water_elektra": {
-      const aantalPunten = (data?.aantalPunten as number) || 0;
-      const sleuvenNodig = (data?.sleuvenNodig as boolean) || false;
-
-      const armatuurNormuur = scopeNormuren.find((n) =>
-        n.activiteit.toLowerCase().includes("armatuur")
-      );
-      scopeUren += aantalPunten * (armatuurNormuur?.normuurPerEenheid || 0.5);
-
-      if (sleuvenNodig) {
-        const sleufNormuur = scopeNormuren.find((n) =>
-          n.activiteit.toLowerCase().includes("sleuf graven")
-        );
-        scopeUren += aantalPunten * 3 * (sleufNormuur?.normuurPerEenheid || 0.3);
-      }
-      break;
-    }
-
-    case "gras_onderhoud": {
-      const oppervlakte = (data?.grasOppervlakte as number) || 0;
-      const maaien = (data?.maaien as boolean) || false;
-
-      if (maaien) {
-        const maaienNormuur = scopeNormuren.find((n) =>
-          n.activiteit.toLowerCase().includes("maaien")
-        );
-        scopeUren += oppervlakte * (maaienNormuur?.normuurPerEenheid || 0.02);
-      }
-      break;
-    }
-
-    case "borders_onderhoud": {
-      const oppervlakte = (data?.borderOppervlakte as number) || 0;
-      const intensiteit =
-        (data?.onderhoudsintensiteit as string) || "gemiddeld";
-
-      const wiedenNormuur =
-        scopeNormuren.find((n) =>
-          n.activiteit.toLowerCase().includes(intensiteit)
-        ) ||
-        scopeNormuren.find((n) =>
-          n.activiteit.toLowerCase().includes("wieden")
-        );
-
-      scopeUren += oppervlakte * (wiedenNormuur?.normuurPerEenheid || 0.15);
-      break;
-    }
-
-    case "heggen": {
-      const lengte = (data?.lengte as number) || 0;
-      const hoogte = (data?.hoogte as number) || 1;
-      const breedte = (data?.breedte as number) || 0.5;
-
-      const volume = lengte * hoogte * breedte;
-
-      const hegNormuur = scopeNormuren.find((n) =>
-        n.activiteit.toLowerCase().includes("heg snoeien")
-      );
-      scopeUren += volume * (hegNormuur?.normuurPerEenheid || 0.15);
-      break;
-    }
-
-    case "bomen": {
-      const aantalBomen = (data?.aantalBomen as number) || 0;
-      const snoei = (data?.snoei as string) || "licht";
-
-      const boomNormuur =
-        scopeNormuren.find((n) => n.activiteit.toLowerCase().includes(snoei)) ||
-        scopeNormuren.find((n) =>
-          n.activiteit.toLowerCase().includes("boom")
-        );
-
-      scopeUren +=
-        aantalBomen *
-        (boomNormuur?.normuurPerEenheid || (snoei === "zwaar" ? 1.5 : 0.5));
-      break;
-    }
-
-    default:
-      // For unknown scopes, return 0 (fallback to regels in caller)
-      scopeUren = 0;
-  }
-
-  return scopeUren;
-}
-
-/**
- * Calculate total normuren from offerte data
- */
-export function calculateNormuren(
-  offerte: OfferteData,
-  normuren: Normuur[],
-  factoren: Correctiefactor[]
-): VoorcalculatieResult {
-  const normUrenPerScope: Record<string, number> = {};
-  const scopes = offerte.scopes || [];
-  const scopeData = offerte.scopeData;
-
-  // Get global correction factors
-  const bereikbaarheidFactor = getFactor(
-    factoren,
-    "bereikbaarheid",
-    offerte.algemeenParams.bereikbaarheid
-  );
-  const achterstallijkheidFactor = offerte.algemeenParams.achterstalligheid
-    ? getFactor(
-        factoren,
-        "achterstalligheid",
-        offerte.algemeenParams.achterstalligheid
-      )
-    : 1.0;
-
-  for (const scope of scopes) {
-    const scopeNormuren = normuren.filter((n) => n.scope === scope);
-    const data = scopeData?.[scope];
-
-    let scopeUren = calculateScopeNormuren(
-      scope,
-      data,
-      scopeNormuren,
-      factoren
-    );
-
-    // If no calculated uren, fallback to arbeid regels
-    if (scopeUren === 0) {
-      const scopeRegels = offerte.regels.filter(
-        (r) => r.scope === scope && r.type === "arbeid"
-      );
-      for (const regel of scopeRegels) {
-        scopeUren += regel.hoeveelheid;
-      }
-    }
-
-    // Apply global factors
-    scopeUren *= bereikbaarheidFactor * achterstallijkheidFactor;
-
-    normUrenPerScope[scope] = Math.round(scopeUren * 100) / 100;
-  }
-
-  const normUrenTotaal = Object.values(normUrenPerScope).reduce(
-    (a, b) => a + b,
-    0
-  );
-
-  return {
-    normUrenPerScope,
-    normUrenTotaal: Math.round(normUrenTotaal * 100) / 100,
-    bereikbaarheidFactor,
-    achterstallijkheidFactor,
-  };
 }
 
 /**
@@ -469,7 +41,11 @@ export function calculateProjectDuration(
   effectieveUrenPerDag: number = 7
 ): ProjectDurationResult {
   const teamCapaciteitPerDag = teamGrootte * effectieveUrenPerDag;
-  const geschatteDagen = Math.ceil(normUrenTotaal / teamCapaciteitPerDag);
+  const geschatteDagen = geschatteWerkdagen(
+    normUrenTotaal,
+    teamGrootte,
+    effectieveUrenPerDag
+  );
 
   return {
     geschatteDagen,
@@ -506,28 +82,20 @@ export function calculateProjectDurationWithBuffer(
 }
 
 /**
- * Format hours to display string
+ * Uren als tekst: "11,25 uur".
+ *
+ * Was ooit `11:15 uur` — dat leest als een kloktijd (kwart over elf) terwijl
+ * het een duur is, en het week af van het werkblad, dat decimaal telt. Hele
+ * uren blijven kort ("12 uur"); de rest krijgt twee decimalen met een
+ * Nederlandse komma.
  */
 export function formatUren(uren: number): string {
-  const hours = Math.floor(uren);
-  const minutes = Math.round((uren - hours) * 60);
-
-  if (minutes === 0) {
-    return `${hours} uur`;
-  }
-
-  return `${hours}:${minutes.toString().padStart(2, "0")} uur`;
+  if (Number.isInteger(uren)) return `${uren} uur`;
+  return formatHoursWithUnit(uren);
 }
 
-/**
- * Format days to display string
- */
-export function formatDagen(dagen: number): string {
-  if (dagen === 1) {
-    return "1 dag";
-  }
-  return `${dagen} dagen`;
-}
+/** Dagen als tekst: "1 dag", "3 dagen". */
+export const formatDagen = formatDagenNl;
 
 /**
  * Scope labels for display

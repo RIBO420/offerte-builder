@@ -40,6 +40,7 @@ export {
   formatCompact,
   formatHours,
   formatHoursWithUnit,
+  formatDagen,
   formatDuration,
   roundToQuarter,
   parseNumber,

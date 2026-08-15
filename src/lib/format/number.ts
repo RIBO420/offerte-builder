@@ -120,6 +120,24 @@ export function formatHoursWithUnit(
 }
 
 /**
+ * Format a number of workdays in Dutch — mét het juiste enkelvoud.
+ *
+ * "1 dagen" is de klassieke sjabloonfout: een geteld zelfstandig naamwoord
+ * krijgt zijn meervoud pas vanaf twee.
+ *
+ * @param dagen - Aantal (werk)dagen
+ * @returns "1 dag" of "3 dagen"
+ *
+ * @example
+ * formatDagen(1) // "1 dag"
+ * formatDagen(3) // "3 dagen"
+ * formatDagen(0) // "0 dagen"
+ */
+export function formatDagen(dagen: number): string {
+  return `${dagen} ${dagen === 1 ? "dag" : "dagen"}`;
+}
+
+/**
  * Format hours as duration (hours and minutes).
  *
  * @param hours - The number of hours
