@@ -13,9 +13,10 @@ export function formatDate(timestamp: number): string {
   }).format(new Date(timestamp));
 }
 
-// Gelijk gehouden met de centrale labelmaps (o.a.
-// src/components/analytics/scope-profitability-chart.tsx) — labelmap-drift
-// liet hier de rauwe key `water_elektra` op het offertedetail lekken.
+// Gelijk gehouden met de centrale labelmaps (`src/lib/rapportage-labels.ts`
+// voor /rapportages, `instellingen/components/constants.ts` voor de normuren)
+// — labelmap-drift liet hier ooit de rauwe key `water_elektra` op het
+// offertedetail lekken.
 export const scopeLabels: Record<string, string> = {
   grondwerk: "Grondwerk",
   bestrating: "Bestrating",

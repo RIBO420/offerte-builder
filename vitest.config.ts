@@ -20,6 +20,10 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      // Zelfde alias als tsconfig: componenten importeren de gegenereerde
+      // Convex-API als `@convex/_generated/api`, en zonder deze regel kan
+      // vitest die niet oplossen.
+      "@convex": path.resolve(__dirname, "./convex"),
     },
   },
 });

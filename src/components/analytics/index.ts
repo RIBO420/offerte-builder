@@ -1,34 +1,19 @@
 /**
- * Analytics-barrel — bevat BEWUST alleen de lichte componenten en de
- * dynamic-varianten (optimize O4).
+ * Analytics-barrel — BEWUST zonder statische chart-exports (WS8/optimize O4).
  *
- * De statische chart-componenten (OfferteTrendChart, RevenueChart, …)
- * importeren recharts (~200 KB) statisch. Toen de barrel die náást de
- * Dynamic*-varianten re-exporteerde, kon recharts alsnog in de eerste
- * chunk van elke consument belanden. Statische chart-exports hier dus niet
- * terugzetten; wie een statische variant echt nodig heeft importeert hem
- * rechtstreeks uit het bronbestand.
+ * De recharts-componenten (`maand-staven-chart`, `lange-trend-chart`)
+ * importeren recharts statisch. Zodra deze barrel ze re-exporteert, kan
+ * recharts (~200 KB) alsnog in de eerste chunk van elke consument belanden.
+ * Wie ze nodig heeft neemt de `Dynamic*`-variant uit `./dynamic`.
+ *
+ * Wat hier wél staat is licht: de horizontale-staaf-primitieven (pure CSS) en
+ * de nacalculatie-sectie van de onderhoudsbeurten.
  */
 
-// Static exports (lightweight components)
-export { EnhancedDateFilter } from "./enhanced-date-filter";
-export type { DateRangePreset } from "./enhanced-date-filter";
-export { ComparisonIndicator, ComparisonArrow, ComparisonDisplay } from "./comparison-indicator";
+export { RangStaven, StapelBalk } from "./staafwerk";
+export type { StaafRegel, StapelDeel } from "./staafwerk";
+export { BEWIJS_HOOGTE } from "./maten";
+export { BeurtNacalculatie } from "./beurt-nacalculatie";
 
-// Dynamic exports for code-splitting (use these for better bundle size)
-export {
-  DynamicKpiCards,
-  DynamicSecondaryKpiCards,
-  DynamicOfferteTrendChart,
-  DynamicRevenueChart,
-  DynamicScopeMarginChart,
-  DynamicScopeProfitabilityChart,
-  DynamicTopKlantenTable,
-  DynamicPipelineFunnelChart,
-  DynamicTrendForecastChart,
-  // New dynamic components
-  DynamicCalculatieVergelijking,
-  DynamicMedewerkerProductiviteit,
-  DynamicProjectPrestaties,
-  DynamicFinancieelOverzicht,
-} from "./dynamic";
+// Code-splitting: alleen deze twee bevatten recharts.
+export { DynamicMaandStavenChart, DynamicLangeTrendChart } from "./dynamic";

@@ -11,7 +11,6 @@
 import type * as acceptatieKeten from "../acceptatieKeten.js";
 import type * as acceptatieRegels from "../acceptatieRegels.js";
 import type * as afronding from "../afronding.js";
-import type * as analytics from "../analytics.js";
 import type * as archief from "../archief.js";
 import type * as auth from "../auth.js";
 import type * as backfillKlantIds from "../backfillKlantIds.js";
@@ -155,7 +154,6 @@ declare const fullApi: ApiFromModules<{
   acceptatieKeten: typeof acceptatieKeten;
   acceptatieRegels: typeof acceptatieRegels;
   afronding: typeof afronding;
-  analytics: typeof analytics;
   archief: typeof archief;
   auth: typeof auth;
   backfillKlantIds: typeof backfillKlantIds;
