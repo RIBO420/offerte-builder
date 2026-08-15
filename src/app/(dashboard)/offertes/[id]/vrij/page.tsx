@@ -7,6 +7,7 @@ import { ArrowLeft, Save, Loader2, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { LaadIndicator } from "@/components/ui";
 import { useAutoSave } from "@/hooks/use-auto-save";
 import {
   VrijeRegelEditor,
@@ -51,11 +52,7 @@ export default function VrijeOfferteEditorPage({
   }, [offerte, offerteId, router]);
 
   if (offerte === undefined) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <LaadIndicator formaat="pagina" tekst="Offerte laden…" />;
   }
   if (offerte === null) {
     return (

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import { Plus, Trash2, Package, PenLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatCurrency } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { ArtikelPicker } from "./artikel-picker";
 import { MargefactorInfo } from "./margefactor-info";
 import {
@@ -55,6 +57,74 @@ function herbereken(regel: VrijeRegel): VrijeRegel {
       regel.kortingPercentage
     ),
   };
+}
+
+/**
+ * Anatomie van één regel — de volgorde waarin een hovenier hem invult:
+ *
+ * ```
+ * ┌ omschrijving (dominant, groeit) ── soort ── verwijder ┐
+ * └ rekenstrook: aantal × eenheid │ inkoop → marge → verkoop → korting → btw │ TOTAAL ┘
+ * ```
+ *
+ * Drie keuzes die je anders opnieuw maakt:
+ *
+ * 1. **Geen steppers op geld en percentages.** `NumberInput` zet standaard een
+ *    −/+ knop van 40px aan wéérszijden van het veld; zeven van die clusters
+ *    naast elkaar was de klacht ("nogal op elkaar gecropt"). Niemand klikt
+ *    €1.250 bij elkaar, en ook `Aantal` is hier vaak een gemeten waarde
+ *    (34,5 m², 6,25 uur) in plaats van een telling — dus overal
+ *    `showStepper={false}`. Ophogen kan nog steeds met ↑/↓: `handleKeyDown` in
+ *    `NumberInput` staat los van de knoppen. Dat scheelt ~560px aan chrome,
+ *    precies de ruimte die de velden zelf nodig hadden.
+ * 2. **Getallen rechts, `tabular-nums`.** De cijferkolommen liggen daarmee
+ *    onder elkaar uit; via `[&_input]` omdat `NumberInput` zijn `className` op
+ *    de wikkel zet, niet op de `<input type="text" inputmode="decimal">`.
+ * 3. **Nooit zijwaarts scrollen.** De strook is `flex-wrap` (harde regel 1) en
+ *    het regeltotaal hangt aan een container-query op de rij zelf — dezelfde
+ *    rij staat in de brede offertekolom én in de smallere factuur-opzet.
+ */
+const CEL_LABEL =
+  "flex items-center gap-1 text-[11px] leading-none font-medium uppercase tracking-wide";
+
+/** Getalveld: rechts uitgelijnd en tabulair, zodat de kolom onder elkaar valt. */
+const GETAL_VELD = "[&_input]:text-right [&_input]:tabular-nums";
+
+/**
+ * Eén cel in de rekenstrook: het label staat strak boven zijn eigen veld (niet
+ * los boven een cluster) en de cel bepaalt de breedte, niet het veld.
+ * De toegankelijke naam komt uit de `aria-label` van het veld zelf, dus dit is
+ * bewust een `<div>`: een `<label>` om een select-trigger schakelt dubbel.
+ */
+function Cel({
+  label,
+  breedte,
+  nadruk,
+  uitleg,
+  children,
+}: {
+  label: string;
+  /** Tailwind-breedte; `max-w-full` houdt hem binnen een smalle container. */
+  breedte: string;
+  /** Het veld dat de prijs draagt (verkoop) mag zwaarder wegen dan zijn buren. */
+  nadruk?: boolean;
+  uitleg?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <div className={cn("flex min-w-0 max-w-full flex-col gap-1.5", breedte)}>
+      <span
+        className={cn(
+          CEL_LABEL,
+          nadruk ? "text-foreground" : "text-muted-foreground"
+        )}
+      >
+        {label}
+        {uitleg}
+      </span>
+      {children}
+    </div>
+  );
 }
 
 export function VrijeRegelEditor({
@@ -176,169 +246,230 @@ export function VrijeRegelEditor({
       {hoofdstukken.map((hoofdstuk) => {
         const hoofdstukRegels = regels.filter((r) => r.scope === hoofdstuk);
         return (
-          <Card key={hoofdstuk}>
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center justify-between text-base">
-                <span>{hoofdstuk}</span>
-                <span className="text-sm font-normal text-muted-foreground tabular-nums">
-                  Subtotaal {formatCurrency(subtotalen.get(hoofdstuk) ?? 0)}
+          <Card key={hoofdstuk} className="gap-0 overflow-hidden py-0">
+            <CardHeader className="border-b bg-muted/30 px-4 py-2.5 [.border-b]:pb-2.5">
+              <CardTitle className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-sm">
+                <span className="tracking-tight">{hoofdstuk}</span>
+                <span className="text-xs font-normal text-muted-foreground tabular-nums">
+                  Subtotaal{" "}
+                  <span className="font-medium text-foreground">
+                    {formatCurrency(subtotalen.get(hoofdstuk) ?? 0)}
+                  </span>
                 </span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="p-0">
               {hoofdstukRegels.length === 0 && (
-                <p className="text-sm text-muted-foreground">
+                <p className="px-4 py-3 text-sm text-muted-foreground">
                   Nog geen regels in dit hoofdstuk.
                 </p>
               )}
-              {hoofdstukRegels.map((regel) => (
-                <div
-                  key={regel.id}
-                  className="rounded-md border p-3 space-y-2"
-                  data-testid="vrije-regel"
-                >
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <Input
-                      value={regel.omschrijving}
-                      onChange={(e) =>
-                        updateRegel(regel.id, { omschrijving: e.target.value })
-                      }
-                      placeholder="Omschrijving"
-                      aria-label="Omschrijving"
-                      className="flex-1"
-                    />
-                    <Select
-                      value={regel.type}
-                      onValueChange={(type) =>
-                        updateRegel(regel.id, {
-                          type: type as VrijeRegel["type"],
-                          eenheid: type === "arbeid" ? "uur" : regel.eenheid,
-                        })
-                      }
+              {/* Regels als lijst met haarlijnen: een doos-in-een-doos per regel
+                  gaf zeven randen boven elkaar en géén hiërarchie. */}
+              <div className="divide-y">
+                {hoofdstukRegels.map((regel) => {
+                  const geenMarge =
+                    regel.prijsOpRegel === true ||
+                    isPrijsOpRegel(regel.inkoopprijsPerEenheid);
+                  return (
+                    <div
+                      key={regel.id}
+                      // @container/regel: dezelfde rij staat in de brede
+                      // offertekolom én in de smalle factuur-opzet.
+                      className="@container/regel px-4 py-3"
+                      data-testid="vrije-regel"
                     >
-                      <SelectTrigger className="w-full sm:w-32" aria-label="Soort regel">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="materiaal">Materiaal</SelectItem>
-                        <SelectItem value="arbeid">Arbeid</SelectItem>
-                        <SelectItem value="machine">Machine</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => verwijderRegel(regel.id)}
-                      aria-label="Regel verwijderen"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
-                    <label className="space-y-1 text-xs text-muted-foreground">
-                      Aantal
-                      <NumberInput
-                        value={regel.hoeveelheid}
-                        onChange={(hoeveelheid) =>
-                          updateRegel(regel.id, { hoeveelheid })
-                        }
-                        min={0}
-                        aria-label="Aantal"
-                      />
-                    </label>
-                    <label className="space-y-1 text-xs text-muted-foreground">
-                      Eenheid
-                      <Input
-                        value={regel.eenheid}
-                        onChange={(e) =>
-                          updateRegel(regel.id, { eenheid: e.target.value })
-                        }
-                        aria-label="Eenheid"
-                      />
-                    </label>
-                    <label className="space-y-1 text-xs text-muted-foreground">
-                      Inkoop €
-                      <NumberInput
-                        value={regel.inkoopprijsPerEenheid ?? 0}
-                        onChange={(inkoop) => wijzigInkoop(regel, inkoop)}
-                        min={0}
-                        step={0.01}
-                        aria-label="Inkoopprijs per eenheid"
-                      />
-                    </label>
-                    <label className="space-y-1 text-xs text-muted-foreground">
-                      <span className="inline-flex items-center gap-1">
-                        Marge % <MargefactorInfo />
-                      </span>
-                      {regel.prijsOpRegel ||
-                      isPrijsOpRegel(regel.inkoopprijsPerEenheid) ? (
+                      {/* 1 — wát je levert. De omschrijving is de regel, dus die
+                          krijgt de breedte en het enige niet-gedempte gewicht. */}
+                      <div className="flex flex-wrap items-center gap-2">
                         <Input
-                          value="prijs op regel"
-                          disabled
-                          aria-label="Marge niet beschikbaar: prijs op regel"
+                          value={regel.omschrijving}
+                          onChange={(e) =>
+                            updateRegel(regel.id, {
+                              omschrijving: e.target.value,
+                            })
+                          }
+                          placeholder="Omschrijving"
+                          aria-label="Omschrijving"
+                          className="h-10 min-w-[11rem] flex-1 text-sm font-medium sm:h-9"
                         />
-                      ) : (
-                        <NumberInput
-                          value={regel.margePercentage ?? 0}
-                          onChange={(marge) => wijzigMarge(regel, marge)}
-                          min={0}
-                          max={99.9}
-                          step={0.1}
-                          aria-label="Marge percentage"
-                        />
-                      )}
-                    </label>
-                    <label className="space-y-1 text-xs text-muted-foreground">
-                      Verkoop €
-                      <NumberInput
-                        value={regel.prijsPerEenheid}
-                        onChange={(verkoop) => wijzigVerkoop(regel, verkoop)}
-                        min={0}
-                        step={0.01}
-                        aria-label="Verkoopprijs per eenheid"
-                      />
-                    </label>
-                    <label className="space-y-1 text-xs text-muted-foreground">
-                      Korting %
-                      <NumberInput
-                        value={regel.kortingPercentage ?? 0}
-                        onChange={(korting) =>
-                          updateRegel(regel.id, {
-                            kortingPercentage: korting > 0 ? korting : undefined,
-                          })
-                        }
-                        min={0}
-                        max={100}
-                        aria-label="Korting percentage per regel"
-                      />
-                    </label>
-                    <label className="space-y-1 text-xs text-muted-foreground">
-                      Btw
-                      <Select
-                        value={String(regel.btwCode ?? 21)}
-                        onValueChange={(code) =>
-                          updateRegel(regel.id, {
-                            btwCode: Number(code) as 9 | 21,
-                          })
-                        }
-                      >
-                        <SelectTrigger aria-label="Btw-code">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="9">9%</SelectItem>
-                          <SelectItem value="21">21%</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </label>
-                  </div>
-                  <p className="text-right text-sm font-medium tabular-nums">
-                    Regeltotaal {formatCurrency(regel.totaal)}
-                  </p>
-                </div>
-              ))}
-              <div className="flex flex-wrap gap-2">
+                        <Select
+                          value={regel.type}
+                          onValueChange={(type) =>
+                            updateRegel(regel.id, {
+                              type: type as VrijeRegel["type"],
+                              eenheid: type === "arbeid" ? "uur" : regel.eenheid,
+                            })
+                          }
+                        >
+                          <SelectTrigger
+                            size="sm"
+                            className="w-[8.5rem] @max-[24rem]/regel:flex-1"
+                            aria-label="Soort regel"
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="materiaal">Materiaal</SelectItem>
+                            <SelectItem value="arbeid">Arbeid</SelectItem>
+                            <SelectItem value="machine">Machine</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => verwijderRegel(regel.id)}
+                          aria-label="Regel verwijderen"
+                          className="shrink-0 text-muted-foreground hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      {/* 2 — wat het kost. Eén rustige strook i.p.v. zeven
+                          losse clusters; het totaal sluit hem rechts af. */}
+                      <div className="mt-2 flex flex-wrap items-end gap-x-4 gap-y-2.5 rounded-md bg-muted/40 px-3 py-2.5">
+                        {/* aantal × eenheid horen bij elkaar: kleinere tussenruimte */}
+                        <div className="flex items-end gap-1.5">
+                          <Cel label="Aantal" breedte="w-[4.75rem]">
+                            <NumberInput
+                              value={regel.hoeveelheid}
+                              onChange={(hoeveelheid) =>
+                                updateRegel(regel.id, { hoeveelheid })
+                              }
+                              min={0}
+                              showStepper={false}
+                              className={GETAL_VELD}
+                              aria-label="Aantal"
+                            />
+                          </Cel>
+                          <Cel label="Eenheid" breedte="w-[5.25rem]">
+                            <Input
+                              value={regel.eenheid}
+                              onChange={(e) =>
+                                updateRegel(regel.id, {
+                                  eenheid: e.target.value,
+                                })
+                              }
+                              aria-label="Eenheid"
+                              className="h-10 text-sm sm:h-9"
+                            />
+                          </Cel>
+                        </div>
+
+                        <div className="flex flex-wrap items-end gap-x-2.5 gap-y-2.5">
+                          <Cel label="Inkoop €" breedte="w-[6rem]">
+                            <NumberInput
+                              value={regel.inkoopprijsPerEenheid ?? 0}
+                              onChange={(inkoop) => wijzigInkoop(regel, inkoop)}
+                              min={0}
+                              step={0.01}
+                              showStepper={false}
+                              className={GETAL_VELD}
+                              aria-label="Inkoopprijs per eenheid"
+                            />
+                          </Cel>
+                          <Cel
+                            label="Marge %"
+                            breedte="w-[5.75rem]"
+                            uitleg={<MargefactorInfo />}
+                          >
+                            {geenMarge ? (
+                              // Geen inkoopprijs → geen marge. "prijs op regel"
+                              // paste niet in het veld en werd afgekapt; de
+                              // uitleg staat nu in de tooltip van het veld.
+                              <Input
+                                value="n.v.t."
+                                readOnly
+                                disabled
+                                title="Prijs op regel — zonder inkoopprijs valt er geen marge te berekenen"
+                                aria-label="Marge niet beschikbaar: prijs op regel"
+                                className="h-10 text-right text-sm sm:h-9"
+                              />
+                            ) : (
+                              <NumberInput
+                                value={regel.margePercentage ?? 0}
+                                onChange={(marge) => wijzigMarge(regel, marge)}
+                                min={0}
+                                max={99.9}
+                                step={0.1}
+                                showStepper={false}
+                                className={GETAL_VELD}
+                                aria-label="Marge percentage"
+                              />
+                            )}
+                          </Cel>
+                          <Cel label="Verkoop €" breedte="w-[6rem]" nadruk>
+                            <NumberInput
+                              value={regel.prijsPerEenheid}
+                              onChange={(verkoop) =>
+                                wijzigVerkoop(regel, verkoop)
+                              }
+                              min={0}
+                              step={0.01}
+                              showStepper={false}
+                              className={GETAL_VELD}
+                              aria-label="Verkoopprijs per eenheid"
+                            />
+                          </Cel>
+                          <Cel label="Korting %" breedte="w-[5.75rem]">
+                            <NumberInput
+                              value={regel.kortingPercentage ?? 0}
+                              onChange={(korting) =>
+                                updateRegel(regel.id, {
+                                  kortingPercentage:
+                                    korting > 0 ? korting : undefined,
+                                })
+                              }
+                              min={0}
+                              max={100}
+                              showStepper={false}
+                              className={GETAL_VELD}
+                              aria-label="Korting percentage per regel"
+                            />
+                          </Cel>
+                          <Cel label="Btw" breedte="w-[5rem]">
+                            <Select
+                              value={String(regel.btwCode ?? 21)}
+                              onValueChange={(code) =>
+                                updateRegel(regel.id, {
+                                  btwCode: Number(code) as 9 | 21,
+                                })
+                              }
+                            >
+                              <SelectTrigger
+                                size="sm"
+                                className="w-full"
+                                aria-label="Btw-code"
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="9">9%</SelectItem>
+                                <SelectItem value="21">21%</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </Cel>
+                        </div>
+
+                        {/* De uitkomst van de keten, in dezelfde strook. Past
+                            hij er niet naast, dan wordt het een eigen regel
+                            mét scheidingslijn — nooit zijwaarts scrollen. */}
+                        <div className="ml-auto flex flex-col items-end gap-1.5 @max-[40rem]/regel:w-full @max-[40rem]/regel:flex-row @max-[40rem]/regel:items-center @max-[40rem]/regel:justify-between @max-[40rem]/regel:gap-2 @max-[40rem]/regel:border-t @max-[40rem]/regel:border-border/70 @max-[40rem]/regel:pt-2">
+                          <span className={cn(CEL_LABEL, "text-muted-foreground")}>
+                            Regeltotaal
+                          </span>
+                          <span className="flex h-10 items-center text-[15px] font-semibold tabular-nums sm:h-9">
+                            {formatCurrency(regel.totaal)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex flex-wrap gap-2 border-t px-4 py-3">
                 <Button
                   type="button"
                   variant="outline"
