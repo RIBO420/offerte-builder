@@ -13,27 +13,22 @@ import { query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
 import { filterConceptenUit } from "./lib/pipelineKpis";
 import { voorcalculatieVanProject, voorcalculatieVanOfferte } from "./lib/voorcalculatieLookup";
-
-// ── Quarter helpers ──────────────────────────────────────────────────
-
-const QUARTER_MS = 90 * 24 * 60 * 60 * 1000; // ~90 days
-
-function getQuarterBounds(date: Date): { start: number; end: number } {
-  const quarter = Math.floor(date.getMonth() / 3);
-  const start = new Date(date.getFullYear(), quarter * 3, 1).getTime();
-  const end = new Date(
-    date.getFullYear(),
-    quarter * 3 + 3,
-    0,
-    23,
-    59,
-    59,
-    999
-  ).getTime();
-  return { start, end };
-}
+import {
+  berekenFacturatie,
+  berekenGetekendeOmzet,
+  binnenVenster,
+  isTelbaar,
+  type Venster,
+} from "./lib/omzetDefinities";
+import { bepaalPeriode } from "./lib/rapportagePeriode";
+import { telOfferteStatussen } from "./lib/rapportageAggregatie";
 
 // ── Main query ───────────────────────────────────────────────────────
+//
+// R2: alle geldbedragen hieronder komen uit `lib/omzetDefinities.ts`, het
+// bestand waar /rapportages ook uit leest. Reken hier nooit een eigen omzet
+// uit — dan lopen dashboard en rapportage weer uit elkaar (zie de schouw van
+// 15 aug 2026, die vier verschillende "omzetten" mat).
 
 export const getAdminDashboardData = query({
   args: {},
@@ -41,8 +36,16 @@ export const getAdminDashboardData = query({
     const userId = await requireAuthUserId(ctx);
 
     const now = new Date();
-    const thisQ = getQuarterBounds(now);
-    const prevQ = getQuarterBounds(new Date(now.getTime() - QUARTER_MS));
+    const nu = now.getTime();
+    // Kwartaalgrenzen uit de gedeelde periodelaag (R5), zodat "dit kwartaal"
+    // op het dashboard exact hetzelfde venster is als in /rapportages.
+    const kwartaal = bepaalPeriode("dit-kwartaal", nu);
+    // `vorigePeriode` is bij een kwartaal altijd gevuld; de terugval is een
+    // leeg venster, zodat een onverwachte null nooit "alle tijd" wordt.
+    const vorigKwartaal: Venster = kwartaal.vorigePeriode ?? {
+      start: kwartaal.start,
+      eind: kwartaal.start,
+    };
     const monthStartStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
 
     // ── Fetch ALL data in one parallel batch ─────────────────────────
@@ -94,9 +97,9 @@ export const getAdminDashboardData = query({
         .collect(),
     ]);
 
-    // Filter out archived/deleted items
-    const offertes = allOffertes.filter((o) => !o.isArchived && !o.deletedAt);
-    const projects = allProjects.filter((p) => !p.isArchived && !p.deletedAt);
+    // Filter out archived/deleted items (gedeelde regel, zie omzetDefinities)
+    const offertes = allOffertes.filter(isTelbaar);
+    const projects = allProjects.filter(isTelbaar);
 
     // ══════════════════════════════════════════════════════════════════
     // From getFullDashboardData (offertes.ts)
@@ -108,56 +111,44 @@ export const getAdminDashboardData = query({
     // Het concept-aantal blijft wel zichtbaar als losse teller.
     const pipelineOffertes = filterConceptenUit(offertes);
 
+    // Statustelling via de gedeelde teller: die vangt ook de legacy-status
+    // `definitief` op, die hier voorheen in een NaN-sleutel verdween.
+    const telling = telOfferteStatussen(offertes);
+    const omzetAlleTijd = berekenGetekendeOmzet(offertes);
+
     const offerteStats = {
-      totaal: pipelineOffertes.length,
-      concept: 0,
-      voorcalculatie: 0,
-      verzonden: 0,
-      geaccepteerd: 0,
-      afgewezen: 0,
-      totaalWaarde: 0,
-      geaccepteerdWaarde: 0,
+      totaal: telling.pipelineTotaal,
+      concept: telling.concept,
+      voorcalculatie: telling.voorcalculatie,
+      verzonden: telling.verzonden,
+      geaccepteerd: telling.geaccepteerd,
+      afgewezen: telling.afgewezen,
+      totaalWaarde: pipelineOffertes.reduce(
+        (sum, o) => sum + (o.totalen?.totaalInclBtw ?? 0),
+        0
+      ),
+      geaccepteerdWaarde: omzetAlleTijd.getekendeOmzetInclBtw,
     };
 
-    let totalAcceptedValue = 0;
-    let totalAcceptedCount = 0;
-    let totalSentCount = 0;
-
-    for (const offerte of offertes) {
-      offerteStats[offerte.status as keyof typeof offerteStats]++;
-      if (offerte.status !== "concept") {
-        offerteStats.totaalWaarde += offerte.totalen?.totaalInclBtw ?? 0;
-      }
-
-      if (offerte.status === "geaccepteerd") {
-        offerteStats.geaccepteerdWaarde += offerte.totalen?.totaalInclBtw ?? 0;
-        totalAcceptedValue += offerte.totalen?.totaalInclBtw ?? 0;
-        totalAcceptedCount++;
-      }
-
-      if (
-        offerte.status === "verzonden" ||
-        offerte.status === "geaccepteerd" ||
-        offerte.status === "afgewezen"
-      ) {
-        totalSentCount++;
-      }
-    }
+    const totalSentCount =
+      telling.verzonden + telling.geaccepteerd + telling.afgewezen;
 
     const conversionRate =
       totalSentCount > 0
-        ? Math.round((totalAcceptedCount / totalSentCount) * 100)
-        : 0;
-    const averageOfferteValue =
-      totalAcceptedCount > 0
-        ? Math.round(totalAcceptedValue / totalAcceptedCount)
+        ? Math.round((telling.geaccepteerd / totalSentCount) * 100)
         : 0;
 
     const revenueStats = {
-      totalAcceptedValue,
-      totalAcceptedCount,
+      // Getekende omzet incl. btw, alle tijd — zelfde definitie als
+      // rapportage.hoeLoopt.huidig.getekendeOmzetInclBtw.
+      totalAcceptedValue: omzetAlleTijd.getekendeOmzetInclBtw,
+      totalAcceptedCount: omzetAlleTijd.aantalGetekend,
       conversionRate,
-      averageOfferteValue,
+      averageOfferteValue: Math.round(
+        omzetAlleTijd.aantalGetekend > 0
+          ? omzetAlleTijd.getekendeOmzetInclBtw / omzetAlleTijd.aantalGetekend
+          : 0
+      ),
     };
 
     // === RECENT OFFERTES (top 5 with klant info) ===
@@ -273,14 +264,14 @@ export const getAdminDashboardData = query({
     });
 
     // === FACTUREN STATS ===
+    // De aantallen blijven per legacy-status geteld (dat is wat de badges op
+    // het dashboard tonen); de bedragen komen uit de gedeelde definitie.
     let conceptCount = 0;
     let definitiefCount = 0;
     let verzondenCount = 0;
     let betaaldCount = 0;
     let vervallenCount = 0;
     let totaalBedrag = 0;
-    let openstaandBedragFacturen = 0;
-    let betaaldBedrag = 0;
 
     for (const factuur of allFacturen) {
       switch (factuur.status) {
@@ -292,11 +283,9 @@ export const getAdminDashboardData = query({
           break;
         case "verzonden":
           verzondenCount++;
-          openstaandBedragFacturen += factuur.totaalInclBtw;
           break;
         case "betaald":
           betaaldCount++;
-          betaaldBedrag += factuur.totaalInclBtw;
           break;
         case "vervallen":
           vervallenCount++;
@@ -305,11 +294,18 @@ export const getAdminDashboardData = query({
       totaalBedrag += factuur.totaalInclBtw;
     }
 
+    // Openstaand = verzonden facturen minus wat er al binnen is (incl.
+    // deelbetalingen). Voorheen stonden hier twee tegenstrijdige definities
+    // náást elkaar in dezelfde payload: `facturenStats.openstaandBedrag`
+    // telde alleen status "verzonden", `financieel.openstaandBedrag` alleen
+    // "definitief" + "vervallen". Nu allebei hetzelfde getal.
+    const facturatieAlleTijd = berekenFacturatie(allFacturen, null, nu);
+
     const facturenStats = {
       totaal: allFacturen.length,
       totaalBedrag,
-      openstaandBedrag: openstaandBedragFacturen,
-      betaaldBedrag,
+      openstaandBedrag: facturatieAlleTijd.openstaand,
+      betaaldBedrag: facturatieAlleTijd.ontvangen,
       concept: conceptCount,
       definitief: definitiefCount,
       verzonden: verzondenCount,
@@ -331,26 +327,12 @@ export const getAdminDashboardData = query({
     // From getDirectieStats (directieDashboard.ts) — unique data only
     // ══════════════════════════════════════════════════════════════════
 
-    // Financieel: outstanding and overdue invoices
-    const openFacturen = allFacturen.filter(
-      (f) => f.status === "definitief" || f.status === "vervallen"
-    );
-    const financieelOpenstaand = openFacturen.reduce(
-      (sum, f) => sum + (f.totaalInclBtw ?? 0),
-      0
-    );
-    const vervaldeFacturen = allFacturen.filter(
-      (f) => f.status === "vervallen"
-    );
-    const vervaldenBedrag = vervaldeFacturen.reduce(
-      (sum, f) => sum + (f.totaalInclBtw ?? 0),
-      0
-    );
-
+    // Financieel: openstaand en te laat — zelfde definitie als hierboven en
+    // als rapportage.geldLigt.openstaand.
     const financieel = {
-      openstaandBedrag: financieelOpenstaand,
-      vervaldeAantal: vervaldeFacturen.length,
-      vervaldenBedrag,
+      openstaandBedrag: facturatieAlleTijd.openstaand,
+      vervaldeAantal: facturatieAlleTijd.aantalVervallen,
+      vervaldenBedrag: facturatieAlleTijd.vervallenBedrag,
     };
 
     // Uren this month
@@ -360,55 +342,30 @@ export const getAdminDashboardData = query({
     );
 
     // Quarter comparison
-    // §5.3b: concepten tellen niet mee in de kwartaal-KPI's van de pipeline
-    const offertesThisQ = pipelineOffertes.filter(
-      (o) => o.createdAt >= thisQ.start && o.createdAt <= thisQ.end
+    // §5.3b: concepten tellen niet mee in de kwartaal-KPI's van de pipeline.
+    // Instroom telt op aanmaakdatum; omzet telt op tekendatum en facturatie op
+    // factuurdatum — dezelfde peildata als /rapportages (zie omzetDefinities).
+    const offertesThisQ = pipelineOffertes.filter((o) =>
+      binnenVenster(o.createdAt, kwartaal)
     );
-    const offertesPrevQ = pipelineOffertes.filter(
-      (o) => o.createdAt >= prevQ.start && o.createdAt <= prevQ.end
-    );
-
-    const acceptedThisQ = offertesThisQ.filter(
-      (o) => o.status === "geaccepteerd"
-    );
-    const acceptedPrevQ = offertesPrevQ.filter(
-      (o) => o.status === "geaccepteerd"
+    const offertesPrevQ = pipelineOffertes.filter((o) =>
+      binnenVenster(o.createdAt, vorigKwartaal)
     );
 
-    const revenueThisQ = acceptedThisQ.reduce(
-      (sum, o) => sum + (o.totalen?.totaalInclBtw ?? 0),
-      0
-    );
-    const revenuePrevQ = acceptedPrevQ.reduce(
-      (sum, o) => sum + (o.totalen?.totaalInclBtw ?? 0),
-      0
-    );
-
-    const facturenThisQ = allFacturen.filter(
-      (f) => f.createdAt >= thisQ.start && f.createdAt <= thisQ.end
-    );
-    const facturenPrevQ = allFacturen.filter(
-      (f) => f.createdAt >= prevQ.start && f.createdAt <= prevQ.end
-    );
-
-    const gefactureerdThisQ = facturenThisQ.reduce(
-      (sum, f) => sum + (f.totaalInclBtw ?? 0),
-      0
-    );
-    const gefactureerdPrevQ = facturenPrevQ.reduce(
-      (sum, f) => sum + (f.totaalInclBtw ?? 0),
-      0
-    );
+    const omzetThisQ = berekenGetekendeOmzet(offertes, kwartaal);
+    const omzetPrevQ = berekenGetekendeOmzet(offertes, vorigKwartaal);
+    const facturatieThisQ = berekenFacturatie(allFacturen, kwartaal, nu);
+    const facturatiePrevQ = berekenFacturatie(allFacturen, vorigKwartaal, nu);
 
     const kwartaalVergelijking = {
       offertesThisQ: offertesThisQ.length,
       offertesPrevQ: offertesPrevQ.length,
-      acceptedThisQ: acceptedThisQ.length,
-      acceptedPrevQ: acceptedPrevQ.length,
-      revenueThisQ,
-      revenuePrevQ,
-      gefactureerdThisQ,
-      gefactureerdPrevQ,
+      acceptedThisQ: omzetThisQ.aantalGetekend,
+      acceptedPrevQ: omzetPrevQ.aantalGetekend,
+      revenueThisQ: omzetThisQ.getekendeOmzetInclBtw,
+      revenuePrevQ: omzetPrevQ.getekendeOmzetInclBtw,
+      gefactureerdThisQ: facturatieThisQ.gefactureerdInclBtw,
+      gefactureerdPrevQ: facturatiePrevQ.gefactureerdInclBtw,
     };
 
     // ══════════════════════════════════════════════════════════════════

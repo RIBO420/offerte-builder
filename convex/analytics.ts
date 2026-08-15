@@ -1,3 +1,20 @@
+/**
+ * DEPRECATED — `getAnalyticsData` is de datalaag van de óude /rapportages met
+ * 8 tabs. Het herontwerp (docs/design/plannen/rapportage-masterplan.md) draait
+ * op `convex/rapportage.ts::getRapportage`. Zodra de nieuwe pagina staat, kan
+ * dit bestand samen met `src/hooks/use-analytics.ts` weg.
+ *
+ * Twee queries die hier stonden zijn vervallen omdat ze nooit zijn aangeroepen
+ * en elk hun eigen omzetdefinitie meebrachten (R2):
+ *   - `getVoorcalculatieNacalculatieVergelijking` → `rapportage.getRapportage`
+ *     (`geldLigt.voorNacalculatie`) en `rapportage.getVoorNacalculatieDetail`;
+ *   - `getFinancieelOverzicht` → `rapportage.getRapportage`
+ *     (`hoeLoopt`, `geldLigt.openstaand`, `besteWerk.scopeMarges`).
+ *
+ * `totaleOmzet` hieronder komt sinds R2 uit `lib/omzetDefinities.ts`, zodat de
+ * oude pagina tijdens de overgang niet alsnog een afwijkend cijfer toont.
+ */
+
 import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { requireAuthUserId } from "./auth";
@@ -5,7 +22,7 @@ import {
   berekenConversionRates,
   berekenPipelineFunnel,
 } from "./lib/pipelineKpis";
-import { voorcalculatieVanProject, voorcalculatieVanOfferte } from "./lib/voorcalculatieLookup";
+import { berekenGetekendeOmzet, isTelbaar } from "./lib/omzetDefinities";
 import { klantNaam, klantVeld } from "./lib/offerteKlant";
 
 // Helper to get month key from timestamp
@@ -56,15 +73,6 @@ function linearRegression(data: { x: number; y: number }[]): { slope: number; in
 }
 
 
-// Helper to calculate date range for previous period comparison
-function getPreviousPeriodRange(startDate: number, endDate: number): { start: number; end: number } {
-  const periodLength = endDate - startDate;
-  return {
-    start: startDate - periodLength,
-    end: startDate,
-  };
-}
-
 // Main analytics query (for authenticated user)
 export const getAnalyticsData = query({
   args: {
@@ -75,11 +83,14 @@ export const getAnalyticsData = query({
     const userId = await requireAuthUserId(ctx);
 
     // Get all offertes for authenticated user
-    let offertes = await ctx.db
+    const alleOffertes = await ctx.db
       .query("offertes")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .order("desc")
       .collect();
+
+    // Archief en prullenbak tellen niet mee (R2, gedeelde regel).
+    let offertes = alleOffertes.filter(isTelbaar);
 
     // Filter by date range if provided
     if (args.startDate || args.endDate) {
@@ -102,10 +113,18 @@ export const getAnalyticsData = query({
       ? Math.round((geaccepteerd.length / afgehandeld) * 100)
       : 0;
 
-    const totaleOmzet = geaccepteerd.reduce(
-      (sum, o) => sum + o.totalen.totaalInclBtw,
-      0
-    );
+    // R2: één definitie. Peildatum is het tekenmoment, niet de aanmaakdatum,
+    // dus dit cijfer wordt over de volledige set berekend met een expliciet
+    // venster — precies zoals dashboard.ts en rapportage.ts het doen.
+    const totaleOmzet = berekenGetekendeOmzet(
+      alleOffertes,
+      args.startDate !== undefined || args.endDate !== undefined
+        ? {
+            start: args.startDate ?? 0,
+            eind: args.endDate !== undefined ? args.endDate + 1 : 8.64e15,
+          }
+        : null
+    ).getekendeOmzetInclBtw;
 
     const gemiddeldeWaarde = totaalOffertes > 0
       ? offertes.reduce((sum, o) => sum + o.totalen.totaalInclBtw, 0) / totaalOffertes
@@ -442,610 +461,17 @@ export const getAnalyticsData = query({
 });
 
 // ============================================
-// Voorcalculatie vs Nacalculatie Analysis
+// Vervallen queries (R2, 15 aug 2026)
 // ============================================
-
-/**
- * Get comprehensive comparison between voorcalculatie (planned) and nacalculatie (actual).
- * Returns variance per project, per scope, accuracy score, and trends over time.
- */
-export const getVoorcalculatieNacalculatieVergelijking = query({
-  args: {
-    startDate: v.optional(v.number()),
-    endDate: v.optional(v.number()),
-    comparePreviousPeriod: v.optional(v.boolean()),
-  },
-  handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
-
-    // Get all projects for user
-    let projecten = await ctx.db
-      .query("projecten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect();
-
-    // Filter by date range if provided
-    if (args.startDate || args.endDate) {
-      projecten = projecten.filter((p) => {
-        if (args.startDate && p.createdAt < args.startDate) return false;
-        if (args.endDate && p.createdAt > args.endDate) return false;
-        return true;
-      });
-    }
-
-    // Get all voorcalculaties and nacalculaties
-    const projectIds = projecten.map((p) => p._id);
-    const offerteIds = projecten.map((p) => p.offerteId);
-
-    // Fetch all related data in parallel
-    const [voorcalculatiesResults, nacalculatiesResults, offertesResults] = await Promise.all([
-      // Get voorcalculaties by project and offerte
-      Promise.all([
-        ...projectIds.map((id) =>
-          voorcalculatieVanProject(ctx, id)
-        ),
-        ...offerteIds.map((id) =>
-          voorcalculatieVanOfferte(ctx, id)
-        ),
-      ]),
-      // Get nacalculaties
-      Promise.all(
-        projectIds.map((id) =>
-          ctx.db
-            .query("nacalculaties")
-            .withIndex("by_project", (q) => q.eq("projectId", id))
-            .unique()
-        )
-      ),
-      // Get offertes for names (offerteId kan ontbreken bij werkitem-projecten)
-      Promise.all(offerteIds.map((id) => (id ? ctx.db.get(id) : null))),
-    ]);
-
-    // Build lookup maps
-    const voorcalculatieByProject = new Map<string, typeof voorcalculatiesResults[0]>();
-    const voorcalculatieByOfferte = new Map<string, typeof voorcalculatiesResults[0]>();
-
-    voorcalculatiesResults.forEach((vc) => {
-      if (vc) {
-        if (vc.projectId) voorcalculatieByProject.set(vc.projectId.toString(), vc);
-        if (vc.offerteId) voorcalculatieByOfferte.set(vc.offerteId.toString(), vc);
-      }
-    });
-
-    const nacalculatieByProject = new Map<string, NonNullable<typeof nacalculatiesResults[0]>>();
-    nacalculatiesResults.forEach((nc, idx) => {
-      if (nc) nacalculatieByProject.set(projectIds[idx].toString(), nc);
-    });
-
-    const offerteById = new Map<string, NonNullable<typeof offertesResults[0]>>();
-    offertesResults.forEach((o) => {
-      if (o) offerteById.set(o._id.toString(), o);
-    });
-
-    // Calculate project-level comparisons
-    type ProjectVergelijking = {
-      projectId: string;
-      projectNaam: string;
-      klantNaam: string;
-      createdAt: number;
-      maand: string;
-      geplandeUren: number;
-      werkelijkeUren: number;
-      afwijkingUren: number;
-      afwijkingPercentage: number;
-      isAccuraat: boolean; // within 10% variance
-      scopeVergelijkingen: Array<{
-        scope: string;
-        geplandeUren: number;
-        werkelijkeUren: number;
-        afwijkingUren: number;
-        afwijkingPercentage: number;
-      }>;
-    };
-
-    const projectVergelijkingen: ProjectVergelijking[] = [];
-    const scopeAggregatie: Record<string, {
-      scope: string;
-      totaalGepland: number;
-      totaalWerkelijk: number;
-      aantalProjecten: number;
-    }> = {};
-
-    for (const project of projecten) {
-      // Get voorcalculatie (try offerte first, then project)
-      const voorcalculatie =
-        (project.offerteId
-          ? voorcalculatieByOfferte.get(project.offerteId.toString())
-          : undefined) ||
-        voorcalculatieByProject.get(project._id.toString());
-
-      const nacalculatie = nacalculatieByProject.get(project._id.toString());
-      const offerte = project.offerteId
-        ? offerteById.get(project.offerteId.toString())
-        : undefined;
-
-      if (!voorcalculatie || !nacalculatie) continue;
-
-      const geplandeUren = voorcalculatie.normUrenTotaal;
-      const werkelijkeUren = nacalculatie.werkelijkeUren;
-      const afwijkingUren = werkelijkeUren - geplandeUren;
-      const afwijkingPercentage = geplandeUren > 0
-        ? Math.round((afwijkingUren / geplandeUren) * 100 * 10) / 10
-        : 0;
-
-      // Calculate scope-level vergelijking
-      const scopeVergelijkingen: ProjectVergelijking["scopeVergelijkingen"] = [];
-      const normUrenPerScope = voorcalculatie.normUrenPerScope || {};
-      const afwijkingenPerScope = nacalculatie.afwijkingenPerScope || {};
-
-      const allScopes = new Set([
-        ...Object.keys(normUrenPerScope),
-        ...Object.keys(afwijkingenPerScope),
-      ]);
-
-      for (const scope of allScopes) {
-        const scopeGepland = normUrenPerScope[scope] || 0;
-        const scopeAfwijking = afwijkingenPerScope[scope] || 0;
-        const scopeWerkelijk = scopeGepland + scopeAfwijking;
-
-        // Aggregate scope data
-        if (!scopeAggregatie[scope]) {
-          scopeAggregatie[scope] = {
-            scope,
-            totaalGepland: 0,
-            totaalWerkelijk: 0,
-            aantalProjecten: 0,
-          };
-        }
-        scopeAggregatie[scope].totaalGepland += scopeGepland;
-        scopeAggregatie[scope].totaalWerkelijk += scopeWerkelijk;
-        scopeAggregatie[scope].aantalProjecten++;
-
-        scopeVergelijkingen.push({
-          scope,
-          geplandeUren: scopeGepland,
-          werkelijkeUren: scopeWerkelijk,
-          afwijkingUren: scopeAfwijking,
-          afwijkingPercentage: scopeGepland > 0
-            ? Math.round((scopeAfwijking / scopeGepland) * 100 * 10) / 10
-            : 0,
-        });
-      }
-
-      projectVergelijkingen.push({
-        projectId: project._id.toString(),
-        projectNaam: project.naam,
-        klantNaam: klantNaam(offerte?.klant, "Onbekend"),
-        createdAt: project.createdAt,
-        maand: getMonthName(getMonthKey(project.createdAt)),
-        geplandeUren,
-        werkelijkeUren,
-        afwijkingUren,
-        afwijkingPercentage,
-        isAccuraat: Math.abs(afwijkingPercentage) <= 10,
-        scopeVergelijkingen,
-      });
-    }
-
-    // Calculate accuracy metrics
-    const totaalProjecten = projectVergelijkingen.length;
-    const accurateProjecten = projectVergelijkingen.filter((p) => p.isAccuraat).length;
-    const accuracyScore = totaalProjecten > 0
-      ? Math.round((accurateProjecten / totaalProjecten) * 100)
-      : 0;
-
-    // Calculate average variance
-    const gemiddeldeAfwijking = totaalProjecten > 0
-      ? Math.round(
-          projectVergelijkingen.reduce((sum, p) => sum + p.afwijkingPercentage, 0) / totaalProjecten * 10
-        ) / 10
-      : 0;
-
-    // Calculate total hours comparison
-    const totaalGeplandeUren = projectVergelijkingen.reduce((sum, p) => sum + p.geplandeUren, 0);
-    const totaalWerkelijkeUren = projectVergelijkingen.reduce((sum, p) => sum + p.werkelijkeUren, 0);
-
-    // Prepare scope summary data for charts
-    const scopeSamenvatting = Object.values(scopeAggregatie).map((s) => ({
-      scope: s.scope,
-      geplandeUren: Math.round(s.totaalGepland * 10) / 10,
-      werkelijkeUren: Math.round(s.totaalWerkelijk * 10) / 10,
-      afwijkingUren: Math.round((s.totaalWerkelijk - s.totaalGepland) * 10) / 10,
-      afwijkingPercentage: s.totaalGepland > 0
-        ? Math.round(((s.totaalWerkelijk - s.totaalGepland) / s.totaalGepland) * 100 * 10) / 10
-        : 0,
-      aantalProjecten: s.aantalProjecten,
-    })).sort((a, b) => Math.abs(b.afwijkingPercentage) - Math.abs(a.afwijkingPercentage));
-
-    // Calculate trend over time (monthly accuracy trend)
-    const monthlyTrend: Record<string, {
-      maand: string;
-      aantalProjecten: number;
-      accurateProjecten: number;
-      gemiddeldeAfwijking: number;
-      totaalAfwijking: number;
-    }> = {};
-
-    for (const pv of projectVergelijkingen) {
-      const monthKey = getMonthKey(pv.createdAt);
-      if (!monthlyTrend[monthKey]) {
-        monthlyTrend[monthKey] = {
-          maand: getMonthName(monthKey),
-          aantalProjecten: 0,
-          accurateProjecten: 0,
-          gemiddeldeAfwijking: 0,
-          totaalAfwijking: 0,
-        };
-      }
-      monthlyTrend[monthKey].aantalProjecten++;
-      if (pv.isAccuraat) monthlyTrend[monthKey].accurateProjecten++;
-      monthlyTrend[monthKey].totaalAfwijking += pv.afwijkingPercentage;
-    }
-
-    // Calculate monthly averages
-    const trendData = Object.entries(monthlyTrend)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([_, data]) => ({
-        ...data,
-        gemiddeldeAfwijking: data.aantalProjecten > 0
-          ? Math.round((data.totaalAfwijking / data.aantalProjecten) * 10) / 10
-          : 0,
-        accuracyPercentage: data.aantalProjecten > 0
-          ? Math.round((data.accurateProjecten / data.aantalProjecten) * 100)
-          : 0,
-      }));
-
-    // Calculate previous period comparison if requested
-    let previousPeriodComparison = null;
-    if (args.comparePreviousPeriod && args.startDate && args.endDate) {
-      const prevRange = getPreviousPeriodRange(args.startDate, args.endDate);
-
-      // Get projects from previous period
-      const prevProjecten = (await ctx.db
-        .query("projecten")
-        .withIndex("by_user", (q) => q.eq("userId", userId))
-        .collect()
-      ).filter((p) => p.createdAt >= prevRange.start && p.createdAt < prevRange.end);
-
-      let prevAccurateCount = 0;
-      let prevTotalCount = 0;
-
-      for (const project of prevProjecten) {
-        const voorcalculatie =
-          (await voorcalculatieVanOfferte(ctx, project.offerteId)) ||
-          (await voorcalculatieVanProject(ctx, project._id));
-
-        const nacalculatie = await ctx.db
-          .query("nacalculaties")
-          .withIndex("by_project", (q) => q.eq("projectId", project._id))
-          .unique();
-
-        if (voorcalculatie && nacalculatie) {
-          prevTotalCount++;
-          const variance = voorcalculatie.normUrenTotaal > 0
-            ? Math.abs((nacalculatie.werkelijkeUren - voorcalculatie.normUrenTotaal) / voorcalculatie.normUrenTotaal) * 100
-            : 0;
-          if (variance <= 10) prevAccurateCount++;
-        }
-      }
-
-      const prevAccuracyScore = prevTotalCount > 0
-        ? Math.round((prevAccurateCount / prevTotalCount) * 100)
-        : 0;
-
-      previousPeriodComparison = {
-        prevAccuracyScore,
-        accuracyChange: accuracyScore - prevAccuracyScore,
-        prevTotalProjecten: prevTotalCount,
-        projectenChange: totaalProjecten - prevTotalCount,
-      };
-    }
-
-    return {
-      samenvatting: {
-        totaalProjecten,
-        accurateProjecten,
-        accuracyScore,
-        gemiddeldeAfwijking,
-        totaalGeplandeUren: Math.round(totaalGeplandeUren * 10) / 10,
-        totaalWerkelijkeUren: Math.round(totaalWerkelijkeUren * 10) / 10,
-        totaalAfwijkingUren: Math.round((totaalWerkelijkeUren - totaalGeplandeUren) * 10) / 10,
-      },
-      projectVergelijkingen: projectVergelijkingen.sort((a, b) =>
-        Math.abs(b.afwijkingPercentage) - Math.abs(a.afwijkingPercentage)
-      ),
-      scopeSamenvatting,
-      trendData,
-      previousPeriodComparison,
-    };
-  },
-});
-
-// ============================================
-// Enhanced Financial Reports
-// ============================================
-
-/**
- * Get comprehensive financial overview with cost breakdowns.
- * Returns revenue, costs, profit margins with monthly aggregation.
- */
-export const getFinancieelOverzicht = query({
-  args: {
-    startDate: v.optional(v.number()),
-    endDate: v.optional(v.number()),
-    comparePreviousPeriod: v.optional(v.boolean()),
-  },
-  handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
-
-    // Get all accepted offertes for user
-    let offertes = await ctx.db
-      .query("offertes")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect();
-
-    // Filter to accepted only
-    offertes = offertes.filter((o) => o.status === "geaccepteerd");
-
-    // Filter by date range if provided
-    if (args.startDate || args.endDate) {
-      offertes = offertes.filter((o) => {
-        if (args.startDate && o.createdAt < args.startDate) return false;
-        if (args.endDate && o.createdAt > args.endDate) return false;
-        return true;
-      });
-    }
-
-    // Get all projects and their nacalculaties for actual cost comparison
-    const projecten = await ctx.db
-      .query("projecten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect();
-
-    const offerteToProject = new Map<string, typeof projecten[0]>();
-    for (const project of projecten) {
-      // Alleen projecten met gekoppelde offerte opnemen in de lookup
-      if (project.offerteId) {
-        offerteToProject.set(project.offerteId.toString(), project);
-      }
-    }
-
-    // Get instellingen for uurtarief
-    const instellingen = await ctx.db
-      .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .unique();
-
-    const uurtarief = instellingen?.uurtarief || 45;
-
-    // Calculate totals
-    let totaleOmzet = 0;
-    let totaleMateriaalkosten = 0;
-    let totaleArbeidskosten = 0;
-    let totaleMachineKosten = 0;
-    let totaleUren = 0;
-
-    // Monthly aggregation
-    const monthlyData: Record<string, {
-      maand: string;
-      omzet: number;
-      materiaalkosten: number;
-      arbeidskosten: number;
-      machineKosten: number;
-      brutomarge: number;
-      margePercentage: number;
-      aantalProjecten: number;
-    }> = {};
-
-    // Scope-based financial data
-    const scopeFinancien: Record<string, {
-      scope: string;
-      omzet: number;
-      kosten: number;
-      marge: number;
-      aantalProjecten: number;
-    }> = {};
-
-    // Type-based financial data (aanleg vs onderhoud)
-    const typeFinancien = {
-      aanleg: { omzet: 0, kosten: 0, marge: 0, aantalProjecten: 0 },
-      onderhoud: { omzet: 0, kosten: 0, marge: 0, aantalProjecten: 0 },
-    };
-
-    for (const offerte of offertes) {
-      const monthKey = getMonthKey(offerte.createdAt);
-      const maand = getMonthName(monthKey);
-
-      // Initialize monthly data
-      if (!monthlyData[monthKey]) {
-        monthlyData[monthKey] = {
-          maand,
-          omzet: 0,
-          materiaalkosten: 0,
-          arbeidskosten: 0,
-          machineKosten: 0,
-          brutomarge: 0,
-          margePercentage: 0,
-          aantalProjecten: 0,
-        };
-      }
-
-      // Calculate costs from regels
-      let materiaalkosten = 0;
-      let arbeidskosten = 0;
-      let machineKosten = 0;
-
-      for (const regel of offerte.regels) {
-        switch (regel.type) {
-          case "materiaal":
-            materiaalkosten += regel.totaal;
-            break;
-          case "arbeid":
-            arbeidskosten += regel.totaal;
-            break;
-          case "machine":
-            machineKosten += regel.totaal;
-            break;
-        }
-      }
-
-      const offerteOmzet = offerte.totalen.totaalExBtw;
-      const offerteMarge = offerte.totalen.marge;
-
-      // Update totals
-      totaleOmzet += offerteOmzet;
-      totaleMateriaalkosten += materiaalkosten;
-      totaleArbeidskosten += arbeidskosten;
-      totaleMachineKosten += machineKosten;
-      totaleUren += offerte.totalen.totaalUren;
-
-      // Update monthly data
-      monthlyData[monthKey].omzet += offerteOmzet;
-      monthlyData[monthKey].materiaalkosten += materiaalkosten;
-      monthlyData[monthKey].arbeidskosten += arbeidskosten;
-      monthlyData[monthKey].machineKosten += machineKosten;
-      monthlyData[monthKey].brutomarge += offerteMarge;
-      monthlyData[monthKey].aantalProjecten++;
-
-      // Update type financien
-      const type = offerte.type;
-      typeFinancien[type].omzet += offerteOmzet;
-      typeFinancien[type].kosten += materiaalkosten + arbeidskosten + machineKosten;
-      typeFinancien[type].marge += offerteMarge;
-      typeFinancien[type].aantalProjecten++;
-
-      // Update scope financien
-      if (offerte.scopes) {
-        const scopeCount = offerte.scopes.length;
-        for (const scope of offerte.scopes) {
-          if (!scopeFinancien[scope]) {
-            scopeFinancien[scope] = {
-              scope,
-              omzet: 0,
-              kosten: 0,
-              marge: 0,
-              aantalProjecten: 0,
-            };
-          }
-          // Distribute evenly across scopes (approximation)
-          scopeFinancien[scope].omzet += offerteOmzet / scopeCount;
-          scopeFinancien[scope].kosten += (materiaalkosten + arbeidskosten + machineKosten) / scopeCount;
-          scopeFinancien[scope].marge += offerteMarge / scopeCount;
-          scopeFinancien[scope].aantalProjecten++;
-        }
-      }
-    }
-
-    // Calculate monthly percentages
-    const sortedMonthlyData = Object.entries(monthlyData)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([_, data]) => ({
-        ...data,
-        margePercentage: data.omzet > 0
-          ? Math.round((data.brutomarge / data.omzet) * 100 * 10) / 10
-          : 0,
-      }));
-
-    // Calculate overall bruto profit and margin
-    const totaleKosten = totaleMateriaalkosten + totaleArbeidskosten + totaleMachineKosten;
-    const brutomarge = totaleOmzet - totaleKosten;
-    const brutomargePercentage = totaleOmzet > 0
-      ? Math.round((brutomarge / totaleOmzet) * 100 * 10) / 10
-      : 0;
-
-    // Prepare scope data for charts
-    const scopeData = Object.values(scopeFinancien)
-      .map((s) => ({
-        ...s,
-        omzet: Math.round(s.omzet),
-        kosten: Math.round(s.kosten),
-        marge: Math.round(s.marge),
-        margePercentage: s.omzet > 0
-          ? Math.round((s.marge / s.omzet) * 100 * 10) / 10
-          : 0,
-      }))
-      .sort((a, b) => b.omzet - a.omzet);
-
-    // Prepare type data for charts
-    const typeData = [
-      {
-        type: "Aanleg",
-        ...typeFinancien.aanleg,
-        margePercentage: typeFinancien.aanleg.omzet > 0
-          ? Math.round((typeFinancien.aanleg.marge / typeFinancien.aanleg.omzet) * 100 * 10) / 10
-          : 0,
-      },
-      {
-        type: "Onderhoud",
-        ...typeFinancien.onderhoud,
-        margePercentage: typeFinancien.onderhoud.omzet > 0
-          ? Math.round((typeFinancien.onderhoud.marge / typeFinancien.onderhoud.omzet) * 100 * 10) / 10
-          : 0,
-      },
-    ];
-
-    // Cost breakdown for pie chart
-    const kostenVerdeling = [
-      { naam: "Materiaal", waarde: Math.round(totaleMateriaalkosten), kleur: "#8884d8" },
-      { naam: "Arbeid", waarde: Math.round(totaleArbeidskosten), kleur: "#82ca9d" },
-      { naam: "Machines", waarde: Math.round(totaleMachineKosten), kleur: "#ffc658" },
-    ];
-
-    // Calculate previous period comparison if requested
-    let previousPeriodComparison = null;
-    if (args.comparePreviousPeriod && args.startDate && args.endDate) {
-      const prevRange = getPreviousPeriodRange(args.startDate, args.endDate);
-
-      const prevOffertes = (await ctx.db
-        .query("offertes")
-        .withIndex("by_user", (q) => q.eq("userId", userId))
-        .collect()
-      ).filter((o) =>
-        o.status === "geaccepteerd" &&
-        o.createdAt >= prevRange.start &&
-        o.createdAt < prevRange.end
-      );
-
-      const prevOmzet = prevOffertes.reduce((sum, o) => sum + o.totalen.totaalExBtw, 0);
-      const prevMarge = prevOffertes.reduce((sum, o) => sum + o.totalen.marge, 0);
-      const prevMargePercentage = prevOmzet > 0
-        ? Math.round((prevMarge / prevOmzet) * 100 * 10) / 10
-        : 0;
-
-      previousPeriodComparison = {
-        prevOmzet: Math.round(prevOmzet),
-        omzetChange: Math.round(totaleOmzet - prevOmzet),
-        omzetChangePercentage: prevOmzet > 0
-          ? Math.round(((totaleOmzet - prevOmzet) / prevOmzet) * 100)
-          : 0,
-        prevMargePercentage,
-        margeChangePercentage: brutomargePercentage - prevMargePercentage,
-        prevAantalProjecten: prevOffertes.length,
-        projectenChange: offertes.length - prevOffertes.length,
-      };
-    }
-
-    return {
-      samenvatting: {
-        totaleOmzet: Math.round(totaleOmzet),
-        totaleKosten: Math.round(totaleKosten),
-        brutomarge: Math.round(brutomarge),
-        brutomargePercentage,
-        totaleMateriaalkosten: Math.round(totaleMateriaalkosten),
-        totaleArbeidskosten: Math.round(totaleArbeidskosten),
-        totaleMachineKosten: Math.round(totaleMachineKosten),
-        totaleUren: Math.round(totaleUren * 10) / 10,
-        uurtarief,
-        gemiddeldeOmzetPerProject: offertes.length > 0
-          ? Math.round(totaleOmzet / offertes.length)
-          : 0,
-        aantalProjecten: offertes.length,
-      },
-      maandelijkseData: sortedMonthlyData,
-      scopeData,
-      typeData,
-      kostenVerdeling,
-      previousPeriodComparison,
-    };
-  },
-});
+//
+// `getVoorcalculatieNacalculatieVergelijking` en `getFinancieelOverzicht`
+// stonden hier ~600 regels lang zonder ooit te zijn aangeroepen; het
+// Calculatie- en Projecten-tab bootsten ze na met hardcoded sample-data. Elk
+// bracht bovendien een eigen omzetdefinitie mee (ex btw vs. incl. btw), wat
+// precies de tegenstrijdigheid was die R2 opruimt.
+//
+// Hun functie leeft nu in `convex/rapportage.ts`:
+//   - voor/nacalculatie  → `getRapportage().geldLigt.voorNacalculatie`
+//                          en `getVoorNacalculatieDetail` (uitklap);
+//   - financieel overzicht → `getRapportage().hoeLoopt`,
+//                            `.geldLigt.openstaand` en `.besteWerk.scopeMarges`.
