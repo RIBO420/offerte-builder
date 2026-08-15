@@ -29,7 +29,8 @@ import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
  *
  * Bewust géén nieuwe waarden in `offertes.type`: de app werkt met twee
  * offertesoorten (aanleg en onderhoud) met daarbinnen scopes. Elke ingang
- * hieronder opent dus de juiste wizard met de juiste scopes voorgeselecteerd.
+ * hieronder opent dus het werkblad van het juiste type met de juiste scopes
+ * voorgeselecteerd.
  * Zo staat de lijst die kantoor hanteert vóór in beeld, zonder de datastructuur
  * en alle bestaande filters, statistieken en PDF's te breken.
  */
@@ -151,7 +152,7 @@ function routeMetKlant(route: string, klantId: string | null): string {
  * Eén instantie, gemonteerd in de dashboard-layout; openen gaat via
  * `setShowNewOfferteDialog` uit de shortcuts-context. Wie de dialog vanuit een
  * klantdossier opent geeft die klant mee als tweede argument, en dan reist hij
- * als `?klantId=…` mee naar de wizard.
+ * als `?klantId=…` mee naar het werkblad.
  */
 export function NewOfferteDialog() {
   const router = useRouter();
@@ -181,7 +182,7 @@ export function NewOfferteDialog() {
           <DialogTitle>Nieuwe offerte</DialogTitle>
           <DialogDescription>
             Kies de werkzaamheid. De juiste onderdelen staan daarna alvast klaar
-            — je kunt ze in de wizard nog aanvullen of weghalen.
+            — je kunt ze op het werkblad nog aanvullen of weghalen.
           </DialogDescription>
         </DialogHeader>
 

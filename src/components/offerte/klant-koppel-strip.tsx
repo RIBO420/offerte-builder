@@ -89,7 +89,7 @@ function relatieveDatum(timestamp: number): string {
  * staat zegt daarom expliciet dat de klant vóór versturen verplicht is — de
  * harde guard staat server-side in convex/lib/offerteKlant.ts.
  *
- * De keuzelijst is dezelfde als in de wizard: zoeken, recente klanten mét hun
+ * De keuzelijst is dezelfde als elders in de offerteflow: zoeken, recente klanten mét hun
  * offertehistorie, en "nieuwe klant aanmaken" bovenaan (ook terwijl je typt).
  */
 export function KlantKoppelStrip({

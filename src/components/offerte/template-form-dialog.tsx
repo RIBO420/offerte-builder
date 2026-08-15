@@ -25,7 +25,8 @@ import type { Id } from "../../../convex/_generated/dataModel";
 /**
  * De werkzaamheden waaruit een sjabloon kan bestaan. TT-004: dit zijn scopes
  * bínnen de twee offertetypen, geen nieuwe typen. Bewust hier herhaald en niet
- * geïmporteerd uit de wizard-routes — die worden vervangen door de werkbank.
+ * geïmporteerd uit de werkblad-routes: dit sjabloonformulier hoort bij de
+ * entree en moet niet meeveranderen met het scope-palet.
  */
 export const TEMPLATE_SCOPES: Record<"aanleg" | "onderhoud", string[]> = {
   aanleg: [
