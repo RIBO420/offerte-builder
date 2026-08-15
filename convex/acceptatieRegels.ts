@@ -20,6 +20,23 @@ export interface AcceptatieContext {
   heeftVoorcalculatie: boolean;
 }
 
+/**
+ * Kent deze offerte de voorcalculatie-stap?
+ *
+ * Alleen de aanleg-wizard: vrije offertes (PRD §2.5b) slaan de stap per
+ * ontwerp over — die gaan van concept direct naar verzonden — en onderhoud
+ * loopt via bouwstenen/contract (§2.1). Gedeeld met `convex/projecten.ts`,
+ * zodat "wanneer is een voorcalculatie verplicht" op één plek staat en een
+ * geaccepteerde offerte nooit klem komt te zitten tussen twee verschillende
+ * antwoorden op die vraag.
+ */
+export function heeftVoorcalculatieStap(offerte: {
+  type: "aanleg" | "onderhoud";
+  bron?: "wizard" | "vrij";
+}): boolean {
+  return offerte.type === "aanleg" && offerte.bron !== "vrij";
+}
+
 export type AcceptatieBesluit =
   | {
       toegestaan: true;
@@ -58,11 +75,7 @@ export function beoordeelAcceptatie(
   // een project op). De voorcalculatie-eis markeert de wizard-flow; het
   // project wordt nu direct bij acceptatie aangemaakt zodat de harde
   // validatie nooit een geaccepteerde offerte zonder werkitem toelaat.
-  if (
-    context.type === "aanleg" &&
-    context.bron !== "vrij" &&
-    context.heeftVoorcalculatie
-  ) {
+  if (heeftVoorcalculatieStap(context) && context.heeftVoorcalculatie) {
     return { toegestaan: true, actie: "project_aanmaken" };
   }
 

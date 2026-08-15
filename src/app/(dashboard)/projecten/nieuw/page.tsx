@@ -1,5 +1,6 @@
 "use client";
 import { klantNaam } from "@convex/lib/offerteKlant";
+import { heeftVoorcalculatieStap } from "@convex/acceptatieRegels";
 
 import { Suspense, useCallback, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -25,6 +26,8 @@ import {
   User,
   MapPin,
   ChevronRight,
+  AlertCircle,
+  Calculator,
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { useQuery, useMutation } from "convex/react";
@@ -32,6 +35,7 @@ import { api } from "../../../../../convex/_generated/api";
 import { Id } from "../../../../../convex/_generated/dataModel";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { toast } from "sonner";
+import { getMutationErrorMessage } from "@/lib/error-handling";
 import { formatCurrency } from "@/lib/format/currency";
 import { LaadIndicator } from "@/components/ui/laad-indicator";
 
@@ -74,6 +78,14 @@ function NieuwProjectPageContent() {
     offerteId && user?._id ? { offerteId } : "skip"
   );
 
+  // Voorcalculatie van de offerte — alleen de aanleg-wizard kent die stap
+  // (vrije offertes en onderhoud hebben per ontwerp geen record). Zonder deze
+  // check kreeg de gebruiker pas ná het klikken een serverfout te zien.
+  const voorcalculatie = useQuery(
+    api.voorcalculaties.getByOfferte,
+    offerteId && user?._id ? { offerteId } : "skip"
+  );
+
   // Create project mutation
   const createProject = useMutation(api.projecten.create);
 
@@ -81,7 +93,17 @@ function NieuwProjectPageContent() {
   const [isCreating, setIsCreating] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
 
-  const isLoading = isUserLoading || (offerteId && offerte === undefined);
+  const isLoading =
+    isUserLoading ||
+    (offerteId && (offerte === undefined || voorcalculatie === undefined));
+
+  // Ontbreekt de voorcalculatie waar de flow die wél voorschrijft, dan is de
+  // voorcalculatiepagina de volgende stap — niet de knop hieronder.
+  const voorcalculatieOntbreekt =
+    offerte !== null &&
+    offerte !== undefined &&
+    heeftVoorcalculatieStap(offerte) &&
+    voorcalculatie === null;
 
   // Default project name
   const defaultNaam = offerte
@@ -104,20 +126,29 @@ function NieuwProjectPageContent() {
       // Projects now start at "gepland" status, voorcalculatie is at offerte level
       router.push(`/projecten/${projectId}/planning`);
     } catch (error) {
-      if (error instanceof Error) {
-        // Check if it's a duplicate project error (race condition)
-        if (error.message.includes("bestaat al een project")) {
-          toast.info("Er bestaat al een project voor deze offerte", {
-            description: "Je wordt doorgestuurd naar het bestaande project.",
-          });
-          // Trigger a re-fetch which will redirect automatically
-          setIsRedirecting(true);
-          return;
-        }
-        toast.error(error.message);
-      } else {
-        toast.error("Fout bij aanmaken project");
+      const melding = getMutationErrorMessage(error);
+      // Check if it's a duplicate project error (race condition)
+      if (melding.includes("bestaat al een project")) {
+        toast.info("Er bestaat al een project voor deze offerte", {
+          description: "Je wordt doorgestuurd naar het bestaande project.",
+        });
+        // Trigger a re-fetch which will redirect automatically
+        setIsRedirecting(true);
+        return;
       }
+      // Ontbrekende voorcalculatie is geen doodlopende weg: wijs de pagina aan
+      if (melding.includes("voorcalculatie")) {
+        toast.error("Eerst de voorcalculatie invullen", {
+          description:
+            "Deze offerte heeft nog geen voorcalculatie. Vul die eerst in bij de offerte, daarna kun je het project starten.",
+          action: {
+            label: "Naar voorcalculatie",
+            onClick: () => router.push(`/offertes/${offerteId}/voorcalculatie`),
+          },
+        });
+        return;
+      }
+      toast.error(melding);
     } finally {
       setIsCreating(false);
     }
@@ -293,33 +324,60 @@ function NieuwProjectPageContent() {
                   </p>
                 </div>
 
-                {offerte && (
+                {voorcalculatieOntbreekt ? (
+                  <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+                    <p className="font-medium mb-1 flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4 text-amber-600" />
+                      Eerst de voorcalculatie
+                    </p>
+                    <p className="text-muted-foreground">
+                      Deze offerte doorloopt de voorcalculatiestap, maar er is
+                      nog geen voorcalculatie ingevuld. Vul die eerst in bij de
+                      offerte; daarna kun je het project starten.
+                    </p>
+                  </div>
+                ) : offerte ? (
                   <div className="rounded-lg bg-muted/50 p-3 text-sm">
                     <p className="font-medium text-muted-foreground mb-1">
                       Voorcalculatie uit offerte
                     </p>
                     <p className="text-muted-foreground">
-                      De voorcalculatiegegevens worden overgenomen uit de offerte
-                      en zijn beschikbaar als referentie in het project.
+                      {voorcalculatie
+                        ? "De voorcalculatiegegevens worden overgenomen uit de offerte en zijn beschikbaar als referentie in het project."
+                        : "Deze offerte kent geen voorcalculatiestap; het project start zonder voorcalculatiegegevens."}
                     </p>
                   </div>
-                )}
+                ) : null}
 
                 <div className="space-y-3">
-                  <Button
-                    className="w-full bg-green-600 hover:bg-green-700 text-white"
-                    onClick={handleCreate}
-                    disabled={!offerte || isCreating}
-                    size="lg"
-                  >
-                    {isCreating ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <FolderKanban className="mr-2 h-4 w-4" />
-                    )}
-                    Project Aanmaken
-                    <ChevronRight className="ml-1 h-4 w-4" />
-                  </Button>
+                  {voorcalculatieOntbreekt && offerteId ? (
+                    <Button
+                      className="w-full bg-green-600 hover:bg-green-700 text-white"
+                      size="lg"
+                      asChild
+                    >
+                      <Link href={`/offertes/${offerteId}/voorcalculatie`}>
+                        <Calculator className="mr-2 h-4 w-4" />
+                        Naar voorcalculatie
+                        <ChevronRight className="ml-1 h-4 w-4" />
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button
+                      className="w-full bg-green-600 hover:bg-green-700 text-white"
+                      onClick={handleCreate}
+                      disabled={!offerte || isCreating}
+                      size="lg"
+                    >
+                      {isCreating ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <FolderKanban className="mr-2 h-4 w-4" />
+                      )}
+                      Project Aanmaken
+                      <ChevronRight className="ml-1 h-4 w-4" />
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     className="w-full"

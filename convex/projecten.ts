@@ -14,6 +14,7 @@ import { Id } from "./_generated/dataModel";
 import { klantNaam } from "./lib/offerteKlant";
 import { getUserRole, getLinkedMedewerker, requireNotViewer, requireDirectieOrProjectleider, getCompanyUserId } from "./roles";
 import { upgradeKlantPipeline } from "./pipelineHelpers";
+import { heeftVoorcalculatieStap } from "./acceptatieRegels";
 import {
   voorcalculatieVanOfferte,
   voorcalculatieVanProject,
@@ -46,7 +47,9 @@ async function getOwnedProject(
  * The offerte must be owned by the authenticated user.
  * Prerequisites:
  * - Offerte must have status "geaccepteerd"
- * - Offerte must have a voorcalculatie
+ * - Offerte must have a voorcalculatie, but only where the flow knows that
+ *   step (aanleg-wizard). Vrije offertes (PRD §2.5b) and onderhoud (route 1)
+ *   have no voorcalculatie-record and may start a project without one.
  * Projects start with status "gepland".
  */
 export const create = mutation({
@@ -77,13 +80,20 @@ export const create = mutation({
       );
     }
 
-    // Validate: Offerte must have a voorcalculatie
-    const offerteVoorcalculatie = await ctx.db
-      .query("voorcalculaties")
-      .withIndex("by_offerte", (q) => q.eq("offerteId", args.offerteId))
-      .unique();
+    // Validate: alleen de aanleg-wizard kent de voorcalculatie-stap
+    // (`heeftVoorcalculatieStap`, dezelfde regel als de acceptatie-keten).
+    // Vrije offertes (PRD §2.5b) slaan die stap per ontwerp over en onderhoud
+    // loopt via bouwstenen/contract (§2.1); dáár een voorcalculatie eisen sluit
+    // een geaccepteerde offerte op zonder uitgang — precies de fout die de
+    // "Start project"-knop opleverde. Lookup via de gedeelde helper: na
+    // `copyVoorcalculatie` bestaan er twee rijen met dezelfde offerteId en
+    // gooide `.unique()` hier (harde regel 4).
+    const offerteVoorcalculatie = await voorcalculatieVanOfferte(
+      ctx,
+      args.offerteId
+    );
 
-    if (!offerteVoorcalculatie) {
+    if (!offerteVoorcalculatie && heeftVoorcalculatieStap(offerte)) {
       throw new ConvexError(
         "Kan geen project aanmaken: er is nog geen voorcalculatie voor deze offerte. " +
         "Maak eerst een voorcalculatie aan bij de offerte."
@@ -120,7 +130,8 @@ export const create = mutation({
     }
 
     // Optionally copy the voorcalculatie from offerte to project for reference
-    if (args.copyVoorcalculatie) {
+    // (alleen als de offerte er één heeft — vrije offertes hebben dat niet)
+    if (args.copyVoorcalculatie && offerteVoorcalculatie) {
       await ctx.db.insert("voorcalculaties", {
         projectId,
         // Tenant-scope (audit §2): het project hierboven is met dezelfde userId
