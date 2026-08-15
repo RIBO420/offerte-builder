@@ -49,12 +49,17 @@ function Staafje({ stats }: { stats: OfferteStats }) {
  */
 export function PipelinePaneel({ stats }: { stats: OfferteStats }) {
   return (
+    // flex flex-col: `BentoBlok` zet `[&>*]:h-full` op het paneel, dus dit
+    // paneel is even hoog als de conversie ernaast. Zonder flexkolom is die
+    // extra hoogte dode ruimte ónder de inhoud en hangt de staaf tegen de kop.
+    // → zie de toelichting bij `ConversiePaneel`.
     <SectiePaneel
       titel="Offerte pipeline"
       telling={stats.totaal}
       acties={<AlleLink href="/offertes" tekst="Alle offertes" />}
+      className="flex flex-col"
     >
-      <div className="flex flex-col gap-3 px-3 py-3">
+      <div className="flex flex-1 flex-col justify-center gap-3 px-3 py-3">
         <Staafje stats={stats} />
 
         {/* Legenda: label + teller bij elk segment. Wikkelt vanzelf als het
@@ -119,10 +124,23 @@ export function ConversiePaneel({
     <SectiePaneel
       titel="Conversie"
       acties={<AlleLink href="/rapportages" tekst="Rapportage" />}
+      // `BentoBlok` zet `[&>*]:h-full` op het paneel, dus dit paneel wordt tot
+      // de hoogte van de pipeline ernaast getrokken. Dat mag níét met `h-full`
+      // op de inhoud worden opgevangen: die 100% telt de 41px kop mee, dus de
+      // inhoud werd 41px te laag gezet en liep onder de paneelrand door
+      // (gemeten: ring 7,5px buiten het paneel, weggeknipt door overflow-hidden).
+      // Kop + inhoud als flexkolom, inhoud `flex-1`: dan is "het midden" precies
+      // de ruimte ónder de kop, op elke containerbreedte.
+      className="flex flex-col"
     >
       {/* flex-wrap: in de smalste cel (tablet, ~180px) zakt de uitleg onder de
-          ring in plaats van ernaast te blijven duwen. Nooit zijwaarts scrollen. */}
-      <div className="flex h-full flex-wrap items-center justify-center gap-x-4 gap-y-2 px-3 py-3">
+          ring in plaats van ernaast te blijven duwen. Nooit zijwaarts scrollen.
+          `content-center` hoort daarbij: zodra er twee regels zijn, centreert
+          `items-center` alleen bínnen een regel — de regels zelf staan pas
+          gecentreerd met `align-content`. Geen `min-h-0`: de automatische
+          min-hoogte van een flexitem is precies wat afknippen voorkomt als de
+          inhoud hoger is dan de buur. */}
+      <div className="flex flex-1 flex-wrap content-center items-center justify-center gap-x-4 gap-y-2 px-3 py-3">
         <svg
           width={84}
           height={84}
