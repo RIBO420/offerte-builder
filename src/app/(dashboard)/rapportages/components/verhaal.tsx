@@ -151,6 +151,9 @@ export function RapportageVerhaal() {
       params.set("van", String(aangepast.van));
       params.set("tot", String(aangepast.tot));
     }
+    // `direct=1` is het contract met het afdrukblad: alleen wie hier klikt wil
+    // meteen de printdialoog. Wie de URL zelf opent ziet eerst het blad.
+    params.set("direct", "1");
     return `/rapportages/afdruk?${params.toString()}`;
   }, [preset, aangepast]);
 

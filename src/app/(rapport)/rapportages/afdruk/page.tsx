@@ -22,7 +22,10 @@ function AfdrukInhoud() {
       periode={searchParams.get("periode")}
       van={Number(searchParams.get("van")) || undefined}
       tot={Number(searchParams.get("tot")) || undefined}
-      direct={searchParams.get("direct") !== "0"}
+      /* Alleen afdrukken als de knop erom vroeg (`?direct=1`). Stond hier
+         omgekeerd (`!== "0"`), waardoor elk gewoon bezoek meteen de native
+         printdialoog opende. */
+      direct={searchParams.get("direct") === "1"}
     />
   );
 }
