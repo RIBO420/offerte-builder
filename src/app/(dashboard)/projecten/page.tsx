@@ -17,7 +17,8 @@ import {
   Search,
   Plus,
 } from "lucide-react";
-import { ProjectenPageSkeleton, ListSkeleton } from "@/components/ui/skeleton-card";
+import { ProjectenPageSkeleton } from "@/components/ui/skeleton-card";
+import { ProjectenTabelSkelet } from "./components/projecten-tabel-skelet";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -157,6 +158,16 @@ function ProjectenPageContent() {
   );
 
   const isLoading = isUserLoading || paginatedData === undefined;
+
+  // Hoeveel rijen het skelet moet tekenen. `stats` is een losse query en is
+  // meestal eerder binnen dan de gepagineerde lijst; dan staat het skelet exact
+  // even hoog als de tabel die eroverheen komt. Bij zoeken zegt de teller niets
+  // over het resultaat, dus dan laten we het skelet zijn eigen aanname doen.
+  const skeletRijen = useMemo(() => {
+    if (!stats || debouncedSearchQuery.trim()) return undefined;
+    if (activeTab === "alle") return stats.totaal;
+    return (stats as Record<string, number | undefined>)[activeTab];
+  }, [stats, activeTab, debouncedSearchQuery]);
 
   // Get offertes without projects
   const offertesZonderProject = useMemo(() => {
@@ -421,15 +432,18 @@ function ProjectenPageContent() {
             <TabsContent value={activeTab} className="space-y-6">
               <AnimatePresence mode="wait">
                 {isLoading ? (
+                  // Geen exit-animatie: `AnimatePresence mode="wait"` houdt de
+                  // volgende staat tegen tot de vorige is uitgefaded, en dat was
+                  // precies het gat waarin de pagina leeg stond. Nu het skelet
+                  // de eindafmetingen heeft, is uitfaden ook niet meer nodig —
+                  // de tabel komt op dezelfde plek te staan.
                   <m.div
                     key="loading"
                     initial={reducedMotion ? false : { opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    exit={reducedMotion ? undefined : { opacity: 0 }}
                     transition={{ duration: reducedMotion ? 0 : 0.2 }}
-                    className="py-4"
                   >
-                    <ListSkeleton count={5} />
+                    <ProjectenTabelSkelet aantal={skeletRijen} />
                   </m.div>
                 ) : displayedProjecten.length > 0 ? (
                   <m.div
