@@ -52,9 +52,22 @@ interface Regel {
 interface OfferteRegelsCardProps {
   regels: Regel[];
   id: string;
+  /** Bepaalt welke editor de knop opent — zie `/offertes/[id]/bewerken`. */
+  bron?: "wizard" | "vrij";
+  /** Bewerken kan alleen zolang de offerte niet naar de klant is. */
+  status?: string;
 }
 
-export function OfferteRegelsCard({ regels, id }: OfferteRegelsCardProps) {
+export function OfferteRegelsCard({
+  regels,
+  id,
+  bron,
+  status,
+}: OfferteRegelsCardProps) {
+  const magBewerken =
+    status === undefined || status === "concept" || status === "voorcalculatie";
+  const bewerkPad =
+    bron === "vrij" ? `/offertes/${id}/vrij` : `/offertes/${id}/bewerken`;
   return (
     <Card>
       <CardHeader>
@@ -118,12 +131,14 @@ export function OfferteRegelsCard({ regels, id }: OfferteRegelsCardProps) {
             <p className="mt-4 text-muted-foreground">
               Er zijn nog geen regels toegevoegd aan deze offerte.
             </p>
-            <Button asChild className="mt-4">
-              <Link href={`/offertes/${id}/bewerken`}>
-                <Edit className="mr-2 h-4 w-4" />
-                Regels toevoegen
-              </Link>
-            </Button>
+            {magBewerken && (
+              <Button asChild className="mt-4">
+                <Link href={bewerkPad}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Regels toevoegen
+                </Link>
+              </Button>
+            )}
           </div>
         )}
       </CardContent>

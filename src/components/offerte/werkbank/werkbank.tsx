@@ -16,6 +16,9 @@ import { m } from "framer-motion";
 import { AlertTriangle, Check, Loader2, PenLine, Sprout } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { SectiePaneel } from "@/components/ui/sectie-paneel";
+import { StatusBadge } from "@/components/ui/status-badge";
+import type { OfferteStatus } from "@/lib/constants/statuses";
+import type { Id } from "../../../../convex/_generated/dataModel";
 import { BouwstenenKiezer } from "@/components/offerte/bouwstenen-kiezer";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { cn } from "@/lib/utils";
@@ -27,7 +30,7 @@ import {
   type WerkbankType,
 } from "@/lib/werkbank";
 import { useWerkbank } from "./use-werkbank";
-import { WerkbankKlantSectie } from "./werkbank-klant-sectie";
+import { KlantKoppeling } from "@/components/offerte/klant-koppeling";
 import {
   WerkbankGarantie,
   WerkbankOmstandigheden,
@@ -41,8 +44,19 @@ const TITEL: Record<WerkbankType, string> = {
   onderhoud: "Onderhoud",
 };
 
-export function Werkbank({ type }: { type: WerkbankType }) {
-  const wb = useWerkbank(type);
+/**
+ * @param offerteId Bewerkmodus: open dit bestaande document in plaats van een
+ *   nieuw concept aan te maken. Zo bewerk je een wizard-offerte in hetzelfde
+ *   werkblad waarin hij is geschreven (`/offertes/[id]/bewerken`).
+ */
+export function Werkbank({
+  type,
+  offerteId,
+}: {
+  type: WerkbankType;
+  offerteId?: Id<"offertes">;
+}) {
+  const wb = useWerkbank(type, offerteId ? { offerteId } : undefined);
 
   // Validatiemeldingen per scope komen uit de formulieren zelf; het werkblad
   // gebruikt ze alleen om een scope als "nog gegevens nodig" te markeren.
@@ -102,6 +116,8 @@ export function Werkbank({ type }: { type: WerkbankType }) {
         <Masthead
           type={type}
           offerteNummer={wb.offerteNummer}
+          status={wb.status}
+          bewerkModus={wb.bewerkModus}
           klantNaam={wb.klant.naam}
           opslagStatus={wb.opslagStatus}
           opgeslagenOm={wb.opgeslagenOm}
@@ -120,6 +136,7 @@ export function Werkbank({ type }: { type: WerkbankType }) {
               totalen={wb.totalen}
               aantalRegels={wb.regels.length}
               calculatieLaadt={wb.calculatieLaadt}
+              status={wb.status}
               klantCompleet={wb.voortgang.klantCompleet}
               heeftRegels={wb.voortgang.heeftRegels}
               kanDefinitief={wb.voortgang.kanDefinitief}
@@ -131,15 +148,17 @@ export function Werkbank({ type }: { type: WerkbankType }) {
 
           <div className="order-2 min-w-0 space-y-3 @min-[68rem]/werkbank:order-1">
             <Reveel index={0}>
-              <WerkbankKlantSectie
+              {/* Zelfde component als de koppelstrip in de regel-editor en op
+                  de offertedetailpagina — één klantenlijst, één gedrag. */}
+              <KlantKoppeling
+                weergave="sectie"
+                offerteId={wb.offerteId}
                 klant={wb.klant}
-                klantCompleet={wb.voortgang.klantCompleet}
-                initialKlantId={wb.klantIdParam}
+                klantId={wb.klantId}
+                status={wb.status}
                 initialLeadId={wb.leadIdParam}
                 fout={wb.afrondFout}
-                onVelden={wb.setKlantVelden}
-                onKoppel={wb.kiesKlant}
-                onLead={() => undefined}
+                onGekoppeld={wb.kiesKlant}
               />
             </Reveel>
 
@@ -261,6 +280,8 @@ function Reveel({
 function Masthead({
   type,
   offerteNummer,
+  status,
+  bewerkModus,
   klantNaam,
   opslagStatus,
   opgeslagenOm,
@@ -268,6 +289,8 @@ function Masthead({
 }: {
   type: WerkbankType;
   offerteNummer: string | null;
+  status: string;
+  bewerkModus: boolean;
   klantNaam: string;
   opslagStatus: string;
   opgeslagenOm: Date | null;
@@ -278,14 +301,20 @@ function Masthead({
       <div className="min-w-0">
         <p className="text-xs leading-4 font-medium tracking-wide text-muted-foreground uppercase">
           Werkblad · {TITEL[type]}
+          {bewerkModus && " · bewerken"}
         </p>
         <h1 className="mt-1 flex min-w-0 items-baseline gap-2.5 font-display text-[30px] leading-tight font-semibold tracking-tight">
           {offerteNummer ?? (
             <span className="inline-block h-[1em] w-[9ch] animate-pulse rounded bg-muted align-middle" />
           )}
-          <span className="shrink-0 rounded bg-status-concept px-1.5 py-0.5 text-[11px] leading-4 font-medium text-status-concept-text">
-            Concept
-          </span>
+          {/* De status stond hier hard op "Concept" — klopte zolang het
+              werkblad alleen nieuwe offertes schreef. In bewerkmodus opent het
+              ook een offerte in voorcalculatie. */}
+          <StatusBadge
+            status={status as OfferteStatus}
+            size="sm"
+            className="shrink-0 self-center"
+          />
         </h1>
         <p className="mt-0.5 truncate text-sm text-muted-foreground">
           {klantNaam || "Nog geen klant gekoppeld"}

@@ -1528,13 +1528,21 @@ export const duplicate = mutation({
       userId,
       type: original.type,
       status: "concept",
+      // `bron` bepaalt welke editor de kopie opent (PRD §2.5b). Zonder deze
+      // regel gold elke kopie als scope-offerte: een gedupliceerde vríje
+      // offerte belandde in het werkblad, dat zijn handgeschreven regels
+      // vervolgens door de scope-berekening zou vervangen.
+      bron: original.bron,
       offerteNummer: args.newOfferteNummer,
       klant: original.klant,
+      klantId: original.klantId,
       algemeenParams: original.algemeenParams,
       scopes: original.scopes,
       scopeData: original.scopeData,
       totalen: original.totalen,
       regels: original.regels,
+      vrijeTeksten: original.vrijeTeksten,
+      kortingOpTotaal: original.kortingOpTotaal,
       notities: original.notities
         ? `Kopie van ${original.offerteNummer}\n\n${original.notities}`
         : `Kopie van ${original.offerteNummer}`,

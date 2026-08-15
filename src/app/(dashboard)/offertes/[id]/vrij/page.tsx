@@ -14,7 +14,7 @@ import {
   TekstblokKiezer,
   type VrijeTeksten,
 } from "@/components/offerte/vrije-builder";
-import { KlantKoppelStrip } from "@/components/offerte/klant-koppel-strip";
+import { KlantKoppeling } from "@/components/offerte/klant-koppeling";
 import { api } from "../../../../../../convex/_generated/api";
 import type { Id } from "../../../../../../convex/_generated/dataModel";
 import type { VrijeRegel } from "../../../../../../convex/vrijeOfferteBerekening";
@@ -215,9 +215,11 @@ function VrijeOfferteEditor({
         </div>
       </div>
 
-      <KlantKoppelStrip
+      <KlantKoppeling
+        weergave="strip"
         offerteId={offerteId}
         klant={offerte.klant}
+        klantId={offerte.klantId}
         status={offerte.status}
       />
 

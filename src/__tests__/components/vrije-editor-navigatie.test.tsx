@@ -32,10 +32,10 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-// De klantstrip heeft een eigen zoek-/statistiekstapel; die staat los van wat
-// hier op het spel staat.
-vi.mock("@/components/offerte/klant-koppel-strip", () => ({
-  KlantKoppelStrip: () => null,
+// De klantkoppeling heeft een eigen zoek-/statistiekstapel; die staat los van
+// wat hier op het spel staat.
+vi.mock("@/components/offerte/klant-koppeling", () => ({
+  KlantKoppeling: () => null,
 }));
 
 const offerte = {

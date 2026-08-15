@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -116,12 +115,20 @@ export function OfferteHeader({
   onShowTemplateDialog,
   onShowDeleteDialog,
 }: OfferteHeaderProps) {
-  const router = useRouter();
   const [showNieuweVersieDialog, setShowNieuweVersieDialog] = useState(false);
   // PRD §1.2: alleen kantoor mag de offerte naar de klant versturen
   const isKantoor = useIsKantoor();
 
   const isGeaccepteerd = offerte?.status === "geaccepteerd";
+  /**
+   * Bewerken kan zolang de offerte nog van kantoor is en niet van de klant —
+   * dezelfde grens als `offertes.koppelKlant` en als de bewerkroute zelf. Bij
+   * `verzonden`/`afgewezen` is de weg terug "Status wijzigen → Voorcalculatie";
+   * een knop die naar een scherm leidt dat je meteen terugstuurt is erger dan
+   * geen knop.
+   */
+  const magBewerken =
+    offerte?.status === "concept" || offerte?.status === "voorcalculatie";
 
   // Determine version indicator info
   const latestVersion = offerteVersions && offerteVersions.length > 0 ? offerteVersions[0] : null;
@@ -192,19 +199,22 @@ export function OfferteHeader({
             Nieuwe versie aanmaken
           </Button>
         ) : (
-          <Button variant="outline" asChild>
-            {/* Vrije offertes (route 2, PRD §2.5b) bewerken in de regel-editor */}
-            <Link
-              href={
-                offerte?.bron === "vrij"
-                  ? `/offertes/${id}/vrij`
-                  : `/offertes/${id}/bewerken`
-              }
-            >
-              <Edit className="mr-2 h-4 w-4" />
-              Bewerken
-            </Link>
-          </Button>
+          magBewerken && (
+            <Button variant="outline" asChild>
+              {/* Vrije offertes (route 2, PRD §2.5b) bewerken in de
+                  regel-editor, alle andere in het werkblad. */}
+              <Link
+                href={
+                  offerte?.bron === "vrij"
+                    ? `/offertes/${id}/vrij`
+                    : `/offertes/${id}/bewerken`
+                }
+              >
+                <Edit className="mr-2 h-4 w-4" />
+                Bewerken
+              </Link>
+            </Button>
+          )
         )}
 
         {/* Eén PDF-knop: preview-modal (download zit ín de modal) */}
@@ -314,18 +324,19 @@ export function OfferteHeader({
             <AlertDialogTitle>Getekende offerte bewerken</AlertDialogTitle>
           </div>
           <AlertDialogDescription className="text-left">
-            Deze offerte is getekend en geaccepteerd door de klant. Wijzigingen
-            maken automatisch een nieuwe versie. De originele getekende versie
-            blijft bewaard in de versiegeschiedenis.
+            Deze offerte is getekend en geaccepteerd door de klant; daarom blijft
+            hij zoals hij is. Je werkt verder in een kopie: een nieuw concept met
+            dezelfde klant, werkzaamheden en regels, onder een eigen
+            offertenummer. De getekende offerte blijft ongewijzigd bestaan.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Annuleren</AlertDialogCancel>
           <AlertDialogAction
-            onClick={() => router.push(`/offertes/${id}/bewerken`)}
+            onClick={onDuplicate}
             className="bg-amber-600 hover:bg-amber-700"
           >
-            Doorgaan
+            Kopie maken
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -11,7 +11,7 @@ import { FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/format";
 import { SaveAsTemplateDialog } from "@/components/offerte/save-as-template-dialog";
-import { KlantKoppelStrip } from "@/components/offerte/klant-koppel-strip";
+import { KlantKoppeling } from "@/components/offerte/klant-koppeling";
 import { OfferteWorkflowStepper } from "@/components/offerte/offerte-workflow-stepper";
 import { EngagementTimeline } from "@/components/offerte/engagement-timeline";
 import { useQuery } from "convex/react";
@@ -180,8 +180,14 @@ export default function OfferteDetailPage({
     if (!offerte) return;
     try {
       const newNummer = await getNextNummer();
-      await duplicate({ id: offerte._id, newOfferteNummer: newNummer });
-      toast.success("Offerte gedupliceerd");
+      const nieuweId = await duplicate({
+        id: offerte._id,
+        newOfferteNummer: newNummer,
+      });
+      toast.success(`Kopie aangemaakt: ${newNummer}`);
+      // Meteen naar de kopie: een toast zonder bestemming liet je zoeken in de
+      // lijst, en vanaf "Nieuwe versie aanmaken" is doorwerken de bedoeling.
+      router.push(`/offertes/${nieuweId}`);
     } catch {
       toast.error("Fout bij dupliceren offerte");
     }
@@ -333,14 +339,21 @@ export default function OfferteDetailPage({
                  template of als vrije offerte). Dan hoort hier geen gat te
                  vallen maar de plek waar je hem koppelt — vóórdat de statusknop
                  hem alsnog eist. */
-              <KlantKoppelStrip
+              <KlantKoppeling
+                weergave="strip"
                 offerteId={id as Id<"offertes">}
                 klant={null}
+                klantId={offerte.klantId}
                 status={offerte.status}
               />
             )}
             <ScopesCard scopes={offerte.scopes} algemeenParams={offerte.algemeenParams} />
-            <OfferteRegelsCard regels={offerte.regels} id={id} />
+            <OfferteRegelsCard
+              regels={offerte.regels}
+              id={id}
+              bron={offerte.bron}
+              status={offerte.status}
+            />
             <NotitiesCard notities={offerte.notities} />
           </div>
 

@@ -76,7 +76,37 @@ const LEGE_KLANT: WerkbankKlantVelden = {
 /** Debounce van de autosave: lang genoeg om typen niet te onderbreken. */
 const AUTOSAVE_MS = 900;
 
-export function useWerkbank(type: WerkbankType) {
+export interface WerkbankOpties {
+  /**
+   * Bewerkmodus: het werkblad opent een offerte die al bestaat
+   * (`/offertes/[id]/bewerken`) in plaats van er zelf een aan te maken. De
+   * hydratie hieronder is dezelfde als na een herlaadactie.
+   */
+  offerteId?: Id<"offertes">;
+}
+
+/**
+ * Moet de eerste doorrekening na het inladen worden weggeschreven?
+ *
+ * Ja, precies wanneer het document zónder regels binnenkwam terwijl het
+ * werkblad er wél uitrekent. Dat is de sjabloonsituatie:
+ * `standaardtuinen.createOfferteFromTemplate` kopieert `scopes` en
+ * `scopeData` uit het sjabloon maar zet `regels: []` en een totaal van € 0 —
+ * rekenen kan die mutation niet, want de calculator draait in de browser op de
+ * normuren en producten van dit bedrijf.
+ *
+ * Nee zodra er al regels stáán: die zijn dan leidend tot iemand iets wijzigt.
+ * Anders zou het openen van "Bewerken" de opgeslagen regels stilzwijgend
+ * vervangen door een verse berekening.
+ */
+export function moetEersteDoorrekeningBewaren(
+  opgeslagenRegels: number,
+  doorgerekendeRegels: number
+): boolean {
+  return opgeslagenRegels === 0 && doorgerekendeRegels > 0;
+}
+
+export function useWerkbank(type: WerkbankType, opties?: WerkbankOpties) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -91,15 +121,26 @@ export function useWerkbank(type: WerkbankType) {
   // concept aan te maken.
   const offerteParam = searchParams.get("offerte")?.trim() || undefined;
 
+  /**
+   * Het document dat we openen in plaats van aanmaken: de bewerkroute geeft
+   * het id als prop mee, een herlaadactie via `?offerte=`. Beide vragen om
+   * dezelfde hydratie.
+   */
+  const bestaandId = (opties?.offerteId ??
+    (offerteParam as Id<"offertes"> | undefined)) as
+    | Id<"offertes">
+    | undefined;
+  /** Bewerkmodus = het werkblad maakt zelf geen concept aan. */
+  const bewerkModus = Boolean(opties?.offerteId);
+
   const createOfferte = useMutation(api.offertes.create);
   const updateOfferte = useMutation(api.offertes.update);
   const updateRegels = useMutation(api.offertes.updateRegels);
   const updateStatus = useMutation(api.offertes.updateStatus);
-  const koppelKlant = useMutation(api.offertes.koppelKlant);
   const updateBouwsteenRegels = useMutation(api.offertes.updateBouwsteenRegels);
 
   const [offerteId, setOfferteId] = useState<Id<"offertes"> | null>(
-    (offerteParam as Id<"offertes"> | undefined) ?? null
+    bestaandId ?? null
   );
   const [aanmaakFout, setAanmaakFout] = useState<string | null>(null);
 
@@ -186,11 +227,23 @@ export function useWerkbank(type: WerkbankType) {
   // lege velden tonen terwijl de offerte wél gevuld is (regels klopten,
   // invoervelden stonden op 0).
   const [hydratieVersie, setHydratieVersie] = useState(0);
-  const [gehydrateerd, setGehydrateerd] = useState(!offerteParam);
-  const gehydrateerdRef = useRef(!offerteParam);
+  const [gehydrateerd, setGehydrateerd] = useState(!bestaandId);
+  const gehydrateerdRef = useRef(!bestaandId);
+  /**
+   * De nulmeting van de autosave moet ná de hydratie opnieuw worden genomen —
+   * anders geldt de lege beginstaat als "wat er al staat".
+   */
+  const nulmetingVervaltRef = useRef(false);
+  /**
+   * Hoeveel regels het ingeladen document meebracht. `null` = er is niets
+   * ingeladen (vers concept). Zie `moetEersteDoorrekeningBewaren`.
+   */
+  const opgeslagenRegelsRef = useRef<number | null>(null);
   useEffect(() => {
     if (gehydrateerdRef.current || !offerte) return;
     gehydrateerdRef.current = true;
+    nulmetingVervaltRef.current = true;
+    opgeslagenRegelsRef.current = (offerte.regels ?? []).length;
 
     const bestaandeScopes = sorteerScopes(type, offerte.scopes ?? []);
     const bestaandeData = (offerte.scopeData ?? {}) as Record<string, unknown>;
@@ -358,6 +411,14 @@ export function useWerkbank(type: WerkbankType) {
 
   useEffect(() => {
     if (!offerteId) return;
+    // Vóór de hydratie staat de staat hier nog leeg; die mag nooit over een
+    // bestaand document heen worden geschreven.
+    if (!gehydrateerd) return;
+    if (nulmetingVervaltRef.current) {
+      nulmetingVervaltRef.current = false;
+      laatstOpgeslagenRef.current = null;
+    }
+
     const momentopname = JSON.stringify({
       scopes,
       scopeDataSleutel,
@@ -368,9 +429,19 @@ export function useWerkbank(type: WerkbankType) {
       regelSleutel,
     });
     if (laatstOpgeslagenRef.current === null) {
-      // Wat we net met `create` hebben meegegeven staat er al.
-      laatstOpgeslagenRef.current = momentopname;
-      return;
+      // Wat we net met `create` hebben meegegeven (of net hebben ingeladen)
+      // staat er al — op de sjabloonsituatie na.
+      const bewaarDoorrekening =
+        opgeslagenRegelsRef.current !== null &&
+        moetEersteDoorrekeningBewaren(
+          opgeslagenRegelsRef.current,
+          regels.length
+        );
+      if (!bewaarDoorrekening) {
+        laatstOpgeslagenRef.current = momentopname;
+        return;
+      }
+      opgeslagenRegelsRef.current = null;
     }
     if (laatstOpgeslagenRef.current === momentopname) return;
 
@@ -416,6 +487,7 @@ export function useWerkbank(type: WerkbankType) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     offerteId,
+    gehydrateerd,
     scopes,
     scopeDataSleutel,
     bereikbaarheid,
@@ -457,45 +529,17 @@ export function useWerkbank(type: WerkbankType) {
 
   // ─── Klant koppelen ───────────────────────────────────────────────────────
   /**
-   * Alleen de weergave bijwerken. De KlantSelector roept dit tijdens het
-   * typen/kiezen aan; het koppelen aan de offerte gebeurt in `kiesKlant`.
+   * Het koppelen zélf zit in `KlantKoppeling` — één component, één
+   * `offertes.koppelKlant`, voor het werkblad én de regel-editor. Dit is
+   * alleen de terugmelding: het werkblad houdt de klant lokaal bij voor de
+   * voortgang (klant compleet?) en de kop.
    */
-  const setKlantVelden = useCallback((velden: WerkbankKlantVelden) => {
-    setKlant(velden);
-  }, []);
-
   const kiesKlant = useCallback(
-    async (
-      velden: WerkbankKlantVelden,
-      gekozenKlantId: Id<"klanten"> | null
-    ) => {
+    (velden: WerkbankKlantVelden, gekozenKlantId: Id<"klanten"> | null) => {
       setKlant(velden);
       setKlantId(gekozenKlantId);
-      if (!offerteId) return;
-      try {
-        if (!velden.naam && !gekozenKlantId) {
-          await koppelKlant({ id: offerteId, ontkoppelen: true });
-          return;
-        }
-        await koppelKlant({
-          id: offerteId,
-          klantId: gekozenKlantId ?? undefined,
-          klant: gekozenKlantId
-            ? undefined
-            : {
-                naam: velden.naam,
-                adres: velden.adres,
-                postcode: velden.postcode,
-                plaats: velden.plaats,
-                email: velden.email || undefined,
-                telefoon: velden.telefoon || undefined,
-              },
-        });
-      } catch (fout) {
-        toast.error(getMutationErrorMessage(fout));
-      }
     },
-    [offerteId, koppelKlant]
+    []
   );
 
   // ─── Afronden ─────────────────────────────────────────────────────────────
@@ -543,6 +587,7 @@ export function useWerkbank(type: WerkbankType) {
     offerte,
     offerteNummer: offerte?.offerteNummer ?? null,
     status: offerte?.status ?? "concept",
+    bewerkModus,
     aanmaakFout,
     /** Staat het document klaar om formulieren op te monteren? */
     documentGereed: gehydrateerd,
@@ -566,7 +611,6 @@ export function useWerkbank(type: WerkbankType) {
     setAchterstalligheid,
     setGarantieId,
     setCatalogus,
-    setKlantVelden,
     kiesKlant,
     maakDefinitief,
     naarOfferte,

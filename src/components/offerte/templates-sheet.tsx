@@ -105,7 +105,12 @@ export function TemplatesSheet() {
       });
       setShowTemplatesSheet(false);
       toast.success(`Offerte gestart vanuit "${template.naam}"`);
-      router.push(`/offertes/${offerteId}`);
+      // Naar het werkblad, niet naar de detailpagina. Een sjabloon draagt
+      // scopes en hoeveelheden, maar geen regels: die rekent de browser uit op
+      // de normuren van dit bedrijf. Op de detailpagina gebeurde dat nooit —
+      // vandaar "0 regels en € 0" in de eindschouw (S2). Het werkblad
+      // hydrateert het sjabloon, rekent het door en bewaart de regels.
+      router.push(`/offertes/${offerteId}/bewerken`);
     } catch (fout) {
       toast.error("Offerte aanmaken mislukt", {
         description: getMutationErrorMessage(fout),

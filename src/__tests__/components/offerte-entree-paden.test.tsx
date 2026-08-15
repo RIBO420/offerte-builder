@@ -154,8 +154,13 @@ describe("Templates-Sheet", () => {
         klantId: KLANT_ID,
       })
     );
+    // S2 (eindschouw 15 aug): de landing was de detailpagina, en daar bleef
+    // het bij "0 regels, € 0" — een sjabloon draagt scopes en hoeveelheden,
+    // maar de regels rekent de browser uit. Het werkblad doet dat wél.
     await waitFor(() =>
-      expect(push).toHaveBeenCalledWith("/offertes/offerte_uit_sjabloon")
+      expect(push).toHaveBeenCalledWith(
+        "/offertes/offerte_uit_sjabloon/bewerken"
+      )
     );
   });
 });

@@ -39,6 +39,8 @@ interface WerkbankPaletProps {
   };
   aantalRegels: number;
   calculatieLaadt: boolean;
+  /** Status van de offerte: een offerte die al uit concept is, gaat er niet nóg eens uit. */
+  status: string;
   klantCompleet: boolean;
   heeftRegels: boolean;
   kanDefinitief: boolean;
@@ -56,6 +58,7 @@ export function WerkbankPalet({
   totalen,
   aantalRegels,
   calculatieLaadt,
+  status,
   klantCompleet,
   heeftRegels,
   kanDefinitief,
@@ -64,6 +67,7 @@ export function WerkbankPalet({
   onBekijk,
 }: WerkbankPaletProps) {
   const lijst = scopesVoorType(type);
+  const isConcept = status === "concept";
 
   return (
     <div className="space-y-3">
@@ -209,50 +213,69 @@ export function WerkbankPalet({
         </div>
 
         <div className="mt-3 space-y-2 border-t border-border/70 p-3">
-          {/* Bewust niet uitgeschakeld bij een ontbrekende klant: de harde
-              guard zit in Convex, en die melding benoemt precies welk veld
-              ontbreekt. Een grijze knop zou dat verzwijgen. Zonder regels valt
-              er niets vast te leggen — dáár klopt uitschakelen wel. */}
-          <Button
-            className="w-full"
-            disabled={!heeftRegels || afronden}
-            onClick={onDefinitief}
-          >
-            {afronden ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <ShieldCheck className="size-4" />
-            )}
-            Offerte definitief maken
-          </Button>
+          {isConcept ? (
+            <>
+              {/* Bewust niet uitgeschakeld bij een ontbrekende klant: de harde
+                  guard zit in Convex, en die melding benoemt precies welk veld
+                  ontbreekt. Een grijze knop zou dat verzwijgen. Zonder regels
+                  valt er niets vast te leggen — dáár klopt uitschakelen wel. */}
+              <Button
+                className="w-full"
+                disabled={!heeftRegels || afronden}
+                onClick={onDefinitief}
+              >
+                {afronden ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <ShieldCheck className="size-4" />
+                )}
+                Offerte definitief maken
+              </Button>
 
-          {/* Stille staat i.p.v. een rood alarm: de knop legt zelf uit
-              waaróm hij nog niet kan. */}
-          <p className="flex items-start gap-1.5 text-[11px] leading-4 text-muted-foreground">
-            {!klantCompleet ? (
-              <>
-                <Lock className="mt-px size-3 shrink-0" />
-                Een klant is verplicht vóór versturen — het concept mag zonder.
-              </>
-            ) : !kanDefinitief ? (
-              <>
-                <Lock className="mt-px size-3 shrink-0" />
-                Vul minstens één werkzaamheid in, dan staan er regels op de
-                offerte.
-              </>
-            ) : (
-              <>Concept gaat naar voorcalculatie en verlaat de conceptfase.</>
-            )}
-          </p>
+              {/* Stille staat i.p.v. een rood alarm: de knop legt zelf uit
+                  waaróm hij nog niet kan. */}
+              <p className="flex items-start gap-1.5 text-[11px] leading-4 text-muted-foreground">
+                {!klantCompleet ? (
+                  <>
+                    <Lock className="mt-px size-3 shrink-0" />
+                    Een klant is verplicht vóór versturen — het concept mag
+                    zonder.
+                  </>
+                ) : !kanDefinitief ? (
+                  <>
+                    <Lock className="mt-px size-3 shrink-0" />
+                    Vul minstens één werkzaamheid in, dan staan er regels op de
+                    offerte.
+                  </>
+                ) : (
+                  <>Concept gaat naar voorcalculatie en verlaat de conceptfase.</>
+                )}
+              </p>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full text-muted-foreground"
-            onClick={onBekijk}
-          >
-            Bekijk de offerte
-          </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full text-muted-foreground"
+                onClick={onBekijk}
+              >
+                Bekijk de offerte
+              </Button>
+            </>
+          ) : (
+            <>
+              {/* Deze offerte is de conceptfase al uit; de knop die hem daar
+                  uit haalt hoort er dan niet meer te staan. Wat je hier
+                  wijzigt gaat gewoon mee. */}
+              <Button className="w-full" onClick={onBekijk}>
+                Terug naar de offerte
+              </Button>
+              <p className="text-[11px] leading-4 text-muted-foreground">
+                Deze offerte staat al in voorcalculatie. Wijzigingen worden
+                bewaard; de voorcalculatie zelf reken je op haar eigen pagina
+                opnieuw door.
+              </p>
+            </>
+          )}
         </div>
       </section>
     </div>

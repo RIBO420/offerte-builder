@@ -73,8 +73,8 @@ export function WerkbankSuccesDialog({
           />
           <VervolgActie
             icoon={<PenLine className="size-4" />}
-            titel="Regels bijwerken"
-            uitleg="Prijzen, volgorde en notities aanpassen"
+            titel="Terug naar het werkblad"
+            uitleg="Werkzaamheden en hoeveelheden aanpassen"
             onClick={() => ga(`/offertes/${offerteId}/bewerken`)}
           />
         </div>
