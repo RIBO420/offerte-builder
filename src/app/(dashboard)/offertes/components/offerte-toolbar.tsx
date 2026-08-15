@@ -1,6 +1,5 @@
 "use client";
 
-import { m } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { NieuweOfferteSplitButton } from "@/components/offerte/nieuwe-offerte-split-button";
@@ -35,7 +34,6 @@ interface OfferteToolbarProps {
   onSavePreset: (name: string, filters: OfferteFilterState) => void;
   onDeletePreset: (id: string) => void;
   hasActiveFilters: boolean;
-  reducedMotion: boolean;
 }
 
 export function OfferteToolbar({
@@ -54,16 +52,10 @@ export function OfferteToolbar({
   onSavePreset,
   onDeletePreset,
   hasActiveFilters,
-  reducedMotion,
 }: OfferteToolbarProps) {
   return (
     <>
-      <m.div
-        initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: reducedMotion ? 0 : 0.4, delay: reducedMotion ? 0 : 0.1 }}
-        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
-      >
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
             Offertes
@@ -75,14 +67,9 @@ export function OfferteToolbar({
         {/* Eén primaire ingang (keuzepunt 7): hoofdklik opent de tegel-dialog,
             de chevron de twee andere manieren om te beginnen. */}
         <NieuweOfferteSplitButton className="w-full sm:w-auto" />
-      </m.div>
+      </div>
 
-      <m.div
-        initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: reducedMotion ? 0 : 0.4, delay: reducedMotion ? 0 : 0.2 }}
-        className="flex flex-col gap-4"
-      >
+      <div className="flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
           <div className="relative w-full sm:w-auto sm:flex-1 sm:max-w-sm">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -123,7 +110,7 @@ export function OfferteToolbar({
           </div>
         </div>
         <ActiveFilters filters={filters} onChange={onFiltersChange} />
-      </m.div>
+      </div>
     </>
   );
 }

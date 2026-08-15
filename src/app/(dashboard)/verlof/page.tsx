@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, Suspense } from "react";
-import { m } from "framer-motion";
+import { PaginaReveal } from "@/components/pagina-reveal";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { Id } from "../../../../convex/_generated/dataModel";
@@ -55,16 +55,6 @@ import { VerlofKalender, STATUS_COLORS } from "@/components/verlof/verlof-kalend
 import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import { format } from "date-fns";
 import { nl } from "@/lib/date-locale";
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.1 } },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.4 } },
-};
 
 const TYPE_LABELS: Record<string, string> = {
   vakantie: "Vakantie",
@@ -213,14 +203,11 @@ function VerlofPageContent() {
     <>
       <PageHeader />
 
-      <m.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
+      <PaginaReveal
         className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
       >
       {/* Header */}
-      <m.div variants={itemVariants} className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Verlofregistratie</h1>
           <p className="text-muted-foreground">
@@ -231,7 +218,7 @@ function VerlofPageContent() {
           <Plus className="mr-2 h-4 w-4" />
           Verlof aanvragen
         </Button>
-      </m.div>
+      </div>
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
@@ -573,7 +560,7 @@ function VerlofPageContent() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </m.div>
+    </PaginaReveal>
     </>
   );
 }

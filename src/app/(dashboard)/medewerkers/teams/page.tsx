@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import { m, AnimatePresence } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
+import { PaginaReveal } from "@/components/pagina-reveal";
 import {
   Card,
   CardContent,
@@ -257,10 +258,7 @@ export default function TeamsPage() {
     <>
       <PageHeader />
 
-      <m.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
+      <PaginaReveal
         className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
       >
         {/* Page Header */}
@@ -423,7 +421,7 @@ export default function TeamsPage() {
             )}
           </CardContent>
         </Card>
-      </m.div>
+      </PaginaReveal>
 
       {/* Create Team Dialog */}
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>

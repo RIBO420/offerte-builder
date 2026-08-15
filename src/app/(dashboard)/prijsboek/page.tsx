@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
-import { m } from "framer-motion";
+import { PaginaReveal } from "@/components/pagina-reveal";
 import { RequireAdmin } from "@/components/require-admin";
 import {
   Card,
@@ -463,12 +463,10 @@ function PrijsboekPageContent() {
     <>
       <PageHeader />
 
-      <m.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
-      >
+      {/* Eén reveal op de buitenkant; de blokken en tabelrijen eronder zijn
+          gewone elementen en staan er dus ook als er nul animatieframes
+          vallen. → src/components/pagina-reveal.tsx */}
+      <PaginaReveal className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
@@ -750,12 +748,9 @@ function PrijsboekPageContent() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredProducts.map((product, index) => (
-                      <m.tr
+                    {filteredProducts.map((product) => (
+                      <TableRow
                         key={product._id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.05 }}
                         className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
                       >
                         <TableCell>
@@ -811,7 +806,7 @@ function PrijsboekPageContent() {
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
-                      </m.tr>
+                      </TableRow>
                     ))}
                   </TableBody>
                 </Table>
@@ -848,7 +843,7 @@ function PrijsboekPageContent() {
             )}
           </TabsContent>
         </Tabs>
-      </m.div>
+      </PaginaReveal>
 
       {/* Import Preview Dialog */}
       <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>

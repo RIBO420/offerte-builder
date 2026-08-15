@@ -11,7 +11,7 @@ import { ChatTabBadge } from "@/components/chat/chat-tabs-badge";
 import { NewDMDialog } from "@/components/chat/new-dm-dialog";
 import { KlantTijdlijn } from "@/components/tijdlijn/klant-tijdlijn";
 import Link from "next/link";
-import { m } from "framer-motion";
+import { PaginaReveal } from "@/components/pagina-reveal";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -599,9 +599,7 @@ export default function ChatPage() {
   return (
     <>
       <PageHeader />
-      <m.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
+      <PaginaReveal
         className="flex flex-col overflow-hidden"
         style={{ height: "calc(100vh - 4rem)" }}
       >
@@ -707,7 +705,7 @@ export default function ChatPage() {
           )}
           {activeTab === "klant" && isKantoor && <KlantenTijdlijnTab />}
         </div>
-      </m.div>
+      </PaginaReveal>
     </>
   );
 }

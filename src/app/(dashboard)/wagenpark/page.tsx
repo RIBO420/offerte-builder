@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo, Suspense } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useRouter, useSearchParams } from "next/navigation";
-import { m } from "framer-motion";
+import { PaginaReveal } from "@/components/pagina-reveal";
 import { useTabState } from "@/hooks/use-tab-state";
 import { Pagination } from "@/components/ui/pagination";
 import {
@@ -523,10 +523,7 @@ function WagenparkPageContent() {
     <>
       <PageHeader />
 
-      <m.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
+      <PaginaReveal
         className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
       >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -732,7 +729,7 @@ function WagenparkPageContent() {
             )}
           </CardContent>
         </Card>
-      </m.div>
+      </PaginaReveal>
 
       {/* Add Dialog */}
       <VoertuigForm

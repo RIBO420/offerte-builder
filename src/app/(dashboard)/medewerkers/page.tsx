@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo, Suspense } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useSearchParams } from "next/navigation";
-import { m } from "framer-motion";
+import { PaginaReveal } from "@/components/pagina-reveal";
 import { useTabState } from "@/hooks/use-tab-state";
 import { RequireRole } from "@/components/require-admin";
 import { Pagination } from "@/components/ui/pagination";
@@ -64,28 +64,6 @@ import { MedewerkerDetailDialog, MedewerkerExtended } from "@/components/medewer
 import { SpecialisatieBadges } from "@/components/medewerkers/skills-selector";
 import { CertificaatBadges, getCertificaatStatus } from "@/components/medewerkers/certificaat-form";
 
-
-// Animation variants
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.1,
-    },
-  },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.4,
-    },
-  },
-};
 
 function MedewerkersPageContent() {
   const searchParams = useSearchParams();
@@ -463,13 +441,10 @@ function MedewerkersPageContent() {
     <>
       <PageHeader />
 
-      <m.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
+      <PaginaReveal
         className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
       >
-        <m.div variants={itemVariants} className="flex items-center justify-between">
+        <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
               Medewerkers
@@ -483,10 +458,10 @@ function MedewerkersPageContent() {
             <Plus className="mr-2 h-4 w-4" />
             Nieuwe Medewerker
           </Button>
-        </m.div>
+        </div>
 
         {/* Stats Cards */}
-        <m.div variants={itemVariants} className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Totaal</CardTitle>
@@ -534,10 +509,10 @@ function MedewerkersPageContent() {
               <p className="text-xs text-muted-foreground">verlopen</p>
             </CardContent>
           </Card>
-        </m.div>
+        </div>
 
         {/* Filter Tabs and Table */}
-        <m.div variants={itemVariants}>
+        <div>
           <Card>
             <CardHeader>
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -637,8 +612,8 @@ function MedewerkersPageContent() {
               )}
             </CardContent>
           </Card>
-        </m.div>
-      </m.div>
+        </div>
+      </PaginaReveal>
 
       {/* Add Dialog */}
       <MedewerkerForm

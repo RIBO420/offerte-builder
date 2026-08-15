@@ -3,7 +3,7 @@
 import { use, useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { m } from "framer-motion";
+import { PaginaReveal } from "@/components/pagina-reveal";
 import {
   Card,
   CardContent,
@@ -214,10 +214,7 @@ export default function VoertuigDetailPage({
     <>
       <PageHeader customLabels={{ [`/wagenpark/${id}`]: voertuig.kenteken }} />
 
-      <m.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
+      <PaginaReveal
         className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
       >
         {/* Header */}
@@ -657,7 +654,7 @@ export default function VoertuigDetailPage({
             />
           </TabsContent>
         </Tabs>
-      </m.div>
+      </PaginaReveal>
 
       {/* Onderhoud Form Dialog */}
       <OnderhoudForm

@@ -6,7 +6,9 @@ import { formatCurrency } from "@/lib/format";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import { m } from "framer-motion";
+import { PaginaReveal } from "@/components/pagina-reveal";
+// `reducedMotion` leeft hier alleen nog als prop voor `StatusTabs` (en de
+// kaart-/rijcomponenten daaronder); de entree van deze pagina doet CSS.
 import { useReducedMotion } from "@/hooks/use-accessibility";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useTableSort } from "@/hooks/use-table-sort";
@@ -306,12 +308,10 @@ function OffertesPageContent() {
     <>
       <PageHeader />
 
-      <m.div
-        initial={reducedMotion ? false : { opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: reducedMotion ? 0 : 0.5, ease: "easeOut" }}
-        className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
-      >
+      {/* Eén reveal op de buitenkant, geen gestapelde delays eronder: de blokken
+          hieronder zijn gewone elementen en staan er dus ook als er nul
+          animatieframes vallen. → src/components/pagina-reveal.tsx */}
+      <PaginaReveal className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
         <OfferteToolbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -328,16 +328,10 @@ function OffertesPageContent() {
           onSavePreset={handleSavePreset}
           onDeletePreset={handleDeletePreset}
           hasActiveFilters={hasActiveFilters}
-          reducedMotion={reducedMotion}
         />
 
         {/* Eén rustige statregel i.p.v. vier KPI-cards (distill WS6) */}
-        <m.p
-          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: reducedMotion ? 0 : 0.4, delay: reducedMotion ? 0 : 0.2 }}
-          className="text-sm text-muted-foreground"
-        >
+        <p className="text-sm text-muted-foreground">
           {selectieActief && (
             <>
               <span className="font-medium text-foreground">
@@ -355,13 +349,9 @@ function OffertesPageContent() {
           {aggregateMetrics.conversieratio}% conversie
           <span aria-hidden="true"> · </span>
           {aggregateMetrics.openOffertes} open
-        </m.p>
+        </p>
 
-        <m.div
-          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: reducedMotion ? 0 : 0.4, delay: reducedMotion ? 0 : 0.3 }}
-        >
+        <div>
           <StatusTabs
             activeTab={activeTab}
             onTabChange={handleTabChange}
@@ -390,8 +380,8 @@ function OffertesPageContent() {
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
           />
-        </m.div>
-      </m.div>
+        </div>
+      </PaginaReveal>
 
       <BulkDeleteDialog
         open={showBulkDeleteDialog}

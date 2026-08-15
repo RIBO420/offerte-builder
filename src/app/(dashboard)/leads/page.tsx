@@ -6,7 +6,7 @@
  * promotie naar klantrecord + eerste werkitem (configuratorAanvragen.markGewonnen).
  */
 
-import { m } from "framer-motion";
+import { PaginaReveal } from "@/components/pagina-reveal";
 import { RequireRole } from "@/components/require-admin";
 import { PageHeader } from "@/components/page-header";
 import { LeadsBoard } from "@/components/leads/leads-board";
@@ -15,10 +15,7 @@ function LeadsPageContent() {
   return (
     <>
       <PageHeader />
-      <m.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
+      <PaginaReveal
         className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
       >
         <div className="flex items-center justify-between">
@@ -31,7 +28,7 @@ function LeadsPageContent() {
         </div>
 
         <LeadsBoard />
-      </m.div>
+      </PaginaReveal>
     </>
   );
 }

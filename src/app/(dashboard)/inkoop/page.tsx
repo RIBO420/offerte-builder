@@ -5,8 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import { m, AnimatePresence } from "framer-motion";
-import { useReducedMotion } from "@/hooks/use-accessibility";
+import { PaginaReveal } from "@/components/pagina-reveal";
 import { useDebounce } from "@/hooks/use-debounce";
 import { RequireRole } from "@/components/require-admin";
 import { PageHeader } from "@/components/page-header";
@@ -119,8 +118,6 @@ interface InkooporderRowProps {
   projectNaam?: string;
   onDelete: (id: Id<"inkooporders">) => void;
   onNavigate: (id: Id<"inkooporders">) => void;
-  reducedMotion: boolean;
-  index: number;
 }
 
 const InkooporderRow = memo(function InkooporderRow({
@@ -129,8 +126,6 @@ const InkooporderRow = memo(function InkooporderRow({
   projectNaam,
   onDelete,
   onNavigate,
-  reducedMotion,
-  index,
 }: InkooporderRowProps) {
   const handleRowClick = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -144,14 +139,8 @@ const InkooporderRow = memo(function InkooporderRow({
   }, [inkooporder._id, onDelete]);
 
   return (
-    <m.tr
+    <TableRow
       key={inkooporder._id}
-      initial={reducedMotion ? false : { opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{
-        duration: reducedMotion ? 0 : 0.3,
-        delay: reducedMotion ? 0 : index * 0.05,
-      }}
       className="border-b hover:bg-muted/50 transition-colors cursor-pointer"
       onClick={handleRowClick}
     >
@@ -205,7 +194,7 @@ const InkooporderRow = memo(function InkooporderRow({
           </DropdownMenuContent>
         </DropdownMenu>
       </TableCell>
-    </m.tr>
+    </TableRow>
   );
 });
 
@@ -232,7 +221,6 @@ function InkoopPageLoader() {
 
 function InkoopPageContent() {
   const router = useRouter();
-  const reducedMotion = useReducedMotion();
 
   // State
   const [searchQuery, setSearchQuery] = useState("");
@@ -336,21 +324,14 @@ function InkoopPageContent() {
     <>
       <PageHeader />
 
-      <m.div
-        initial={reducedMotion ? false : { opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: reducedMotion ? 0 : 0.5, ease: "easeOut" }}
-        className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
-      >
+      {/* Eén reveal op de buitenkant, geen gestapelde delays eronder: de blokken
+          hieronder zijn gewone divs en staan er dus ook als er nul
+          animatieframes vallen. → src/components/pagina-reveal.tsx */}
+      <PaginaReveal className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
         <InkoopTabs />
 
         {/* Header */}
-        <m.div
-          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: reducedMotion ? 0 : 0.4, delay: reducedMotion ? 0 : 0.1 }}
-          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
-        >
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
               Inkooporders
@@ -372,15 +353,10 @@ function InkoopPageContent() {
               <p>Maak een nieuwe inkooporder aan</p>
             </TooltipContent>
           </Tooltip>
-        </m.div>
+        </div>
 
         {/* Statistics Cards */}
-        <m.div
-          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: reducedMotion ? 0 : 0.4, delay: reducedMotion ? 0 : 0.15 }}
-          className="grid gap-4 md:grid-cols-2 lg:grid-cols-4"
-        >
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Concept</CardTitle>
@@ -429,15 +405,10 @@ function InkoopPageContent() {
               </p>
             </CardContent>
           </Card>
-        </m.div>
+        </div>
 
         {/* Filters */}
-        <m.div
-          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: reducedMotion ? 0 : 0.4, delay: reducedMotion ? 0 : 0.2 }}
-          className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4"
-        >
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
           <div className="relative w-full sm:w-auto sm:flex-1 sm:max-w-sm">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
@@ -474,14 +445,10 @@ function InkoopPageContent() {
               ))}
             </SelectContent>
           </Select>
-        </m.div>
+        </div>
 
         {/* Tabs and Table */}
-        <m.div
-          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: reducedMotion ? 0 : 0.4, delay: reducedMotion ? 0 : 0.3 }}
-        >
+        <div>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <TabsList>
               <TabsTrigger value="alle">
@@ -525,26 +492,19 @@ function InkoopPageContent() {
             </TabsList>
 
             <TabsContent value={activeTab} className="space-y-6">
-              <AnimatePresence mode="wait">
-                {isLoading ? (
-                  <m.div
-                    key="loading"
-                    initial={reducedMotion ? false : { opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={reducedMotion ? undefined : { opacity: 0 }}
-                    transition={{ duration: reducedMotion ? 0 : 0.2 }}
-                    className="flex items-center justify-center py-20"
-                  >
-                    <LaadIndicator formaat="sectie" className="min-h-0" />
-                  </m.div>
-                ) : filteredOrders.length > 0 ? (
-                  <m.div
-                    key="content"
-                    initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={reducedMotion ? undefined : { opacity: 0, y: -10 }}
-                    transition={{ duration: reducedMotion ? 0 : 0.4 }}
-                  >
+              {/* Geen `AnimatePresence` meer. Die hield met `mode="wait"` de
+                  volgende staat tegen tot de vorige was uitgefaded — precies
+                  het gat waarin de pagina leeg stond — en liet bovendien elk
+                  blok op `opacity: 0` hangen zodra rAF stilstond. De takken
+                  wisselen nu gewoon; de `key` op de reveal zorgt dat de
+                  CSS-animatie opnieuw start, en zonder animatieframe staat de
+                  inhoud er meteen. */}
+              {isLoading ? (
+                <div key="loading" className="flex items-center justify-center py-20">
+                  <LaadIndicator formaat="sectie" className="min-h-0" />
+                </div>
+              ) : filteredOrders.length > 0 ? (
+                <PaginaReveal key="content">
                     <Card className="overflow-hidden">
                       <ScrollableTable>
                         <Table>
@@ -560,7 +520,7 @@ function InkoopPageContent() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {filteredOrders.map((order, index) => (
+                            {filteredOrders.map((order) => (
                               <InkooporderRow
                                 key={order._id}
                                 inkooporder={order}
@@ -568,23 +528,15 @@ function InkoopPageContent() {
                                 projectNaam={order.projectId ? projectMap.get(order.projectId.toString()) : undefined}
                                 onDelete={(id) => setDeleteOrderId(id)}
                                 onNavigate={handleNavigate}
-                                reducedMotion={reducedMotion}
-                                index={index}
                               />
                             ))}
                           </TableBody>
                         </Table>
                       </ScrollableTable>
                     </Card>
-                  </m.div>
-                ) : (
-                  <m.div
-                    key="empty"
-                    initial={reducedMotion ? false : { opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={reducedMotion ? undefined : { opacity: 0, scale: 0.95 }}
-                    transition={{ duration: reducedMotion ? 0 : 0.3 }}
-                  >
+                </PaginaReveal>
+              ) : (
+                <PaginaReveal key="empty">
                     <Card className="p-12">
                       <div className="flex flex-col items-center justify-center text-center">
                         <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/10 mb-4">
@@ -604,13 +556,12 @@ function InkoopPageContent() {
                         </Button>
                       </div>
                     </Card>
-                  </m.div>
-                )}
-              </AnimatePresence>
+                </PaginaReveal>
+              )}
             </TabsContent>
           </Tabs>
-        </m.div>
-      </m.div>
+        </div>
+      </PaginaReveal>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deleteOrderId} onOpenChange={() => setDeleteOrderId(null)}>

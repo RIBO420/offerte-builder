@@ -5,7 +5,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useTableSort } from "@/hooks/use-table-sort";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { m } from "framer-motion";
+import { PaginaReveal } from "@/components/pagina-reveal";
 import { RequireRole } from "@/components/require-admin";
 import { PageHeader } from "@/components/page-header";
 import {
@@ -1436,10 +1436,7 @@ function KlantenPageShell() {
   return (
     <>
       <PageHeader />
-      <m.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
+      <PaginaReveal
         className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
       >
         <div className="flex items-center justify-between">
@@ -1450,7 +1447,7 @@ function KlantenPageShell() {
         </div>
 
         <KlantenPageContent />
-      </m.div>
+      </PaginaReveal>
     </>
   );
 }

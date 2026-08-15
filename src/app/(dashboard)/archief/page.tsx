@@ -4,6 +4,7 @@ import { useState, useMemo, Suspense } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { m, AnimatePresence } from "framer-motion";
 import { useReducedMotion } from "@/hooks/use-accessibility";
+import { PaginaReveal } from "@/components/pagina-reveal";
 import { RequireRole } from "@/components/require-admin";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -180,7 +181,13 @@ function ArchivedProjectCard({ project }: { project: ArchivedProject }) {
           <AnimatePresence>
             {/* Uitklap via grid-template-rows i.p.v. height (optimize O8):
                 een height-animatie forceert elke frame een reflow van alle
-                content eronder; 0fr→1fr geeft dezelfde beweging. */}
+                content eronder; 0fr→1fr geeft dezelfde beweging.
+
+                blanco-beginstaat-ok: dit blok bestaat pas nadat de gebruiker
+                de kaart heeft opengeklikt. Staat requestAnimationFrame stil —
+                achtergrondtab — dan is er per definitie niemand die klikt, dus
+                deze `initial` kan geen inhoud gijzelen zoals een
+                pagina-entree dat wel doet. */}
             {isOpen && (
               <m.div
                 initial={reducedMotion ? false : { opacity: 0, gridTemplateRows: "0fr" }}
@@ -383,7 +390,6 @@ function ArchiefPageLoader() {
 }
 
 function ArchiefPageContent() {
-  const reducedMotion = useReducedMotion();
   const { user, isLoading: isUserLoading } = useCurrentUser();
 
   const archivedProjects = useQuery(
@@ -433,39 +439,22 @@ function ArchiefPageContent() {
     <>
       <PageHeader />
 
-      <m.div
-        initial={reducedMotion ? false : { opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: reducedMotion ? 0 : 0.5, ease: "easeOut" }}
-        className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
-      >
+      {/* Eén reveal op de buitenkant, geen gestapelde delays eronder: de blokken
+          hieronder zijn gewone divs en staan er dus ook als er nul
+          animatieframes vallen. → src/components/pagina-reveal.tsx */}
+      <PaginaReveal className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
         {/* Header */}
-        <m.div
-          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: reducedMotion ? 0 : 0.4,
-            delay: reducedMotion ? 0 : 0.1,
-          }}
-        >
+        <div>
           <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
             Archief
           </h1>
           <p className="text-muted-foreground">
             Voltooide projecten en hun documenten
           </p>
-        </m.div>
+        </div>
 
         {/* Stats Cards */}
-        <m.div
-          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: reducedMotion ? 0 : 0.4,
-            delay: reducedMotion ? 0 : 0.15,
-          }}
-          className="grid gap-4 sm:grid-cols-2"
-        >
+        <div className="grid gap-4 sm:grid-cols-2">
           {/* Total Projects */}
           <Card>
             <CardContent className="pt-6">
@@ -503,17 +492,10 @@ function ArchiefPageContent() {
               </div>
             </CardContent>
           </Card>
-        </m.div>
+        </div>
 
         {/* Search */}
-        <m.div
-          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: reducedMotion ? 0 : 0.4,
-            delay: reducedMotion ? 0 : 0.2,
-          }}
-        >
+        <div>
           <div className="relative w-full sm:max-w-sm">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
@@ -523,61 +505,30 @@ function ArchiefPageContent() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-        </m.div>
+        </div>
 
         {/* Projects List */}
-        <m.div
-          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: reducedMotion ? 0 : 0.4,
-            delay: reducedMotion ? 0 : 0.25,
-          }}
-          className="space-y-4"
-        >
-          <AnimatePresence mode="wait">
-            {isLoading ? (
-              <m.div
-                key="loading"
-                initial={reducedMotion ? false : { opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={reducedMotion ? undefined : { opacity: 0 }}
-                transition={{ duration: reducedMotion ? 0 : 0.2 }}
-                className="flex items-center justify-center py-20"
-              >
-                <LaadIndicator formaat="sectie" className="min-h-0" />
-              </m.div>
-            ) : filteredProjects.length > 0 ? (
-              <m.div
-                key="content"
-                initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={reducedMotion ? undefined : { opacity: 0, y: -10 }}
-                transition={{ duration: reducedMotion ? 0 : 0.4 }}
-                className="space-y-4"
-              >
-                {filteredProjects.map((project, index) => (
-                  <m.div
-                    key={project._id}
-                    initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{
-                      duration: reducedMotion ? 0 : 0.3,
-                      delay: reducedMotion ? 0 : index * 0.05,
-                    }}
-                  >
-                    <ArchivedProjectCard project={project} />
-                  </m.div>
-                ))}
-              </m.div>
-            ) : searchQuery ? (
-              <m.div
-                key="no-results"
-                initial={reducedMotion ? false : { opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={reducedMotion ? undefined : { opacity: 0, scale: 0.95 }}
-                transition={{ duration: reducedMotion ? 0 : 0.3 }}
-              >
+        <div className="space-y-4">
+          {/* Geen `AnimatePresence` meer. Die hield met `mode="wait"` de
+              volgende staat tegen tot de vorige was uitgefaded — precies het
+              gat waarin de pagina leeg stond — en liet bovendien elk blok op
+              `opacity: 0` hangen zodra rAF stilstond. De takken wisselen nu
+              gewoon; de `key` op de reveal zorgt dat de CSS-animatie opnieuw
+              start, en zonder animatieframe staat de inhoud er meteen. */}
+          {isLoading ? (
+            <div key="loading" className="flex items-center justify-center py-20">
+              <LaadIndicator formaat="sectie" className="min-h-0" />
+            </div>
+          ) : filteredProjects.length > 0 ? (
+            <PaginaReveal key="content" className="space-y-4">
+              {filteredProjects.map((project) => (
+                <div key={project._id}>
+                  <ArchivedProjectCard project={project} />
+                </div>
+              ))}
+            </PaginaReveal>
+          ) : searchQuery ? (
+            <PaginaReveal key="no-results">
                 <Card className="border-dashed">
                   <CardContent className="flex flex-col items-center justify-center py-12">
                     <Search className="h-12 w-12 text-muted-foreground/50 mb-4" />
@@ -593,33 +544,19 @@ function ArchiefPageContent() {
                     </Button>
                   </CardContent>
                 </Card>
-              </m.div>
-            ) : (
-              <m.div
-                key="empty"
-                initial={reducedMotion ? false : { opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={reducedMotion ? undefined : { opacity: 0, scale: 0.95 }}
-                transition={{ duration: reducedMotion ? 0 : 0.3 }}
-              >
-                <EmptyArchive />
-              </m.div>
-            )}
-          </AnimatePresence>
-        </m.div>
+            </PaginaReveal>
+          ) : (
+            <PaginaReveal key="empty">
+              <EmptyArchive />
+            </PaginaReveal>
+          )}
+        </div>
 
         {/* §5.2: Herstel-sectie voor gearchiveerde items */}
-        <m.div
-          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: reducedMotion ? 0 : 0.4,
-            delay: reducedMotion ? 0 : 0.3,
-          }}
-        >
+        <div>
           <GearchiveerdeItems />
-        </m.div>
-      </m.div>
+        </div>
+      </PaginaReveal>
     </>
   );
 }

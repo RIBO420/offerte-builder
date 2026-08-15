@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
-import { m } from "framer-motion";
+import { PaginaReveal } from "@/components/pagina-reveal";
 import { useRouter } from "next/navigation";
 import {
   Card,
@@ -84,28 +84,6 @@ const roleConfig: Record<UserRole, { label: string; badgeClass: string; icon: Re
   // Legacy roles — still displayed correctly if present in DB
   admin: { label: "Admin (oud)", badgeClass: "bg-status-afgewezen text-status-afgewezen-text border-status-afgewezen-border", icon: ShieldCheck },
   viewer: { label: "Viewer (oud)", badgeClass: "bg-status-concept text-status-concept-text border-status-concept-border", icon: Eye },
-};
-
-// Animation variants
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.1,
-    },
-  },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.4,
-    },
-  },
 };
 
 export default function GebruikersPage() {
@@ -268,14 +246,11 @@ export default function GebruikersPage() {
     <>
       <PageHeader />
 
-      <m.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
+      <PaginaReveal
         className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
       >
         {/* Page Header */}
-        <m.div variants={itemVariants} className="flex items-center justify-between">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <Shield className="h-5 w-5" />
@@ -289,10 +264,10 @@ export default function GebruikersPage() {
               </p>
             </div>
           </div>
-        </m.div>
+        </div>
 
         {/* Stats Cards */}
-        <m.div variants={itemVariants} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Beheer</CardTitle>
@@ -336,10 +311,10 @@ export default function GebruikersPage() {
               <p className="text-xs text-muted-foreground">aan medewerker profiel</p>
             </CardContent>
           </Card>
-        </m.div>
+        </div>
 
         {/* Users Table */}
-        <m.div variants={itemVariants}>
+        <div>
           <Card>
             <CardHeader>
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -513,10 +488,10 @@ export default function GebruikersPage() {
               )}
             </CardContent>
           </Card>
-        </m.div>
+        </div>
 
         {/* Info Card */}
-        <m.div variants={itemVariants}>
+        <div>
           <Card className="bg-muted/50">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
@@ -548,8 +523,8 @@ export default function GebruikersPage() {
               </p>
             </CardContent>
           </Card>
-        </m.div>
-      </m.div>
+        </div>
+      </PaginaReveal>
 
       {/* Link to Medewerker Dialog */}
       <Dialog open={showLinkDialog} onOpenChange={setShowLinkDialog}>

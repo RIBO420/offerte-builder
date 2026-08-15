@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
-import { m, AnimatePresence } from "framer-motion";
+import { m } from "framer-motion";
+import { PaginaReveal } from "@/components/pagina-reveal";
 import {
   Card,
   CardContent,
@@ -210,25 +211,17 @@ export default function ProfielPage() {
     <>
       <PageHeader />
 
-      <AnimatePresence mode="wait">
-        {isLoading ? (
-          <m.div
-            key="loader"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="flex flex-1 items-center justify-center"
-          >
-            <m.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{
-                duration: 0.5,
-                ease: [0.16, 1, 0.3, 1],
-              }}
-              className="relative"
-            >
+      {/* Geen `AnimatePresence` meer. Die hield met `mode="wait"` de volgende
+          staat tegen tot de vorige was uitgefaded — precies het gat waarin de
+          pagina leeg stond — en liet bovendien elk blok op `opacity: 0` hangen
+          zodra rAF stilstond. De takken wisselen nu gewoon; de `key` op de
+          reveal zorgt dat de CSS-animatie opnieuw start, en zonder
+          animatieframe staat de inhoud er meteen. De twee pulserende
+          `m.div`'s hieronder blijven: dat is doorlopende sier-beweging op een
+          laadscherm, geen entree die inhoud gijzelt. */}
+      {isLoading ? (
+        <div key="loader" className="flex flex-1 items-center justify-center">
+            <div className="relative">
               {/* Pulsing glow effect */}
               <m.div
                 className="absolute inset-0 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 blur-xl"
@@ -257,41 +250,26 @@ export default function ProfielPage() {
               >
                 <User className="h-8 w-8 text-white" />
               </m.div>
-            </m.div>
-          </m.div>
-        ) : (
-          <m.div
-            key="content"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
-          >
+            </div>
+        </div>
+      ) : (
+        <PaginaReveal
+          key="content"
+          className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
+        >
             {/* User Profile Header */}
-            <m.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.4, delay: 0.1 }}
-              className="flex items-center gap-4"
-            >
+            <div className="flex items-center gap-4">
               {clerkUser?.imageUrl ? (
-                <m.img
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ duration: 0.4, delay: 0.2 }}
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
                   src={clerkUser.imageUrl}
                   alt={userDisplayName}
                   className="h-16 w-16 rounded-full object-cover"
                 />
               ) : (
-                <m.div
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ duration: 0.4, delay: 0.2 }}
-                  className="flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground text-xl font-semibold"
-                >
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground text-xl font-semibold">
                   {userInitials}
-                </m.div>
+                </div>
               )}
               <div>
                 <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
@@ -301,13 +279,9 @@ export default function ProfielPage() {
                   <p className="text-muted-foreground">{userEmail}</p>
                 )}
               </div>
-            </m.div>
+            </div>
 
-            <m.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.2 }}
-            >
+            <div>
               <Tabs defaultValue="account" className="space-y-4">
                 <TabsList>
                   <TabsTrigger value="account" className="flex items-center gap-2">
@@ -330,12 +304,7 @@ export default function ProfielPage() {
 
           {/* Account Tab */}
           <TabsContent value="account" className="space-y-4">
-            <m.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-              className="space-y-4"
-            >
+            <div className="space-y-4">
             <Card>
               <CardHeader>
                 <CardTitle>Account informatie</CardTitle>
@@ -399,16 +368,12 @@ export default function ProfielPage() {
                 </div>
               </CardContent>
             </Card>
-            </m.div>
+            </div>
           </TabsContent>
 
           {/* Bedrijfsgegevens Tab */}
           <TabsContent value="bedrijf" className="space-y-4">
-            <m.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-            >
+            <div>
             <Card>
               <CardHeader>
                 <CardTitle>Bedrijfsgegevens</CardTitle>
@@ -544,16 +509,12 @@ export default function ProfielPage() {
                 </div>
               </CardContent>
             </Card>
-            </m.div>
+            </div>
           </TabsContent>
 
           {/* Offerte Tab */}
           <TabsContent value="offerte" className="space-y-4">
-            <m.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-            >
+            <div>
             <Card>
               <CardHeader>
                 <CardTitle>Offerte instellingen</CardTitle>
@@ -606,17 +567,12 @@ export default function ProfielPage() {
                 </div>
               </CardContent>
             </Card>
-            </m.div>
+            </div>
           </TabsContent>
 
           {/* Privacy Tab (GDPR) */}
           <TabsContent value="privacy" className="space-y-4">
-            <m.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-              className="space-y-4"
-            >
+            <div className="space-y-4">
             {/* Data Export Card */}
             <Card>
               <CardHeader>
@@ -789,13 +745,12 @@ export default function ProfielPage() {
                 </div>
               </CardContent>
             </Card>
-            </m.div>
+            </div>
           </TabsContent>
               </Tabs>
-            </m.div>
-          </m.div>
-        )}
-      </AnimatePresence>
+            </div>
+        </PaginaReveal>
+      )}
     </>
   );
 }

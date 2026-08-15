@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
-import { m } from "framer-motion";
+import { PaginaReveal } from "@/components/pagina-reveal";
 import { RequireRole } from "@/components/require-admin";
 import {
   Card,
@@ -197,12 +197,10 @@ function VoorraadPageContent() {
     <>
       <PageHeader />
 
-      <m.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
-      >
+      {/* Eén reveal op de buitenkant; de blokken en tabelrijen eronder zijn
+          gewone elementen en staan er dus ook als er nul animatieframes
+          vallen. → src/components/pagina-reveal.tsx */}
+      <PaginaReveal className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
         <InkoopTabs />
 
         <div className="flex items-center justify-between">
@@ -296,7 +294,7 @@ function VoorraadPageContent() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredItems.map((item, index) => {
+                {filteredItems.map((item) => {
                   const productnaam = item.product?.productnaam || "Onbekend product";
                   const eenheid = item.product?.eenheid || "stuks";
                   const inkoopprijs = item.product?.inkoopprijs ?? 0;
@@ -304,11 +302,8 @@ function VoorraadPageContent() {
                   const locatie = item.locatie || "Niet opgegeven";
 
                   return (
-                    <m.tr
+                    <TableRow
                       key={item._id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
                       className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
                     >
                       <TableCell>
@@ -356,7 +351,7 @@ function VoorraadPageContent() {
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
-                    </m.tr>
+                    </TableRow>
                   );
                 })}
               </TableBody>
@@ -379,7 +374,7 @@ function VoorraadPageContent() {
             </CardContent>
           </Card>
         )}
-      </m.div>
+      </PaginaReveal>
 
       {/* Dialogs */}
       <VoorraadAdjustDialog

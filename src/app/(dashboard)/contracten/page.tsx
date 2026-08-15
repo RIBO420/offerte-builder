@@ -3,8 +3,7 @@
 import { useState, useMemo, useCallback, Suspense } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { m, AnimatePresence } from "framer-motion";
-import { useReducedMotion } from "@/hooks/use-accessibility";
+import { PaginaReveal } from "@/components/pagina-reveal";
 import { useDebounce } from "@/hooks/use-debounce";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -93,7 +92,6 @@ function ContractenPageLoader() {
 
 function ContractenPageContent() {
   const router = useRouter();
-  const reducedMotion = useReducedMotion();
   const { user, isLoading: isUserLoading } = useCurrentUser();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -154,22 +152,12 @@ function ContractenPageContent() {
     <>
       <PageHeader />
 
-      <m.div
-        initial={reducedMotion ? false : { opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: reducedMotion ? 0 : 0.5, ease: "easeOut" }}
-        className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
-      >
+      {/* Eén reveal op de buitenkant, geen gestapelde delays eronder: de blokken
+          hieronder zijn gewone divs en staan er dus ook als er nul
+          animatieframes vallen. → src/components/pagina-reveal.tsx */}
+      <PaginaReveal className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
         {/* Header */}
-        <m.div
-          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: reducedMotion ? 0 : 0.4,
-            delay: reducedMotion ? 0 : 0.1,
-          }}
-          className="flex items-center justify-between"
-        >
+        <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
               Contracten
@@ -184,18 +172,10 @@ function ContractenPageContent() {
               Nieuw contract
             </Link>
           </Button>
-        </m.div>
+        </div>
 
         {/* Stats Cards */}
-        <m.div
-          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: reducedMotion ? 0 : 0.4,
-            delay: reducedMotion ? 0 : 0.2,
-          }}
-          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
-        >
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
@@ -249,17 +229,10 @@ function ContractenPageContent() {
               </div>
             </CardContent>
           </Card>
-        </m.div>
+        </div>
 
         {/* Search */}
-        <m.div
-          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: reducedMotion ? 0 : 0.4,
-            delay: reducedMotion ? 0 : 0.25,
-          }}
-        >
+        <div>
           <div className="relative w-full sm:max-w-sm">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
@@ -269,17 +242,10 @@ function ContractenPageContent() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-        </m.div>
+        </div>
 
         {/* Contracts list */}
-        <m.div
-          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: reducedMotion ? 0 : 0.4,
-            delay: reducedMotion ? 0 : 0.3,
-          }}
-        >
+        <div>
           <Tabs
             value={activeTab}
             onValueChange={handleTabChange}
@@ -304,26 +270,19 @@ function ContractenPageContent() {
             </TabsList>
 
             <TabsContent value={activeTab} className="space-y-6">
-              <AnimatePresence mode="wait">
-                {isLoading ? (
-                  <m.div
-                    key="loading"
-                    initial={reducedMotion ? false : { opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={reducedMotion ? undefined : { opacity: 0 }}
-                    transition={{ duration: reducedMotion ? 0 : 0.2 }}
-                    className="py-4"
-                  >
-                    <CardTableSkeleton rows={5} />
-                  </m.div>
-                ) : filteredContracts.length > 0 ? (
-                  <m.div
-                    key="content"
-                    initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={reducedMotion ? undefined : { opacity: 0, y: -10 }}
-                    transition={{ duration: reducedMotion ? 0 : 0.4 }}
-                  >
+              {/* Geen `AnimatePresence` meer. Die hield met `mode="wait"` de
+                  volgende staat tegen tot de vorige was uitgefaded — precies
+                  het gat waarin de pagina leeg stond — en liet bovendien elk
+                  blok op `opacity: 0` hangen zodra rAF stilstond. De takken
+                  wisselen nu gewoon; de `key` op de reveal zorgt dat de
+                  CSS-animatie opnieuw start, en zonder animatieframe staat de
+                  inhoud er meteen. */}
+              {isLoading ? (
+                <div key="loading" className="py-4">
+                  <CardTableSkeleton rows={5} />
+                </div>
+              ) : filteredContracts.length > 0 ? (
+                <PaginaReveal key="content">
                     <Card className="overflow-hidden">
                       <ScrollableTable>
                         <Table>
@@ -390,17 +349,9 @@ function ContractenPageContent() {
                         </Table>
                       </ScrollableTable>
                     </Card>
-                  </m.div>
-                ) : searchQuery ? (
-                  <m.div
-                    key="no-results"
-                    initial={reducedMotion ? false : { opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={
-                      reducedMotion ? undefined : { opacity: 0, scale: 0.95 }
-                    }
-                    transition={{ duration: reducedMotion ? 0 : 0.3 }}
-                  >
+                </PaginaReveal>
+              ) : searchQuery ? (
+                <PaginaReveal key="no-results">
                     <Card className="p-12 text-center">
                       <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                       <h3 className="text-lg font-semibold mb-1">
@@ -416,17 +367,9 @@ function ContractenPageContent() {
                         Zoekopdracht wissen
                       </Button>
                     </Card>
-                  </m.div>
-                ) : (
-                  <m.div
-                    key="empty"
-                    initial={reducedMotion ? false : { opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={
-                      reducedMotion ? undefined : { opacity: 0, scale: 0.95 }
-                    }
-                    transition={{ duration: reducedMotion ? 0 : 0.3 }}
-                  >
+                </PaginaReveal>
+              ) : (
+                <PaginaReveal key="empty">
                     <Card className="p-12 text-center">
                       <ScrollText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                       <h3 className="text-lg font-semibold mb-1">
@@ -443,13 +386,12 @@ function ContractenPageContent() {
                         </Link>
                       </Button>
                     </Card>
-                  </m.div>
-                )}
-              </AnimatePresence>
+                </PaginaReveal>
+              )}
             </TabsContent>
           </Tabs>
-        </m.div>
-      </m.div>
+        </div>
+      </PaginaReveal>
     </>
   );
 }

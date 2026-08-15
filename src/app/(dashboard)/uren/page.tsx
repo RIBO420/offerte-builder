@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { m } from "framer-motion";
+import { PaginaReveal } from "@/components/pagina-reveal";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -59,28 +59,6 @@ import {
   getDaysAgoString,
 } from "@/lib/format";
 import { LaadIndicator } from "@/components/ui/laad-indicator";
-
-// Animation variants
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.1,
-    },
-  },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.4,
-    },
-  },
-};
 
 type DateRangePreset = "week" | "month" | "quarter" | "year" | "all";
 
@@ -439,14 +417,11 @@ function UrenPageContent() {
     <>
       <PageHeader />
 
-      <m.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
+      <PaginaReveal
         className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
       >
         {/* Page Header */}
-        <m.div variants={itemVariants} className="flex items-center justify-between">
+        <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
               Uren Overzicht
@@ -466,10 +441,10 @@ function UrenPageContent() {
               disabled={!exportData || exportData.length === 0}
             />
           )}
-        </m.div>
+        </div>
 
         {/* Stats Cards */}
-        <m.div variants={itemVariants} className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Deze Week</CardTitle>
@@ -521,11 +496,11 @@ function UrenPageContent() {
               <p className="text-xs text-muted-foreground">uren entries</p>
             </CardContent>
           </Card>
-        </m.div>
+        </div>
 
         {/* Hours per Project */}
         {statsData?.perProject && statsData.perProject.length > 0 && (
-          <m.div variants={itemVariants}>
+          <div>
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -565,12 +540,12 @@ function UrenPageContent() {
                 </div>
               </CardContent>
             </Card>
-          </m.div>
+          </div>
         )}
 
         {/* Hours per Medewerker (Admin only) */}
         {isAdmin && statsData?.perMedewerker && statsData.perMedewerker.length > 0 && (
-          <m.div variants={itemVariants}>
+          <div>
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -602,11 +577,11 @@ function UrenPageContent() {
                 </div>
               </CardContent>
             </Card>
-          </m.div>
+          </div>
         )}
 
         {/* Filters and Table */}
-        <m.div variants={itemVariants}>
+        <div>
           <Card>
             <CardHeader>
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -763,8 +738,8 @@ function UrenPageContent() {
               )}
             </CardContent>
           </Card>
-        </m.div>
-      </m.div>
+        </div>
+      </PaginaReveal>
     </>
   );
 }

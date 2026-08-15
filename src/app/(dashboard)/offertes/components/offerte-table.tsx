@@ -1,7 +1,7 @@
 "use client";
 
-import { m, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
+import { PaginaReveal } from "@/components/pagina-reveal";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SortableTableHead } from "@/components/ui/sortable-table-head";
@@ -34,6 +34,7 @@ interface OfferteTableProps {
   handleDuplicate: (id: string) => void;
   handleDelete: (id: string) => void;
   handleNavigate: (id: string) => void;
+  /** Alleen nog doorgegeven aan `OfferteRow`; de entree hier doet CSS. */
   reducedMotion: boolean;
   isLoading: boolean;
   searchQuery: string;
@@ -61,25 +62,19 @@ export function OfferteTable({
   const router = useRouter();
 
   return (
-    <AnimatePresence mode="wait">
+    <>
+      {/* Geen `AnimatePresence` meer. Die hield met `mode="wait"` de volgende
+          staat tegen tot de vorige was uitgefaded — precies het gat waarin de
+          tabel leeg stond — en liet elke tak op `opacity: 0` hangen zodra rAF
+          stilstond. De takken wisselen nu gewoon; de `key` op de reveal laat de
+          CSS-animatie opnieuw starten, en zonder animatieframe staat de inhoud
+          er meteen. → src/components/pagina-reveal.tsx */}
       {isLoading ? (
-        <m.div
-          key="loading"
-          initial={reducedMotion ? false : { opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={reducedMotion ? undefined : { opacity: 0 }}
-          transition={{ duration: reducedMotion ? 0 : 0.2 }}
-        >
+        <div key="loading">
           <OffertesTableSkeleton rows={5} />
-        </m.div>
+        </div>
       ) : sortedOffertes.length > 0 ? (
-        <m.div
-          key="content"
-          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={reducedMotion ? undefined : { opacity: 0, y: -10 }}
-          transition={{ duration: reducedMotion ? 0 : 0.4 }}
-        >
+        <PaginaReveal key="content">
           <Card className="overflow-hidden">
             <ScrollableTable>
             <Table>
@@ -164,28 +159,16 @@ export function OfferteTable({
             </Table>
             </ScrollableTable>
           </Card>
-        </m.div>
+        </PaginaReveal>
       ) : searchQuery ? (
-        <m.div
-          key="no-results"
-          initial={reducedMotion ? false : { opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={reducedMotion ? undefined : { opacity: 0, scale: 0.95 }}
-          transition={{ duration: reducedMotion ? 0 : 0.3 }}
-        >
+        <PaginaReveal key="no-results">
           <NoSearchResults onAction={() => setSearchQuery("")} />
-        </m.div>
+        </PaginaReveal>
       ) : (
-        <m.div
-          key="empty"
-          initial={reducedMotion ? false : { opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={reducedMotion ? undefined : { opacity: 0, scale: 0.95 }}
-          transition={{ duration: reducedMotion ? 0 : 0.3 }}
-        >
+        <PaginaReveal key="empty">
           <NoOffertes onAction={() => router.push("/offertes/nieuw/aanleg")} />
-        </m.div>
+        </PaginaReveal>
       )}
-    </AnimatePresence>
+    </>
   );
 }

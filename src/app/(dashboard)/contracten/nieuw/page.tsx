@@ -2,8 +2,7 @@
 
 import { useState, useMemo, useCallback, Suspense } from "react";
 import { useRouter } from "next/navigation";
-import { m } from "framer-motion";
-import { useReducedMotion } from "@/hooks/use-accessibility";
+import { PaginaReveal } from "@/components/pagina-reveal";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -170,7 +169,6 @@ function NieuwContractLoader() {
 
 function NieuwContractContent() {
   const router = useRouter();
-  const reducedMotion = useReducedMotion();
   const { user } = useCurrentUser();
 
   const klanten = useQuery(
@@ -431,12 +429,9 @@ function NieuwContractContent() {
     <>
       <PageHeader />
 
-      <m.div
-        initial={reducedMotion ? false : { opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: reducedMotion ? 0 : 0.5, ease: "easeOut" }}
-        className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
-      >
+      {/* Eén reveal op de buitenkant: de eindstaat is de default, de animatie
+          is versiering. → src/components/pagina-reveal.tsx */}
+      <PaginaReveal className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
         {/* Header */}
         <div className="flex items-center gap-4">
           <Button
@@ -1076,7 +1071,7 @@ function NieuwContractContent() {
             </Button>
           )}
         </div>
-      </m.div>
+      </PaginaReveal>
     </>
   );
 }

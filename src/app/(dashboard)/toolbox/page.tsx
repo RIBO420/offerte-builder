@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, Suspense } from "react";
-import { m } from "framer-motion";
+import { PaginaReveal } from "@/components/pagina-reveal";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { Id } from "../../../../convex/_generated/dataModel";
@@ -19,16 +19,6 @@ import { ToolboxForm } from "@/components/toolbox/toolbox-form";
 import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import { format } from "date-fns";
 import { nl } from "@/lib/date-locale";
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.1 } },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.4 } },
-};
 
 function ToolboxPageSkeleton() {
   return (
@@ -80,19 +70,16 @@ function ToolboxPageContent() {
     <>
       <PageHeader />
 
-      <m.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
+      <PaginaReveal
         className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
       >
-      <m.div variants={itemVariants} className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Toolbox Meetings</h1>
           <p className="text-muted-foreground">Registreer veiligheidsbijeenkomsten voor wettelijke documentatie.</p>
         </div>
         <Button onClick={() => setShowForm(true)}><Plus className="mr-2 h-4 w-4" />Nieuwe meeting</Button>
-      </m.div>
+      </div>
 
       <div className="flex items-center gap-4">
         <Select value={String(selectedJaar)} onValueChange={(v) => setSelectedJaar(Number(v))}>
@@ -143,7 +130,7 @@ function ToolboxPageContent() {
         <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Toolbox meeting verwijderen</AlertDialogTitle><AlertDialogDescription>Weet je zeker dat je deze meeting wilt verwijderen? Dit kan niet ongedaan worden gemaakt.</AlertDialogDescription></AlertDialogHeader>
         <AlertDialogFooter><AlertDialogCancel>Annuleren</AlertDialogCancel><AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Verwijderen</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
       </AlertDialog>
-    </m.div>
+    </PaginaReveal>
     </>
   );
 }

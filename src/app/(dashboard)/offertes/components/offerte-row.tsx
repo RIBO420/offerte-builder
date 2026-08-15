@@ -2,7 +2,6 @@
 
 import { memo, useCallback, useState } from "react";
 import Link from "next/link";
-import { m } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -60,9 +59,10 @@ export const OfferteRow = memo(function OfferteRow({
   onDuplicate,
   onDelete,
   onNavigate,
-  reducedMotion,
-  index,
 }: OfferteRowProps) {
+  // `reducedMotion` en `index` staan nog in `OfferteRowProps`, maar de rij
+  // animeert niet meer: een stagger van `index * 0.05` liet elke rij op
+  // `opacity: 0` staan zolang rAF stilstond. → src/components/pagina-reveal.tsx
   const hasProject = projectInfo !== null;
   const [confirmTarget, setConfirmTarget] = useState<OfferteStatus | null>(null);
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
@@ -112,14 +112,7 @@ export const OfferteRow = memo(function OfferteRow({
 
   return (
     <>
-      <m.tr
-        key={offerte._id}
-        initial={reducedMotion ? false : { opacity: 0, x: -10 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{
-          duration: reducedMotion ? 0 : 0.3,
-          delay: reducedMotion ? 0 : index * 0.05,
-        }}
+      <tr
         className={`border-b hover:bg-muted/50 transition-colors cursor-pointer hover:translate-y-[-1px] ${isSelected ? "bg-muted/50" : ""}`}
         onClick={handleRowClick}
       >
@@ -292,7 +285,7 @@ export const OfferteRow = memo(function OfferteRow({
             </DropdownMenuContent>
           </DropdownMenu>
         </TableCell>
-      </m.tr>
+      </tr>
 
       {/* Archive confirmation dialog (§5.2) */}
       <AlertDialog open={showArchiveConfirm} onOpenChange={setShowArchiveConfirm}>

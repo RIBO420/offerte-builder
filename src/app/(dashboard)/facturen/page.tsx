@@ -3,8 +3,7 @@
 import { useState, useMemo, useCallback, Suspense } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useRouter } from "next/navigation";
-import { m, AnimatePresence } from "framer-motion";
-import { useReducedMotion } from "@/hooks/use-accessibility";
+import { PaginaReveal } from "@/components/pagina-reveal";
 import { RequireRole } from "@/components/require-admin";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -136,7 +135,6 @@ function FacturenPageLoader() {
 
 function FacturenPageContent() {
   const router = useRouter();
-  const reducedMotion = useReducedMotion();
   const { user, isLoading: isUserLoading } = useCurrentUser();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -288,22 +286,12 @@ function FacturenPageContent() {
     <>
       <PageHeader />
 
-      <m.div
-        initial={reducedMotion ? false : { opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: reducedMotion ? 0 : 0.5, ease: "easeOut" }}
-        className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
-      >
+      {/* Eén reveal op de buitenkant, geen gestapelde delays eronder: de blokken
+          hieronder zijn gewone divs en staan er dus ook als er nul
+          animatieframes vallen. → src/components/pagina-reveal.tsx */}
+      <PaginaReveal className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
         {/* Header */}
-        <m.div
-          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: reducedMotion ? 0 : 0.4,
-            delay: reducedMotion ? 0 : 0.1,
-          }}
-          className="flex flex-wrap items-center justify-between gap-3"
-        >
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
               Facturen
@@ -330,18 +318,10 @@ function FacturenPageContent() {
               />
             )}
           </div>
-        </m.div>
+        </div>
 
         {/* Stats Summary */}
-        <m.div
-          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: reducedMotion ? 0 : 0.4,
-            delay: reducedMotion ? 0 : 0.15,
-          }}
-          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
-        >
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
@@ -411,17 +391,10 @@ function FacturenPageContent() {
               </div>
             </CardContent>
           </Card>
-        </m.div>
+        </div>
 
         {/* Search */}
-        <m.div
-          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: reducedMotion ? 0 : 0.4,
-            delay: reducedMotion ? 0 : 0.2,
-          }}
-        >
+        <div>
           <div className="relative w-full sm:max-w-sm">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
@@ -432,17 +405,10 @@ function FacturenPageContent() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-        </m.div>
+        </div>
 
         {/* Facturen list */}
-        <m.div
-          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: reducedMotion ? 0 : 0.4,
-            delay: reducedMotion ? 0 : 0.25,
-          }}
-        >
+        <div>
           <Tabs
             value={activeTab}
             onValueChange={handleTabChange}
@@ -552,15 +518,15 @@ function FacturenPageContent() {
                   </p>
                 </div>
               )}
-              <AnimatePresence mode="wait">
-                {isLoading ? (
-                  <m.div
-                    key="loading"
-                    initial={reducedMotion ? false : { opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={reducedMotion ? undefined : { opacity: 0 }}
-                    transition={{ duration: reducedMotion ? 0 : 0.2 }}
-                  >
+              {/* Geen `AnimatePresence` meer. Die hield met `mode="wait"` de
+                  volgende staat tegen tot de vorige was uitgefaded — precies
+                  het gat waarin de pagina leeg stond — en liet bovendien elk
+                  blok op `opacity: 0` hangen zodra rAF stilstond. De takken
+                  wisselen nu gewoon; de `key` op de reveal zorgt dat de
+                  CSS-animatie opnieuw start, en zonder animatieframe staat de
+                  inhoud er meteen. */}
+              {isLoading ? (
+                  <div key="loading">
                     <Card className="overflow-hidden">
                       {/* Table header skeleton */}
                       <div className="border-b px-4 py-3">
@@ -593,15 +559,9 @@ function FacturenPageContent() {
                         ))}
                       </div>
                     </Card>
-                  </m.div>
+                  </div>
                 ) : displayedFacturen.length > 0 ? (
-                  <m.div
-                    key="content"
-                    initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={reducedMotion ? undefined : { opacity: 0, y: -10 }}
-                    transition={{ duration: reducedMotion ? 0 : 0.4 }}
-                  >
+                  <PaginaReveal key="content">
                     <Card className="overflow-hidden">
                       <ScrollableTable>
                         <Table>
@@ -762,17 +722,9 @@ function FacturenPageContent() {
                         </div>
                       )}
                     </Card>
-                  </m.div>
+                  </PaginaReveal>
                 ) : (
-                  <m.div
-                    key="empty"
-                    initial={reducedMotion ? false : { opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={
-                      reducedMotion ? undefined : { opacity: 0, scale: 0.95 }
-                    }
-                    transition={{ duration: reducedMotion ? 0 : 0.3 }}
-                  >
+                  <PaginaReveal key="empty">
                     <Card>
                       <CardContent className="py-8">
                         <EmptyState
@@ -802,14 +754,13 @@ function FacturenPageContent() {
                         />
                       </CardContent>
                     </Card>
-                  </m.div>
+                  </PaginaReveal>
                 )}
-              </AnimatePresence>
             </TabsContent>
             )}
           </Tabs>
-        </m.div>
-      </m.div>
+        </div>
+      </PaginaReveal>
     </>
   );
 }

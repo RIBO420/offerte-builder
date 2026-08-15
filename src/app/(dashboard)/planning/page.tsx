@@ -3,7 +3,7 @@
 import { useMemo, useCallback, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { m } from "framer-motion";
+import { PaginaReveal } from "@/components/pagina-reveal";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { Card, CardContent } from "@/components/ui/card";
@@ -354,19 +354,12 @@ function PlanningPageContent() {
     <>
       <PageHeader />
 
-      <m.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
-        className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
-      >
+      {/* Eén reveal op de buitenkant, geen gestapelde delays eronder: de blokken
+          hieronder zijn gewone divs en staan er dus ook als er nul
+          animatieframes vallen. → src/components/pagina-reveal.tsx */}
+      <PaginaReveal className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
         {/* Header with view switcher */}
-        <m.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.1 }}
-          className="flex flex-col gap-4"
-        >
+        <div className="flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
@@ -417,7 +410,7 @@ function PlanningPageContent() {
               </TabsTrigger>
             </TabsList>
           </Tabs>
-        </m.div>
+        </div>
 
         {/* Veld-rol §2.6 (kantoor): "Wie is achter" + meerwerk-beoordeling */}
         {isKantoor && (
@@ -431,12 +424,7 @@ function PlanningPageContent() {
         {currentView === "week" && (
           <>
             {/* Stats Cards */}
-            <m.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.15 }}
-              className="grid gap-4 sm:grid-cols-3"
-            >
+            <div className="grid gap-4 sm:grid-cols-3">
               <Card>
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
@@ -478,15 +466,10 @@ function PlanningPageContent() {
                   </div>
                 </CardContent>
               </Card>
-            </m.div>
+            </div>
 
             {/* Projects by Week */}
-            <m.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.2 }}
-              className="space-y-6"
-            >
+            <div className="space-y-6">
               {isLoading ? (
                 <LaadIndicator
                   formaat="sectie"
@@ -541,15 +524,11 @@ function PlanningPageContent() {
                   ))}
                 </>
               )}
-            </m.div>
+            </div>
 
             {/* Quick legend */}
             {filteredProjects.length > 0 && (
-              <m.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.25 }}
-              >
+              <div>
                 <Card className="p-4">
                   <div className="flex flex-wrap items-center gap-4 text-sm">
                     <span className="text-muted-foreground font-medium">Status:</span>
@@ -563,41 +542,29 @@ function PlanningPageContent() {
                       ))}
                   </div>
                 </Card>
-              </m.div>
+              </div>
             )}
           </>
         )}
 
         {currentView === "maand" && (
-          <m.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.15 }}
-          >
+          <div>
             <MaandKalender />
-          </m.div>
+          </div>
         )}
 
         {currentView === "kwartaal" && (
-          <m.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.15 }}
-          >
+          <div>
             <KwartaalOverzicht />
-          </m.div>
+          </div>
         )}
 
         {currentView === "jaar" && (
-          <m.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.15 }}
-          >
+          <div>
             <JaarOverzicht onNavigateToMonth={handleNavigateToMonth} />
-          </m.div>
+          </div>
         )}
-      </m.div>
+      </PaginaReveal>
     </>
   );
 }
