@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { m, AnimatePresence } from "framer-motion";
+import { REVEAL_KLASSE } from "@/components/pagina-reveal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -214,11 +215,7 @@ export function BrandstofForm({
     <div className="space-y-6">
       {/* Statistics */}
       {stats && stats.aantalTankbeurten > 0 && (
-        <m.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="grid gap-4 sm:grid-cols-4"
-        >
+        <div className={`grid gap-4 sm:grid-cols-4 ${REVEAL_KLASSE}`}>
           <Card>
             <CardContent className="pt-4">
               <div className="flex items-center justify-between">
@@ -270,7 +267,7 @@ export function BrandstofForm({
               </div>
             </CardContent>
           </Card>
-        </m.div>
+        </div>
       )}
 
       {/* Entry Form & Records */}
@@ -293,7 +290,9 @@ export function BrandstofForm({
         </CardHeader>
 
         <AnimatePresence>
-          {/* Uitklap via grid-template-rows i.p.v. height (optimize O8):
+          {/* blanco-beginstaat-ok: de uitklap bestaat pas nadat de gebruiker
+              op toevoegen klikt — bij een bevroren rAF klikt er niemand.
+              Uitklap via grid-template-rows i.p.v. height (optimize O8):
               geen reflow per frame van de records-tabel eronder. */}
           {isAdding && (
             <m.div

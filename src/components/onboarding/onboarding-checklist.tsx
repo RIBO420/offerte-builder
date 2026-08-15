@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { m, AnimatePresence } from "framer-motion";
+import { REVEAL_KLASSE } from "@/components/pagina-reveal";
 import {
   Card,
   CardHeader,
@@ -54,22 +54,13 @@ export function OnboardingChecklist({
   // Show completion celebration if all steps are done
   if (isComplete) {
     return (
-      <m.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-      >
+      <div className={REVEAL_KLASSE}>
         <Card className="border-status-geaccepteerd-border bg-gradient-to-r from-status-geaccepteerd/60 to-status-geaccepteerd/25">
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
-              <m.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: "spring", delay: 0.2 }}
-                className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground"
-              >
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground motion-safe:animate-in motion-safe:zoom-in-50 motion-safe:duration-300">
                 <PartyPopper className="h-6 w-6" />
-              </m.div>
+              </div>
               <div className="flex-1">
                 <h3 className="font-semibold text-status-geaccepteerd-text">
                   Gefeliciteerd!
@@ -90,7 +81,7 @@ export function OnboardingChecklist({
             </div>
           </CardContent>
         </Card>
-      </m.div>
+      </div>
     );
   }
 
@@ -149,15 +140,8 @@ export function OnboardingChecklist({
         <CollapsibleContent>
           <CardContent className="pt-0 pb-4">
             <div className="space-y-2">
-              <AnimatePresence mode="popLayout">
-                {steps.map((step, index) => (
-                  <m.div
-                    key={step.id}
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ delay: index * 0.05 }}
-                  >
+              {steps.map((step) => (
+                  <div key={step.id} className={REVEAL_KLASSE}>
                     <Link
                       href={step.href}
                       className={cn(
@@ -212,9 +196,8 @@ export function OnboardingChecklist({
                         <ArrowRight className="h-4 w-4 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
                       )}
                     </Link>
-                  </m.div>
+                  </div>
                 ))}
-              </AnimatePresence>
             </div>
 
             {/* Next action suggestion */}

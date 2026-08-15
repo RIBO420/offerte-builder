@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { m, AnimatePresence } from "framer-motion";
+import { REVEAL_KLASSE } from "@/components/pagina-reveal";
 import {
   Card,
   CardContent,
@@ -79,24 +79,16 @@ interface PostenTabProps {
 
 const KostRow = React.memo(function KostRow({
   kost,
-  index,
   onDelete,
 }: {
   kost: KostEntry;
-  index: number;
   onDelete: (item: { id: string; type: "materiaal" | "arbeid" | "machine" | "overig" }) => void;
 }) {
   const typeConfig = kostenTypeConfig[kost.type];
   const TypeIcon = typeConfig.icon;
 
   return (
-    <m.tr
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.2, delay: index * 0.02 }}
-      className="border-b"
-    >
+    <tr className={`border-b ${REVEAL_KLASSE}`}>
       <TableCell className="font-medium">
         {format(new Date(kost.datum), "d MMM yyyy", { locale: nl })}
       </TableCell>
@@ -146,7 +138,7 @@ const KostRow = React.memo(function KostRow({
           </AlertDialogContent>
         </AlertDialog>
       </TableCell>
-    </m.tr>
+    </tr>
   );
 });
 
@@ -261,16 +253,9 @@ export function PostenTab({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  <AnimatePresence mode="popLayout">
-                    {kosten.map((kost, index) => (
-                      <KostRow
-                        key={kost.id}
-                        kost={kost}
-                        index={index}
-                        onDelete={onDeleteItem}
-                      />
-                    ))}
-                  </AnimatePresence>
+                  {kosten.map((kost) => (
+                    <KostRow key={kost.id} kost={kost} onDelete={onDeleteItem} />
+                  ))}
                 </TableBody>
               </Table>
             </div>

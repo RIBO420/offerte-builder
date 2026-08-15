@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useState } from "react";
-import { m } from "framer-motion";
+import { REVEAL_KLASSE } from "@/components/pagina-reveal";
 import {
   Card,
   CardContent,
@@ -220,11 +220,7 @@ export const NormuurSuggestieCard = memo(function NormuurSuggestieCard({
     suggestie.type === "onderschatting" ? TrendingUp : TrendingDown;
 
   return (
-    <m.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-    >
+    <div className={REVEAL_KLASSE}>
       <Card className="relative overflow-hidden">
         <div
           className={`absolute top-0 left-0 w-1 h-full ${
@@ -355,7 +351,7 @@ export const NormuurSuggestieCard = memo(function NormuurSuggestieCard({
           individuele activiteiten aan of bekijk de details.
         </CardFooter>
       </Card>
-    </m.div>
+    </div>
   );
 });
 

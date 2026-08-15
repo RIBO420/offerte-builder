@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useState } from "react";
-import { m, AnimatePresence } from "framer-motion";
+import { REVEAL_KLASSE } from "@/components/pagina-reveal";
 import {
   Card,
   CardContent,
@@ -112,12 +112,8 @@ const HistorieRow = memo(function HistorieRow({
   };
 
   return (
-    <m.div
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 10 }}
-      transition={{ duration: 0.2 }}
-      className={`border-l-2 pl-4 pb-4 ml-4 relative ${
+    <div
+      className={`border-l-2 pl-4 pb-4 ml-4 relative ${REVEAL_KLASSE} ${
         isRevert
           ? "border-orange-500"
           : isPositive
@@ -237,7 +233,7 @@ const HistorieRow = memo(function HistorieRow({
           </div>
         )}
       </div>
-    </m.div>
+    </div>
   );
 });
 
@@ -285,16 +281,14 @@ export const LeerfeedbackHistorie = memo(function LeerfeedbackHistorie({
       <CardContent>
         <ScrollArea className="h-[400px] pr-4">
           <div className="space-y-2 py-2">
-            <AnimatePresence mode="popLayout">
-              {historie.map((entry) => (
-                <HistorieRow
-                  key={entry._id}
-                  entry={entry}
-                  onRevert={onRevert}
-                  showRevertButton={showRevertButton}
-                />
-              ))}
-            </AnimatePresence>
+            {historie.map((entry) => (
+              <HistorieRow
+                key={entry._id}
+                entry={entry}
+                onRevert={onRevert}
+                showRevertButton={showRevertButton}
+              />
+            ))}
           </div>
         </ScrollArea>
       </CardContent>

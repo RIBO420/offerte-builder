@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useState, useMemo } from "react";
-import { m, AnimatePresence } from "framer-motion";
+import { REVEAL_KLASSE } from "@/components/pagina-reveal";
 import {
   Card,
   CardContent,
@@ -244,18 +244,13 @@ export const AfwijkingenTabel = memo(function AfwijkingenTabel({
               </TableRow>
             </TableHeader>
             <TableBody>
-              <AnimatePresence mode="popLayout">
-                {sortedAfwijkingen.map((afwijking, index) => {
+              {sortedAfwijkingen.map((afwijking) => {
                   const colors = getDeviationColor(afwijking.status);
 
                   return (
-                    <m.tr
+                    <tr
                       key={afwijking.scope}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.2, delay: index * 0.03 }}
-                      className={`border-b transition-colors hover:bg-muted/50 ${
+                      className={`border-b transition-colors hover:bg-muted/50 ${REVEAL_KLASSE} ${
                         onScopeClick ? "cursor-pointer" : ""
                       }`}
                       onClick={() => onScopeClick?.(afwijking.scope)}
@@ -298,10 +293,9 @@ export const AfwijkingenTabel = memo(function AfwijkingenTabel({
                           {formatDeviation(afwijking.afwijkingPercentage)}
                         </Badge>
                       </TableCell>
-                    </m.tr>
+                    </tr>
                   );
                 })}
-              </AnimatePresence>
             </TableBody>
           </Table>
         </div>

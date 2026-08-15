@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import { m } from "framer-motion";
+import { REVEAL_KLASSE } from "@/components/pagina-reveal";
 import {
   Card,
   CardContent,
@@ -56,11 +56,7 @@ const StatCard = memo(function StatCard({
     afwijking > 0 ? TrendingUp : afwijking < 0 ? TrendingDown : Minus;
 
   return (
-    <m.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-    >
+    <div className={REVEAL_KLASSE}>
       <Card className="relative overflow-hidden">
         <div
           className={`absolute top-0 left-0 w-1 h-full ${colors.border}`}
@@ -108,7 +104,7 @@ const StatCard = memo(function StatCard({
           </div>
         </CardContent>
       </Card>
-    </m.div>
+    </div>
   );
 });
 
@@ -129,11 +125,7 @@ export const NacalculatieSummary = memo(function NacalculatieSummary({
   return (
     <div className="space-y-6">
       {/* Overall Status Banner */}
-      <m.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.4 }}
-      >
+      <div className={REVEAL_KLASSE}>
         <Card
           className={`${getDeviationColor(data.status).bg} border-0`}
         >
@@ -161,7 +153,7 @@ export const NacalculatieSummary = memo(function NacalculatieSummary({
             </div>
           </CardContent>
         </Card>
-      </m.div>
+      </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -195,11 +187,7 @@ export const NacalculatieSummary = memo(function NacalculatieSummary({
           status={machineStatus}
         />
         {teamGrootte && (
-          <m.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.3 }}
-          >
+          <div className={REVEAL_KLASSE}>
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -236,7 +224,7 @@ export const NacalculatieSummary = memo(function NacalculatieSummary({
                 </div>
               </CardContent>
             </Card>
-          </m.div>
+          </div>
         )}
       </div>
 

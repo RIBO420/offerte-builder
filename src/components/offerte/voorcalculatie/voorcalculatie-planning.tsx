@@ -14,7 +14,6 @@
  */
 
 import { useState } from "react";
-import { m } from "framer-motion";
 import { useQuery } from "convex/react";
 import { Check, Loader2, Plus, ShieldCheck, X } from "lucide-react";
 import { api } from "@convex/_generated/api";
@@ -160,15 +159,14 @@ export function VoorcalculatiePlanning({
             </span>
           </div>
 
-          <m.p
+          {/* key her-mount bij waardewissel → CSS-puls; basisstaat is zichtbaar
+              (fill-mode none), dus een bevroren rAF toont gewoon het getal. */}
+          <p
             key={geschatteDagen}
-            initial={{ opacity: 0.35 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-            className="font-display text-[28px] leading-none font-semibold tracking-tight tabular-nums"
+            className="font-display text-[28px] leading-none font-semibold tracking-tight tabular-nums motion-safe:animate-in motion-safe:fade-in-25 motion-safe:duration-300"
           >
             {formatDagen(geschatteDagen)}
-          </m.p>
+          </p>
 
           <dl className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-0.5 pt-1 text-[11px] leading-5 text-muted-foreground">
             <dt>Capaciteit</dt>

@@ -28,13 +28,17 @@ import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 
-const WORTEL = join(process.cwd(), "src", "app", "(dashboard)");
+const WORTELS = [
+  join(process.cwd(), "src", "app", "(dashboard)"),
+  join(process.cwd(), "src", "components"),
+];
 
-/** In de steigers bij een collega-agent tijdens de sweep van 15 aug 2026. */
-const UITGEZONDERD = new Set([
-  "dashboard/page.tsx",
-  "projecten/nieuw/page.tsx",
-]);
+/**
+ * In de steigers bij een collega tijdens een sweep. Leeg sinds de
+ * componenten-sweep (15 aug 2026) — en zo hoort hij te blijven: nieuwe
+ * uitzonderingen gaan via `blanco-beginstaat-ok:` op de regel zelf, mét reden.
+ */
+const UITGEZONDERD = new Set<string>([]);
 
 /**
  * Patronen die de zichtbaarheid van inhoud aan een JS-animatieframe hangen.
@@ -59,22 +63,30 @@ function tsxBestanden(map: string): string[] {
   });
 }
 
-describe("dashboardpagina's", () => {
-  const bestanden = tsxBestanden(WORTEL);
+describe("dashboardpagina's en componenten", () => {
+  const bestanden = WORTELS.flatMap((wortel) =>
+    tsxBestanden(wortel).map((pad) => ({ wortel, pad }))
+  );
 
-  it("vindt überhaupt pagina's om te controleren", () => {
-    expect(bestanden.length).toBeGreaterThan(50);
+  it("vindt überhaupt bestanden om te controleren", () => {
+    expect(bestanden.length).toBeGreaterThan(150);
   });
 
   it("zetten hun inhoud niet achter een animatieframe", () => {
     const gevonden: string[] = [];
 
-    for (const pad of bestanden) {
-      const relatief = relative(WORTEL, pad).split(sep).join("/");
+    for (const { wortel, pad } of bestanden) {
+      const relatief = relative(wortel, pad).split(sep).join("/");
       if (UITGEZONDERD.has(relatief)) continue;
 
       const regels = readFileSync(pad, "utf8").split("\n");
       regels.forEach((regel, i) => {
+        // Commentaarregels beschrijven het patroon soms om ervoor te
+        // waarschuwen (pagina-reveal.tsx doet precies dat) — geen treffer.
+        const kaal = regel.trimStart();
+        if (kaal.startsWith("*") || kaal.startsWith("//") || kaal.startsWith("/*")) {
+          return;
+        }
         for (const [naam, patroon] of PATRONEN) {
           if (!patroon.test(regel)) continue;
           const toelichting = regels
@@ -90,7 +102,16 @@ describe("dashboardpagina's", () => {
 
   it("houdt de uitzonderingenlijst eerlijk: alleen bestanden die bestaan", () => {
     for (const relatief of UITGEZONDERD) {
-      expect(() => statSync(join(WORTEL, relatief))).not.toThrow();
+      expect(
+        WORTELS.some((wortel) => {
+          try {
+            statSync(join(wortel, relatief));
+            return true;
+          } catch {
+            return false;
+          }
+        })
+      ).toBe(true);
     }
   });
 });

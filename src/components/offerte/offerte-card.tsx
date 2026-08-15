@@ -2,7 +2,7 @@
 
 import { memo, useCallback, useState } from "react";
 import Link from "next/link";
-import { m } from "framer-motion";
+import { REVEAL_KLASSE } from "@/components/pagina-reveal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -101,6 +101,8 @@ export interface OfferteCardProps {
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
   onNavigate: (id: string) => void;
+  // Sturen sinds de motion-sweep niets meer aan (zie pagina-reveal.tsx);
+  // props blijven zodat de grid-aanroep niet mee hoeft te wijzigen.
   reducedMotion: boolean;
   index: number;
 }
@@ -113,8 +115,8 @@ export const OfferteCard = memo(function OfferteCard({
   onDuplicate,
   onDelete,
   onNavigate,
-  reducedMotion,
-  index,
+  reducedMotion: _reducedMotion,
+  index: _index,
 }: OfferteCardProps) {
   const hasProject = projectInfo !== null;
 
@@ -152,14 +154,7 @@ export const OfferteCard = memo(function OfferteCard({
   }, [offerte._id, onDelete]);
 
   return (
-    <m.div
-      initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{
-        duration: reducedMotion ? 0 : 0.3,
-        delay: reducedMotion ? 0 : index * 0.04,
-      }}
-    >
+    <div className={REVEAL_KLASSE}>
       <Card
         interactive
         className={`relative p-4 gap-3 cursor-pointer ${
@@ -374,6 +369,6 @@ export const OfferteCard = memo(function OfferteCard({
           ) : null}
         </div>
       </Card>
-    </m.div>
+    </div>
   );
 });

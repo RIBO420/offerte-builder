@@ -10,7 +10,7 @@
  * "haal maar weg".
  */
 
-import { m } from "framer-motion";
+import { REVEAL_KLASSE } from "@/components/pagina-reveal";
 import { X } from "lucide-react";
 import { formatCurrency, formatDecimal } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
@@ -53,12 +53,9 @@ export function WerkbankScopeBlok({
   const regeltotaal = regels.reduce((som, regel) => som + regel.totaal, 0);
 
   return (
-    <m.article
+    <article
       id={`werkbank-scope-${scope}`}
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-      className="scroll-mt-4"
+      className={cn(REVEAL_KLASSE, "scroll-mt-4")}
     >
       {/* Kopstrip: letter, haarlijn, staat, weghalen. */}
       <div className="flex items-center gap-2.5 pb-2">
@@ -129,6 +126,6 @@ export function WerkbankScopeBlok({
           </ul>
         </div>
       )}
-    </m.article>
+    </article>
   );
 }

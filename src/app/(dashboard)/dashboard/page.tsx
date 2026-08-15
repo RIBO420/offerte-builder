@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { m } from "framer-motion";
+import { REVEAL_KLASSE } from "@/components/pagina-reveal";
 import { useQuery, useConvexAuth } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import {
@@ -136,26 +136,18 @@ export default function DashboardPage() {
         <div className="flex flex-1 flex-col gap-6 p-6 md:p-8 max-w-7xl">
           <>
             {/* Welcome Section (medewerker) */}
-            <m.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-            >
+            <div className={REVEAL_KLASSE}>
               <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
                 Welkom{clerkUser?.firstName ? `, ${clerkUser.firstName}` : ""}
               </h1>
               <p className="text-muted-foreground mt-1">
                 {projectStats?.totaal || 0} projecten
               </p>
-            </m.div>
+            </div>
 
             {/* Onboarding Checklist (medewerker) */}
             {shouldShowChecklist && (
-              <m.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.05 }}
-              >
+              <div className={REVEAL_KLASSE}>
                 <OnboardingChecklist
                   steps={onboardingSteps}
                   completedSteps={onboardingCompletedSteps}
@@ -164,7 +156,7 @@ export default function DashboardPage() {
                   isComplete={onboardingComplete}
                   onDismiss={dismissOnboarding}
                 />
-              </m.div>
+              </div>
             )}
 
             {/* Voorman Dashboard — Daily planning (SOD-002) */}
@@ -177,11 +169,7 @@ export default function DashboardPage() {
             <MijnTaken />
 
             {/* Primary CTA - Uren Registreren */}
-            <m.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.1 }}
-            >
+            <div className={REVEAL_KLASSE}>
               <Card className="border-orange-200 dark:border-orange-900/50 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30">
                 <CardContent className="p-6">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -205,14 +193,10 @@ export default function DashboardPage() {
                   </div>
                 </CardContent>
               </Card>
-            </m.div>
+            </div>
 
             {/* Mijn Projecten Section */}
-            <m.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.15 }}
-            >
+            <div className={REVEAL_KLASSE}>
               <div className="flex items-center justify-between mb-3">
                 <h2 className="font-medium text-sm text-muted-foreground">Mijn Projecten</h2>
                 <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
@@ -287,14 +271,10 @@ export default function DashboardPage() {
                   </div>
                 </Card>
               )}
-            </m.div>
+            </div>
 
             {/* Quick Links Section for Medewerkers */}
-            <m.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.2 }}
-            >
+            <div className={REVEAL_KLASSE}>
               <h2 className="font-medium text-sm text-muted-foreground mb-3">Snelkoppelingen</h2>
               <div className="grid gap-3 md:grid-cols-2">
                 <Link href="/wagenpark" className="group">
@@ -335,7 +315,7 @@ export default function DashboardPage() {
                   </Card>
                 </Link>
               </div>
-            </m.div>
+            </div>
           </>
         </div>
       )}

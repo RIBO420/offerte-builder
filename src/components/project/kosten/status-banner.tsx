@@ -1,6 +1,6 @@
 "use client";
 
-import { m } from "framer-motion";
+import { REVEAL_KLASSE } from "@/components/pagina-reveal";
 import { Card, CardContent } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, CheckCircle } from "lucide-react";
 import { getDeviationStatus, getDeviationColors, formatCurrency, type KostenDisplayData } from "./helpers";
@@ -15,11 +15,7 @@ export function KostenStatusBanner({ displayData }: StatusBannerProps) {
   const colors = getDeviationColors(status);
 
   return (
-    <m.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.4 }}
-    >
+    <div className={REVEAL_KLASSE}>
       <Card className={`border-2 ${
         status === "good"
           ? "border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/20"
@@ -77,6 +73,6 @@ export function KostenStatusBanner({ displayData }: StatusBannerProps) {
           </div>
         </CardContent>
       </Card>
-    </m.div>
+    </div>
   );
 }

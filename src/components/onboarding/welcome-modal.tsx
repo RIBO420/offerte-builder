@@ -1,6 +1,6 @@
 "use client";
 
-import { m } from "framer-motion";
+import { REVEAL_KLASSE } from "@/components/pagina-reveal";
 import {
   Dialog,
   DialogContent,
@@ -56,14 +56,9 @@ export function WelcomeModal({ open, onClose, userName }: WelcomeModalProps) {
         showCloseButton={false}
       >
         <DialogHeader className="text-center sm:text-center">
-          <m.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ type: "spring", delay: 0.1 }}
-            className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-100 dark:bg-emerald-900/30"
-          >
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-100 dark:bg-emerald-900/30 motion-safe:animate-in motion-safe:zoom-in-50 motion-safe:duration-300">
             <Sparkles className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
-          </m.div>
+          </div>
           <DialogTitle className="text-2xl">
             Welkom{userName ? `, ${userName}` : ""}!
           </DialogTitle>
@@ -74,13 +69,10 @@ export function WelcomeModal({ open, onClose, userName }: WelcomeModalProps) {
         </DialogHeader>
 
         <div className="my-6 grid gap-3">
-          {features.map((feature, index) => (
-            <m.div
+          {features.map((feature) => (
+            <div
               key={feature.title}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 + index * 0.1 }}
-              className="flex items-start gap-3 rounded-lg border p-3 bg-muted/30"
+              className={`flex items-start gap-3 rounded-lg border p-3 bg-muted/30 ${REVEAL_KLASSE}`}
             >
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
                 <feature.icon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -91,7 +83,7 @@ export function WelcomeModal({ open, onClose, userName }: WelcomeModalProps) {
                   {feature.description}
                 </p>
               </div>
-            </m.div>
+            </div>
           ))}
         </div>
 

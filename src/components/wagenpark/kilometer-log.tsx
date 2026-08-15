@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { m, AnimatePresence } from "framer-motion";
+import { REVEAL_KLASSE } from "@/components/pagina-reveal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -177,11 +178,7 @@ export function KilometerLog({
     <div className="space-y-6">
       {/* Trend Statistics */}
       {trendData && (
-        <m.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="grid gap-4 sm:grid-cols-3"
-        >
+        <div className={`grid gap-4 sm:grid-cols-3 ${REVEAL_KLASSE}`}>
           <Card>
             <CardContent className="pt-4">
               <div className="flex items-center justify-between">
@@ -223,7 +220,7 @@ export function KilometerLog({
               </div>
             </CardContent>
           </Card>
-        </m.div>
+        </div>
       )}
 
       {/* Quick Entry Form */}

@@ -39,7 +39,9 @@ export function NacalculatieSuccessDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md" showCloseButton={false}>
         <DialogHeader className="text-center sm:text-center">
-          {/* Success Animation */}
+          {/* blanco-beginstaat-ok: puur versiersel (vinkje-pop) in een dialog
+              die alleen ná een gebruikersactie opent; titel, tekst en knoppen
+              staan er los van en blijven altijd zichtbaar. */}
           <AnimatePresence>
             {open && (
               <m.div

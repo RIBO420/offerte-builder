@@ -13,6 +13,8 @@ export function SequenceKeyIndicator() {
 
   return (
     <AnimatePresence>
+      {/* blanco-beginstaat-ok: bestaat alleen terwijl de gebruiker een
+          toetsreeks typt — bij een bevroren rAF typt er niemand. */}
       {pendingSequenceKeys.length > 0 && (
         <m.div
           initial={{ opacity: 0, y: 20 }}

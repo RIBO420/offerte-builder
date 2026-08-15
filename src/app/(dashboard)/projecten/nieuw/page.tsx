@@ -5,8 +5,7 @@ import { heeftVoorcalculatieStap } from "@convex/acceptatieRegels";
 import { Suspense, useCallback, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { m } from "framer-motion";
-import { useReducedMotion } from "@/hooks/use-accessibility";
+import { PaginaReveal, REVEAL_KLASSE } from "@/components/pagina-reveal";
 import {
   Card,
   CardContent,
@@ -61,7 +60,6 @@ function PageLoader() {
 function NieuwProjectPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const reducedMotion = useReducedMotion();
   const { user, isLoading: isUserLoading } = useCurrentUser();
 
   const offerteId = searchParams.get("offerte") as Id<"offertes"> | null;
@@ -173,22 +171,9 @@ function NieuwProjectPageContent() {
     <>
       <PageHeader />
 
-      <m.div
-        initial={reducedMotion ? false : { opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: reducedMotion ? 0 : 0.5, ease: "easeOut" }}
-        className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
-      >
+      <PaginaReveal className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
         {/* Header */}
-        <m.div
-          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: reducedMotion ? 0 : 0.4,
-            delay: reducedMotion ? 0 : 0.1,
-          }}
-          className="flex items-center gap-4"
-        >
+        <div className={`flex items-center gap-4 ${REVEAL_KLASSE}`}>
           <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" asChild aria-label="Terug naar projecten">
             <Link href="/projecten">
               <ArrowLeft className="h-4 w-4" />
@@ -207,18 +192,11 @@ function NieuwProjectPageContent() {
               </p>
             </div>
           </div>
-        </m.div>
+        </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Left Column - Offerte Info */}
-          <m.div
-            initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{
-              duration: reducedMotion ? 0 : 0.4,
-              delay: reducedMotion ? 0 : 0.2,
-            }}
-          >
+          <div className={REVEAL_KLASSE}>
             {offerte ? (
               <Card>
                 <CardHeader>
@@ -291,17 +269,10 @@ function NieuwProjectPageContent() {
                 </CardContent>
               </Card>
             )}
-          </m.div>
+          </div>
 
           {/* Right Column - Project Form */}
-          <m.div
-            initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{
-              duration: reducedMotion ? 0 : 0.4,
-              delay: reducedMotion ? 0 : 0.3,
-            }}
-          >
+          <div className={REVEAL_KLASSE}>
             <Card>
               <CardHeader>
                 <CardTitle>Project Details</CardTitle>
@@ -391,9 +362,9 @@ function NieuwProjectPageContent() {
                 </div>
               </CardContent>
             </Card>
-          </m.div>
+          </div>
         </div>
-      </m.div>
+      </PaginaReveal>
     </>
   );
 }

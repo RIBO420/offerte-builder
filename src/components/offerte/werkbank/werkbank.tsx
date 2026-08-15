@@ -12,7 +12,7 @@
  */
 
 import { useCallback, useMemo, useState, type ReactNode } from "react";
-import { m } from "framer-motion";
+import { REVEAL_KLASSE } from "@/components/pagina-reveal";
 import { AlertTriangle, Check, Loader2, PenLine, Sprout } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { SectiePaneel } from "@/components/ui/sectie-paneel";
@@ -256,25 +256,16 @@ export function Werkbank({
 
 /** Rustige, gestaggerde onthulling bij het openen van het werkblad. */
 function Reveel({
-  index,
+  index: _index,
   children,
 }: {
+  // Stuurt niets meer aan: een stagger vereist fill-mode both en dat is de
+  // blanco beginstaat terug (zie pagina-reveal.tsx). Prop blijft voor de
+  // aanroepplekken.
   index: number;
   children: ReactNode;
 }) {
-  return (
-    <m.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{
-        duration: 0.4,
-        delay: index * 0.05,
-        ease: [0.16, 1, 0.3, 1],
-      }}
-    >
-      {children}
-    </m.div>
-  );
+  return <div className={REVEAL_KLASSE}>{children}</div>;
 }
 
 function Masthead({

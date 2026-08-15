@@ -10,7 +10,7 @@
  * niets herrekend, dus er kan hier ook niets uiteenlopen.
  */
 
-import { m } from "framer-motion";
+import { REVEAL_KLASSE } from "@/components/pagina-reveal";
 import { Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatUren, getScopeLabel } from "@/lib/voorcalculatie-calculator";
@@ -76,17 +76,13 @@ export function VoorcalculatieUrenblad({
 
       {rijen.length > 0 ? (
         <ul className="divide-y divide-border/60">
-          {rijen.map(([scope, uren], i) => (
-            <m.li
+          {rijen.map(([scope, uren]) => (
+            <li
               key={scope}
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{
-                duration: 0.35,
-                delay: Math.min(i, 6) * 0.04,
-                ease: [0.16, 1, 0.3, 1],
-              }}
-              className="flex items-baseline gap-3 px-3 py-2"
+              className={cn(
+                "flex items-baseline gap-3 px-3 py-2",
+                REVEAL_KLASSE
+              )}
             >
               <span
                 aria-hidden
@@ -112,7 +108,7 @@ export function VoorcalculatieUrenblad({
               <span className="w-[5.5rem] shrink-0 text-right text-[13px] leading-5 font-medium tabular-nums">
                 {formatUren(uren)}
               </span>
-            </m.li>
+            </li>
           ))}
         </ul>
       ) : (
