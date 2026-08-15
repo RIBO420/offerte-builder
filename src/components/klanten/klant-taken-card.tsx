@@ -14,7 +14,7 @@ import {
   User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { TaakCheckbox } from "@/components/taken/taak-checkbox";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SectiePaneel } from "@/components/ui/sectie-paneel";
@@ -715,24 +715,19 @@ function TaakRegel({
           "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 motion-safe:duration-200"
       )}
     >
-      {/* De 44px-raakvlakwrapper van <Checkbox> zou de 20px-gutter uit elkaar
-          duwen op telefoon. Wrapper neutraliseren en het vinkje zelf een
-          onzichtbare hitzone geven houdt zowel de rij als de duim heel.
-          Die hitzone geldt óók op desktop: 16px is een klein doel voor iets
-          wat je de hele dag aanklikt. -inset-2 blijft binnen de 10px-gutter,
-          dus de titel ernaast blijft gewoon selecteerbaar. */}
-      <span className="mt-0.5 flex justify-center [&>span]:min-h-0 [&>span]:min-w-0">
-        <Checkbox
-          className="relative size-4 before:absolute before:-inset-3 before:content-[''] sm:before:-inset-2"
-          checked={isAfgerond}
-          onCheckedChange={() => onToggle(taak._id, taak.status)}
-          aria-label={
-            isAfgerond
-              ? `Taak ${taak.titel} heropenen`
-              : `Taak ${taak.titel} afronden`
-          }
-        />
-      </span>
+      {/* Zelfde hokje als op de dagstaat: zichtbare merkgroene rand (≥3:1),
+          geneutraliseerde 44px-wrapper en een onzichtbare hitzone om het
+          16px-vinkje. Zie components/taken/taak-checkbox.tsx. */}
+      <TaakCheckbox
+        wrapperClassName="mt-0.5"
+        checked={isAfgerond}
+        onCheckedChange={() => onToggle(taak._id, taak.status)}
+        aria-label={
+          isAfgerond
+            ? `Taak ${taak.titel} heropenen`
+            : `Taak ${taak.titel} afronden`
+        }
+      />
 
       <div className="min-w-0">
         <div className="flex min-w-0 items-center gap-1.5">

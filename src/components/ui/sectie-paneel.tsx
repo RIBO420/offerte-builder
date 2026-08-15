@@ -33,7 +33,11 @@ export interface SectieLegeRegel {
 }
 
 const FRAME: Record<SectieGewicht, string> = {
-  primair: "overflow-hidden rounded-lg border bg-surface-primair shadow-xs",
+  // `shadow-sm` i.p.v. `shadow-xs`: het vlak is een werkblad dat op de pagina
+  // ligt, niet een vlek erin. Een aanroeper die een ánder werkvlak wil (de
+  // dagstaat zet "Aandacht nodig" op `bg-surface-aandacht`) overschrijft
+  // alleen de bg-class via `className` — tailwind-merge laat die winnen.
+  primair: "overflow-hidden rounded-lg border bg-surface-primair shadow-sm",
   secundair: "overflow-hidden rounded-lg border bg-card",
   // Geen doos en geen eigen vlak: de voetnoot leunt op het frame waar hij in
   // staat (het dossierpaneel) en is daarbinnen één rij.

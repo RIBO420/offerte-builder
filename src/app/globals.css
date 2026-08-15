@@ -248,6 +248,7 @@ body {
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
   --color-surface-primair: var(--surface-primair);
+  --color-surface-aandacht: var(--surface-aandacht);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -277,11 +278,33 @@ body {
   --foreground: oklch(0.19 0.015 150);
   --card: oklch(0.998 0.003 140);
   --card-foreground: var(--foreground);
-  /* Werkstroomvlak (SectiePaneel gewicht="primair"): het enige oppervlak dat
-     écht van de pagina afstapt. `--card` scheelt 1,05:1 van `--background` en
-     kan daarom geen hiërarchie dragen; deze salietint haalt ≥1,25:1 in beide
-     thema's. Blijft op de Loof & Leem-as (hue 145), nooit een neutraal grijs. */
-  --surface-primair: oklch(0.907 0.011 145);
+  /* Werkstroomvlakken (SectiePaneel gewicht="primair"): de enige oppervlakken
+     die écht van de pagina afstappen. `--card` scheelt 1,05:1 van
+     `--background` en kan daarom geen hiërarchie dragen.
+
+     Hier stond één salietint (`0.907 0.011 145`) voor de hele werkstrook, en
+     dat was de klacht van de eigenaar: chroma 0,011 op een lichte L leest
+     niet als kleur maar als vuil — grijsgroen, de tint van oude pleister.
+     Sinds 15 aug 2026 zijn het er twee, en dragen ze betekenis in plaats van
+     alleen gewicht:
+
+     - `--surface-primair`  loofgroen — werk dat van jóú is: taken (dagstaat
+                            én klantdossier), tijdlijn, het werkbankpalet.
+     - `--surface-aandacht` leem/amber — wat je aandacht vraagt. Alleen het
+                            blok "Aandacht nodig" op de dagstaat.
+
+     Beide zitten op de Loof & Leem-as met échte chroma (0,045 resp. 0,050),
+     niet op een halve stap grijs. Niet lichter maken dan L 0,92: `--muted`
+     (0.955) moet er als hover-overlay overheen zichtbaar blijven.
+
+     Gemeten licht — primair #cfebd2: vs `--background` 1,22:1 · vs `--card`
+     1,27:1 · `--foreground` 14,4:1 · `--muted-foreground` 5,78:1 ·
+     `--primary` 5,76:1 · `--destructive` 4,20:1.
+     Aandacht #f4e0bc: vs `--background` 1,23:1 · vs `--card` 1,28:1 ·
+     `--foreground` 14,3:1 · `--muted-foreground` 5,73:1 · `--destructive`
+     4,17:1. Alle tekstwaarden liggen hóger dan op de oude salietint. */
+  --surface-primair: oklch(0.912 0.045 148);
+  --surface-aandacht: oklch(0.915 0.050 82);
   --popover: oklch(0.998 0.003 140);
   --popover-foreground: var(--foreground);
   --primary: oklch(0.44 0.11 152);           /* loofgroen — knoppen, actief, links */
@@ -492,8 +515,14 @@ body {
   --foreground: oklch(0.95 0.01 140);
   --card: oklch(0.215 0.014 150);
   --card-foreground: var(--foreground);
-  /* Zie licht: dezelfde stap, andere kant op — lichter dan `--background`. */
-  --surface-primair: oklch(0.268 0.014 150);
+  /* Zie licht: dezelfde twee vlakken, andere kant op — lichter dan
+     `--background`. Gemeten donker — primair #1c2b20: vs `--background`
+     1,29:1 · `--foreground` 12,8:1 · `--muted-foreground` 6,01:1 ·
+     `--destructive` 5,09:1. Aandacht #302513: vs `--background` 1,27:1 ·
+     `--foreground` 13,0:1 · `--muted-foreground` 6,09:1. Beide dus ruim
+     boven AA, en beide een stap sterker dan de oude grijsgroene 1,26:1. */
+  --surface-primair: oklch(0.272 0.030 152);
+  --surface-aandacht: oklch(0.272 0.034 80);
   --popover: oklch(0.215 0.014 150);
   --popover-foreground: var(--foreground);
   --primary: oklch(0.78 0.15 152);           /* #4ADE80-familie, deelt merk met mobiel */

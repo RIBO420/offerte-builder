@@ -93,10 +93,15 @@ function Regel({
 }
 
 /**
- * "Aandacht nodig" is het zwaarste blok van de dagstaat: `--surface-primair`
- * (de enige vlakstap die gemeten ≥1,25:1 van de achtergrond ligt), een warme
- * ankerrand links, en het grootste vlak van de werkstrook (7 van 12 kolommen).
- * Alles daaronder is bewust stiller.
+ * "Aandacht nodig" is het zwaarste blok van de dagstaat: het amberen
+ * werkvlak `--surface-aandacht` (1,23:1 op de achtergrond, tekst ≥ 4,17:1),
+ * een warme ankerrand links, en het grootste vlak van de werkstrook (7 van 12
+ * kolommen). Alles daaronder is bewust stiller.
+ *
+ * De twee blokken van de werkstrook delen niet langer één tint: attentie is
+ * leem/amber, eigen werk is loofgroen (`--surface-primair`, "Mijn taken"
+ * ernaast). De kleur zegt daarmee wélk soort werk het is, niet alleen dát het
+ * werk is.
  *
  * Leeg rendert dit blok géén `null` maar één regel: in een bento is een gat
  * erger dan een lege regel, en "niets vraagt je aandacht" is een bericht dat
@@ -115,6 +120,7 @@ export function AandachtNodig({
         titel="Aandacht nodig"
         icoon={<AlertTriangle className="text-muted-foreground" />}
         gewicht="primair"
+        className="bg-surface-aandacht"
         legeRegel={{
           tekst: "Niets vraagt je aandacht",
           hint: "Conflicten, vervallen facturen en getekende offertes zonder project komen hier binnen.",
@@ -170,9 +176,7 @@ export function AandachtNodig({
       icoon={<AlertTriangle className="text-accent-warm" />}
       telling={totaal}
       gewicht="primair"
-      // Het warme anker: één rand, geen vlak dat baadt in amber. De vorige
-      // versie kleurde het hele blok en maakte "hoog" daarmee onvindbaar.
-      className="border-l-2 border-l-accent-warm"
+      className="border-l-2 border-l-accent-warm bg-surface-aandacht"
     >
       <ul className="divide-y divide-border/60">
         {zichtbaar.map((regel) => (

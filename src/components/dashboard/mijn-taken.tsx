@@ -4,8 +4,10 @@ import Link from "next/link";
 import { useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { CalendarClock, ListTodo } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
+import { TaakCheckbox } from "@/components/taken/taak-checkbox";
 import { SectiePaneel } from "@/components/ui/sectie-paneel";
+import { Skeleton } from "@/components/ui/skeleton";
+import { DagstaatTaakComposer } from "@/components/dashboard/taak-composer";
 import { cn } from "@/lib/utils";
 import { showErrorToast } from "@/lib/toast-utils";
 import { api } from "../../../convex/_generated/api";
@@ -45,9 +47,16 @@ function formatDeadline(deadline: string): string {
  * Gewicht `primair`, net als op het klantdossier: taken zijn werkstroom, geen
  * naslag. Het warme anker houdt "Aandacht nodig" ernaast wél het zwaarste blok.
  *
+ * De eerste regel is de composer, óók zonder taken. Een lijst die je alleen
+ * elders kunt vullen is een dood blok: er stond "Geen open taken" en verder
+ * niets te doen. Nu is de lege staat één regel ("Nog geen taken — voeg de
+ * eerste toe.") mét de composer eronder, dus de reden dat je hier kijkt is
+ * ook de reden dat je hier iets kunt.
+ *
  * `verbergAlsLeeg` is de default, zodat de medewerkerpagina (een enkele kolom
- * kaarten) niet volloopt met lege dozen. De dagstaat zet hem uit: daar is een
- * gat in het raster erger dan één lege regel.
+ * kaarten) niet volloopt met lege dozen; daar begint het blok dus pas te
+ * bestaan zodra er een taak is. De dagstaat zet hem uit: daar is een gat in
+ * het raster erger dan één lege regel.
  */
 export function MijnTaken({
   verbergAlsLeeg = true,
@@ -59,20 +68,10 @@ export function MijnTaken({
   const [bezigMet, setBezigMet] = useState<Id<"klantTaken"> | null>(null);
   const [toonAlles, setToonAlles] = useState(false);
 
-  if (!taken || taken.length === 0) {
-    if (verbergAlsLeeg) return null;
-    return (
-      <SectiePaneel
-        titel="Mijn taken"
-        icoon={<ListTodo />}
-        gewicht="primair"
-        legeRegel={{
-          tekst: "Geen open taken",
-          hint: "Taken die je op een klantdossier aan jezelf toewijst staan hier.",
-        }}
-      />
-    );
-  }
+  const laadt = taken === undefined;
+  const lijst = taken ?? [];
+
+  if (verbergAlsLeeg && lijst.length === 0) return null;
 
   const handleAfronden = async (id: Id<"klantTaken">) => {
     setBezigMet(id);
@@ -87,16 +86,41 @@ export function MijnTaken({
     }
   };
 
-  const zichtbaar = toonAlles ? taken : taken.slice(0, STANDAARD_ZICHTBAAR);
+  const zichtbaar = toonAlles ? lijst : lijst.slice(0, STANDAARD_ZICHTBAAR);
+  const leeg = !laadt && lijst.length === 0;
 
   return (
-    <SectiePaneel titel="Mijn taken" icoon={<ListTodo />} telling={taken.length} gewicht="primair">
+    <SectiePaneel
+      titel="Mijn taken"
+      icoon={<ListTodo />}
+      telling={lijst.length}
+      gewicht="primair"
+      uitleg="Openstaande taken die aan jou zijn toegewezen. Wat je hier toevoegt komt op jouw naam en bij de gekozen klant te staan; toewijzen aan een collega doe je op het klantdossier. Enter slaat direct op."
+      legeRegel={
+        leeg
+          ? { tekst: "Nog geen taken", hint: "— voeg de eerste toe." }
+          : undefined
+      }
+    >
+      <DagstaatTaakComposer metScheiding={!leeg} />
+
+      {laadt && (
+        <ul className="divide-y divide-border/60">
+          {[0, 1].map((i) => (
+            <li key={i} className="flex items-center gap-2.5 px-3 py-1.5">
+              <Skeleton className="size-4 shrink-0 rounded-[4px]" />
+              <Skeleton className="h-3.5 w-[55%]" />
+            </li>
+          ))}
+        </ul>
+      )}
+
       <ul className="divide-y divide-border/60">
         {zichtbaar.map((taak) => {
           const isTeLaat = taak.deadline && taak.deadline < vandaagISO();
           return (
             <li key={taak._id} className="flex items-center gap-2.5 px-3 py-1.5">
-              <Checkbox
+              <TaakCheckbox
                 className="shrink-0"
                 checked={false}
                 disabled={bezigMet === taak._id}
@@ -142,14 +166,14 @@ export function MijnTaken({
           );
         })}
       </ul>
-      {taken.length > STANDAARD_ZICHTBAAR && (
+      {lijst.length > STANDAARD_ZICHTBAAR && (
         <button
           type="button"
           onClick={() => setToonAlles((vorig) => !vorig)}
           aria-expanded={toonAlles}
           className="flex min-h-7 w-full items-center border-t px-3 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
-          {toonAlles ? "Minder tonen" : `Alle ${taken.length} tonen`} &rarr;
+          {toonAlles ? "Minder tonen" : `Alle ${lijst.length} tonen`} &rarr;
         </button>
       )}
     </SectiePaneel>
