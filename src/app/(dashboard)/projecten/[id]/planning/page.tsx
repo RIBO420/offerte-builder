@@ -46,6 +46,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Progress } from "@/components/ui/progress";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   ArrowLeft,
   Loader2,
@@ -116,11 +117,24 @@ export default function PlanningPage({
   // Mutation for updating project status
   const updateProjectStatus = useMutation(api.projecten.updateStatus);
 
+  // KLIC-melding: wettelijk verplicht bij aanleg met graafwerk. De server
+  // weigert starten zonder; die eis hoort daarom vóóraf zichtbaar in het
+  // startdialoog te staan, niet achteraf in een wegflitsende fout-toast.
+  const offerteVoorKlic = useQuery(
+    api.offertes.get,
+    project?.offerteId ? { id: project.offerteId } : "skip"
+  );
+  const klicVereist =
+    offerteVoorKlic?.type === "aanleg" &&
+    (offerteVoorKlic?.scopes ?? []).includes("grondwerk") &&
+    !project?.klicMeldingGedaan;
+
   // Local state
   const [isGenerating, setIsGenerating] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isStartingExecution, setIsStartingExecution] = useState(false);
   const [showStartExecutionDialog, setShowStartExecutionDialog] = useState(false);
+  const [klicBevestigd, setKlicBevestigd] = useState(false);
   const [startDatum, setStartDatum] = useState<Date | null>(null);
   const [newTask, setNewTask] = useState({
     scope: "",
@@ -601,7 +615,13 @@ export default function PlanningPage({
               </div>
             </CardContent>
             <CardFooter className="border-t pt-4">
-              <AlertDialog open={showStartExecutionDialog} onOpenChange={setShowStartExecutionDialog}>
+              <AlertDialog
+                open={showStartExecutionDialog}
+                onOpenChange={(open) => {
+                  setShowStartExecutionDialog(open);
+                  if (!open) setKlicBevestigd(false);
+                }}
+              >
                 <AlertDialogTrigger asChild>
                   <Button
                     className={cn(
@@ -643,12 +663,35 @@ export default function PlanningPage({
                         </ul>
                       </div>
                     </AlertDialogDescription>
+                    {klicVereist && (
+                      <div className="rounded-lg border border-status-vervallen-border bg-status-vervallen/20 p-3 space-y-2">
+                        <p className="text-sm font-medium text-foreground">
+                          KLIC-melding verplicht
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Dit is een aanlegproject met graafwerk; een
+                          KLIC-melding bij het Kadaster is wettelijk verplicht
+                          vóór er gegraven wordt.
+                        </p>
+                        <label className="flex items-start gap-2 text-sm text-foreground cursor-pointer">
+                          <Checkbox
+                            checked={klicBevestigd}
+                            onCheckedChange={(v) => setKlicBevestigd(v === true)}
+                            className="mt-0.5"
+                          />
+                          <span>
+                            Ik bevestig dat de KLIC-melding voor dit project is
+                            gedaan
+                          </span>
+                        </label>
+                      </div>
+                    )}
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel disabled={isStartingExecution}>Annuleren</AlertDialogCancel>
                     <AlertDialogAction
-                      onClick={() => handleStartExecution()}
-                      disabled={isStartingExecution}
+                      onClick={() => handleStartExecution(klicVereist && klicBevestigd)}
+                      disabled={isStartingExecution || (klicVereist && !klicBevestigd)}
                       className="bg-green-600 hover:bg-green-700"
                     >
                       {isStartingExecution ? (
