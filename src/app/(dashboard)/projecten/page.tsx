@@ -4,8 +4,7 @@ import { klantNaam } from "@convex/lib/offerteKlant";
 import { useState, useMemo, useCallback, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { m, AnimatePresence } from "framer-motion";
-import { useReducedMotion } from "@/hooks/use-accessibility";
+import { PaginaReveal } from "@/components/pagina-reveal";
 import { useDebounce } from "@/hooks/use-debounce";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -101,7 +100,6 @@ function ProjectenPageLoader() {
 function ProjectenPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const reducedMotion = useReducedMotion();
   const { user, isLoading: isUserLoading } = useCurrentUser();
 
   // Initialize filter state from URL search params
@@ -283,22 +281,12 @@ function ProjectenPageContent() {
     <>
       <PageHeader />
 
-      <m.div
-        initial={reducedMotion ? false : { opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: reducedMotion ? 0 : 0.5, ease: "easeOut" }}
-        className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
-      >
+      {/* Eén reveal op de buitenkant, geen gestapelde delays eronder: de blokken
+          hieronder zijn gewone divs en staan er dus ook als er nul
+          animatieframes vallen. → src/components/pagina-reveal.tsx */}
+      <PaginaReveal className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
         {/* Header */}
-        <m.div
-          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: reducedMotion ? 0 : 0.4,
-            delay: reducedMotion ? 0 : 0.1,
-          }}
-          className="flex items-center justify-between"
-        >
+        <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
               Projecten
@@ -316,18 +304,11 @@ function ProjectenPageContent() {
               disabled={!exportData || exportData.length === 0}
             />
           )}
-        </m.div>
+        </div>
 
         {/* Accepted offertes without project */}
         {offertesZonderProject.length > 0 && (
-          <m.div
-            initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{
-              duration: reducedMotion ? 0 : 0.4,
-              delay: reducedMotion ? 0 : 0.15,
-            }}
-          >
+          <div>
             <Card className="border-primary/50 bg-primary/5">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -355,21 +336,14 @@ function ProjectenPageContent() {
                 </div>
               </CardContent>
             </Card>
-          </m.div>
+          </div>
         )}
 
         {/* KPI-cards vervallen (WS6): de statustabs hieronder tonen dezelfde
             vier tellers, mét filterfunctie. */}
 
         {/* Search */}
-        <m.div
-          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: reducedMotion ? 0 : 0.4,
-            delay: reducedMotion ? 0 : 0.25,
-          }}
-        >
+        <div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
             <div className="relative w-full sm:flex-1 sm:max-w-sm">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -391,17 +365,10 @@ function ProjectenPageContent() {
               hasActiveFilters={hasActiveFilters}
             />
           </div>
-        </m.div>
+        </div>
 
         {/* Projects list */}
-        <m.div
-          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: reducedMotion ? 0 : 0.4,
-            delay: reducedMotion ? 0 : 0.3,
-          }}
-        >
+        <div>
           <Tabs
             value={activeTab}
             onValueChange={handleTabChange}
@@ -430,29 +397,19 @@ function ProjectenPageContent() {
             </TabsList>
 
             <TabsContent value={activeTab} className="space-y-6">
-              <AnimatePresence mode="wait">
-                {isLoading ? (
-                  // Geen exit-animatie: `AnimatePresence mode="wait"` houdt de
-                  // volgende staat tegen tot de vorige is uitgefaded, en dat was
-                  // precies het gat waarin de pagina leeg stond. Nu het skelet
-                  // de eindafmetingen heeft, is uitfaden ook niet meer nodig —
-                  // de tabel komt op dezelfde plek te staan.
-                  <m.div
-                    key="loading"
-                    initial={reducedMotion ? false : { opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: reducedMotion ? 0 : 0.2 }}
-                  >
-                    <ProjectenTabelSkelet aantal={skeletRijen} />
-                  </m.div>
-                ) : displayedProjecten.length > 0 ? (
-                  <m.div
-                    key="content"
-                    initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={reducedMotion ? undefined : { opacity: 0, y: -10 }}
-                    transition={{ duration: reducedMotion ? 0 : 0.4 }}
-                  >
+              {/* Geen `AnimatePresence` meer. Die hield met `mode="wait"` de
+                  volgende staat tegen tot de vorige was uitgefaded — precies
+                  het gat waarin de pagina leeg stond — en liet bovendien elk
+                  blok op `opacity: 0` hangen zodra rAF stilstond. De takken
+                  wisselen nu gewoon; de `key` op de reveal zorgt dat de
+                  CSS-animatie opnieuw start, en zonder animatieframe staat de
+                  inhoud er meteen. */}
+              {isLoading ? (
+                <div key="loading">
+                  <ProjectenTabelSkelet aantal={skeletRijen} />
+                </div>
+              ) : displayedProjecten.length > 0 ? (
+                <PaginaReveal key="content">
                     <Card className="overflow-hidden">
                       <ScrollableTable>
                         <Table>
@@ -519,37 +476,20 @@ function ProjectenPageContent() {
                         </div>
                       )}
                     </Card>
-                  </m.div>
-                ) : searchQuery ? (
-                  <m.div
-                    key="no-results"
-                    initial={reducedMotion ? false : { opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={
-                      reducedMotion ? undefined : { opacity: 0, scale: 0.95 }
-                    }
-                    transition={{ duration: reducedMotion ? 0 : 0.3 }}
-                  >
-                    <NoSearchResults onAction={() => handleSearchChange("")} />
-                  </m.div>
-                ) : (
-                  <m.div
-                    key="empty"
-                    initial={reducedMotion ? false : { opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={
-                      reducedMotion ? undefined : { opacity: 0, scale: 0.95 }
-                    }
-                    transition={{ duration: reducedMotion ? 0 : 0.3 }}
-                  >
-                    <NoProjecten onAction={() => router.push("/offertes?status=geaccepteerd")} />
-                  </m.div>
-                )}
-              </AnimatePresence>
+                </PaginaReveal>
+              ) : searchQuery ? (
+                <PaginaReveal key="no-results">
+                  <NoSearchResults onAction={() => handleSearchChange("")} />
+                </PaginaReveal>
+              ) : (
+                <PaginaReveal key="empty">
+                  <NoProjecten onAction={() => router.push("/offertes?status=geaccepteerd")} />
+                </PaginaReveal>
+              )}
             </TabsContent>
           </Tabs>
-        </m.div>
-      </m.div>
+        </div>
+      </PaginaReveal>
     </>
   );
 }

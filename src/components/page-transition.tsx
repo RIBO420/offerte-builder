@@ -1,74 +1,58 @@
 "use client";
 
-import { m, AnimatePresence, type Variants } from "framer-motion";
+import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
-import { useReducedMotion } from "@/hooks/use-accessibility";
+import { cn } from "@/lib/utils";
 
-// ============================================
-// Animation Variants
-// ============================================
-
-const fadeVariants: Variants = {
-  hidden: { opacity: 0 },
-  enter: { opacity: 1 },
-  exit: { opacity: 0 },
-};
-
-const slideUpVariants: Variants = {
-  hidden: { opacity: 0, y: 20 },
-  enter: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -10 },
-};
-
-const slideRightVariants: Variants = {
-  hidden: { opacity: 0, x: -20 },
-  enter: { opacity: 1, x: 0 },
-  exit: { opacity: 0, x: 20 },
-};
-
-const scaleVariants: Variants = {
-  hidden: { opacity: 0, scale: 0.98 },
-  enter: { opacity: 1, scale: 1 },
-  exit: { opacity: 0, scale: 0.98 },
-};
-
-// ============================================
-// Transition Presets
-// ============================================
-
-const transitionPresets = {
-  /** Fast, subtle transition - good for tab changes */
-  fast: {
-    duration: 0.15,
-    ease: [0.4, 0, 0.2, 1] as const,
-  },
-  /** Normal page transitions */
-  normal: {
-    duration: 0.2,
-    ease: [0.4, 0, 0.2, 1] as const,
-  },
-  /** Slower, more dramatic transitions */
-  slow: {
-    duration: 0.3,
-    ease: [0.16, 1, 0.3, 1] as const,
-  },
-  /** Spring-based transition */
-  spring: {
-    type: "spring" as const,
-    stiffness: 300,
-    damping: 30,
-  },
-} as const;
-
-// ============================================
-// Types
-// ============================================
+/**
+ * De entree van élke dashboardpagina.
+ *
+ * **Waarom dit geen framer-motion meer is.** `(dashboard)/layout.tsx` hangt
+ * deze wrapper om alles wat `main` rendert. Zolang hij een `m.div` met
+ * `initial="hidden"` (`opacity: 0`) was, hing de hele app aan één rAF-lus: valt
+ * `requestAnimationFrame` stil — achtergrondtab, zware tab, trage machine — dan
+ * komt de animatie nooit bij zijn eindwaarde en blijft het scherm blanco,
+ * ongeacht hoe braaf de pagina eronder zich gedraagt. Gemeten op `/projecten`
+ * (15 aug 2026, `visibilityState === "hidden"`): wrapper op `opacity 0.12`,
+ * inhoud volledig geladen.
+ *
+ * Nu is de eindstaat de basisstijl en is de animatie versiering: CSS-klassen
+ * uit tw-animate-css, die met `animation-fill-mode: none` draaien. Buiten de
+ * looptijd geldt dus altijd gewoon "zichtbaar". De `key` op de wrapper laat de
+ * animatie opnieuw starten bij elke routewissel — dat is precies wat
+ * `AnimatePresence` hier deed, alleen zonder JS.
+ *
+ * `flex flex-1 flex-col` is geen opmaak maar een doorgeefluik: de `<main>` in
+ * `(dashboard)/layout.tsx` is een flexkolom, en zonder deze klassen breekt deze
+ * tussenlaag de keten. Pagina's die `flex flex-1 items-center justify-center`
+ * schrijven voor een laadstaat krijgen dan geen hoogte om in te centreren en
+ * plakken tegen de bovenrand. De wrapper staat er nu altijd, ook bij
+ * `prefers-reduced-motion` — vroeger viel hij daar weg, en dus ook de keten.
+ */
 
 type TransitionVariant = "fade" | "slide-up" | "slide-right" | "scale";
 type TransitionSpeed = "fast" | "normal" | "slow" | "spring";
 
+/** Waar de beweging vandaan komt. Alles onder `motion-safe:`. */
+const VARIANT_KLASSE: Record<TransitionVariant, string> = {
+  fade: "motion-safe:animate-in motion-safe:fade-in",
+  "slide-up":
+    "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-4",
+  "slide-right":
+    "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-left-4",
+  scale: "motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95",
+};
+
+/** `spring` bestaat niet in CSS; het is hier de rustigste van de drie. */
+const SNELHEID_KLASSE: Record<TransitionSpeed, string> = {
+  fast: "motion-safe:duration-150",
+  normal: "motion-safe:duration-200",
+  slow: "motion-safe:duration-300",
+  spring: "motion-safe:duration-300",
+};
+
 interface PageTransitionProps {
-  children: React.ReactNode;
+  children: ReactNode;
   /** Animation variant */
   variant?: TransitionVariant;
   /** Transition speed */
@@ -77,31 +61,8 @@ interface PageTransitionProps {
   transitionKey?: string;
 }
 
-// ============================================
-// Components
-// ============================================
-
 /**
- * PageTransition - Wrapper for page-level fade transitions
- *
- * Features:
- * - Subtle fade transition between pages
- * - Multiple animation variants
- * - Respects prefers-reduced-motion
- * - GPU-accelerated (opacity + transform)
- *
- * @example
- * ```tsx
- * // In layout.tsx
- * <PageTransition>
- *   {children}
- * </PageTransition>
- *
- * // With custom variant
- * <PageTransition variant="slide-up" speed="slow">
- *   {children}
- * </PageTransition>
- * ```
+ * PageTransition — wrapper voor de pagina-entree in `(dashboard)/layout.tsx`.
  */
 export function PageTransition({
   children,
@@ -110,163 +71,77 @@ export function PageTransition({
   transitionKey,
 }: PageTransitionProps) {
   const pathname = usePathname();
-  const prefersReducedMotion = useReducedMotion();
   const key = transitionKey ?? pathname;
 
-  // If reduced motion is preferred, render without animation
-  if (prefersReducedMotion) {
-    return <>{children}</>;
-  }
-
-  // Select variant
-  const getVariants = (): Variants => {
-    switch (variant) {
-      case "slide-up":
-        return slideUpVariants;
-      case "slide-right":
-        return slideRightVariants;
-      case "scale":
-        return scaleVariants;
-      default:
-        return fadeVariants;
-    }
-  };
-
   return (
-    <AnimatePresence mode="wait">
-      <m.div
-        key={key}
-        variants={getVariants()}
-        initial="hidden"
-        animate="enter"
-        exit="exit"
-        transition={transitionPresets[speed]}
-        // `flex flex-1 flex-col` is geen opmaak maar een doorgeefluik: de
-        // `<main>` in (dashboard)/layout.tsx is een flexkolom, en zonder deze
-        // klassen brak deze tussenlaag de keten. Pagina's die `flex flex-1
-        // items-center justify-center` schrijven voor een laadstaat kregen dan
-        // geen hoogte om in te centreren en plakten tegen de bovenrand — precies
-        // de klacht "die staat niet eens gecentreerd". Met reduced motion viel
-        // deze wrapper al weg (zie hierboven), dus dáár klopte het altijd al.
-        className="flex flex-1 flex-col will-change-[opacity,transform]"
-      >
-        {children}
-      </m.div>
-    </AnimatePresence>
+    <div
+      key={key}
+      className={cn(
+        "flex flex-1 flex-col",
+        VARIANT_KLASSE[variant],
+        SNELHEID_KLASSE[speed],
+        "motion-safe:ease-out"
+      )}
+    >
+      {children}
+    </div>
   );
 }
 
 /**
- * ContentTransition - For transitioning content within a page
- *
- * Use this for tab content, modal content, or any content that
- * needs smooth transitions without affecting the page layout.
- *
- * @example
- * ```tsx
- * <Tabs value={tab} onValueChange={setTab}>
- *   <TabsList>...</TabsList>
- *   <ContentTransition transitionKey={tab}>
- *     {tab === 'overview' && <Overview />}
- *     {tab === 'details' && <Details />}
- *   </ContentTransition>
- * </Tabs>
- * ```
+ * ContentTransition — voor het wisselen van inhoud bínnen een pagina
+ * (tabbladen, panelen). Zelfde regel: de nieuwe inhoud staat er meteen, de
+ * fade is versiering.
  */
 export function ContentTransition({
   children,
   transitionKey,
   variant = "fade",
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   transitionKey: string;
   variant?: TransitionVariant;
 }) {
-  const prefersReducedMotion = useReducedMotion();
-
-  if (prefersReducedMotion) {
-    return <>{children}</>;
-  }
-
-  const getVariants = (): Variants => {
-    switch (variant) {
-      case "slide-up":
-        return slideUpVariants;
-      case "slide-right":
-        return slideRightVariants;
-      case "scale":
-        return scaleVariants;
-      default:
-        return fadeVariants;
-    }
-  };
-
   return (
-    <AnimatePresence mode="wait">
-      <m.div
-        key={transitionKey}
-        variants={getVariants()}
-        initial="hidden"
-        animate="enter"
-        exit="exit"
-        transition={{
-          duration: 0.15,
-          ease: [0.4, 0, 0.2, 1] as const,
-        }}
-      >
-        {children}
-      </m.div>
-    </AnimatePresence>
+    <div
+      key={transitionKey}
+      className={cn(
+        VARIANT_KLASSE[variant],
+        "motion-safe:duration-150 motion-safe:ease-out"
+      )}
+    >
+      {children}
+    </div>
   );
 }
 
 /**
- * FadeIn - Simple fade in animation for any content
+ * FadeIn — losse fade voor één blok.
  *
- * @example
- * ```tsx
- * <FadeIn delay={0.2}>
- *   <Card>Content that fades in</Card>
- * </FadeIn>
- * ```
+ * `delay` blijft in de signatuur staan zodat aanroepplekken niet hoeven te
+ * wijzigen, maar wordt bewust genegeerd: een delay heeft
+ * `animation-fill-mode: both` nodig om vóór de start niets te tonen, en dát is
+ * precies de lege tussenstaat die we hier weghalen.
  */
 export function FadeIn({
   children,
-  delay = 0,
-  duration = 0.3,
+  delay: _delay = 0,
+  duration: _duration = 0.3,
   className,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   delay?: number;
   duration?: number;
   className?: string;
 }) {
-  const prefersReducedMotion = useReducedMotion();
-
-  if (prefersReducedMotion) {
-    return <div className={className}>{children}</div>;
-  }
-
   return (
-    <m.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{
-        duration,
-        delay,
-        ease: [0.4, 0, 0.2, 1],
-      }}
-      className={className}
+    <div
+      className={cn(
+        "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-300 motion-safe:ease-out",
+        className
+      )}
     >
       {children}
-    </m.div>
+    </div>
   );
 }
-
-export {
-  fadeVariants,
-  slideUpVariants,
-  slideRightVariants,
-  scaleVariants,
-  transitionPresets,
-};
