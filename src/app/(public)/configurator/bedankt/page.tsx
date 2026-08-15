@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -332,7 +333,7 @@ export default function BedanktPagina() {
     <Suspense
       fallback={
         <div className="container max-w-2xl mx-auto px-4 py-12 flex justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-green-600" />
+          <LaadIndicator formaat="sectie" />
         </div>
       }
     >

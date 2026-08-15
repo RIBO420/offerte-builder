@@ -14,6 +14,7 @@ import {
 import {
   ChevronLeft, ChevronRight, Calendar, GripVertical, X, Plus,
 } from "lucide-react";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 // ============================================
 // Helpers
@@ -224,7 +225,7 @@ export default function WeekPlannerPage() {
 
         {isLoading ? (
           <div className="flex flex-1 items-center justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            <LaadIndicator formaat="pagina" />
           </div>
         ) : (
           <div className="flex gap-4">

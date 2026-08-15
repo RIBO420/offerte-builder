@@ -38,7 +38,6 @@ import {
   MoreHorizontal,
   Edit,
   History,
-  Loader2,
   Warehouse,
   TrendingDown,
   Euro,
@@ -51,6 +50,7 @@ import { useVoorraad, useVoorraadStats, useVoorraadMutaties, useVoorraadMutation
 import { InkoopTabs } from "@/components/inkoop/inkoop-tabs";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { formatCurrency } from "@/lib/format/currency";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 function getStatusBadge(hoeveelheid: number, minVoorraad: number) {
   const percentage = (hoeveelheid / minVoorraad) * 100;
@@ -279,19 +279,7 @@ function VoorraadPageContent() {
         {isLoading || statsLoading ? (
           <Card>
             <CardContent className="flex items-center justify-center py-12">
-              <m.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="flex flex-col items-center gap-4"
-              >
-                <div className="relative">
-                  <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full" />
-                  <div className="relative flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-green-600">
-                    <Loader2 className="h-8 w-8 animate-spin text-white" />
-                  </div>
-                </div>
-                <p className="text-muted-foreground animate-pulse">Laden...</p>
-              </m.div>
+              <LaadIndicator formaat="sectie" tekst="Laden…" />
             </CardContent>
           </Card>
         ) : filteredItems.length > 0 ? (

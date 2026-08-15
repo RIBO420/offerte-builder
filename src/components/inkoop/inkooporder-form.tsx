@@ -63,6 +63,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { nl } from "@/lib/date-locale";
 import { nanoid } from "nanoid";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 // Currency formatter
 const currencyFormatter = new Intl.NumberFormat("nl-NL", {
@@ -240,7 +241,7 @@ export function InkooporderForm({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <LaadIndicator formaat="sectie" />
       </div>
     );
   }

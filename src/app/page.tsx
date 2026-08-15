@@ -19,6 +19,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 export default function SignInPage() {
   const { isLoaded, signIn, setActive } = useSignIn();
@@ -58,7 +59,7 @@ export default function SignInPage() {
   if (isSignedIn) {
     return (
       <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-4">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+        <LaadIndicator formaat="pagina" />
       </div>
     );
   }

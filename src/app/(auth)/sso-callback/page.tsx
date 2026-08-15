@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { AuthenticateWithRedirectCallback } from "@clerk/nextjs";
-import { Loader2, AlertCircle, Clock, RefreshCw } from "lucide-react";
+import { AlertCircle, Clock, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { TopTuinenLogo } from "@/components/ui/top-tuinen-logo";
 import { Progress } from "@/components/ui/progress";
 import Link from "next/link";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 const TIMEOUT_SECONDS = 15;
 
@@ -84,7 +85,7 @@ export default function SSOCallbackPage() {
           <CardTitle className="text-xl">Even geduld...</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col items-center space-y-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <LaadIndicator formaat="sectie" className="min-h-0" />
           <p className="text-sm text-muted-foreground">
             Je wordt ingelogd...
           </p>

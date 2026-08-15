@@ -6,7 +6,7 @@ import { m, AnimatePresence } from "framer-motion";
 import { useReducedMotion } from "@/hooks/use-accessibility";
 import { PageHeader } from "@/components/page-header";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calculator, CalendarClock, Clock, Sliders, Loader2, Link2, FileStack, Bell, Mail, Paintbrush } from "lucide-react";
+import { Calculator, CalendarClock, Clock, Sliders, Link2, FileStack, Bell, Mail, Paintbrush } from "lucide-react";
 import { toast } from "sonner";
 import { useInstellingen } from "@/hooks/use-instellingen";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -25,6 +25,7 @@ import { HerinneringenTab } from "./components/herinneringen-tab";
 import { EmailTemplatesTab } from "./components/email-templates-tab";
 import { HuisstijlTab } from "./components/huisstijl-tab";
 import { DagkaartTab } from "./components/dagkaart-tab";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 export default function InstellingenPage() {
   const reducedMotion = useReducedMotion();
@@ -236,19 +237,7 @@ export default function InstellingenPage() {
       <>
         <PageHeader />
         <div className="flex flex-1 items-center justify-center">
-          <m.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="flex flex-col items-center gap-4"
-          >
-            <div className="relative">
-              <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full" />
-              <div className="relative flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-green-600">
-                <Loader2 className="h-8 w-8 animate-spin text-white" />
-              </div>
-            </div>
-            <p className="text-muted-foreground animate-pulse">Laden...</p>
-          </m.div>
+          <LaadIndicator formaat="pagina" tekst="Laden…" />
         </div>
       </>
     );

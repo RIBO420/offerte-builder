@@ -50,6 +50,7 @@ import { KlantTijdlijn } from "@/components/tijdlijn/klant-tijdlijn";
 import { KlantReminderBanner } from "@/components/klant-reminder-banner";
 import { formatCurrency } from "@/lib/format/currency";
 import { KLANT_PIPELINE_CONFIG, statusClasses } from "@/lib/constants/statuses";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 // CRM-002: Pipeline status labels and colors
 type PipelineStatus = "lead" | "offerte_verzonden" | "getekend" | "in_uitvoering" | "opgeleverd" | "onderhoud";
@@ -242,7 +243,7 @@ export default function KlantDetailPage({
       <>
         <PageHeader />
         <div className="flex flex-1 items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <LaadIndicator formaat="pagina" />
         </div>
       </>
     );

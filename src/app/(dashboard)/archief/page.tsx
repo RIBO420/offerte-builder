@@ -24,7 +24,6 @@ import {
   ChevronDown,
   ChevronUp,
   Search,
-  Loader2,
   Euro,
   FolderKanban,
   TrendingUp,
@@ -38,6 +37,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { formatCurrency } from "@/lib/format/currency";
 import { getStatusConfig, statusClasses } from "@/lib/constants/statuses";
 import { GearchiveerdeItems } from "./components/gearchiveerde-items";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 function formatDate(timestamp: number): string {
   return new Intl.DateTimeFormat("nl-NL", {
@@ -376,7 +376,7 @@ function ArchiefPageLoader() {
     <>
       <PageHeader />
       <div className="flex flex-1 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <LaadIndicator formaat="pagina" />
       </div>
     </>
   );
@@ -545,7 +545,7 @@ function ArchiefPageContent() {
                 transition={{ duration: reducedMotion ? 0 : 0.2 }}
                 className="flex items-center justify-center py-20"
               >
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                <LaadIndicator formaat="sectie" className="min-h-0" />
               </m.div>
             ) : filteredProjects.length > 0 ? (
               <m.div

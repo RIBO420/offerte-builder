@@ -14,6 +14,7 @@ export { Checkbox } from "./checkbox";
 export { Switch } from "./switch";
 export { Separator } from "./separator";
 export { Skeleton } from "./skeleton";
+export { LaadIndicator, LaadRing } from "./laad-indicator";
 export { Progress } from "./progress";
 
 // Select

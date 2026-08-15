@@ -27,10 +27,10 @@ import {
   Wrench,
   MoreHorizontal,
   Trash2,
-  Loader2,
   Plus,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "./utils";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 interface MachineUsageItem {
   _id: string;
@@ -68,7 +68,7 @@ export function MachinesTab({
       {isLoading ? (
         <Card>
           <CardContent className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <LaadIndicator formaat="sectie" />
           </CardContent>
         </Card>
       ) : machineUsage.length > 0 ? (

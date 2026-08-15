@@ -64,6 +64,7 @@ import {
   Copy,
   Info,
 } from "lucide-react";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 // ── Constants ────────────────────────────────────────────────────────
 
@@ -369,7 +370,7 @@ export function EmailTemplatesTab({ reducedMotion }: EmailTemplatesTabProps) {
         animate={{ opacity: 1, y: 0 }}
         className="flex items-center justify-center py-12"
       >
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <LaadIndicator formaat="sectie" className="min-h-0" />
       </m.div>
     );
   }

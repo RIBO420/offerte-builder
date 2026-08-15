@@ -27,13 +27,13 @@ import {
   Clock,
   MoreHorizontal,
   Trash2,
-  Loader2,
   Plus,
   Lightbulb,
 } from "lucide-react";
 import { UrenImport } from "@/components/project/uren-import";
 import { UrenEntryData } from "@/components/project/uren-entry-form";
 import { scopeLabels, formatDate } from "./utils";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 interface UrenRegistratie {
   _id: string;
@@ -66,7 +66,7 @@ export function UrenTab({
     return (
       <Card>
         <CardContent className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <LaadIndicator formaat="sectie" />
         </CardContent>
       </Card>
     );

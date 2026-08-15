@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 interface SkeletonProps {
   className?: string;
@@ -487,17 +488,11 @@ export function FacturenPageSkeleton() {
   );
 }
 
-// Generic loading spinner with message
-export function LoadingSpinner({ message = "Laden..." }: { message?: string }) {
-  return (
-    <div
-      className="flex flex-col items-center justify-center py-12 gap-4"
-      role="status"
-      aria-live="polite"
-      aria-busy="true"
-    >
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-primary" />
-      <p className="text-sm text-muted-foreground">{message}</p>
-    </div>
-  );
+/**
+ * @deprecated Gebruik `LaadIndicator` uit `@/components/ui/laad-indicator`.
+ * Blijft staan als doorgeefluik zodat bestaande aanroepen niet breken; de
+ * animatie en kleur komen nu uit het gedeelde component.
+ */
+export function LoadingSpinner({ message = "Laden…" }: { message?: string }) {
+  return <LaadIndicator formaat="sectie" tekst={message} className="min-h-0 py-12" />;
 }

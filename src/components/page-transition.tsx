@@ -141,7 +141,14 @@ export function PageTransition({
         animate="enter"
         exit="exit"
         transition={transitionPresets[speed]}
-        className="will-change-[opacity,transform]"
+        // `flex flex-1 flex-col` is geen opmaak maar een doorgeefluik: de
+        // `<main>` in (dashboard)/layout.tsx is een flexkolom, en zonder deze
+        // klassen brak deze tussenlaag de keten. Pagina's die `flex flex-1
+        // items-center justify-center` schrijven voor een laadstaat kregen dan
+        // geen hoogte om in te centreren en plakten tegen de bovenrand — precies
+        // de klacht "die staat niet eens gecentreerd". Met reduced motion viel
+        // deze wrapper al weg (zie hierboven), dus dáár klopte het altijd al.
+        className="flex flex-1 flex-col will-change-[opacity,transform]"
       >
         {children}
       </m.div>

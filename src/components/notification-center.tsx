@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { handleBackgroundError } from "@/lib/error-handling";
 import { useNotifications } from "@/hooks/use-notifications";
 import type { Doc } from "../../convex/_generated/dataModel";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 type Notification = Doc<"notifications">;
 
@@ -269,12 +270,11 @@ export function NotificationCenter() {
         {/* Content */}
         <ScrollArea className="h-[400px]">
           {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                <p className="text-sm">Laden...</p>
-              </div>
-            </div>
+            <LaadIndicator
+              formaat="sectie"
+              tekst="Laden…"
+              className="min-h-0 py-12"
+            />
           ) : notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
               <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">

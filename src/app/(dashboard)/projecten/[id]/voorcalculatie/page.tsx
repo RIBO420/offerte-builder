@@ -15,7 +15,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft,
-  Loader2,
   Calculator,
   FolderKanban,
   FileText,
@@ -30,6 +29,7 @@ import { useProjectVoorcalculatie } from "@/hooks/use-voorcalculatie";
 import { UrenOverzicht } from "@/components/project/uren-overzicht";
 import { ProjectProgressStepper, type ProjectStatus } from "@/components/project/project-progress-stepper";
 import { Id } from "../../../../../../convex/_generated/dataModel";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 /**
  * VoorcalculatiePage - Read-only reference view
@@ -58,7 +58,7 @@ export default function VoorcalculatiePage({
       <>
         <PageHeader customLabels={{ [`/projecten/${id}/voorcalculatie`]: "Laden..." }} />
         <div className="flex flex-1 items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <LaadIndicator formaat="pagina" />
         </div>
       </>
     );

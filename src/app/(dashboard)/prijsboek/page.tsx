@@ -78,6 +78,7 @@ import { useProducten } from "@/hooks/use-producten";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { Id } from "../../../../convex/_generated/dataModel";
 import { toast } from "sonner";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 import { formatCurrency } from "@/lib/format/currency";
 import { logger } from "@/lib/logger";
 
@@ -731,19 +732,7 @@ function PrijsboekPageContent() {
             {isLoading ? (
               <Card>
                 <CardContent className="flex items-center justify-center py-12">
-                  <m.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="flex flex-col items-center gap-4"
-                  >
-                    <div className="relative">
-                      <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full" />
-                      <div className="relative flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-green-600">
-                        <Loader2 className="h-8 w-8 animate-spin text-white" />
-                      </div>
-                    </div>
-                    <p className="text-muted-foreground animate-pulse">Laden...</p>
-                  </m.div>
+                  <LaadIndicator formaat="sectie" tekst="Laden…" />
                 </CardContent>
               </Card>
             ) : filteredProducts.length > 0 ? (

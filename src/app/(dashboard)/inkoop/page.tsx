@@ -21,7 +21,6 @@ import {
 } from "@/components/ui/tooltip";
 import {
   Search,
-  Loader2,
   MoreHorizontal,
   Trash2,
   Eye,
@@ -75,6 +74,7 @@ import {
   statusClasses,
   type InkoopStatus,
 } from "@/lib/constants/statuses";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 const dateFormatter = new Intl.DateTimeFormat("nl-NL", {
   day: "numeric",
@@ -224,7 +224,7 @@ function InkoopPageLoader() {
     <>
       <PageHeader />
       <div className="flex flex-1 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <LaadIndicator formaat="pagina" />
       </div>
     </>
   );
@@ -535,7 +535,7 @@ function InkoopPageContent() {
                     transition={{ duration: reducedMotion ? 0 : 0.2 }}
                     className="flex items-center justify-center py-20"
                   >
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    <LaadIndicator formaat="sectie" className="min-h-0" />
                   </m.div>
                 ) : filteredOrders.length > 0 ? (
                   <m.div

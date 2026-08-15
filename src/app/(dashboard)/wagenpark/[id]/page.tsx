@@ -37,7 +37,6 @@ import {
 import {
   Car,
   ArrowLeft,
-  Loader2,
   Wrench,
   Fuel,
   ShieldCheck,
@@ -57,6 +56,7 @@ import { OnderhoudForm } from "@/components/wagenpark/onderhoud-form";
 import { KilometerLog } from "@/components/wagenpark/kilometer-log";
 import { BrandstofForm } from "@/components/wagenpark/brandstof-form";
 import { formatCurrency } from "@/lib/format/currency";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 // Vehicle type labels
 const typeLabels: Record<string, string> = {
@@ -186,14 +186,7 @@ export default function VoertuigDetailPage({
       <>
         <PageHeader />
         <div className="flex flex-1 items-center justify-center">
-          <m.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="flex flex-col items-center gap-4"
-          >
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            <p className="text-muted-foreground">Laden...</p>
-          </m.div>
+          <LaadIndicator formaat="pagina" tekst="Laden…" />
         </div>
       </>
     );

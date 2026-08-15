@@ -31,6 +31,7 @@ import {
   type RelatieSoort,
 } from "@/lib/klant-import-parser";
 import { api } from "../../../convex/_generated/api";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 const KLANT_TYPE_LABELS: Record<string, string> = {
   particulier: "Particulier",
@@ -376,12 +377,11 @@ export function RelatieImportDialog({
                 onDrop={handleDrop}
               >
                 {isParsing ? (
-                  <div className="flex flex-col items-center gap-2">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">
-                      Bestand verwerken…
-                    </p>
-                  </div>
+                  <LaadIndicator
+                    formaat="sectie"
+                    tekst="Bestand verwerken…"
+                    className="min-h-0"
+                  />
                 ) : (
                   <div className="flex flex-col items-center gap-2">
                     <FileUp className="h-8 w-8 text-muted-foreground/50" />

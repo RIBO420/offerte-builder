@@ -8,7 +8,7 @@
 
 import { useState } from "react";
 import { useQuery } from "convex/react";
-import { Loader2, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { api } from "../../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { KanbanBoard } from "@/components/leads/kanban-board";
@@ -16,6 +16,7 @@ import { PipelineStats } from "@/components/leads/pipeline-stats";
 import { LeadDetailModal } from "@/components/leads/lead-detail-modal";
 import { NieuweLeadDialog } from "@/components/leads/nieuwe-lead-dialog";
 import type { Lead } from "@/components/leads/lead-card";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 export function LeadsBoard() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
@@ -27,7 +28,7 @@ export function LeadsBoard() {
   if (leads === undefined) {
     return (
       <div className="flex items-center justify-center py-16">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <LaadIndicator formaat="sectie" />
       </div>
     );
   }

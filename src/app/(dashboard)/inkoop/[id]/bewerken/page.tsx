@@ -7,10 +7,11 @@ import { useQuery } from "convex/react";
 import { api } from "../../../../../../convex/_generated/api";
 import { Id } from "../../../../../../convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Package } from "lucide-react";
+import { ArrowLeft, Package } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { RequireRole } from "@/components/require-admin";
 import { InkooporderForm } from "@/components/inkoop/inkooporder-form";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 export default function BewerkInkooporderPage({
   params,
@@ -33,7 +34,7 @@ export default function BewerkInkooporderPage({
       <RequireRole allowedRoles={["directie", "projectleider", "materiaalman"]}>
         <PageHeader customLabels={{ [`/inkoop/${id}/bewerken`]: "Laden..." }} />
         <div className="flex flex-1 items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <LaadIndicator formaat="pagina" />
         </div>
       </RequireRole>
     );

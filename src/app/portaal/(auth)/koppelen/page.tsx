@@ -5,7 +5,8 @@ import { useUser } from "@clerk/nextjs";
 import { api } from "../../../../../convex/_generated/api";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useState, useRef, Suspense } from "react";
-import { Loader2, CheckCircle, XCircle } from "lucide-react";
+import { CheckCircle, XCircle } from "lucide-react";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 function KoppelenContent() {
   const searchParams = useSearchParams();
@@ -75,7 +76,7 @@ function KoppelenContent() {
     <div className="max-w-md mx-auto text-center p-8 bg-white rounded-xl border border-gray-200 shadow-lg">
       {(status === "waiting" || status === "linking") && (
         <>
-          <Loader2 className="h-10 w-10 text-[#4ADE80] animate-spin mx-auto mb-4" />
+          <LaadIndicator formaat="sectie" className="mb-4 min-h-0" />
           <h2 className="text-lg font-semibold text-[#1a2e1a] mb-2">
             Account koppelen...
           </h2>
@@ -113,7 +114,7 @@ export default function PortaalKoppelenPage() {
     <Suspense
       fallback={
         <div className="max-w-md mx-auto text-center p-8">
-          <Loader2 className="h-10 w-10 text-[#4ADE80] animate-spin mx-auto" />
+          <LaadIndicator formaat="sectie" className="min-h-0" />
         </div>
       }
     >

@@ -57,6 +57,7 @@ import {
   statusClasses,
   type InkoopStatus,
 } from "@/lib/constants/statuses";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 const dateFormatter = new Intl.DateTimeFormat("nl-NL", {
   day: "numeric",
@@ -144,7 +145,7 @@ export default function InkoopDetailPage({
       <>
         <PageHeader customLabels={{ [`/inkoop/${id}`]: "Laden..." }} />
         <div className="flex flex-1 items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <LaadIndicator formaat="pagina" />
         </div>
       </>
     );

@@ -47,6 +47,7 @@ import { logger } from "@/lib/logger";
 import { cn } from "@/lib/utils";
 import { Id } from "../../../convex/_generated/dataModel";
 import type { BrandstofRecord, BrandstofStats } from "@/hooks/use-voertuig-details";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 // Zod schema for brandstof entry
 const brandstofEntrySchema = z.object({
@@ -440,7 +441,7 @@ export function BrandstofForm({
         <CardContent className={cn(isAdding && "border-t")}>
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <LaadIndicator formaat="sectie" />
             </div>
           ) : records.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">

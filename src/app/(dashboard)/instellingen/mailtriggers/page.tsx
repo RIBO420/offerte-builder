@@ -61,6 +61,7 @@ import {
 import { useIsKantoor } from "@/hooks/use-users";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { MAIL_EVENT_LABELS, MAIL_MODUS_LABELS } from "@/lib/mail-triggers";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 interface MailTrigger {
   _id: Id<"mailTriggers">;
@@ -170,7 +171,7 @@ export default function MailTriggersPage() {
       <>
         <PageHeader />
         <div className="flex flex-1 items-center justify-center py-24">
-          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+          <LaadIndicator formaat="pagina" />
         </div>
       </>
     );

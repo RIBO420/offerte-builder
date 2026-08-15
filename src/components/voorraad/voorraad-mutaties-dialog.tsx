@@ -17,7 +17,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { History, TrendingUp, TrendingDown, RefreshCw, Package, RotateCcw, Loader2 } from "lucide-react";
+import { History, TrendingUp, TrendingDown, RefreshCw, Package, RotateCcw } from "lucide-react";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 // Type for mutaties from Convex
 export type MutatieType = "inkoop" | "verbruik" | "correctie" | "retour";
@@ -94,8 +95,7 @@ export function VoorraadMutatiesDialog({
 
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            <p className="mt-4 text-sm text-muted-foreground">Mutaties laden...</p>
+            <LaadIndicator formaat="sectie" tekst="Mutaties laden…" />
           </div>
         ) : mutaties.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12">

@@ -29,12 +29,12 @@ import {
   MessageCircle,
   FolderOpen,
   UserRound,
-  Loader2,
   PenSquare,
   ArrowLeft,
 } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { isKantoorRol } from "@/lib/rollen";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 type ChatTab = "team" | "mededelingen" | "dm" | "project" | "klant";
 
@@ -176,7 +176,7 @@ function DMTab({ currentUserClerkId }: { currentUserClerkId: string }) {
         <ScrollArea className="flex-1">
           {conversations === undefined ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <LaadIndicator formaat="sectie" />
             </div>
           ) : conversations.length === 0 ? (
             <EmptyState
@@ -347,7 +347,7 @@ function KlantenTijdlijnTab() {
   if (klanten === undefined) {
     return (
       <div className="flex items-center justify-center flex-1">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <LaadIndicator formaat="pagina" />
       </div>
     );
   }
@@ -590,7 +590,7 @@ export default function ChatPage() {
       <>
         <PageHeader />
         <div className="flex flex-1 items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <LaadIndicator formaat="pagina" />
         </div>
       </>
     );

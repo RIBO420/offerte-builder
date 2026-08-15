@@ -68,6 +68,7 @@ import {
   TEKSTBLOK_CATEGORIE_LABELS,
   type TekstblokCategorie,
 } from "@/lib/tekstblokken";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 interface Tekstblok {
   _id: Id<"tekstblokken">;
@@ -219,7 +220,7 @@ export default function TekstblokkenPage() {
 
         {isLoading ? (
           <div className="flex flex-1 items-center justify-center p-12">
-            <Loader2 className="size-6 animate-spin text-muted-foreground" />
+            <LaadIndicator formaat="pagina" />
           </div>
         ) : (
           TEKSTBLOK_CATEGORIEEN.map((categorie) => {

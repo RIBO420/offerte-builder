@@ -17,7 +17,6 @@ import {
   Archive,
   ArchiveRestore,
   Edit,
-  Loader2,
   MoreHorizontal,
   Plus,
   ShieldAlert,
@@ -67,6 +66,7 @@ import {
 } from "@/components/catalogus/bouwsteen-form";
 import { UurtariefBeheer } from "@/components/catalogus/uurtarief-beheer";
 import { NormuurSuggesties } from "@/components/catalogus/normuur-suggesties";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 interface Bouwsteen extends BouwsteenFormInitial {
   _id: Id<"bouwstenen">;
@@ -243,7 +243,7 @@ export default function CatalogusPage() {
 
         {isLoading ? (
           <div className="flex items-center justify-center p-12">
-            <Loader2 className="size-6 animate-spin text-muted-foreground" />
+            <LaadIndicator formaat="sectie" />
           </div>
         ) : (
           BOUWSTEEN_CATEGORIEEN.map((categorie) => {

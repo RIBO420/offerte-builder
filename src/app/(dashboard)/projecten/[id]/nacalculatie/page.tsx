@@ -50,6 +50,7 @@ import {
 } from "lucide-react";
 import { exportNacalculatieToExcel } from "./export";
 import { getDeviationColor, formatDeviation } from "@/lib/nacalculatie-calculator";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 export default function NacalculatiePage({
   params,
@@ -220,7 +221,7 @@ export default function NacalculatiePage({
       <>
         <PageHeader />
         <div className="flex flex-1 items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <LaadIndicator formaat="pagina" />
         </div>
       </>
     );
@@ -715,7 +716,7 @@ export default function NacalculatiePage({
 
               {isLoadingLeerfeedback ? (
                 <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  <LaadIndicator formaat="sectie" />
                 </div>
               ) : suggesties.length > 0 ? (
                 <div className="grid gap-4 lg:grid-cols-2">

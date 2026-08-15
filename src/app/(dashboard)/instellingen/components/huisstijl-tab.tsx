@@ -35,6 +35,7 @@ import {
   Eye,
 } from "lucide-react";
 import type { TemplateStijl } from "@/components/pdf/pdf-theme";
+import { LaadRing } from "@/components/ui/laad-indicator";
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -466,7 +467,7 @@ export function HuisstijlTab({
               }`}
             >
               {isUploadingLogo ? (
-                <Loader2 className="mb-3 h-8 w-8 animate-spin text-muted-foreground" />
+                <LaadRing formaat="sectie" className="mb-3" />
               ) : (
                 <Upload className="mb-3 h-8 w-8 text-muted-foreground" />
               )}

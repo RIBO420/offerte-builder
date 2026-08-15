@@ -44,6 +44,7 @@ import {
 } from "lucide-react";
 import { formatScopeName } from "@/lib/leerfeedback-analyzer";
 import { Id } from "../../../convex/_generated/dataModel";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 interface HistorieEntry {
   _id: Id<"leerfeedback_historie">;
@@ -250,8 +251,7 @@ export const LeerfeedbackHistorie = memo(function LeerfeedbackHistorie({
     return (
       <Card>
         <CardContent className="py-8 text-center text-muted-foreground">
-          <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin" />
-          <p>Historie laden...</p>
+          <LaadIndicator formaat="sectie" tekst="Historie laden…" />
         </CardContent>
       </Card>
     );

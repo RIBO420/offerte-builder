@@ -71,6 +71,7 @@ import {
   takenTemplates,
 } from "@/lib/planning-templates";
 import { cn } from "@/lib/utils";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 export default function PlanningPage({
   params,
@@ -354,7 +355,7 @@ export default function PlanningPage({
       <>
         <PageHeader customLabels={{ [`/projecten/${id}/planning`]: "Laden..." }} />
         <div className="flex flex-1 items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <LaadIndicator formaat="pagina" />
         </div>
       </>
     );

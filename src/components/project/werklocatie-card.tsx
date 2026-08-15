@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 import { WerklocatieForm } from "./werklocatie-form";
 import { WerklocatieFotoGallery } from "./werklocatie-foto-gallery";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 interface WerklocatieCardProps {
   projectId: Id<"projecten">;
@@ -94,7 +95,7 @@ export function WerklocatieCard({ projectId }: WerklocatieCardProps) {
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-8">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+            <LaadIndicator formaat="sectie" />
           </div>
         </CardContent>
       </Card>

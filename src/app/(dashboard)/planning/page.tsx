@@ -38,6 +38,7 @@ import {
   statusClasses,
   type ProjectStatus,
 } from "@/lib/constants/statuses";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 type PlanningView = "week" | "maand" | "kwartaal" | "jaar";
 
@@ -487,15 +488,11 @@ function PlanningPageContent() {
               className="space-y-6"
             >
               {isLoading ? (
-                <div
-                  className="flex flex-col items-center justify-center py-20 gap-4"
-                  role="status"
-                  aria-live="polite"
-                  aria-busy="true"
-                >
-                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-primary" />
-                  <p className="text-sm text-muted-foreground">Projecten laden...</p>
-                </div>
+                <LaadIndicator
+                  formaat="sectie"
+                  tekst="Projecten laden…"
+                  className="min-h-0 py-20"
+                />
               ) : filteredProjects.length === 0 ? (
                 <Card className="p-8">
                   <div className="flex flex-col items-center justify-center text-center">

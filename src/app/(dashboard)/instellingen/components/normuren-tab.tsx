@@ -26,9 +26,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Edit, Trash2, Clock, Loader2 } from "lucide-react";
+import { Plus, Edit, Trash2, Clock } from "lucide-react";
 import { scopeLabels } from "./constants";
 import type { Normuur } from "./types";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 interface NormurenTabProps {
   filteredNormuren: Normuur[];
@@ -95,19 +96,7 @@ export function NormurenTab({
 
             {isNormurenLoading ? (
               <div className="flex items-center justify-center py-8">
-                <m.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="flex flex-col items-center gap-4"
-                >
-                  <div className="relative">
-                    <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full" />
-                    <div className="relative flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-green-600">
-                      <Loader2 className="h-8 w-8 animate-spin text-white" />
-                    </div>
-                  </div>
-                  <p className="text-muted-foreground animate-pulse">Laden...</p>
-                </m.div>
+                <LaadIndicator formaat="sectie" tekst="Laden…" />
               </div>
             ) : filteredNormuren.length > 0 ? (
               <Table>

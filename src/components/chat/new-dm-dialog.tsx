@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
-import { Loader2, MessageCircle, Search, Users } from "lucide-react";
+import { MessageCircle, Search, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 interface NewDMDialogProps {
   open: boolean;
@@ -138,7 +139,7 @@ export function NewDMDialog({
         <ScrollArea className="max-h-[320px]">
           {isLoading && (
             <div className="flex flex-col items-center justify-center py-12 gap-2">
-              <Loader2 className="text-muted-foreground size-6 animate-spin" />
+              <LaadIndicator formaat="sectie" />
               <p className="text-muted-foreground text-sm">
                 Gebruikers laden...
               </p>

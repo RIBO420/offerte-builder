@@ -33,6 +33,7 @@ import { Id } from "../../../../../convex/_generated/dataModel";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format/currency";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 export default function NieuwProjectPage() {
   return (
@@ -47,7 +48,7 @@ function PageLoader() {
     <>
       <PageHeader />
       <div className="flex flex-1 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <LaadIndicator formaat="pagina" />
       </div>
     </>
   );

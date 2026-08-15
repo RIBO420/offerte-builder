@@ -28,6 +28,7 @@ import {
 import { cn } from "@/lib/utils";
 import { logger } from "@/lib/logger";
 import { showErrorToast } from "@/lib/toast-utils";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 interface QCFoto {
   url: string;
@@ -291,7 +292,7 @@ export function QCFotoUpload({
             >
               {isUploading ? (
                 <div className="text-center">
-                  <Loader2 className="mx-auto h-8 w-8 animate-spin text-muted-foreground" />
+                  <LaadIndicator formaat="sectie" />
                   <p className="mt-2 text-sm text-muted-foreground">
                     Uploaden...
                   </p>

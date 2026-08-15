@@ -66,6 +66,7 @@ import {
   CONCEPT_MAIL_STATUS_LABELS,
   MAIL_EVENT_LABELS,
 } from "@/lib/mail-triggers";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 interface ConceptMail {
   _id: Id<"conceptMails">;
@@ -181,7 +182,7 @@ export default function ConceptMailsPage() {
       <>
         <PageHeader />
         <div className="flex flex-1 items-center justify-center py-24">
-          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+          <LaadIndicator formaat="pagina" />
         </div>
       </>
     );

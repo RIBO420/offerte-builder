@@ -7,8 +7,8 @@ import { api } from "../../../../convex/_generated/api";
 import { PortaalThemeProvider } from "@/components/portaal/portaal-theme-provider";
 import { PortaalHeader } from "@/components/portaal/portaal-header";
 import { PortaalNav } from "@/components/portaal/portaal-nav";
-import { Loader2 } from "lucide-react";
 import { NavigationProgress } from "@/components/ui/navigation-progress";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 export default function PortaalLayout({ children }: { children: React.ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -59,7 +59,7 @@ export default function PortaalLayout({ children }: { children: React.ReactNode 
       <PortaalThemeProvider>
         {/* WS9: .portal activeert de portaal-tokenscope (globals.css, Stap E). */}
         <div className="portal min-h-screen bg-background flex items-center justify-center">
-          <Loader2 className="h-8 w-8 text-primary animate-spin" />
+          <LaadIndicator formaat="pagina" />
         </div>
       </PortaalThemeProvider>
     );

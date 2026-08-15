@@ -65,6 +65,7 @@ import {
   type KolomMapping,
 } from "@/lib/product-import";
 import { logger } from "@/lib/logger";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 type Stap = "mapping" | "preview" | "resultaat";
 
@@ -358,7 +359,7 @@ export function ProductImportDialog({
           <div className="grid gap-3">
             {validatie === undefined ? (
               <div className="flex items-center justify-center p-8">
-                <Loader2 className="size-6 animate-spin text-muted-foreground" />
+                <LaadIndicator formaat="sectie" />
               </div>
             ) : (
               <>

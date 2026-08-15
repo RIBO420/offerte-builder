@@ -78,6 +78,7 @@ import { klantMatcht, zoekbareTekst, zoektermen } from "@/lib/klant-zoeken";
 import { Id } from "../../../../convex/_generated/dataModel";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 import { RelatieImportDialog } from "@/components/import/relatie-import-dialog";
 import { BedrijfZoeken } from "@/components/klanten/bedrijf-zoeken";
 import { AdresVeld } from "@/components/klanten/adres-veld";
@@ -1074,19 +1075,7 @@ function KlantenPageContent() {
   if (isLoading) {
     return (
       <div className="flex flex-1 items-center justify-center">
-        <m.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="flex flex-col items-center gap-4"
-        >
-          <div className="relative">
-            <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full" />
-            <div className="relative flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-green-600">
-              <Loader2 className="h-8 w-8 animate-spin text-white" />
-            </div>
-          </div>
-          <p className="text-muted-foreground animate-pulse">Laden...</p>
-        </m.div>
+        <LaadIndicator formaat="pagina" tekst="Laden…" />
       </div>
     );
   }

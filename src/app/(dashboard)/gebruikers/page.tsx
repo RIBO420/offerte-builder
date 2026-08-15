@@ -70,6 +70,7 @@ import {
 import { toast } from "sonner";
 import { useUsers, useIsAdmin, UserWithDetails, UserRole } from "@/hooks/use-users";
 import { Id } from "../../../../convex/_generated/dataModel";
+import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 // Role display configuration — all 7 new roles + legacy backward compat
 const roleConfig: Record<UserRole, { label: string; badgeClass: string; icon: React.ElementType }> = {
@@ -257,19 +258,7 @@ export default function GebruikersPage() {
       <>
         <PageHeader />
         <div className="flex flex-1 items-center justify-center">
-          <m.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="flex flex-col items-center gap-4"
-          >
-            <div className="relative">
-              <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full" />
-              <div className="relative flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/80">
-                <Loader2 className="h-8 w-8 animate-spin text-primary-foreground" />
-              </div>
-            </div>
-            <p className="text-muted-foreground animate-pulse">Laden...</p>
-          </m.div>
+          <LaadIndicator formaat="pagina" tekst="Laden…" />
         </div>
       </>
     );
