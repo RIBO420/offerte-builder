@@ -16,7 +16,7 @@ import { formatCurrency, formatKwartaalJaar } from "@/lib/format";
  * dezelfde strook gebruikt in plaats van hem na te bouwen. Hier blijft staan
  * wat over het dashboard gaat: welke vier cijfers, en hoe ze verdelen.
  *
- * Omzet is het enige heldcijfer van de pagina (Fraunces); de rest is bewust
+ * Omzet is het enige heldcijfer van de pagina (Outfit); de rest is bewust
  * stiller. Sparklines zijn hier weg en komen niet terug: de vorige versie
  * tekende hardgecodeerde trenddata onder een echt getal.
  */

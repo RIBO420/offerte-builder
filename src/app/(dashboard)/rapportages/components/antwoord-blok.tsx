@@ -114,7 +114,7 @@ export function Nadruk({ children }: { children: ReactNode }) {
 export type CijferToon = "neutraal" | "aandacht";
 
 /**
- * Het heldcijfer: Fraunces, groot, links uitgelijnd, `tabular-nums`.
+ * Het heldcijfer: Outfit, groot, links uitgelijnd, `tabular-nums`.
  *
  * Geen sparkline eronder — een trendlijntje van 60 px zegt niets en was op de
  * oude pagina zelfs verzonnen (`generateTrendData` wees altijd omhoog).

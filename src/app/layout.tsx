@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Instrument_Sans, Outfit } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { nlNL } from "@clerk/localizations";
 import { ConvexClientProvider } from "@/components/providers/convex-client-provider";
@@ -12,8 +12,10 @@ import { ChunkReloadHandler } from "@/components/chunk-reload-handler";
 import { MotionProvider } from "@/components/providers/motion-provider";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Interface-font (klantdossier-v7-typografie, keuze Ricardo 17 aug 2026):
+// Instrument Sans als werkpaard voor alle lopende tekst en UI.
+const instrumentSans = Instrument_Sans({
+  variable: "--font-instrument-sans",
   subsets: ["latin"],
 });
 
@@ -24,16 +26,12 @@ const geistMono = Geist_Mono({
   preload: false,
 });
 
-// Display-serif voor paginakoppen en heldcijfers ("Vakwerk in het groen").
-// Alleen beschikbaar als `font-display` (via --font-fraunces → --font-display in
-// globals.css); breed toepassen gebeurt in WS3/WS6/WS10. Geist blijft het werkpaard.
-const fraunces = Fraunces({
-  variable: "--font-fraunces",
+// Display-font voor paginakoppen, namen en heldcijfers: Outfit, via
+// --font-outfit → --font-display in globals.css. Koppen staan op vrijwel elk
+// scherm boven de vouw, dus dit font wél gewoon preloaden.
+const outfit = Outfit({
+  variable: "--font-outfit",
   subsets: ["latin"],
-  axes: ["opsz"],
-  // Nog nergens toegepast; de browser downloadt het font pas zodra een
-  // `font-display`-element rendert — preload zou nu alleen bytes kosten.
-  preload: false,
 });
 
 export const metadata: Metadata = {
@@ -97,7 +95,7 @@ export default function RootLayout({
     <ClerkProvider localization={nlNL} signInUrl="/" telemetry={{ disabled: true }}>
       <html lang="nl" data-scroll-behavior="smooth" suppressHydrationWarning>
         <body
-          className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} font-sans antialiased`}
+          className={`${instrumentSans.variable} ${geistMono.variable} ${outfit.variable} font-sans antialiased`}
         >
           <SkipLink />
           <ChunkReloadHandler />

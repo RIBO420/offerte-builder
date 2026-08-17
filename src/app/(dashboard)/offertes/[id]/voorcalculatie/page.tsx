@@ -351,7 +351,7 @@ export default function OfferteVoorcalculatiePage({
 }
 
 /**
- * Dezelfde kop als het werkblad: kruimel, offertenummer in Fraunces met de
+ * Dezelfde kop als het werkblad: kruimel, offertenummer in Outfit met de
  * statuschip ernaast, klant eronder, opslagstaat rechts. Wie van het werkblad
  * doorklikt moet hetzelfde document herkennen, één fase verder.
  */

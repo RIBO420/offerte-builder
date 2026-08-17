@@ -146,7 +146,7 @@ export function VoorcalculatiePlanning({
         onTeamleden={onTeamleden}
       />
 
-      {/* Het heldcijfer. Eén Fraunces-getal per pagina — hier, omdat dit het
+      {/* Het heldcijfer. Eén Outfit-getal per pagina — hier, omdat dit het
           antwoord is waarvoor je op deze pagina komt. */}
       <section className="rounded-lg border bg-surface-primair shadow-xs">
         <div className="space-y-1.5 px-3 pt-3">

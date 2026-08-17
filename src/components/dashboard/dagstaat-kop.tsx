@@ -99,7 +99,7 @@ export function DagstaatKop({
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-      {/* Fraunces blijft voorbehouden aan de kop en het ene heldcijfer. De zin
+      {/* Outfit blijft voorbehouden aan de kop en het ene heldcijfer. De zin
           zelf is gedempt; alleen de getallen staan in foreground, zodat je hem
           kunt scannen zonder hem te lezen. */}
       <h1 className="font-display min-w-0 text-pretty text-[17px] leading-6 font-semibold tracking-tight @[40rem]/dagstaat:text-[19px] @[40rem]/dagstaat:leading-7">

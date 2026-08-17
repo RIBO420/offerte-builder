@@ -4,7 +4,7 @@
  * R7 — het maandrapport als opgemaakt document.
  *
  * Dezelfde vier vragen als op /rapportages, maar dan als leesbaar blad dat je
- * naar de boekhouder stuurt: Fraunces-koppen, groot cijferwerk, tabellen met
+ * naar de boekhouder stuurt: Outfit-koppen, groot cijferwerk, tabellen met
  * periodes naast elkaar, geen enkel interactie-element.
  *
  * Bewust géén recharts. Een afdruk heeft geen tooltips en geen hover, en een
