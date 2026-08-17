@@ -47,3 +47,25 @@ export const DynamicJaarVergelijkingChart = dynamic(
     import("./jaar-vergelijking-chart").then((mod) => mod.JaarVergelijkingChart),
   { loading: () => <GrafiekSkelet />, ssr: false }
 );
+
+// ── De vier bladdiagrammen (blad-diagrammen.tsx) — alleen grafiekenblad ──
+
+export const DynamicOmzetMixDonut = dynamic(
+  () => import("./blad-diagrammen").then((mod) => mod.OmzetMixDonut),
+  { loading: () => <GrafiekSkelet />, ssr: false }
+);
+
+export const DynamicOuderdomStaven = dynamic(
+  () => import("./blad-diagrammen").then((mod) => mod.OuderdomStaven),
+  { loading: () => <GrafiekSkelet />, ssr: false }
+);
+
+export const DynamicNullijnStaven = dynamic(
+  () => import("./blad-diagrammen").then((mod) => mod.NullijnStaven),
+  { loading: () => <GrafiekSkelet />, ssr: false }
+);
+
+export const DynamicMargeStaven = dynamic(
+  () => import("./blad-diagrammen").then((mod) => mod.MargeStaven),
+  { loading: () => <GrafiekSkelet />, ssr: false }
+);

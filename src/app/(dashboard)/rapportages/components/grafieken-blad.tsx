@@ -59,20 +59,25 @@ import {
   type VerschilToon,
 } from "@/lib/rapportage-labels";
 // Per bestand geïmporteerd en niet via de barrel: recharts komt uitsluitend
-// binnen via `dynamic.tsx`, en de staafprimitieven zijn pure CSS.
+// binnen via `dynamic.tsx`; de trechter is puur HTML/SVG en mag statisch.
+import type {
+  DonutDeel,
+  MargeRegel,
+  NullijnRegel,
+  OuderdomStaaf,
+} from "@/components/analytics/blad-diagrammen";
 import {
-  AfwijkingStaven,
-  type AfwijkingRegel,
-} from "@/components/analytics/afwijking-staven";
-import { DynamicJaarVergelijkingChart } from "@/components/analytics/dynamic";
+  DynamicJaarVergelijkingChart,
+  DynamicMargeStaven,
+  DynamicNullijnStaven,
+  DynamicOmzetMixDonut,
+  DynamicOuderdomStaven,
+} from "@/components/analytics/dynamic";
 import { BEWIJS_HOOGTE } from "@/components/analytics/maten";
 import {
-  RangStaven,
-  StapelBalk,
-  type StaafRegel,
-  type StapelDeel,
-} from "@/components/analytics/staafwerk";
-import { TrapStaven, type TrapStap } from "@/components/analytics/trap-staven";
+  TrechterDiagram,
+  type TrechterStap,
+} from "@/components/analytics/trechter-diagram";
 import { GrafiekPaneel } from "./grafiek-paneel";
 import { PeriodeKiezer } from "./periode-kiezer";
 import { RapportageSkelet } from "./rapportage-skelet";
@@ -85,12 +90,6 @@ const MAX_REGELS = 8;
 
 function euro(bedrag: number): string {
   return formatCurrency(bedrag, "nl-NL", false);
-}
-
-/** Ondertekend bedrag: "+ € 2.400" / "− € 320". Echte tekens, geen streepje. */
-function euroMetTeken(bedrag: number): string {
-  if (Math.round(bedrag) === 0) return euro(0);
-  return `${bedrag > 0 ? "+ " : "− "}${euro(Math.abs(bedrag))}`;
 }
 
 export function RapportageGrafieken() {
@@ -398,28 +397,25 @@ function PaneelOmzetMix({
   periodeLabel: string;
 }) {
   const { omzetPerType } = besteWerk;
-  const totaal = omzetPerType.reduce((som, rij) => som + rij.omzetExclBtw, 0);
 
-  const regels: StaafRegel[] = omzetPerType.map((rij) => ({
+  const delen: DonutDeel[] = omzetPerType.map((rij) => ({
     sleutel: rij.type,
     label: offerteTypeLabel(rij.type),
     waarde: rij.omzetExclBtw,
-    waardeTekst: euro(rij.omzetExclBtw),
-    bijschrift: `${formatPercentage(rij.aandeelPercentage, 0)} van de omzet · ${telwoord(
+    bijschrift: `${formatPercentage(rij.aandeelPercentage, 0)} · ${telwoord(
       rij.aantalGetekend,
       "opdracht",
       "opdrachten"
     )} · marge ${formatPercentage(rij.margePercentage)}`,
-    href: "/offertes?status=geaccepteerd",
   }));
 
   return (
     <GrafiekPaneel
       vraag="Waar komt de omzet vandaan?"
       reikwijdte={periodeLabel}
-      uitleg="Getekende omzet excl. btw, verdeeld over aanleg en onderhoud. De staaflengte is het aandeel in het totaal."
+      uitleg="Getekende omzet excl. btw, verdeeld over aanleg en onderhoud. In het midden het totaal van deze periode."
       leeg={
-        regels.length === 0
+        delen.length === 0
           ? {
               tekst: "Nog niets getekend",
               hint: "Zodra een offerte op ‘geaccepteerd’ staat verschijnt hier de verdeling over aanleg en onderhoud.",
@@ -427,9 +423,7 @@ function PaneelOmzetMix({
           : undefined
       }
     >
-      {/* Eén noemer voor beide staven, zodat de lengte het aandeel is en niet
-          alleen de onderlinge verhouding. */}
-      <RangStaven regels={regels} maximum={Math.max(1, totaal)} />
+      <DynamicOmzetMixDonut delen={delen} totaalLabel="getekend excl. btw" />
     </GrafiekPaneel>
   );
 }
@@ -439,39 +433,35 @@ function PaneelOmzetMix({
 function PaneelTrap({ pipeline }: { pipeline: Rapportage["pipeline"] }) {
   const { funnel, conversie } = pipeline;
 
-  const stappen: TrapStap[] = [
+  const stappen: TrechterStap[] = [
     {
       sleutel: "voorcalculatie",
-      label: "Voorcalculatie gemaakt",
+      label: "Voorcalculatie",
       waarde: funnel.voorcalculatie,
       waardeTekst: telwoord(funnel.voorcalculatie, "offerte", "offertes"),
-      bijschrift: "alles wat verder is dan een concept",
       href: "/offertes?status=voorcalculatie",
     },
     {
       sleutel: "verzonden",
-      label: "Verstuurd naar de klant",
+      label: "Verstuurd",
       waarde: funnel.verzonden,
       waardeTekst: telwoord(funnel.verzonden, "offerte", "offertes"),
-      bijschrift: `${formatPercentage(conversie.voorcalculatieToVerzonden, 0)} ging de deur uit`,
+      conversie: `${formatPercentage(conversie.voorcalculatieToVerzonden, 0)} ging de deur uit`,
       href: "/offertes?status=verzonden",
     },
     {
       sleutel: "afgehandeld",
-      label: "Klant heeft geantwoord",
+      label: "Antwoord van de klant",
       waarde: funnel.afgehandeld,
       waardeTekst: telwoord(funnel.afgehandeld, "offerte", "offertes"),
-      bijschrift: `${formatPercentage(conversie.verzondenToAfgehandeld, 0)} van het verstuurde werk`,
+      conversie: `${formatPercentage(conversie.verzondenToAfgehandeld, 0)} kreeg antwoord`,
     },
     {
       sleutel: "geaccepteerd",
       label: "Getekend",
       waarde: funnel.geaccepteerd,
       waardeTekst: telwoord(funnel.geaccepteerd, "offerte", "offertes"),
-      bijschrift: `${formatPercentage(conversie.afgehandeldToWon, 0)} van de antwoorden was ja · ${formatPercentage(
-        conversie.overallConversion,
-        0
-      )} van begin tot eind`,
+      conversie: `${formatPercentage(conversie.afgehandeldToWon, 0)} van de antwoorden was ja`,
       href: "/offertes?status=geaccepteerd",
     },
   ];
@@ -490,7 +480,11 @@ function PaneelTrap({ pipeline }: { pipeline: Rapportage["pipeline"] }) {
           : undefined
       }
     >
-      <TrapStaven stappen={stappen} />
+      <TrechterDiagram stappen={stappen} />
+      <p className="mt-3 border-t border-border/70 pt-2.5 text-xs text-muted-foreground">
+        Van begin tot eind tekent{" "}
+        {formatPercentage(conversie.overallConversion, 0)} van de offertes.
+      </p>
     </GrafiekPaneel>
   );
 }
@@ -501,12 +495,13 @@ function PaneelTrap({ pipeline }: { pipeline: Rapportage["pipeline"] }) {
 const OUDERDOM_DELEN: ReadonlyArray<{
   sleutel: "nog_niet_vervallen" | "1_30_dagen" | "31_60_dagen" | "ouder_dan_60_dagen";
   label: string;
+  asLabel: string;
   vraagtAandacht: boolean;
 }> = [
-  { sleutel: "nog_niet_vervallen", label: "Nog niet vervallen", vraagtAandacht: false },
-  { sleutel: "1_30_dagen", label: "1–30 dagen te laat", vraagtAandacht: true },
-  { sleutel: "31_60_dagen", label: "31–60 dagen te laat", vraagtAandacht: true },
-  { sleutel: "ouder_dan_60_dagen", label: "60+ dagen te laat", vraagtAandacht: true },
+  { sleutel: "nog_niet_vervallen", label: "Nog niet vervallen", asLabel: "op tijd", vraagtAandacht: false },
+  { sleutel: "1_30_dagen", label: "1–30 dagen te laat", asLabel: "1–30 dgn", vraagtAandacht: true },
+  { sleutel: "31_60_dagen", label: "31–60 dagen te laat", asLabel: "31–60 dgn", vraagtAandacht: true },
+  { sleutel: "ouder_dan_60_dagen", label: "60+ dagen te laat", asLabel: "60+ dgn", vraagtAandacht: true },
 ];
 
 function PaneelOpenstaand({
@@ -516,13 +511,14 @@ function PaneelOpenstaand({
 }) {
   const { openstaand } = geldLigt;
 
-  const delen: StapelDeel[] = OUDERDOM_DELEN.map((deel) => {
+  const staven: OuderdomStaaf[] = OUDERDOM_DELEN.map((deel) => {
     const bucket = openstaand.perBucket[deel.sleutel];
     return {
       sleutel: deel.sleutel,
-      label: `${deel.label} (${bucket.aantal})`,
-      waarde: bucket.bedrag,
-      waardeTekst: euro(bucket.bedrag),
+      asLabel: deel.asLabel,
+      label: deel.label,
+      bedrag: bucket.bedrag,
+      aantal: bucket.aantal,
       vraagtAandacht: deel.vraagtAandacht,
     };
   });
@@ -541,14 +537,14 @@ function PaneelOpenstaand({
           : undefined
       }
     >
-      <p className="mb-3 text-sm text-muted-foreground">
+      <p className="mb-1 text-sm text-muted-foreground">
         <span className="font-display text-xl font-semibold tabular-nums text-foreground">
           {euro(openstaand.totaalOpenstaand)}
         </span>{" "}
         openstaand, gemiddeld{" "}
         {dagenTekst(openstaand.gemiddeldeOuderdomDagen)} oud
       </p>
-      <StapelBalk delen={delen} />
+      <DynamicOuderdomStaven staven={staven} />
     </GrafiekPaneel>
   );
 }
@@ -564,13 +560,12 @@ function PaneelBegroting({
 }) {
   const { voorNacalculatie } = geldLigt;
 
-  const regels: AfwijkingRegel[] = voorNacalculatie.scopes
+  const regels: NullijnRegel[] = voorNacalculatie.scopes
     .slice(0, MAX_REGELS)
     .map((scope) => ({
       sleutel: scope.scope,
       label: scopeLabel(scope.scope),
       waarde: scope.afwijkingEuro,
-      waardeTekst: euroMetTeken(scope.afwijkingEuro),
       bijschrift: `${urenTekst(scope.werkelijkeUren)} gewerkt, ${urenTekst(
         scope.geplandeUren
       )} begroot`,
@@ -608,7 +603,7 @@ function PaneelBegroting({
           : undefined
       }
     >
-      <AfwijkingStaven
+      <DynamicNullijnStaven
         regels={regels}
         linksLabel="goedkoper dan begroot"
         rechtsLabel="duurder dan begroot"
@@ -631,7 +626,7 @@ function PaneelMarge({
   besteWerk: Rapportage["besteWerk"];
   periodeLabel: string;
 }) {
-  const regels: StaafRegel[] = useMemo(
+  const regels: MargeRegel[] = useMemo(
     () =>
       besteWerk.scopeMarges
         .slice()
@@ -642,8 +637,8 @@ function PaneelMarge({
         .map((scope) => ({
           sleutel: scope.scope,
           label: scopeLabel(scope.scope),
-          waarde: scope.margePercentage,
-          waardeTekst: formatPercentage(scope.margePercentage),
+          percentage: scope.margePercentage,
+          percentageTekst: formatPercentage(scope.margePercentage),
           bijschrift: `${euro(scope.marge)} marge op ${euro(scope.omzetExclBtw)} omzet · ${telwoord(
             scope.aantalOffertes,
             "offerte",
@@ -667,7 +662,7 @@ function PaneelMarge({
           : undefined
       }
     >
-      <RangStaven regels={regels} />
+      <DynamicMargeStaven regels={regels} />
     </GrafiekPaneel>
   );
 }
