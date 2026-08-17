@@ -131,7 +131,7 @@ export function KantoorControlekamer({
             exportKnop={exportKnop}
           />
 
-          <ArchiefBlok />
+          <ArchiefBlok onDagFilm={onDagFilm} />
         </div>
       )}
 

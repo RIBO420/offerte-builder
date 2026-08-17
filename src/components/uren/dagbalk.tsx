@@ -177,6 +177,8 @@ export function Dagbalk({
   formaat = "hero",
   label,
   legenda = false,
+  asVanMinuten,
+  asTotMinuten,
   className,
 }: {
   segmenten: DagSegment[];
@@ -185,11 +187,22 @@ export function Dagbalk({
   label?: string;
   /** Categorienamen als tekst onder de balk. Alleen zinvol bij `hero`. */
   legenda?: boolean;
+  /**
+   * Gedeelde tijd-as (Ploegenfilm/ploegdag): geef alle balken van één dag
+   * hetzelfde venster, zodat 07:00 in elke rij op dezelfde plek ligt. Ligt er
+   * tóch een segment buiten, dan rekt de as op — de balk liegt nooit.
+   */
+  asVanMinuten?: number;
+  asTotMinuten?: number;
   className?: string;
 }) {
   const { blokken, asVan, asTot } = useMemo(
-    () => dagbalkBlokken(segmenten),
-    [segmenten]
+    () =>
+      dagbalkBlokken(segmenten, {
+        ...(asVanMinuten !== undefined ? { asVanMinuten } : {}),
+        ...(asTotMinuten !== undefined ? { asTotMinuten } : {}),
+      }),
+    [segmenten, asVanMinuten, asTotMinuten]
   );
 
   const beschrijving = dagbalkBeschrijving(blokken, label);

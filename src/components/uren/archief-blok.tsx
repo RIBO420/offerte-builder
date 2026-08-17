@@ -20,8 +20,9 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "convex/react";
-import { Archive, FolderKanban } from "lucide-react";
+import { Archive, Film, FolderKanban } from "lucide-react";
 import { api } from "@convex/_generated/api";
+import { Button } from "@/components/ui/button";
 import { SectiePaneel } from "@/components/ui/sectie-paneel";
 import {
   Select,
@@ -58,7 +59,15 @@ const LOGBOEK_LABEL: Record<string, string> = {
 const MAX_DAGREGELS = 25;
 const MAX_REGISTRATIES = 25;
 
-export function ArchiefBlok() {
+export function ArchiefBlok({
+  onDagFilm,
+}: {
+  /**
+   * Doorklik "Bekijk deze dag als film" per archiefdag (WS-C, zelfde vorm als
+   * op de afwijkingskaart). Zonder de prop blijft de knop weg.
+   */
+  onDagFilm?: (dag: { medewerkerId: string; datum: string }) => void;
+} = {}) {
   const [periode, setPeriode] = useState<ArchiefPeriode>("maand");
   const startDate = getDaysAgoString(PERIODE_DAGEN[periode]);
   const endDate = getTodayString();
@@ -187,6 +196,22 @@ export function ArchiefBlok() {
                 <span className="ml-auto text-xs text-muted-foreground">
                   {dag.acties.join(" · ")}
                 </span>
+                {onDagFilm && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 shrink-0 gap-1 px-1.5 text-xs font-normal text-muted-foreground"
+                    onClick={() =>
+                      onDagFilm({
+                        medewerkerId: dag.medewerkerId,
+                        datum: dag.datum,
+                      })
+                    }
+                  >
+                    <Film className="size-3" aria-hidden />
+                    Bekijk als film
+                  </Button>
+                )}
               </li>
             ))}
           </ul>

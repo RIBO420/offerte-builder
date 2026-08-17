@@ -25,7 +25,7 @@ import {
   Sun,
   UserRound,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { useCurrentUserRole } from "@/hooks/use-users";
@@ -88,9 +88,16 @@ export function VeldDag() {
   const isKantoor =
     role === "directie" || role === "admin" || role === "projectleider";
 
-  const [datum, setDatum] = useState(vandaagIso());
+  // Deeplink vanaf de urenpagina (rolgezichten, WS-C): `?dag=YYYY-MM-DD` opent
+  // die dag, `?medewerker=<id>` kiest voor kantoor meteen de juiste mens.
+  // Alleen de beginstand — daarna navigeert de gebruiker gewoon zelf.
+  const zoekParams = useSearchParams();
+  const dagParam = zoekParams.get("dag");
+  const [datum, setDatum] = useState(() =>
+    dagParam && /^\d{4}-\d{2}-\d{2}$/.test(dagParam) ? dagParam : vandaagIso()
+  );
   const [gekozenMedewerkerId, setGekozenMedewerkerId] = useState<string | null>(
-    null
+    () => zoekParams.get("medewerker")
   );
 
   // "Buiten"-modus onthouden op het toestel (Hub-gedrag, bijlage C)
