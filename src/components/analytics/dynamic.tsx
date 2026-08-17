@@ -40,3 +40,10 @@ export const DynamicLangeTrendChart = dynamic(
   () => import("./lange-trend-chart").then((mod) => mod.LangeTrendChart),
   { loading: () => <GrafiekSkelet />, ssr: false }
 );
+
+/** Maandstaven met vorig jaar ernaast — alleen op het grafiekenblad. */
+export const DynamicJaarVergelijkingChart = dynamic(
+  () =>
+    import("./jaar-vergelijking-chart").then((mod) => mod.JaarVergelijkingChart),
+  { loading: () => <GrafiekSkelet />, ssr: false }
+);

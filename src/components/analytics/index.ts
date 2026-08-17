@@ -12,8 +12,16 @@
 
 export { RangStaven, StapelBalk } from "./staafwerk";
 export type { StaafRegel, StapelDeel } from "./staafwerk";
+export { TrapStaven } from "./trap-staven";
+export type { TrapStap } from "./trap-staven";
+export { AfwijkingStaven } from "./afwijking-staven";
+export type { AfwijkingRegel } from "./afwijking-staven";
 export { BEWIJS_HOOGTE } from "./maten";
 export { BeurtNacalculatie } from "./beurt-nacalculatie";
 
-// Code-splitting: alleen deze twee bevatten recharts.
-export { DynamicMaandStavenChart, DynamicLangeTrendChart } from "./dynamic";
+// Code-splitting: alleen de recharts-componenten gaan via `dynamic`.
+export {
+  DynamicMaandStavenChart,
+  DynamicLangeTrendChart,
+  DynamicJaarVergelijkingChart,
+} from "./dynamic";

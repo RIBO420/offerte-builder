@@ -13,7 +13,7 @@
  * reden dat dashboard en rapportage nooit meer een ander bedrag kunnen tonen.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useQuery } from "convex/react";
@@ -22,22 +22,18 @@ import { api } from "@convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useReducedMotion } from "@/hooks/use-accessibility";
-import {
-  isPeriodePreset,
-  periodePresetLabel,
-  type PeriodePreset,
-} from "@/lib/rapportage-labels";
+import { periodePresetLabel } from "@/lib/rapportage-labels";
 import { AnkerNavigatie } from "./anker-navigatie";
 import { AntwoordBlok, Doorklik, SECTIES } from "./antwoord-blok";
-import { PeriodeKiezer, type AangepastBereik } from "./periode-kiezer";
+import { PeriodeKiezer } from "./periode-kiezer";
 import { RapportageSkelet } from "./rapportage-skelet";
+import { isRapportageTab, RapportageTabbalk } from "./rapportage-tabbalk";
 import { SectieBesteWerk } from "./sectie-beste-werk";
 import { SectieGeldLigt } from "./sectie-geld-ligt";
 import { SectieHoeLoopt } from "./sectie-hoe-loopt";
 import { SectiePipeline } from "./sectie-pipeline";
 import type { Rapportage } from "./types";
-
-const STANDAARD_PRESET: PeriodePreset = "dit-jaar";
+import { useRapportagePeriode } from "./use-rapportage-periode";
 
 /**
  * Oude deeplinks blijven werken. `/rapportages?tab=marges` was een tab die niet
@@ -62,25 +58,17 @@ export function RapportageVerhaal() {
   const searchParams = useSearchParams();
   const reducedMotion = useReducedMotion();
 
-  const presetUitUrl = searchParams.get("periode");
-  const preset: PeriodePreset = isPeriodePreset(presetUitUrl)
-    ? presetUitUrl
-    : STANDAARD_PRESET;
-
-  const van = Number(searchParams.get("van")) || undefined;
-  const tot = Number(searchParams.get("tot")) || undefined;
-  // Gememoïseerd omdat dit object rechtstreeks in de query-args belandt: een
-  // nieuwe objectidentiteit per render zou elke render een nieuwe subscription
-  // opzetten.
-  const aangepast: AangepastBereik | undefined = useMemo(
-    () => (preset === "aangepast" && van && tot ? { van, tot } : undefined),
-    [preset, van, tot]
-  );
+  // De periodekeuze leeft in de URL, zodat het grafiekenblad met exact dezelfde
+  // periode rekent — zie `use-rapportage-periode.ts`.
+  const { preset, aangepast, kiesPeriode } = useRapportagePeriode();
 
   // ── Oude ?tab=-links netjes opvangen ──────────────────────────────────
+  // `tab=grafieken` en `tab=verhaal` zijn géén oude links maar de tabkeuze van
+  // nu; die laat dit effect met rust. Al het andere (`tab=marges`, `tab=omzet`)
+  // is een deeplink naar inhoud die naar een van de vier vragen verhuisd is.
   const oudeTab = searchParams.get("tab");
   useEffect(() => {
-    if (!oudeTab) return;
+    if (!oudeTab || isRapportageTab(oudeTab)) return;
     const anker = OUDE_TABS[oudeTab] ?? SECTIES[0].id;
     const params = new URLSearchParams(searchParams.toString());
     params.delete("tab");
@@ -97,30 +85,6 @@ export function RapportageVerhaal() {
       });
     });
   }, [oudeTab, pathname, router, searchParams, reducedMotion]);
-
-  const kiesPeriode = useCallback(
-    (nieuw: PeriodePreset, bereik?: AangepastBereik) => {
-      const params = new URLSearchParams(searchParams.toString());
-      params.delete("tab");
-      if (nieuw === STANDAARD_PRESET) {
-        params.delete("periode");
-      } else {
-        params.set("periode", nieuw);
-      }
-      if (nieuw === "aangepast" && bereik) {
-        params.set("van", String(bereik.van));
-        params.set("tot", String(bereik.tot));
-      } else {
-        params.delete("van");
-        params.delete("tot");
-      }
-      const query = params.toString();
-      router.replace(`${pathname}${query ? `?${query}` : ""}`, {
-        scroll: false,
-      });
-    },
-    [pathname, router, searchParams]
-  );
 
   const data = useQuery(api.rapportage.getRapportage, {
     preset,
@@ -194,6 +158,10 @@ export function RapportageVerhaal() {
             Vier vragen, vier antwoorden — met de cijfers waar ze op rusten en
             een doorklik naar de offertes, facturen en klanten die ze maken.
           </p>
+          {/* Onderaan de kop, direct boven de ankerbalk: de keuze tussen het
+              verhaal en het grafiekenblad. Beide bladen rekenen met dezelfde
+              periode uit de URL, dus wisselen verandert nooit een cijfer. */}
+          <RapportageTabbalk className="mt-5 -mb-5" />
         </div>
       </div>
 
