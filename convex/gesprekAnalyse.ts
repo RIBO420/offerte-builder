@@ -95,11 +95,31 @@ function weekdagAmsterdam(nu: Date = new Date()): string {
 }
 
 /**
+ * De komende veertien dagen als "dinsdag 2026-08-25"-regels. Alleen de datum
+ * van vandaag meegeven bleek niet genoeg: het model rekende "volgende week
+ * dinsdag" een dag mis (gemeten: wo 26 aug i.p.v. di 25 aug). Met dit lijstje
+ * is omrekenen opzoeken in plaats van rekenen — daar maakt een klein model
+ * geen fouten in.
+ */
+export function kalenderAmsterdam(nu: Date = new Date(), dagen = 14): string[] {
+  const uit: string[] = [];
+  for (let i = 1; i <= dagen; i++) {
+    const dag = new Date(nu.getTime() + i * 24 * 60 * 60 * 1000);
+    uit.push(`${weekdagAmsterdam(dag)} ${vandaagAmsterdam(dag)}`);
+  }
+  return uit;
+}
+
+/**
  * Systeemprompt. Bewust kort en concreet: het model hoeft niets te bedenken,
  * alleen te herkennen. De datum staat erin omdat "volgende week dinsdag"
  * anders niet om te rekenen is.
  */
-export function bouwSysteemPrompt(vandaag: string, weekdag: string): string {
+export function bouwSysteemPrompt(
+  vandaag: string,
+  weekdag: string,
+  kalender: string[] = []
+): string {
   return [
     "Je bent de assistent van een Nederlands hoveniersbedrijf (Top Tuinen).",
     "Je leest een kort verslag van klantcontact en haalt daar de concrete",
@@ -109,6 +129,13 @@ export function bouwSysteemPrompt(vandaag: string, weekdag: string): string {
     "Reken elke datumaanduiding in de tekst hiernaar om:",
     '"morgen", "volgende week dinsdag", "eind van de maand", "over twee weken".',
     "Staat er geen datum in de tekst, dan is de deadline null — verzin er geen.",
+    ...(kalender.length
+      ? [
+          "Gebruik dit overzicht van de komende dagen en zoek de datum erin op",
+          "in plaats van zelf te rekenen:",
+          ...kalender.map((regel) => `  ${regel}`),
+        ]
+      : []),
     "",
     "Regels:",
     `- Maximaal ${MAX_TAKEN} taken. Liever te weinig dan te veel.`,
@@ -264,7 +291,11 @@ export const analyseer = action({
       const antwoord = await client.messages.create({
         model: MODEL,
         max_tokens: MAX_TOKENS,
-        system: bouwSysteemPrompt(vandaagAmsterdam(nu), weekdagAmsterdam(nu)),
+        system: bouwSysteemPrompt(
+          vandaagAmsterdam(nu),
+          weekdagAmsterdam(nu),
+          kalenderAmsterdam(nu)
+        ),
         tools: [TAKEN_TOOL],
         // Dwingt het model in het schema: geen vrije tekst, altijd deze vorm.
         tool_choice: { type: "tool", name: TAKEN_TOOL.name },
