@@ -119,6 +119,25 @@ export interface AchterloperRegel {
   ontbrekendeDagen: string[];
 }
 
+/** Eén cel van de weekstaat; `afwijkend` = ingediend mét open redenen. */
+export interface WeekstaatCel {
+  datum: string;
+  uren: number;
+  status: "leeg" | "open" | "ingediend" | "afwijkend";
+}
+
+/**
+ * Het volledige medewerkers × dagen-overzicht (aanvulling Ricardo 17 aug):
+ * alle actieve medewerkers, ook met een lege week, gegroepeerd per ploeg.
+ */
+export interface WeekstaatRij {
+  medewerkerId: string;
+  naam: string;
+  ploegLabel: string | null;
+  dagen: WeekstaatCel[];
+  totaalUren: number;
+}
+
 export interface ControleWeek {
   /** Maandag, YYYY-MM-DD. */
   weekStart: string;
@@ -131,6 +150,7 @@ export interface ControleWeek {
   stil: DagSamenvatting[];
   /** Al akkoord bevonden binnen dit venster. */
   gekweten: number;
+  weekstaat: WeekstaatRij[];
   totalen: {
     uren: number;
     indirect: number;

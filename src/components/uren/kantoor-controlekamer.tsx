@@ -23,11 +23,14 @@ import {
   urenExportColumns,
 } from "@/components/export-dropdown";
 import { api } from "@convex/_generated/api";
+import { Cel, Cijferstrip } from "@/components/ui/cijferstrip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { REVEAL_KLASSE } from "@/components/pagina-reveal";
 import { cn } from "@/lib/utils";
 import { AfwijkingenBlok } from "./afwijkingen-blok";
 import { ArchiefBlok } from "./archief-blok";
+import { UrenInvoerKnop } from "./uren-invoer-knop";
+import { WeekstaatBlok } from "./weekstaat-blok";
 import { getControleWeekRef } from "./controle-api";
 import { ControlekamerKop } from "./controlekamer-kop";
 import { Daginspector, type InspectorDag } from "./daginspector";
@@ -95,6 +98,10 @@ export function KantoorControlekamer({
       )
     : undefined;
 
+  // Invoer gebeurt in Mijn dag (kantoor mag daar voor iedereen schrijven);
+  // deze knop kiest wie + welke dag, lege weekstaat-vakken zijn de snelle weg.
+  const invoerKnop = <UrenInvoerKnop />;
+
   return (
     <div className={cn("flex flex-1 flex-col gap-5 p-4 md:p-8", REVEAL_KLASSE)}>
       <ControlekamerKop
@@ -105,15 +112,84 @@ export function KantoorControlekamer({
         onVorige={() => schuif(-1)}
         onVolgende={() => schuif(1)}
         onDezeWeek={() => kiesWeek(weekStart)}
-        acties={exportKnop?.(
-          stand.achter === 0 && stand.afwijkend === 0 ? "default" : "outline"
-        )}
+        acties={
+          <>
+            {invoerKnop}
+            {exportKnop?.(
+              stand.achter === 0 && stand.afwijkend === 0
+                ? "default"
+                : "outline"
+            )}
+          </>
+        }
       />
 
       {week === undefined ? (
         <ControlekamerSkelet />
       ) : (
         <div className="flex flex-col gap-4">
+          {/* Cijfers eerst (aanvulling 17 aug): controle-op-afwijking alléén
+              liet een lege week als vijf regels tekst achter, zonder één
+              getal. Deze strip volgt de gekozen week en dezelfde beoordeling
+              als de blokken eronder. */}
+          {/* De containernaam levert de aanroeper (zie Cijferstrip-kopnoot);
+              zonder deze wrapper vouwen de kolommen nooit uit. */}
+          <div className="@container/cijfers">
+          <Cijferstrip
+            label="Weektotalen"
+            kolommen="@min-[30rem]/cijfers:grid-cols-2 @min-[56rem]/cijfers:grid-cols-4"
+          >
+            <Cel
+              label="Geschreven uren"
+              waardeTekst={week.totalen.uren.toLocaleString("nl-NL", {
+                minimumFractionDigits: 1,
+                maximumFractionDigits: 1,
+              })}
+              voet={
+                <span className="text-muted-foreground">
+                  {week.totalen.indirect > 0
+                    ? `waarvan ${week.totalen.indirect.toLocaleString("nl-NL", {
+                        minimumFractionDigits: 1,
+                        maximumFractionDigits: 1,
+                      })} indirect`
+                    : "geen indirecte tijd"}
+                </span>
+              }
+            />
+            <Cel
+              label="Dagen ingediend"
+              waardeTekst={String(week.totalen.ingediend)}
+              voet={
+                <span className="text-muted-foreground">
+                  {week.gekweten > 0
+                    ? `${week.gekweten} al akkoord`
+                    : "wachten op je blik hieronder"}
+                </span>
+              }
+            />
+            <Cel
+              label="Dagen open"
+              waardeTekst={String(week.totalen.open)}
+              voet={
+                <span className="text-muted-foreground">
+                  {week.totalen.open > 0
+                    ? "nog niet ingediend"
+                    : "alles is binnen"}
+                </span>
+              }
+            />
+            <Cel
+              label="Medewerkers"
+              // `?? []`: tijdens een rolling deploy kan een oude payload dit
+              // veld nog missen — dan liever 0 dan een witte pagina.
+              waardeTekst={String((week.weekstaat ?? []).length)}
+              voet={
+                <span className="text-muted-foreground">in de weekstaat</span>
+              }
+            />
+          </Cijferstrip>
+          </div>
+
           <WieIsAchterBlok achter={week.achter} />
 
           <AfwijkingenBlok
@@ -129,6 +205,11 @@ export function KantoorControlekamer({
             afwijkendAantal={week.afwijkend.length}
             gekweten={week.gekweten}
             exportKnop={exportKnop}
+          />
+
+          <WeekstaatBlok
+            weekstaat={week.weekstaat ?? []}
+            onDagFilm={onDagFilm}
           />
 
           <ArchiefBlok onDagFilm={onDagFilm} />

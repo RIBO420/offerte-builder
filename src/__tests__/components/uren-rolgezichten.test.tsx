@@ -105,6 +105,18 @@ const CONTROLE_WEEK = {
   afwijkend: [],
   stil: [],
   gekweten: 0,
+  weekstaat: [
+    {
+      medewerkerId: "m1",
+      naam: "Lars Hendriks",
+      ploegLabel: "Ploeg Lars",
+      dagen: [
+        { datum: "2026-08-10", uren: 8, status: "ingediend" as const },
+        { datum: "2026-08-11", uren: 0, status: "leeg" as const },
+      ],
+      totaalUren: 8,
+    },
+  ],
   totalen: { uren: 0, indirect: 0, ingediend: 0, open: 0 },
 };
 

@@ -100,6 +100,30 @@ export interface AchterRegel {
   ontbrekendeDagen: string[];
 }
 
+/**
+ * Eén cel van de weekstaat. `afwijkend` betekent hier: ingediend mét
+ * onbeantwoorde afwijkingsredenen — dezelfde definitie als de wachtrij.
+ */
+export interface WeekstaatCel {
+  datum: string;
+  uren: number; // werkende tijd; 0 bij leeg
+  status: "leeg" | "open" | "ingediend" | "afwijkend";
+}
+
+/**
+ * Eén rij van de weekstaat: het volledige medewerkers × dagen-overzicht
+ * (aanvulling Ricardo 17 aug — controle-op-afwijking alléén gooide het
+ * overzicht weg: "geen overzicht over medewerkers en uren per medewerker en
+ * per team"). Alle actieve medewerkers staan erin, ook met een lege week.
+ */
+export interface WeekstaatRij {
+  medewerkerId: Id<"medewerkers">;
+  naam: string;
+  ploegLabel: string | null; // eerste ploeg van die week, voor de groepering
+  dagen: WeekstaatCel[]; // exact de weekdagen, maandag t/m zondag
+  totaalUren: number;
+}
+
 export interface ControleWeek {
   weekStart: string;
   weekLabel: string; // "Week 33 · 10 t/m 16 augustus"
@@ -107,6 +131,7 @@ export interface ControleWeek {
   afwijkend: DagKaart[]; // gesorteerd: oudste eerst
   stil: DagSamenvatting[]; // ingediend, geen afwijking, nog niet gekweten
   gekweten: number; // al akkoord dit venster
+  weekstaat: WeekstaatRij[]; // gegroepeerd te tonen per ploegLabel
   /**
    * `uren`/`indirect` zijn uren (werkende tijd resp. tijd zonder klus);
    * `ingediend`/`open` zijn AANTALLEN medewerker-dagen — de vraag van kantoor
@@ -496,7 +521,12 @@ async function beoordeelWeek(
   ctx: QueryCtx | MutationCtx,
   veld: VeldContext,
   weekStart: string
-): Promise<{ dagen: string[]; vandaag: string; beoordeeld: BeoordeeldeDag[] }> {
+): Promise<{
+  dagen: string[];
+  vandaag: string;
+  beoordeeld: BeoordeeldeDag[];
+  actieveMedewerkers: { medewerkerId: Id<"medewerkers">; naam: string }[];
+}> {
   const dagen = weekDagen(weekStart);
   const vandaag = vandaagAmsterdam();
   const companyUserId = veld.companyUserId;
@@ -589,7 +619,15 @@ async function beoordeelWeek(
     }
   }
 
-  return { dagen, vandaag, beoordeeld };
+  return {
+    dagen,
+    vandaag,
+    beoordeeld,
+    actieveMedewerkers: actief.map((mw) => ({
+      medewerkerId: mw._id,
+      naam: mw.naam,
+    })),
+  };
 }
 
 // ============================================
@@ -603,7 +641,8 @@ export const getControleWeek = query({
     const weekStart = args.weekStart ?? weekStartVan(vandaagAmsterdam());
     assertGeldigeWeekStart(weekStart);
 
-    const { vandaag, beoordeeld } = await beoordeelWeek(ctx, veld, weekStart);
+    const { dagen, vandaag, beoordeeld, actieveMedewerkers } =
+      await beoordeelWeek(ctx, veld, weekStart);
     const { werkitemNamen, klantNamen } = await labelsVoorSegmenten(
       ctx,
       beoordeeld.flatMap((d) => d.segmenten)
@@ -687,6 +726,51 @@ export const getControleWeek = query({
       else if (dag.heeftPlanning || dag.segmenten.length > 0) openDagen++;
     }
 
+    // De weekstaat: alle actieve medewerkers (ook met een lege week) plus
+    // iedereen die deze week iets heeft, met per weekdag uren + status.
+    const rijPerMedewerker = new Map<string, WeekstaatRij>();
+    const maakRij = (medewerkerId: Id<"medewerkers">, naam: string) => ({
+      medewerkerId,
+      naam,
+      ploegLabel: null as string | null,
+      dagen: dagen.map((datum) => ({
+        datum,
+        uren: 0,
+        status: "leeg" as const,
+      })) as WeekstaatCel[],
+      totaalUren: 0,
+    });
+    for (const mw of actieveMedewerkers) {
+      rijPerMedewerker.set(mw.medewerkerId.toString(), maakRij(mw.medewerkerId, mw.naam));
+    }
+    for (const dag of beoordeeld) {
+      const sleutel = dag.medewerkerId.toString();
+      let rij = rijPerMedewerker.get(sleutel);
+      if (!rij) {
+        rij = maakRij(dag.medewerkerId, dag.naam);
+        rijPerMedewerker.set(sleutel, rij);
+      }
+      rij.ploegLabel = rij.ploegLabel ?? dag.teamNaam;
+      const cel = rij.dagen.find((c) => c.datum === dag.datum);
+      if (!cel) continue;
+      cel.uren = urenVanMinuten(
+        werkendeMinuten(dag.segmenten.map(naarAfwijkingSegment))
+      );
+      cel.status =
+        dag.status === "ingediend"
+          ? dag.redenen.length > 0 && !dag.gekweten
+            ? "afwijkend"
+            : "ingediend"
+          : "open";
+      rij.totaalUren = Math.round((rij.totaalUren + cel.uren) * 100) / 100;
+    }
+    const weekstaat = [...rijPerMedewerker.values()].sort(
+      (a, b) =>
+        // Ploegen bij elkaar (alfabetisch), ploegloos onderaan, dan op naam.
+        (a.ploegLabel ?? "￿").localeCompare(b.ploegLabel ?? "￿") ||
+        a.naam.localeCompare(b.naam)
+    );
+
     return {
       weekStart,
       weekLabel: weekLabelVan(weekStart),
@@ -694,6 +778,7 @@ export const getControleWeek = query({
       afwijkend,
       stil,
       gekweten,
+      weekstaat,
       totalen: {
         uren: urenVanMinuten(minuten),
         indirect: urenVanMinuten(indirect),
