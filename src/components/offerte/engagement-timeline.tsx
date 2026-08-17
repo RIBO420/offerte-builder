@@ -130,6 +130,41 @@ const EMAIL_TYPE_LABELS: Record<string, string> = {
   bedankt: "Bedankmail",
 };
 
+/**
+ * Kleurtoekenning per event, uitsluitend uit de Loof & Leem-tokens
+ * (ui-lessen-v7 les 2 — geen rauwe paletkleuren, geen paars/indigo):
+ * - mailverkeer (verzonden/geopend/geklikt) = de steenblauwe communicatiezone
+ *   via de `status-voorcalculatie`-familie (dat ís de 245-receptuur;
+ *   `status-verzonden` is in de tokens oker);
+ * - afgeleverd en geaccepteerd = `status-geaccepteerd`;
+ * - mislukt/bounced/afgewezen = `status-afgewezen`;
+ * - bekeken en klantvraag = `status-herinnering` (amber, vraagt aandacht);
+ * - systeemdatums = gedempt grijs.
+ * Betekenis zit nooit in de kleur alleen: icoon + omschrijving dragen het.
+ */
+const EVENT_KLEUREN = {
+  communicatie: {
+    iconColor: "text-status-voorcalculatie-text",
+    dotColor: "bg-status-voorcalculatie-dot",
+  },
+  gelukt: {
+    iconColor: "text-status-geaccepteerd-text",
+    dotColor: "bg-status-geaccepteerd-dot",
+  },
+  mislukt: {
+    iconColor: "text-status-afgewezen-text",
+    dotColor: "bg-status-afgewezen-dot",
+  },
+  aandacht: {
+    iconColor: "text-status-herinnering-text",
+    dotColor: "bg-status-herinnering-dot",
+  },
+  systeem: {
+    iconColor: "text-muted-foreground",
+    dotColor: "bg-muted-foreground/50",
+  },
+} as const;
+
 // ── Component ──────────────────────────────────────────────────────────
 
 export function EngagementTimeline({
@@ -165,14 +200,9 @@ export function EngagementTimeline({
           ) : (
             <Mail className="h-3.5 w-3.5" />
           ),
-        iconColor:
-          log.status === "mislukt" || log.status === "bounced"
-            ? "text-red-500 dark:text-red-400"
-            : "text-blue-500 dark:text-blue-400",
-        dotColor:
-          log.status === "mislukt" || log.status === "bounced"
-            ? "bg-red-500"
-            : "bg-blue-500",
+        ...(log.status === "mislukt" || log.status === "bounced"
+          ? EVENT_KLEUREN.mislukt
+          : EVENT_KLEUREN.communicatie),
       });
 
       // Email delivered
@@ -183,8 +213,7 @@ export function EngagementTimeline({
           description: `${typeLabel} afgeleverd`,
           timestamp: log.deliveredAt,
           icon: <MailCheck className="h-3.5 w-3.5" />,
-          iconColor: "text-green-500 dark:text-green-400",
-          dotColor: "bg-green-500",
+          ...EVENT_KLEUREN.gelukt,
         });
       }
 
@@ -196,8 +225,7 @@ export function EngagementTimeline({
           description: `${typeLabel} geopend`,
           timestamp: log.openedAt,
           icon: <Eye className="h-3.5 w-3.5" />,
-          iconColor: "text-purple-500 dark:text-purple-400",
-          dotColor: "bg-purple-500",
+          ...EVENT_KLEUREN.communicatie,
         });
       }
 
@@ -209,8 +237,7 @@ export function EngagementTimeline({
           description: `Link in ${typeLabel.toLowerCase()} aangeklikt`,
           timestamp: log.clickedAt,
           icon: <MousePointerClick className="h-3.5 w-3.5" />,
-          iconColor: "text-indigo-500 dark:text-indigo-400",
-          dotColor: "bg-indigo-500",
+          ...EVENT_KLEUREN.communicatie,
         });
       }
 
@@ -222,8 +249,7 @@ export function EngagementTimeline({
           description: `${typeLabel} geweigerd door mailserver`,
           timestamp: log.bouncedAt,
           icon: <MailX className="h-3.5 w-3.5" />,
-          iconColor: "text-red-500 dark:text-red-400",
-          dotColor: "bg-red-500",
+          ...EVENT_KLEUREN.mislukt,
         });
       }
     }
@@ -236,8 +262,7 @@ export function EngagementTimeline({
         description: "Offerte bekeken door klant",
         timestamp: customerResponse.viewedAt,
         icon: <Eye className="h-3.5 w-3.5" />,
-        iconColor: "text-amber-500 dark:text-amber-400",
-        dotColor: "bg-amber-500",
+        ...EVENT_KLEUREN.aandacht,
       });
     }
 
@@ -251,8 +276,7 @@ export function EngagementTimeline({
         description: "Offerte geaccepteerd door klant",
         timestamp: customerResponse.respondedAt,
         icon: <CheckCircle className="h-3.5 w-3.5" />,
-        iconColor: "text-green-500 dark:text-green-400",
-        dotColor: "bg-green-500",
+        ...EVENT_KLEUREN.gelukt,
       });
     }
 
@@ -266,8 +290,7 @@ export function EngagementTimeline({
         description: "Offerte afgewezen door klant",
         timestamp: customerResponse.respondedAt,
         icon: <XCircle className="h-3.5 w-3.5" />,
-        iconColor: "text-red-500 dark:text-red-400",
-        dotColor: "bg-red-500",
+        ...EVENT_KLEUREN.mislukt,
       });
     }
 
@@ -282,8 +305,7 @@ export function EngagementTimeline({
         description: "Klant heeft een vraag gesteld",
         timestamp: customerResponse.respondedAt,
         icon: <MessageSquare className="h-3.5 w-3.5" />,
-        iconColor: "text-orange-500 dark:text-orange-400",
-        dotColor: "bg-orange-500",
+        ...EVENT_KLEUREN.aandacht,
       });
     }
 
@@ -298,7 +320,7 @@ export function EngagementTimeline({
         timestamp: version.createdAt,
         icon: <History className="h-3.5 w-3.5" />,
         iconColor: "text-muted-foreground",
-        dotColor: "bg-slate-400",
+        dotColor: "bg-muted-foreground/50",
       });
     }
 
@@ -311,7 +333,7 @@ export function EngagementTimeline({
         timestamp: verzondenAt,
         icon: <Mail className="h-3.5 w-3.5" />,
         iconColor: "text-muted-foreground",
-        dotColor: "bg-slate-400",
+        dotColor: "bg-muted-foreground/50",
       });
     }
 
@@ -323,7 +345,7 @@ export function EngagementTimeline({
         timestamp: updatedAt,
         icon: <History className="h-3.5 w-3.5" />,
         iconColor: "text-muted-foreground",
-        dotColor: "bg-slate-400",
+        dotColor: "bg-muted-foreground/50",
       });
     }
 
@@ -335,7 +357,7 @@ export function EngagementTimeline({
       timestamp: createdAt,
       icon: <Clock className="h-3.5 w-3.5" />,
       iconColor: "text-muted-foreground",
-      dotColor: "bg-slate-300",
+      dotColor: "bg-muted-foreground/30",
     });
 
     // Sort newest first
