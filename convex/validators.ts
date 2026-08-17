@@ -494,6 +494,21 @@ export const tijdlijnHandmatigKanaalValidator = v.union(
 );
 
 /**
+ * De vier typechips van de gesprekscomposer (klantdossier v7, WS4). Bewust
+ * de UI-labels als waarde: de vertaling naar kanaal + eventType gebeurt op
+ * één plek (tijdlijn.legGesprekVast), zodat de composer en de analyse-action
+ * dezelfde taal spreken als het prototype.
+ */
+export const tijdlijnGesprekTypeValidator = v.union(
+  v.literal("Gebeld"),
+  v.literal("Gemaild"),
+  v.literal("Afspraak"),
+  v.literal("Notitie")
+);
+
+export type GesprekType = "Gebeld" | "Gemaild" | "Afspraak" | "Notitie";
+
+/**
  * Event-typen op de klanttijdlijn. De typen voor beurten (§2.6),
  * facturen (§2.8) en meldingen (§2.4) staan er alvast in zodat de
  * helper ze aankan zodra die stappen gebouwd worden — hooks volgen daar.
@@ -502,6 +517,11 @@ export const tijdlijnEventTypeValidator = v.union(
   // Handmatige entries + eenmalige notities-migratie
   v.literal("handmatig"),
   v.literal("notitie_migratie"),
+  // Klantdossier v7 (WS4): een vastgelegd gesprek van het type "Afspraak".
+  // Gebeld/Gemaild/Notitie zijn al te onderscheiden aan het kanaal
+  // (telefoon/email/intern); een afspraak deelt kanaal "intern" met een
+  // notitie en zou anders niet terug te vinden zijn. Enige nieuwe literal.
+  v.literal("afspraak"),
   // Auto-events fase 1 stap 6 (§2.3)
   v.literal("offerte_verzonden"),
   v.literal("offerte_geaccepteerd"),

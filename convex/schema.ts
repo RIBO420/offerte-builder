@@ -3697,6 +3697,22 @@ export default defineSchema({
     meldingId: v.optional(v.id("servicemeldingen")),
     // Foto's/bijlagen — zelfde storage-patroon als chat_messages
     bijlagen: v.optional(v.array(v.id("_storage"))),
+    // ─── Gesprekslog met taakherkenning (klantdossier v7, WS4) ──────────────
+    // Welke taken zijn er uit dít gesprek aangemaakt? De koppeling staat aan
+    // beide kanten (klantTaken.bronTijdlijnId is de tegenhanger): de tijdlijn
+    // toont "N taken aangemaakt uit dit gesprek", de taak toont "uit gesprek".
+    gekoppeldeTaakIds: v.optional(v.array(v.id("klantTaken"))),
+    // ─── Opname (fase B, WS5) ───────────────────────────────────────────────
+    // Alvast in het schema zodat de opnameketen later niets hoeft te migreren.
+    // Duur van de opname in seconden; toont als "OPNAME · m:ss" op de regel.
+    opnameDuurSec: v.optional(v.number()),
+    // Audio blijft alleen bewaard als de transcriptie MISLUKT is (dan kan
+    // kantoor hem alsnog terugluisteren); na een geslaagde uitwerking wordt
+    // de storage-file verwijderd en dit veld leeggemaakt.
+    audioId: v.optional(v.id("_storage")),
+    transcriptieStatus: v.optional(
+      v.union(v.literal("gelukt"), v.literal("mislukt"))
+    ),
     createdAt: v.number(),
   })
     .index("by_klant", ["klantId", "timestamp"])
@@ -3734,6 +3750,10 @@ export default defineSchema({
     toegewezenAanId: v.optional(v.id("medewerkers")),
     // Optionele koppeling met een werkitem ("over welke klus?")
     werkitemId: v.optional(v.id("projecten")),
+    // Uit welk vastgelegd gesprek komt deze taak? Gezet door
+    // tijdlijn.legGesprekVast; tegenhanger van klantTijdlijn.gekoppeldeTaakIds.
+    // Levert de badge "uit gesprek" op de taakregel.
+    bronTijdlijnId: v.optional(v.id("klantTijdlijn")),
     aangemaaktDoorId: v.optional(v.id("users")),
     afgerondAt: v.optional(v.number()),
     afgerondDoorId: v.optional(v.id("users")),

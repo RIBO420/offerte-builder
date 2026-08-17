@@ -46,6 +46,10 @@ export type TijdlijnEntry = Doc<"klantTijdlijn">;
 const DEFAULT_LIMIT = 200;
 const ZOEK_LIMIT = 50;
 
+/** Zelfde grenzen als klantTaken.create — taken uit een gesprek zijn taken. */
+const GESPREK_MAX_TAAKTITEL = 200;
+const GESPREK_DEADLINE_PATROON = /^\d{4}-\d{2}-\d{2}$/;
+
 // ============================================
 // Toegang (PRD §1.2)
 // ============================================
@@ -570,5 +574,127 @@ export const voegEntryToe = mutation({
       bijlagen: args.bijlagen,
       createdAt: now,
     });
+  },
+});
+
+/**
+ * Gesprek vastleggen mét de taken die de gebruiker heeft aangevinkt
+ * (klantdossier v7, WS4).
+ *
+ * Eén mutation, dus één transactie: de tijdlijn-entry en de taken staan er
+ * samen in of geen van beide. De koppeling gaat twee kanten op —
+ * `klantTaken.bronTijdlijnId` wijst naar de entry, `gekoppeldeTaakIds` op de
+ * entry wijst terug — zodat zowel de tijdlijn ("3 taken aangemaakt uit dit
+ * gesprek") als de taakregel ("uit gesprek") het verband kan tonen zonder
+ * een extra query.
+ *
+ * De taken komen van de gebruiker, niet van de AI: `gesprekAnalyse.analyseer`
+ * doet alleen vóórstellen. Wat hier binnenkomt is wat er is aangevinkt.
+ */
+export const legGesprekVast = mutation({
+  args: {
+    klantId: v.id("klanten"),
+    kanaal: tijdlijnHandmatigKanaalValidator,
+    tekst: v.string(),
+    /**
+     * Alleen de aangevinkte voorstellen. Leeg = "Alleen gesprek vastleggen".
+     * Prioriteit en toewijzing blijven leeg: dat is werk voor de takenlijst,
+     * niet voor een vinkje in een analysepaneel.
+     */
+    taken: v.array(
+      v.object({
+        titel: v.string(),
+        deadline: v.optional(v.string()),
+      })
+    ),
+    werkitemId: v.optional(v.id("projecten")),
+    /**
+     * Onderscheidt een afspraak van een gewone interne notitie; beide gaan
+     * op kanaal "intern". Default "handmatig", zoals voegEntryToe.
+     */
+    eventType: v.optional(
+      v.union(v.literal("handmatig"), v.literal("afspraak"))
+    ),
+  },
+  handler: async (
+    ctx,
+    args
+  ): Promise<{ entryId: Id<"klantTijdlijn">; taakIds: Id<"klantTaken">[] }> => {
+    // Zelfde slot als voegEntryToe: schrijven op de tijdlijn is kantoorwerk.
+    const user = await requireKantoor(ctx);
+    const { companyUserId } = await getKlantBinnenBedrijf(ctx, args.klantId);
+
+    const tekst = args.tekst.trim();
+    if (!tekst) {
+      throw new ConvexError("Tekst is verplicht voor een tijdlijn-entry");
+    }
+
+    if (args.werkitemId) {
+      const werkitem = await ctx.db.get(args.werkitemId);
+      if (
+        !werkitem ||
+        werkitem.userId.toString() !== companyUserId.toString()
+      ) {
+        throw new ConvexError("Werkitem niet gevonden");
+      }
+      if (werkitem.klantId?.toString() !== args.klantId.toString()) {
+        throw new ConvexError("Werkitem hoort niet bij deze klant");
+      }
+    }
+
+    const now = Date.now();
+    const entryId = await ctx.db.insert("klantTijdlijn", {
+      userId: companyUserId,
+      klantId: args.klantId,
+      timestamp: now,
+      auteurId: user._id,
+      auteurNaam: user.name,
+      kanaal: args.kanaal,
+      eventType: args.eventType ?? "handmatig",
+      tekst,
+      werkitemId: args.werkitemId,
+      createdAt: now,
+    });
+
+    // Taken volgens het klantTaken.create-patroon, plus de herkomst.
+    const taakIds: Id<"klantTaken">[] = [];
+    for (const taak of args.taken) {
+      const titel = taak.titel.trim();
+      if (!titel) continue;
+      if (titel.length > GESPREK_MAX_TAAKTITEL) {
+        throw new ConvexError(
+          `Titel mag maximaal ${GESPREK_MAX_TAAKTITEL} tekens zijn`
+        );
+      }
+      const deadline = taak.deadline?.trim() || undefined;
+      if (deadline && !GESPREK_DEADLINE_PATROON.test(deadline)) {
+        throw new ConvexError("Deadline moet in het formaat JJJJ-MM-DD staan");
+      }
+
+      taakIds.push(
+        await ctx.db.insert("klantTaken", {
+          userId: companyUserId,
+          klantId: args.klantId,
+          titel,
+          status: "open",
+          prioriteit: "normaal",
+          deadline,
+          werkitemId: args.werkitemId,
+          bronTijdlijnId: entryId,
+          aangemaaktDoorId: user._id,
+          createdAt: now,
+          updatedAt: now,
+        })
+      );
+    }
+
+    // Pas nu de tegenkoppeling: zonder taken blijft het veld leeg in plaats
+    // van een lege array, zodat "heeft dit gesprek taken opgeleverd?" één
+    // simpele check blijft.
+    if (taakIds.length > 0) {
+      await ctx.db.patch(entryId, { gekoppeldeTaakIds: taakIds });
+    }
+
+    return { entryId, taakIds };
   },
 });
