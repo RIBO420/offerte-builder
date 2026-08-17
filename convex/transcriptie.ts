@@ -151,7 +151,10 @@ export const transcribeer = action({
         console.warn(`transcriptie: onbruikbare audiogrootte (${blob.size})`);
         return MISLUKT;
       }
-      if (blob.type) contentType = blob.type;
+      // MediaRecorder levert "audio/webm;codecs=opus" op; Deepgram wil de
+      // kale containersoort, dus de parameters gaan eraf.
+      const soort = blob.type.split(";")[0]?.trim();
+      if (soort) contentType = soort;
       audio = await blob.arrayBuffer();
     } catch (fout) {
       console.error("transcriptie: audio ophalen mislukt", fout);
