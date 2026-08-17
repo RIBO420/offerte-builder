@@ -243,6 +243,9 @@ export const update = mutation({
     contactpersoon: v.optional(v.string()),
     kvkNummer: v.optional(v.string()),
     btwNummer: v.optional(v.string()),
+    // Stond alleen in de relatie-import; sinds het bewerkformulier in het
+    // klantdossier is de website ook met de hand te corrigeren.
+    website: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
@@ -308,6 +311,10 @@ export const update = mutation({
 
     if (args.btwNummer !== undefined) {
       filteredUpdates.btwNummer = sanitizeBtwNummer(args.btwNummer);
+    }
+
+    if (args.website !== undefined) {
+      filteredUpdates.website = sanitizeOptionalString(args.website);
     }
 
     await ctx.db.patch(args.id, {
@@ -700,7 +707,6 @@ export const dossierTellingen = query({
     ).filter((f) => f.userId.toString() === eigenaar);
 
     const nu = Date.now();
-    const DERTIG_DAGEN = 30 * 24 * 60 * 60 * 1000;
     let openFacturenAantal = 0;
     let openstaandBedrag = 0;
     let teLaat = false;
@@ -710,10 +716,11 @@ export const dossierTellingen = query({
       if (betaalStatus === "betaald" || betaalStatus === "geannuleerd") continue;
       openFacturenAantal += 1;
       openstaandBedrag += factuur.totaalInclBtw;
-      // Rood in het submenu: er staat iets langer dan een maand open. Bewust
-      // op factuurdatum en niet op vervaldatum — "hoe lang sleept dit al" is
-      // de vraag die kantoor hier stelt.
-      if (factuur.factuurdatum < nu - DERTIG_DAGEN) teLaat = true;
+      // Rood in het submenu: exact dezelfde definitie van "te laat" als
+      // `facturen.listVoorKlant` (verstuurd, niet betaald, vervaldatum
+      // voorbij). Anders kan de pil rood staan terwijl geen enkele regel in
+      // de factuurlijst eronder "Te laat" zegt.
+      if (factuur.vervaldatum < nu) teLaat = true;
     }
 
     return {

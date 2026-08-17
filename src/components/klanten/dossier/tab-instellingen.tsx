@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 import { useMutation, useQuery } from "convex/react";
-import { Loader2, ShieldAlert, SlidersHorizontal, User } from "lucide-react";
+import {
+  Loader2,
+  Pencil,
+  ShieldAlert,
+  SlidersHorizontal,
+  User,
+} from "lucide-react";
 
 import {
   AlertDialog,
@@ -16,11 +22,27 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/copy-button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { SectiePaneel } from "@/components/ui/sectie-paneel";
 import { Switch } from "@/components/ui/switch";
+import { AdresVeld } from "@/components/klanten/adres-veld";
 import { Feit } from "@/components/klanten/klant-detail-primitieven";
+import {
+  isZakelijk,
+  KLANT_TYPE_OPTIONS,
+  type KlantType,
+} from "@/components/klanten/nieuwe-klant-dialog";
 import { LeadHistorieCard } from "@/components/leads/lead-historie-card";
 import { useIsAdmin } from "@/hooks/use-users";
+import { klantSchema } from "@/lib/validations/klant";
 import { showErrorToast, showSuccessToast } from "@/lib/toast-utils";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -30,9 +52,9 @@ import type { Id } from "../../../../convex/_generated/dataModel";
  * de administratieve gegevens, de voorkeuren en het privacy-blok.
  *
  * Drie panelen in de volgorde van het prototype (Contactgegevens / Voorkeuren
- * / Privacy). WS3 bouwt in het eerste paneel het échte bewerkformulier
- * (`klanten.update` bestaat al); de structuur staat daar al op te wachten,
- * inclusief de plek voor de knop "Wijzigen" in de kopbalk.
+ * / Privacy). Contactgegevens is een weergave met een knop "Wijzigen" in de
+ * kopbalk; die klapt hetzelfde paneel om naar het bewerkformulier — inline,
+ * geen modal, want je bent al op de plek waar de gegevens staan.
  */
 
 /** Wat deze tab van de klant nodig heeft — bewust smal gehouden. */
@@ -44,9 +66,13 @@ export interface KlantInstellingenGegevens {
   plaats?: string;
   email?: string;
   telefoon?: string;
+  klantType?: KlantType;
   contactpersoon?: string;
   kvkNummer?: string;
   btwNummer?: string;
+  website?: string;
+  /** Relatienummer uit het bronsysteem; alleen tonen, nooit bewerken. */
+  klantnummer?: string;
   inplanBevestigingsMail?: boolean;
 }
 
@@ -55,6 +81,388 @@ function Waarde({ tekst }: { tekst?: string }) {
   if (!tekst) return <span className="text-muted-foreground">—</span>;
   return <>{tekst}</>;
 }
+
+function typeLabel(type: KlantType): string {
+  return (
+    KLANT_TYPE_OPTIONS.find((optie) => optie.value === type)?.label ??
+    "Particulier"
+  );
+}
+
+/** Adres, postcode en plaats als één leesbare regel. */
+function adresRegel(klant: KlantInstellingenGegevens): string {
+  return [klant.adres, [klant.postcode, klant.plaats].filter(Boolean).join(" ")]
+    .filter(Boolean)
+    .join(", ");
+}
+
+/* ── Weergave ─────────────────────────────────────────────────────────────── */
+
+function ContactgegevensWeergave({
+  klant,
+}: {
+  klant: KlantInstellingenGegevens;
+}) {
+  const klantType = klant.klantType ?? "particulier";
+  const zakelijk = isZakelijk(klantType);
+
+  return (
+    <dl className="divide-y">
+      <Feit label="Naam">{klant.naam}</Feit>
+      <Feit label="Type">{typeLabel(klantType)}</Feit>
+      {/* TT-002: contactpersoon hoort bij een bedrijf/VvE, niet bij een
+          particulier — daar is de naam de persoon zelf. */}
+      {zakelijk && (
+        <Feit label="Contactpersoon">
+          <Waarde tekst={klant.contactpersoon} />
+        </Feit>
+      )}
+      <Feit label="Telefoon">
+        {klant.telefoon ? (
+          <span className="inline-flex items-center gap-1 tabular-nums">
+            {klant.telefoon}
+            <CopyButton value={klant.telefoon} label="Kopieer telefoonnummer" />
+          </span>
+        ) : (
+          <Waarde />
+        )}
+      </Feit>
+      <Feit label="E-mail">
+        {klant.email ? (
+          <span className="inline-flex items-center gap-1">
+            {klant.email}
+            <CopyButton value={klant.email} label="Kopieer e-mailadres" />
+          </span>
+        ) : (
+          <Waarde />
+        )}
+      </Feit>
+      <Feit label="Adres" uitlijnen="onder">
+        <Waarde tekst={adresRegel(klant)} />
+      </Feit>
+      {klant.kvkNummer && (
+        <Feit label="KvK">
+          <span className="inline-flex items-center gap-1 tabular-nums">
+            {klant.kvkNummer}
+            <CopyButton value={klant.kvkNummer} label="Kopieer KvK-nummer" />
+          </span>
+        </Feit>
+      )}
+      {klant.btwNummer && (
+        <Feit label="BTW">
+          <span className="inline-flex items-center gap-1">
+            {klant.btwNummer}
+            <CopyButton value={klant.btwNummer} label="Kopieer BTW-nummer" />
+          </span>
+        </Feit>
+      )}
+      {klant.website && <Feit label="Website">{klant.website}</Feit>}
+      {klant.klantnummer && (
+        <Feit label="Klantnummer">
+          <span className="tabular-nums">{klant.klantnummer}</span>
+        </Feit>
+      )}
+    </dl>
+  );
+}
+
+/* ── Bewerkformulier ──────────────────────────────────────────────────────── */
+
+/** Alleen de velden die de zod-validatie kent; de rest valideert de server. */
+type VeldFouten = Partial<
+  Record<"naam" | "adres" | "postcode" | "plaats" | "email" | "telefoon", string>
+>;
+
+const VELD_KLASSE = "grid gap-3 @[34rem]/sectie:grid-cols-2";
+
+/**
+ * Het paneel in bewerkstand. Losstaand geëxporteerd zodat de componenttest hem
+ * kan renderen zonder de hele tab (en zonder GDPR-query) op te tuigen.
+ *
+ * Twee dingen zijn hier bewust zoals ze zijn:
+ *
+ * 1. **Dezelfde `klantSchema`-validatie als het aanmaakdialoog.** Postcode,
+ *    e-mail en telefoon hebben één waarheid; een tweede regex hier zou vroeg
+ *    of laat iets anders goedkeuren dan de server.
+ * 2. **Zakelijke velden worden als lege string meegestuurd** zodra het type
+ *    naar particulier gaat. `klanten.update` slaat `undefined` over, dus
+ *    alleen zo wist een omgezet type ook echt het achtergebleven KvK-nummer.
+ */
+export function ContactgegevensFormulier({
+  klant,
+  onKlaar,
+}: {
+  klant: KlantInstellingenGegevens;
+  onKlaar: () => void;
+}) {
+  const updateKlant = useMutation(api.klanten.update);
+
+  const [klantType, setKlantType] = useState<KlantType>(
+    klant.klantType ?? "particulier"
+  );
+  const [form, setForm] = useState({
+    naam: klant.naam ?? "",
+    adres: klant.adres ?? "",
+    postcode: klant.postcode ?? "",
+    plaats: klant.plaats ?? "",
+    email: klant.email ?? "",
+    telefoon: klant.telefoon ?? "",
+    contactpersoon: klant.contactpersoon ?? "",
+    kvkNummer: klant.kvkNummer ?? "",
+    btwNummer: klant.btwNummer ?? "",
+    website: klant.website ?? "",
+  });
+  const [fouten, setFouten] = useState<VeldFouten>({});
+  const [bezig, setBezig] = useState(false);
+
+  const zakelijk = isZakelijk(klantType);
+
+  const setVeld = (veld: keyof typeof form, waarde: string) => {
+    setForm((prev) => ({ ...prev, [veld]: waarde }));
+    setFouten((prev) => ({ ...prev, [veld]: undefined }));
+  };
+
+  const opslaan = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (bezig) return;
+
+    const resultaat = klantSchema.safeParse({
+      naam: form.naam,
+      adres: form.adres,
+      postcode: form.postcode,
+      plaats: form.plaats,
+      email: form.email,
+      telefoon: form.telefoon,
+    });
+    if (!resultaat.success) {
+      const nieuweFouten: VeldFouten = {};
+      for (const issue of resultaat.error.issues) {
+        const veld = issue.path[0] as keyof VeldFouten | undefined;
+        if (veld && !nieuweFouten[veld]) nieuweFouten[veld] = issue.message;
+      }
+      setFouten(nieuweFouten);
+      return;
+    }
+
+    const data = resultaat.data;
+    setBezig(true);
+    try {
+      await updateKlant({
+        id: klant._id,
+        naam: data.naam,
+        adres: data.adres,
+        postcode: data.postcode,
+        plaats: data.plaats,
+        // Lege string i.p.v. undefined: zo wist een leeggemaakt veld ook echt.
+        email: data.email ?? "",
+        telefoon: data.telefoon ?? "",
+        klantType,
+        contactpersoon: zakelijk ? form.contactpersoon.trim() : "",
+        kvkNummer: zakelijk ? form.kvkNummer.trim() : "",
+        btwNummer: zakelijk ? form.btwNummer.trim() : "",
+        website: zakelijk ? form.website.trim() : "",
+      });
+      showSuccessToast("Contactgegevens bijgewerkt");
+      onKlaar();
+    } catch (error) {
+      // KvK, BTW en postcode worden serverzijde nóg een keer gekeurd; die
+      // melding is specifieker dan wat wij hier kunnen bedenken.
+      showErrorToast(
+        error instanceof Error ? error.message : "Bijwerken mislukt"
+      );
+    } finally {
+      setBezig(false);
+    }
+  };
+
+  return (
+    // noValidate: de zod-keuring hieronder is de enige die telt. Zonder dit
+    // onderschept de browser een ongeldig e-mailadres met een eigen (Engelse,
+    // vluchtige) ballon en komt onze inline melding er nooit aan te pas.
+    <form onSubmit={opslaan} noValidate className="space-y-3 px-3 py-3">
+      {/* Type eerst: die keuze bepaalt welke velden hieronder verschijnen. */}
+      <div className="space-y-1.5">
+        <Label htmlFor="ki-type">Type klant</Label>
+        <Select
+          value={klantType}
+          onValueChange={(waarde) => setKlantType(waarde as KlantType)}
+        >
+          <SelectTrigger id="ki-type" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {KLANT_TYPE_OPTIONS.map((optie) => (
+              <SelectItem key={optie.value} value={optie.value}>
+                {optie.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className={VELD_KLASSE}>
+        <div className="space-y-1.5">
+          <Label htmlFor="ki-naam">{zakelijk ? "Bedrijfsnaam" : "Naam"}</Label>
+          <Input
+            id="ki-naam"
+            value={form.naam}
+            onChange={(e) => setVeld("naam", e.target.value)}
+            aria-invalid={Boolean(fouten.naam)}
+          />
+          {fouten.naam && (
+            <p className="text-xs text-destructive">{fouten.naam}</p>
+          )}
+        </div>
+        {zakelijk && (
+          <div className="space-y-1.5">
+            <Label htmlFor="ki-contactpersoon">Contactpersoon</Label>
+            <Input
+              id="ki-contactpersoon"
+              value={form.contactpersoon}
+              onChange={(e) => setVeld("contactpersoon", e.target.value)}
+            />
+          </div>
+        )}
+      </div>
+
+      {zakelijk && (
+        <>
+          <div className={VELD_KLASSE}>
+            <div className="space-y-1.5">
+              <Label htmlFor="ki-kvk">KvK-nummer</Label>
+              <Input
+                id="ki-kvk"
+                inputMode="numeric"
+                placeholder="12345678"
+                value={form.kvkNummer}
+                onChange={(e) => setVeld("kvkNummer", e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ki-btw">BTW-nummer</Label>
+              <Input
+                id="ki-btw"
+                placeholder="NL123456789B01"
+                value={form.btwNummer}
+                onChange={(e) => setVeld("btwNummer", e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="ki-website">Website</Label>
+            <Input
+              id="ki-website"
+              placeholder="www.voorbeeld.nl"
+              value={form.website}
+              onChange={(e) => setVeld("website", e.target.value)}
+            />
+          </div>
+        </>
+      )}
+
+      <div className="space-y-1.5">
+        <Label htmlFor="ki-adres">Adres</Label>
+        <AdresVeld
+          id="ki-adres"
+          waarde={form.adres}
+          ongeldig={Boolean(fouten.adres)}
+          onChange={(waarde) => setVeld("adres", waarde)}
+          onAdresGekozen={(adres) => {
+            setForm((prev) => ({
+              ...prev,
+              adres: adres.adres,
+              // Alleen overschrijven als Places het weet; anders houdt hij
+              // wat er al stond.
+              postcode: adres.postcode || prev.postcode,
+              plaats: adres.plaats || prev.plaats,
+            }));
+            setFouten({});
+          }}
+        />
+        {fouten.adres && (
+          <p className="text-xs text-destructive">{fouten.adres}</p>
+        )}
+      </div>
+
+      <div className={VELD_KLASSE}>
+        <div className="space-y-1.5">
+          <Label htmlFor="ki-postcode">Postcode</Label>
+          <Input
+            id="ki-postcode"
+            placeholder="1234 AB"
+            value={form.postcode}
+            onChange={(e) => setVeld("postcode", e.target.value)}
+            aria-invalid={Boolean(fouten.postcode)}
+          />
+          {fouten.postcode && (
+            <p className="text-xs text-destructive">{fouten.postcode}</p>
+          )}
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="ki-plaats">Plaats</Label>
+          <Input
+            id="ki-plaats"
+            placeholder="Landgraaf"
+            value={form.plaats}
+            onChange={(e) => setVeld("plaats", e.target.value)}
+            aria-invalid={Boolean(fouten.plaats)}
+          />
+          {fouten.plaats && (
+            <p className="text-xs text-destructive">{fouten.plaats}</p>
+          )}
+        </div>
+      </div>
+
+      <div className={VELD_KLASSE}>
+        <div className="space-y-1.5">
+          <Label htmlFor="ki-email">E-mail</Label>
+          <Input
+            id="ki-email"
+            type="email"
+            placeholder="naam@voorbeeld.nl"
+            value={form.email}
+            onChange={(e) => setVeld("email", e.target.value)}
+            aria-invalid={Boolean(fouten.email)}
+          />
+          {fouten.email && (
+            <p className="text-xs text-destructive">{fouten.email}</p>
+          )}
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="ki-telefoon">Telefoon</Label>
+          <Input
+            id="ki-telefoon"
+            placeholder="06-12345678"
+            value={form.telefoon}
+            onChange={(e) => setVeld("telefoon", e.target.value)}
+            aria-invalid={Boolean(fouten.telefoon)}
+          />
+          {fouten.telefoon && (
+            <p className="text-xs text-destructive">{fouten.telefoon}</p>
+          )}
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-2 border-t pt-3">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onKlaar}
+          disabled={bezig}
+        >
+          Annuleren
+        </Button>
+        <Button type="submit" size="sm" disabled={bezig}>
+          {bezig && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Opslaan
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+/* ── Tab ──────────────────────────────────────────────────────────────────── */
 
 export function TabInstellingen({
   klant,
@@ -69,17 +477,14 @@ export function TabInstellingen({
   const gdprBlockers = useQuery(api.klanten.checkGdprBlockers, {
     id: klant._id,
   });
+  const [bewerken, setBewerken] = useState(false);
   const [toonGdprDialog, setToonGdprDialog] = useState(false);
   const [bezigMetAnonimiseren, setBezigMetAnonimiseren] = useState(false);
 
   const heeftBlockers = gdprBlockers?.hasBlockers === true;
-
-  const adresregel = [
-    klant.adres,
-    [klant.postcode, klant.plaats].filter(Boolean).join(" "),
-  ]
-    .filter(Boolean)
-    .join(", ");
+  // Na anonimiseren zijn de gegevens bewust weg; ze zijn dan ook niet meer te
+  // bewerken (dat zou de GDPR-stap stilzwijgend terugdraaien).
+  const magBewerken = !isAnonymized;
 
   const anonimiseer = async () => {
     setBezigMetAnonimiseren(true);
@@ -102,75 +507,39 @@ export function TabInstellingen({
   return (
     <div className="space-y-4">
       {/* ── Contactgegevens ──────────────────────────────────────────────── */}
-      <SectiePaneel titel="Contactgegevens" icoon={<User />} kopbalk>
-        {/* WS3: hier komt de knop "Wijzigen" in `acties` plus het formulier
-            (naam, type, adres, e-mail, telefoon) via `klanten.update`. */}
-        <dl className="divide-y">
-          <Feit label="Naam">{klant.naam}</Feit>
-          <Feit label="Contactpersoon">
-            <Waarde tekst={klant.contactpersoon} />
-          </Feit>
-          <Feit label="Telefoon">
-            {klant.telefoon ? (
-              <span className="inline-flex items-center gap-1 tabular-nums">
-                {klant.telefoon}
-                <CopyButton
-                  value={klant.telefoon}
-                  label="Kopieer telefoonnummer"
-                />
-              </span>
-            ) : (
-              <Waarde />
-            )}
-          </Feit>
-          <Feit label="E-mail">
-            {klant.email ? (
-              <span className="inline-flex items-center gap-1">
-                {klant.email}
-                <CopyButton value={klant.email} label="Kopieer e-mailadres" />
-              </span>
-            ) : (
-              <Waarde />
-            )}
-          </Feit>
-          <Feit label="Adres" uitlijnen="onder">
-            <Waarde tekst={adresregel} />
-          </Feit>
-          {klant.kvkNummer && (
-            <Feit label="KvK">
-              <span className="inline-flex items-center gap-1 tabular-nums">
-                {klant.kvkNummer}
-                <CopyButton
-                  value={klant.kvkNummer}
-                  label="Kopieer KvK-nummer"
-                />
-              </span>
-            </Feit>
-          )}
-          {klant.btwNummer && (
-            <Feit label="BTW">
-              <span className="inline-flex items-center gap-1">
-                {klant.btwNummer}
-                <CopyButton
-                  value={klant.btwNummer}
-                  label="Kopieer BTW-nummer"
-                />
-              </span>
-            </Feit>
-          )}
-        </dl>
+      <SectiePaneel
+        titel="Contactgegevens"
+        icoon={<User />}
+        kopbalk
+        acties={
+          magBewerken && !bewerken ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setBewerken(true)}
+            >
+              <Pencil className="mr-1.5 h-3.5 w-3.5" />
+              Wijzigen
+            </Button>
+          ) : undefined
+        }
+      >
+        {bewerken && magBewerken ? (
+          <ContactgegevensFormulier
+            klant={klant}
+            onKlaar={() => setBewerken(false)}
+          />
+        ) : (
+          <ContactgegevensWeergave klant={klant} />
+        )}
       </SectiePaneel>
 
       {/* ── Voorkeuren ───────────────────────────────────────────────────── */}
-      <SectiePaneel
-        titel="Voorkeuren"
-        icoon={<SlidersHorizontal />}
-        kopbalk
-      >
+      <SectiePaneel titel="Voorkeuren" icoon={<SlidersHorizontal />} kopbalk>
         {/* §2.7: opt-in inplanning-bevestigingsmail (default uit) — zet bij
             inplannen een concept-mail klaar; kantoor keurt goed.
-            WS4/WS5: de schakelaar "Gesprekken mogen opgenomen worden"
-            (`opnameToestemming`) hoort hier als tweede regel. */}
+            Bewust één schakelaar: de opnametoestemming uit het prototype is
+            geschrapt, de briefing-bevestiging per opname vervangt hem. */}
         <div className="flex items-start justify-between gap-3 px-3 py-3">
           <div className="min-w-0">
             <p className="text-sm font-medium">Bevestigingsmail bij inplannen</p>
@@ -219,7 +588,7 @@ export function TabInstellingen({
             <Button
               variant="outline"
               size="sm"
-              className="shrink-0 text-destructive hover:text-destructive"
+              className="shrink-0 border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
               onClick={() => setToonGdprDialog(true)}
             >
               Verzoek starten

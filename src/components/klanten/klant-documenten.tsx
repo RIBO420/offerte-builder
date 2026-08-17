@@ -10,7 +10,7 @@
  */
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useQuery } from "convex/react";
 import { AlertTriangle, FileText, Receipt, Shovel, Trees } from "lucide-react";
 import { api } from "../../../convex/_generated/api";
@@ -191,6 +191,45 @@ const BETAAL_STATUS: Record<string, string> = {
   vervallen: "Vervallen",
 };
 
+/** De drie chips boven de lijst; `alle` is de beginstand. */
+type FactuurFilter = "alle" | "open" | "betaald";
+
+const FILTER_LABELS: { waarde: FactuurFilter; label: string }[] = [
+  { waarde: "alle", label: "Alle" },
+  { waarde: "open", label: "Niet betaald" },
+  { waarde: "betaald", label: "Betaald" },
+];
+
+function FilterChip({
+  label,
+  actief,
+  aantal,
+  onClick,
+}: {
+  label: string;
+  actief: boolean;
+  aantal: number;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={actief}
+      onClick={onClick}
+      className={cn(
+        "rounded-full border px-2.5 py-1 text-xs leading-4 transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+        actief
+          ? "border-primary/40 bg-primary/10 font-medium text-foreground"
+          : "border-border text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+      )}
+    >
+      {label}
+      <span className="ml-1.5 tabular-nums opacity-70">{aantal}</span>
+    </button>
+  );
+}
+
 export function KlantFacturenSectie({
   klantId,
   className,
@@ -200,10 +239,35 @@ export function KlantFacturenSectie({
   className?: string;
 }) {
   const facturen = useQuery(api.facturen.listVoorKlant, { klantId });
+  const [filter, setFilter] = useState<FactuurFilter>("alle");
 
-  const openstaand = (facturen ?? [])
-    .filter((f) => f.betaalStatus !== "betaald" && f.documentStatus !== "concept")
+  const alle = facturen ?? [];
+  // "Openstaand" = verstuurd en nog niet betaald; een concept is nog geen
+  // vordering. Zelfde definitie als `klanten.dossierTellingen`, zodat de pil
+  // in het submenu en deze balk niet uit elkaar kunnen lopen.
+  const isOpenstaand = (f: (typeof alle)[number]) =>
+    f.betaalStatus !== "betaald" && f.documentStatus !== "concept";
+
+  const openstaand = alle
+    .filter(isOpenstaand)
     .reduce((som, f) => som + f.totaalInclBtw, 0);
+  // Gefactureerd = alles wat de deur uit is; concepten tellen niet mee.
+  const gefactureerd = alle
+    .filter((f) => f.documentStatus !== "concept")
+    .reduce((som, f) => som + f.totaalInclBtw, 0);
+
+  const aantallen: Record<FactuurFilter, number> = {
+    alle: alle.length,
+    open: alle.filter(isOpenstaand).length,
+    betaald: alle.filter((f) => f.betaalStatus === "betaald").length,
+  };
+
+  const zichtbaar =
+    filter === "alle"
+      ? alle
+      : filter === "open"
+        ? alle.filter(isOpenstaand)
+        : alle.filter((f) => f.betaalStatus === "betaald");
 
   const isLeeg = facturen !== undefined && facturen.length === 0;
 
@@ -225,17 +289,67 @@ export function KlantFacturenSectie({
           : undefined
       }
       uitleg="Facturen die aan deze klant gekoppeld zijn. Een factuur telt als te laat zodra hij verstuurd is, nog niet betaald en de vervaldatum voorbij is."
-      acties={
-        openstaand > 0 ? (
-          <span className="truncate text-[11px] tabular-nums text-muted-foreground">
-            {formatCurrency(openstaand)} open
-          </span>
-        ) : undefined
-      }
     >
       {facturen === undefined ? (
         <LaadRegels />
       ) : facturen.length === 0 ? null : (
+        <>
+          {/* Chips onder de kop en niet erín: drie chips naast een titel
+              passen niet in de smalle dossierkolom, en zijwaarts scrollen
+              doet deze app nooit. Op een eigen regel wikkelen ze netjes. */}
+          <div
+            role="radiogroup"
+            aria-label="Facturen filteren"
+            className="flex flex-wrap gap-1.5 border-b px-3 py-2"
+          >
+            {FILTER_LABELS.map(({ waarde, label }) => (
+              <FilterChip
+                key={waarde}
+                label={label}
+                aantal={aantallen[waarde]}
+                actief={filter === waarde}
+                onClick={() => setFilter(waarde)}
+              />
+            ))}
+          </div>
+          {zichtbaar.length === 0 ? (
+            <p className="px-3 py-3 text-xs text-muted-foreground">
+              {filter === "open"
+                ? "Alles is betaald."
+                : "Nog geen betaalde facturen."}
+            </p>
+          ) : (
+            <FactuurLijst facturen={zichtbaar} />
+          )}
+          {/* Totaalbalk: wat er in totaal de deur uit ging, en wat daarvan nog
+              binnen moet komen. Openstaand in oker — het vraagt aandacht,
+              maar alleen een té late factuur is rood (zie de regels zelf). */}
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-t bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
+            <span>
+              Totaal gefactureerd{" "}
+              <b className="font-semibold tabular-nums text-foreground">
+                {formatCurrency(gefactureerd)}
+              </b>
+            </span>
+            <span>
+              Openstaand{" "}
+              <b className="font-semibold tabular-nums text-status-herinnering-text">
+                {formatCurrency(openstaand)}
+              </b>
+            </span>
+          </div>
+        </>
+      )}
+    </SectiePaneel>
+  );
+}
+
+type KlantFactuur = NonNullable<
+  ReturnType<typeof useQuery<typeof api.facturen.listVoorKlant>>
+>[number];
+
+function FactuurLijst({ facturen }: { facturen: KlantFactuur[] }) {
+  return (
         <ul className="divide-y">
           {facturen.map((factuur) => {
             const betaald = factuur.betaalStatus === "betaald";
@@ -271,7 +385,5 @@ export function KlantFacturenSectie({
             );
           })}
         </ul>
-      )}
-    </SectiePaneel>
   );
 }

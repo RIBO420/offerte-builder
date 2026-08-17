@@ -243,6 +243,69 @@ export const list = query({
 });
 
 /**
+ * Projecten van één klant, voor de Projecten-tab in het klantdossier.
+ *
+ * Zelfde auth-patroon als `klanten.dossierTellingen`: eerst de klant ophalen,
+ * dan de eigenaarscontrole, en omdat de index `by_klant` niet op `userId`
+ * staat daarna nóg een expliciete tenant-filter over de rijen.
+ *
+ * Losse beurten en contractbeurten leven in dezelfde tabel (type
+ * "onderhoudsbeurt", zie convex/losseBeurten.ts) maar horen bij de
+ * Onderhoud-tab — die vallen hier dus af, precies zoals de teller
+ * `dossierTellingen.projecten` ze weglaat.
+ *
+ * Waarde = het offertebedrag (incl. btw) van de gekoppelde offerte; een
+ * project zonder offerte (vrije route) heeft geen bedrag en krijgt `null`.
+ */
+export const listVoorKlant = query({
+  args: { klantId: v.id("klanten") },
+  handler: async (ctx, args) => {
+    const klant = await ctx.db.get(args.klantId);
+    if (!klant) return [];
+
+    const user = await requireAuth(ctx);
+    if (klant.userId.toString() !== user._id.toString()) return [];
+
+    const eigenaar = klant.userId.toString();
+
+    const werkitems = (
+      await ctx.db
+        .query("projecten")
+        .withIndex("by_klant", (q) => q.eq("klantId", args.klantId))
+        .collect()
+    ).filter(
+      (p) =>
+        p.userId.toString() === eigenaar &&
+        !p.deletedAt &&
+        p.type !== "onderhoudsbeurt"
+    );
+
+    // Nieuwste eerst — dezelfde volgorde als de offerte- en factuurlijst.
+    werkitems.sort((a, b) => b.createdAt - a.createdAt);
+
+    return await Promise.all(
+      werkitems.map(async (project) => {
+        const offerte = project.offerteId
+          ? await ctx.db.get(project.offerteId)
+          : null;
+        return {
+          _id: project._id,
+          naam: project.naam,
+          status: project.status,
+          geplandeStart: project.geplandeStart ?? null,
+          geplandeEind: project.geplandeEind ?? null,
+          waarde:
+            offerte && offerte.userId.toString() === eigenaar
+              ? offerte.totalen.totaalInclBtw
+              : null,
+          isArchived: project.isArchived === true,
+        };
+      })
+    );
+  },
+});
+
+/**
  * List projects with cursor-based pagination.
  * Uses Convex native .paginate() to avoid loading all records into memory.
  * By default, archived and deleted projects are excluded via post-filtering.

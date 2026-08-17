@@ -30,7 +30,13 @@ import { Id } from "../../../convex/_generated/dataModel";
 
 export type KlantType = "particulier" | "zakelijk" | "vve" | "gemeente" | "overig";
 
-const KLANT_TYPE_OPTIONS: { value: KlantType; label: string }[] = [
+/**
+ * Eén lijst klanttypes met hun Nederlandse naam. Geëxporteerd omdat het
+ * bewerkformulier in het klantdossier (Instellingen-tab) exact dezelfde keuze
+ * aanbiedt — twee lijstjes die uit elkaar lopen is precies hoe "Zakelijk" op
+ * de ene plek "Bedrijf" gaat heten op de andere.
+ */
+export const KLANT_TYPE_OPTIONS: { value: KlantType; label: string }[] = [
   { value: "particulier", label: "Particulier" },
   { value: "zakelijk", label: "Zakelijk" },
   { value: "vve", label: "VvE" },
@@ -85,7 +91,7 @@ const LEEG = {
 };
 
 /** Particulieren hebben geen contactpersoon, KvK of BTW-nummer. */
-function isZakelijk(type: KlantType): boolean {
+export function isZakelijk(type: KlantType): boolean {
   return type !== "particulier";
 }
 

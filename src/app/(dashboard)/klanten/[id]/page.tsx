@@ -396,7 +396,9 @@ export default function KlantDetailPage({
             {actieveTab === "taken" && (
               <TabTaken klantId={id as Id<"klanten">} />
             )}
-            {actieveTab === "projecten" && <TabProjecten />}
+            {actieveTab === "projecten" && (
+              <TabProjecten klantId={id as Id<"klanten">} />
+            )}
             {actieveTab === "onderhoud" && (
               <TabOnderhoud klantId={id as Id<"klanten">} />
             )}
