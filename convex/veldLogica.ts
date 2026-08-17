@@ -287,6 +287,15 @@ export function magAfronden(rol: VeldRol): boolean {
   return rol === "kantoor" || rol === "voorman" || rol === "medewerker";
 }
 
+/**
+ * De ploegdag van vandaag zien (voorman-gezicht op `/uren`): de voorman kijkt
+ * naar zijn hele ploeg, kantoor naar elke ploeg. Een medewerker ziet alleen
+ * zijn eigen week — die kijkt dus nooit in de ploegdag van collega's.
+ */
+export function magPloegDagZien(rol: VeldRol): boolean {
+  return rol === "kantoor" || rol === "voorman";
+}
+
 /** Meerwerk goedkeuren/als nieuwe opdracht in de bak: alleen kantoor/planning. */
 export function magMeerwerkBeoordelen(rol: VeldRol): boolean {
   return rol === "kantoor";

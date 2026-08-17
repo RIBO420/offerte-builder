@@ -1,98 +1,28 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuth, requireAuthUserId } from "./auth";
-import { getUserRole, getLinkedMedewerker, getCompanyUserId, requireNotViewer } from "./roles";
+import {
+  getLinkedMedewerker,
+  getCompanyUserId,
+  isKantoorRol,
+  requireNotViewer,
+} from "./roles";
 
 /**
- * List all time entries globally with pagination (for global Uren page).
- * Admin sees all uren for their company.
- * Medewerker sees only their own uren.
- * Supports optional date range filtering.
+ * De OUDE uren-engine: `urenRegistraties` = decimale uren per project. Blijft
+ * bewust ongemoeid naast `urenSegmenten` (PRD §8.10) — deze tabel voedt
+ * nacalculatie, project-uren en de Excel-export (`export.exportUren`). De
+ * Controlekamer (`convex/urenControle.ts`) leest UITSLUITEND de segmenten; de
+ * twee bronnen worden nooit bij elkaar opgeteld (§6: geen twee waarheden).
  */
-export const listGlobalPaginated = query({
-  args: {
-    page: v.number(),
-    limit: v.number(),
-    startDate: v.optional(v.string()),
-    endDate: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    await requireAuth(ctx);
-    const role = await getUserRole(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
-
-    // Get all projects for the company to filter uren
-    const projects = await ctx.db
-      .query("projecten")
-      .withIndex("by_user", (q) => q.eq("userId", companyUserId))
-      .collect();
-
-    // Get all uren from all projects
-    const urenPromises = projects.map((project) =>
-      ctx.db
-        .query("urenRegistraties")
-        .withIndex("by_project", (q) => q.eq("projectId", project._id))
-        .collect()
-    );
-
-    const urenArrays = await Promise.all(urenPromises);
-    let allUren = urenArrays.flat();
-
-    // Filter by date range if provided
-    if (args.startDate) {
-      allUren = allUren.filter((u) => u.datum >= args.startDate!);
-    }
-    if (args.endDate) {
-      allUren = allUren.filter((u) => u.datum <= args.endDate!);
-    }
-
-    // Filter by role
-    if (role !== "directie") {
-      const medewerker = await getLinkedMedewerker(ctx);
-      if (!medewerker) {
-        return {
-          items: [],
-          totalCount: 0,
-          totalPages: 0,
-          page: args.page,
-          limit: args.limit,
-        };
-      }
-
-      // Filter to only this medewerker's uren
-      allUren = allUren.filter((u) => u.medewerker === medewerker.naam);
-    }
-
-    // Add project info to each uren entry
-    const projectMap = new Map(projects.map((p) => [p._id.toString(), p]));
-
-    const urenWithProject = allUren.map((u) => ({
-      ...u,
-      projectNaam: projectMap.get(u.projectId.toString())?.naam ?? "Onbekend project",
-    }));
-
-    // Sort by date descending (most recent first)
-    urenWithProject.sort((a, b) => b.datum.localeCompare(a.datum));
-
-    const totalCount = urenWithProject.length;
-    const totalPages = Math.ceil(totalCount / args.limit);
-    const startIndex = (args.page - 1) * args.limit;
-    const items = urenWithProject.slice(startIndex, startIndex + args.limit);
-
-    return {
-      items,
-      totalCount,
-      totalPages,
-      page: args.page,
-      limit: args.limit,
-    };
-  },
-});
 
 /**
  * List all time entries globally (for global Uren page).
- * Admin sees all uren for their company.
- * Medewerker sees only their own uren.
+ * Kantoor (directie én projectleider) ziet alle uren van het bedrijf — zelfde
+ * eis als `export.exportUren`, dat ook op `requireKantoor` staat. Voorheen was
+ * dit `role !== "directie"`, waardoor een projectleider in de lijst alleen zijn
+ * eigen uren zag maar in de export van dezelfde pagina álles.
+ * Andere rollen zien alleen hun eigen uren.
  * Supports optional date range filtering.
  */
 export const listGlobal = query({
@@ -101,8 +31,7 @@ export const listGlobal = query({
     endDate: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireAuth(ctx);
-    const role = await getUserRole(ctx);
+    const user = await requireAuth(ctx);
     const companyUserId = await getCompanyUserId(ctx);
 
     // Get all projects for the company to filter uren
@@ -130,8 +59,8 @@ export const listGlobal = query({
       allUren = allUren.filter((u) => u.datum <= args.endDate!);
     }
 
-    // Filter by role
-    if (role !== "directie") {
+    // Filter by role — kantoor bedrijfsbreed, de rest alleen de eigen uren
+    if (!isKantoorRol(user.role)) {
       const medewerker = await getLinkedMedewerker(ctx);
       if (!medewerker) return [];
 
@@ -400,13 +329,23 @@ export const remove = mutation({
 /**
  * Get global hours summary statistics.
  * Returns totals for this week, this month, per project, and per medewerker.
- * Admin sees all data, medewerker sees only their own.
+ * Kantoor ziet bedrijfsbreed, andere rollen alleen hun eigen uren (zelfde
+ * rolmodel als `listGlobal` en `export.exportUren`).
+ *
+ * PERIODE-BEWUST (uren-controlekamer-plan §3, opruimronde 4): `startDate`/
+ * `endDate` begrenzen `urenTotaal`, `perProject`, `perMedewerker` en
+ * `aantalRegistraties`, zodat de kop van de pagina niet langer all-time-cijfers
+ * toont naast een gefilterde lijst. `urenDezeWeek`/`urenDezeMaand` blijven per
+ * definitie hun eigen venster (deze week / deze maand) — dat is hun betekenis.
+ * Zonder argumenten is het gedrag exact als voorheen.
  */
 export const getGlobalStats = query({
-  args: {},
-  handler: async (ctx) => {
-    await requireAuth(ctx);
-    const role = await getUserRole(ctx);
+  args: {
+    startDate: v.optional(v.string()),
+    endDate: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireAuth(ctx);
     const companyUserId = await getCompanyUserId(ctx);
     const linkedMedewerker = await getLinkedMedewerker(ctx);
 
@@ -444,8 +383,8 @@ export const getGlobalStats = query({
     const urenArrays = await Promise.all(urenPromises);
     let allUren = urenArrays.flat();
 
-    // Filter by role
-    if (role !== "directie") {
+    // Filter by role — kantoor bedrijfsbreed, de rest alleen de eigen uren
+    if (!isKantoorRol(user.role)) {
       if (!linkedMedewerker) {
         return {
           urenDezeWeek: 0,
@@ -459,7 +398,8 @@ export const getGlobalStats = query({
       allUren = allUren.filter((u) => u.medewerker === linkedMedewerker.naam);
     }
 
-    // Calculate statistics
+    // Weekcijfer en maandcijfer houden hun eigen venster; de rest volgt de
+    // gekozen periode.
     const urenDezeWeek = allUren
       .filter((u) => u.datum >= weekStartStr && u.datum <= todayStr)
       .reduce((sum, u) => sum + u.uren, 0);
@@ -468,11 +408,19 @@ export const getGlobalStats = query({
       .filter((u) => u.datum >= monthStartStr && u.datum <= todayStr)
       .reduce((sum, u) => sum + u.uren, 0);
 
-    const urenTotaal = allUren.reduce((sum, u) => sum + u.uren, 0);
+    // Gekozen periode: alles hieronder rekent over hetzelfde venster als de
+    // lijst op de pagina, niet over de hele historie.
+    const periodeUren = allUren.filter(
+      (u) =>
+        (!args.startDate || u.datum >= args.startDate) &&
+        (!args.endDate || u.datum <= args.endDate)
+    );
+
+    const urenTotaal = periodeUren.reduce((sum, u) => sum + u.uren, 0);
 
     // Per project breakdown
     const perProjectMap: Record<string, number> = {};
-    allUren.forEach((u) => {
+    periodeUren.forEach((u) => {
       const key = u.projectId.toString();
       perProjectMap[key] = (perProjectMap[key] || 0) + u.uren;
     });
@@ -489,7 +437,7 @@ export const getGlobalStats = query({
 
     // Per medewerker breakdown
     const perMedewerkerMap: Record<string, number> = {};
-    allUren.forEach((u) => {
+    periodeUren.forEach((u) => {
       perMedewerkerMap[u.medewerker] = (perMedewerkerMap[u.medewerker] || 0) + u.uren;
     });
     const perMedewerker = Object.entries(perMedewerkerMap)
@@ -502,7 +450,7 @@ export const getGlobalStats = query({
       urenTotaal: Math.round(urenTotaal * 10) / 10,
       perProject,
       perMedewerker,
-      aantalRegistraties: allUren.length,
+      aantalRegistraties: periodeUren.length,
     };
   },
 });

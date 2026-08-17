@@ -23,22 +23,48 @@ export const getVoormanStats = query({
     const userId = await requireAuthUserId(ctx);
     const today = todayStr();
 
-    // Get today's planning entries
-    const dagPlanning = await ctx.db
-      .query("weekPlanning")
-      .withIndex("by_datum", (q) => q.eq("datum", today))
-      .collect();
+    // Tenant-lek gedicht (audit §2): `weekPlanning` en `urenRegistraties`
+    // werden alleen op datum gefilterd — `by_datum` heeft geen userId, dus het
+    // dashboard toonde de planning en uren van ÁLLE bedrijven van die dag.
+    // De projecten van dit bedrijf zijn de tenant-grens: alleen planningrijen
+    // en urenregistraties die aan een eigen project hangen, tellen mee. (Niet
+    // via `urenRegistraties.by_user_datum`, want `userId` is daar optioneel en
+    // pre-backfill-rijen zouden stil wegvallen.)
+    const [dagPlanningRuw, urenVandaagRuw, eigenProjecten, allMedewerkers] =
+      await Promise.all([
+        ctx.db
+          .query("weekPlanning")
+          .withIndex("by_datum", (q) => q.eq("datum", today))
+          .collect(),
+        ctx.db
+          .query("urenRegistraties")
+          .withIndex("by_datum", (q) => q.eq("datum", today))
+          .collect(),
+        ctx.db
+          .query("projecten")
+          .withIndex("by_user", (q) => q.eq("userId", userId))
+          .collect(),
+        ctx.db
+          .query("medewerkers")
+          .withIndex("by_user", (q) => q.eq("userId", userId))
+          .collect(),
+      ]);
+
+    const eigenProjectIds = new Set(
+      eigenProjecten.map((p) => p._id.toString())
+    );
+    const dagPlanning = dagPlanningRuw.filter((p) =>
+      eigenProjectIds.has(p.projectId.toString())
+    );
+    const urenVandaag = urenVandaagRuw.filter((u) =>
+      eigenProjectIds.has(u.projectId.toString())
+    );
 
     // Get unique project IDs for today
     const projectIds = [...new Set(dagPlanning.map((p) => p.projectId))];
-
-    // Fetch projects, medewerkers, voertuigen in parallel
-    // Use by_datum index to fetch only today's uren instead of full table scan
-    const [projectMap, allMedewerkers, urenVandaag] = await Promise.all([
-      laadDocsMap(ctx, projectIds),
-      ctx.db.query("medewerkers").withIndex("by_user", (q) => q.eq("userId", userId)).collect(),
-      ctx.db.query("urenRegistraties").withIndex("by_datum", (q) => q.eq("datum", today)).collect(),
-    ]);
+    const projectMap = new Map(
+      eigenProjecten.map((p) => [p._id.toString(), p] as const)
+    );
 
     // N+1 weg (audit §5): medewerkers en voertuigen één keer vóór de lus in een
     // Map zetten. Voorheen deed elk teamlid en elk voertuig zijn eigen get,
@@ -47,8 +73,9 @@ export const getVoormanStats = query({
     for (const mw of allMedewerkers) {
       medewerkerMap.set(mw._id.toString(), mw);
     }
-    // Medewerkers die niet in de by_user-lijst zitten (bv. van een ander
-    // bedrijfsaccount ingepland) alsnog ophalen — zelfde vangnet als voorheen.
+    // Vangnet voor medewerkers die niet in de by_user-lijst zitten (bv. net
+    // aangepast), maar alleen binnen de eigen tenant — een medewerker van een
+    // ander bedrijf komt er niet meer bij.
     const ontbrekendeMedewerkers = await laadDocsMap(
       ctx,
       dagPlanning
@@ -56,7 +83,9 @@ export const getVoormanStats = query({
         .filter((id) => !medewerkerMap.has(id.toString()))
     );
     for (const mw of ontbrekendeMedewerkers.values()) {
-      medewerkerMap.set(mw._id.toString(), mw);
+      if (mw.userId.toString() === userId.toString()) {
+        medewerkerMap.set(mw._id.toString(), mw);
+      }
     }
 
     const voertuigMap = await laadDocsMap(
@@ -76,8 +105,15 @@ export const getVoormanStats = query({
         // Get medewerker details
         const teamLeden = medewerkerIds.map((mId) => {
           const mw = medewerkerMap.get(mId.toString());
+          // `urenRegistraties.medewerker` is een NAAM-string; de getypte
+          // `medewerkerId` is optioneel (mobiel vult hem, import niet). De
+          // vergelijking stond op `u.medewerker === mId` — naam tegen id, dus
+          // altijd false: het vinkje "uren ingevuld" ging nooit aan.
           const heeftUren = urenVandaag.some(
-            (u) => u.medewerker === mId && u.projectId === projectId
+            (u) =>
+              u.projectId === projectId &&
+              (u.medewerkerId?.toString() === mId.toString() ||
+                (mw !== undefined && u.medewerker === mw.naam))
           );
           return {
             id: mId,
@@ -128,7 +164,12 @@ export const getVoormanStats = query({
       .filter((m) => m.isActief)
       .map((mw) => {
         const gepland = dagPlanning.some((p) => p.medewerkerId === mw._id);
-        const ingevuld = urenVandaag.some((u) => u.medewerker === mw._id);
+        // Zelfde naam-vs-id-verwarring als hierboven: naam of getypte id.
+        const ingevuld = urenVandaag.some(
+          (u) =>
+            u.medewerkerId?.toString() === mw._id.toString() ||
+            u.medewerker === mw.naam
+        );
         return {
           id: mw._id,
           naam: mw.naam,

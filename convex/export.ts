@@ -326,8 +326,24 @@ export const exportMedewerkers = query({
       .withIndex("by_user", (q) => q.eq("userId", user._id))
       .collect();
 
-    // Get uren statistics for each medewerker
-    const urenRegistraties = await ctx.db.query("urenRegistraties").collect();
+    // Uren-statistiek per medewerker. Tenant-lek gedicht (audit §2): dit was
+    // `ctx.db.query("urenRegistraties").collect()` — een full table scan over
+    // ÁLLE bedrijven, waarna alleen op naam werd gematcht. Twee bedrijven met
+    // een "Jan de Vries" telden elkaars uren mee. Nu via de projecten van dit
+    // bedrijf, dezelfde route als exportUren hierboven.
+    const projecten = await ctx.db
+      .query("projecten")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .collect();
+    const urenArrays = await Promise.all(
+      projecten.map((project) =>
+        ctx.db
+          .query("urenRegistraties")
+          .withIndex("by_project", (q) => q.eq("projectId", project._id))
+          .collect()
+      )
+    );
+    const urenRegistraties = urenArrays.flat();
 
     return medewerkers.map((medewerker) => {
       const medewerkerUren = urenRegistraties.filter(

@@ -75,15 +75,21 @@ export const segmentCategorieValidator = v.union(
   v.literal("anders")
 );
 
-interface VeldContext {
+export interface VeldContext {
   user: Doc<"users">;
   rol: VeldRol;
   companyUserId: Id<"users">;
   eigenMedewerker: Doc<"medewerkers"> | null;
 }
 
-/** Auth + canonieke rol + bedrijfsscope + gekoppelde medewerker in één keer. */
-async function veldContext(ctx: QueryCtx | MutationCtx): Promise<VeldContext> {
+/**
+ * Auth + canonieke rol + bedrijfsscope + gekoppelde medewerker in één keer.
+ * Geëxporteerd voor hergebruik door convex/urenControle.ts — de Controlekamer
+ * moet exact dezelfde kantoor-/rolchecks doen als de veld-flows hieronder.
+ */
+export async function veldContext(
+  ctx: QueryCtx | MutationCtx
+): Promise<VeldContext> {
   const user = await requireAuth(ctx);
   const rol = CANONIEKE_ROL_MAPPING[normalizeRole(user.role)];
   const companyUserId = await getCompanyUserId(ctx);
@@ -132,8 +138,11 @@ function assertGeldigeDatum(datum: string): void {
   }
 }
 
-/** Segmenten van één medewerker-dag, binnen de bedrijfsscope. */
-async function segmentenVoorDag(
+/**
+ * Segmenten van één medewerker-dag, binnen de bedrijfsscope.
+ * Geëxporteerd voor convex/urenControle.ts (medewerker- en voorman-gezicht).
+ */
+export async function segmentenVoorDag(
   db: QueryCtx["db"],
   companyUserId: Id<"users">,
   medewerkerId: Id<"medewerkers">,
@@ -150,8 +159,8 @@ async function segmentenVoorDag(
   );
 }
 
-/** Dag-status (geen rij = open). */
-async function dagStatusVoor(
+/** Dag-status (geen rij = open). Geëxporteerd voor convex/urenControle.ts. */
+export async function dagStatusVoor(
   db: QueryCtx["db"],
   companyUserId: Id<"users">,
   medewerkerId: Id<"medewerkers">,
@@ -168,8 +177,11 @@ async function dagStatusVoor(
     : null;
 }
 
-/** Team waar de medewerker die dag in zit (bemanning-afwijking wint van leden). */
-async function teamVanMedewerkerOpDag(
+/**
+ * Team waar de medewerker die dag in zit (bemanning-afwijking wint van leden).
+ * Geëxporteerd voor convex/urenControle.ts (voorman-gezicht: de eigen ploeg).
+ */
+export async function teamVanMedewerkerOpDag(
   db: QueryCtx["db"],
   companyUserId: Id<"users">,
   medewerkerId: Id<"medewerkers">,
@@ -217,7 +229,7 @@ async function afwijkingDrempels(
   };
 }
 
-interface VeldStop {
+export interface VeldStop {
   werkitemId: Id<"projecten">;
   naam: string;
   status: string;
@@ -240,8 +252,9 @@ interface VeldStop {
  * Dagkaart-afgeleide gegevens voor een team-dag: verrijkte stops + de
  * voorgestelde segmenten uit de blokken (§8.10). Zelfde pipeline als
  * convex/dagkaart.ts — de planning wordt nergens dubbel opgeslagen.
+ * Geëxporteerd voor convex/urenControle.ts (ploegenfilm + voorman-gezicht).
  */
-async function dagkaartVoorstellen(
+export async function dagkaartVoorstellen(
   db: QueryCtx["db"],
   companyUserId: Id<"users">,
   teamId: Id<"teams">,

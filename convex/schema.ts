@@ -1307,6 +1307,12 @@ export default defineSchema({
   // UrenLogboek — audit-log van de uren-flows (wie/wat/wanneer), patroon
   // planbordLogboek: dag indienen/heropenen en kantoor-correcties op
   // ingediende segmenten.
+  //
+  // "dag_akkoord" is de KWIJTING van de Controlekamer (`/uren`): kantoor
+  // verklaart een ingediende dag in orde. Bewust een logboek-entry en géén
+  // extra status op urenDagen — een akkoord is een gebeurtenis met een naam en
+  // een tijdstip, geen toestand van de dag. Kwijting is idempotent: één entry
+  // per medewerker-dag (convex/urenControle.ts).
   urenLogboek: defineTable({
     userId: v.id("users"), // bedrijfseigenaar (multi-tenant scope)
     medewerkerId: v.id("medewerkers"),
@@ -1314,7 +1320,8 @@ export default defineSchema({
     actie: v.union(
       v.literal("dag_ingediend"),
       v.literal("dag_heropend"),
-      v.literal("segment_gecorrigeerd")
+      v.literal("segment_gecorrigeerd"),
+      v.literal("dag_akkoord")
     ),
     // Mensleesbare samenvatting, bv. "Dag 2026-07-10 heropend door kantoor"
     details: v.string(),
@@ -1322,7 +1329,10 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_user_createdAt", ["userId", "createdAt"])
-    .index("by_medewerker_datum", ["medewerkerId", "datum"]),
+    .index("by_medewerker_datum", ["medewerkerId", "datum"])
+    // Tenant-scope + werkdag: de Controlekamer leest per dag het hele bedrijf
+    // (kwijtingen en heropeningen van een week) zonder full table scan.
+    .index("by_user_datum", ["userId", "datum"]),
 
   // MateriaalChecks — afvink-log van de materiaaldelta-checklist (§8.5):
   // wie heeft welk delta-item wanneer afgevinkt vóór vertrek (route-knop).
