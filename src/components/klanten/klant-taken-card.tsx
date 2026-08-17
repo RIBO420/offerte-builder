@@ -7,8 +7,11 @@ import type { FunctionReturnType } from "convex/server";
 import {
   AlertTriangle,
   Briefcase,
+  CalendarDays,
+  Flag,
   ListTodo,
   MoreHorizontal,
+  NotebookPen,
   Plus,
   Trash2,
   User,
@@ -28,6 +31,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -102,6 +110,15 @@ function dagenVerschil(vanISO: string, totISO: string): number {
 
 function formatDeadline(deadline: string): string {
   return DATUM_KORT_JAAR.format(parseISODatum(deadline));
+}
+
+/** ISO-datum + n dagen → ISO-datum, in lokale tijd (zie `vandaagISO`). */
+function plusDagenISO(vanISO: string, dagen: number): string {
+  const datum = parseISODatum(vanISO);
+  datum.setDate(datum.getDate() + dagen);
+  const maand = `${datum.getMonth() + 1}`.padStart(2, "0");
+  const dag = `${datum.getDate()}`.padStart(2, "0");
+  return `${datum.getFullYear()}-${maand}-${dag}`;
 }
 
 interface DeadlineWeergave {
@@ -364,8 +381,15 @@ export function KlantTakenCard({ klantId }: KlantTakenCardProps) {
     titelRef.current?.focus();
   };
 
-  const kaleTriggerClasses =
-    "h-7 min-h-0 w-auto gap-1 border-0 bg-transparent px-1.5 text-xs text-muted-foreground shadow-none hover:bg-accent hover:text-foreground dark:bg-transparent dark:hover:bg-accent";
+  // Chip-taal van de metaregel: zelfde vorm als de typechips van de
+  // gesprekscomposer. Leeg = gedempt met gekleurde rand bij hover; gezet =
+  // primary-tint zodat je in één blik ziet wát er al gekozen is.
+  const chipKlasse =
+    "inline-flex h-7 min-h-0 w-auto items-center gap-1.5 rounded-full border bg-transparent px-2.5 text-xs font-medium shadow-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:bg-transparent";
+  const chipLeeg =
+    "text-muted-foreground hover:border-primary hover:bg-transparent hover:text-foreground dark:hover:bg-transparent";
+  const chipGezet =
+    "border-primary/40 bg-primary/10 text-foreground dark:bg-primary/15";
 
   const heeftTaken = openTaken.length > 0 || afgerondeTaken.length > 0;
   const zichtbaarAfgerond = toonAfgerond ? afgerondeTaken : [];
@@ -427,33 +451,88 @@ export function KlantTakenCard({ klantId }: KlantTakenCardProps) {
               className="w-full border-0 bg-transparent p-0 text-sm leading-snug outline-none placeholder:text-muted-foreground focus-visible:ring-0"
             />
 
-            <div className="mt-1.5 flex flex-wrap items-center gap-1.5 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 motion-safe:duration-150 group-data-[open=false]/composer:hidden">
-              {toelichtingOpen ? (
-                <textarea
-                  value={omschrijving}
-                  onChange={(e) => setOmschrijving(e.target.value)}
-                  onInput={(e) => {
-                    // Meegroeien zonder de hoogte te animeren (§2.4).
-                    const el = e.currentTarget;
-                    el.style.height = "auto";
-                    el.style.height = `${el.scrollHeight}px`;
-                  }}
-                  rows={1}
-                  aria-label="Toelichting bij de taak"
-                  placeholder="Extra context…"
-                  className="max-h-36 w-full resize-none overflow-y-auto border-0 bg-transparent p-0 text-xs leading-snug outline-none placeholder:text-muted-foreground focus-visible:ring-0"
-                />
-              ) : (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="xs"
-                  className="h-7 min-h-0 px-1.5 text-xs text-muted-foreground"
-                  onClick={() => setToelichtingOpen(true)}
-                >
-                  + Toelichting
-                </Button>
-              )}
+            {/* Toelichting op een eigen regel: een groeiend tekstveld midden
+                in de metaregel duwde de controls uit het lood — dat was de
+                rommeligheid uit de melding van 17 aug. */}
+            {toelichtingOpen && (
+              <textarea
+                value={omschrijving}
+                onChange={(e) => setOmschrijving(e.target.value)}
+                onInput={(e) => {
+                  // Meegroeien zonder de hoogte te animeren (§2.4).
+                  const el = e.currentTarget;
+                  el.style.height = "auto";
+                  el.style.height = `${el.scrollHeight}px`;
+                }}
+                rows={1}
+                aria-label="Toelichting bij de taak"
+                placeholder="Extra context…"
+                className="mt-1 max-h-36 w-full resize-none overflow-y-auto border-0 bg-transparent p-0 text-xs leading-snug outline-none placeholder:text-muted-foreground focus-visible:ring-0 group-data-[open=false]/composer:hidden"
+              />
+            )}
+
+            {/* Metaregel als chips, in dezelfde taal als de typechips van de
+                gesprekscomposer: rand + icoon, tint zodra er iets gekozen is,
+                gekleurde rand bij hover. Precies één gevulde knop (UI-les 3). */}
+            <div className="mt-2 flex flex-wrap items-center gap-1.5 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 motion-safe:duration-150 group-data-[open=false]/composer:hidden">
+              <Popover onOpenChange={setKeuzelijstOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="Deadline kiezen"
+                    className={cn(chipKlasse, deadline ? chipGezet : chipLeeg)}
+                  >
+                    <CalendarDays className="size-3.5" aria-hidden />
+                    {deadline
+                      ? DATUM_KORT_WEEKDAG.format(parseISODatum(deadline))
+                      : "Deadline"}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-56 p-2">
+                  <div className="grid gap-1">
+                    {(
+                      [
+                        ["Vandaag", vandaag],
+                        ["Morgen", plusDagenISO(vandaag, 1)],
+                        ["Volgende week", plusDagenISO(vandaag, 7)],
+                      ] as const
+                    ).map(([label, iso]) => (
+                      <Button
+                        key={label}
+                        type="button"
+                        variant={deadline === iso ? "secondary" : "ghost"}
+                        size="sm"
+                        className="h-8 justify-between px-2 font-normal"
+                        onClick={() => setDeadline(iso)}
+                      >
+                        {label}
+                        <span className="text-xs text-muted-foreground">
+                          {DATUM_KORT_WEEKDAG.format(parseISODatum(iso))}
+                        </span>
+                      </Button>
+                    ))}
+                  </div>
+                  <Input
+                    type="date"
+                    min={vandaag}
+                    value={deadline}
+                    onChange={(e) => setDeadline(e.target.value)}
+                    aria-label="Deadline"
+                    className="mt-2 h-8"
+                  />
+                  {deadline && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="mt-1 h-7 w-full justify-start px-2 text-xs text-muted-foreground"
+                      onClick={() => setDeadline("")}
+                    >
+                      Geen deadline
+                    </Button>
+                  )}
+                </PopoverContent>
+              </Popover>
 
               <Select
                 value={toegewezenAan}
@@ -463,10 +542,14 @@ export function KlantTakenCard({ klantId }: KlantTakenCardProps) {
                 <SelectTrigger
                   size="sm"
                   aria-label="Taak toewijzen"
-                  className={cn(kaleTriggerClasses, "max-w-[10rem]")}
+                  className={cn(
+                    chipKlasse,
+                    "max-w-[11rem]",
+                    gekozenMedewerker ? chipGezet : chipLeeg
+                  )}
                 >
-                  <span className="flex min-w-0 items-center gap-1">
-                    <User className="size-3 shrink-0" />
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    <User className="size-3.5 shrink-0" aria-hidden />
                     <span className="truncate">
                       {gekozenMedewerker?.naam ?? "Toewijzen"}
                     </span>
@@ -490,15 +573,6 @@ export function KlantTakenCard({ klantId }: KlantTakenCardProps) {
                 </SelectContent>
               </Select>
 
-              <Input
-                type="date"
-                min={vandaag}
-                value={deadline}
-                onChange={(e) => setDeadline(e.target.value)}
-                aria-label="Deadline"
-                className="h-7 w-auto min-h-0 border-0 bg-transparent px-1.5 text-xs shadow-none dark:bg-transparent"
-              />
-
               <Select
                 value={prioriteit}
                 onValueChange={(waarde) => setPrioriteit(waarde as Prioriteit)}
@@ -507,21 +581,19 @@ export function KlantTakenCard({ klantId }: KlantTakenCardProps) {
                 <SelectTrigger
                   size="sm"
                   aria-label="Prioriteit"
-                  className={kaleTriggerClasses}
+                  className={cn(
+                    chipKlasse,
+                    prioriteit !== "normaal" ? chipGezet : chipLeeg
+                  )}
                 >
                   <span className="flex items-center gap-1.5">
-                    {prioriteit === "hoog" && (
-                      <span
-                        className="size-1.5 shrink-0 rounded-full bg-destructive"
-                        aria-hidden
-                      />
-                    )}
-                    {prioriteit === "laag" && (
-                      <span
-                        className="size-1.5 shrink-0 rounded-full bg-muted-foreground/50"
-                        aria-hidden
-                      />
-                    )}
+                    <Flag
+                      className={cn(
+                        "size-3.5 shrink-0",
+                        prioriteit === "hoog" && "text-destructive"
+                      )}
+                      aria-hidden
+                    />
                     <span>{PRIORITEIT_LABELS[prioriteit]}</span>
                   </span>
                 </SelectTrigger>
@@ -543,6 +615,17 @@ export function KlantTakenCard({ klantId }: KlantTakenCardProps) {
                   )}
                 </SelectContent>
               </Select>
+
+              {!toelichtingOpen && (
+                <button
+                  type="button"
+                  className={cn(chipKlasse, chipLeeg)}
+                  onClick={() => setToelichtingOpen(true)}
+                >
+                  <NotebookPen className="size-3.5" aria-hidden />
+                  Notitie
+                </button>
+              )}
 
               <Button
                 type="button"

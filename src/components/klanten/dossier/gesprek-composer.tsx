@@ -35,7 +35,17 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useAction, useMutation } from "convex/react";
-import { Loader2, Mic, Sparkles, Square, TriangleAlert } from "lucide-react";
+import {
+  CalendarDays,
+  Loader2,
+  Mail,
+  Mic,
+  Phone,
+  Sparkles,
+  Square,
+  StickyNote,
+  TriangleAlert,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SectiePaneel } from "@/components/ui/sectie-paneel";
 import { TaakCheckbox } from "@/components/taken/taak-checkbox";
@@ -53,6 +63,17 @@ import type { Id } from "../../../../convex/_generated/dataModel";
 /** De vier typechips uit het prototype, in dezelfde volgorde. */
 const TYPES = ["Gebeld", "Gemaild", "Afspraak", "Notitie"] as const;
 type GesprekType = (typeof TYPES)[number];
+
+/**
+ * Icoon per typechip (UI-les 1/5: iconen als ankers). Het icoon versterkt de
+ * herkenning; het woord blijft de drager — nooit alleen een icoon.
+ */
+const TYPE_ICONEN: Record<GesprekType, typeof Phone> = {
+  Gebeld: Phone,
+  Gemaild: Mail,
+  Afspraak: CalendarDays,
+  Notitie: StickyNote,
+};
 
 /**
  * Vertaling van de UI-chip naar het datamodel. Gebeld/Gemaild hebben een eigen
@@ -448,20 +469,26 @@ export function GesprekComposer({ klantId }: { klantId: Id<"klanten"> }) {
           aria-label="Soort contact"
           className="flex flex-wrap items-center gap-1.5"
         >
-          {TYPES.map((waarde) => (
-            <button
-              key={waarde}
-              type="button"
-              role="radio"
-              aria-checked={type === waarde}
-              tabIndex={type === waarde ? 0 : -1}
-              data-actief={type === waarde}
-              onClick={() => setType(waarde)}
-              className="inline-flex h-7 items-center rounded-full border px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-card data-[actief=true]:border-primary/40 data-[actief=true]:bg-primary/10 data-[actief=true]:text-primary"
-            >
-              {waarde}
-            </button>
-          ))}
+          {TYPES.map((waarde) => {
+            const Icoon = TYPE_ICONEN[waarde];
+            return (
+              <button
+                key={waarde}
+                type="button"
+                role="radio"
+                aria-checked={type === waarde}
+                tabIndex={type === waarde ? 0 : -1}
+                data-actief={type === waarde}
+                onClick={() => setType(waarde)}
+                // Prototype-gedrag (UI-les 3): gekozen = vól primary met witte
+                // tekst, hover op de rest = gekleurde rand — geen tintvlakje.
+                className="inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-card data-[actief=true]:border-primary data-[actief=true]:bg-primary data-[actief=true]:text-primary-foreground"
+              >
+                <Icoon className="size-3.5" aria-hidden />
+                {waarde}
+              </button>
+            );
+          })}
         </div>
 
         {opnameInfo && (
