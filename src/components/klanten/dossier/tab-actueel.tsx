@@ -4,19 +4,21 @@ import { Button } from "@/components/ui/button";
 import { SectiePaneel } from "@/components/ui/sectie-paneel";
 import { KlantTakenCard } from "@/components/klanten/klant-taken-card";
 import { KlantTijdlijn } from "@/components/tijdlijn/klant-tijdlijn";
+import { GesprekComposer } from "@/components/klanten/dossier/gesprek-composer";
 import type { Id } from "../../../../convex/_generated/dataModel";
 
 /**
  * Actueel — wat vraagt nú iets van je bij deze klant.
  *
- * Twee blokken: de openstaande taken (die staan in `KlantTakenCard` al
- * bovenaan) en daaronder de laatste drie contactmomenten als samenvatting.
- * De volledige tijdlijn met zoeken en filteren staat één klik verderop; hier
- * is drie genoeg om te zien waar het gesprek gebleven was.
+ * Drie blokken: bovenaan het vastleggen van een gesprek (de reden dat je hier
+ * bent), daaronder de openstaande taken en daar weer onder de laatste drie
+ * contactmomenten als samenvatting. De volledige tijdlijn met zoeken en
+ * filteren staat één klik verderop; hier is drie genoeg om te zien waar het
+ * gesprek gebleven was.
  *
- * ANKERPUNT WS4: de gesprekscomposer ("Gesprek vastleggen" met
- * taakherkenning) komt bovenaan deze tab, vóór de taken — zie het merkteken
- * hieronder.
+ * De tijdlijn hieronder rendert bewust zónder eigen invoerveld
+ * (`verbergComposer`): met de gesprekscomposer erboven zouden er anders twee
+ * plekken op dit scherm staan om hetzelfde te doen.
  */
 export function TabActueel({
   klantId,
@@ -28,7 +30,7 @@ export function TabActueel({
 }) {
   return (
     <div className="space-y-4">
-      {/* ── WS4: GesprekComposer hier ────────────────────────────────────── */}
+      <GesprekComposer klantId={klantId} />
 
       {/* Taken vóór de historie: vooruitkijken vóór terugkijken. */}
       <KlantTakenCard klantId={klantId} />
@@ -43,7 +45,12 @@ export function TabActueel({
         }
       >
         {/* Zonder eigen paneel: de kopbalk hierboven ís de kop van dit blok. */}
-        <KlantTijdlijn klantId={klantId} maxEntries={3} toonHistorie={false} />
+        <KlantTijdlijn
+          klantId={klantId}
+          maxEntries={3}
+          toonHistorie={false}
+          verbergComposer
+        />
       </SectiePaneel>
     </div>
   );

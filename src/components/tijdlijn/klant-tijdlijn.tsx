@@ -196,6 +196,16 @@ interface TijdlijnEntryData {
   werkitemId?: Id<"projecten">;
   werkitemNaam?: string;
   bijlagen?: Id<"_storage">[];
+  /** WS4: taken die uit dít gesprek zijn aangemaakt (klantdossier v7). */
+  gekoppeldeTaakIds?: Id<"klantTaken">[];
+  /** WS5 (fase B): duur van de opname in seconden. */
+  opnameDuurSec?: number;
+}
+
+/** Seconden → "m:ss", zoals de timer in het opnamepaneel. */
+function formatOpnameDuur(seconden: number): string {
+  const heel = Math.max(0, Math.round(seconden));
+  return `${Math.floor(heel / 60)}:${String(heel % 60).padStart(2, "0")}`;
 }
 
 /**
@@ -331,6 +341,20 @@ function TijdlijnEntryRij({
                 <span className="truncate">{entry.werkitemNaam}</span>
               </span>
             </>
+          )}
+          {/* WS4/WS5: wat dit gesprek heeft opgeleverd. Groentint = er is
+              iets van gekomen; de opnameduur staat er neutraal naast. */}
+          {entry.gekoppeldeTaakIds && entry.gekoppeldeTaakIds.length > 0 && (
+            <span className="inline-flex shrink-0 items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 font-medium text-primary">
+              ✓ {entry.gekoppeldeTaakIds.length}{" "}
+              {entry.gekoppeldeTaakIds.length === 1 ? "taak" : "taken"}{" "}
+              aangemaakt uit dit gesprek
+            </span>
+          )}
+          {entry.opnameDuurSec !== undefined && (
+            <span className="inline-flex shrink-0 items-center gap-1 rounded bg-muted px-1.5 py-0.5 font-medium uppercase tracking-wide text-muted-foreground">
+              Opname · {formatOpnameDuur(entry.opnameDuurSec)}
+            </span>
           )}
         </p>
         {entry.bijlagen && entry.bijlagen.length > 0 && (
@@ -668,6 +692,12 @@ export interface KlantTijdlijnProps {
    * tijdlijn mét filters staat één klik verderop.
    */
   maxEntries?: number;
+  /**
+   * Laat het eigen invoerveld weg. Op de Actueel-tab van het klantdossier
+   * staat de `GesprekComposer` erboven; twee invoervelden voor hetzelfde op
+   * één scherm is één te veel. Default false = huidig gedrag.
+   */
+  verbergComposer?: boolean;
   className?: string;
 }
 
@@ -678,6 +708,7 @@ export function KlantTijdlijn({
   toonPaneel = false,
   titel = "Tijdlijn",
   maxEntries,
+  verbergComposer = false,
   className,
 }: KlantTijdlijnProps) {
   const { user } = useCurrentUser();
@@ -924,7 +955,7 @@ export function KlantTijdlijn({
 
       {/* Compositie: alleen kantoor — voor andere rollen bestaat het
           invoerveld niet in de UI (PRD §1.2-patroon); server dwingt af */}
-      {isKantoor && (
+      {isKantoor && !verbergComposer && (
         <TijdlijnComposer
           klantId={klantId}
           werkitems={werkitems ?? []}

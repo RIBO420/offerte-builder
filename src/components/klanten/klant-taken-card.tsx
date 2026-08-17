@@ -780,6 +780,14 @@ function TaakRegel({
           >
             {taak.titel}
           </span>
+          {/* WS4: deze taak komt uit een vastgelegd gesprek. Alleen zolang hij
+              open staat — bij een afgeronde taak is de herkomst geen actuele
+              informatie meer en zou het pilletje de doorhaling doorbreken. */}
+          {taak.bronTijdlijnId && !isAfgerond && (
+            <span className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium uppercase leading-none tracking-wide text-primary">
+              Uit gesprek
+            </span>
+          )}
         </div>
 
         <p className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 text-[11px] leading-tight text-muted-foreground">
