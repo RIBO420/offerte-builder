@@ -14,7 +14,7 @@ Het prototype zet vóór elk tijdlijn-item een **tegel van 34×34px** (radius 10
 
 Het prototype gebruikt naast groen-tint precies twee andere zachte zones: **zachtblauw** (mail-icoon, "Particulier"-tag, status verzonden) en **zacht amber** (open/aandacht). Doordat blauw en amber eigen gebieden dragen, betekent groen weer iets (actief, eigen werk, akkoord) in plaats van overal te zijn.
 
-**Toepassen met bestaande tokens** — geen nieuwe kleuren: blauw = de `status-verzonden`-familie (communicatie, e-mail, verzonden-statussen, klanttype-tags), amber = `surface-aandacht`/`status-herinnering` (wacht op actie), groen = `primary`/`surface-primair` (actief, akkoord, eigen werk). Sweep: chips en badges die nu allemaal grijs of allemaal groen zijn krijgen hun juiste zone.
+**Toepassen met bestaande tokens** — geen nieuwe kleuren. LET OP (correctie 17 aug): `status-verzonden` is in onze tokens óker, geen blauw. Het echte steenblauw (hue 245, complete bg/text/border/dot-paren in beide thema's) zit in de families `status-voorcalculatie`/`status-gepland`/`lead-nieuw`/`melding-nieuw`. Voor de communicatie/mail-zone gebruiken we die 245-receptuur via de `status-voorcalculatie`-familie, mét een commentaar op de gebruiksplek dat dit de steenblauwe informatiezone is (semantisch alias — zie deze les). Amber = `surface-aandacht`/`status-herinnering` (wacht op actie), groen = `primary`/`surface-primair` (actief, akkoord, eigen werk). Sweep: chips en badges die nu allemaal grijs of allemaal groen zijn krijgen hun juiste zone.
 
 ## Les 3 · Eén gevulde hoofdknop per scherm
 
@@ -31,6 +31,12 @@ In het prototype is de primaire actie altijd een **gevulde groene knop** (Vastle
 Prototype: navigatie-iconen 18px, tijdlijn-tegels 34px, monogram 60px — en verder juist **géén** iconen (geen icoon boven elke kop, geen decoratie-icoontjes in kaarten). Groter waar het een anker is, weg waar het versiering is.
 
 **Toepassen:** icoontegels (les 1) op de ankerplekken; decoratieve mini-iconen in kop- en statregels verwijderen waar ze geen functie hebben.
+
+## Les 6 · De groene waas eraf (aanvulling Ricardo, 17 aug)
+
+"Alles heeft nu een groene schijn — dat hoeft niet in light mode. Gebieden mogen wit zijn, of lichtelijk groen. En dark mode is ook over-the-top groen getint." Het prototype bevestigt dit: paper is vrijwel neutraal (#FAFAF8), kaarten wit, de sidebar wit — groen zit alleen in betekenisvolle vlakken (actief item, primaire knop, statustinten).
+
+**Toepassing (tokens, `globals.css`):** de neutrale familie (background/card/popover/secondary/muted/border/input/sidebar) van chroma 0,006–0,015 naar ≤0,004 licht en ≤0,007 donker; kaarten en sidebar vrijwel wit; `accent` (hover) gehalveerd. Betekenisvlakken (`surface-primair`, `surface-aandacht`, primary, statusfamilies) behouden hun kleur — die vallen nu júíst op. Het contrast-vangnet (`werkvlak-contrast.test.ts`) bewaakt de verhoudingen.
 
 ## Uitvoering
 

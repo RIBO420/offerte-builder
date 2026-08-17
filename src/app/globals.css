@@ -285,9 +285,13 @@ body {
   --radius: 0.625rem;
 
   /* "Loof & Leem" — licht: warm groenige neutrals, één merkgroen (hue 152), nooit puur wit/zwart */
-  --background: oklch(0.982 0.006 140);      /* warm groenig off-white */
-  --foreground: oklch(0.19 0.015 150);
-  --card: oklch(0.998 0.003 140);
+  /* UI-les 6 (17 aug): de groene waas eraf. Neutrale werkvlakken met een
+     nauwelijks meetbare groenzweem (chroma ≤0.004); groen is voortaan van
+     betekenisvolle vlakken (surface-primair, primary, statussen) — niet van
+     de achtergrond. Het prototype-ijkpunt: paper #FAFAF8, kaarten wit. */
+  --background: oklch(0.982 0.002 140);      /* vrijwel neutraal off-white */
+  --foreground: oklch(0.19 0.01 150);
+  --card: oklch(0.997 0.001 140);
   --card-foreground: var(--foreground);
   /* Werkstroomvlakken (SectiePaneel gewicht="primair"): de enige oppervlakken
      die écht van de pagina afstappen. `--card` scheelt 1,05:1 van
@@ -316,27 +320,27 @@ body {
      4,17:1. Alle tekstwaarden liggen hóger dan op de oude salietint. */
   --surface-primair: oklch(0.912 0.045 148);
   --surface-aandacht: oklch(0.915 0.050 82);
-  --popover: oklch(0.998 0.003 140);
+  --popover: oklch(0.997 0.001 140);
   --popover-foreground: var(--foreground);
   --primary: oklch(0.44 0.11 152);           /* loofgroen — knoppen, actief, links */
   --primary-foreground: oklch(0.98 0.01 145);
-  --secondary: oklch(0.955 0.01 140);
+  --secondary: oklch(0.955 0.004 140);
   --secondary-foreground: oklch(0.25 0.02 150);
-  --muted: oklch(0.955 0.008 140);
+  --muted: oklch(0.957 0.003 140);
   --muted-foreground: oklch(0.45 0.015 150);
-  --accent: oklch(0.94 0.025 145);           /* salie-hover */
+  --accent: oklch(0.945 0.014 145);          /* salie-hover, gedempt */
   --accent-foreground: oklch(0.24 0.04 150);
   --accent-warm: oklch(0.68 0.13 60);        /* terracotta — voortgang/attentie */
   --destructive: oklch(0.55 0.20 27);
-  --border: oklch(0.905 0.012 140);
-  --input: oklch(0.905 0.012 140);
+  --border: oklch(0.905 0.006 140);
+  --input: oklch(0.905 0.006 140);
   --ring: oklch(0.60 0.11 152);              /* focusring ≥3:1 op background */
   --chart-1: oklch(0.55 0.13 152);  /* groen */
   --chart-2: oklch(0.62 0.12 60);   /* terracotta */
   --chart-3: oklch(0.55 0.09 245);  /* steenblauw */
   --chart-4: oklch(0.72 0.13 90);   /* oker */
   --chart-5: oklch(0.50 0.08 175);  /* mosteal */
-  --sidebar: oklch(0.965 0.008 140);
+  --sidebar: oklch(0.985 0.002 140);         /* vrijwel wit, zoals het prototype */
   --sidebar-foreground: oklch(0.25 0.015 150);
   --sidebar-primary: var(--primary);
   --sidebar-primary-foreground: var(--primary-foreground);
@@ -544,9 +548,11 @@ body {
 
 .dark {
   /* "Bosavond" — groengetint donker, geen puur zwart */
-  --background: oklch(0.17 0.012 150);
-  --foreground: oklch(0.95 0.01 140);
-  --card: oklch(0.215 0.014 150);
+  /* UI-les 6: ook donker vrijwel neutraal — de groene waas zat hier nog
+     sterker (chroma 0.012–0.015). Groen blijft van betekenisvolle vlakken. */
+  --background: oklch(0.17 0.005 150);
+  --foreground: oklch(0.95 0.004 140);
+  --card: oklch(0.215 0.006 150);
   --card-foreground: var(--foreground);
   /* Zie licht: dezelfde twee vlakken, andere kant op — lichter dan
      `--background`. Gemeten donker — primair #1c2b20: vs `--background`
@@ -556,27 +562,27 @@ body {
      boven AA, en beide een stap sterker dan de oude grijsgroene 1,26:1. */
   --surface-primair: oklch(0.272 0.030 152);
   --surface-aandacht: oklch(0.272 0.034 80);
-  --popover: oklch(0.215 0.014 150);
+  --popover: oklch(0.215 0.006 150);
   --popover-foreground: var(--foreground);
   --primary: oklch(0.78 0.15 152);           /* #4ADE80-familie, deelt merk met mobiel */
   --primary-foreground: oklch(0.17 0.05 152);
-  --secondary: oklch(0.29 0.015 150);
+  --secondary: oklch(0.29 0.006 150);
   --secondary-foreground: oklch(0.95 0.01 140);
-  --muted: oklch(0.26 0.014 150);
+  --muted: oklch(0.26 0.006 150);
   --muted-foreground: oklch(0.72 0.015 145);
-  --accent: oklch(0.30 0.03 150);
+  --accent: oklch(0.30 0.016 150);
   --accent-foreground: oklch(0.95 0.01 140);
   --accent-warm: oklch(0.75 0.13 60);
   --destructive: oklch(0.70 0.19 25);
-  --border: oklch(0.30 0.015 150);           /* kleur i.p.v. wit-alpha */
-  --input: oklch(0.28 0.015 150);
+  --border: oklch(0.30 0.007 150);           /* kleur i.p.v. wit-alpha */
+  --input: oklch(0.28 0.007 150);
   --ring: oklch(0.65 0.13 152);
   --chart-1: oklch(0.72 0.15 152);
   --chart-2: oklch(0.72 0.13 60);
   --chart-3: oklch(0.68 0.10 245);
   --chart-4: oklch(0.80 0.13 90);
   --chart-5: oklch(0.65 0.09 175);
-  --sidebar: oklch(0.195 0.014 150);
+  --sidebar: oklch(0.195 0.006 150);
   --sidebar-foreground: oklch(0.90 0.01 140);
   --sidebar-primary: var(--primary);         /* paarsblauw vervalt */
   --sidebar-primary-foreground: var(--primary-foreground);
