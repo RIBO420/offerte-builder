@@ -1,8 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import type { ReactNode } from "react";
-import { AnimatedNumber } from "@/components/ui/animated-number";
+import { Cel, Cijferstrip } from "@/components/ui/cijferstrip";
 import { formatCurrency, formatKwartaalJaar } from "@/lib/format";
 
 /**
@@ -13,10 +11,10 @@ import { formatCurrency, formatKwartaalJaar } from "@/lib/format";
  * belangrijk"; één instrument met hairline-scheidingen leest als één antwoord
  * met vier wijzers — en scheelt ook nog een rij marges.
  *
- * De hairlines komen uit `gap-px` op een `bg-border`-vlak: dat tekent in élke
- * rasterstand een sluitende scheiding, ook als de balk van 4 naar 2 naar 1
- * kolom vouwt. Met `divide-x` zou de streep bij het vouwen op de verkeerde
- * cellen belanden.
+ * Het frame zelf (`Cijferstrip` + `Cel`, inclusief de gap-px-hairlines) is
+ * losgetrokken naar `@/components/ui/cijferstrip` zodat het klantdossier
+ * dezelfde strook gebruikt in plaats van hem na te bouwen. Hier blijft staan
+ * wat over het dashboard gaat: welke vier cijfers, en hoe ze verdelen.
  *
  * Omzet is het enige heldcijfer van de pagina (Fraunces); de rest is bewust
  * stiller. Sparklines zijn hier weg en komen niet terug: de vorige versie
@@ -72,63 +70,6 @@ export function berekenVerschilPct(huidig?: number, vorig?: number): number {
   return Math.round(((huidig - vorig) / vorig) * 100);
 }
 
-// ── Cel ─────────────────────────────────────────────────────────────────────
-
-function Cel({
-  label,
-  href,
-  span,
-  waarde,
-  format = "currency",
-  groot = false,
-  voet,
-  chip,
-}: {
-  label: string;
-  /** De lijst die dit cijfer bewijst. Elk blok klikt door. */
-  href: string;
-  span: string;
-  waarde: number;
-  format?: "currency" | "number";
-  groot?: boolean;
-  voet: ReactNode;
-  chip?: ReactNode;
-}) {
-  return (
-    <Link
-      href={href}
-      className={`group flex flex-col gap-1 bg-card px-3 py-2.5 transition-colors hover:bg-accent/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${span}`}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <span className="truncate text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
-          {label}
-        </span>
-        {groot && chip}
-      </div>
-
-      <AnimatedNumber
-        value={waarde}
-        prefix={format === "currency" ? "€ " : ""}
-        formatOptions={{ minimumFractionDigits: 0, maximumFractionDigits: 0 }}
-        locale="nl-NL"
-        className={
-          groot
-            ? // Het enige heldcijfer van de pagina.
-              "font-display text-[34px] leading-none font-semibold tracking-tight tabular-nums @[52rem]/cijfers:text-[40px]"
-            : "text-[22px] leading-none font-bold tracking-tight tabular-nums"
-        }
-      />
-
-      {/* mt-auto: de voetregels van alle vier de cellen liggen op één lijn,
-          ongeacht hoe hoog het cijfer erboven is. */}
-      <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1 pt-1 text-[11px] leading-4">
-        {voet}
-        {!groot && chip}
-      </div>
-    </Link>
-  );
-}
-
 // ── Cijferbalk ──────────────────────────────────────────────────────────────
 
 export interface CijferbalkProps {
@@ -160,69 +101,68 @@ export function Cijferbalk({
   const kwartaalLabel = formatKwartaalJaar(new Date());
 
   return (
-    <section
-      aria-label="Kerncijfers"
-      className="@container/cijfers overflow-hidden rounded-lg border bg-card"
+    <Cijferstrip
+      label="Kerncijfers"
+      className="@container/cijfers"
+      kolommen="grid-cols-1 @[26rem]/cijfers:grid-cols-2 @[52rem]/cijfers:grid-cols-12"
     >
-      <div className="grid grid-cols-1 gap-px bg-border @[26rem]/cijfers:grid-cols-2 @[52rem]/cijfers:grid-cols-12">
-        <Cel
-          label="Getekende omzet"
-          href="/rapportages"
-          span="@[52rem]/cijfers:col-span-5"
-          waarde={getekendeOmzet}
-          groot
-          voet={<span className="text-muted-foreground">alle tijd, incl. btw</span>}
-          chip={
-            <TrendChip
-              pct={omzetTrendPct}
-              label={`getekend dit kwartaal t.o.v. vorig kwartaal`}
-            />
-          }
-        />
+      <Cel
+        label="Getekende omzet"
+        href="/rapportages"
+        span="@[52rem]/cijfers:col-span-5"
+        waarde={getekendeOmzet}
+        groot
+        voet={<span className="text-muted-foreground">alle tijd, incl. btw</span>}
+        chip={
+          <TrendChip
+            pct={omzetTrendPct}
+            label={`getekend dit kwartaal t.o.v. vorig kwartaal`}
+          />
+        }
+      />
 
-        <Cel
-          label="Openstaand"
-          href="/facturen"
-          span="@[52rem]/cijfers:col-span-3"
-          waarde={openstaandBedrag}
-          voet={
-            vervaldeAantal === 0 ? (
-              <span className="text-status-geaccepteerd-text">Alles op tijd</span>
-            ) : (
-              <span className="text-status-vervallen-text">
-                {vervaldeAantal} vervallen ({formatCurrency(vervaldenBedrag, "nl-NL", false)})
-              </span>
-            )
-          }
-        />
-
-        <Cel
-          label="Gefactureerd"
-          href="/facturen"
-          span="@[52rem]/cijfers:col-span-2"
-          waarde={gefactureerdDitKwartaal}
-          voet={<span className="text-muted-foreground tabular-nums">{kwartaalLabel}</span>}
-          chip={
-            <TrendChip
-              pct={gefactureerdTrendPct}
-              label="t.o.v. vorig kwartaal"
-            />
-          }
-        />
-
-        <Cel
-          label="Actieve projecten"
-          href="/projecten"
-          span="@[52rem]/cijfers:col-span-2"
-          waarde={actieveProjecten}
-          format="number"
-          voet={
-            <span className="text-muted-foreground tabular-nums">
-              {afgerondeProjecten} afgerond / {totaalProjecten} totaal
+      <Cel
+        label="Openstaand"
+        href="/facturen"
+        span="@[52rem]/cijfers:col-span-3"
+        waarde={openstaandBedrag}
+        voet={
+          vervaldeAantal === 0 ? (
+            <span className="text-status-geaccepteerd-text">Alles op tijd</span>
+          ) : (
+            <span className="text-status-vervallen-text">
+              {vervaldeAantal} vervallen ({formatCurrency(vervaldenBedrag, "nl-NL", false)})
             </span>
-          }
-        />
-      </div>
-    </section>
+          )
+        }
+      />
+
+      <Cel
+        label="Gefactureerd"
+        href="/facturen"
+        span="@[52rem]/cijfers:col-span-2"
+        waarde={gefactureerdDitKwartaal}
+        voet={<span className="text-muted-foreground tabular-nums">{kwartaalLabel}</span>}
+        chip={
+          <TrendChip
+            pct={gefactureerdTrendPct}
+            label="t.o.v. vorig kwartaal"
+          />
+        }
+      />
+
+      <Cel
+        label="Actieve projecten"
+        href="/projecten"
+        span="@[52rem]/cijfers:col-span-2"
+        waarde={actieveProjecten}
+        format="number"
+        voet={
+          <span className="text-muted-foreground tabular-nums">
+            {afgerondeProjecten} afgerond / {totaalProjecten} totaal
+          </span>
+        }
+      />
+    </Cijferstrip>
   );
 }

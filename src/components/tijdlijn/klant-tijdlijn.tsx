@@ -661,6 +661,13 @@ export interface KlantTijdlijnProps {
   toonPaneel?: boolean;
   /** Kop van het paneel; alleen relevant bij `toonPaneel`. */
   titel?: string;
+  /**
+   * Toon hooguit zoveel entries en verberg zoeken/filteren. Voor het blok
+   * "Laatste contact" op de Actueel-tab van het klantdossier: daar zijn de
+   * laatste drie momenten een samenvatting, geen werkvlak — de volledige
+   * tijdlijn mét filters staat één klik verderop.
+   */
+  maxEntries?: number;
   className?: string;
 }
 
@@ -670,6 +677,7 @@ export function KlantTijdlijn({
   toonHistorie = true,
   toonPaneel = false,
   titel = "Tijdlijn",
+  maxEntries,
   className,
 }: KlantTijdlijnProps) {
   const { user } = useCurrentUser();
@@ -714,10 +722,10 @@ export function KlantTijdlijn({
     klantId,
   });
 
-  const entries = useMemo(
-    () => (zoektermActief ? zoekResultaten : lijst) ?? [],
-    [zoektermActief, zoekResultaten, lijst]
-  );
+  const entries = useMemo(() => {
+    const alles = (zoektermActief ? zoekResultaten : lijst) ?? [];
+    return maxEntries === undefined ? alles : alles.slice(0, maxEntries);
+  }, [zoektermActief, zoekResultaten, lijst, maxEntries]);
   const isLoading = zoektermActief
     ? zoekResultaten === undefined
     : lijst === undefined;
@@ -757,7 +765,8 @@ export function KlantTijdlijn({
    * anders valt een filter dat nul resultaten oplevert niet meer te wissen.
    */
   const toonZoekEnFilter =
-    zoektermActief || filterActief || entries.length >= 8;
+    maxEntries === undefined &&
+    (zoektermActief || filterActief || entries.length >= 8);
   const wisFilters = () => {
     setKanaalFilter("alle");
     setWerkitemFilter("alle");

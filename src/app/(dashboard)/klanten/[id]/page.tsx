@@ -1,54 +1,37 @@
 "use client";
 
-import { use, useState, type ReactNode } from "react";
+import { use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/page-header";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 
-
-import {
-  User,
-  Loader2,
-  ArrowLeft,
-  Mail,
-  MapPin,
-  Phone,
-  ShieldAlert,
-} from "lucide-react";
-import { useMutation, useQuery } from "convex/react";
+import { User, ArrowLeft, Mail, MapPin, Phone, ShieldAlert } from "lucide-react";
+import { useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { useKlantWithOffertes } from "@/hooks/use-klanten";
-import { useIsAdmin } from "@/hooks/use-users";
-import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
-import { CopyButton } from "@/components/ui/copy-button";
-import { Switch } from "@/components/ui/switch";
-import { SectiePaneel } from "@/components/ui/sectie-paneel";
+import { useTabState } from "@/hooks/use-tab-state";
 import { NieuweOfferteSplitButton } from "@/components/offerte/nieuwe-offerte-split-button";
 import { Id } from "../../../../../convex/_generated/dataModel";
-import { LeadHistorieCard } from "@/components/leads/lead-historie-card";
-import { OnderhoudSectie } from "@/components/klanten/onderhoud-sectie";
-import { KlantTakenCard } from "@/components/klanten/klant-taken-card";
+import { ContactChip } from "@/components/klanten/klant-detail-primitieven";
 import {
-  KlantFacturenSectie,
-  KlantOffertesSectie,
-} from "@/components/klanten/klant-documenten";
-import { KlantTijdlijn } from "@/components/tijdlijn/klant-tijdlijn";
+  DossierNav,
+  isDossierTab,
+  type DossierTab,
+  type DossierTellingen,
+} from "@/components/klanten/dossier/dossier-nav";
+import { KlantCijferstrip } from "@/components/klanten/dossier/klant-cijferstrip";
+import { TabActueel } from "@/components/klanten/dossier/tab-actueel";
+import { TabTijdlijn } from "@/components/klanten/dossier/tab-tijdlijn";
+import { TabTaken } from "@/components/klanten/dossier/tab-taken";
+import { TabProjecten } from "@/components/klanten/dossier/tab-projecten";
+import { TabOnderhoud } from "@/components/klanten/dossier/tab-onderhoud";
+import { TabOffertes } from "@/components/klanten/dossier/tab-offertes";
+import { TabFacturen } from "@/components/klanten/dossier/tab-facturen";
+import { TabInstellingen } from "@/components/klanten/dossier/tab-instellingen";
 import { KlantReminderBanner } from "@/components/klant-reminder-banner";
-import { formatCurrency } from "@/lib/format/currency";
 import { KLANT_PIPELINE_CONFIG, statusClasses } from "@/lib/constants/statuses";
 import { LaadIndicator } from "@/components/ui/laad-indicator";
 
@@ -108,98 +91,17 @@ function initialen(naam: string): string {
 }
 
 /**
- * Stille contactchip: het hele gegeven is klikbaar (bellen, mailen, route),
- * de kopieerknop verschijnt pas bij aanwijzen of toetsenbordfocus. Zo blijft
- * de regel rustig zonder dat er functionaliteit verdwijnt.
+ * Het klantdossier (herindeling v7).
+ *
+ * Deze pagina is het frame en niet meer de inhoud: identiteitskop,
+ * cijferstrip, submenu en het actieve paneel. Elke tab woont in een eigen
+ * bestand onder `src/components/klanten/dossier/`, zodat WS2/WS3/WS4 er naast
+ * elkaar aan kunnen werken zonder elkaars regels te raken.
+ *
+ * Tabs en géén routes: `?tab=` via `useTabState` houdt de pagina deeplinkbaar
+ * (de Meldingen-module linkt hierheen) zonder dat de layout per tab opnieuw
+ * opgebouwd wordt.
  */
-function ContactChip({
-  icoon,
-  href,
-  extern = false,
-  kopieer,
-  kopieerLabel,
-  titel,
-  className,
-  children,
-}: {
-  icoon: ReactNode;
-  href?: string;
-  /** Externe links (Maps) openen in een nieuw tabblad. */
-  extern?: boolean;
-  kopieer?: string;
-  kopieerLabel?: string;
-  titel?: string;
-  className?: string;
-  children: ReactNode;
-}) {
-  const inhoud = (
-    <>
-      <span
-        aria-hidden
-        className="shrink-0 text-muted-foreground [&>svg]:size-4"
-      >
-        {icoon}
-      </span>
-      {children}
-    </>
-  );
-  return (
-    <span className="group/chip inline-flex min-w-0 items-center gap-0.5">
-      {href ? (
-        <a
-          href={href}
-          {...(extern
-            ? { target: "_blank", rel: "noopener noreferrer" }
-            : {})}
-          title={titel}
-          className={`inline-flex min-w-0 items-center gap-1.5 rounded-md px-1.5 py-1 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${className ?? ""}`}
-        >
-          {inhoud}
-        </a>
-      ) : (
-        <span
-          title={titel}
-          className={`inline-flex min-w-0 items-center gap-1.5 rounded-md px-1.5 py-1 ${className ?? ""}`}
-        >
-          {inhoud}
-        </span>
-      )}
-      {kopieer && (
-        <span className="shrink-0 opacity-0 transition-opacity duration-100 focus-within:opacity-100 group-hover/chip:opacity-100 max-sm:opacity-100">
-          <CopyButton value={kopieer} label={kopieerLabel} />
-        </span>
-      )}
-    </span>
-  );
-}
-
-/** Label links, waarde rechts — leest als een dossierregel, niet als een kaart. */
-function Feit({
-  label,
-  children,
-  uitlijnen = "rechts",
-}: {
-  label: string;
-  children: ReactNode;
-  /** Adressen lopen over meerdere regels en staan beter onder het label. */
-  uitlijnen?: "rechts" | "onder";
-}) {
-  if (uitlijnen === "onder") {
-    return (
-      <div className="px-3 py-2.5">
-        <dt className="text-xs text-muted-foreground">{label}</dt>
-        <dd className="mt-0.5 text-sm">{children}</dd>
-      </div>
-    );
-  }
-  return (
-    <div className="flex items-baseline justify-between gap-3 px-3 py-2.5">
-      <dt className="shrink-0 text-xs text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 text-right text-sm">{children}</dd>
-    </div>
-  );
-}
-
 export default function KlantDetailPage({
   params,
 }: {
@@ -207,36 +109,20 @@ export default function KlantDetailPage({
 }) {
   const { id } = use(params);
   const router = useRouter();
-  const isAdmin = useIsAdmin();
   const { klant, isLoading } = useKlantWithOffertes(id as Id<"klanten">);
-  const gdprAnonymize = useMutation(api.klanten.gdprAnonymize);
-  const setInplanMail = useMutation(api.klanten.setInplanBevestigingsMail);
   const gdprBlockers = useQuery(
     api.klanten.checkGdprBlockers,
     id ? { id: id as Id<"klanten"> } : "skip"
   );
-  const [showGdprDialog, setShowGdprDialog] = useState(false);
-  const [isAnonymizing, setIsAnonymizing] = useState(false);
+  // Eén verzamelquery voor alle acht tellers — zie convex/klanten.ts.
+  const tellingen = useQuery(api.klanten.dossierTellingen, {
+    klantId: id as Id<"klanten">,
+  }) as DossierTellingen | null | undefined;
+
+  const [tabWaarde, setTab] = useTabState("actueel");
+  const actieveTab: DossierTab = isDossierTab(tabWaarde) ? tabWaarde : "actueel";
 
   const isAnonymized = gdprBlockers?.isAnonymized === true;
-  const hasBlockers = gdprBlockers?.hasBlockers === true;
-
-  const handleGdprAnonymize = async () => {
-    setIsAnonymizing(true);
-    try {
-      await gdprAnonymize({ id: id as Id<"klanten"> });
-      showSuccessToast("Klantgegevens zijn geanonimiseerd", {
-        description: "Alle persoonsgegevens zijn definitief verwijderd conform GDPR.",
-      });
-      setShowGdprDialog(false);
-    } catch (error) {
-      showErrorToast(
-        error instanceof Error ? error.message : "Fout bij anonimiseren"
-      );
-    } finally {
-      setIsAnonymizing(false);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -277,16 +163,6 @@ export default function KlantDetailPage({
   };
 
   const offertes: OfferteWithTotals[] = klant.offertes || [];
-  const totalValue = offertes.reduce(
-    (sum, o) => sum + (o.totalen?.totaalInclBtw || 0),
-    0
-  );
-  const geaccepteerdAantal = offertes.filter(
-    (o) => o.status === "geaccepteerd"
-  ).length;
-  const acceptedValue = offertes
-    .filter((o) => o.status === "geaccepteerd")
-    .reduce((sum, o) => sum + (o.totalen?.totaalInclBtw || 0), 0);
 
   const pipelineStatus = (klant as { pipelineStatus?: PipelineStatus })
     .pipelineStatus;
@@ -317,8 +193,8 @@ export default function KlantDetailPage({
             dossier het vaakst om te bellen of te mailen — dus staan telefoon en
             e-mail hier, niet onderin een rail die onder 1280px helemaal
             wegzakt. De hairline eronder maakt van de kop een podium: één
-            verankerd blok (monogram + naam + contact + kerncijfers) waar de
-            rest van het dossier onder hangt. */}
+            verankerd blok (monogram + naam + contact) waar de rest van het
+            dossier onder hangt. */}
         <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3 border-b pb-5">
           <div className="flex min-w-0 items-start gap-2">
             <Button
@@ -370,7 +246,8 @@ export default function KlantDetailPage({
                   breedte en houdt de volle tekst in `title`. Ontbreekt een
                   gegeven, dan staat er een gedempte toevoegen-affordance in
                   plaats van niets. -ml-1.5 zet de chip-tekst op dezelfde x
-                  als de naam erboven. */}
+                  als de naam erboven. De kerncijfers die hier eerst als
+                  metaregel stonden, staan nu in de cijferstrip eronder. */}
               <div className="-ml-1.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
                 {klant.telefoon ? (
                   <ContactChip
@@ -385,14 +262,15 @@ export default function KlantDetailPage({
                   </ContactChip>
                 ) : (
                   !isAnonymized && (
-                    <Link
-                      href="/klanten"
-                      title="Telefoonnummer toevoegen — bewerken kan via de klantenlijst"
+                    <button
+                      type="button"
+                      onClick={() => setTab("instellingen")}
+                      title="Telefoonnummer toevoegen — dat doe je bij Instellingen"
                       className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-sm text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       <Phone className="size-4 shrink-0" aria-hidden />
                       Telefoon toevoegen
-                    </Link>
+                    </button>
                   )
                 )}
                 {klant.email ? (
@@ -409,14 +287,15 @@ export default function KlantDetailPage({
                   </ContactChip>
                 ) : (
                   !isAnonymized && (
-                    <Link
-                      href="/klanten"
-                      title="E-mailadres toevoegen — bewerken kan via de klantenlijst"
+                    <button
+                      type="button"
+                      onClick={() => setTab("instellingen")}
+                      title="E-mailadres toevoegen — dat doe je bij Instellingen"
                       className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-sm text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       <Mail className="size-4 shrink-0" aria-hidden />
                       E-mail toevoegen
-                    </Link>
+                    </button>
                   )
                 )}
                 {adresregel && (
@@ -444,37 +323,14 @@ export default function KlantDetailPage({
                   </ContactChip>
                 )}
               </div>
-
-              {/* Kerncijfers als stille metaregel: hoe lang klant, wat er
-                  omgaat. Eén regel voetnoot-grijs — geen kaart, geen
-                  heldcijfers; de bedragen zelf staan in het dossier. */}
-              <p className="text-xs text-muted-foreground tabular-nums">
-                Klant sinds {formatDate(klant.createdAt)}
-                {offertes.length === 0 ? (
-                  <> · nog geen offertes</>
-                ) : (
-                  <>
-                    {" · "}
-                    {offertes.length} offerte{offertes.length === 1 ? "" : "s"}
-                    {" · "}
-                    {formatCurrency(totalValue)}
-                    {" · "}
-                    {geaccepteerdAantal} geaccepteerd
-                    {acceptedValue > 0 && ` (${formatCurrency(acceptedValue)})`}
-                  </>
-                )}
-              </p>
             </div>
           </div>
 
           {!isAnonymized && (
             <div className="flex shrink-0 flex-wrap gap-2">
               {/* Eén ingang voor een nieuwe offerte (WS6): dezelfde knop als op
-                  het dashboard en in de offertetoolbar. De twee losse
-                  wizard-links die hier stonden omzeilden die ingang én raakten
-                  de klant kwijt; nu reist `klantId` mee door álle drie de paden
-                  (tegels, vrije offerte, templates). TT-004 blijft ongemoeid:
-                  het zijn startpunten, geen nieuwe `offertes.type`-waarden. */}
+                  het dashboard en in de offertetoolbar. TT-004 blijft ongemoeid:
+                  de tegels zijn startpunten, geen `offertes.type`-waarden. */}
               <NieuweOfferteSplitButton size="sm" klantId={klant._id} />
             </div>
           )}
@@ -508,207 +364,54 @@ export default function KlantDetailPage({
           />
         )}
 
-        {/* Werkvlak links, feiten rechts. De rechterkolom blijft staan bij het
-            scrollen: bij het lezen van de tijdlijn wil je het telefoonnummer
-            binnen bereik houden. */}
-        <div className="grid items-start gap-5 xl:grid-cols-[1fr_20rem]">
-          <div className="min-w-0 space-y-6">
-            {/* Werkstroom als één cluster: Taken en Tijdlijn staan dicht op
-                elkaar (12px), het dossier-archief volgt op afstand (24px).
-                Twee spatiematen in plaats van één — zo leest de kolom als
-                twee gedachten in plaats van een stapel gelijke blokken, en
-                oogt ook een leeg dossier gecomponeerd in plaats van gestrand. */}
-            <div className="space-y-3">
-              {/* Taken vóór de tijdlijn: vooruitkijken vóór terugkijken. */}
-              <KlantTakenCard klantId={id as Id<"klanten">} />
+        {/* Vier tegels die het dossier samenvatten én bedienen: elke tegel
+            opent de tab die het cijfer bewijst. */}
+        <KlantCijferstrip
+          tellingen={tellingen}
+          klantSinds={klant.createdAt}
+          actief={actieveTab}
+          onKies={setTab}
+        />
 
-              {/* Klanttijdlijn (PRD §2.3) — vervangt het vrije Notities-veld
-                  ("één waarheid"): filters op kanaal/klus, vrij zoeken en
-                  entry-compositie voor kantoor. */}
-              <KlantTijdlijn klantId={id as Id<"klanten">} toonPaneel />
-            </div>
+        {/* Submenu links, actieve tab rechts. De kolom is 196px breed (zoals
+            het prototype) en blijft staan bij het scrollen; onder lg vouwt hij
+            tot chips boven de inhoud. */}
+        <div className="grid items-start gap-5 lg:grid-cols-[12.25rem_minmax(0,1fr)]">
+          <DossierNav
+            actief={actieveTab}
+            onKies={setTab}
+            tellingen={tellingen}
+          />
 
-            {/* Dossier: wat er vastligt. Eén paneel om alle drie heen in
-                plaats van drie losse dozen — dat geeft de onderkant van de
-                pagina een anker, ook als de secties leeg zijn. Een lege sectie
-                is dan één nette rij binnen dit kader; een gevulde brengt zijn
-                eigen kop met rijen mee. `rounded-none border-0` haalt het
-                eigen frame van de secties weg: het kader is nu van de groep.
-                Een losse zwevende scheidingslijn zou hier niets structureren. */}
-            <section className="overflow-hidden rounded-lg border bg-card">
-              <h2 className="border-b bg-muted/40 px-3 py-2 text-xs font-medium uppercase tracking-wide leading-4 text-muted-foreground">
-                Dossier
-              </h2>
-              <div className="divide-y">
-                {/* Onderhoud (PRD §2.1): contracten + losse beurten */}
-                <OnderhoudSectie
-                  klantId={id as Id<"klanten">}
-                  className="rounded-none border-0 bg-transparent"
-                />
-
-                <KlantOffertesSectie
-                  offertes={offertes}
-                  className="rounded-none border-0 bg-transparent"
-                />
-
-                {/* Facturen: klanten hebben niet alleen offertes — het dossier
-                    was pas compleet toen ook de geldkant erin stond. */}
-                <KlantFacturenSectie
-                  klantId={id as Id<"klanten">}
-                  className="rounded-none border-0 bg-transparent"
-                />
-              </div>
-            </section>
-          </div>
-
-
-          <aside className="space-y-4 xl:sticky xl:top-6">
-            {/* Contact staat in de identiteitskop en "klant sinds" plus de
-                cijfers in de metaregel dáár — wat hier overblijft is de
-                administratie die je zelden nodig hebt: KvK/BTW (alleen
-                zakelijk) en één instelling. Eén rustige kaart in plaats van
-                een halfleeg GEGEVENS-blok naast een losse instelling. */}
-            <SectiePaneel titel="Gegevens">
-              {(klant.kvkNummer || klant.btwNummer) && (
-                <dl className="divide-y">
-                  {klant.kvkNummer && (
-                    <Feit label="KvK">
-                      <span className="inline-flex items-center gap-1 tabular-nums">
-                        {klant.kvkNummer}
-                        <CopyButton
-                          value={klant.kvkNummer}
-                          label="Kopieer KvK-nummer"
-                        />
-                      </span>
-                    </Feit>
-                  )}
-                  {klant.btwNummer && (
-                    <Feit label="BTW">
-                      <span className="inline-flex items-center gap-1">
-                        {klant.btwNummer}
-                        <CopyButton
-                          value={klant.btwNummer}
-                          label="Kopieer BTW-nummer"
-                        />
-                      </span>
-                    </Feit>
-                  )}
-                </dl>
-              )}
-
-              {/* §2.7: opt-in inplanning-bevestigingsmail (default uit) — zet
-                  bij inplannen een concept-mail klaar; kantoor keurt goed.
-                  Staat bewust ín dit paneel: één instelling verdiende geen
-                  tweede kaart in een rail die verder hooguit twee regels telt. */}
-              <div
-                className={`flex items-start justify-between gap-3 px-3 py-2.5 ${klant.kvkNummer || klant.btwNummer ? "border-t" : ""}`}
-              >
-                <div className="min-w-0">
-                  <p className="text-sm font-medium">
-                    Bevestigingsmail bij inplannen
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Zet een concept-mail klaar in Concept-mails
-                  </p>
-                </div>
-                <Switch
-                  className="mt-0.5 shrink-0"
-                  checked={klant.inplanBevestigingsMail === true}
-                  onCheckedChange={async (checked) => {
-                    try {
-                      await setInplanMail({
-                        id: id as Id<"klanten">,
-                        inplanBevestigingsMail: checked,
-                      });
-                      showSuccessToast(
-                        checked
-                          ? "Bevestigingsmail bij inplannen aangezet"
-                          : "Bevestigingsmail bij inplannen uitgezet"
-                      );
-                    } catch {
-                      showErrorToast("Bijwerken mislukt");
-                    }
-                  }}
-                  aria-label="Bevestigingsmail bij inplannen"
-                />
-              </div>
-            </SectiePaneel>
-
-            {/* Lead-historie (PRD §1.3): tweede blok in de rail: herkomst + activiteiten van de
-                gepromoveerde lead blijven vanaf de klant bereikbaar.
-                Rendert niets als deze klant geen lead-verleden heeft. */}
-            <LeadHistorieCard klantId={id as Id<"klanten">} />
-
-            {/* Onomkeerbaar én zeldzaam: bereikbaar, maar stil. Als rode knop
-                over de volle railbreedte was dit het opvallendste element van
-                de pagina — meer visueel oppervlak dan het telefoonnummer,
-                terwijl kantoor hier hooguit een paar keer per jaar op klikt.
-                Nu een gewone tekstregel die pas bij aanwijzen rood wordt. */}
-            {isAdmin && !isAnonymized && (
-              <button
-                type="button"
-                onClick={() => setShowGdprDialog(true)}
-                className="inline-flex items-center gap-1.5 rounded px-1 py-0.5 text-[11px] text-muted-foreground transition-colors hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-              >
-                <ShieldAlert className="size-3 shrink-0" aria-hidden />
-                GDPR-verwijderverzoek
-              </button>
+          <div className="min-w-0">
+            {actieveTab === "actueel" && (
+              <TabActueel
+                klantId={id as Id<"klanten">}
+                onNaarTijdlijn={() => setTab("tijdlijn")}
+              />
             )}
-          </aside>
+            {actieveTab === "tijdlijn" && (
+              <TabTijdlijn klantId={id as Id<"klanten">} />
+            )}
+            {actieveTab === "taken" && (
+              <TabTaken klantId={id as Id<"klanten">} />
+            )}
+            {actieveTab === "projecten" && <TabProjecten />}
+            {actieveTab === "onderhoud" && (
+              <TabOnderhoud klantId={id as Id<"klanten">} />
+            )}
+            {actieveTab === "offertes" && (
+              <TabOffertes offertes={offertes} />
+            )}
+            {actieveTab === "facturen" && (
+              <TabFacturen klantId={id as Id<"klanten">} />
+            )}
+            {actieveTab === "instellingen" && (
+              <TabInstellingen klant={klant} isAnonymized={isAnonymized} />
+            )}
+          </div>
         </div>
       </div>
-
-      {/* CRM-008: GDPR Anonymization Confirmation Dialog */}
-      <AlertDialog open={showGdprDialog} onOpenChange={setShowGdprDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>GDPR Verwijderverzoek</AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-3">
-                <p>
-                  Alle persoonsgegevens van deze klant worden definitief
-                  geanonimiseerd. Dit kan niet ongedaan gemaakt worden.
-                </p>
-                <p>
-                  Financiele gegevens blijven bewaard voor de boekhouding.
-                </p>
-
-                {hasBlockers && gdprBlockers?.blockers && (
-                  <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 mt-2">
-                    <p className="text-sm font-medium text-destructive mb-2">
-                      Anonimisering is niet mogelijk vanwege:
-                    </p>
-                    <ul className="text-sm text-destructive space-y-1 list-disc list-inside">
-                      {gdprBlockers.blockers.map((blocker, i) => (
-                        <li key={i}>{blocker.label}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isAnonymizing}>
-              Annuleren
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleGdprAnonymize}
-              disabled={isAnonymizing || hasBlockers}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isAnonymizing ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Bezig met anonimiseren...
-                </>
-              ) : (
-                "Definitief anonimiseren"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 }

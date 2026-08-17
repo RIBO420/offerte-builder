@@ -62,6 +62,21 @@ const TITEL: Record<SectieGewicht, string> = {
 };
 
 /**
+ * Kopbalkvariant (klantdossier v7): de titelregel als lichte balk boven de
+ * inhoud — 1px onderrand, iets lichter vlak, en de titel als échte kop in
+ * plaats van een gedempt labeltje. Bedoeld voor de dossiertabs, waar per tab
+ * één tot drie panelen staan en de kop het onderwerp van het scherm aankondigt
+ * in plaats van een sectie in een stapel te markeren.
+ *
+ * Los van `gewicht` gehouden: die as gaat over hoeveel gewicht een sectie in
+ * een stapel heeft, deze over de vórm van de kop. Zonder de prop verandert er
+ * niets — bestaande aanroepers houden hun paneel exact zoals het was.
+ */
+const KOP_BALK = "flex items-center gap-2 border-b bg-muted/40 px-3 py-2.5";
+const TITEL_BALK =
+  "shrink-0 font-display text-[15px] leading-5 font-semibold tracking-tight text-foreground";
+
+/**
  * Sectiepaneel voor werkschermen. Bewust géén <Card>: die brengt een eigen
  * kop-, padding- en schaduwlaag mee, en meerdere Cards onder elkaar lezen als
  * losse eilanden. Eén rand met een klein kopje houdt een dossier rustig.
@@ -77,6 +92,7 @@ export function SectiePaneel({
   uitleg,
   acties,
   gewicht = "secundair",
+  kopbalk = false,
   legeRegel,
   children,
   className,
@@ -97,6 +113,8 @@ export function SectiePaneel({
   acties?: ReactNode;
   /** Zie {@link SectieGewicht}. Default = de oude weergave. */
   gewicht?: SectieGewicht;
+  /** Titelregel als lichte kopbalk — zie {@link KOP_BALK}. Default uit. */
+  kopbalk?: boolean;
   /**
    * Is de sectie leeg, dan hoort dat één regel te zijn — op dezelfde basislijn
    * als het kopje, niet als blok eronder. Zelfde lettergrootte en `leading` als
@@ -112,7 +130,7 @@ export function SectiePaneel({
     // @container: de sectie staat in een smalle kolom, niet in de viewport —
     // breakpoints moeten dus op de containerbreedte reageren, niet op het scherm.
     <section id={id} className={cn("@container/sectie", FRAME[gewicht], className)}>
-      <header className={KOP[gewicht]}>
+      <header className={kopbalk ? KOP_BALK : KOP[gewicht]}>
         {icoon && (
           <span className="shrink-0 text-muted-foreground [&>svg]:size-3.5">
             {icoon}
@@ -120,7 +138,7 @@ export function SectiePaneel({
         )}
         <h2
           className={cn(
-            TITEL[gewicht],
+            kopbalk ? TITEL_BALK : TITEL[gewicht],
             // Vaste minimumbreedte zodra er een lege regel naast staat: dan
             // beginnen die regels in álle secties op dezelfde x en leest de
             // stapel als één uitgelijnde kolom.
