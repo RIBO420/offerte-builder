@@ -33,6 +33,7 @@ import {
   magDagHeropenen,
   magDagVanMedewerker,
   magMeerwerkBeoordelen,
+  magPloegVoorstellenBevestigen,
   magUrenLoggen,
   normaliseerItemNaam,
   overlapt,
@@ -315,5 +316,15 @@ describe("rolchecks veld-rol", () => {
     expect(magDagVanMedewerker("medewerker", null, "m2")).toBe(false);
     expect(magDagVanMedewerker("kantoor", null, "m2")).toBe(true);
     expect(magDagVanMedewerker("klant", "m1", "m1")).toBe(false);
+  });
+
+  it("ploegdag bevestigen: alleen de voorman, alleen binnen zijn ploeg van die dag", () => {
+    // De group-punch (controlekamer-plan §3 WS-C): voorstellen bevestigen voor
+    // een ploeglid. Kantoor gaat via magDagVanMedewerker, niet via deze regel.
+    expect(magPloegVoorstellenBevestigen("voorman", true)).toBe(true);
+    expect(magPloegVoorstellenBevestigen("voorman", false)).toBe(false);
+    expect(magPloegVoorstellenBevestigen("medewerker", true)).toBe(false);
+    expect(magPloegVoorstellenBevestigen("kantoor", true)).toBe(false);
+    expect(magPloegVoorstellenBevestigen("klant", true)).toBe(false);
   });
 });

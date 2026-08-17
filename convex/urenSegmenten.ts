@@ -51,6 +51,7 @@ import {
   isGeldigSegmentTijdvak,
   magDagHeropenen,
   magDagVanMedewerker,
+  magPloegVoorstellenBevestigen,
   magUrenLoggen,
   overlapt,
   segmentMinuten,
@@ -599,9 +600,82 @@ export const bevestigSegment = mutation({
 });
 
 /**
+ * De leden van een team op een dag, met de `teamBemanning`-afwijking van die
+ * dag als die er is — exact dezelfde regel als `teamVanMedewerkerOpDag` en het
+ * voorman-gezicht (`urenControle.getPloegDag`).
+ */
+async function ledenVanTeamOpDag(
+  db: QueryCtx["db"],
+  companyUserId: Id<"users">,
+  team: Doc<"teams">,
+  datum: string
+): Promise<Id<"medewerkers">[]> {
+  const bemanningRijen = await db
+    .query("teamBemanning")
+    .withIndex("by_team_datum", (q) =>
+      q.eq("teamId", team._id).eq("datum", datum)
+    )
+    .collect();
+  const afwijking = bemanningRijen.find(
+    (r) => r.userId.toString() === companyUserId.toString()
+  );
+  return afwijking?.medewerkerIds ?? team.leden;
+}
+
+/**
+ * Doel-medewerker voor het bevestigen van dagvoorstellen. Dezelfde regels als
+ * `resolveDoelMedewerker`, met één ploegdag-uitzondering (controlekamer-plan
+ * §3 WS-C): de voorman mag de voorstellen bevestigen van een lid dat die dag
+ * in zijn éigen ploeg zit — "Ploegdag bevestigen voor N man". Alleen
+ * voorstellen: corrigeren, verwijderen en indienen volgen de gewone regel.
+ */
+async function resolveBevestigMedewerker(
+  ctx: QueryCtx | MutationCtx,
+  veld: VeldContext,
+  medewerkerId: Id<"medewerkers"> | undefined,
+  datum: string
+): Promise<Doc<"medewerkers">> {
+  const eigen = veld.eigenMedewerker;
+  const isAnderLid =
+    veld.rol === "voorman" &&
+    medewerkerId !== undefined &&
+    eigen !== null &&
+    medewerkerId.toString() !== eigen._id.toString();
+  if (!isAnderLid) {
+    return resolveDoelMedewerker(ctx, veld, medewerkerId);
+  }
+
+  const eigenTeam = await teamVanMedewerkerOpDag(
+    ctx.db,
+    veld.companyUserId,
+    eigen._id,
+    datum
+  );
+  const leden = eigenTeam
+    ? await ledenVanTeamOpDag(ctx.db, veld.companyUserId, eigenTeam, datum)
+    : [];
+  const isLid = leden.some((id) => id.toString() === medewerkerId.toString());
+  if (!magPloegVoorstellenBevestigen(veld.rol, isLid)) {
+    throw new ConvexError(
+      "Je kunt alleen voorstellen bevestigen voor leden van je eigen ploeg op deze dag"
+    );
+  }
+  const medewerker = await ctx.db.get(medewerkerId);
+  if (
+    !medewerker ||
+    medewerker.userId.toString() !== veld.companyUserId.toString()
+  ) {
+    throw new ConvexError("Medewerker niet gevonden");
+  }
+  return medewerker;
+}
+
+/**
  * Alle openstaande dagkaart-voorstellen van de dag in één keer bevestigen
  * (§8.10: de medewerker bevestigt, corrigeren kan daarna per segment).
  * Server-side herberekend — het voorstel blijft afgeleid van de planning.
+ * De voorman mag dit óók voor de leden van zijn ploeg van die dag (de
+ * groepshandeling van het voorman-gezicht); zie `resolveBevestigMedewerker`.
  */
 export const bevestigAlleVoorstellen = mutation({
   args: {
@@ -611,7 +685,12 @@ export const bevestigAlleVoorstellen = mutation({
   handler: async (ctx, args) => {
     assertGeldigeDatum(args.datum);
     const veld = await veldContext(ctx);
-    const medewerker = await resolveDoelMedewerker(ctx, veld, args.medewerkerId);
+    const medewerker = await resolveBevestigMedewerker(
+      ctx,
+      veld,
+      args.medewerkerId,
+      args.datum
+    );
 
     const team = await teamVanMedewerkerOpDag(
       ctx.db,

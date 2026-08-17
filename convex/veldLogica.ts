@@ -302,6 +302,22 @@ export function magMeerwerkBeoordelen(rol: VeldRol): boolean {
 }
 
 /**
+ * "Ploegdag bevestigen voor N man" (voorman-gezicht op `/uren`, controlekamer-
+ * plan §3 WS-C): de voorman mag de dagkaart-VOORSTELLEN van een lid bevestigen
+ * dat die dag in zíjn ploeg zit — de group-punch uit het onderzoek (§2). Meer
+ * niet: corrigeren, verwijderen en indienen blijven bij het lid zelf of bij
+ * kantoor (`magDagVanMedewerker` verandert dus niet). Of het doel écht in de
+ * eigen ploeg van die dag zit, bepaalt de mutation met de teamdata; deze
+ * functie houdt alleen de rolregel vast.
+ */
+export function magPloegVoorstellenBevestigen(
+  rol: VeldRol,
+  isLidVanEigenPloeg: boolean
+): boolean {
+  return rol === "voorman" && isLidVanEigenPloeg;
+}
+
+/**
  * Een medewerker mag alleen zijn eigen dag zien/bewerken; kantoor mag elke
  * dag (correcties). `eigenMedewerkerId` = gekoppelde medewerker van de user.
  */
