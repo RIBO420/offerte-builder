@@ -58,6 +58,7 @@ import {
 import {
   Bot,
   Briefcase,
+  CalendarDays,
   ChevronDown,
   History,
   ImagePlus,
@@ -103,23 +104,35 @@ const KANAAL_ICONS: Record<Kanaal, React.ReactNode> = {
 };
 
 /**
- * Knoopkleur per kanaal: een zachte tint uit de Loof & Leem-set zodat je al
- * scannend ziet wélk soort contact het was — telefoon groen (primary),
- * WhatsApp mosteal, e-mail steenblauw, intern terracotta. Decoratief
- * (≥3:1 gemeten); de betekenis zelf staat in icoon, `title` en sr-only tekst.
- * Systeem blijft gedempt en gestippeld: ruis waar je doorheen leest.
+ * Icoontegel per kanaal (v7-prototype `.tl-icon`, ui-lessen les 1+2): een
+ * 32px-tegel in een zachte zonetint met het icoon in de dónkere variant van
+ * diezelfde tint, zodat je de tijdlijn op kleur scant zonder te lezen.
+ * Zones: telefoon/whatsapp = groen (eigen contact), e-mail = steenblauw
+ * (communicatie), intern/systeem = gedempt grijs — geen kleur als decoratie.
+ *
+ * Steenblauw komt uit de `status-voorcalculatie`-familie en níet uit
+ * `status-verzonden` zoals het lessenplan zegt: verzonden is in de tokens
+ * oker (hue 85), de voorcalculatie-familie ís de steenblauw-245-receptuur
+ * met complete bg/tekst-paren in beide thema's.
+ *
+ * Contrast icoon-op-tegel: `primary` op `surface-primair` meet 5,76:1 licht
+ * (gemeten in globals.css) en L0.78-op-L0.272 dark; de statusfamilies zijn
+ * als paar getekend (bg L0.93/tekst L0.32 licht, bg 0.26/tekst 0.85 dark).
+ * Alles ≥3:1. De betekenis zelf staat in icoon, `title` en sr-only tekst.
  */
-const KANAAL_KNOOP: Record<Kanaal, string> = {
-  telefoon: "border-primary/35 bg-primary/10 text-primary",
-  whatsapp: "border-chart-5/40 bg-chart-5/10 text-chart-5",
-  email: "border-chart-3/40 bg-chart-3/10 text-chart-3",
-  // Niet `--chart-2`/`--accent-warm`: die terracotta's meten 2,6:1 resp.
-  // 2,1:1 op hun eigen 10%-schijf in licht. Het houtwerk-token is dezelfde
-  // warme as één stap dieper en haalt 4,1:1.
-  intern: "border-scope-houtwerk/45 bg-scope-houtwerk/10 text-scope-houtwerk",
-  systeem:
-    "border-dashed border-muted-foreground/25 bg-muted text-muted-foreground",
+const KANAAL_TEGEL: Record<Kanaal, string> = {
+  telefoon: "bg-surface-primair text-primary",
+  whatsapp: "bg-surface-primair text-primary",
+  email: "bg-status-voorcalculatie text-status-voorcalculatie-text",
+  intern: "bg-muted text-muted-foreground",
+  systeem: "bg-muted text-muted-foreground",
 };
+
+/**
+ * Een vastgelegde afspraak deelt kanaal "intern" met een notitie maar vraagt
+ * (toekomstige) aandacht: amber uit de `status-herinnering`-familie.
+ */
+const AFSPRAAK_TEGEL = "bg-status-herinnering text-status-herinnering-text";
 
 /**
  * De rail zelf. Niet `bg-border`: die ligt op het werkstroomvlak op 1,00:1 —
@@ -276,37 +289,43 @@ function TijdlijnEntryRij({
   // Systeem-entries zijn ruis waar je doorheen leest, geen gespreksnotitie:
   // dimmen in plaats van een eigen kleur of badge.
   const isSysteem = entry.kanaal === "systeem";
+  // Afspraak deelt kanaal "intern" met een notitie; het eventType is het
+  // enige onderscheid en krijgt een eigen (amber) tegel + icoon.
+  const isAfspraak = entry.eventType === "afspraak";
   return (
     <li
       className={cn(
-        "grid grid-cols-[1.25rem_minmax(0,1fr)] gap-x-2.5 px-3 py-2 transition-colors duration-100 hover:bg-muted/40",
+        "grid grid-cols-[2rem_minmax(0,1fr)] gap-x-2.5 px-3 py-2 transition-colors duration-100 hover:bg-muted/40",
         isNieuwste &&
           "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 motion-safe:duration-200"
       )}
     >
-      {/* Tijdlijn-anatomie: een doorlopende rail met per gebeurtenis een knoop
-          erop. De rail zit in twee stukken (boven en onder de knoop) in plaats
-          van er dwars doorheen — dan is er geen ring in de paneelkleur nodig en
-          klopt het beeld ook in de Chat-module, waar het vlak anders is.
-          De kolom rekt mee met de rijhoogte, dus de rail sluit zonder gaten aan
-          op de rij eronder. */}
+      {/* Tijdlijn-anatomie: een doorlopende rail met per gebeurtenis een
+          icoontegel erop (v7-les 1). De rail zit in twee stukken (boven en
+          onder de tegel) in plaats van er dwars doorheen — dan is er geen ring
+          in de paneelkleur nodig en klopt het beeld ook in de Chat-module,
+          waar het vlak anders is. De kolom rekt mee met de rijhoogte, dus de
+          rail sluit zonder gaten aan op de rij eronder. */}
       {/* -my-2 heft de rij-padding op: zonder dat stopt de rail bij de tekst en
-          valt er 16px gat tussen twee rijen. De 9px boven de knoop zet hem op
-          de hoogte van de eerste tekstregel. */}
+          valt er 16px gat tussen twee rijen. De 2px boven de tegel zetten het
+          tegelmidden (2 + 16 = 18px) op de hoogte van de eerste tekstregel,
+          dezelfde as als de oude 18px-knoop. */}
       <span className="-my-2 flex flex-col items-center self-stretch">
         <span
           aria-hidden
-          className={cn("h-[9px] w-px shrink-0", !isEerste && RAIL)}
+          className={cn("h-[2px] w-px shrink-0", !isEerste && RAIL)}
         />
         <span
           className={cn(
-            "relative flex size-[18px] shrink-0 items-center justify-center rounded-full border [&>svg]:size-3",
-            KANAAL_KNOOP[entry.kanaal]
+            "relative flex size-8 shrink-0 items-center justify-center rounded-[10px] [&>svg]:size-4",
+            isAfspraak ? AFSPRAAK_TEGEL : KANAAL_TEGEL[entry.kanaal]
           )}
-          title={KANAAL_LABELS[entry.kanaal]}
+          title={isAfspraak ? "Afspraak" : KANAAL_LABELS[entry.kanaal]}
         >
-          {KANAAL_ICONS[entry.kanaal]}
-          <span className="sr-only">{KANAAL_LABELS[entry.kanaal]}</span>
+          {isAfspraak ? <CalendarDays /> : KANAAL_ICONS[entry.kanaal]}
+          <span className="sr-only">
+            {isAfspraak ? "Afspraak" : KANAAL_LABELS[entry.kanaal]}
+          </span>
         </span>
         <span aria-hidden className={cn("w-px flex-1", !isLaatste && RAIL)} />
       </span>
@@ -970,9 +989,9 @@ export function KlantTijdlijn({
           {[0, 1, 2].map((i) => (
             <li
               key={i}
-              className="grid grid-cols-[1.25rem_minmax(0,1fr)] gap-x-2.5 px-3 py-2"
+              className="grid grid-cols-[2rem_minmax(0,1fr)] gap-x-2.5 px-3 py-2"
             >
-              <Skeleton className="mt-0.5 size-5 rounded-full" />
+              <Skeleton className="size-8 rounded-[10px]" />
               <div className="min-w-0 space-y-1.5">
                 <Skeleton className="h-3.5 w-[70%]" />
                 <Skeleton className="h-2.5 w-[35%]" />
@@ -1019,7 +1038,7 @@ export function KlantTijdlijn({
         <ul>
           {groepen.map((groep, groepIndex) => (
             <Fragment key={groep.sleutel}>
-              <li className="grid grid-cols-[1.25rem_minmax(0,1fr)] items-stretch gap-x-2.5 px-3 pb-1 pt-2.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              <li className="grid grid-cols-[2rem_minmax(0,1fr)] items-stretch gap-x-2.5 px-3 pb-1 pt-2.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                 {/* De rail loopt dóór de datumkop heen (behalve boven de
                     allereerste); -mt/-mb heffen de rij-padding op zodat hij
                     zonder gat aansluit op de rijen erboven en eronder. */}
