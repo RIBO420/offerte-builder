@@ -10,10 +10,34 @@
  * 2. **Vastleggen blokkeert nooit op de AI.** Faalt de analyse-action, dan
  *    wordt het gesprek alsnog vastgelegd — met een rustige melding, geen
  *    foutscherm en zonder dat de getypte tekst verloren gaat.
+ * 3. **Geen opname zonder melding aan de klant** (WS5). De opnameknop opent
+ *    de meldingszin; pas de bevestiging dát je hem hebt uitgesproken zet de
+ *    microfoon aan. Er is geen tweede weg naar `getUserMedia`.
  */
 import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+
+/** Wordt per test opnieuw gezet; de spion ís de opnamegate-test. */
+const getUserMedia = vi.fn();
+const spoorGestopt = vi.fn();
+
+/** Zo min mogelijk MediaRecorder: starten, stoppen, klaar. */
+class NepMediaRecorder {
+  static isTypeSupported = () => true;
+  state: "inactive" | "recording" = "inactive";
+  mimeType = "audio/webm;codecs=opus";
+  ondataavailable: ((e: { data: Blob }) => void) | null = null;
+  onstop: (() => void) | null = null;
+  start() {
+    this.state = "recording";
+  }
+  stop() {
+    this.state = "inactive";
+    this.ondataavailable?.({ data: new Blob(["x"], { type: this.mimeType }) });
+    this.onstop?.();
+  }
+}
 
 // jsdom kent de Pointer Capture-API niet; Radix (de checkbox) roept hem wél aan.
 beforeAll(() => {
@@ -27,6 +51,15 @@ beforeAll(() => {
     unobserve() {}
     disconnect() {}
   } as never;
+
+  // jsdom heeft geen microfoon en geen MediaRecorder; allebei erin zetten,
+  // zodat de composer de echte weg loopt in plaats van "niet ondersteund".
+  Object.defineProperty(globalThis.navigator, "mediaDevices", {
+    configurable: true,
+    value: { getUserMedia },
+  });
+  (globalThis as unknown as Record<string, unknown>).MediaRecorder =
+    NepMediaRecorder;
 });
 
 const analyseer = vi.fn();
@@ -80,6 +113,11 @@ beforeEach(() => {
   legVast.mockClear();
   toastFout.mockClear();
   toastGoed.mockClear();
+  spoorGestopt.mockClear();
+  getUserMedia.mockReset();
+  getUserMedia.mockResolvedValue({
+    getTracks: () => [{ stop: spoorGestopt }],
+  });
 });
 
 describe("GesprekComposer: de analyse stelt voor, de gebruiker beslist", () => {
@@ -214,6 +252,76 @@ describe("GesprekComposer: de AI mag het vastleggen nooit tegenhouden", () => {
 
     expect(toastFout).toHaveBeenCalledWith("Vul eerst in wat er besproken is");
     expect(analyseer).not.toHaveBeenCalled();
+    expect(legVast).not.toHaveBeenCalled();
+  });
+});
+
+describe("GesprekComposer: geen opname zonder melding aan de klant", () => {
+  const MELDINGSZIN = /Ik zet je even op de luidspreker/;
+
+  it("zet de microfoon pas aan ná de bevestiging dat de melding gedaan is", async () => {
+    const user = userEvent.setup();
+    await toonComposer();
+
+    // Vóór de knop is er geen meldingszin en dus ook geen weg naar de mic.
+    expect(screen.queryByText(MELDINGSZIN)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Gesprek opnemen/ }));
+
+    // Openklappen toont de melding — en verder niets: geen microfoon, geen
+    // timer, geen Stop-knop.
+    expect(screen.getByText(MELDINGSZIN)).toBeInTheDocument();
+    expect(getUserMedia).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole("button", { name: /Stop/ })
+    ).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "Melding gedaan, start opname" })
+    );
+
+    await waitFor(() => expect(getUserMedia).toHaveBeenCalledTimes(1));
+    expect(getUserMedia).toHaveBeenCalledWith({ audio: true });
+    // Nu pas de opnamestaat: teller op nul en een Stop-knop.
+    expect(await screen.findByRole("button", { name: /Stop/ })).toBeVisible();
+    expect(screen.getByText("0:00")).toBeInTheDocument();
+    // De meldingszin blijft in beeld zolang er opgenomen wordt.
+    expect(screen.getByText(MELDINGSZIN)).toBeInTheDocument();
+  });
+
+  it("laat Annuleren de melding wegklappen zonder ooit op te nemen", async () => {
+    const user = userEvent.setup();
+    await toonComposer();
+
+    await user.click(screen.getByRole("button", { name: /Gesprek opnemen/ }));
+    await user.click(screen.getByRole("button", { name: "Annuleren" }));
+
+    expect(screen.queryByText(MELDINGSZIN)).not.toBeInTheDocument();
+    expect(getUserMedia).not.toHaveBeenCalled();
+    // De opnameknop staat er weer, klaar voor een volgende poging.
+    expect(
+      screen.getByRole("button", { name: /Gesprek opnemen/ })
+    ).toBeInTheDocument();
+  });
+
+  it("houdt het rustig als de microfoon geweigerd wordt", async () => {
+    getUserMedia.mockRejectedValue(new Error("NotAllowedError"));
+    const user = userEvent.setup();
+    await toonComposer();
+
+    await user.click(screen.getByRole("button", { name: /Gesprek opnemen/ }));
+    await user.click(
+      screen.getByRole("button", { name: "Melding gedaan, start opname" })
+    );
+
+    await waitFor(() =>
+      expect(toastFout).toHaveBeenCalledWith(
+        "Geen toegang tot de microfoon. Sta opnemen toe in je browser en probeer het opnieuw."
+      )
+    );
+    // Geen foutscherm: het paneel klapt dicht en je kunt gewoon typen.
+    expect(screen.queryByText(MELDINGSZIN)).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Wat is er besproken?")).toBeEnabled();
     expect(legVast).not.toHaveBeenCalled();
   });
 });

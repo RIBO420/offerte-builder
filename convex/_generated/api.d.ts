@@ -123,6 +123,7 @@ import type * as tekstblokken from "../tekstblokken.js";
 import type * as tijdlijn from "../tijdlijn.js";
 import type * as tijdlijnMigratie from "../tijdlijnMigratie.js";
 import type * as toolboxMeetings from "../toolboxMeetings.js";
+import type * as transcriptie from "../transcriptie.js";
 import type * as urenRegistraties from "../urenRegistraties.js";
 import type * as urenSegmenten from "../urenSegmenten.js";
 import type * as users from "../users.js";
@@ -268,6 +269,7 @@ declare const fullApi: ApiFromModules<{
   tijdlijn: typeof tijdlijn;
   tijdlijnMigratie: typeof tijdlijnMigratie;
   toolboxMeetings: typeof toolboxMeetings;
+  transcriptie: typeof transcriptie;
   urenRegistraties: typeof urenRegistraties;
   urenSegmenten: typeof urenSegmenten;
   users: typeof users;

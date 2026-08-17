@@ -890,6 +890,31 @@ export const gdprAnonymize = mutation({
       updatedAt: now,
     });
 
+    // Opnames vallen onder het verwijderverzoek (klantbriefing, punt 4).
+    // Alleen mislukte transcripties hebben nog audio staan — na een geslaagde
+    // uitwerking is die al weg — maar juist dát is een opname van de stem van
+    // deze klant. Storage-object weg, veld leeg; de tekst van de entry blijft
+    // staan (dossier-integriteit, zoals de rest van deze anonimisering).
+    const tijdlijnEntries = await ctx.db
+      .query("klantTijdlijn")
+      .withIndex("by_klant", (q) => q.eq("klantId", args.id))
+      .collect();
+
+    for (const entry of tijdlijnEntries) {
+      if (!entry.audioId) continue;
+      try {
+        await ctx.storage.delete(entry.audioId);
+      } catch (fout) {
+        // Een al opgeruimd object mag de anonimisering niet tegenhouden; het
+        // veld leegmaken hieronder is wat telt voor het dossier.
+        console.warn("gdprAnonymize: opname verwijderen mislukt", fout);
+      }
+      await ctx.db.patch(entry._id, {
+        audioId: undefined,
+        transcriptieStatus: undefined,
+      });
+    }
+
     // Also anonymize klant data embedded in linked offertes (snapshots)
     for (const offerte of offertes) {
       await ctx.db.patch(offerte._id, {

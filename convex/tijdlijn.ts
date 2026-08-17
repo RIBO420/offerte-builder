@@ -615,6 +615,21 @@ export const legGesprekVast = mutation({
     eventType: v.optional(
       v.union(v.literal("handmatig"), v.literal("afspraak"))
     ),
+    // ─── Opname (fase B, WS5) ───────────────────────────────────────────────
+    /** Duur van de opname in seconden; toont als "OPNAME · m:ss" op de regel. */
+    opnameDuurSec: v.optional(v.number()),
+    /**
+     * De geüploade audio. Wat hiermee gebeurt hangt aan `transcriptieStatus`
+     * en is een harde productregel uit de klantbriefing:
+     * - "gelukt"  → de tekst hieronder ís het gesprek; de audio wordt hier
+     *   verwijderd (`ctx.storage.delete`) en het veld blijft leeg.
+     * - "mislukt" → de audio blijft juist bewaard, zodat kantoor hem alsnog
+     *   kan terugluisteren en het gesprek handmatig kan uitwerken.
+     */
+    audioId: v.optional(v.id("_storage")),
+    transcriptieStatus: v.optional(
+      v.union(v.literal("gelukt"), v.literal("mislukt"))
+    ),
   },
   handler: async (
     ctx,
@@ -642,6 +657,14 @@ export const legGesprekVast = mutation({
       }
     }
 
+    // Audio wordt verwijderd zodra de transcriptie is opgeslagen (harde
+    // productregel: alleen de tekst blijft). Bij een MISLUKTE transcriptie
+    // blijft hij juist staan, want dan is de audio het enige wat er nog van
+    // het gesprek over is. De delete gebeurt bewust vóór de insert niet, maar
+    // erna — zie onderaan: mislukt de insert, dan is de audio nog terug te
+    // vinden in plaats van stilletjes weg.
+    const bewaarAudio = args.transcriptieStatus === "mislukt";
+
     const now = Date.now();
     const entryId = await ctx.db.insert("klantTijdlijn", {
       userId: companyUserId,
@@ -653,8 +676,22 @@ export const legGesprekVast = mutation({
       eventType: args.eventType ?? "handmatig",
       tekst,
       werkitemId: args.werkitemId,
+      opnameDuurSec: args.opnameDuurSec,
+      audioId: bewaarAudio ? args.audioId : undefined,
+      transcriptieStatus: args.transcriptieStatus,
       createdAt: now,
     });
+
+    if (args.audioId && !bewaarAudio) {
+      // Geslaagde transcriptie: de tekst staat er nu in, de audio mag weg.
+      // Een storage-object dat al opgeruimd is mag het vastleggen niet alsnog
+      // laten mislukken — de entry is dan al geschreven.
+      try {
+        await ctx.storage.delete(args.audioId);
+      } catch (fout) {
+        console.warn("legGesprekVast: audio opruimen mislukt", fout);
+      }
+    }
 
     // Taken volgens het klantTaken.create-patroon, plus de herkomst.
     const taakIds: Id<"klantTaken">[] = [];
@@ -696,5 +733,48 @@ export const legGesprekVast = mutation({
     }
 
     return { entryId, taakIds };
+  },
+});
+
+// ============================================
+// Opname (klantdossier v7, WS5)
+// ============================================
+
+/**
+ * Upload-URL voor een opgenomen gesprek — zelfde twee-staps-patroon als
+ * `fotoStorage.generateUploadUrl` (URL ophalen, blob er rechtstreeks heen
+ * POSTen), maar met het slot van de tijdlijn ervoor: een opname ís een
+ * tijdlijn-entry in wording, dus alleen kantoor mag hem maken.
+ */
+export const generateOpnameUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    await requireKantoor(ctx);
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
+/**
+ * Opruimen van een opname die nooit een entry is geworden: de gebruiker klikt
+ * het paneel weg, of navigeert weg voordat hij iets vastlegt. Best effort —
+ * de client wacht er niet op en een mislukte opruiming mag nergens een
+ * foutmelding opleveren. Lukt het niet, dan blijft er een verweesde
+ * audio-file staan; dat is minder erg dan een blokkade in de UI.
+ *
+ * Alleen kantoor, net als de rest van dit bestand. Er hangt bewust geen
+ * eigenaarscontrole op het storage-object: een storageId van een opname is
+ * alleen bekend bij de client die hem zojuist zelf heeft geüpload.
+ */
+export const verwijderOpname = mutation({
+  args: { audioId: v.id("_storage") },
+  handler: async (ctx, args) => {
+    await requireKantoor(ctx);
+    try {
+      await ctx.storage.delete(args.audioId);
+      return { verwijderd: true };
+    } catch (fout) {
+      console.warn("verwijderOpname: opruimen mislukt", fout);
+      return { verwijderd: false };
+    }
   },
 });
