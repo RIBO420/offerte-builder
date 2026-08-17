@@ -1,5 +1,10 @@
 # UI-patronen: tabellen, secties, lege staten
 
+App-brede wet. Dit geldt voor élk scherm, ook een scherm dat nog niet bestaat.
+Bouw je aan de tijdlijn of de gesprekscomposer zélf, lees dan óók
+`docs/dev/componenten/tijdlijn-en-composer.md` — die kennis staat daar bewust apart,
+zodat een nieuw ontwerp niet ongemerkt de keuzes van het klantdossier overneemt.
+
 ## Tabellen: nooit zijwaarts scrollen
 
 De app scrolt bewust nergens horizontaal — liever inkorten. `ResponsiveTable`
@@ -31,10 +36,9 @@ In gebruik door Tijdlijn (`components/tijdlijn/klant-tijdlijn.tsx`) en Taken
 ### Gewichtsklassen: `gewicht="primair" | "secundair" | "voetnoot"`
 
 Eén frame zeven keer herhalen leest als "alles is even belangrijk" — dat was de
-klacht over het klantdossier (`docs/design/plannen/klantdetail-hierarchie.md`).
-`SectiePaneel` heeft daarom drie klassen. De prop is **additief**: zonder prop
-krijg je `secundair`, de weergave die er altijd was — `sectie-paneel.test.tsx`
-hoefde er geen regel voor te wijzigen.
+klacht over het klantdossier. `SectiePaneel` heeft daarom drie klassen. De prop is
+**additief**: zonder prop krijg je `secundair`, de weergave die er altijd was —
+`sectie-paneel.test.tsx` hoefde er geen regel voor te wijzigen.
 
 | Gewicht | Waarvoor | Frame | Kopje |
 |---|---|---|---|
@@ -71,7 +75,7 @@ hoefde er geen regel voor te wijzigen.
 - **Lege staat = `legeRegel`, niet `SectieLegeStaat`.** Heeft een sectie een kop,
   geef dan `legeRegel={{ tekst, hint }}` mee: die rendert áchter het kopje op
   dezelfde basislijn (zelfde `font-size`-box en `leading-4`, gemeten Δtop = 0px).
-  De WS7-hint blijft dus staan, alleen compacter; loopt hij niet uit dan kort hij
+  De hint blijft dus staan, alleen compacter; loopt hij niet uit dan kort hij
   in met de volle tekst in `title` (nooit zijwaarts scrollen). `SectieLegeStaat`
   blijft voor secties zónder kop — de tijdlijn in de Chat-module.
 - **Voetnoot leeft in een frame, niet los.** Drie kale secties naast elkaar lezen
@@ -86,55 +90,8 @@ hoefde er geen regel voor te wijzigen.
   er wél inhoud, alleen niet zichtbaar, en houdt de sectie zijn eigen blok met
   "Filters wissen".
 
-### Tijdlijn-anatomie
+## Container-queries, geen viewport-breakpoints
 
-`KlantTijdlijn` tekent een doorlopende rail met per gebeurtenis een knoop (het
-kanaal-icoon in een schijfje). Vier dingen die je anders opnieuw ontdekt:
-
-- De railkolom heeft `-my-2` nodig. Zonder dat stopt hij bij de tekst en valt er
-  16px rij-padding tussen twee rijen — een stippellijn in plaats van een lijn.
-- De rail is **niet** `bg-border`: die ligt op `--surface-primair` op 1,00:1, dus
-  onzichtbaar. `bg-muted-foreground/40` blijft een token en meet 1,78:1 (licht)
-  en 2,15:1 (donker). De rij-`divide-y` is weg: een streep dwars over de rail
-  knipt hem stuk.
-- **De rail loopt dóór de datumkoppen** en is alleen boven de allereerste en
-  onder de allerlaatste knoop afwezig — `isEerste`/`isLaatste` zijn dus
-  lijst-globaal, niet per datumgroep. De koppen zijn geen volle-breedte balken
-  meer maar een label in de tekstkolom met een eigen railsegment. De oude
-  per-groep-variant liet bij één entry per dag helemáál geen lijn zien (zo
-  ontdekt in de Chat-module, waar elke dag één entry had).
-- **Knoopkleur per kanaal** staat in `KANAAL_KNOOP`: telefoon `primary`,
-  WhatsApp `chart-5`, e-mail `chart-3`, intern `scope-houtwerk` (bewust niet
-  `chart-2`/`accent-warm`: die terracotta's meten 2,6 resp. 2,1:1 op hun
-  10%-schijf in licht; houtwerk haalt 4,1:1), systeem gedempt + gestippeld.
-  Iconen meten ≥3,3:1 op hun schijf in beide thema's; betekenis staat óók in
-  `title` + sr-only tekst, de kleur is ondersteuning.
-
-Drie patronen die daar zijn vastgelegd:
-
-- **Composer = één regel die openklapt bij focus.** De controlestrip hangt aan
-  `group-data-[open=false]/composer:hidden`. Let op: de selects erin renderen in een
-  portal, dus focus verlaat de composer — een naïeve `onBlur` klapt hem dicht terwijl
-  je een medewerker kiest. `src/__tests__/components/composer-openklappen.test.tsx`
-  bewaakt dat.
-  Op de dagstaat staat dezelfde composer in "Mijn taken"
-  (`components/dashboard/taak-composer.tsx`), met één verschil: daar staat de
-  klant niet vast, dus de strip begint met een compacte klantkiezer en zonder
-  klant slaat hij niet op. De taak komt op naam van de ingelogde medewerker —
-  het blok heet "Mijn taken"; toewijzen aan een collega blijft op het
-  klantdossier. De kiezer is bewust níét de `KlantKiezer` uit
-  `offerte/klant-koppeling.tsx` (offertehistorie, leads, "nieuwe klant" — veel
-  te zwaar voor één regel in een bento-cel); gedeeld zijn alleen `useKlanten`
-  en `useKlantenSearch`. De strip monteert pas ná de eerste opening, zodat de
-  klantenlijst niet meelift op het laden van het dashboard. In tests: cmdk
-  selecteert in jsdom alleen op `fireEvent.click`, niet op `userEvent.click`.
-- **Container-queries, geen viewport-breakpoints.** `SectiePaneel` zet
-  `@container/sectie`; smalle varianten schrijf je als `@max-[34rem]/sectie:…`.
-  Nodig omdat dezelfde tijdlijn zowel in de brede klantpagina als in de smallere
-  Chat-module staat — die moet niet meeliften op de schermbreedte.
-- **Het klikvlak is de hele regel, niet het invoerveld.** Het veld is ~19px hoog in
-  een regel van ~41px en het icoon links is geen invoerveld; klikken op de regel deed
-  daardoor niets. Omdat de knoppen pas ná het openklappen bestaan, leest dat als "de
-  knoppen werken niet". Een `onMouseDown` op de regel die `preventDefault()` doet en
-  het veld focust lost dat op — met een uitzondering voor echte controls
-  (`button, input, textarea, select, a, [role=combobox]`).
+`SectiePaneel` zet `@container/sectie`; smalle varianten schrijf je als
+`@max-[34rem]/sectie:…`. Nodig omdat dezelfde sectie zowel in een brede pagina als
+in een smalle kolom kan staan — die moet niet meeliften op de schermbreedte.
