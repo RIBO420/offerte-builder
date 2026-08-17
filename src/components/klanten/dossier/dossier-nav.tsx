@@ -190,12 +190,14 @@ function bouwGroepen(t: DossierTellingen | null | undefined): NavGroep[] {
           icoon: <FolderKanban />,
           waarde: t?.projecten ?? 0,
           toon: telling(t?.projecten ?? 0),
+          pilLabel: `${t?.projecten ?? 0} projecten`,
         },
         {
           tab: "onderhoud",
           icoon: <CalendarClock />,
           waarde: t?.onderhoud ?? 0,
           toon: telling(t?.onderhoud ?? 0),
+          pilLabel: `${t?.onderhoud ?? 0} contracten en losse beurten`,
         },
       ],
     },
@@ -207,6 +209,7 @@ function bouwGroepen(t: DossierTellingen | null | undefined): NavGroep[] {
           icoon: <FileText />,
           waarde: t?.offertes ?? 0,
           toon: telling(t?.offertes ?? 0),
+          pilLabel: `${t?.offertes ?? 0} offertes`,
         },
         {
           tab: "facturen",
@@ -216,7 +219,7 @@ function bouwGroepen(t: DossierTellingen | null | undefined): NavGroep[] {
           pilLabel:
             openFacturen > 0
               ? `${openFacturen} open${teLaat ? ", waarvan een langer dan 30 dagen" : ""}`
-              : undefined,
+              : `${t?.facturen ?? 0} facturen, geen openstaand`,
         },
       ],
     },
