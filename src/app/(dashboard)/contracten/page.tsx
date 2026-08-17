@@ -32,11 +32,8 @@ import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { StatsGridSkeleton, CardTableSkeleton } from "@/components/ui/skeleton-card";
-import {
-  CONTRACT_STATUS_CONFIG,
-  statusClasses,
-  type ContractStatus,
-} from "@/lib/constants/statuses";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { type ContractStatus } from "@/lib/constants/statuses";
 
 const frequentieLabels: Record<string, string> = {
   maandelijks: "Maandelijks",
@@ -44,15 +41,6 @@ const frequentieLabels: Record<string, string> = {
   halfjaarlijks: "Halfjaarlijks",
   jaarlijks: "Jaarlijks",
 };
-
-function StatusBadge({ status }: { status: ContractStatus }) {
-  const config = CONTRACT_STATUS_CONFIG[status] || CONTRACT_STATUS_CONFIG.concept;
-  return (
-    <Badge variant="outline" className={statusClasses(config)}>
-      {config.label}
-    </Badge>
-  );
-}
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("nl-NL", {
@@ -341,6 +329,8 @@ function ContractenPageContent() {
                                 <TableCell>
                                   <StatusBadge
                                     status={contract.status as ContractStatus}
+                                    domain="contract"
+                                    size="sm"
                                   />
                                 </TableCell>
                               </TableRow>
@@ -379,7 +369,9 @@ function ContractenPageContent() {
                         Maak je eerste onderhoudscontract aan om terugkerende
                         werkzaamheden te beheren.
                       </p>
-                      <Button asChild>
+                      {/* Les 3: de gevulde "Nieuw contract" staat al in de kop;
+                          deze herhaling in de lege staat blijft outline. */}
+                      <Button asChild variant="outline">
                         <Link href="/contracten/nieuw">
                           <Plus className="h-4 w-4 mr-2" />
                           Nieuw contract

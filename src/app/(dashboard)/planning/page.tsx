@@ -35,9 +35,9 @@ import { KwartaalOverzicht } from "@/components/planning/kwartaal-overzicht";
 import { JaarOverzicht } from "@/components/planning/jaar-overzicht";
 import {
   PROJECT_STATUS_CONFIG,
-  statusClasses,
   type ProjectStatus,
 } from "@/lib/constants/statuses";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 type PlanningView = "week" | "maand" | "kwartaal" | "jaar";
@@ -86,19 +86,6 @@ function getMondayOfWeek(date: Date): Date {
   return new Date(d.setDate(diff));
 }
 
-// Status badge component
-function StatusBadge({ status }: { status: string }) {
-  const config = statusConfig[status as ProjectStatus] || statusConfig.gepland;
-  const Icon = config.icon;
-
-  return (
-    <Badge variant="outline" className={statusClasses(config)}>
-      <Icon className="h-3 w-3 mr-1" />
-      {config.label}
-    </Badge>
-  );
-}
-
 // Project card component
 function ProjectCard({ project }: { project: ProjectVoortgang }) {
   const config = statusConfig[project.status as ProjectStatus] || statusConfig.gepland;
@@ -122,7 +109,7 @@ function ProjectCard({ project }: { project: ProjectVoortgang }) {
                 )}
               </div>
             </div>
-            <StatusBadge status={project.status} />
+            <StatusBadge status={project.status} domain="project" size="sm" />
           </div>
 
           {/* Progress */}
@@ -492,7 +479,9 @@ function PlanningPageContent() {
                     </p>
                     {isAdmin ? (
                       <div className="flex gap-3">
-                        <Button asChild>
+                        {/* Les 3: "Weekbord" in de kop is dé gevulde hoofdknop
+                            van dit scherm; deze navigatie blijft outline. */}
+                        <Button asChild variant="outline">
                           <Link href="/projecten">
                             <FolderKanban className="mr-2 h-4 w-4" />
                             Alle Projecten

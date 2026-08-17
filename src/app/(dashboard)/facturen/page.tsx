@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import {
   FileText,
   Search,
@@ -50,13 +51,8 @@ import {
 import { formatCurrency } from "@/lib/format/currency";
 import { OpenstaandOverzicht } from "@/components/facturen/openstaand-overzicht";
 import {
-  FACTUUR_STATUS_CONFIG,
-  statusClasses,
   type FactuurStatus,
 } from "@/lib/constants/statuses";
-
-// Statuskleuren uit de centrale bron (WS4): zelfde status = zelfde kleur.
-const statusConfig = FACTUUR_STATUS_CONFIG;
 
 /**
  * Weergavestatus op basis van de gesplitste statussen (§2.8):
@@ -98,18 +94,6 @@ const dateFormatter = new Intl.DateTimeFormat("nl-NL", {
 
 function formatDate(timestamp: number): string {
   return dateFormatter.format(new Date(timestamp));
-}
-
-function StatusBadge({ status }: { status: FactuurStatus }) {
-  const config = statusConfig[status] || statusConfig.concept;
-  const Icon = config.icon;
-
-  return (
-    <Badge variant="outline" className={statusClasses(config)}>
-      <Icon className="h-3 w-3 mr-1" />
-      {config.label}
-    </Badge>
-  );
 }
 
 export default function FacturenPage() {
@@ -701,7 +685,11 @@ function FacturenPageContent() {
                                   })()}
                                 </TableCell>
                                 <TableCell>
-                                  <StatusBadge status={weergaveStatus(factuur)} />
+                                  <StatusBadge
+                                    status={weergaveStatus(factuur)}
+                                    domain="factuur"
+                                    size="sm"
+                                  />
                                 </TableCell>
                               </TableRow>
                               );
@@ -744,6 +732,9 @@ function FacturenPageContent() {
                               ? {
                                   label: "Bekijk Projecten",
                                   onClick: () => router.push("/projecten"),
+                                  // Les 3: "Nieuwe factuur" in de kop is dé
+                                  // gevulde hoofdknop van dit scherm.
+                                  variant: "outline",
                                 }
                               : {
                                   label: "Zoekopdracht wissen",

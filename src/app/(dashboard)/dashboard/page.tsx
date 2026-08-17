@@ -184,7 +184,9 @@ export default function DashboardPage() {
                         </p>
                       </div>
                     </div>
-                    <Button asChild size="lg" className="bg-orange-500 hover:bg-orange-600">
+                    {/* Les 3+6: dé gevulde hoofdknop van het medewerker-
+                        dashboard, in primary — geen rauwe paletkleur. */}
+                    <Button asChild size="lg">
                       <Link href="/projecten">
                         Naar Projecten
                         <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />

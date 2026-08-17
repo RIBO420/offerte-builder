@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import {
   ResponsiveTable,
   ResponsiveColumn,
@@ -643,10 +644,14 @@ function KlantenPageContent() {
                 {/* Geen status = nog geen stadium, géén "Lead": deze lijst laat
                     leads juist weg (hoortInKlantenLijst) en na een import zou
                     anders élke klant als lead worden bestempeld. */}
+                {/* Les 4: statusweergave via het StatusBadge-systeem
+                    (domein klantPipeline), geen zelfgebouwde pil. */}
                 {klant.pipelineStatus && (
-                  <Badge className={`text-xs ${PIPELINE_COLORS[klant.pipelineStatus]}`}>
-                    {PIPELINE_LABELS[klant.pipelineStatus]}
-                  </Badge>
+                  <StatusBadge
+                    status={klant.pipelineStatus}
+                    domain="klantPipeline"
+                    size="sm"
+                  />
                 )}
                 <Badge className={`text-xs ${KLANT_TYPE_COLORS[klant.klantType ?? "particulier"]}`}>
                   {typeLabel}

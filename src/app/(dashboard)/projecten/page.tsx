@@ -43,20 +43,7 @@ import {
   ExportDropdown,
   projectenExportColumns,
 } from "@/components/export-dropdown";
-import { PROJECT_STATUS_CONFIG, statusClasses } from "@/lib/constants/statuses";
-
-// Statuskleuren uit de centrale bron (WS4): zelfde status = zelfde kleur.
-// Dit scherm toont bewust alleen deze statussen (zelfde keys als voorheen);
-// voorcalculatie blijft erin voor bestaande projecten.
-const statusConfig = {
-  voorcalculatie: PROJECT_STATUS_CONFIG.voorcalculatie,
-  gepland: PROJECT_STATUS_CONFIG.gepland,
-  in_uitvoering: PROJECT_STATUS_CONFIG.in_uitvoering,
-  afgerond: PROJECT_STATUS_CONFIG.afgerond,
-  nacalculatie_compleet: PROJECT_STATUS_CONFIG.nacalculatie_compleet,
-} as const;
-
-type ProjectStatus = keyof typeof statusConfig;
+import { StatusBadge } from "@/components/ui/status-badge";
 
 function formatDate(timestamp: number): string {
   return new Intl.DateTimeFormat("nl-NL", {
@@ -64,18 +51,6 @@ function formatDate(timestamp: number): string {
     month: "short",
     year: "numeric",
   }).format(new Date(timestamp));
-}
-
-function StatusBadge({ status }: { status: ProjectStatus }) {
-  const config = statusConfig[status] || statusConfig.gepland;
-  const Icon = config.icon;
-
-  return (
-    <Badge variant="outline" className={statusClasses(config)}>
-      <Icon className="h-3 w-3 mr-1" />
-      {config.label}
-    </Badge>
-  );
 }
 
 export default function ProjectenPage() {
@@ -449,7 +424,9 @@ function ProjectenPageContent() {
                                 </TableCell>
                                 <TableCell>
                                   <StatusBadge
-                                    status={project.status as ProjectStatus}
+                                    status={project.status}
+                                    domain="project"
+                                    size="sm"
                                   />
                                 </TableCell>
                                 <TableCell className="text-muted-foreground">

@@ -302,7 +302,11 @@ export default function ConceptMailsPage() {
                         >
                           <Trash2 className="size-4" />
                         </Button>
+                        {/* Les 3: een gevulde knop per rij stapelt tot een
+                            groene muur — rij-acties zijn outline, zoals de
+                            tabellen in het v7-prototype. */}
                         <Button
+                          variant="outline"
                           size="sm"
                           onClick={() => handleVersturen(mail)}
                           disabled={bezigMetId === mail._id}
