@@ -542,6 +542,74 @@ export function berekenScopeMarges(
     .sort((a, b) => b.omzetExclBtw - a.omzetExclBtw);
 }
 
+// ── Sectie 4: omzetmix aanleg vs. onderhoud ──────────────────────────────
+
+export interface OfferteVoorType extends OfferteVoorOmzet {
+  /** Exact twee waarden (`aanleg`, `onderhoud`) — TT-004, harde regel 2. */
+  type: string;
+}
+
+export interface OmzetTypeRegel {
+  /** Ruwe sleutel: `aanleg` of `onderhoud`. Mensentaal maakt de UI ervan (R3). */
+  type: string;
+  omzetExclBtw: number;
+  omzetInclBtw: number;
+  marge: number;
+  margePercentage: number;
+  aantalGetekend: number;
+  /** Aandeel in de totale getekende omzet ex btw, in procenten. */
+  aandeelPercentage: number;
+}
+
+/**
+ * Omzetmix over de getekende offertes in de periode: aanleg naast onderhoud.
+ *
+ * Bewust NIET afgeleid uit `berekenScopeMarges`: die telt per scope en laat een
+ * offerte zonder scopes vallen, terwijl `offertes.type` altijd gevuld is. Voor
+ * de vraag "waar komt de omzet vandaan" is het type dus de enige eerlijke as.
+ *
+ * De reeks bevat alleen types die daadwerkelijk voorkomen — een lege categorie
+ * op nul zetten zou een balk van niets tekenen (R1).
+ */
+export function berekenOmzetPerType(
+  offertes: ReadonlyArray<OfferteVoorType>,
+  venster: Venster | null
+): OmzetTypeRegel[] {
+  const perType: Record<
+    string,
+    { exclBtw: number; inclBtw: number; marge: number; aantal: number }
+  > = {};
+
+  for (const offerte of offertes) {
+    if (!isGetekend(offerte)) continue;
+    if (!binnenVenster(peildatumGetekend(offerte), venster)) continue;
+    const sleutel = offerte.type || "overig";
+    if (!perType[sleutel]) {
+      perType[sleutel] = { exclBtw: 0, inclBtw: 0, marge: 0, aantal: 0 };
+    }
+    const rij = perType[sleutel];
+    rij.exclBtw += offerte.totalen.totaalExBtw ?? 0;
+    rij.inclBtw += offerte.totalen.totaalInclBtw ?? 0;
+    rij.marge += offerte.totalen.marge ?? 0;
+    rij.aantal++;
+  }
+
+  const totaleOmzet = Object.values(perType).reduce((s, v) => s + v.exclBtw, 0);
+
+  return Object.entries(perType)
+    .map(([type, v]) => ({
+      type,
+      omzetExclBtw: rond(v.exclBtw),
+      omzetInclBtw: rond(v.inclBtw),
+      marge: rond(v.marge),
+      margePercentage: v.exclBtw > 0 ? rond1((v.marge / v.exclBtw) * 100) : 0,
+      aantalGetekend: v.aantal,
+      aandeelPercentage:
+        totaleOmzet > 0 ? rond1((v.exclBtw / totaleOmzet) * 100) : 0,
+    }))
+    .sort((a, b) => b.omzetExclBtw - a.omzetExclBtw);
+}
+
 // ── Sectie 4: topklanten ─────────────────────────────────────────────────
 
 export interface OfferteVoorKlant extends OfferteVoorOmzet {

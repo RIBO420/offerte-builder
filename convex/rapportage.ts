@@ -44,6 +44,7 @@ import {
 } from "./lib/rapportagePeriode";
 import {
   berekenMaandReeks,
+  berekenOmzetPerType,
   berekenOpenstaandOverzicht,
   berekenPipelineSectie,
   berekenScopeMarges,
@@ -174,16 +175,27 @@ export const getRapportage = query({
         }
       : null;
 
-    const maandReeks = berekenMaandReeks(
-      offertes,
-      alleFacturen.map((f) => ({
-        factuurdatum: peildatumFactuur(f),
-        totaalInclBtw: f.totaalInclBtw,
-        gefactureerd: isGefactureerd(f),
-      })),
-      venster,
-      nu
-    );
+    const factuurPunten = alleFacturen.map((f) => ({
+      factuurdatum: peildatumFactuur(f),
+      totaalInclBtw: f.totaalInclBtw,
+      gefactureerd: isGefactureerd(f),
+    }));
+
+    const maandReeks = berekenMaandReeks(offertes, factuurPunten, venster, nu);
+
+    // Dezelfde maandreeks een jaar eerder. Nodig voor de grafiekentab, die de
+    // maanden naast elkaar zet in plaats van er één periodetotaal van te maken:
+    // een hovenier wil weten óf april achterliep, niet alleen of het jaar
+    // achterliep. Leeg zodra er geen vergelijkbaar jaar is (preset "alles"),
+    // en dan toont de UI dat met zoveel woorden in plaats van een nullijn.
+    const maandReeksVorigJaar = periode.zelfdePeriodeVorigJaar
+      ? berekenMaandReeks(
+          offertes,
+          factuurPunten,
+          periode.zelfdePeriodeVorigJaar,
+          nu
+        )
+      : [];
 
     // ── Sectie 2: pipeline ───────────────────────────────────────────────
     const pipeline = berekenPipelineSectie(offertes, venster, nu);
@@ -276,6 +288,7 @@ export const getRapportage = query({
     // ── Sectie 4: beste werk ─────────────────────────────────────────────
     const scopeMarges = berekenScopeMarges(offertes, venster);
     const topKlanten = berekenTopKlanten(offertes, venster);
+    const omzetPerType = berekenOmzetPerType(offertes, venster);
 
     // ── Payload ──────────────────────────────────────────────────────────
     return {
@@ -313,6 +326,7 @@ export const getRapportage = query({
           ),
         },
         maandReeks,
+        maandReeksVorigJaar,
       },
 
       pipeline,
@@ -324,6 +338,7 @@ export const getRapportage = query({
 
       besteWerk: {
         scopeMarges,
+        omzetPerType,
         topKlanten: topKlanten.klanten,
         aantalKlanten: topKlanten.aantalKlanten,
         aantalTerugkerend: topKlanten.aantalTerugkerend,

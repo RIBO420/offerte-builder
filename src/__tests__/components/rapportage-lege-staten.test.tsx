@@ -74,6 +74,7 @@ const LEGE_HOE_LOOPT: HoeLoopt = {
     gefactureerdVsVorigJaar: null,
   },
   maandReeks: [],
+  maandReeksVorigJaar: [],
 };
 
 const LEGE_PIPELINE: Pipeline = {
@@ -140,6 +141,7 @@ const LEGE_GELD_LIGT: GeldLigt = {
 
 const LEGE_BESTE_WERK: BesteWerk = {
   scopeMarges: [],
+  omzetPerType: [],
   topKlanten: [],
   aantalKlanten: 0,
   aantalTerugkerend: 0,

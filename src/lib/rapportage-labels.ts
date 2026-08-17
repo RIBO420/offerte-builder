@@ -65,6 +65,23 @@ export function scopeLabel(scope: string): string {
   return SCOPE_LABELS[scope] ?? menselijkeSleutel(scope);
 }
 
+// ── Offertetype ──────────────────────────────────────────────────────────
+
+/**
+ * `offertes.type` kent exact twee waarden (harde regel 2 / TT-004). Deze map
+ * dekt de rapportage; `lib/excel-export.ts` en `lib/export-utils.ts` hebben elk
+ * hun eigen kopie voor hun eigen uitvoer — zelfde afspraak als bij
+ * {@link SCOPE_LABELS}.
+ */
+export const OFFERTE_TYPE_LABELS: Record<string, string> = {
+  aanleg: "Aanleg",
+  onderhoud: "Onderhoud",
+};
+
+export function offerteTypeLabel(type: string): string {
+  return OFFERTE_TYPE_LABELS[type] ?? menselijkeSleutel(type);
+}
+
 // ── Offertestatussen ─────────────────────────────────────────────────────
 
 export const OFFERTE_STATUS_LABELS: Record<string, string> = {

@@ -11,6 +11,7 @@
 
 import { describe, it, expect } from "vitest";
 import {
+  berekenOmzetPerType,
   berekenOpenstaandOverzicht,
   berekenPipelineSectie,
   berekenScopeMarges,
@@ -357,5 +358,64 @@ describe("berekenTopKlanten", () => {
     );
     expect(resultaat.aantalKlanten).toBe(1);
     expect(resultaat.klanten[0].klantId).toBeNull();
+  });
+});
+
+// ─── Omzetmix aanleg/onderhoud (grafiekenblad) ───────────────────────────────
+
+describe("berekenOmzetPerType", () => {
+  it("telt getekende omzet per type en berekent het aandeel", () => {
+    const resultaat = berekenOmzetPerType(
+      [
+        offerte({ _id: "o1", status: "geaccepteerd", type: "aanleg" }),
+        offerte({ _id: "o2", status: "geaccepteerd", type: "aanleg" }),
+        offerte({
+          _id: "o3",
+          status: "geaccepteerd",
+          type: "onderhoud",
+          totalen: { totaalExBtw: 5000, totaalInclBtw: 6050, marge: 2000 },
+        }),
+      ],
+      null
+    );
+
+    expect(resultaat).toHaveLength(2);
+    // Gesorteerd op omzet: aanleg (2 × 10.000) vóór onderhoud (5.000).
+    expect(resultaat[0].type).toBe("aanleg");
+    expect(resultaat[0].omzetExclBtw).toBe(20000);
+    expect(resultaat[0].aantalGetekend).toBe(2);
+    expect(resultaat[0].aandeelPercentage).toBe(80);
+    expect(resultaat[0].margePercentage).toBe(20);
+    expect(resultaat[1].type).toBe("onderhoud");
+    expect(resultaat[1].aandeelPercentage).toBe(20);
+    expect(resultaat[1].margePercentage).toBe(40);
+  });
+
+  it("telt alleen getekende offertes binnen het venster", () => {
+    const resultaat = berekenOmzetPerType(
+      [
+        // Niet getekend.
+        offerte({ _id: "o1", status: "verzonden", type: "aanleg" }),
+        // Getekend, maar buiten het venster.
+        offerte({
+          _id: "o2",
+          status: "geaccepteerd",
+          type: "onderhoud",
+          updatedAt: NU - 400 * DAG,
+        }),
+        offerte({ _id: "o3", status: "geaccepteerd", type: "aanleg" }),
+      ],
+      { start: NU - 60 * DAG, eind: NU + DAG }
+    );
+
+    expect(resultaat).toHaveLength(1);
+    expect(resultaat[0].type).toBe("aanleg");
+    expect(resultaat[0].aandeelPercentage).toBe(100);
+  });
+
+  it("geeft een lege reeks als er niets getekend is — geen categorie op nul", () => {
+    expect(
+      berekenOmzetPerType([offerte({ status: "concept" })], null)
+    ).toEqual([]);
   });
 });
