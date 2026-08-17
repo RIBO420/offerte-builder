@@ -17,7 +17,9 @@
     "dev:all": "node scripts/dev-all.mjs",
     "dev:login": "node scripts/dev-login.mjs",
     "seed:demo": "convex run demoSeed:vullen '{\"bevestigDeployment\":\"affable-rook-669\"}'",
-    "seed:clear": "convex run demoSeed:opruimen '{\"bevestigDeployment\":\"affable-rook-669\"}'"
+    "seed:clear": "convex run demoSeed:opruimen '{\"bevestigDeployment\":\"affable-rook-669\"}'",
+    "env:sync-ai": "node scripts/env-sync-ai.mjs",
+    "env:sync-ai:prod": "node scripts/env-sync-ai.mjs --prod"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.117.1",
