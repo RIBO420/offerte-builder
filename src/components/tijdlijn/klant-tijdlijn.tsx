@@ -1060,7 +1060,7 @@ export function KlantTijdlijn({
         titel={titel}
         icoon={<History />}
         className={className}
-        gewicht="primair"
+        kopbalk
         legeRegel={legeRegel}
         uitleg={
           isKantoor

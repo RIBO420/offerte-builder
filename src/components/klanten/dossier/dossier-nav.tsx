@@ -141,6 +141,10 @@ function bouwGroepen(t: DossierTellingen | null | undefined): NavGroep[] {
   const teLaat = t?.openFacturen.teLaat === true;
   const actueel = openTaken + openFacturen;
 
+  // "1 projecten" leest als een tikfout — de voorgelezen labels vervoegen mee.
+  const meervoud = (n: number, ev: string, mv: string) =>
+    `${n} ${n === 1 ? ev : mv}`;
+
   const facturenToon: PilToon = teLaat
     ? "rood"
     : openFacturen > 0
@@ -170,7 +174,11 @@ function bouwGroepen(t: DossierTellingen | null | undefined): NavGroep[] {
           icoon: <Clock />,
           waarde: t?.contactmomenten ?? 0,
           toon: telling(t?.contactmomenten ?? 0),
-          pilLabel: `${t?.contactmomenten ?? 0} contactmomenten`,
+          pilLabel: meervoud(
+            t?.contactmomenten ?? 0,
+            "contactmoment",
+            "contactmomenten"
+          ),
         },
         {
           tab: "taken",
@@ -190,14 +198,14 @@ function bouwGroepen(t: DossierTellingen | null | undefined): NavGroep[] {
           icoon: <FolderKanban />,
           waarde: t?.projecten ?? 0,
           toon: telling(t?.projecten ?? 0),
-          pilLabel: `${t?.projecten ?? 0} projecten`,
+          pilLabel: meervoud(t?.projecten ?? 0, "project", "projecten"),
         },
         {
           tab: "onderhoud",
           icoon: <CalendarClock />,
           waarde: t?.onderhoud ?? 0,
           toon: telling(t?.onderhoud ?? 0),
-          pilLabel: `${t?.onderhoud ?? 0} contracten en losse beurten`,
+          pilLabel: `${t?.onderhoud ?? 0} onder contract of als losse beurt`,
         },
       ],
     },
@@ -209,7 +217,7 @@ function bouwGroepen(t: DossierTellingen | null | undefined): NavGroep[] {
           icoon: <FileText />,
           waarde: t?.offertes ?? 0,
           toon: telling(t?.offertes ?? 0),
-          pilLabel: `${t?.offertes ?? 0} offertes`,
+          pilLabel: meervoud(t?.offertes ?? 0, "offerte", "offertes"),
         },
         {
           tab: "facturen",
@@ -219,7 +227,7 @@ function bouwGroepen(t: DossierTellingen | null | undefined): NavGroep[] {
           pilLabel:
             openFacturen > 0
               ? `${openFacturen} open${teLaat ? ", waarvan een langer dan 30 dagen" : ""}`
-              : `${t?.facturen ?? 0} facturen, geen openstaand`,
+              : `${meervoud(t?.facturen ?? 0, "factuur", "facturen")}, geen openstaand`,
         },
       ],
     },

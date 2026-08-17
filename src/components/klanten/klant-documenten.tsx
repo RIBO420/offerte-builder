@@ -147,6 +147,7 @@ export function KlantOffertesSectie({
       telling={offertes.length}
       // Naslag, en zonder offertes valt er niets na te slaan.
       gewicht={offertes.length === 0 ? "voetnoot" : "secundair"}
+      kopbalk={offertes.length > 0}
       legeRegel={
         offertes.length === 0
           ? {
@@ -278,6 +279,7 @@ export function KlantFacturenSectie({
       className={className}
       telling={facturen?.length ?? 0}
       gewicht={isLeeg ? "voetnoot" : "secundair"}
+      kopbalk={!isLeeg}
       legeRegel={
         isLeeg
           ? {

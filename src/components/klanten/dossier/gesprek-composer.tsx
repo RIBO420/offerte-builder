@@ -188,7 +188,6 @@ export function GesprekComposer({ klantId }: { klantId: Id<"klanten"> }) {
     <SectiePaneel
       titel="Gesprek vastleggen"
       kopbalk
-      gewicht="primair"
       acties={
         <span className="truncate text-xs text-muted-foreground @max-[30rem]/sectie:hidden">
           taken worden automatisch herkend

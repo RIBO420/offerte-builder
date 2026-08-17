@@ -196,6 +196,7 @@ export function OnderhoudSectie({
       className={className}
       telling={(contracten?.length ?? 0) + (losseBeurten?.length ?? 0)}
       gewicht={isLeeg ? "voetnoot" : "secundair"}
+      kopbalk={!isLeeg}
       legeRegel={
         isLeeg
           ? {

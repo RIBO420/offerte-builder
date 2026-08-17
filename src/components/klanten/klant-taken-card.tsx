@@ -385,7 +385,7 @@ export function KlantTakenCard({ klantId }: KlantTakenCardProps) {
       titel="Taken"
       icoon={<ListTodo />}
       telling={openTaken.length}
-      gewicht="primair"
+      kopbalk
       legeRegel={legeRegel}
       uitleg="Losse to-do's voor deze klant: terugbellen, offerte narekenen, materiaal bestellen. Wijs een taak toe aan een collega en hij verschijnt ook op diens Mijn taken. Enter slaat direct op."
     >
