@@ -16,6 +16,7 @@ import {
 } from "./validators";
 import { hoortInKlantenLijst } from "./leadsKlantenHelpers";
 import { logTijdlijnEvent } from "./tijdlijn";
+import { effectieveStatussen } from "./facturatieLogica";
 
 // Get all klanten for authenticated user
 export const list = query({
@@ -606,6 +607,129 @@ export const createFromOfferte = mutation({
       createdAt: now,
       updatedAt: now,
     });
+  },
+});
+
+// ============================================
+// Dossiertellingen (klantdossier-herindeling v7, WS1)
+// ============================================
+
+/**
+ * Alle tellers van het klantdossier in één query.
+ *
+ * Het submenu toont een statuspil per onderdeel en de cijferstrip vier tegels.
+ * Als elk van die getallen zijn eigen query had, zou één klantpagina acht
+ * losse rondjes doen — traag, en bij het openen flikkeren de pillen stuk voor
+ * stuk in beeld. Eén verzamelquery komt in één keer aan.
+ *
+ * Alles loopt via een index; geen enkele tabel wordt in zijn geheel gelezen.
+ * De indexen op `projecten`, `facturen` en `offertes` staan niet op `userId`,
+ * dus daar controleren we de tenant-scope er expliciet achteraan (audit §2).
+ */
+export const dossierTellingen = query({
+  args: { klantId: v.id("klanten") },
+  handler: async (ctx, args) => {
+    const klant = await ctx.db.get(args.klantId);
+    if (!klant) return null;
+
+    // Zelfde eigenaarscontrole als `get`/`getWithOffertes` hierboven.
+    const user = await requireAuth(ctx);
+    if (klant.userId.toString() !== user._id.toString()) {
+      return null;
+    }
+
+    const eigenaar = klant.userId.toString();
+
+    // ── Taken: index by_klant staat op [klantId, status], dus alleen de open
+    //    taken komen überhaupt van de schijf.
+    const openTaken = await ctx.db
+      .query("klantTaken")
+      .withIndex("by_klant", (q) =>
+        q.eq("klantId", args.klantId).eq("status", "open")
+      )
+      .collect();
+
+    // ── Tijdlijn: "systeem" is het kanaal van auto-events (offerte verzonden,
+    //    portaaluitnodiging). Dat zijn geen contactmomenten met de klant, dus
+    //    tellen ze niet mee en bepalen ze ook het laatste contact niet.
+    const tijdlijn = await ctx.db
+      .query("klantTijdlijn")
+      .withIndex("by_klant", (q) => q.eq("klantId", args.klantId))
+      .order("desc")
+      .collect();
+    const contactEntries = tijdlijn.filter((e) => e.kanaal !== "systeem");
+
+    // ── Werk: losse beurten leven in dezelfde `projecten`-tabel als projecten
+    //    (type "onderhoudsbeurt", zie convex/losseBeurten.ts). Eén index-lees
+    //    levert dus beide tellers.
+    const werkitems = (
+      await ctx.db
+        .query("projecten")
+        .withIndex("by_klant", (q) => q.eq("klantId", args.klantId))
+        .collect()
+    ).filter((p) => p.userId.toString() === eigenaar && !p.deletedAt);
+    const projecten = werkitems.filter(
+      (p) => p.type !== "onderhoudsbeurt"
+    ).length;
+    const losseBeurten = werkitems.filter(
+      (p) => p.type === "onderhoudsbeurt" && p.contractId === undefined
+    ).length;
+
+    const contracten = (
+      await ctx.db
+        .query("onderhoudscontracten")
+        .withIndex("by_klant", (q) => q.eq("klantId", args.klantId))
+        .collect()
+    ).filter((c) => c.userId.toString() === eigenaar && !c.deletedAt);
+
+    const offertes = (
+      await ctx.db
+        .query("offertes")
+        .withIndex("by_klant", (q) => q.eq("klantId", args.klantId))
+        .collect()
+    ).filter((o) => o.userId.toString() === eigenaar);
+
+    // ── Facturen: dezelfde definitie van "open" als KlantFacturenSectie —
+    //    verstuurd (dus geen concept) en niet betaald. Zo staat er in de pil
+    //    nooit een ander getal dan in de factuurlijst eronder.
+    const facturen = (
+      await ctx.db
+        .query("facturen")
+        .withIndex("by_klant", (q) => q.eq("klantId", args.klantId))
+        .collect()
+    ).filter((f) => f.userId.toString() === eigenaar);
+
+    const nu = Date.now();
+    const DERTIG_DAGEN = 30 * 24 * 60 * 60 * 1000;
+    let openFacturenAantal = 0;
+    let openstaandBedrag = 0;
+    let teLaat = false;
+    for (const factuur of facturen) {
+      const { documentStatus, betaalStatus } = effectieveStatussen(factuur);
+      if (documentStatus === "concept") continue;
+      if (betaalStatus === "betaald" || betaalStatus === "geannuleerd") continue;
+      openFacturenAantal += 1;
+      openstaandBedrag += factuur.totaalInclBtw;
+      // Rood in het submenu: er staat iets langer dan een maand open. Bewust
+      // op factuurdatum en niet op vervaldatum — "hoe lang sleept dit al" is
+      // de vraag die kantoor hier stelt.
+      if (factuur.factuurdatum < nu - DERTIG_DAGEN) teLaat = true;
+    }
+
+    return {
+      openTaken: openTaken.length,
+      contactmomenten: contactEntries.length,
+      laatsteContactTimestamp: contactEntries[0]?.timestamp ?? null,
+      projecten,
+      onderhoud: contracten.length + losseBeurten,
+      offertes: offertes.length,
+      facturen: facturen.length,
+      openFacturen: {
+        aantal: openFacturenAantal,
+        openstaandBedrag,
+        teLaat,
+      },
+    };
   },
 });
 
