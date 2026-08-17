@@ -21,6 +21,7 @@ import {
   Bell,
   Calculator,
   Calendar,
+  Check,
   CheckCircle2,
   Circle,
   ClipboardCheck,
@@ -834,6 +835,63 @@ export const QC_STATUS_CONFIG: Record<QCStatus, StatusConfig> = {
 };
 
 // ---------------------------------------------------------------------------
+// Uren (urensegmenten + urenDagen, §8.10)
+// ---------------------------------------------------------------------------
+
+/**
+ * De keten van een urensegment: het voorstel wordt bevestigd, de dag wordt
+ * ingediend. `concept` is de staat waarin een segment nog van de medewerker
+ * zelf is; `bevestigd` staat klaar voor de dagafsluiting; `ingediend` is op
+ * slot en alleen door kantoor te corrigeren.
+ *
+ * De kleuren volgen de semantiek van het kleurplan §2 en niet een eigen
+ * uren-palet: concept = neutraal (150), bevestigd = onderweg/wachten (85 oker),
+ * ingediend = succes (152 merkgroen). Dezelfde betekenis, dezelfde kleur als
+ * elders in de app.
+ *
+ * Let op: dit is de *segment/dag*-status en géén goedkeurstatus. "In orde" en
+ * "Alles akkoord" op de urenpagina zijn logboek-kwijting (plan §1, besluit
+ * Ricardo) en dus met opzet geen vierde waarde hier.
+ */
+export type UrenStatus = "concept" | "bevestigd" | "ingediend";
+
+export const UREN_STATUS_CONFIG: Record<UrenStatus, StatusConfig> = {
+  concept: {
+    label: "Concept",
+    description: "Segment staat klaar maar is nog niet bevestigd",
+    icon: Pencil,
+    color: {
+      bg: "bg-status-concept",
+      text: "text-status-concept-text",
+      border: "border-status-concept-border",
+      dot: "bg-status-concept-dot",
+    },
+  },
+  bevestigd: {
+    label: "Bevestigd",
+    description: "De medewerker heeft dit segment bevestigd; de dag is nog open",
+    icon: Check,
+    color: {
+      bg: "bg-status-verzonden",
+      text: "text-status-verzonden-text",
+      border: "border-status-verzonden-border",
+      dot: "bg-status-verzonden-dot",
+    },
+  },
+  ingediend: {
+    label: "Ingediend",
+    description: "De dag is ingediend en op slot — alleen kantoor kan corrigeren",
+    icon: CheckCircle2,
+    color: {
+      bg: "bg-status-geaccepteerd",
+      text: "text-status-geaccepteerd-text",
+      border: "border-status-geaccepteerd-border",
+      dot: "bg-status-geaccepteerd-dot",
+    },
+  },
+};
+
+// ---------------------------------------------------------------------------
 // Domein-lookup
 // ---------------------------------------------------------------------------
 
@@ -850,7 +908,8 @@ export type StatusDomain =
   | "garantie"
   | "verlof"
   | "taak"
-  | "qc";
+  | "qc"
+  | "uren";
 
 const DOMAIN_CONFIGS: Record<StatusDomain, Record<string, StatusConfig>> = {
   offerte: STATUS_CONFIG,
@@ -866,6 +925,7 @@ const DOMAIN_CONFIGS: Record<StatusDomain, Record<string, StatusConfig>> = {
   verlof: VERLOF_STATUS_CONFIG,
   taak: TAAK_STATUS_CONFIG,
   qc: QC_STATUS_CONFIG,
+  uren: UREN_STATUS_CONFIG,
 };
 
 /** Neutrale terugval voor onbekende statussen (label = de rauwe status). */

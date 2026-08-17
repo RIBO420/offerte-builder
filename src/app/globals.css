@@ -251,6 +251,15 @@ body {
   --color-card: var(--card);
   --color-surface-primair: var(--surface-primair);
   --color-surface-aandacht: var(--surface-aandacht);
+  /* Dagbalk-categorieën (urenpagina WS-B) — één werkdag als gekleurde blokken
+     op een tijd-as. Géén statuskleuren: een status zegt "waar staat dit in de
+     keten", een categorie zegt "wat deed die man". Zie de tokens in :root. */
+  --color-seg-werken: var(--seg-werken);
+  --color-seg-reistijd: var(--seg-reistijd);
+  --color-seg-pauze: var(--seg-pauze);
+  --color-seg-indirect: var(--seg-indirect);
+  --color-seg-gat: var(--seg-gat);
+  --color-seg-gat-streep: var(--seg-gat-streep);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -493,6 +502,28 @@ body {
   --melding-schade-border: oklch(0.75 0.08 30);
   --melding-schade-dot: oklch(0.55 0.16 30);
 
+  /* Dagbalk-categorieën (urenpagina WS-B)
+     Vijf families, allemaal op de Loof & Leem-as, allemaal vól genoeg om naast
+     elkaar in een balk van 10px te onderscheiden (≥1,6:1 tussen buren):
+
+     - werken    merkgroen 152 — het werk zelf, de hoofdrol van de balk
+     - reistijd  steenblauw 245 — dezelfde hue als "gepland": onderweg
+     - pauze     neutraal, bewust kleurloos — pauze is geen prestatie
+     - indirect  gedempt loofgroen 140 — loods, teammeeting, BES-rit
+     - gat       leem/amber 85, als schuine arcering (zie `.dagbalk-gat`):
+                 een gat is géén registratie, dus ook geen vol vlak
+
+     Gemeten licht op `--card` (#fdfefc): werken #4a8f63 3,45:1 ·
+     reistijd #5b7fb4 3,08:1 · pauze #c6ccc5 1,42:1 (draagt geen tekst) ·
+     indirect #8ba07d 2,04:1 · gat #eee2c8 1,15:1. De balk zelf heeft een
+     1px rand, dus ook het lichtste blok blijft afgebakend. */
+  --seg-werken: oklch(0.55 0.13 152);
+  --seg-reistijd: oklch(0.55 0.10 245);
+  --seg-pauze: oklch(0.80 0.012 145);
+  --seg-indirect: oklch(0.63 0.055 140);
+  --seg-gat: oklch(0.90 0.045 85);
+  --seg-gat-streep: oklch(0.84 0.075 85);
+
   /* Shadow tokens */
   --shadow-card-hover: 0 8px 25px -5px oklch(0 0 0 / 0.1), 0 4px 10px -5px oklch(0 0 0 / 0.04);
   --shadow-card-elevated: 0 10px 40px -10px oklch(0 0 0 / 0.15), 0 4px 15px -5px oklch(0 0 0 / 0.08);
@@ -707,6 +738,17 @@ body {
   --melding-schade-border: oklch(0.42 0.08 30);
   --melding-schade-dot: oklch(0.68 0.14 30);
 
+  /* Dagbalk-categorieën — dark blijft volwaardig: dezelfde vijf families, maar
+     lichter dan `--card` (0.215) i.p.v. donkerder, zodat de blokken oplichten
+     in plaats van gaten in het paneel te lijken. Pauze en het gat blijven de
+     stilste twee, ook hier. */
+  --seg-werken: oklch(0.66 0.14 152);
+  --seg-reistijd: oklch(0.62 0.10 245);
+  --seg-pauze: oklch(0.44 0.012 145);
+  --seg-indirect: oklch(0.52 0.05 140);
+  --seg-gat: oklch(0.37 0.045 85);
+  --seg-gat-streep: oklch(0.45 0.065 85);
+
   /* Dark mode shadows - subtler */
   --shadow-card-hover: 0 8px 25px -5px oklch(0 0 0 / 0.3), 0 4px 10px -5px oklch(0 0 0 / 0.2);
   --shadow-card-elevated: 0 10px 40px -10px oklch(0 0 0 / 0.4), 0 4px 15px -5px oklch(0 0 0 / 0.25);
@@ -756,6 +798,21 @@ body {
   /* Typografie utilities */
   .tabular-nums {
     font-variant-numeric: tabular-nums;
+  }
+
+  /* Dagbalk: het gat in de dag (urenpagina WS-B).
+
+     Een gat is de afwezigheid van een registratie, en dat mag je zíen zonder
+     de kleur te hoeven kennen: schuine arcering i.p.v. een vol vlak. Daarmee
+     is kleur nooit de enige drager — het patroon zegt het ook, en in de
+     inspector staat het er nog eens als tekst. */
+  .dagbalk-gat {
+    background-color: var(--seg-gat);
+    background-image: repeating-linear-gradient(
+      45deg,
+      var(--seg-gat) 0 5px,
+      var(--seg-gat-streep) 5px 10px
+    );
   }
 
   /* Prijs display - altijd tabular voor alignment */

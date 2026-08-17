@@ -1,745 +1,111 @@
 "use client";
 
-import { useState, useMemo, useCallback, Suspense } from "react";
+/**
+ * `/uren` — de Controlekamer.
+ *
+ * Deze pagina was tot 17 aug 2026 een pre-designprogramma-scherm: vier
+ * statkaarten ("Deze Week 0,0", "Deze Maand", "Totaal", "Registraties 44"), twee
+ * voortgangsbalk-kaarten en één gepagineerde tabel met zeven filtercontrols op
+ * de óude urenbron. Hij vertelde dát er uren waren, niet óf ze kloppen — en de
+ * echte urenketen (`urenSegmenten`, dag op slot, voorstellen, logboek) kwam er
+ * niet in voor.
+ *
+ * Nu: één route, per rol een ander gezicht, en voor kantoor de vier vragen van
+ * de Controlekamer. Onderbouwing in `docs/design/plannen/uren-controlekamer-plan.md`
+ * en `uren-redesign-onderzoek-ux.md`; het datacontract staat in plan §2 en leeft
+ * aan de UI-kant in `src/components/uren/controle-types.ts`.
+ */
+
+import { Suspense } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { PaginaReveal } from "@/components/pagina-reveal";
-import { useQuery } from "convex/react";
-import { api } from "../../../../convex/_generated/api";
-import { useCurrentUser } from "@/hooks/use-current-user";
-import { useIsAdmin, useIsKantoor } from "@/hooks/use-users";
-import { Pagination } from "@/components/ui/pagination";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { useCurrentUserRole, useIsKantoor } from "@/hooks/use-users";
 import { PageHeader } from "@/components/page-header";
-import {
-  ResponsiveTable,
-  type ResponsiveColumn,
-} from "@/components/ui/responsive-table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Clock,
-  Calendar,
-  CalendarDays,
-  Search,
-  FolderKanban,
-  User,
-  ExternalLink,
-  TrendingUp,
-  Filter,
-} from "lucide-react";
-import { FilterPresetSelector } from "@/components/ui/filter-preset-selector";
-import {
-  useFilterPresets,
-  type UrenFilterState,
-} from "@/hooks/use-filter-presets";
-import { toast } from "sonner";
-import {
-  ExportDropdown,
-  urenExportColumns,
-} from "@/components/export-dropdown";
-import {
-  formatDate,
-  formatHours,
-  getTodayString,
-  getDaysAgoString,
-} from "@/lib/format";
+import { DataFetchErrorBoundary } from "@/components/error-boundary";
+import { Button } from "@/components/ui/button";
 import { LaadIndicator } from "@/components/ui/laad-indicator";
+import { KantoorControlekamer } from "@/components/uren/kantoor-controlekamer";
 
-type DateRangePreset = "week" | "month" | "quarter" | "year" | "all";
-
-// Loading fallback for Suspense
-function UrenPageLoading() {
-  return (
-    <div className="flex flex-1 items-center justify-center">
-      <LaadIndicator formaat="pagina" tekst="Laden…" />
-    </div>
-  );
-}
-
-// Main page wrapper with Suspense
 export default function UrenPage() {
-  return (
-    <Suspense fallback={<UrenPageLoading />}>
-      <UrenPageContent />
-    </Suspense>
-  );
-}
-
-// Inner component that uses useSearchParams
-function UrenPageContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { user, isLoading: isUserLoading } = useCurrentUser();
-  const isAdmin = useIsAdmin();
-  // Export is kantoor-functionaliteit (PRD §1.2): directie én projectleider.
-  const isKantoor = useIsKantoor();
-
-  // Pagination state
-  const [page, setPage] = useState(() => {
-    const pageParam = searchParams.get("page");
-    return pageParam ? parseInt(pageParam, 10) : 1;
-  });
-  const [limit, setLimit] = useState(() => {
-    const limitParam = searchParams.get("limit");
-    return limitParam ? parseInt(limitParam, 10) : 25;
-  });
-
-  // Update URL when pagination changes
-  const updateUrl = useCallback((newPage: number, newLimit: number) => {
-    const params = new URLSearchParams(window.location.search);
-    params.set("page", newPage.toString());
-    params.set("limit", newLimit.toString());
-    const newUrl = `${window.location.pathname}?${params.toString()}`;
-    window.history.pushState({}, "", newUrl);
-  }, []);
-
-  const handlePageChange = useCallback((newPage: number) => {
-    setPage(newPage);
-    updateUrl(newPage, limit);
-  }, [limit, updateUrl]);
-
-  const handleLimitChange = useCallback((newLimit: number) => {
-    setLimit(newLimit);
-    setPage(1);
-    updateUrl(1, newLimit);
-  }, [updateUrl]);
-
-  // State
-  const [searchTerm, setSearchTerm] = useState("");
-  const [dateRange, setDateRange] = useState<DateRangePreset>("month");
-  const [projectFilter, setProjectFilter] = useState<string>("all");
-  const [medewerkerFilter, setMedewerkerFilter] = useState<string>("all");
-
-  // Filter presets
-  const {
-    presets,
-    defaultPresets,
-    userPresets,
-    addPreset,
-    deletePreset,
-  } = useFilterPresets<UrenFilterState>("uren");
-
-  // Calculate date range based on preset
-  const { startDate, endDate } = useMemo(() => {
-    const end = getTodayString();
-    let start: string | undefined;
-
-    switch (dateRange) {
-      case "week":
-        start = getDaysAgoString(7);
-        break;
-      case "month":
-        start = getDaysAgoString(30);
-        break;
-      case "quarter":
-        start = getDaysAgoString(90);
-        break;
-      case "year":
-        start = getDaysAgoString(365);
-        break;
-      case "all":
-      default:
-        start = undefined;
-    }
-
-    return { startDate: start, endDate: end };
-  }, [dateRange]);
-
-  // Query data
-  const urenData = useQuery(
-    api.urenRegistraties.listGlobal,
-    user?._id ? { startDate, endDate } : "skip"
-  );
-
-  const statsData = useQuery(
-    api.urenRegistraties.getGlobalStats,
-    user?._id ? {} : "skip"
-  );
-
-  // Export query (kantoor-functionaliteit, PRD §1.2)
-  const exportData = useQuery(
-    api.export.exportUren,
-    user?._id && isKantoor ? {} : "skip"
-  );
-
-  const isLoading = isUserLoading || urenData === undefined || statsData === undefined;
-
-  // Get unique medewerkers and projects for filters
-  const { uniqueMedewerkers, uniqueProjects } = useMemo(() => {
-    if (!urenData) return { uniqueMedewerkers: [], uniqueProjects: [] };
-
-    const medewerkers = [...new Set(urenData.map((u) => u.medewerker))].sort();
-    const projects = [...new Set(urenData.map((u) => u.projectNaam))].sort();
-
-    return { uniqueMedewerkers: medewerkers, uniqueProjects: projects };
-  }, [urenData]);
-
-  // Filter entries
-  const filteredEntries = useMemo(() => {
-    if (!urenData) return [];
-
-    return urenData.filter((entry) => {
-      // Search filter
-      if (searchTerm) {
-        const term = searchTerm.toLowerCase();
-        const matchesSearch =
-          entry.medewerker.toLowerCase().includes(term) ||
-          entry.projectNaam.toLowerCase().includes(term) ||
-          entry.scope?.toLowerCase().includes(term) ||
-          entry.notities?.toLowerCase().includes(term);
-        if (!matchesSearch) return false;
-      }
-
-      // Project filter
-      if (projectFilter !== "all" && entry.projectNaam !== projectFilter) {
-        return false;
-      }
-
-      // Medewerker filter (admin only)
-      if (isAdmin && medewerkerFilter !== "all" && entry.medewerker !== medewerkerFilter) {
-        return false;
-      }
-
-      return true;
-    });
-  }, [urenData, searchTerm, projectFilter, medewerkerFilter, isAdmin]);
-
-  // Sort entries by date (most recent first)
-  const sortedEntries = useMemo(() => {
-    return [...filteredEntries].sort((a, b) => b.datum.localeCompare(a.datum));
-  }, [filteredEntries]);
-
-  // Paginate the sorted entries
-  const totalCount = sortedEntries.length;
-  const paginatedEntries = useMemo(() => {
-    const startIndex = (page - 1) * limit;
-    return sortedEntries.slice(startIndex, startIndex + limit);
-  }, [sortedEntries, page, limit]);
-
-  // Calculate filtered totals
-  const filteredTotals = useMemo(() => {
-    const total = sortedEntries.reduce((sum, e) => sum + e.uren, 0);
-    return Math.round(total * 10) / 10;
-  }, [sortedEntries]);
-
-  // Kolommen voor ResponsiveTable: vaste breedtes => table-fixed, zodat de
-  // tabel nooit breder wordt dan zijn container (CLAUDE.md regel 1). Onder
-  // `sm` toont ResponsiveTable kaarten in plaats van een scrollende tabel.
-  type UrenEntry = (typeof paginatedEntries)[number];
-  const urenColumns = useMemo(() => {
-    const cols: ResponsiveColumn<UrenEntry>[] = [
-      {
-        key: "datum",
-        header: "Datum",
-        width: "w-[110px]",
-        isSecondary: true,
-        render: (entry) => (
-          <span className="font-medium">{formatDate(entry.datum)}</span>
-        ),
-      },
-      ...(isAdmin
-        ? [
-            {
-              key: "medewerker",
-              header: "Medewerker",
-              width: "w-[18%]",
-              render: (entry) => (
-                <div className="flex items-center gap-2">
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                    <User className="h-3 w-3 text-primary" />
-                  </div>
-                  <span className="truncate">{entry.medewerker}</span>
-                </div>
-              ),
-            } satisfies ResponsiveColumn<UrenEntry>,
-          ]
-        : []),
-      {
-        key: "project",
-        header: "Project",
-        isPrimary: true,
-        width: "w-[22%]",
-        render: (entry) => (
-          <span className="truncate block" title={entry.projectNaam}>
-            {entry.projectNaam}
-          </span>
-        ),
-      },
-      {
-        key: "scope",
-        header: "Scope",
-        width: "w-[14%]",
-        render: (entry) =>
-          entry.scope ? (
-            <Badge variant="outline">{entry.scope}</Badge>
-          ) : (
-            <span className="text-muted-foreground">-</span>
-          ),
-      },
-      {
-        key: "uren",
-        header: "Uren",
-        align: "right",
-        width: "w-[80px]",
-        render: (entry) => (
-          <span className="font-medium">{formatHours(entry.uren)}</span>
-        ),
-      },
-      {
-        key: "notities",
-        header: "Notities",
-        render: (entry) => (
-          <span
-            className="text-muted-foreground truncate block"
-            title={entry.notities || undefined}
-          >
-            {entry.notities || "-"}
-          </span>
-        ),
-      },
-      {
-        key: "acties",
-        header: "",
-        width: "w-[56px]",
-        // Knoppenkolom: mag nooit worden afgeknipt door table-fixed.
-        allowOverflow: true,
-        showInCard: false,
-        render: (entry) => (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 sm:h-8 sm:w-8"
-            asChild
-            aria-label="Bekijk project"
-          >
-            <Link
-              href={`/projecten/${entry.projectId}/uitvoering`}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <ExternalLink className="h-4 w-4" />
-            </Link>
-          </Button>
-        ),
-      },
-    ];
-    return cols;
-  }, [isAdmin]);
-
-  // Rij-klik als extra ingang naar het project — maakt de mobiele kaarten
-  // navigeerbaar en de rijen toetsenbord-bereikbaar.
-  const handleRowClick = useCallback(
-    (entry: UrenEntry) => {
-      router.push(`/projecten/${entry.projectId}/uitvoering`);
-    },
-    [router]
-  );
-
-  const handleClearFilters = useCallback(() => {
-    setSearchTerm("");
-    setProjectFilter("all");
-    setMedewerkerFilter("all");
-    setDateRange("month");
-  }, []);
-
-  // Handle preset selection
-  const handlePresetSelect = useCallback((presetFilters: UrenFilterState) => {
-    if (presetFilters.dateRange) {
-      setDateRange(presetFilters.dateRange);
-    }
-    if (presetFilters.medewerker) {
-      // "current" means filter to current user - handled by "all" for now
-      // since the current user filtering is server-side for non-admins
-      setMedewerkerFilter(presetFilters.medewerker === "current" ? "all" : presetFilters.medewerker);
-    }
-    if (presetFilters.project) {
-      setProjectFilter(presetFilters.project);
-    }
-    if (presetFilters.searchTerm) {
-      setSearchTerm(presetFilters.searchTerm);
-    }
-  }, []);
-
-  // Current filters for preset
-  const currentFiltersForPreset = useMemo((): UrenFilterState => ({
-    dateRange,
-    medewerker: medewerkerFilter,
-    project: projectFilter,
-    searchTerm: searchTerm || undefined,
-  }), [dateRange, medewerkerFilter, projectFilter, searchTerm]);
-
-  // Check if there are active filters
-  const hasActiveFilters = useMemo(() => {
-    return dateRange !== "month" ||
-      medewerkerFilter !== "all" ||
-      projectFilter !== "all" ||
-      searchTerm !== "";
-  }, [dateRange, medewerkerFilter, projectFilter, searchTerm]);
-
-  // Handle saving preset
-  const handleSavePreset = useCallback((name: string, presetFilters: UrenFilterState) => {
-    addPreset(name, presetFilters);
-    toast.success(`Preset "${name}" opgeslagen`);
-  }, [addPreset]);
-
-  // Handle deleting preset
-  const handleDeletePreset = useCallback((id: string) => {
-    deletePreset(id);
-    toast.success("Preset verwijderd");
-  }, [deletePreset]);
-
-  if (isLoading) {
-    return (
-      <>
-        <PageHeader />
-        <div className="flex flex-1 items-center justify-center">
-          <LaadIndicator formaat="pagina" tekst="Laden…" />
-        </div>
-      </>
-    );
-  }
-
   return (
     <>
       <PageHeader />
-
-      <PaginaReveal
-        className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8"
+      {/* De weekkeuze leeft in `?week=`; `useSearchParams` vraagt daarom om een
+          Suspense-grens boven het gezicht. */}
+      <Suspense
+        fallback={
+          <div className="flex flex-1 items-center justify-center">
+            <LaadIndicator formaat="pagina" tekst="Laden…" />
+          </div>
+        }
       >
-        {/* Page Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
-              Uren Overzicht
-            </h1>
-            <p className="text-muted-foreground">
-              {isAdmin
-                ? "Bekijk alle geregistreerde uren per project en medewerker"
-                : "Bekijk je geregistreerde uren"}
-            </p>
-          </div>
-          {isKantoor && (
-            <ExportDropdown
-              getData={() => exportData ?? []}
-              columns={urenExportColumns}
-              filename="uren-registraties"
-              sheetName="Uren"
-              disabled={!exportData || exportData.length === 0}
-            />
-          )}
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Deze Week</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {formatHours(statsData?.urenDezeWeek || 0)}
-              </div>
-              <p className="text-xs text-muted-foreground">uren geregistreerd</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Deze Maand</CardTitle>
-              <CalendarDays className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {formatHours(statsData?.urenDezeMaand || 0)}
-              </div>
-              <p className="text-xs text-muted-foreground">uren geregistreerd</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Totaal</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {formatHours(statsData?.urenTotaal || 0)}
-              </div>
-              <p className="text-xs text-muted-foreground">uren totaal</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Registraties</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {statsData?.aantalRegistraties || 0}
-              </div>
-              <p className="text-xs text-muted-foreground">uren entries</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Hours per Project */}
-        {statsData?.perProject && statsData.perProject.length > 0 && (
-          <div>
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FolderKanban className="h-5 w-5" />
-                  Uren per Project
-                </CardTitle>
-                <CardDescription>
-                  Top {Math.min(5, statsData.perProject.length)} projecten op basis van geregistreerde uren
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {statsData.perProject.slice(0, 5).map((project) => {
-                    const percentage =
-                      statsData.urenTotaal > 0
-                        ? (project.uren / statsData.urenTotaal) * 100
-                        : 0;
-                    return (
-                      <div key={project.projectId} className="space-y-1">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="font-medium truncate max-w-[200px]" title={project.projectNaam}>
-                            {project.projectNaam}
-                          </span>
-                          <span className="text-muted-foreground">
-                            {formatHours(project.uren)} uur ({percentage.toFixed(0)}%)
-                          </span>
-                        </div>
-                        <div className="h-2 rounded-full bg-muted overflow-hidden">
-                          <div
-                            className="h-full bg-primary rounded-full transition-all"
-                            style={{ width: `${percentage}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Hours per Medewerker (Admin only) */}
-        {isAdmin && statsData?.perMedewerker && statsData.perMedewerker.length > 0 && (
-          <div>
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="h-5 w-5" />
-                  Uren per Medewerker
-                </CardTitle>
-                <CardDescription>
-                  Overzicht van geregistreerde uren per teamlid
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {statsData.perMedewerker.map((medewerker) => (
-                    <div
-                      key={medewerker.naam}
-                      className="flex items-center justify-between rounded-lg border p-3"
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-                          <User className="h-4 w-4 text-primary" />
-                        </div>
-                        <span className="font-medium">{medewerker.naam}</span>
-                      </div>
-                      <Badge variant="secondary">
-                        {formatHours(medewerker.uren)} uur
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Filters and Table */}
-        <div>
-          <Card>
-            <CardHeader>
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Clock className="h-5 w-5" />
-                    Uren Registraties
-                  </CardTitle>
-                  <CardDescription>
-                    {sortedEntries.length} registratie{sortedEntries.length !== 1 ? "s" : ""}{" "}
-                    ({formatHours(filteredTotals)} uur)
-                  </CardDescription>
-                </div>
-
-                {/* Filters */}
-                <div className="flex flex-wrap items-center gap-2">
-                  {/* Preset Selector */}
-                  <FilterPresetSelector<UrenFilterState>
-                    presets={presets}
-                    defaultPresets={defaultPresets}
-                    userPresets={userPresets}
-                    currentFilters={currentFiltersForPreset}
-                    onSelectPreset={handlePresetSelect}
-                    onSavePreset={handleSavePreset}
-                    onDeletePreset={handleDeletePreset}
-                    hasActiveFilters={hasActiveFilters}
-                  />
-
-                  {/* Search */}
-                  <div className="relative w-full sm:w-48">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Zoeken..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-8"
-                    />
-                  </div>
-
-                  {/* Date Range */}
-                  <Select
-                    value={dateRange}
-                    onValueChange={(value) => setDateRange(value as DateRangePreset)}
-                  >
-                    <SelectTrigger className="w-full sm:w-[140px]">
-                      <SelectValue placeholder="Periode" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="week">Afgelopen week</SelectItem>
-                      <SelectItem value="month">Afgelopen maand</SelectItem>
-                      <SelectItem value="quarter">Afgelopen kwartaal</SelectItem>
-                      <SelectItem value="year">Afgelopen jaar</SelectItem>
-                      <SelectItem value="all">Alles</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  {/* Project Filter */}
-                  <Select value={projectFilter} onValueChange={setProjectFilter}>
-                    <SelectTrigger className="w-full sm:w-[160px]">
-                      <SelectValue placeholder="Project" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Alle projecten</SelectItem>
-                      {uniqueProjects.map((project) => (
-                        <SelectItem key={project} value={project}>
-                          {project}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  {/* Medewerker Filter (Admin only) */}
-                  {isAdmin && uniqueMedewerkers.length > 1 && (
-                    <Select value={medewerkerFilter} onValueChange={setMedewerkerFilter}>
-                      <SelectTrigger className="w-full sm:w-[160px]">
-                        <SelectValue placeholder="Medewerker" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Alle medewerkers</SelectItem>
-                        {uniqueMedewerkers.map((medewerker) => (
-                          <SelectItem key={medewerker} value={medewerker}>
-                            {medewerker}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-
-                  {/* Clear Filters */}
-                  {(searchTerm ||
-                    projectFilter !== "all" ||
-                    medewerkerFilter !== "all" ||
-                    dateRange !== "month") && (
-                    <Button variant="ghost" size="sm" onClick={handleClearFilters}>
-                      <Filter className="h-4 w-4 mr-1" />
-                      Wissen
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {sortedEntries.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  {urenData?.length === 0 ? (
-                    <>
-                      <Clock className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                      <h3 className="text-lg font-medium mb-2">Nog geen uren geregistreerd</h3>
-                      <p className="text-sm text-muted-foreground mb-4 max-w-sm">
-                        Er zijn nog geen uren geregistreerd. Ga naar een project om je eerste uren te registreren.
-                      </p>
-                      <Button asChild>
-                        <Link href="/projecten">
-                          <FolderKanban className="h-4 w-4 mr-2" />
-                          Naar Projecten
-                        </Link>
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <Filter className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                      <h3 className="text-lg font-medium mb-2">Geen resultaten gevonden</h3>
-                      <p className="text-sm text-muted-foreground mb-4 max-w-sm">
-                        Er zijn geen uren die voldoen aan de huidige filters. Probeer een andere periode of verwijder filters.
-                      </p>
-                      <Button variant="outline" onClick={handleClearFilters}>
-                        <Filter className="h-4 w-4 mr-2" />
-                        Filters wissen
-                      </Button>
-                    </>
-                  )}
-                </div>
-              ) : (
-                <>
-                <ResponsiveTable
-                  data={paginatedEntries}
-                  columns={urenColumns}
-                  keyExtractor={(entry) => entry._id}
-                  onRowClick={handleRowClick}
-                  emptyMessage="Geen uren gevonden"
-                />
-                {/* Pagination */}
-                {totalCount > 0 && (
-                  <Pagination
-                    page={page}
-                    totalCount={totalCount}
-                    limit={limit}
-                    onPageChange={handlePageChange}
-                    onLimitChange={handleLimitChange}
-                    className="border-t mt-4"
-                  />
-                )}
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </PaginaReveal>
+        <UrenGezicht />
+      </Suspense>
     </>
+  );
+}
+
+/**
+ * ── Ankerpunt rolgezichten (WS-C) ──────────────────────────────────────────
+ *
+ * Eén route, drie gezichten (plan §1). WS-B levert het kantoor-gezicht; WS-C
+ * hangt de andere twee hier ín, en verder nergens. Wat WS-C hoeft te doen:
+ *
+ * ```tsx
+ * const rol = useCurrentUserRole();
+ * if (rol === "voorman")    return <PloegDagGezicht datum={vandaagIso()} />;
+ * if (rol === "medewerker") return <MijnWeekGezicht />;   // leest ?week= zelf
+ * return <KantoorControlekamer onDagFilm={openFilm} />;
+ * ```
+ *
+ * Beide nieuwe gezichten horen hun eigen periode uit de URL te lezen met
+ * `useWeekKeuze()` (`src/components/uren/week.ts`) — dan blijft één `?week=` de
+ * bron voor alle drie, en werkt een gedeelde link in elk gezicht.
+ *
+ * **Film-doorklik.** `KantoorControlekamer` heeft één prop:
+ * `onDagFilm?: (dag: { medewerkerId: string; datum: string }) => void`. Die
+ * wordt doorgegeven aan elke dagkaart in "Wat wijkt af?" en rendert daar de knop
+ * "Bekijk deze dag als film"; zonder de prop blijft de knop weg. WS-C zet er
+ * `?dag=YYYY-MM-DD&weergave=film` in (deeplinkbaar, `useTabState`-patroon) en
+ * rendert de Ploegenfilm dan hier, boven of in plaats van de Controlekamer.
+ * De dagbalk die de film nodig heeft is klaar: `<Dagbalk formaat="mini" />` per
+ * ploeglid, met dezelfde as (`asVanMinuten`/`asTotMinuten` via
+ * `dagbalkBlokken`) als de gedeelde tijd-as van het hoofdstuk.
+ */
+function UrenGezicht() {
+  const rol = useCurrentUserRole();
+  const isKantoor = useIsKantoor();
+
+  // Tot WS-C de rolgezichten bouwt: voorman en medewerker krijgen geen half
+  // kantoor-scherm te zien (de controle-queries zijn kantoor-only en zouden
+  // gewoon een fout gooien), maar een eerlijke regel plus de weg naar hun eigen
+  // invoer. Zodra WS-C er is, vervangt zijn switch deze twee takken.
+  if (rol !== null && !isKantoor) {
+    return <NogGeenEigenGezicht />;
+  }
+
+  return (
+    <DataFetchErrorBoundary dataDescription="De controlekamer">
+      <KantoorControlekamer />
+    </DataFetchErrorBoundary>
+  );
+}
+
+function NogGeenEigenGezicht() {
+  return (
+    <div className="flex flex-1 flex-col gap-3 p-4 md:p-8">
+      <h1 className="font-display text-[19px] leading-7 font-semibold tracking-tight">
+        Je eigen week komt hier te staan
+      </h1>
+      <p className="max-w-[58ch] text-[13px] text-pretty text-muted-foreground">
+        Deze pagina is nu het controlescherm van kantoor. Je eigen dagen —
+        inclusief wat kantoor eventueel gecorrigeerd heeft — krijgen hier een
+        eigen gezicht. Tot dan doe je je uren waar je ze altijd doet.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button asChild size="sm" className="h-8">
+          <Link href="/veld">Naar mijn werkdag</Link>
+        </Button>
+      </div>
+    </div>
   );
 }
