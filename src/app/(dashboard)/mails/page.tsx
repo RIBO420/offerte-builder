@@ -22,7 +22,6 @@ import {
   Edit,
   Inbox,
   Loader2,
-  Mail,
   MailCheck,
   Send,
   ShieldAlert,
@@ -218,10 +217,8 @@ export default function ConceptMailsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Mail className="size-4" />
-            Wachtrij
-          </CardTitle>
+          {/* Geen icoon vóór de kop (ui-lessen les 5): decoratie, geen anker. */}
+          <CardTitle>Wachtrij</CardTitle>
           <CardDescription>
             Goedkeuren verstuurt via het beveiligde mailpad (mail-guard);
             verwerpen laat de mail vervallen.
@@ -269,7 +266,15 @@ export default function ConceptMailsPage() {
                         {MAIL_EVENT_LABELS[mail.event] ?? mail.event}
                       </Badge>
                       {mail.status === "gepland" && (
-                        <Badge variant="secondary" className="ml-1">
+                        /* Communicatie kleurt steenblauw (ui-lessen les 2),
+                           via de status-voorcalculatie-familie: de
+                           status-verzonden-tokens uit het plan zijn in
+                           werkelijkheid oker (hue 85), voorcalculatie ís de
+                           steenblauw-245-receptuur in beide thema's. */
+                        <Badge
+                          variant="secondary"
+                          className="ml-1 bg-status-voorcalculatie text-status-voorcalculatie-text"
+                        >
                           <CalendarClock className="size-3 mr-0.5" />
                           Gepland
                         </Badge>
@@ -362,13 +367,20 @@ export default function ConceptMailsPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
+                      {/* Verzonden = communicatie, dus steenblauw (ui-lessen
+                          les 2) in plaats van de gevulde primary-groene badge:
+                          groen blijft van akkoord/eigen werk. Steenblauw komt
+                          uit de status-voorcalculatie-familie — de
+                          status-verzonden-tokens zijn in de praktijk oker
+                          (hue 85). */}
                       <Badge
                         variant={
+                          mail.status === "mislukt" ? "destructive" : "secondary"
+                        }
+                        className={
                           mail.status === "verzonden"
-                            ? "default"
-                            : mail.status === "mislukt"
-                              ? "destructive"
-                              : "secondary"
+                            ? "bg-status-voorcalculatie text-status-voorcalculatie-text"
+                            : undefined
                         }
                         title={mail.foutmelding}
                       >
