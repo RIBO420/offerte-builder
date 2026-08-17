@@ -17,7 +17,7 @@ Onze stack: Next.js (App Router) + Convex als backend + Clerk voor auth. Het dos
 
 **Opnamefunctie (fase 2):** opname via de microfoon van het apparaat (MediaRecorder), upload naar onze eigen storage, transcriptie via Deepgram (Nederlands), daarna exact dezelfde analyse en hetzelfde bevestigingsmoment. De opname kan pas starten na een expliciete bevestiging dat de meldingszin is uitgesproken (punt 3). Na een bevestigde transcriptie wordt de audio verwijderd en blijft alleen tekst bewaard; mislukt de transcriptie, dan blijft de audio staan met een duidelijke status zodat het gesprek handmatig gelogd kan worden (punten 4 en 5). Alles valt onder ons bestaande GDPR-verwijderproces, dat opnames en transcripties meeneemt.
 
-**Eén afwijking van jullie hoofdstuk 4:** de typografie. We houden onze bestaande huisstijl (Fraunces voor koppen, Geist voor interface) aan in plaats van Outfit/Instrument Sans — een fontwissel raakt de hele applicatie, niet alleen dit dossier, en de consistentie weegt voor ons zwaarder. De duidelijkere kaartranden met lichte kopbalk en het functioneel-groen-principe nemen we wél over, app-breed via onze bestaande sectie-primitief.
+**Hoofdstuk 4 nemen we volledig over**, inclusief de typografie: Outfit voor koppen, namen en bedragen en Instrument Sans voor de interface staan app-breed aan — de halfschreef is eruit, zoals jullie voorstelden. Ook de duidelijkere kaartranden met lichte kopbalk en het functioneel-groen-principe zijn overgenomen, app-breed via onze bestaande sectie-primitief.
 
 ## 2. Ureninschatting
 
