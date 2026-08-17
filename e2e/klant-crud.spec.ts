@@ -185,24 +185,29 @@ test.describe('Klanten CRUD', () => {
       timeout: 10_000,
     });
 
-    // Contact details card should show the address
-    await expect(page.getByText('Contactgegevens')).toBeVisible();
-    await expect(page.getByText(TEST_KLANT.adres)).toBeVisible();
-    await expect(page.getByText(TEST_KLANT.postcode)).toBeVisible();
-    await expect(page.getByText(TEST_KLANT.plaats)).toBeVisible();
+    // Dossier v7: adres, telefoon en e-mail staan als contactchips in de
+    // identiteitskop — één regel, dus adres/postcode/plaats in één string.
+    await expect(page.getByText(TEST_KLANT.adres).first()).toBeVisible();
+    await expect(page.getByText(TEST_KLANT.postcode).first()).toBeVisible();
+    await expect(page.getByText(TEST_KLANT.plaats).first()).toBeVisible();
+    await expect(page.getByText(TEST_KLANT.telefoon).first()).toBeVisible();
+    await expect(page.getByText(TEST_KLANT.email).first()).toBeVisible();
 
-    // Phone and email should be visible
-    await expect(page.getByText(TEST_KLANT.telefoon)).toBeVisible();
-    await expect(page.getByText(TEST_KLANT.email)).toBeVisible();
+    // Cijferstrip boven het dossier
+    await expect(page.getByText('Openstaand').first()).toBeVisible();
+    await expect(page.getByText('Open taken').first()).toBeVisible();
+    await expect(page.getByText('Laatste contact').first()).toBeVisible();
 
-    // Notes should be visible
-    await expect(page.getByText(TEST_KLANT.notities)).toBeVisible();
+    // Submenu met de dossiertabs
+    const dossier = page.getByRole('navigation', { name: 'Klantdossier' });
+    await expect(dossier.getByRole('button', { name: /Actueel/ })).toBeVisible();
+    await expect(dossier.getByRole('button', { name: /Offertes/ })).toBeVisible();
+    await expect(dossier.getByRole('button', { name: /Instellingen/ })).toBeVisible();
 
-    // Statistics card should exist
-    await expect(page.getByText('Statistieken')).toBeVisible();
-
-    // Offertes section should exist
-    await expect(page.getByText('Offertes').first()).toBeVisible();
+    // Instellingen-tab: de administratieve gegevens zitten daar nu achter
+    await dossier.getByRole('button', { name: /Instellingen/ }).click();
+    await expect(page).toHaveURL(/tab=instellingen/, { timeout: 10_000 });
+    await expect(page.getByText('Contactgegevens')).toBeVisible({ timeout: 10_000 });
   });
 
   test('should show pipeline status badge on klant detail', async ({ page }) => {
@@ -399,6 +404,13 @@ test.describe('Klanten CRUD', () => {
     await page.getByRole('link', { name: freshName }).first().click();
 
     await expect(page).toHaveURL(/\/klanten\//, { timeout: 10_000 });
+
+    // Dossier v7: de offertes staan achter het submenu-item "Offertes".
+    await page
+      .getByRole('navigation', { name: 'Klantdossier' })
+      .getByRole('button', { name: /Offertes/ })
+      .click();
+    await expect(page).toHaveURL(/tab=offertes/, { timeout: 10_000 });
 
     // Should show the "Nog geen offertes" empty state
     await expect(page.getByText('Nog geen offertes')).toBeVisible({ timeout: 10_000 });
