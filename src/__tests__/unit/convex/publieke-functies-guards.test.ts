@@ -25,6 +25,7 @@ import {
   createMockProject,
   createMockOfferte,
   createMockKlant,
+  seedMockOrganisatie,
 } from "../../helpers/convex-mock";
 import type {
   ActionCtx,
@@ -253,19 +254,26 @@ describe("standaardtuinen.createOfferteFromTemplate — eigendomscheck", () => {
 describe("projectKosten.getBudgetStatus — eigendomscheck", () => {
   function maakStore() {
     const store = new MockConvexStore();
+    // De organisatie uit het `org_id`-claim van createMockCtx.
+    const orgId = seedMockOrganisatie(store);
     const eigenaarId = store.insert("users", createMockUser());
-    const klantId = store.insert("klanten", createMockKlant(eigenaarId));
+    const klantId = store.insert(
+      "klanten",
+      createMockKlant(eigenaarId, { orgId })
+    );
     const offerteId = store.insert(
       "offertes",
-      createMockOfferte(eigenaarId, klantId)
+      createMockOfferte(eigenaarId, klantId, { orgId })
     );
     const eigenProjectId = store.insert(
       "projecten",
-      createMockProject(eigenaarId, offerteId)
+      createMockProject(eigenaarId, offerteId, { orgId })
     );
     const vreemdProjectId = store.insert(
       "projecten",
-      createMockProject("users:999", offerteId)
+      createMockProject("users:999", offerteId, {
+        orgId: "organisaties:999",
+      })
     );
     return { store, eigenProjectId, vreemdProjectId };
   }
@@ -328,15 +336,21 @@ describe("projectKosten.checkBudgetThreshold — eigendomscheck", () => {
 
   it("schrijft geen notificatie op een project van een ander bedrijf", async () => {
     const store = new MockConvexStore();
+    seedMockOrganisatie(store);
     const eigenaarId = store.insert("users", createMockUser());
-    const klantId = store.insert("klanten", createMockKlant("users:999"));
+    const klantId = store.insert(
+      "klanten",
+      createMockKlant("users:999", { orgId: "organisaties:999" })
+    );
     const offerteId = store.insert(
       "offertes",
-      createMockOfferte("users:999", klantId)
+      createMockOfferte("users:999", klantId, { orgId: "organisaties:999" })
     );
     const vreemdProjectId = store.insert(
       "projecten",
-      createMockProject("users:999", offerteId)
+      createMockProject("users:999", offerteId, {
+        orgId: "organisaties:999",
+      })
     );
     expect(eigenaarId).toBeTruthy();
 
@@ -415,6 +429,10 @@ describe("dagkaart.berekenReistijdenVoorDag — geen Maps-calls zonder auth", ()
 describe("dagkaart.getOntbrekendeAdresParen — rolcheck", () => {
   function maakStore(rol: string) {
     const store = new MockConvexStore();
+    // De tenant-resolver (requireOrgId) draait ná de rolcheck; zonder deze rij
+    // strandt de medewerker-case op "Organisatie niet gevonden" in plaats van
+    // op de teameigendomscheck die deze test vastlegt.
+    seedMockOrganisatie(store);
     store.insert("users", createMockUser({ role: rol }));
     return store;
   }

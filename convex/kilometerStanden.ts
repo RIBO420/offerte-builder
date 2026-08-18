@@ -1,17 +1,28 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAuthUserId } from "./auth";
+import { Doc, Id } from "./_generated/dataModel";
+import { requireOrgContext, requireOrgId, verifyOrgOwnership } from "./auth";
 import { requireNotViewer } from "./roles";
+
+/** Voertuig van de eigen organisatie, of null (leespaden geven "niets" terug). */
+async function voertuigVanOrg(
+  ctx: { db: { get: (id: Id<"voertuigen">) => Promise<Doc<"voertuigen"> | null> } },
+  orgId: Id<"organisaties">,
+  voertuigId: Id<"voertuigen">
+): Promise<Doc<"voertuigen"> | null> {
+  const voertuig = await ctx.db.get(voertuigId);
+  if (!voertuig || voertuig.orgId?.toString() !== orgId.toString()) return null;
+  return voertuig;
+}
 
 // Get all kilometer records for a vehicle
 export const listByVoertuig = query({
   args: { voertuigId: v.id("voertuigen") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
-    // Verify ownership of the vehicle
-    const voertuig = await ctx.db.get(args.voertuigId);
-    if (!voertuig || voertuig.userId.toString() !== userId.toString()) {
+    // Eigendom van het voertuig = zelfde organisatie
+    if (!(await voertuigVanOrg(ctx, orgId, args.voertuigId))) {
       return [];
     }
 
@@ -27,11 +38,10 @@ export const listByVoertuig = query({
 export const getLatest = query({
   args: { voertuigId: v.id("voertuigen") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
-    // Verify ownership of the vehicle
-    const voertuig = await ctx.db.get(args.voertuigId);
-    if (!voertuig || voertuig.userId.toString() !== userId.toString()) {
+    // Eigendom van het voertuig = zelfde organisatie
+    if (!(await voertuigVanOrg(ctx, orgId, args.voertuigId))) {
       return null;
     }
 
@@ -56,11 +66,10 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
 
-    // Verify ownership of the vehicle
-    const voertuig = await ctx.db.get(args.voertuigId);
-    if (!voertuig || voertuig.userId.toString() !== userId.toString()) {
+    // Eigendom van het voertuig = zelfde organisatie
+    if (!(await voertuigVanOrg(ctx, org._id, args.voertuigId))) {
       throw new ConvexError("Geen toegang tot dit voertuig");
     }
 
@@ -72,7 +81,9 @@ export const create = mutation({
 
     return await ctx.db.insert("kilometerStanden", {
       voertuigId: args.voertuigId,
-      userId,
+      orgId: org._id,
+      // `userId` blijft tot fase 6 verplicht in het schema.
+      userId: user._id,
       datum: args.datum,
       kilometerstand: args.kilometerstand,
       projectId: args.projectId,
@@ -87,12 +98,11 @@ export const remove = mutation({
   args: { id: v.id("kilometerStanden") },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
-
-    const record = await ctx.db.get(args.id);
-    if (!record || record.userId.toString() !== userId.toString()) {
-      throw new ConvexError("Geen toegang tot dit kilometer record");
-    }
+    await verifyOrgOwnership(
+      ctx,
+      await ctx.db.get(args.id),
+      "kilometer record"
+    );
 
     await ctx.db.delete(args.id);
     return args.id;
@@ -105,12 +115,12 @@ export const list = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const limit = args.limit ?? 100;
 
     const records = await ctx.db
       .query("kilometerStanden")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // Sorteer op datum (nieuwste eerst)
@@ -124,11 +134,11 @@ export const list = query({
 export const get = query({
   args: { id: v.id("kilometerStanden") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const record = await ctx.db.get(args.id);
 
     if (!record) return null;
-    if (record.userId.toString() !== userId.toString()) {
+    if (record.orgId?.toString() !== orgId.toString()) {
       return null;
     }
 
@@ -147,11 +157,11 @@ export const log = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
 
-    // Verify ownership of the vehicle
-    const voertuig = await ctx.db.get(args.voertuigId);
-    if (!voertuig || voertuig.userId.toString() !== userId.toString()) {
+    // Eigendom van het voertuig = zelfde organisatie
+    const voertuig = await voertuigVanOrg(ctx, org._id, args.voertuigId);
+    if (!voertuig) {
       throw new ConvexError("Geen toegang tot dit voertuig");
     }
 
@@ -165,7 +175,7 @@ export const log = mutation({
     // Optioneel: verifieer projecteigenaarschap als projectId is meegegeven
     if (args.projectId) {
       const project = await ctx.db.get(args.projectId);
-      if (!project || project.userId.toString() !== userId.toString()) {
+      if (!project || project.orgId?.toString() !== org._id.toString()) {
         throw new ConvexError("Geen toegang tot dit project");
       }
     }
@@ -179,7 +189,9 @@ export const log = mutation({
     // Maak het kilometerstand record aan
     return await ctx.db.insert("kilometerStanden", {
       voertuigId: args.voertuigId,
-      userId,
+      orgId: org._id,
+      // `userId` blijft tot fase 6 verplicht in het schema.
+      userId: user._id,
       datum: args.datum,
       kilometerstand: args.kilometerstand,
       projectId: args.projectId,
@@ -200,12 +212,11 @@ export const update = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
-
-    const record = await ctx.db.get(args.id);
-    if (!record || record.userId.toString() !== userId.toString()) {
-      throw new ConvexError("Geen toegang tot dit kilometer record");
-    }
+    await verifyOrgOwnership(
+      ctx,
+      await ctx.db.get(args.id),
+      "kilometer record"
+    );
 
     const updateData: {
       datum?: string;
@@ -232,11 +243,10 @@ export const getStatistieken = query({
     periode: v.optional(v.number()), // Aantal dagen terug kijken
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
-    // Verifieer eigenaarschap
-    const voertuig = await ctx.db.get(args.voertuigId);
-    if (!voertuig || voertuig.userId.toString() !== userId.toString()) {
+    // Eigendom van het voertuig = zelfde organisatie
+    if (!(await voertuigVanOrg(ctx, orgId, args.voertuigId))) {
       return null;
     }
 
@@ -304,17 +314,17 @@ export const getStatistieken = query({
 export const listByProject = query({
   args: { projectId: v.id("projecten") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
-    // Verifieer eigenaarschap van project
+    // Verifieer eigenaarschap van project (zelfde organisatie)
     const project = await ctx.db.get(args.projectId);
-    if (!project || project.userId.toString() !== userId.toString()) {
+    if (!project || project.orgId?.toString() !== orgId.toString()) {
       return [];
     }
 
     const records = await ctx.db
       .query("kilometerStanden")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // Filter op projectId

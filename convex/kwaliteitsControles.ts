@@ -7,7 +7,7 @@
 
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAuthUserId, verifyOwnership } from "./auth";
+import { requireOrgContext, requireOrgId, verifyOrgOwnership } from "./auth";
 import { requireNotViewer } from "./roles";
 import { Id } from "./_generated/dataModel";
 
@@ -118,14 +118,14 @@ const STANDAARD_CHECKLISTS: Record<string, string[]> = {
 // ============================================
 
 /**
- * Get a project and verify ownership.
+ * Get a project and verify org-ownership.
  */
 async function getOwnedProject(
-  ctx: Parameters<typeof verifyOwnership>[0],
+  ctx: Parameters<typeof verifyOrgOwnership>[0],
   projectId: Id<"projecten">
 ) {
   const project = await ctx.db.get(projectId);
-  return verifyOwnership(ctx, project, "project");
+  return verifyOrgOwnership(ctx, project, "project");
 }
 
 /**
@@ -145,7 +145,7 @@ function generateId(): string {
 export const getByProject = query({
   args: { projectId: v.id("projecten") },
   handler: async (ctx, args) => {
-    await requireAuthUserId(ctx);
+    await requireOrgId(ctx);
     // Verify ownership of project
     await getOwnedProject(ctx, args.projectId);
 
@@ -164,7 +164,7 @@ export const getByProject = query({
 export const getById = query({
   args: { id: v.id("kwaliteitsControles") },
   handler: async (ctx, args) => {
-    await requireAuthUserId(ctx);
+    await requireOrgId(ctx);
     const controle = await ctx.db.get(args.id);
 
     if (!controle) {
@@ -184,7 +184,7 @@ export const getById = query({
 export const getDefaultChecklist = query({
   args: { scope: v.string() },
   handler: async (ctx, args) => {
-    await requireAuthUserId(ctx);
+    await requireOrgId(ctx);
     const items = STANDAARD_CHECKLISTS[args.scope] || STANDAARD_CHECKLISTS.overig;
 
     return items.map((omschrijving) => ({
@@ -201,7 +201,7 @@ export const getDefaultChecklist = query({
 export const getAllDefaultChecklists = query({
   args: {},
   handler: async (ctx) => {
-    await requireAuthUserId(ctx);
+    await requireOrgId(ctx);
     return Object.entries(STANDAARD_CHECKLISTS).map(([scope, items]) => ({
       scope,
       items: items.map((omschrijving) => ({
@@ -227,7 +227,7 @@ export const getByProjectAndStatus = query({
     ),
   },
   handler: async (ctx, args) => {
-    await requireAuthUserId(ctx);
+    await requireOrgId(ctx);
     // Verify ownership of project
     await getOwnedProject(ctx, args.projectId);
 
@@ -257,7 +257,7 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
 
     // Verify ownership of project
     await getOwnedProject(ctx, args.projectId);
@@ -276,7 +276,9 @@ export const create = mutation({
     }));
 
     const id = await ctx.db.insert("kwaliteitsControles", {
-      userId,
+      orgId: org._id,
+      // `userId` blijft tot fase 6 verplicht in het schema.
+      userId: user._id,
       projectId: args.projectId,
       scope: args.scope,
       checklistItems,
@@ -636,12 +638,12 @@ export const remove = mutation({
 export const getDashboardStats = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
-    // Get all QC checks for this user
+    // Alle kwaliteitscontroles van de eigen organisatie
     const controles = await ctx.db
       .query("kwaliteitsControles")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // Count open checks (open or in_uitvoering)
@@ -687,7 +689,7 @@ export const getDashboardStats = query({
 export const getProjectSummary = query({
   args: { projectId: v.id("projecten") },
   handler: async (ctx, args) => {
-    await requireAuthUserId(ctx);
+    await requireOrgId(ctx);
     // Verify ownership of project
     await getOwnedProject(ctx, args.projectId);
 

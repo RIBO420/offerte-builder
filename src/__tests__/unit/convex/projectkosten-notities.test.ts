@@ -12,6 +12,7 @@ import {
   createMockCtx,
   createMockUser,
   createMockProject,
+  seedMockOrganisatie,
 } from "../../helpers/convex-mock";
 import type { MutationCtx } from "../../../../convex/_generated/server";
 import { create } from "../../../../convex/projectKosten";
@@ -42,10 +43,12 @@ function maakCtxMetProject(): {
   projectId: string;
 } {
   const store = new MockConvexStore();
+  // Sinds de org-migratie is de tenantgrens de organisatie uit het JWT.
+  const orgId = seedMockOrganisatie(store);
   store.insert("users", createMockUser({ role: "directie" }));
   const projectId = store.insert(
     "projecten",
-    createMockProject("users:1", "offertes:1", { naam: "Tuin Test" })
+    createMockProject("users:1", "offertes:1", { orgId, naam: "Tuin Test" })
   );
   const ctx = createMockCtx(store) as unknown as MutationCtx;
   return { ctx, store, projectId };

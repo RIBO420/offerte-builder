@@ -13,7 +13,12 @@
 
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAuth, requireAuthUserId, verifyOwnership } from "./auth";
+import {
+  requireOrg,
+  requireOrgContext,
+  requireOrgId,
+  verifyOrgOwnership,
+} from "./auth";
 import { requireNotViewer } from "./roles";
 import { Id } from "./_generated/dataModel";
 import { validatePositive, sanitizeOptionalString } from "./validators";
@@ -28,23 +33,40 @@ const kostenTypeValidator = v.union(
 );
 
 /**
- * Helper: Get a project and verify ownership.
+ * Helper: Get a project and verify org-ownership.
  */
 async function getOwnedProject(
-  ctx: Parameters<typeof requireAuth>[0],
+  ctx: Parameters<typeof verifyOrgOwnership>[0],
   projectId: Id<"projecten">
 ) {
   const project = await ctx.db.get(projectId);
-  return verifyOwnership(ctx, project, "project");
+  return verifyOrgOwnership(ctx, project, "project");
+}
+
+/**
+ * Helper: de instellingen-rij van één organisatie.
+ *
+ * `orgId` is hier altijd een echte waarde (uit `requireOrgId` of uit een al
+ * geverifieerd project); een optionele waarde mag niet in de `q.eq` glippen —
+ * `q.eq("orgId", undefined)` zou álle rijen zónder orgId matchen.
+ */
+async function instellingenVanOrg(
+  ctx: Parameters<typeof verifyOrgOwnership>[0],
+  orgId: Id<"organisaties">
+) {
+  return await ctx.db
+    .query("instellingen")
+    .withIndex("by_org", (q) => q.eq("orgId", orgId))
+    .unique();
 }
 
 /**
  * Helper: Calculate arbeidskosten from urenRegistraties.
  */
 async function calculateArbeidskosten(
-  ctx: Parameters<typeof requireAuth>[0],
+  ctx: Parameters<typeof verifyOrgOwnership>[0],
   projectId: Id<"projecten">,
-  userId: Id<"users">,
+  orgId: Id<"organisaties">,
   startDate?: string,
   endDate?: string
 ) {
@@ -54,17 +76,14 @@ async function calculateArbeidskosten(
     .collect();
 
   // Get instellingen for uurtarief
-  const instellingen = await ctx.db
-    .query("instellingen")
-    .withIndex("by_user", (q) => q.eq("userId", userId))
-    .unique();
+  const instellingen = await instellingenVanOrg(ctx, orgId);
 
   const standaardUurtarief = instellingen?.uurtarief || 45;
 
   // Get medewerkers for individual tarieven
   const medewerkers = await ctx.db
     .query("medewerkers")
-    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .withIndex("by_org", (q) => q.eq("orgId", orgId))
     .collect();
 
   const medewerkerTarieven = new Map(
@@ -107,7 +126,7 @@ async function calculateArbeidskosten(
  * Helper: Calculate machinekosten from machineGebruik.
  */
 async function calculateMachinekosten(
-  ctx: Parameters<typeof requireAuth>[0],
+  ctx: Parameters<typeof verifyOrgOwnership>[0],
   projectId: Id<"projecten">,
   startDate?: string,
   endDate?: string
@@ -169,9 +188,8 @@ async function calculateMachinekosten(
  * Helper: Calculate materiaalkosten from voorraadMutaties.
  */
 async function calculateMateriaalkosten(
-  ctx: Parameters<typeof requireAuth>[0],
+  ctx: Parameters<typeof verifyOrgOwnership>[0],
   projectId: Id<"projecten">,
-  userId: Id<"users">,
   startDate?: string,
   endDate?: string
 ) {
@@ -259,7 +277,7 @@ export const list = query({
     endDate: v.optional(v.string()), // YYYY-MM-DD
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const orgId = await requireOrgId(ctx);
     await getOwnedProject(ctx, args.projectId);
 
     // Gather costs from all sources
@@ -267,7 +285,7 @@ export const list = query({
       calculateArbeidskosten(
         ctx,
         args.projectId,
-        user._id,
+        orgId,
         args.startDate,
         args.endDate
       ),
@@ -275,7 +293,6 @@ export const list = query({
       calculateMateriaalkosten(
         ctx,
         args.projectId,
-        user._id,
         args.startDate,
         args.endDate
       ),
@@ -311,7 +328,7 @@ export const getById = query({
     projectId: v.id("projecten"),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const orgId = await requireOrgId(ctx);
     await getOwnedProject(ctx, args.projectId);
 
     if (args.type === "arbeid") {
@@ -319,10 +336,7 @@ export const getById = query({
       if (!uren || uren.projectId !== args.projectId) return null;
 
       // Get instellingen for uurtarief
-      const instellingen = await ctx.db
-        .query("instellingen")
-        .withIndex("by_user", (q) => q.eq("userId", user._id))
-        .unique();
+      const instellingen = await instellingenVanOrg(ctx, orgId);
       const uurtarief = instellingen?.uurtarief || 45;
 
       return {
@@ -412,7 +426,7 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
     const project = await getOwnedProject(ctx, args.projectId);
 
     // Validate required fields
@@ -440,8 +454,10 @@ export const create = mutation({
       const id = await ctx.db.insert("urenRegistraties", {
         projectId: args.projectId,
         // Tenant-scope (audit §2): zelfde route als de backfill-migratie
-        // (projectId → projecten.userId). Zonder dit veld valt de registratie
-        // buiten elke by_user-query en is hij dus onzichtbaar in de app.
+        // (projectId → project). Zonder dit veld valt de registratie buiten
+        // elke org-query en is hij dus onzichtbaar in de app. `userId` blijft
+        // tot fase 6 meelopen.
+        orgId: org._id,
         userId: project.userId,
         datum: args.datum,
         medewerker: args.medewerker,
@@ -474,14 +490,16 @@ export const create = mutation({
       // Get or create voorraad entry
       let voorraad = await ctx.db
         .query("voorraad")
-        .withIndex("by_user_product", (q) =>
-          q.eq("userId", userId).eq("productId", args.productId!)
+        .withIndex("by_org_product", (q) =>
+          q.eq("orgId", org._id).eq("productId", args.productId!)
         )
         .unique();
 
       if (!voorraad) {
         const voorraadId = await ctx.db.insert("voorraad", {
-          userId,
+          orgId: org._id,
+          // `userId` blijft tot fase 6 verplicht in het schema.
+          userId: user._id,
           productId: args.productId,
           hoeveelheid: 0,
           laatsteBijwerking: Date.now(),
@@ -491,7 +509,8 @@ export const create = mutation({
 
       // Create verbruik mutatie
       const id = await ctx.db.insert("voorraadMutaties", {
-        userId,
+        orgId: org._id,
+        userId: user._id,
         voorraadId: voorraad!._id,
         productId: args.productId,
         type: "verbruik",
@@ -683,14 +702,14 @@ export const getTotalen = query({
     endDate: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const orgId = await requireOrgId(ctx);
     await getOwnedProject(ctx, args.projectId);
 
     const [arbeidskosten, machinekosten, materiaalkosten] = await Promise.all([
       calculateArbeidskosten(
         ctx,
         args.projectId,
-        user._id,
+        orgId,
         args.startDate,
         args.endDate
       ),
@@ -698,7 +717,6 @@ export const getTotalen = query({
       calculateMateriaalkosten(
         ctx,
         args.projectId,
-        user._id,
         args.startDate,
         args.endDate
       ),
@@ -746,14 +764,14 @@ export const getByScope = query({
     endDate: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const orgId = await requireOrgId(ctx);
     await getOwnedProject(ctx, args.projectId);
 
     const [arbeidskosten, machinekosten, materiaalkosten] = await Promise.all([
       calculateArbeidskosten(
         ctx,
         args.projectId,
-        user._id,
+        orgId,
         args.startDate,
         args.endDate
       ),
@@ -761,7 +779,6 @@ export const getByScope = query({
       calculateMateriaalkosten(
         ctx,
         args.projectId,
-        user._id,
         args.startDate,
         args.endDate
       ),
@@ -828,7 +845,7 @@ export const getBudgetVergelijking = query({
     projectId: v.id("projecten"),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const orgId = await requireOrgId(ctx);
     const project = await getOwnedProject(ctx, args.projectId);
 
     // Get voorcalculatie - first try by offerte, then by project
@@ -852,9 +869,9 @@ export const getBudgetVergelijking = query({
 
     // Calculate actual costs
     const [arbeidskosten, machinekosten, materiaalkosten] = await Promise.all([
-      calculateArbeidskosten(ctx, args.projectId, user._id),
+      calculateArbeidskosten(ctx, args.projectId, orgId),
       calculateMachinekosten(ctx, args.projectId),
-      calculateMateriaalkosten(ctx, args.projectId, user._id),
+      calculateMateriaalkosten(ctx, args.projectId),
     ]);
 
     const werkelijkeArbeidskosten = arbeidskosten.reduce(
@@ -999,14 +1016,14 @@ export const getDagelijksOverzicht = query({
     endDate: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const orgId = await requireOrgId(ctx);
     await getOwnedProject(ctx, args.projectId);
 
     const [arbeidskosten, machinekosten, materiaalkosten] = await Promise.all([
       calculateArbeidskosten(
         ctx,
         args.projectId,
-        user._id,
+        orgId,
         args.startDate,
         args.endDate
       ),
@@ -1014,7 +1031,6 @@ export const getDagelijksOverzicht = query({
       calculateMateriaalkosten(
         ctx,
         args.projectId,
-        user._id,
         args.startDate,
         args.endDate
       ),
@@ -1083,7 +1099,7 @@ export const getProjectOverzicht = query({
     projectId: v.id("projecten"),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const orgId = await requireOrgId(ctx);
     const project = await getOwnedProject(ctx, args.projectId);
 
     // Get offerte and voorcalculatie (offerteId kan ontbreken bij losse werkitems)
@@ -1099,9 +1115,9 @@ export const getProjectOverzicht = query({
 
     // Get all costs
     const [arbeidskosten, machinekosten, materiaalkosten] = await Promise.all([
-      calculateArbeidskosten(ctx, args.projectId, user._id),
+      calculateArbeidskosten(ctx, args.projectId, orgId),
       calculateMachinekosten(ctx, args.projectId),
-      calculateMateriaalkosten(ctx, args.projectId, user._id),
+      calculateMateriaalkosten(ctx, args.projectId),
     ]);
 
     const allKosten = [...arbeidskosten, ...machinekosten, ...materiaalkosten];
@@ -1242,8 +1258,8 @@ export const getBudgetStatus = query({
     const project = await ctx.db.get(args.projectId);
     if (!project) return null;
 
-    const user = await requireAuth(ctx);
-    if (project.userId.toString() !== user._id.toString()) return null;
+    const orgId = await requireOrgId(ctx);
+    if (project.orgId?.toString() !== orgId.toString()) return null;
 
     // offerteId kan ontbreken bij losse werkitems
     const offerte = project.offerteId
@@ -1274,15 +1290,12 @@ export const getBudgetStatus = query({
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .collect();
 
-    // Standaard uurtarief van de eigenaar van dít project ophalen. Een
+    // Standaard uurtarief van de organisatie van dít project ophalen. Een
     // ongescoopte `.first()` pakte een willekeurige rij uit `instellingen` —
     // dus mogelijk het uurtarief van een ánder bedrijf. Dat maakte de cijfers
     // niet alleen fout zodra er meerdere tenants zijn, het liet ook een vreemd
     // uurtarief terugrekenen uit `werkelijkeKosten`.
-    const instellingen = await ctx.db
-      .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", project.userId))
-      .unique();
+    const instellingen = await instellingenVanOrg(ctx, orgId);
     const standaardUurtarief = instellingen?.uurtarief ?? 45;
 
     const arbeidskosten = uren.reduce((sum, u) => sum + (u.uren * standaardUurtarief), 0);
@@ -1309,11 +1322,12 @@ export const getBudgetStatus = query({
 export const checkBudgetThreshold = mutation({
   args: { projectId: v.id("projecten") },
   handler: async (ctx, args) => {
-    // `requireAuthUserId` alleen zegt "iemand is ingelogd", niet "dit project is
-    // van mij". Zonder eigendomscheck kon elke ingelogde gebruiker — ook een
-    // klant — met een vreemd projectId een notificatie inserten op
+    // "Iemand is ingelogd" is niet hetzelfde als "dit project is van mijn
+    // organisatie". Zonder eigendomscheck kon elke ingelogde gebruiker — ook
+    // een klant — met een vreemd projectId een notificatie inserten op
     // `userId: project.userId`, mét de projectnaam in titel en bericht: een
     // cross-tenant schrijfactie in de meldingenlijst van een ander bedrijf.
+    const org = await requireOrg(ctx);
     const project = await getOwnedProject(ctx, args.projectId);
 
     // offerteId kan ontbreken bij losse werkitems
@@ -1337,12 +1351,9 @@ export const checkBudgetThreshold = mutation({
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .collect();
 
-    // Uurtarief van de project-eigenaar, niet een willekeurige instellingen-rij
-    // uit de tabel (zie de toelichting in getBudgetStatus hierboven).
-    const instellingen = await ctx.db
-      .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", project.userId))
-      .unique();
+    // Uurtarief van de eigen organisatie, niet een willekeurige
+    // instellingen-rij uit de tabel (zie de toelichting in getBudgetStatus).
+    const instellingen = await instellingenVanOrg(ctx, org._id);
     const standaardUurtarief = instellingen?.uurtarief ?? 45;
 
     const arbeidskosten = uren.reduce((sum, u) => sum + (u.uren * standaardUurtarief), 0);
@@ -1353,16 +1364,21 @@ export const checkBudgetThreshold = mutation({
     if (percentage < 80) return;
 
     // Check of er al een budget_warning notificatie is voor dit project
-    const bestaandeNotificatie = await ctx.db
-      .query("notifications")
-      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-      .filter((q) => q.eq(q.field("type"), "budget_warning"))
-      .first();
+    // by_project is bedrijfsoverstijgend: belt & braces op de organisatie.
+    const bestaandeNotificatie = (
+      await ctx.db
+        .query("notifications")
+        .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+        .filter((q) => q.eq(q.field("type"), "budget_warning"))
+        .collect()
+    ).find((n) => n.orgId?.toString() === org._id.toString());
 
     if (bestaandeNotificatie) return; // Al gemeld, niet opnieuw
 
     // Maak notificatie aan voor de project-eigenaar
     await ctx.db.insert("notifications", {
+      orgId: org._id,
+      // `userId` blijft tot fase 6 verplicht in het schema.
       userId: project.userId,
       type: "budget_warning",
       title: percentage >= 100

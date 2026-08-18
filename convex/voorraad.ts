@@ -1,6 +1,6 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAuthUserId } from "./auth";
+import { requireOrgContext, requireOrgId, verifyOrgOwnership } from "./auth";
 import { requireNotViewer } from "./roles";
 import { validateNonNegative, sanitizeOptionalString } from "./validators";
 
@@ -12,10 +12,10 @@ import { validateNonNegative, sanitizeOptionalString } from "./validators";
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const voorraadItems = await ctx.db
       .query("voorraad")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // Enrich with product details
@@ -47,11 +47,11 @@ export const list = query({
 export const getById = query({
   args: { id: v.id("voorraad") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const voorraad = await ctx.db.get(args.id);
 
     if (!voorraad) return null;
-    if (voorraad.userId.toString() !== userId.toString()) {
+    if (voorraad.orgId?.toString() !== orgId.toString()) {
       return null;
     }
 
@@ -78,18 +78,18 @@ export const getById = query({
 export const getByProduct = query({
   args: { productId: v.id("producten") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
-    // Verify product ownership first
+    // Product hoort bij dezelfde organisatie
     const product = await ctx.db.get(args.productId);
-    if (!product || product.userId.toString() !== userId.toString()) {
+    if (!product || product.orgId?.toString() !== orgId.toString()) {
       return null;
     }
 
     const voorraad = await ctx.db
       .query("voorraad")
-      .withIndex("by_user_product", (q) =>
-        q.eq("userId", userId).eq("productId", args.productId)
+      .withIndex("by_org_product", (q) =>
+        q.eq("orgId", orgId).eq("productId", args.productId)
       )
       .unique();
 
@@ -114,11 +114,11 @@ export const getByProduct = query({
 export const getMutaties = query({
   args: { voorraadId: v.id("voorraad") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
-    // Verify voorraad ownership
+    // Voorraadregel hoort bij dezelfde organisatie
     const voorraad = await ctx.db.get(args.voorraadId);
-    if (!voorraad || voorraad.userId.toString() !== userId.toString()) {
+    if (!voorraad || voorraad.orgId?.toString() !== orgId.toString()) {
       return [];
     }
 
@@ -160,10 +160,10 @@ export const getMutaties = query({
 export const getLowStock = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const voorraadItems = await ctx.db
       .query("voorraad")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // Filter items below minimum stock
@@ -204,10 +204,10 @@ export const getLowStock = query({
 export const getStats = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const voorraadItems = await ctx.db
       .query("voorraad")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // Calculate totale voorraadwaarde and count items under minimum
@@ -256,14 +256,14 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
 
-    // Verify product ownership
+    // Product hoort bij dezelfde organisatie
     const product = await ctx.db.get(args.productId);
     if (!product) {
       throw new ConvexError("Product niet gevonden");
     }
-    if (product.userId.toString() !== userId.toString()) {
+    if (product.orgId?.toString() !== org._id.toString()) {
       throw new ConvexError("Geen toegang tot dit product");
     }
 
@@ -286,8 +286,8 @@ export const create = mutation({
     // Check if voorraad already exists for this product
     const existingVoorraad = await ctx.db
       .query("voorraad")
-      .withIndex("by_user_product", (q) =>
-        q.eq("userId", userId).eq("productId", args.productId)
+      .withIndex("by_org_product", (q) =>
+        q.eq("orgId", org._id).eq("productId", args.productId)
       )
       .unique();
 
@@ -296,7 +296,9 @@ export const create = mutation({
     }
 
     const voorraadId = await ctx.db.insert("voorraad", {
-      userId,
+      orgId: org._id,
+      // `userId` blijft tot fase 6 verplicht in het schema.
+      userId: user._id,
       productId: args.productId,
       hoeveelheid,
       minVoorraad,
@@ -309,7 +311,8 @@ export const create = mutation({
     // Create initial mutatie if hoeveelheid > 0
     if (hoeveelheid > 0) {
       await ctx.db.insert("voorraadMutaties", {
-        userId,
+        orgId: org._id,
+        userId: user._id,
         voorraadId,
         productId: args.productId,
         type: "inkoop",
@@ -334,16 +337,8 @@ export const update = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
-
-    // Verify ownership
-    const voorraad = await ctx.db.get(args.id);
-    if (!voorraad) {
-      throw new ConvexError("Voorraad item niet gevonden");
-    }
-    if (voorraad.userId.toString() !== userId.toString()) {
-      throw new ConvexError("Geen toegang tot dit voorraad item");
-    }
+    // Eigendom = zelfde organisatie
+    await verifyOrgOwnership(ctx, await ctx.db.get(args.id), "voorraad item");
 
     const filteredUpdates: Record<string, unknown> = {
       laatsteBijwerking: Date.now(),
@@ -395,21 +390,19 @@ export const adjustStock = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
 
-    // Verify voorraad ownership
-    const voorraad = await ctx.db.get(args.voorraadId);
-    if (!voorraad) {
-      throw new ConvexError("Voorraad item niet gevonden");
-    }
-    if (voorraad.userId.toString() !== userId.toString()) {
-      throw new ConvexError("Geen toegang tot dit voorraad item");
-    }
+    // Eigendom = zelfde organisatie
+    const voorraad = await verifyOrgOwnership(
+      ctx,
+      await ctx.db.get(args.voorraadId),
+      "voorraad item"
+    );
 
     // Verify project ownership if provided
     if (args.projectId) {
       const project = await ctx.db.get(args.projectId);
-      if (!project || project.userId.toString() !== userId.toString()) {
+      if (!project || project.orgId?.toString() !== org._id.toString()) {
         throw new ConvexError("Project niet gevonden of geen toegang");
       }
     }
@@ -417,7 +410,10 @@ export const adjustStock = mutation({
     // Verify inkooporder ownership if provided
     if (args.inkooporderId) {
       const inkooporder = await ctx.db.get(args.inkooporderId);
-      if (!inkooporder || inkooporder.userId.toString() !== userId.toString()) {
+      if (
+        !inkooporder ||
+        inkooporder.orgId?.toString() !== org._id.toString()
+      ) {
         throw new ConvexError("Inkooporder niet gevonden of geen toegang");
       }
     }
@@ -460,7 +456,9 @@ export const adjustStock = mutation({
 
     // Create voorraadMutatie record
     const mutatieId = await ctx.db.insert("voorraadMutaties", {
-      userId,
+      orgId: org._id,
+      // `userId` blijft tot fase 6 verplicht in het schema.
+      userId: user._id,
       voorraadId: args.voorraadId,
       productId: voorraad.productId,
       type: args.type,
@@ -487,16 +485,8 @@ export const remove = mutation({
   args: { id: v.id("voorraad") },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
-
-    // Verify ownership
-    const voorraad = await ctx.db.get(args.id);
-    if (!voorraad) {
-      throw new ConvexError("Voorraad item niet gevonden");
-    }
-    if (voorraad.userId.toString() !== userId.toString()) {
-      throw new ConvexError("Geen toegang tot dit voorraad item");
-    }
+    // Eigendom = zelfde organisatie
+    await verifyOrgOwnership(ctx, await ctx.db.get(args.id), "voorraad item");
 
     // Also delete all related mutaties
     const mutaties = await ctx.db
@@ -521,19 +511,20 @@ export const initializeFromProducts = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
 
-    // Get all active products for this user
+    // Actieve producten van de organisatie
     const products = await ctx.db
       .query("producten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .filter((q) => q.eq(q.field("isActief"), true))
+      .withIndex("by_org_actief", (q) =>
+        q.eq("orgId", org._id).eq("isActief", true)
+      )
       .collect();
 
     // Get existing voorraad items
     const existingVoorraad = await ctx.db
       .query("voorraad")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", org._id))
       .collect();
 
     const existingProductIds = new Set(
@@ -551,7 +542,9 @@ export const initializeFromProducts = mutation({
       }
 
       await ctx.db.insert("voorraad", {
-        userId,
+        orgId: org._id,
+        // `userId` blijft tot fase 6 verplicht in het schema.
+        userId: user._id,
         productId: product._id,
         hoeveelheid: 0,
         minVoorraad: args.defaultMinVoorraad,

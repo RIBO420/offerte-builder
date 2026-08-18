@@ -21,7 +21,8 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
-import { getCompanyUserId, requireKantoor } from "./roles";
+import { requireOrgContext, requireOrgId } from "./auth";
+import { requireKantoor } from "./roles";
 import { requireInterneRol } from "./tijdlijn";
 import {
   dubbelClaimWaarschuwing,
@@ -56,28 +57,28 @@ export const getOverzicht = query({
   args: {},
   handler: async (ctx) => {
     await requireInterneRol(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const vandaag = vandaagIso();
 
     const [voertuigen, machines, teams, vervalItems] = await Promise.all([
       ctx.db
         .query("voertuigen")
-        .withIndex("by_user", (q) => q.eq("userId", companyUserId))
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
         .collect(),
       ctx.db
         .query("machines")
-        .withIndex("by_user", (q) => q.eq("userId", companyUserId))
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
         .collect(),
       ctx.db
         .query("teams")
-        .withIndex("by_user_actief", (q) =>
-          q.eq("userId", companyUserId).eq("isActief", true)
+        .withIndex("by_org_actief", (q) =>
+          q.eq("orgId", orgId).eq("isActief", true)
         )
         .collect(),
       ctx.db
         .query("vervalItems")
-        .withIndex("by_user_actief", (q) =>
-          q.eq("userId", companyUserId).eq("actief", true)
+        .withIndex("by_org_actief", (q) =>
+          q.eq("orgId", orgId).eq("actief", true)
         )
         .collect(),
     ]);
@@ -165,11 +166,11 @@ export const getTeamBussen = query({
   args: {},
   handler: async (ctx) => {
     await requireInterneRol(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const teams = await ctx.db
       .query("teams")
-      .withIndex("by_user_actief", (q) =>
-        q.eq("userId", companyUserId).eq("isActief", true)
+      .withIndex("by_org_actief", (q) =>
+        q.eq("orgId", orgId).eq("isActief", true)
       )
       .collect();
     // N+1 weg (audit §5): de standaardbussen in één ronde ophalen; teams
@@ -199,13 +200,14 @@ export const getReserveringenVoorWerkitem = query({
   args: { werkitemId: v.id("projecten") },
   handler: async (ctx, args) => {
     await requireInterneRol(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const reserveringen = await ctx.db
       .query("middelReserveringen")
       .withIndex("by_werkitem", (q) => q.eq("werkitemId", args.werkitemId))
       .collect();
+    // by_werkitem is bedrijfsoverstijgend: belt & braces op de organisatie.
     const relevant = reserveringen.filter(
-      (r) => r.userId.toString() === companyUserId.toString()
+      (r) => r.orgId?.toString() === orgId.toString()
     );
     // N+1 weg (audit §5): voertuigen en machines vooraf in twee rondes; een
     // werkitem reserveert hetzelfde middel vaak op meerdere dagen.
@@ -240,15 +242,15 @@ export const getSchaarseMiddelen = query({
   args: {},
   handler: async (ctx) => {
     await requireInterneRol(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const [voertuigen, machines] = await Promise.all([
       ctx.db
         .query("voertuigen")
-        .withIndex("by_user", (q) => q.eq("userId", companyUserId))
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
         .collect(),
       ctx.db
         .query("machines")
-        .withIndex("by_user", (q) => q.eq("userId", companyUserId))
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
         .collect(),
     ]);
     return [
@@ -278,11 +280,11 @@ export const getSchaarseMiddelen = query({
 
 async function eigenVoertuig(
   ctx: { db: { get: (id: Id<"voertuigen">) => Promise<Doc<"voertuigen"> | null> } },
-  companyUserId: Id<"users">,
+  orgId: Id<"organisaties">,
   voertuigId: Id<"voertuigen">
 ): Promise<Doc<"voertuigen">> {
   const voertuig = await ctx.db.get(voertuigId);
-  if (!voertuig || voertuig.userId.toString() !== companyUserId.toString()) {
+  if (!voertuig || voertuig.orgId?.toString() !== orgId.toString()) {
     throw new ConvexError("Voertuig niet gevonden");
   }
   return voertuig;
@@ -290,11 +292,11 @@ async function eigenVoertuig(
 
 async function eigenMachine(
   ctx: { db: { get: (id: Id<"machines">) => Promise<Doc<"machines"> | null> } },
-  companyUserId: Id<"users">,
+  orgId: Id<"organisaties">,
   machineId: Id<"machines">
 ): Promise<Doc<"machines">> {
   const machine = await ctx.db.get(machineId);
-  if (!machine || machine.userId.toString() !== companyUserId.toString()) {
+  if (!machine || machine.orgId?.toString() !== orgId.toString()) {
     throw new ConvexError("Machine niet gevonden");
   }
   return machine;
@@ -309,9 +311,9 @@ export const setStatus = mutation({
   },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     if (args.voertuigId) {
-      await eigenVoertuig(ctx, companyUserId, args.voertuigId);
+      await eigenVoertuig(ctx, orgId, args.voertuigId);
       await ctx.db.patch(args.voertuigId, {
         status: middelStatusNaarVoertuigStatus(args.status),
         updatedAt: Date.now(),
@@ -319,7 +321,7 @@ export const setStatus = mutation({
       return args.voertuigId;
     }
     if (args.machineId) {
-      await eigenMachine(ctx, companyUserId, args.machineId);
+      await eigenMachine(ctx, orgId, args.machineId);
       await ctx.db.patch(args.machineId, { status: args.status });
       return args.machineId;
     }
@@ -337,10 +339,10 @@ export const setEigenschappen = mutation({
   },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     if (args.teamId) {
       const team = await ctx.db.get(args.teamId);
-      if (!team || team.userId.toString() !== companyUserId.toString()) {
+      if (!team || team.orgId?.toString() !== orgId.toString()) {
         throw new ConvexError("Team niet gevonden");
       }
     }
@@ -353,12 +355,12 @@ export const setEigenschappen = mutation({
     if (args.schaars !== undefined) updates.schaars = args.schaars;
 
     if (args.voertuigId) {
-      await eigenVoertuig(ctx, companyUserId, args.voertuigId);
+      await eigenVoertuig(ctx, orgId, args.voertuigId);
       await ctx.db.patch(args.voertuigId, { ...updates, updatedAt: Date.now() });
       return args.voertuigId;
     }
     if (args.machineId) {
-      await eigenMachine(ctx, companyUserId, args.machineId);
+      await eigenMachine(ctx, orgId, args.machineId);
       await ctx.db.patch(args.machineId, updates);
       return args.machineId;
     }
@@ -374,13 +376,13 @@ export const setTeamStandaardBus = mutation({
   },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const team = await ctx.db.get(args.teamId);
-    if (!team || team.userId.toString() !== companyUserId.toString()) {
+    if (!team || team.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Team niet gevonden");
     }
     if (args.voertuigId) {
-      await eigenVoertuig(ctx, companyUserId, args.voertuigId);
+      await eigenVoertuig(ctx, orgId, args.voertuigId);
     }
     await ctx.db.patch(args.teamId, {
       standaardVoertuigId: args.voertuigId ?? undefined,
@@ -395,9 +397,9 @@ export const setTeamKleur = mutation({
   args: { teamId: v.id("teams"), kleur: v.union(v.string(), v.null()) },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const team = await ctx.db.get(args.teamId);
-    if (!team || team.userId.toString() !== companyUserId.toString()) {
+    if (!team || team.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Team niet gevonden");
     }
     await ctx.db.patch(args.teamId, {
@@ -421,12 +423,12 @@ export const setDagBus = mutation({
   },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
     if (!DATUM_PATROON.test(args.datum)) {
       throw new ConvexError("Ongeldige datum (verwacht YYYY-MM-DD)");
     }
     const team = await ctx.db.get(args.teamId);
-    if (!team || team.userId.toString() !== companyUserId.toString()) {
+    if (!team || team.orgId?.toString() !== org._id.toString()) {
       throw new ConvexError("Team niet gevonden");
     }
     const bestaande = await ctx.db
@@ -436,21 +438,23 @@ export const setDagBus = mutation({
       )
       .collect();
     const rij = bestaande.find(
-      (r) => r.userId.toString() === companyUserId.toString()
+      (r) => r.orgId?.toString() === org._id.toString()
     );
 
     if (!args.voertuigId) {
       if (rij) await ctx.db.delete(rij._id);
       return null;
     }
-    await eigenVoertuig(ctx, companyUserId, args.voertuigId);
+    await eigenVoertuig(ctx, org._id, args.voertuigId);
     const now = Date.now();
     if (rij) {
       await ctx.db.patch(rij._id, { voertuigId: args.voertuigId, updatedAt: now });
       return rij._id;
     }
     return await ctx.db.insert("teamBusOverrides", {
-      userId: companyUserId,
+      orgId: org._id,
+      // `userId` blijft tot fase 6 verplicht in het schema.
+      userId: user._id,
       teamId: args.teamId,
       datum: args.datum,
       voertuigId: args.voertuigId,
@@ -475,7 +479,7 @@ export const reserveerMiddel = mutation({
   },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
     if (!DATUM_PATROON.test(args.datum)) {
       throw new ConvexError("Ongeldige datum (verwacht YYYY-MM-DD)");
     }
@@ -483,7 +487,7 @@ export const reserveerMiddel = mutation({
     if (
       !werkitem ||
       werkitem.deletedAt ||
-      werkitem.userId.toString() !== companyUserId.toString()
+      werkitem.orgId?.toString() !== org._id.toString()
     ) {
       throw new ConvexError("Werkitem niet gevonden");
     }
@@ -492,12 +496,12 @@ export const reserveerMiddel = mutation({
     let status: MiddelStatus;
     let middelSleutel: string;
     if (args.voertuigId) {
-      const voertuig = await eigenVoertuig(ctx, companyUserId, args.voertuigId);
+      const voertuig = await eigenVoertuig(ctx, org._id, args.voertuigId);
       middelNaam = `${voertuig.merk} ${voertuig.model} (${voertuig.kenteken})`;
       status = voertuigStatusNaarMiddelStatus(voertuig.status);
       middelSleutel = maakMiddelSleutel("voertuig", args.voertuigId.toString());
     } else if (args.machineId) {
-      const machine = await eigenMachine(ctx, companyUserId, args.machineId);
+      const machine = await eigenMachine(ctx, org._id, args.machineId);
       middelNaam = machine.naam;
       status = machineStatusNaarMiddelStatus(machine.status, machine.isActief);
       middelSleutel = maakMiddelSleutel("machine", args.machineId.toString());
@@ -514,7 +518,7 @@ export const reserveerMiddel = mutation({
     const eigen = bestaandeClaims.find(
       (r) =>
         r.werkitemId.toString() === args.werkitemId.toString() &&
-        r.userId.toString() === companyUserId.toString()
+        r.orgId?.toString() === org._id.toString()
     );
     if (eigen) {
       return { id: eigen._id, waarschuwing: null }; // idempotent
@@ -522,7 +526,7 @@ export const reserveerMiddel = mutation({
 
     const waarschuwingen: string[] = [];
     const ander = bestaandeClaims.find(
-      (r) => r.userId.toString() === companyUserId.toString()
+      (r) => r.orgId?.toString() === org._id.toString()
     );
     if (ander) {
       const anderWerkitem = await ctx.db.get(ander.werkitemId);
@@ -541,7 +545,9 @@ export const reserveerMiddel = mutation({
     }
 
     const id = await ctx.db.insert("middelReserveringen", {
-      userId: companyUserId,
+      orgId: org._id,
+      // `userId` blijft tot fase 6 verplicht in het schema.
+      userId: user._id,
       middelType: args.voertuigId ? "voertuig" : "machine",
       voertuigId: args.voertuigId,
       machineId: args.machineId,
@@ -561,11 +567,11 @@ export const verwijderReservering = mutation({
   args: { id: v.id("middelReserveringen") },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const reservering = await ctx.db.get(args.id);
     if (
       !reservering ||
-      reservering.userId.toString() !== companyUserId.toString()
+      reservering.orgId?.toString() !== orgId.toString()
     ) {
       throw new ConvexError("Reservering niet gevonden");
     }

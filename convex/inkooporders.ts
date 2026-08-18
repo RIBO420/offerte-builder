@@ -7,7 +7,11 @@
 
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAuth, requireAuthUserId, verifyOwnership } from "./auth";
+import {
+  requireOrgContext,
+  requireOrgId,
+  verifyOrgOwnership,
+} from "./auth";
 import { requireNotViewer } from "./roles";
 import { Id } from "./_generated/dataModel";
 import { validatePositive, sanitizeOptionalString } from "./validators";
@@ -26,51 +30,55 @@ const regelValidator = v.object({
 });
 
 /**
- * Get an inkooporder and verify ownership.
+ * Get an inkooporder and verify org-ownership.
  */
 async function getOwnedInkooporder(
-  ctx: Parameters<typeof requireAuth>[0],
+  ctx: Parameters<typeof verifyOrgOwnership>[0],
   inkooporderId: Id<"inkooporders">
 ) {
   const inkooporder = await ctx.db.get(inkooporderId);
-  return verifyOwnership(ctx, inkooporder, "inkooporder");
+  return verifyOrgOwnership(ctx, inkooporder, "inkooporder");
 }
 
 /**
- * Get a leverancier and verify ownership.
+ * Get a leverancier and verify org-ownership.
+ *
+ * De leverancier is een cross-referentie naar cluster 3.1: we controleren
+ * hem via het document (`orgId`), niet via een by_user-lookup.
  */
 async function getOwnedLeverancier(
-  ctx: Parameters<typeof requireAuth>[0],
+  ctx: Parameters<typeof verifyOrgOwnership>[0],
   leverancierId: Id<"leveranciers">
 ) {
   const leverancier = await ctx.db.get(leverancierId);
-  return verifyOwnership(ctx, leverancier, "leverancier");
+  return verifyOrgOwnership(ctx, leverancier, "leverancier");
 }
 
 /**
- * Get a project and verify ownership.
+ * Get a project and verify org-ownership.
  */
 async function getOwnedProject(
-  ctx: Parameters<typeof requireAuth>[0],
+  ctx: Parameters<typeof verifyOrgOwnership>[0],
   projectId: Id<"projecten">
 ) {
   const project = await ctx.db.get(projectId);
-  return verifyOwnership(ctx, project, "project");
+  return verifyOrgOwnership(ctx, project, "project");
 }
 
 /**
  * Generate the next order number in format "IO-YYYY-XXXX".
+ * Het nummer is uniek binnen de organisatie, niet over tenants heen.
  */
 async function generateOrderNummer(
-  ctx: Parameters<typeof requireAuth>[0],
-  userId: Id<"users">
+  ctx: Parameters<typeof verifyOrgOwnership>[0],
+  orgId: Id<"organisaties">
 ): Promise<string> {
   const jaar = new Date().getFullYear();
 
   // Get the highest order number for this year
   const existingOrders = await ctx.db
     .query("inkooporders")
-    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .withIndex("by_org", (q) => q.eq("orgId", orgId))
     .collect();
 
   // Filter orders from current year and find the highest number
@@ -113,11 +121,11 @@ export const list = query({
     projectId: v.optional(v.id("projecten")),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     let inkooporders = await ctx.db
       .query("inkooporders")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .order("desc")
       .collect();
 
@@ -153,9 +161,9 @@ export const getById = query({
     const inkooporder = await ctx.db.get(args.id);
     if (!inkooporder) return null;
 
-    // Verifieer eigenaarschap
-    const user = await requireAuth(ctx);
-    if (inkooporder.userId.toString() !== user._id.toString()) {
+    // Verifieer eigenaarschap (zelfde organisatie)
+    const orgId = await requireOrgId(ctx);
+    if (inkooporder.orgId?.toString() !== orgId.toString()) {
       return null; // Verberg bestaan voor onbevoegde gebruikers
     }
 
@@ -183,7 +191,7 @@ export const getByProject = query({
   args: { projectId: v.id("projecten") },
   handler: async (ctx, args) => {
     // Verifieer eigenaarschap van project
-    await getOwnedProject(ctx, args.projectId);
+    const project = await getOwnedProject(ctx, args.projectId);
 
     const inkooporders = await ctx.db
       .query("inkooporders")
@@ -191,7 +199,10 @@ export const getByProject = query({
       .order("desc")
       .collect();
 
-    return inkooporders;
+    // by_project is bedrijfsoverstijgend: belt & braces op de organisatie.
+    return inkooporders.filter(
+      (io) => io.orgId?.toString() === project.orgId?.toString()
+    );
   },
 });
 
@@ -202,7 +213,7 @@ export const getByLeverancier = query({
   args: { leverancierId: v.id("leveranciers") },
   handler: async (ctx, args) => {
     // Verifieer eigenaarschap van leverancier
-    await getOwnedLeverancier(ctx, args.leverancierId);
+    const leverancier = await getOwnedLeverancier(ctx, args.leverancierId);
 
     const inkooporders = await ctx.db
       .query("inkooporders")
@@ -210,7 +221,10 @@ export const getByLeverancier = query({
       .order("desc")
       .collect();
 
-    return inkooporders;
+    // by_leverancier is bedrijfsoverstijgend: belt & braces op de organisatie.
+    return inkooporders.filter(
+      (io) => io.orgId?.toString() === leverancier.orgId?.toString()
+    );
   },
 });
 
@@ -221,11 +235,11 @@ export const getByLeverancier = query({
 export const getStats = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const inkooporders = await ctx.db
       .query("inkooporders")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // Totalen per status
@@ -300,7 +314,7 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
     const now = Date.now();
 
     // Verifieer eigenaarschap van leverancier
@@ -325,7 +339,7 @@ export const create = mutation({
     }
 
     // Genereer orderNummer
-    const orderNummer = await generateOrderNummer(ctx, userId);
+    const orderNummer = await generateOrderNummer(ctx, org._id);
 
     // Bereken totaal
     const totaal = args.regels.reduce((sum, regel) => sum + regel.totaal, 0);
@@ -334,7 +348,9 @@ export const create = mutation({
     const notities = sanitizeOptionalString(args.notities);
 
     const inkooporderId = await ctx.db.insert("inkooporders", {
-      userId,
+      orgId: org._id,
+      // `userId` blijft tot fase 6 verplicht in het schema.
+      userId: user._id,
       leverancierId: args.leverancierId,
       projectId: args.projectId,
       orderNummer,

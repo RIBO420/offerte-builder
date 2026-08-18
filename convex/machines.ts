@@ -1,18 +1,18 @@
-import { v, ConvexError } from "convex/values";
+import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAuthUserId } from "./auth";
+import { requireOrgContext, requireOrgId, verifyOrgOwnership } from "./auth";
 import { requireNotViewer } from "./roles";
 import { laadDocsMap } from "./lib/batchLoad";
 import { klantNaam } from "./lib/offerteKlant";
 
-// List all machines for authenticated user
+// Alle machines van de eigen organisatie
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     return await ctx.db
       .query("machines")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
   },
 });
@@ -21,11 +21,11 @@ export const list = query({
 export const get = query({
   args: { id: v.id("machines") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const machine = await ctx.db.get(args.id);
 
     if (!machine) return null;
-    if (machine.userId.toString() !== userId.toString()) {
+    if (machine.orgId?.toString() !== orgId.toString()) {
       return null;
     }
 
@@ -37,13 +37,13 @@ export const get = query({
 export const getByScopes = query({
   args: { scopes: v.array(v.string()) },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
-    // by_user_actief i.p.v. .filter (audit §5): de index selecteert de actieve
+    const orgId = await requireOrgId(ctx);
+    // by_org_actief i.p.v. .filter (audit §5): de index selecteert de actieve
     // machines meteen, in plaats van alle machines lezen en daarna weggooien.
     const allMachines = await ctx.db
       .query("machines")
-      .withIndex("by_user_actief", (q) =>
-        q.eq("userId", userId).eq("isActief", true)
+      .withIndex("by_org_actief", (q) =>
+        q.eq("orgId", orgId).eq("isActief", true)
       )
       .collect();
 
@@ -65,9 +65,11 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
     return await ctx.db.insert("machines", {
-      userId,
+      orgId: org._id,
+      // `userId` blijft tot fase 6 verplicht in het schema.
+      userId: user._id,
       naam: args.naam,
       type: args.type,
       tarief: args.tarief,
@@ -91,16 +93,9 @@ export const update = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
 
-    // Verify ownership
-    const machine = await ctx.db.get(args.id);
-    if (!machine) {
-      throw new ConvexError("Machine niet gevonden");
-    }
-    if (machine.userId.toString() !== userId.toString()) {
-      throw new ConvexError("Geen toegang tot deze machine");
-    }
+    // Eigendom = zelfde organisatie
+    await verifyOrgOwnership(ctx, await ctx.db.get(args.id), "machine");
 
     const { id, ...updates } = args;
     const filteredUpdates: Record<string, unknown> = {};
@@ -121,16 +116,7 @@ export const remove = mutation({
   args: { id: v.id("machines") },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
-
-    // Verify ownership
-    const machine = await ctx.db.get(args.id);
-    if (!machine) {
-      throw new ConvexError("Machine niet gevonden");
-    }
-    if (machine.userId.toString() !== userId.toString()) {
-      throw new ConvexError("Geen toegang tot deze machine");
-    }
+    await verifyOrgOwnership(ctx, await ctx.db.get(args.id), "machine");
 
     await ctx.db.patch(args.id, {
       isActief: false,
@@ -144,16 +130,7 @@ export const hardDelete = mutation({
   args: { id: v.id("machines") },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
-
-    // Verify ownership
-    const machine = await ctx.db.get(args.id);
-    if (!machine) {
-      throw new ConvexError("Machine niet gevonden");
-    }
-    if (machine.userId.toString() !== userId.toString()) {
-      throw new ConvexError("Geen toegang tot deze machine");
-    }
+    await verifyOrgOwnership(ctx, await ctx.db.get(args.id), "machine");
 
     await ctx.db.delete(args.id);
     return args.id;
@@ -164,13 +141,13 @@ export const hardDelete = mutation({
 export const getUsageStats = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
-    // Get all active machines for user — by_user_actief i.p.v. .filter (audit §5)
+    // Actieve machines van de organisatie — by_org_actief i.p.v. .filter (audit §5)
     const machines = await ctx.db
       .query("machines")
-      .withIndex("by_user_actief", (q) =>
-        q.eq("userId", userId).eq("isActief", true)
+      .withIndex("by_org_actief", (q) =>
+        q.eq("orgId", orgId).eq("isActief", true)
       )
       .collect();
 
@@ -239,12 +216,12 @@ export const createDefaults = mutation({
   args: {},
   handler: async (ctx) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
 
-    // Idempotent: check if user already has machines
+    // Idempotent: heeft deze organisatie al machines?
     const existing = await ctx.db
       .query("machines")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", org._id))
       .first();
 
     if (existing) {
@@ -300,7 +277,8 @@ export const createDefaults = mutation({
 
     for (const machine of defaultMachines) {
       await ctx.db.insert("machines", {
-        userId,
+        orgId: org._id,
+        userId: user._id,
         ...machine,
         isActief: true,
       });

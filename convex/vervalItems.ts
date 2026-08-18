@@ -26,9 +26,9 @@
 import { v, ConvexError } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
-import { getCompanyUserId, normalizeRole, requireKantoor } from "./roles";
+import { requireOrgContext, requireOrgId } from "./auth";
+import { normalizeRole, requireKantoor } from "./roles";
 import { requireInterneRol } from "./tijdlijn";
-import { voegSysteemCommentToe } from "./servicemeldingen";
 import { vandaagIso } from "./beurtgenerator";
 import {
   addDagen,
@@ -81,10 +81,10 @@ function valideerVervalVelden(args: {
   }
 }
 
-/** Object-koppeling valideren binnen het eigen bedrijf. */
+/** Object-koppeling valideren binnen de eigen organisatie. */
 async function valideerObjectKoppeling(
   ctx: { db: { get: (id: Id<"voertuigen"> | Id<"machines">) => Promise<Doc<"voertuigen"> | Doc<"machines"> | null> } },
-  companyUserId: Id<"users">,
+  orgId: Id<"organisaties">,
   args: {
     objectType: "voertuig" | "machine" | "vrij";
     voertuigId?: Id<"voertuigen">;
@@ -94,13 +94,13 @@ async function valideerObjectKoppeling(
   if (args.objectType === "voertuig") {
     if (!args.voertuigId) throw new ConvexError("voertuigId is verplicht");
     const voertuig = await ctx.db.get(args.voertuigId);
-    if (!voertuig || voertuig.userId.toString() !== companyUserId.toString()) {
+    if (!voertuig || voertuig.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Voertuig niet gevonden");
     }
   } else if (args.objectType === "machine") {
     if (!args.machineId) throw new ConvexError("machineId is verplicht");
     const machine = await ctx.db.get(args.machineId);
-    if (!machine || machine.userId.toString() !== companyUserId.toString()) {
+    if (!machine || machine.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Machine niet gevonden");
     }
   }
@@ -138,7 +138,7 @@ export const list = query({
   },
   handler: async (ctx, args) => {
     await requireInterneRol(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     let items: Doc<"vervalItems">[];
     if (args.voertuigId) {
@@ -154,13 +154,14 @@ export const list = query({
     } else {
       items = await ctx.db
         .query("vervalItems")
-        .withIndex("by_user", (q) => q.eq("userId", companyUserId))
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
         .collect();
     }
 
+    // by_voertuig/by_machine zijn bedrijfsoverstijgend: belt & braces op de org.
     const relevant = items.filter(
       (i) =>
-        i.userId.toString() === companyUserId.toString() &&
+        i.orgId?.toString() === orgId.toString() &&
         (!args.alleenActief || i.actief)
     );
 
@@ -183,13 +184,13 @@ export const verlooptBinnenkort = query({
   args: {},
   handler: async (ctx) => {
     await requireInterneRol(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const vandaag = vandaagIso();
 
     const items = await ctx.db
       .query("vervalItems")
-      .withIndex("by_user_actief", (q) =>
-        q.eq("userId", companyUserId).eq("actief", true)
+      .withIndex("by_org_actief", (q) =>
+        q.eq("orgId", orgId).eq("actief", true)
       )
       .collect();
 
@@ -226,9 +227,9 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
     valideerVervalVelden(args);
-    await valideerObjectKoppeling(ctx, companyUserId, args);
+    await valideerObjectKoppeling(ctx, org._id, args);
     if (args.ontvangerGebruikerId) {
       const ontvanger = await ctx.db.get(args.ontvangerGebruikerId);
       if (!ontvanger) throw new ConvexError("Ontvanger niet gevonden");
@@ -236,7 +237,9 @@ export const create = mutation({
 
     const now = Date.now();
     return await ctx.db.insert("vervalItems", {
-      userId: companyUserId,
+      orgId: org._id,
+      // `userId` blijft tot fase 6 verplicht in het schema.
+      userId: user._id,
       naam: args.naam.trim(),
       type: args.type,
       objectType: args.objectType,
@@ -268,9 +271,9 @@ export const update = mutation({
   },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const item = await ctx.db.get(args.id);
-    if (!item || item.userId.toString() !== companyUserId.toString()) {
+    if (!item || item.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Vervalitem niet gevonden");
     }
     valideerVervalVelden(args);
@@ -306,9 +309,9 @@ export const remove = mutation({
   args: { id: v.id("vervalItems") },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const item = await ctx.db.get(args.id);
-    if (!item || item.userId.toString() !== companyUserId.toString()) {
+    if (!item || item.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Vervalitem niet gevonden");
     }
     await ctx.db.delete(args.id);
@@ -321,48 +324,72 @@ export const remove = mutation({
 // ============================================
 
 /**
- * Dagelijkse verval-run (cron). Per bedrijf (directie-gebruiker als
- * multi-tenant eigenaar): actieve vervalitems binnen de waarschuwtermijn →
- * onderhoudstaak op het §2.4-cases-bord. Idempotent via attenderingSleutel;
- * verstuurt NOOIT e-mail; respecteert actief=false en de ontvanger
- * (specifieke gebruiker > rol voorman > kantoor/eigenaar).
+ * Dagelijkse verval-run (cron). Per ORGANISATIE: actieve vervalitems binnen
+ * de waarschuwtermijn → onderhoudstaak op het §2.4-cases-bord. Idempotent via
+ * attenderingSleutel; verstuurt NOOIT e-mail; respecteert actief=false en de
+ * ontvanger (specifieke gebruiker > rol voorman > kantoor/eigenaar).
+ *
+ * TENANT ZONDER IDENTITY: een cron heeft geen JWT en dus geen `org_id`-claim,
+ * waardoor `requireOrg` hier per definitie niet kan werken. De run itereert
+ * daarom zelf over de ACTIEVE organisaties (zelfde keuze als de andere
+ * engine-crons) en scoopt elke ronde met `by_org_actief`. Een uitgezette
+ * organisatie krijgt bewust geen taken.
+ *
+ * `servicemeldingen.userId` is tot fase 6 verplicht. De cron heeft geen
+ * ingelogde gebruiker, dus komt die waarde uit het vervalitem zelf
+ * (`item.userId` = de bedrijfseigenaar die het item aanmaakte); die user is
+ * meteen de fallback-ontvanger.
  */
 export const genereerVervalTaken = internalMutation({
   args: {},
   handler: async (ctx) => {
     const vandaag = vandaagIso();
-    const users = await ctx.db.query("users").collect();
-    const eigenaren = users.filter(
-      (u) => normalizeRole(u.role) === "directie"
+    const organisaties = (await ctx.db.query("organisaties").collect()).filter(
+      (o) => o.actief
     );
+    // users heeft (nog) geen orgId; de koppeling loopt via medewerkers.by_org.
+    const users = await ctx.db.query("users").collect();
 
     let aangemaakt = 0;
-    for (const eigenaar of eigenaren) {
+    for (const org of organisaties) {
       const items = await ctx.db
         .query("vervalItems")
-        .withIndex("by_user_actief", (q) =>
-          q.eq("userId", eigenaar._id).eq("actief", true)
+        .withIndex("by_org_actief", (q) =>
+          q.eq("orgId", org._id).eq("actief", true)
         )
         .collect();
+      if (items.length === 0) continue;
 
-      // Bedrijfsgebruikers voor ontvanger-resolutie: de eigenaar zelf +
-      // gebruikers wier gekoppelde medewerker bij dit bedrijf hoort.
+      // Bedrijfsgebruikers voor ontvanger-resolutie: gebruikers wier
+      // gekoppelde medewerker bij deze organisatie hoort, plus de eigenaren
+      // die op de vervalitems staan (directie heeft geen medewerker-rij).
       const medewerkers = await ctx.db
         .query("medewerkers")
-        .withIndex("by_user", (q) => q.eq("userId", eigenaar._id))
+        .withIndex("by_org", (q) => q.eq("orgId", org._id))
         .collect();
       const medewerkerIds = new Set(medewerkers.map((m) => m._id.toString()));
+      const eigenaarIds = new Set(items.map((i) => i.userId.toString()));
       const bedrijfsGebruikers = users.filter(
         (u) =>
-          u._id.toString() === eigenaar._id.toString() ||
+          eigenaarIds.has(u._id.toString()) ||
           (u.linkedMedewerkerId &&
             medewerkerIds.has(u.linkedMedewerkerId.toString()))
       );
 
       for (const item of items) {
         // Belt & braces bovenop de indexquery
-        if (item.userId.toString() !== eigenaar._id.toString()) continue;
+        if (item.orgId?.toString() !== org._id.toString()) continue;
         if (!vervalTaakNodig(item, vandaag)) continue;
+
+        // De taak heeft een eigenaar nodig (PRD §2.4); zonder bestaande
+        // users-rij kan die niet gezet worden en slaan we het item over.
+        const eigenaar = await ctx.db.get(item.userId);
+        if (!eigenaar) {
+          console.warn(
+            `[vervalItems] vervalitem ${item._id} verwijst naar een onbekende gebruiker — overgeslagen`
+          );
+          continue;
+        }
 
         // Idempotentie: bestaat de onderhoudstaak voor deze occurrence al?
         const sleutel = maakVervalSleutel(item._id.toString(), item.vervaldatum);
@@ -395,6 +422,8 @@ export const genereerVervalTaken = internalMutation({
 
         const now = Date.now();
         const meldingId = await ctx.db.insert("servicemeldingen", {
+          orgId: org._id,
+          // `userId` blijft tot fase 6 verplicht in het schema.
           userId: eigenaar._id,
           // GEEN klantId: vervalitems zijn niet klant-gebonden (§3.3);
           // daarom ook geen klanttijdlijn-log.
@@ -417,10 +446,18 @@ export const genereerVervalTaken = internalMutation({
           updatedAt: now,
         });
 
-        await voegSysteemCommentToe(ctx, {
+        // Systeem-comment hier inline i.p.v. via servicemeldingen.
+        // voegSysteemCommentToe: die helper hoort bij cluster 3.7 en kent nog
+        // geen orgId-parameter, en een comment zónder orgId valt na fase 6
+        // buiten elke org-gescoopte lezing van de case-thread.
+        await ctx.db.insert("meldingComments", {
+          orgId: org._id,
           userId: eigenaar._id,
           meldingId,
+          auteurNaam: "Systeem",
           tekst: `Automatische vervalattendering: ${tekst} (waarschuwtermijn ${item.waarschuwtermijnDagen} dagen, taak sinds ${addDagen(item.vervaldatum, -item.waarschuwtermijnDagen)})`,
+          systeem: true,
+          createdAt: Date.now(),
         });
         aangemaakt++;
       }
