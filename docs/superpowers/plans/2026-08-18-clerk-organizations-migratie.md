@@ -494,10 +494,13 @@ if (emailBruikbaar) {
 const userId = await requireAuthUserId(ctx); const orgId = await requireOrgId(ctx);
 .withIndex("by_user", (q) => q.eq("userId", userId))
                                              .withIndex("by_org", (q) => q.eq("orgId", orgId))
-await ctx.db.insert("klanten", { userId, … }) await ctx.db.insert("klanten", { orgId, userId: user._id, … })
+await ctx.db.insert("klanten", { userId, … }) await ctx.db.insert("klanten", { orgId: org._id, userId: user._id, … })
 // userId blijft tijdelijk verplicht in het schema (besluit bij Task 1.2): inserts
-// zetten beide — `const { org, user } = await requireOrg(ctx)` levert allebei.
+// zetten beide — `const { org, user } = await requireOrgContext(ctx)` levert allebei
+// (requireOrg geeft alléén de org; requireOrgContext bestaat voor insert-sites).
 // Task 6.2 verwijdert userId uit schema én uit alle insert-sites.
+// Lijstverwerking: hoist de resolver — één requireOrgId vóór de lus, vergelijk
+// orgId in de lus; NIET per document verifyOrgOwnership/requireOrgId aanroepen.
 verifyOwnership(ctx, doc, "…")               verifyOrgOwnership(ctx, doc, "…")
 
 // OUD (patroon B)                          // NIEUW
