@@ -185,7 +185,7 @@ export function useOnboarding() {
         label: "Eerste medewerker toevoegen",
         description: "Voeg een medewerker toe voor planning",
         completed: !!hasMedewerker,
-        href: "/medewerkers",
+        href: "/team",
         adminOnly: true,
       });
     }

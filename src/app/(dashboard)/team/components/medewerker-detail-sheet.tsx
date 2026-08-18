@@ -3,13 +3,15 @@
 import { format } from "date-fns";
 import { nl } from "@/lib/date-locale";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -28,6 +30,7 @@ import {
   Euro,
   Star,
   MapPin,
+  Pencil,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -39,7 +42,7 @@ import {
   Certificaat,
   getCertificaatStatus,
 } from "./certificaat-form";
-import { Id } from "../../../convex/_generated/dataModel";
+import { Id } from "@convex/_generated/dataModel";
 
 // Matches Convex schema
 export interface MedewerkerExtended {
@@ -81,10 +84,15 @@ export interface MedewerkerExtended {
   };
 }
 
-interface MedewerkerDetailDialogProps {
+interface MedewerkerDetailSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   medewerker: MedewerkerExtended | null;
+  /**
+   * Alleen meegegeven als de kijker mag schrijven. Een projectleider leest het
+   * dossier; de knop bestaat voor hem niet (niet gerenderd, niet disabled).
+   */
+  onBewerken?: () => void;
 }
 
 const CONTRACT_TYPES = {
@@ -105,11 +113,19 @@ const WERKDAGEN = [
   { key: 0, label: "Zo" },
 ];
 
-export function MedewerkerDetailDialog({
+/**
+ * Het personeelsdossier als zijblad naast de teamtabel.
+ *
+ * Was een dialoog midden in beeld; in het Team-scherm hoort het dossier naast
+ * de rij te openen waar je op klikte — je bladert door mensen, je onderbreekt
+ * je werk niet. De inhoud (vier tabs) is één-op-één overgenomen.
+ */
+export function MedewerkerDetailSheet({
   open,
   onOpenChange,
   medewerker,
-}: MedewerkerDetailDialogProps) {
+  onBewerken,
+}: MedewerkerDetailSheetProps) {
   if (!medewerker) return null;
 
   const specialisaties = medewerker.specialisaties || [];
@@ -150,24 +166,32 @@ export function MedewerkerDetailDialog({
     : 0;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader className="pb-4">
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      {/* Breder dan het standaard-zijblad: vier tabs met kolommen passen niet
+          in 384px, en zijwaarts scrollen is geen optie. */}
+      <SheetContent
+        side="right"
+        className="flex w-full flex-col gap-0 p-0 sm:max-w-2xl"
+      >
+        <SheetHeader className="border-b p-4 pr-14">
           <div className="flex items-start gap-4">
             {/* Avatar */}
-            <div className="flex-shrink-0 w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-              <User className="h-8 w-8 text-primary" />
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary/10">
+              <User className="h-7 w-7 text-primary" />
             </div>
-            <div className="flex-1 min-w-0">
-              <DialogTitle className="text-xl flex items-center gap-2 flex-wrap">
-                {medewerker.naam}
+            <div className="min-w-0 flex-1">
+              <SheetTitle className="flex flex-wrap items-center gap-2 text-xl">
+                <span className="truncate">{medewerker.naam}</span>
                 <Badge
                   variant={medewerker.isActief ? "default" : "secondary"}
                 >
-                  {medewerker.isActief ? "Actief" : "Inactief"}
+                  {medewerker.isActief ? "In dienst" : "Uit dienst"}
                 </Badge>
-              </DialogTitle>
-              <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-muted-foreground">
+              </SheetTitle>
+              <SheetDescription className="sr-only">
+                Personeelsdossier van {medewerker.naam}
+              </SheetDescription>
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                 {medewerker.functie && (
                   <span className="flex items-center gap-1">
                     <Briefcase className="h-3.5 w-3.5" />
@@ -186,12 +210,23 @@ export function MedewerkerDetailDialog({
                   </Badge>
                 )}
               </div>
+              {onBewerken && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-3"
+                  onClick={onBewerken}
+                >
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Dossier bewerken
+                </Button>
+              )}
             </div>
           </div>
-        </DialogHeader>
+        </SheetHeader>
 
-        <Tabs defaultValue="profiel" className="flex-1 overflow-hidden">
-          <TabsList className="grid w-full grid-cols-4 mb-4">
+        <Tabs defaultValue="profiel" className="flex flex-1 flex-col overflow-hidden p-4 pt-3">
+          <TabsList className="mb-4 grid w-full grid-cols-4">
             <TabsTrigger value="profiel">Profiel</TabsTrigger>
             <TabsTrigger value="specialisaties">
               Specialisaties
@@ -606,7 +641,7 @@ export function MedewerkerDetailDialog({
             </TabsContent>
           </ScrollArea>
         </Tabs>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }

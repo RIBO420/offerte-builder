@@ -22,11 +22,11 @@ import {
 import { Form } from "@/components/ui/form";
 import { Loader2, User, Clock, GraduationCap, Award, FileText, MapPin, Phone } from "lucide-react";
 import { useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
+import { api } from "@convex/_generated/api";
 import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import { getMutationErrorMessage } from "@/lib/error-handling";
 import { logger } from "@/lib/logger";
-import { Id } from "../../../convex/_generated/dataModel";
+import { Id } from "@convex/_generated/dataModel";
 import { Specialisatie } from "./skills-selector";
 import { Certificaat } from "./certificaat-form";
 

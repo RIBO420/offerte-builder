@@ -48,7 +48,6 @@ import {
   Wrench,
   Receipt,
   Truck,
-  Shield,
   ShieldCheck,
   Calendar,
   CalendarDays,
@@ -103,11 +102,15 @@ const financieelItems = [
 ];
 
 // Profile menu: Personeel group (admin/directie only)
+//
+// "Medewerkers" en "Gebruikersbeheer" waren twee ingangen naar dezelfde
+// mensen — de een voor het dossier, de ander voor de app-toegang. Sinds /team
+// beide doet is het één item; wie een collega zoekt hoeft niet meer te raden
+// in welk van de twee schermen hij moet zijn.
 const personeelMenuItems = [
-  { title: "Medewerkers", url: "/medewerkers", icon: UsersRound },
+  { title: "Team", url: "/team", icon: UsersRound },
   { title: "Verlof", url: "/verlof", icon: CalendarDays, indent: true },
   { title: "Verzuim", url: "/verzuim", icon: Thermometer, indent: true },
-  { title: "Gebruikersbeheer", url: "/gebruikers", icon: Shield },
 ];
 
 // Profile menu: Assets & Data group (admin/directie only)

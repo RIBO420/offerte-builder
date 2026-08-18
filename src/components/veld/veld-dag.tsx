@@ -269,14 +269,14 @@ export function VeldDag() {
             title="Je account is niet aan een medewerker gekoppeld"
             description={
               isKantoor
-                ? "Koppel je account aan een medewerker via de pagina Medewerkers om hier een dag te zien."
+                ? "Koppel je account aan een medewerker via het Team-scherm om hier een dag te zien."
                 : "Vraag kantoor om je account aan een medewerker te koppelen; daarna zie je hier je dag."
             }
             action={
               isKantoor
                 ? {
-                    label: "Naar medewerkers",
-                    onClick: () => router.push("/medewerkers"),
+                    label: "Naar team",
+                    onClick: () => router.push("/team"),
                   }
                 : undefined
             }

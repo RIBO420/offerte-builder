@@ -29,7 +29,6 @@ import {
   Archive,
   Receipt,
   Wrench,
-  Shield,
 } from "lucide-react";
 import {
   CommandDialog,
@@ -165,13 +164,26 @@ export function CommandPalette({ additionalItems = [] }: CommandPaletteProps) {
         keywords: ["customers", "clients", "beheer", "contacten"],
       },
       {
-        id: "nav-medewerkers",
+        id: "nav-team",
         type: "navigation",
-        title: "Medewerkers",
-        subtitle: "Teamleden beheren",
+        title: "Team",
+        subtitle: "Dossiers, rollen en toegang",
         icon: <UsersRound className="size-4" />,
-        action: () => router.push("/medewerkers"),
-        keywords: ["employees", "team", "personeel", "collega"],
+        action: () => router.push("/team"),
+        // De oude zoekwoorden blijven staan: wie "gebruikers" of
+        // "medewerkers" typt, zocht altijd al deze mensen.
+        keywords: [
+          "employees",
+          "team",
+          "personeel",
+          "collega",
+          "medewerkers",
+          "gebruikers",
+          "users",
+          "rechten",
+          "toegang",
+          "rollen",
+        ],
       },
       {
         id: "nav-wagenpark",
@@ -217,15 +229,6 @@ export function CommandPalette({ additionalItems = [] }: CommandPaletteProps) {
         icon: <Wrench className="size-4" />,
         action: () => router.push("/instellingen/machines"),
         keywords: ["machines", "equipment", "gereedschap", "tools"],
-      },
-      {
-        id: "nav-gebruikers",
-        type: "navigation",
-        title: "Gebruikersbeheer",
-        subtitle: "Toegang en rechten",
-        icon: <Shield className="size-4" />,
-        action: () => router.push("/gebruikers"),
-        keywords: ["users", "permissions", "rechten", "toegang", "admin"],
       },
       {
         id: "nav-profiel",

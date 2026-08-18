@@ -262,11 +262,12 @@ export function ShortcutsProvider({ children }: { children: ReactNode }) {
         description: "Ga naar Wagenpark",
         action: () => router.push("/wagenpark"),
       },
-      // G then M -> Medewerkers
+      // G then M -> Team (was "Medewerkers"; de sequence blijft `m` zodat
+      // ingesleten vingers hetzelfde scherm blijven openen)
       {
         sequence: ["g", "m"],
-        description: "Ga naar Medewerkers",
-        action: () => router.push("/medewerkers"),
+        description: "Ga naar Team",
+        action: () => router.push("/team"),
       },
     ],
     [router]
