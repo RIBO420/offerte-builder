@@ -10,6 +10,7 @@ import { SkipLink } from "@/components/ui/skip-link";
 import { OfflineIndicator } from "@/components/ui/offline-indicator";
 import { ConnectionStatus } from "@/components/ui/connection-status";
 import { CommandProvider } from "@/components/providers/command-provider";
+import { OrgGate } from "@/components/providers/org-gate";
 import { ShortcutsProvider } from "@/components/providers/shortcuts-provider";
 import { CommandPalette } from "@/components/command-palette";
 import { GlobalShortcutsHelp } from "@/components/global-shortcuts-help";
@@ -139,5 +140,14 @@ export default function DashboardLayout({
     return <DashboardShellSkeleton />;
   }
 
-  return <DashboardShell>{children}</DashboardShell>;
+  // OrgGate staat bewust ná de rol-check en om de hele shell heen. Ná, omdat een
+  // klant geen org-lid is: eerst gate't die naar /portaal, anders zou hij hier
+  // de no-access-staat zien in plaats van zijn eigen portaal. Eromheen, omdat
+  // DashboardShell al org-gescoopte queries afvuurt (prefetch, sidebar) — die
+  // mogen pas draaien als het org_id-claim in het token zit.
+  return (
+    <OrgGate laadstaat={<DashboardShellSkeleton />}>
+      <DashboardShell>{children}</DashboardShell>
+    </OrgGate>
+  );
 }
