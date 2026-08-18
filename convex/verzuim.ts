@@ -1,13 +1,35 @@
 import { v, ConvexError } from "convex/values";
-import { mutation, query } from "./_generated/server";
-import type { Id } from "./_generated/dataModel";
-import { requireAuth } from "./auth";
+import {
+  mutation,
+  query,
+  type MutationCtx,
+  type QueryCtx,
+} from "./_generated/server";
+import type { Doc, Id } from "./_generated/dataModel";
+import { requireOrgContext, requireOrgId } from "./auth";
 import {
   requireAdmin,
   requireNotViewer,
   getUserRole,
   getLinkedMedewerker,
 } from "./roles";
+
+/**
+ * Verzuimregistratie ophalen + organisatiescope afdwingen. Medewerker-
+ * gebonden data, maar de tenant is de organisatie: de registratie draagt hem
+ * zelf (gezet bij ziekmelden vanaf de medewerker-rij).
+ */
+async function getRegistratieBinnenOrg(
+  ctx: QueryCtx | MutationCtx,
+  id: Id<"verzuimregistraties">
+): Promise<Doc<"verzuimregistraties">> {
+  const orgId = await requireOrgId(ctx);
+  const registratie = await ctx.db.get(id);
+  if (!registratie || registratie.orgId?.toString() !== orgId.toString()) {
+    throw new ConvexError("Verzuimregistratie niet gevonden");
+  }
+  return registratie;
+}
 
 // ============================================
 // VERZUIMREGISTRATIES — Sick Leave Tracking
@@ -20,7 +42,7 @@ export const list = query({
     jaar: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const orgId = await requireOrgId(ctx);
     const role = await getUserRole(ctx);
 
     let registraties;
@@ -28,15 +50,18 @@ export const list = query({
     if (role === "directie") {
       registraties = await ctx.db
         .query("verzuimregistraties")
-        .withIndex("by_user", (q) => q.eq("userId", user._id))
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
         .collect();
     } else if (role === "medewerker") {
       const linked = await getLinkedMedewerker(ctx);
       if (!linked) return [];
-      registraties = await ctx.db
-        .query("verzuimregistraties")
-        .withIndex("by_medewerker", (q) => q.eq("medewerkerId", linked._id))
-        .collect();
+      // by_medewerker is bedrijfsoverstijgend → org-postfilter
+      registraties = (
+        await ctx.db
+          .query("verzuimregistraties")
+          .withIndex("by_medewerker", (q) => q.eq("medewerkerId", linked._id))
+          .collect()
+      ).filter((r) => r.orgId?.toString() === orgId.toString());
     } else {
       return [];
     }
@@ -78,13 +103,13 @@ export const list = query({
 export const countActief = query({
   args: {},
   handler: async (ctx) => {
-    const user = await requireAuth(ctx);
+    const orgId = await requireOrgId(ctx);
     const role = await getUserRole(ctx);
     if (role !== "directie") return 0;
 
     const all = await ctx.db
       .query("verzuimregistraties")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     return all.filter((r) => !r.herstelDatum).length;
@@ -94,7 +119,7 @@ export const countActief = query({
 export const getStats = query({
   args: { jaar: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const orgId = await requireOrgId(ctx);
     const role = await getUserRole(ctx);
     if (role !== "directie") return null;
 
@@ -103,7 +128,7 @@ export const getStats = query({
 
     const all = await ctx.db
       .query("verzuimregistraties")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     const jaarRegistraties = all.filter((r) => r.startDatum.startsWith(jaarStr));
@@ -135,7 +160,9 @@ export const getStats = query({
 
     const medewerkers = await ctx.db
       .query("medewerkers")
-      .withIndex("by_user_actief", (q) => q.eq("userId", user._id).eq("isActief", true))
+      .withIndex("by_org_actief", (q) =>
+        q.eq("orgId", orgId).eq("isActief", true)
+      )
       .collect();
     const totaalWerkdagen = medewerkers.length * 260;
     const verzuimpercentage =
@@ -156,7 +183,7 @@ export const getStats = query({
 export const checkFrequentVerzuim = query({
   args: {},
   handler: async (ctx) => {
-    const user = await requireAuth(ctx);
+    const orgId = await requireOrgId(ctx);
     const role = await getUserRole(ctx);
     if (role !== "directie") return [];
 
@@ -166,7 +193,7 @@ export const checkFrequentVerzuim = query({
 
     const recent = await ctx.db
       .query("verzuimregistraties")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     const recentMeldingen = recent.filter((r) => r.startDatum >= cutoff);
@@ -209,9 +236,12 @@ export const ziekmelden = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
+    const { org } = await requireOrgContext(ctx);
 
     const medewerker = await ctx.db.get(args.medewerkerId);
-    if (!medewerker) throw new ConvexError("Medewerker niet gevonden");
+    if (!medewerker || medewerker.orgId?.toString() !== org._id.toString()) {
+      throw new ConvexError("Medewerker niet gevonden");
+    }
 
     const bestaand = await ctx.db
       .query("verzuimregistraties")
@@ -225,6 +255,8 @@ export const ziekmelden = mutation({
 
     const now = Date.now();
     return await ctx.db.insert("verzuimregistraties", {
+      orgId: org._id,
+      // `userId` blijft tot fase 6 verplicht in het schema.
       userId: medewerker.userId,
       medewerkerId: args.medewerkerId,
       startDatum: args.startDatum,
@@ -245,8 +277,7 @@ export const herstelmelden = mutation({
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
 
-    const registratie = await ctx.db.get(args.id);
-    if (!registratie) throw new ConvexError("Verzuimregistratie niet gevonden");
+    const registratie = await getRegistratieBinnenOrg(ctx, args.id);
     if (registratie.herstelDatum) throw new ConvexError("Deze medewerker is al hersteld gemeld");
     if (args.herstelDatum < registratie.startDatum) throw new ConvexError("Hersteldatum moet na startdatum liggen");
 
@@ -276,8 +307,7 @@ export const addVerzuimgesprek = mutation({
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
 
-    const registratie = await ctx.db.get(args.id);
-    if (!registratie) throw new ConvexError("Verzuimregistratie niet gevonden");
+    await getRegistratieBinnenOrg(ctx, args.id);
 
     await ctx.db.patch(args.id, {
       verzuimgesprek: {
@@ -300,8 +330,7 @@ export const update = mutation({
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
 
-    const registratie = await ctx.db.get(args.id);
-    if (!registratie) throw new ConvexError("Verzuimregistratie niet gevonden");
+    await getRegistratieBinnenOrg(ctx, args.id);
 
     const updateData: Record<string, unknown> = { updatedAt: Date.now() };
     if (args.reden !== undefined) updateData.reden = args.reden;
@@ -316,8 +345,7 @@ export const remove = mutation({
   args: { id: v.id("verzuimregistraties") },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
-    const registratie = await ctx.db.get(args.id);
-    if (!registratie) throw new ConvexError("Verzuimregistratie niet gevonden");
+    await getRegistratieBinnenOrg(ctx, args.id);
     await ctx.db.delete(args.id);
   },
 });

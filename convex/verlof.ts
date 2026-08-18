@@ -1,6 +1,12 @@
 import { v, ConvexError } from "convex/values";
-import { mutation, query } from "./_generated/server";
-import { requireAuth } from "./auth";
+import {
+  mutation,
+  query,
+  type MutationCtx,
+  type QueryCtx,
+} from "./_generated/server";
+import type { Doc, Id } from "./_generated/dataModel";
+import { requireOrgContext, requireOrgId } from "./auth";
 import {
   requireAdmin,
   requireNotViewer,
@@ -26,6 +32,26 @@ const verlofStatusValidator = v.union(
   v.literal("afgekeurd")
 );
 
+/**
+ * Verlofaanvraag ophalen + organisatiescope afdwingen.
+ *
+ * De HR-tabellen zijn medewerker-gebonden, maar de tenant is de organisatie:
+ * de aanvraag draagt hem zelf (orgId), gezet bij aanmaak vanaf de
+ * medewerker-rij. `orgId` is optioneel in het schema zolang de migratie
+ * loopt; een aanvraag zonder org hoort bij niemand.
+ */
+async function getAanvraagBinnenOrg(
+  ctx: QueryCtx | MutationCtx,
+  id: Id<"verlofaanvragen">
+): Promise<Doc<"verlofaanvragen">> {
+  const orgId = await requireOrgId(ctx);
+  const aanvraag = await ctx.db.get(id);
+  if (!aanvraag || aanvraag.orgId?.toString() !== orgId.toString()) {
+    throw new ConvexError("Verlofaanvraag niet gevonden");
+  }
+  return aanvraag;
+}
+
 // ============================================
 // QUERIES
 // ============================================
@@ -40,24 +66,24 @@ export const list = query({
     jaar: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const orgId = await requireOrgId(ctx);
     const role = await getUserRole(ctx);
 
     let aanvragen;
 
     if (role === "directie") {
-      // Directie sees all for the company
+      // Directie sees all for the organisation
       if (args.status) {
         aanvragen = await ctx.db
           .query("verlofaanvragen")
-          .withIndex("by_user_status", (q) =>
-            q.eq("userId", user._id).eq("status", args.status!)
+          .withIndex("by_org_status", (q) =>
+            q.eq("orgId", orgId).eq("status", args.status!)
           )
           .collect();
       } else {
         aanvragen = await ctx.db
           .query("verlofaanvragen")
-          .withIndex("by_user", (q) => q.eq("userId", user._id))
+          .withIndex("by_org", (q) => q.eq("orgId", orgId))
           .collect();
       }
 
@@ -85,6 +111,10 @@ export const list = query({
           .withIndex("by_medewerker", (q) => q.eq("medewerkerId", linked._id))
           .collect();
       }
+      // by_medewerker is bedrijfsoverstijgend → org-postfilter
+      aanvragen = aanvragen.filter(
+        (a) => a.orgId?.toString() === orgId.toString()
+      );
     } else {
       return [];
     }
@@ -120,9 +150,11 @@ export const list = query({
 export const get = query({
   args: { id: v.id("verlofaanvragen") },
   handler: async (ctx, args) => {
-    await requireAuth(ctx);
+    const orgId = await requireOrgId(ctx);
     const aanvraag = await ctx.db.get(args.id);
-    if (!aanvraag) return null;
+    if (!aanvraag || aanvraag.orgId?.toString() !== orgId.toString()) {
+      return null;
+    }
 
     const medewerker = await ctx.db.get(aanvraag.medewerkerId);
     return {
@@ -138,15 +170,15 @@ export const get = query({
 export const countPending = query({
   args: {},
   handler: async (ctx) => {
-    const user = await requireAuth(ctx);
+    const orgId = await requireOrgId(ctx);
     const role = await getUserRole(ctx);
 
     if (role !== "directie") return 0;
 
     const pending = await ctx.db
       .query("verlofaanvragen")
-      .withIndex("by_user_status", (q) =>
-        q.eq("userId", user._id).eq("status", "aangevraagd")
+      .withIndex("by_org_status", (q) =>
+        q.eq("orgId", orgId).eq("status", "aangevraagd")
       )
       .collect();
 
@@ -164,11 +196,13 @@ export const getVerlofsaldo = query({
     jaar: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    await requireAuth(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const jaar = args.jaar ?? new Date().getFullYear();
     const medewerker = await ctx.db.get(args.medewerkerId);
-    if (!medewerker) throw new ConvexError("Medewerker niet gevonden");
+    if (!medewerker || medewerker.orgId?.toString() !== orgId.toString()) {
+      throw new ConvexError("Medewerker niet gevonden");
+    }
 
     // Calculate annual entitlement based on contract type
     const urenPerWeek = medewerker.beschikbaarheid?.urenPerWeek ?? 40;
@@ -228,12 +262,12 @@ export const getMedewerkersMetVerlof = query({
     datum: v.string(), // YYYY-MM-DD
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const goedgekeurd = await ctx.db
       .query("verlofaanvragen")
-      .withIndex("by_user_status", (q) =>
-        q.eq("userId", user._id).eq("status", "goedgekeurd")
+      .withIndex("by_org_status", (q) =>
+        q.eq("orgId", orgId).eq("status", "goedgekeurd")
       )
       .collect();
 
@@ -265,11 +299,14 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
+    const { org } = await requireOrgContext(ctx);
     const role = await getUserRole(ctx);
 
-    // Validate medewerker access
+    // Validate medewerker access: alleen medewerkers van de eigen organisatie
     const medewerker = await ctx.db.get(args.medewerkerId);
-    if (!medewerker) throw new ConvexError("Medewerker niet gevonden");
+    if (!medewerker || medewerker.orgId?.toString() !== org._id.toString()) {
+      throw new ConvexError("Medewerker niet gevonden");
+    }
 
     if (role === "medewerker") {
       // Medewerker can only create for themselves
@@ -316,6 +353,8 @@ export const create = mutation({
     const now = Date.now();
 
     return await ctx.db.insert("verlofaanvragen", {
+      orgId: org._id,
+      // `userId` blijft tot fase 6 verplicht in het schema.
       userId: medewerker.userId,
       medewerkerId: args.medewerkerId,
       startDatum: args.startDatum,
@@ -345,8 +384,7 @@ export const update = mutation({
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
 
-    const aanvraag = await ctx.db.get(args.id);
-    if (!aanvraag) throw new ConvexError("Verlofaanvraag niet gevonden");
+    const aanvraag = await getAanvraagBinnenOrg(ctx, args.id);
 
     if (aanvraag.status !== "aangevraagd") {
       throw new ConvexError(
@@ -389,8 +427,7 @@ export const goedkeuren = mutation({
   handler: async (ctx, args) => {
     const user = await requireAdmin(ctx);
 
-    const aanvraag = await ctx.db.get(args.id);
-    if (!aanvraag) throw new ConvexError("Verlofaanvraag niet gevonden");
+    const aanvraag = await getAanvraagBinnenOrg(ctx, args.id);
 
     if (aanvraag.status !== "aangevraagd") {
       throw new ConvexError("Alleen aanvragen met status 'aangevraagd' kunnen worden goedgekeurd");
@@ -418,8 +455,7 @@ export const afkeuren = mutation({
   handler: async (ctx, args) => {
     const user = await requireAdmin(ctx);
 
-    const aanvraag = await ctx.db.get(args.id);
-    if (!aanvraag) throw new ConvexError("Verlofaanvraag niet gevonden");
+    const aanvraag = await getAanvraagBinnenOrg(ctx, args.id);
 
     if (aanvraag.status !== "aangevraagd") {
       throw new ConvexError("Alleen aanvragen met status 'aangevraagd' kunnen worden afgekeurd");
@@ -445,8 +481,7 @@ export const remove = mutation({
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
 
-    const aanvraag = await ctx.db.get(args.id);
-    if (!aanvraag) throw new ConvexError("Verlofaanvraag niet gevonden");
+    const aanvraag = await getAanvraagBinnenOrg(ctx, args.id);
 
     if (aanvraag.status !== "aangevraagd") {
       throw new ConvexError(

@@ -1,20 +1,48 @@
 import { v, ConvexError } from "convex/values";
-import { mutation, query } from "./_generated/server";
-import { AuthError, requireAuth } from "./auth";
+import {
+  mutation,
+  query,
+  type MutationCtx,
+  type QueryCtx,
+} from "./_generated/server";
+import type { Doc, Id } from "./_generated/dataModel";
+import { AuthError, requireOrgContext, requireOrgId } from "./auth";
 import { requireAdmin, requireNotViewer, getUserRole, isAdmin } from "./roles";
+
+/** Meeting ophalen + organisatiescope afdwingen (multi-tenant). */
+async function getMeetingBinnenOrg(
+  ctx: QueryCtx | MutationCtx,
+  id: Id<"toolboxMeetings">
+): Promise<Doc<"toolboxMeetings">> {
+  const orgId = await requireOrgId(ctx);
+  const meeting = await ctx.db.get(id);
+  if (!meeting || meeting.orgId?.toString() !== orgId.toString()) {
+    throw new ConvexError("Toolbox meeting niet gevonden");
+  }
+  return meeting;
+}
 
 export const list = query({
   args: { jaar: v.optional(v.number()), projectId: v.optional(v.id("projecten")) },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const orgId = await requireOrgId(ctx);
     const role = await getUserRole(ctx);
     if (role === "klant") return [];
 
     let meetings;
     if (args.projectId) {
-      meetings = await ctx.db.query("toolboxMeetings").withIndex("by_project", (q) => q.eq("projectId", args.projectId)).collect();
+      // by_project is bedrijfsoverstijgend → org-postfilter
+      meetings = (
+        await ctx.db
+          .query("toolboxMeetings")
+          .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+          .collect()
+      ).filter((m) => m.orgId?.toString() === orgId.toString());
     } else {
-      meetings = await ctx.db.query("toolboxMeetings").withIndex("by_user", (q) => q.eq("userId", user._id)).collect();
+      meetings = await ctx.db
+        .query("toolboxMeetings")
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
+        .collect();
     }
 
     if (args.jaar) {
@@ -43,9 +71,9 @@ export const list = query({
 export const get = query({
   args: { id: v.id("toolboxMeetings") },
   handler: async (ctx, args) => {
-    await requireAuth(ctx);
+    const orgId = await requireOrgId(ctx);
     const meeting = await ctx.db.get(args.id);
-    if (!meeting) return null;
+    if (!meeting || meeting.orgId?.toString() !== orgId.toString()) return null;
 
     const aanwezigenNamen = await Promise.all(
       meeting.aanwezigen.map(async (id) => {
@@ -60,11 +88,14 @@ export const get = query({
 export const count = query({
   args: { jaar: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const orgId = await requireOrgId(ctx);
     const jaar = args.jaar ?? new Date().getFullYear();
     const jaarStr = String(jaar);
 
-    const all = await ctx.db.query("toolboxMeetings").withIndex("by_user", (q) => q.eq("userId", user._id)).collect();
+    const all = await ctx.db
+      .query("toolboxMeetings")
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
+      .collect();
     return all.filter((m) => m.datum.startsWith(jaarStr)).length;
   },
 });
@@ -79,13 +110,16 @@ export const create = mutation({
     projectId: v.optional(v.id("projecten")),
   },
   handler: async (ctx, args) => {
-    const user = await requireNotViewer(ctx);
+    await requireNotViewer(ctx);
+    const { org, user } = await requireOrgContext(ctx);
 
     if (!args.onderwerp.trim()) throw new ConvexError("Onderwerp is verplicht");
     if (args.aanwezigen.length === 0) throw new ConvexError("Minimaal één aanwezige is verplicht");
 
     const now = Date.now();
     return await ctx.db.insert("toolboxMeetings", {
+      orgId: org._id,
+      // `userId` blijft tot fase 6 verplicht in het schema.
       userId: user._id,
       datum: args.datum,
       onderwerp: args.onderwerp.trim(),
@@ -111,10 +145,10 @@ export const update = mutation({
   },
   handler: async (ctx, args) => {
     const user = await requireNotViewer(ctx);
-    const meeting = await ctx.db.get(args.id);
-    if (!meeting) throw new ConvexError("Toolbox meeting niet gevonden");
+    const meeting = await getMeetingBinnenOrg(ctx, args.id);
 
-    // Verify ownership: only the creator or an admin can update
+    // Binnen de organisatie geldt nog de auteursregel: alleen de aanmaker of
+    // een admin mag wijzigen.
     const userIsAdmin = await isAdmin(ctx);
     if (!userIsAdmin && meeting.userId.toString() !== user._id.toString()) {
       throw new AuthError("Je hebt geen toegang om deze meeting te wijzigen");
@@ -140,8 +174,7 @@ export const remove = mutation({
   args: { id: v.id("toolboxMeetings") },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
-    const meeting = await ctx.db.get(args.id);
-    if (!meeting) throw new ConvexError("Toolbox meeting niet gevonden");
+    await getMeetingBinnenOrg(ctx, args.id);
     await ctx.db.delete(args.id);
   },
 });

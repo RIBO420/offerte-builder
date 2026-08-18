@@ -20,7 +20,7 @@
  * de attendering-cron is puur database-werk.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { ConvexError } from "convex/values";
 import {
   MockConvexStore,
@@ -28,6 +28,7 @@ import {
   createMockUser,
   createMockKlant,
   seedMockOrganisatie,
+  type MockCtx,
 } from "../../helpers/convex-mock";
 import { AuthError } from "../../../../convex/auth";
 import {
@@ -97,11 +98,15 @@ function kantoorMetKlant() {
 function insertMelding(
   store: MockConvexStore,
   userId: string,
+  orgId: string,
   klantId: string,
   overrides: Record<string, unknown> = {}
 ) {
   const now = Date.now();
   return store.insert("servicemeldingen", {
+    // Sinds fase 3 is orgId DE tenant-scope: zonder deze rij valt de melding
+    // buiten elke org-gescopeerde lezing.
+    orgId,
     userId,
     klantId,
     beschrijving: "Testmelding",
@@ -238,9 +243,9 @@ describe("isGeescaleerd (escalatie §2.1/§8.12)", () => {
 
 describe("toegang (PRD §1.2 — misklik-hard)", () => {
   it("weigert de klant-rol op elke melding-query met een AuthError", async () => {
-    const { ctx, store, userId } = ctxMetRol("klant");
-    const klantId = store.insert("klanten", createMockKlant(userId));
-    const meldingId = insertMelding(store, userId, klantId);
+    const { ctx, store, userId, orgId } = ctxMetRol("klant");
+    const klantId = store.insert("klanten", createMockKlant(userId, { orgId }));
+    const meldingId = insertMelding(store, userId, orgId, klantId);
 
     await expect(handler(meldingenList)(ctx, {})).rejects.toThrow(AuthError);
     await expect(handler(getById)(ctx, { id: meldingId })).rejects.toThrow(
@@ -251,9 +256,9 @@ describe("toegang (PRD §1.2 — misklik-hard)", () => {
   });
 
   it("weigert de klant-rol op elke thread-functie met een AuthError", async () => {
-    const { ctx, store, userId } = ctxMetRol("klant");
-    const klantId = store.insert("klanten", createMockKlant(userId));
-    const meldingId = insertMelding(store, userId, klantId);
+    const { ctx, store, userId, orgId } = ctxMetRol("klant");
+    const klantId = store.insert("klanten", createMockKlant(userId, { orgId }));
+    const meldingId = insertMelding(store, userId, orgId, klantId);
 
     await expect(
       handler(listComments)(ctx, { meldingId })
@@ -270,9 +275,9 @@ describe("toegang (PRD §1.2 — misklik-hard)", () => {
   });
 
   it("laat muteren alleen aan kantoor: voorman krijgt AuthError", async () => {
-    const { ctx, store, userId } = ctxMetRol("voorman");
-    const klantId = store.insert("klanten", createMockKlant(userId));
-    const meldingId = insertMelding(store, userId, klantId);
+    const { ctx, store, userId, orgId } = ctxMetRol("voorman");
+    const klantId = store.insert("klanten", createMockKlant(userId, { orgId }));
+    const meldingId = insertMelding(store, userId, orgId, klantId);
 
     await expect(
       handler(createMelding)(ctx, {
@@ -293,10 +298,10 @@ describe("toegang (PRD §1.2 — misklik-hard)", () => {
   });
 
   it("laat een voorman het bord wél lezen", async () => {
-    const { ctx, store, userId } = ctxMetRol("voorman");
-    const klantId = store.insert("klanten", createMockKlant(userId));
-    insertMelding(store, userId, klantId);
-    // Voorman zonder linkedMedewerker → companyUserId = eigen id (fallback)
+    const { ctx, store, userId, orgId } = ctxMetRol("voorman");
+    const klantId = store.insert("klanten", createMockKlant(userId, { orgId }));
+    insertMelding(store, userId, orgId, klantId);
+    // Voorman leest het bord van zijn eigen organisatie
     const bord = (await handler(getBord)(ctx, {})) as {
       nieuw: unknown[];
     };
@@ -391,8 +396,8 @@ describe("create (routing-defaults + logging)", () => {
 
 describe("updateStatus (logging §2.4)", () => {
   it("logt elke statuswissel op de klanttijdlijn en in de thread", async () => {
-    const { ctx, store, userId, klantId } = kantoorMetKlant();
-    const meldingId = insertMelding(store, userId, klantId);
+    const { ctx, store, userId, orgId, klantId } = kantoorMetKlant();
+    const meldingId = insertMelding(store, userId, orgId, klantId);
 
     await handler(updateStatus)(ctx, {
       id: meldingId,
@@ -408,8 +413,8 @@ describe("updateStatus (logging §2.4)", () => {
   });
 
   it("logt niets bij een ongewijzigde status (no-op)", async () => {
-    const { ctx, store, userId, klantId } = kantoorMetKlant();
-    const meldingId = insertMelding(store, userId, klantId);
+    const { ctx, store, userId, orgId, klantId } = kantoorMetKlant();
+    const meldingId = insertMelding(store, userId, orgId, klantId);
     await handler(updateStatus)(ctx, { id: meldingId, status: "nieuw" });
     expect(store.getAll("klantTijdlijn")).toHaveLength(0);
   });
@@ -427,7 +432,7 @@ describe("@tag → veldtaak (case-test §8.6)", () => {
       isActief: true,
       createdAt: Date.now(),
     });
-    const meldingId = insertMelding(store, userId, klantId, { orgId });
+    const meldingId = insertMelding(store, userId, orgId, klantId);
     return { ctx, store, userId, orgId, klantId, michelId, meldingId };
   }
 
@@ -571,7 +576,8 @@ describe("@tag → veldtaak (case-test §8.6)", () => {
   });
 
   it("het antwoord van de getagde medewerker landt in de interne thread (nooit bij de klant)", async () => {
-    const { ctx, store, userId, michelId, meldingId } = setupMetMichel();
+    const { ctx, store, userId, orgId, michelId, meldingId } =
+      setupMetMichel();
 
     // Wissel van actor: kantoor eruit, Michel (medewerker-rol, gelinkt aan
     // de medewerker-record van het bedrijf) wordt de ingelogde gebruiker.
@@ -593,6 +599,7 @@ describe("@tag → veldtaak (case-test §8.6)", () => {
 
     // En Michel kan zijn veldtaak afronden
     const veldtaakId = store.insert("veldtaken", {
+      orgId,
       userId,
       meldingId,
       klantId: "klanten:x",
@@ -612,8 +619,8 @@ describe("@tag → veldtaak (case-test §8.6)", () => {
 
 describe("promoveerNaarWerkitem (§2.4)", () => {
   it("maakt een ongepland werkitem met koppeling in beide richtingen", async () => {
-    const { ctx, store, userId, klantId } = kantoorMetKlant();
-    const meldingId = insertMelding(store, userId, klantId, {
+    const { ctx, store, userId, orgId, klantId } = kantoorMetKlant();
+    const meldingId = insertMelding(store, userId, orgId, klantId, {
       type: "klacht",
       beschrijving: "Klacht over de voorjaarsbeurt",
     });
@@ -821,17 +828,17 @@ describe("planningsattendering (§2.1-restant, §8.12)", () => {
 
 describe("getBord / telOpenMeldingen", () => {
   it("groepeert in de vier PRD-kolommen en filtert op 'mijn cases'", async () => {
-    const { ctx, store, userId, klantId } = kantoorMetKlant();
+    const { ctx, store, userId, orgId, klantId } = kantoorMetKlant();
     const anderUserId = store.insert(
       "users",
       createMockUser({ role: "projectleider", clerkId: "clerk_ander", name: "Ander" })
     );
-    insertMelding(store, userId, klantId, { eigenaarId: userId });
-    insertMelding(store, userId, klantId, {
+    insertMelding(store, userId, orgId, klantId, { eigenaarId: userId });
+    insertMelding(store, userId, orgId, klantId, {
       eigenaarId: anderUserId,
       status: "wacht_op_derden",
     });
-    insertMelding(store, userId, klantId, { status: "afgehandeld" }); // legacy
+    insertMelding(store, userId, orgId, klantId, { status: "afgehandeld" }); // legacy
 
     const bord = (await handler(getBord)(ctx, {})) as Record<
       string,
@@ -850,17 +857,125 @@ describe("getBord / telOpenMeldingen", () => {
   });
 
   it("de teller-badge telt alleen open meldingen", async () => {
-    const { ctx, store, userId, klantId } = kantoorMetKlant();
-    insertMelding(store, userId, klantId, { status: "nieuw" });
-    insertMelding(store, userId, klantId, { status: "in_behandeling" });
-    insertMelding(store, userId, klantId, { status: "wacht_op_derden" });
-    insertMelding(store, userId, klantId, { status: "opgelost" });
-    insertMelding(store, userId, klantId, { status: "afgehandeld" });
-    insertMelding(store, userId, klantId, {
+    const { ctx, store, userId, orgId, klantId } = kantoorMetKlant();
+    insertMelding(store, userId, orgId, klantId, { status: "nieuw" });
+    insertMelding(store, userId, orgId, klantId, { status: "in_behandeling" });
+    insertMelding(store, userId, orgId, klantId, { status: "wacht_op_derden" });
+    insertMelding(store, userId, orgId, klantId, { status: "opgelost" });
+    insertMelding(store, userId, orgId, klantId, { status: "afgehandeld" });
+    insertMelding(store, userId, orgId, klantId, {
       status: "nieuw",
       deletedAt: Date.now(),
     });
 
     expect(await handler(telOpenMeldingen)(ctx, {})).toBe(3);
+  });
+});
+
+
+// ─── 9. Org-isolatie (fase 3 van de Clerk-Organizations-migratie) ────────────
+
+/**
+ * De gedeelde mock-ctx negeert `withIndex`, dus een by_org-lookup zou daar
+ * élke rij teruggeven en zou onderstaande tests niets bewijzen. Deze
+ * variant past de index-constraints écht toe (patroon uit
+ * offerte-reminders-cron.test.ts).
+ */
+function maakIndexBewusteCtx(store: MockConvexStore): MockCtx {
+  const ctx = createMockCtx(store);
+  ctx.db.query = vi.fn((tabel: string) => {
+    let docs = store.getAll(tabel);
+    const builder = {
+      withIndex: (_naam: string, fn?: (q: unknown) => unknown) => {
+        const constraints: Array<{ field: string; value: unknown }> = [];
+        const q = {
+          eq: (field: string, value: unknown) => {
+            constraints.push({ field, value });
+            return q;
+          },
+        };
+        if (fn) fn(q);
+        docs = docs.filter((doc) =>
+          constraints.every((c) => doc[c.field] === c.value)
+        );
+        return builder;
+      },
+      filter: () => builder,
+      order: () => builder,
+      collect: async () => [...docs],
+      first: async () => docs[0] ?? null,
+      unique: async () => docs[0] ?? null,
+      take: async (n: number) => docs.slice(0, n),
+    };
+    return builder;
+  });
+  return ctx;
+}
+
+describe("org-isolatie: het bord toont alleen de eigen organisatie", () => {
+  /** Eigen org (uit het JWT-claim) + een tweede org met eigen melding. */
+  function tweeOrganisaties() {
+    const store = new MockConvexStore();
+    const orgId = seedMockOrganisatie(store);
+    const andereOrgId = store.insert("organisaties", {
+      clerkOrgId: "clerk_andere_org",
+      naam: "Groenbeheer Zuid",
+      slug: "groenbeheer-zuid",
+      actief: true,
+      aangemaaktOp: Date.now(),
+    });
+    const userId = store.insert("users", createMockUser({ role: "directie" }));
+    const klantId = store.insert("klanten", createMockKlant(userId, { orgId }));
+    const andereKlantId = store.insert(
+      "klanten",
+      createMockKlant(userId, { orgId: andereOrgId, naam: "Buurbedrijf-klant" })
+    );
+    const ctx = createMockCtx(store);
+    return {
+      store,
+      ctx,
+      indexCtx: maakIndexBewusteCtx(store),
+      userId,
+      orgId,
+      andereOrgId,
+      klantId,
+      andereKlantId,
+    };
+  }
+
+  it("list, getBord en de teller laten de melding van een andere org buiten", async () => {
+    const { store, indexCtx, userId, orgId, andereOrgId, klantId, andereKlantId } =
+      tweeOrganisaties();
+    const eigen = insertMelding(store, userId, orgId, klantId);
+    insertMelding(store, userId, andereOrgId, andereKlantId, {
+      beschrijving: "Melding van het buurbedrijf",
+    });
+
+    const lijst = (await handler(meldingenList)(indexCtx, {})) as {
+      _id: string;
+    }[];
+    expect(lijst.map((m) => m._id)).toEqual([eigen]);
+
+    const bord = (await handler(getBord)(indexCtx, {})) as Record<
+      string,
+      { _id: string }[]
+    >;
+    expect(bord.nieuw.map((m) => m._id)).toEqual([eigen]);
+    expect(await handler(telOpenMeldingen)(indexCtx, {})).toBe(1);
+  });
+
+  it("getById en de case-thread weigeren een melding van een andere org", async () => {
+    const { store, ctx, indexCtx, userId, andereOrgId, andereKlantId } =
+      tweeOrganisaties();
+    const vreemde = insertMelding(store, userId, andereOrgId, andereKlantId);
+
+    expect(await handler(getById)(indexCtx, { id: vreemde })).toBeNull();
+    // db.get gaat buiten de index om; de scope-check zit in de handler zelf
+    await expect(
+      handler(listComments)(ctx, { meldingId: vreemde })
+    ).rejects.toThrow(ConvexError);
+    await expect(
+      handler(addComment)(ctx, { meldingId: vreemde, tekst: "hoi" })
+    ).rejects.toThrow(ConvexError);
   });
 });

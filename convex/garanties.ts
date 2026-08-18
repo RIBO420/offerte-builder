@@ -8,7 +8,7 @@
 
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAuth, requireAuthUserId, verifyOwnership } from "./auth";
+import { requireOrgContext, requireOrgId, verifyOrgOwnership } from "./auth";
 import { requireNotViewer } from "./roles";
 import { laadDocsMap } from "./lib/batchLoad";
 
@@ -25,24 +25,24 @@ export const list = query({
     status: v.optional(v.union(v.literal("actief"), v.literal("verlopen"))),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const orgId = await requireOrgId(ctx);
 
     let garanties;
     if (args.status) {
       garanties = await ctx.db
         .query("garanties")
-        .withIndex("by_user_status", (q) =>
-          q.eq("userId", user._id).eq("status", args.status!)
+        .withIndex("by_org_status", (q) =>
+          q.eq("orgId", orgId).eq("status", args.status!)
         )
         .collect();
     } else {
       garanties = await ctx.db
         .query("garanties")
-        .withIndex("by_user", (q) => q.eq("userId", user._id))
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
         .collect();
     }
 
-    // Filter out soft-deleted
+    // Filter out soft-deleted (org-scope zit al in de index)
     const activeGaranties = garanties.filter((g) => !g.deletedAt);
 
     // Enrich with klant and project data.
@@ -75,7 +75,7 @@ export const getById = query({
     const garantie = await ctx.db.get(args.id);
     if (!garantie) return null;
 
-    await verifyOwnership(ctx, garantie, "garantie");
+    await verifyOrgOwnership(ctx, garantie, "garantie");
 
     const klant = await ctx.db.get(garantie.klantId);
     const project = await ctx.db.get(garantie.projectId);
@@ -86,7 +86,10 @@ export const getById = query({
       .withIndex("by_garantie", (q) => q.eq("garantieId", args.id))
       .collect();
 
-    const activeMeldingen = meldingen.filter((m) => !m.deletedAt);
+    // by_garantie is bedrijfsoverstijgend → org-postfilter
+    const activeMeldingen = meldingen.filter(
+      (m) => !m.deletedAt && m.orgId?.toString() === garantie.orgId?.toString()
+    );
 
     return {
       ...garantie,
@@ -107,15 +110,18 @@ export const getById = query({
 export const getByProject = query({
   args: { projectId: v.id("projecten") },
   handler: async (ctx, args) => {
-    await requireAuth(ctx);
+    const orgId = await requireOrgId(ctx);
 
-    const garantie = await ctx.db
+    // Bedrijfsoverstijgende index (by_project kent geen org) → org-postfilter
+    const garanties = await ctx.db
       .query("garanties")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-      .first();
+      .collect();
 
-    if (!garantie || garantie.deletedAt) return null;
-    return garantie;
+    const garantie = garanties.find(
+      (g) => !g.deletedAt && g.orgId?.toString() === orgId.toString()
+    );
+    return garantie ?? null;
   },
 });
 
@@ -125,14 +131,17 @@ export const getByProject = query({
 export const getByKlant = query({
   args: { klantId: v.id("klanten") },
   handler: async (ctx, args) => {
-    await requireAuth(ctx);
+    const orgId = await requireOrgId(ctx);
 
+    // Bedrijfsoverstijgende index (by_klant kent geen org) → org-postfilter
     const garanties = await ctx.db
       .query("garanties")
       .withIndex("by_klant", (q) => q.eq("klantId", args.klantId))
       .collect();
 
-    return garanties.filter((g) => !g.deletedAt);
+    return garanties.filter(
+      (g) => !g.deletedAt && g.orgId?.toString() === orgId.toString()
+    );
   },
 });
 
@@ -144,7 +153,7 @@ export const getExpiring = query({
     dagenVooruit: v.optional(v.number()), // Default 90
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const orgId = await requireOrgId(ctx);
     const dagen = args.dagenVooruit ?? 90;
 
     const now = new Date();
@@ -154,8 +163,8 @@ export const getExpiring = query({
 
     const aktieveGaranties = await ctx.db
       .query("garanties")
-      .withIndex("by_user_status", (q) =>
-        q.eq("userId", user._id).eq("status", "actief")
+      .withIndex("by_org_status", (q) =>
+        q.eq("orgId", orgId).eq("status", "actief")
       )
       .collect();
 
@@ -171,12 +180,12 @@ export const getExpiring = query({
 export const getActive = query({
   args: {},
   handler: async (ctx) => {
-    const user = await requireAuth(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const garanties = await ctx.db
       .query("garanties")
-      .withIndex("by_user_status", (q) =>
-        q.eq("userId", user._id).eq("status", "actief")
+      .withIndex("by_org_status", (q) =>
+        q.eq("orgId", orgId).eq("status", "actief")
       )
       .collect();
 
@@ -190,11 +199,11 @@ export const getActive = query({
 export const getStats = query({
   args: {},
   handler: async (ctx) => {
-    const user = await requireAuth(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const alleGaranties = await ctx.db
       .query("garanties")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     const active = alleGaranties.filter((g) => !g.deletedAt);
@@ -217,7 +226,7 @@ export const getStats = query({
     // Count open servicemeldingen
     const meldingen = await ctx.db
       .query("servicemeldingen")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     const openMeldingen = meldingen.filter(
@@ -252,16 +261,23 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
     const now = Date.now();
 
-    // Verify project exists and belongs to user
+    // Verify project exists and belongs to the organisation
     const project = await ctx.db.get(args.projectId);
-    if (!project || project.userId.toString() !== userId.toString()) {
+    if (!project || project.orgId?.toString() !== org._id.toString()) {
       throw new ConvexError("Project niet gevonden of geen toegang");
     }
 
-    // Check if garantie already exists for this project
+    // Klant moet bij dezelfde organisatie horen
+    const klant = await ctx.db.get(args.klantId);
+    if (!klant || klant.orgId?.toString() !== org._id.toString()) {
+      throw new ConvexError("Klant niet gevonden of geen toegang");
+    }
+
+    // Check if garantie already exists for this project (index is
+    // bedrijfsoverstijgend, maar het project is hierboven al org-gecheckt)
     const existing = await ctx.db
       .query("garanties")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
@@ -279,7 +295,9 @@ export const create = mutation({
     const eindDatum = eind.toISOString().split("T")[0];
 
     const id = await ctx.db.insert("garanties", {
-      userId,
+      orgId: org._id,
+      // `userId` blijft tot fase 6 verplicht in het schema.
+      userId: user._id,
       projectId: args.projectId,
       klantId: args.klantId,
       startDatum: args.startDatum,
@@ -310,7 +328,7 @@ export const update = mutation({
     await requireNotViewer(ctx);
 
     const garantie = await ctx.db.get(args.id);
-    await verifyOwnership(ctx, garantie, "garantie");
+    await verifyOrgOwnership(ctx, garantie, "garantie");
 
     const updates: Record<string, unknown> = {
       updatedAt: Date.now(),
@@ -333,14 +351,14 @@ export const checkAndExpire = mutation({
   args: {},
   handler: async (ctx) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const todayStr = new Date().toISOString().split("T")[0];
 
     const activeGaranties = await ctx.db
       .query("garanties")
-      .withIndex("by_user_status", (q) =>
-        q.eq("userId", userId).eq("status", "actief")
+      .withIndex("by_org_status", (q) =>
+        q.eq("orgId", orgId).eq("status", "actief")
       )
       .collect();
 

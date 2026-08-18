@@ -20,8 +20,8 @@
 
 import { v, ConvexError } from "convex/values";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
-import { verifyOwnership } from "./auth";
-import { getCompanyUserId, isKantoorRol, normalizeRole, requireKantoor } from "./roles";
+import { requireOrgId, verifyOrgOwnership } from "./auth";
+import { isKantoorRol, normalizeRole, requireKantoor } from "./roles";
 import { logTijdlijnEvent, requireInterneRol } from "./tijdlijn";
 import { laadDocsMap } from "./lib/batchLoad";
 import { Doc, Id } from "./_generated/dataModel";
@@ -127,17 +127,31 @@ export function isGeescaleerd(
   return now - melding.updatedAt > dagen * 24 * 60 * 60 * 1000;
 }
 
-/** Systeem-comment in de interne case-thread (aanmaak/statuswissel/promotie). */
+/**
+ * Systeem-comment in de interne case-thread (aanmaak/statuswissel/promotie).
+ *
+ * `orgId` is optioneel: zonder expliciete waarde neemt de helper de
+ * organisatie van de MELDING zelf. Dat is de canonieke tenant van de thread
+ * (een comment hoort per definitie bij dezelfde org als zijn melding), en zo
+ * hoeven de aanroepers buiten dit cluster — debiteurenladder, conceptMails,
+ * planningsattendering, portaal — hun eigen scope-resolver niet mee te
+ * sturen. Identity-loze paden (cron/internal) geven hem wél expliciet mee,
+ * want die kunnen de org niet uit een JWT halen.
+ */
 export async function voegSysteemCommentToe(
   ctx: MutationCtx,
   args: {
     userId: Id<"users">;
+    orgId?: Id<"organisaties">;
     meldingId: Id<"servicemeldingen">;
     tekst: string;
   }
 ): Promise<void> {
+  const orgId =
+    args.orgId ?? (await ctx.db.get(args.meldingId))?.orgId ?? undefined;
   await ctx.db.insert("meldingComments", {
     userId: args.userId,
+    orgId,
     meldingId: args.meldingId,
     auteurNaam: "Systeem",
     tekst: args.tekst,
@@ -180,26 +194,26 @@ export const list = query({
   },
   handler: async (ctx, args) => {
     await requireInterneRol(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     let meldingen;
     if (args.status) {
       meldingen = await ctx.db
         .query("servicemeldingen")
-        .withIndex("by_user_status", (q) =>
-          q.eq("userId", companyUserId).eq("status", args.status!)
+        .withIndex("by_org_status", (q) =>
+          q.eq("orgId", orgId).eq("status", args.status!)
         )
         .collect();
     } else {
       meldingen = await ctx.db
         .query("servicemeldingen")
-        .withIndex("by_user", (q) => q.eq("userId", companyUserId))
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
         .collect();
     }
 
-    // Filter soft-deleted + expliciete bedrijfsscope (belt & braces)
+    // Filter soft-deleted + expliciete organisatiescope (belt & braces)
     let result = meldingen.filter(
-      (m) => !m.deletedAt && m.userId.toString() === companyUserId.toString()
+      (m) => !m.deletedAt && m.orgId?.toString() === orgId.toString()
     );
     if (args.status) {
       result = result.filter((m) => m.status === args.status);
@@ -249,9 +263,9 @@ export const getById = query({
   args: { id: v.id("servicemeldingen") },
   handler: async (ctx, args) => {
     await requireInterneRol(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const melding = await ctx.db.get(args.id);
-    if (!melding || melding.userId.toString() !== companyUserId.toString()) {
+    if (!melding || melding.orgId?.toString() !== orgId.toString()) {
       return null;
     }
 
@@ -318,15 +332,16 @@ export const getByKlant = query({
   args: { klantId: v.id("klanten") },
   handler: async (ctx, args) => {
     await requireInterneRol(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
+    // Bedrijfsoverstijgende index (by_klant kent geen org) → org-postfilter
     const meldingen = await ctx.db
       .query("servicemeldingen")
       .withIndex("by_klant", (q) => q.eq("klantId", args.klantId))
       .collect();
 
     return meldingen.filter(
-      (m) => !m.deletedAt && m.userId.toString() === companyUserId.toString()
+      (m) => !m.deletedAt && m.orgId?.toString() === orgId.toString()
     );
   },
 });
@@ -338,15 +353,16 @@ export const getByProject = query({
   args: { projectId: v.id("projecten") },
   handler: async (ctx, args) => {
     await requireInterneRol(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
+    // Bedrijfsoverstijgende index (by_project kent geen org) → org-postfilter
     const meldingen = await ctx.db
       .query("servicemeldingen")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .collect();
 
     return meldingen.filter(
-      (m) => !m.deletedAt && m.userId.toString() === companyUserId.toString()
+      (m) => !m.deletedAt && m.orgId?.toString() === orgId.toString()
     );
   },
 });
@@ -362,15 +378,15 @@ export const getKanbanData = query({
   },
   handler: async (ctx, args) => {
     await requireInterneRol(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const allMeldingen = await ctx.db
       .query("servicemeldingen")
-      .withIndex("by_user", (q) => q.eq("userId", companyUserId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     let filtered = allMeldingen.filter(
-      (m) => !m.deletedAt && m.userId.toString() === companyUserId.toString()
+      (m) => !m.deletedAt && m.orgId?.toString() === orgId.toString()
     );
 
     // Apply filters
@@ -429,15 +445,15 @@ export const getBord = query({
   },
   handler: async (ctx, args) => {
     const user = await requireInterneRol(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const alle = await ctx.db
       .query("servicemeldingen")
-      .withIndex("by_user", (q) => q.eq("userId", companyUserId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     let relevant = alle.filter(
-      (m) => !m.deletedAt && m.userId.toString() === companyUserId.toString()
+      (m) => !m.deletedAt && m.orgId?.toString() === orgId.toString()
     );
     if (args.mijnCases) {
       relevant = relevant.filter(
@@ -494,15 +510,15 @@ export const telOpenMeldingen = query({
   args: {},
   handler: async (ctx) => {
     await requireInterneRol(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const alle = await ctx.db
       .query("servicemeldingen")
-      .withIndex("by_user", (q) => q.eq("userId", companyUserId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
     return alle.filter(
       (m) =>
         !m.deletedAt &&
-        m.userId.toString() === companyUserId.toString() &&
+        m.orgId?.toString() === orgId.toString() &&
         isOpenMelding(m.status)
     ).length;
   },
@@ -516,6 +532,10 @@ export const listEigenaarKandidaten = query({
   args: {},
   handler: async (ctx) => {
     await requireInterneRol(ctx);
+    // Bewust nog niet org-gescoped: `users` draagt (tot fase 6) geen orgId —
+    // de koppeling loopt via medewerkers.linkedMedewerkerId, en directie
+    // heeft géén medewerker-rij en zou dan uit de eigenaar-kiezer vallen.
+    // Zelfde afweging als debiteuren.listKantoorGebruikers (cluster 3.3).
     const users = await ctx.db.query("users").collect();
     return users
       .filter((u) => normalizeRole(u.role) !== "klant")
@@ -574,11 +594,11 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     const user = await requireKantoor(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const now = Date.now();
 
     const klant = await ctx.db.get(args.klantId);
-    if (!klant || klant.userId.toString() !== companyUserId.toString()) {
+    if (!klant || klant.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Klant niet gevonden");
     }
     if (!args.beschrijving.trim()) {
@@ -600,7 +620,7 @@ export const create = mutation({
     // Gekoppeld werkitem ("klacht over de voorjaarsbeurt") valideren
     if (args.werkitemId) {
       const werkitem = await ctx.db.get(args.werkitemId);
-      if (!werkitem || werkitem.userId.toString() !== companyUserId.toString()) {
+      if (!werkitem || werkitem.orgId?.toString() !== orgId.toString()) {
         throw new ConvexError("Werkitem niet gevonden");
       }
     }
@@ -615,7 +635,13 @@ export const create = mutation({
         .withIndex("by_project", (q) => q.eq("projectId", args.projectId!))
         .first();
 
-      if (garantie && garantie.status === "actief" && !garantie.deletedAt) {
+      // by_project is bedrijfsoverstijgend → org-postfilter
+      if (
+        garantie &&
+        garantie.orgId?.toString() === orgId.toString() &&
+        garantie.status === "actief" &&
+        !garantie.deletedAt
+      ) {
         const todayStr = new Date().toISOString().split("T")[0];
         if (garantie.eindDatum >= todayStr) {
           detectedGarantieId = garantie._id;
@@ -625,7 +651,9 @@ export const create = mutation({
     }
 
     const id = await ctx.db.insert("servicemeldingen", {
-      userId: companyUserId,
+      orgId,
+      // `userId` blijft tot fase 6 verplicht in het schema.
+      userId: user._id,
       klantId: args.klantId,
       projectId: args.projectId,
       garantieId: detectedGarantieId,
@@ -651,7 +679,8 @@ export const create = mutation({
 
     // Automatische logging (PRD §2.4): klanttijdlijn + interne case-thread
     await logTijdlijnEvent(ctx, {
-      userId: companyUserId,
+      userId: user._id,
+      orgId,
       klantId: args.klantId,
       eventType: "melding_aangemaakt",
       tekst: `${TYPE_LABEL[type]} aangemaakt: ${args.beschrijving.trim().slice(0, 120)} (eigenaar: ${eigenaar.name})`,
@@ -659,7 +688,8 @@ export const create = mutation({
       meldingId: id,
     });
     await voegSysteemCommentToe(ctx, {
-      userId: companyUserId,
+      userId: user._id,
+      orgId,
       meldingId: id,
       tekst: `Melding aangemaakt door ${user.name} (${TYPE_LABEL[type].toLowerCase()}, eigenaar: ${eigenaar.name})`,
     });
@@ -679,10 +709,10 @@ export const updateStatus = mutation({
   },
   handler: async (ctx, args) => {
     const user = await requireKantoor(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const melding = await ctx.db.get(args.id);
-    if (!melding || melding.userId.toString() !== companyUserId.toString()) {
+    if (!melding || melding.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Melding niet gevonden");
     }
     if (melding.status === args.status) return args.id;
@@ -695,7 +725,8 @@ export const updateStatus = mutation({
     // Tijdlijn alleen indien klant-gerelateerd (onderhoudstaken §3.3 niet)
     if (melding.klantId) {
       await logTijdlijnEvent(ctx, {
-        userId: companyUserId,
+        userId: melding.userId,
+        orgId,
         klantId: melding.klantId,
         eventType: "melding_status_gewijzigd",
         tekst: `Melding "${melding.beschrijving.trim().slice(0, 80)}": status ${STATUS_LABEL[melding.status]} → ${STATUS_LABEL[args.status]}`,
@@ -704,7 +735,8 @@ export const updateStatus = mutation({
       });
     }
     await voegSysteemCommentToe(ctx, {
-      userId: companyUserId,
+      userId: melding.userId,
+      orgId,
       meldingId: args.id,
       tekst: `Status gewijzigd door ${user.name}: ${STATUS_LABEL[melding.status]} → ${STATUS_LABEL[args.status]}`,
     });
@@ -723,10 +755,10 @@ export const wijzigEigenaar = mutation({
   },
   handler: async (ctx, args) => {
     const user = await requireKantoor(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const melding = await ctx.db.get(args.id);
-    if (!melding || melding.userId.toString() !== companyUserId.toString()) {
+    if (!melding || melding.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Melding niet gevonden");
     }
     const routing = melding.type
@@ -743,7 +775,8 @@ export const wijzigEigenaar = mutation({
       updatedAt: Date.now(),
     });
     await voegSysteemCommentToe(ctx, {
-      userId: companyUserId,
+      userId: melding.userId,
+      orgId,
       meldingId: args.id,
       tekst: `Eigenaar gewijzigd door ${user.name} naar ${eigenaar.name}`,
     });
@@ -765,10 +798,14 @@ export const promoveerNaarWerkitem = mutation({
   },
   handler: async (ctx, args) => {
     const user = await requireKantoor(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const melding = await ctx.db.get(args.id);
-    if (!melding || melding.deletedAt || melding.userId.toString() !== companyUserId.toString()) {
+    if (
+      !melding ||
+      melding.deletedAt ||
+      melding.orgId?.toString() !== orgId.toString()
+    ) {
       throw new ConvexError("Melding niet gevonden");
     }
     if (!melding.klantId) {
@@ -785,7 +822,9 @@ export const promoveerNaarWerkitem = mutation({
 
     const now = Date.now();
     const werkitemId = await ctx.db.insert("projecten", {
-      userId: companyUserId,
+      orgId,
+      // `userId` blijft tot fase 6 verplicht in het schema.
+      userId: melding.userId,
       type: "onderhoudsbeurt",
       klantId: melding.klantId,
       naam,
@@ -807,7 +846,8 @@ export const promoveerNaarWerkitem = mutation({
     });
 
     await logTijdlijnEvent(ctx, {
-      userId: companyUserId,
+      userId: melding.userId,
+      orgId,
       klantId: melding.klantId,
       eventType: "melding_status_gewijzigd",
       tekst: `Melding gepromoveerd tot werkitem "${naam}" (wachtrij)`,
@@ -815,7 +855,8 @@ export const promoveerNaarWerkitem = mutation({
       meldingId: args.id,
     });
     await voegSysteemCommentToe(ctx, {
-      userId: companyUserId,
+      userId: melding.userId,
+      orgId,
       meldingId: args.id,
       tekst: `${user.name} maakte werkitem "${naam}" uit deze melding (in de wachtrij)`,
     });
@@ -844,7 +885,7 @@ export const update = mutation({
     await requireKantoor(ctx);
 
     const melding = await ctx.db.get(args.id);
-    await verifyOwnership(ctx, melding, "servicemelding");
+    await verifyOrgOwnership(ctx, melding, "servicemelding");
 
     const updates: Record<string, unknown> = {
       updatedAt: Date.now(),
@@ -884,17 +925,23 @@ export const addAfspraak = mutation({
     notities: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireKantoor(ctx);
-    const userId = user._id;
+    await requireKantoor(ctx);
 
     const melding = await ctx.db.get(args.meldingId);
-    await verifyOwnership(ctx, melding, "servicemelding");
+    const gescoopteMelding = await verifyOrgOwnership(
+      ctx,
+      melding,
+      "servicemelding"
+    );
 
     const now = Date.now();
 
     const afspraakId = await ctx.db.insert("serviceAfspraken", {
       meldingId: args.meldingId,
-      userId,
+      orgId: gescoopteMelding.orgId,
+      // `userId` blijft tot fase 6 verplicht: de afspraak erft de eigenaar
+      // van haar melding.
+      userId: gescoopteMelding.userId,
       datum: args.datum,
       medewerkerIds: args.medewerkerIds,
       notities: args.notities,
@@ -938,7 +985,7 @@ export const updateAfspraak = mutation({
       throw new ConvexError("Afspraak niet gevonden");
     }
 
-    await verifyOwnership(ctx, afspraak, "serviceafspraak");
+    await verifyOrgOwnership(ctx, afspraak, "serviceafspraak");
 
     const updates: Record<string, unknown> = {
       updatedAt: Date.now(),

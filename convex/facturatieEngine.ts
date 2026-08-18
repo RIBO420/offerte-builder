@@ -37,7 +37,7 @@ import {
 } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
 import { assertKanNaarKlantVersturen } from "./roles";
-import { verifyOwnership } from "./auth";
+import { verifyOrgOwnership } from "./auth";
 import { getFacturatiemodus } from "./onderhoudscontracten";
 import { laadDocsMap } from "./lib/batchLoad";
 import {
@@ -58,15 +58,24 @@ const ENGINE_AUTEUR = "Facturatie-engine";
 
 // ── Hulpfuncties ─────────────────────────────────────────────────────────
 
-/** Nieuw factuurnummer via de instellingen-teller van het bedrijf. */
+/**
+ * Nieuw factuurnummer via de instellingen-teller van de ORGANISATIE.
+ *
+ * De teller hoort bij de organisatie, niet bij de gebruiker: op by_user telde
+ * elke collega met een eigen instellingen-rij onafhankelijk door en gaven twee
+ * mensen in hetzelfde bedrijf hetzelfde factuurnummer uit (zelfde correctie
+ * als reserveerOfferteNummer).
+ */
 async function volgendFactuurnummer(
   ctx: MutationCtx,
-  userId: Id<"users">
+  orgId: Id<"organisaties"> | undefined
 ): Promise<{ factuurnummer: string; instellingen: Doc<"instellingen"> }> {
-  const instellingen = await ctx.db
-    .query("instellingen")
-    .withIndex("by_user", (q) => q.eq("userId", userId))
-    .unique();
+  const instellingen = orgId
+    ? await ctx.db
+        .query("instellingen")
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
+        .unique()
+    : null;
   if (!instellingen) {
     throw new ConvexError(
       "Instellingen niet gevonden. Configureer eerst je bedrijfsgegevens."
@@ -311,6 +320,7 @@ export async function verwerkKlaarVoorFacturatie(
   } else {
     // ── per_bezoek (default, ook losse beurten zonder contract):
     // één concept-factuur per klant per uitvoeringsdag ──
+    // by_klant is bedrijfsoverstijgend → org-postfilter op het werkitem
     const vanKlant = await ctx.db
       .query("facturen")
       .withIndex("by_klant", (q) => q.eq("klantId", werkitem.klantId))
@@ -321,7 +331,7 @@ export async function verwerkKlaarVoorFacturatie(
         // Dubbel op het indexveld gefilterd (defensief)
         f.klantId?.toString() === werkitem.klantId?.toString() &&
         f.datumVanDienst === datumVanDienst &&
-        f.userId.toString() === werkitem.userId.toString() &&
+        f.orgId?.toString() === werkitem.orgId?.toString() &&
         effectieveStatussen(f).documentStatus === "concept"
     );
 
@@ -393,13 +403,17 @@ async function maakEngineFactuur(
   }
   const { factuurnummer, instellingen } = await volgendFactuurnummer(
     ctx,
-    werkitem.userId
+    werkitem.orgId
   );
   const totalen = berekenFactuurTotalen(args.regels, DEFAULT_BTW_ONDERHOUD);
   const betalingstermijnDagen = instellingen.standaardBetalingstermijn ?? 14;
   const now = Date.now();
 
   return await ctx.db.insert("facturen", {
+    // Tenant komt van het werkitem: dit pad draait ook vanuit de cron/afronding
+    // zonder identity, dus nooit uit een JWT.
+    orgId: werkitem.orgId,
+    // `userId` blijft tot fase 6 verplicht in het schema.
     userId: werkitem.userId,
     projectId: werkitem._id, // werkitems leven in de projecten-tabel
     klantId: werkitem.klantId,
@@ -558,10 +572,12 @@ export const factureerContractTermijnen = internalMutation({
       // BEWUST per iteratie opnieuw: laatsteFactuurNummer wordt verderop in
       // deze lus gepatcht, dus een gecachte kopie zou twee termijnen van
       // dezelfde tenant hetzelfde factuurnummer geven.
-      const instellingen = await ctx.db
-        .query("instellingen")
-        .withIndex("by_user", (q) => q.eq("userId", termijn.userId))
-        .unique();
+      const instellingen = contract.orgId
+        ? await ctx.db
+            .query("instellingen")
+            .withIndex("by_org", (q) => q.eq("orgId", contract.orgId!))
+            .unique()
+        : null;
       if (!klant || !instellingen) {
         console.warn(
           `[facturatieEngine] termijn ${termijn._id} overgeslagen: klant/instellingen ontbreken`
@@ -610,6 +626,9 @@ export const factureerContractTermijnen = internalMutation({
       const betalingstermijnDagen = instellingen.standaardBetalingstermijn ?? 14;
 
       const factuurId = await ctx.db.insert("facturen", {
+        // Identity-loze cron: de tenant komt uit het contract, niet uit een JWT.
+        orgId: contract.orgId,
+        // `userId` blijft tot fase 6 verplicht in het schema.
         userId: termijn.userId,
         klantId: contract.klantId,
         factuurnummer: `${prefix}${jaar}-${String(volgendNummer).padStart(3, "0")}`,
@@ -672,7 +691,7 @@ export const zetDirectVersturen = mutation({
   handler: async (ctx, args) => {
     await assertKanNaarKlantVersturen(ctx);
     const contract = await ctx.db.get(args.contractId);
-    await verifyOwnership(ctx, contract, "contract");
+    await verifyOrgOwnership(ctx, contract, "contract");
     await ctx.db.patch(args.contractId, {
       directVersturen: args.directVersturen,
       updatedAt: Date.now(),

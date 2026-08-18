@@ -29,6 +29,7 @@ import { Doc, Id } from "./_generated/dataModel";
 import { requireOrgContext, requireOrgId } from "./auth";
 import { normalizeRole, requireKantoor } from "./roles";
 import { requireInterneRol } from "./tijdlijn";
+import { voegSysteemCommentToe } from "./servicemeldingen";
 import { vandaagIso } from "./beurtgenerator";
 import {
   addDagen,
@@ -446,18 +447,13 @@ export const genereerVervalTaken = internalMutation({
           updatedAt: now,
         });
 
-        // Systeem-comment hier inline i.p.v. via servicemeldingen.
-        // voegSysteemCommentToe: die helper hoort bij cluster 3.7 en kent nog
-        // geen orgId-parameter, en een comment zónder orgId valt na fase 6
-        // buiten elke org-gescoopte lezing van de case-thread.
-        await ctx.db.insert("meldingComments", {
+        // Systeem-comment via de gedeelde helper (cluster 3.7). Identity-loos
+        // pad: de org komt expliciet mee, niet uit een JWT.
+        await voegSysteemCommentToe(ctx, {
           orgId: org._id,
           userId: eigenaar._id,
           meldingId,
-          auteurNaam: "Systeem",
           tekst: `Automatische vervalattendering: ${tekst} (waarschuwtermijn ${item.waarschuwtermijnDagen} dagen, taak sinds ${addDagen(item.vervaldatum, -item.waarschuwtermijnDagen)})`,
-          systeem: true,
-          createdAt: Date.now(),
         });
         aangemaakt++;
       }

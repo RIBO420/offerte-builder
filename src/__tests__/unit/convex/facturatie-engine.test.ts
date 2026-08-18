@@ -16,6 +16,7 @@ import {
   createMockCtx,
   createMockUser,
   createMockKlant,
+  seedMockOrganisatie,
 } from "../../helpers/convex-mock";
 import type { MutationCtx } from "../../../../convex/_generated/server";
 import {
@@ -47,12 +48,19 @@ afterEach(() => {
 
 // ─── Testopstelling ──────────────────────────────────────────────────────────
 
-/** Store met bedrijf (user + instellingen) en klant — de vaste basis. */
+/**
+ * Store met organisatie, bedrijf (user + instellingen) en klant — de vaste
+ * basis. De organisatie hoort erbij sinds fase 3 van de org-migratie: de
+ * engine leest de factuurteller op `instellingen.by_org` en zet de tenant op
+ * elke factuur die hij maakt.
+ */
 function basisOpstelling() {
   const store = new MockConvexStore();
+  const orgId = seedMockOrganisatie(store);
   const userId = store.insert("users", createMockUser({ role: "directie" }));
-  const klantId = store.insert("klanten", createMockKlant(userId));
+  const klantId = store.insert("klanten", createMockKlant(userId, { orgId }));
   store.insert("instellingen", {
+    orgId,
     userId,
     laatsteFactuurNummer: 41,
     factuurNummerPrefix: "FAC-",
@@ -67,7 +75,7 @@ function basisOpstelling() {
     },
   });
   const ctx = createMockCtx(store);
-  return { store, ctx: ctx as unknown as MutationCtx, userId, klantId };
+  return { store, ctx: ctx as unknown as MutationCtx, userId, orgId, klantId };
 }
 
 function insertBouwsteen(
@@ -88,10 +96,12 @@ function insertBouwsteen(
 function insertAfgerondeBeurt(
   store: MockConvexStore,
   userId: string,
+  orgId: string,
   klantId: string,
   overrides: Record<string, unknown> = {}
 ): Id<"projecten"> {
   return store.insert("projecten", {
+    orgId,
     userId,
     klantId,
     type: "onderhoudsbeurt",
@@ -289,9 +299,9 @@ describe("engine-actie per facturatiemodus", () => {
 
 describe("verwerkKlaarVoorFacturatie (per_bezoek, §8.8 afrondingstest)", () => {
   it("alles afgerond → direct een correcte concept-factuur in 'Te versturen'", async () => {
-    const { store, ctx, userId, klantId } = basisOpstelling();
+    const { store, ctx, userId, orgId, klantId } = basisOpstelling();
     const bouwsteenId = insertBouwsteen(store, userId, { btwCode: 9 });
-    const werkitemId = insertAfgerondeBeurt(store, userId, klantId, {
+    const werkitemId = insertAfgerondeBeurt(store, userId, orgId, klantId, {
       taakAfronding: [
         { omschrijving: "Gras maaien", status: "afgerond", bouwsteenId },
         { omschrijving: "Heg knippen", status: "afgerond" },
@@ -328,8 +338,8 @@ describe("verwerkKlaarVoorFacturatie (per_bezoek, §8.8 afrondingstest)", () => 
   });
 
   it("idempotent: dezelfde beurt komt nooit twee keer op een factuur", async () => {
-    const { store, ctx, userId, klantId } = basisOpstelling();
-    const werkitemId = insertAfgerondeBeurt(store, userId, klantId);
+    const { store, ctx, userId, orgId, klantId } = basisOpstelling();
+    const werkitemId = insertAfgerondeBeurt(store, userId, orgId, klantId);
 
     const eerste = await verwerkKlaarVoorFacturatie(ctx, { werkitemId });
     const tweede = await verwerkKlaarVoorFacturatie(ctx, { werkitemId });
@@ -343,8 +353,8 @@ describe("verwerkKlaarVoorFacturatie (per_bezoek, §8.8 afrondingstest)", () => 
   });
 
   it("deels uitgevoerd: alleen het uitgevoerde deel gefactureerd, rest-taak niet", async () => {
-    const { store, ctx, userId, klantId } = basisOpstelling();
-    const werkitemId = insertAfgerondeBeurt(store, userId, klantId, {
+    const { store, ctx, userId, orgId, klantId } = basisOpstelling();
+    const werkitemId = insertAfgerondeBeurt(store, userId, orgId, klantId, {
       status: "deels_uitgevoerd",
       taakAfronding: [
         { omschrijving: "Gras maaien", status: "afgerond" },
@@ -367,9 +377,9 @@ describe("verwerkKlaarVoorFacturatie (per_bezoek, §8.8 afrondingstest)", () => 
   });
 
   it("tweede beurt bij dezelfde klant op dezelfde dag → regels bij de bestaande dagfactuur", async () => {
-    const { store, ctx, userId, klantId } = basisOpstelling();
-    const beurt1 = insertAfgerondeBeurt(store, userId, klantId);
-    const beurt2 = insertAfgerondeBeurt(store, userId, klantId, {
+    const { store, ctx, userId, orgId, klantId } = basisOpstelling();
+    const beurt1 = insertAfgerondeBeurt(store, userId, orgId, klantId);
+    const beurt2 = insertAfgerondeBeurt(store, userId, orgId, klantId, {
       naam: "Tweede beurt",
       taakAfronding: [{ omschrijving: "Heg knippen", status: "afgerond" }],
       bouwsteenRegels: [{ omschrijving: "Heg knippen", prijsPerBeurt: 80 }],
@@ -386,8 +396,8 @@ describe("verwerkKlaarVoorFacturatie (per_bezoek, §8.8 afrondingstest)", () => 
   });
 
   it("losse beurt zonder contract volgt het per_bezoek-gedrag", async () => {
-    const { store, ctx, userId, klantId } = basisOpstelling();
-    const werkitemId = insertAfgerondeBeurt(store, userId, klantId, {
+    const { store, ctx, userId, orgId, klantId } = basisOpstelling();
+    const werkitemId = insertAfgerondeBeurt(store, userId, orgId, klantId, {
       contractId: undefined,
     });
     const resultaat = await verwerkKlaarVoorFacturatie(ctx, { werkitemId });
@@ -400,10 +410,12 @@ describe("verwerkKlaarVoorFacturatie (contractmodi)", () => {
   function insertContract(
     store: MockConvexStore,
     userId: string,
+    orgId: string,
     klantId: string,
     overrides: Record<string, unknown> = {}
   ) {
     return store.insert("onderhoudscontracten", {
+      orgId,
       userId,
       klantId,
       contractNummer: "OC-2026-001",
@@ -417,12 +429,12 @@ describe("verwerkKlaarVoorFacturatie (contractmodi)", () => {
   }
 
   it("maandelijks_verzameld: tweede beurt in dezelfde maand voegt toe i.p.v. nieuwe factuur", async () => {
-    const { store, ctx, userId, klantId } = basisOpstelling();
-    const contractId = insertContract(store, userId, klantId, {
+    const { store, ctx, userId, orgId, klantId } = basisOpstelling();
+    const contractId = insertContract(store, userId, orgId, klantId, {
       facturatiemodus: "maandelijks_verzameld",
     });
-    const beurt1 = insertAfgerondeBeurt(store, userId, klantId, { contractId });
-    const beurt2 = insertAfgerondeBeurt(store, userId, klantId, {
+    const beurt1 = insertAfgerondeBeurt(store, userId, orgId, klantId, { contractId });
+    const beurt2 = insertAfgerondeBeurt(store, userId, orgId, klantId, {
       contractId,
       afgerondOp: Date.UTC(2026, 4, 26, 10, 0), // andere dag, zelfde maand
       taakAfronding: [{ omschrijving: "Heg knippen", status: "afgerond" }],
@@ -443,15 +455,15 @@ describe("verwerkKlaarVoorFacturatie (contractmodi)", () => {
   });
 
   it("gesloten verzamelmaand (maandwissel-cron) → nieuwe beurt opent een nieuwe verzamelfactuur", async () => {
-    const { store, ctx, userId, klantId } = basisOpstelling();
-    const contractId = insertContract(store, userId, klantId, {
+    const { store, ctx, userId, orgId, klantId } = basisOpstelling();
+    const contractId = insertContract(store, userId, orgId, klantId, {
       facturatiemodus: "maandelijks_verzameld",
     });
-    const beurt1 = insertAfgerondeBeurt(store, userId, klantId, { contractId });
+    const beurt1 = insertAfgerondeBeurt(store, userId, orgId, klantId, { contractId });
     const r1 = await verwerkKlaarVoorFacturatie(ctx, { werkitemId: beurt1 });
     store.patch(r1.factuurId as string, { verzamelGesloten: true });
 
-    const beurt2 = insertAfgerondeBeurt(store, userId, klantId, { contractId });
+    const beurt2 = insertAfgerondeBeurt(store, userId, orgId, klantId, { contractId });
     const r2 = await verwerkKlaarVoorFacturatie(ctx, { werkitemId: beurt2 });
 
     expect(r2.factuurId).not.toBe(r1.factuurId);
@@ -459,11 +471,11 @@ describe("verwerkKlaarVoorFacturatie (contractmodi)", () => {
   });
 
   it("vast_maandbedrag: beurten worden genegeerd — het termijnschema is het enige spoor", async () => {
-    const { store, ctx, userId, klantId } = basisOpstelling();
-    const contractId = insertContract(store, userId, klantId, {
+    const { store, ctx, userId, orgId, klantId } = basisOpstelling();
+    const contractId = insertContract(store, userId, orgId, klantId, {
       facturatiemodus: "vast_maandbedrag",
     });
-    const werkitemId = insertAfgerondeBeurt(store, userId, klantId, { contractId });
+    const werkitemId = insertAfgerondeBeurt(store, userId, orgId, klantId, { contractId });
 
     const resultaat = await verwerkKlaarVoorFacturatie(ctx, { werkitemId });
 
@@ -475,11 +487,11 @@ describe("verwerkKlaarVoorFacturatie (contractmodi)", () => {
   });
 
   it("directVersturen AAN → engine verstuurt zelf: verzonden + tijdlijn + mail-actie (achter mailGuard)", async () => {
-    const { store, ctx, userId, klantId } = basisOpstelling();
-    const contractId = insertContract(store, userId, klantId, {
+    const { store, ctx, userId, orgId, klantId } = basisOpstelling();
+    const contractId = insertContract(store, userId, orgId, klantId, {
       directVersturen: true,
     });
-    const werkitemId = insertAfgerondeBeurt(store, userId, klantId, { contractId });
+    const werkitemId = insertAfgerondeBeurt(store, userId, orgId, klantId, { contractId });
 
     const resultaat = await verwerkKlaarVoorFacturatie(ctx, { werkitemId });
 
@@ -502,9 +514,9 @@ describe("verwerkKlaarVoorFacturatie (contractmodi)", () => {
   });
 
   it("directVersturen UIT (default, human-in-the-loop) → concept blijft wachten, geen mail", async () => {
-    const { store, ctx, userId, klantId } = basisOpstelling();
-    const contractId = insertContract(store, userId, klantId); // geen toggle
-    const werkitemId = insertAfgerondeBeurt(store, userId, klantId, { contractId });
+    const { store, ctx, userId, orgId, klantId } = basisOpstelling();
+    const contractId = insertContract(store, userId, orgId, klantId); // geen toggle
+    const werkitemId = insertAfgerondeBeurt(store, userId, orgId, klantId, { contractId });
 
     const resultaat = await verwerkKlaarVoorFacturatie(ctx, { werkitemId });
 
@@ -519,8 +531,8 @@ describe("verwerkKlaarVoorFacturatie (contractmodi)", () => {
 
 describe("verstuurFactuurKern (wachtrij/bulk-pad)", () => {
   it("concept → verzonden met tijdlijn-event en mail-actie; tweede keer versturen weigert", async () => {
-    const { store, ctx, userId, klantId } = basisOpstelling();
-    const werkitemId = insertAfgerondeBeurt(store, userId, klantId);
+    const { store, ctx, userId, orgId, klantId } = basisOpstelling();
+    const werkitemId = insertAfgerondeBeurt(store, userId, orgId, klantId);
     const { factuurId } = await verwerkKlaarVoorFacturatie(ctx, { werkitemId });
     const factuur = store.get(factuurId as string) as unknown as Doc<"facturen">;
 
@@ -538,10 +550,13 @@ describe("verstuurFactuurKern (wachtrij/bulk-pad)", () => {
   });
 
   it("bulk: meerdere concepten worden allemaal verzonden", async () => {
-    const { store, ctx, userId, klantId } = basisOpstelling();
-    const klant2 = store.insert("klanten", createMockKlant(userId, { naam: "Klant twee" }));
-    const beurt1 = insertAfgerondeBeurt(store, userId, klantId);
-    const beurt2 = insertAfgerondeBeurt(store, userId, klant2);
+    const { store, ctx, userId, orgId, klantId } = basisOpstelling();
+    const klant2 = store.insert(
+      "klanten",
+      createMockKlant(userId, { orgId, naam: "Klant twee" })
+    );
+    const beurt1 = insertAfgerondeBeurt(store, userId, orgId, klantId);
+    const beurt2 = insertAfgerondeBeurt(store, userId, orgId, klant2);
     await verwerkKlaarVoorFacturatie(ctx, { werkitemId: beurt1 });
     await verwerkKlaarVoorFacturatie(ctx, { werkitemId: beurt2 });
 
@@ -573,8 +588,8 @@ describe("verstuurFactuurKern (wachtrij/bulk-pad)", () => {
 describe("verwerkBetaaldBedragKern (deelbetalingen §2.8)", () => {
   async function verzondenFactuur() {
     const opstelling = basisOpstelling();
-    const { store, ctx, userId, klantId } = opstelling;
-    const werkitemId = insertAfgerondeBeurt(store, userId, klantId, {
+    const { store, ctx, userId, orgId, klantId } = opstelling;
+    const werkitemId = insertAfgerondeBeurt(store, userId, orgId, klantId, {
       bouwsteenRegels: [{ omschrijving: "Gras maaien", prijsPerBeurt: 100 }],
     });
     const { factuurId } = await verwerkKlaarVoorFacturatie(ctx, { werkitemId });
@@ -600,10 +615,11 @@ describe("verwerkBetaaldBedragKern (deelbetalingen §2.8)", () => {
   });
 
   it("restbetaling → betaald + tijdlijn-event + contracttermijn doorgezet", async () => {
-    const { store, ctx, userId, factuurId } = await verzondenFactuur();
+    const { store, ctx, userId, orgId, factuurId } = await verzondenFactuur();
     // Termijn die aan deze factuur hangt (vast_maandbedrag-spoor §2.8 punt 6)
     const termijnId = store.insert("contractFacturen", {
       contractId: "onderhoudscontracten:999",
+      orgId,
       userId,
       termijnNummer: 1,
       periodeStart: "2026-05-01",

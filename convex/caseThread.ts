@@ -21,28 +21,36 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
-import { getCompanyUserId } from "./roles";
+import { requireOrgId } from "./auth";
 import { requireInterneRol } from "./tijdlijn";
 
 // ============================================
 // Helpers
 // ============================================
 
-/** Melding ophalen + bedrijfsscope afdwingen (multi-tenant). */
-async function getMeldingBinnenBedrijf(
+/**
+ * Melding ophalen + organisatiescope afdwingen (multi-tenant).
+ *
+ * De thread hangt aan de melding: comments en veldtaken worden altijd via
+ * deze parent gescoopt, nooit op hun eigen (bedrijfsoverstijgende)
+ * by_melding-index alleen.
+ */
+async function getMeldingBinnenOrg(
   ctx: QueryCtx | MutationCtx,
   meldingId: Id<"servicemeldingen">
-): Promise<{ melding: Doc<"servicemeldingen">; companyUserId: Id<"users"> }> {
-  const companyUserId = await getCompanyUserId(ctx);
+): Promise<{ melding: Doc<"servicemeldingen">; orgId: Id<"organisaties"> }> {
+  const orgId = await requireOrgId(ctx);
   const melding = await ctx.db.get(meldingId);
+  // `orgId` is optioneel in het schema zolang de migratie loopt; een melding
+  // zonder org hoort bij niemand en valt hier dus buiten de scope.
   if (
     !melding ||
     melding.deletedAt ||
-    melding.userId.toString() !== companyUserId.toString()
+    melding.orgId?.toString() !== orgId.toString()
   ) {
     throw new ConvexError("Melding niet gevonden");
   }
-  return { melding, companyUserId };
+  return { melding, orgId };
 }
 
 // ============================================
@@ -54,7 +62,8 @@ export const listComments = query({
   args: { meldingId: v.id("servicemeldingen") },
   handler: async (ctx, args) => {
     await requireInterneRol(ctx);
-    const { companyUserId } = await getMeldingBinnenBedrijf(ctx, args.meldingId);
+    // Scope zit in de parent-melding; die is hier al org-gecontroleerd.
+    await getMeldingBinnenOrg(ctx, args.meldingId);
 
     const comments = await ctx.db
       .query("meldingComments")
@@ -63,11 +72,7 @@ export const listComments = query({
 
     // Belt & braces: expliciete scope-filter bovenop de indexquery
     return comments
-      .filter(
-        (c) =>
-          c.meldingId.toString() === args.meldingId.toString() &&
-          c.userId.toString() === companyUserId.toString()
-      )
+      .filter((c) => c.meldingId.toString() === args.meldingId.toString())
       .sort((a, b) => a.createdAt - b.createdAt);
   },
 });
@@ -77,7 +82,8 @@ export const listVeldtakenVoorMelding = query({
   args: { meldingId: v.id("servicemeldingen") },
   handler: async (ctx, args) => {
     await requireInterneRol(ctx);
-    const { companyUserId } = await getMeldingBinnenBedrijf(ctx, args.meldingId);
+    // Scope zit in de parent-melding; die is hier al org-gecontroleerd.
+    await getMeldingBinnenOrg(ctx, args.meldingId);
 
     const taken = await ctx.db
       .query("veldtaken")
@@ -85,11 +91,7 @@ export const listVeldtakenVoorMelding = query({
       .collect();
 
     return taken
-      .filter(
-        (t) =>
-          t.meldingId.toString() === args.meldingId.toString() &&
-          t.userId.toString() === companyUserId.toString()
-      )
+      .filter((t) => t.meldingId.toString() === args.meldingId.toString())
       .sort((a, b) => a.createdAt - b.createdAt);
   },
 });
@@ -112,10 +114,7 @@ export const addComment = mutation({
   },
   handler: async (ctx, args) => {
     const user = await requireInterneRol(ctx);
-    const { melding, companyUserId } = await getMeldingBinnenBedrijf(
-      ctx,
-      args.meldingId
-    );
+    const { melding, orgId } = await getMeldingBinnenOrg(ctx, args.meldingId);
 
     const tekst = args.tekst.trim();
     if (!tekst) {
@@ -132,17 +131,17 @@ export const addComment = mutation({
       if (gezien.has(medewerkerId.toString())) continue;
       gezien.add(medewerkerId.toString());
       const medewerker = await ctx.db.get(medewerkerId);
-      if (
-        !medewerker ||
-        medewerker.userId.toString() !== companyUserId.toString()
-      ) {
+      if (!medewerker || medewerker.orgId?.toString() !== orgId.toString()) {
         throw new ConvexError("Getagde medewerker niet gevonden");
       }
       medewerkers.push(medewerker);
     }
 
     const commentId = await ctx.db.insert("meldingComments", {
-      userId: companyUserId,
+      orgId,
+      // `userId` blijft tot fase 6 verplicht: comment en veldtaak erven de
+      // eigenaar van hun melding.
+      userId: melding.userId,
       meldingId: args.meldingId,
       auteurId: user._id,
       auteurNaam: user.name,
@@ -160,7 +159,8 @@ export const addComment = mutation({
     for (const medewerker of meldingKlantId ? medewerkers : []) {
       veldtaakIds.push(
         await ctx.db.insert("veldtaken", {
-          userId: companyUserId,
+          orgId,
+          userId: melding.userId,
           meldingId: args.meldingId,
           klantId: meldingKlantId!,
           medewerkerId: medewerker._id,
@@ -189,10 +189,10 @@ export const rondVeldtaakAf = mutation({
   args: { veldtaakId: v.id("veldtaken") },
   handler: async (ctx, args) => {
     const user = await requireInterneRol(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const taak = await ctx.db.get(args.veldtaakId);
-    if (!taak || taak.userId.toString() !== companyUserId.toString()) {
+    if (!taak || taak.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Veldtaak niet gevonden");
     }
     if (taak.status === "afgerond") return args.veldtaakId;

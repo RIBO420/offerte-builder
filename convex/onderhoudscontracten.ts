@@ -6,9 +6,14 @@
  */
 
 import { v, ConvexError } from "convex/values";
-import { mutation, query, MutationCtx } from "./_generated/server";
+import {
+  mutation,
+  query,
+  type MutationCtx,
+  type QueryCtx,
+} from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
-import { requireAuth, requireAuthUserId } from "./auth";
+import { getOwnedOfferte, requireOrgContext, requireOrgId } from "./auth";
 import { klantVeld } from "./lib/offerteKlant";
 import {
   requireDirectieOrProjectleider,
@@ -136,7 +141,10 @@ export function volgendContractNummer(
  * en verkleint het conflictvenster; Convex' OCC serialiseert gelijktijdige
  * mutations op deze range zodat dubbele nummers uitblijven.
  */
-async function generateContractNummer(ctx: MutationCtx): Promise<string> {
+async function generateContractNummer(
+  ctx: MutationCtx,
+  orgId: Id<"organisaties"> | undefined
+): Promise<string> {
   const year = new Date().getFullYear();
   const prefix = `OHC-${year}-`;
 
@@ -147,10 +155,35 @@ async function generateContractNummer(ctx: MutationCtx): Promise<string> {
     )
     .collect();
 
+  // De nummerreeks hoort bij de ORGANISATIE: by_contractnummer is
+  // bedrijfsoverstijgend, dus zonder deze filter zou org B de nummers van
+  // org A opbranden (zelfde fout als de offertenummering, f672213).
   return volgendContractNummer(
     prefix,
-    jaargenoten.map((c) => c.contractNummer)
+    jaargenoten
+      .filter((c) => c.orgId?.toString() === orgId?.toString())
+      .map((c) => c.contractNummer)
   );
+}
+
+/**
+ * Contract ophalen + organisatiescope afdwingen. `orgId` is optioneel in het
+ * schema zolang de migratie loopt; een contract zonder org hoort bij niemand.
+ */
+async function getContractBinnenOrg(
+  ctx: QueryCtx | MutationCtx,
+  id: Id<"onderhoudscontracten">
+): Promise<Doc<"onderhoudscontracten">> {
+  const orgId = await requireOrgId(ctx);
+  const contract = await ctx.db.get(id);
+  if (
+    !contract ||
+    contract.deletedAt ||
+    contract.orgId?.toString() !== orgId.toString()
+  ) {
+    throw new ConvexError("Contract niet gevonden");
+  }
+  return contract;
 }
 
 /**
@@ -309,21 +342,21 @@ export const list = query({
     includeArchived: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     let contracts;
     if (args.status) {
       contracts = await ctx.db
         .query("onderhoudscontracten")
-        .withIndex("by_user_status", (q) =>
-          q.eq("userId", userId).eq("status", args.status!)
+        .withIndex("by_org_status", (q) =>
+          q.eq("orgId", orgId).eq("status", args.status!)
         )
         .order("desc")
         .collect();
     } else {
       contracts = await ctx.db
         .query("onderhoudscontracten")
-        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
         .order("desc")
         .collect();
     }
@@ -363,20 +396,20 @@ export const listPaginated = query({
     status: v.optional(statusValidator),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const limit = args.limit || 25;
 
     let queryBuilder;
     if (args.status) {
       queryBuilder = ctx.db
         .query("onderhoudscontracten")
-        .withIndex("by_user_status", (q) =>
-          q.eq("userId", userId).eq("status", args.status!)
+        .withIndex("by_org_status", (q) =>
+          q.eq("orgId", orgId).eq("status", args.status!)
         );
     } else {
       queryBuilder = ctx.db
         .query("onderhoudscontracten")
-        .withIndex("by_user", (q) => q.eq("userId", userId));
+        .withIndex("by_org", (q) => q.eq("orgId", orgId));
     }
 
     const result = await queryBuilder
@@ -414,12 +447,7 @@ export const listPaginated = query({
 export const getById = query({
   args: { id: v.id("onderhoudscontracten") },
   handler: async (ctx, args) => {
-    await requireAuth(ctx);
-
-    const contract = await ctx.db.get(args.id);
-    if (!contract || contract.deletedAt) {
-      throw new ConvexError("Contract niet gevonden");
-    }
+    const contract = await getContractBinnenOrg(ctx, args.id);
 
     // Get klant
     const klant = await ctx.db.get(contract.klantId);
@@ -490,15 +518,18 @@ export const getById = query({
 export const getByKlant = query({
   args: { klantId: v.id("klanten") },
   handler: async (ctx, args) => {
-    await requireAuth(ctx);
+    const orgId = await requireOrgId(ctx);
 
+    // Bedrijfsoverstijgende index (by_klant kent geen org) → org-postfilter
     const contracts = await ctx.db
       .query("onderhoudscontracten")
       .withIndex("by_klant", (q) => q.eq("klantId", args.klantId))
       .order("desc")
       .collect();
 
-    return contracts.filter((c) => !c.deletedAt);
+    return contracts.filter(
+      (c) => !c.deletedAt && c.orgId?.toString() === orgId.toString()
+    );
   },
 });
 
@@ -510,7 +541,7 @@ export const getExpiringContracts = query({
     dagenVooruit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const days = args.dagenVooruit ?? 90;
 
     const now = new Date();
@@ -522,8 +553,8 @@ export const getExpiringContracts = query({
     // Get active contracts
     const contracts = await ctx.db
       .query("onderhoudscontracten")
-      .withIndex("by_user_status", (q) =>
-        q.eq("userId", userId).eq("status", "actief")
+      .withIndex("by_org_status", (q) =>
+        q.eq("orgId", orgId).eq("status", "actief")
       )
       .collect();
 
@@ -553,7 +584,7 @@ export const getExpiringContracts = query({
 export const getUpcomingWork = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     // Determine current season
     const month = new Date().getMonth(); // 0-11
@@ -566,8 +597,8 @@ export const getUpcomingWork = query({
     // Get active contracts
     const contracts = await ctx.db
       .query("onderhoudscontracten")
-      .withIndex("by_user_status", (q) =>
-        q.eq("userId", userId).eq("status", "actief")
+      .withIndex("by_org_status", (q) =>
+        q.eq("orgId", orgId).eq("status", "actief")
       )
       .collect();
 
@@ -614,11 +645,11 @@ export const getUpcomingWork = query({
 export const getStats = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const contracts = await ctx.db
       .query("onderhoudscontracten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     const active = contracts.filter((c) => !c.deletedAt);
@@ -688,15 +719,23 @@ export const create = mutation({
     notities: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireDirectieOrProjectleider(ctx);
+    await requireDirectieOrProjectleider(ctx);
+    const { org, user } = await requireOrgContext(ctx);
     const now = Date.now();
+
+    // Schrijfguard: het contract mag alleen aan een klant van de eigen
+    // organisatie hangen.
+    const klant = await ctx.db.get(args.klantId);
+    if (!klant || klant.orgId?.toString() !== org._id.toString()) {
+      throw new ConvexError("Klant niet gevonden");
+    }
 
     for (const w of args.werkzaamheden) {
       valideerWerkzaamheidInput(w);
     }
 
     // Generate contract number
-    const contractNummer = await generateContractNummer(ctx);
+    const contractNummer = await generateContractNummer(ctx, org._id);
 
     // Jaarlijks tarief: bouwsteen-regels (frequentie × prijs per beurt) winnen;
     // anders het legacy termijnmodel (tarief × termijnen per jaar).
@@ -709,6 +748,8 @@ export const create = mutation({
 
     // Insert contract
     const contractId = await ctx.db.insert("onderhoudscontracten", {
+      orgId: org._id,
+      // `userId` blijft tot fase 6 verplicht in het schema.
       userId: user._id,
       klantId: args.klantId,
       contractNummer,
@@ -769,6 +810,7 @@ export const create = mutation({
       for (const periode of periodes) {
         await ctx.db.insert("contractFacturen", {
           contractId,
+          orgId: org._id,
           userId: user._id,
           termijnNummer: periode.termijnNummer,
           periodeStart: periode.periodeStart,
@@ -810,10 +852,7 @@ export const update = mutation({
   handler: async (ctx, args) => {
     await requireDirectieOrProjectleider(ctx);
 
-    const contract = await ctx.db.get(args.id);
-    if (!contract || contract.deletedAt) {
-      throw new ConvexError("Contract niet gevonden");
-    }
+    const contract = await getContractBinnenOrg(ctx, args.id);
 
     if (
       contract.status !== "concept" &&
@@ -890,10 +929,8 @@ export const addWerkzaamheid = mutation({
   handler: async (ctx, args) => {
     await requireDirectieOrProjectleider(ctx);
 
-    const contract = await ctx.db.get(args.contractId);
-    if (!contract || contract.deletedAt) {
-      throw new ConvexError("Contract niet gevonden");
-    }
+    // Kindtabel zonder eigen orgId: de scope komt van het parent-contract.
+    await getContractBinnenOrg(ctx, args.contractId);
 
     valideerWerkzaamheidInput(args);
 
@@ -967,6 +1004,8 @@ export const updateWerkzaamheid = mutation({
     if (!werkzaamheid) {
       throw new ConvexError("Werkzaamheid niet gevonden");
     }
+    // Kindtabel zonder eigen orgId: de scope komt van het parent-contract.
+    await getContractBinnenOrg(ctx, werkzaamheid.contractId);
 
     valideerWerkzaamheidInput({
       omschrijving: args.omschrijving ?? werkzaamheid.omschrijving,
@@ -1040,6 +1079,8 @@ export const removeWerkzaamheid = mutation({
     if (!werkzaamheid) {
       throw new ConvexError("Werkzaamheid niet gevonden");
     }
+    // Kindtabel zonder eigen orgId: de scope komt van het parent-contract.
+    await getContractBinnenOrg(ctx, werkzaamheid.contractId);
 
     await ctx.db.delete(args.id);
 
@@ -1060,10 +1101,7 @@ export const renewContract = mutation({
   handler: async (ctx, args) => {
     const user = await requireDirectieOrProjectleider(ctx);
 
-    const contract = await ctx.db.get(args.id);
-    if (!contract || contract.deletedAt) {
-      throw new ConvexError("Contract niet gevonden");
-    }
+    const contract = await getContractBinnenOrg(ctx, args.id);
 
     const now = Date.now();
     const nieuwStartDatum = contract.eindDatum; // New period starts where old ends
@@ -1103,6 +1141,7 @@ export const renewContract = mutation({
     for (const periode of periodes) {
       await ctx.db.insert("contractFacturen", {
         contractId: args.id,
+        orgId: contract.orgId,
         userId: user._id,
         termijnNummer: maxTermijn + periode.termijnNummer,
         periodeStart: periode.periodeStart,
@@ -1117,6 +1156,7 @@ export const renewContract = mutation({
     // actief — zelfde event-type als activering. Additief, niet-blokkerend.
     await logTijdlijnEvent(ctx, {
       userId: contract.userId,
+      orgId: contract.orgId,
       klantId: contract.klantId,
       eventType: "contract_geactiveerd",
       auteurId: user._id,
@@ -1146,10 +1186,7 @@ export const cancelContract = mutation({
   handler: async (ctx, args) => {
     const user = await requireDirectieOrProjectleider(ctx);
 
-    const contract = await ctx.db.get(args.id);
-    if (!contract || contract.deletedAt) {
-      throw new ConvexError("Contract niet gevonden");
-    }
+    const contract = await getContractBinnenOrg(ctx, args.id);
 
     if (contract.status === "opgezegd") {
       throw new ConvexError("Contract is al opgezegd");
@@ -1169,6 +1206,7 @@ export const cancelContract = mutation({
     // — Klanttijdlijn (PRD §2.3): contract opgezegd. Additief, niet-blokkerend.
     await logTijdlijnEvent(ctx, {
       userId: contract.userId,
+      orgId: contract.orgId,
       klantId: contract.klantId,
       eventType: "contract_opgezegd",
       auteurId: user._id,
@@ -1207,12 +1245,7 @@ export const cancelContract = mutation({
 export const getForPdf = query({
   args: { id: v.id("onderhoudscontracten") },
   handler: async (ctx, args) => {
-    await requireAuth(ctx);
-
-    const contract = await ctx.db.get(args.id);
-    if (!contract || contract.deletedAt) {
-      throw new ConvexError("Contract niet gevonden");
-    }
+    const contract = await getContractBinnenOrg(ctx, args.id);
 
     // Get klant
     const klant = await ctx.db.get(contract.klantId);
@@ -1307,10 +1340,7 @@ export const remove = mutation({
   handler: async (ctx, args) => {
     await requireDirectieOrProjectleider(ctx);
 
-    const contract = await ctx.db.get(args.id);
-    if (!contract) {
-      throw new ConvexError("Contract niet gevonden");
-    }
+    await getContractBinnenOrg(ctx, args.id);
 
     await ctx.db.patch(args.id, {
       deletedAt: Date.now(),
@@ -1333,15 +1363,24 @@ export const getBouwsteenDefaults = query({
   args: { datum: v.optional(v.string()) },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
+    const orgId = await requireOrgId(ctx);
     const datum = args.datum ?? vandaagIso();
 
-    const tarieven = await ctx.db.query("uurtarieven").collect();
+    // uurtarieven en bouwstenen horen bij de organisatie; lees ze via hun
+    // by_org-index (zoals uurtarieven.ts en bouwstenen.ts zelf ook doen) —
+    // de volledige tabel resp. by_actief is bedrijfsoverstijgend.
+    const tarieven = await ctx.db
+      .query("uurtarieven")
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
+      .collect();
     const geldendTarief = bepaalTariefOpDatum(tarieven, datum);
 
-    const bouwstenen = await ctx.db
-      .query("bouwstenen")
-      .withIndex("by_actief", (q) => q.eq("actief", true))
-      .collect();
+    const bouwstenen = (
+      await ctx.db
+        .query("bouwstenen")
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
+        .collect()
+    ).filter((b) => b.actief);
 
     return bouwstenen
       .map((b) => ({
@@ -1490,6 +1529,12 @@ export async function maakContractVanGeaccepteerdeOfferte(
     throw new ConvexError("Klant van de offerte niet gevonden");
   }
 
+  // Tenant komt uit de OFFERTE (het brondocument), niet uit een JWT: deze
+  // helper draait ook vanuit de acceptatieketen, waar de aanroeper de scope
+  // al heeft vastgesteld. De klant is de terugval voor legacy-offertes die de
+  // backfill nog niet heeft geraakt.
+  const orgId = offerte.orgId ?? klant.orgId;
+
   // Idempotentie: één contract per offerte (her-acceptatie maakt geen tweede)
   const bestaand = await ctx.db
     .query("onderhoudscontracten")
@@ -1561,9 +1606,11 @@ export async function maakContractVanGeaccepteerdeOfferte(
           });
 
     const jaarprijs = berekenJaarprijsBouwstenen(werkzaamheden);
-    const contractNummer = await generateContractNummer(ctx);
+    const contractNummer = await generateContractNummer(ctx, orgId);
 
     const contractId = await ctx.db.insert("onderhoudscontracten", {
+      orgId,
+      // `userId` blijft tot fase 6 verplicht in het schema.
       userId: offerte.userId,
       klantId: offerte.klantId,
       offerteId: offerte._id,
@@ -1616,12 +1663,11 @@ export async function maakContractVanGeaccepteerdeOfferte(
 export const createFromOfferte = mutation({
   args: { offerteId: v.id("offertes") },
   handler: async (ctx, args) => {
-    const user = await requireKantoor(ctx);
+    await requireKantoor(ctx);
 
-    const offerte = await ctx.db.get(args.offerteId);
-    if (!offerte || offerte.userId.toString() !== user._id.toString()) {
-      throw new ConvexError("Offerte niet gevonden");
-    }
+    // Org-eigendom i.p.v. user-eigendom: een collega mag de offerte van een
+    // ander omzetten (getOwnedOfferte gooit bij een andere organisatie).
+    const offerte = await getOwnedOfferte(ctx, args.offerteId);
 
     return maakContractVanGeaccepteerdeOfferte(ctx, offerte);
   },
