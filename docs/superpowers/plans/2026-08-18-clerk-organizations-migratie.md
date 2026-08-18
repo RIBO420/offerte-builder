@@ -886,8 +886,15 @@ export const migreer = internalMutation({
   },
   handler: async (ctx, args) => {
     bewaakDeployment(args.bevestigDeployment);
-    // 1. Org aanmaken (idempotent; seedOrgDefaults slaat over omdat de
-    //    eigenaar al instellingen heeft — die verhuizen in stap 3 mee).
+    // 1. Org aanmaken — LET OP (bug gevonden bij de dev-schouw): de seed-guard
+    //    in seedOrgDefaults kijkt naar instellingen.by_org, NIET naar de
+    //    eigenaar-instellingen. maakOrganisatie zou dus seeden en stap 3 patcht
+    //    daarna de eigenaar-rij → twéé instellingen-rijen met orgId → .unique()
+    //    klapt overal. Fix vereist: maakOrganisatie krijgt `seedDefaults:
+    //    v.optional(v.boolean())` (default true); de migratie roept aan met
+    //    false. Op dev bestaat al een geseedde org-rij (schouw 18 aug) — de
+    //    dev-migratie moet de geseedde instellingen/normuren/producten-rijen
+    //    verwijderen of samenvoegen vóór het patchen van de eigenaar-rijen.
     // 2. Eigenaar vinden: users.by_email op genormaliseerde eigenaarEmail;
     //    .unique() — bij meerdere rijen: hard falen met duidelijke melding.
     // 3. Voor elke bewaren-tabel met orgId-veld: rijen van eigenaar → patch {orgId};
