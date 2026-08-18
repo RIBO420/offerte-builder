@@ -792,3 +792,63 @@ export const verifieerMigratie = internalQuery({
     };
   },
 });
+
+/**
+ * Fase-B1-stap: verwijdert het legacy `userId`-veld van alle eigenaar-
+ * bewaartabellen. Vereist dat het schema tijdelijk met
+ * `schemaValidation: false` gedeployed is (het veld bestaat niet meer in de
+ * validators, maar de gemigreerde rijen dragen hem nog — een strikte push
+ * weigert daarop). Volgorde: deploy fase-b1 (validatie uit) → deze mutatie →
+ * deploy fase-b2 (validatie aan). Idempotent en batched; schedulet zichzelf.
+ */
+export const stripLegacyVelden = internalMutation({
+  args: {
+    bevestigDeployment: v.string(),
+    tabelIndex: v.optional(v.number()),
+  },
+  handler: async (ctx, args): Promise<{ klaar: boolean; tabel?: string }> => {
+    bewaakDeployment(args.bevestigDeployment);
+    const tabelIndex = args.tabelIndex ?? 0;
+    if (tabelIndex >= EIGENAAR_TABELLEN.length) {
+      return { klaar: true };
+    }
+    const tabel = EIGENAAR_TABELLEN[tabelIndex];
+    // Geen index op userId meer — kleine bewaartabellen, full scan is hier ok.
+    const rijen = await ctx.db.query(tabel).collect();
+    let gestript = 0;
+    for (const rij of rijen) {
+      if ((rij as { userId?: unknown }).userId !== undefined) {
+        await ctx.db.patch(rij._id, { userId: undefined } as never);
+        gestript += 1;
+        if (gestript >= BATCH) break;
+      }
+    }
+    const klaarMetTabel = gestript < BATCH;
+    await ctx.scheduler.runAfter(0, internal.migrations.naarOrganisaties.stripLegacyVelden, {
+      bevestigDeployment: args.bevestigDeployment,
+      tabelIndex: klaarMetTabel ? tabelIndex + 1 : tabelIndex,
+    });
+    return { klaar: false, tabel };
+  },
+});
+
+/**
+ * Telt resterende legacy `userId`-velden op de eigenaar-tabellen — 0 betekent
+ * dat fase-b2 (strikte schema-push) veilig kan.
+ */
+export const telLegacyVelden = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const telling: Record<string, number> = {};
+    let totaal = 0;
+    for (const tabel of EIGENAAR_TABELLEN) {
+      const rijen = await ctx.db.query(tabel).collect();
+      const n = rijen.filter(
+        (r) => (r as { userId?: unknown }).userId !== undefined
+      ).length;
+      if (n > 0) telling[tabel] = n;
+      totaal += n;
+    }
+    return { telling, totaal };
+  },
+});

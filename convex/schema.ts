@@ -25,7 +25,8 @@ import {
  * TODO: Standardize these in a future migration.
  */
 
-export default defineSchema({
+export default defineSchema(
+  {
   // Gebruikers (via Clerk, alleen referentie)
   // Role-based access control (RBAC) — 7-role model:
   // - directie: Full access (replaces old "admin")
@@ -4068,4 +4069,8 @@ export default defineSchema({
   })
     .index("by_tabel", ["tabel"])
     .index("by_geseedOp", ["geseedOp"]),
-});
+  },
+  // FASE-B1 (tijdelijk): validatie uit zodat stripLegacyVelden de legacy
+  // userId-velden van bestaande rijen kan verwijderen. Fase-B2 zet dit terug aan.
+  { schemaValidation: false }
+);
