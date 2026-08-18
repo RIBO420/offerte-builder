@@ -1,6 +1,6 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAuthUserId, requireAuth } from "./auth";
+import { requireOrgContext, requireOrgId } from "./auth";
 import { requireNotViewer } from "./roles";
 import { voorcalculatieVanProject, voorcalculatieVanOfferte } from "./lib/voorcalculatieLookup";
 import { normurenUitRegels } from "./lib/normuren";
@@ -9,7 +9,7 @@ import { normurenUitRegels } from "./lib/normuren";
 export const get = query({
   args: { id: v.id("voorcalculaties") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const voorcalculatie = await ctx.db.get(args.id);
 
     if (!voorcalculatie) return null;
@@ -17,12 +17,12 @@ export const get = query({
     // Verify ownership through project or offerte
     if (voorcalculatie.projectId) {
       const project = await ctx.db.get(voorcalculatie.projectId);
-      if (!project || project.userId.toString() !== userId.toString()) {
+      if (!project || project.orgId?.toString() !== orgId.toString()) {
         return null;
       }
     } else if (voorcalculatie.offerteId) {
       const offerte = await ctx.db.get(voorcalculatie.offerteId);
-      if (!offerte || offerte.userId.toString() !== userId.toString()) {
+      if (!offerte || offerte.orgId?.toString() !== orgId.toString()) {
         return null;
       }
     } else {
@@ -38,11 +38,11 @@ export const get = query({
 export const getByProject = query({
   args: { projectId: v.id("projecten") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     // Verify project ownership
     const project = await ctx.db.get(args.projectId);
-    if (!project || project.userId.toString() !== userId.toString()) {
+    if (!project || project.orgId?.toString() !== orgId.toString()) {
       return null;
     }
 
@@ -54,11 +54,11 @@ export const getByProject = query({
 export const getByOfferte = query({
   args: { offerteId: v.id("offertes") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     // Verify offerte ownership
     const offerte = await ctx.db.get(args.offerteId);
-    if (!offerte || offerte.userId.toString() !== userId.toString()) {
+    if (!offerte || offerte.orgId?.toString() !== orgId.toString()) {
       return null;
     }
 
@@ -80,7 +80,7 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
 
     // Validate that at least one of projectId or offerteId is provided
     if (!args.projectId && !args.offerteId) {
@@ -90,7 +90,7 @@ export const create = mutation({
     // Verify ownership based on what's provided
     if (args.projectId) {
       const project = await ctx.db.get(args.projectId);
-      if (!project || project.userId.toString() !== userId.toString()) {
+      if (!project || project.orgId?.toString() !== org._id.toString()) {
         throw new ConvexError("Project niet gevonden of geen toegang");
       }
 
@@ -104,7 +104,7 @@ export const create = mutation({
 
     if (args.offerteId) {
       const offerte = await ctx.db.get(args.offerteId);
-      if (!offerte || offerte.userId.toString() !== userId.toString()) {
+      if (!offerte || offerte.orgId?.toString() !== org._id.toString()) {
         throw new ConvexError("Offerte niet gevonden of geen toegang");
       }
 
@@ -119,8 +119,10 @@ export const create = mutation({
     const voorcalculatieId = await ctx.db.insert("voorcalculaties", {
       projectId: args.projectId,
       // Tenant-scope (audit §2): project én offerte zijn hierboven op
-      // eigenaarschap gecontroleerd tegen deze userId, dus die is de tenant.
-      userId,
+      // eigenaarschap gecontroleerd tegen deze organisatie, dus die is de
+      // tenant. `userId` schrijven we mee tot fase 6.
+      orgId: org._id,
+      userId: user._id,
       offerteId: args.offerteId,
       teamGrootte: args.teamGrootte,
       teamleden: args.teamleden,
@@ -148,7 +150,7 @@ export const update = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const voorcalculatie = await ctx.db.get(args.id);
 
     if (!voorcalculatie) {
@@ -159,13 +161,13 @@ export const update = mutation({
     let hasAccess = false;
     if (voorcalculatie.projectId) {
       const project = await ctx.db.get(voorcalculatie.projectId);
-      if (project && project.userId.toString() === userId.toString()) {
+      if (project && project.orgId?.toString() === orgId.toString()) {
         hasAccess = true;
       }
     }
     if (!hasAccess && voorcalculatie.offerteId) {
       const offerte = await ctx.db.get(voorcalculatie.offerteId);
-      if (offerte && offerte.userId.toString() === userId.toString()) {
+      if (offerte && offerte.orgId?.toString() === orgId.toString()) {
         hasAccess = true;
       }
     }
@@ -204,29 +206,30 @@ export const calculate = query({
     offerteId: v.id("offertes"),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
-    const userId = user._id;
+    const orgId = await requireOrgId(ctx);
 
     const offerte = await ctx.db.get(args.offerteId);
-    if (!offerte || offerte.userId.toString() !== userId.toString()) {
+    if (!offerte || offerte.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Offerte niet gevonden of geen toegang");
     }
 
-    // Correctiefactoren: systeemwaarden met de overrides van deze gebruiker
-    // eroverheen. Beide via de index — nooit een full table scan.
-    const [systemDefaults, userOverrides] = await Promise.all([
+    // Correctiefactoren: systeemwaarden met de overrides van deze organisatie
+    // eroverheen. Beide via de index — nooit een full table scan. De
+    // systeemrijen hebben bewust géén userId (en dus ook geen orgId); die
+    // undefined-match is hier de bedoeling (CLAUDE.md regel 4).
+    const [systemDefaults, orgOverrides] = await Promise.all([
       ctx.db
         .query("correctiefactoren")
         .withIndex("by_user_type", (q) => q.eq("userId", undefined))
         .collect(),
       ctx.db
         .query("correctiefactoren")
-        .withIndex("by_user_type", (q) => q.eq("userId", userId))
+        .withIndex("by_org_type", (q) => q.eq("orgId", orgId))
         .collect(),
     ]);
 
     const overrideMap = new Map(
-      userOverrides.map((f) => [`${f.type}-${f.waarde}`, f])
+      orgOverrides.map((f) => [`${f.type}-${f.waarde}`, f])
     );
     const factoren = systemDefaults.map((f) => {
       const override = overrideMap.get(`${f.type}-${f.waarde}`);
@@ -267,7 +270,7 @@ export const remove = mutation({
   args: { id: v.id("voorcalculaties") },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const voorcalculatie = await ctx.db.get(args.id);
 
     if (!voorcalculatie) {
@@ -278,13 +281,13 @@ export const remove = mutation({
     let hasAccess = false;
     if (voorcalculatie.projectId) {
       const project = await ctx.db.get(voorcalculatie.projectId);
-      if (project && project.userId.toString() === userId.toString()) {
+      if (project && project.orgId?.toString() === orgId.toString()) {
         hasAccess = true;
       }
     }
     if (!hasAccess && voorcalculatie.offerteId) {
       const offerte = await ctx.db.get(voorcalculatie.offerteId);
-      if (offerte && offerte.userId.toString() === userId.toString()) {
+      if (offerte && offerte.orgId?.toString() === orgId.toString()) {
         hasAccess = true;
       }
     }

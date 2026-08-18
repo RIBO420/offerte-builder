@@ -125,7 +125,12 @@ class FakeDb {
 
 interface FakeCtx {
   db: FakeDb;
-  auth: { getUserIdentity: () => Promise<{ subject: string } | null> };
+  auth: {
+    getUserIdentity: () => Promise<{
+      subject: string;
+      org_id?: string;
+    } | null>;
+  };
 }
 
 // ─── Handler-extractie (zelfde patroon als de andere convex-tests) ───────────
@@ -184,15 +189,25 @@ const voorcalculatieHandler = handlerVan<
 // ─── Fixture ─────────────────────────────────────────────────────────────────
 
 const CLERK_ID = "clerk_eigen_bedrijf";
+const CLERK_ORG_ID = "org_eigen_bedrijf";
 
 let db: FakeDb;
 let ctx: FakeCtx;
+let eigenOrgId: string;
 let eigenUserId: string;
 let eigenProjectId: string;
 let eigenOfferteId: string;
 
 beforeEach(() => {
   db = new FakeDb();
+
+  eigenOrgId = db.insertSync("organisaties", {
+    clerkOrgId: CLERK_ORG_ID,
+    naam: "Top Tuinen",
+    slug: "top-tuinen",
+    actief: true,
+    aangemaaktOp: Date.now(),
+  });
 
   eigenUserId = db.insertSync("users", {
     clerkId: CLERK_ID,
@@ -212,12 +227,14 @@ beforeEach(() => {
 
   eigenProjectId = db.insertSync("projecten", {
     userId: eigenUserId,
+    orgId: eigenOrgId,
     naam: "Tuin Jansen",
     status: "gepland",
   });
 
   eigenOfferteId = db.insertSync("offertes", {
     userId: eigenUserId,
+    orgId: eigenOrgId,
     offerteNummer: "2026-001",
     status: "geaccepteerd",
   });
@@ -225,7 +242,10 @@ beforeEach(() => {
   ctx = {
     db,
     auth: {
-      getUserIdentity: async () => ({ subject: CLERK_ID }),
+      getUserIdentity: async () => ({
+        subject: CLERK_ID,
+        org_id: CLERK_ORG_ID,
+      }),
     },
   };
 });
@@ -295,7 +315,7 @@ describe("urenRegistraties — tenant-veld op schrijfpaden", () => {
 });
 
 describe("voorcalculaties — tenant-veld op schrijfpaden", () => {
-  it("create via projectId zet userId op de eigenaar", async () => {
+  it("create via projectId zet orgId op de organisatie van het project", async () => {
     await voorcalculatieHandler(ctx, {
       projectId: eigenProjectId,
       teamGrootte: 2,
@@ -307,10 +327,12 @@ describe("voorcalculaties — tenant-veld op schrijfpaden", () => {
 
     const rijen = db.rows("voorcalculaties");
     expect(rijen).toHaveLength(1);
+    expect(rijen[0].orgId).toBe(eigenOrgId);
+    // userId blijft tot fase 6 meegeschreven
     expect(rijen[0].userId).toBe(eigenUserId);
   });
 
-  it("create via offerteId zet userId op de eigenaar", async () => {
+  it("create via offerteId zet orgId op de organisatie van de offerte", async () => {
     await voorcalculatieHandler(ctx, {
       offerteId: eigenOfferteId,
       teamGrootte: 3,
@@ -322,6 +344,7 @@ describe("voorcalculaties — tenant-veld op schrijfpaden", () => {
 
     const rijen = db.rows("voorcalculaties");
     expect(rijen).toHaveLength(1);
+    expect(rijen[0].orgId).toBe(eigenOrgId);
     expect(rijen[0].userId).toBe(eigenUserId);
   });
 });

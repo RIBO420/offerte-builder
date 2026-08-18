@@ -1,6 +1,6 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAuthUserId } from "./auth";
+import { requireOrgContext, requireOrgId } from "./auth";
 import { requireNotViewer } from "./roles";
 
 // ─── Productbestand-domeinlogica (PRD §2.5c) ─────────────────────────────────
@@ -81,10 +81,10 @@ export function sorteerVoorPicker<
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     return await ctx.db
       .query("producten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
   },
 });
@@ -95,11 +95,11 @@ export const listByCategorie = query({
     categorie: v.string(),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     return await ctx.db
       .query("producten")
-      .withIndex("by_categorie", (q) =>
-        q.eq("userId", userId).eq("categorie", args.categorie)
+      .withIndex("by_org_categorie", (q) =>
+        q.eq("orgId", orgId).eq("categorie", args.categorie)
       )
       .collect();
   },
@@ -112,12 +112,12 @@ export const search = query({
     categorie: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const searchQuery = ctx.db
       .query("producten")
       .withSearchIndex("search_producten", (q) => {
         let search = q.search("productnaam", args.zoekterm);
-        search = search.eq("userId", userId);
+        search = search.eq("orgId", orgId);
         if (args.categorie) {
           search = search.eq("categorie", args.categorie);
         }
@@ -132,11 +132,11 @@ export const search = query({
 export const get = query({
   args: { id: v.id("producten") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const product = await ctx.db.get(args.id);
 
     if (!product) return null;
-    if (product.userId.toString() !== userId.toString()) {
+    if (product.orgId?.toString() !== orgId.toString()) {
       return null;
     }
 
@@ -162,10 +162,11 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
     valideerBtwCode(args.btwCode);
     return await ctx.db.insert("producten", {
-      userId,
+      orgId: org._id,
+      userId: user._id,
       productnaam: args.productnaam,
       categorie: args.categorie,
       inkoopprijs: args.inkoopprijs,
@@ -207,7 +208,7 @@ export const update = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     valideerBtwCode(args.btwCode);
 
     // Verify ownership
@@ -215,7 +216,7 @@ export const update = mutation({
     if (!product) {
       throw new ConvexError("Product niet gevonden");
     }
-    if (product.userId.toString() !== userId.toString()) {
+    if (product.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Geen toegang tot dit product");
     }
 
@@ -250,14 +251,14 @@ export const remove = mutation({
   args: { id: v.id("producten") },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     // Verify ownership
     const product = await ctx.db.get(args.id);
     if (!product) {
       throw new ConvexError("Product niet gevonden");
     }
-    if (product.userId.toString() !== userId.toString()) {
+    if (product.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Geen toegang tot dit product");
     }
 
@@ -274,14 +275,14 @@ export const hardDelete = mutation({
   args: { id: v.id("producten") },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     // Verify ownership
     const product = await ctx.db.get(args.id);
     if (!product) {
       throw new ConvexError("Product niet gevonden");
     }
-    if (product.userId.toString() !== userId.toString()) {
+    if (product.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Geen toegang tot dit product");
     }
 
@@ -307,13 +308,14 @@ export const bulkImport = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
     const now = Date.now();
     const insertedIds: string[] = [];
 
     for (const product of args.producten) {
       const id = await ctx.db.insert("producten", {
-        userId,
+        orgId: org._id,
+        userId: user._id,
         ...product,
         isActief: true,
         createdAt: now,
@@ -333,10 +335,10 @@ export const bulkImport = mutation({
 export const getCategories = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const products = await ctx.db
       .query("producten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     const categories = [...new Set(products.map((p) => p.categorie))];
@@ -348,14 +350,14 @@ export const getCategories = query({
 export const countByCategorie = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
-    // by_user_actief i.p.v. .filter (audit §5): de index selecteert de actieve
+    const orgId = await requireOrgId(ctx);
+    // by_org_actief i.p.v. .filter (audit §5): de index selecteert de actieve
     // producten meteen, in plaats van het hele assortiment inlezen en
     // vervolgens de helft weggooien.
     const products = await ctx.db
       .query("producten")
-      .withIndex("by_user_actief", (q) =>
-        q.eq("userId", userId).eq("isActief", true)
+      .withIndex("by_org_actief", (q) =>
+        q.eq("orgId", orgId).eq("isActief", true)
       )
       .collect();
 
@@ -372,10 +374,10 @@ export const countByCategorie = query({
 export const listWithMetadata = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const products = await ctx.db
       .query("producten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // Calculate categories
@@ -402,16 +404,16 @@ export const createDefaults = mutation({
   args: {},
   handler: async (ctx) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
 
-    // Idempotent: check if user already has products
+    // Idempotent: check if the organisation already has products
     const existing = await ctx.db
       .query("producten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", org._id))
       .first();
 
     if (existing) {
-      return { message: "User already has products", count: 0 };
+      return { message: "Organisatie heeft al producten", count: 0 };
     }
 
     const defaultProducts = [
@@ -470,7 +472,8 @@ export const createDefaults = mutation({
 
     for (const product of defaultProducts) {
       await ctx.db.insert("producten", {
-        userId,
+        orgId: org._id,
+        userId: user._id,
         ...product,
         isActief: true,
         createdAt: now,
@@ -495,20 +498,20 @@ export const picker = query({
     zoekterm: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const zoekterm = args.zoekterm?.trim();
     const producten = zoekterm
       ? await ctx.db
           .query("producten")
           .withSearchIndex("search_producten", (q) =>
-            q.search("productnaam", zoekterm).eq("userId", userId)
+            q.search("productnaam", zoekterm).eq("orgId", orgId)
           )
           .collect()
       : await ctx.db
           .query("producten")
-          .withIndex("by_user_actief", (q) =>
-            q.eq("userId", userId).eq("isActief", true)
+          .withIndex("by_org_actief", (q) =>
+            q.eq("orgId", orgId).eq("isActief", true)
           )
           .collect();
 
@@ -538,13 +541,13 @@ export const verhoogGebruik = mutation({
   args: { id: v.id("producten") },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const product = await ctx.db.get(args.id);
     if (!product) {
       throw new ConvexError("Product niet gevonden");
     }
-    if (product.userId.toString() !== userId.toString()) {
+    if (product.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Geen toegang tot dit product");
     }
 

@@ -19,7 +19,7 @@ import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { requireKantoor } from "./roles";
-import { requireAuthUserId } from "./auth";
+import { requireOrgContext, requireOrgId } from "./auth";
 import {
   normaliseerProductnaam,
   bepaalPrijsOpRegel,
@@ -317,11 +317,11 @@ export const previewImport = query({
   },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const bestaande = await ctx.db
       .query("producten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     return valideerImportRijen(
@@ -343,7 +343,7 @@ export const importeer = mutation({
   },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
 
     if (args.rijen.length === 0) {
       throw new ConvexError("Geen rijen om te importeren");
@@ -351,14 +351,14 @@ export const importeer = mutation({
 
     if (args.leverancierId) {
       const leverancier = await ctx.db.get(args.leverancierId);
-      if (!leverancier || leverancier.userId.toString() !== userId.toString()) {
+      if (!leverancier || leverancier.orgId?.toString() !== org._id.toString()) {
         throw new ConvexError("Leverancier niet gevonden");
       }
     }
 
     const bestaande = await ctx.db
       .query("producten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", org._id))
       .collect();
 
     const acties = bepaalImportActies(args.rijen, bestaande, args.leverancierId);
@@ -403,7 +403,8 @@ export const importeer = mutation({
       }
 
       await ctx.db.insert("producten", {
-        userId,
+        orgId: org._id,
+        userId: user._id,
         productnaam: rij.naam.trim(),
         categorie: rij.categorie?.trim() || IMPORT_STANDAARD_CATEGORIE,
         inkoopprijs,

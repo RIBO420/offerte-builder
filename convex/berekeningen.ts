@@ -1,7 +1,7 @@
 import { v, ConvexError } from "convex/values";
 import { query, action } from "./_generated/server";
 import { api } from "./_generated/api";
-import { requireAuthUserId } from "./auth";
+import { requireOrgId } from "./auth";
 
 // Helper type for regel
 interface OfferteRegel {
@@ -31,21 +31,22 @@ function roundToQuarter(hours: number): number {
 export const getCalculationData = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     // Fetch all data in parallel using Promise.all
-    const [normuren, userCorrectieFactoren, systemCorrectieFactoren, producten, instellingen] = await Promise.all([
+    const [normuren, orgCorrectieFactoren, systemCorrectieFactoren, producten, instellingen] = await Promise.all([
       // Normuren
       ctx.db
         .query("normuren")
-        .withIndex("by_user_scope", (q) => q.eq("userId", userId))
+        .withIndex("by_org_scope", (q) => q.eq("orgId", orgId))
         .collect(),
-      // User correctiefactoren
+      // Correctiefactoren van deze organisatie
       ctx.db
         .query("correctiefactoren")
-        .withIndex("by_user_type", (q) => q.eq("userId", userId))
+        .withIndex("by_org_type", (q) => q.eq("orgId", orgId))
         .collect(),
-      // System correctiefactoren (defaults)
+      // Systeem-correctiefactoren (defaults): bewust de rijen ZONDER userId —
+      // die zijn bedrijfsoverstijgend en krijgen dus ook geen orgId.
       ctx.db
         .query("correctiefactoren")
         .filter((q) => q.eq(q.field("userId"), undefined))
@@ -53,18 +54,18 @@ export const getCalculationData = query({
       // Producten
       ctx.db
         .query("producten")
-        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
         .collect(),
       // Instellingen
       ctx.db
         .query("instellingen")
-        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
         .unique(),
     ]);
 
-    // Merge correctiefactoren: user overrides take precedence over system defaults
+    // Merge correctiefactoren: eigen overrides winnen van de systeemwaarden
     const overrideMap = new Map(
-      userCorrectieFactoren.map((f) => [`${f.type}-${f.waarde}`, f])
+      orgCorrectieFactoren.map((f) => [`${f.type}-${f.waarde}`, f])
     );
     const correctiefactoren = systemCorrectieFactoren.map((f) => {
       const override = overrideMap.get(`${f.type}-${f.waarde}`);
@@ -80,28 +81,31 @@ export const getCalculationData = query({
   },
 });
 
-// Get correction factor value
+/**
+ * Correctiefactor voor een type/waarde-combinatie.
+ *
+ * De tenant komt uit het JWT (org-claim), niet uit de argumenten: het oude
+ * `userId`-argument liet elke aanroeper de factoren van een ander bedrijf
+ * opvragen.
+ */
 export const getCorrectie = query({
   args: {
-    userId: v.optional(v.id("users")),
     type: v.string(),
     waarde: v.string(),
   },
   handler: async (ctx, args) => {
-    await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
-    // Try user override first
-    if (args.userId) {
-      const userFactor = await ctx.db
-        .query("correctiefactoren")
-        .withIndex("by_user_type", (q) =>
-          q.eq("userId", args.userId).eq("type", args.type)
-        )
-        .filter((q) => q.eq(q.field("waarde"), args.waarde))
-        .unique();
+    // Eigen override van de organisatie gaat voor
+    const orgFactor = await ctx.db
+      .query("correctiefactoren")
+      .withIndex("by_org_type", (q) =>
+        q.eq("orgId", orgId).eq("type", args.type)
+      )
+      .filter((q) => q.eq(q.field("waarde"), args.waarde))
+      .unique();
 
-      if (userFactor) return userFactor.factor;
-    }
+    if (orgFactor) return orgFactor.factor;
 
     // Fall back to system default
     const systemFactor = await ctx.db
@@ -119,20 +123,19 @@ export const getCorrectie = query({
   },
 });
 
-// Get normuur for activity
+// Get normuur for activity — tenant uit het JWT, niet uit de argumenten
 export const getNormuur = query({
   args: {
-    userId: v.id("users"),
     activiteit: v.string(),
     scope: v.string(),
   },
   handler: async (ctx, args) => {
-    await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const normuur = await ctx.db
       .query("normuren")
-      .withIndex("by_user_scope", (q) =>
-        q.eq("userId", args.userId).eq("scope", args.scope)
+      .withIndex("by_org_scope", (q) =>
+        q.eq("orgId", orgId).eq("scope", args.scope)
       )
       .filter((q) => q.eq(q.field("activiteit"), args.activiteit))
       .unique();
@@ -144,7 +147,6 @@ export const getNormuur = query({
 // Calculate grondwerk regels
 export const berekenGrondwerk = action({
   args: {
-    userId: v.id("users"),
     data: v.object({
       oppervlakte: v.number(),
       diepte: v.union(v.literal("licht"), v.literal("standaard"), v.literal("zwaar")),
@@ -165,20 +167,17 @@ export const berekenGrondwerk = action({
 
     // Get correction factors
     const bereikbaarheidFactor = await ctx.runQuery(api.berekeningen.getCorrectie, {
-      userId: args.userId,
       type: "bereikbaarheid",
       waarde: args.bereikbaarheid,
     });
 
     const diepteFactor = await ctx.runQuery(api.berekeningen.getCorrectie, {
-      userId: args.userId,
       type: "diepte",
       waarde: data.diepte,
     });
 
     // Get normuren
     const normuurOntgraven = await ctx.runQuery(api.berekeningen.getNormuur, {
-      userId: args.userId,
       activiteit: `Ontgraven ${data.diepte}`,
       scope: "grondwerk",
     });
@@ -223,7 +222,6 @@ export const berekenGrondwerk = action({
       const afvoerTarief = 35; // per m³
 
       const normuurAfvoer = await ctx.runQuery(api.berekeningen.getNormuur, {
-        userId: args.userId,
         activiteit: "Grond afvoeren",
         scope: "grondwerk",
       });
@@ -261,7 +259,6 @@ export const berekenGrondwerk = action({
 // Calculate bestrating regels (inclusief verplichte onderbouw)
 export const berekenBestrating = action({
   args: {
-    userId: v.id("users"),
     data: v.object({
       oppervlakte: v.number(),
       typeBestrating: v.union(v.literal("tegel"), v.literal("klinker"), v.literal("natuursteen")),
@@ -287,13 +284,11 @@ export const berekenBestrating = action({
 
     // Get correction factors
     const bereikbaarheidFactor = await ctx.runQuery(api.berekeningen.getCorrectie, {
-      userId: args.userId,
       type: "bereikbaarheid",
       waarde: args.bereikbaarheid,
     });
 
     const snijwerkFactor = await ctx.runQuery(api.berekeningen.getCorrectie, {
-      userId: args.userId,
       type: "snijwerk",
       waarde: data.snijwerk,
     });
@@ -333,7 +328,6 @@ export const berekenBestrating = action({
 
     // Onderbouw arbeid
     const normuurZand = await ctx.runQuery(api.berekeningen.getNormuur, {
-      userId: args.userId,
       activiteit: "Zandbed aanbrengen",
       scope: "bestrating",
     });
@@ -357,7 +351,6 @@ export const berekenBestrating = action({
       const opsluitbandPrijs = 8; // per meter
 
       const normuurOpsluit = await ctx.runQuery(api.berekeningen.getNormuur, {
-        userId: args.userId,
         activiteit: "Opsluitbanden plaatsen",
         scope: "bestrating",
       });
@@ -390,7 +383,6 @@ export const berekenBestrating = action({
     // Bestrating leggen
     const activiteit = `${data.typeBestrating.charAt(0).toUpperCase() + data.typeBestrating.slice(1)}s leggen`;
     const normuurLeggen = await ctx.runQuery(api.berekeningen.getNormuur, {
-      userId: args.userId,
       activiteit,
       scope: "bestrating",
     });
@@ -415,7 +407,6 @@ export const berekenBestrating = action({
 // Calculate heggen onderhoud (volume berekening L×H×B)
 export const berekenHeggenOnderhoud = action({
   args: {
-    userId: v.id("users"),
     data: v.object({
       lengte: v.number(),
       hoogte: v.number(),
@@ -442,19 +433,16 @@ export const berekenHeggenOnderhoud = action({
 
     // Get correction factors
     const bereikbaarheidFactor = await ctx.runQuery(api.berekeningen.getCorrectie, {
-      userId: args.userId,
       type: "bereikbaarheid",
       waarde: args.bereikbaarheid,
     });
 
     const achterstalligFactor = await ctx.runQuery(api.berekeningen.getCorrectie, {
-      userId: args.userId,
       type: "achterstalligheid",
       waarde: args.achterstalligheid,
     });
 
     const snoeiFactor = await ctx.runQuery(api.berekeningen.getCorrectie, {
-      userId: args.userId,
       type: "snoei",
       waarde: data.snoei,
     });
@@ -463,7 +451,6 @@ export const berekenHeggenOnderhoud = action({
     let hoogteFactor = 1.0;
     if (data.hoogte > 2) {
       hoogteFactor = await ctx.runQuery(api.berekeningen.getCorrectie, {
-        userId: args.userId,
         type: "hoogte",
         waarde: data.hoogte > 3 ? "hoog" : "middel",
       });
@@ -471,7 +458,6 @@ export const berekenHeggenOnderhoud = action({
 
     // Normuur snoeien
     const normuurSnoeien = await ctx.runQuery(api.berekeningen.getNormuur, {
-      userId: args.userId,
       activiteit: "Heg snoeien",
       scope: "heggen_onderhoud",
     });
@@ -496,7 +482,6 @@ export const berekenHeggenOnderhoud = action({
       const afvoerTarief = 25;
 
       const normuurAfvoer = await ctx.runQuery(api.berekeningen.getNormuur, {
-        userId: args.userId,
         activiteit: "Snoeisel afvoeren",
         scope: "heggen_onderhoud",
       });
@@ -534,7 +519,6 @@ export const berekenHeggenOnderhoud = action({
 // Calculate borders onderhoud (met verplichte intensiteit)
 export const berekenBordersOnderhoud = action({
   args: {
-    userId: v.id("users"),
     data: v.object({
       borderOppervlakte: v.number(),
       onderhoudsintensiteit: v.union(v.literal("weinig"), v.literal("gemiddeld"), v.literal("veel")),
@@ -559,25 +543,21 @@ export const berekenBordersOnderhoud = action({
 
     // Get correction factors
     const bereikbaarheidFactor = await ctx.runQuery(api.berekeningen.getCorrectie, {
-      userId: args.userId,
       type: "bereikbaarheid",
       waarde: args.bereikbaarheid,
     });
 
     const achterstalligFactor = await ctx.runQuery(api.berekeningen.getCorrectie, {
-      userId: args.userId,
       type: "achterstalligheid",
       waarde: args.achterstalligheid,
     });
 
     const intensiteitFactor = await ctx.runQuery(api.berekeningen.getCorrectie, {
-      userId: args.userId,
       type: "intensiteit",
       waarde: data.onderhoudsintensiteit,
     });
 
     const bodemFactor = await ctx.runQuery(api.berekeningen.getCorrectie, {
-      userId: args.userId,
       type: "bodem",
       waarde: data.bodem,
     });
@@ -586,7 +566,6 @@ export const berekenBordersOnderhoud = action({
     if (data.onkruidVerwijderen) {
       const activiteit = `Wieden ${data.onderhoudsintensiteit}`;
       const normuurWieden = await ctx.runQuery(api.berekeningen.getNormuur, {
-        userId: args.userId,
         activiteit,
         scope: "borders_onderhoud",
       });
@@ -610,7 +589,6 @@ export const berekenBordersOnderhoud = action({
     if (data.snoeiInBorders !== "geen") {
       const activiteit = `Snoei ${data.snoeiInBorders}`;
       const normuurSnoei = await ctx.runQuery(api.berekeningen.getNormuur, {
-        userId: args.userId,
         activiteit,
         scope: "borders_onderhoud",
       });

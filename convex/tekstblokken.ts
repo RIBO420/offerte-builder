@@ -12,6 +12,7 @@
 
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { requireOrgId } from "./auth";
 import { requireKantoor, requireNotViewer } from "./roles";
 
 // ─── Domeinconstanten (gedeeld met de UI) ────────────────────────────────────
@@ -76,7 +77,11 @@ export const list = query({
   args: {},
   handler: async (ctx) => {
     await requireKantoor(ctx);
-    const blokken = await ctx.db.query("tekstblokken").collect();
+    const orgId = await requireOrgId(ctx);
+    const blokken = await ctx.db
+      .query("tekstblokken")
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
+      .collect();
     return blokken.sort(
       (a, b) =>
         a.categorie.localeCompare(b.categorie) || a.volgorde - b.volgorde
@@ -94,19 +99,20 @@ export const actief = query({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const blokken = args.categorie
-      ? await ctx.db
-          .query("tekstblokken")
-          .withIndex("by_categorie", (q) =>
-            q.eq("categorie", args.categorie!).eq("actief", true)
-          )
-          .collect()
-      : (
-          await ctx.db
-            .query("tekstblokken")
-            .withIndex("by_actief", (q) => q.eq("actief", true))
-            .collect()
-        ).sort((a, b) => a.categorie.localeCompare(b.categorie));
+    const orgId = await requireOrgId(ctx);
+
+    // by_categorie/by_actief zijn bedrijfsoverstijgend; de tenantgrens is
+    // by_org, dus we filteren categorie/actief daarna in het geheugen — de
+    // bibliotheek van één organisatie is klein.
+    const eigen = await ctx.db
+      .query("tekstblokken")
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
+      .collect();
+
+    const blokken = eigen.filter(
+      (b) =>
+        b.actief && (args.categorie ? b.categorie === args.categorie : true)
+    );
 
     return [...blokken].sort(
       (a, b) =>
@@ -126,15 +132,19 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
+    const orgId = await requireOrgId(ctx);
     valideerTekstblok(args);
 
-    // Zonder expliciete volgorde: achteraan in de categorie
+    // Zonder expliciete volgorde: achteraan in de categorie — binnen de eigen
+    // organisatie, niet bedrijfsoverstijgend.
     let volgorde = args.volgorde;
     if (volgorde === undefined) {
-      const inCategorie = await ctx.db
-        .query("tekstblokken")
-        .withIndex("by_categorie", (q) => q.eq("categorie", args.categorie))
-        .collect();
+      const inCategorie = (
+        await ctx.db
+          .query("tekstblokken")
+          .withIndex("by_org", (q) => q.eq("orgId", orgId))
+          .collect()
+      ).filter((b) => b.categorie === args.categorie);
       volgorde =
         inCategorie.length === 0
           ? 0
@@ -143,6 +153,7 @@ export const create = mutation({
 
     const nu = Date.now();
     return await ctx.db.insert("tekstblokken", {
+      orgId,
       naam: args.naam.trim(),
       categorie: args.categorie,
       inhoud: args.inhoud,
@@ -164,9 +175,10 @@ export const update = mutation({
   },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const blok = await ctx.db.get(args.id);
-    if (!blok) {
+    if (!blok || blok.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Tekstblok niet gevonden");
     }
 
@@ -196,9 +208,10 @@ export const setActief = mutation({
   },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const blok = await ctx.db.get(args.id);
-    if (!blok) {
+    if (!blok || blok.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Tekstblok niet gevonden");
     }
 

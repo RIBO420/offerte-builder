@@ -1,8 +1,15 @@
 import { v, ConvexError } from "convex/values";
-import { mutation, query, internalQuery } from "./_generated/server";
 import {
-  requireAuth,
-  requireAuthUserId,
+  mutation,
+  query,
+  internalQuery,
+  type QueryCtx,
+  type MutationCtx,
+} from "./_generated/server";
+import {
+  AuthError,
+  requireOrgContext,
+  requireOrgId,
   getOwnedOfferte,
   getOwnedKlant,
 } from "./auth";
@@ -39,6 +46,30 @@ function klantSnapshot(klant: Doc<"klanten">): OfferteKlant {
     email: klant.email,
     telefoon: klant.telefoon,
   };
+}
+
+/**
+ * Offerte ophalen en toetsen aan een AL opgehaalde `orgId`.
+ *
+ * `getOwnedOfferte` roept zelf `requireOrgId` aan. In een bulk-lus betekent dat
+ * per document opnieuw de identity- en organisatie-lookup; daarom hoisten de
+ * bulkroutes de resolver naar boven en gebruiken ze deze variant. De
+ * foutmeldingen zijn identiek aan `verifyOrgOwnership`, zodat de bulkroute geen
+ * ander verhaal vertelt dan de losse route.
+ */
+async function offerteVanOrg(
+  ctx: QueryCtx | MutationCtx,
+  id: Id<"offertes">,
+  orgId: Id<"organisaties">
+): Promise<Doc<"offertes">> {
+  const offerte = await ctx.db.get(id);
+  if (!offerte) {
+    throw new AuthError("offerte niet gevonden");
+  }
+  if (offerte.orgId?.toString() !== orgId.toString()) {
+    throw new AuthError("Je hebt geen toegang tot deze offerte");
+  }
+  return offerte;
 }
 
 const klantValidator = v.object({
@@ -101,10 +132,10 @@ export const list = query({
     includeDeleted: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const offertes = await ctx.db
       .query("offertes")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .order("desc")
       .collect();
 
@@ -130,12 +161,12 @@ export const listPaginated = query({
     cursor: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const limit = args.limit || 25;
 
     const result = await ctx.db
       .query("offertes")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .order("desc")
       .paginate({ numItems: limit, cursor: args.cursor ?? null });
 
@@ -151,11 +182,11 @@ export const listPaginated = query({
 export const getDashboardData = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     // Get all offertes in one query
     const allOffertes = await ctx.db
       .query("offertes")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .order("desc")
       .collect();
 
@@ -200,23 +231,23 @@ export const getDashboardData = query({
 export const getFullDashboardData = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     // Batch fetch all data in parallel using Promise.all
     const [allOffertes, allProjects, allFacturen] = await Promise.all([
       ctx.db
         .query("offertes")
-        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
         .order("desc")
         .collect(),
       ctx.db
         .query("projecten")
-        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
         .order("desc")
         .collect(),
       ctx.db
         .query("facturen")
-        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
         .order("desc")
         .collect(),
     ]);
@@ -474,10 +505,10 @@ export const listByStatus = query({
     includeArchived: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const offertes = await ctx.db
       .query("offertes")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // Filter by status, exclude archived unless specified, and exclude deleted
@@ -497,13 +528,13 @@ export const listVerweesdeConcepten = query({
     ouderDanDagen: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const dagen = args.ouderDanDagen ?? 14;
     const grens = Date.now() - dagen * 24 * 60 * 60 * 1000;
 
     const offertes = await ctx.db
       .query("offertes")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     return offertes
@@ -534,8 +565,8 @@ export const get = query({
     if (!offerte) return null;
 
     // Verify ownership
-    const user = await requireAuth(ctx);
-    if (offerte.userId.toString() !== user._id.toString()) {
+    const orgId = await requireOrgId(ctx);
+    if (offerte.orgId?.toString() !== orgId.toString()) {
       return null; // Don't reveal existence to unauthorized users
     }
 
@@ -551,8 +582,8 @@ export const getWithVoorcalculatie = query({
     if (!offerte) return null;
 
     // Verify ownership
-    const user = await requireAuth(ctx);
-    if (offerte.userId.toString() !== user._id.toString()) {
+    const orgId = await requireOrgId(ctx);
+    if (offerte.orgId?.toString() !== orgId.toString()) {
       return null; // Don't reveal existence to unauthorized users
     }
 
@@ -571,15 +602,17 @@ export const getWithVoorcalculatie = query({
 export const getByNummer = query({
   args: { offerteNummer: v.string() },
   handler: async (ctx, args) => {
-    const user = await requireNotViewer(ctx);
-    const offerte = await ctx.db
+    await requireNotViewer(ctx);
+    const orgId = await requireOrgId(ctx);
+    // by_nummer is bedrijfsoverstijgend: nummers zijn per organisatie uniek,
+    // dus alle treffers ophalen en die van de eigen organisatie kiezen.
+    const treffers = await ctx.db
       .query("offertes")
       .withIndex("by_nummer", (q) => q.eq("offerteNummer", args.offerteNummer))
-      .unique();
-    if (!offerte || offerte.userId.toString() !== user._id.toString()) {
-      return null;
-    }
-    return offerte;
+      .collect();
+    return (
+      treffers.find((o) => o.orgId?.toString() === orgId.toString()) ?? null
+    );
   },
 });
 
@@ -612,7 +645,8 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
+    const userId = user._id;
     const now = Date.now();
 
     // Klant uit het dossier wint van losse velden: zo staat er nooit een
@@ -620,7 +654,7 @@ export const create = mutation({
     let klant = args.klant;
     if (args.klantId) {
       const klantDoc = await ctx.db.get(args.klantId);
-      if (klantDoc && klantDoc.userId.toString() === userId.toString()) {
+      if (klantDoc && klantDoc.orgId?.toString() === org._id.toString()) {
         klant = klant ?? klantSnapshot(klantDoc);
       }
     }
@@ -629,6 +663,7 @@ export const create = mutation({
       args.offerteNummer ?? (await reserveerOfferteNummer(ctx, userId));
 
     const offerteId = await ctx.db.insert("offertes", {
+      orgId: org._id,
       userId,
       type: args.type,
       status: "concept",
@@ -662,6 +697,7 @@ export const create = mutation({
     if (offerte) {
       await ctx.db.insert("offerte_versions", {
         offerteId,
+        orgId: org._id,
         userId,
         versieNummer: 1,
         snapshot: {
@@ -724,6 +760,7 @@ export const update = mutation({
   },
   handler: async (ctx, args) => {
     const user = await requireNotViewer(ctx);
+    const orgId = await requireOrgId(ctx);
     // Verify ownership before updating
     const offerte = await getOwnedOfferte(ctx, args.id);
 
@@ -743,6 +780,7 @@ export const update = mutation({
 
       await ctx.db.insert("offerte_versions", {
         offerteId: id,
+        orgId,
         userId: user._id,
         versieNummer,
         snapshot: {
@@ -815,6 +853,7 @@ export const update = mutation({
 
         await ctx.db.insert("offerte_versions", {
           offerteId: id,
+          orgId,
           userId: updatedOfferte.userId,
           versieNummer,
           snapshot: {
@@ -874,6 +913,7 @@ export const koppelKlant = mutation({
   },
   handler: async (ctx, args) => {
     const user = await requireNotViewer(ctx);
+    const orgId = await requireOrgId(ctx);
     const offerte = await getOwnedOfferte(ctx, args.id);
 
     if (offerte.status !== "concept" && offerte.status !== "voorcalculatie") {
@@ -923,6 +963,7 @@ export const koppelKlant = mutation({
 
     await ctx.db.insert("offerte_versions", {
       offerteId: args.id,
+      orgId,
       userId: user._id,
       versieNummer: (versions[0]?.versieNummer ?? 0) + 1,
       snapshot: {
@@ -1017,6 +1058,7 @@ export const updateRegels = mutation({
   },
   handler: async (ctx, args) => {
     const user = await requireNotViewer(ctx);
+    const orgId = await requireOrgId(ctx);
     // Verify ownership before updating
     const offerte = await getOwnedOfferte(ctx, args.id);
 
@@ -1036,6 +1078,7 @@ export const updateRegels = mutation({
 
       await ctx.db.insert("offerte_versions", {
         offerteId: args.id,
+        orgId,
         userId: user._id,
         versieNummer,
         snapshot: {
@@ -1152,6 +1195,7 @@ export const updateRegels = mutation({
 
         await ctx.db.insert("offerte_versions", {
           offerteId: args.id,
+          orgId,
           userId: offerte.userId,
           versieNummer,
           snapshot: {
@@ -1203,6 +1247,7 @@ export const updateStatus = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
+    const orgId = await requireOrgId(ctx);
     // Capability "versturen naar klant" (PRD §1.2): de overgang naar
     // "verzonden" triggert e-mail/portaalnotificatie — alleen kantoor
     if (args.status === "verzonden") {
@@ -1342,6 +1387,7 @@ export const updateStatus = mutation({
 
       await ctx.db.insert("offerte_versions", {
         offerteId: args.id,
+        orgId,
         userId: offerte.userId,
         versieNummer,
         snapshot: {
@@ -1521,11 +1567,12 @@ export const duplicate = mutation({
     await requireNotViewer(ctx);
     // Verify ownership before duplicating
     const original = await getOwnedOfferte(ctx, args.id);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
     const now = Date.now();
 
     return await ctx.db.insert("offertes", {
-      userId,
+      orgId: org._id,
+      userId: user._id,
       type: original.type,
       status: "concept",
       // `bron` bepaalt welke editor de kopie opent (PRD §2.5b). Zonder deze
@@ -1556,10 +1603,10 @@ export const duplicate = mutation({
 export const getStats = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const offertes = await ctx.db
       .query("offertes")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     const stats = {
@@ -1589,10 +1636,10 @@ export const getStats = query({
 export const getRevenueStats = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const offertes = await ctx.db
       .query("offertes")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     let totalAcceptedValue = 0;
@@ -1641,12 +1688,12 @@ export const getRecent = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const limit = args.limit || 5;
 
     return await ctx.db
       .query("offertes")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .order("desc")
       .take(limit);
   },
@@ -1668,11 +1715,13 @@ export const bulkUpdateStatus = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
+    // Resolver één keer buiten de lus (niet per document, zie offerteVanOrg)
+    const orgId = await requireOrgId(ctx);
     const now = Date.now();
 
     for (const id of args.ids) {
       // Verify ownership for each offerte
-      const bestaande = await getOwnedOfferte(ctx, id);
+      const bestaande = await offerteVanOrg(ctx, id, orgId);
 
       // Zelfde harde klant-guard als in updateStatus: bulk mag geen sluiproute
       // zijn om een concept zonder klant op verzonden/geaccepteerd te zetten.
@@ -1722,10 +1771,11 @@ export const bulkRemove = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
+    const orgId = await requireOrgId(ctx);
     const now = Date.now();
     for (const id of args.ids) {
       // Verify ownership for each offerte
-      await getOwnedOfferte(ctx, id);
+      await offerteVanOrg(ctx, id, orgId);
       await ctx.db.patch(id, {
         deletedAt: now,
         updatedAt: now,
@@ -1742,10 +1792,11 @@ export const bulkRestore = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
+    const orgId = await requireOrgId(ctx);
     const now = Date.now();
     for (const id of args.ids) {
       // Verify ownership for each offerte
-      await getOwnedOfferte(ctx, id);
+      await offerteVanOrg(ctx, id, orgId);
       await ctx.db.patch(id, {
         deletedAt: undefined,
         updatedAt: now,
@@ -1759,12 +1810,12 @@ export const bulkRestore = mutation({
 export const getAcceptedOffertesWithoutProject = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
-    // Get all accepted offertes for this user
+    // Get all accepted offertes for this organisation
     const acceptedOffertes = await ctx.db
       .query("offertes")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // Filter to only accepted offertes
@@ -1776,10 +1827,11 @@ export const getAcceptedOffertesWithoutProject = query({
       return [];
     }
 
-    // Get all projects for this user to check which offertes already have a project
+    // Get all projects for this organisation to check which offertes already
+    // have a project
     const projects = await ctx.db
       .query("projecten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // Create a Set of offerteIds that have a project

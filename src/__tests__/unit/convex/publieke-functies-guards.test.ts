@@ -68,13 +68,42 @@ const getOntbrekendeAdresParenHandler = handlerVan<
   unknown
 >(getOntbrekendeAdresParen);
 
+// ─── Org-scope in de mock-ctx ────────────────────────────────────────────────
+//
+// Sinds de Clerk-Organizations-migratie is de tenantgrens de organisatie uit de
+// `org_id`-claim, niet de user. De gedeelde `createMockCtx` levert een identity
+// zónder die claim; deze twee helpers zetten er een actieve organisatie omheen.
+
+const TEST_CLERK_ORG_ID = "org_test_123";
+
+function insertOrganisatie(store: MockConvexStore): string {
+  return store.insert("organisaties", {
+    clerkOrgId: TEST_CLERK_ORG_ID,
+    naam: "Top Tuinen",
+    slug: "top-tuinen",
+    actief: true,
+    aangemaaktOp: Date.now(),
+  });
+}
+
+function orgCtx(store: MockConvexStore) {
+  const ctx = createMockCtx(store);
+  ctx.auth.getUserIdentity.mockResolvedValue({
+    subject: "clerk_test_user_123",
+    org_id: TEST_CLERK_ORG_ID,
+  });
+  return ctx;
+}
+
 // ─── standaardtuinen.get ─────────────────────────────────────────────────────
 
 describe("standaardtuinen.get — auth + eigendomsscope", () => {
   function maakStore() {
     const store = new MockConvexStore();
+    const orgId = insertOrganisatie(store);
     const eigenaarId = store.insert("users", createMockUser());
-    // Systeemtemplate: geen userId → voor iedere ingelogde gebruiker zichtbaar
+    // Systeemtemplate: geen userId (en dus ook geen orgId) → voor iedere
+    // ingelogde gebruiker zichtbaar
     const systeemId = store.insert("standaardtuinen", {
       naam: "Kleine stadstuin",
       type: "aanleg",
@@ -83,6 +112,7 @@ describe("standaardtuinen.get — auth + eigendomsscope", () => {
     });
     const eigenId = store.insert("standaardtuinen", {
       userId: eigenaarId,
+      orgId,
       naam: "Eigen sjabloon",
       type: "aanleg",
       scopes: [],
@@ -90,6 +120,7 @@ describe("standaardtuinen.get — auth + eigendomsscope", () => {
     });
     const vreemdId = store.insert("standaardtuinen", {
       userId: "users:999",
+      orgId: "organisaties:999",
       naam: "Sjabloon van ander bedrijf",
       type: "aanleg",
       scopes: [],
@@ -100,14 +131,14 @@ describe("standaardtuinen.get — auth + eigendomsscope", () => {
 
   it("geeft een systeemtemplate terug aan een ingelogde gebruiker", async () => {
     const { store, systeemId } = maakStore();
-    const ctx = createMockCtx(store) as unknown as QueryCtx;
+    const ctx = orgCtx(store) as unknown as QueryCtx;
     const template = await getStandaardtuinHandler(ctx, { id: systeemId });
     expect(template?.naam).toBe("Kleine stadstuin");
   });
 
   it("geeft een eigen template terug", async () => {
     const { store, eigenId } = maakStore();
-    const ctx = createMockCtx(store) as unknown as QueryCtx;
+    const ctx = orgCtx(store) as unknown as QueryCtx;
     const template = await getStandaardtuinHandler(ctx, { id: eigenId });
     expect(template?.naam).toBe("Eigen sjabloon");
   });
@@ -116,13 +147,13 @@ describe("standaardtuinen.get — auth + eigendomsscope", () => {
     // Bewust dezelfde uitkomst als bij een onbekend id: een aparte foutmelding
     // zou verraden dát het record bestaat.
     const { store, vreemdId } = maakStore();
-    const ctx = createMockCtx(store) as unknown as QueryCtx;
+    const ctx = orgCtx(store) as unknown as QueryCtx;
     expect(await getStandaardtuinHandler(ctx, { id: vreemdId })).toBeNull();
   });
 
   it("weigert een niet-ingelogde aanroeper", async () => {
     const { store, systeemId } = maakStore();
-    const mockCtx = createMockCtx(store);
+    const mockCtx = orgCtx(store);
     mockCtx.auth.getUserIdentity.mockResolvedValue(null);
     await expect(
       getStandaardtuinHandler(mockCtx as unknown as QueryCtx, { id: systeemId })
@@ -131,7 +162,7 @@ describe("standaardtuinen.get — auth + eigendomsscope", () => {
 
   it("geeft null bij een onbekend id (geen bestaanslek via foutmelding)", async () => {
     const { store } = maakStore();
-    const ctx = createMockCtx(store) as unknown as QueryCtx;
+    const ctx = orgCtx(store) as unknown as QueryCtx;
     const template = await getStandaardtuinHandler(ctx, {
       id: "standaardtuinen:onbekend",
     });
@@ -176,9 +207,11 @@ describe("standaardtuinen.createOfferteFromTemplate — eigendomscheck", () => {
 
   function maakStore() {
     const store = new MockConvexStore();
+    const orgId = insertOrganisatie(store);
     const eigenaarId = store.insert("users", createMockUser());
     const eigenId = store.insert("standaardtuinen", {
       userId: eigenaarId,
+      orgId,
       naam: "Eigen sjabloon",
       type: "aanleg",
       scopes: ["grondwerk"],
@@ -186,25 +219,28 @@ describe("standaardtuinen.createOfferteFromTemplate — eigendomscheck", () => {
     });
     const vreemdId = store.insert("standaardtuinen", {
       userId: "users:999",
+      orgId: "organisaties:999",
       naam: "Sjabloon van ander bedrijf",
       type: "aanleg",
       scopes: ["geheim"],
       defaultWaarden: { geheim: true },
     });
-    return { store, eigenId, vreemdId };
+    return { store, orgId, eigenId, vreemdId };
   }
 
   it("maakt een offerte uit een eigen template", async () => {
-    const { store, eigenId } = maakStore();
-    const ctx = createMockCtx(store) as unknown as MutationCtx;
+    const { store, orgId, eigenId } = maakStore();
+    const ctx = orgCtx(store) as unknown as MutationCtx;
     await handler(ctx, maakArgs(eigenId));
     expect(store.getAll("offertes")).toHaveLength(1);
     expect(store.getAll("offertes")[0].scopes).toEqual(["grondwerk"]);
+    // De nieuwe offerte hangt aan de organisatie van de aanroeper
+    expect(store.getAll("offertes")[0].orgId).toBe(orgId);
   });
 
   it("kopieert geen template van een ander bedrijf", async () => {
     const { store, vreemdId } = maakStore();
-    const ctx = createMockCtx(store) as unknown as MutationCtx;
+    const ctx = orgCtx(store) as unknown as MutationCtx;
     await expect(handler(ctx, maakArgs(vreemdId))).rejects.toThrow(
       /niet gevonden/i
     );

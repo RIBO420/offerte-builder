@@ -15,7 +15,7 @@
 
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAuth } from "./auth";
+import { requireAuth, requireOrgId } from "./auth";
 import { requireKantoor } from "./roles";
 
 /** Startwaarde uurtarief ex btw (PRD §2.5a, besluit Romeo 8 juli 2026). */
@@ -80,8 +80,12 @@ export const getUurtariefOpDatum = query({
   args: { datum: v.string() },
   handler: async (ctx, args) => {
     await requireAuth(ctx);
+    const orgId = await requireOrgId(ctx);
     valideerIngangsdatum(args.datum);
-    const tarieven = await ctx.db.query("uurtarieven").collect();
+    const tarieven = await ctx.db
+      .query("uurtarieven")
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
+      .collect();
     return bepaalTariefOpDatum(tarieven, args.datum);
   },
 });
@@ -91,7 +95,11 @@ export const getHuidig = query({
   args: {},
   handler: async (ctx) => {
     await requireAuth(ctx);
-    const tarieven = await ctx.db.query("uurtarieven").collect();
+    const orgId = await requireOrgId(ctx);
+    const tarieven = await ctx.db
+      .query("uurtarieven")
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
+      .collect();
     return bepaalTariefOpDatum(tarieven, vandaagIso());
   },
 });
@@ -101,7 +109,11 @@ export const listHistorie = query({
   args: {},
   handler: async (ctx) => {
     await requireKantoor(ctx);
-    const tarieven = await ctx.db.query("uurtarieven").collect();
+    const orgId = await requireOrgId(ctx);
+    const tarieven = await ctx.db
+      .query("uurtarieven")
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
+      .collect();
     return tarieven.sort((a, b) =>
       b.ingangsdatum.localeCompare(a.ingangsdatum)
     );
@@ -123,18 +135,23 @@ export const nieuwTarief = mutation({
   },
   handler: async (ctx, args) => {
     const user = await requireKantoor(ctx);
+    const orgId = await requireOrgId(ctx);
 
     if (!Number.isFinite(args.bedrag) || args.bedrag <= 0) {
       throw new ConvexError("Uurtarief moet groter dan 0 zijn");
     }
     valideerIngangsdatum(args.ingangsdatum);
 
-    const bestaand = await ctx.db
-      .query("uurtarieven")
-      .withIndex("by_ingangsdatum", (q) =>
-        q.eq("ingangsdatum", args.ingangsdatum)
-      )
-      .unique();
+    // Eén tarief per ingangsdatum PER ORGANISATIE. De by_ingangsdatum-index
+    // is bedrijfsoverstijgend en zou met `.unique()` op de datum van een
+    // andere organisatie stukslaan; daarom scopen we eerst op by_org en
+    // zoeken de datum in het (korte) tariefoverzicht.
+    const bestaand = (
+      await ctx.db
+        .query("uurtarieven")
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
+        .collect()
+    ).find((t) => t.ingangsdatum === args.ingangsdatum);
 
     if (bestaand) {
       await ctx.db.patch(bestaand._id, {
@@ -146,6 +163,7 @@ export const nieuwTarief = mutation({
     }
 
     return await ctx.db.insert("uurtarieven", {
+      orgId,
       bedrag: args.bedrag,
       ingangsdatum: args.ingangsdatum,
       opmerking: args.opmerking,

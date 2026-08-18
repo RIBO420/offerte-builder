@@ -1,34 +1,37 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAuthUserId, getAuthenticatedUser } from "./auth";
+import { requireOrgContext, requireOrgId } from "./auth";
 import { requireNotViewer } from "./roles";
 
-// Get all correction factors for authenticated user (falls back to system defaults)
+/**
+ * Correctiefactoren van de organisatie, met de systeemwaarden eronder.
+ *
+ * Systeemdefaults zijn de rijen ZONDER `userId` (en dus ook zonder `orgId`):
+ * die zijn bedrijfsoverstijgend en blijven dat. Alles wat een organisatie zelf
+ * aanpast krijgt een `orgId` en wint van de systeemwaarde met dezelfde
+ * type/waarde-combinatie.
+ */
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
-    // First get system defaults (userId = undefined)
+    // Systeemdefaults (userId = undefined) — bewuste undefined-match, want
+    // "geen eigenaar" ís hier de betekenis (CLAUDE.md regel 4).
     const systemDefaults = await ctx.db
       .query("correctiefactoren")
       .filter((q) => q.eq(q.field("userId"), undefined))
       .collect();
 
-    const user = await getAuthenticatedUser(ctx);
-    if (!user) {
-      return systemDefaults;
-    }
-
-    // Get user overrides
-    const userOverrides = await ctx.db
+    // Eigen overrides van deze organisatie
+    const orgOverrides = await ctx.db
       .query("correctiefactoren")
-      .withIndex("by_user_type", (q) => q.eq("userId", user._id))
+      .withIndex("by_org_type", (q) => q.eq("orgId", orgId))
       .collect();
 
-    // Merge: user overrides take precedence
+    // Merge: eigen overrides winnen
     const overrideMap = new Map(
-      userOverrides.map((f) => [`${f.type}-${f.waarde}`, f])
+      orgOverrides.map((f) => [`${f.type}-${f.waarde}`, f])
     );
 
     const merged = systemDefaults.map((f) => {
@@ -47,19 +50,16 @@ export const getByTypeAndValue = query({
     waarde: v.string(),
   },
   handler: async (ctx, args) => {
-    await requireAuthUserId(ctx);
-    const user = await getAuthenticatedUser(ctx);
+    const orgId = await requireOrgId(ctx);
 
-    // Try user override first
-    if (user) {
-      const userFactor = await ctx.db
-        .query("correctiefactoren")
-        .withIndex("by_user_type", (q) => q.eq("userId", user._id).eq("type", args.type))
-        .filter((q) => q.eq(q.field("waarde"), args.waarde))
-        .unique();
+    // Eigen override van de organisatie gaat voor
+    const orgFactor = await ctx.db
+      .query("correctiefactoren")
+      .withIndex("by_org_type", (q) => q.eq("orgId", orgId).eq("type", args.type))
+      .filter((q) => q.eq(q.field("waarde"), args.waarde))
+      .unique();
 
-      if (userFactor) return userFactor;
-    }
+    if (orgFactor) return orgFactor;
 
     // Fall back to system default
     const systemFactor = await ctx.db
@@ -83,7 +83,7 @@ export const getByType = query({
     type: v.string(),
   },
   handler: async (ctx, args) => {
-    await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const systemFactors = await ctx.db
       .query("correctiefactoren")
       .filter((q) =>
@@ -94,18 +94,13 @@ export const getByType = query({
       )
       .collect();
 
-    const user = await getAuthenticatedUser(ctx);
-    if (!user) {
-      return systemFactors;
-    }
-
-    const userFactors = await ctx.db
+    const orgFactors = await ctx.db
       .query("correctiefactoren")
-      .withIndex("by_user_type", (q) => q.eq("userId", user._id).eq("type", args.type))
+      .withIndex("by_org_type", (q) => q.eq("orgId", orgId).eq("type", args.type))
       .collect();
 
     // Merge
-    const overrideMap = new Map(userFactors.map((f) => [f.waarde, f]));
+    const overrideMap = new Map(orgFactors.map((f) => [f.waarde, f]));
     return systemFactors.map((f) => overrideMap.get(f.waarde) || f);
   },
 });
@@ -119,11 +114,13 @@ export const upsert = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
 
     const existing = await ctx.db
       .query("correctiefactoren")
-      .withIndex("by_user_type", (q) => q.eq("userId", userId).eq("type", args.type))
+      .withIndex("by_org_type", (q) =>
+        q.eq("orgId", org._id).eq("type", args.type)
+      )
       .filter((q) => q.eq(q.field("waarde"), args.waarde))
       .unique();
 
@@ -133,7 +130,8 @@ export const upsert = mutation({
     }
 
     return await ctx.db.insert("correctiefactoren", {
-      userId,
+      orgId: org._id,
+      userId: user._id,
       type: args.type,
       waarde: args.waarde,
       factor: args.factor,
@@ -149,11 +147,11 @@ export const resetToDefault = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const existing = await ctx.db
       .query("correctiefactoren")
-      .withIndex("by_user_type", (q) => q.eq("userId", userId).eq("type", args.type))
+      .withIndex("by_org_type", (q) => q.eq("orgId", orgId).eq("type", args.type))
       .filter((q) => q.eq(q.field("waarde"), args.waarde))
       .unique();
 
@@ -231,6 +229,8 @@ export const initializeSystemDefaults = mutation({
     ];
 
     for (const factor of defaults) {
+      // Systeembreed: bewust ZONDER userId én zonder orgId — dit zijn de
+      // waarden waar elke organisatie op terugvalt.
       await ctx.db.insert("correctiefactoren", {
         userId: undefined,
         ...factor,

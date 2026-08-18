@@ -16,12 +16,8 @@
 import { v, ConvexError } from "convex/values";
 import { mutation } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
-import { requireAuth } from "./auth";
-import {
-  CANONIEKE_ROL_MAPPING,
-  getCompanyUserId,
-  normalizeRole,
-} from "./roles";
+import { requireAuth, requireOrgId } from "./auth";
+import { CANONIEKE_ROL_MAPPING, normalizeRole } from "./roles";
 import { assertStatusVoorType, getType, type WerkItem } from "./werkitems";
 import { logTijdlijnEvent } from "./tijdlijn";
 import {
@@ -64,13 +60,13 @@ export const rondWerkitemAf = mutation({
     if (!magAfronden(rol)) {
       throw new ConvexError("De afrondingsflow is niet beschikbaar voor deze rol");
     }
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const werkitem = await ctx.db.get(args.werkitemId);
     if (
       !werkitem ||
       werkitem.deletedAt ||
-      werkitem.userId.toString() !== companyUserId.toString()
+      werkitem.orgId?.toString() !== orgId.toString()
     ) {
       throw new ConvexError("Werkitem niet gevonden");
     }
@@ -165,7 +161,7 @@ export const rondWerkitemAf = mutation({
       });
       if (werkitem.klantId) {
         await logTijdlijnEvent(ctx, {
-          userId: companyUserId,
+          userId: werkitem.userId,
           klantId: werkitem.klantId,
           eventType: "beurt_afgerond",
           tekst: `${werkitem.naam} afgerond — alle taken ✓ (klaar voor facturatie)`,
@@ -205,6 +201,7 @@ export const rondWerkitemAf = mutation({
         : `${restRegels.length} taken`;
 
     const restId = await ctx.db.insert("projecten", {
+      orgId,
       userId: werkitem.userId,
       type,
       klantId: werkitem.klantId,
@@ -235,7 +232,7 @@ export const rondWerkitemAf = mutation({
 
     if (werkitem.klantId) {
       await logTijdlijnEvent(ctx, {
-        userId: companyUserId,
+        userId: werkitem.userId,
         klantId: werkitem.klantId,
         eventType: "beurt_afgerond",
         tekst: `${werkitem.naam} deels uitgevoerd — rest-opdracht in de wachtrij (${restOmschrijving}${

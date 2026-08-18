@@ -12,6 +12,7 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query, QueryCtx } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
+import { requireOrgId } from "./auth";
 import { requireKantoor } from "./roles";
 
 // ─── Domeinconstanten (gedeeld met de UI) ────────────────────────────────────
@@ -231,14 +232,26 @@ const bouwsteenVelden = {
   machineIds: v.optional(v.array(v.id("machines"))),
 };
 
+/**
+ * Bouwsteen met deze code binnen de eigen organisatie.
+ *
+ * De by_code-index is bedrijfsoverstijgend, dus `.unique()` erop zou omvallen
+ * zodra twee organisaties dezelfde code gebruiken (en dat mag: codes zijn per
+ * catalogus uniek, niet per systeem). We halen daarom alle treffers op en
+ * kiezen die van de eigen organisatie.
+ */
 async function vindBouwsteenMetCode(
   ctx: QueryCtx,
+  orgId: Id<"organisaties">,
   code: string
 ): Promise<Doc<"bouwstenen"> | null> {
-  return await ctx.db
+  const treffers = await ctx.db
     .query("bouwstenen")
     .withIndex("by_code", (q) => q.eq("code", code))
-    .unique();
+    .collect();
+  return (
+    treffers.find((b) => b.orgId?.toString() === orgId.toString()) ?? null
+  );
 }
 
 // ─── Queries ─────────────────────────────────────────────────────────────────
@@ -251,7 +264,11 @@ export const list = query({
   args: {},
   handler: async (ctx) => {
     await requireKantoor(ctx);
-    const bouwstenen = await ctx.db.query("bouwstenen").collect();
+    const orgId = await requireOrgId(ctx);
+    const bouwstenen = await ctx.db
+      .query("bouwstenen")
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
+      .collect();
     // Sorteer op categorie (volgorde bijlage A) en daarbinnen op naam
     const categorieVolgorde = new Map(
       BOUWSTEEN_CATEGORIEEN.map((c, i) => [c, i] as const)
@@ -271,7 +288,12 @@ export const getById = query({
   args: { id: v.id("bouwstenen") },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
-    return await ctx.db.get(args.id);
+    const orgId = await requireOrgId(ctx);
+    const bouwsteen = await ctx.db.get(args.id);
+    if (!bouwsteen || bouwsteen.orgId?.toString() !== orgId.toString()) {
+      return null;
+    }
+    return bouwsteen;
   },
 });
 
@@ -282,10 +304,11 @@ export const create = mutation({
   args: bouwsteenVelden,
   handler: async (ctx, args): Promise<Id<"bouwstenen">> => {
     await requireKantoor(ctx);
+    const orgId = await requireOrgId(ctx);
     valideerBouwsteen(args);
 
     const code = normaliseerCode(args.code);
-    const bestaand = await vindBouwsteenMetCode(ctx, code);
+    const bestaand = await vindBouwsteenMetCode(ctx, orgId, code);
     if (bestaand) {
       throw new ConvexError(
         `Code "${code}" is al in gebruik door "${bestaand.naam}"`
@@ -295,6 +318,7 @@ export const create = mutation({
     const nu = Date.now();
     return await ctx.db.insert("bouwstenen", {
       ...args,
+      orgId,
       naam: args.naam.trim(),
       code,
       actief: true,
@@ -312,17 +336,18 @@ export const update = mutation({
   },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
+    const orgId = await requireOrgId(ctx);
     const { id, ...velden } = args;
 
     const huidige = await ctx.db.get(id);
-    if (!huidige) {
+    if (!huidige || huidige.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Bouwsteen niet gevonden");
     }
 
     valideerBouwsteen(velden);
 
     const code = normaliseerCode(velden.code);
-    const bestaand = await vindBouwsteenMetCode(ctx, code);
+    const bestaand = await vindBouwsteenMetCode(ctx, orgId, code);
     if (bestaand && bestaand._id !== id) {
       throw new ConvexError(
         `Code "${code}" is al in gebruik door "${bestaand.naam}"`
@@ -368,8 +393,9 @@ export const setActief = mutation({
   },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
+    const orgId = await requireOrgId(ctx);
     const bouwsteen = await ctx.db.get(args.id);
-    if (!bouwsteen) {
+    if (!bouwsteen || bouwsteen.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Bouwsteen niet gevonden");
     }
     await ctx.db.patch(args.id, {

@@ -160,7 +160,12 @@ class FakeDb {
 
 interface FakeCtx {
   db: FakeDb;
-  auth: { getUserIdentity: () => Promise<{ subject: string } | null> };
+  auth: {
+    getUserIdentity: () => Promise<{
+      subject: string;
+      org_id?: string;
+    } | null>;
+  };
   scheduler: { runAfter: (...args: unknown[]) => Promise<void> };
 }
 
@@ -194,12 +199,22 @@ const VOLLEDIGE_KLANT = {
 
 let db: FakeDb;
 let ctx: FakeCtx;
+let orgId: string;
 let userId: string;
 let scheduled: number;
+
+const CLERK_ORG_ID = "org_top_tuinen";
 
 beforeEach(() => {
   db = new FakeDb();
   scheduled = 0;
+  orgId = db.insertSync("organisaties", {
+    clerkOrgId: CLERK_ORG_ID,
+    naam: "Top Tuinen",
+    slug: "top-tuinen",
+    actief: true,
+    aangemaaktOp: Date.now(),
+  });
   userId = db.insertSync("users", {
     clerkId: "clerk_staf",
     email: "directie@toptuinen.nl",
@@ -209,12 +224,18 @@ beforeEach(() => {
   });
   db.insertSync("instellingen", {
     userId,
+    orgId,
     offerteNummerPrefix: "OFF-",
     laatsteOfferteNummer: 0,
   });
   ctx = {
     db,
-    auth: { getUserIdentity: async () => ({ subject: "clerk_staf" }) },
+    auth: {
+      getUserIdentity: async () => ({
+        subject: "clerk_staf",
+        org_id: CLERK_ORG_ID,
+      }),
+    },
     scheduler: {
       runAfter: async () => {
         scheduled += 1;
@@ -226,6 +247,7 @@ beforeEach(() => {
 function seedKlant(over: Record<string, unknown> = {}): string {
   return db.insertSync("klanten", {
     userId,
+    orgId,
     naam: "Familie Jansen",
     adres: "Dorpsstraat 1",
     postcode: "1234 AB",
@@ -253,6 +275,10 @@ describe("offertes.create — concept zonder klant (masterplan A3)", () => {
     expect(offerte.klant).toBeUndefined();
     expect(offerte.klantId).toBeUndefined();
     expect(offerte.bron).toBe("vrij");
+    // Tenant-scope: de offerte hangt aan de organisatie uit het JWT
+    // (userId blijft tot fase 6 meegeschreven)
+    expect(offerte.orgId).toBe(orgId);
+    expect(offerte.userId).toBe(userId);
     // TT-004: exact twee types, geen nieuwe literals
     expect(offerte.type).toBe("aanleg");
   });
@@ -329,6 +355,7 @@ describe("offertes.create — concept zonder klant (masterplan A3)", () => {
     const versies = db.rows("offerte_versions");
     expect(versies).toHaveLength(1);
     expect(versies[0].versieNummer).toBe(1);
+    expect(versies[0].orgId).toBe(orgId);
     expect((versies[0].snapshot as Record<string, unknown>).klant).toBeUndefined();
     expect(scheduled).toBeGreaterThan(0);
   });
@@ -492,6 +519,7 @@ describe("standaardtuinen.createOfferteFromTemplate", () => {
   function seedTemplate(over: Record<string, unknown> = {}): string {
     return db.insertSync("standaardtuinen", {
       userId,
+      orgId,
       naam: "Standaard achtertuin",
       type: "aanleg",
       scopes: ["grondwerk", "bestrating"],
@@ -509,6 +537,8 @@ describe("standaardtuinen.createOfferteFromTemplate", () => {
     expect(offerte.status).toBe("concept");
     expect(offerte.klant).toBeUndefined();
     expect(offerte.type).toBe("aanleg");
+    // Sjabloon-offertes krijgen dezelfde tenant-scope als offertes.create
+    expect(offerte.orgId).toBe(orgId);
     expect(offerte.scopes).toEqual(["grondwerk", "bestrating"]);
     expect(offerte.scopeData).toEqual({ bestrating: { oppervlakte: 40 } });
   });

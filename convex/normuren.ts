@@ -1,16 +1,16 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAuthUserId } from "./auth";
+import { requireOrgContext, requireOrgId } from "./auth";
 import { requireNotViewer } from "./roles";
 
 // List all normuren for authenticated user
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     return await ctx.db
       .query("normuren")
-      .withIndex("by_user_scope", (q) => q.eq("userId", userId))
+      .withIndex("by_org_scope", (q) => q.eq("orgId", orgId))
       .collect();
   },
 });
@@ -21,11 +21,11 @@ export const listByScope = query({
     scope: v.string(),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     return await ctx.db
       .query("normuren")
-      .withIndex("by_user_scope", (q) =>
-        q.eq("userId", userId).eq("scope", args.scope)
+      .withIndex("by_org_scope", (q) =>
+        q.eq("orgId", orgId).eq("scope", args.scope)
       )
       .collect();
   },
@@ -35,11 +35,11 @@ export const listByScope = query({
 export const get = query({
   args: { id: v.id("normuren") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const normuur = await ctx.db.get(args.id);
 
     if (!normuur) return null;
-    if (normuur.userId.toString() !== userId.toString()) {
+    if (normuur.orgId?.toString() !== orgId.toString()) {
       return null;
     }
 
@@ -58,9 +58,10 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
     return await ctx.db.insert("normuren", {
-      userId,
+      orgId: org._id,
+      userId: user._id,
       activiteit: args.activiteit,
       scope: args.scope,
       normuurPerEenheid: args.normuurPerEenheid,
@@ -82,14 +83,14 @@ export const update = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     // Verify ownership
     const normuur = await ctx.db.get(args.id);
     if (!normuur) {
       throw new ConvexError("Normuur niet gevonden");
     }
-    if (normuur.userId.toString() !== userId.toString()) {
+    if (normuur.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Geen toegang tot deze normuur");
     }
 
@@ -112,14 +113,14 @@ export const remove = mutation({
   args: { id: v.id("normuren") },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     // Verify ownership
     const normuur = await ctx.db.get(args.id);
     if (!normuur) {
       throw new ConvexError("Normuur niet gevonden");
     }
-    if (normuur.userId.toString() !== userId.toString()) {
+    if (normuur.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Geen toegang tot deze normuur");
     }
 
@@ -133,16 +134,16 @@ export const createDefaults = mutation({
   args: {},
   handler: async (ctx) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
 
-    // Idempotent: check if user already has normuren
+    // Idempotent: check if the organisation already has normuren
     const existing = await ctx.db
       .query("normuren")
-      .withIndex("by_user_scope", (q) => q.eq("userId", userId))
+      .withIndex("by_org_scope", (q) => q.eq("orgId", org._id))
       .first();
 
     if (existing) {
-      // User already has normuren, return 0 to indicate no new records created
+      // Organisatie heeft al normuren; 0 = niets nieuws aangemaakt
       return 0;
     }
 
@@ -225,7 +226,8 @@ export const createDefaults = mutation({
     const insertedIds: string[] = [];
     for (const normuur of defaultNormuren) {
       const id = await ctx.db.insert("normuren", {
-        userId,
+        orgId: org._id,
+        userId: user._id,
         ...normuur,
       });
       insertedIds.push(id);
