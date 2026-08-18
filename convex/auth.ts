@@ -76,6 +76,75 @@ export async function requireAuthUserId(ctx: QueryCtx | MutationCtx): Promise<Id
 }
 
 /**
+ * De actieve organisatie uit het Clerk-JWT (org_id-claim, gezet door het
+ * JWT-template "convex"). DE standaard-resolver voor alle tenant-data.
+ */
+export async function requireOrg(ctx: QueryCtx | MutationCtx) {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) {
+    throw new AuthError("Je moet ingelogd zijn om deze actie uit te voeren");
+  }
+
+  // Convex hangt custom claims ongewijzigd aan de identity: `UserIdentity`
+  // heeft een index-signature `[key: string]: JSONValue | undefined`, en alleen
+  // de OIDC-standaardvelden worden hernoemd (given_name → givenName). Het claim
+  // heet hier dus letterlijk `org_id`. De typeof-check is geen formaliteit: een
+  // niet-string claim mag niet als string de index-query in glippen.
+  const claim = identity.org_id;
+  const clerkOrgId = typeof claim === "string" ? claim : undefined;
+  if (!clerkOrgId) {
+    // Ook de lege string komt hier terecht: Clerk vult `{{org.id}}` niet als de
+    // gebruiker geen actieve organisatie heeft.
+    throw new AuthError(
+      "Je account is nog niet aan een organisatie gekoppeld. Vraag je beheerder om een uitnodiging."
+    );
+  }
+
+  const org = await ctx.db
+    .query("organisaties")
+    .withIndex("by_clerk_org_id", (q) => q.eq("clerkOrgId", clerkOrgId))
+    .unique();
+  if (!org || !org.actief) {
+    throw new AuthError("Organisatie niet gevonden of inactief");
+  }
+  return org;
+}
+
+/**
+ * Het id van de actieve organisatie — de org-variant van requireAuthUserId.
+ */
+export async function requireOrgId(
+  ctx: QueryCtx | MutationCtx
+): Promise<Id<"organisaties">> {
+  return (await requireOrg(ctx))._id;
+}
+
+/**
+ * Org-variant van verifyOwnership; vervangt die volledig in fase 6.
+ *
+ * `orgId` is optioneel in het schema zolang de migratie loopt; een document dat
+ * het veld (nog) niet heeft, hoort bij niemand en wordt hier geweigerd.
+ */
+export async function verifyOrgOwnership<
+  T extends { orgId?: Id<"organisaties"> },
+>(
+  ctx: QueryCtx | MutationCtx,
+  document: T | null,
+  resourceName: string = "resource"
+): Promise<T> {
+  if (!document) {
+    throw new AuthError(`${resourceName} niet gevonden`);
+  }
+
+  const orgId = await requireOrgId(ctx);
+  if (!document.orgId || document.orgId.toString() !== orgId.toString()) {
+    throw new AuthError(`Je hebt geen toegang tot deze ${resourceName}`);
+  }
+
+  return document;
+}
+
+/**
  * Verify that a document belongs to the authenticated user.
  * Throws AuthError if the user doesn't own the document.
  */
