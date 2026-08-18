@@ -7,24 +7,24 @@
 
 import { v } from "convex/values";
 import { query } from "./_generated/server";
-import { requireAuthUserId } from "./auth";
+import { requireOrgId } from "./auth";
 import { voorcalculatieVanProject, voorcalculatieVanOfferte } from "./lib/voorcalculatieLookup";
 import { klantNaam } from "./lib/offerteKlant";
 
 /**
- * List all archived projects for the authenticated user.
+ * List all archived projects for the organisatie of the authenticated user.
  * Returns archived projects with related offerte, factuur, voorcalculatie, and nacalculatie data.
  * Sorted by archivedAt descending (most recent first).
  */
 export const listArchivedProjects = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
-    // Get all archived projects for this user
+    // Get all archived projects for this organisatie
     const projects = await ctx.db
       .query("projecten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // Filter to only archived projects
@@ -134,7 +134,7 @@ export const listArchivedProjects = query({
 export const getArchivedProjectDetails = query({
   args: { projectId: v.id("projecten") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     // Get the project
     const project = await ctx.db.get(args.projectId);
@@ -143,7 +143,7 @@ export const getArchivedProjectDetails = query({
     }
 
     // Verify ownership
-    if (project.userId.toString() !== userId.toString()) {
+    if (project.orgId?.toString() !== orgId.toString()) {
       return null; // Don't reveal existence to unauthorized users
     }
 

@@ -20,7 +20,7 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
-import { requireAuthUserId } from "./auth";
+import { requireOrgContext, requireOrgId } from "./auth";
 import { requireKantoor } from "./roles";
 import { beschikbaarheidsVensterValidator } from "./validators";
 import {
@@ -60,7 +60,7 @@ export const getBordContext = query({
     eind: v.string(), // YYYY-MM-DD (inclusief)
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const [
       teams,
@@ -74,45 +74,45 @@ export const getBordContext = query({
     ] = await Promise.all([
       ctx.db
         .query("teams")
-        .withIndex("by_user_actief", (q) =>
-          q.eq("userId", userId).eq("isActief", true)
+        .withIndex("by_org_actief", (q) =>
+          q.eq("orgId", orgId).eq("isActief", true)
         )
         .collect(),
       ctx.db
         .query("teamBemanning")
-        .withIndex("by_user_datum", (q) =>
-          q.eq("userId", userId).gte("datum", args.start).lte("datum", args.eind)
+        .withIndex("by_org_datum", (q) =>
+          q.eq("orgId", orgId).gte("datum", args.start).lte("datum", args.eind)
         )
         .collect(),
       ctx.db
         .query("afwezigheidsblokken")
-        .withIndex("by_user_start", (q) =>
-          q.eq("userId", userId).lte("startDatum", args.eind)
+        .withIndex("by_org_start", (q) =>
+          q.eq("orgId", orgId).lte("startDatum", args.eind)
         )
         .collect(),
       ctx.db
         .query("medewerkers")
-        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
         .collect(),
       ctx.db
         .query("teamBusOverrides")
-        .withIndex("by_user_datum", (q) =>
-          q.eq("userId", userId).gte("datum", args.start).lte("datum", args.eind)
+        .withIndex("by_org_datum", (q) =>
+          q.eq("orgId", orgId).gte("datum", args.start).lte("datum", args.eind)
         )
         .collect(),
       ctx.db
         .query("middelReserveringen")
-        .withIndex("by_user_datum", (q) =>
-          q.eq("userId", userId).gte("datum", args.start).lte("datum", args.eind)
+        .withIndex("by_org_datum", (q) =>
+          q.eq("orgId", orgId).gte("datum", args.start).lte("datum", args.eind)
         )
         .collect(),
       ctx.db
         .query("voertuigen")
-        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
         .collect(),
       ctx.db
         .query("machines")
-        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
         .collect(),
     ]);
 
@@ -213,11 +213,11 @@ export const getWachtrij = query({
     eind: v.string(),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const items = await ctx.db
       .query("projecten")
-      .withIndex("by_user_geplandeStart", (q) =>
-        q.eq("userId", userId).eq("geplandeStart", undefined)
+      .withIndex("by_org_geplandeStart", (q) =>
+        q.eq("orgId", orgId).eq("geplandeStart", undefined)
       )
       .collect();
 
@@ -282,10 +282,10 @@ export const getWachtrij = query({
 export const getLogboek = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     return await ctx.db
       .query("planbordLogboek")
-      .withIndex("by_user_createdAt", (q) => q.eq("userId", userId))
+      .withIndex("by_org_createdAt", (q) => q.eq("orgId", orgId))
       .order("desc")
       .take(Math.min(args.limit ?? 50, 200));
   },
@@ -308,9 +308,9 @@ export const setBemanning = mutation({
   },
   handler: async (ctx, args) => {
     const kantoorUser = await requireKantoor(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
     const team = await ctx.db.get(args.teamId);
-    if (!team || team.userId.toString() !== userId.toString()) {
+    if (!team || team.orgId?.toString() !== org._id.toString()) {
       throw new ConvexError("Team niet gevonden");
     }
     const bestaand = await ctx.db
@@ -327,7 +327,8 @@ export const setBemanning = mutation({
       });
     } else {
       await ctx.db.insert("teamBemanning", {
-        userId,
+        orgId: org._id,
+        userId: user._id,
         teamId: args.teamId,
         datum: args.datum,
         medewerkerIds: args.medewerkerIds,
@@ -336,7 +337,8 @@ export const setBemanning = mutation({
       });
     }
     await logPlanwijziging(ctx, {
-      userId,
+      orgId: org._id,
+      userId: user._id,
       door: kantoorUser._id,
       actie: "bemanning_gewijzigd",
       details: `Bemanning ${team.naam} op ${args.datum}: ${args.medewerkerIds.length} medewerker(s)`,
@@ -351,9 +353,9 @@ export const herstelBemanning = mutation({
   args: { teamId: v.id("teams"), datum: v.string() },
   handler: async (ctx, args) => {
     const kantoorUser = await requireKantoor(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
     const team = await ctx.db.get(args.teamId);
-    if (!team || team.userId.toString() !== userId.toString()) {
+    if (!team || team.orgId?.toString() !== org._id.toString()) {
       throw new ConvexError("Team niet gevonden");
     }
     const bestaand = await ctx.db
@@ -365,7 +367,8 @@ export const herstelBemanning = mutation({
     if (bestaand) {
       await ctx.db.delete(bestaand._id);
       await logPlanwijziging(ctx, {
-        userId,
+        orgId: org._id,
+        userId: user._id,
         door: kantoorUser._id,
         actie: "bemanning_gewijzigd",
         details: `Bemanning ${team.naam} op ${args.datum} teruggezet naar vaste teamleden`,
@@ -396,7 +399,7 @@ export const createAfwezigheid = mutation({
   },
   handler: async (ctx, args) => {
     const kantoorUser = await requireKantoor(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
     if (!args.medewerkerId === !args.teamId) {
       throw new ConvexError(
         "Kies precies één scope: een medewerker óf een heel team"
@@ -408,21 +411,22 @@ export const createAfwezigheid = mutation({
     let scopeNaam = "";
     if (args.medewerkerId) {
       const m = await ctx.db.get(args.medewerkerId);
-      if (!m || m.userId.toString() !== userId.toString()) {
+      if (!m || m.orgId?.toString() !== org._id.toString()) {
         throw new ConvexError("Medewerker niet gevonden");
       }
       scopeNaam = m.naam;
     }
     if (args.teamId) {
       const t = await ctx.db.get(args.teamId);
-      if (!t || t.userId.toString() !== userId.toString()) {
+      if (!t || t.orgId?.toString() !== org._id.toString()) {
         throw new ConvexError("Team niet gevonden");
       }
       scopeNaam = `team ${t.naam}`;
     }
     const now = Date.now();
     const id = await ctx.db.insert("afwezigheidsblokken", {
-      userId,
+      orgId: org._id,
+      userId: user._id,
       medewerkerId: args.medewerkerId,
       teamId: args.teamId,
       startDatum: args.startDatum,
@@ -433,7 +437,8 @@ export const createAfwezigheid = mutation({
       updatedAt: now,
     });
     await logPlanwijziging(ctx, {
-      userId,
+      orgId: org._id,
+      userId: user._id,
       door: kantoorUser._id,
       actie: "afwezigheid_toegevoegd",
       details: `Afwezigheid (${args.reden}) voor ${scopeNaam}: ${args.startDatum} t/m ${args.eindDatum}`,
@@ -447,14 +452,15 @@ export const verwijderAfwezigheid = mutation({
   args: { id: v.id("afwezigheidsblokken") },
   handler: async (ctx, args) => {
     const kantoorUser = await requireKantoor(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const blok = await ctx.db.get(args.id);
-    if (!blok || blok.userId.toString() !== userId.toString()) {
+    if (!blok || blok.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Afwezigheidsblok niet gevonden");
     }
     await ctx.db.delete(args.id);
     await logPlanwijziging(ctx, {
-      userId,
+      orgId,
+      userId: kantoorUser._id,
       door: kantoorUser._id,
       actie: "afwezigheid_verwijderd",
       details: `Afwezigheid (${blok.reden}) verwijderd: ${blok.startDatum} t/m ${blok.eindDatum}`,
@@ -481,9 +487,9 @@ export const koppelTeamLos = mutation({
   },
   handler: async (ctx, args) => {
     const kantoorUser = await requireKantoor(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const team = await ctx.db.get(args.teamId);
-    if (!team || team.userId.toString() !== userId.toString()) {
+    if (!team || team.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Team niet gevonden");
     }
     const kandidaten = await ctx.db
@@ -496,7 +502,7 @@ export const koppelTeamLos = mutation({
       (item) =>
         !item.deletedAt &&
         item.isArchived !== true &&
-        item.userId.toString() === userId.toString() &&
+        item.orgId?.toString() === orgId.toString() &&
         werkitemOpDag(item, args.datum)
     );
     for (const item of geraakt) {
@@ -511,7 +517,8 @@ export const koppelTeamLos = mutation({
       });
     }
     await logPlanwijziging(ctx, {
-      userId,
+      orgId,
+      userId: kantoorUser._id,
       door: kantoorUser._id,
       actie: "team_losgekoppeld",
       details: `Team ${team.naam} losgekoppeld van ${args.datum}: ${geraakt.length} werkitem(s) terug in de bak`,
@@ -528,6 +535,8 @@ export const koppelTeamLos = mutation({
  */
 function kopieerbareVelden(item: WerkItem) {
   return {
+    // Tenant-scope: `orgId` is de scope; `userId` blijft tot fase 6 meegeschreven
+    orgId: item.orgId,
     userId: item.userId,
     type: getType(item),
     klantId: item.klantId,
@@ -554,12 +563,12 @@ export const dupliceerWerkitem = mutation({
   },
   handler: async (ctx, args) => {
     const kantoorUser = await requireKantoor(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const item = await ctx.db.get(args.id);
     if (
       !item ||
       item.deletedAt ||
-      item.userId.toString() !== userId.toString()
+      item.orgId?.toString() !== orgId.toString()
     ) {
       throw new ConvexError("Werkitem niet gevonden");
     }
@@ -578,7 +587,8 @@ export const dupliceerWerkitem = mutation({
       updatedAt: now,
     });
     await logPlanwijziging(ctx, {
-      userId,
+      orgId,
+      userId: kantoorUser._id,
       door: kantoorUser._id,
       actie: "gedupliceerd",
       details: `${item.naam} gedupliceerd naar ${args.doelDatum} (team en tijden behouden)`,
@@ -615,12 +625,12 @@ export const splitsWerkitem = mutation({
   },
   handler: async (ctx, args) => {
     const kantoorUser = await requireKantoor(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const item = await ctx.db.get(args.id);
     if (
       !item ||
       item.deletedAt ||
-      item.userId.toString() !== userId.toString()
+      item.orgId?.toString() !== orgId.toString()
     ) {
       throw new ConvexError("Werkitem niet gevonden");
     }
@@ -629,7 +639,7 @@ export const splitsWerkitem = mutation({
     for (const deel of args.delen) {
       if (deel.teamId) {
         const team = await ctx.db.get(deel.teamId);
-        if (!team || team.userId.toString() !== userId.toString()) {
+        if (!team || team.orgId?.toString() !== orgId.toString()) {
           throw new ConvexError("Team niet gevonden");
         }
       }
@@ -668,7 +678,8 @@ export const splitsWerkitem = mutation({
     }
 
     await logPlanwijziging(ctx, {
-      userId,
+      orgId,
+      userId: kantoorUser._id,
       door: kantoorUser._id,
       actie: "gesplitst",
       details: `${basisNaam} gesplitst in ${n} delen (${args.delen
@@ -696,9 +707,9 @@ export const setPlanvoorkeurenKlant = mutation({
   },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const klant = await ctx.db.get(args.klantId);
-    if (!klant || klant.userId.toString() !== userId.toString()) {
+    if (!klant || klant.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Klant niet gevonden");
     }
     const patch: Partial<Doc<"klanten">> = { updatedAt: Date.now() };
@@ -724,12 +735,12 @@ export const setPlanvoorkeurenWerkitem = mutation({
   },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const item = await ctx.db.get(args.id);
     if (
       !item ||
       item.deletedAt ||
-      item.userId.toString() !== userId.toString()
+      item.orgId?.toString() !== orgId.toString()
     ) {
       throw new ConvexError("Werkitem niet gevonden");
     }

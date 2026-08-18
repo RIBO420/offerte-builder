@@ -17,6 +17,7 @@ import {
   createMockUser,
   createMockKlant,
   createMockOfferte,
+  seedMockOrganisatie,
 } from "../../helpers/convex-mock";
 import type { MutationCtx } from "../../../../convex/_generated/server";
 import { create } from "../../../../convex/projecten";
@@ -40,11 +41,15 @@ function maakCtx(
   metVoorcalculatie = false
 ): { ctx: MutationCtx; store: MockConvexStore; offerteId: string } {
   const store = new MockConvexStore();
+  // Tenant-scope loopt sinds de org-migratie over orgId: zonder deze rij vindt
+  // requireOrgContext de organisatie uit het org_id-claim niet.
+  const orgId = seedMockOrganisatie(store);
   const userId = store.insert("users", createMockUser({ role: "directie" }));
-  const klantId = store.insert("klanten", createMockKlant(userId));
+  const klantId = store.insert("klanten", createMockKlant(userId, { orgId }));
   const offerteId = store.insert(
     "offertes",
     createMockOfferte(userId, klantId, {
+      orgId,
       status: "geaccepteerd",
       ...offerteVelden,
     })
@@ -52,6 +57,7 @@ function maakCtx(
 
   if (metVoorcalculatie) {
     store.insert("voorcalculaties", {
+      orgId,
       userId,
       offerteId,
       teamGrootte: 3,

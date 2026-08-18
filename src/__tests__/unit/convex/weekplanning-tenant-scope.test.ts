@@ -3,9 +3,13 @@
  *
  * Het planbord las `medewerkers` met een ongescopete `.filter()`-scan en
  * `projecten` via de `by_status`-index: beide leverden de gegevens van álle
- * bedrijven op. De planningrijen zelf (tabel `weekPlanning`, zonder `userId`)
- * werden alleen op datum gefilterd, en de mutations accepteerden willekeurige
- * medewerker-, project- en toewijzing-ids.
+ * bedrijven op. De planningrijen zelf (tabel `weekPlanning`, zonder tenant-
+ * veld) werden alleen op datum gefilterd, en de mutations accepteerden
+ * willekeurige medewerker-, project- en toewijzing-ids.
+ *
+ * Sinds fase 3 van de org-migratie is de tenant de ORGANISATIE uit het
+ * `org_id`-claim van het Clerk-JWT, niet langer het directie-account: de
+ * fixtures hieronder hangen dus aan `orgId` en de identity draagt het claim.
  *
  * Deze tests leggen vast dat:
  *   - queries uitsluitend data van het eigen bedrijf teruggeven;
@@ -158,7 +162,12 @@ class FakeDb {
 
 interface FakeCtx {
   db: FakeDb;
-  auth: { getUserIdentity: () => Promise<{ subject: string } | null> };
+  auth: {
+    getUserIdentity: () => Promise<{
+      subject: string;
+      org_id: string;
+    } | null>;
+  };
 }
 
 // ─── Handler-extractie (zelfde patroon als de andere convex-tests) ───────────
@@ -208,9 +217,13 @@ const removeHandler = handlerVan<{ id: string }, void>(remove);
 
 const CLERK_DIRECTIE_A = "clerk_directie_a";
 const CLERK_MEDEWERKER_A = "clerk_medewerker_a";
+const CLERK_ORG_A = "org_bedrijf_a";
+const CLERK_ORG_B = "org_bedrijf_b";
 
 let db: FakeDb;
 let ids: {
+  orgA: string;
+  orgB: string;
   userA: string;
   userB: string;
   anna: string;
@@ -225,15 +238,30 @@ let ids: {
   rijZoe: string;
 };
 
-function ctxVoor(clerkId: string): FakeCtx {
+function ctxVoor(clerkId: string, clerkOrgId = CLERK_ORG_A): FakeCtx {
   return {
     db,
-    auth: { getUserIdentity: async () => ({ subject: clerkId }) },
+    auth: {
+      getUserIdentity: async () => ({ subject: clerkId, org_id: clerkOrgId }),
+    },
   };
 }
 
 beforeEach(() => {
   db = new FakeDb();
+
+  const orgA = db.insertSync("organisaties", {
+    clerkOrgId: CLERK_ORG_A,
+    naam: "Bedrijf A",
+    actief: true,
+    aangemaaktOp: 1,
+  });
+  const orgB = db.insertSync("organisaties", {
+    clerkOrgId: CLERK_ORG_B,
+    naam: "Bedrijf B",
+    actief: true,
+    aangemaaktOp: 1,
+  });
 
   const userA = db.insertSync("users", {
     clerkId: CLERK_DIRECTIE_A,
@@ -251,6 +279,7 @@ beforeEach(() => {
   });
 
   const anna = db.insertSync("medewerkers", {
+    orgId: orgA,
     userId: userA,
     naam: "Anna",
     functie: "hovenier",
@@ -260,6 +289,7 @@ beforeEach(() => {
     updatedAt: 1,
   });
   const bram = db.insertSync("medewerkers", {
+    orgId: orgA,
     userId: userA,
     naam: "Bram",
     isActief: true,
@@ -267,6 +297,7 @@ beforeEach(() => {
     updatedAt: 1,
   });
   const cor = db.insertSync("medewerkers", {
+    orgId: orgA,
     userId: userA,
     naam: "Cor",
     isActief: false,
@@ -274,6 +305,7 @@ beforeEach(() => {
     updatedAt: 1,
   });
   const zoe = db.insertSync("medewerkers", {
+    orgId: orgB,
     userId: userB,
     naam: "Zoë",
     isActief: true,
@@ -292,6 +324,7 @@ beforeEach(() => {
   });
 
   const projectA1 = db.insertSync("projecten", {
+    orgId: orgA,
     userId: userA,
     naam: "Tuin Amsterdam",
     status: "gepland",
@@ -299,6 +332,7 @@ beforeEach(() => {
     updatedAt: 1,
   });
   const projectA2 = db.insertSync("projecten", {
+    orgId: orgA,
     userId: userA,
     naam: "Tuin Utrecht",
     status: "in_uitvoering",
@@ -306,6 +340,7 @@ beforeEach(() => {
     updatedAt: 1,
   });
   const projectB1 = db.insertSync("projecten", {
+    orgId: orgB,
     userId: userB,
     naam: "Geheim project B",
     status: "gepland",
@@ -336,6 +371,8 @@ beforeEach(() => {
   });
 
   ids = {
+    orgA,
+    orgB,
     userA,
     userB,
     anna,

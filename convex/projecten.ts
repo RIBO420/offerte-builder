@@ -9,10 +9,15 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { requireAuth, requireAuthUserId, verifyOwnership } from "./auth";
+import {
+  getOwnedOfferte,
+  requireOrgContext,
+  requireOrgId,
+  verifyOrgOwnership,
+} from "./auth";
 import { Id } from "./_generated/dataModel";
 import { klantNaam } from "./lib/offerteKlant";
-import { getUserRole, getLinkedMedewerker, requireNotViewer, requireDirectieOrProjectleider, getCompanyUserId } from "./roles";
+import { getUserRole, getLinkedMedewerker, requireNotViewer, requireDirectieOrProjectleider } from "./roles";
 import { upgradeKlantPipeline } from "./pipelineHelpers";
 import { heeftVoorcalculatieStap } from "./acceptatieRegels";
 import {
@@ -32,14 +37,16 @@ const projectStatusValidator = v.union(
 );
 
 /**
- * Get a project and verify ownership.
+ * Get a project and verify org-ownership.
+ * Sinds de org-migratie (fase 3): eigendom = zelfde organisatie, niet dezelfde
+ * user — een collega mag het project van een collega bewerken.
  */
 async function getOwnedProject(
-  ctx: Parameters<typeof requireAuth>[0],
+  ctx: Parameters<typeof requireOrgId>[0],
   projectId: Id<"projecten">
 ) {
   const project = await ctx.db.get(projectId);
-  return verifyOwnership(ctx, project, "project");
+  return verifyOrgOwnership(ctx, project, "project");
 }
 
 /**
@@ -60,17 +67,11 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
     const now = Date.now();
 
-    // Verify the offerte exists and belongs to the user
-    const offerte = await ctx.db.get(args.offerteId);
-    if (!offerte) {
-      throw new ConvexError("Offerte niet gevonden");
-    }
-    if (offerte.userId.toString() !== userId.toString()) {
-      throw new ConvexError("Je hebt geen toegang tot deze offerte");
-    }
+    // Verify the offerte exists and belongs to the organisatie
+    const offerte = await getOwnedOfferte(ctx, args.offerteId);
 
     // Validate: Offerte must be accepted before creating a project
     if (offerte.status !== "geaccepteerd") {
@@ -116,7 +117,8 @@ export const create = mutation({
 
     // Create the project with status "gepland" (voorcalculatie is now at offerte level)
     const projectId = await ctx.db.insert("projecten", {
-      userId,
+      orgId: org._id,
+      userId: user._id,
       offerteId: args.offerteId,
       naam: projectNaam,
       status: "gepland",
@@ -134,9 +136,10 @@ export const create = mutation({
     if (args.copyVoorcalculatie && offerteVoorcalculatie) {
       await ctx.db.insert("voorcalculaties", {
         projectId,
-        // Tenant-scope (audit §2): het project hierboven is met dezelfde userId
-        // aangemaakt, dus dit is per definitie de juiste tenant.
-        userId,
+        // Tenant-scope (audit §2): het project hierboven is met dezelfde
+        // organisatie aangemaakt, dus dit is per definitie de juiste tenant.
+        orgId: org._id,
+        userId: user._id,
         offerteId: args.offerteId, // Keep link to original offerte
         teamGrootte: offerteVoorcalculatie.teamGrootte,
         teamleden: offerteVoorcalculatie.teamleden,
@@ -163,8 +166,8 @@ export const get = query({
     if (!project) return null;
 
     // Verify ownership
-    const user = await requireAuth(ctx);
-    if (project.userId.toString() !== user._id.toString()) {
+    const orgId = await requireOrgId(ctx);
+    if (project.orgId?.toString() !== orgId.toString()) {
       return null; // Don't reveal existence to unauthorized users
     }
 
@@ -179,7 +182,7 @@ export const get = query({
 export const getByOfferte = query({
   args: { offerteId: v.id("offertes") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const project = await ctx.db
       .query("projecten")
@@ -189,7 +192,7 @@ export const getByOfferte = query({
     if (!project) return null;
 
     // Verify ownership
-    if (project.userId.toString() !== userId.toString()) {
+    if (project.orgId?.toString() !== orgId.toString()) {
       return null;
     }
 
@@ -214,11 +217,11 @@ export const list = query({
     includeDeleted: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const projects = await ctx.db
       .query("projecten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .order("desc")
       .collect();
 
@@ -246,7 +249,7 @@ export const list = query({
  * Projecten van één klant, voor de Projecten-tab in het klantdossier.
  *
  * Zelfde auth-patroon als `klanten.dossierTellingen`: eerst de klant ophalen,
- * dan de eigenaarscontrole, en omdat de index `by_klant` niet op `userId`
+ * dan de eigenaarscontrole, en omdat de index `by_klant` niet op `orgId`
  * staat daarna nóg een expliciete tenant-filter over de rijen.
  *
  * Losse beurten en contractbeurten leven in dezelfde tabel (type
@@ -263,10 +266,10 @@ export const listVoorKlant = query({
     const klant = await ctx.db.get(args.klantId);
     if (!klant) return [];
 
-    const user = await requireAuth(ctx);
-    if (klant.userId.toString() !== user._id.toString()) return [];
+    const orgId = await requireOrgId(ctx);
+    if (klant.orgId?.toString() !== orgId.toString()) return [];
 
-    const eigenaar = klant.userId.toString();
+    const eigenaar = orgId.toString();
 
     const werkitems = (
       await ctx.db
@@ -275,7 +278,7 @@ export const listVoorKlant = query({
         .collect()
     ).filter(
       (p) =>
-        p.userId.toString() === eigenaar &&
+        p.orgId?.toString() === eigenaar &&
         !p.deletedAt &&
         p.type !== "onderhoudsbeurt"
     );
@@ -295,7 +298,7 @@ export const listVoorKlant = query({
           geplandeStart: project.geplandeStart ?? null,
           geplandeEind: project.geplandeEind ?? null,
           waarde:
-            offerte && offerte.userId.toString() === eigenaar
+            offerte && offerte.orgId?.toString() === eigenaar
               ? offerte.totalen.totaalInclBtw
               : null,
           isArchived: project.isArchived === true,
@@ -319,12 +322,12 @@ export const listPaginated = query({
     includeDeleted: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const limit = args.limit || 25;
 
     const result = await ctx.db
       .query("projecten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .order("desc")
       .paginate({ numItems: limit, cursor: args.cursor ?? null });
 
@@ -580,8 +583,8 @@ export const getVoertuigen = query({
     if (!project) return [];
 
     // Verify ownership
-    const user = await requireAuth(ctx);
-    if (project.userId.toString() !== user._id.toString()) {
+    const orgId = await requireOrgId(ctx);
+    if (project.orgId?.toString() !== orgId.toString()) {
       return [];
     }
 
@@ -722,8 +725,8 @@ export const getWithDetails = query({
     if (!project) return null;
 
     // Verify ownership
-    const user = await requireAuth(ctx);
-    if (project.userId.toString() !== user._id.toString()) {
+    const orgId = await requireOrgId(ctx);
+    if (project.orgId?.toString() !== orgId.toString()) {
       return null;
     }
 
@@ -782,7 +785,7 @@ export const getWithDetails = query({
 export const getProjectsByOfferteIds = query({
   args: { offerteIds: v.array(v.id("offertes")) },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     // Build result object with null defaults
     const result: Record<string, {
@@ -797,11 +800,11 @@ export const getProjectsByOfferteIds = query({
     }
 
     // Query projects for all offerteIds
-    // Since we need to check multiple offerteIds, we query all user's projects
-    // and filter in memory (more efficient than N separate queries)
+    // Since we need to check multiple offerteIds, we query all projects of the
+    // organisatie and filter in memory (more efficient than N separate queries)
     const projects = await ctx.db
       .query("projecten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // Map projects to their offerteIds
@@ -829,27 +832,25 @@ export const getProjectsByOfferteIds = query({
 export const listForPlanning = query({
   args: {},
   handler: async (ctx) => {
-    const user = await requireAuth(ctx);
+    const orgId = await requireOrgId(ctx);
     const role = await getUserRole(ctx);
 
-    // Determine the userId to query based on role
-    let queryUserId: Id<"users">;
+    // De tenant is voor beide rollen dezelfde organisatie; het rolverschil zit
+    // alleen in de filtering hieronder (directie ziet alles, medewerker alleen
+    // de werkitems waar hij als teamlid op staat).
     let medewerkerNaam: string | null = null;
 
-    if (role === "directie") {
-      queryUserId = user._id;
-    } else {
+    if (role !== "directie") {
       // Medewerker sees assigned projects
       const medewerker = await getLinkedMedewerker(ctx);
       if (!medewerker) return [];
-      queryUserId = medewerker.userId;
       medewerkerNaam = medewerker.naam;
     }
 
     // Fetch all active projects (filter archived/deleted at query level, not in memory)
     const activeProjects = await ctx.db
       .query("projecten")
-      .withIndex("by_user", (q) => q.eq("userId", queryUserId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .filter((q) =>
         q.and(
           q.neq(q.field("status"), "gefactureerd"),
@@ -913,14 +914,14 @@ export const listForPlanning = query({
 export const search = query({
   args: { searchTerm: v.string() },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const searchTerm = args.searchTerm.toLowerCase().trim();
 
     // If no search term, return recent projects
     if (!searchTerm) {
       const projects = await ctx.db
         .query("projecten")
-        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
         .order("desc")
         .take(10);
 
@@ -928,10 +929,10 @@ export const search = query({
       return projects.filter((p) => !p.deletedAt && p.isArchived !== true);
     }
 
-    // Get all projects for the user
+    // Get all projects for the organisatie
     const projects = await ctx.db
       .query("projecten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .order("desc")
       .collect();
 
@@ -984,11 +985,11 @@ export const search = query({
 export const getStats = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const projects = await ctx.db
       .query("projecten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // Filter out archived and deleted projects
@@ -1099,12 +1100,12 @@ export const bulkRestore = mutation({
 export const getActiveProjectsWithProgress = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
-    // Get all projects in_uitvoering for this user
+    // Get all projects in_uitvoering for this organisatie
     const allProjects = await ctx.db
       .query("projecten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .order("desc")
       .collect();
 
@@ -1209,7 +1210,7 @@ export const assignMedewerkers = mutation({
       if (!medewerker) {
         throw new ConvexError(`Medewerker niet gevonden: ${medewerkerId}`);
       }
-      if (medewerker.userId.toString() !== project.userId.toString()) {
+      if (medewerker.orgId?.toString() !== project.orgId?.toString()) {
         throw new ConvexError(
           `Medewerker "${medewerker.naam}" behoort niet tot dit bedrijf`
         );
@@ -1235,9 +1236,9 @@ export const getAssignedMedewerkers = query({
     const project = await ctx.db.get(args.projectId);
     if (!project) return [];
 
-    // Verify ownership via company
-    const companyId = await getCompanyUserId(ctx);
-    if (project.userId.toString() !== companyId.toString()) {
+    // Verify ownership via organisatie
+    const orgId = await requireOrgId(ctx);
+    if (project.orgId?.toString() !== orgId.toString()) {
       return [];
     }
 

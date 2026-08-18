@@ -1,6 +1,6 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { getOwnedOfferte, isShareTokenValid, requireAuthUserId } from "./auth";
+import { getOwnedOfferte, isShareTokenValid } from "./auth";
 import { assertKanNaarKlantVersturen } from "./roles";
 import { checkPublicOfferteRateLimit } from "./security";
 
@@ -121,8 +121,9 @@ export const sendFromCustomer = mutation({
 export const markAsRead = mutation({
   args: { offerteId: v.id("offertes") },
   handler: async (ctx, args) => {
-    await requireAuthUserId(ctx);
-    // Verify ownership
+    // Verify ownership. `getOwnedOfferte` doet zelf de identity- en
+    // org-check (requireOrgId); de losse auth-gate die hier stond was daarmee
+    // een dubbele identity-lookup zonder extra bescherming.
     await getOwnedOfferte(ctx, args.offerteId);
 
     const unread = await ctx.db

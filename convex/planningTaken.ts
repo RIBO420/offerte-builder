@@ -1,6 +1,6 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query, QueryCtx, MutationCtx } from "./_generated/server";
-import { requireAuthUserId } from "./auth";
+import { requireOrgId } from "./auth";
 import { requireNotViewer } from "./roles";
 import { Id } from "./_generated/dataModel";
 import { laadDocsMap } from "./lib/batchLoad";
@@ -31,24 +31,27 @@ const takenTemplates: Record<string, string[]> = {
 };
 
 /**
- * Get project and verify ownership
+ * Get project and verify org-ownership.
+ *
+ * planningTaken is een KINDTABEL zonder eigen tenant-veld: eigendom hangt aan
+ * het bovenliggende project (project.orgId), nooit aan de taakrij zelf.
  */
 async function getOwnedProject(
   ctx: QueryCtx | MutationCtx,
   projectId: Id<"projecten">
 ) {
-  const userId = await requireAuthUserId(ctx);
+  const orgId = await requireOrgId(ctx);
   const project = await ctx.db.get(projectId);
 
   if (!project) {
     throw new ConvexError("Project niet gevonden");
   }
 
-  if (project.userId.toString() !== userId.toString()) {
+  if (project.orgId?.toString() !== orgId.toString()) {
     throw new ConvexError("Je hebt geen toegang tot dit project");
   }
 
-  return { project, userId };
+  return { project, orgId };
 }
 
 /**
@@ -146,11 +149,11 @@ export const list = query({
     projectId: v.id("projecten"),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     // Verify project ownership
     const project = await ctx.db.get(args.projectId);
-    if (!project || project.userId.toString() !== userId.toString()) {
+    if (!project || project.orgId?.toString() !== orgId.toString()) {
       return [];
     }
 
@@ -180,7 +183,7 @@ export const update = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     // Get task and verify ownership through project
     const task = await ctx.db.get(args.taskId);
@@ -189,7 +192,7 @@ export const update = mutation({
     }
 
     const project = await ctx.db.get(task.projectId);
-    if (!project || project.userId.toString() !== userId.toString()) {
+    if (!project || project.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Je hebt geen toegang tot deze taak");
     }
 
@@ -256,7 +259,7 @@ export const remove = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     // Get task and verify ownership through project
     const task = await ctx.db.get(args.taskId);
@@ -265,7 +268,7 @@ export const remove = mutation({
     }
 
     const project = await ctx.db.get(task.projectId);
-    if (!project || project.userId.toString() !== userId.toString()) {
+    if (!project || project.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Je hebt geen toegang tot deze taak");
     }
 
@@ -322,11 +325,11 @@ export const getSummary = query({
     projectId: v.id("projecten"),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     // Verify project ownership
     const project = await ctx.db.get(args.projectId);
-    if (!project || project.userId.toString() !== userId.toString()) {
+    if (!project || project.orgId?.toString() !== orgId.toString()) {
       return null;
     }
 
@@ -385,7 +388,7 @@ export const moveUp = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const task = await ctx.db.get(args.taskId);
     if (!task) {
@@ -393,7 +396,7 @@ export const moveUp = mutation({
     }
 
     const project = await ctx.db.get(task.projectId);
-    if (!project || project.userId.toString() !== userId.toString()) {
+    if (!project || project.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Je hebt geen toegang tot deze taak");
     }
 
@@ -429,7 +432,7 @@ export const moveDown = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const task = await ctx.db.get(args.taskId);
     if (!task) {
@@ -437,7 +440,7 @@ export const moveDown = mutation({
     }
 
     const project = await ctx.db.get(task.projectId);
-    if (!project || project.userId.toString() !== userId.toString()) {
+    if (!project || project.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Je hebt geen toegang tot deze taak");
     }
 

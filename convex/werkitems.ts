@@ -15,7 +15,7 @@
 
 import { v, ConvexError } from "convex/values";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
-import { requireAuthUserId } from "./auth";
+import { requireOrgContext, requireOrgId } from "./auth";
 import { requireKantoor, requireNotViewer } from "./roles";
 import { Doc, Id } from "./_generated/dataModel";
 import {
@@ -136,17 +136,17 @@ export function resolveAdres(
   return `${klant.adres}, ${klant.postcode} ${klant.plaats}`;
 }
 
-/** Interne helper: werkitem ophalen + eigenaarschap verifiëren. */
+/** Interne helper: werkitem ophalen + org-eigenaarschap verifiëren. */
 async function getOwnedWerkitem(
   ctx: QueryCtx | MutationCtx,
-  userId: Id<"users">,
+  orgId: Id<"organisaties">,
   id: Id<"projecten">
 ): Promise<WerkItem> {
   const werkitem = await ctx.db.get(id);
   if (!werkitem || werkitem.deletedAt) {
     throw new ConvexError("Werkitem niet gevonden");
   }
-  if (werkitem.userId.toString() !== userId.toString()) {
+  if (werkitem.orgId?.toString() !== orgId.toString()) {
     throw new ConvexError("Je hebt geen toegang tot dit werkitem");
   }
   return werkitem;
@@ -160,12 +160,12 @@ async function getOwnedWerkitem(
 export const getById = query({
   args: { id: v.id("projecten") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const werkitem = await ctx.db.get(args.id);
     if (
       !werkitem ||
       werkitem.deletedAt ||
-      werkitem.userId.toString() !== userId.toString()
+      werkitem.orgId?.toString() !== orgId.toString()
     ) {
       return null;
     }
@@ -184,11 +184,11 @@ export const listVoorWachtrij = query({
     ),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const items = await ctx.db
       .query("projecten")
-      .withIndex("by_user_geplandeStart", (q) =>
-        q.eq("userId", userId).eq("geplandeStart", undefined)
+      .withIndex("by_org_geplandeStart", (q) =>
+        q.eq("orgId", orgId).eq("geplandeStart", undefined)
       )
       .collect();
     return items.filter(
@@ -218,12 +218,12 @@ export const listVoorPlanbord = query({
     eind: v.string(), // YYYY-MM-DD (inclusief)
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const items = await ctx.db
       .query("projecten")
-      .withIndex("by_user_geplandeStart", (q) =>
+      .withIndex("by_org_geplandeStart", (q) =>
         q
-          .eq("userId", userId)
+          .eq("orgId", orgId)
           .gte("geplandeStart", addDagen(args.start, -MAX_MEERDAAGS_DAGEN))
           .lte("geplandeStart", args.eind)
       )
@@ -271,34 +271,35 @@ export const createWerkitem = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
 
     // Type-invarianten (schema kan dit niet conditioneel afdwingen)
     assertVeldenVoorType(args.type, args);
 
-    // Klant moet bestaan en van deze gebruiker zijn
+    // Klant moet bestaan en van deze organisatie zijn
     const klant = await ctx.db.get(args.klantId);
-    if (!klant || klant.userId.toString() !== userId.toString()) {
+    if (!klant || klant.orgId?.toString() !== org._id.toString()) {
       throw new ConvexError("Klant niet gevonden");
     }
 
     // Gekoppelde entiteiten verifiëren (eigenaarschap)
     if (args.offerteId) {
       const offerte = await ctx.db.get(args.offerteId);
-      if (!offerte || offerte.userId.toString() !== userId.toString()) {
+      if (!offerte || offerte.orgId?.toString() !== org._id.toString()) {
         throw new ConvexError("Offerte niet gevonden");
       }
     }
     if (args.contractId) {
       const contract = await ctx.db.get(args.contractId);
-      if (!contract || contract.userId.toString() !== userId.toString()) {
+      if (!contract || contract.orgId?.toString() !== org._id.toString()) {
         throw new ConvexError("Onderhoudscontract niet gevonden");
       }
     }
 
     const now = Date.now();
     return await ctx.db.insert("projecten", {
-      userId,
+      orgId: org._id,
+      userId: user._id,
       type: args.type,
       klantId: args.klantId,
       naam: args.naam,
@@ -376,8 +377,8 @@ export const updatePlanning = mutation({
   },
   handler: async (ctx, args) => {
     const kantoorUser = await requireKantoor(ctx);
-    const userId = await requireAuthUserId(ctx);
-    const werkitem = await getOwnedWerkitem(ctx, userId, args.id);
+    const orgId = await requireOrgId(ctx);
+    const werkitem = await getOwnedWerkitem(ctx, orgId, args.id);
 
     if (
       args.geplandeStart &&
@@ -390,7 +391,7 @@ export const updatePlanning = mutation({
     let teamNaam: string | null = null;
     if (args.teamId) {
       const team = await ctx.db.get(args.teamId);
-      if (!team || team.userId.toString() !== userId.toString()) {
+      if (!team || team.orgId?.toString() !== orgId.toString()) {
         throw new ConvexError("Team niet gevonden");
       }
       teamNaam = team.naam;
@@ -456,7 +457,8 @@ export const updatePlanning = mutation({
       details = `Planning gewijzigd: ${nieuweStart ?? "-"}${doelTeam ? `, ${doelTeam}` : ""}`;
     }
     await logPlanwijziging(ctx, {
-      userId,
+      orgId,
+      userId: kantoorUser._id,
       door: kantoorUser._id,
       actie,
       details: `${werkitem.naam} — ${details}`,
@@ -470,7 +472,8 @@ export const updatePlanning = mutation({
     // Additief en niet-blokkerend (logTijdlijnEvent vangt fouten zelf af).
     if (actie === "gepland" && werkitem.klantId) {
       await logTijdlijnEvent(ctx, {
-        userId,
+        orgId,
+        userId: kantoorUser._id,
         klantId: werkitem.klantId,
         eventType: "werkitem_ingepland",
         werkitemId: werkitem._id,
@@ -487,7 +490,8 @@ export const updatePlanning = mutation({
       if (klant?.inplanBevestigingsMail === true && klant.email && nieuweStart) {
         await zetTriggerMailKlaar(ctx, {
           event: "inplanning_bevestigd",
-          userId,
+          orgId,
+          userId: kantoorUser._id,
           ontvangerEmail: klant.email,
           ontvangerNaam: klant.naam,
           variabelen: {
@@ -537,8 +541,8 @@ export const updateStatus = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
-    const werkitem = await getOwnedWerkitem(ctx, userId, args.id);
+    const orgId = await requireOrgId(ctx);
+    const werkitem = await getOwnedWerkitem(ctx, orgId, args.id);
 
     assertStatusVoorType(getType(werkitem), args.status);
 

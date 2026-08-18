@@ -7,8 +7,9 @@
  * Dekt:
  * - de drie vraagblokken van `getControleWeek` (achter / afwijkend / stil) plus
  *   de totalen, met de weekgrens maandag t/m zondag;
- * - tenant-scope: bedrijf A ziet nooit een dag, ploeg of medewerker van B —
- *   voor élke nieuwe query;
+ * - tenant-scope: organisatie A ziet nooit een dag, ploeg of medewerker van B
+ *   — voor élke nieuwe query; sinds fase 3 loopt die scope over `orgId` uit het
+ *   Clerk-JWT (`org_id`-claim), niet meer over de bedrijfseigenaar-user;
  * - rolgezichten: kantoor krijgt de Controlekamer en de film, de voorman de
  *   ploegdag, de medewerker zijn eigen week, en niemand het gezicht van een
  *   ander;
@@ -166,7 +167,12 @@ class FakeDb {
 
 interface FakeCtx {
   db: FakeDb;
-  auth: { getUserIdentity: () => Promise<{ subject: string } | null> };
+  auth: {
+    getUserIdentity: () => Promise<{
+      subject: string;
+      org_id?: string;
+    } | null>;
+  };
 }
 
 type Handler<TArgs, TResult> = (ctx: FakeCtx, args: TArgs) => Promise<TResult>;
@@ -210,14 +216,29 @@ const WOENSDAG = "2026-08-12";
 /** Vrijdag 14 augustus 2026, 10:00 Nederlandse tijd = "vandaag" in de tests. */
 const NU = Date.parse("2026-08-14T08:00:00Z");
 
+/** Clerk-organisaties: het `org_id`-claim dat requireOrg uit het JWT leest. */
+const CLERK_ORG_A = "clerk_org_a";
+const CLERK_ORG_B = "clerk_org_b";
+
 const CLERK_DIRECTIE_A = "clerk_directie_a";
 const CLERK_PROJECTLEIDER_A = "clerk_pl_a";
 const CLERK_VOORMAN_A = "clerk_voorman_a";
 const CLERK_MEDEWERKER_A = "clerk_medewerker_a";
 const CLERK_DIRECTIE_B = "clerk_directie_b";
 
+/** Welke gebruiker in welke organisatie zit — de claim-tabel van Clerk. */
+const ORG_VAN_CLERK: Record<string, string> = {
+  [CLERK_DIRECTIE_A]: CLERK_ORG_A,
+  [CLERK_PROJECTLEIDER_A]: CLERK_ORG_A,
+  [CLERK_VOORMAN_A]: CLERK_ORG_A,
+  [CLERK_MEDEWERKER_A]: CLERK_ORG_A,
+  [CLERK_DIRECTIE_B]: CLERK_ORG_B,
+};
+
 let db: FakeDb;
 let ids: {
+  orgA: string;
+  orgB: string;
   userA: string;
   userB: string;
   anna: string;
@@ -232,18 +253,30 @@ let ids: {
 function ctxVoor(clerkId: string): FakeCtx {
   return {
     db,
-    auth: { getUserIdentity: async () => ({ subject: clerkId }) },
+    auth: {
+      getUserIdentity: async () => ({
+        subject: clerkId,
+        org_id: ORG_VAN_CLERK[clerkId],
+      }),
+    },
   };
 }
 
 /** Normale dag: 07:00–16:00 met pauze — 8,5 u werkende tijd, 1 u indirect. */
 function normaleDagSegmenten(
+  orgId: string,
   userId: string,
   medewerkerId: string,
   datum: string,
   werkitemId: string
 ): Array<Record<string, unknown>> {
-  const basis = { userId, medewerkerId, datum, status: "ingediend" as const };
+  const basis = {
+    orgId,
+    userId,
+    medewerkerId,
+    datum,
+    status: "ingediend" as const,
+  };
   return [
     { ...basis, categorie: "reistijd", beginTijd: "07:00", eindTijd: "07:30", bron: "voorstel" },
     { ...basis, categorie: "werken", beginTijd: "07:30", eindTijd: "12:00", bron: "voorstel", werkitemId },
@@ -261,12 +294,14 @@ function seedSegmenten(rijen: Array<Record<string, unknown>>): void {
 }
 
 function seedDag(
+  orgId: string,
   userId: string,
   medewerkerId: string,
   datum: string,
   status: "open" | "ingediend"
 ): string {
   return db.insertSync("urenDagen", {
+    orgId,
     userId,
     medewerkerId,
     datum,
@@ -281,6 +316,20 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(NU);
   db = new FakeDb();
+
+  // De twee organisaties waar requireOrg via het org_id-claim op uitkomt.
+  const orgA = db.insertSync("organisaties", {
+    clerkOrgId: CLERK_ORG_A,
+    naam: "Top Tuinen",
+    actief: true,
+    aangemaaktOp: NU,
+  });
+  const orgB = db.insertSync("organisaties", {
+    clerkOrgId: CLERK_ORG_B,
+    naam: "Ander bedrijf",
+    actief: true,
+    aangemaaktOp: NU,
+  });
 
   const userA = db.insertSync("users", {
     clerkId: CLERK_DIRECTIE_A,
@@ -298,6 +347,7 @@ beforeEach(() => {
   });
 
   const anna = db.insertSync("medewerkers", {
+    orgId: orgA,
     userId: userA,
     naam: "Anna Bakker",
     functie: "hovenier",
@@ -306,6 +356,7 @@ beforeEach(() => {
     updatedAt: NU,
   });
   const bram = db.insertSync("medewerkers", {
+    orgId: orgA,
     userId: userA,
     naam: "Bram de Jong",
     functie: "voorman",
@@ -314,6 +365,7 @@ beforeEach(() => {
     updatedAt: NU,
   });
   const zoe = db.insertSync("medewerkers", {
+    orgId: orgB,
     userId: userB,
     naam: "Zoë Vermeer",
     functie: "hovenier",
@@ -349,6 +401,7 @@ beforeEach(() => {
   });
 
   const teamGroen = db.insertSync("teams", {
+    orgId: orgA,
     userId: userA,
     naam: "Groen",
     leden: [anna, bram],
@@ -357,6 +410,7 @@ beforeEach(() => {
     updatedAt: NU,
   });
   const teamBlauw = db.insertSync("teams", {
+    orgId: orgB,
     userId: userB,
     naam: "Blauw",
     leden: [zoe],
@@ -368,6 +422,7 @@ beforeEach(() => {
   // Eén geplande werkitem-dag per bedrijf: maandag. Daardoor is maandag de
   // enige dag die "achter" kan zijn.
   const projectA = db.insertSync("projecten", {
+    orgId: orgA,
     userId: userA,
     naam: "Tuin Dohmen",
     status: "gepland",
@@ -378,6 +433,7 @@ beforeEach(() => {
     updatedAt: NU,
   });
   const projectB = db.insertSync("projecten", {
+    orgId: orgB,
     userId: userB,
     naam: "Tuin van der Berg",
     status: "gepland",
@@ -388,13 +444,26 @@ beforeEach(() => {
     updatedAt: NU,
   });
 
-  ids = { userA, userB, anna, bram, zoe, teamGroen, teamBlauw, projectA, projectB };
+  ids = {
+    orgA,
+    orgB,
+    userA,
+    userB,
+    anna,
+    bram,
+    zoe,
+    teamGroen,
+    teamBlauw,
+    projectA,
+    projectB,
+  };
 
   // Anna: dinsdag netjes ingediend (stil), woensdag een lange dag zonder pauze
-  seedSegmenten(normaleDagSegmenten(userA, anna, DINSDAG, projectA));
-  seedDag(userA, anna, DINSDAG, "ingediend");
+  seedSegmenten(normaleDagSegmenten(orgA, userA, anna, DINSDAG, projectA));
+  seedDag(orgA, userA, anna, DINSDAG, "ingediend");
   seedSegmenten([
     {
+      orgId: orgA,
       userId: userA,
       medewerkerId: anna,
       datum: WOENSDAG,
@@ -406,11 +475,11 @@ beforeEach(() => {
       werkitemId: projectA,
     },
   ]);
-  seedDag(userA, anna, WOENSDAG, "ingediend");
+  seedDag(orgA, userA, anna, WOENSDAG, "ingediend");
 
   // Bedrijf B: exact dezelfde dagen voor Zoë — mag nooit bij A opduiken
-  seedSegmenten(normaleDagSegmenten(userB, zoe, DINSDAG, projectB));
-  seedDag(userB, zoe, DINSDAG, "ingediend");
+  seedSegmenten(normaleDagSegmenten(orgB, userB, zoe, DINSDAG, projectB));
+  seedDag(orgB, userB, zoe, DINSDAG, "ingediend");
 });
 
 afterEach(() => {
@@ -471,6 +540,7 @@ describe("getControleWeek — de drie vraagblokken", () => {
   it("laat vandaag en de toekomst buiten 'achter' (de dag is nog niet om)", async () => {
     // Extra werkitem-dag op vrijdag (= vandaag) en zaterdag
     db.insertSync("projecten", {
+      orgId: ids.orgA,
       userId: ids.userA,
       naam: "Tuin Later",
       status: "gepland",
@@ -636,6 +706,7 @@ describe("rolgezichten op één route", () => {
 
   it("getMijnWeek toont kantoorcorrecties en akkoorden uit het logboek", async () => {
     db.insertSync("urenLogboek", {
+      orgId: ids.orgA,
       userId: ids.userA,
       medewerkerId: ids.anna,
       datum: DINSDAG,
@@ -645,6 +716,7 @@ describe("rolgezichten op één route", () => {
       createdAt: NU,
     });
     db.insertSync("urenLogboek", {
+      orgId: ids.orgA,
       userId: ids.userA,
       medewerkerId: ids.anna,
       datum: DINSDAG,
@@ -691,6 +763,7 @@ describe("getDagFilm — filmstrip en dagtotaal", () => {
 
   it("plaatst een medewerker zonder ploeg in 'los'", async () => {
     const cor = db.insertSync("medewerkers", {
+      orgId: ids.orgA,
       userId: ids.userA,
       naam: "Cor Losser",
       functie: "zzp",
@@ -700,6 +773,7 @@ describe("getDagFilm — filmstrip en dagtotaal", () => {
     });
     seedSegmenten([
       {
+        orgId: ids.orgA,
         userId: ids.userA,
         medewerkerId: cor,
         datum: DINSDAG,
@@ -711,7 +785,7 @@ describe("getDagFilm — filmstrip en dagtotaal", () => {
         werkitemId: ids.projectA,
       },
     ]);
-    seedDag(ids.userA, cor, DINSDAG, "ingediend");
+    seedDag(ids.orgA, ids.userA, cor, DINSDAG, "ingediend");
 
     const film = await dagFilm(ctxVoor(CLERK_DIRECTIE_A), { datum: DINSDAG });
     expect(film.los.map((d) => d.naam)).toEqual(["Cor Losser"]);
@@ -720,6 +794,7 @@ describe("getDagFilm — filmstrip en dagtotaal", () => {
 
   it("gebruikt de bemanning van die dag boven de vaste teamleden", async () => {
     db.insertSync("teamBemanning", {
+      orgId: ids.orgA,
       userId: ids.userA,
       teamId: ids.teamGroen,
       datum: DINSDAG,
@@ -745,7 +820,7 @@ describe("kwijting — akkoord als logboek-entry, idempotent", () => {
     const logboek = db.rows("urenLogboek");
     expect(logboek).toHaveLength(1);
     expect(logboek[0]).toMatchObject({
-      userId: ids.userA,
+      orgId: ids.orgA,
       medewerkerId: ids.anna,
       datum: DINSDAG,
       actie: "dag_akkoord",
@@ -780,6 +855,7 @@ describe("kwijting — akkoord als logboek-entry, idempotent", () => {
       datum: DINSDAG,
     });
     db.insertSync("urenLogboek", {
+      orgId: ids.orgA,
       userId: ids.userA,
       medewerkerId: ids.anna,
       datum: DINSDAG,
@@ -808,6 +884,7 @@ describe("kwijting — akkoord als logboek-entry, idempotent", () => {
 
   it("een heropende én opnieuw ingediende dag komt terug als afwijking 'heropend'", async () => {
     db.insertSync("urenLogboek", {
+      orgId: ids.orgA,
       userId: ids.userA,
       medewerkerId: ids.anna,
       datum: DINSDAG,
@@ -870,7 +947,7 @@ describe("kwijting — akkoord als logboek-entry, idempotent", () => {
   it("keurWeekGoed van bedrijf A raakt de dagen van bedrijf B niet", async () => {
     await weekGoed(ctxVoor(CLERK_DIRECTIE_A), { weekStart: WEEK_START });
     const logboek = db.rows("urenLogboek");
-    expect(logboek.every((r) => r.userId === ids.userA)).toBe(true);
+    expect(logboek.every((r) => r.orgId === ids.orgA)).toBe(true);
     expect(logboek.every((r) => r.medewerkerId !== ids.zoe)).toBe(true);
 
     // Bedrijf B ziet zijn stille dag nog gewoon staan
@@ -891,6 +968,7 @@ describe("rolmodel oude engine — projectleider ziet bedrijfsbreed", () => {
       { medewerker: "Bram de Jong", uren: 6, datum: WOENSDAG },
     ]) {
       db.insertSync("urenRegistraties", {
+        orgId: ids.orgA,
         userId: ids.userA,
         projectId: ids.projectA,
         datum: rij.datum,
@@ -901,6 +979,7 @@ describe("rolmodel oude engine — projectleider ziet bedrijfsbreed", () => {
     }
     // Bedrijf B heeft ook uren op dezelfde dag
     db.insertSync("urenRegistraties", {
+      orgId: ids.orgB,
       userId: ids.userB,
       projectId: ids.projectB,
       datum: DINSDAG,

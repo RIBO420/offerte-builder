@@ -1,20 +1,42 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAuth, requireAuthUserId } from "./auth";
+import { requireAuth, requireOrgId } from "./auth";
+import type { QueryCtx, MutationCtx } from "./_generated/server";
+import type { Doc, Id } from "./_generated/dataModel";
 import {
   getLinkedMedewerker,
-  getCompanyUserId,
   isKantoorRol,
   requireNotViewer,
 } from "./roles";
 
 /**
+ * Tenant-scope sinds fase 3 van de org-migratie: de organisatie uit het
+ * Clerk-JWT (`requireOrgId`), niet meer de bedrijfseigenaar-user. Voor de
+ * veld-rollen (voorman/medewerker) is dat precies hetzelfde zicht als
+ * `getCompanyUserId` gaf; de rolfilters (isKantoorRol) blijven ongewijzigd.
+ *
  * De OUDE uren-engine: `urenRegistraties` = decimale uren per project. Blijft
  * bewust ongemoeid naast `urenSegmenten` (PRD §8.10) — deze tabel voedt
  * nacalculatie, project-uren en de Excel-export (`export.exportUren`). De
  * Controlekamer (`convex/urenControle.ts`) leest UITSLUITEND de segmenten; de
  * twee bronnen worden nooit bij elkaar opgeteld (§6: geen twee waarheden).
  */
+
+/**
+ * Project ophalen binnen de eigen organisatie. `projecten.orgId` is optioneel
+ * zolang de migratie loopt; een project zonder org hoort bij niemand.
+ */
+async function getProjectVanOrg(
+  ctx: QueryCtx | MutationCtx,
+  projectId: Id<"projecten">,
+  orgId: Id<"organisaties">
+): Promise<Doc<"projecten">> {
+  const project = await ctx.db.get(projectId);
+  if (!project || project.orgId?.toString() !== orgId.toString()) {
+    throw new ConvexError("Project niet gevonden of geen toegang");
+  }
+  return project;
+}
 
 /**
  * List all time entries globally (for global Uren page).
@@ -32,12 +54,12 @@ export const listGlobal = query({
   },
   handler: async (ctx, args) => {
     const user = await requireAuth(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
-    // Get all projects for the company to filter uren
+    // Get all projects for the organisatie to filter uren
     const projects = await ctx.db
       .query("projecten")
-      .withIndex("by_user", (q) => q.eq("userId", companyUserId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // Get all uren from all projects
@@ -82,13 +104,8 @@ export const listGlobal = query({
 export const list = query({
   args: { projectId: v.id("projecten") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
-
-    // Verify project ownership
-    const project = await ctx.db.get(args.projectId);
-    if (!project || project.userId.toString() !== userId.toString()) {
-      throw new ConvexError("Project niet gevonden of geen toegang");
-    }
+    const orgId = await requireOrgId(ctx);
+    await getProjectVanOrg(ctx, args.projectId, orgId);
 
     return await ctx.db
       .query("urenRegistraties")
@@ -105,13 +122,8 @@ export const listByDateRange = query({
     endDate: v.string(), // YYYY-MM-DD
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
-
-    // Verify project ownership
-    const project = await ctx.db.get(args.projectId);
-    if (!project || project.userId.toString() !== userId.toString()) {
-      throw new ConvexError("Project niet gevonden of geen toegang");
-    }
+    const orgId = await requireOrgId(ctx);
+    await getProjectVanOrg(ctx, args.projectId, orgId);
 
     const entries = await ctx.db
       .query("urenRegistraties")
@@ -129,13 +141,8 @@ export const listByDateRange = query({
 export const getTotals = query({
   args: { projectId: v.id("projecten") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
-
-    // Verify project ownership
-    const project = await ctx.db.get(args.projectId);
-    if (!project || project.userId.toString() !== userId.toString()) {
-      throw new ConvexError("Project niet gevonden of geen toegang");
-    }
+    const orgId = await requireOrgId(ctx);
+    await getProjectVanOrg(ctx, args.projectId, orgId);
 
     const entries = await ctx.db
       .query("urenRegistraties")
@@ -189,19 +196,16 @@ export const add = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
-
-    // Verify project ownership
-    const project = await ctx.db.get(args.projectId);
-    if (!project || project.userId.toString() !== userId.toString()) {
-      throw new ConvexError("Project niet gevonden of geen toegang");
-    }
+    const orgId = await requireOrgId(ctx);
+    const project = await getProjectVanOrg(ctx, args.projectId, orgId);
 
     return await ctx.db.insert("urenRegistraties", {
       projectId: args.projectId,
-      // Tenant-scope (audit §2): zelfde route als de backfill-migratie
-      // (projectId → projecten.userId). Zonder dit veld valt de registratie
-      // buiten elke by_user-query en is hij dus onzichtbaar in de app.
+      // Tenant-scope: `orgId` is sinds fase 3 DE scope. `userId` blijft tot
+      // fase 6 meegeschreven langs dezelfde route als de backfill-migratie
+      // (projectId → projecten.userId), zodat lezers die nog op by_user_datum
+      // staan (o.a. medewerkers.ts) de registratie blijven zien.
+      orgId,
       userId: project.userId,
       datum: args.datum,
       medewerker: args.medewerker,
@@ -230,21 +234,17 @@ export const importBatch = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
-
-    // Verify project ownership
-    const project = await ctx.db.get(args.projectId);
-    if (!project || project.userId.toString() !== userId.toString()) {
-      throw new ConvexError("Project niet gevonden of geen toegang");
-    }
+    const orgId = await requireOrgId(ctx);
+    const project = await getProjectVanOrg(ctx, args.projectId, orgId);
 
     const insertedIds: string[] = [];
 
     for (const entry of args.entries) {
       const id = await ctx.db.insert("urenRegistraties", {
         projectId: args.projectId,
-        // Tenant-scope (audit §2): zie `add` — het project is hierboven al op
-        // eigenaarschap gecontroleerd, dus project.userId is de juiste tenant.
+        // Tenant-scope: zie `add` — het project is hierboven al op
+        // org-eigendom gecontroleerd.
+        orgId,
         userId: project.userId,
         datum: entry.datum,
         medewerker: entry.medewerker,
@@ -276,16 +276,16 @@ export const update = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
-    // Get entry and verify ownership through project
+    // Get entry and verify org-ownership through project
     const entry = await ctx.db.get(args.id);
     if (!entry) {
       throw new ConvexError("Registratie niet gevonden");
     }
 
     const project = await ctx.db.get(entry.projectId);
-    if (!project || project.userId.toString() !== userId.toString()) {
+    if (!project || project.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Geen toegang tot deze registratie");
     }
 
@@ -308,16 +308,16 @@ export const remove = mutation({
   args: { id: v.id("urenRegistraties") },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
-    // Get entry and verify ownership through project
+    // Get entry and verify org-ownership through project
     const entry = await ctx.db.get(args.id);
     if (!entry) {
       throw new ConvexError("Registratie niet gevonden");
     }
 
     const project = await ctx.db.get(entry.projectId);
-    if (!project || project.userId.toString() !== userId.toString()) {
+    if (!project || project.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Geen toegang tot deze registratie");
     }
 
@@ -346,7 +346,7 @@ export const getGlobalStats = query({
   },
   handler: async (ctx, args) => {
     const user = await requireAuth(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const linkedMedewerker = await getLinkedMedewerker(ctx);
 
     // Calculate date ranges
@@ -364,10 +364,10 @@ export const getGlobalStats = query({
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const monthStartStr = monthStart.toISOString().split("T")[0];
 
-    // Get all projects for the company
+    // Get all projects for the organisatie
     const projects = await ctx.db
       .query("projecten")
-      .withIndex("by_user", (q) => q.eq("userId", companyUserId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     const projectMap = new Map(projects.map((p) => [p._id.toString(), p]));

@@ -27,6 +27,7 @@ import {
   createMockCtx,
   createMockUser,
   createMockKlant,
+  seedMockOrganisatie,
 } from "../../helpers/convex-mock";
 import { AuthError } from "../../../../convex/auth";
 import {
@@ -71,19 +72,26 @@ function handler(fn: unknown): AnyHandler {
   return (fn as { _handler: AnyHandler })._handler;
 }
 
-/** Ctx + store met precies één ingelogde gebruiker met de gegeven rol. */
+/**
+ * Ctx + store met precies één ingelogde gebruiker met de gegeven rol.
+ *
+ * De organisatie hoort erbij: sinds fase 3 van de org-migratie leest
+ * `requireOrg` het `org_id`-claim dat `createMockCtx` meegeeft, en zonder rij
+ * in `organisaties` strandt élke org-gescopeerde functie op een AuthError.
+ */
 function ctxMetRol(role: string, extra: Record<string, unknown> = {}) {
   const store = new MockConvexStore();
+  const orgId = seedMockOrganisatie(store);
   const userId = store.insert("users", createMockUser({ role, ...extra }));
   const ctx = createMockCtx(store);
-  return { ctx, store, userId };
+  return { ctx, store, userId, orgId };
 }
 
 /** Standaard-setup: directie-gebruiker + klant. */
 function kantoorMetKlant() {
-  const { ctx, store, userId } = ctxMetRol("directie");
-  const klantId = store.insert("klanten", createMockKlant(userId));
-  return { ctx, store, userId, klantId };
+  const { ctx, store, userId, orgId } = ctxMetRol("directie");
+  const klantId = store.insert("klanten", createMockKlant(userId, { orgId }));
+  return { ctx, store, userId, orgId, klantId };
 }
 
 function insertMelding(
@@ -411,15 +419,16 @@ describe("updateStatus (logging §2.4)", () => {
 
 describe("@tag → veldtaak (case-test §8.6)", () => {
   function setupMetMichel() {
-    const { ctx, store, userId, klantId } = kantoorMetKlant();
+    const { ctx, store, userId, orgId, klantId } = kantoorMetKlant();
     const michelId = store.insert("medewerkers", {
+      orgId,
       userId,
       naam: "Michel",
       isActief: true,
       createdAt: Date.now(),
     });
-    const meldingId = insertMelding(store, userId, klantId);
-    return { ctx, store, userId, klantId, michelId, meldingId };
+    const meldingId = insertMelding(store, userId, klantId, { orgId });
+    return { ctx, store, userId, orgId, klantId, michelId, meldingId };
   }
 
   it("een @Michel-tag in een comment maakt een open veldtaak, gekoppeld aan melding + klant", async () => {
@@ -449,15 +458,17 @@ describe("@tag → veldtaak (case-test §8.6)", () => {
   });
 
   it("de veldtaak verschijnt op de dagkaart zodra Michels team bij die klant gepland staat", async () => {
-    const { ctx, store, userId, klantId, michelId, meldingId } =
+    const { ctx, store, userId, orgId, klantId, michelId, meldingId } =
       setupMetMichel();
     const janId = store.insert("medewerkers", {
+      orgId,
       userId,
       naam: "Jan",
       isActief: true,
       createdAt: Date.now(),
     });
     const teamA = store.insert("teams", {
+      orgId,
       userId,
       naam: "Team A",
       leden: [michelId],
@@ -466,6 +477,7 @@ describe("@tag → veldtaak (case-test §8.6)", () => {
       updatedAt: Date.now(),
     });
     const teamB = store.insert("teams", {
+      orgId,
       userId,
       naam: "Team B",
       leden: [janId],
@@ -483,6 +495,7 @@ describe("@tag → veldtaak (case-test §8.6)", () => {
     const datum = "2026-07-20";
     // Werkitem van die klant, gepland op team A op `datum`
     insertBeurt(store, userId, klantId, {
+      orgId,
       teamId: teamA,
       geplandeStart: datum,
       geplandeEind: datum,
@@ -515,9 +528,10 @@ describe("@tag → veldtaak (case-test §8.6)", () => {
   });
 
   it("verdwijnt van de dagkaart als Michel die dag niet in de bemanning zit", async () => {
-    const { ctx, store, userId, klantId, michelId, meldingId } =
+    const { ctx, store, userId, orgId, klantId, michelId, meldingId } =
       setupMetMichel();
     const teamA = store.insert("teams", {
+      orgId,
       userId,
       naam: "Team A",
       leden: [michelId],
@@ -532,12 +546,14 @@ describe("@tag → veldtaak (case-test §8.6)", () => {
     });
     const datum = "2026-07-20";
     insertBeurt(store, userId, klantId, {
+      orgId,
       teamId: teamA,
       geplandeStart: datum,
       geplandeEind: datum,
     });
     // Bemanning-afwijking: Michel zit die dag NIET in team A
     store.insert("teamBemanning", {
+      orgId,
       userId,
       teamId: teamA,
       datum,
@@ -680,14 +696,15 @@ describe("planningsattendering (§2.1-restant, §8.12)", () => {
   });
 
   function setupBeurt(overrides: Record<string, unknown> = {}) {
-    const { ctx, store, userId, klantId } = kantoorMetKlant();
+    const { ctx, store, userId, orgId, klantId } = kantoorMetKlant();
     const beurtId = insertBeurt(store, userId, klantId, {
+      orgId,
       ritme: { intervalWeken: 26 },
       volgendeVoorzieneDatum: addDagen(vandaag, 10),
       voorzieneDatum: addDagen(vandaag, 10),
       ...overrides,
     });
-    return { ctx, store, userId, klantId, beurtId };
+    return { ctx, store, userId, orgId, klantId, beurtId };
   }
 
   it("cron genereert een plantaak op het bord: eigenaar kantoor, klant + beurt gekoppeld", async () => {

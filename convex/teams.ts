@@ -1,6 +1,6 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAuthUserId } from "./auth";
+import { requireOrgContext, requireOrgId } from "./auth";
 import { requireNotViewer } from "./roles";
 import { Doc } from "./_generated/dataModel";
 
@@ -8,17 +8,17 @@ import { Doc } from "./_generated/dataModel";
 // Teams CRUD Operations
 // ============================================
 
-// Haal alle teams op voor de ingelogde gebruiker
+// Haal alle teams op voor de organisatie van de ingelogde gebruiker
 export const list = query({
   args: {
     isActief: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     let teams = await ctx.db
       .query("teams")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // Filter op actief status indien meegegeven
@@ -34,11 +34,11 @@ export const list = query({
 export const get = query({
   args: { id: v.id("teams") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const team = await ctx.db.get(args.id);
 
     if (!team) return null;
-    if (team.userId.toString() !== userId.toString()) {
+    if (team.orgId?.toString() !== orgId.toString()) {
       return null;
     }
 
@@ -50,11 +50,11 @@ export const get = query({
 export const getWithMedewerkers = query({
   args: { id: v.id("teams") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const team = await ctx.db.get(args.id);
 
     if (!team) return null;
-    if (team.userId.toString() !== userId.toString()) {
+    if (team.orgId?.toString() !== orgId.toString()) {
       return null;
     }
 
@@ -82,11 +82,11 @@ export const listWithMedewerkers = query({
     isActief: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     let teams = await ctx.db
       .query("teams")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // Filter op actief status indien meegegeven
@@ -126,22 +126,24 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
+    const orgId = org._id;
     const now = Date.now();
 
-    // Verifieer dat alle medewerkers bestaan en van deze gebruiker zijn
+    // Verifieer dat alle medewerkers bestaan en van deze organisatie zijn
     for (const medewerkerId of args.leden) {
       const medewerker = await ctx.db.get(medewerkerId);
       if (!medewerker) {
         throw new ConvexError(`Medewerker niet gevonden: ${medewerkerId}`);
       }
-      if (medewerker.userId.toString() !== userId.toString()) {
+      if (medewerker.orgId?.toString() !== orgId.toString()) {
         throw new ConvexError("Geen toegang tot deze medewerker");
       }
     }
 
     return await ctx.db.insert("teams", {
-      userId,
+      orgId,
+      userId: user._id,
       naam: args.naam,
       beschrijving: args.beschrijving,
       leden: args.leden,
@@ -163,14 +165,14 @@ export const update = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     // Verifieer eigenaarschap
     const team = await ctx.db.get(args.id);
     if (!team) {
       throw new ConvexError("Team niet gevonden");
     }
-    if (team.userId.toString() !== userId.toString()) {
+    if (team.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Geen toegang tot dit team");
     }
 
@@ -181,7 +183,7 @@ export const update = mutation({
         if (!medewerker) {
           throw new ConvexError(`Medewerker niet gevonden: ${medewerkerId}`);
         }
-        if (medewerker.userId.toString() !== userId.toString()) {
+        if (medewerker.orgId?.toString() !== orgId.toString()) {
           throw new ConvexError("Geen toegang tot deze medewerker");
         }
       }
@@ -217,14 +219,14 @@ export const addLid = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     // Verifieer team eigenaarschap
     const team = await ctx.db.get(args.teamId);
     if (!team) {
       throw new ConvexError("Team niet gevonden");
     }
-    if (team.userId.toString() !== userId.toString()) {
+    if (team.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Geen toegang tot dit team");
     }
 
@@ -233,7 +235,7 @@ export const addLid = mutation({
     if (!medewerker) {
       throw new ConvexError("Medewerker niet gevonden");
     }
-    if (medewerker.userId.toString() !== userId.toString()) {
+    if (medewerker.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Geen toegang tot deze medewerker");
     }
 
@@ -260,14 +262,14 @@ export const removeLid = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     // Verifieer team eigenaarschap
     const team = await ctx.db.get(args.teamId);
     if (!team) {
       throw new ConvexError("Team niet gevonden");
     }
-    if (team.userId.toString() !== userId.toString()) {
+    if (team.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Geen toegang tot dit team");
     }
 
@@ -288,14 +290,14 @@ export const remove = mutation({
   args: { id: v.id("teams") },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     // Verifieer eigenaarschap
     const team = await ctx.db.get(args.id);
     if (!team) {
       throw new ConvexError("Team niet gevonden");
     }
-    if (team.userId.toString() !== userId.toString()) {
+    if (team.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Geen toegang tot dit team");
     }
 
@@ -313,14 +315,14 @@ export const hardDelete = mutation({
   args: { id: v.id("teams") },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     // Verifieer eigenaarschap
     const team = await ctx.db.get(args.id);
     if (!team) {
       throw new ConvexError("Team niet gevonden");
     }
-    if (team.userId.toString() !== userId.toString()) {
+    if (team.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Geen toegang tot dit team");
     }
 
@@ -337,11 +339,11 @@ export const hardDelete = mutation({
 export const getTeamPrestaties = query({
   args: { id: v.id("teams") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const team = await ctx.db.get(args.id);
 
     if (!team) return null;
-    if (team.userId.toString() !== userId.toString()) {
+    if (team.orgId?.toString() !== orgId.toString()) {
       return null;
     }
 
@@ -358,7 +360,7 @@ export const getTeamPrestaties = query({
     // Haal alle projecten op voor performance berekeningen
     const projecten = await ctx.db
       .query("projecten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // Haal alle urenregistraties op
@@ -446,11 +448,11 @@ export const getTeamPrestaties = query({
 export const getAllTeamsPrestaties = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const teams = await ctx.db
       .query("teams")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     const activeTeams = teams.filter((t) => t.isActief);
@@ -458,7 +460,7 @@ export const getAllTeamsPrestaties = query({
     // Haal projecten en uren voor context
     const projecten = await ctx.db
       .query("projecten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     const alleUrenRegistraties: Doc<"urenRegistraties">[] = [];

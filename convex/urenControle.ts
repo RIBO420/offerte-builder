@@ -16,7 +16,7 @@
  * - **Geldvrij.** Geen uurtarieven, geen kosten: dit scherm gaat over kloppen,
  *   niet over kosten (dat is rapportage).
  * - **Weekgrenzen Europe/Amsterdam, maandag als start** (lib/urenAfwijkingen).
- * - **Geen full table scans.** Alles via `by_user_datum` /
+ * - **Geen full table scans.** Alles via `by_org_datum` /
  *   `by_medewerker_datum` / `by_team_datum` / `by_team_geplandeStart`.
  *
  * Rolgezichten op één route: kantoor krijgt `getControleWeek` + `getDagFilm`,
@@ -291,7 +291,7 @@ async function labelsVoorSegmenten(
 /** Medewerkers van het bedrijf + vangnet voor ids die daar niet in zitten. */
 async function medewerkerNamen(
   ctx: QueryCtx | MutationCtx,
-  companyUserId: Id<"users">,
+  orgId: Id<"organisaties">,
   extraIds: Id<"medewerkers">[]
 ): Promise<{
   actief: Doc<"medewerkers">[];
@@ -299,7 +299,7 @@ async function medewerkerNamen(
 }> {
   const eigen = await ctx.db
     .query("medewerkers")
-    .withIndex("by_user", (q) => q.eq("userId", companyUserId))
+    .withIndex("by_org", (q) => q.eq("orgId", orgId))
     .collect();
   const alle = new Map<string, Doc<"medewerkers">>();
   for (const mw of eigen) alle.set(mw._id.toString(), mw);
@@ -308,8 +308,8 @@ async function medewerkerNamen(
   if (ontbrekend.length > 0) {
     const extra = await laadDocsMap(ctx, ontbrekend);
     for (const mw of extra.values()) {
-      // Tenant-grens: alleen medewerkers van dit bedrijf mogen erbij komen.
-      if (mw.userId.toString() === companyUserId.toString()) {
+      // Tenant-grens: alleen medewerkers van deze organisatie mogen erbij.
+      if (mw.orgId?.toString() === orgId.toString()) {
         alle.set(mw._id.toString(), mw);
       }
     }
@@ -320,11 +320,11 @@ async function medewerkerNamen(
 /** Actieve teams van het bedrijf. */
 async function actieveTeams(
   ctx: QueryCtx | MutationCtx,
-  companyUserId: Id<"users">
+  orgId: Id<"organisaties">
 ): Promise<Doc<"teams">[]> {
   const teams = await ctx.db
     .query("teams")
-    .withIndex("by_user", (q) => q.eq("userId", companyUserId))
+    .withIndex("by_org", (q) => q.eq("orgId", orgId))
     .collect();
   return teams.filter((team) => team.isActief !== false);
 }
@@ -362,7 +362,7 @@ function voermanVan(
 /** Buslabel van een ploeg op één dag: dag-override → standaardbus → geen. */
 async function busLabelVoorTeamDag(
   ctx: QueryCtx | MutationCtx,
-  companyUserId: Id<"users">,
+  orgId: Id<"organisaties">,
   team: Doc<"teams">,
   datum: string
 ): Promise<string | undefined> {
@@ -373,12 +373,12 @@ async function busLabelVoorTeamDag(
     )
     .unique();
   const voertuigId =
-    override && override.userId.toString() === companyUserId.toString()
+    override && override.orgId?.toString() === orgId.toString()
       ? override.voertuigId
       : team.standaardVoertuigId;
   if (!voertuigId) return undefined;
   const voertuig = await ctx.db.get(voertuigId);
-  if (!voertuig || voertuig.userId.toString() !== companyUserId.toString()) {
+  if (!voertuig || voertuig.orgId?.toString() !== orgId.toString()) {
     return undefined;
   }
   const merkModel = [voertuig.merk, voertuig.model].filter(Boolean).join(" ");
@@ -423,13 +423,13 @@ interface WeekDagBron {
 
 /**
  * Eén ronde over de week: per dag alle segmenten, dagstatussen, logboekregels
- * en bemanning van het hele bedrijf — 4 indexqueries per dag, 28 in totaal, en
+ * en bemanning van de hele organisatie — 4 indexqueries per dag, 28 in totaal, en
  * geen enkele scan. Daarna wordt alles in het geheugen gekruist; dat is
  * goedkoper dan per medewerker per dag een query.
  */
 async function weekBronnen(
   ctx: QueryCtx | MutationCtx,
-  companyUserId: Id<"users">,
+  orgId: Id<"organisaties">,
   dagen: string[]
 ): Promise<WeekDagBron[]> {
   return await Promise.all(
@@ -437,26 +437,26 @@ async function weekBronnen(
       const [segmenten, dagRijen, logRijen, bemanningRijen] = await Promise.all([
         ctx.db
           .query("urenSegmenten")
-          .withIndex("by_user_datum", (q) =>
-            q.eq("userId", companyUserId).eq("datum", datum)
+          .withIndex("by_org_datum", (q) =>
+            q.eq("orgId", orgId).eq("datum", datum)
           )
           .collect(),
         ctx.db
           .query("urenDagen")
-          .withIndex("by_user_datum", (q) =>
-            q.eq("userId", companyUserId).eq("datum", datum)
+          .withIndex("by_org_datum", (q) =>
+            q.eq("orgId", orgId).eq("datum", datum)
           )
           .collect(),
         ctx.db
           .query("urenLogboek")
-          .withIndex("by_user_datum", (q) =>
-            q.eq("userId", companyUserId).eq("datum", datum)
+          .withIndex("by_org_datum", (q) =>
+            q.eq("orgId", orgId).eq("datum", datum)
           )
           .collect(),
         ctx.db
           .query("teamBemanning")
-          .withIndex("by_user_datum", (q) =>
-            q.eq("userId", companyUserId).eq("datum", datum)
+          .withIndex("by_org_datum", (q) =>
+            q.eq("orgId", orgId).eq("datum", datum)
           )
           .collect(),
       ]);
@@ -472,7 +472,7 @@ async function weekBronnen(
  */
 async function planningPerTeam(
   ctx: QueryCtx | MutationCtx,
-  companyUserId: Id<"users">,
+  orgId: Id<"organisaties">,
   teams: Doc<"teams">[],
   tot: string
 ): Promise<Map<string, Doc<"projecten">[]>> {
@@ -492,7 +492,7 @@ async function planningPerTeam(
             !item.deletedAt &&
             item.isArchived !== true &&
             item.status !== "vervallen" &&
-            item.userId.toString() === companyUserId.toString()
+            item.orgId?.toString() === orgId.toString()
         )
       );
     })
@@ -529,20 +529,20 @@ async function beoordeelWeek(
 }> {
   const dagen = weekDagen(weekStart);
   const vandaag = vandaagAmsterdam();
-  const companyUserId = veld.companyUserId;
+  const orgId = veld.orgId;
 
   const [bronnen, teams] = await Promise.all([
-    weekBronnen(ctx, companyUserId, dagen),
-    actieveTeams(ctx, companyUserId),
+    weekBronnen(ctx, orgId, dagen),
+    actieveTeams(ctx, orgId),
   ]);
 
   const alleSegmenten = bronnen.flatMap((b) => b.segmenten);
   const [{ actief, alle }, planning] = await Promise.all([
-    medewerkerNamen(ctx, companyUserId, [
+    medewerkerNamen(ctx, orgId, [
       ...alleSegmenten.map((s) => s.medewerkerId),
       ...bronnen.flatMap((b) => b.dagRijen.map((r) => r.medewerkerId)),
     ]),
-    planningPerTeam(ctx, companyUserId, teams, dagen[dagen.length - 1]),
+    planningPerTeam(ctx, orgId, teams, dagen[dagen.length - 1]),
   ]);
 
   const teamPerId = new Map(teams.map((t) => [t._id.toString(), t]));
@@ -800,22 +800,22 @@ export const getDagFilm = query({
   handler: async (ctx, args): Promise<DagFilm> => {
     assertGeldigeDatum(args.datum);
     const veld = await kantoorContext(ctx);
-    const companyUserId = veld.companyUserId;
+    const orgId = veld.orgId;
 
     const stripDagen = laatsteWerkdagen(args.datum, STRIP_WERKDAGEN);
     if (!stripDagen.includes(args.datum)) stripDagen.push(args.datum);
     stripDagen.sort();
 
     const [bronnen, teams] = await Promise.all([
-      weekBronnen(ctx, companyUserId, stripDagen),
-      actieveTeams(ctx, companyUserId),
+      weekBronnen(ctx, orgId, stripDagen),
+      actieveTeams(ctx, orgId),
     ]);
 
     const dagBron = bronnen.find((b) => b.datum === args.datum);
     const segmentenVanDag = dagBron?.segmenten ?? [];
 
     const [{ alle }, { werkitemNamen, klantNamen }] = await Promise.all([
-      medewerkerNamen(ctx, companyUserId, [
+      medewerkerNamen(ctx, orgId, [
         ...segmentenVanDag.map((s) => s.medewerkerId),
         ...(dagBron?.dagRijen ?? []).map((r) => r.medewerkerId),
         ...teams.flatMap((t) => t.leden),
@@ -899,8 +899,8 @@ export const getDagFilm = query({
     for (const team of teams) {
       const leden = bemanning.get(team._id.toString()) ?? [];
       const [afgeleid, busLabel] = await Promise.all([
-        dagkaartVoorstellen(ctx.db, companyUserId, team._id, args.datum),
-        busLabelVoorTeamDag(ctx, companyUserId, team, args.datum),
+        dagkaartVoorstellen(ctx.db, orgId, team._id, args.datum),
+        busLabelVoorTeamDag(ctx, orgId, team, args.datum),
       ]);
       const ledenDagen = leden
         .map((id) => {
@@ -986,13 +986,8 @@ export const getMijnWeek = query({
     const perDag = await Promise.all(
       dagen.map(async (datum) => {
         const [segmenten, dagRij, logRijen] = await Promise.all([
-          segmentenVoorDag(
-            ctx.db,
-            veld.companyUserId,
-            medewerker._id,
-            datum
-          ),
-          dagStatusVoor(ctx.db, veld.companyUserId, medewerker._id, datum),
+          segmentenVoorDag(ctx.db, veld.orgId, medewerker._id, datum),
+          dagStatusVoor(ctx.db, veld.orgId, medewerker._id, datum),
           ctx.db
             .query("urenLogboek")
             .withIndex("by_medewerker_datum", (q) =>
@@ -1013,7 +1008,7 @@ export const getMijnWeek = query({
       .flatMap((dag) =>
         dag.logRijen.filter(
           (r) =>
-            r.userId.toString() === veld.companyUserId.toString() &&
+            r.orgId?.toString() === veld.orgId.toString() &&
             r.actie !== "dag_ingediend"
         )
       )
@@ -1068,7 +1063,7 @@ export const getPloegDag = query({
     if (!eigen) return null;
     const team = await teamVanMedewerkerOpDag(
       ctx.db,
-      veld.companyUserId,
+      veld.orgId,
       eigen._id,
       datum
     );
@@ -1081,13 +1076,13 @@ export const getPloegDag = query({
       )
       .collect();
     const afwijking = bemanningRijen.find(
-      (r) => r.userId.toString() === veld.companyUserId.toString()
+      (r) => r.orgId?.toString() === veld.orgId.toString()
     );
     const leden = afwijking?.medewerkerIds ?? team.leden;
 
     const [afgeleid, busLabel, ledenDocs] = await Promise.all([
-      dagkaartVoorstellen(ctx.db, veld.companyUserId, team._id, datum),
-      busLabelVoorTeamDag(ctx, veld.companyUserId, team, datum),
+      dagkaartVoorstellen(ctx.db, veld.orgId, team._id, datum),
+      busLabelVoorTeamDag(ctx, veld.orgId, team, datum),
       laadDocsMap(ctx, leden),
     ]);
 
@@ -1096,13 +1091,13 @@ export const getPloegDag = query({
         const medewerker = ledenDocs.get(lidId.toString());
         if (
           !medewerker ||
-          medewerker.userId.toString() !== veld.companyUserId.toString()
+          medewerker.orgId?.toString() !== veld.orgId.toString()
         ) {
           return null;
         }
         const [segmenten, dagRij] = await Promise.all([
-          segmentenVoorDag(ctx.db, veld.companyUserId, lidId, datum),
-          dagStatusVoor(ctx.db, veld.companyUserId, lidId, datum),
+          segmentenVoorDag(ctx.db, veld.orgId, lidId, datum),
+          dagStatusVoor(ctx.db, veld.orgId, lidId, datum),
         ]);
         return {
           medewerker,
@@ -1163,7 +1158,7 @@ export const getPloegDag = query({
 /** Bestaande kwijting/heropening van één medewerker-dag, tenant-gescoped. */
 async function kwijtingVoorDag(
   ctx: MutationCtx,
-  companyUserId: Id<"users">,
+  orgId: Id<"organisaties">,
   medewerkerId: Id<"medewerkers">,
   datum: string
 ) {
@@ -1174,7 +1169,7 @@ async function kwijtingVoorDag(
     )
     .collect();
   return bepaalKwijting(
-    rijen.filter((r) => r.userId.toString() === companyUserId.toString())
+    rijen.filter((r) => r.orgId?.toString() === orgId.toString())
   );
 }
 
@@ -1185,7 +1180,10 @@ async function schrijfKwijting(
   datum: string
 ): Promise<void> {
   await ctx.db.insert("urenLogboek", {
-    userId: veld.companyUserId,
+    orgId: veld.orgId,
+    // Legacy-veld tot fase 6: de bedrijfseigenaar van de (org-geverifieerde)
+    // medewerker, niet de acterende kantoorgebruiker — die staat in `door`.
+    userId: medewerker.userId,
     medewerkerId: medewerker._id,
     datum,
     actie: "dag_akkoord",
@@ -1214,15 +1212,12 @@ export const keurDagGoed = mutation({
     const veld = await kantoorContext(ctx);
 
     const medewerker = await ctx.db.get(args.medewerkerId);
-    if (
-      !medewerker ||
-      medewerker.userId.toString() !== veld.companyUserId.toString()
-    ) {
+    if (!medewerker || medewerker.orgId?.toString() !== veld.orgId.toString()) {
       throw new ConvexError("Medewerker niet gevonden");
     }
     const dagRij = await dagStatusVoor(
       ctx.db,
-      veld.companyUserId,
+      veld.orgId,
       medewerker._id,
       args.datum
     );
@@ -1234,7 +1229,7 @@ export const keurDagGoed = mutation({
 
     const kwijting = await kwijtingVoorDag(
       ctx,
-      veld.companyUserId,
+      veld.orgId,
       medewerker._id,
       args.datum
     );
@@ -1269,7 +1264,7 @@ export const keurWeekGoed = mutation({
       const medewerker = await ctx.db.get(dag.medewerkerId);
       if (
         !medewerker ||
-        medewerker.userId.toString() !== veld.companyUserId.toString()
+        medewerker.orgId?.toString() !== veld.orgId.toString()
       ) {
         continue;
       }
@@ -1277,7 +1272,7 @@ export const keurWeekGoed = mutation({
       // kantoortab dezelfde dag al gekweten hebben.
       const bestaand = await kwijtingVoorDag(
         ctx,
-        veld.companyUserId,
+        veld.orgId,
         dag.medewerkerId,
         dag.datum
       );

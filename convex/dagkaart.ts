@@ -26,7 +26,7 @@ import {
 } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
-import { requireAuthUserId } from "./auth";
+import { requireOrgContext, requireOrgId } from "./auth";
 import { requireKantoor, requireNotViewer } from "./roles";
 import { logPlanwijziging, werkitemOpDag } from "./planbordLogica";
 import {
@@ -58,13 +58,13 @@ const MAX_MAPS_CALLS_PER_AANROEP = 25;
 
 const MAX_DUUR_MINUTEN = 24 * 60;
 
-async function requireTeamVanUser(
+async function requireTeamVanOrg(
   ctx: { db: { get: (id: Id<"teams">) => Promise<Doc<"teams"> | null> } },
   teamId: Id<"teams">,
-  userId: Id<"users">
+  orgId: Id<"organisaties">
 ): Promise<Doc<"teams">> {
   const team = await ctx.db.get(teamId);
-  if (!team || team.userId.toString() !== userId.toString()) {
+  if (!team || team.orgId?.toString() !== orgId.toString()) {
     throw new ConvexError("Team niet gevonden");
   }
   return team;
@@ -80,7 +80,7 @@ type QueryDb = QueryCtx["db"];
  */
 export async function werkitemsVoorTeamDag(
   db: QueryDb,
-  userId: Id<"users">,
+  orgId: Id<"organisaties">,
   teamId: Id<"teams">,
   datum: string
 ): Promise<WerkItem[]> {
@@ -96,7 +96,7 @@ export async function werkitemsVoorTeamDag(
         !item.deletedAt &&
         item.isArchived !== true &&
         item.status !== "vervallen" &&
-        item.userId.toString() === userId.toString() &&
+        item.orgId?.toString() === orgId.toString() &&
         // Belt & braces bovenop de indexquery: team-scope expliciet
         item.teamId?.toString() === teamId.toString() &&
         werkitemOpDag(item, datum)
@@ -111,14 +111,14 @@ export async function werkitemsVoorTeamDag(
 /** Geëxporteerd voor hergebruik door convex/urenSegmenten.ts (§8.10). */
 export async function dagkaartStandaardenVoor(
   db: QueryDb,
-  userId: Id<"users">,
+  orgId: Id<"organisaties">,
   teamId: Id<"teams">,
   datum: string
 ) {
   const [instellingen, afwijking] = await Promise.all([
     db
       .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .unique(),
     db
       .query("dagkaartAfwijkingen")
@@ -128,7 +128,7 @@ export async function dagkaartStandaardenVoor(
       .unique(),
   ]);
   const geldigeAfwijking =
-    afwijking && afwijking.userId.toString() === userId.toString()
+    afwijking && afwijking.orgId?.toString() === orgId.toString()
       ? afwijking
       : null;
   return {
@@ -149,7 +149,7 @@ export async function dagkaartStandaardenVoor(
  */
 export async function reistijdenUitCache(
   db: QueryDb,
-  userId: Id<"users">,
+  orgId: Id<"organisaties">,
   paren: (AdresPaar | null)[],
   standaardMinuten: number
 ): Promise<{ minuten: number; bron: "standaard" | "google_maps" }[]> {
@@ -167,8 +167,8 @@ export async function reistijdenUitCache(
     if (!cache.has(paar.sleutel)) {
       const rij = await db
         .query("reistijdCache")
-        .withIndex("by_user_sleutel", (q) =>
-          q.eq("userId", userId).eq("sleutel", paar.sleutel)
+        .withIndex("by_org_sleutel", (q) =>
+          q.eq("orgId", orgId).eq("sleutel", paar.sleutel)
         )
         .unique();
       cache.set(
@@ -211,7 +211,7 @@ export interface DagkaartVeldtaak {
  */
 async function veldtakenVoorTeamDag(
   db: QueryDb,
-  userId: Id<"users">,
+  orgId: Id<"organisaties">,
   team: Doc<"teams">,
   datum: string,
   items: WerkItem[]
@@ -235,7 +235,7 @@ async function veldtakenVoorTeamDag(
     (r) =>
       r.teamId.toString() === team._id.toString() &&
       r.datum === datum &&
-      r.userId.toString() === userId.toString()
+      r.orgId?.toString() === orgId.toString()
   );
   const bemanning = afwijking?.medewerkerIds ?? team.leden;
 
@@ -250,7 +250,12 @@ async function veldtakenVoorTeamDag(
       // Belt & braces bovenop de indexquery
       if (taak.status !== "open") continue;
       if (taak.medewerkerId.toString() !== medewerkerId.toString()) continue;
-      if (taak.userId.toString() !== userId.toString()) continue;
+      // Belt & braces, migratie-tolerant: de bemanning komt van een team van
+      // DEZE organisatie en de klant van een werkitem van deze organisatie, dus
+      // een match kan niet van een andere tenant komen. Veldtaken die nog geen
+      // `orgId` hebben (backfill fase 3 loopt) vallen daarom niet weg; een rij
+      // die er wél een heeft moet kloppen.
+      if (taak.orgId && taak.orgId.toString() !== orgId.toString()) continue;
       if (!klantIds.has(taak.klantId.toString())) continue;
       const key = taak.klantId.toString();
       const lijst = result.get(key) ?? [];
@@ -273,12 +278,12 @@ export const getDagkaart = query({
     datum: v.string(), // YYYY-MM-DD
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
-    const team = await requireTeamVanUser(ctx, args.teamId, userId);
+    const orgId = await requireOrgId(ctx);
+    const team = await requireTeamVanOrg(ctx, args.teamId, orgId);
 
     const [items, config] = await Promise.all([
-      werkitemsVoorTeamDag(ctx.db, userId, args.teamId, args.datum),
-      dagkaartStandaardenVoor(ctx.db, userId, args.teamId, args.datum),
+      werkitemsVoorTeamDag(ctx.db, orgId, args.teamId, args.datum),
+      dagkaartStandaardenVoor(ctx.db, orgId, args.teamId, args.datum),
     ]);
     const { standaarden, afwijking, loodsAdres } = config;
 
@@ -298,7 +303,7 @@ export const getDagkaart = query({
     // Veldtaken uit meldingen (§2.4/§8.6) per klant op deze team-dag
     const veldtakenPerKlant = await veldtakenVoorTeamDag(
       ctx.db,
-      userId,
+      orgId,
       team,
       args.datum,
       items
@@ -374,7 +379,7 @@ export const getDagkaart = query({
     );
     const reistijden = await reistijdenUitCache(
       ctx.db,
-      userId,
+      orgId,
       paren,
       standaarden.standaardReistijdMinuten
     );
@@ -450,12 +455,12 @@ export const getVolgordeVoorstel = query({
   },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
-    const userId = await requireAuthUserId(ctx);
-    await requireTeamVanUser(ctx, args.teamId, userId);
+    const orgId = await requireOrgId(ctx);
+    await requireTeamVanOrg(ctx, args.teamId, orgId);
 
     const [items, config] = await Promise.all([
-      werkitemsVoorTeamDag(ctx.db, userId, args.teamId, args.datum),
-      dagkaartStandaardenVoor(ctx.db, userId, args.teamId, args.datum),
+      werkitemsVoorTeamDag(ctx.db, orgId, args.teamId, args.datum),
+      dagkaartStandaardenVoor(ctx.db, orgId, args.teamId, args.datum),
     ]);
 
     const klantCache = new Map<string, Doc<"klanten"> | null>();
@@ -473,11 +478,11 @@ export const getVolgordeVoorstel = query({
     // staan in de cache; klein — één rij per adrespaar)
     const cacheRijen = await ctx.db
       .query("reistijdCache")
-      .withIndex("by_user_sleutel", (q) => q.eq("userId", userId))
+      .withIndex("by_org_sleutel", (q) => q.eq("orgId", orgId))
       .collect();
     const reistijden = new Map<string, number>();
     for (const rij of cacheRijen) {
-      if (rij.userId.toString() !== userId.toString()) continue;
+      if (rij.orgId?.toString() !== orgId.toString()) continue;
       reistijden.set(rij.sleutel, rij.minuten);
     }
 
@@ -518,12 +523,12 @@ export const herordenDag = mutation({
   },
   handler: async (ctx, args) => {
     const kantoorUser = await requireKantoor(ctx);
-    const userId = await requireAuthUserId(ctx);
-    const team = await requireTeamVanUser(ctx, args.teamId, userId);
+    const orgId = await requireOrgId(ctx);
+    const team = await requireTeamVanOrg(ctx, args.teamId, orgId);
 
     const huidig = await werkitemsVoorTeamDag(
       ctx.db,
-      userId,
+      orgId,
       args.teamId,
       args.datum
     );
@@ -545,7 +550,8 @@ export const herordenDag = mutation({
       });
     }
     await logPlanwijziging(ctx, {
-      userId,
+      orgId,
+      userId: kantoorUser._id,
       door: kantoorUser._id,
       actie: "volgorde_gewijzigd",
       details: `Dagkaart ${team.naam} ${args.datum}: volgorde gewijzigd (${args.werkitemIds.length} stops)`,
@@ -569,9 +575,9 @@ export const setTijdOverride = mutation({
   },
   handler: async (ctx, args) => {
     const kantoorUser = await requireKantoor(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const item = await ctx.db.get(args.id);
-    if (!item || item.deletedAt || item.userId.toString() !== userId.toString()) {
+    if (!item || item.deletedAt || item.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Werkitem niet gevonden");
     }
 
@@ -608,7 +614,8 @@ export const setTijdOverride = mutation({
 
     await ctx.db.patch(args.id, patch);
     await logPlanwijziging(ctx, {
-      userId,
+      orgId,
+      userId: kantoorUser._id,
       door: kantoorUser._id,
       actie: "tijd_aangepast",
       details: `${item.naam}: ${wijzigingen.join(", ")} (cascade schuift door)`,
@@ -636,8 +643,8 @@ export const setDagAfwijking = mutation({
   },
   handler: async (ctx, args) => {
     const kantoorUser = await requireKantoor(ctx);
-    const userId = await requireAuthUserId(ctx);
-    const team = await requireTeamVanUser(ctx, args.teamId, userId);
+    const { org, user } = await requireOrgContext(ctx);
+    const team = await requireTeamVanOrg(ctx, args.teamId, org._id);
 
     const bestaand = await ctx.db
       .query("dagkaartAfwijkingen")
@@ -649,7 +656,8 @@ export const setDagAfwijking = mutation({
     if (args.herstel) {
       if (bestaand) await ctx.db.delete(bestaand._id);
       await logPlanwijziging(ctx, {
-        userId,
+        orgId: org._id,
+        userId: user._id,
         door: kantoorUser._id,
         actie: "dagblokken_aangepast",
         details: `Dagkaart ${team.naam} ${args.datum}: standaardblokken hersteld`,
@@ -689,7 +697,8 @@ export const setDagAfwijking = mutation({
       });
     } else {
       await ctx.db.insert("dagkaartAfwijkingen", {
-        userId,
+        orgId: org._id,
+        userId: user._id,
         teamId: args.teamId,
         datum: args.datum,
         vertrekTijd: args.vertrekTijd,
@@ -701,7 +710,8 @@ export const setDagAfwijking = mutation({
       });
     }
     await logPlanwijziging(ctx, {
-      userId,
+      orgId: org._id,
+      userId: user._id,
       door: kantoorUser._id,
       actie: "dagblokken_aangepast",
       details: `Dagkaart ${team.naam} ${args.datum}: standaardblokken afwijkend ingesteld`,
@@ -724,9 +734,9 @@ export const maakTaakLos = mutation({
   },
   handler: async (ctx, args) => {
     const kantoorUser = await requireKantoor(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const item = await ctx.db.get(args.id);
-    if (!item || item.deletedAt || item.userId.toString() !== userId.toString()) {
+    if (!item || item.deletedAt || item.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Werkitem niet gevonden");
     }
 
@@ -758,6 +768,7 @@ export const maakTaakLos = mutation({
 
     // Rest-opdracht: ongepland (geen geplandeStart) → verschijnt in de bak
     const restId = await ctx.db.insert("projecten", {
+      orgId,
       userId: item.userId,
       type: getType(item),
       klantId: item.klantId,
@@ -775,7 +786,8 @@ export const maakTaakLos = mutation({
     });
 
     await logPlanwijziging(ctx, {
-      userId,
+      orgId,
+      userId: kantoorUser._id,
       door: kantoorUser._id,
       actie: "taak_losgemaakt",
       details: `Taak "${losgemaakt.omschrijving}" losgemaakt uit ${item.naam} → rest-opdracht in de bak`,
@@ -804,11 +816,11 @@ export const getOntbrekendeAdresParen = internalQuery({
     // nodig. Klanten hebben hier niets te zoeken en mogen dus ook geen
     // (betaalde) Maps-calls kunnen uitlokken.
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
-    await requireTeamVanUser(ctx, args.teamId, userId);
+    const orgId = await requireOrgId(ctx);
+    await requireTeamVanOrg(ctx, args.teamId, orgId);
     const [items, config] = await Promise.all([
-      werkitemsVoorTeamDag(ctx.db, userId, args.teamId, args.datum),
-      dagkaartStandaardenVoor(ctx.db, userId, args.teamId, args.datum),
+      werkitemsVoorTeamDag(ctx.db, orgId, args.teamId, args.datum),
+      dagkaartStandaardenVoor(ctx.db, orgId, args.teamId, args.datum),
     ]);
     const klantCache = new Map<string, Doc<"klanten"> | null>();
     const adressen: (string | null)[] = [];
@@ -836,8 +848,8 @@ export const getOntbrekendeAdresParen = internalQuery({
       gezien.add(paar.sleutel);
       const rij = await ctx.db
         .query("reistijdCache")
-        .withIndex("by_user_sleutel", (q) =>
-          q.eq("userId", userId).eq("sleutel", paar.sleutel)
+        .withIndex("by_org_sleutel", (q) =>
+          q.eq("orgId", orgId).eq("sleutel", paar.sleutel)
         )
         .unique();
       if (!rij) ontbrekend.push(paar);
@@ -859,11 +871,11 @@ export const slaReistijdOp = internalMutation({
     bron: v.union(v.literal("standaard"), v.literal("google_maps")),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
     const bestaand = await ctx.db
       .query("reistijdCache")
-      .withIndex("by_user_sleutel", (q) =>
-        q.eq("userId", userId).eq("sleutel", args.sleutel)
+      .withIndex("by_org_sleutel", (q) =>
+        q.eq("orgId", org._id).eq("sleutel", args.sleutel)
       )
       .unique();
     const now = Date.now();
@@ -875,7 +887,8 @@ export const slaReistijdOp = internalMutation({
       });
     } else {
       await ctx.db.insert("reistijdCache", {
-        userId,
+        orgId: org._id,
+        userId: user._id,
         sleutel: args.sleutel,
         vanAdres: args.vanAdres,
         naarAdres: args.naarAdres,

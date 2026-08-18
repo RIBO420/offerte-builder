@@ -20,12 +20,9 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
-import { requireAuth } from "./auth";
-import {
-  CANONIEKE_ROL_MAPPING,
-  getCompanyUserId,
-  normalizeRole,
-} from "./roles";
+import { requireOrgContext } from "./auth";
+import type { QueryCtx, MutationCtx } from "./_generated/server";
+import { CANONIEKE_ROL_MAPPING, normalizeRole } from "./roles";
 import {
   berekenMateriaalDelta,
   magUrenLoggen,
@@ -37,14 +34,19 @@ import { laadDocsMap } from "./lib/batchLoad";
 
 const DATUM_PATROON = /^\d{4}-\d{2}-\d{2}$/;
 
-async function veldToegang(ctx: Parameters<typeof requireAuth>[0]) {
-  const user = await requireAuth(ctx);
+/**
+ * Auth + rolcheck + tenant-scope. De scope is sinds fase 3 de organisatie uit
+ * het Clerk-JWT: voor een veld-account levert dat exact hetzelfde bedrijfszicht
+ * als `getCompanyUserId` (de omweg via de gekoppelde medewerker), maar nu zonder
+ * die omweg.
+ */
+async function veldToegang(ctx: QueryCtx | MutationCtx) {
+  const { org, user } = await requireOrgContext(ctx);
   const rol = CANONIEKE_ROL_MAPPING[normalizeRole(user.role)];
   if (!magUrenLoggen(rol)) {
     throw new ConvexError("Deze functie is niet beschikbaar voor deze rol");
   }
-  const companyUserId = await getCompanyUserId(ctx);
-  return { user, companyUserId };
+  return { user, orgId: org._id };
 }
 
 /**
@@ -63,13 +65,13 @@ export const getDeltaChecklist = query({
     if (!DATUM_PATROON.test(args.datum)) {
       throw new ConvexError("Ongeldige datum (verwacht YYYY-MM-DD)");
     }
-    const { companyUserId } = await veldToegang(ctx);
+    const { orgId } = await veldToegang(ctx);
 
     const werkitem = await ctx.db.get(args.werkitemId);
     if (
       !werkitem ||
       werkitem.deletedAt ||
-      werkitem.userId.toString() !== companyUserId.toString()
+      werkitem.orgId?.toString() !== orgId.toString()
     ) {
       throw new ConvexError("Werkitem niet gevonden");
     }
@@ -133,9 +135,8 @@ export const getDeltaChecklist = query({
         )
         .collect();
       dagOverrideVoertuigId =
-        overrides.find(
-          (o) => o.userId.toString() === companyUserId.toString()
-        )?.voertuigId ?? null;
+        overrides.find((o) => o.orgId?.toString() === orgId.toString())
+          ?.voertuigId ?? null;
       const team = await ctx.db.get(werkitem.teamId);
       teamStandaardVoertuigId = team?.standaardVoertuigId ?? null;
     }
@@ -159,10 +160,7 @@ export const getDeltaChecklist = query({
     let inventarisNamen: string[] = [];
     if (voertuigId) {
       voertuig = await ctx.db.get(voertuigId);
-      if (
-        !voertuig ||
-        voertuig.userId.toString() !== companyUserId.toString()
-      ) {
+      if (!voertuig || voertuig.orgId?.toString() !== orgId.toString()) {
         throw new ConvexError("Voertuig niet gevonden");
       }
       const uitrusting = await ctx.db
@@ -187,7 +185,7 @@ export const getDeltaChecklist = query({
       .collect();
     const checksPerItem = new Map(
       checks
-        .filter((c) => c.userId.toString() === companyUserId.toString())
+        .filter((c) => c.orgId?.toString() === orgId.toString())
         .map((c) => [c.item, c])
     );
 
@@ -243,13 +241,13 @@ export const vinkAf = mutation({
     if (!DATUM_PATROON.test(args.datum)) {
       throw new ConvexError("Ongeldige datum (verwacht YYYY-MM-DD)");
     }
-    const { user, companyUserId } = await veldToegang(ctx);
+    const { user, orgId } = await veldToegang(ctx);
 
     const werkitem = await ctx.db.get(args.werkitemId);
     if (
       !werkitem ||
       werkitem.deletedAt ||
-      werkitem.userId.toString() !== companyUserId.toString()
+      werkitem.orgId?.toString() !== orgId.toString()
     ) {
       throw new ConvexError("Werkitem niet gevonden");
     }
@@ -265,8 +263,7 @@ export const vinkAf = mutation({
       )
       .collect();
     const bestaand = bestaande.find(
-      (c) =>
-        c.item === item && c.userId.toString() === companyUserId.toString()
+      (c) => c.item === item && c.orgId?.toString() === orgId.toString()
     );
 
     if (args.ongedaan) {
@@ -276,7 +273,10 @@ export const vinkAf = mutation({
     if (bestaand) return bestaand._id; // idempotent
 
     return await ctx.db.insert("materiaalChecks", {
-      userId: companyUserId,
+      orgId,
+      // Legacy-veld tot fase 6; het werkitem is hierboven org-geverifieerd, dus
+      // dit blijft de bedrijfseigenaar (wat getCompanyUserId hier gaf).
+      userId: werkitem.userId,
       werkitemId: args.werkitemId,
       datum: args.datum,
       item,

@@ -8,7 +8,7 @@
  */
 
 import { query } from "./_generated/server";
-import { requireAuthUserId } from "./auth";
+import { requireOrgId } from "./auth";
 import { laadDocsMap } from "./lib/batchLoad";
 import type { Doc } from "./_generated/dataModel";
 
@@ -20,16 +20,16 @@ function todayStr(): string {
 export const getVoormanStats = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const today = todayStr();
 
     // Tenant-lek gedicht (audit §2): `weekPlanning` en `urenRegistraties`
-    // werden alleen op datum gefilterd — `by_datum` heeft geen userId, dus het
-    // dashboard toonde de planning en uren van ÁLLE bedrijven van die dag.
-    // De projecten van dit bedrijf zijn de tenant-grens: alleen planningrijen
-    // en urenregistraties die aan een eigen project hangen, tellen mee. (Niet
-    // via `urenRegistraties.by_user_datum`, want `userId` is daar optioneel en
-    // pre-backfill-rijen zouden stil wegvallen.)
+    // werden alleen op datum gefilterd — `by_datum` heeft geen tenant-veld, dus
+    // het dashboard toonde de planning en uren van ÁLLE bedrijven van die dag.
+    // De projecten van deze organisatie zijn de tenant-grens: alleen
+    // planningrijen en urenregistraties die aan een eigen project hangen,
+    // tellen mee. (Niet via `urenRegistraties.by_org_datum`, want `orgId` is
+    // daar optioneel en pre-backfill-rijen zouden stil wegvallen.)
     const [dagPlanningRuw, urenVandaagRuw, eigenProjecten, allMedewerkers] =
       await Promise.all([
         ctx.db
@@ -42,11 +42,11 @@ export const getVoormanStats = query({
           .collect(),
         ctx.db
           .query("projecten")
-          .withIndex("by_user", (q) => q.eq("userId", userId))
+          .withIndex("by_org", (q) => q.eq("orgId", orgId))
           .collect(),
         ctx.db
           .query("medewerkers")
-          .withIndex("by_user", (q) => q.eq("userId", userId))
+          .withIndex("by_org", (q) => q.eq("orgId", orgId))
           .collect(),
       ]);
 
@@ -73,9 +73,9 @@ export const getVoormanStats = query({
     for (const mw of allMedewerkers) {
       medewerkerMap.set(mw._id.toString(), mw);
     }
-    // Vangnet voor medewerkers die niet in de by_user-lijst zitten (bv. net
+    // Vangnet voor medewerkers die niet in de by_org-lijst zitten (bv. net
     // aangepast), maar alleen binnen de eigen tenant — een medewerker van een
-    // ander bedrijf komt er niet meer bij.
+    // andere organisatie komt er niet meer bij.
     const ontbrekendeMedewerkers = await laadDocsMap(
       ctx,
       dagPlanning
@@ -83,7 +83,7 @@ export const getVoormanStats = query({
         .filter((id) => !medewerkerMap.has(id.toString()))
     );
     for (const mw of ontbrekendeMedewerkers.values()) {
-      if (mw.userId.toString() === userId.toString()) {
+      if (mw.orgId?.toString() === orgId.toString()) {
         medewerkerMap.set(mw._id.toString(), mw);
       }
     }

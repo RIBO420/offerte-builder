@@ -23,10 +23,9 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
-import { requireAuth } from "./auth";
+import { requireOrgContext } from "./auth";
 import {
   CANONIEKE_ROL_MAPPING,
-  getCompanyUserId,
   getLinkedMedewerker,
   normalizeRole,
 } from "./roles";
@@ -79,23 +78,28 @@ export const segmentCategorieValidator = v.union(
 export interface VeldContext {
   user: Doc<"users">;
   rol: VeldRol;
-  companyUserId: Id<"users">;
+  /**
+   * DE tenant-scope sinds fase 3: de organisatie uit het Clerk-JWT. Dit ving
+   * eerder `companyUserId` op (getCompanyUserId → via de gekoppelde medewerker
+   * naar de bedrijfseigenaar). Voor veld-accounts is het zicht identiek — de
+   * omweg is weg, de rolchecks hieronder zijn ongewijzigd.
+   */
+  orgId: Id<"organisaties">;
   eigenMedewerker: Doc<"medewerkers"> | null;
 }
 
 /**
- * Auth + canonieke rol + bedrijfsscope + gekoppelde medewerker in één keer.
+ * Auth + canonieke rol + org-scope + gekoppelde medewerker in één keer.
  * Geëxporteerd voor hergebruik door convex/urenControle.ts — de Controlekamer
  * moet exact dezelfde kantoor-/rolchecks doen als de veld-flows hieronder.
  */
 export async function veldContext(
   ctx: QueryCtx | MutationCtx
 ): Promise<VeldContext> {
-  const user = await requireAuth(ctx);
+  const { org, user } = await requireOrgContext(ctx);
   const rol = CANONIEKE_ROL_MAPPING[normalizeRole(user.role)];
-  const companyUserId = await getCompanyUserId(ctx);
   const eigenMedewerker = await getLinkedMedewerker(ctx);
-  return { user, rol, companyUserId, eigenMedewerker };
+  return { user, rol, orgId: org._id, eigenMedewerker };
 }
 
 /**
@@ -124,10 +128,7 @@ async function resolveDoelMedewerker(
     throw new ConvexError("Je mag alleen je eigen werkdag bekijken en bewerken");
   }
   const medewerker = await ctx.db.get(doelId);
-  if (
-    !medewerker ||
-    medewerker.userId.toString() !== veld.companyUserId.toString()
-  ) {
+  if (!medewerker || medewerker.orgId?.toString() !== veld.orgId.toString()) {
     throw new ConvexError("Medewerker niet gevonden");
   }
   return medewerker;
@@ -140,12 +141,12 @@ function assertGeldigeDatum(datum: string): void {
 }
 
 /**
- * Segmenten van één medewerker-dag, binnen de bedrijfsscope.
+ * Segmenten van één medewerker-dag, binnen de org-scope.
  * Geëxporteerd voor convex/urenControle.ts (medewerker- en voorman-gezicht).
  */
 export async function segmentenVoorDag(
   db: QueryCtx["db"],
-  companyUserId: Id<"users">,
+  orgId: Id<"organisaties">,
   medewerkerId: Id<"medewerkers">,
   datum: string
 ): Promise<Doc<"urenSegmenten">[]> {
@@ -155,15 +156,13 @@ export async function segmentenVoorDag(
       q.eq("medewerkerId", medewerkerId).eq("datum", datum)
     )
     .collect();
-  return rijen.filter(
-    (r) => r.userId.toString() === companyUserId.toString()
-  );
+  return rijen.filter((r) => r.orgId?.toString() === orgId.toString());
 }
 
 /** Dag-status (geen rij = open). Geëxporteerd voor convex/urenControle.ts. */
 export async function dagStatusVoor(
   db: QueryCtx["db"],
-  companyUserId: Id<"users">,
+  orgId: Id<"organisaties">,
   medewerkerId: Id<"medewerkers">,
   datum: string
 ): Promise<Doc<"urenDagen"> | null> {
@@ -173,9 +172,7 @@ export async function dagStatusVoor(
       q.eq("medewerkerId", medewerkerId).eq("datum", datum)
     )
     .unique();
-  return rij && rij.userId.toString() === companyUserId.toString()
-    ? rij
-    : null;
+  return rij && rij.orgId?.toString() === orgId.toString() ? rij : null;
 }
 
 /**
@@ -184,13 +181,13 @@ export async function dagStatusVoor(
  */
 export async function teamVanMedewerkerOpDag(
   db: QueryCtx["db"],
-  companyUserId: Id<"users">,
+  orgId: Id<"organisaties">,
   medewerkerId: Id<"medewerkers">,
   datum: string
 ): Promise<Doc<"teams"> | null> {
   const teams = await db
     .query("teams")
-    .withIndex("by_user", (q) => q.eq("userId", companyUserId))
+    .withIndex("by_org", (q) => q.eq("orgId", orgId))
     .collect();
   for (const team of teams) {
     if (team.isActief === false) continue;
@@ -201,7 +198,7 @@ export async function teamVanMedewerkerOpDag(
       )
       .collect();
     const afwijking = bemanningRijen.find(
-      (r) => r.userId.toString() === companyUserId.toString()
+      (r) => r.orgId?.toString() === orgId.toString()
     );
     const leden = afwijking?.medewerkerIds ?? team.leden;
     if (leden.some((id) => id.toString() === medewerkerId.toString())) {
@@ -214,11 +211,11 @@ export async function teamVanMedewerkerOpDag(
 /** Drempels voor de "Wie is achter"-widget uit instellingen (met defaults). */
 async function afwijkingDrempels(
   db: QueryCtx["db"],
-  companyUserId: Id<"users">
+  orgId: Id<"organisaties">
 ): Promise<AfwijkingDrempels> {
   const instellingen = await db
     .query("instellingen")
-    .withIndex("by_user", (q) => q.eq("userId", companyUserId))
+    .withIndex("by_org", (q) => q.eq("orgId", orgId))
     .unique();
   return {
     minuten:
@@ -257,13 +254,13 @@ export interface VeldStop {
  */
 export async function dagkaartVoorstellen(
   db: QueryCtx["db"],
-  companyUserId: Id<"users">,
+  orgId: Id<"organisaties">,
   teamId: Id<"teams">,
   datum: string
 ) {
   const [items, config] = await Promise.all([
-    werkitemsVoorTeamDag(db, companyUserId, teamId, datum),
-    dagkaartStandaardenVoor(db, companyUserId, teamId, datum),
+    werkitemsVoorTeamDag(db, orgId, teamId, datum),
+    dagkaartStandaardenVoor(db, orgId, teamId, datum),
   ]);
 
   const klantCache = new Map<string, Doc<"klanten"> | null>();
@@ -341,7 +338,7 @@ export async function dagkaartVoorstellen(
   );
   const reistijden = await reistijdenUitCache(
     db,
-    companyUserId,
+    orgId,
     paren,
     config.standaarden.standaardReistijdMinuten
   );
@@ -375,14 +372,9 @@ export const getVeldDag = query({
     const medewerker = await resolveDoelMedewerker(ctx, veld, args.medewerkerId);
 
     const [segmenten, dagRij, team] = await Promise.all([
-      segmentenVoorDag(ctx.db, veld.companyUserId, medewerker._id, args.datum),
-      dagStatusVoor(ctx.db, veld.companyUserId, medewerker._id, args.datum),
-      teamVanMedewerkerOpDag(
-        ctx.db,
-        veld.companyUserId,
-        medewerker._id,
-        args.datum
-      ),
+      segmentenVoorDag(ctx.db, veld.orgId, medewerker._id, args.datum),
+      dagStatusVoor(ctx.db, veld.orgId, medewerker._id, args.datum),
+      teamVanMedewerkerOpDag(ctx.db, veld.orgId, medewerker._id, args.datum),
     ]);
 
     let stops: VeldStop[] = [];
@@ -390,7 +382,7 @@ export const getVeldDag = query({
     if (team) {
       const afgeleid = await dagkaartVoorstellen(
         ctx.db,
-        veld.companyUserId,
+        veld.orgId,
         team._id,
         args.datum
       );
@@ -432,12 +424,7 @@ async function assertDagBewerkbaar(
   medewerkerId: Id<"medewerkers">,
   datum: string
 ): Promise<boolean> {
-  const dagRij = await dagStatusVoor(
-    ctx.db,
-    veld.companyUserId,
-    medewerkerId,
-    datum
-  );
+  const dagRij = await dagStatusVoor(ctx.db, veld.orgId, medewerkerId, datum);
   if (dagRij?.status === "ingediend") {
     if (!magDagHeropenen(veld.rol)) {
       throw new ConvexError(
@@ -452,6 +439,14 @@ async function assertDagBewerkbaar(
 async function logUrenActie(
   ctx: MutationCtx,
   args: {
+    orgId: Id<"organisaties">;
+    /**
+     * Legacy-veld, verplicht in het schema tot fase 6. Bewust de
+     * BEDRIJFSEIGENAAR (`medewerker.userId` van een al org-geverifieerde
+     * medewerker), niet de acterende user: het schema noemt dit veld
+     * "bedrijfseigenaar (multi-tenant scope)" en lezers buiten dit cluster
+     * (o.a. beurtNacalculatie.ts) filteren er nog op. `door` is de acteur.
+     */
     userId: Id<"users">;
     medewerkerId: Id<"medewerkers">;
     datum: string;
@@ -461,6 +456,7 @@ async function logUrenActie(
   }
 ): Promise<void> {
   await ctx.db.insert("urenLogboek", {
+    orgId: args.orgId,
     userId: args.userId,
     medewerkerId: args.medewerkerId,
     datum: args.datum,
@@ -504,14 +500,14 @@ async function voegSegmentToe(
     if (
       !werkitem ||
       werkitem.deletedAt ||
-      werkitem.userId.toString() !== veld.companyUserId.toString()
+      werkitem.orgId?.toString() !== veld.orgId.toString()
     ) {
       throw new ConvexError("Werkitem niet gevonden");
     }
   }
   if (args.klantId) {
     const klant = await ctx.db.get(args.klantId);
-    if (!klant || klant.userId.toString() !== veld.companyUserId.toString()) {
+    if (!klant || klant.orgId?.toString() !== veld.orgId.toString()) {
       throw new ConvexError("Klant niet gevonden");
     }
   }
@@ -519,7 +515,7 @@ async function voegSegmentToe(
   // Geen overlappende segmenten binnen dezelfde dag
   const bestaand = await segmentenVoorDag(
     ctx.db,
-    veld.companyUserId,
+    veld.orgId,
     medewerker._id,
     args.datum
   );
@@ -537,7 +533,10 @@ async function voegSegmentToe(
 
   const now = Date.now();
   const id = await ctx.db.insert("urenSegmenten", {
-    userId: veld.companyUserId,
+    orgId: veld.orgId,
+    // Legacy-veld tot fase 6 — zie logUrenActie: de bedrijfseigenaar van de
+    // (org-geverifieerde) medewerker, niet de acterende user.
+    userId: medewerker.userId,
     medewerkerId: medewerker._id,
     datum: args.datum,
     categorie: args.categorie,
@@ -555,7 +554,8 @@ async function voegSegmentToe(
 
   if (kantoorCorrectie) {
     await logUrenActie(ctx, {
-      userId: veld.companyUserId,
+      orgId: veld.orgId,
+      userId: medewerker.userId,
       medewerkerId: medewerker._id,
       datum: args.datum,
       actie: "segment_gecorrigeerd",
@@ -606,7 +606,7 @@ export const bevestigSegment = mutation({
  */
 async function ledenVanTeamOpDag(
   db: QueryCtx["db"],
-  companyUserId: Id<"users">,
+  orgId: Id<"organisaties">,
   team: Doc<"teams">,
   datum: string
 ): Promise<Id<"medewerkers">[]> {
@@ -617,7 +617,7 @@ async function ledenVanTeamOpDag(
     )
     .collect();
   const afwijking = bemanningRijen.find(
-    (r) => r.userId.toString() === companyUserId.toString()
+    (r) => r.orgId?.toString() === orgId.toString()
   );
   return afwijking?.medewerkerIds ?? team.leden;
 }
@@ -647,12 +647,12 @@ async function resolveBevestigMedewerker(
 
   const eigenTeam = await teamVanMedewerkerOpDag(
     ctx.db,
-    veld.companyUserId,
+    veld.orgId,
     eigen._id,
     datum
   );
   const leden = eigenTeam
-    ? await ledenVanTeamOpDag(ctx.db, veld.companyUserId, eigenTeam, datum)
+    ? await ledenVanTeamOpDag(ctx.db, veld.orgId, eigenTeam, datum)
     : [];
   const isLid = leden.some((id) => id.toString() === medewerkerId.toString());
   if (!magPloegVoorstellenBevestigen(veld.rol, isLid)) {
@@ -661,10 +661,7 @@ async function resolveBevestigMedewerker(
     );
   }
   const medewerker = await ctx.db.get(medewerkerId);
-  if (
-    !medewerker ||
-    medewerker.userId.toString() !== veld.companyUserId.toString()
-  ) {
+  if (!medewerker || medewerker.orgId?.toString() !== veld.orgId.toString()) {
     throw new ConvexError("Medewerker niet gevonden");
   }
   return medewerker;
@@ -694,7 +691,7 @@ export const bevestigAlleVoorstellen = mutation({
 
     const team = await teamVanMedewerkerOpDag(
       ctx.db,
-      veld.companyUserId,
+      veld.orgId,
       medewerker._id,
       args.datum
     );
@@ -702,8 +699,8 @@ export const bevestigAlleVoorstellen = mutation({
       throw new ConvexError("Geen geplande team-dag gevonden voor deze datum");
     }
     const [afgeleid, bestaand] = await Promise.all([
-      dagkaartVoorstellen(ctx.db, veld.companyUserId, team._id, args.datum),
-      segmentenVoorDag(ctx.db, veld.companyUserId, medewerker._id, args.datum),
+      dagkaartVoorstellen(ctx.db, veld.orgId, team._id, args.datum),
+      segmentenVoorDag(ctx.db, veld.orgId, medewerker._id, args.datum),
     ]);
     const teBevestigen = filterVoorstellen(afgeleid.voorstellen, bestaand);
 
@@ -738,10 +735,7 @@ export const updateSegment = mutation({
   handler: async (ctx, args) => {
     const veld = await veldContext(ctx);
     const segment = await ctx.db.get(args.id);
-    if (
-      !segment ||
-      segment.userId.toString() !== veld.companyUserId.toString()
-    ) {
+    if (!segment || segment.orgId?.toString() !== veld.orgId.toString()) {
       throw new ConvexError("Segment niet gevonden");
     }
     if (
@@ -782,7 +776,7 @@ export const updateSegment = mutation({
       if (
         !werkitem ||
         werkitem.deletedAt ||
-        werkitem.userId.toString() !== veld.companyUserId.toString()
+        werkitem.orgId?.toString() !== veld.orgId.toString()
       ) {
         throw new ConvexError("Werkitem niet gevonden");
       }
@@ -792,7 +786,7 @@ export const updateSegment = mutation({
     const andere = (
       await segmentenVoorDag(
         ctx.db,
-        veld.companyUserId,
+        veld.orgId,
         segment.medewerkerId,
         segment.datum
       )
@@ -819,7 +813,8 @@ export const updateSegment = mutation({
 
     if (kantoorCorrectie) {
       await logUrenActie(ctx, {
-        userId: veld.companyUserId,
+        orgId: veld.orgId,
+        userId: segment.userId,
         medewerkerId: segment.medewerkerId,
         datum: segment.datum,
         actie: "segment_gecorrigeerd",
@@ -837,10 +832,7 @@ export const verwijderSegment = mutation({
   handler: async (ctx, args) => {
     const veld = await veldContext(ctx);
     const segment = await ctx.db.get(args.id);
-    if (
-      !segment ||
-      segment.userId.toString() !== veld.companyUserId.toString()
-    ) {
+    if (!segment || segment.orgId?.toString() !== veld.orgId.toString()) {
       throw new ConvexError("Segment niet gevonden");
     }
     if (
@@ -861,7 +853,8 @@ export const verwijderSegment = mutation({
     await ctx.db.delete(segment._id);
     if (kantoorCorrectie) {
       await logUrenActie(ctx, {
-        userId: veld.companyUserId,
+        orgId: veld.orgId,
+        userId: segment.userId,
         medewerkerId: segment.medewerkerId,
         datum: segment.datum,
         actie: "segment_gecorrigeerd",
@@ -889,7 +882,7 @@ export const dienDagIn = mutation({
 
     const dagRij = await dagStatusVoor(
       ctx.db,
-      veld.companyUserId,
+      veld.orgId,
       medewerker._id,
       args.datum
     );
@@ -898,7 +891,7 @@ export const dienDagIn = mutation({
     }
     const segmenten = await segmentenVoorDag(
       ctx.db,
-      veld.companyUserId,
+      veld.orgId,
       medewerker._id,
       args.datum
     );
@@ -920,7 +913,9 @@ export const dienDagIn = mutation({
       });
     } else {
       await ctx.db.insert("urenDagen", {
-        userId: veld.companyUserId,
+        orgId: veld.orgId,
+        // Legacy-veld tot fase 6 — zie logUrenActie.
+        userId: medewerker.userId,
         medewerkerId: medewerker._id,
         datum: args.datum,
         status: "ingediend",
@@ -930,7 +925,8 @@ export const dienDagIn = mutation({
       });
     }
     await logUrenActie(ctx, {
-      userId: veld.companyUserId,
+      orgId: veld.orgId,
+      userId: medewerker.userId,
       medewerkerId: medewerker._id,
       datum: args.datum,
       actie: "dag_ingediend",
@@ -954,15 +950,12 @@ export const heropenDag = mutation({
       throw new ConvexError("Alleen kantoor kan een ingediende dag heropenen");
     }
     const medewerker = await ctx.db.get(args.medewerkerId);
-    if (
-      !medewerker ||
-      medewerker.userId.toString() !== veld.companyUserId.toString()
-    ) {
+    if (!medewerker || medewerker.orgId?.toString() !== veld.orgId.toString()) {
       throw new ConvexError("Medewerker niet gevonden");
     }
     const dagRij = await dagStatusVoor(
       ctx.db,
-      veld.companyUserId,
+      veld.orgId,
       medewerker._id,
       args.datum
     );
@@ -974,7 +967,7 @@ export const heropenDag = mutation({
     await ctx.db.patch(dagRij._id, { status: "open", updatedAt: now });
     const segmenten = await segmentenVoorDag(
       ctx.db,
-      veld.companyUserId,
+      veld.orgId,
       medewerker._id,
       args.datum
     );
@@ -987,7 +980,8 @@ export const heropenDag = mutation({
       }
     }
     await logUrenActie(ctx, {
-      userId: veld.companyUserId,
+      orgId: veld.orgId,
+      userId: medewerker.userId,
       medewerkerId: medewerker._id,
       datum: args.datum,
       actie: "dag_heropend",
@@ -1022,14 +1016,12 @@ export const getUrenLogboek = query({
         )
         .collect();
       rijen = rijen.filter(
-        (r) => r.userId.toString() === veld.companyUserId.toString()
+        (r) => r.orgId?.toString() === veld.orgId.toString()
       );
     } else {
       rijen = await ctx.db
         .query("urenLogboek")
-        .withIndex("by_user_createdAt", (q) =>
-          q.eq("userId", veld.companyUserId)
-        )
+        .withIndex("by_org_createdAt", (q) => q.eq("orgId", veld.orgId))
         .order("desc")
         .take(limit);
     }
@@ -1061,9 +1053,9 @@ export const getWieIsAchter = query({
     // Geplande bezoeken van de dag: ingeplande werkitems (team + datum)
     const kandidaten = await ctx.db
       .query("projecten")
-      .withIndex("by_user_geplandeStart", (q) =>
+      .withIndex("by_org_geplandeStart", (q) =>
         q
-          .eq("userId", veld.companyUserId)
+          .eq("orgId", veld.orgId)
           .gte("geplandeStart", addDagenIso(args.datum, -MAX_MEERDAAGS_DAGEN))
           .lte("geplandeStart", args.datum)
       )
@@ -1080,8 +1072,8 @@ export const getWieIsAchter = query({
     // Gelogde werken-minuten per werkitem op deze dag
     const segmenten = await ctx.db
       .query("urenSegmenten")
-      .withIndex("by_user_datum", (q) =>
-        q.eq("userId", veld.companyUserId).eq("datum", args.datum)
+      .withIndex("by_org_datum", (q) =>
+        q.eq("orgId", veld.orgId).eq("datum", args.datum)
       )
       .collect();
     const minutenPerWerkitem = new Map<string, number>();
@@ -1094,7 +1086,7 @@ export const getWieIsAchter = query({
       );
     }
 
-    const drempels = await afwijkingDrempels(ctx.db, veld.companyUserId);
+    const drempels = await afwijkingDrempels(ctx.db, veld.orgId);
     const klantCache = new Map<string, Doc<"klanten"> | null>();
     const teamCache = new Map<string, Doc<"teams"> | null>();
 
@@ -1190,7 +1182,7 @@ export const voegVeldFotoToe = mutation({
     if (
       !werkitem ||
       werkitem.deletedAt ||
-      werkitem.userId.toString() !== veld.companyUserId.toString()
+      werkitem.orgId?.toString() !== veld.orgId.toString()
     ) {
       throw new ConvexError("Werkitem niet gevonden");
     }
@@ -1200,7 +1192,10 @@ export const voegVeldFotoToe = mutation({
       );
     }
     const entryId = await logTijdlijnEvent(ctx, {
-      userId: veld.companyUserId,
+      orgId: veld.orgId,
+      // `klantTijdlijn.userId` is verplicht tot fase 6; het werkitem is
+      // hierboven org-geverifieerd.
+      userId: werkitem.userId,
       klantId: werkitem.klantId,
       eventType: "handmatig",
       tekst:

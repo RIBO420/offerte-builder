@@ -360,6 +360,9 @@ export type PlanbordActie = Doc<"planbordLogboek">["actie"];
 export async function logPlanwijziging(
   ctx: MutationCtx,
   event: {
+    // Tenant-scope loopt sinds de org-migratie (fase 3) over `orgId`; `userId`
+    // blijft tot fase 6 verplicht meegeschreven omdat het schemaveld dat nog is.
+    orgId: Id<"organisaties">;
     userId: Id<"users">;
     door: Id<"users">;
     actie: PlanbordActie;
@@ -369,6 +372,7 @@ export async function logPlanwijziging(
   }
 ): Promise<void> {
   await ctx.db.insert("planbordLogboek", {
+    orgId: event.orgId,
     userId: event.userId,
     door: event.door,
     actie: event.actie,

@@ -6,10 +6,18 @@
  * open voor kantoor (directie/projectleider) via requireKantoor.
  * exportMedewerkers blijft directie-only (HR-gegevens, AVG).
  * All queries return flat objects suitable for export.
+ *
+ * Tenant-scope sinds de org-migratie (fase 3): elke export scopet op de
+ * organisatie uit het JWT (`requireOrgId` + `by_org`). Dat is óók een fix:
+ * voorheen stond hier `by_user` met het id van de INGELOGDE kantoorgebruiker.
+ * Alleen de bedrijfseigenaar kreeg zo zijn eigen data te zien; een tweede
+ * directie-account of een projectleider exporteerde een lege lijst, terwijl de
+ * lijst op hetzelfde scherm (urenRegistraties.listGlobal) wél bedrijfsbreed was.
  */
 
 import { v } from "convex/values";
 import { query } from "./_generated/server";
+import { requireOrgId } from "./auth";
 import { klantVeld } from "./lib/offerteKlant";
 import { requireAdmin, requireKantoor } from "./roles";
 import { voorcalculatieVanProject, voorcalculatieVanOfferte } from "./lib/voorcalculatieLookup";
@@ -58,11 +66,12 @@ const factuurStatusLabels: Record<string, string> = {
 export const exportOffertes = query({
   args: {},
   handler: async (ctx) => {
-    const user = await requireKantoor(ctx);
+    await requireKantoor(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const offertes = await ctx.db
       .query("offertes")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .order("desc")
       .collect();
 
@@ -102,18 +111,19 @@ export const exportOffertes = query({
 export const exportKlanten = query({
   args: {},
   handler: async (ctx) => {
-    const user = await requireKantoor(ctx);
+    await requireKantoor(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const klanten = await ctx.db
       .query("klanten")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .order("desc")
       .collect();
 
     // Get offerte counts per klant
     const offertes = await ctx.db
       .query("offertes")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     const offerteCountByKlant = new Map<string, number>();
@@ -159,11 +169,12 @@ export const exportKlanten = query({
 export const exportProjecten = query({
   args: {},
   handler: async (ctx) => {
-    const user = await requireKantoor(ctx);
+    await requireKantoor(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const projecten = await ctx.db
       .query("projecten")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .order("desc")
       .collect();
 
@@ -224,11 +235,12 @@ export const exportProjecten = query({
 export const exportFacturen = query({
   args: {},
   handler: async (ctx) => {
-    const user = await requireKantoor(ctx);
+    await requireKantoor(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const facturen = await ctx.db
       .query("facturen")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .order("desc")
       .collect();
 
@@ -264,12 +276,13 @@ export const exportUren = query({
     endDate: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireKantoor(ctx);
+    await requireKantoor(ctx);
+    const orgId = await requireOrgId(ctx);
 
-    // Get all projects for this user
+    // Alle projecten van deze organisatie
     const projecten = await ctx.db
       .query("projecten")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     const projectMap = new Map(
@@ -319,21 +332,22 @@ export const exportUren = query({
 export const exportMedewerkers = query({
   args: {},
   handler: async (ctx) => {
-    const user = await requireAdmin(ctx);
+    await requireAdmin(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const medewerkers = await ctx.db
       .query("medewerkers")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // Uren-statistiek per medewerker. Tenant-lek gedicht (audit §2): dit was
     // `ctx.db.query("urenRegistraties").collect()` — een full table scan over
     // ÁLLE bedrijven, waarna alleen op naam werd gematcht. Twee bedrijven met
-    // een "Jan de Vries" telden elkaars uren mee. Nu via de projecten van dit
-    // bedrijf, dezelfde route als exportUren hierboven.
+    // een "Jan de Vries" telden elkaars uren mee. Nu via de projecten van deze
+    // organisatie, dezelfde route als exportUren hierboven.
     const projecten = await ctx.db
       .query("projecten")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
     const urenArrays = await Promise.all(
       projecten.map((project) =>

@@ -7,20 +7,25 @@
 
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAuth, requireAuthUserId, verifyOwnership } from "./auth";
+import { requireOrgId, verifyOrgOwnership } from "./auth";
 import { requireNotViewer } from "./roles";
+import type { QueryCtx, MutationCtx } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { voorcalculatieVanProject, voorcalculatieVanOfferte } from "./lib/voorcalculatieLookup";
 
 /**
- * Get a project and verify ownership.
+ * Get a project and verify org-ownership.
+ *
+ * `nacalculaties` is een KINDTABEL: de rij heeft zelf geen `orgId`, de scope
+ * loopt via het project. Elke functie hieronder komt daarom eerst hier langs —
+ * wie het project mag zien, mag de nacalculatie zien.
  */
 async function getOwnedProject(
-  ctx: Parameters<typeof requireAuth>[0],
+  ctx: QueryCtx | MutationCtx,
   projectId: Id<"projecten">
 ) {
   const project = await ctx.db.get(projectId);
-  return verifyOwnership(ctx, project, "project");
+  return verifyOrgOwnership(ctx, project, "project");
 }
 
 /**
@@ -29,8 +34,7 @@ async function getOwnedProject(
 export const get = query({
   args: { projectId: v.id("projecten") },
   handler: async (ctx, args) => {
-    await requireAuthUserId(ctx);
-    // Verify ownership of project
+    // Org-scope + eigendom in één: getOwnedProject doet requireOrgId.
     await getOwnedProject(ctx, args.projectId);
 
     const nacalculatie = await ctx.db
@@ -50,8 +54,7 @@ export const get = query({
 export const calculate = query({
   args: { projectId: v.id("projecten") },
   handler: async (ctx, args) => {
-    await requireAuthUserId(ctx);
-    // Verify ownership of project
+    // Org-scope + eigendom in één: getOwnedProject doet requireOrgId.
     const project = await getOwnedProject(ctx, args.projectId);
 
     // Get voorcalculatie - first try by offerte (new workflow), then by project (legacy)
@@ -280,18 +283,18 @@ export const addConclusion = mutation({
 });
 
 /**
- * Get all nacalculaties for the authenticated user.
+ * Get all nacalculaties for the authenticated organisatie.
  * Useful for leerfeedback analysis across multiple projects.
  */
 export const listAll = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
-    // Get all projects for user
+    // Alle projecten van deze organisatie
     const projects = await ctx.db
       .query("projecten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     const projectIds = projects.map((p) => p._id);
@@ -348,8 +351,7 @@ export const listAll = query({
 export const getWithDetails = query({
   args: { projectId: v.id("projecten") },
   handler: async (ctx, args) => {
-    await requireAuthUserId(ctx);
-    // Verify ownership of project
+    // Org-scope + eigendom in één: getOwnedProject doet requireOrgId.
     const project = await getOwnedProject(ctx, args.projectId);
 
     // Get nacalculatie
@@ -403,13 +405,13 @@ export const fixProjectStatuses = mutation({
   args: {},
   handler: async (ctx) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const now = Date.now();
 
-    // Get all "afgerond" projects for this user
+    // Alle "afgerond"-projecten van deze organisatie
     const projects = await ctx.db
       .query("projecten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     const afgerondProjects = projects.filter((p) => p.status === "afgerond");

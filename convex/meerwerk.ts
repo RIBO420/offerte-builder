@@ -16,10 +16,9 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Doc } from "./_generated/dataModel";
-import { requireAuth } from "./auth";
+import { requireAuth, requireOrgContext, requireOrgId } from "./auth";
 import {
   CANONIEKE_ROL_MAPPING,
-  getCompanyUserId,
   normalizeRole,
   requireKantoor,
 } from "./roles";
@@ -39,14 +38,13 @@ export const maakVeldVerzoek = mutation({
     reden: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const { org, user } = await requireOrgContext(ctx);
     const rol = CANONIEKE_ROL_MAPPING[normalizeRole(user.role)];
     if (!magAfronden(rol)) {
       throw new ConvexError(
         "Meerwerk aanvragen is niet beschikbaar voor deze rol"
       );
     }
-    const companyUserId = await getCompanyUserId(ctx);
 
     const omschrijving = args.omschrijving.trim();
     if (!omschrijving) {
@@ -64,7 +62,7 @@ export const maakVeldVerzoek = mutation({
     if (
       !werkitem ||
       werkitem.deletedAt ||
-      werkitem.userId.toString() !== companyUserId.toString()
+      werkitem.orgId?.toString() !== org._id.toString()
     ) {
       throw new ConvexError("Werkitem niet gevonden");
     }
@@ -73,7 +71,12 @@ export const maakVeldVerzoek = mutation({
     const geschatteUren = Math.round((args.geschatteMinuten / 60) * 100) / 100;
     return await ctx.db.insert("meerwerk", {
       projectId: werkitem._id,
-      userId: companyUserId,
+      orgId: org._id,
+      // Legacy-veld: `userId` is sinds fase 3 geen scope meer, maar nog wel
+      // verplicht in het schema tot fase 6. Het werkitem is hierboven al
+      // org-geverifieerd, dus dit blijft de bedrijfseigenaar — precies wat
+      // getCompanyUserId hier gaf.
+      userId: werkitem.userId,
       omschrijving,
       reden: args.reden?.trim() || undefined,
       // Prijsregels volgen bij facturatie (§2.8); het veld levert alleen
@@ -109,14 +112,12 @@ export const listVoorWerkitem = query({
     if (!magAfronden(rol)) {
       throw new ConvexError("Meerwerk is niet beschikbaar voor deze rol");
     }
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const rijen = await ctx.db
       .query("meerwerk")
       .withIndex("by_project", (q) => q.eq("projectId", args.werkitemId))
       .collect();
-    return rijen.filter(
-      (r) => r.userId.toString() === companyUserId.toString()
-    );
+    return rijen.filter((r) => r.orgId?.toString() === orgId.toString());
   },
 });
 
@@ -125,11 +126,11 @@ export const listVoorBeoordeling = query({
   args: {},
   handler: async (ctx) => {
     const kantoorUser = await requireKantoor(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     void kantoorUser;
     const rijen = await ctx.db
       .query("meerwerk")
-      .withIndex("by_user", (q) => q.eq("userId", companyUserId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
     const open = rijen.filter(
       (r) => r.status === "aangevraagd" && r.bron === "veld"
@@ -173,13 +174,10 @@ export const keurGoed = mutation({
     if (!magMeerwerkBeoordelen(rol)) {
       throw new ConvexError("Alleen kantoor/planning beoordeelt meerwerk");
     }
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const meerwerk = await ctx.db.get(args.id);
-    if (
-      !meerwerk ||
-      meerwerk.userId.toString() !== companyUserId.toString()
-    ) {
+    if (!meerwerk || meerwerk.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Meerwerk-verzoek niet gevonden");
     }
     if (meerwerk.status !== "aangevraagd") {
@@ -208,7 +206,10 @@ export const keurGoed = mutation({
         updatedAt: now,
       });
       await logPlanwijziging(ctx, {
-        userId: companyUserId,
+        orgId,
+        // `userId` blijft verplicht tot fase 6; het werkitem is via het
+        // meerwerk-verzoek al org-geverifieerd.
+        userId: werkitem.userId,
         door: kantoorUser._id,
         actie: "tijd_aangepast",
         details: `${werkitem.naam}: meerwerk goedgekeurd (+${minuten} min, "${meerwerk.omschrijving}") — cascade schuift door`,
@@ -229,6 +230,7 @@ export const keurGoed = mutation({
     const geschatteUren =
       minuten > 0 ? Math.round((minuten / 60) * 100) / 100 : undefined;
     const nieuweOpdrachtId = await ctx.db.insert("projecten", {
+      orgId,
       userId: werkitem.userId,
       type: getType(werkitem),
       klantId: werkitem.klantId,
@@ -258,13 +260,10 @@ export const wijsAf = mutation({
   args: { id: v.id("meerwerk"), reden: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const kantoorUser = await requireKantoor(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const meerwerk = await ctx.db.get(args.id);
-    if (
-      !meerwerk ||
-      meerwerk.userId.toString() !== companyUserId.toString()
-    ) {
+    if (!meerwerk || meerwerk.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Meerwerk-verzoek niet gevonden");
     }
     if (meerwerk.status !== "aangevraagd") {

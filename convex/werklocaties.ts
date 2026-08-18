@@ -8,7 +8,7 @@
 
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAuth, requireAuthUserId, verifyOwnership } from "./auth";
+import { requireOrgContext, requireOrgId, verifyOrgOwnership } from "./auth";
 import { requireNotViewer } from "./roles";
 import { Id } from "./_generated/dataModel";
 import { klantNaam, klantVeld } from "./lib/offerteKlant";
@@ -24,14 +24,14 @@ const fotoValidator = v.object({
 });
 
 /**
- * Get a werklocatie and verify ownership.
+ * Get a werklocatie and verify org-ownership.
  */
 async function getOwnedWerklocatie(
-  ctx: Parameters<typeof requireAuth>[0],
+  ctx: Parameters<typeof requireOrgId>[0],
   werklocatieId: Id<"werklocaties">
 ) {
   const werklocatie = await ctx.db.get(werklocatieId);
-  return verifyOwnership(ctx, werklocatie, "werklocatie");
+  return verifyOrgOwnership(ctx, werklocatie, "werklocatie");
 }
 
 /**
@@ -41,12 +41,12 @@ async function getOwnedWerklocatie(
 export const getByProject = query({
   args: { projectId: v.id("projecten") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     // Verify project ownership
     const project = await ctx.db.get(args.projectId);
     if (!project) return null;
-    if (project.userId.toString() !== userId.toString()) {
+    if (project.orgId?.toString() !== orgId.toString()) {
       return null;
     }
 
@@ -99,7 +99,7 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
     const now = Date.now();
 
     // Verify project ownership
@@ -107,7 +107,7 @@ export const create = mutation({
     if (!project) {
       throw new ConvexError("Project niet gevonden");
     }
-    if (project.userId.toString() !== userId.toString()) {
+    if (project.orgId?.toString() !== org._id.toString()) {
       throw new ConvexError("Je hebt geen toegang tot dit project");
     }
 
@@ -125,7 +125,8 @@ export const create = mutation({
 
     // Create the werklocatie
     const werklocatieId = await ctx.db.insert("werklocaties", {
-      userId,
+      orgId: org._id,
+      userId: user._id,
       projectId: args.projectId,
       adres: args.adres,
       postcode: args.postcode,
@@ -287,7 +288,7 @@ export const createFromOfferte = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
     const now = Date.now();
 
     // Get the project
@@ -295,7 +296,7 @@ export const createFromOfferte = mutation({
     if (!project) {
       throw new ConvexError("Project niet gevonden");
     }
-    if (project.userId.toString() !== userId.toString()) {
+    if (project.orgId?.toString() !== org._id.toString()) {
       throw new ConvexError("Je hebt geen toegang tot dit project");
     }
 
@@ -335,7 +336,8 @@ export const createFromOfferte = mutation({
 
     // Create the werklocatie with data from offerte
     const werklocatieId = await ctx.db.insert("werklocaties", {
-      userId,
+      orgId: org._id,
+      userId: user._id,
       projectId: args.projectId,
       adres,
       postcode,
@@ -380,8 +382,8 @@ export const getWithProject = query({
     if (!werklocatie) return null;
 
     // Verify ownership
-    const user = await requireAuth(ctx);
-    if (werklocatie.userId.toString() !== user._id.toString()) {
+    const orgId = await requireOrgId(ctx);
+    if (werklocatie.orgId?.toString() !== orgId.toString()) {
       return null;
     }
 
@@ -403,17 +405,17 @@ export const getWithProject = query({
 });
 
 /**
- * List all werklocaties for the authenticated user.
+ * List all werklocaties for the organisatie of the authenticated user.
  * Ordered by updatedAt descending (most recent first).
  */
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     return await ctx.db
       .query("werklocaties")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .order("desc")
       .collect();
   },

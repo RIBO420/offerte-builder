@@ -5,7 +5,7 @@
  * seizoensvenster (of de voorziene datum) binnen `attenderingDagenVooraf`
  * dagen opent een KANTOOR-TAAK genereert op het §2.4-bord: een melding met
  * taaksoort "plantaak", tekst "… inplannen — venster opent over N dagen",
- * eigenaar kantoor (de bedrijfseigenaar) en klant + beurt gekoppeld.
+ * eigenaar kantoor en klant + beurt gekoppeld.
  *
  * - Instelbaar per beurt: attenderingDagenVooraf (default 14) en
  *   attenderingNodig (false = geen taak) — velden op het werkitem (§2.1B).
@@ -24,7 +24,8 @@
 import { v, ConvexError } from "convex/values";
 import { internalMutation, mutation } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
-import { getCompanyUserId, normalizeRole, requireKantoor } from "./roles";
+import { requireOrgContext } from "./auth";
+import { requireKantoor } from "./roles";
 import { logTijdlijnEvent } from "./tijdlijn";
 import { voegSysteemCommentToe } from "./servicemeldingen";
 import {
@@ -108,32 +109,42 @@ export function attenderingVandaagNodig(
 // ============================================
 
 /**
- * Dagelijkse attendering-run (cron). Per bedrijf (directie-gebruiker als
- * multi-tenant eigenaar): ritme-beurten waarvan het venster binnen de
- * ingestelde dagen-vooraf opent → plantaak op het meldingen-bord.
- * Idempotent via attenderingSleutel; verstuurt NOOIT e-mail.
+ * Dagelijkse attendering-run (cron). Per ORGANISATIE: ritme-beurten waarvan
+ * het venster binnen de ingestelde dagen-vooraf opent → plantaak op het
+ * meldingen-bord. Idempotent via attenderingSleutel; verstuurt NOOIT e-mail.
+ *
+ * Een cron heeft geen identity en dus geen org_id-claim: de tenant-lus loopt
+ * daarom over de actieve organisaties (het alternatief — orgId als argument —
+ * past niet bij een dagelijkse run die álle tenants moet raken). Vóór de
+ * org-migratie liep deze lus over directie-gebruikers en werd per eigenaar op
+ * `by_user_volgendeVoorzieneDatum` gequeryd; beurten die op naam van een
+ * projectleider stonden vielen daardoor buiten de run. Met by_org valt dat gat
+ * weg.
+ *
+ * De verplichte users-velden (`userId`, `eigenaarId`) komen van het werkitem
+ * zelf — dat is de gebruiker onder wie deze beurt in dezelfde organisatie is
+ * vastgelegd. Ze verdwijnen in fase 6.
  */
 export const genereerAttenderingen = internalMutation({
   args: {},
   handler: async (ctx) => {
     const vandaag = vandaagIso();
-    const users = await ctx.db.query("users").collect();
-    const eigenaren = users.filter(
-      (u) => normalizeRole(u.role) === "directie"
+    const organisaties = (await ctx.db.query("organisaties").collect()).filter(
+      (o) => o.actief
     );
 
     let aangemaakt = 0;
-    for (const eigenaar of eigenaren) {
+    for (const org of organisaties) {
       const kandidaten = await ctx.db
         .query("projecten")
-        .withIndex("by_user_volgendeVoorzieneDatum", (q) =>
-          q.eq("userId", eigenaar._id).gte("volgendeVoorzieneDatum", vandaag)
+        .withIndex("by_org_volgendeVoorzieneDatum", (q) =>
+          q.eq("orgId", org._id).gte("volgendeVoorzieneDatum", vandaag)
         )
         .collect();
 
       for (const beurt of kandidaten) {
         // Belt & braces bovenop de indexquery
-        if (beurt.userId.toString() !== eigenaar._id.toString()) continue;
+        if (beurt.orgId?.toString() !== org._id.toString()) continue;
         if (beurt.deletedAt || beurt.isArchived === true) continue;
         if (beurt.type !== "onderhoudsbeurt") continue;
         if (!beurt.ritme || !beurt.volgendeVoorzieneDatum) continue;
@@ -173,7 +184,8 @@ export const genereerAttenderingen = internalMutation({
 
         const now = Date.now();
         const meldingId = await ctx.db.insert("servicemeldingen", {
-          userId: eigenaar._id,
+          orgId: org._id,
+          userId: beurt.userId,
           klantId: beurt.klantId,
           beschrijving: tekst,
           isGarantie: false,
@@ -181,7 +193,7 @@ export const genereerAttenderingen = internalMutation({
           prioriteit: "normaal",
           kosten: 0,
           kanaal: "intern",
-          eigenaarId: eigenaar._id, // eigenaar: kantoor (bedrijfseigenaar)
+          eigenaarId: beurt.userId, // eigenaar: kantoor (eigenaar van het werkitem)
           werkitemId: beurt._id, // klant + beurt gekoppeld
           taaksoort: "plantaak",
           attenderingSleutel: sleutel,
@@ -191,7 +203,8 @@ export const genereerAttenderingen = internalMutation({
         });
 
         await logTijdlijnEvent(ctx, {
-          userId: eigenaar._id,
+          orgId: org._id,
+          userId: beurt.userId,
           klantId: beurt.klantId,
           eventType: "melding_aangemaakt",
           tekst: `Plantaak aangemaakt: ${tekst}`,
@@ -199,7 +212,7 @@ export const genereerAttenderingen = internalMutation({
           meldingId,
         });
         await voegSysteemCommentToe(ctx, {
-          userId: eigenaar._id,
+          userId: beurt.userId,
           meldingId,
           tekst: `Automatische planningsattendering: ${tekst}`,
         });
@@ -230,13 +243,13 @@ export const geefBeurtVrij = mutation({
   args: { meldingId: v.id("servicemeldingen") },
   handler: async (ctx, args) => {
     const user = await requireKantoor(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const { org, user: tenantUser } = await requireOrgContext(ctx);
 
     const melding = await ctx.db.get(args.meldingId);
     if (
       !melding ||
       melding.deletedAt ||
-      melding.userId.toString() !== companyUserId.toString()
+      melding.orgId?.toString() !== org._id.toString()
     ) {
       throw new ConvexError("Melding niet gevonden");
     }
@@ -255,7 +268,7 @@ export const geefBeurtVrij = mutation({
     if (
       !moeder ||
       moeder.deletedAt ||
-      moeder.userId.toString() !== companyUserId.toString()
+      moeder.orgId?.toString() !== org._id.toString()
     ) {
       throw new ConvexError("Gekoppelde beurt niet gevonden");
     }
@@ -281,7 +294,8 @@ export const geefBeurtVrij = mutation({
       beurtId = bestaande._id;
     } else {
       beurtId = await ctx.db.insert("projecten", {
-        userId: companyUserId,
+        orgId: org._id,
+        userId: tenantUser._id,
         type: "onderhoudsbeurt",
         klantId: moeder.klantId,
         naam: `${moeder.naam} — ${datum}`,
@@ -313,7 +327,8 @@ export const geefBeurtVrij = mutation({
     });
 
     await logTijdlijnEvent(ctx, {
-      userId: companyUserId,
+      orgId: org._id,
+      userId: tenantUser._id,
       klantId: moeder.klantId,
       eventType: "melding_status_gewijzigd",
       tekst: `Beurt "${moeder.naam}" (${datum}) vrijgegeven naar de wachtrij`,
@@ -321,7 +336,7 @@ export const geefBeurtVrij = mutation({
       meldingId: melding._id,
     });
     await voegSysteemCommentToe(ctx, {
-      userId: companyUserId,
+      userId: tenantUser._id,
       meldingId: melding._id,
       tekst: `${user.name} gaf de beurt van ${datum} vrij naar de wachtrij`,
     });

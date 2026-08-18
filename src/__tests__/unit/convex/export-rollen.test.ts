@@ -18,6 +18,7 @@ import {
   createMockCtx,
   createMockUser,
   createMockProject,
+  seedMockOrganisatie,
 } from "../../helpers/convex-mock";
 import type { QueryCtx } from "../../../../convex/_generated/server";
 import {
@@ -53,12 +54,22 @@ const KANTOOR_EXPORTS: Array<{ naam: string; handler: ExportHandler }> = [
   { naam: "exportUren", handler: handlerVan(exportUren) },
 ];
 
-/** Maakt een ctx waarin precies één user is ingelogd met de gegeven rol. */
-function ctxMetRol(role: string): { ctx: QueryCtx; store: MockConvexStore } {
+/**
+ * Maakt een ctx waarin precies één user is ingelogd met de gegeven rol, binnen
+ * de organisatie uit het `org_id`-claim van createMockCtx. Sinds fase 3 scopen
+ * de exports op die organisatie (requireOrgId): zonder deze rij weigert elke
+ * export met een AuthError over een ontbrekende organisatie.
+ */
+function ctxMetRol(role: string): {
+  ctx: QueryCtx;
+  store: MockConvexStore;
+  orgId: string;
+} {
   const store = new MockConvexStore();
+  const orgId = seedMockOrganisatie(store);
   store.insert("users", createMockUser({ role }));
   const ctx = createMockCtx(store) as unknown as QueryCtx;
-  return { ctx, store };
+  return { ctx, store, orgId };
 }
 
 const KANTOOR_ROLLEN: UserRole[] = ["directie", "projectleider"];
@@ -80,10 +91,13 @@ describe("exportProjecten — kantoor-functionaliteit (PRD §1.2)", () => {
     }
 
     it("geeft actieve projecten terug voor directie", async () => {
-      const { ctx, store } = ctxMetRol("directie");
+      const { ctx, store, orgId } = ctxMetRol("directie");
       store.insert(
         "projecten",
-        createMockProject("users:1", "offertes:1", { naam: "Tuin Jansen" })
+        createMockProject("users:1", "offertes:1", {
+          orgId,
+          naam: "Tuin Jansen",
+        })
       );
       const result = (await exportProjectenHandler(ctx, {})) as Array<
         Record<string, unknown>
@@ -93,14 +107,15 @@ describe("exportProjecten — kantoor-functionaliteit (PRD §1.2)", () => {
     });
 
     it("filtert gearchiveerde en verwijderde projecten uit de export", async () => {
-      const { ctx, store } = ctxMetRol("projectleider");
+      const { ctx, store, orgId } = ctxMetRol("projectleider");
       store.insert(
         "projecten",
-        createMockProject("users:1", "offertes:1", { naam: "Actief" })
+        createMockProject("users:1", "offertes:1", { orgId, naam: "Actief" })
       );
       store.insert(
         "projecten",
         createMockProject("users:1", "offertes:1", {
+          orgId,
           naam: "Archief",
           isArchived: true,
         })
@@ -108,6 +123,7 @@ describe("exportProjecten — kantoor-functionaliteit (PRD §1.2)", () => {
       store.insert(
         "projecten",
         createMockProject("users:1", "offertes:1", {
+          orgId,
           naam: "Weg",
           deletedAt: Date.now(),
         })
