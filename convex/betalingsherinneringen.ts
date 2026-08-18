@@ -17,7 +17,7 @@
 
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAuthUserId } from "./auth";
+import { requireOrgContext, requireOrgId } from "./auth";
 import { requireNotViewer } from "./roles";
 
 /**
@@ -51,7 +51,7 @@ export const typeLabels: Record<string, string> = {
 export const listByFactuur = query({
   args: { factuurId: v.id("facturen") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const items = await ctx.db
       .query("betalingsherinneringen")
@@ -59,8 +59,8 @@ export const listByFactuur = query({
       .order("desc")
       .collect();
 
-    // Only return items owned by the user
-    return items.filter((item) => item.userId.toString() === userId.toString());
+    // by_factuur is niet org-gescoped: alleen de eigen organisatie teruggeven
+    return items.filter((item) => item.orgId?.toString() === orgId.toString());
   },
 });
 
@@ -70,14 +70,17 @@ export const listByFactuur = query({
 export const getCountByFactuur = query({
   args: { factuurId: v.id("facturen") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const items = await ctx.db
       .query("betalingsherinneringen")
       .withIndex("by_factuur", (q) => q.eq("factuurId", args.factuurId))
       .collect();
 
-    const owned = items.filter((item) => item.userId.toString() === userId.toString());
+    // by_factuur is niet org-gescoped: alleen de eigen organisatie tellen
+    const owned = items.filter(
+      (item) => item.orgId?.toString() === orgId.toString()
+    );
 
     return {
       totaal: owned.length,
@@ -94,13 +97,13 @@ export const getCountByFactuur = query({
 export const getOverdueStats = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const now = Date.now();
 
-    // Get all verzonden + vervallen facturen for the user
+    // Get all verzonden + vervallen facturen for the organisatie
     const facturen = await ctx.db
       .query("facturen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     const overdueFacturen = facturen.filter(
@@ -144,13 +147,13 @@ export const verstuurHandmatig = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
     const now = Date.now();
 
     // Get the factuur
     const factuur = await ctx.db.get(args.factuurId);
     if (!factuur) throw new ConvexError("Factuur niet gevonden");
-    if (factuur.userId.toString() !== userId.toString()) {
+    if (factuur.orgId?.toString() !== org._id.toString()) {
       throw new ConvexError("Geen toegang tot deze factuur");
     }
 
@@ -165,7 +168,7 @@ export const verstuurHandmatig = mutation({
     // Get instellingen for aanmaning thresholds
     const instellingen = await ctx.db
       .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", org._id))
       .unique();
 
     const aanmaningDagen = instellingen?.herinneringInstellingen?.aanmaningDagen ?? [30, 45, 60];
@@ -184,7 +187,8 @@ export const verstuurHandmatig = mutation({
     // Create the herinnering record
     const herinneringId = await ctx.db.insert("betalingsherinneringen", {
       factuurId: args.factuurId,
-      userId,
+      orgId: org._id,
+      userId: user._id,
       type,
       volgnummer,
       dagenVervallen,
@@ -221,13 +225,13 @@ export const verstuurAanmaning = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
     const now = Date.now();
 
     // Get the factuur
     const factuur = await ctx.db.get(args.factuurId);
     if (!factuur) throw new ConvexError("Factuur niet gevonden");
-    if (factuur.userId.toString() !== userId.toString()) {
+    if (factuur.orgId?.toString() !== org._id.toString()) {
       throw new ConvexError("Geen toegang tot deze factuur");
     }
 
@@ -245,7 +249,9 @@ export const verstuurAanmaning = mutation({
       .withIndex("by_factuur", (q) => q.eq("factuurId", args.factuurId))
       .collect();
 
-    const ownedBestaande = bestaande.filter((h) => h.userId.toString() === userId.toString());
+    const ownedBestaande = bestaande.filter(
+      (h) => h.orgId?.toString() === org._id.toString()
+    );
 
     // Enforce escalation: can't skip levels
     if (args.type === "tweede_aanmaning") {
@@ -266,7 +272,8 @@ export const verstuurAanmaning = mutation({
     // Create the aanmaning record
     const aanmaningId = await ctx.db.insert("betalingsherinneringen", {
       factuurId: args.factuurId,
-      userId,
+      orgId: org._id,
+      userId: user._id,
       type: args.type,
       volgnummer,
       dagenVervallen,
@@ -294,14 +301,17 @@ export const verstuurAanmaning = mutation({
 export const getAanmaningStatus = query({
   args: { factuurId: v.id("facturen") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const items = await ctx.db
       .query("betalingsherinneringen")
       .withIndex("by_factuur", (q) => q.eq("factuurId", args.factuurId))
       .collect();
 
-    const owned = items.filter((item) => item.userId.toString() === userId.toString());
+    // by_factuur is niet org-gescoped: alleen de eigen organisatie tellen
+    const owned = items.filter(
+      (item) => item.orgId?.toString() === orgId.toString()
+    );
 
     const heeftHerinnering = owned.some((i) => i.type === "herinnering");
     const heeftEerste = owned.some((i) => i.type === "eerste_aanmaning");

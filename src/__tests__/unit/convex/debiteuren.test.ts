@@ -30,6 +30,7 @@ import {
   createMockCtx,
   createMockUser,
   createMockKlant,
+  seedMockOrganisatie,
 } from "../../helpers/convex-mock";
 import { AuthError } from "../../../../convex/auth";
 import {
@@ -71,16 +72,17 @@ const UUR_MS = 60 * 60 * 1000;
 /** Ctx + store met precies één ingelogde gebruiker met de gegeven rol. */
 function ctxMetRol(role: string) {
   const store = new MockConvexStore();
+  const orgId = seedMockOrganisatie(store);
   const userId = store.insert("users", createMockUser({ role }));
   const ctx = createMockCtx(store);
-  return { ctx, store, userId };
+  return { ctx, store, userId, orgId };
 }
 
 /** Standaard-setup: directie-gebruiker + klant. */
 function kantoorMetKlant() {
-  const { ctx, store, userId } = ctxMetRol("directie");
-  const klantId = store.insert("klanten", createMockKlant(userId));
-  return { ctx, store, userId, klantId };
+  const { ctx, store, userId, orgId } = ctxMetRol("directie");
+  const klantId = store.insert("klanten", createMockKlant(userId, { orgId }));
+  return { ctx, store, userId, orgId, klantId };
 }
 
 /** Verzonden factuur, verzonden N dagen geleden (ankerdatum-test §3.2). */
@@ -94,6 +96,10 @@ function insertFactuur(
   const now = Date.now();
   const verzondenAt = now - dagenGeledenVerzonden * DAG_MS - UUR_MS;
   return store.insert("facturen", {
+    // De ladder-cron leidt de tenant af uit de factuur (geen identity).
+    orgId: (store.getAll("organisaties")[0]?._id ?? undefined) as
+      | string
+      | undefined,
     userId,
     klantId,
     factuurnummer: `F-2026-${Math.floor(Math.random() * 10000)}`,
@@ -137,6 +143,9 @@ function insertTrigger(
 ) {
   const now = Date.now();
   return store.insert("mailTriggers", {
+    orgId: (store.getAll("organisaties")[0]?._id ?? undefined) as
+      | string
+      | undefined,
     event,
     naam: "Betalingsherinnering",
     omschrijving: "Test",

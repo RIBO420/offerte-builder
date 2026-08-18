@@ -26,11 +26,8 @@ import {
 } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { Doc } from "./_generated/dataModel";
-import {
-  assertKanNaarKlantVersturen,
-  getCompanyUserId,
-  requireKantoor,
-} from "./roles";
+import { assertKanNaarKlantVersturen, requireKantoor } from "./roles";
+import { requireOrgId, verifyOrgOwnership } from "./auth";
 import { logTijdlijnEvent } from "./tijdlijn";
 import { voegSysteemCommentToe } from "./servicemeldingen";
 import { zetTriggerMailKlaar } from "./mailTriggers";
@@ -106,11 +103,11 @@ export const listWachtrij = query({
   args: {},
   handler: async (ctx) => {
     await requireKantoor(ctx);
-    const userId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const alles = await ctx.db
       .query("conceptMails")
-      .withIndex("by_user_status", (q) => q.eq("userId", userId))
+      .withIndex("by_org_status", (q) => q.eq("orgId", orgId))
       .collect();
 
     return alles
@@ -124,11 +121,11 @@ export const listAfgehandeld = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
-    const userId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const alles = await ctx.db
       .query("conceptMails")
-      .withIndex("by_user_status", (q) => q.eq("userId", userId))
+      .withIndex("by_org_status", (q) => q.eq("orgId", orgId))
       .collect();
 
     return alles
@@ -143,11 +140,11 @@ export const countWachtrij = query({
   args: {},
   handler: async (ctx) => {
     await requireKantoor(ctx);
-    const userId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const alles = await ctx.db
       .query("conceptMails")
-      .withIndex("by_user_status", (q) =>
-        q.eq("userId", userId).eq("status", "wachtrij")
+      .withIndex("by_org_status", (q) =>
+        q.eq("orgId", orgId).eq("status", "wachtrij")
       )
       .collect();
     return alles.length;
@@ -178,8 +175,11 @@ export const bewerk = mutation({
   },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
-    const concept = await ctx.db.get(args.id);
-    if (!concept) throw new ConvexError("Concept-mail niet gevonden");
+    const concept = await verifyOrgOwnership(
+      ctx,
+      await ctx.db.get(args.id),
+      "concept-mail"
+    );
     if (concept.status !== "wachtrij" && concept.status !== "gepland") {
       throw new ConvexError(
         "Alleen mails in de wachtrij kunnen worden bewerkt"
@@ -217,8 +217,11 @@ export const keurGoedEnVerstuur = mutation({
   args: { id: v.id("conceptMails") },
   handler: async (ctx, args) => {
     const kantoorUser = await assertKanNaarKlantVersturen(ctx);
-    const concept = await ctx.db.get(args.id);
-    if (!concept) throw new ConvexError("Concept-mail niet gevonden");
+    const concept = await verifyOrgOwnership(
+      ctx,
+      await ctx.db.get(args.id),
+      "concept-mail"
+    );
     if (concept.status !== "wachtrij" && concept.status !== "gepland") {
       throw new ConvexError(
         "Deze mail is al afgehandeld en kan niet opnieuw worden verstuurd"
@@ -245,8 +248,11 @@ export const verwerp = mutation({
   args: { id: v.id("conceptMails") },
   handler: async (ctx, args) => {
     const kantoorUser = await requireKantoor(ctx);
-    const concept = await ctx.db.get(args.id);
-    if (!concept) throw new ConvexError("Concept-mail niet gevonden");
+    const concept = await verifyOrgOwnership(
+      ctx,
+      await ctx.db.get(args.id),
+      "concept-mail"
+    );
     if (concept.status !== "wachtrij" && concept.status !== "gepland") {
       throw new ConvexError("Deze mail is al afgehandeld");
     }
@@ -272,8 +278,12 @@ export const maakInplanConcept = mutation({
   args: { meldingId: v.id("servicemeldingen") },
   handler: async (ctx, args) => {
     const kantoorUser = await requireKantoor(ctx);
-    const melding = await ctx.db.get(args.meldingId);
-    if (!melding) throw new ConvexError("Melding niet gevonden");
+    const orgId = await requireOrgId(ctx);
+    const melding = await verifyOrgOwnership(
+      ctx,
+      await ctx.db.get(args.meldingId),
+      "melding"
+    );
     if (melding.taaksoort !== "plantaak") {
       throw new ConvexError(
         "Inplan-mails kunnen alleen vanuit een plantaak worden klaargezet"
@@ -303,6 +313,7 @@ export const maakInplanConcept = mutation({
 
     const resultaat = await zetTriggerMailKlaar(ctx, {
       event: "inplan_attendering",
+      orgId,
       userId: melding.userId,
       ontvangerEmail: klant.email,
       ontvangerNaam: klant.naam,
@@ -346,6 +357,13 @@ export const maakInplanConcept = mutation({
  * bereikt gaan naar de wachtrij. In concept-modus stopt het daar — kantoor
  * keurt goed. Alleen in automatisch-modus wordt de verzend-actie ingepland,
  * en die actie zit achter de mail-guard (fail-closed).
+ *
+ * ORG-SCOPE: deze cron draait zonder identity en kan dus geen `requireOrgId`
+ * doen. Hij hoeft dat ook niet: de `by_status_gepland`-index is bedrijfsbreed
+ * en de lus behandelt élke organisatie in dezelfde run — per document wordt
+ * alleen de status van dát document gepatcht, er wordt niets tussen tenants
+ * gecombineerd. Een lus over `organisaties` zou hier alleen extra queries
+ * kosten zonder iets af te schermen.
  */
 export const verwerkGeplandeMails = internalMutation({
   args: {},
@@ -443,6 +461,8 @@ export const registreerVerzendResultaat = internalMutation({
     // email_logs — bestaand logging-patroon, ook voor onderdrukte mails
     await ctx.db.insert("email_logs", {
       offerteId: concept.offerteId,
+      // Interne cron/actie zonder identity: de tenant komt uit de concept-mail.
+      orgId: concept.orgId,
       userId: concept.userId,
       type: emailLogTypeVoorEvent(concept.event),
       to: concept.ontvangerEmail,

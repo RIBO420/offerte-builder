@@ -23,6 +23,7 @@ import type { MutationCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
 import { normalizeRole, requireKantoor } from "./roles";
+import { AuthError, requireOrgId, verifyOrgOwnership } from "./auth";
 import { renderTemplateString } from "./lib/mailRender";
 
 // ─── Domeinconstanten (gedeeld met UI en tests) ──────────────────────────────
@@ -338,7 +339,11 @@ export const list = query({
   args: {},
   handler: async (ctx) => {
     await requireKantoor(ctx);
-    const triggers = await ctx.db.query("mailTriggers").collect();
+    const orgId = await requireOrgId(ctx);
+    const triggers = await ctx.db
+      .query("mailTriggers")
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
+      .collect();
     return triggers.sort((a, b) => a.event.localeCompare(b.event));
   },
 });
@@ -353,17 +358,27 @@ export const seedDefaults = mutation({
   args: {},
   handler: async (ctx) => {
     await requireKantoor(ctx);
+    const orgId = await requireOrgId(ctx);
     const now = Date.now();
     let aangemaakt = 0;
 
+    // Eén query vóór de lus (geen lookup per seed): welke events heeft deze
+    // organisatie al? De by_event-index is bedrijfsbreed en zou de trigger
+    // van een andere tenant als "bestaand" aanzien.
+    const bestaandeEvents = new Set(
+      (
+        await ctx.db
+          .query("mailTriggers")
+          .withIndex("by_org", (q) => q.eq("orgId", orgId))
+          .collect()
+      ).map((t) => t.event)
+    );
+
     for (const seed of MAIL_TRIGGER_DEFAULTS) {
-      const bestaande = await ctx.db
-        .query("mailTriggers")
-        .withIndex("by_event", (q) => q.eq("event", seed.event))
-        .first();
-      if (bestaande) continue;
+      if (bestaandeEvents.has(seed.event)) continue;
 
       await ctx.db.insert("mailTriggers", {
+        orgId,
         event: seed.event,
         naam: seed.naam,
         omschrijving: seed.omschrijving,
@@ -407,10 +422,11 @@ export const update = mutation({
   },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
-    const trigger = await ctx.db.get(args.id);
-    if (!trigger) {
-      throw new ConvexError("Mail-trigger niet gevonden");
-    }
+    const trigger = await verifyOrgOwnership(
+      ctx,
+      await ctx.db.get(args.id),
+      "mail-trigger"
+    );
 
     valideerMailTrigger({
       onderwerp: args.onderwerp,
@@ -434,9 +450,14 @@ export const update = mutation({
 // ─── Trigger-motor (aangeroepen vanuit event-hooks) ──────────────────────────
 
 /**
- * Bedrijfseigenaar (multi-tenant scope) voor events zonder ingelogde
- * gebruiker (website-leads). Zelfde conventie als planningsattendering:
- * de directie-gebruiker is de bedrijfseigenaar.
+ * Bedrijfseigenaar (auteur-userId) voor events zonder ingelogde gebruiker
+ * (website-leads). Zelfde conventie als planningsattendering: de
+ * directie-gebruiker is de bedrijfseigenaar.
+ *
+ * LET OP: dit is GEEN tenant-resolver. `users` heeft geen `orgId`, dus deze
+ * functie kan de organisatie niet bepalen — identity-loze aanroepers geven
+ * `orgId` apart mee aan `zetTriggerMailKlaar`. Verdwijnt in fase 6 samen met
+ * het verplichte `userId`.
  */
 export async function vindBedrijfseigenaarId(
   ctx: MutationCtx
@@ -448,8 +469,14 @@ export async function vindBedrijfseigenaarId(
 
 export interface TriggerMailArgs {
   event: string;
-  /** Bedrijfseigenaar (multi-tenant scope) */
+  /** Bedrijfseigenaar (auteur van de conceptmail; verplicht tot fase 6) */
   userId: Id<"users">;
+  /**
+   * Tenant. Weglaten mag alleen als er een ingelogde gebruiker is: dan komt
+   * de organisatie uit het JWT. Identity-loze instroom (publieke website-lead)
+   * MOET hem meegeven — zie `bepaalOrgId`.
+   */
+  orgId?: Id<"organisaties">;
   ontvangerEmail: string;
   ontvangerNaam: string;
   variabelen: Record<string, string>;
@@ -471,8 +498,44 @@ export type TriggerMailResultaat =
   | { aangemaakt: true; conceptMailId: Id<"conceptMails"> }
   | {
       aangemaakt: false;
-      reden: "geen_trigger" | "trigger_inactief" | "duplicaat" | "geen_email";
+      reden:
+        | "geen_trigger"
+        | "trigger_inactief"
+        | "duplicaat"
+        | "geen_email"
+        | "geen_org";
     };
+
+/**
+ * De organisatie waarvoor deze trigger vuurt.
+ *
+ * Volgorde: expliciete `orgId` van de aanroeper wint, anders de org uit het
+ * Clerk-JWT. Lukt geen van beide, dan geeft dit `null` terug en zet
+ * `zetTriggerMailKlaar` géén mail klaar.
+ *
+ * Bewust geen throw: deze functie draait midden in de mutatie die het
+ * bronrecord aanmaakt (een website-lead, een melding). Een AuthError hier zou
+ * die hele transactie terugdraaien — dan verlies je de lead om een mail. Geen
+ * mail klaarzetten is het veilige alternatief: een trigger van de verkeerde
+ * tenant kiezen is geen optie.
+ */
+async function bepaalOrgId(
+  ctx: MutationCtx,
+  expliciet?: Id<"organisaties">
+): Promise<Id<"organisaties"> | null> {
+  if (expliciet) return expliciet;
+  try {
+    return await requireOrgId(ctx);
+  } catch (fout) {
+    if (fout instanceof AuthError) {
+      console.warn(
+        "[mailTriggers] geen organisatie te bepalen (geen sessie en geen orgId meegegeven) — er wordt geen mail klaargezet"
+      );
+      return null;
+    }
+    throw fout;
+  }
+}
 
 /**
  * DE enige ingang van het trigger-model: zet voor een event een mail klaar.
@@ -492,10 +555,15 @@ export async function zetTriggerMailKlaar(
   ctx: MutationCtx,
   args: TriggerMailArgs
 ): Promise<TriggerMailResultaat> {
-  const trigger = (await ctx.db
+  const orgId = await bepaalOrgId(ctx, args.orgId);
+  if (!orgId) return { aangemaakt: false, reden: "geen_org" };
+
+  // by_event is bedrijfsbreed; de tenant-grens loopt via by_org.
+  const triggers = (await ctx.db
     .query("mailTriggers")
-    .withIndex("by_event", (q) => q.eq("event", args.event))
-    .first()) as Doc<"mailTriggers"> | null;
+    .withIndex("by_org", (q) => q.eq("orgId", orgId))
+    .collect()) as Doc<"mailTriggers">[];
+  const trigger = triggers.find((t) => t.event === args.event) ?? null;
 
   if (!trigger) return { aangemaakt: false, reden: "geen_trigger" };
   if (!trigger.actief) return { aangemaakt: false, reden: "trigger_inactief" };
@@ -509,13 +577,17 @@ export async function zetTriggerMailKlaar(
     return { aangemaakt: false, reden: "geen_email" };
   }
 
-  // Idempotentie: geen tweede mail voor hetzelfde bronrecord
+  // Idempotentie: geen tweede mail voor hetzelfde bronrecord. De dedupe-
+  // sleutel bevat het id van dat bronrecord en is daarmee al org-uniek; de
+  // org-check erbij houdt de grens hard, ook bij een handmatige sleutel.
   if (args.dedupeSleutel) {
     const bestaande = await ctx.db
       .query("conceptMails")
       .withIndex("by_dedupe", (q) => q.eq("dedupeSleutel", args.dedupeSleutel))
       .first();
-    if (bestaande) return { aangemaakt: false, reden: "duplicaat" };
+    if (bestaande && bestaande.orgId?.toString() === orgId.toString()) {
+      return { aangemaakt: false, reden: "duplicaat" };
+    }
   }
 
   // {{bedrijfsnaam}} automatisch aanvullen vanuit de instellingen
@@ -523,7 +595,7 @@ export async function zetTriggerMailKlaar(
   if (!variabelen.bedrijfsnaam) {
     const instellingen = await ctx.db
       .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .first();
     const bedrijfsgegevens = (instellingen?.bedrijfsgegevens ?? {}) as Record<
       string,
@@ -537,7 +609,8 @@ export async function zetTriggerMailKlaar(
   if (trigger.tekstblokIds && trigger.tekstblokIds.length > 0) {
     for (const blokId of trigger.tekstblokIds) {
       const blok = await ctx.db.get(blokId);
-      if (blok && blok.actief) {
+      // Tekstblok van een andere tenant nooit meerenderen.
+      if (blok && blok.actief && blok.orgId?.toString() === orgId.toString()) {
         inhoud += `\n\n${renderTemplateString(blok.inhoud, variabelen)}`;
       }
     }
@@ -550,6 +623,7 @@ export async function zetTriggerMailKlaar(
   const status = trigger.vertragingDagen > 0 ? "gepland" : "wachtrij";
 
   const conceptMailId = await ctx.db.insert("conceptMails", {
+    orgId,
     userId: args.userId,
     event: args.event,
     triggerId: trigger._id,

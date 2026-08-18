@@ -28,6 +28,7 @@ import {
   createMockCtx,
   createMockUser,
   createMockKlant,
+  seedMockOrganisatie,
   type MockCtx,
 } from "../../helpers/convex-mock";
 import { AuthError } from "../../../../convex/auth";
@@ -76,6 +77,10 @@ const NU = Date.now();
  */
 function portaalSetup() {
   const store = new MockConvexStore();
+  // De organisatie is sinds de org-migratie de tenant-grens: zonder org-rij
+  // ziet geen enkele org-gescopeerde query nog iets (het org-claim zit al in
+  // de identity van createMockCtx).
+  const orgId = seedMockOrganisatie(store);
   const actingUserId = store.insert(
     "users",
     createMockUser({ role: "klant", name: "Klant A (account)" })
@@ -91,11 +96,11 @@ function portaalSetup() {
   );
   const klantAId = store.insert(
     "klanten",
-    createMockKlant(actingUserId, { naam: "Klant A", email: "a@test.nl" })
+    createMockKlant(actingUserId, { orgId, naam: "Klant A", email: "a@test.nl" })
   );
   const klantBId = store.insert(
     "klanten",
-    createMockKlant(actingUserId, { naam: "Klant B", email: "b@test.nl" })
+    createMockKlant(actingUserId, { orgId, naam: "Klant B", email: "b@test.nl" })
   );
   store.patch(actingUserId, { linkedKlantId: klantAId });
   const ctx = createMockCtx(store);
@@ -116,6 +121,7 @@ function portaalSetup() {
   return {
     store,
     ctx,
+    orgId,
     actingUserId,
     bedrijfseigenaarId,
     klantAId,
@@ -188,6 +194,7 @@ function maakFactuur(
 
 function seedMeldingTrigger(
   store: MockConvexStore,
+  orgId: string,
   overrides: Record<string, unknown> = {}
 ) {
   const seed = MAIL_TRIGGER_DEFAULTS.find(
@@ -195,6 +202,7 @@ function seedMeldingTrigger(
   )!;
   return store.insert("mailTriggers", {
     ...seed,
+    orgId,
     createdAt: NU,
     updatedAt: NU,
     ...overrides,
@@ -596,7 +604,7 @@ describe("interne case-thread en tijdlijn — nooit voor de klant", () => {
 describe("melding_ontvangen — bevestiging alleen via het trigger-model", () => {
   it("zet één concept-mail klaar en plant de guarded verzend-actie (automatisch)", async () => {
     const s = portaalSetup();
-    seedMeldingTrigger(s.store); // modus "automatisch"
+    seedMeldingTrigger(s.store, s.orgId); // modus "automatisch"
     const meldingId = await dienIn(s.ctx);
 
     const concepten = s.store.getAll("conceptMails");
@@ -614,7 +622,7 @@ describe("melding_ontvangen — bevestiging alleen via het trigger-model", () =>
 
   it("modus 'concept' zet in de wachtrij en plant GEEN verzend-actie", async () => {
     const s = portaalSetup();
-    seedMeldingTrigger(s.store, { modus: "concept" });
+    seedMeldingTrigger(s.store, s.orgId, { modus: "concept" });
     await dienIn(s.ctx);
 
     const concepten = s.store.getAll("conceptMails");
@@ -633,14 +641,14 @@ describe("melding_ontvangen — bevestiging alleen via het trigger-model", () =>
 
   it("inactieve trigger: geen mail klaargezet", async () => {
     const s = portaalSetup();
-    seedMeldingTrigger(s.store, { actief: false });
+    seedMeldingTrigger(s.store, s.orgId, { actief: false });
     await dienIn(s.ctx);
     expect(s.store.getAll("conceptMails")).toHaveLength(0);
   });
 
   it("dedupe: zelfde sleutel zet nooit een tweede bevestiging klaar", async () => {
     const s = portaalSetup();
-    seedMeldingTrigger(s.store);
+    seedMeldingTrigger(s.store, s.orgId);
     s.alsKantoor(); // zetTriggerMailKlaar is een interne helper; rol-onafhankelijk
 
     const args = {

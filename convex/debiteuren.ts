@@ -422,6 +422,9 @@ async function verwerkMailTrede(
 
   const resultaat = await zetTriggerMailKlaar(ctx, {
     event: mailEventVoorTrede(trede.trede),
+    // De ladder-cron draait zonder identity: zonder deze expliciete orgId kan
+    // de trigger-motor de tenant niet bepalen en zet hij géén mail klaar.
+    orgId: factuur.orgId,
     userId: factuur.userId,
     ontvangerEmail: factuur.klant.email ?? "",
     ontvangerNaam: factuur.klant.naam,

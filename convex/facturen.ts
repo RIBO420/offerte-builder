@@ -13,7 +13,12 @@ import {
   type MutationCtx,
 } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { requireAuth, requireAuthUserId, verifyOwnership } from "./auth";
+import {
+  requireAuth,
+  requireOrgContext,
+  requireOrgId,
+  verifyOrgOwnership,
+} from "./auth";
 import { requireNotViewer, assertKanNaarKlantVersturen } from "./roles";
 import { Doc, Id } from "./_generated/dataModel";
 import {
@@ -72,25 +77,27 @@ const correctieValidator = v.object({
 });
 
 /**
- * Get a project and verify ownership.
+ * Get a project and verify org-ownership.
+ * Sinds de org-migratie (fase 3): eigendom = zelfde organisatie, niet dezelfde
+ * user — een collega mag het project van een collega factureren.
  */
 async function getOwnedProject(
   ctx: Parameters<typeof requireAuth>[0],
   projectId: Id<"projecten">
 ) {
   const project = await ctx.db.get(projectId);
-  return verifyOwnership(ctx, project, "project");
+  return verifyOrgOwnership(ctx, project, "project");
 }
 
 /**
- * Get a factuur and verify ownership.
+ * Get a factuur and verify org-ownership (zie getOwnedProject).
  */
 async function getOwnedFactuur(
   ctx: Parameters<typeof requireAuth>[0],
   factuurId: Id<"facturen">
 ) {
   const factuur = await ctx.db.get(factuurId);
-  return verifyOwnership(ctx, factuur, "factuur");
+  return verifyOrgOwnership(ctx, factuur, "factuur");
 }
 
 // ── Statussplitsing-kern (§2.8) ──────────────────────────────────────────
@@ -248,7 +255,7 @@ export const generate = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
     const now = Date.now();
 
     // Haal project op en verifieer eigenaarschap
@@ -290,7 +297,7 @@ export const generate = mutation({
     // Haal instellingen op
     const instellingen = await ctx.db
       .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", org._id))
       .unique();
 
     if (!instellingen) {
@@ -345,7 +352,8 @@ export const generate = mutation({
 
     // Maak de factuur aan
     const factuurId = await ctx.db.insert("facturen", {
-      userId,
+      orgId: org._id,
+      userId: user._id,
       projectId: args.projectId,
       factuurnummer,
       status: "concept",
@@ -402,13 +410,13 @@ export const generate = mutation({
 export const search = query({
   args: { searchTerm: v.string() },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const searchTerm = args.searchTerm.toLowerCase().trim();
 
-    // Get all facturen for the user
+    // Get all facturen for the organisatie
     const facturen = await ctx.db
       .query("facturen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .order("desc")
       .collect();
 
@@ -469,9 +477,9 @@ export const get = query({
     const factuur = await ctx.db.get(args.id);
     if (!factuur) return null;
 
-    // Verifieer eigenaarschap
-    const user = await requireAuth(ctx);
-    if (factuur.userId.toString() !== user._id.toString()) {
+    // Verifieer eigenaarschap (organisatie, niet de individuele gebruiker)
+    const orgId = await requireOrgId(ctx);
+    if (!factuur.orgId || factuur.orgId.toString() !== orgId.toString()) {
       return null; // Verberg bestaan voor onbevoegde gebruikers
     }
 
@@ -529,11 +537,11 @@ export const list = query({
     hideArchived: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const facturen = await ctx.db
       .query("facturen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .order("desc")
       .collect();
 
@@ -580,10 +588,12 @@ export const list = query({
 export const listVoorKlant = query({
   args: { klantId: v.id("klanten") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const klant = await ctx.db.get(args.klantId);
-    if (!klant || klant.userId.toString() !== userId.toString()) return [];
+    if (!klant || !klant.orgId || klant.orgId.toString() !== orgId.toString()) {
+      return [];
+    }
 
     const facturen = await ctx.db
       .query("facturen")
@@ -593,9 +603,9 @@ export const listVoorKlant = query({
     const nu = Date.now();
 
     return facturen
-      // Tenant-scope (audit §2): de index staat niet op userId, dus hier nog
+      // Tenant-scope (audit §2): de index staat niet op orgId, dus hier nog
       // een keer expliciet controleren.
-      .filter((f) => f.userId.toString() === userId.toString())
+      .filter((f) => f.orgId && f.orgId.toString() === orgId.toString())
       .sort((a, b) => b.factuurdatum - a.factuurdatum)
       .map((factuur) => {
         const { documentStatus, betaalStatus } = effectieveStatussen(factuur);
@@ -866,7 +876,7 @@ export const createVrij = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
     const now = Date.now();
 
     if (args.regels.length === 0) {
@@ -874,13 +884,13 @@ export const createVrij = mutation({
     }
 
     const klant = await ctx.db.get(args.klantId);
-    if (!klant || klant.userId.toString() !== userId.toString()) {
+    if (!klant || !klant.orgId || klant.orgId.toString() !== org._id.toString()) {
       throw new ConvexError("Klant niet gevonden");
     }
 
     const instellingen = await ctx.db
       .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", org._id))
       .unique();
     if (!instellingen) {
       throw new ConvexError(
@@ -898,7 +908,8 @@ export const createVrij = mutation({
     const betalingstermijnDagen = instellingen.standaardBetalingstermijn ?? 14;
 
     const factuurId = await ctx.db.insert("facturen", {
-      userId,
+      orgId: org._id,
+      userId: user._id,
       klantId: args.klantId,
       factuurnummer,
       status: "concept",
@@ -1016,8 +1027,10 @@ export const registreerBetaling = mutation({
     }
 
     // Betaling vastleggen in de betalingen-tabel (handmatige registratie,
-    // geen Mollie-payment — herkenbaar aan het prefix)
+    // geen Mollie-payment — herkenbaar aan het prefix). De factuur is via
+    // getOwnedFactuur al org-geverifieerd, dus die orgId is de juiste tenant.
     await ctx.db.insert("betalingen", {
+      orgId: factuur.orgId,
       userId: factuur.userId,
       molliePaymentId: `handmatig_${args.factuurId}_${now}`,
       bedrag: args.bedrag,
@@ -1117,8 +1130,12 @@ export const markAsPaidAndArchiveProject = mutation({
       throw new ConvexError("Project niet gevonden");
     }
 
-    // Verify ownership of project
-    if (project.userId.toString() !== factuur.userId.toString()) {
+    // Verify org-ownership of project (factuur is al org-geverifieerd)
+    if (
+      !project.orgId ||
+      !factuur.orgId ||
+      project.orgId.toString() !== factuur.orgId.toString()
+    ) {
       throw new ConvexError("Geen toegang tot dit project");
     }
 
@@ -1140,8 +1157,12 @@ export const markAsPaidAndArchiveProject = mutation({
       throw new ConvexError("Offerte niet gevonden");
     }
 
-    // Verify ownership of offerte
-    if (offerte.userId.toString() !== factuur.userId.toString()) {
+    // Verify org-ownership of offerte
+    if (
+      !offerte.orgId ||
+      !factuur.orgId ||
+      offerte.orgId.toString() !== factuur.orgId.toString()
+    ) {
       throw new ConvexError("Geen toegang tot deze offerte");
     }
 
@@ -1168,11 +1189,11 @@ export const markAsPaidAndArchiveProject = mutation({
 export const getStats = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const facturen = await ctx.db
       .query("facturen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // KPI's op de gesplitste statussen (§2.8): documentketen voor de
@@ -1245,11 +1266,11 @@ export const getStats = query({
 export const getLijstStats = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const facturen = await ctx.db
       .query("facturen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     const now = Date.now();
@@ -1323,12 +1344,12 @@ export const listPaginated = query({
     documentStatus: v.optional(documentStatusValidator),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const limit = args.limit || 25;
 
     const result = await ctx.db
       .query("facturen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .order("desc")
       .paginate({ numItems: limit, cursor: args.cursor ?? null });
 
@@ -1363,12 +1384,12 @@ export const getRecent = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const limit = args.limit ?? 5;
 
     const facturen = await ctx.db
       .query("facturen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .order("desc")
       .take(limit);
 
@@ -1458,7 +1479,7 @@ export const createCreditnota = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
     const now = Date.now();
 
     // Haal originele factuur op en verifieer eigenaarschap
@@ -1489,7 +1510,7 @@ export const createCreditnota = mutation({
     // Haal instellingen op voor factuurnummer generatie
     const instellingen = await ctx.db
       .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", org._id))
       .unique();
 
     if (!instellingen) {
@@ -1536,7 +1557,8 @@ export const createCreditnota = mutation({
 
     // Maak de creditnota aan (als factuur met isCreditnota = true)
     const creditnotaId = await ctx.db.insert("facturen", {
-      userId,
+      orgId: org._id,
+      userId: user._id,
       projectId: factuur.projectId,
       klantId: factuur.klantId,
       factuurnummer: creditnotaNummer,
@@ -1582,7 +1604,7 @@ export const createCreditnota = mutation({
 export const getCreditnota = query({
   args: { factuurId: v.id("facturen") },
   handler: async (ctx, args) => {
-    await requireAuth(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const creditnota = await ctx.db
       .query("facturen")
@@ -1591,7 +1613,16 @@ export const getCreditnota = query({
       )
       .first();
 
-    return creditnota ?? null;
+    // by_referentieFactuur is niet org-gescoped: expliciet controleren.
+    if (
+      !creditnota ||
+      !creditnota.orgId ||
+      creditnota.orgId.toString() !== orgId.toString()
+    ) {
+      return null;
+    }
+
+    return creditnota;
   },
 });
 
@@ -1601,11 +1632,11 @@ export const getCreditnota = query({
 export const listCreditnotas = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const facturen = await ctx.db
       .query("facturen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .order("desc")
       .collect();
 
@@ -1623,8 +1654,8 @@ export const getWithDetails = query({
     const factuur = await ctx.db.get(args.id);
     if (!factuur) return null;
 
-    const user = await requireAuth(ctx);
-    if (factuur.userId.toString() !== user._id.toString()) {
+    const orgId = await requireOrgId(ctx);
+    if (!factuur.orgId || factuur.orgId.toString() !== orgId.toString()) {
       return null;
     }
 

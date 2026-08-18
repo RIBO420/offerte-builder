@@ -12,7 +12,7 @@
 
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAuth, requireAuthUserId } from "./auth";
+import { requireOrgContext, requireOrgId } from "./auth";
 import { requireAdmin, requireNotViewer } from "./roles";
 
 // ============================================
@@ -51,11 +51,11 @@ const syncRichtingValidator = v.union(
 export const getInstellingen = query({
   args: {},
   handler: async (ctx) => {
-    const user = await requireAuth(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const instellingen = await ctx.db
       .query("boekhoudInstellingen")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .first();
 
     if (!instellingen) {
@@ -89,11 +89,11 @@ export const getInstellingen = query({
 export const getSyncOverview = query({
   args: {},
   handler: async (ctx) => {
-    const user = await requireAuth(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const allEntries = await ctx.db
       .query("boekhoudSync")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     const synced = allEntries.filter((e) => e.syncStatus === "synced").length;
@@ -121,7 +121,7 @@ export const getSyncLog = query({
     entityType: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const orgId = await requireOrgId(ctx);
     const limit = args.limit ?? 20;
 
     let queryBuilder;
@@ -129,13 +129,13 @@ export const getSyncLog = query({
     if (args.entityType) {
       queryBuilder = ctx.db
         .query("boekhoudSync")
-        .withIndex("by_entity_type", (q) =>
-          q.eq("userId", user._id).eq("entityType", args.entityType as "factuur" | "creditnota" | "betaling" | "inkoopfactuur" | "contact")
+        .withIndex("by_org_entity_type", (q) =>
+          q.eq("orgId", orgId).eq("entityType", args.entityType as "factuur" | "creditnota" | "betaling" | "inkoopfactuur" | "contact")
         );
     } else {
       queryBuilder = ctx.db
         .query("boekhoudSync")
-        .withIndex("by_user", (q) => q.eq("userId", user._id));
+        .withIndex("by_org", (q) => q.eq("orgId", orgId));
     }
 
     const entries = await queryBuilder
@@ -183,10 +183,11 @@ export const getFactuurSyncStatus = query({
     factuurId: v.id("facturen"),
   },
   handler: async (ctx, args) => {
-    await requireAuth(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const factuur = await ctx.db.get(args.factuurId);
-    if (!factuur) {
+    // Bestaan van een factuur van een andere organisatie mag niet lekken.
+    if (!factuur || factuur.orgId?.toString() !== orgId.toString()) {
       return null;
     }
 
@@ -233,11 +234,12 @@ export const saveInstellingen = mutation({
     syncRichting: syncRichtingValidator,
   },
   handler: async (ctx, args) => {
-    const user = await requireAdmin(ctx);
+    await requireAdmin(ctx);
+    const { org, user } = await requireOrgContext(ctx);
 
     const existing = await ctx.db
       .query("boekhoudInstellingen")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_org", (q) => q.eq("orgId", org._id))
       .first();
 
     const now = Date.now();
@@ -255,6 +257,7 @@ export const saveInstellingen = mutation({
       return existing._id;
     } else {
       return await ctx.db.insert("boekhoudInstellingen", {
+        orgId: org._id,
         userId: user._id,
         provider: args.provider,
         apiKey: args.apiKey,
@@ -276,11 +279,12 @@ export const saveInstellingen = mutation({
 export const disconnect = mutation({
   args: {},
   handler: async (ctx) => {
-    const user = await requireAdmin(ctx);
+    await requireAdmin(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const existing = await ctx.db
       .query("boekhoudInstellingen")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .first();
 
     if (!existing) {
@@ -310,20 +314,20 @@ export const markForSync = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
 
     const factuur = await ctx.db.get(args.factuurId);
     if (!factuur) {
       throw new ConvexError("Factuur niet gevonden");
     }
-    if (factuur.userId !== userId) {
+    if (factuur.orgId?.toString() !== org._id.toString()) {
       throw new ConvexError("Geen toegang tot deze factuur");
     }
 
     // Check if boekhouding is configured
     const instellingen = await ctx.db
       .query("boekhoudInstellingen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", org._id))
       .first();
 
     if (!instellingen || !instellingen.isActief || instellingen.provider === "geen") {
@@ -340,7 +344,8 @@ export const markForSync = mutation({
 
     // Create sync log entry
     await ctx.db.insert("boekhoudSync", {
-      userId,
+      orgId: org._id,
+      userId: user._id,
       factuurId: args.factuurId,
       entityType: "factuur",
       syncStatus: "pending",
@@ -368,13 +373,13 @@ export const updateSyncEntry = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const syncEntry = await ctx.db.get(args.syncId);
     if (!syncEntry) {
       throw new ConvexError("Sync entry niet gevonden");
     }
-    if (syncEntry.userId !== userId) {
+    if (syncEntry.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Geen toegang tot deze sync entry");
     }
 
@@ -415,7 +420,7 @@ export const updateSyncEntry = mutation({
     // Update instellingen last sync status
     const instellingen = await ctx.db
       .query("boekhoudInstellingen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .first();
 
     if (instellingen) {
@@ -446,11 +451,12 @@ export const saveGrootboekMappings = mutation({
     })),
   },
   handler: async (ctx, args) => {
-    const user = await requireAdmin(ctx);
+    await requireAdmin(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const existing = await ctx.db
       .query("boekhoudInstellingen")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .first();
 
     if (!existing) {

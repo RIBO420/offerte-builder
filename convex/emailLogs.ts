@@ -1,7 +1,30 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query, internalMutation } from "./_generated/server";
-import { requireAuthUserId, getOwnedOfferte } from "./auth";
+import { requireOrgId, getOwnedOfferte } from "./auth";
 import { requireNotViewer } from "./roles";
+
+/**
+ * TENANT-SCOPE IN DIT BESTAND (org-migratie fase 3).
+ *
+ * Drie soorten schrijvers, en ze zijn NIET gelijk te trekken:
+ *
+ * 1. Ingelogde paden (`listByUser`, `create`, `updateStatus`,
+ *    `getOfferteEmailStats`, `listByOfferte`) → `requireOrgId` / de
+ *    org-variant van de ownership-check. Hier is er altijd een JWT met
+ *    org-claim.
+ * 2. Interne schrijvers (`createInternal`, `createTriggerInternal`) draaien
+ *    vanuit crons en acties zónder identity. Zij kunnen `requireOrgId` niet
+ *    aanroepen; de org komt daarom uit de offerte waar de mail bij hoort, of
+ *    — als er geen offerte is — uit een expliciete `orgId`-arg van de
+ *    aanroeper.
+ * 3. Het webhookpad (`updateFromWebhook`) is per definitie niet ingelogd:
+ *    Resend → onze route → deze mutation, afgeschermd met
+ *    CONVEX_WEBHOOK_SECRET. Het MATCHT op een bestaande rij (`by_resendId`)
+ *    en maakt er nooit een aan, dus er valt geen tenant te kiezen: de rij
+ *    brengt zijn eigen `orgId` mee. Daar hoort dus GEEN org-check — die zou
+ *    alleen maar een nieuwe faalmodus toevoegen aan een pad dat al
+ *    fail-closed is op het gedeelde geheim.
+ */
 
 // List email logs for an offerte (with ownership verification)
 export const listByOfferte = query({
@@ -22,11 +45,11 @@ export const listByOfferte = query({
 export const listByUser = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const limit = args.limit ?? 50;
     return await ctx.db
       .query("email_logs")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .order("desc")
       .take(limit);
   },
@@ -64,6 +87,8 @@ export const create = mutation({
 
     return await ctx.db.insert("email_logs", {
       offerteId: args.offerteId,
+      // De offerte is via getOwnedOfferte al org-geverifieerd.
+      orgId: offerte.orgId,
       userId: offerte.userId,
       type: args.type,
       to: args.to,
@@ -82,9 +107,13 @@ export const create = mutation({
 // aangeroepen vanuit conceptMails-acties). Verschil met createInternal:
 // offerteId is optioneel (lead-/inplan-mails hangen niet aan een offerte)
 // en de §2.7 event-typen zijn toegestaan.
+//
+// Org-scope (punt 2 in de kop): zonder offerte is er niets om de tenant uit
+// af te leiden — dan MOET de aanroeper `orgId` meegeven.
 export const createTriggerInternal = internalMutation({
   args: {
     offerteId: v.optional(v.id("offertes")),
+    orgId: v.optional(v.id("organisaties")),
     userId: v.id("users"),
     type: v.union(
       v.literal("offerte_verzonden"),
@@ -105,8 +134,11 @@ export const createTriggerInternal = internalMutation({
     error: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const offerte = args.offerteId ? await ctx.db.get(args.offerteId) : null;
+
     return await ctx.db.insert("email_logs", {
       offerteId: args.offerteId,
+      orgId: offerte?.orgId ?? args.orgId,
       userId: args.userId,
       type: args.type,
       to: args.to,
@@ -119,7 +151,8 @@ export const createTriggerInternal = internalMutation({
   },
 });
 
-// Create email log entry (internal — no auth required, for cron jobs/actions)
+// Create email log entry (internal — no auth required, for cron jobs/actions).
+// De org komt uit de offerte: dit pad heeft er altijd één (zie kop, punt 2).
 export const createInternal = internalMutation({
   args: {
     offerteId: v.id("offertes"),
@@ -146,8 +179,11 @@ export const createInternal = internalMutation({
     error: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const offerte = await ctx.db.get(args.offerteId);
+
     return await ctx.db.insert("email_logs", {
       offerteId: args.offerteId,
+      orgId: offerte?.orgId,
       userId: args.userId,
       type: args.type,
       to: args.to,
@@ -176,14 +212,14 @@ export const updateStatus = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
-    // Get the log and verify ownership
+    // Get the log and verify org-ownership
     const log = await ctx.db.get(args.id);
     if (!log) {
       throw new ConvexError("Email log niet gevonden");
     }
-    if (log.userId.toString() !== userId.toString()) {
+    if (log.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Geen toegang tot deze email log");
     }
 

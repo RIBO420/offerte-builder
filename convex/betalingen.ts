@@ -27,16 +27,15 @@
  *   createdAt: v.number(),
  *   updatedAt: v.number(),
  * })
- *   .index("by_user", ["userId"])
+ *   .index("by_org", ["orgId"])
  *   .index("by_mollieId", ["molliePaymentId"])
- *   .index("by_referentie", ["referentie"])
- *   .index("by_user_status", ["userId", "status"]),
+ *   .index("by_referentie", ["referentie"]),
  */
 
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAuth } from "./auth";
-import { requireNotViewer, isAdmin } from "./roles";
+import { requireOrgContext, requireOrgId } from "./auth";
+import { requireNotViewer } from "./roles";
 
 // ============================================
 // VALIDATORS
@@ -62,26 +61,22 @@ const betalingTypeValidator = v.union(
 // ============================================
 
 /**
- * Haal betalingen op.
- * Admins zien alle betalingen; andere gebruikers alleen hun eigen.
+ * Haal betalingen op — alle betalingen van de eigen organisatie.
  * Gesorteerd op aanmaakdatum, nieuwste eerst.
+ *
+ * De vroegere admin-uitzondering ("admins zien álle betalingen", zonder
+ * index) is met de org-migratie vervallen: die tak las de tabel van élke
+ * tenant. De organisatie ís nu de grens, dus kantoor ziet de betalingen van
+ * het eigen bedrijf en niets daarbuiten.
  */
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    const user = await requireAuth(ctx);
-    const userIsAdmin = await isAdmin(ctx);
-
-    if (userIsAdmin) {
-      return await ctx.db
-        .query("betalingen")
-        .order("desc")
-        .collect();
-    }
+    const orgId = await requireOrgId(ctx);
 
     return await ctx.db
       .query("betalingen")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .order("desc")
       .collect();
   },
@@ -95,7 +90,7 @@ export const getByMollieId = query({
     molliePaymentId: v.string(),
   },
   handler: async (ctx, args) => {
-    await requireAuth(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const betaling = await ctx.db
       .query("betalingen")
@@ -103,6 +98,12 @@ export const getByMollieId = query({
         q.eq("molliePaymentId", args.molliePaymentId)
       )
       .unique();
+
+    // by_mollieId is niet org-gescoped (Mollie-id is globaal uniek): hier
+    // expliciet controleren dat de betaling van de eigen organisatie is.
+    if (!betaling || betaling.orgId?.toString() !== orgId.toString()) {
+      return null;
+    }
 
     return betaling;
   },
@@ -116,14 +117,17 @@ export const getByReferentie = query({
     referentie: v.string(),
   },
   handler: async (ctx, args) => {
-    await requireAuth(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const betalingen = await ctx.db
       .query("betalingen")
       .withIndex("by_referentie", (q) => q.eq("referentie", args.referentie))
       .collect();
 
-    return betalingen;
+    // Referentienummers zijn per organisatie uniek, niet globaal — filteren.
+    return betalingen.filter(
+      (b) => b.orgId?.toString() === orgId.toString()
+    );
   },
 });
 
@@ -146,10 +150,12 @@ export const create = mutation({
     metadata: v.optional(v.record(v.string(), v.union(v.string(), v.number(), v.boolean(), v.null()))),
   },
   handler: async (ctx, args) => {
-    const user = await requireNotViewer(ctx);
+    await requireNotViewer(ctx);
+    const { org, user } = await requireOrgContext(ctx);
     const now = Date.now();
 
     const betalingId = await ctx.db.insert("betalingen", {
+      orgId: org._id,
       userId: user._id,
       molliePaymentId: args.molliePaymentId,
       bedrag: args.bedrag,
@@ -179,6 +185,7 @@ export const updateStatus = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
+    const orgId = await requireOrgId(ctx);
     const betaling = await ctx.db
       .query("betalingen")
       .withIndex("by_mollieId", (q) =>
@@ -186,7 +193,9 @@ export const updateStatus = mutation({
       )
       .unique();
 
-    if (!betaling) {
+    // Zelfde melding voor "bestaat niet" en "andere organisatie": het bestaan
+    // van een betaling van een andere tenant mag niet lekken.
+    if (!betaling || betaling.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError(
         `Betaling met Mollie ID ${args.molliePaymentId} niet gevonden`
       );

@@ -1,6 +1,6 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query, internalMutation, internalQuery } from "./_generated/server";
-import { requireAuthUserId } from "./auth";
+import { requireOrgContext, requireOrgId, verifyOrgOwnership } from "./auth";
 import { requireDirectieOrProjectleider } from "./roles";
 
 // ── Trigger types ────────────────────────────────────────────────────
@@ -144,20 +144,20 @@ export const list = query({
     trigger: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     if (args.trigger) {
       return await ctx.db
         .query("emailTemplates")
-        .withIndex("by_trigger", (q) =>
-          q.eq("userId", userId).eq("trigger", args.trigger!)
+        .withIndex("by_org_trigger", (q) =>
+          q.eq("orgId", orgId).eq("trigger", args.trigger!)
         )
         .collect();
     }
 
     return await ctx.db
       .query("emailTemplates")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
   },
 });
@@ -166,14 +166,8 @@ export const list = query({
 export const getById = query({
   args: { id: v.id("emailTemplates") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
     const template = await ctx.db.get(args.id);
-
-    if (!template || template.userId.toString() !== userId.toString()) {
-      throw new ConvexError("Template niet gevonden");
-    }
-
-    return template;
+    return await verifyOrgOwnership(ctx, template, "template");
   },
 });
 
@@ -181,12 +175,12 @@ export const getById = query({
 export const getByTrigger = query({
   args: { trigger: v.string() },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const templates = await ctx.db
       .query("emailTemplates")
-      .withIndex("by_trigger", (q) =>
-        q.eq("userId", userId).eq("trigger", args.trigger)
+      .withIndex("by_org_trigger", (q) =>
+        q.eq("orgId", orgId).eq("trigger", args.trigger)
       )
       .collect();
 
@@ -195,16 +189,37 @@ export const getByTrigger = query({
   },
 });
 
-/** Get the active template for a trigger (internal — no auth required, for cron jobs/actions) */
+/**
+ * Get the active template for a trigger (internal — no auth required, for
+ * cron jobs/actions).
+ *
+ * Org-migratie: dit pad heeft geen identity en kan `requireOrgId` dus niet
+ * aanroepen. De aanroeper geeft de tenant mee via `orgId`. Zolang niet elke
+ * aanroeper dat doet, valt de lookup terug op de oude `userId`-index — de
+ * enige plek in dit bestand waar dat nog mag. Weg bij fase 6, samen met het
+ * `userId`-veld en de by_user*-indexen.
+ */
 export const getByTriggerInternal = internalQuery({
-  args: { userId: v.id("users"), trigger: v.string() },
+  args: {
+    userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
+    trigger: v.string(),
+  },
   handler: async (ctx, args) => {
-    const templates = await ctx.db
-      .query("emailTemplates")
-      .withIndex("by_trigger", (q) =>
-        q.eq("userId", args.userId).eq("trigger", args.trigger)
-      )
-      .collect();
+    const orgId = args.orgId;
+    const templates = orgId
+      ? await ctx.db
+          .query("emailTemplates")
+          .withIndex("by_org_trigger", (q) =>
+            q.eq("orgId", orgId).eq("trigger", args.trigger)
+          )
+          .collect()
+      : await ctx.db
+          .query("emailTemplates")
+          .withIndex("by_trigger", (q) =>
+            q.eq("userId", args.userId).eq("trigger", args.trigger)
+          )
+          .collect();
 
     // Return the first active template for this trigger
     return templates.find((t) => t.actief) ?? null;
@@ -231,7 +246,8 @@ export const create = mutation({
     actief: v.boolean(),
   },
   handler: async (ctx, args) => {
-    const user = await requireDirectieOrProjectleider(ctx);
+    await requireDirectieOrProjectleider(ctx);
+    const { org, user } = await requireOrgContext(ctx);
 
     if (!VALID_TRIGGERS.includes(args.trigger as (typeof VALID_TRIGGERS)[number])) {
       throw new ConvexError(`Ongeldige trigger: ${args.trigger}`);
@@ -240,6 +256,7 @@ export const create = mutation({
     const variabelen = TRIGGER_VARIABLE_MAP[args.trigger] ?? COMMON_VARIABLES;
 
     return await ctx.db.insert("emailTemplates", {
+      orgId: org._id,
       userId: user._id,
       naam: args.naam,
       trigger: args.trigger,
@@ -264,12 +281,8 @@ export const update = mutation({
     actief: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const user = await requireDirectieOrProjectleider(ctx);
-
-    const template = await ctx.db.get(args.id);
-    if (!template || template.userId.toString() !== user._id.toString()) {
-      throw new ConvexError("Template niet gevonden");
-    }
+    await requireDirectieOrProjectleider(ctx);
+    await verifyOrgOwnership(ctx, await ctx.db.get(args.id), "template");
 
     if (args.trigger && !VALID_TRIGGERS.includes(args.trigger as (typeof VALID_TRIGGERS)[number])) {
       throw new ConvexError(`Ongeldige trigger: ${args.trigger}`);
@@ -294,12 +307,8 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("emailTemplates") },
   handler: async (ctx, args) => {
-    const user = await requireDirectieOrProjectleider(ctx);
-
-    const template = await ctx.db.get(args.id);
-    if (!template || template.userId.toString() !== user._id.toString()) {
-      throw new ConvexError("Template niet gevonden");
-    }
+    await requireDirectieOrProjectleider(ctx);
+    await verifyOrgOwnership(ctx, await ctx.db.get(args.id), "template");
 
     await ctx.db.patch(args.id, {
       actief: false,
@@ -313,12 +322,8 @@ export const remove = mutation({
 export const permanentDelete = mutation({
   args: { id: v.id("emailTemplates") },
   handler: async (ctx, args) => {
-    const user = await requireDirectieOrProjectleider(ctx);
-
-    const template = await ctx.db.get(args.id);
-    if (!template || template.userId.toString() !== user._id.toString()) {
-      throw new ConvexError("Template niet gevonden");
-    }
+    await requireDirectieOrProjectleider(ctx);
+    await verifyOrgOwnership(ctx, await ctx.db.get(args.id), "template");
 
     await ctx.db.delete(args.id);
   },
@@ -328,12 +333,13 @@ export const permanentDelete = mutation({
 export const seedDefaults = mutation({
   args: {},
   handler: async (ctx) => {
-    const user = await requireDirectieOrProjectleider(ctx);
+    await requireDirectieOrProjectleider(ctx);
+    const { org, user } = await requireOrgContext(ctx);
 
-    // Check if user already has templates
+    // Check if the organisatie already has templates
     const existing = await ctx.db
       .query("emailTemplates")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_org", (q) => q.eq("orgId", org._id))
       .first();
 
     if (existing) {
@@ -346,6 +352,7 @@ export const seedDefaults = mutation({
     for (const tmpl of DEFAULT_TEMPLATES) {
       const variabelen = TRIGGER_VARIABLE_MAP[tmpl.trigger] ?? COMMON_VARIABLES;
       await ctx.db.insert("emailTemplates", {
+        orgId: org._id,
         userId: user._id,
         naam: tmpl.naam,
         trigger: tmpl.trigger,
@@ -366,12 +373,13 @@ export const seedDefaults = mutation({
 export const resetToDefaults = mutation({
   args: {},
   handler: async (ctx) => {
-    const user = await requireDirectieOrProjectleider(ctx);
+    await requireDirectieOrProjectleider(ctx);
+    const { org, user } = await requireOrgContext(ctx);
 
-    // Delete all existing templates for this user
+    // Delete all existing templates for this organisatie
     const existing = await ctx.db
       .query("emailTemplates")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_org", (q) => q.eq("orgId", org._id))
       .collect();
 
     for (const tmpl of existing) {
@@ -383,6 +391,7 @@ export const resetToDefaults = mutation({
     for (const tmpl of DEFAULT_TEMPLATES) {
       const variabelen = TRIGGER_VARIABLE_MAP[tmpl.trigger] ?? COMMON_VARIABLES;
       await ctx.db.insert("emailTemplates", {
+        orgId: org._id,
         userId: user._id,
         naam: tmpl.naam,
         trigger: tmpl.trigger,

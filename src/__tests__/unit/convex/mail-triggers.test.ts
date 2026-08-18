@@ -36,6 +36,7 @@ import {
   createMockUser,
   createMockKlant,
   createMockOfferte,
+  seedMockOrganisatie,
   type MockCtx,
 } from "../../helpers/convex-mock";
 import { AuthError } from "../../../../convex/auth";
@@ -165,20 +166,27 @@ function createIndexAwareCtx(store: MockConvexStore): MockCtx {
   return ctx;
 }
 
-/** Ctx + store met precies één ingelogde gebruiker met de gegeven rol. */
+/**
+ * Ctx + store met precies één ingelogde gebruiker met de gegeven rol, binnen
+ * één organisatie. Sinds de org-migratie is de organisatie de tenant-grens:
+ * de identity draagt het `org_id`-claim en élk fixture-record krijgt `orgId`,
+ * anders ziet de code het record niet meer staan.
+ */
 function ctxMetRol(role: string) {
   const store = new MockConvexStore();
+  const orgId = seedMockOrganisatie(store);
   const userId = store.insert("users", createMockUser({ role }));
   const ctx = createIndexAwareCtx(store);
-  return { ctx, store, userId };
+  return { ctx, store, userId, orgId };
 }
 
 /** Seed alle standaardtriggers direct in de store (zonder handler). */
-function seedTriggersInStore(store: MockConvexStore) {
+function seedTriggersInStore(store: MockConvexStore, orgId: string) {
   const ids: Record<string, string> = {};
   for (const seed of MAIL_TRIGGER_DEFAULTS) {
     ids[seed.event] = store.insert("mailTriggers", {
       ...seed,
+      orgId,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
@@ -268,8 +276,8 @@ describe("seedDefaults (idempotent, kantoor-only)", () => {
   });
 
   it("update valideert invoer (lege inhoud, negatieve vertraging)", async () => {
-    const { ctx, store } = ctxMetRol("directie");
-    const ids = seedTriggersInStore(store);
+    const { ctx, store, orgId } = ctxMetRol("directie");
+    const ids = seedTriggersInStore(store, orgId);
     const id = ids.offerte_verzonden;
 
     await expect(
@@ -347,7 +355,7 @@ describe("mailRender (principe 3: huisstijl in de layout, niet in de tekst)", ()
 
 describe("zetTriggerMailKlaar (trigger-motor)", () => {
   it("doet niets zonder trigger-record of met inactieve trigger", async () => {
-    const { ctx, store, userId } = ctxMetRol("directie");
+    const { ctx, store, userId, orgId } = ctxMetRol("directie");
 
     const zonder = await zetTriggerMailKlaar(ctx as unknown as MutationCtx, {
       event: "offerte_verzonden",
@@ -358,7 +366,7 @@ describe("zetTriggerMailKlaar (trigger-motor)", () => {
     });
     expect(zonder).toEqual({ aangemaakt: false, reden: "geen_trigger" });
 
-    seedTriggersInStore(store);
+    seedTriggersInStore(store, orgId);
     for (const trigger of store.getAll("mailTriggers")) {
       store.patch(trigger._id, { actief: false });
     }
@@ -375,8 +383,8 @@ describe("zetTriggerMailKlaar (trigger-motor)", () => {
   });
 
   it("concept-modus: mail in de wachtrij, variabelen gerenderd, NIETS ingepland voor verzending", async () => {
-    const { ctx, store, userId } = ctxMetRol("directie");
-    seedTriggersInStore(store);
+    const { ctx, store, userId, orgId } = ctxMetRol("directie");
+    seedTriggersInStore(store, orgId);
 
     const resultaat = await zetTriggerMailKlaar(ctx as unknown as MutationCtx, {
       event: "offerte_verzonden",
@@ -405,8 +413,8 @@ describe("zetTriggerMailKlaar (trigger-motor)", () => {
   });
 
   it("dedupe: zelfde sleutel = geen tweede mail (idempotent)", async () => {
-    const { ctx, store, userId } = ctxMetRol("directie");
-    seedTriggersInStore(store);
+    const { ctx, store, userId, orgId } = ctxMetRol("directie");
+    seedTriggersInStore(store, orgId);
     const args = {
       event: "offerte_verzonden",
       userId: userId as never,
@@ -430,8 +438,8 @@ describe("zetTriggerMailKlaar (trigger-motor)", () => {
   });
 
   it("automatisch-modus zonder vertraging plant de verzend-actie in (die achter de guard zit)", async () => {
-    const { ctx, store, userId } = ctxMetRol("directie");
-    seedTriggersInStore(store);
+    const { ctx, store, userId, orgId } = ctxMetRol("directie");
+    seedTriggersInStore(store, orgId);
 
     const resultaat = await zetTriggerMailKlaar(ctx as unknown as MutationCtx, {
       event: "lead_ontvangen",
@@ -450,8 +458,8 @@ describe("zetTriggerMailKlaar (trigger-motor)", () => {
   });
 
   it("vertragingDagen > 0: status 'gepland', ook in automatisch-modus wordt niets ingepland", async () => {
-    const { ctx, store, userId } = ctxMetRol("directie");
-    const ids = seedTriggersInStore(store);
+    const { ctx, store, userId, orgId } = ctxMetRol("directie");
+    const ids = seedTriggersInStore(store, orgId);
     store.patch(ids.lead_ontvangen, { vertragingDagen: 2 });
 
     await zetTriggerMailKlaar(ctx as unknown as MutationCtx, {
@@ -469,8 +477,8 @@ describe("zetTriggerMailKlaar (trigger-motor)", () => {
   });
 
   it("forceerConcept overschrijft automatisch-modus (persoonlijke mails, §1.2)", async () => {
-    const { ctx, store, userId } = ctxMetRol("directie");
-    seedTriggersInStore(store);
+    const { ctx, store, userId, orgId } = ctxMetRol("directie");
+    seedTriggersInStore(store, orgId);
 
     await zetTriggerMailKlaar(ctx as unknown as MutationCtx, {
       event: "lead_ontvangen",
@@ -505,9 +513,10 @@ function storeMetConceptMail(
   role: string,
   overrides: Record<string, unknown> = {}
 ) {
-  const { ctx, store, userId } = ctxMetRol(role);
-  const klantId = store.insert("klanten", createMockKlant(userId));
+  const { ctx, store, userId, orgId } = ctxMetRol(role);
+  const klantId = store.insert("klanten", createMockKlant(userId, { orgId }));
   const mailId = store.insert("conceptMails", {
+    orgId,
     userId,
     event: "offerte_verzonden",
     klantId,
@@ -522,7 +531,7 @@ function storeMetConceptMail(
     updatedAt: Date.now(),
   });
   store.patch(mailId, overrides);
-  return { ctx, store, userId, klantId, mailId };
+  return { ctx, store, userId, orgId, klantId, mailId };
 }
 
 describe("Concept-mails-wachtrij (§2.7 + kantoor↔klant-regel §1.2)", () => {
@@ -576,8 +585,9 @@ describe("Concept-mails-wachtrij (§2.7 + kantoor↔klant-regel §1.2)", () => {
   });
 
   it("cron: due 'gepland' → wachtrij; concept-modus verstuurt NOOIT, automatisch plant de actie in", async () => {
-    const { ctx, store, userId } = ctxMetRol("directie");
+    const { ctx, store, userId, orgId } = ctxMetRol("directie");
     const basis = {
+      orgId,
       userId,
       event: "offerte_opvolging",
       ontvangerEmail: "jan@devries.nl",
@@ -727,12 +737,13 @@ describe("Mail-guard-dekking (fail-closed, EMAIL_VERZENDEN_ACTIEF)", () => {
 // ─── 6. Inplan-mail vanuit de plantaak (§2.1/§2.7) ───────────────────────────
 
 function storeMetPlantaak(role = "directie") {
-  const { ctx, store, userId } = ctxMetRol(role);
+  const { ctx, store, userId, orgId } = ctxMetRol(role);
   const klantId = store.insert(
     "klanten",
     createMockKlant(userId, { naam: "Fam. Jansen", email: "jansen@test.nl" })
   );
   const beurtId = store.insert("projecten", {
+    orgId,
     userId,
     klantId,
     naam: "Snoeibeurt",
@@ -743,6 +754,7 @@ function storeMetPlantaak(role = "directie") {
     updatedAt: Date.now(),
   });
   const meldingId = store.insert("servicemeldingen", {
+    orgId,
     userId,
     klantId,
     beschrijving: "Snoeibeurt (Fam. Jansen) inplannen",
@@ -756,8 +768,8 @@ function storeMetPlantaak(role = "directie") {
     createdAt: Date.now(),
     updatedAt: Date.now(),
   });
-  seedTriggersInStore(store);
-  return { ctx, store, userId, klantId, beurtId, meldingId };
+  seedTriggersInStore(store, orgId);
+  return { ctx, store, userId, orgId, klantId, beurtId, meldingId };
 }
 
 describe("maakInplanConcept (inplan-mail-knop op het meldingen-bord)", () => {
@@ -826,11 +838,12 @@ describe("maakInplanConcept (inplan-mail-knop op het meldingen-bord)", () => {
 // ─── 7. Offerte-opvolging: bestaande reminders, geen dubbele mails ───────────
 
 function storeMetDueReminder(triggerModus?: "concept" | "automatisch" | "uit") {
-  const { ctx, store, userId } = ctxMetRol("directie");
-  const klantId = store.insert("klanten", createMockKlant(userId));
+  const { ctx, store, userId, orgId } = ctxMetRol("directie");
+  const klantId = store.insert("klanten", createMockKlant(userId, { orgId }));
   const offerteId = store.insert(
     "offertes",
     createMockOfferte(userId, klantId, {
+      orgId,
       status: "verzonden",
       klant: {
         naam: "Jan de Vries",
@@ -844,23 +857,24 @@ function storeMetDueReminder(triggerModus?: "concept" | "automatisch" | "uit") {
   );
   store.insert("offerte_reminders", {
     offerteId,
+    orgId,
     userId,
     type: "niet_bekeken",
     scheduledAt: Date.now() - 1000,
     status: "pending",
   });
   if (triggerModus && triggerModus !== "uit") {
-    const ids = seedTriggersInStore(store);
+    const ids = seedTriggersInStore(store, orgId);
     store.patch(ids.offerte_opvolging, { modus: triggerModus });
   } else if (triggerModus === "uit") {
-    const ids = seedTriggersInStore(store);
+    const ids = seedTriggersInStore(store, orgId);
     store.patch(ids.offerte_opvolging, { actief: false });
   }
   // processDueReminders roept intern notifications aan via ctx.runMutation
   (ctx as unknown as { runMutation: unknown }).runMutation = vi.fn(
     async () => undefined
   );
-  return { ctx, store, userId, offerteId, klantId };
+  return { ctx, store, userId, orgId, offerteId, klantId };
 }
 
 describe("offerte_opvolging — integratie met offerte_reminders (geen dubbele mails)", () => {
@@ -910,11 +924,11 @@ describe("offerte_opvolging — integratie met offerte_reminders (geen dubbele m
   });
 
   it("scheduleReminders blijft idempotent (geen dubbele pending reminders)", async () => {
-    const { ctx, store, userId } = ctxMetRol("directie");
-    const klantId = store.insert("klanten", createMockKlant(userId));
+    const { ctx, store, userId, orgId } = ctxMetRol("directie");
+    const klantId = store.insert("klanten", createMockKlant(userId, { orgId }));
     const offerteId = store.insert(
       "offertes",
-      createMockOfferte(userId, klantId, { status: "verzonden" })
+      createMockOfferte(userId, klantId, { orgId, status: "verzonden" })
     );
 
     await handler(scheduleReminders)(ctx, { offerteId });
@@ -931,15 +945,19 @@ describe("Event-hooks (additief op bestaande flows)", () => {
   it("offerte → verzonden: concept-mail voor klant ZONDER portaal (mét portaal: alleen de portaalnotificatie — geen dubbele mail)", async () => {
     // Klant zonder portaal → concept-mail
     {
-      const { ctx, store, userId } = ctxMetRol("directie");
-      seedTriggersInStore(store);
+      const { ctx, store, userId, orgId } = ctxMetRol("directie");
+      seedTriggersInStore(store, orgId);
       const klantId = store.insert(
         "klanten",
-        createMockKlant(userId, { portalEnabled: false })
+        createMockKlant(userId, { orgId, portalEnabled: false })
       );
       const offerteId = store.insert(
         "offertes",
-        createMockOfferte(userId, klantId, { status: "concept", bron: "vrij" })
+        createMockOfferte(userId, klantId, {
+          orgId,
+          status: "concept",
+          bron: "vrij",
+        })
       );
       await handler(offerteUpdateStatus)(ctx, {
         id: offerteId,
@@ -952,15 +970,19 @@ describe("Event-hooks (additief op bestaande flows)", () => {
     }
     // Klant mét portaal → géén concept-mail (portaalpad bestaat al)
     {
-      const { ctx, store, userId } = ctxMetRol("directie");
-      seedTriggersInStore(store);
+      const { ctx, store, userId, orgId } = ctxMetRol("directie");
+      seedTriggersInStore(store, orgId);
       const klantId = store.insert(
         "klanten",
-        createMockKlant(userId, { portalEnabled: true })
+        createMockKlant(userId, { orgId, portalEnabled: true })
       );
       const offerteId = store.insert(
         "offertes",
-        createMockOfferte(userId, klantId, { status: "concept", bron: "vrij" })
+        createMockOfferte(userId, klantId, {
+          orgId,
+          status: "concept",
+          bron: "vrij",
+        })
       );
       await handler(offerteUpdateStatus)(ctx, {
         id: offerteId,
@@ -973,10 +995,11 @@ describe("Event-hooks (additief op bestaande flows)", () => {
   it("inplannen werkitem: concept alleen bij klant-opt-in (inplanBevestigingsMail, default uit)", async () => {
     // Default (uit): geen concept
     {
-      const { ctx, store, userId } = ctxMetRol("directie");
-      seedTriggersInStore(store);
-      const klantId = store.insert("klanten", createMockKlant(userId));
+      const { ctx, store, userId, orgId } = ctxMetRol("directie");
+      seedTriggersInStore(store, orgId);
+      const klantId = store.insert("klanten", createMockKlant(userId, { orgId }));
       const werkitemId = store.insert("projecten", {
+        orgId,
         userId,
         klantId,
         naam: "Voorjaarsbeurt",
@@ -993,18 +1016,20 @@ describe("Event-hooks (additief op bestaande flows)", () => {
     }
     // Opt-in: concept met datum-variabele
     {
-      const { ctx, store, userId } = ctxMetRol("directie");
-      seedTriggersInStore(store);
+      const { ctx, store, userId, orgId } = ctxMetRol("directie");
+      seedTriggersInStore(store, orgId);
       const klantId = store.insert(
         "klanten",
-        createMockKlant(userId, { inplanBevestigingsMail: true })
+        createMockKlant(userId, { orgId, inplanBevestigingsMail: true })
       );
       const teamId = store.insert("teams", {
+        orgId,
         userId,
         naam: "Team Groen",
         createdAt: Date.now(),
       });
       const werkitemId = store.insert("projecten", {
+        orgId,
         userId,
         klantId,
         naam: "Voorjaarsbeurt",
@@ -1030,8 +1055,8 @@ describe("Event-hooks (additief op bestaande flows)", () => {
   });
 
   it("nieuwe configurator-aanvraag: lead_ontvangen-bevestiging via het trigger-model (automatisch = via verzend-actie achter de guard)", async () => {
-    const { ctx, store } = ctxMetRol("directie");
-    seedTriggersInStore(store);
+    const { ctx, store, orgId } = ctxMetRol("directie");
+    seedTriggersInStore(store, orgId);
 
     await handler(createConfiguratorAanvraag)(ctx, {
       type: "gazon",
