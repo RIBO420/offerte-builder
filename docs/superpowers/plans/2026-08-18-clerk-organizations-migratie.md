@@ -530,6 +530,14 @@ Elke sweep-task volgt dezelfde steps; het bestandcluster verschilt. **Standaard-
 - [ ] **Task 3.7 — Service & contracten:** `servicemeldingen.ts`, `onderhoudscontracten*.ts`, `garanties`, `veldtaken`, `serviceAfspraken`, `caseThread.ts`, `meldingComments`, `verlofaanvragen`, `verzuimregistraties`, `toolboxMeetings`
 - [ ] **Task 3.8 — Communicatie & notificaties:** `chat.ts`, `chatThreads.ts` (`companyUserId` → `orgId`), `team_messages` (`companyId` → `orgId`), `notifications*.ts`, `push*.ts`, `locatie*/location*.ts`, `sidebarTellingen.ts`
 - [ ] **Task 3.9 — Medewerkers & rollen:** `medewerkers.ts` — verwijder de ad-hoc `getUserRole` (regels 55-106) en vervang door `requireOrgId` + `normalizeRole(user.role)`; `roles.ts` — **verwijder `getCompanyUserId`** (614-632); `users.ts` — resterende scoping-plekken (`listUsersWithDetails` toont voortaan alleen org-leden: users met `linkedMedewerkerId` naar een medewerker van deze org, óf org-lidmaatschap via het Team-scherm), `instellingen.ts` (alle drie de patronen → `requireOrgId`), `demoSeed.ts` (seedt voortaan met `orgId` van de dev-org; `bepaalDeployment`-guard blijft), `softDelete.ts`, `mobile.ts`, `transcriptie.ts`, `gesprekAnalyse.ts`, `places.ts`
+- [ ] **Task 3.10a — Test-harnas org-bewust maken (uit review 3.3):** de gedeelde
+  mock (`src/__tests__/helpers/convex-mock.ts`) negeert `withIndex`-constraints,
+  waardoor `by_org`-queries in tests álle rijen teruggeven en org-isolatie alleen op
+  papier getest wordt. Maak de mock index-bewust (eq-velden echt toepassen — het
+  patroon bestaat al in `offerte-reminders-cron.test.ts` en `organisaties.test.ts`),
+  draai de volledige suite en repareer tests die daardoor (terecht) omvallen. Voeg in
+  minstens de kern-testbestanden (klanten, offertes, facturen, leads, uren) een
+  tweede-org-fixture toe met een expliciete "org A ziet org B niet"-assertie.
 - [ ] **Task 3.10 — Sweep-poort (hele fase):**
 
 Run: `grep -rn "getCompanyUserId" convex/ | grep -v "_generated"` → Expected: 0 hits.
