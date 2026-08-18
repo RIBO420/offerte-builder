@@ -97,6 +97,7 @@ import type * as offerteReminders from "../offerteReminders.js";
 import type * as offerteVersions from "../offerteVersions.js";
 import type * as offertes from "../offertes.js";
 import type * as onderhoudscontracten from "../onderhoudscontracten.js";
+import type * as opschonen from "../opschonen.js";
 import type * as organisaties from "../organisaties.js";
 import type * as pipelineHelpers from "../pipelineHelpers.js";
 import type * as places from "../places.js";
@@ -249,6 +250,7 @@ declare const fullApi: ApiFromModules<{
   offerteVersions: typeof offerteVersions;
   offertes: typeof offertes;
   onderhoudscontracten: typeof onderhoudscontracten;
+  opschonen: typeof opschonen;
   organisaties: typeof organisaties;
   pipelineHelpers: typeof pipelineHelpers;
   places: typeof places;

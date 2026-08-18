@@ -83,6 +83,10 @@ export default defineSchema({
     slug: v.optional(v.string()),
     actief: v.boolean(),
     aangemaaktOp: v.number(),
+    // Laatste voltooide ronde van convex/opschonen.ts ("Gevarenzone: werkdata
+    // opschonen", spec §7). Wordt gezet door maakReferentiesSchoon, de laatste
+    // stap van de batchloop — dus alleen als de hele run ook echt klaar is.
+    laatsteOpschoning: v.optional(v.number()),
   }).index("by_clerk_org_id", ["clerkOrgId"]),
 
   // Klanten
