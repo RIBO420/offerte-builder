@@ -141,11 +141,15 @@ export class MockConvexStore {
 
   insert(tableName: string, data: Record<string, unknown>): MockId {
     const id = this.generateId(tableName);
-    // Spread data first, then override _id to ensure store controls the ID
+    // Spread data first, then override _id to ensure store controls the ID.
+    // `_creationTime` mag een fixture wél zelf zetten: de org-migratie
+    // onderscheidt geseede rijen van eigen data op aanmaakmoment, en zonder
+    // stuurbare tijd valt dat binnen één milliseconde niet te testen.
     const doc = {
       ...data,
       _id: id,
-      _creationTime: Date.now(),
+      _creationTime:
+        typeof data._creationTime === "number" ? data._creationTime : Date.now(),
     };
     const table = this.tables.get(tableName) || [];
     table.push(doc);

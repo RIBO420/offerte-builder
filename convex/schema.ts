@@ -87,6 +87,12 @@ export default defineSchema({
     // opschonen", spec §7). Wordt gezet door maakReferentiesSchoon, de laatste
     // stap van de batchloop — dus alleen als de hele run ook echt klaar is.
     laatsteOpschoning: v.optional(v.number()),
+    // Stempel van de eenmalige org-migratie
+    // (convex/migrations/naarOrganisaties.ts). Gezet door de allerlaatste stap
+    // `rondAf`, dus alleen als de hele run ook echt is uitgelopen. Is het veld
+    // gevuld, dan weigert `migreer` een tweede ronde: de ontdubbelstap zou dan
+    // over echte, ná de migratie aangemaakte org-data heen lopen.
+    migratieVoltooidOp: v.optional(v.number()),
   }).index("by_clerk_org_id", ["clerkOrgId"]),
 
   // Klanten

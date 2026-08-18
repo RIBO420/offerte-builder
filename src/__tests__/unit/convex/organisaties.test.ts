@@ -118,6 +118,7 @@ type MaakOrganisatieArgs = {
   naam: string;
   slug?: string;
   eigenaarUserId: string;
+  seedDefaults?: boolean;
 };
 
 const maakOrganisatieHandler = (
@@ -213,6 +214,39 @@ describe("organisaties.maakOrganisatie — org-defaults", () => {
     expect(normuren.every((n) => n.orgId === orgId)).toBe(true);
     expect(producten.every((p) => p.orgId === orgId)).toBe(true);
     expect(producten.every((p) => p.isActief === true)).toBe(true);
+  });
+
+  /**
+   * Regressie voor de bug uit de dev-schouw (18 aug), gevonden bij het bouwen
+   * van `convex/migrations/naarOrganisaties.ts`.
+   *
+   * `seedOrgDefaults` kijkt of er al een instellingen-rij MET dit orgId is —
+   * niet of de eigenaar er al een heeft. Tijdens de migratie is dat verschil
+   * fataal: de organisatie wordt aangemaakt vóórdat de instellingen-rij van de
+   * eigenaar zijn orgId krijgt, dus zou de seed een tweede rij neerzetten en
+   * klapt daarna élke `.unique()` op `instellingen.by_org`. Vandaar de
+   * schakelaar; de migratie is de enige aanroeper die hem op false zet.
+   */
+  it("seedt niets als seedDefaults false is (de migratie-route)", async () => {
+    const orgId = await maakTopTuinen({ seedDefaults: false });
+
+    expect(db.rows("organisaties")).toHaveLength(1);
+    expect(db.rows("organisaties")[0]._id).toBe(orgId);
+    expect(db.rows("instellingen")).toHaveLength(0);
+    expect(db.rows("normuren")).toHaveLength(0);
+    expect(db.rows("producten")).toHaveLength(0);
+  });
+
+  it("seedt wél bij seedDefaults true en bij weglaten van de vlag", async () => {
+    await maakTopTuinen({ seedDefaults: true });
+    await maakOrganisatieHandler(ctx, {
+      clerkOrgId: "org_tweede",
+      naam: "Tweede",
+      eigenaarUserId,
+    });
+
+    expect(db.rows("instellingen")).toHaveLength(2);
+    expect(db.rows("normuren")).toHaveLength(DEFAULT_NORMUREN.length * 2);
   });
 
   it("zet de eigenaar als userId — dat veld is nog verplicht in het schema", async () => {

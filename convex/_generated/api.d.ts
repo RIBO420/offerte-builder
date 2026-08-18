@@ -84,6 +84,7 @@ import type * as migrations from "../migrations.js";
 import type * as migrations_backfillWerkitemType from "../migrations/backfillWerkitemType.js";
 import type * as migrations_consolidateNotificationLogs from "../migrations/consolidateNotificationLogs.js";
 import type * as migrations_migreerWeekPlanningNaarWerkitems from "../migrations/migreerWeekPlanningNaarWerkitems.js";
+import type * as migrations_naarOrganisaties from "../migrations/naarOrganisaties.js";
 import type * as migrations_saneerLeadsKlanten from "../migrations/saneerLeadsKlanten.js";
 import type * as migrations_seedBouwstenen from "../migrations/seedBouwstenen.js";
 import type * as migrations_seedTekstblokken from "../migrations/seedTekstblokken.js";
@@ -237,6 +238,7 @@ declare const fullApi: ApiFromModules<{
   "migrations/backfillWerkitemType": typeof migrations_backfillWerkitemType;
   "migrations/consolidateNotificationLogs": typeof migrations_consolidateNotificationLogs;
   "migrations/migreerWeekPlanningNaarWerkitems": typeof migrations_migreerWeekPlanningNaarWerkitems;
+  "migrations/naarOrganisaties": typeof migrations_naarOrganisaties;
   "migrations/saneerLeadsKlanten": typeof migrations_saneerLeadsKlanten;
   "migrations/seedBouwstenen": typeof migrations_seedBouwstenen;
   "migrations/seedTekstblokken": typeof migrations_seedTekstblokken;
