@@ -56,8 +56,22 @@ export default defineSchema({
     .index("by_linked_klant", ["linkedKlantId"]),
 
   // Organisaties (bedrijven) — spiegelt een Clerk-organization.
-  // Elke org-gescopeerde tabel krijgt straks een `orgId` die hiernaar wijst;
+  // Elke org-gescopeerde tabel heeft een `orgId` die hiernaar wijst;
   // `clerkOrgId` is de sleutel waarmee een Clerk-sessie de juiste rij vindt.
+  //
+  // MIGRATIEFASE 1 (docs/superpowers/plans/2026-08-18-clerk-organizations-
+  // migratie.md). Puur additief, zodat bestaande data blijft valideren:
+  //   - `orgId` staat op elke tabel met classificatie bewaren|wissen uit
+  //     convex/lib/orgTabellen.ts, en is overal OPTIONEEL (nog niet gevuld).
+  //     Uitzonderingen: de 9 kindtabellen uit KIND_VAN (scope loopt via de
+  //     ouder), `notification_log` (clerkId-strings) en `demoSeed` (dev-registry).
+  //   - `userId` (en `team_messages.companyId` / `chat_threads.companyUserId`)
+  //     blijft in deze fase VERPLICHT. Het optioneel maken hoort bij fase 6:
+  //     ~100 bestanden lezen `doc.userId` als niet-optioneel, dus dat veld
+  //     versoepelen is een codewijziging, geen schemawijziging.
+  //   - Elke index die op `userId` (resp. companyId/companyUserId) begint,
+  //     heeft een `by_org*`-tweeling met dezelfde restvelden. De oude variant
+  //     verdwijnt pas in fase 6, samen met het optionele `userId`.
   organisaties: defineTable({
     clerkOrgId: v.string(), // Clerk organization-id (org_…)
     naam: v.string(),
@@ -69,6 +83,7 @@ export default defineSchema({
   // Klanten
   klanten: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     naam: v.string(),
     adres: v.string(),
     postcode: v.string(),
@@ -145,20 +160,25 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_user_archived", ["userId", "isArchived"])
+    .index("by_org_archived", ["orgId", "isArchived"])
     .index("by_pipeline_status", ["userId", "pipelineStatus"])
+    .index("by_org_pipeline_status", ["orgId", "pipelineStatus"])
     .index("by_klant_type", ["userId", "klantType"])
+    .index("by_org_klant_type", ["orgId", "klantType"])
     .index("by_clerk_user_id", ["clerkUserId"])
     .index("by_email", ["email"])
     .index("by_invitation_token", ["invitationToken"])
     .searchIndex("search_klanten", {
       searchField: "naam",
-      filterFields: ["userId"],
+      filterFields: ["userId", "orgId"],
     }),
 
   // Offertes
   offertes: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     klantId: v.optional(v.id("klanten")), // Link to klanten table
     type: v.union(v.literal("aanleg"), v.literal("onderhoud")),
     // Workflow: concept → voorcalculatie → verzonden → geaccepteerd/afgewezen
@@ -346,8 +366,10 @@ export default defineSchema({
     leadId: v.optional(v.id("configuratorAanvragen")),
   })
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_status", ["status"])
     .index("by_user_status", ["userId", "status"])
+    .index("by_org_status", ["orgId", "status"])
     .index("by_nummer", ["offerteNummer"])
     .index("by_share_token", ["shareToken"])
     .index("by_lead", ["leadId"])
@@ -355,11 +377,14 @@ export default defineSchema({
     .index("by_klant", ["klantId"])
     // Compound indexes for archived/deleted filtering (offertes.ts: list, stats, dashboard)
     .index("by_user_archived", ["userId", "isArchived"])
-    .index("by_user_deleted", ["userId", "deletedAt"]),
+    .index("by_org_archived", ["orgId", "isArchived"])
+    .index("by_user_deleted", ["userId", "deletedAt"])
+    .index("by_org_deleted", ["orgId", "deletedAt"]),
 
   // Prijsboek / productbestand (PRD §2.5c)
   producten: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     productnaam: v.string(),
     categorie: v.string(),
     inkoopprijs: v.number(),
@@ -389,19 +414,24 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_categorie", ["userId", "categorie"])
+    .index("by_org_categorie", ["orgId", "categorie"])
     // Index for active-only product queries (voorraad.ts: inventarisatie)
     .index("by_user_actief", ["userId", "isActief"])
+    .index("by_org_actief", ["orgId", "isActief"])
     // Idempotente import: bestaand product opzoeken op genormaliseerde naam
     .index("by_user_naam_genormaliseerd", ["userId", "naamGenormaliseerd"])
+    .index("by_org_naam_genormaliseerd", ["orgId", "naamGenormaliseerd"])
     .searchIndex("search_producten", {
       searchField: "productnaam",
-      filterFields: ["userId", "categorie"],
+      filterFields: ["userId", "categorie", "orgId"],
     }),
 
   // Normuren
   normuren: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     activiteit: v.string(),
     scope: v.string(),
     normuurPerEenheid: v.number(),
@@ -410,24 +440,30 @@ export default defineSchema({
     updatedAt: v.optional(v.number()),
   })
     .index("by_user", ["userId"])
-    .index("by_user_scope", ["userId", "scope"]),
+    .index("by_org", ["orgId"])
+    .index("by_user_scope", ["userId", "scope"])
+    .index("by_org_scope", ["orgId", "scope"]),
 
   // Correctiefactoren (systeem defaults + user overrides)
   correctiefactoren: defineTable({
     userId: v.optional(v.id("users")), // null = systeem default
+    orgId: v.optional(v.id("organisaties")),
     type: v.string(), // bereikbaarheid, complexiteit, hoogteverschil, etc.
     waarde: v.string(), // goed, beperkt, slecht, laag, gemiddeld, hoog
     factor: v.number(),
     updatedAt: v.optional(v.number()),
   })
     .index("by_user_type", ["userId", "type"])
+    .index("by_org_type", ["orgId", "type"])
     .index("by_type", ["type"])
     // Compound index to avoid .filter on waarde after by_user_type (correctiefactoren.ts)
-    .index("by_user_type_waarde", ["userId", "type", "waarde"]),
+    .index("by_user_type_waarde", ["userId", "type", "waarde"])
+    .index("by_org_type_waarde", ["orgId", "type", "waarde"]),
 
   // Instellingen
   instellingen: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     uurtarief: v.number(),
     standaardMargePercentage: v.number(),
     // Per-scope marge percentages (optioneel, fallback naar standaardMargePercentage)
@@ -572,11 +608,14 @@ export default defineSchema({
       factuur: v.optional(v.string()),
       contract: v.optional(v.string()),
     })),
-  }).index("by_user", ["userId"]),
+  })
+    .index("by_user", ["userId"])
+    .index("by_org", ["orgId"]),
 
   // Standaardtuinen (templates)
   standaardtuinen: defineTable({
     userId: v.optional(v.id("users")), // null = systeem templates
+    orgId: v.optional(v.id("organisaties")),
     naam: v.string(),
     omschrijving: v.optional(v.string()),
     type: v.union(v.literal("aanleg"), v.literal("onderhoud")),
@@ -584,7 +623,9 @@ export default defineSchema({
     defaultWaarden: v.optional(
       v.union(aanlegScopeDataValidator, onderhoudScopeDataValidator)
     ),
-  }).index("by_user", ["userId"]),
+  })
+    .index("by_user", ["userId"])
+    .index("by_org", ["orgId"]),
 
   // Offerte messages (chat between business and customer)
   offerte_messages: defineTable({
@@ -604,6 +645,7 @@ export default defineSchema({
     // hebben het veld allemaal; bestaande queries via by_offerte blijven werken.
     offerteId: v.optional(v.id("offertes")),
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     type: v.union(
       v.literal("offerte_verzonden"),
       v.literal("herinnering"),
@@ -639,6 +681,7 @@ export default defineSchema({
   })
     .index("by_offerte", ["offerteId"])
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_status", ["status"])
     .index("by_resendId", ["resendId"]),
 
@@ -646,6 +689,7 @@ export default defineSchema({
   offerte_versions: defineTable({
     offerteId: v.id("offertes"),
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     versieNummer: v.number(),
     // Snapshot van de offerte op dit moment
     snapshot: v.object({
@@ -714,7 +758,8 @@ export default defineSchema({
   })
     .index("by_offerte", ["offerteId"])
     .index("by_offerte_versie", ["offerteId", "versieNummer"])
-    .index("by_user", ["userId"]),
+    .index("by_user", ["userId"])
+    .index("by_org", ["orgId"]),
 
   // ============================================
   // Calculatie, Planning & Nacalculatie Add-on
@@ -731,6 +776,7 @@ export default defineSchema({
   // Note: "voorcalculatie" is deprecated but kept for backwards compatibility during migration
   projecten: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     // Discriminator (B1 stap 1): optioneel tijdens migratie; na backfill (stap 2)
     // verplicht maken (stap 3). Semantiek: undefined === "project".
     type: v.optional(
@@ -879,25 +925,33 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_status", ["status"])
     .index("by_user_status", ["userId", "status"])
+    .index("by_org_status", ["orgId", "status"])
     .index("by_offerte", ["offerteId"])
     // Compound indexes for archived/deleted filtering (projecten.ts: list, search, stats)
     .index("by_user_archived", ["userId", "isArchived"])
+    .index("by_org_archived", ["orgId", "isArchived"])
     .index("by_user_deleted", ["userId", "deletedAt"])
+    .index("by_org_deleted", ["orgId", "deletedAt"])
     .index("by_klant", ["klantId"])
     // Werkitem-indexes (B1-besluit): type-filter, contract-koppeling, planbord
     .index("by_user_type", ["userId", "type"])
+    .index("by_org_type", ["orgId", "type"])
     .index("by_user_type_status", ["userId", "type", "status"])
+    .index("by_org_type_status", ["orgId", "type", "status"])
     .index("by_contract", ["contractId"])
     .index("by_team_geplandeStart", ["teamId", "geplandeStart"])
     .index("by_user_geplandeStart", ["userId", "geplandeStart"])
+    .index("by_org_geplandeStart", ["orgId", "geplandeStart"])
     // Attendering-fundament (§2.1B): losse beurten waarvan het ritme-venster
     // binnen X dagen opent
     .index("by_user_volgendeVoorzieneDatum", [
       "userId",
       "volgendeVoorzieneDatum",
-    ]),
+    ])
+    .index("by_org_volgendeVoorzieneDatum", ["orgId", "volgendeVoorzieneDatum"]),
 
   // Voorcalculaties - Pre-calculation data
   // Can be linked to either an offerte (before sending) or a project (for legacy/reference)
@@ -907,7 +961,9 @@ export default defineSchema({
     // veld nog niet en een verplicht veld zou de deploy op die data laten falen.
     // Backfill: npx convex run migrations:backfillVoorcalculatiesUserId
     // Nieuwe schrijfpaden MOETEN dit veld zetten (= offerte/project.userId).
+    // Opvolger is `orgId` hieronder; `userId` verdwijnt in fase 6.
     userId: v.optional(v.id("users")),
+    orgId: v.optional(v.id("organisaties")),
     offerteId: v.optional(v.id("offertes")), // Link to offerte (new workflow)
     projectId: v.optional(v.id("projecten")), // Link to project (legacy/reference)
     teamGrootte: v.union(v.literal(2), v.literal(3), v.literal(4)),
@@ -922,7 +978,8 @@ export default defineSchema({
     .index("by_project", ["projectId"])
     .index("by_offerte", ["offerteId"])
     // Tenant-scope: voorcalculaties van één bedrijf ophalen zonder full table scan
-    .index("by_user", ["userId"]),
+    .index("by_user", ["userId"])
+    .index("by_org", ["orgId"]),
 
   // PlanningTaken - Planning tasks per project
   // DEPRECATED voor planning (§2.2, stap 5a): dag/team/volgorde-planning leeft
@@ -974,6 +1031,7 @@ export default defineSchema({
   // krijgen een rij hier (wie zit er DIE dag echt in het team).
   teamBemanning: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     teamId: v.id("teams"),
     datum: v.string(), // YYYY-MM-DD
     medewerkerIds: v.array(v.id("medewerkers")),
@@ -981,7 +1039,8 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_team_datum", ["teamId", "datum"])
-    .index("by_user_datum", ["userId", "datum"]),
+    .index("by_user_datum", ["userId", "datum"])
+    .index("by_org_datum", ["orgId", "datum"]),
 
   // Afwezigheidsblokken — niet-klant-blokken die capaciteit blokkeren op het
   // planbord (PRD §2.2: verlof/ziekte/feestdag). Fase 1: handmatig geplaatst
@@ -989,6 +1048,7 @@ export default defineSchema({
   // Scope: óf één medewerker (medewerkerId), óf een heel team (teamId).
   afwezigheidsblokken: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     medewerkerId: v.optional(v.id("medewerkers")), // scope: medewerker
     teamId: v.optional(v.id("teams")), // scope: heel team
     startDatum: v.string(), // YYYY-MM-DD (inclusief)
@@ -1004,6 +1064,7 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_user_start", ["userId", "startDatum"])
+    .index("by_org_start", ["orgId", "startDatum"])
     .index("by_medewerker", ["medewerkerId"])
     .index("by_team", ["teamId"]),
 
@@ -1012,6 +1073,7 @@ export default defineSchema({
   // Patroon: leadActiviteiten (event-log met type + omschrijving).
   planbordLogboek: defineTable({
     userId: v.id("users"), // bedrijfseigenaar (multi-tenant scope)
+    orgId: v.optional(v.id("organisaties")),
     werkitemId: v.optional(v.id("projecten")),
     teamId: v.optional(v.id("teams")),
     actie: v.union(
@@ -1037,6 +1099,7 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_user_createdAt", ["userId", "createdAt"])
+    .index("by_org_createdAt", ["orgId", "createdAt"])
     .index("by_werkitem", ["werkitemId"]),
 
   // ReistijdCache — berekende reistijden per adrespaar voor de dagkaart
@@ -1047,13 +1110,16 @@ export default defineSchema({
   // NB: de tabel `routes` is GPS-tracking en heeft hier niets mee te maken.
   reistijdCache: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     sleutel: v.string(), // genormaliseerd "van|naar" (reistijdSleutel)
     vanAdres: v.string(),
     naarAdres: v.string(),
     minuten: v.number(),
     bron: v.union(v.literal("standaard"), v.literal("google_maps")),
     berekendOp: v.number(),
-  }).index("by_user_sleutel", ["userId", "sleutel"]),
+  })
+    .index("by_user_sleutel", ["userId", "sleutel"])
+    .index("by_org_sleutel", ["orgId", "sleutel"]),
 
   // DagkaartAfwijkingen — dag-specifieke afwijking van de standaardblokken
   // (vertrek loods / pauze / loods-afronding) voor één team-dag (PRD §2.2).
@@ -1061,6 +1127,7 @@ export default defineSchema({
   // opgeslagen. Geen rij = standaardblokken uit instellingen/defaults.
   dagkaartAfwijkingen: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     teamId: v.id("teams"),
     datum: v.string(), // YYYY-MM-DD
     vertrekTijd: v.optional(v.string()), // HH:MM
@@ -1071,7 +1138,8 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_team_datum", ["teamId", "datum"])
-    .index("by_user_datum", ["userId", "datum"]),
+    .index("by_user_datum", ["userId", "datum"])
+    .index("by_org_datum", ["orgId", "datum"]),
 
   // Machines - Machinepark / Wagenpark
   // Beheer van intern en extern gehuurde machines en voertuigen
@@ -1079,6 +1147,7 @@ export default defineSchema({
   // gekoppeldeScopes bepaalt welke scopes automatisch deze machine triggeren
   machines: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     naam: v.string(),
     type: v.union(v.literal("intern"), v.literal("extern")), // Eigen machines vs. gehuurd
     tarief: v.number(),
@@ -1103,8 +1172,10 @@ export default defineSchema({
     teamId: v.optional(v.id("teams")),
   })
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     // Index for active-only machine queries (machines.ts: getForScopes, getStatistics; weekPlanning.ts)
-    .index("by_user_actief", ["userId", "isActief"]),
+    .index("by_user_actief", ["userId", "isActief"])
+    .index("by_org_actief", ["orgId", "isActief"]),
 
   // Medewerkers - Personeelsbeheer
   // Registratie van medewerkers voor planning en urenregistratie
@@ -1112,6 +1183,7 @@ export default defineSchema({
   // functie: bijv. "Hovenier", "Voorman", "Leerling", etc.
   medewerkers: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     naam: v.string(),
     email: v.optional(v.string()),
     telefoon: v.optional(v.string()),
@@ -1187,7 +1259,6 @@ export default defineSchema({
     // ============================================
     // APP INTEGRATIE VELDEN
     // ============================================
-    clerkOrgId: v.optional(v.string()), // Clerk organization ID
     clerkUserId: v.optional(v.string()), // Clerk user ID (na signup in app)
     status: v.optional(
       v.union(
@@ -1203,9 +1274,10 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_user_actief", ["userId", "isActief"])
+    .index("by_org_actief", ["orgId", "isActief"])
     .index("by_status", ["status"])
-    .index("by_org", ["clerkOrgId"]) // App: medewerkers per organisatie
     .index("by_clerk_id", ["clerkUserId"]), // App: medewerker opzoeken via Clerk ID
 
   // UrenRegistraties - Time registrations (imported or manual)
@@ -1214,7 +1286,9 @@ export default defineSchema({
     // veld nog niet en een verplicht veld zou de deploy op die data laten falen.
     // Backfill: npx convex run migrations:backfillUrenRegistratiesUserId
     // Nieuwe schrijfpaden MOETEN dit veld zetten (= projecten.userId).
+    // Opvolger is `orgId` hieronder; `userId` verdwijnt in fase 6.
     userId: v.optional(v.id("users")),
+    orgId: v.optional(v.id("organisaties")),
     projectId: v.id("projecten"),
     datum: v.string(), // YYYY-MM-DD format
     medewerker: v.string(),
@@ -1252,8 +1326,10 @@ export default defineSchema({
     .index("by_medewerker_id", ["medewerkerId"])
     // Tenant-scope: uren van één bedrijf ophalen zonder full table scan
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     // Tenant-scope + periode in één index (medewerkers.getMedewerkersMetPrestaties)
-    .index("by_user_datum", ["userId", "datum"]),
+    .index("by_user_datum", ["userId", "datum"])
+    .index("by_org_datum", ["orgId", "datum"]),
 
   // ============================================
   // Veld-rol: urensegmenten + dag-status (PRD §2.6 + bijlage C, stap 9a)
@@ -1269,6 +1345,7 @@ export default defineSchema({
   // segmenten staan hier.
   urenSegmenten: defineTable({
     userId: v.id("users"), // bedrijfseigenaar (multi-tenant scope)
+    orgId: v.optional(v.id("organisaties")),
     medewerkerId: v.id("medewerkers"),
     datum: v.string(), // YYYY-MM-DD
     categorie: v.union(
@@ -1298,6 +1375,7 @@ export default defineSchema({
   })
     .index("by_medewerker_datum", ["medewerkerId", "datum"])
     .index("by_user_datum", ["userId", "datum"])
+    .index("by_org_datum", ["orgId", "datum"])
     .index("by_werkitem", ["werkitemId"]),
 
   // UrenDagen — dag-status per medewerker: indienen zet de dag op slot;
@@ -1305,6 +1383,7 @@ export default defineSchema({
   // dag open (alleen afwijkingen van de default worden opgeslagen).
   urenDagen: defineTable({
     userId: v.id("users"), // bedrijfseigenaar (multi-tenant scope)
+    orgId: v.optional(v.id("organisaties")),
     medewerkerId: v.id("medewerkers"),
     datum: v.string(), // YYYY-MM-DD
     status: v.union(v.literal("open"), v.literal("ingediend")),
@@ -1313,7 +1392,8 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_medewerker_datum", ["medewerkerId", "datum"])
-    .index("by_user_datum", ["userId", "datum"]),
+    .index("by_user_datum", ["userId", "datum"])
+    .index("by_org_datum", ["orgId", "datum"]),
 
   // UrenLogboek — audit-log van de uren-flows (wie/wat/wanneer), patroon
   // planbordLogboek: dag indienen/heropenen en kantoor-correcties op
@@ -1326,6 +1406,7 @@ export default defineSchema({
   // per medewerker-dag (convex/urenControle.ts).
   urenLogboek: defineTable({
     userId: v.id("users"), // bedrijfseigenaar (multi-tenant scope)
+    orgId: v.optional(v.id("organisaties")),
     medewerkerId: v.id("medewerkers"),
     datum: v.string(), // YYYY-MM-DD (de werkdag waar de actie over gaat)
     actie: v.union(
@@ -1340,16 +1421,19 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_user_createdAt", ["userId", "createdAt"])
+    .index("by_org_createdAt", ["orgId", "createdAt"])
     .index("by_medewerker_datum", ["medewerkerId", "datum"])
     // Tenant-scope + werkdag: de Controlekamer leest per dag het hele bedrijf
     // (kwijtingen en heropeningen van een week) zonder full table scan.
-    .index("by_user_datum", ["userId", "datum"]),
+    .index("by_user_datum", ["userId", "datum"])
+    .index("by_org_datum", ["orgId", "datum"]),
 
   // MateriaalChecks — afvink-log van de materiaaldelta-checklist (§8.5):
   // wie heeft welk delta-item wanneer afgevinkt vóór vertrek (route-knop).
   // Geen discussie achteraf, wel een leerpunt.
   materiaalChecks: defineTable({
     userId: v.id("users"), // bedrijfseigenaar (multi-tenant scope)
+    orgId: v.optional(v.id("organisaties")),
     werkitemId: v.id("projecten"),
     datum: v.string(), // YYYY-MM-DD
     item: v.string(), // genormaliseerde naam van het delta-item
@@ -1358,7 +1442,8 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_werkitem_datum", ["werkitemId", "datum"])
-    .index("by_user_datum", ["userId", "datum"]),
+    .index("by_user_datum", ["userId", "datum"])
+    .index("by_org_datum", ["orgId", "datum"]),
 
   // MachineGebruik - Machine usage per project
   machineGebruik: defineTable({
@@ -1396,6 +1481,7 @@ export default defineSchema({
   meerwerk: defineTable({
     projectId: v.id("projecten"),
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     omschrijving: v.string(),
     reden: v.optional(v.string()),
     regels: v.array(v.object({
@@ -1431,6 +1517,7 @@ export default defineSchema({
   })
     .index("by_project", ["projectId"])
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_status", ["status"]),
 
   // Facturen - Facturen gegenereerd vanuit projecten
@@ -1443,6 +1530,7 @@ export default defineSchema({
     // hier het (eerste) werkitem-id (werkitems leven in de projecten-tabel).
     projectId: v.optional(v.id("projecten")),
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     klantId: v.optional(v.id("klanten")),
     factuurnummer: v.string(),
     // DEPRECATED (§2.8, HERO-pariteit bijlage B): de enkele statusketen is
@@ -1631,16 +1719,20 @@ export default defineSchema({
   })
     .index("by_project", ["projectId"])
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_factuurnummer", ["factuurnummer"])
     .index("by_status", ["status"])
     .index("by_referentieFactuur", ["referentieFactuurId"])
     // Compound index for user-scoped status queries (betalingsherinneringen.ts, users.ts)
     .index("by_user_status", ["userId", "status"])
+    .index("by_org_status", ["orgId", "status"])
     // Index for boekhouding sync queries (boekhouding.ts: getSyncStatus, markForSync)
     .index("by_user_boekhoudSync", ["userId", "boekhoudSyncStatus"])
+    .index("by_org_boekhoudSync", ["orgId", "boekhoudSyncStatus"])
     .index("by_klant", ["klantId"])
     // "Te versturen"-wachtrij (§2.8): alle concepten per gebruiker
     .index("by_user_documentStatus", ["userId", "documentStatus"])
+    .index("by_org_documentStatus", ["orgId", "documentStatus"])
     // Open maandverzamelfactuur per contract/maand (facturatie-engine §2.8)
     .index("by_contract_verzamelMaand", ["contractId", "verzamelMaand"]),
 
@@ -1651,6 +1743,7 @@ export default defineSchema({
   betalingsherinneringen: defineTable({
     factuurId: v.id("facturen"),
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     type: v.union(
       v.literal("herinnering"),
       // "tweede_herinnering" en "interne_taak" zijn de fase 2-laddertypen
@@ -1674,11 +1767,13 @@ export default defineSchema({
     meldingId: v.optional(v.id("servicemeldingen")),
   })
     .index("by_factuur", ["factuurId"])
-    .index("by_user", ["userId"]),
+    .index("by_user", ["userId"])
+    .index("by_org", ["orgId"]),
 
   // Leerfeedback Historie - Audit trail for normuur adjustments
   leerfeedback_historie: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     normuurId: v.id("normuren"),
     scope: v.string(),
     activiteit: v.string(),
@@ -1691,6 +1786,7 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_normuur", ["normuurId"])
     .index("by_scope", ["scope"]),
 
@@ -1703,6 +1799,7 @@ export default defineSchema({
   // Types: bus, bestelwagen, aanhanger, etc.
   voertuigen: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     kenteken: v.string(), // Dutch license plate
     merk: v.string(), // Brand: Mercedes, VW, etc.
     model: v.string(), // Model name
@@ -1738,8 +1835,10 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_status", ["status"])
     .index("by_user_status", ["userId", "status"])
+    .index("by_org_status", ["orgId", "status"])
     .index("by_kenteken", ["kenteken"])
     .index("by_fleetgo", ["fleetgoId"]),
 
@@ -1748,6 +1847,7 @@ export default defineSchema({
   voertuigOnderhoud: defineTable({
     voertuigId: v.id("voertuigen"),
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     type: v.union(
       v.literal("olie"),
       v.literal("apk"),
@@ -1771,13 +1871,15 @@ export default defineSchema({
   })
     .index("by_voertuig", ["voertuigId"])
     .index("by_status", ["status"])
-    .index("by_user", ["userId"]),
+    .index("by_user", ["userId"])
+    .index("by_org", ["orgId"]),
 
   // KilometerStanden - Mileage tracking
   // Log mileage readings for vehicles, optionally linked to projects
   kilometerStanden: defineTable({
     voertuigId: v.id("voertuigen"),
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     datum: v.string(), // YYYY-MM-DD format
     kilometerstand: v.number(),
     projectId: v.optional(v.id("projecten")), // Optional link to project
@@ -1786,6 +1888,7 @@ export default defineSchema({
   })
     .index("by_voertuig", ["voertuigId"])
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_project", ["projectId"]),
 
   // BrandstofRegistratie - Fuel registration
@@ -1793,6 +1896,7 @@ export default defineSchema({
   brandstofRegistratie: defineTable({
     voertuigId: v.id("voertuigen"),
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     datum: v.string(), // YYYY-MM-DD format (consistent with other tables)
     liters: v.number(),
     kosten: v.number(),
@@ -1801,7 +1905,8 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_voertuig", ["voertuigId"])
-    .index("by_user", ["userId"]),
+    .index("by_user", ["userId"])
+    .index("by_org", ["orgId"]),
 
   // TeamBusOverrides — per-dag-afwijking van de standaardbus van een team
   // (PRD §3.3, zelfde patroon als teamBemanning: default = teams.
@@ -1810,6 +1915,7 @@ export default defineSchema({
   // mag de bemanning-default niet bevriezen.
   teamBusOverrides: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     teamId: v.id("teams"),
     datum: v.string(), // YYYY-MM-DD
     voertuigId: v.id("voertuigen"),
@@ -1817,7 +1923,8 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_team_datum", ["teamId", "datum"])
-    .index("by_user_datum", ["userId", "datum"]),
+    .index("by_user_datum", ["userId", "datum"])
+    .index("by_org_datum", ["orgId", "datum"]),
 
   // MiddelReserveringen — schaars materieel als planbare resource (PRD §3.3,
   // HERO-pariteit "bronnen", bijlage B). Expliciete reservering van één
@@ -1826,6 +1933,7 @@ export default defineSchema({
   // consistent met de seizoenswaarschuwing van het planbord).
   middelReserveringen: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     middelType: v.union(v.literal("voertuig"), v.literal("machine")),
     voertuigId: v.optional(v.id("voertuigen")), // gezet bij middelType "voertuig"
     machineId: v.optional(v.id("machines")), // gezet bij middelType "machine"
@@ -1837,6 +1945,7 @@ export default defineSchema({
   })
     .index("by_werkitem", ["werkitemId"])
     .index("by_user_datum", ["userId", "datum"])
+    .index("by_org_datum", ["orgId", "datum"])
     .index("by_sleutel_datum", ["middelSleutel", "datum"]),
 
   // VervalItems — generieke vervallogica-engine (PRD §3.3). BEWUST generiek:
@@ -1848,6 +1957,7 @@ export default defineSchema({
   // §2.4-cases-bord. Taken, GEEN mails.
   vervalItems: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     naam: v.string(), // bv. "APK bus VW Crafter"
     type: v.union(
       v.literal("apk"),
@@ -1881,7 +1991,9 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_user_actief", ["userId", "actief"])
+    .index("by_org_actief", ["orgId", "actief"])
     .index("by_voertuig", ["voertuigId"])
     .index("by_machine", ["machineId"]),
 
@@ -1892,6 +2004,7 @@ export default defineSchema({
   // Teams - Groepering van medewerkers voor planning en rapportage
   teams: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     naam: v.string(),
     beschrijving: v.optional(v.string()),
     leden: v.array(v.id("medewerkers")), // Array van medewerker IDs
@@ -1908,14 +2021,17 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     // Index for active-only team queries (teams.ts: list, teamOverzicht)
-    .index("by_user_actief", ["userId", "isActief"]),
+    .index("by_user_actief", ["userId", "isActief"])
+    .index("by_org_actief", ["orgId", "isActief"]),
 
   // VoertuigSchades - Damage reports for vehicles
   // Track damages, repairs, and insurance claims
   voertuigSchades: defineTable({
     voertuigId: v.id("voertuigen"),
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     datum: v.number(), // Timestamp when damage occurred
     beschrijving: v.string(), // Description of the damage
     ernst: v.union(
@@ -1945,13 +2061,15 @@ export default defineSchema({
   })
     .index("by_voertuig", ["voertuigId"])
     .index("by_status", ["status"])
-    .index("by_user", ["userId"]),
+    .index("by_user", ["userId"])
+    .index("by_org", ["orgId"]),
 
   // VoertuigUitrusting - Equipment inventory per vehicle
   // Track tools and equipment assigned to vehicles
   voertuigUitrusting: defineTable({
     voertuigId: v.id("voertuigen"),
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     naam: v.string(), // Equipment name
     categorie: v.union(
       v.literal("motorgereedschap"),
@@ -1974,6 +2092,7 @@ export default defineSchema({
   })
     .index("by_voertuig", ["voertuigId"])
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_status", ["status"]),
 
   // ============================================
@@ -1987,6 +2106,7 @@ export default defineSchema({
     senderClerkId: v.string(),
     senderRole: v.optional(v.string()),
     companyId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
 
     channelType: v.union(
       v.literal("team"),
@@ -2014,12 +2134,15 @@ export default defineSchema({
     editedAt: v.optional(v.number()),
   })
     .index("by_company", ["companyId"])
+    .index("by_org", ["orgId"])
     .index("by_channel", ["companyId", "channelType"])
+    .index("by_org_channel", ["orgId", "channelType"])
     .index("by_project", ["projectId"])
     .index("by_team_unread", ["companyId", "channelType", "isRead"])
+    .index("by_org_team_unread", ["orgId", "channelType", "isRead"])
     .searchIndex("search_messages", {
       searchField: "message",
-      filterFields: ["companyId", "channelType", "projectId"],
+      filterFields: ["companyId", "channelType", "projectId", "orgId"],
     }),
 
   // Direct messages - Een-op-een berichten
@@ -2029,7 +2152,9 @@ export default defineSchema({
     // userId te voeren kan chat.ts dezelfde by_user-scoping gebruiken als de rest.
     // BEWUST optioneel: bestaande rijen hebben het veld nog niet.
     // Backfill: npx convex run migrations:backfillDirectMessagesUserId
+    // Opvolger is `orgId` hieronder; `userId` verdwijnt in fase 6.
     userId: v.optional(v.id("users")),
+    orgId: v.optional(v.id("organisaties")),
     fromUserId: v.id("users"),
     fromClerkId: v.string(),
     toUserId: v.id("users"),
@@ -2051,7 +2176,8 @@ export default defineSchema({
     .index("by_company", ["companyId"])
     .index("by_recipient_unread", ["toClerkId", "isRead"])
     // Tenant-scope: berichten van één bedrijf ophalen zonder full table scan
-    .index("by_user", ["userId"]),
+    .index("by_user", ["userId"])
+    .index("by_org", ["orgId"]),
 
   // Notification preferences - Push notification instellingen
   notification_preferences: defineTable({
@@ -2096,6 +2222,7 @@ export default defineSchema({
     directMessageId: v.optional(v.id("direct_messages")),
 
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     companyId: v.id("users"),
 
     fileName: v.string(),
@@ -2105,6 +2232,7 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_company", ["companyId"]),
 
   // ============================================
@@ -2114,6 +2242,7 @@ export default defineSchema({
   // LocationSessions - Voor tracking sessies (clock in/out)
   locationSessions: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     medewerkerClerkId: v.string(),
     medewerkerNaam: v.string(),
     projectId: v.optional(v.id("projecten")),
@@ -2143,7 +2272,9 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_user_active", ["userId", "status"])
+    .index("by_org_active", ["orgId", "status"])
     .index("by_status", ["status"])
     .index("by_project", ["projectId"])
     .index("by_date", ["clockInAt"]),
@@ -2152,6 +2283,7 @@ export default defineSchema({
   locationData: defineTable({
     sessionId: v.id("locationSessions"),
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     projectId: v.optional(v.id("projecten")),
 
     latitude: v.number(),
@@ -2176,12 +2308,14 @@ export default defineSchema({
     .index("by_session", ["sessionId"])
     .index("by_session_time", ["sessionId", "recordedAt"])
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_project", ["projectId"])
     .index("by_time", ["recordedAt"]),
 
   // JobSiteGeofences - Geofence definities per project
   jobSiteGeofences: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     projectId: v.id("projecten"),
     customerName: v.string(),
     customerAddress: v.string(),
@@ -2207,7 +2341,8 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_project", ["projectId"])
-    .index("by_user", ["userId"]),
+    .index("by_user", ["userId"])
+    .index("by_org", ["orgId"]),
 
   // GeofenceEvents - Enter/exit/dwell events
   geofenceEvents: defineTable({
@@ -2234,6 +2369,7 @@ export default defineSchema({
   routes: defineTable({
     sessionId: v.id("locationSessions"),
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
 
     startLocation: v.object({
       latitude: v.number(),
@@ -2273,11 +2409,13 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_session", ["sessionId"])
-    .index("by_user", ["userId"]),
+    .index("by_user", ["userId"])
+    .index("by_org", ["orgId"]),
 
   // LocationAnalytics - Dagelijkse aggregaties
   locationAnalytics: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     datum: v.string(),
 
     totalWorkSeconds: v.number(),
@@ -2294,12 +2432,15 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_user_date", ["userId", "datum"])
+    .index("by_org_date", ["orgId", "datum"])
     .index("by_project", ["projectId"]),
 
   // LocationAuditLog - GDPR audit trail
   locationAuditLog: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     employee: v.optional(v.id("medewerkers")),
     action: v.union(
       v.literal("tracking_started"),
@@ -2316,6 +2457,7 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_employee", ["employee"]),
 
   // ============================================
@@ -2326,6 +2468,7 @@ export default defineSchema({
   // Bevat toegangsinformatie, utilities, veiligheidsnotities en foto's
   werklocaties: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     projectId: v.id("projecten"),
     // Locatie details
     adres: v.string(),
@@ -2371,6 +2514,7 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_project", ["projectId"]),
 
   // ============================================
@@ -2397,6 +2541,7 @@ export default defineSchema({
   // Replaces pushNotificationLogs (push-specific) and notification_log (chat anti-spam)
   notificationDeliveryLog: defineTable({
     userId: v.id("users"), // Normalized user reference (not clerkId)
+    orgId: v.optional(v.id("organisaties")),
     channel: v.union(
       v.literal("push"),
       v.literal("chat"),
@@ -2429,6 +2574,7 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_user", ["userId", "createdAt"])
+    .index("by_org", ["orgId", "createdAt"])
     .index("by_status", ["status"])
     .index("by_channel", ["channel", "createdAt"]),
 
@@ -2436,6 +2582,7 @@ export default defineSchema({
   // DEPRECATED: migrate to notificationDeliveryLog
   pushNotificationLogs: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     type: v.union(
       v.literal("chat_team"),
       v.literal("chat_dm"),
@@ -2458,6 +2605,7 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_type", ["type"])
     .index("by_status", ["status"]),
 
@@ -2490,6 +2638,7 @@ export default defineSchema({
   // Supports: offerte updates, chat messages, project assignments, system announcements
   notifications: defineTable({
     userId: v.id("users"), // The user who should receive this notification
+    orgId: v.optional(v.id("organisaties")),
     type: v.union(
       // Offerte notifications
       v.literal("offerte_geaccepteerd"),
@@ -2542,9 +2691,13 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_user_unread", ["userId", "isRead"])
+    .index("by_org_unread", ["orgId", "isRead"])
     .index("by_user_not_dismissed", ["userId", "isDismissed"])
+    .index("by_org_not_dismissed", ["orgId", "isDismissed"])
     .index("by_user_type", ["userId", "type"])
+    .index("by_org_type", ["orgId", "type"])
     .index("by_offerte", ["offerteId"])
     .index("by_project", ["projectId"]),
 
@@ -2555,6 +2708,7 @@ export default defineSchema({
   // Leveranciers - Supplier management
   leveranciers: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     naam: v.string(),
     contactpersoon: v.optional(v.string()),
     email: v.optional(v.string()),
@@ -2575,14 +2729,16 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .searchIndex("search_leveranciers", {
       searchField: "naam",
-      filterFields: ["userId"],
+      filterFields: ["userId", "orgId"],
     }),
 
   // Inkooporders - Purchase orders
   inkooporders: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     leverancierId: v.id("leveranciers"),
     projectId: v.optional(v.id("projecten")),
     orderNummer: v.string(),
@@ -2612,8 +2768,10 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_status", ["status"])
     .index("by_user_status", ["userId", "status"])
+    .index("by_org_status", ["orgId", "status"])
     .index("by_leverancier", ["leverancierId"])
     .index("by_project", ["projectId"]),
 
@@ -2625,6 +2783,7 @@ export default defineSchema({
   // Tracks current inventory with min/max levels for reorder alerts
   voorraad: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     productId: v.id("producten"),
     categorie: v.optional(v.string()), // Denormalized from producten for efficient category queries
     hoeveelheid: v.number(),
@@ -2635,13 +2794,17 @@ export default defineSchema({
     notities: v.optional(v.string()),
   })
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_user_product", ["userId", "productId"])
-    .index("by_user_category", ["userId", "categorie"]),
+    .index("by_org_product", ["orgId", "productId"])
+    .index("by_user_category", ["userId", "categorie"])
+    .index("by_org_category", ["orgId", "categorie"]),
 
   // VoorraadMutaties - Stock movements/transactions
   // Tracks all inventory changes: purchases, consumption, corrections, returns
   voorraadMutaties: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     voorraadId: v.id("voorraad"),
     productId: v.id("producten"),
     type: v.union(
@@ -2658,6 +2821,7 @@ export default defineSchema({
     createdBy: v.optional(v.string()),
   })
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_voorraad", ["voorraadId"])
     .index("by_product", ["productId"])
     .index("by_project", ["projectId"]),
@@ -2670,6 +2834,7 @@ export default defineSchema({
   // Track material, labor, machine, and other costs during project execution
   projectKosten: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     projectId: v.id("projecten"),
     datum: v.string(), // YYYY-MM-DD
     type: v.union(
@@ -2689,6 +2854,7 @@ export default defineSchema({
     createdBy: v.optional(v.string()),
   })
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_project", ["projectId"])
     .index("by_project_type", ["projectId", "type"])
     .index("by_project_date", ["projectId", "datum"]),
@@ -2697,6 +2863,7 @@ export default defineSchema({
   // Track quality inspections with checklist items, photos, and approval workflow
   kwaliteitsControles: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     projectId: v.id("projecten"),
     scope: v.string(),
     checklistItems: v.array(
@@ -2732,11 +2899,13 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_project", ["projectId"])
     .index("by_status", ["status"])
     .index("by_project_status", ["projectId", "status"])
     // Compound index for user-scoped status queries (materiaalmanDashboard.ts, realtime.ts)
-    .index("by_user_status", ["userId", "status"]),
+    .index("by_user_status", ["userId", "status"])
+    .index("by_org_status", ["orgId", "status"]),
 
   // ============================================
   // Afvalverwerkers & Transportbedrijven
@@ -2745,6 +2914,7 @@ export default defineSchema({
   // Afvalverwerkers - Beheer van afvalverwerkers met locatie en tarieven
   afvalverwerkers: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     naam: v.string(),
     adres: v.string(),
     lat: v.number(),
@@ -2755,11 +2925,13 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   })
-    .index("by_user", ["userId"]),
+    .index("by_user", ["userId"])
+    .index("by_org", ["orgId"]),
 
   // Transportbedrijven - Beheer van transportbedrijven met locatie en km-tarieven
   transportbedrijven: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     naam: v.string(),
     adres: v.string(),
     lat: v.number(),
@@ -2770,7 +2942,8 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   })
-    .index("by_user", ["userId"]),
+    .index("by_user", ["userId"])
+    .index("by_org", ["orgId"]),
 
   // ============================================
   // Garantiepakketten
@@ -2779,6 +2952,7 @@ export default defineSchema({
   // GarantiePakketten - Garantie-opties per tier voor offertes
   garantiePakketten: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     naam: v.string(),
     tier: v.union(v.literal("basis"), v.literal("premium"), v.literal("premium_plus")),
     duurJaren: v.number(),
@@ -2791,6 +2965,7 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_tier", ["tier"]),
 
   // ============================================
@@ -2801,6 +2976,7 @@ export default defineSchema({
   // Klanten kunnen zelfstandig een aanvraag doen voor gazon, boomschors of verticuteren
   // Workflow: nieuw → in_behandeling → goedgekeurd/afgekeurd → voltooid
   configuratorAanvragen: defineTable({
+    orgId: v.optional(v.id("organisaties")),
     type: v.union(v.literal("gazon"), v.literal("boomschors"), v.literal("verticuteren"), v.literal("contact")),
     status: v.union(
       v.literal("nieuw"),
@@ -2919,7 +3095,9 @@ export default defineSchema({
     // Index for assigned user queries (configuratorAanvragen.ts: toewijzen)
     .index("by_toegewezen", ["toegewezenAan"])
     // Compound index for type + status filtering (configuratorAanvragen.ts: list queries)
-    .index("by_type_status", ["type", "status"]),
+    .index("by_type_status", ["type", "status"])
+    .index("by_org", ["orgId"])
+    .index("by_org_status", ["orgId", "status"]),
 
   // Lead activiteiten - Activiteitenlog voor CRM pipeline
   leadActiviteiten: defineTable({
@@ -2940,6 +3118,7 @@ export default defineSchema({
   // Betalingen - Mollie betaalverzoeken gekoppeld aan aanvragen
   betalingen: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     molliePaymentId: v.string(),
     bedrag: v.number(),
     status: v.union(
@@ -2968,6 +3147,7 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_mollieId", ["molliePaymentId"])
     .index("by_referentie", ["referentie"])
     .index("by_status", ["status"])
@@ -2980,6 +3160,7 @@ export default defineSchema({
   // Plantsoorten - Plantendatabase met systeem defaults en user overrides
   plantsoorten: defineTable({
     userId: v.optional(v.id("users")), // null = systeem defaults
+    orgId: v.optional(v.id("organisaties")),
     naam: v.string(),
     type: v.string(), // bodembedekker, heester, boom, etc.
     lichtbehoefte: v.union(v.literal("zon"), v.literal("halfschaduw"), v.literal("schaduw")),
@@ -2991,6 +3172,7 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_lichtbehoefte", ["lichtbehoefte"]),
 
   // ============================================
@@ -3000,6 +3182,7 @@ export default defineSchema({
   offerte_reminders: defineTable({
     offerteId: v.id("offertes"),
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     type: v.union(
       v.literal("niet_bekeken"),
       v.literal("niet_gereageerd"),
@@ -3017,6 +3200,7 @@ export default defineSchema({
   })
     .index("by_offerte", ["offerteId"])
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_status", ["status"])
     .index("by_status_scheduled", ["status", "scheduledAt"]),
 
@@ -3026,6 +3210,7 @@ export default defineSchema({
 
   verlofaanvragen: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     medewerkerId: v.id("medewerkers"),
     startDatum: v.string(),
     eindDatum: v.string(),
@@ -3040,13 +3225,16 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_medewerker", ["medewerkerId"])
     .index("by_status", ["status"])
     .index("by_medewerker_status", ["medewerkerId", "status"])
-    .index("by_user_status", ["userId", "status"]),
+    .index("by_user_status", ["userId", "status"])
+    .index("by_org_status", ["orgId", "status"]),
 
   verzuimregistraties: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     medewerkerId: v.id("medewerkers"),
     startDatum: v.string(),
     herstelDatum: v.optional(v.string()),
@@ -3057,12 +3245,15 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_medewerker", ["medewerkerId"])
-    .index("by_user_active", ["userId", "herstelDatum"]),
+    .index("by_user_active", ["userId", "herstelDatum"])
+    .index("by_org_active", ["orgId", "herstelDatum"]),
 
   // Toolbox-meetings — Wettelijk verplichte veiligheidsbijeenkomsten
   toolboxMeetings: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     datum: v.string(), // YYYY-MM-DD
     onderwerp: v.string(),
     beschrijving: v.optional(v.string()),
@@ -3073,7 +3264,9 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_datum", ["userId", "datum"])
+    .index("by_org_datum", ["orgId", "datum"])
     .index("by_project", ["projectId"]),
 
   // ============================================
@@ -3083,6 +3276,7 @@ export default defineSchema({
   // Onderhoudscontracten — recurring maintenance contracts per klant
   onderhoudscontracten: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     klantId: v.id("klanten"),
     // Herkomst-offerte (PRD §2.5): gezet door createFromOfferte, zodat de
     // acceptatie-validatie kan zien dat de keten-uitgang al bestaat.
@@ -3164,9 +3358,11 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_klant", ["klantId"])
     .index("by_status", ["status"])
     .index("by_user_status", ["userId", "status"])
+    .index("by_org_status", ["orgId", "status"])
     .index("by_einddatum", ["eindDatum"])
     .index("by_contractnummer", ["contractNummer"])
     .index("by_offerte", ["offerteId"]),
@@ -3236,6 +3432,7 @@ export default defineSchema({
     contractId: v.id("onderhoudscontracten"),
     factuurId: v.optional(v.id("facturen")),
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
 
     // Termijninformatie
     termijnNummer: v.number(),
@@ -3257,6 +3454,7 @@ export default defineSchema({
     .index("by_contract", ["contractId"])
     .index("by_factuur", ["factuurId"])
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_status", ["status"])
     .index("by_contract_status", ["contractId", "status"]),
 
@@ -3269,6 +3467,7 @@ export default defineSchema({
   // This tracks actual warranty periods after project delivery
   garanties: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     projectId: v.id("projecten"),
     klantId: v.id("klanten"),
 
@@ -3296,10 +3495,12 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_project", ["projectId"])
     .index("by_klant", ["klantId"])
     .index("by_status", ["status"])
     .index("by_user_status", ["userId", "status"])
+    .index("by_org_status", ["orgId", "status"])
     .index("by_einddatum", ["eindDatum"]),
 
   // Servicemeldingen — het melding/case-object van het interne bord (PRD §2.4).
@@ -3308,6 +3509,7 @@ export default defineSchema({
   // taaksoort (melding | plantaak voor de planningsattendering, §2.1/§8.12).
   servicemeldingen: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     // Optioneel geworden (PRD §3.3): onderhoudstaken uit de vervallogica-
     // engine (APK/keuring op een voertuig/machine) zijn niet klant-gebonden.
     // Meldingen en plan-/debiteurentaken hebben ALTIJD een klant (afgedwongen
@@ -3408,14 +3610,18 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_klant", ["klantId"])
     .index("by_project", ["projectId"])
     .index("by_garantie", ["garantieId"])
     .index("by_status", ["status"])
     .index("by_user_status", ["userId", "status"])
+    .index("by_org_status", ["orgId", "status"])
     .index("by_prioriteit", ["userId", "prioriteit"])
+    .index("by_org_prioriteit", ["orgId", "prioriteit"])
     // §2.4-bord: filter "mijn cases" + idempotente attendering-cron
     .index("by_user_eigenaar", ["userId", "eigenaarId"])
+    .index("by_org_eigenaar", ["orgId", "eigenaarId"])
     .index("by_attenderingSleutel", ["attenderingSleutel"])
     .index("by_werkitem", ["werkitemId"]),
 
@@ -3426,6 +3632,7 @@ export default defineSchema({
   // naar de klant (bestaande capability assertKanNaarKlantVersturen).
   meldingComments: defineTable({
     userId: v.id("users"), // bedrijfseigenaar (multi-tenant scope)
+    orgId: v.optional(v.id("organisaties")),
     meldingId: v.id("servicemeldingen"),
     // Auteur: users-id, of undefined voor systeem-entries (statuswissels e.d.)
     auteurId: v.optional(v.id("users")),
@@ -3438,7 +3645,8 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_melding", ["meldingId", "createdAt"])
-    .index("by_user", ["userId"]),
+    .index("by_user", ["userId"])
+    .index("by_org", ["orgId"]),
 
   // Veldtaken — uit een @tag in de case-thread (PRD §2.4, case-test §8.6).
   // Gekoppeld aan melding + klant + medewerker; verschijnt automatisch op de
@@ -3447,6 +3655,7 @@ export default defineSchema({
   // met deze klantId op de team-dag).
   veldtaken: defineTable({
     userId: v.id("users"), // bedrijfseigenaar (multi-tenant scope)
+    orgId: v.optional(v.id("organisaties")),
     meldingId: v.id("servicemeldingen"),
     klantId: v.id("klanten"),
     medewerkerId: v.id("medewerkers"),
@@ -3463,12 +3672,14 @@ export default defineSchema({
     .index("by_melding", ["meldingId"])
     .index("by_medewerker", ["medewerkerId", "status"])
     .index("by_klant", ["klantId"])
-    .index("by_user", ["userId"]),
+    .index("by_user", ["userId"])
+    .index("by_org", ["orgId"]),
 
   // ServiceAfspraken — Ingeplande servicebezoeken gekoppeld aan een melding
   serviceAfspraken: defineTable({
     meldingId: v.id("servicemeldingen"),
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
 
     // Planning
     datum: v.string(), // YYYY-MM-DD
@@ -3489,6 +3700,7 @@ export default defineSchema({
   })
     .index("by_melding", ["meldingId"])
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_datum", ["datum"])
     .index("by_status", ["status"]),
 
@@ -3500,6 +3712,7 @@ export default defineSchema({
   // Supports variable interpolation: {{klantNaam}}, {{offerteNummer}}, etc.
   emailTemplates: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     naam: v.string(),                    // Template name
     trigger: v.string(),                 // When to use: offerte_verzonden, factuur_verzonden, herinnering_1, herinnering_2, herinnering_3, aanmaning_1, aanmaning_2, ingebrekestelling, oplevering, contract_verlenging
     onderwerp: v.string(),               // Email subject line (supports variables)
@@ -3510,8 +3723,11 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_trigger", ["userId", "trigger"])
-    .index("by_actief", ["userId", "actief"]),
+    .index("by_org_trigger", ["orgId", "trigger"])
+    .index("by_actief", ["userId", "actief"])
+    .index("by_org_actief", ["orgId", "actief"]),
 
   // ============================================
   // BOEKHOUDKOPPELING (MOD-014)
@@ -3521,6 +3737,7 @@ export default defineSchema({
   // Bevat provider credentials, sync-instellingen en grootboekmappings
   boekhoudInstellingen: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
 
     // Provider selectie
     provider: v.union(
@@ -3575,12 +3792,14 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_provider", ["provider"]),
 
   // BoekhoudSync - Synchronisatielogboek per factuur/transactie
   // Audit trail voor alle sync-operaties naar externe boekhoudpakketten
   boekhoudSync: defineTable({
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
 
     // Interne referentie
     factuurId: v.optional(v.id("facturen")),
@@ -3623,11 +3842,14 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
+    .index("by_org", ["orgId"])
     .index("by_factuur", ["factuurId"])
     .index("by_external", ["externalId"])
     .index("by_status", ["syncStatus"])
     .index("by_user_status", ["userId", "syncStatus"])
-    .index("by_entity_type", ["userId", "entityType"]),
+    .index("by_org_status", ["orgId", "syncStatus"])
+    .index("by_entity_type", ["userId", "entityType"])
+    .index("by_org_entity_type", ["orgId", "entityType"]),
 
   // ============================================
   // Unified Chat (Klantenportaal)
@@ -3655,15 +3877,19 @@ export default defineSchema({
     unreadByBedrijf: v.optional(v.number()),
     unreadByKlant: v.optional(v.number()),
     companyUserId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     createdAt: v.number(),
   })
     .index("by_company", ["companyUserId"])
+    .index("by_org", ["orgId"])
     .index("by_klant", ["klantId"])
     .index("by_offerte", ["offerteId"])
     .index("by_project", ["projectId"])
     .index("by_melding", ["meldingId"])
     .index("by_company_type", ["companyUserId", "type"])
-    .index("by_company_last_message", ["companyUserId", "lastMessageAt"]),
+    .index("by_org_type", ["orgId", "type"])
+    .index("by_company_last_message", ["companyUserId", "lastMessageAt"])
+    .index("by_org_last_message", ["orgId", "lastMessageAt"]),
 
   // Unified chat messages
   chat_messages: defineTable({
@@ -3700,6 +3926,7 @@ export default defineSchema({
   klantTijdlijn: defineTable({
     // Bedrijfseigenaar (multi-tenant scope, conventie zoals planbordLogboek)
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     klantId: v.id("klanten"),
     // Moment van het contact/event (kan afwijken van _creationTime,
     // bv. bij de notities-migratie of achteraf genoteerde telefoontjes)
@@ -3738,10 +3965,11 @@ export default defineSchema({
   })
     .index("by_klant", ["klantId", "timestamp"])
     .index("by_user", ["userId", "timestamp"])
+    .index("by_org", ["orgId", "timestamp"])
     .index("by_werkitem", ["werkitemId", "timestamp"])
     .searchIndex("search_tekst", {
       searchField: "tekst",
-      filterFields: ["userId", "klantId", "kanaal", "werkitemId"],
+      filterFields: ["userId", "klantId", "kanaal", "werkitemId", "orgId"],
     }),
 
   // ─── Klanttaken ────────────────────────────────────────────────────────────
@@ -3756,6 +3984,7 @@ export default defineSchema({
   klantTaken: defineTable({
     // Bedrijfseigenaar (multi-tenant scope, conventie zoals klantTijdlijn)
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     klantId: v.id("klanten"),
     titel: v.string(),
     omschrijving: v.optional(v.string()),
@@ -3783,13 +4012,16 @@ export default defineSchema({
   })
     .index("by_klant", ["klantId", "status"])
     .index("by_user_status", ["userId", "status"])
+    .index("by_org_status", ["orgId", "status"])
     .index("by_medewerker_status", ["toegewezenAanId", "status"])
     .index("by_werkitem", ["werkitemId"]),
 
   // ─── Bouwstenencatalogus (PRD §2.5f + bijlage A) ───────────────────────────
   // Bedrijfsbrede catalogus (geen userId): bouwstenen beheren = records beheren
   // (principe 2). Beheer is kantoor-only via requireKantoor in bouwstenen.ts.
+  // Fase 1: wel een (nog lege) `orgId` — "bedrijfsbreed" wordt "org-breed".
   bouwstenen: defineTable({
+    orgId: v.optional(v.id("organisaties")),
     naam: v.string(),
     // Kort en uniek, bv. "HS" (haag snoeien) — compacte weergave op dagkaart/bord
     code: v.string(),
@@ -3848,25 +4080,31 @@ export default defineSchema({
   })
     .index("by_code", ["code"])
     .index("by_categorie", ["categorie"])
-    .index("by_actief", ["actief"]),
+    .index("by_actief", ["actief"])
+    .index("by_org", ["orgId"]),
 
   // ─── Uurtarief-historie (PRD §2.5a/f, acceptatietest §8.7) ─────────────────
   // Tarief met ingangsdatum; huidig tarief = meest recente ingangsdatum ≤ vandaag.
   // Historische offertes/contracten behouden zo het tarief van hun eigen datum.
   uurtarieven: defineTable({
+    orgId: v.optional(v.id("organisaties")),
     bedrag: v.number(), // ex btw
     ingangsdatum: v.string(), // "YYYY-MM-DD" — lexicografisch vergelijkbaar
     opmerking: v.optional(v.string()),
     aangemaaktDoor: v.optional(v.id("users")),
     createdAt: v.number(),
-  }).index("by_ingangsdatum", ["ingangsdatum"]),
+  })
+    .index("by_ingangsdatum", ["ingangsdatum"])
+    .index("by_org", ["orgId"]),
 
   // ─── Tekstblokkenbibliotheek (PRD §2.5b) ────────────────────────────────────
-  // Bedrijfsbrede bibliotheek (geen userId) van herbruikbare tekstblokken voor
+  // Bedrijfsbrede bibliotheek (geen userId, fase 1: wel orgId) van
+  // herbruikbare tekstblokken voor
   // de offerte-builder. Inhoud is bewust PLATTE tekst zonder opmaak
   // (principe 3: huisstijl zit in de template, niet in de tekst).
   // Beheer is kantoor-only via requireKantoor in tekstblokken.ts.
   tekstblokken: defineTable({
+    orgId: v.optional(v.id("organisaties")),
     naam: v.string(),
     categorie: v.union(
       v.literal("aanhef"),
@@ -3884,17 +4122,20 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_categorie", ["categorie", "actief"])
-    .index("by_actief", ["actief"]),
+    .index("by_actief", ["actief"])
+    .index("by_org", ["orgId"]),
 
   // ─── Transactionele mails (PRD §2.7) ────────────────────────────────────────
   // Eén tabel: event → sjabloon → vertraging → ontvanger. Nieuwe mails
   // toevoegen = record toevoegen, geen code (principe 2). Bedrijfsbreed
-  // (geen userId), beheer kantoor-only via requireKantoor in mailTriggers.ts.
+  // (geen userId, fase 1: wel orgId), beheer kantoor-only via requireKantoor
+  // in mailTriggers.ts.
   // KANTOOR↔KLANT-REGEL (§1.2): modus "concept" (default) zet mails in de
   // goedkeurings-wachtrij (conceptMails); "automatisch" is alleen voor
   // onpersoonlijke bevestigingen (lead-ontvangst) en loopt ALSNOG door de
   // mail-guard (EMAIL_VERZENDEN_ACTIEF, fail-closed).
   mailTriggers: defineTable({
+    orgId: v.optional(v.id("organisaties")),
     // Event-sleutel, bv. "lead_ontvangen" | "offerte_verzonden" |
     // "inplanning_bevestigd" | "offerte_opvolging" | "inplan_attendering".
     // Bewust v.string(): nieuwe events zijn records, geen schemawijziging.
@@ -3925,7 +4166,8 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_event", ["event"])
-    .index("by_actief", ["actief"]),
+    .index("by_actief", ["actief"])
+    .index("by_org", ["orgId"]),
 
   // Uitgaande-mail-wachtrij ("Concept-mails", §2.7): door triggers
   // klaargezette mails. Kantoor bewerkt (alleen inhoudsvelden), keurt goed
@@ -3935,6 +4177,7 @@ export default defineSchema({
   conceptMails: defineTable({
     // Bedrijfseigenaar (multi-tenant scope, conventie zoals servicemeldingen)
     userId: v.id("users"),
+    orgId: v.optional(v.id("organisaties")),
     event: v.string(),
     triggerId: v.optional(v.id("mailTriggers")),
     // Koppelingen (voor context, tijdlijn en dedupe)
@@ -3976,6 +4219,7 @@ export default defineSchema({
   })
     .index("by_status_gepland", ["status", "geplandOp"])
     .index("by_user_status", ["userId", "status"])
+    .index("by_org_status", ["orgId", "status"])
     .index("by_dedupe", ["dedupeSleutel"])
     .index("by_klant", ["klantId"])
     .index("by_melding", ["meldingId"]),

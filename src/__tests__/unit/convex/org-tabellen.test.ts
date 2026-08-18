@@ -48,6 +48,76 @@ describe("TABEL_CLASSIFICATIE dekt het schema", () => {
   });
 });
 
+/**
+ * Elke org-gescopeerde tabel moet zelf op `orgId` te bevragen zijn — anders kan
+ * de migratie hem niet vullen en de opruimfunctie hem niet per organisatie
+ * doorlopen (een full table scan is geen alternatief: die raakt andere tenants).
+ *
+ * Buiten scope, met opzet:
+ *  - de KIND_VAN-tabellen: die hebben geen eigen orgId, hun scope loopt via de
+ *    ouder (hierboven getest);
+ *  - `notification_log`: staat nog volledig op clerkId-strings (recipientClerkId/
+ *    senderClerkId), heeft geen tenant-veld en wordt full-table gewist;
+ *  - `demoSeed`: dev-registry van {tabel, documentId, geseedOp} zonder
+ *    tenant-veld; wordt eveneens full-table gewist.
+ */
+const ZONDER_ORG_ID = ["notification_log", "demoSeed"];
+
+describe("org-gescopeerde tabellen hebben orgId + een org-index", () => {
+  const orgTabellen = (
+    Object.entries(TABEL_CLASSIFICATIE) as [string, string][]
+  )
+    .filter(([, klasse]) => klasse === "bewaren" || klasse === "wissen")
+    .map(([naam]) => naam)
+    .filter((naam) => !(naam in KIND_VAN))
+    .filter((naam) => !ZONDER_ORG_ID.includes(naam));
+
+  it("dekt de tabellen die orgId moeten hebben", () => {
+    expect(orgTabellen.length).toBeGreaterThan(0);
+    // Wie hier een tabel toevoegt zonder orgId, ziet dat meteen in de tests
+    // hieronder — deze telling houdt alleen de scope zelf zichtbaar.
+    expect(orgTabellen).not.toContain("notification_log");
+    expect(orgTabellen).not.toContain("demoSeed");
+  });
+
+  it.each(orgTabellen)("%s heeft een orgId-veld naar organisaties", (naam) => {
+    const tabel = tabellen[naam];
+    expect(tabel, `tabel ${naam} bestaat niet in het schema`).toBeDefined();
+    const veld = tabel.validator.fields.orgId;
+    expect(veld, `veld orgId ontbreekt op ${naam}`).toBeDefined();
+    expect(veld.tableName).toBe("organisaties");
+  });
+
+  it.each(orgTabellen)("%s heeft een index die op orgId begint", (naam) => {
+    const orgIndexen = tabellen[naam].indexes.filter(
+      (i) => i.fields[0] === "orgId",
+    );
+    expect(
+      orgIndexen.length,
+      `geen enkele index op ${naam} begint met orgId`,
+    ).toBeGreaterThan(0);
+  });
+
+  // De by_org-indexen zijn de tweelingen van de by_user-indexen: bij het
+  // omzetten (fase 6) moet elke bestaande userId-query een orgId-equivalent
+  // met dezelfde restvelden hebben, anders verdwijnt er stilzwijgend een pad.
+  it.each(orgTabellen)("%s spiegelt elke userId-index op orgId", (naam) => {
+    const indexen = tabellen[naam].indexes;
+    const ontbreekt = indexen
+      .filter((i) => i.fields[0] === "userId")
+      .filter(
+        (i) =>
+          !indexen.some(
+            (org) =>
+              org.fields[0] === "orgId" &&
+              org.fields.slice(1).join("|") === i.fields.slice(1).join("|"),
+          ),
+      )
+      .map((i) => i.indexDescriptor);
+    expect(ontbreekt, `zonder org-tweeling op ${naam}`).toEqual([]);
+  });
+});
+
 describe("KIND_VAN verwijst naar bestaande ouders en indexen", () => {
   const entries = Object.entries(KIND_VAN) as [
     string,
