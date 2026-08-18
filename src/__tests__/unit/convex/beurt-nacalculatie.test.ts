@@ -21,6 +21,7 @@ import {
   createMockCtx,
   createMockUser,
   createMockKlant,
+  seedMockOrganisatie,
 } from "../../helpers/convex-mock";
 import {
   aggregeerPerBouwsteen,
@@ -48,20 +49,29 @@ function handler(fn: unknown): AnyHandler {
   return (fn as { _handler: AnyHandler })._handler;
 }
 
-/** Ctx + store met precies één ingelogde gebruiker met de gegeven rol. */
+/**
+ * Ctx + store met precies één ingelogde gebruiker met de gegeven rol.
+ *
+ * De organisatie hoort erbij: sinds fase 3 van de org-migratie leest
+ * `requireOrg` het `org_id`-claim dat `createMockCtx` meegeeft, en zonder rij
+ * in `organisaties` strandt élke org-gescopeerde functie op een AuthError.
+ */
 function ctxMetRol(role: string) {
   const store = new MockConvexStore();
+  const orgId = seedMockOrganisatie(store);
   const userId = store.insert("users", createMockUser({ role }));
   const ctx = createMockCtx(store);
-  return { ctx, store, userId };
+  return { ctx, store, userId, orgId };
 }
 
 function insertBouwsteen(
   store: MockConvexStore,
+  orgId: string,
   overrides: Record<string, unknown> = {}
 ) {
   const now = Date.now();
   return store.insert("bouwstenen", {
+    orgId,
     naam: "Heggen snoeien",
     code: "HS",
     categorie: "heggen_bomen",
@@ -78,12 +88,14 @@ function insertBouwsteen(
 
 function insertBeurt(
   store: MockConvexStore,
+  orgId: string,
   userId: string,
   bouwsteenId: string,
   overrides: Record<string, unknown> = {}
 ) {
   const now = Date.now();
   return store.insert("projecten", {
+    orgId,
     userId,
     type: "onderhoudsbeurt",
     status: "uitgevoerd",
@@ -99,12 +111,14 @@ function insertBeurt(
 
 function insertSegment(
   store: MockConvexStore,
+  orgId: string,
   userId: string,
   werkitemId: string,
   overrides: Record<string, unknown> = {}
 ) {
   const now = Date.now();
   return store.insert("urenSegmenten", {
+    orgId,
     userId,
     medewerkerId: "medewerkers:1",
     datum: "2026-06-01",
@@ -282,23 +296,23 @@ describe("normuurVeld / huidige norm", () => {
 
 describe("getBeurtNacalculatie", () => {
   it("aggregeert per beurt: werken vs gepland, reistijd apart, BES apart", async () => {
-    const { ctx, store, userId } = ctxMetRol("directie");
-    const klantId = store.insert("klanten", createMockKlant(userId));
-    const bouwsteenId = insertBouwsteen(store);
-    const beurtId = insertBeurt(store, userId, bouwsteenId, { klantId });
+    const { ctx, store, userId, orgId } = ctxMetRol("directie");
+    const klantId = store.insert("klanten", createMockKlant(userId, { orgId }));
+    const bouwsteenId = insertBouwsteen(store, orgId);
+    const beurtId = insertBeurt(store, orgId, userId, bouwsteenId, { klantId });
     // 2,5 uur werken + 0,5 uur reistijd + 0,75 uur BES; concept telt niet mee
-    insertSegment(store, userId, beurtId); // 08:00-10:30 werken
-    insertSegment(store, userId, beurtId, {
+    insertSegment(store, orgId, userId, beurtId); // 08:00-10:30 werken
+    insertSegment(store, orgId, userId, beurtId, {
       categorie: "reistijd",
       beginTijd: "07:30",
       eindTijd: "08:00",
     });
-    insertSegment(store, userId, beurtId, {
+    insertSegment(store, orgId, userId, beurtId, {
       categorie: "afvalverwerker_bes",
       beginTijd: "11:00",
       eindTijd: "11:45",
     });
-    insertSegment(store, userId, beurtId, {
+    insertSegment(store, orgId, userId, beurtId, {
       beginTijd: "13:00",
       eindTijd: "14:00",
       status: "concept",
@@ -325,9 +339,9 @@ describe("getBeurtNacalculatie", () => {
   });
 
   it("slaat beurten zonder gelogde segmenten over en valideert de periode", async () => {
-    const { ctx, store, userId } = ctxMetRol("directie");
-    const bouwsteenId = insertBouwsteen(store);
-    insertBeurt(store, userId, bouwsteenId); // geen segmenten
+    const { ctx, store, userId, orgId } = ctxMetRol("directie");
+    const bouwsteenId = insertBouwsteen(store, orgId);
+    insertBeurt(store, orgId, userId, bouwsteenId); // geen segmenten
     const resultaat = (await handler(getBeurtNacalculatie)(ctx, {})) as {
       beurten: unknown[];
     };
@@ -355,16 +369,17 @@ describe("getBeurtNacalculatie", () => {
 describe("getNormuurSuggesties — drempel over de echte keten", () => {
   function seedBeurten(
     store: MockConvexStore,
+    orgId: string,
     userId: string,
     bouwsteenId: string,
     aantal: number
   ) {
     for (let i = 0; i < aantal; i++) {
-      const beurtId = insertBeurt(store, userId, bouwsteenId, {
+      const beurtId = insertBeurt(store, orgId, userId, bouwsteenId, {
         geplandeStart: `2026-06-0${i + 1}`,
       });
       // 3 uur werkelijk per beurt (norm is 2 → suggestie 3,0 verwacht)
-      insertSegment(store, userId, beurtId, {
+      insertSegment(store, orgId, userId, beurtId, {
         beginTijd: "08:00",
         eindTijd: "11:00",
       });
@@ -374,8 +389,8 @@ describe("getNormuurSuggesties — drempel over de echte keten", () => {
   it("4 uitgevoerde beurten = geen suggestie, 5 wel", async () => {
     // 4 beurten → leeg
     const vier = ctxMetRol("directie");
-    const bouwsteen4 = insertBouwsteen(vier.store);
-    seedBeurten(vier.store, vier.userId, bouwsteen4, 4);
+    const bouwsteen4 = insertBouwsteen(vier.store, vier.orgId);
+    seedBeurten(vier.store, vier.orgId, vier.userId, bouwsteen4, 4);
     const resultaat4 = (await handler(getNormuurSuggesties)(vier.ctx, {})) as {
       suggesties: unknown[];
       drempel: number;
@@ -385,8 +400,8 @@ describe("getNormuurSuggesties — drempel over de echte keten", () => {
 
     // 5 beurten → suggestie 3,0 uur (huidige norm 2)
     const vijf = ctxMetRol("directie");
-    const bouwsteen5 = insertBouwsteen(vijf.store);
-    seedBeurten(vijf.store, vijf.userId, bouwsteen5, 5);
+    const bouwsteen5 = insertBouwsteen(vijf.store, vijf.orgId);
+    seedBeurten(vijf.store, vijf.orgId, vijf.userId, bouwsteen5, 5);
     const resultaat5 = (await handler(getNormuurSuggesties)(vijf.ctx, {})) as {
       suggesties: {
         bouwsteenId: string;
@@ -405,13 +420,14 @@ describe("getNormuurSuggesties — drempel over de echte keten", () => {
   });
 
   it("respecteert een ingestelde drempel uit instellingen", async () => {
-    const { ctx, store, userId } = ctxMetRol("directie");
+    const { ctx, store, userId, orgId } = ctxMetRol("directie");
     store.insert("instellingen", {
+      orgId,
       userId,
       nacalculatieInstellingen: { suggestieDrempelBeurten: 3 },
     });
-    const bouwsteenId = insertBouwsteen(store);
-    seedBeurten(store, userId, bouwsteenId, 3);
+    const bouwsteenId = insertBouwsteen(store, orgId);
+    seedBeurten(store, orgId, userId, bouwsteenId, 3);
     const resultaat = (await handler(getNormuurSuggesties)(ctx, {})) as {
       suggesties: unknown[];
       drempel: number;
@@ -421,14 +437,14 @@ describe("getNormuurSuggesties — drempel over de echte keten", () => {
   });
 
   it("deels uitgevoerde beurten voeden de aggregatie niet", async () => {
-    const { ctx, store, userId } = ctxMetRol("directie");
-    const bouwsteenId = insertBouwsteen(store);
-    seedBeurten(store, userId, bouwsteenId, 4);
-    const deelsId = insertBeurt(store, userId, bouwsteenId, {
+    const { ctx, store, userId, orgId } = ctxMetRol("directie");
+    const bouwsteenId = insertBouwsteen(store, orgId);
+    seedBeurten(store, orgId, userId, bouwsteenId, 4);
+    const deelsId = insertBeurt(store, orgId, userId, bouwsteenId, {
       status: "deels_uitgevoerd",
       geplandeStart: "2026-06-09",
     });
-    insertSegment(store, userId, deelsId, {
+    insertSegment(store, orgId, userId, deelsId, {
       beginTijd: "08:00",
       eindTijd: "11:00",
     });
@@ -449,8 +465,8 @@ describe("getNormuurSuggesties — drempel over de echte keten", () => {
 
 describe("neemNormuurOver", () => {
   it("werkt urenPerBeurt bij (prijsmodel uren) — prijs volgt uurtarief-op-datum", async () => {
-    const { ctx, store } = ctxMetRol("directie");
-    const bouwsteenId = insertBouwsteen(store);
+    const { ctx, store, orgId } = ctxMetRol("directie");
+    const bouwsteenId = insertBouwsteen(store, orgId);
     await handler(neemNormuurOver)(ctx, { bouwsteenId, uren: 2.6 });
     const bouwsteen = store.get(bouwsteenId);
     expect(bouwsteen?.urenPerBeurt).toBe(2.6);
@@ -458,8 +474,8 @@ describe("neemNormuurOver", () => {
   });
 
   it("werkt normurenPerEenheid bij (prijsmodel vast) — vast bedrag blijft staan", async () => {
-    const { ctx, store } = ctxMetRol("projectleider");
-    const bouwsteenId = insertBouwsteen(store, {
+    const { ctx, store, orgId } = ctxMetRol("projectleider");
+    const bouwsteenId = insertBouwsteen(store, orgId, {
       prijsmodel: "vast",
       urenPerBeurt: undefined,
       vastBedragPerBeurt: 85,
@@ -471,8 +487,8 @@ describe("neemNormuurOver", () => {
   });
 
   it("weigert ongeldige uren en onbekende bouwstenen", async () => {
-    const { ctx, store } = ctxMetRol("directie");
-    const bouwsteenId = insertBouwsteen(store);
+    const { ctx, store, orgId } = ctxMetRol("directie");
+    const bouwsteenId = insertBouwsteen(store, orgId);
     for (const uren of [0, -1, Number.NaN, 5000]) {
       await expect(
         handler(neemNormuurOver)(ctx, { bouwsteenId, uren })
@@ -485,8 +501,8 @@ describe("neemNormuurOver", () => {
 
   it("is kantoor-only: voorman/medewerker/klant mogen niet overnemen", async () => {
     for (const rol of ["voorman", "medewerker", "klant"]) {
-      const { ctx, store } = ctxMetRol(rol);
-      const bouwsteenId = insertBouwsteen(store);
+      const { ctx, store, orgId } = ctxMetRol(rol);
+      const bouwsteenId = insertBouwsteen(store, orgId);
       await expect(
         handler(neemNormuurOver)(ctx, { bouwsteenId, uren: 2.5 })
       ).rejects.toThrow();

@@ -19,7 +19,7 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query, type QueryCtx } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
-import { requireAuthUserId } from "./auth";
+import { requireOrgId } from "./auth";
 import { requireKantoor } from "./roles";
 import {
   aggregeerPerBouwsteen,
@@ -52,14 +52,19 @@ function assertGeldigePeriode(vanDatum?: string, totDatum?: string): void {
   }
 }
 
-/** Ingestelde suggestie-drempel (default 5 uitgevoerde beurten). */
+/**
+ * Ingestelde suggestie-drempel (default 5 uitgevoerde beurten).
+ *
+ * De instellingen-rij hoort bij de ORGANISATIE: op by_user kreeg een collega
+ * zonder eigen rij stilzwijgend de default in plaats van de bedrijfsdrempel.
+ */
 async function suggestieDrempel(
   db: QueryCtx["db"],
-  userId: Id<"users">
+  orgId: Id<"organisaties">
 ): Promise<number> {
   const settings = await db
     .query("instellingen")
-    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .withIndex("by_org", (q) => q.eq("orgId", orgId))
     .unique();
   return (
     settings?.nacalculatieInstellingen?.suggestieDrempelBeurten ??
@@ -86,29 +91,29 @@ export interface BeurtNacalcRij {
  */
 async function verzamelBeurtNacalculatie(
   ctx: QueryCtx,
-  userId: Id<"users">,
+  orgId: Id<"organisaties">,
   opties: { vanDatum?: string; totDatum?: string }
 ): Promise<{
   rijen: BeurtNacalcRij[];
   bijdragenPerBeurt: BouwsteenBijdrage[][];
 }> {
-  // Uitgevoerde/gefactureerde/deels uitgevoerde beurten van dit bedrijf.
+  // Uitgevoerde/gefactureerde/deels uitgevoerde beurten van deze organisatie.
   // Belt & braces bovenop de indexquery: type/status/scope expliciet, en
   // dedupe per _id (zelfde patroon als planbord/dagkaart).
   const beurtenPerId = new Map<string, Doc<"projecten">>();
   for (const status of NACALC_BEURT_STATUSSEN) {
     const rows = await ctx.db
       .query("projecten")
-      .withIndex("by_user_type_status", (q) =>
+      .withIndex("by_org_type_status", (q) =>
         q
-          .eq("userId", userId)
+          .eq("orgId", orgId)
           .eq("type", "onderhoudsbeurt")
           .eq("status", status)
       )
       .collect();
     for (const row of rows) {
       if (
-        row.userId.toString() === userId.toString() &&
+        row.orgId?.toString() === orgId.toString() &&
         row.type === "onderhoudsbeurt" &&
         row.status === status
       ) {
@@ -138,10 +143,13 @@ async function verzamelBeurtNacalculatie(
       .query("urenSegmenten")
       .withIndex("by_werkitem", (q) => q.eq("werkitemId", beurt._id))
       .collect();
+    // by_werkitem is bedrijfsoverstijgend → org-postfilter. Dit stond op het
+    // legacy userId-bedrijfseigenaarsveld; de segmenten dragen sinds de
+    // uren-sweep (6ea8d38) hun eigen orgId.
     const tijden = telSegmenten(
       segmenten.filter(
         (s) =>
-          s.userId.toString() === userId.toString() &&
+          s.orgId?.toString() === orgId.toString() &&
           s.werkitemId?.toString() === beurt._id.toString()
       )
     );
@@ -233,7 +241,7 @@ async function verzamelBeurtNacalculatie(
 /** Suggestielijst opbouwen uit de aggregatie (gedeeld door beide queries). */
 async function bouwSuggesties(
   ctx: QueryCtx,
-  userId: Id<"users">,
+  orgId: Id<"organisaties">,
   bijdragenPerBeurt: BouwsteenBijdrage[][],
   drempel: number
 ) {
@@ -243,7 +251,15 @@ async function bouwSuggesties(
     const bouwsteen = await ctx.db.get(
       aggregatie.bouwsteenId as Id<"bouwstenen">
     );
-    if (!bouwsteen || !bouwsteen.actief) continue;
+    // Belt & braces: de ids komen uit de org-gescoopte beurten, maar een
+    // bouwsteen van een andere organisatie hoort hier nooit in de lijst.
+    if (
+      !bouwsteen ||
+      !bouwsteen.actief ||
+      bouwsteen.orgId?.toString() !== orgId.toString()
+    ) {
+      continue;
+    }
     const suggestie = bepaalNormuurSuggestie({
       aantalBeurten: aggregatie.aantalBeurten,
       gemiddeldeUren: aggregatie.gemiddeldeUren,
@@ -278,18 +294,18 @@ export const getBeurtNacalculatie = query({
   },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     assertGeldigePeriode(args.vanDatum, args.totDatum);
 
     const { rijen, bijdragenPerBeurt } = await verzamelBeurtNacalculatie(
       ctx,
-      userId,
+      orgId,
       args
     );
-    const drempel = await suggestieDrempel(ctx.db, userId);
+    const drempel = await suggestieDrempel(ctx.db, orgId);
     const suggesties = await bouwSuggesties(
       ctx,
-      userId,
+      orgId,
       bijdragenPerBeurt,
       drempel
     );
@@ -307,16 +323,16 @@ export const getNormuurSuggesties = query({
   args: {},
   handler: async (ctx) => {
     await requireKantoor(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const { bijdragenPerBeurt } = await verzamelBeurtNacalculatie(
       ctx,
-      userId,
+      orgId,
       {}
     );
-    const drempel = await suggestieDrempel(ctx.db, userId);
+    const drempel = await suggestieDrempel(ctx.db, orgId);
     const suggesties = await bouwSuggesties(
       ctx,
-      userId,
+      orgId,
       bijdragenPerBeurt,
       drempel
     );
@@ -342,11 +358,13 @@ export const neemNormuurOver = mutation({
   },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
+    const orgId = await requireOrgId(ctx);
     if (!Number.isFinite(args.uren) || args.uren <= 0 || args.uren > 1000) {
       throw new ConvexError("Ongeldig normuur (moet groter dan 0 zijn)");
     }
     const bouwsteen = await ctx.db.get(args.bouwsteenId);
-    if (!bouwsteen) {
+    // Schrijfguard: alleen bouwstenen uit de eigen catalogus.
+    if (!bouwsteen || bouwsteen.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Bouwsteen niet gevonden");
     }
     const veld = normuurVeldVoorBouwsteen(bouwsteen);

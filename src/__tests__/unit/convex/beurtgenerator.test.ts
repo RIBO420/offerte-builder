@@ -10,10 +10,19 @@
  * - Indexatieclausule (AV V2.0 art. 5.3): looptijd > 3 maanden
  * - Contractnummer zonder race-gevoelige collect (pure max-bepaling)
  * - Rolchecks: beheer is kantoor-only
+ * - Org-scoping van de losse-beurt-handlers (fase 3 org-migratie)
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { ConvexError } from "convex/values";
+import {
+  MockConvexStore,
+  createMockCtx,
+  createMockUser,
+  createMockKlant,
+  seedMockOrganisatie,
+  type MockCtx,
+} from "../../helpers/convex-mock";
 import {
   vensterVoorJaar,
   spreidDatumsInVenster,
@@ -27,6 +36,9 @@ import {
   valideerRitme,
   berekenVolgendeVoorzieneDatum,
   vensterOpeningVoorDatum,
+  createLosseBeurt,
+  listByKlant,
+  vensterOpentBinnen,
   DEFAULT_ATTENDERING_DAGEN,
 } from "../../../../convex/losseBeurten";
 import {
@@ -452,5 +464,159 @@ describe("rolchecks contract-/beurtbeheer", () => {
     ]) {
       expect(isKantoorRol(rol)).toBe(false);
     }
+  });
+});
+
+
+// ─── Org-scoping van de losse-beurt-handlers (fase 3) ────────────────────────
+
+/**
+ * De gedeelde mock-ctx negeert `withIndex`, dus een by_org-lookup zou daar
+ * élke rij teruggeven. Deze variant past de index-constraints écht toe
+ * (patroon uit offerte-reminders-cron.test.ts) — anders bewijst de
+ * isolatietest hieronder niets.
+ */
+function maakIndexBewusteCtx(store: MockConvexStore): MockCtx {
+  const ctx = createMockCtx(store);
+  ctx.db.query = vi.fn((tabel: string) => {
+    let docs = store.getAll(tabel);
+    const builder = {
+      withIndex: (_naam: string, fn?: (q: unknown) => unknown) => {
+        const cons: Array<{ op: "eq" | "gte"; field: string; value: unknown }> =
+          [];
+        const q = {
+          eq: (field: string, value: unknown) => {
+            cons.push({ op: "eq", field, value });
+            return q;
+          },
+          gte: (field: string, value: unknown) => {
+            cons.push({ op: "gte", field, value });
+            return q;
+          },
+        };
+        if (fn) fn(q);
+        docs = docs.filter((doc) =>
+          cons.every((c) => {
+            const waarde = doc[c.field] as never;
+            return c.op === "eq"
+              ? waarde === c.value
+              : waarde >= (c.value as never);
+          })
+        );
+        return builder;
+      },
+      filter: () => builder,
+      order: () => builder,
+      collect: async () => [...docs],
+      first: async () => docs[0] ?? null,
+      unique: async () => docs[0] ?? null,
+      take: async (n: number) => docs.slice(0, n),
+    };
+    return builder;
+  });
+  return ctx;
+}
+
+describe("losse beurten: organisatiescope", () => {
+  type AnyHandler = (ctx: unknown, args: unknown) => Promise<unknown>;
+  const handler = (fn: unknown) => (fn as { _handler: AnyHandler })._handler;
+
+  /** Eigen org (uit het JWT-claim) + een tweede org met eigen losse beurt. */
+  function tweeOrganisaties() {
+    const store = new MockConvexStore();
+    const orgId = seedMockOrganisatie(store);
+    const andereOrgId = store.insert("organisaties", {
+      clerkOrgId: "clerk_andere_org",
+      naam: "Groenbeheer Zuid",
+      slug: "groenbeheer-zuid",
+      actief: true,
+      aangemaaktOp: Date.now(),
+    });
+    const userId = store.insert("users", createMockUser({ role: "directie" }));
+    const klantId = store.insert("klanten", createMockKlant(userId, { orgId }));
+    return {
+      store,
+      ctx: createMockCtx(store),
+      indexCtx: maakIndexBewusteCtx(store),
+      userId,
+      orgId,
+      andereOrgId,
+      klantId,
+    };
+  }
+
+  function insertLosseBeurt(
+    store: MockConvexStore,
+    orgId: string,
+    userId: string,
+    klantId: string,
+    overrides: Record<string, unknown> = {}
+  ) {
+    const now = Date.now();
+    return store.insert("projecten", {
+      orgId,
+      userId,
+      type: "onderhoudsbeurt",
+      klantId,
+      naam: "Heg knippen",
+      status: "gepland",
+      createdAt: now,
+      updatedAt: now,
+      ...overrides,
+    });
+  }
+
+  it("createLosseBeurt zet de organisatie op het werkitem", async () => {
+    const { ctx, store, orgId, klantId } = tweeOrganisaties();
+    const id = (await handler(createLosseBeurt)(ctx, {
+      klantId,
+      naam: "Heg knippen",
+      bouwsteenRegels: [{ omschrijving: "Heg knippen", prijsPerBeurt: 60 }],
+    })) as string;
+    expect(store.get(id)?.orgId).toBe(orgId);
+    expect(store.get(id)?.contractId).toBeUndefined();
+  });
+
+  it("createLosseBeurt weigert een klant van een andere organisatie", async () => {
+    const { ctx, store, userId, andereOrgId } = tweeOrganisaties();
+    const vreemdeKlant = store.insert(
+      "klanten",
+      createMockKlant(userId, { orgId: andereOrgId, naam: "Buurbedrijf-klant" })
+    );
+    await expect(
+      handler(createLosseBeurt)(ctx, {
+        klantId: vreemdeKlant,
+        naam: "Heg knippen",
+        bouwsteenRegels: [{ omschrijving: "Heg knippen" }],
+      })
+    ).rejects.toThrow(ConvexError);
+  });
+
+  it("listByKlant en vensterOpentBinnen laten andere organisaties buiten", async () => {
+    const { store, ctx, indexCtx, userId, orgId, andereOrgId, klantId } =
+      tweeOrganisaties();
+    const morgen = new Date(Date.now() + 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+    const eigen = insertLosseBeurt(store, orgId, userId, klantId, {
+      ritme: { frequentiePerJaar: 4 },
+      volgendeVoorzieneDatum: morgen,
+    });
+    // Zelfde klant-id, andere organisatie: alleen orgId onderscheidt ze
+    insertLosseBeurt(store, andereOrgId, userId, klantId, {
+      naam: "Beurt van het buurbedrijf",
+      ritme: { frequentiePerJaar: 4 },
+      volgendeVoorzieneDatum: morgen,
+    });
+
+    const lijst = (await handler(listByKlant)(ctx, { klantId })) as {
+      _id: string;
+    }[];
+    expect(lijst.map((b) => b._id)).toEqual([eigen]);
+
+    const attenderingen = (await handler(vensterOpentBinnen)(indexCtx, {
+      dagen: 30,
+    })) as { _id: string }[];
+    expect(attenderingen.map((b) => b._id)).toEqual([eigen]);
   });
 });

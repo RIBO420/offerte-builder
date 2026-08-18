@@ -15,7 +15,7 @@
 
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAuthUserId } from "./auth";
+import { requireOrgContext, requireOrgId } from "./auth";
 import { requireKantoor } from "./roles";
 import {
   spreidDatumsInVenster,
@@ -197,10 +197,13 @@ export const createLosseBeurt = mutation({
     attenderingNodig: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const user = await requireKantoor(ctx);
+    await requireKantoor(ctx);
+    const { org, user } = await requireOrgContext(ctx);
 
     const klant = await ctx.db.get(args.klantId);
-    if (!klant || klant.userId.toString() !== user._id.toString()) {
+    // `orgId` is optioneel in het schema zolang de migratie loopt; een klant
+    // zonder org hoort bij niemand en valt hier dus buiten de scope.
+    if (!klant || klant.orgId?.toString() !== org._id.toString()) {
       throw new ConvexError("Klant niet gevonden");
     }
     if (!args.naam.trim()) {
@@ -212,7 +215,10 @@ export const createLosseBeurt = mutation({
     for (const regel of args.bouwsteenRegels) {
       if (regel.bouwsteenId) {
         const bouwsteen = await ctx.db.get(regel.bouwsteenId);
-        if (!bouwsteen) throw new ConvexError("Bouwsteen niet gevonden");
+        // Alleen bouwstenen uit de eigen catalogus
+        if (!bouwsteen || bouwsteen.orgId?.toString() !== org._id.toString()) {
+          throw new ConvexError("Bouwsteen niet gevonden");
+        }
       }
       if (
         regel.prijsPerBeurt !== undefined &&
@@ -236,6 +242,8 @@ export const createLosseBeurt = mutation({
 
     const now = Date.now();
     return await ctx.db.insert("projecten", {
+      orgId: org._id,
+      // `userId` blijft tot fase 6 verplicht in het schema.
       userId: user._id,
       type: "onderhoudsbeurt",
       klantId: args.klantId,
@@ -267,7 +275,8 @@ export const createLosseBeurt = mutation({
 export const listByKlant = query({
   args: { klantId: v.id("klanten") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
+    // by_klant is bedrijfsoverstijgend → org-postfilter
     const items = await ctx.db
       .query("projecten")
       .withIndex("by_klant", (q) => q.eq("klantId", args.klantId))
@@ -275,7 +284,7 @@ export const listByKlant = query({
     return items
       .filter(
         (item) =>
-          item.userId.toString() === userId.toString() &&
+          item.orgId?.toString() === orgId.toString() &&
           item.type === "onderhoudsbeurt" &&
           item.contractId === undefined &&
           !item.deletedAt
@@ -293,7 +302,8 @@ export const listByKlant = query({
 export const vensterOpentBinnen = query({
   args: { dagen: v.number() },
   handler: async (ctx, args) => {
-    const user = await requireKantoor(ctx);
+    await requireKantoor(ctx);
+    const orgId = await requireOrgId(ctx);
     const vandaag = vandaagIso();
     const bovengrensMs =
       Date.parse(`${vandaag}T00:00:00Z`) + args.dagen * 24 * 60 * 60 * 1000;
@@ -303,13 +313,15 @@ export const vensterOpentBinnen = query({
     // daarna venster-opening in geheugen bepalen.
     const kandidaten = await ctx.db
       .query("projecten")
-      .withIndex("by_user_volgendeVoorzieneDatum", (q) =>
-        q.eq("userId", user._id).gte("volgendeVoorzieneDatum", vandaag)
+      .withIndex("by_org_volgendeVoorzieneDatum", (q) =>
+        q.eq("orgId", orgId).gte("volgendeVoorzieneDatum", vandaag)
       )
       .collect();
 
     const resultaten = [];
     for (const beurt of kandidaten) {
+      // Belt & braces bovenop de indexquery
+      if (beurt.orgId?.toString() !== orgId.toString()) continue;
       if (beurt.deletedAt || beurt.type !== "onderhoudsbeurt") continue;
       if (!beurt.ritme || !beurt.volgendeVoorzieneDatum) continue;
       if (beurt.attenderingNodig === false) continue;
