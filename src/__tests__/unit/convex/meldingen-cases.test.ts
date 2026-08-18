@@ -84,6 +84,8 @@ function ctxMetRol(role: string, extra: Record<string, unknown> = {}) {
   const store = new MockConvexStore();
   const orgId = seedMockOrganisatie(store);
   const userId = store.insert("users", createMockUser({ role, ...extra }));
+  // Cron-paden leiden de eigenaar van een systeemtaak af uit de organisatie.
+  store.patch(orgId, { eigenaarUserId: userId });
   const ctx = createMockCtx(store);
   return { ctx, store, userId, orgId };
 }

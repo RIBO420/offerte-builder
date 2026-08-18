@@ -1,17 +1,17 @@
 /**
  * Regressietests voor audit §2 — de schrijfkant van de multi-tenant scope.
  *
- * Bij de scope-fix kregen `urenRegistraties` en `voorcalculaties` een optioneel
- * `userId` + een `by_user`-index, en zijn de leesqueries omgezet naar die index.
- * De inserts bleven daarbij achter: nieuwe rijen kwamen zonder `userId` binnen
- * en vielen dus buiten élke `by_user`-query. Dat is geen crash en geen
- * typefout — de gegevens verdwijnen stilletjes uit de app, en geen enkele
- * gate (tsc, eslint, build) ziet dat.
+ * Bij de scope-fix kregen `urenRegistraties` en `voorcalculaties` een tenant-veld
+ * plus index, en zijn de leesqueries omgezet naar die index. De inserts bleven
+ * daarbij achter: nieuwe rijen kwamen zonder tenant binnen en vielen dus buiten
+ * élke gescopete query. Dat is geen crash en geen typefout — de gegevens
+ * verdwijnen stilletjes uit de app, en geen enkele gate (tsc, eslint, build)
+ * ziet dat.
  *
- * Deze tests leggen per schrijfpad vast dat het tenant-veld wordt meegeschreven,
- * met dezelfde route als de backfill-migraties in convex/migrations.ts:
- *   - urenRegistraties.userId  = projecten.userId
- *   - voorcalculaties.userId   = projecten.userId, anders offertes.userId
+ * Sinds fase 6 is dat veld `orgId`. Deze tests leggen per schrijfpad vast dat
+ * het wordt meegeschreven, langs de route van het bovenliggende record:
+ *   - urenRegistraties.orgId  = projecten.orgId
+ *   - voorcalculaties.orgId   = projecten.orgId, anders offertes.orgId
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
@@ -255,7 +255,7 @@ beforeEach(() => {
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 describe("urenRegistraties — tenant-veld op schrijfpaden", () => {
-  it("add zet userId op de eigenaar van het project", async () => {
+  it("add zet orgId van het project", async () => {
     await addHandler(ctx, {
       projectId: eigenProjectId,
       datum: "2026-08-12",
@@ -265,10 +265,10 @@ describe("urenRegistraties — tenant-veld op schrijfpaden", () => {
 
     const rijen = db.rows("urenRegistraties");
     expect(rijen).toHaveLength(1);
-    expect(rijen[0].userId).toBe(eigenUserId);
+    expect(rijen[0].orgId).toBe(eigenOrgId);
   });
 
-  it("importBatch zet userId op élke geïmporteerde regel", async () => {
+  it("importBatch zet orgId op élke geïmporteerde regel", async () => {
     await importBatchHandler(ctx, {
       projectId: eigenProjectId,
       entries: [
@@ -279,10 +279,10 @@ describe("urenRegistraties — tenant-veld op schrijfpaden", () => {
 
     const rijen = db.rows("urenRegistraties");
     expect(rijen).toHaveLength(2);
-    expect(rijen.every((r) => r.userId === eigenUserId)).toBe(true);
+    expect(rijen.every((r) => r.orgId === eigenOrgId)).toBe(true);
   });
 
-  it("projectKosten.create (arbeid) zet userId op de urenregistratie", async () => {
+  it("projectKosten.create (arbeid) zet orgId op de urenregistratie", async () => {
     await projectKostHandler(ctx, {
       projectId: eigenProjectId,
       type: "arbeid",
@@ -295,10 +295,10 @@ describe("urenRegistraties — tenant-veld op schrijfpaden", () => {
 
     const rijen = db.rows("urenRegistraties");
     expect(rijen).toHaveLength(1);
-    expect(rijen[0].userId).toBe(eigenUserId);
+    expect(rijen[0].orgId).toBe(eigenOrgId);
   });
 
-  it("een nieuwe registratie is vindbaar via de by_user-index", async () => {
+  it("een nieuwe registratie is vindbaar via de by_org-index", async () => {
     await addHandler(ctx, {
       projectId: eigenProjectId,
       datum: "2026-08-12",
@@ -309,7 +309,7 @@ describe("urenRegistraties — tenant-veld op schrijfpaden", () => {
     // Dit is precies wat de leesqueries doen; vóór de fix leverde dit niets op.
     const gevonden = await db
       .query("urenRegistraties")
-      .withIndex("by_user", (q) => q.eq("userId", eigenUserId))
+      .withIndex("by_org", (q) => q.eq("orgId", eigenOrgId))
       .collect();
 
     expect(gevonden).toHaveLength(1);
@@ -418,7 +418,7 @@ describe("voorcalculaties — tenant-veld op schrijfpaden", () => {
     expect(rijen).toHaveLength(1);
     expect(rijen[0].orgId).toBe(eigenOrgId);
     // userId blijft tot fase 6 meegeschreven
-    expect(rijen[0].userId).toBe(eigenUserId);
+    expect(rijen[0].orgId).toBe(eigenOrgId);
   });
 
   it("create via offerteId zet orgId op de organisatie van de offerte", async () => {
@@ -434,6 +434,6 @@ describe("voorcalculaties — tenant-veld op schrijfpaden", () => {
     const rijen = db.rows("voorcalculaties");
     expect(rijen).toHaveLength(1);
     expect(rijen[0].orgId).toBe(eigenOrgId);
-    expect(rijen[0].userId).toBe(eigenUserId);
+    expect(rijen[0].orgId).toBe(eigenOrgId);
   });
 });

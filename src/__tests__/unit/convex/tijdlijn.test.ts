@@ -106,7 +106,6 @@ describe("logTijdlijnEvent (centrale helper)", () => {
     const klantId = store.insert("klanten", createMockKlant(userId, { orgId }));
 
     const id = await logTijdlijnEvent(ctx as unknown as MutationCtx, {
-      userId: userId as never,
       klantId: klantId as never,
       eventType: "offerte_verzonden",
       tekst: "Offerte OFF-1 verzonden",
@@ -133,7 +132,6 @@ describe("logTijdlijnEvent (centrale helper)", () => {
       "melding_status_gewijzigd",
     ] as const) {
       const id = await logTijdlijnEvent(ctx as unknown as MutationCtx, {
-        userId: userId as never,
         klantId: klantId as never,
         eventType,
         tekst: `Event ${eventType}`,
@@ -145,14 +143,13 @@ describe("logTijdlijnEvent (centrale helper)", () => {
   });
 
   it("is niet-blokkerend: een insert-fout gooit niet maar geeft null terug", async () => {
-    const { ctx, userId } = ctxMetRol("directie");
+    const { ctx } = ctxMetRol("directie");
     const consoleSpy = vi
       .spyOn(console, "error")
       .mockImplementation(() => undefined);
     ctx.db.insert.mockRejectedValueOnce(new Error("db down"));
 
     const id = await logTijdlijnEvent(ctx as unknown as MutationCtx, {
-      userId: userId as never,
       klantId: "klanten:999" as never,
       eventType: "handmatig",
       tekst: "mag niet crashen",
@@ -608,7 +605,7 @@ describe("Auto-events (kanaal systeem) vanuit bestaande mutations", () => {
   });
 
   it("promoveerLead (markGewonnen-kern) logt 'lead gewonnen' met werkitem", async () => {
-    const { ctx, store, userId, orgId } = ctxMetRol("directie");
+    const { ctx, store, orgId } = ctxMetRol("directie");
     const user = store.getAll("users")[0];
     const leadId = store.insert("configuratorAanvragen", {
       orgId,
@@ -637,8 +634,7 @@ describe("Auto-events (kanaal systeem) vanuit bestaande mutations", () => {
     expect(entries[0].klantId).toBe(resultaat.klantId);
     expect(entries[0].werkitemId).toBe(resultaat.werkitemId);
     expect(entries[0].tekst).toContain("AAN-2026-042");
-    expect(entries[0].userId).toBe(userId);
-    // Tenant-scope sinds fase 3: de entry hangt aan de organisatie.
+    // Tenant-scope: de entry hangt aan de organisatie.
     expect(entries[0].orgId).toBe(orgId);
   });
 });

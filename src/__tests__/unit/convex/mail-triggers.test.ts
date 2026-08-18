@@ -50,7 +50,6 @@ import {
   MAIL_EVENT_LABELS,
   valideerMailTrigger,
   zetTriggerMailKlaar,
-  vindBedrijfseigenaarId,
   seedDefaults,
   update as updateTrigger,
 } from "../../../../convex/mailTriggers";
@@ -362,11 +361,10 @@ describe("mailRender (principe 3: huisstijl in de layout, niet in de tekst)", ()
 
 describe("zetTriggerMailKlaar (trigger-motor)", () => {
   it("doet niets zonder trigger-record of met inactieve trigger", async () => {
-    const { ctx, store, userId, orgId } = ctxMetRol("directie");
+    const { ctx, store, orgId } = ctxMetRol("directie");
 
     const zonder = await zetTriggerMailKlaar(ctx as unknown as MutationCtx, {
       event: "offerte_verzonden",
-      userId: userId as never,
       ontvangerEmail: "klant@test.nl",
       ontvangerNaam: "Klant",
       variabelen: {},
@@ -379,7 +377,6 @@ describe("zetTriggerMailKlaar (trigger-motor)", () => {
     }
     const inactief = await zetTriggerMailKlaar(ctx as unknown as MutationCtx, {
       event: "offerte_verzonden",
-      userId: userId as never,
       ontvangerEmail: "klant@test.nl",
       ontvangerNaam: "Klant",
       variabelen: {},
@@ -390,12 +387,11 @@ describe("zetTriggerMailKlaar (trigger-motor)", () => {
   });
 
   it("concept-modus: mail in de wachtrij, variabelen gerenderd, NIETS ingepland voor verzending", async () => {
-    const { ctx, store, userId, orgId } = ctxMetRol("directie");
+    const { ctx, store, orgId } = ctxMetRol("directie");
     seedTriggersInStore(store, orgId);
 
     const resultaat = await zetTriggerMailKlaar(ctx as unknown as MutationCtx, {
       event: "offerte_verzonden",
-      userId: userId as never,
       ontvangerEmail: "jan@devries.nl",
       ontvangerNaam: "Jan de Vries",
       variabelen: {
@@ -445,12 +441,11 @@ describe("zetTriggerMailKlaar (trigger-motor)", () => {
   });
 
   it("automatisch-modus zonder vertraging plant de verzend-actie in (die achter de guard zit)", async () => {
-    const { ctx, store, userId, orgId } = ctxMetRol("directie");
+    const { ctx, store, orgId } = ctxMetRol("directie");
     seedTriggersInStore(store, orgId);
 
     const resultaat = await zetTriggerMailKlaar(ctx as unknown as MutationCtx, {
       event: "lead_ontvangen",
-      userId: userId as never,
       ontvangerEmail: "lead@test.nl",
       ontvangerNaam: "Lead",
       variabelen: { naam: "Lead", referentie: "CFG-1" },
@@ -465,13 +460,12 @@ describe("zetTriggerMailKlaar (trigger-motor)", () => {
   });
 
   it("vertragingDagen > 0: status 'gepland', ook in automatisch-modus wordt niets ingepland", async () => {
-    const { ctx, store, userId, orgId } = ctxMetRol("directie");
+    const { ctx, store, orgId } = ctxMetRol("directie");
     const ids = seedTriggersInStore(store, orgId);
     store.patch(ids.lead_ontvangen, { vertragingDagen: 2 });
 
     await zetTriggerMailKlaar(ctx as unknown as MutationCtx, {
       event: "lead_ontvangen",
-      userId: userId as never,
       ontvangerEmail: "lead@test.nl",
       ontvangerNaam: "Lead",
       variabelen: {},
@@ -484,12 +478,11 @@ describe("zetTriggerMailKlaar (trigger-motor)", () => {
   });
 
   it("forceerConcept overschrijft automatisch-modus (persoonlijke mails, §1.2)", async () => {
-    const { ctx, store, userId, orgId } = ctxMetRol("directie");
+    const { ctx, store, orgId } = ctxMetRol("directie");
     seedTriggersInStore(store, orgId);
 
     await zetTriggerMailKlaar(ctx as unknown as MutationCtx, {
       event: "lead_ontvangen",
-      userId: userId as never,
       ontvangerEmail: "lead@test.nl",
       ontvangerNaam: "Lead",
       variabelen: {},
@@ -500,18 +493,6 @@ describe("zetTriggerMailKlaar (trigger-motor)", () => {
     expect(ctx.scheduler.runAfter).not.toHaveBeenCalled();
   });
 
-  it("vindBedrijfseigenaarId vindt de directie-gebruiker (multi-tenant scope)", async () => {
-    const store = new MockConvexStore();
-    store.insert("users", createMockUser({ role: "medewerker", clerkId: "x" }));
-    const directieId = store.insert(
-      "users",
-      createMockUser({ role: "directie", clerkId: "y" })
-    );
-    const ctx = createIndexAwareCtx(store);
-    expect(
-      await vindBedrijfseigenaarId(ctx as unknown as MutationCtx)
-    ).toBe(directieId);
-  });
 });
 
 // ─── 4. Wachtrij: bewerken, goedkeuren (§1.2), verwerpen, cron ───────────────
@@ -1140,7 +1121,7 @@ describe("zetTriggerMailKlaar zonder org-claim (bepaalOrgId-fallback)", () => {
   });
 
   it("werkitems geeft orgId expliciet mee: de trigger vuurt óók zonder claim", async () => {
-    const { ctx, store, userId, orgId } = ctxMetRol("directie", {
+    const { ctx, store, orgId } = ctxMetRol("directie", {
       zonderOrg: true,
     });
     seedTriggersInStore(store, orgId);
@@ -1151,7 +1132,6 @@ describe("zetTriggerMailKlaar zonder org-claim (bepaalOrgId-fallback)", () => {
     const resultaat = await zetTriggerMailKlaar(ctx as unknown as MutationCtx, {
       event: "inplanning_bevestigd",
       orgId: orgId as never,
-      userId: userId as never,
       ontvangerEmail: "jan@devries.nl",
       ontvangerNaam: "Jan de Vries",
       variabelen: {
@@ -1193,7 +1173,7 @@ describe("zetTriggerMailKlaar zonder org-claim (bepaalOrgId-fallback)", () => {
   });
 
   it("offertes laat orgId weg: zonder claim is de trigger fail-closed (geen_org), niet gokkend", async () => {
-    const { ctx, store, userId, orgId } = ctxMetRol("directie", {
+    const { ctx, store, orgId } = ctxMetRol("directie", {
       zonderOrg: true,
     });
     seedTriggersInStore(store, orgId);
@@ -1204,7 +1184,6 @@ describe("zetTriggerMailKlaar zonder org-claim (bepaalOrgId-fallback)", () => {
     // en al helemaal geen trigger van een willekeurige andere tenant.
     const resultaat = await zetTriggerMailKlaar(ctx as unknown as MutationCtx, {
       event: "offerte_verzonden",
-      userId: userId as never,
       ontvangerEmail: "jan@devries.nl",
       ontvangerNaam: "Jan de Vries",
       variabelen: { klantnaam: "Jan de Vries" },

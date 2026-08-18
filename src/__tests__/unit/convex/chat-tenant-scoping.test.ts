@@ -265,6 +265,10 @@ function maakScenario() {
     role: "directie",
   });
 
+  // Sinds fase 6 leidt de chat de directie uit de organisatie af.
+  store.patch(orgAId, { eigenaarUserId: directieAId });
+  store.patch(orgBId, { eigenaarUserId: directieBId });
+
   const medewerkerRecordId = store.insert("medewerkers", {
     userId: directieAId,
     orgId: orgAId,
@@ -288,7 +292,6 @@ function maakScenario() {
     fromClerkId: CLERK_DIRECTIE_A,
     toUserId: medewerkerUserId,
     toClerkId: CLERK_MEDEWERKER,
-    companyId: directieAId,
     message: "Morgen om 8u op de Tulpstraat",
     messageType: "text",
     isRead: false,
@@ -303,7 +306,6 @@ function maakScenario() {
     fromClerkId: CLERK_DIRECTIE_B,
     toUserId: medewerkerUserId,
     toClerkId: CLERK_MEDEWERKER,
-    companyId: directieBId,
     message: "Loonstrook vorige werkgever",
     messageType: "text",
     isRead: false,
@@ -317,7 +319,6 @@ function maakScenario() {
     fromClerkId: CLERK_DIRECTIE_A,
     toUserId: medewerkerUserId,
     toClerkId: CLERK_MEDEWERKER,
-    companyId: directieAId,
     message: "Oud bericht zonder tenant-veld",
     messageType: "text",
     isRead: false,
@@ -327,7 +328,6 @@ function maakScenario() {
   // Teamkanaal: één bericht per organisatie, plus één van vóór de backfill.
   store.insert("team_messages", {
     orgId: orgAId,
-    companyId: directieAId,
     senderId: directieAId,
     senderName: "Directie A",
     senderClerkId: CLERK_DIRECTIE_A,
@@ -342,7 +342,6 @@ function maakScenario() {
   });
   store.insert("team_messages", {
     orgId: orgBId,
-    companyId: directieBId,
     senderId: directieBId,
     senderName: "Directie B",
     senderClerkId: CLERK_DIRECTIE_B,
@@ -356,7 +355,6 @@ function maakScenario() {
     createdAt: 2000,
   });
   store.insert("team_messages", {
-    companyId: directieAId,
     senderId: directieAId,
     senderName: "Directie A",
     senderClerkId: CLERK_DIRECTIE_A,
@@ -489,8 +487,6 @@ describe("chat.sendDirectMessage — tenant-veld bij insert", () => {
 
     expect(nieuw).toBeDefined();
     expect(nieuw?.orgId).toBe(orgAId);
-    // Legacy-velden blijven meelopen zolang het schema companyId eist (fase 6)
-    expect(nieuw?.companyId).toBe(directieAId);
   });
 
   it("het zojuist verstuurde bericht is meteen zichtbaar in de gescopete query", async () => {
@@ -595,7 +591,6 @@ function maakThreadScenario() {
     klantId: klantAId,
     participants: [CLERK_KANTOOR_A],
     orgId: orgAId,
-    companyUserId: kantoorAId,
     unreadByBedrijf: 2,
     createdAt: 1000,
   });
@@ -604,7 +599,6 @@ function maakThreadScenario() {
     klantId: klantBId,
     participants: [],
     orgId: orgBId,
-    companyUserId: kantoorAId,
     unreadByBedrijf: 3,
     createdAt: 1000,
   });

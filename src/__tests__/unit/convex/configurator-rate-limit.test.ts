@@ -261,22 +261,23 @@ describe("publieke lead-intake: bij welke organisatie hoort de lead?", () => {
     expect(leads[0].orgId).toBe(orgId);
   });
 
-  it("laat orgId leeg als er meerdere actieve organisaties zijn", async () => {
+  it("weigert de aanvraag als er meerdere actieve organisaties zijn", async () => {
     const store = new MockConvexStore();
     seedMockOrganisatie(store);
     seedMockOrganisatie(store, { clerkOrgId: "clerk_test_org_456" });
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    await createHandler(store).roep({
-      ...geldigeAanvraag,
-      klantEmail: "twee.orgs@voorbeeld.nl",
-    });
+    // Sinds fase 6 is `orgId` verplicht: een lead zonder tenant zou op geen
+    // enkel bord verschijnen. Fail-closed met een nette melding is beter dan
+    // een aanvraag die stilletjes in het niets valt.
+    await expect(
+      createHandler(store).roep({
+        ...geldigeAanvraag,
+        klantEmail: "twee.orgs@voorbeeld.nl",
+      })
+    ).rejects.toThrow(/niet verwerkt/i);
 
-    // De lead gaat niet verloren — hij komt alleen niet op een bord terecht,
-    // want een gok naar de verkeerde tenant is erger dan geen tenant.
-    const leads = store.getAll("configuratorAanvragen");
-    expect(leads).toHaveLength(1);
-    expect(leads[0].orgId).toBeUndefined();
+    expect(store.getAll("configuratorAanvragen")).toHaveLength(0);
     expect(warnSpy).toHaveBeenCalled();
     warnSpy.mockRestore();
   });
@@ -373,20 +374,21 @@ describe("ontvangstbevestiging op een publieke lead (identity-loos)", () => {
     expect(conceptMails[0].dedupeSleutel).toBe(`lead_ontvangen:${lead._id}`);
   });
 
-  it("slaat de mail over als de tenant niet te bepalen is — maar bewaart de lead", async () => {
-    // Twee actieve organisaties: de intake weigert te gokken, dus de motor
-    // krijgt geen orgId en heeft ook geen JWT om op terug te vallen.
+  it("weigert lead én mail als de tenant niet te bepalen is", async () => {
+    // Twee actieve organisaties: de intake weigert te gokken. Sinds fase 6
+    // betekent dat een harde weigering — zonder orgId kan de lead niet bestaan.
     const { store } = storeMetTrigger();
     seedMockOrganisatie(store, { clerkOrgId: "clerk_test_org_456" });
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    await publiekeCreate(store)({
-      ...geldigeAanvraag,
-      klantEmail: "geen.tenant@voorbeeld.nl",
-    });
+    await expect(
+      publiekeCreate(store)({
+        ...geldigeAanvraag,
+        klantEmail: "geen.tenant@voorbeeld.nl",
+      })
+    ).rejects.toThrow(/niet verwerkt/i);
 
-    // De lead is het bronrecord en mag NOOIT sneuvelen om een mail.
-    expect(store.getAll("configuratorAanvragen")).toHaveLength(1);
+    expect(store.getAll("configuratorAanvragen")).toHaveLength(0);
     expect(store.getAll("conceptMails")).toHaveLength(0);
     warnSpy.mockRestore();
   });

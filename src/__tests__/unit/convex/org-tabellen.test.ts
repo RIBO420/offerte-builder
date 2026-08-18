@@ -67,10 +67,22 @@ const ZONDER_ORG_ID = [
   "demoSeed",
 ] satisfies TableNames[];
 
-// Tenant-velden waarop gescoopt wordt. De chat-tabellen voeren de bedrijfs-user
-// onder een eigen naam (team_messages.companyId, chat_threads.companyUserId);
-// hun by_org-indexen zijn de tweelingen van díe velden, niet van userId.
-const TENANT_VELDEN = ["userId", "companyId", "companyUserId"];
+// De user-tenantvelden van vóór de org-migratie. Sinds fase 6 mag geen enkele
+// org-gescoopte tabel er nog één voeren: `orgId` is de enige tenantsleutel.
+// (`notifications` c.s. houden een `userId`, maar dat is de ONTVANGER van een
+// bericht — die tabellen staan hieronder in PERSOONLIJKE_ONTVANGER.)
+const OUDE_TENANT_VELDEN = ["userId", "companyId", "companyUserId"];
+
+/**
+ * Tabellen die een `userId` houden omdat het daar de ontvanger/eigenaar van een
+ * persoonlijk bericht is, niet de tenant. Ze hebben daarnáást een verplichte
+ * `orgId`.
+ */
+const PERSOONLIJKE_ONTVANGER = [
+  "notifications",
+  "notificationDeliveryLog",
+  "pushNotificationLogs",
+] satisfies TableNames[];
 
 describe("org-gescopeerde tabellen hebben orgId + een org-index", () => {
   const orgTabellen = (
@@ -109,23 +121,24 @@ describe("org-gescopeerde tabellen hebben orgId + een org-index", () => {
     ).toBeGreaterThan(0);
   });
 
-  // De by_org-indexen zijn de tweelingen van de tenant-indexen: bij het
-  // omzetten (fase 6) moet elke bestaande tenant-query een orgId-equivalent
-  // met dezelfde restvelden hebben, anders verdwijnt er stilzwijgend een pad.
-  it.each(orgTabellen)("%s spiegelt elke tenant-index op orgId", (naam) => {
-    const indexen = tabellen[naam].indexes;
-    const ontbreekt = indexen
-      .filter((i) => TENANT_VELDEN.includes(i.fields[0]))
-      .filter(
-        (i) =>
-          !indexen.some(
-            (org) =>
-              org.fields[0] === "orgId" &&
-              org.fields.slice(1).join("|") === i.fields.slice(1).join("|"),
-          ),
-      )
+  // Fase 6: het oude user-tenantveld is weg. Deze twee tests zijn de gate die
+  // voorkomt dat er per ongeluk een tweede tenantsleutel terugsluipt.
+  it.each(orgTabellen)("%s voert geen user-tenantveld meer", (naam) => {
+    const velden = Object.keys(tabellen[naam].validator.fields);
+    const verboden = OUDE_TENANT_VELDEN.filter(
+      (veld) =>
+        velden.includes(veld) &&
+        !(PERSOONLIJKE_ONTVANGER as readonly string[]).includes(naam),
+    );
+    expect(verboden, `oude tenant-velden op ${naam}`).toEqual([]);
+  });
+
+  it.each(orgTabellen)("%s heeft geen index op een user-tenantveld", (naam) => {
+    if ((PERSOONLIJKE_ONTVANGER as readonly string[]).includes(naam)) return;
+    const restanten = tabellen[naam].indexes
+      .filter((i) => OUDE_TENANT_VELDEN.includes(i.fields[0]))
       .map((i) => i.indexDescriptor);
-    expect(ontbreekt, `zonder org-tweeling op ${naam}`).toEqual([]);
+    expect(restanten, `oude tenant-indexen op ${naam}`).toEqual([]);
   });
 });
 

@@ -242,10 +242,8 @@ describe("Promotie Lead → Gewonnen (promoveerLead)", () => {
     const klanten = store.getAll("klanten");
     expect(klanten).toHaveLength(1);
     expect(resultaat.nieuweKlant).toBe(true);
-    // Tenant-scope sinds fase 3: de organisatie van de promoverende gebruiker.
+    // Tenant-scope: de organisatie van de promoverende gebruiker.
     expect(klanten[0].orgId).toBe(orgId);
-    // Legacy-veld blijft gevuld tot fase 6: de kantoor-gebruiker die promoveert
-    expect(klanten[0].userId).toBe(user._id);
     // E-mail genormaliseerd opgeslagen (index-matchbaar)
     expect(klanten[0].email).toBe("jan@devries.nl");
     // Géén deprecated "lead"-stadium op het nieuwe klantrecord
@@ -270,7 +268,6 @@ describe("Promotie Lead → Gewonnen (promoveerLead)", () => {
     expect(werkitems[0].status).toBe("gepland");
     expect(werkitems[0].klantId).toBe(resultaat.klantId);
     expect(werkitems[0].orgId).toBe(orgId);
-    expect(werkitems[0].userId).toBe(user._id);
     expect(werkitems[0].naam).toBe("Aanvraag CFG-20260701-0001");
   });
 

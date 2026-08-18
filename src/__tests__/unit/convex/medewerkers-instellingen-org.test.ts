@@ -267,7 +267,7 @@ describe("medewerkers — org-scoping", () => {
     const id = await maak(ctx, { naam: "Nieuwe Kracht" });
 
     expect(db.byId(id)?.orgId).toBe(orgA);
-    expect(db.byId(id)?.userId).toBe(directieA);
+    expect(db.byId(id)?.userId).toBeUndefined();
   });
 
   it("update weigert een medewerker van een andere organisatie", async () => {

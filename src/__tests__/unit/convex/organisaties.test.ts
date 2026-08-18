@@ -249,13 +249,16 @@ describe("organisaties.maakOrganisatie — org-defaults", () => {
     expect(db.rows("normuren")).toHaveLength(DEFAULT_NORMUREN.length * 2);
   });
 
-  it("zet de eigenaar als userId — dat veld is nog verplicht in het schema", async () => {
-    await maakTopTuinen();
+  it("legt de eigenaar vast op de organisatie zelf", async () => {
+    const orgId = await maakTopTuinen();
 
+    expect(db.rows("organisaties")[0]._id).toBe(orgId);
+    expect(db.rows("organisaties")[0].eigenaarUserId).toBe(eigenaarUserId);
+
+    // De gezaaide rijen dragen alleen nog de org-scope.
     for (const tabel of ["instellingen", "normuren", "producten"]) {
-      expect(
-        db.rows(tabel).every((doc) => doc.userId === eigenaarUserId)
-      ).toBe(true);
+      expect(db.rows(tabel).every((doc) => doc.orgId === orgId)).toBe(true);
+      expect(db.rows(tabel).every((doc) => doc.userId === undefined)).toBe(true);
     }
   });
 });
@@ -334,8 +337,7 @@ describe("seedOrgDefaults", () => {
   function seed(orgId: string) {
     return seedOrgDefaults(
       ctx as unknown as MutationCtx,
-      orgId as Id<"organisaties">,
-      eigenaarUserId as Id<"users">
+      orgId as Id<"organisaties">
     );
   }
 

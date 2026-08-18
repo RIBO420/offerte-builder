@@ -481,19 +481,10 @@ describe("naarOrganisaties — tabelindeling tegen convex/schema.ts", () => {
     expect([...ingedeeld].sort()).toEqual([...BEWAARTABELLEN].sort());
   });
 
-  it("heeft op elke eigenaar-tabel een userId- én een orgId-veld", () => {
-    for (const naam of EIGENAAR_TABELLEN) {
+  it("heeft op elke bewaartabel een orgId-veld en géén userId meer", () => {
+    for (const naam of [...EIGENAAR_TABELLEN, ...TENANTLOZE_TABELLEN]) {
       const velden = veldenVan(naam);
-      expect(velden.userId, `${naam}.userId ontbreekt`).toBeDefined();
-      expect(velden.orgId, `${naam}.orgId ontbreekt`).toBeDefined();
-      expect(velden.orgId.optional).toBe(true);
-    }
-  });
-
-  it("heeft op elke tenantloze tabel wél orgId en géén userId", () => {
-    for (const naam of TENANTLOZE_TABELLEN) {
-      const velden = veldenVan(naam);
-      expect(velden.userId, `${naam} heeft toch een userId`).toBeUndefined();
+      expect(velden.userId, `${naam} heeft nog een userId`).toBeUndefined();
       expect(velden.orgId, `${naam}.orgId ontbreekt`).toBeDefined();
     }
   });
@@ -504,14 +495,15 @@ describe("naarOrganisaties — tabelindeling tegen convex/schema.ts", () => {
     }
   });
 
-  it("kent systeemdefaults alleen waar userId optioneel is", () => {
+  it("kent systeemdefaults exact waar orgId optioneel is", () => {
+    // Sinds fase 6 is `orgId` de discriminator: ontbreekt hij, dan is de rij
+    // systeembreed. Alleen daar mag het veld nog optioneel zijn.
     for (const naam of SYSTEEMDEFAULT_TABELLEN) {
       expect(EIGENAAR_TABELLEN).toContain(naam);
-      expect(veldenVan(naam).userId.optional, `${naam}.userId`).toBe(true);
+      expect(veldenVan(naam).orgId.optional, `${naam}.orgId`).toBe(true);
     }
-    // Andersom: elke bewaartabel met optionele userId is een systeemdefault-tabel.
-    for (const naam of EIGENAAR_TABELLEN) {
-      if (veldenVan(naam).userId.optional) {
+    for (const naam of [...EIGENAAR_TABELLEN, ...TENANTLOZE_TABELLEN]) {
+      if (veldenVan(naam).orgId.optional) {
         expect(SYSTEEMDEFAULT_TABELLEN).toContain(naam);
       }
     }

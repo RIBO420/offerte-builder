@@ -72,7 +72,6 @@ describe("legGesprekVast: entry en taken in één handeling", () => {
     for (const taak of taken) {
       expect(taak.bronTijdlijnId).toBe(uitkomst.entryId);
       expect(taak.klantId).toBe(klantId);
-      expect(taak.userId).toBe(userId);
       expect(taak.status).toBe("open");
       expect(taak.prioriteit).toBe("normaal");
       expect(taak.aangemaaktDoorId).toBe(userId);

@@ -237,6 +237,10 @@ beforeEach(() => {
     createdAt: Date.now(),
   });
 
+  // Sinds fase 6 hangt de eigenaar aan de organisatie, niet aan de rijen.
+  db.patch(orgA, { eigenaarUserId: directieA });
+  db.patch(orgB, { eigenaarUserId: directieB });
+
   medewerkerA = db.insertSync("medewerkers", {
     orgId: orgA,
     userId: directieA,
@@ -516,7 +520,27 @@ describe("users.requestDataDeletion — bedrijfsscope", () => {
     expect(resultaat.adminNotified).toBe(true);
   });
 
-  it("notificeert niemand als het account nog nergens aan gekoppeld is", async () => {
+  it("notificeert niemand als er geen organisatie te bepalen is", async () => {
+    // Geen koppeling én geen org-claim in het JWT (klantaccount-scenario):
+    // dan is er geen bedrijf, en gokken zou een cross-tenant lek zijn.
+    db.insertSync("users", {
+      clerkId: "clerk_los",
+      email: "los@voorbeeld.nl",
+      name: "Los Account",
+      role: "medewerker",
+      createdAt: Date.now(),
+    });
+    logInAls("clerk_los", ""); // lege claim = geen actieve organisatie
+
+    const resultaat = await verwijderVerzoek(ctx, {});
+
+    expect(db.rows("notifications")).toHaveLength(0);
+    expect(resultaat.adminNotified).toBe(false);
+    // Het verzoek wordt wél vastgelegd, zodat het niet stilletjes verdwijnt.
+    expect(db.rows("locationAuditLog")).toHaveLength(0);
+  });
+
+  it("valt terug op de org-claim uit het JWT als er geen koppeling is", async () => {
     db.insertSync("users", {
       clerkId: "clerk_los",
       email: "los@voorbeeld.nl",
@@ -528,10 +552,8 @@ describe("users.requestDataDeletion — bedrijfsscope", () => {
 
     const resultaat = await verwijderVerzoek(ctx, {});
 
-    expect(db.rows("notifications")).toHaveLength(0);
-    expect(resultaat.adminNotified).toBe(false);
-    // Het verzoek wordt wél vastgelegd, zodat het niet stilletjes verdwijnt.
-    expect(db.rows("locationAuditLog")).toHaveLength(1);
+    expect(db.rows("notifications").map((n) => n.userId)).toEqual([directieA]);
+    expect(resultaat.adminNotified).toBe(true);
   });
 
   it("legt het verzoek vast in de auditlog", async () => {
@@ -541,7 +563,7 @@ describe("users.requestDataDeletion — bedrijfsscope", () => {
 
     const auditRegels = db.rows("locationAuditLog");
     expect(auditRegels).toHaveLength(1);
-    expect(auditRegels[0].userId).toBe(directieA);
+    expect(auditRegels[0].orgId).toBe(orgA);
     expect(auditRegels[0].action).toBe("data_deleted");
   });
 });

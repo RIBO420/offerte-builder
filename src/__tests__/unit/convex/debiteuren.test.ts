@@ -148,6 +148,8 @@ function ctxMetRol(role: string) {
   const store = new MockConvexStore();
   const orgId = seedMockOrganisatie(store);
   const userId = store.insert("users", createMockUser({ role }));
+  // De cron-paden leiden de eigenaar van een systeemtaak af uit de organisatie.
+  store.patch(orgId, { eigenaarUserId: userId });
   const ctx = createMockCtx(store);
   return { ctx, store, userId, orgId };
 }
@@ -593,7 +595,7 @@ describe("verwerkLadder — trede 3 kantoortaak (cases-bord)", () => {
     expect(taken).toHaveLength(1);
     expect(taken[0].taaksoort).toBe("debiteurentaak");
     expect(taken[0].status).toBe("nieuw");
-    // Default eigenaar: bedrijfseigenaar van de factuur (instelbaar)
+    // Default eigenaar: de directie van de organisatie (instelbaar)
     expect(taken[0].eigenaarId).toBe(userId);
     expect(taken[0].attenderingSleutel).toBe(
       debiteurSleutel(factuurId, 3)

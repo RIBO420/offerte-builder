@@ -94,6 +94,8 @@ function portaalSetup() {
       name: "Kantoor Eigenaar",
     })
   );
+  // Sinds fase 6 komt de eigenaar-default van een melding uit de organisatie.
+  store.patch(orgId, { eigenaarUserId: bedrijfseigenaarId });
   const klantAId = store.insert(
     "klanten",
     createMockKlant(actingUserId, { orgId, naam: "Klant A", email: "a@test.nl" })
@@ -419,7 +421,7 @@ describe("portaal.dienMeldingIn — instroom op het cases-bord", () => {
     expect(melding.taaksoort).toBe("melding");
     expect(melding.beoordelenVoorPlanning).toBe(true);
     expect(melding.klantId).toBe(s.klantAId);
-    expect(melding.userId).toBe(s.actingUserId); // bedrijfsscope
+    expect(melding.orgId).toBe(s.orgId); // bedrijfsscope
   });
 
   it("klacht: kantoor-eigenaar als routing-default, geen planning-vlag", async () => {
@@ -734,7 +736,6 @@ describe("klantthreads per werkitem/melding — toegang en flow", () => {
     const threadB = s.store.insert("chat_threads", {
       type: "klant",
       klantId: s.klantBId,
-      companyUserId: s.actingUserId,
       participants: [],
       createdAt: NU,
     });
@@ -762,7 +763,6 @@ describe("klantthreads per werkitem/melding — toegang en flow", () => {
     const interneThread = s.store.insert("chat_threads", {
       type: "team",
       klantId: s.klantAId, // per ongeluk gezet
-      companyUserId: s.actingUserId,
       participants: [],
       createdAt: NU,
     });

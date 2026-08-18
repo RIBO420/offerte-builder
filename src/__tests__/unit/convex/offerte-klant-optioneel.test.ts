@@ -276,9 +276,7 @@ describe("offertes.create — concept zonder klant (masterplan A3)", () => {
     expect(offerte.klantId).toBeUndefined();
     expect(offerte.bron).toBe("vrij");
     // Tenant-scope: de offerte hangt aan de organisatie uit het JWT
-    // (userId blijft tot fase 6 meegeschreven)
     expect(offerte.orgId).toBe(orgId);
-    expect(offerte.userId).toBe(userId);
     // TT-004: exact twee types, geen nieuwe literals
     expect(offerte.type).toBe("aanleg");
   });
