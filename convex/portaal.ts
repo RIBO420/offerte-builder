@@ -678,6 +678,12 @@ export const dienMeldingIn = mutation({
     if (klant.email) {
       await zetTriggerMailKlaar(ctx, {
         event: "melding_ontvangen",
+        // Portaalklanten zijn bewust GEEN Clerk-organisatielid: hun JWT draagt
+        // geen org_id-claim, dus de trigger-motor kan de tenant niet uit de
+        // sessie halen. Zonder deze regel valt hij terug op "geen_org" en
+        // wordt de ontvangstbevestiging stil nooit meer klaargezet. De klant
+        // hangt aan het bedrijf, dus die rij weet wél bij welke org dit hoort.
+        orgId: klant.orgId,
         userId: companyUserId,
         ontvangerEmail: klant.email,
         ontvangerNaam: klant.naam,

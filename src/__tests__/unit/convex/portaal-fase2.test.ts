@@ -21,7 +21,7 @@
  * MAILVEILIGHEID: mock-ctx zonder Resend; scheduler.runAfter is een vi.fn.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { ConvexError } from "convex/values";
 import {
   MockConvexStore,
@@ -618,6 +618,30 @@ describe("melding_ontvangen — bevestiging alleen via het trigger-model", () =>
     // De verzend-actie wordt ingepland — die zit ACHTER de mail-guard
     // (EMAIL_VERZENDEN_ACTIEF, fail-closed). Hier gemockt: geen echte mail.
     expect(s.ctx.scheduler.runAfter).toHaveBeenCalledTimes(1);
+  });
+
+  it("klant-sessie ZONDER org-claim: bevestiging gaat op de orgId van de klant", async () => {
+    // Dit is de echte portaal-conditie. Portaalklanten zijn bewust geen
+    // Clerk-organisatielid, dus hun JWT draagt geen org_id-claim — de
+    // gedeelde createMockCtx geeft er standaard wél een mee en maskeert dit
+    // pad precies. Hier zetten we de identity terug naar wat een klant echt
+    // meebrengt: alleen een subject.
+    const s = portaalSetup();
+    s.ctx.auth.getUserIdentity = vi.fn(() =>
+      Promise.resolve({ subject: "clerk_test_user_123" })
+    );
+    seedMeldingTrigger(s.store, s.orgId);
+
+    const meldingId = await dienIn(s.ctx);
+
+    // De trigger-motor kan de tenant hier niet uit de sessie halen; hij moet
+    // hem van de klant-rij krijgen. Zonder die doorgifte valt hij terug op
+    // "geen_org" en blijft de wachtrij leeg.
+    const concepten = s.store.getAll("conceptMails");
+    expect(concepten).toHaveLength(1);
+    expect(concepten[0].orgId).toBe(s.orgId);
+    expect(concepten[0].event).toBe("melding_ontvangen");
+    expect(concepten[0].meldingId).toBe(meldingId);
   });
 
   it("modus 'concept' zet in de wachtrij en plant GEEN verzend-actie", async () => {
