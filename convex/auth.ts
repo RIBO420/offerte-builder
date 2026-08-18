@@ -227,25 +227,27 @@ export async function verifyOwnership<T extends { userId: Id<"users"> }>(
 }
 
 /**
- * Get an offerte and verify ownership.
+ * Get an offerte and verify org-ownership.
+ * Sinds de org-migratie (fase 3): eigendom = zelfde organisatie, niet dezelfde
+ * user — een medewerker mag de offerte van een collega zien.
  */
 export async function getOwnedOfferte(
   ctx: QueryCtx | MutationCtx,
   offerteId: Id<"offertes">
 ) {
   const offerte = await ctx.db.get(offerteId);
-  return verifyOwnership(ctx, offerte, "offerte");
+  return verifyOrgOwnership(ctx, offerte, "offerte");
 }
 
 /**
- * Get a klant and verify ownership.
+ * Get a klant and verify org-ownership (zie getOwnedOfferte).
  */
 export async function getOwnedKlant(
   ctx: QueryCtx | MutationCtx,
   klantId: Id<"klanten">
 ) {
   const klant = await ctx.db.get(klantId);
-  return verifyOwnership(ctx, klant, "klant");
+  return verifyOrgOwnership(ctx, klant, "klant");
 }
 
 /**
