@@ -20,6 +20,7 @@ import {
   createMockCtx,
   createMockUser,
   createMockKlant,
+  createMockOfferte,
   seedMockOrganisatie,
   type MockCtx,
 } from "../../helpers/convex-mock";
@@ -42,6 +43,7 @@ import {
   DEFAULT_ATTENDERING_DAGEN,
 } from "../../../../convex/losseBeurten";
 import {
+  maakContractVanGeaccepteerdeOfferte,
   volgendContractNummer,
   isIndexatieVanToepassing,
   berekenJaarprijsBouwstenen,
@@ -482,8 +484,11 @@ function maakIndexBewusteCtx(store: MockConvexStore): MockCtx {
     let docs = store.getAll(tabel);
     const builder = {
       withIndex: (_naam: string, fn?: (q: unknown) => unknown) => {
-        const cons: Array<{ op: "eq" | "gte"; field: string; value: unknown }> =
-          [];
+        const cons: Array<{
+          op: "eq" | "gte" | "lt";
+          field: string;
+          value: unknown;
+        }> = [];
         const q = {
           eq: (field: string, value: unknown) => {
             cons.push({ op: "eq", field, value });
@@ -493,14 +498,18 @@ function maakIndexBewusteCtx(store: MockConvexStore): MockCtx {
             cons.push({ op: "gte", field, value });
             return q;
           },
+          lt: (field: string, value: unknown) => {
+            cons.push({ op: "lt", field, value });
+            return q;
+          },
         };
         if (fn) fn(q);
         docs = docs.filter((doc) =>
           cons.every((c) => {
             const waarde = doc[c.field] as never;
-            return c.op === "eq"
-              ? waarde === c.value
-              : waarde >= (c.value as never);
+            if (c.op === "eq") return waarde === c.value;
+            if (c.op === "lt") return waarde < (c.value as never);
+            return waarde >= (c.value as never);
           })
         );
         return builder;
@@ -618,5 +627,143 @@ describe("losse beurten: organisatiescope", () => {
       dagen: 30,
     })) as { _id: string }[];
     expect(attenderingen.map((b) => b._id)).toEqual([eigen]);
+  });
+});
+
+
+// ─── Contract uit geaccepteerde offerte: catalogus binnen de eigen org ───────
+
+describe("maakContractVanGeaccepteerdeOfferte: catalogus is org-gescoopt", () => {
+  /**
+   * Twee organisaties met een bouwsteen die exact dezelfde naam draagt als de
+   * offerteregel. Alleen de eigen bouwsteen mag matchen: anders belandt een
+   * vreemde `bouwsteenId` in contractWerkzaamheden en rekent het contract met
+   * het uurtarief van het andere bedrijf.
+   */
+  function tweeCatalogi() {
+    const store = new MockConvexStore();
+    const orgId = seedMockOrganisatie(store);
+    const andereOrgId = store.insert("organisaties", {
+      clerkOrgId: "clerk_andere_org",
+      naam: "Groenbeheer Zuid",
+      slug: "groenbeheer-zuid",
+      actief: true,
+      aangemaaktOp: Date.now(),
+    });
+    const userId = store.insert("users", createMockUser({ role: "directie" }));
+    const klantId = store.insert("klanten", createMockKlant(userId, { orgId }));
+
+    const eigenBouwsteen = store.insert("bouwstenen", {
+      orgId,
+      naam: "Haag snoeien",
+      code: "HS",
+      soort: "terugkerend",
+      prijsmodel: "uren",
+      urenPerBeurt: 2,
+      defaultFrequentiePerJaar: 2,
+      actief: true,
+      createdAt: Date.now(),
+    });
+    const vreemdeBouwsteen = store.insert("bouwstenen", {
+      orgId: andereOrgId,
+      naam: "Haag snoeien", // identieke omschrijving, ander bedrijf
+      code: "HS",
+      soort: "terugkerend",
+      prijsmodel: "uren",
+      urenPerBeurt: 9,
+      defaultFrequentiePerJaar: 9,
+      actief: true,
+      createdAt: Date.now(),
+    });
+    store.insert("uurtarieven", {
+      orgId,
+      bedrag: 50,
+      ingangsdatum: "2020-01-01",
+      createdAt: Date.now(),
+    });
+    store.insert("uurtarieven", {
+      orgId: andereOrgId,
+      bedrag: 999,
+      ingangsdatum: "2024-01-01", // recenter: zou zonder scoping winnen
+      createdAt: Date.now(),
+    });
+
+    return {
+      store,
+      ctx: maakIndexBewusteCtx(store),
+      userId,
+      orgId,
+      andereOrgId,
+      klantId,
+      eigenBouwsteen,
+      vreemdeBouwsteen,
+    };
+  }
+
+  function seedOfferte(
+    store: MockConvexStore,
+    userId: string,
+    klantId: string,
+    orgId: string | undefined
+  ) {
+    const doc = createMockOfferte(userId, klantId, {
+      orgId,
+      type: "onderhoud",
+      status: "geaccepteerd",
+      regels: [
+        {
+          id: "r1",
+          type: "arbeid",
+          omschrijving: "Haag snoeien voortuin",
+          totaal: 400,
+        },
+      ],
+    });
+    const id = store.insert("offertes", doc);
+    return store.get(id)!;
+  }
+
+  it("matcht alleen de bouwsteen van de eigen organisatie", async () => {
+    const { store, ctx, userId, orgId, klantId, eigenBouwsteen } =
+      tweeCatalogi();
+    const offerte = seedOfferte(store, userId, klantId, orgId);
+
+    const { contractId } = await maakContractVanGeaccepteerdeOfferte(
+      ctx as never,
+      offerte as never
+    );
+
+    expect(store.get(contractId)?.orgId).toBe(orgId);
+    const regels = store
+      .getAll("contractWerkzaamheden")
+      .filter((w) => w.contractId === contractId);
+    expect(regels).toHaveLength(1);
+    expect(regels[0].bouwsteenId).toBe(eigenBouwsteen);
+    // Eigen norm (2 uur) × eigen tarief (50) — niet 9 × 999
+    expect(regels[0].prijsPerBeurt).toBe(100);
+    expect(regels[0].frequentiePerJaar).toBe(2);
+  });
+
+  it("valt zonder organisatie terug op een vrije regel i.p.v. andermans catalogus", async () => {
+    const { store, ctx, userId } = tweeCatalogi();
+    // Legacy-offerte zonder org; ook de klant kan hem niet leveren
+    const klantZonderOrg = store.insert(
+      "klanten",
+      createMockKlant(userId, { naam: "Klant zonder org" })
+    );
+    const offerte = seedOfferte(store, userId, klantZonderOrg, undefined);
+
+    const { contractId } = await maakContractVanGeaccepteerdeOfferte(
+      ctx as never,
+      offerte as never
+    );
+
+    const regels = store
+      .getAll("contractWerkzaamheden")
+      .filter((w) => w.contractId === contractId);
+    expect(regels).toHaveLength(1);
+    expect(regels[0].bouwsteenId).toBeUndefined();
+    expect(regels[0].prijsPerBeurtHandmatig).toBe(true);
+    expect(regels[0].prijsPerBeurt).toBe(400); // regeltotaal, geen vreemd tarief
   });
 });

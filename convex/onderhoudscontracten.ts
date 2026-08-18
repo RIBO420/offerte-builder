@@ -1551,12 +1551,32 @@ export async function maakContractVanGeaccepteerdeOfferte(
     const startDatum = vandaagIso();
     const eindDatum = addMaanden(startDatum, 12);
 
-    // Catalogus + uurtarief op contractdatum voor de prijs-defaults
-    const bouwstenen = await ctx.db
-      .query("bouwstenen")
-      .withIndex("by_actief", (q) => q.eq("actief", true))
-      .collect();
-    const tarieven = await ctx.db.query("uurtarieven").collect();
+    // Catalogus + uurtarief op contractdatum voor de prijs-defaults.
+    //
+    // Strikt binnen de organisatie: `by_actief` en een kale `.collect()` op
+    // uurtarieven zijn bedrijfsoverstijgend, en dan kan
+    // matchBouwsteenOpOmschrijving een bouwsteen van een ANDER bedrijf matchen
+    // (die vreemde bouwsteenId belandt dan in contractWerkzaamheden) of kan
+    // bepaalTariefOpDatum het uurtarief van dat bedrijf pakken.
+    //
+    // Zonder orgId geen catalogus: `q.eq("orgId", undefined)` zou juist álle
+    // org-loze rijen matchen (CLAUDE.md-regel 4). De regels worden dan vrije
+    // regels met prijsPerBeurtHandmatig — zichtbaar en corrigeerbaar voor
+    // kantoor, in plaats van stilletjes andermans tarief.
+    const bouwstenen = orgId
+      ? (
+          await ctx.db
+            .query("bouwstenen")
+            .withIndex("by_org", (q) => q.eq("orgId", orgId))
+            .collect()
+        ).filter((b) => b.actief)
+      : [];
+    const tarieven = orgId
+      ? await ctx.db
+          .query("uurtarieven")
+          .withIndex("by_org", (q) => q.eq("orgId", orgId))
+          .collect()
+      : [];
     const geldendTarief = bepaalTariefOpDatum(tarieven, startDatum);
 
     // Arbeid-regels → bouwsteen-regels (voor zover herleidbaar)

@@ -17,6 +17,7 @@ import {
   createMockUser,
   createMockKlant,
   seedMockOrganisatie,
+  type MockCtx,
 } from "../../helpers/convex-mock";
 import type { MutationCtx } from "../../../../convex/_generated/server";
 import {
@@ -662,5 +663,162 @@ describe("rolchecks: capability 'versturen naar klant' (PRD §1.2)", () => {
     expect(kanNaarKlantVersturen("klant")).toBe(false);
     expect(kanNaarKlantVersturen("onderaannemer_zzp")).toBe(false);
     expect(kanNaarKlantVersturen("materiaalman")).toBe(false);
+  });
+});
+
+
+// ─── Factuurnummering per organisatie (fase 3 org-migratie) ──────────────────
+
+/**
+ * De gedeelde mock-ctx negeert `withIndex`, dus een `instellingen.by_org`-
+ * lookup zou daar de eerste de beste rij pakken en zou deze test niets
+ * bewijzen. Deze variant past de index-constraints écht toe (patroon uit
+ * offerte-reminders-cron.test.ts).
+ */
+function maakIndexBewusteCtx(store: MockConvexStore): MockCtx {
+  const ctx = createMockCtx(store);
+  ctx.db.query = vi.fn((tabel: string) => {
+    let docs = store.getAll(tabel);
+    const builder = {
+      withIndex: (_naam: string, fn?: (q: unknown) => unknown) => {
+        const cons: Array<{ field: string; value: unknown }> = [];
+        const q = {
+          eq: (field: string, value: unknown) => {
+            cons.push({ field, value });
+            return q;
+          },
+        };
+        if (fn) fn(q);
+        docs = docs.filter((doc) =>
+          cons.every((c) => doc[c.field] === c.value)
+        );
+        return builder;
+      },
+      filter: () => builder,
+      order: () => builder,
+      collect: async () => [...docs],
+      first: async () => docs[0] ?? null,
+      unique: async () => docs[0] ?? null,
+      take: async (n: number) => docs.slice(0, n),
+    };
+    return builder;
+  });
+  return ctx;
+}
+
+describe("factuurnummering is per organisatie", () => {
+  /** Eén store, twee organisaties, elk met een eigen instellingen-teller. */
+  function tweeBedrijven() {
+    const store = new MockConvexStore();
+    const orgA = seedMockOrganisatie(store);
+    const orgB = store.insert("organisaties", {
+      clerkOrgId: "clerk_andere_org",
+      naam: "Groenbeheer Zuid",
+      slug: "groenbeheer-zuid",
+      actief: true,
+      aangemaaktOp: Date.now(),
+    });
+    const userA = store.insert("users", createMockUser({ role: "directie" }));
+    const userB = store.insert(
+      "users",
+      createMockUser({ role: "directie", clerkId: "clerk_b", name: "Bea" })
+    );
+    const klantA = store.insert("klanten", createMockKlant(userA, { orgId: orgA }));
+    const klantB = store.insert(
+      "klanten",
+      createMockKlant(userB, { orgId: orgB, naam: "Klant van Zuid" })
+    );
+    for (const [orgId, userId, laatste, prefix] of [
+      [orgA, userA, 41, "FAC-"],
+      [orgB, userB, 7, "ZUID-"],
+    ] as const) {
+      store.insert("instellingen", {
+        orgId,
+        userId,
+        laatsteFactuurNummer: laatste,
+        factuurNummerPrefix: prefix,
+        standaardBetalingstermijn: 14,
+        btwPercentage: 21,
+        uurtarief: 45,
+        bedrijfsgegevens: {
+          naam: "Bedrijf",
+          adres: "Kwekerijweg 1",
+          postcode: "1234 AB",
+          plaats: "Boskoop",
+        },
+      });
+    }
+    return {
+      store,
+      ctx: maakIndexBewusteCtx(store) as unknown as MutationCtx,
+      orgA,
+      orgB,
+      userA,
+      userB,
+      klantA,
+      klantB,
+    };
+  }
+
+  it("twee organisaties tellen onafhankelijk door op hun eigen teller", async () => {
+    const { store, ctx, orgA, orgB, userA, userB, klantA, klantB } =
+      tweeBedrijven();
+    const jaar = new Date().getFullYear();
+
+    const beurtA = insertAfgerondeBeurt(store, userA, orgA, klantA);
+    const beurtB = insertAfgerondeBeurt(store, userB, orgB, klantB, {
+      afgerondOp: Date.UTC(2026, 5, 3, 10, 0), // andere dag: eigen dagfactuur
+    });
+    const beurtA2 = insertAfgerondeBeurt(store, userA, orgA, klantA, {
+      afgerondOp: Date.UTC(2026, 6, 7, 10, 0),
+    });
+
+    const a1 = await verwerkKlaarVoorFacturatie(ctx, { werkitemId: beurtA });
+    const b1 = await verwerkKlaarVoorFacturatie(ctx, { werkitemId: beurtB });
+    const a2 = await verwerkKlaarVoorFacturatie(ctx, { werkitemId: beurtA2 });
+
+    // Elke org zet zijn eigen reeks voort: A vanaf 41, B vanaf 7
+    expect(store.get(a1.factuurId as string)?.factuurnummer).toBe(
+      `FAC-${jaar}-042`
+    );
+    expect(store.get(a2.factuurId as string)?.factuurnummer).toBe(
+      `FAC-${jaar}-043`
+    );
+    expect(store.get(b1.factuurId as string)?.factuurnummer).toBe(
+      `ZUID-${jaar}-008`
+    );
+
+    // Tellers los bijgewerkt, en elke factuur draagt zijn eigen organisatie
+    const tellers = Object.fromEntries(
+      store
+        .getAll("instellingen")
+        .map((i) => [String(i.orgId), i.laatsteFactuurNummer])
+    );
+    expect(tellers[orgA]).toBe(43);
+    expect(tellers[orgB]).toBe(8);
+    expect(store.get(a1.factuurId as string)?.orgId).toBe(orgA);
+    expect(store.get(b1.factuurId as string)?.orgId).toBe(orgB);
+  });
+
+  it("zonder organisatie op het werkitem komt er geen factuurnummer uit een andere org", async () => {
+    const { store, ctx, userA, klantA } = tweeBedrijven();
+    const beurtZonderOrg = store.insert("projecten", {
+      userId: userA,
+      klantId: klantA,
+      type: "onderhoudsbeurt",
+      naam: "Beurt zonder org",
+      status: "uitgevoerd",
+      klaarVoorFacturatie: true,
+      afgerondOp: Date.UTC(2026, 4, 12, 10, 0),
+      taakAfronding: [{ omschrijving: "Gras maaien", status: "afgerond" }],
+      bouwsteenRegels: [{ omschrijving: "Gras maaien", prijsPerBeurt: 35 }],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    }) as unknown as Id<"projecten">;
+
+    await expect(
+      verwerkKlaarVoorFacturatie(ctx, { werkitemId: beurtZonderOrg })
+    ).rejects.toThrow(/Instellingen niet gevonden/);
+    expect(store.getAll("facturen")).toHaveLength(0);
   });
 });
