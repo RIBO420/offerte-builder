@@ -1275,6 +1275,23 @@ export default defineSchema({
     biometricEnabled: v.optional(v.boolean()), // Face ID/Touch ID actief
     lastLoginAt: v.optional(v.number()), // Laatste login timestamp
 
+    // ============================================
+    // UITNODIGING (Clerk organization-invitation)
+    // ============================================
+    // Het Team-scherm nodigt een medewerker uit via een Clerk org-invitation.
+    // Clerk stuurt de mail; zodra de uitgenodigde inlogt matcht `users.upsert`
+    // op `uitnodigingEmail` en koppelt account ↔ medewerker.
+    uitnodigingEmail: v.optional(v.string()), // genormaliseerd (trim + lowercase)
+    uitnodigingRol: v.optional(userRoleValidator), // app-rol gekozen bij uitnodigen
+    uitnodigingStatus: v.optional(
+      v.union(
+        v.literal("uitgenodigd"),
+        v.literal("geaccepteerd"),
+        v.literal("ingetrokken")
+      )
+    ),
+    uitnodigingClerkId: v.optional(v.string()), // Clerk invitation-id (intrekken/opnieuw)
+
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -1283,7 +1300,8 @@ export default defineSchema({
     .index("by_user_actief", ["userId", "isActief"])
     .index("by_org_actief", ["orgId", "isActief"])
     .index("by_status", ["status"])
-    .index("by_clerk_id", ["clerkUserId"]), // App: medewerker opzoeken via Clerk ID
+    .index("by_clerk_id", ["clerkUserId"]) // App: medewerker opzoeken via Clerk ID
+    .index("by_uitnodiging_email", ["uitnodigingEmail"]), // Invite-koppeling bij login
 
   // UrenRegistraties - Time registrations (imported or manual)
   urenRegistraties: defineTable({

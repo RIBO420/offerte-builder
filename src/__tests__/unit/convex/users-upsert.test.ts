@@ -382,7 +382,12 @@ describe("users.upsert — rolbepaling", () => {
 // ─── Legitieme flows ─────────────────────────────────────────────────────────
 
 describe("users.upsert — legitieme flows", () => {
-  it("maakt bij de eerste login een directie-user met alle defaults aan", async () => {
+  it("maakt bij de eerste login een medewerker-user aan zónder tenant-bootstrap", async () => {
+    // Sinds de Clerk-Organizations-migratie is upsert géén tenant-bootstrap
+    // meer: een nieuwe user krijgt geen eigen instellingen/normuren/producten
+    // (die horen bij een organisatie, via organisaties.maakOrganisatie +
+    // seedOrgDefaults) en ook de allereerste user is gewoon "medewerker".
+    // Toegang loopt via Clerk-org-lidmaatschap.
     identity = {
       subject: "clerk_eerste",
       email: "eerste@toptuinen.nl",
@@ -396,16 +401,37 @@ describe("users.upsert — legitieme flows", () => {
     expect(user?.email).toBe("eerste@toptuinen.nl");
     expect(user?.name).toBe("Eerste Gebruiker");
     expect(user?.bedrijfsnaam).toBe("Top Tuinen");
-    expect(user?.role).toBe("directie");
+    expect(user?.role).toBe("medewerker");
 
-    expect(db.rows("instellingen")).toHaveLength(1);
-    expect(db.rows("normuren").length).toBeGreaterThan(0);
-    expect(db.rows("producten").length).toBeGreaterThan(0);
+    // Geen tenant-seed meer.
+    expect(db.rows("instellingen")).toHaveLength(0);
+    expect(db.rows("normuren")).toHaveLength(0);
+    expect(db.rows("producten")).toHaveLength(0);
+
+    // De systeem-correctiefactoren zijn wél gedeeld en blijven staan.
     expect(db.rows("correctiefactoren").length).toBeGreaterThan(0);
+  });
 
-    // Alle defaults moeten aan deze user hangen
-    expect(db.rows("normuren").every((n) => n.userId === userId)).toBe(true);
-    expect(db.rows("producten").every((p) => p.userId === userId)).toBe(true);
+  it("geeft ook de allereerste user géén directie-rol", async () => {
+    // De oude first-user-→-directie-regel is weg; alleen ADMIN_EMAILS promoveert.
+    expect(db.rows("users")).toHaveLength(0);
+
+    identity = {
+      subject: "clerk_solo",
+      email: "solo@toptuinen.nl",
+      emailVerified: true,
+      name: "Solo",
+    };
+
+    const userId = await upsertHandler(ctx, {});
+    expect(db.byId(userId)?.role).toBe("medewerker");
+  });
+
+  it("promoveert de allereerste user wél als hij in ADMIN_EMAILS staat", async () => {
+    identity = { subject: "clerk_admin_eerste", email: ADMIN_EMAIL, name: "E2E" };
+
+    const userId = await upsertHandler(ctx, {});
+    expect(db.byId(userId)?.role).toBe("directie");
   });
 
   it("valt terug op givenName en daarna op 'Gebruiker'", async () => {
@@ -501,5 +527,179 @@ describe("users.upsert — legitieme flows", () => {
 
     expect(tweede).toBe(eerste);
     expect(db.rows("users")).toHaveLength(1);
+  });
+});
+
+// ─── Uitnodigings-koppeling ──────────────────────────────────────────────────
+
+function seedMedewerker(overrides: Record<string, unknown> = {}): string {
+  const now = Date.now();
+  return db.insertSync("medewerkers", {
+    userId: "users:seed",
+    naam: "Uitgenodigde Medewerker",
+    isActief: true,
+    uitnodigingEmail: "nieuw@toptuinen.nl",
+    uitnodigingRol: "voorman",
+    uitnodigingStatus: "uitgenodigd",
+    createdAt: now,
+    updatedAt: now,
+    ...overrides,
+  });
+}
+
+describe("users.upsert — uitnodigings-koppeling", () => {
+  it("koppelt een nieuwe user aan de medewerker die op dit adres is uitgenodigd", async () => {
+    const medewerkerId = seedMedewerker();
+
+    identity = {
+      subject: "clerk_uitgenodigd",
+      email: "Nieuw@Toptuinen.nl", // genormaliseerd matcht dit de uitnodiging
+      emailVerified: true,
+      name: "Nieuwe Medewerker",
+    };
+
+    const userId = await upsertHandler(ctx, {});
+
+    expect(db.byId(medewerkerId)?.clerkUserId).toBe("clerk_uitgenodigd");
+    expect(db.byId(medewerkerId)?.uitnodigingStatus).toBe("geaccepteerd");
+    expect(db.byId(userId)?.linkedMedewerkerId).toBe(medewerkerId);
+    expect(db.byId(userId)?.role).toBe("voorman");
+  });
+
+  it("valt terug op 'medewerker' als de uitnodiging geen rol draagt", async () => {
+    const medewerkerId = seedMedewerker({ uitnodigingRol: undefined });
+
+    identity = {
+      subject: "clerk_zonder_rol",
+      email: "nieuw@toptuinen.nl",
+      emailVerified: true,
+    };
+
+    const userId = await upsertHandler(ctx, {});
+    expect(db.byId(userId)?.linkedMedewerkerId).toBe(medewerkerId);
+    expect(db.byId(userId)?.role).toBe("medewerker");
+  });
+
+  it("koppelt niet aan een medewerker die al een clerkUserId heeft", async () => {
+    // Anders kon iemand met hetzelfde adres een reeds gekoppeld
+    // medewerkersaccount overnemen — dezelfde overweging als de verwijderde
+    // e-mail-fallback bovenin upsert.
+    const medewerkerId = seedMedewerker({ clerkUserId: "clerk_al_gekoppeld" });
+
+    identity = {
+      subject: "clerk_indringer",
+      email: "nieuw@toptuinen.nl",
+      emailVerified: true,
+    };
+
+    const userId = await upsertHandler(ctx, {});
+
+    expect(db.byId(medewerkerId)?.clerkUserId).toBe("clerk_al_gekoppeld");
+    expect(db.byId(medewerkerId)?.uitnodigingStatus).toBe("uitgenodigd");
+    expect(db.byId(userId)?.linkedMedewerkerId).toBeUndefined();
+    expect(db.byId(userId)?.role).toBe("medewerker");
+  });
+
+  it("koppelt niet bij een ingetrokken of al geaccepteerde uitnodiging", async () => {
+    const ingetrokkenId = seedMedewerker({
+      uitnodigingEmail: "ingetrokken@toptuinen.nl",
+      uitnodigingStatus: "ingetrokken",
+    });
+
+    identity = {
+      subject: "clerk_ingetrokken",
+      email: "ingetrokken@toptuinen.nl",
+      emailVerified: true,
+    };
+
+    const userId = await upsertHandler(ctx, {});
+
+    expect(db.byId(ingetrokkenId)?.clerkUserId).toBeUndefined();
+    expect(db.byId(userId)?.linkedMedewerkerId).toBeUndefined();
+  });
+
+  it("koppelt ook een bestaande user die later wordt uitgenodigd", async () => {
+    const bestaandeId = seedUser({
+      clerkId: "clerk_bestaand_lid",
+      email: "later@toptuinen.nl",
+      role: "medewerker",
+      linkedMedewerkerId: undefined,
+    });
+    const medewerkerId = seedMedewerker({
+      uitnodigingEmail: "later@toptuinen.nl",
+      uitnodigingRol: "projectleider",
+    });
+
+    identity = {
+      subject: "clerk_bestaand_lid",
+      email: "later@toptuinen.nl",
+      emailVerified: true,
+    };
+
+    const userId = await upsertHandler(ctx, {});
+
+    expect(userId).toBe(bestaandeId);
+    expect(db.byId(medewerkerId)?.clerkUserId).toBe("clerk_bestaand_lid");
+    expect(db.byId(medewerkerId)?.uitnodigingStatus).toBe("geaccepteerd");
+    expect(db.byId(bestaandeId)?.linkedMedewerkerId).toBe(medewerkerId);
+    expect(db.byId(bestaandeId)?.role).toBe("projectleider");
+  });
+
+  it("herbindt een user die al aan een medewerker hangt niet stilzwijgend", async () => {
+    const eerdereMedewerkerId = seedMedewerker({
+      uitnodigingEmail: "ander@toptuinen.nl",
+      uitnodigingStatus: "geaccepteerd",
+    });
+    const bestaandeId = seedUser({
+      clerkId: "clerk_gekoppeld",
+      email: "gekoppeld@toptuinen.nl",
+      role: "medewerker",
+      linkedMedewerkerId: eerdereMedewerkerId,
+    });
+    const nieuweMedewerkerId = seedMedewerker({
+      uitnodigingEmail: "gekoppeld@toptuinen.nl",
+      uitnodigingRol: "directie",
+    });
+
+    identity = {
+      subject: "clerk_gekoppeld",
+      email: "gekoppeld@toptuinen.nl",
+      emailVerified: true,
+    };
+
+    await upsertHandler(ctx, {});
+
+    expect(db.byId(bestaandeId)?.linkedMedewerkerId).toBe(eerdereMedewerkerId);
+    expect(db.byId(bestaandeId)?.role).toBe("medewerker");
+    expect(db.byId(nieuweMedewerkerId)?.clerkUserId).toBeUndefined();
+    expect(db.byId(nieuweMedewerkerId)?.uitnodigingStatus).toBe("uitgenodigd");
+  });
+
+  it("koppelt niet op een adres dat Clerk niet geverifieerd heeft", async () => {
+    const medewerkerId = seedMedewerker();
+
+    identity = {
+      subject: "clerk_onbevestigd_invite",
+      email: "nieuw@toptuinen.nl",
+      emailVerified: false,
+    };
+
+    const userId = await upsertHandler(ctx, {});
+
+    expect(db.byId(medewerkerId)?.clerkUserId).toBeUndefined();
+    expect(db.byId(userId)?.linkedMedewerkerId).toBeUndefined();
+  });
+
+  it("koppelt niets als de e-mailclaim ontbreekt", async () => {
+    // Zonder guard zou q.eq("uitnodigingEmail", "") — of erger, undefined —
+    // een willekeurige medewerkersrij kunnen matchen.
+    const medewerkerId = seedMedewerker({ uitnodigingEmail: "" });
+
+    identity = { subject: "clerk_zonder_claim" };
+
+    const userId = await upsertHandler(ctx, {});
+
+    expect(db.byId(medewerkerId)?.clerkUserId).toBeUndefined();
+    expect(db.byId(userId)?.linkedMedewerkerId).toBeUndefined();
   });
 });

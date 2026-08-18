@@ -137,10 +137,22 @@ async function initializeSystemCorrectieFactoren(ctx: MutationCtx) {
 }
 
 // Maakt of werkt de user bij op basis van de ingelogde Clerk-identiteit.
-// Maakt daarnaast standaardinstellingen, normuren en producten aan voor nieuwe users.
-// Kent automatisch de directie-rol toe aan:
-// 1. de allereerste user in het systeem
-// 2. users met een e-mailadres uit de ADMIN_EMAILS-lijst
+//
+// GEEN tenant-bootstrap: sinds de Clerk-Organizations-migratie zaait upsert géén
+// instellingen, normuren of producten meer. Die horen bij een organisatie en
+// worden gezet door organisaties.maakOrganisatie -> seedOrgDefaults. Een nieuwe
+// user is dus een kaal account; toegang tot data loopt via zijn Clerk-org-
+// lidmaatschap. Alleen de gedeelde systeem-correctiefactoren worden hier nog
+// (idempotent) geïnitialiseerd.
+//
+// De directie-rol wordt automatisch toegekend aan users met een geverifieerd
+// e-mailadres uit de ADMIN_EMAILS-lijst. De oude "eerste user in het systeem
+// wordt directie"-regel is weg: die maakte van elke nieuwe aanmelding stilzwijgend
+// een eigen tenant-eigenaar.
+//
+// Teamleden worden via het Team-scherm uitgenodigd (Clerk org-invitation stuurt
+// de mail); `koppelOpenstaandeUitnodiging` hieronder maakt bij de eerste login
+// de match op e-mailadres en zet de bij de uitnodiging gekozen rol.
 //
 // SECURITY: clerkId, e-mail en naam komen UITSLUITEND uit het geverifieerde
 // Clerk-token (ctx.auth.getUserIdentity()), nooit uit client-args. Kwamen ze uit
@@ -234,20 +246,24 @@ export const upsert = mutation({
       if (Object.keys(updates).length > 0) {
         await ctx.db.patch(existing._id, updates);
       }
+
+      await koppelOpenstaandeUitnodiging(ctx, {
+        userId: existing._id,
+        alGekoppeld: existing.linkedMedewerkerId !== undefined,
+        clerkId,
+        emailClaim,
+        emailBruikbaar,
+      });
+
       return existing._id;
     }
 
-    // Check if this is the first user ever created
-    const existingUsers = await ctx.db.query("users").first();
-    const isFirstUser = existingUsers === null;
-
-    // Determine role for new user
-    // First user is always directie, or if email is in admin list
-    // New users get "medewerker" role by default unless they match directie criteria
+    // Rol voor een nieuwe user: altijd "medewerker", tenzij het geverifieerde
+    // token-adres in ADMIN_EMAILS staat. De oude "eerste user wordt directie"-
+    // regel is bewust verdwenen — hij hoorde bij de tijd dat elke nieuwe user
+    // zijn eigen tenant kreeg. Toegang loopt nu via Clerk-org-lidmaatschap.
     const role: "directie" | "medewerker" =
-      isFirstUser || (emailBruikbaar && isAdminEmail(emailClaim))
-        ? "directie"
-        : "medewerker";
+      emailBruikbaar && isAdminEmail(emailClaim) ? "directie" : "medewerker";
 
     // Create new user with appropriate role
     const userId = await ctx.db.insert("users", {
@@ -259,28 +275,78 @@ export const upsert = mutation({
       createdAt: Date.now(),
     });
 
-    // Create default settings for new user
-    const existingSettings = await ctx.db
-      .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .unique();
-
-    if (!existingSettings) {
-      await ctx.db.insert("instellingen", {
-        userId,
-        ...standaardInstellingen(),
-      });
-    }
-
-    // Create default normuren for new user
-    await createDefaultNormuren(ctx, userId);
-
-    // Create default products for new user
-    await createDefaultProducten(ctx, userId);
+    // GEEN tenant-bootstrap meer: instellingen, normuren en producten horen bij
+    // een organisatie en worden gezaaid door organisaties.maakOrganisatie ->
+    // seedOrgDefaults (convex/lib/orgDefaults.ts). Reparatiepaden voor bestaande
+    // solo-users blijven bestaan: initializeDefaults en adminSeedUserDefaults.
+    await koppelOpenstaandeUitnodiging(ctx, {
+      userId,
+      alGekoppeld: false,
+      clerkId,
+      emailClaim,
+      emailBruikbaar,
+    });
 
     return userId;
   },
 });
+
+/**
+ * Koppelt een net ingelogd account aan de medewerkersrij die op dít adres is
+ * uitgenodigd, en neemt de bij de uitnodiging gekozen app-rol over.
+ *
+ * SECURITY — waarom dit géén heropleving is van de verwijderde e-mail-fallback:
+ * die fallback herbond een BESTAAND account (met rol) aan een ANDERE
+ * Clerk-identiteit; wie adres X in zijn token kreeg erfde het account met adres
+ * X. Deze koppeling raakt het `clerkId` van een users-rij nooit aan. Ze is
+ * bovendien drievoudig ingesnoerd:
+ *   1. alleen medewerkersrijen met `uitnodigingStatus === "uitgenodigd"` —
+ *      een ingetrokken of al geaccepteerde uitnodiging doet niets;
+ *   2. alleen rijen die nog géén `clerkUserId` hebben — een al gekoppelde
+ *      medewerker is niet over te nemen;
+ *   3. alleen users die nog géén `linkedMedewerkerId` hebben — geen stille
+ *      herbinding van een bestaand, al gekoppeld account.
+ * De uitnodiging is dus een eenmalig, door de beheerder gezet lootje.
+ *
+ * CLAUDE.md regel 4: `uitnodigingEmail` is optioneel, en `q.eq(veld, undefined)`
+ * zou álle medewerkers zonder dat veld matchen. Daarom staat de hele query
+ * binnen de `emailBruikbaar`-guard: binnen die guard is `emailClaim` gegarandeerd
+ * een niet-lege, genormaliseerde string.
+ */
+async function koppelOpenstaandeUitnodiging(
+  ctx: MutationCtx,
+  opties: {
+    userId: Id<"users">;
+    alGekoppeld: boolean;
+    clerkId: string;
+    emailClaim: string;
+    emailBruikbaar: boolean;
+  }
+) {
+  const { userId, alGekoppeld, clerkId, emailClaim, emailBruikbaar } = opties;
+
+  if (!emailBruikbaar || alGekoppeld) return;
+
+  const uitgenodigde = await ctx.db
+    .query("medewerkers")
+    .withIndex("by_uitnodiging_email", (q) =>
+      q.eq("uitnodigingEmail", emailClaim)
+    )
+    .filter((q) => q.eq(q.field("uitnodigingStatus"), "uitgenodigd"))
+    .first();
+
+  if (!uitgenodigde || uitgenodigde.clerkUserId) return;
+
+  await ctx.db.patch(uitgenodigde._id, {
+    clerkUserId: clerkId,
+    uitnodigingStatus: "geaccepteerd",
+  });
+
+  await ctx.db.patch(userId, {
+    linkedMedewerkerId: uitgenodigde._id,
+    role: uitgenodigde.uitnodigingRol ?? "medewerker",
+  });
+}
 
 // Update authenticated user's profile
 export const updateProfile = mutation({
