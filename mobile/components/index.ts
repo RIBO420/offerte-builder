@@ -1,5 +1,9 @@
 export * from './ui';
 
+// Organisatie-gate + no-access-staat (Clerk Organizations)
+export { OrgGate } from './OrgGate';
+export { GeenToegang } from './GeenToegang';
+
 // Opname module
 export { OpnameScreen, type OpnameScreenProps } from './OpnameScreen';
 

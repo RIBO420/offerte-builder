@@ -14,6 +14,7 @@ import { useCurrentUser } from '../hooks/use-current-user';
 import { usePushNotifications } from '../hooks/use-push-notifications';
 import { RoleProvider } from '../contexts/RoleContext';
 import { ToastProvider } from '../contexts/ToastContext';
+import { OrgGate } from '../components/OrgGate';
 import { Feather } from '@expo/vector-icons';
 
 // Convex client instantie
@@ -232,23 +233,30 @@ function PushNotificationsInitializer({ children }: { children: React.ReactNode 
  * - PushNotificationsInitializer: Push notification setup
  * - RoleProvider: Role-based access control
  * - UserSync: Clerk to Convex user sync
+ * - OrgGate: actieve Clerk-organisatie (elke Convex-query eronder is org-gescoped)
+ *
+ * OrgGate staat bewust bóven UserSync: zonder `org_id`-claim mogen `users.current`
+ * en de rol-queries niet eens afvuren. Uitgelogd laat de gate alles door, zodat de
+ * `(auth)`-loginschermen gewoon renderen.
  */
 function InnerLayout() {
   return (
-    <UserSync>
-      <RoleProvider>
-        <PushNotificationsInitializer>
-          <StatusBar style="light" />
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="index" />
-            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="admin/index" options={{ headerShown: false, presentation: 'modal' }} />
-            <Stack.Screen name="project/[id]" options={{ headerShown: false }} />
-          </Stack>
-        </PushNotificationsInitializer>
-      </RoleProvider>
-    </UserSync>
+    <OrgGate>
+      <UserSync>
+        <RoleProvider>
+          <PushNotificationsInitializer>
+            <StatusBar style="light" />
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="index" />
+              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="admin/index" options={{ headerShown: false, presentation: 'modal' }} />
+              <Stack.Screen name="project/[id]" options={{ headerShown: false }} />
+            </Stack>
+          </PushNotificationsInitializer>
+        </RoleProvider>
+      </UserSync>
+    </OrgGate>
   );
 }
 
