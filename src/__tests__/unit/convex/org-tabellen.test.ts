@@ -12,6 +12,7 @@
 
 import { describe, it, expect } from "vitest";
 import schema from "../../../../convex/schema";
+import type { TableNames } from "../../../../convex/_generated/dataModel";
 import {
   TABEL_CLASSIFICATIE,
   KIND_VAN,
@@ -61,7 +62,15 @@ describe("TABEL_CLASSIFICATIE dekt het schema", () => {
  *  - `demoSeed`: dev-registry van {tabel, documentId, geseedOp} zonder
  *    tenant-veld; wordt eveneens full-table gewist.
  */
-const ZONDER_ORG_ID = ["notification_log", "demoSeed"];
+const ZONDER_ORG_ID = [
+  "notification_log",
+  "demoSeed",
+] satisfies TableNames[];
+
+// Tenant-velden waarop gescoopt wordt. De chat-tabellen voeren de bedrijfs-user
+// onder een eigen naam (team_messages.companyId, chat_threads.companyUserId);
+// hun by_org-indexen zijn de tweelingen van díe velden, niet van userId.
+const TENANT_VELDEN = ["userId", "companyId", "companyUserId"];
 
 describe("org-gescopeerde tabellen hebben orgId + een org-index", () => {
   const orgTabellen = (
@@ -70,7 +79,9 @@ describe("org-gescopeerde tabellen hebben orgId + een org-index", () => {
     .filter(([, klasse]) => klasse === "bewaren" || klasse === "wissen")
     .map(([naam]) => naam)
     .filter((naam) => !(naam in KIND_VAN))
-    .filter((naam) => !ZONDER_ORG_ID.includes(naam));
+    // `satisfies TableNames[]` houdt de lijst compile-time eerlijk; de cast is
+    // alleen nodig omdat .includes() dan een tabelnaam-literal wil, geen string.
+    .filter((naam) => !(ZONDER_ORG_ID as readonly string[]).includes(naam));
 
   it("dekt de tabellen die orgId moeten hebben", () => {
     expect(orgTabellen.length).toBeGreaterThan(0);
@@ -98,13 +109,13 @@ describe("org-gescopeerde tabellen hebben orgId + een org-index", () => {
     ).toBeGreaterThan(0);
   });
 
-  // De by_org-indexen zijn de tweelingen van de by_user-indexen: bij het
-  // omzetten (fase 6) moet elke bestaande userId-query een orgId-equivalent
+  // De by_org-indexen zijn de tweelingen van de tenant-indexen: bij het
+  // omzetten (fase 6) moet elke bestaande tenant-query een orgId-equivalent
   // met dezelfde restvelden hebben, anders verdwijnt er stilzwijgend een pad.
-  it.each(orgTabellen)("%s spiegelt elke userId-index op orgId", (naam) => {
+  it.each(orgTabellen)("%s spiegelt elke tenant-index op orgId", (naam) => {
     const indexen = tabellen[naam].indexes;
     const ontbreekt = indexen
-      .filter((i) => i.fields[0] === "userId")
+      .filter((i) => TENANT_VELDEN.includes(i.fields[0]))
       .filter(
         (i) =>
           !indexen.some(
