@@ -923,7 +923,16 @@ export const searchMessages = query({
 // ============ DELETE MESSAGE ============
 
 /**
- * Delete a team message (only by sender or admin).
+ * Delete a team message.
+ *
+ * LET OP — de guard is ruimer dan de naam doet vermoeden: hij laat de afzender
+ * door, OF iedereen die niet-viewer is binnen dezelfde organisatie als het
+ * bericht. Er zit dus geen rolcheck op: elke medewerker kan een teambericht van
+ * een collega wissen. Dat is bestaand gedrag (de check heette ooit "sender or
+ * company owner", maar vergeleek de bedrijfs-user van het bericht met die van
+ * de aanroeper — voor iedereen binnen hetzelfde bedrijf dezelfde waarde, dus
+ * altijd waar). De org-migratie laat dat bewust ongemoeid; wie het wil
+ * dichtzetten, voegt hier een isAdminRole-check toe.
  */
 export const deleteTeamMessage = mutation({
   args: {

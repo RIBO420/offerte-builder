@@ -580,7 +580,7 @@ export const sendChatNotifications = internalAction({
       // Log the notification
       await ctx.runMutation(internal.notifications.logNotification, {
         userId: member.recipientUserId,
-          orgId: args.orgId,
+        orgId: args.orgId,
         senderUserId: senderUserId ?? undefined,
         type: notificationType,
         channelType: args.channelType,
@@ -747,7 +747,7 @@ export const sendDirectMessageNotification = internalAction({
     // Log the notification
     await ctx.runMutation(internal.notifications.logNotification, {
       userId: recipientUserId,
-        orgId: args.orgId,
+      orgId: args.orgId,
       senderUserId: senderUserId ?? undefined,
       type: "chat_dm",
       channelType: "direct",

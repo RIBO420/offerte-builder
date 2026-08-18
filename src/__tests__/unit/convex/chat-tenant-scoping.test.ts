@@ -27,6 +27,14 @@ import {
   getUnreadCounts,
   sendDirectMessage,
 } from "../../../../convex/chat";
+import {
+  deleteThread,
+  getThread,
+  listMessages,
+  listThreads,
+  markAsRead,
+  sendMessage,
+} from "../../../../convex/chatThreads";
 
 // ─── Index-bewuste mini-mock ─────────────────────────────────────────────────
 
@@ -136,6 +144,26 @@ class TestStore {
   getAll(tabel: string): TestDoc[] {
     return [...(this.tabellen.get(tabel) ?? [])];
   }
+
+  patch(id: string, updates: Record<string, unknown>): void {
+    const doc = this.get(id);
+    if (!doc) return;
+    for (const [sleutel, waarde] of Object.entries(updates)) {
+      if (waarde === undefined) delete doc[sleutel];
+      else doc[sleutel] = waarde;
+    }
+  }
+
+  delete(id: string): void {
+    for (const [tabel, rijen] of this.tabellen) {
+      const idx = rijen.findIndex((d) => d._id === id);
+      if (idx !== -1) {
+        rijen.splice(idx, 1);
+        this.tabellen.set(tabel, rijen);
+        return;
+      }
+    }
+  }
 }
 
 function maakCtx(store: TestStore, clerkId: string, clerkOrgId: string) {
@@ -145,8 +173,9 @@ function maakCtx(store: TestStore, clerkId: string, clerkOrgId: string) {
       query: (tabel: string) => maakQueryBuilder(store.getAll(tabel)),
       insert: async (tabel: string, data: Record<string, unknown>) =>
         store.insert(tabel, data),
-      patch: async () => undefined,
-      delete: async () => undefined,
+      patch: async (id: string, updates: Record<string, unknown>) =>
+        store.patch(id, updates),
+      delete: async (id: string) => store.delete(id),
     },
     auth: {
       // `org_id` is het custom claim uit het Clerk-JWT-template "convex";
@@ -477,5 +506,275 @@ describe("chat.sendDirectMessage — tenant-veld bij insert", () => {
     });
 
     expect(berichten.map((b) => b.message)).toContain("Ik ben onderweg");
+  });
+});
+
+// ─── chatThreads: org-isolatie ───────────────────────────────────────────────
+
+/**
+ * `chat_threads` draagt `orgId` sinds fase 3. Elke ingang op een thread — lezen,
+ * posten, als gelezen markeren, verwijderen — moet de organisatie van de
+ * aanroeper tegen die van de thread houden.
+ *
+ * `deleteThread` had die check helemaal NIET: de rol-gate ("alleen directie")
+ * zegt niets over wélk bedrijf, dus directie van bedrijf A kon met een
+ * thread-id een gesprek van bedrijf B wissen — inclusief alle berichten. De
+ * test hieronder controleert daarom niet alleen dat de aanroep faalt, maar ook
+ * dat de berichten van de andere organisatie er daarna nog staan.
+ */
+
+const listThreadsHandler = handlerVan<
+  { filter?: string },
+  Array<{ _id: string }>
+>(listThreads);
+
+const getThreadHandler = handlerVan<{ threadId: string }, TestDoc | null>(
+  getThread
+);
+
+const listMessagesHandler = handlerVan<
+  { threadId: string; limit?: number },
+  Bericht[]
+>(listMessages);
+
+const sendMessageHandler = handlerVan<
+  { threadId: string; message: string },
+  string
+>(sendMessage);
+
+const markAsReadHandler = handlerVan<{ threadId: string }, void>(markAsRead);
+
+const deleteThreadHandler = handlerVan<
+  { threadId: string },
+  { success: boolean }
+>(deleteThread);
+
+const CLERK_KANTOOR_A = "clerk_kantoor_a";
+
+/**
+ * Twee organisaties, elk met één klant-thread en één bericht erin. De
+ * acterende gebruiker is directie van organisatie A — de zwaarste rol, zodat
+ * een test die faalt niet aan een te krappe rol kan liggen.
+ */
+function maakThreadScenario() {
+  const store = new TestStore();
+
+  const orgAId = store.insert("organisaties", {
+    clerkOrgId: CLERK_ORG_A,
+    naam: "Bedrijf A",
+    actief: true,
+    aangemaaktOp: 1,
+  });
+  const orgBId = store.insert("organisaties", {
+    clerkOrgId: CLERK_ORG_B,
+    naam: "Bedrijf B",
+    actief: true,
+    aangemaaktOp: 1,
+  });
+
+  const kantoorAId = store.insert("users", {
+    clerkId: CLERK_KANTOOR_A,
+    email: "kantoor@bedrijf-a.nl",
+    name: "Kantoor A",
+    role: "directie",
+  });
+
+  const klantAId = store.insert("klanten", {
+    orgId: orgAId,
+    userId: kantoorAId,
+    naam: "Klant A",
+  });
+  const klantBId = store.insert("klanten", {
+    orgId: orgBId,
+    userId: kantoorAId,
+    naam: "Klant B",
+  });
+
+  const threadAId = store.insert("chat_threads", {
+    type: "klant",
+    klantId: klantAId,
+    participants: [CLERK_KANTOOR_A],
+    orgId: orgAId,
+    companyUserId: kantoorAId,
+    unreadByBedrijf: 2,
+    createdAt: 1000,
+  });
+  const threadBId = store.insert("chat_threads", {
+    type: "klant",
+    klantId: klantBId,
+    participants: [],
+    orgId: orgBId,
+    companyUserId: kantoorAId,
+    unreadByBedrijf: 3,
+    createdAt: 1000,
+  });
+
+  store.insert("chat_messages", {
+    threadId: threadAId,
+    senderType: "klant",
+    senderUserId: "clerk_klant_a",
+    senderName: "Klant A",
+    message: "Vraag van klant A",
+    isRead: false,
+    createdAt: 1100,
+  });
+  store.insert("chat_messages", {
+    threadId: threadBId,
+    senderType: "klant",
+    senderUserId: "clerk_klant_b",
+    senderName: "Klant B",
+    message: "Vraag van klant B",
+    isRead: false,
+    createdAt: 1100,
+  });
+
+  return { store, orgAId, orgBId, threadAId, threadBId, klantAId };
+}
+
+function ctxVoorKantoorA(store: TestStore) {
+  return maakCtx(store, CLERK_KANTOOR_A, CLERK_ORG_A) as unknown as MutationCtx;
+}
+
+function berichtenVan(store: TestStore, threadId: string) {
+  return store
+    .getAll("chat_messages")
+    .filter((m) => m.threadId === threadId)
+    .map((m) => m.message as string);
+}
+
+describe("chatThreads.listThreads — org-isolatie", () => {
+  it("geeft alleen de threads van de eigen organisatie", async () => {
+    const { store, threadAId } = maakThreadScenario();
+
+    const threads = await listThreadsHandler(ctxVoorKantoorA(store), {});
+
+    expect(threads.map((t) => t._id)).toEqual([threadAId]);
+  });
+});
+
+describe("chatThreads.getThread — org-isolatie", () => {
+  it("geeft de eigen thread terug (positieve controle)", async () => {
+    const { store, threadAId } = maakThreadScenario();
+
+    const thread = await getThreadHandler(ctxVoorKantoorA(store), {
+      threadId: threadAId,
+    });
+
+    expect(thread?._id).toBe(threadAId);
+  });
+
+  it("geeft null voor een thread van een andere organisatie", async () => {
+    const { store, threadBId } = maakThreadScenario();
+
+    const thread = await getThreadHandler(ctxVoorKantoorA(store), {
+      threadId: threadBId,
+    });
+
+    expect(thread).toBeNull();
+  });
+});
+
+describe("chatThreads.listMessages — org-isolatie", () => {
+  it("leest de berichten van de eigen thread (positieve controle)", async () => {
+    const { store, threadAId } = maakThreadScenario();
+
+    const berichten = await listMessagesHandler(ctxVoorKantoorA(store), {
+      threadId: threadAId,
+    });
+
+    expect(berichten.map((b) => b.message)).toEqual(["Vraag van klant A"]);
+  });
+
+  it("leest niets uit een thread van een andere organisatie", async () => {
+    const { store, threadBId } = maakThreadScenario();
+
+    const berichten = await listMessagesHandler(ctxVoorKantoorA(store), {
+      threadId: threadBId,
+    });
+
+    expect(berichten).toEqual([]);
+  });
+});
+
+describe("chatThreads.sendMessage — org-isolatie", () => {
+  it("post in de eigen thread (positieve controle)", async () => {
+    const { store, threadAId } = maakThreadScenario();
+
+    await sendMessageHandler(ctxVoorKantoorA(store), {
+      threadId: threadAId,
+      message: "Wij komen dinsdag",
+    });
+
+    expect(berichtenVan(store, threadAId)).toContain("Wij komen dinsdag");
+    expect(store.get(threadAId)!.unreadByKlant).toBe(1);
+  });
+
+  it("weigert posten in een thread van een andere organisatie", async () => {
+    const { store, threadBId } = maakThreadScenario();
+
+    await expect(
+      sendMessageHandler(ctxVoorKantoorA(store), {
+        threadId: threadBId,
+        message: "Bericht in andermans gesprek",
+      })
+    ).rejects.toThrow("Geen toegang tot dit gesprek");
+
+    // En er is niets bijgeschreven
+    expect(berichtenVan(store, threadBId)).toEqual(["Vraag van klant B"]);
+  });
+});
+
+describe("chatThreads.markAsRead — org-isolatie", () => {
+  it("reset de eigen teller (positieve controle)", async () => {
+    const { store, threadAId } = maakThreadScenario();
+
+    await markAsReadHandler(ctxVoorKantoorA(store), { threadId: threadAId });
+
+    expect(store.get(threadAId)!.unreadByBedrijf).toBe(0);
+  });
+
+  it("laat de teller van een andere organisatie ongemoeid", async () => {
+    const { store, threadBId } = maakThreadScenario();
+
+    await expect(
+      markAsReadHandler(ctxVoorKantoorA(store), { threadId: threadBId })
+    ).rejects.toThrow("Geen toegang tot dit gesprek");
+
+    expect(store.get(threadBId)!.unreadByBedrijf).toBe(3);
+  });
+});
+
+describe("chatThreads.deleteThread — org-isolatie", () => {
+  it("verwijdert de eigen thread inclusief berichten (positieve controle)", async () => {
+    const { store, threadAId } = maakThreadScenario();
+
+    const resultaat = await deleteThreadHandler(ctxVoorKantoorA(store), {
+      threadId: threadAId,
+    });
+
+    expect(resultaat).toEqual({ success: true });
+    expect(store.get(threadAId)).toBeNull();
+    expect(berichtenVan(store, threadAId)).toEqual([]);
+  });
+
+  it("weigert een thread van een andere organisatie te wissen", async () => {
+    const { store, threadBId } = maakThreadScenario();
+
+    await expect(
+      deleteThreadHandler(ctxVoorKantoorA(store), { threadId: threadBId })
+    ).rejects.toThrow("Gesprek niet gevonden");
+  });
+
+  it("laat bij die weigering de thread én zijn berichten staan", async () => {
+    const { store, threadBId } = maakThreadScenario();
+
+    await expect(
+      deleteThreadHandler(ctxVoorKantoorA(store), { threadId: threadBId })
+    ).rejects.toThrow();
+
+    // De kern van de regressie: de rol-gate liet directie door, waarna zowel de
+    // thread als alle chat_messages van de andere tenant werden gewist.
+    expect(store.get(threadBId)).not.toBeNull();
+    expect(berichtenVan(store, threadBId)).toEqual(["Vraag van klant B"]);
   });
 });
