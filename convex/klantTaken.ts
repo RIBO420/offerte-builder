@@ -12,15 +12,15 @@
  * - Lezen: alle interne rollen binnen het eigen bedrijf.
  * - Schrijven: alle interne rollen (een voorman mag zijn eigen taak afvinken);
  *   klantaccounts krijgen op elke functie een AuthError.
- * Elke functie scopet bovendien expliciet op companyUserId — de tenancy mag
- * nooit alleen van de gekozen index afhangen.
+ * Elke functie scopet bovendien expliciet op orgId — de tenancy mag nooit
+ * alleen van de gekozen index afhangen.
  */
 
 import { v, ConvexError } from "convex/values";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
-import { AuthError, requireAuth } from "./auth";
-import { getCompanyUserId, normalizeRole } from "./roles";
+import { AuthError, requireAuth, requireOrgId } from "./auth";
+import { normalizeRole } from "./roles";
 import { laadDocsMap } from "./lib/batchLoad";
 
 const statusValidator = v.union(v.literal("open"), v.literal("afgerond"));
@@ -62,26 +62,28 @@ async function requireInterneRol(
 async function getKlantBinnenBedrijf(
   ctx: QueryCtx | MutationCtx,
   klantId: Id<"klanten">
-): Promise<{ klant: Doc<"klanten">; companyUserId: Id<"users"> }> {
-  const companyUserId = await getCompanyUserId(ctx);
+): Promise<{ klant: Doc<"klanten">; orgId: Id<"organisaties"> }> {
+  const orgId = await requireOrgId(ctx);
   const klant = await ctx.db.get(klantId);
-  if (!klant || klant.userId.toString() !== companyUserId.toString()) {
+  // `orgId` is optioneel zolang de migratie loopt; een klant zonder org valt
+  // buiten elke scope (zie verifyOrgOwnership in auth.ts).
+  if (!klant || klant.orgId?.toString() !== orgId.toString()) {
     throw new ConvexError("Klant niet gevonden");
   }
-  return { klant, companyUserId };
+  return { klant, orgId };
 }
 
-/** Taak ophalen én verifiëren dat hij binnen het eigen bedrijf valt. */
+/** Taak ophalen én verifiëren dat hij binnen de eigen organisatie valt. */
 async function getTaakBinnenBedrijf(
   ctx: MutationCtx,
   taakId: Id<"klantTaken">
-): Promise<{ taak: KlantTaak; companyUserId: Id<"users"> }> {
-  const companyUserId = await getCompanyUserId(ctx);
+): Promise<{ taak: KlantTaak; orgId: Id<"organisaties"> }> {
+  const orgId = await requireOrgId(ctx);
   const taak = await ctx.db.get(taakId);
-  if (!taak || taak.userId.toString() !== companyUserId.toString()) {
+  if (!taak || taak.orgId?.toString() !== orgId.toString()) {
     throw new ConvexError("Taak niet gevonden");
   }
-  return { taak, companyUserId };
+  return { taak, orgId };
 }
 
 function schoonTitel(titel: string): string {
@@ -124,11 +126,11 @@ function schoonDeadline(waarde: string | undefined): string | undefined {
 async function valideerMedewerker(
   ctx: MutationCtx,
   medewerkerId: Id<"medewerkers"> | undefined,
-  companyUserId: Id<"users">
+  orgId: Id<"organisaties">
 ): Promise<void> {
   if (!medewerkerId) return;
   const medewerker = await ctx.db.get(medewerkerId);
-  if (!medewerker || medewerker.userId.toString() !== companyUserId.toString()) {
+  if (!medewerker || medewerker.orgId?.toString() !== orgId.toString()) {
     throw new ConvexError("Medewerker niet gevonden");
   }
 }
@@ -136,11 +138,11 @@ async function valideerMedewerker(
 async function valideerWerkitem(
   ctx: MutationCtx,
   werkitemId: Id<"projecten"> | undefined,
-  companyUserId: Id<"users">
+  orgId: Id<"organisaties">
 ): Promise<void> {
   if (!werkitemId) return;
   const werkitem = await ctx.db.get(werkitemId);
-  if (!werkitem || werkitem.userId.toString() !== companyUserId.toString()) {
+  if (!werkitem || werkitem.orgId?.toString() !== orgId.toString()) {
     throw new ConvexError("Werkitem niet gevonden");
   }
 }
@@ -216,7 +218,7 @@ export const listVoorKlant = query({
   },
   handler: async (ctx, args): Promise<VerrijkteKlantTaak[]> => {
     await requireInterneRol(ctx);
-    const { companyUserId } = await getKlantBinnenBedrijf(ctx, args.klantId);
+    const { orgId } = await getKlantBinnenBedrijf(ctx, args.klantId);
 
     const taken = await ctx.db
       .query("klantTaken")
@@ -224,7 +226,7 @@ export const listVoorKlant = query({
       .collect();
 
     const gefilterd = taken
-      .filter((t) => t.userId.toString() === companyUserId.toString())
+      .filter((t) => t.orgId?.toString() === orgId.toString())
       .filter((t) => !args.status || t.status === args.status)
       .sort(sorteerTaken);
 
@@ -240,12 +242,12 @@ export const openTellingPerKlant = query({
   args: {},
   handler: async (ctx): Promise<Record<string, number>> => {
     await requireInterneRol(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const open = await ctx.db
       .query("klantTaken")
-      .withIndex("by_user_status", (q) =>
-        q.eq("userId", companyUserId).eq("status", "open")
+      .withIndex("by_org_status", (q) =>
+        q.eq("orgId", orgId).eq("status", "open")
       )
       .collect();
 
@@ -270,7 +272,7 @@ export const mijnTaken = query({
   },
   handler: async (ctx, args): Promise<VerrijkteKlantTaak[]> => {
     const user = await requireInterneRol(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const eigenMedewerkerId = user.linkedMedewerkerId;
     const alleenEigen = args.alleenEigen ?? Boolean(eigenMedewerkerId);
@@ -285,13 +287,13 @@ export const mijnTaken = query({
             .collect()
         : await ctx.db
             .query("klantTaken")
-            .withIndex("by_user_status", (q) =>
-              q.eq("userId", companyUserId).eq("status", "open")
+            .withIndex("by_org_status", (q) =>
+              q.eq("orgId", orgId).eq("status", "open")
             )
             .collect();
 
     const gefilterd = taken
-      .filter((t) => t.userId.toString() === companyUserId.toString())
+      .filter((t) => t.orgId?.toString() === orgId.toString())
       .sort(sorteerTaken)
       .slice(0, args.limit ?? 50);
 
@@ -315,13 +317,16 @@ export const create = mutation({
   },
   handler: async (ctx, args): Promise<Id<"klantTaken">> => {
     const user = await requireInterneRol(ctx);
-    const { companyUserId } = await getKlantBinnenBedrijf(ctx, args.klantId);
-    await valideerMedewerker(ctx, args.toegewezenAanId, companyUserId);
-    await valideerWerkitem(ctx, args.werkitemId, companyUserId);
+    const { orgId } = await getKlantBinnenBedrijf(ctx, args.klantId);
+    await valideerMedewerker(ctx, args.toegewezenAanId, orgId);
+    await valideerWerkitem(ctx, args.werkitemId, orgId);
 
     const now = Date.now();
     return await ctx.db.insert("klantTaken", {
-      userId: companyUserId,
+      orgId,
+      // Legacy-veld: `userId` is sinds fase 3 geen scope meer, maar nog wel
+      // verplicht in het schema tot fase 6.
+      userId: user._id,
       klantId: args.klantId,
       titel: schoonTitel(args.titel),
       omschrijving: schoonOmschrijving(args.omschrijving),
@@ -350,7 +355,7 @@ export const update = mutation({
   },
   handler: async (ctx, args): Promise<{ success: boolean }> => {
     await requireInterneRol(ctx);
-    const { companyUserId } = await getTaakBinnenBedrijf(ctx, args.id);
+    const { orgId } = await getTaakBinnenBedrijf(ctx, args.id);
 
     const patch: Partial<KlantTaak> = { updatedAt: Date.now() };
 
@@ -364,12 +369,12 @@ export const update = mutation({
     }
     if (args.toegewezenAanId !== undefined) {
       const medewerkerId = args.toegewezenAanId ?? undefined;
-      await valideerMedewerker(ctx, medewerkerId, companyUserId);
+      await valideerMedewerker(ctx, medewerkerId, orgId);
       patch.toegewezenAanId = medewerkerId;
     }
     if (args.werkitemId !== undefined) {
       const werkitemId = args.werkitemId ?? undefined;
-      await valideerWerkitem(ctx, werkitemId, companyUserId);
+      await valideerWerkitem(ctx, werkitemId, orgId);
       patch.werkitemId = werkitemId;
     }
 

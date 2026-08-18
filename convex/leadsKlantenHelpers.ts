@@ -146,8 +146,8 @@ export type PromotieResultaat = {
  *   e-mailadres (geen ongeïndexeerde full-table scan meer).
  * - Geen dubbele records: bestaat de klant al, dan wordt gekoppeld; anders
  *   wordt het klantrecord uit de lead-gegevens aangemaakt (zónder het
- *   deprecated "lead"-stadium; tenancy conform bestaande conventie:
- *   userId = de kantoor-gebruiker die promoveert, zoals klanten.create).
+ *   deprecated "lead"-stadium; tenancy = de organisatie van de promoverende
+ *   kantoor-gebruiker, zoals klanten.create).
  * - Direct een eerste werkitem (type "project", status "gepland") — de
  *   werkitems-laag uit B1 (convex/werkitems.ts); offerte volgt later vanuit
  *   de wizard met deze klant.
@@ -157,7 +157,8 @@ export type PromotieResultaat = {
 export async function promoveerLead(
   ctx: GenericMutationCtx<DataModel>,
   lead: Doc<"configuratorAanvragen">,
-  currentUser: Doc<"users">
+  currentUser: Doc<"users">,
+  orgId: Id<"organisaties">
 ): Promise<PromotieResultaat> {
   // Idempotentie: promotie is al gebeurd — geen tweede klant/werkitem.
   if (isGepromoveerdeLead(lead) && lead.gekoppeldKlantId) {
@@ -178,10 +179,14 @@ export async function promoveerLead(
   let nieuweKlant = false;
 
   if (!klantId && emailGenormaliseerd) {
-    const kandidaten = await ctx.db
-      .query("klanten")
-      .withIndex("by_email", (q) => q.eq("email", emailGenormaliseerd))
-      .collect();
+    // by_email is een bedrijfsoverstijgende index: de org-filter hieronder
+    // voorkomt dat een lead aan de klant van een andere tenant wordt gekoppeld.
+    const kandidaten = (
+      await ctx.db
+        .query("klanten")
+        .withIndex("by_email", (q) => q.eq("email", emailGenormaliseerd))
+        .collect()
+    ).filter((k) => k.orgId?.toString() === orgId.toString());
     klantId = vindKlantMatch(kandidaten, emailGenormaliseerd)?._id;
 
     // Legacy-vangnet: rijen die vóór de e-mailnormalisatie zijn aangemaakt
@@ -190,10 +195,12 @@ export async function promoveerLead(
     // dit af tot migrations/saneerLeadsKlanten gedraaid is.
     const ruweEmail = lead.klantEmail?.trim();
     if (!klantId && ruweEmail && ruweEmail !== emailGenormaliseerd) {
-      const legacyKandidaten = await ctx.db
-        .query("klanten")
-        .withIndex("by_email", (q) => q.eq("email", ruweEmail))
-        .collect();
+      const legacyKandidaten = (
+        await ctx.db
+          .query("klanten")
+          .withIndex("by_email", (q) => q.eq("email", ruweEmail))
+          .collect()
+      ).filter((k) => k.orgId?.toString() === orgId.toString());
       klantId = vindKlantMatch(legacyKandidaten, emailGenormaliseerd)?._id;
     }
   }
@@ -201,6 +208,8 @@ export async function promoveerLead(
   // 2. Geen match → de lead wórdt de klant (géén "lead"-stadium, zie sanering).
   if (!klantId) {
     klantId = await ctx.db.insert("klanten", {
+      orgId,
+      // Legacy-veld: verplicht in het schema tot fase 6 van de org-migratie.
       userId: currentUser._id,
       naam: lead.klantNaam.trim(),
       adres: lead.klantAdres?.trim() ?? "",
@@ -217,6 +226,7 @@ export async function promoveerLead(
   // 3. Direct het eerste werkitem aanmaken (PRD §1.3; conventie werkitems.ts:
   //    createWerkitem — type "project", status "gepland", adres = klantadres).
   const werkitemId = await ctx.db.insert("projecten", {
+    orgId,
     userId: currentUser._id,
     type: "project",
     klantId,
@@ -253,6 +263,7 @@ export async function promoveerLead(
   // 6. Klanttijdlijn (PRD §2.3): promotie zichtbaar in het klantdossier.
   //    Additief, niet-blokkerend (logTijdlijnEvent vangt fouten zelf af).
   await logTijdlijnEvent(ctx, {
+    orgId,
     userId: currentUser._id,
     klantId,
     eventType: "lead_gewonnen",

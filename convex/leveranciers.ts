@@ -1,6 +1,6 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAuthUserId } from "./auth";
+import { requireOrgContext, requireOrgId } from "./auth";
 import { requireNotViewer } from "./roles";
 import {
   sanitizeEmail,
@@ -25,13 +25,13 @@ export const list = query({
     cursor: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     // If no cursor is provided, return all active leveranciers (backward compat for dropdowns)
     if (!args.cursor && !args.limit) {
       const leveranciers = await ctx.db
         .query("leveranciers")
-        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
         .filter((q) => q.eq(q.field("isActief"), true))
         .collect();
       return leveranciers;
@@ -41,7 +41,7 @@ export const list = query({
     const limit = args.limit || 25;
     const result = await ctx.db
       .query("leveranciers")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .filter((q) => q.eq(q.field("isActief"), true))
       .paginate({ numItems: limit, cursor: args.cursor ?? null });
 
@@ -57,10 +57,10 @@ export const list = query({
 export const listAll = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     return await ctx.db
       .query("leveranciers")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
   },
 });
@@ -69,11 +69,11 @@ export const listAll = query({
 export const getById = query({
   args: { id: v.id("leveranciers") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const leverancier = await ctx.db.get(args.id);
 
     if (!leverancier) return null;
-    if (leverancier.userId.toString() !== userId.toString()) {
+    if (leverancier.orgId?.toString() !== orgId.toString()) {
       return null;
     }
 
@@ -88,13 +88,13 @@ export const search = query({
     includeInactive: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     if (!args.searchTerm.trim()) {
       // Return recent leveranciers if no search term
       const leveranciers = await ctx.db
         .query("leveranciers")
-        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
         .order("desc")
         .take(10);
 
@@ -108,7 +108,7 @@ export const search = query({
     const results = await ctx.db
       .query("leveranciers")
       .withSearchIndex("search_leveranciers", (q) =>
-        q.search("naam", args.searchTerm).eq("userId", userId)
+        q.search("naam", args.searchTerm).eq("orgId", orgId)
       )
       .take(20);
 
@@ -137,7 +137,7 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
     const now = Date.now();
 
     // Validate required fields
@@ -164,7 +164,9 @@ export const create = mutation({
     }
 
     return await ctx.db.insert("leveranciers", {
-      userId,
+      orgId: org._id,
+      // Legacy-veld: verplicht in het schema tot fase 6 van de org-migratie.
+      userId: user._id,
       naam: args.naam.trim(),
       contactpersoon,
       email,
@@ -212,14 +214,14 @@ export const importLeveranciers = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
     const now = Date.now();
 
     // Hele documenten, niet alleen naam+e-mail: een bestaande leverancier moet
     // aangevuld kunnen worden en daarvoor moet je weten wat er al staat.
     const bestaande = await ctx.db
       .query("leveranciers")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", org._id))
       .collect();
 
     let imported = 0;
@@ -303,7 +305,8 @@ export const importLeveranciers = mutation({
         }
 
         const nieuweVelden = {
-          userId,
+          orgId: org._id,
+          userId: user._id,
           naam,
           contactpersoon: sanitizeOptionalString(rij.contactpersoon),
           email,
@@ -352,14 +355,14 @@ export const update = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     // Verify ownership
     const leverancier = await ctx.db.get(args.id);
     if (!leverancier) {
       throw new ConvexError("Leverancier niet gevonden");
     }
-    if (leverancier.userId.toString() !== userId.toString()) {
+    if (leverancier.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Geen toegang tot deze leverancier");
     }
 
@@ -434,14 +437,14 @@ export const remove = mutation({
   args: { id: v.id("leveranciers") },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     // Verify ownership
     const leverancier = await ctx.db.get(args.id);
     if (!leverancier) {
       throw new ConvexError("Leverancier niet gevonden");
     }
-    if (leverancier.userId.toString() !== userId.toString()) {
+    if (leverancier.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Geen toegang tot deze leverancier");
     }
 
@@ -477,14 +480,14 @@ export const hardDelete = mutation({
   args: { id: v.id("leveranciers") },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     // Verify ownership
     const leverancier = await ctx.db.get(args.id);
     if (!leverancier) {
       throw new ConvexError("Leverancier niet gevonden");
     }
-    if (leverancier.userId.toString() !== userId.toString()) {
+    if (leverancier.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Geen toegang tot deze leverancier");
     }
 
@@ -509,14 +512,14 @@ export const hardDelete = mutation({
 export const getStats = query({
   args: { id: v.id("leveranciers") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     // Verify ownership
     const leverancier = await ctx.db.get(args.id);
     if (!leverancier) {
       throw new ConvexError("Leverancier niet gevonden");
     }
-    if (leverancier.userId.toString() !== userId.toString()) {
+    if (leverancier.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Geen toegang tot deze leverancier");
     }
 
@@ -561,12 +564,12 @@ export const getStats = query({
 export const getWithOrders = query({
   args: { id: v.id("leveranciers") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     // Verify ownership
     const leverancier = await ctx.db.get(args.id);
     if (!leverancier) return null;
-    if (leverancier.userId.toString() !== userId.toString()) {
+    if (leverancier.orgId?.toString() !== orgId.toString()) {
       return null;
     }
 
@@ -588,11 +591,11 @@ export const getWithOrders = query({
 export const listAllWithStats = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const allLeveranciers = await ctx.db
       .query("leveranciers")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .order("desc")
       .collect();
 
@@ -616,14 +619,14 @@ export const reactivate = mutation({
   args: { id: v.id("leveranciers") },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     // Verify ownership
     const leverancier = await ctx.db.get(args.id);
     if (!leverancier) {
       throw new ConvexError("Leverancier niet gevonden");
     }
-    if (leverancier.userId.toString() !== userId.toString()) {
+    if (leverancier.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Geen toegang tot deze leverancier");
     }
 

@@ -1,7 +1,19 @@
 import { v, ConvexError } from "convex/values";
-import { mutation, query, internalQuery } from "./_generated/server";
+import {
+  mutation,
+  query,
+  internalQuery,
+  type MutationCtx,
+  type QueryCtx,
+} from "./_generated/server";
+import type { Doc, Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
-import { requireAuth, requireAuthUserId, getOwnedKlant, generateSecureToken } from "./auth";
+import {
+  requireOrgContext,
+  requireOrgId,
+  getOwnedKlant,
+  generateSecureToken,
+} from "./auth";
 import { requireNotViewer, requireAdmin, assertKanNaarKlantVersturen } from "./roles";
 import {
   sanitizeEmail,
@@ -18,14 +30,32 @@ import { hoortInKlantenLijst } from "./leadsKlantenHelpers";
 import { logTijdlijnEvent } from "./tijdlijn";
 import { effectieveStatussen } from "./facturatieLogica";
 
-// Get all klanten for authenticated user
+/**
+ * Tolerante tegenhanger van `getOwnedKlant`: die gooit een AuthError, terwijl
+ * de queries hieronder bewust `null` teruggeven — een klant van een andere
+ * organisatie mag niet te onderscheiden zijn van een klant die niet bestaat.
+ *
+ * `orgId` is optioneel in het schema zolang de migratie loopt; een klant zonder
+ * organisatie hoort bij niemand en valt dus buiten elke scope.
+ */
+async function getKlantVanOrgOfNull(
+  ctx: QueryCtx | MutationCtx,
+  klantId: Id<"klanten">
+): Promise<Doc<"klanten"> | null> {
+  const klant = await ctx.db.get(klantId);
+  if (!klant) return null;
+  const orgId = await requireOrgId(ctx);
+  return klant.orgId?.toString() === orgId.toString() ? klant : null;
+}
+
+// Get all klanten for the authenticated user's organisatie
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const klanten = await ctx.db
       .query("klanten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .order("desc")
       .collect();
     // Gearchiveerde klanten (§5.2) en legacy "lead"-stadium (PRD §1.3, zie
@@ -38,10 +68,10 @@ export const list = query({
 export const getRecent = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const klanten = await ctx.db
       .query("klanten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .order("desc")
       .take(20);
     return klanten.filter((k) => !k.isArchived).slice(0, 5);
@@ -52,16 +82,7 @@ export const getRecent = query({
 export const get = query({
   args: { id: v.id("klanten") },
   handler: async (ctx, args) => {
-    const klant = await ctx.db.get(args.id);
-    if (!klant) return null;
-
-    // Verify ownership
-    const user = await requireAuth(ctx);
-    if (klant.userId.toString() !== user._id.toString()) {
-      return null;
-    }
-
-    return klant;
+    return await getKlantVanOrgOfNull(ctx, args.id);
   },
 });
 
@@ -84,15 +105,7 @@ export const getVoorSelector = query({
     const klantId = ctx.db.normalizeId("klanten", args.id);
     if (!klantId) return null;
 
-    const klant = await ctx.db.get(klantId);
-    if (!klant) return null;
-
-    const user = await requireAuth(ctx);
-    if (klant.userId.toString() !== user._id.toString()) {
-      return null;
-    }
-
-    return klant;
+    return await getKlantVanOrgOfNull(ctx, klantId);
   },
 });
 
@@ -100,19 +113,14 @@ export const getVoorSelector = query({
 export const getWithOffertes = query({
   args: { id: v.id("klanten") },
   handler: async (ctx, args) => {
-    const klant = await ctx.db.get(args.id);
+    const klant = await getKlantVanOrgOfNull(ctx, args.id);
     if (!klant) return null;
 
-    // Verify ownership
-    const user = await requireAuth(ctx);
-    if (klant.userId.toString() !== user._id.toString()) {
-      return null;
-    }
-
     // Get all offertes for this klant
+    const orgId = await requireOrgId(ctx);
     const offertes = await ctx.db
       .query("offertes")
-      .withIndex("by_user", (q) => q.eq("userId", klant.userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .filter((q) => q.eq(q.field("klantId"), args.id))
       .order("desc")
       .collect();
@@ -128,13 +136,13 @@ export const getWithOffertes = query({
 export const search = query({
   args: { searchTerm: v.string() },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     if (!args.searchTerm.trim()) {
       // Return recent klanten if no search term
       const recent = await ctx.db
         .query("klanten")
-        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
         .order("desc")
         .take(30);
       return recent.filter((k) => !k.isArchived).slice(0, 10);
@@ -144,7 +152,7 @@ export const search = query({
     const results = await ctx.db
       .query("klanten")
       .withSearchIndex("search_klanten", (q) =>
-        q.search("naam", args.searchTerm).eq("userId", userId)
+        q.search("naam", args.searchTerm).eq("orgId", orgId)
       )
       .take(30);
     return results.filter((k) => !k.isArchived).slice(0, 10);
@@ -179,7 +187,7 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
     const now = Date.now();
 
     // Validate required fields
@@ -205,7 +213,9 @@ export const create = mutation({
       : undefined;
 
     return await ctx.db.insert("klanten", {
-      userId,
+      orgId: org._id,
+      // Legacy-veld: verplicht in het schema tot fase 6 van de org-migratie.
+      userId: user._id,
       naam: args.naam.trim(),
       adres: args.adres.trim(),
       postcode,
@@ -352,11 +362,12 @@ export const remove = mutation({
     // Verify ownership
     const klant = await getOwnedKlant(ctx, args.id);
 
-    // Check if there are offertes linked to this klant
+    // Check if there are offertes linked to this klant. De by_klant-index
+    // leest alleen de offertes van déze klant; de org-check is al gedaan door
+    // getOwnedKlant hierboven (de offerte hangt aan dezelfde klant).
     const linkedOffertes = await ctx.db
       .query("offertes")
-      .withIndex("by_user", (q) => q.eq("userId", klant.userId))
-      .filter((q) => q.eq(q.field("klantId"), args.id))
+      .withIndex("by_klant", (q) => q.eq("klantId", klant._id))
       .take(1);
 
     if (linkedOffertes.length > 0) {
@@ -414,11 +425,11 @@ export const restoreArchived = mutation({
 export const listArchived = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const klanten = await ctx.db
       .query("klanten")
-      .withIndex("by_user_archived", (q) =>
-        q.eq("userId", userId).eq("isArchived", true)
+      .withIndex("by_org_archived", (q) =>
+        q.eq("orgId", orgId).eq("isArchived", true)
       )
       .collect();
 
@@ -438,10 +449,10 @@ export const listArchived = query({
 export const listWithRecent = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const alleKlanten = await ctx.db
       .query("klanten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .order("desc")
       .collect();
 
@@ -463,10 +474,10 @@ export const listWithRecent = query({
 export const countKlanten = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const klanten = await ctx.db
       .query("klanten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
     return klanten.filter(hoortInKlantenLijst).length;
   },
@@ -476,10 +487,10 @@ export const countKlanten = query({
 export const getAllTags = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const klanten = await ctx.db
       .query("klanten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     const tagSet = new Set<string>();
@@ -504,10 +515,10 @@ export const checkDuplicates = query({
     excludeId: v.optional(v.id("klanten")),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const klanten = await ctx.db
       .query("klanten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     const duplicates: Array<{
@@ -574,13 +585,13 @@ export const createFromOfferte = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
 
     // Check if a klant with the same name and address already exists
     const existingKlanten = await ctx.db
       .query("klanten")
       .withSearchIndex("search_klanten", (q) =>
-        q.search("naam", args.naam).eq("userId", userId)
+        q.search("naam", args.naam).eq("orgId", org._id)
       )
       .collect();
 
@@ -603,7 +614,9 @@ export const createFromOfferte = mutation({
     // Create new klant
     const now = Date.now();
     return await ctx.db.insert("klanten", {
-      userId,
+      orgId: org._id,
+      // Legacy-veld: verplicht in het schema tot fase 6 van de org-migratie.
+      userId: user._id,
       naam: args.naam.trim(),
       adres: args.adres.trim(),
       postcode,
@@ -630,22 +643,21 @@ export const createFromOfferte = mutation({
  * stuk in beeld. Eén verzamelquery komt in één keer aan.
  *
  * Alles loopt via een index; geen enkele tabel wordt in zijn geheel gelezen.
- * De indexen op `projecten`, `facturen` en `offertes` staan niet op `userId`,
+ * De indexen op `projecten`, `facturen` en `offertes` staan hier op `klantId`,
  * dus daar controleren we de tenant-scope er expliciet achteraan (audit §2).
  */
 export const dossierTellingen = query({
   args: { klantId: v.id("klanten") },
   handler: async (ctx, args) => {
+    // Zelfde eigenaarscontrole als `get`/`getWithOffertes` hierboven, maar met
+    // de orgId apart: die is hieronder de scope-vergelijking voor de
+    // kindtabellen, en dan mag hij nooit `undefined` kunnen zijn (anders
+    // matchen twee documenten zónder org elkaar).
+    const orgId = await requireOrgId(ctx);
     const klant = await ctx.db.get(args.klantId);
-    if (!klant) return null;
+    if (!klant || klant.orgId?.toString() !== orgId.toString()) return null;
 
-    // Zelfde eigenaarscontrole als `get`/`getWithOffertes` hierboven.
-    const user = await requireAuth(ctx);
-    if (klant.userId.toString() !== user._id.toString()) {
-      return null;
-    }
-
-    const eigenaar = klant.userId.toString();
+    const eigenaar = orgId.toString();
 
     // ── Taken: index by_klant staat op [klantId, status], dus alleen de open
     //    taken komen überhaupt van de schijf.
@@ -674,7 +686,7 @@ export const dossierTellingen = query({
         .query("projecten")
         .withIndex("by_klant", (q) => q.eq("klantId", args.klantId))
         .collect()
-    ).filter((p) => p.userId.toString() === eigenaar && !p.deletedAt);
+    ).filter((p) => p.orgId?.toString() === eigenaar && !p.deletedAt);
     const projecten = werkitems.filter(
       (p) => p.type !== "onderhoudsbeurt"
     ).length;
@@ -687,14 +699,14 @@ export const dossierTellingen = query({
         .query("onderhoudscontracten")
         .withIndex("by_klant", (q) => q.eq("klantId", args.klantId))
         .collect()
-    ).filter((c) => c.userId.toString() === eigenaar && !c.deletedAt);
+    ).filter((c) => c.orgId?.toString() === eigenaar && !c.deletedAt);
 
     const offertes = (
       await ctx.db
         .query("offertes")
         .withIndex("by_klant", (q) => q.eq("klantId", args.klantId))
         .collect()
-    ).filter((o) => o.userId.toString() === eigenaar);
+    ).filter((o) => o.orgId?.toString() === eigenaar);
 
     // ── Facturen: dezelfde definitie van "open" als KlantFacturenSectie —
     //    verstuurd (dus geen concept) en niet betaald. Zo staat er in de pil
@@ -704,7 +716,7 @@ export const dossierTellingen = query({
         .query("facturen")
         .withIndex("by_klant", (q) => q.eq("klantId", args.klantId))
         .collect()
-    ).filter((f) => f.userId.toString() === eigenaar);
+    ).filter((f) => f.orgId?.toString() === eigenaar);
 
     const nu = Date.now();
     let openFacturenAantal = 0;
@@ -748,22 +760,17 @@ export const dossierTellingen = query({
 export const checkGdprBlockers = query({
   args: { id: v.id("klanten") },
   handler: async (ctx, args) => {
-    const klant = await ctx.db.get(args.id);
+    const klant = await getKlantVanOrgOfNull(ctx, args.id);
     if (!klant) return null;
-
-    // Verify ownership
-    const user = await requireAuth(ctx);
-    if (klant.userId.toString() !== user._id.toString()) {
-      return null;
-    }
 
     const blockers: Array<{ type: "factuur" | "project"; label: string }> = [];
 
-    // Find all offertes for this klant to check linked projects and invoices
+    // Find all offertes for this klant to check linked projects and invoices.
+    // by_klant leest alleen de offertes van deze klant; de org-scope zit al in
+    // de klantcontrole hierboven.
     const offertes = await ctx.db
       .query("offertes")
-      .withIndex("by_user", (q) => q.eq("userId", klant.userId))
-      .filter((q) => q.eq(q.field("klantId"), args.id))
+      .withIndex("by_klant", (q) => q.eq("klantId", args.id))
       .collect();
 
     for (const offerte of offertes) {
@@ -818,26 +825,19 @@ export const gdprAnonymize = mutation({
     // Only admins can perform GDPR anonymization
     const adminUser = await requireAdmin(ctx);
 
-    const klant = await ctx.db.get(args.id);
-    if (!klant) {
-      throw new ConvexError("Klant niet gevonden");
-    }
-
-    // Verify ownership (admin must belong to same company)
-    if (klant.userId.toString() !== adminUser._id.toString()) {
-      throw new ConvexError("Je hebt geen toegang tot deze klant");
-    }
+    // Verify ownership (admin must belong to the same organisatie)
+    const klant = await getOwnedKlant(ctx, args.id);
 
     // Check if already anonymized
     if (klant.gdprAnonymized) {
       throw new ConvexError("Deze klant is al geanonimiseerd");
     }
 
-    // Check for blockers: active projects and open invoices
+    // Check for blockers: active projects and open invoices. by_klant leest
+    // alleen de offertes van deze klant; de org-scope zit in getOwnedKlant.
     const offertes = await ctx.db
       .query("offertes")
-      .withIndex("by_user", (q) => q.eq("userId", klant.userId))
-      .filter((q) => q.eq(q.field("klantId"), args.id))
+      .withIndex("by_klant", (q) => q.eq("klantId", args.id))
       .collect();
 
     for (const offerte of offertes) {
@@ -972,13 +972,14 @@ export const importKlanten = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    // Resolver één keer vóór de importlus: nooit per rij opnieuw.
+    const { org, user } = await requireOrgContext(ctx);
     const now = Date.now();
 
     // Fetch all existing klanten for duplicate checking
     const existingKlanten = await ctx.db
       .query("klanten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", org._id))
       .collect();
 
     let imported = 0;
@@ -1096,7 +1097,9 @@ export const importKlanten = mutation({
         // en niet in de insert zelf, waardoor hij bij import stilzwijgend
         // verdween — vandaar dat hij nu expliciet in dit object staat.
         const nieuweVelden = {
-          userId,
+          orgId: org._id,
+          // Legacy-veld: verplicht tot fase 6 van de org-migratie.
+          userId: user._id,
           naam: klant.naam.trim(),
           adres,
           postcode,
@@ -1153,12 +1156,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export const getKlantReminder = query({
   args: { id: v.id("klanten") },
   handler: async (ctx, args) => {
-    const klant = await ctx.db.get(args.id);
+    const klant = await getKlantVanOrgOfNull(ctx, args.id);
     if (!klant) return null;
-
-    // Verify ownership
-    const user = await requireAuth(ctx);
-    if (klant.userId.toString() !== user._id.toString()) return null;
 
     // If snoozed, return snoozed state
     if (klant.reminderSnoozed) {
@@ -1175,8 +1174,7 @@ export const getKlantReminder = query({
         // Check if there are any linked offertes
         const offertes = await ctx.db
           .query("offertes")
-          .withIndex("by_user", (q) => q.eq("userId", klant.userId))
-          .filter((q) => q.eq(q.field("klantId"), args.id))
+          .withIndex("by_klant", (q) => q.eq("klantId", args.id))
           .take(1);
 
         if (offertes.length === 0) {
@@ -1192,8 +1190,7 @@ export const getKlantReminder = query({
     if (pipelineStatus === "offerte_verzonden") {
       const offertes = await ctx.db
         .query("offertes")
-        .withIndex("by_user", (q) => q.eq("userId", klant.userId))
-        .filter((q) => q.eq(q.field("klantId"), args.id))
+        .withIndex("by_klant", (q) => q.eq("klantId", args.id))
         .order("desc")
         .collect();
 
@@ -1223,13 +1220,13 @@ export const getKlantReminder = query({
 export const getKlantenMetHerinneringen = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const now = Date.now();
 
     // Get all klanten for this user
     const klanten = await ctx.db
       .query("klanten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     const klantIdsMetHerinnering: string[] = [];
@@ -1329,16 +1326,9 @@ export const activatePortal = mutation({
   args: { id: v.id("klanten") },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const user = await requireAuth(ctx);
 
-    // Get klant and verify ownership
-    const klant = await ctx.db.get(args.id);
-    if (!klant) {
-      throw new ConvexError("Klant niet gevonden");
-    }
-    if (klant.userId.toString() !== user._id.toString()) {
-      throw new ConvexError("Je hebt geen toegang tot deze klant");
-    }
+    // Get klant and verify org-ownership
+    const klant = await getOwnedKlant(ctx, args.id);
 
     // Validate klant has email
     if (!klant.email) {
@@ -1391,13 +1381,7 @@ export const sendPortalInvitation = mutation({
     // Capability "versturen naar klant" (PRD §1.2): alleen kantoor
     const user = await assertKanNaarKlantVersturen(ctx);
 
-    const klant = await ctx.db.get(args.id);
-    if (!klant) {
-      throw new ConvexError("Klant niet gevonden");
-    }
-    if (klant.userId.toString() !== user._id.toString()) {
-      throw new ConvexError("Je hebt geen toegang tot deze klant");
-    }
+    const klant = await getOwnedKlant(ctx, args.id);
     if (!klant.email) {
       throw new ConvexError(
         "Klant heeft geen e-mailadres. Voeg eerst een e-mailadres toe voordat je een uitnodiging verstuurt."
@@ -1430,6 +1414,7 @@ export const sendPortalInvitation = mutation({
     // — Klanttijdlijn (PRD §2.3): portaal-uitnodiging verstuurd.
     // Additief, niet-blokkerend; bewust zonder e-mailadres in de tekst.
     await logTijdlijnEvent(ctx, {
+      orgId: klant.orgId,
       userId: klant.userId,
       klantId: args.id,
       eventType: "portaal_uitnodiging",
@@ -1450,16 +1435,9 @@ export const deactivatePortal = mutation({
   args: { id: v.id("klanten") },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const user = await requireAuth(ctx);
 
-    // Get klant and verify ownership
-    const klant = await ctx.db.get(args.id);
-    if (!klant) {
-      throw new ConvexError("Klant niet gevonden");
-    }
-    if (klant.userId.toString() !== user._id.toString()) {
-      throw new ConvexError("Je hebt geen toegang tot deze klant");
-    }
+    // Get klant and verify org-ownership
+    await getOwnedKlant(ctx, args.id);
 
     await ctx.db.patch(args.id, {
       portalEnabled: false,

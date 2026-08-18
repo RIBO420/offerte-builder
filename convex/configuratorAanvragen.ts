@@ -1,6 +1,6 @@
 import { v, ConvexError } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
-import { requireAuth, requireAuthUserId } from "./auth";
+import { requireOrgContext, requireOrgId, verifyOrgOwnership } from "./auth";
 import { requireNotViewer } from "./roles";
 import { Doc } from "./_generated/dataModel";
 import {
@@ -31,6 +31,49 @@ function wachttijdInMinuten(resetAt: number): number {
 }
 
 /**
+ * De organisatie waar een PUBLIEKE lead bij hoort.
+ *
+ * De configurator en het website-contactformulier draaien zonder ingelogde
+ * gebruiker: er is geen JWT en dus geen `org_id`-claim, waardoor
+ * `requireOrgContext` hier per definitie niet kan werken. Zolang er precies
+ * één actieve organisatie is (de huidige single-tenant situatie) is die de
+ * enige juiste bestemming, en dat is meteen de veiligste keuze: bij twijfel
+ * — nul of meerdere actieve organisaties — laten we `orgId` liever leeg dan
+ * dat een lead in de verkeerde tenant belandt. De lead blijft dan bestaan en
+ * is via het referentienummer terug te vinden, maar staat niet op een bord.
+ *
+ * WHITELABEL (later): zodra er meerdere tenants zijn, bepaalt het domein of
+ * de slug van de configurator-pagina de organisatie en wordt die als
+ * argument meegegeven in plaats van hier afgeleid.
+ */
+async function orgVoorPubliekeIntake(
+  ctx: MutationCtx
+): Promise<Id<"organisaties"> | undefined> {
+  const actieve = (await ctx.db.query("organisaties").collect()).filter(
+    (o) => o.actief
+  );
+  if (actieve.length === 1) return actieve[0]._id;
+
+  console.warn(
+    `[configuratorAanvragen] publieke lead zonder organisatie: ${actieve.length} actieve organisaties gevonden (verwacht: 1)`
+  );
+  return undefined;
+}
+
+/**
+ * Belt & braces bovenop de by_org-indexquery: de tenant-scope van het
+ * leads-bord mag nooit alleen van de gekozen index afhangen — zelfde principe
+ * als `filterEntries` in convex/tijdlijn.ts. Leads zonder organisatie (publieke
+ * instroom die geen tenant kon bepalen) horen bij niemand en vallen hier weg.
+ */
+function vanEigenOrg<T extends { orgId?: Id<"organisaties"> }>(
+  docs: T[],
+  orgId: Id<"organisaties">
+): T[] {
+  return docs.filter((d) => d.orgId?.toString() === orgId.toString());
+}
+
+/**
  * §2.7 (event lead_ontvangen): ontvangstbevestiging voor een nieuwe
  * website-lead klaarzetten via het trigger-model. Publieke instroom heeft
  * geen ingelogde gebruiker — de bedrijfseigenaar (directie) is de scope,
@@ -46,6 +89,12 @@ async function zetLeadOntvangstbevestigingKlaar(
     naam: string;
     email: string;
     referentie: string;
+    /**
+     * Identity-loze instroom moet de tenant expliciet meegeven: zonder sessie
+     * kan `zetTriggerMailKlaar` de organisatie niet uit een JWT halen en zet
+     * hij (fail-safe) geen mail klaar.
+     */
+    orgId: Id<"organisaties"> | undefined;
   }
 ): Promise<void> {
   const eigenaarId = await vindBedrijfseigenaarId(ctx);
@@ -54,6 +103,7 @@ async function zetLeadOntvangstbevestigingKlaar(
   await zetTriggerMailKlaar(ctx, {
     event: "lead_ontvangen",
     userId: eigenaarId,
+    orgId: lead.orgId,
     ontvangerEmail: lead.email,
     ontvangerNaam: lead.naam,
     variabelen: {
@@ -76,13 +126,14 @@ async function zetLeadOntvangstbevestigingKlaar(
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const aanvragen = await ctx.db
       .query("configuratorAanvragen")
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .order("desc")
       .collect();
     // Gearchiveerde leads niet tonen (§5.2)
-    return aanvragen.filter((a) => !a.isArchived);
+    return vanEigenOrg(aanvragen, orgId).filter((a) => !a.isArchived);
   },
 });
 
@@ -100,14 +151,16 @@ export const listByStatus = query({
     ),
   },
   handler: async (ctx, args) => {
-    await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const aanvragen = await ctx.db
       .query("configuratorAanvragen")
-      .withIndex("by_status", (q) => q.eq("status", args.status))
+      .withIndex("by_org_status", (q) =>
+        q.eq("orgId", orgId).eq("status", args.status)
+      )
       .order("desc")
       .collect();
     // Gearchiveerde leads niet tonen (§5.2)
-    return aanvragen.filter((a) => !a.isArchived);
+    return vanEigenOrg(aanvragen, orgId).filter((a) => !a.isArchived);
   },
 });
 
@@ -117,8 +170,12 @@ export const listByStatus = query({
 export const getById = query({
   args: { id: v.id("configuratorAanvragen") },
   handler: async (ctx, args) => {
-    await requireAuthUserId(ctx);
-    return await ctx.db.get(args.id);
+    const orgId = await requireOrgId(ctx);
+    const lead = await ctx.db.get(args.id);
+    // Een lead van een andere organisatie is niet te onderscheiden van een
+    // lead die niet bestaat.
+    if (!lead || lead.orgId?.toString() !== orgId.toString()) return null;
+    return lead;
   },
 });
 
@@ -167,15 +224,18 @@ export const getByReferentie = query({
 export const countByStatus = query({
   args: {},
   handler: async (ctx) => {
-    await requireAuthUserId(ctx);
-    // Use by_status index to fetch only "nieuw" records instead of full table scan.
-    // Also check pipelineStatus for records where status differs from pipeline status.
+    const orgId = await requireOrgId(ctx);
+    // Use by_org_status index to fetch only this org's "nieuw" records instead
+    // of a full table scan. Also check pipelineStatus for records where status
+    // differs from pipeline status.
     const nieuwByStatus = await ctx.db
       .query("configuratorAanvragen")
-      .withIndex("by_status", (q) => q.eq("status", "nieuw"))
+      .withIndex("by_org_status", (q) =>
+        q.eq("orgId", orgId).eq("status", "nieuw")
+      )
       .collect();
     // Count records where the effective status (pipelineStatus ?? status) is "nieuw"
-    return nieuwByStatus.filter((a) => {
+    return vanEigenOrg(nieuwByStatus, orgId).filter((a) => {
       if (a.isArchived) return false;
       const effectiveStatus = a.pipelineStatus ?? a.status;
       return effectiveStatus === "nieuw";
@@ -192,9 +252,12 @@ export const countByStatus = query({
 export const countActieveLeads = query({
   args: {},
   handler: async (ctx) => {
-    await requireAuthUserId(ctx);
-    const aanvragen = await ctx.db.query("configuratorAanvragen").collect();
-    return aanvragen.filter(isActieveLead).length;
+    const orgId = await requireOrgId(ctx);
+    const aanvragen = await ctx.db
+      .query("configuratorAanvragen")
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
+      .collect();
+    return vanEigenOrg(aanvragen, orgId).filter(isActieveLead).length;
   },
 });
 
@@ -205,13 +268,14 @@ export const countActieveLeads = query({
 export const listForOfferteSelector = query({
   args: {},
   handler: async (ctx) => {
-    await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const allLeads = await ctx.db
       .query("configuratorAanvragen")
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .order("desc")
       .collect();
 
-    return allLeads
+    return vanEigenOrg(allLeads, orgId)
       .filter((lead) => {
         if (lead.isArchived) return false;
         const pipelineStatus = lead.pipelineStatus ?? lead.status;
@@ -253,9 +317,10 @@ type PipelineStatus = LeadPipelineStatus;
 export const listByPipeline = query({
   args: {},
   handler: async (ctx) => {
-    await requireAuth(ctx);
+    const orgId = await requireOrgId(ctx);
     const allLeads = await ctx.db
       .query("configuratorAanvragen")
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .order("desc")
       .collect();
 
@@ -267,7 +332,7 @@ export const listByPipeline = query({
       verloren: [],
     };
 
-    for (const lead of allLeads) {
+    for (const lead of vanEigenOrg(allLeads, orgId)) {
       // Gearchiveerde leads niet tonen op het bord (§5.2)
       if (lead.isArchived) continue;
       // PRD §1.3: een gepromoveerde lead (gewonnen + gekoppeld klantrecord)
@@ -288,12 +353,13 @@ export const listByPipeline = query({
 export const pipelineStats = query({
   args: {},
   handler: async (ctx) => {
-    await requireAuth(ctx);
+    const orgId = await requireOrgId(ctx);
     const alleRecords = await ctx.db
       .query("configuratorAanvragen")
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
     // Gearchiveerde leads tellen niet mee in de statistieken (§5.2)
-    const allLeads = alleRecords.filter((a) => !a.isArchived);
+    const allLeads = vanEigenOrg(alleRecords, orgId).filter((a) => !a.isArchived);
 
     const totaalLeads = allLeads.length;
     let pipelineWaarde = 0;
@@ -457,7 +523,13 @@ export const create = mutation({
       verticuteren: "configurator_verticuteren",
     };
 
+    // Publieke instroom: de organisatie wordt afgeleid, niet uit een JWT
+    // gelezen — zie orgVoorPubliekeIntake. Eén keer bepalen, twee keer nodig
+    // (het lead-record én de ontvangstbevestiging).
+    const orgId = await orgVoorPubliekeIntake(ctx);
+
     const id = await ctx.db.insert("configuratorAanvragen", {
+      orgId,
       type: args.type,
       status: "nieuw",
       pipelineStatus: "nieuw",
@@ -491,6 +563,7 @@ export const create = mutation({
       naam: args.klantNaam.trim(),
       email: args.klantEmail.trim().toLowerCase(),
       referentie,
+      orgId,
     });
 
     return { id, referentie };
@@ -515,10 +588,11 @@ export const updateStatus = mutation({
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
 
-    const aanvraag = await ctx.db.get(args.id);
-    if (!aanvraag) {
-      throw new ConvexError("Aanvraag niet gevonden");
-    }
+    const aanvraag = await verifyOrgOwnership(
+      ctx,
+      await ctx.db.get(args.id),
+      "aanvraag"
+    );
 
     await ctx.db.patch(args.id, {
       status: args.status,
@@ -542,10 +616,11 @@ export const toewijzen = mutation({
   handler: async (ctx, args) => {
     const currentUser = await requireNotViewer(ctx);
 
-    const aanvraag = await ctx.db.get(args.id);
-    if (!aanvraag) {
-      throw new ConvexError("Aanvraag niet gevonden");
-    }
+    const aanvraag = await verifyOrgOwnership(
+      ctx,
+      await ctx.db.get(args.id),
+      "aanvraag"
+    );
 
     // Controleer of de gebruiker bestaat
     const medewerker = await ctx.db.get(args.toegewezenAan);
@@ -583,10 +658,7 @@ export const addNotitie = mutation({
   handler: async (ctx, args) => {
     const currentUser = await requireNotViewer(ctx);
 
-    const aanvraag = await ctx.db.get(args.id);
-    if (!aanvraag) {
-      throw new ConvexError("Aanvraag niet gevonden");
-    }
+    await verifyOrgOwnership(ctx, await ctx.db.get(args.id), "aanvraag");
 
     if (!args.notitie.trim()) {
       throw new ConvexError("Notitie mag niet leeg zijn");
@@ -619,10 +691,7 @@ export const setPrijs = mutation({
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
 
-    const aanvraag = await ctx.db.get(args.id);
-    if (!aanvraag) {
-      throw new ConvexError("Aanvraag niet gevonden");
-    }
+    await verifyOrgOwnership(ctx, await ctx.db.get(args.id), "aanvraag");
 
     if (args.definitievePrijs < 0) {
       throw new ConvexError("Definitieve prijs mag niet negatief zijn");
@@ -647,10 +716,7 @@ export const updatePrijzen = mutation({
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
 
-    const aanvraag = await ctx.db.get(args.id);
-    if (!aanvraag) {
-      throw new ConvexError("Lead niet gevonden");
-    }
+    await verifyOrgOwnership(ctx, await ctx.db.get(args.id), "lead");
 
     if (args.geschatteWaarde !== undefined && args.geschatteWaarde < 0) {
       throw new ConvexError("Geschatte waarde mag niet negatief zijn");
@@ -707,10 +773,11 @@ export const updatePipelineStatus = mutation({
   handler: async (ctx, args) => {
     const currentUser = await requireNotViewer(ctx);
 
-    const lead = await ctx.db.get(args.id);
-    if (!lead) {
-      throw new ConvexError("Lead niet gevonden");
-    }
+    const lead = await verifyOrgOwnership(
+      ctx,
+      await ctx.db.get(args.id),
+      "lead"
+    );
 
     const currentStatus = lead.pipelineStatus ?? mapOldStatus(lead.status);
 
@@ -767,17 +834,19 @@ export const markGewonnen = mutation({
   },
   handler: async (ctx, args) => {
     const currentUser = await requireNotViewer(ctx);
+    const orgId = await requireOrgId(ctx);
 
-    const lead = await ctx.db.get(args.id);
-    if (!lead) {
-      throw new ConvexError("Lead niet gevonden");
-    }
+    const lead = await verifyOrgOwnership(
+      ctx,
+      await ctx.db.get(args.id),
+      "lead"
+    );
 
     if (!lead.klantNaam?.trim()) {
       throw new ConvexError("Klantnaam is verplicht om een lead als gewonnen te markeren");
     }
 
-    const resultaat = await promoveerLead(ctx, lead, currentUser);
+    const resultaat = await promoveerLead(ctx, lead, currentUser, orgId);
     return resultaat;
   },
 });
@@ -789,13 +858,15 @@ export const markGewonnen = mutation({
 export const getLeadVoorKlant = query({
   args: { klantId: v.id("klanten") },
   handler: async (ctx, args) => {
-    await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const lead = await ctx.db
       .query("configuratorAanvragen")
       .withIndex("by_gekoppeld_klant", (q) => q.eq("gekoppeldKlantId", args.klantId))
       .first();
-    if (!lead) return null;
+    // by_gekoppeld_klant is bedrijfsoverstijgend: expliciet op de eigen
+    // organisatie controleren.
+    if (!lead || lead.orgId?.toString() !== orgId.toString()) return null;
 
     const activiteiten = await ctx.db
       .query("leadActiviteiten")
@@ -832,10 +903,7 @@ export const archiveer = mutation({
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
 
-    const lead = await ctx.db.get(args.id);
-    if (!lead) {
-      throw new ConvexError("Lead niet gevonden");
-    }
+    await verifyOrgOwnership(ctx, await ctx.db.get(args.id), "lead");
 
     await ctx.db.patch(args.id, {
       isArchived: true,
@@ -857,10 +925,11 @@ export const herstelGearchiveerd = mutation({
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
 
-    const lead = await ctx.db.get(args.id);
-    if (!lead) {
-      throw new ConvexError("Lead niet gevonden");
-    }
+    const lead = await verifyOrgOwnership(
+      ctx,
+      await ctx.db.get(args.id),
+      "lead"
+    );
     if (!lead.isArchived) {
       throw new ConvexError("Deze lead is niet gearchiveerd");
     }
@@ -881,13 +950,14 @@ export const herstelGearchiveerd = mutation({
 export const listArchived = query({
   args: {},
   handler: async (ctx) => {
-    await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const aanvragen = await ctx.db
       .query("configuratorAanvragen")
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .order("desc")
       .collect();
 
-    return aanvragen
+    return vanEigenOrg(aanvragen, orgId)
       .filter((a) => a.isArchived)
       .map((a) => ({
         _id: a._id,
@@ -911,10 +981,11 @@ export const verwijder = mutation({
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
 
-    const lead = await ctx.db.get(args.id);
-    if (!lead) {
-      throw new ConvexError("Lead niet gevonden");
-    }
+    const lead = await verifyOrgOwnership(
+      ctx,
+      await ctx.db.get(args.id),
+      "lead"
+    );
 
     // Verwijder foto's uit storage
     if (lead.fotoIds && lead.fotoIds.length > 0) {
@@ -963,6 +1034,7 @@ export const createHandmatig = mutation({
   },
   handler: async (ctx, args) => {
     const currentUser = await requireNotViewer(ctx);
+    const { org } = await requireOrgContext(ctx);
 
     if (!args.klantNaam.trim()) {
       throw new ConvexError("Klantnaam is verplicht");
@@ -977,6 +1049,7 @@ export const createHandmatig = mutation({
     const referentie = `TOP-MAN-${jaar}-${willekeurig}`;
 
     const id = await ctx.db.insert("configuratorAanvragen", {
+      orgId: org._id,
       type: "gazon", // Default type voor handmatige leads
       status: "nieuw",
       pipelineStatus: "nieuw",
@@ -1063,7 +1136,11 @@ export const createFromWebsite = internalMutation({
     const onderwerpLabel = onderwerpLabels[args.onderwerp] ?? args.onderwerp;
     const omschrijving = `[${onderwerpLabel}] ${args.bericht}`;
 
+    // Publieke instroom via de HTTP-action; zie orgVoorPubliekeIntake.
+    const orgId = await orgVoorPubliekeIntake(ctx);
+
     const id = await ctx.db.insert("configuratorAanvragen", {
+      orgId,
       type: "contact",
       status: "nieuw",
       pipelineStatus: "nieuw",
@@ -1112,6 +1189,7 @@ export const createFromWebsite = internalMutation({
       naam: args.klantNaam.trim(),
       email: args.klantEmail.trim().toLowerCase(),
       referentie,
+      orgId,
     });
 
     return { id, referentie };

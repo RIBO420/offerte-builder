@@ -27,8 +27,8 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
-import { AuthError, requireAuth } from "./auth";
-import { getCompanyUserId, normalizeRole, requireKantoor } from "./roles";
+import { AuthError, requireAuth, requireOrgId } from "./auth";
+import { normalizeRole, requireKantoor } from "./roles";
 import {
   tijdlijnHandmatigKanaalValidator,
   tijdlijnKanaalValidator,
@@ -71,17 +71,19 @@ export async function requireInterneRol(
   return user;
 }
 
-/** Klant ophalen + bedrijfsscope afdwingen (multi-tenant). */
+/** Klant ophalen + organisatiescope afdwingen (multi-tenant). */
 async function getKlantBinnenBedrijf(
   ctx: QueryCtx | MutationCtx,
   klantId: Id<"klanten">
-): Promise<{ klant: Doc<"klanten">; companyUserId: Id<"users"> }> {
-  const companyUserId = await getCompanyUserId(ctx);
+): Promise<{ klant: Doc<"klanten">; orgId: Id<"organisaties"> }> {
+  const orgId = await requireOrgId(ctx);
   const klant = await ctx.db.get(klantId);
-  if (!klant || klant.userId.toString() !== companyUserId.toString()) {
+  // `orgId` is optioneel in het schema zolang de migratie loopt; een klant
+  // zonder org hoort bij niemand en valt hier dus buiten de scope.
+  if (!klant || klant.orgId?.toString() !== orgId.toString()) {
     throw new ConvexError("Klant niet gevonden");
   }
-  return { klant, companyUserId };
+  return { klant, orgId };
 }
 
 // ============================================
@@ -89,8 +91,18 @@ async function getKlantBinnenBedrijf(
 // ============================================
 
 export type LogTijdlijnEventArgs = {
-  /** Bedrijfseigenaar (multi-tenant scope) — meestal <record>.userId */
+  /**
+   * Legacy tenant-veld; blijft verplicht zolang `klantTijdlijn.userId` in het
+   * schema verplicht is (verdwijnt in fase 6 van de org-migratie).
+   */
   userId: Id<"users">;
+  /**
+   * De organisatie waar deze entry bij hoort — DE tenant-scope sinds fase 3.
+   * Optioneel voor aanroepers buiten dit cluster: laat je hem weg, dan wordt
+   * hij afgeleid uit de klant zelf (een tijdlijn-entry hoort per definitie bij
+   * de organisatie van de klant).
+   */
+  orgId?: Id<"organisaties">;
   klantId: Id<"klanten">;
   eventType: TijdlijnEventType;
   /** Mensleesbare samenvatting, bv. "Offerte OFF-2026-014 verzonden" */
@@ -121,8 +133,14 @@ export async function logTijdlijnEvent(
 ): Promise<Id<"klantTijdlijn"> | null> {
   try {
     const now = Date.now();
+    // Zonder expliciete orgId de klant als bron nemen: die weet bij welke
+    // organisatie het dossier hoort, en zo hoeven de twaalf aanroepers buiten
+    // dit cluster hun eigen scope-resolver niet mee te sturen.
+    const orgId =
+      args.orgId ?? (await ctx.db.get(args.klantId))?.orgId ?? undefined;
     return await ctx.db.insert("klantTijdlijn", {
       userId: args.userId,
+      orgId,
       klantId: args.klantId,
       timestamp: args.timestamp ?? now,
       auteurId: args.auteurId,
@@ -181,14 +199,14 @@ async function verrijkMetWerkitemNaam(
 function filterEntries(
   entries: TijdlijnEntry[],
   scope: {
-    companyUserId: Id<"users">;
+    orgId: Id<"organisaties">;
     klantId?: Id<"klanten">;
     kanaal?: TijdlijnKanaal;
     werkitemId?: Id<"projecten">;
   }
 ): TijdlijnEntry[] {
   return entries.filter((e) => {
-    if (e.userId.toString() !== scope.companyUserId.toString()) return false;
+    if (e.orgId?.toString() !== scope.orgId.toString()) return false;
     if (scope.klantId && e.klantId.toString() !== scope.klantId.toString()) {
       return false;
     }
@@ -222,7 +240,7 @@ export const listVoorKlant = query({
   },
   handler: async (ctx, args) => {
     await requireInterneRol(ctx);
-    const { companyUserId } = await getKlantBinnenBedrijf(ctx, args.klantId);
+    const { orgId } = await getKlantBinnenBedrijf(ctx, args.klantId);
 
     const entries = await ctx.db
       .query("klantTijdlijn")
@@ -231,7 +249,7 @@ export const listVoorKlant = query({
       .collect();
 
     const gefilterd = filterEntries(entries, {
-      companyUserId,
+      orgId,
       klantId: args.klantId,
       kanaal: args.kanaal,
       werkitemId: args.werkitemId,
@@ -255,10 +273,10 @@ export const listVoorWerkitem = query({
   },
   handler: async (ctx, args) => {
     await requireInterneRol(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const werkitem = await ctx.db.get(args.werkitemId);
-    if (!werkitem || werkitem.userId.toString() !== companyUserId.toString()) {
+    if (!werkitem || werkitem.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Werkitem niet gevonden");
     }
 
@@ -269,7 +287,7 @@ export const listVoorWerkitem = query({
       .collect();
 
     const gefilterd = filterEntries(entries, {
-      companyUserId,
+      orgId,
       kanaal: args.kanaal,
       werkitemId: args.werkitemId,
     })
@@ -293,7 +311,7 @@ export const zoek = query({
   },
   handler: async (ctx, args) => {
     await requireInterneRol(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const zoekterm = args.zoekterm.trim();
     if (!zoekterm) return [];
@@ -301,7 +319,7 @@ export const zoek = query({
     const resultaten = await ctx.db
       .query("klantTijdlijn")
       .withSearchIndex("search_tekst", (q) => {
-        let s = q.search("tekst", zoekterm).eq("userId", companyUserId);
+        let s = q.search("tekst", zoekterm).eq("orgId", orgId);
         if (args.klantId) s = s.eq("klantId", args.klantId);
         if (args.kanaal) s = s.eq("kanaal", args.kanaal);
         if (args.werkitemId) s = s.eq("werkitemId", args.werkitemId);
@@ -310,7 +328,7 @@ export const zoek = query({
       .take(ZOEK_LIMIT);
 
     const gefilterd = filterEntries(resultaten, {
-      companyUserId,
+      orgId,
       klantId: args.klantId,
       kanaal: args.kanaal,
       werkitemId: args.werkitemId,
@@ -328,17 +346,15 @@ export const listKlantenMetTijdlijn = query({
   args: {},
   handler: async (ctx) => {
     await requireInterneRol(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const klanten = await ctx.db
       .query("klanten")
-      .withIndex("by_user", (q) => q.eq("userId", companyUserId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     const actieveKlanten = klanten.filter(
-      (k) =>
-        k.userId.toString() === companyUserId.toString() &&
-        k.isArchived !== true
+      (k) => k.orgId?.toString() === orgId.toString() && k.isArchived !== true
     );
 
     // N+1 weg (audit §5): de "laatste entry"-queries parallel afvuren in
@@ -360,7 +376,7 @@ export const listKlantenMetTijdlijn = query({
       const entryOk =
         laatste &&
         laatste.klantId.toString() === klant._id.toString() &&
-        laatste.userId.toString() === companyUserId.toString();
+        laatste.orgId?.toString() === orgId.toString();
       result.push({
         klantId: klant._id,
         naam: klant.naam,
@@ -389,16 +405,16 @@ export const listWerkitemsMetTijdlijn = query({
   args: {},
   handler: async (ctx) => {
     await requireInterneRol(ctx);
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const entries = await ctx.db
       .query("klantTijdlijn")
-      .withIndex("by_user", (q) => q.eq("userId", companyUserId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .order("desc")
       .collect();
 
     const perWerkitem = new Map<string, TijdlijnEntry>();
-    for (const entry of filterEntries(entries, { companyUserId })) {
+    for (const entry of filterEntries(entries, { orgId })) {
       if (!entry.werkitemId) continue;
       const key = entry.werkitemId.toString();
       const huidige = perWerkitem.get(key);
@@ -425,7 +441,7 @@ export const listWerkitemsMetTijdlijn = query({
     for (const entry of laatsteEntries) {
       if (!entry.werkitemId) continue;
       const werkitem = werkitemMap.get(entry.werkitemId.toString());
-      if (!werkitem || werkitem.userId.toString() !== companyUserId.toString()) {
+      if (!werkitem || werkitem.orgId?.toString() !== orgId.toString()) {
         continue;
       }
       const klant = entry.klantId ? klantMap.get(entry.klantId.toString()) : null;
@@ -453,7 +469,7 @@ export const listWerkitemsVoorFilter = query({
   args: { klantId: v.id("klanten") },
   handler: async (ctx, args) => {
     await requireInterneRol(ctx);
-    const { companyUserId } = await getKlantBinnenBedrijf(ctx, args.klantId);
+    const { orgId } = await getKlantBinnenBedrijf(ctx, args.klantId);
 
     const werkitems = await ctx.db
       .query("projecten")
@@ -463,7 +479,7 @@ export const listWerkitemsVoorFilter = query({
     return werkitems
       .filter(
         (w) =>
-          w.userId.toString() === companyUserId.toString() &&
+          w.orgId?.toString() === orgId.toString() &&
           w.klantId?.toString() === args.klantId.toString() &&
           !w.deletedAt
       )
@@ -483,7 +499,7 @@ export const chatHistorieVoorKlant = query({
   args: { klantId: v.id("klanten") },
   handler: async (ctx, args) => {
     await requireInterneRol(ctx);
-    const { companyUserId } = await getKlantBinnenBedrijf(ctx, args.klantId);
+    const { orgId } = await getKlantBinnenBedrijf(ctx, args.klantId);
 
     const threads = await ctx.db
       .query("chat_threads")
@@ -494,7 +510,7 @@ export const chatHistorieVoorKlant = query({
       (t) =>
         t.type === "klant" &&
         t.klantId?.toString() === args.klantId.toString() &&
-        t.companyUserId.toString() === companyUserId.toString()
+        t.orgId?.toString() === orgId.toString()
     );
 
     const berichten = [];
@@ -540,7 +556,7 @@ export const voegEntryToe = mutation({
     // Schrijven op de tijdlijn is een kantoor-taak (PRD §1.2/§2.3);
     // requireKantoor weigert klant, voorman en medewerker met AuthError.
     const user = await requireKantoor(ctx);
-    const { companyUserId } = await getKlantBinnenBedrijf(ctx, args.klantId);
+    const { orgId } = await getKlantBinnenBedrijf(ctx, args.klantId);
 
     const tekst = args.tekst.trim();
     if (!tekst) {
@@ -549,10 +565,7 @@ export const voegEntryToe = mutation({
 
     if (args.werkitemId) {
       const werkitem = await ctx.db.get(args.werkitemId);
-      if (
-        !werkitem ||
-        werkitem.userId.toString() !== companyUserId.toString()
-      ) {
+      if (!werkitem || werkitem.orgId?.toString() !== orgId.toString()) {
         throw new ConvexError("Werkitem niet gevonden");
       }
       if (werkitem.klantId?.toString() !== args.klantId.toString()) {
@@ -562,7 +575,10 @@ export const voegEntryToe = mutation({
 
     const now = Date.now();
     return await ctx.db.insert("klantTijdlijn", {
-      userId: companyUserId,
+      orgId,
+      // `userId` is sinds fase 3 geen scope meer maar nog wel verplicht in het
+      // schema; de schrijvende gebruiker is de zinnigste invulling tot fase 6.
+      userId: user._id,
       klantId: args.klantId,
       timestamp: now,
       auteurId: user._id,
@@ -637,7 +653,7 @@ export const legGesprekVast = mutation({
   ): Promise<{ entryId: Id<"klantTijdlijn">; taakIds: Id<"klantTaken">[] }> => {
     // Zelfde slot als voegEntryToe: schrijven op de tijdlijn is kantoorwerk.
     const user = await requireKantoor(ctx);
-    const { companyUserId } = await getKlantBinnenBedrijf(ctx, args.klantId);
+    const { orgId } = await getKlantBinnenBedrijf(ctx, args.klantId);
 
     const tekst = args.tekst.trim();
     if (!tekst) {
@@ -646,10 +662,7 @@ export const legGesprekVast = mutation({
 
     if (args.werkitemId) {
       const werkitem = await ctx.db.get(args.werkitemId);
-      if (
-        !werkitem ||
-        werkitem.userId.toString() !== companyUserId.toString()
-      ) {
+      if (!werkitem || werkitem.orgId?.toString() !== orgId.toString()) {
         throw new ConvexError("Werkitem niet gevonden");
       }
       if (werkitem.klantId?.toString() !== args.klantId.toString()) {
@@ -667,7 +680,9 @@ export const legGesprekVast = mutation({
 
     const now = Date.now();
     const entryId = await ctx.db.insert("klantTijdlijn", {
-      userId: companyUserId,
+      orgId,
+      // Zie voegEntryToe: legacy-veld, verplicht tot fase 6.
+      userId: user._id,
       klantId: args.klantId,
       timestamp: now,
       auteurId: user._id,
@@ -710,7 +725,8 @@ export const legGesprekVast = mutation({
 
       taakIds.push(
         await ctx.db.insert("klantTaken", {
-          userId: companyUserId,
+          orgId,
+          userId: user._id,
           klantId: args.klantId,
           titel,
           status: "open",
