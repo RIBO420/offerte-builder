@@ -7,6 +7,17 @@
  * and creditnota calculations.
  */
 import { describe, it, expect } from "vitest";
+import {
+  list as facturenList,
+  get as facturenGet,
+} from "../../../../convex/facturen";
+import {
+  MockConvexStore,
+  createMockCtx,
+  createMockUser,
+  seedAndereOrganisatie,
+  seedMockOrganisatie,
+} from "../../helpers/convex-mock";
 
 // ─── Extracted business logic helpers ────────────────────────────────────────
 
@@ -736,5 +747,76 @@ describe("Facturen - Archive Filtering Logic", () => {
 
     // No filter applied
     expect(facturen).toHaveLength(3);
+  });
+});
+
+// ─── Org-isolatie: org A ziet org B niet (taak 3.10a) ────────────────────────
+//
+// De rest van dit bestand test nagebouwde rekenlogica. Dit blok draait de
+// échte handlers uit convex/facturen.ts tegen het gedeelde harnas, dat sinds
+// taak 3.10a de `by_org`-index daadwerkelijk toepast — een omzetregel van de
+// buurman in je debiteurenlijst is precies het soort fout dat alleen als "een
+// te hoog getal" zichtbaar wordt.
+
+describe("Facturen zijn org-gescoopt", () => {
+  function factuur(
+    orgId: string | undefined,
+    factuurnummer: string
+  ): Record<string, unknown> {
+    const now = Date.now();
+    return {
+      ...(orgId ? { orgId } : {}),
+      userId: "users:1",
+      klantId: "klanten:1",
+      projectId: "projecten:1",
+      factuurnummer,
+      status: "verzonden",
+      factuurdatum: "2026-08-01",
+      vervaldatum: "2026-08-15",
+      regels: [],
+      subtotaal: 1000,
+      btw: 210,
+      totaal: 1210,
+      createdAt: now,
+      updatedAt: now,
+    };
+  }
+
+  function tweeOrganisaties() {
+    const store = new MockConvexStore();
+    const orgA = seedMockOrganisatie(store);
+    const orgB = seedAndereOrganisatie(store);
+    store.insert("users", createMockUser({ role: "directie" }));
+
+    const eigenId = store.insert("facturen", factuur(orgA, "FAC-EIGEN"));
+    const vreemdId = store.insert("facturen", factuur(orgB, "FAC-BUURMAN"));
+    // Zonder orgId hoort een factuur bij niemand (fail-closed backfill).
+    const weesId = store.insert("facturen", factuur(undefined, "FAC-WEES"));
+
+    return { ctx: createMockCtx(store), eigenId, vreemdId, weesId };
+  }
+
+  function handlerVan(fn: unknown) {
+    return (fn as { _handler: (ctx: unknown, args: unknown) => Promise<unknown> })
+      ._handler;
+  }
+
+  it("list toont alleen de facturen van de eigen organisatie", async () => {
+    const { ctx } = tweeOrganisaties();
+    const lijst = (await handlerVan(facturenList)(ctx, {})) as Array<{
+      factuurnummer: string;
+    }>;
+    expect(lijst.map((f) => f.factuurnummer)).toEqual(["FAC-EIGEN"]);
+  });
+
+  it("get geeft null voor een factuur van een andere organisatie", async () => {
+    const { ctx, eigenId, vreemdId, weesId } = tweeOrganisaties();
+    await expect(
+      handlerVan(facturenGet)(ctx, { id: eigenId })
+    ).resolves.not.toBeNull();
+    await expect(
+      handlerVan(facturenGet)(ctx, { id: vreemdId })
+    ).resolves.toBeNull();
+    await expect(handlerVan(facturenGet)(ctx, { id: weesId })).resolves.toBeNull();
   });
 });

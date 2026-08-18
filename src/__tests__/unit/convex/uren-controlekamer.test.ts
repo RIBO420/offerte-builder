@@ -40,6 +40,7 @@ import {
 } from "../../../../convex/urenControle";
 import {
   getGlobalStats,
+  list as listPerProject,
   listGlobal,
 } from "../../../../convex/urenRegistraties";
 
@@ -206,6 +207,10 @@ const urenStats = handlerVan<
     perMedewerker: Array<{ naam: string; uren: number }>;
   }
 >(getGlobalStats);
+const urenPerProject = handlerVan<
+  { projectId: string },
+  Array<{ medewerker: string; uren: number }>
+>(listPerProject);
 
 // ─── Testdata: twee bedrijven, week 33 van 2026 (ma 10 t/m zo 16 aug) ───────
 
@@ -1013,6 +1018,24 @@ describe("rolmodel oude engine — projectleider ziet bedrijfsbreed", () => {
   it("listGlobal blijft binnen de tenant", async () => {
     const alsDirectieB = await urenLijst(ctxVoor(CLERK_DIRECTIE_B), {});
     expect(alsDirectieB.map((u) => u.medewerker)).toEqual(["Zoë Vermeer"]);
+  });
+
+  // De projectvariant loopt via `by_project`, niet via `by_org`: de tenant-
+  // grens zit dáár in de projectcontrole (getProjectVanOrg) en niet in de
+  // index. Zonder deze assertie zou een projectId uit een gelekte URL de uren
+  // van de buurman gewoon teruggeven.
+  it("list per project: bedrijf A komt niet bij een project van bedrijf B", async () => {
+    const eigen = await urenPerProject(ctxVoor(CLERK_DIRECTIE_A), {
+      projectId: ids.projectA,
+    });
+    expect(eigen.map((u) => u.medewerker).sort()).toEqual([
+      "Anna Bakker",
+      "Bram de Jong",
+    ]);
+
+    await expect(
+      urenPerProject(ctxVoor(CLERK_DIRECTIE_A), { projectId: ids.projectB })
+    ).rejects.toThrow(ConvexError);
   });
 
   it("getGlobalStats: projectleider bedrijfsbreed én periode-bewust", async () => {

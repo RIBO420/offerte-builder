@@ -23,7 +23,13 @@ import {
   calculateDashboardStats,
   calculateRevenueStats,
   filterOfferteList,
+  seedMockOrganisatie,
+  seedAndereOrganisatie,
 } from "../../helpers/convex-mock";
+import {
+  list as offertesList,
+  get as offertesGet,
+} from "../../../../convex/offertes";
 
 // ============================================================================
 // STATUS WORKFLOW TRANSITIONS
@@ -1215,5 +1221,70 @@ describe("Share token validation", () => {
       // No shareExpiresAt — valid indefinitely
     };
     expect(isShareTokenValid(offerte, "abc123")).toBe(true);
+  });
+});
+
+// ============================================================================
+// ORG-ISOLATIE: ORG A ZIET ORG B NIET (taak 3.10a)
+// ============================================================================
+//
+// De echte handlers uit convex/offertes.ts tegen het gedeelde harnas. Dit kon
+// pas zinvol toen `withIndex` in helpers/convex-mock.ts de `by_org`-eis echt
+// ging toepassen; daarvoor gaf elke by_org-query álle rijen terug en slaagde
+// deze test ook mét een lek.
+
+describe("Offertes zijn org-gescoopt", () => {
+  function tweeOrganisaties() {
+    const store = new MockConvexStore();
+    const orgA = seedMockOrganisatie(store);
+    const orgB = seedAndereOrganisatie(store);
+    store.insert("users", createMockUser({ role: "directie" }));
+
+    const eigenId = store.insert(
+      "offertes",
+      createMockOfferte("users:3", "klanten:1", {
+        orgId: orgA,
+        offerteNummer: "OFF-EIGEN",
+      })
+    );
+    const vreemdId = store.insert(
+      "offertes",
+      createMockOfferte("users:3", "klanten:2", {
+        orgId: orgB,
+        offerteNummer: "OFF-BUURMAN",
+      })
+    );
+    // Zonder orgId hoort een offerte bij niemand — fail-closed tijdens de
+    // backfill, dus ook niet zichtbaar voor org A.
+    const weesId = store.insert(
+      "offertes",
+      createMockOfferte("users:3", "klanten:3", { offerteNummer: "OFF-WEES" })
+    );
+
+    return { ctx: createMockCtx(store), eigenId, vreemdId, weesId };
+  }
+
+  function handlerVan(fn: unknown) {
+    return (fn as { _handler: (ctx: unknown, args: unknown) => Promise<unknown> })
+      ._handler;
+  }
+
+  it("list toont alleen de offertes van de eigen organisatie", async () => {
+    const { ctx } = tweeOrganisaties();
+    const lijst = (await handlerVan(offertesList)(ctx, {})) as Array<{
+      offerteNummer: string;
+    }>;
+    expect(lijst.map((o) => o.offerteNummer)).toEqual(["OFF-EIGEN"]);
+  });
+
+  it("get geeft null voor een offerte van een andere organisatie", async () => {
+    const { ctx, eigenId, vreemdId, weesId } = tweeOrganisaties();
+    await expect(
+      handlerVan(offertesGet)(ctx, { id: eigenId })
+    ).resolves.not.toBeNull();
+    await expect(
+      handlerVan(offertesGet)(ctx, { id: vreemdId })
+    ).resolves.toBeNull();
+    await expect(handlerVan(offertesGet)(ctx, { id: weesId })).resolves.toBeNull();
   });
 });

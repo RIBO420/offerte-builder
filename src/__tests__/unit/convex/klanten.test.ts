@@ -24,6 +24,19 @@ import {
   shouldUpgradePipeline,
   PIPELINE_ORDER,
 } from "../../../../convex/pipelineHelpers";
+import {
+  list as klantenList,
+  get as klantenGet,
+  getRecent as klantenGetRecent,
+} from "../../../../convex/klanten";
+import {
+  MockConvexStore,
+  createMockCtx,
+  createMockKlant,
+  createMockUser,
+  seedAndereOrganisatie,
+  seedMockOrganisatie,
+} from "../../helpers/convex-mock";
 
 // ─── Validation Logic Tests ──────────────────────────────────────────────────
 
@@ -900,5 +913,76 @@ describe("Klanten getAllTags", () => {
   it("should return sorted tags", () => {
     const klanten = [{ tags: ["zebra", "appel", "mango"] }];
     expect(collectUniqueTags(klanten)).toEqual(["appel", "mango", "zebra"]);
+  });
+});
+
+// ─── Org-isolatie: org A ziet org B niet (taak 3.10a) ────────────────────────
+//
+// De rest van dit bestand test pure functies. Dit blok draait de échte
+// handlers uit convex/klanten.ts tegen het gedeelde harnas, dat sinds taak
+// 3.10a de `by_org`-index daadwerkelijk toepast. Zonder die index-bewuste mock
+// slaagde zo'n test óók mét een lek — vandaar dat de assertie hier pas nu
+// betekenis heeft.
+
+describe("Klanten zijn org-gescoopt", () => {
+  function tweeOrganisaties() {
+    const store = new MockConvexStore();
+    const orgA = seedMockOrganisatie(store);
+    const orgB = seedAndereOrganisatie(store);
+    store.insert("users", createMockUser({ role: "directie" }));
+
+    const eigenId = store.insert(
+      "klanten",
+      createMockKlant("users:2", {
+        orgId: orgA,
+        naam: "Jan van Ons",
+        pipelineStatus: "klant",
+      })
+    );
+    const vreemdId = store.insert(
+      "klanten",
+      createMockKlant("users:2", {
+        orgId: orgB,
+        naam: "Piet van de Buurman",
+        pipelineStatus: "klant",
+      })
+    );
+    // Een klant zonder orgId hoort bij niemand en mag nergens opduiken.
+    const weesId = store.insert(
+      "klanten",
+      createMockKlant("users:2", { naam: "Wees", pipelineStatus: "klant" })
+    );
+
+    return { ctx: createMockCtx(store), eigenId, vreemdId, weesId };
+  }
+
+  function handlerVan(fn: unknown) {
+    return (fn as { _handler: (ctx: unknown, args: unknown) => Promise<unknown> })
+      ._handler;
+  }
+
+  it("list toont alleen de klanten van de eigen organisatie", async () => {
+    const { ctx } = tweeOrganisaties();
+    const lijst = (await handlerVan(klantenList)(ctx, {})) as Array<{
+      naam: string;
+    }>;
+    expect(lijst.map((k) => k.naam)).toEqual(["Jan van Ons"]);
+  });
+
+  it("getRecent toont alleen de klanten van de eigen organisatie", async () => {
+    const { ctx } = tweeOrganisaties();
+    const recent = (await handlerVan(klantenGetRecent)(ctx, {})) as Array<{
+      naam: string;
+    }>;
+    expect(recent.map((k) => k.naam)).toEqual(["Jan van Ons"]);
+  });
+
+  it("get geeft null voor een klant van een andere organisatie", async () => {
+    const { ctx, eigenId, vreemdId, weesId } = tweeOrganisaties();
+    await expect(
+      handlerVan(klantenGet)(ctx, { id: eigenId })
+    ).resolves.not.toBeNull();
+    await expect(handlerVan(klantenGet)(ctx, { id: vreemdId })).resolves.toBeNull();
+    await expect(handlerVan(klantenGet)(ctx, { id: weesId })).resolves.toBeNull();
   });
 });

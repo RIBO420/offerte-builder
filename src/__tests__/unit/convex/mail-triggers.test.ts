@@ -21,7 +21,10 @@
  *    dubbele opvolgmails;
  * 7. event-hooks: offerte_verzonden (alleen klanten zonder portaal — geen
  *    dubbele mail naast de portaalnotificatie) en inplanning_bevestigd
- *    (opt-in per klant, default uit).
+ *    (opt-in per klant, default uit);
+ * 8. de twee resterende zetTriggerMailKlaar-aanroepers (werkitems, offertes)
+ *    zónder org-claim in het JWT: beide fail-closed, elk op hun eigen plek —
+ *    zie het blok onderaan.
  *
  * E-mailveiligheid in tests: alles gemockt — vi.fn()-scheduler, gestubde
  * fetch en een niet-gezette EMAIL_VERZENDEN_ACTIEF. Er wordt nergens echt
@@ -38,6 +41,7 @@ import {
   createMockOfferte,
   seedMockOrganisatie,
   type MockCtx,
+  type MockCtxOpties,
 } from "../../helpers/convex-mock";
 import { AuthError } from "../../../../convex/auth";
 import {
@@ -102,8 +106,11 @@ interface IndexConstraint {
  * filtert echt op de opgegeven velden (de gedeelde helper negeert indexen,
  * wat voor dedupe-/event-lookups te los is).
  */
-function createIndexAwareCtx(store: MockConvexStore): MockCtx {
-  const ctx = createMockCtx(store);
+function createIndexAwareCtx(
+  store: MockConvexStore,
+  opties: MockCtxOpties = {}
+): MockCtx {
+  const ctx = createMockCtx(store, opties);
   ctx.db.query = vi.fn((tableName: string) => {
     let docs = store.getAll(tableName);
     const builder = {
@@ -172,11 +179,11 @@ function createIndexAwareCtx(store: MockConvexStore): MockCtx {
  * de identity draagt het `org_id`-claim en élk fixture-record krijgt `orgId`,
  * anders ziet de code het record niet meer staan.
  */
-function ctxMetRol(role: string) {
+function ctxMetRol(role: string, opties: MockCtxOpties = {}) {
   const store = new MockConvexStore();
   const orgId = seedMockOrganisatie(store);
   const userId = store.insert("users", createMockUser({ role }));
-  const ctx = createIndexAwareCtx(store);
+  const ctx = createIndexAwareCtx(store, opties);
   return { ctx, store, userId, orgId };
 }
 
@@ -1087,5 +1094,123 @@ describe("Event-hooks (additief op bestaande flows)", () => {
     expect(mails[0].onderwerp).toContain("CFG-");
     // Automatisch = verzend-actie ingepland; die zit achter de mail-guard
     expect(ctx.scheduler.runAfter).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ─── Zonder org-claim in het JWT (taak 3.10a) ───────────────────────────────
+//
+// De gedeelde mock gaf tot taak 3.10a élke identity een org_id-claim mee. Dat
+// verborg de vraag die hier beantwoord wordt: wat doen de twee resterende
+// zetTriggerMailKlaar-aanroepers (convex/werkitems.ts en convex/offertes.ts)
+// als de sessie géén actieve organisatie heeft, terwijl het document zelf wél
+// een orgId draagt? Antwoord in beide gevallen: fail-closed — maar op een
+// andere plek, en dat verschil is het waard vastgelegd te worden.
+
+describe("zetTriggerMailKlaar zonder org-claim (bepaalOrgId-fallback)", () => {
+  it("werkitems.updatePlanning: geen claim → AuthError aan de deur, geen mail", async () => {
+    const { ctx, store, userId, orgId } = ctxMetRol("directie", {
+      zonderOrg: true,
+    });
+    seedTriggersInStore(store, orgId);
+    const klantId = store.insert(
+      "klanten",
+      createMockKlant(userId, { orgId, inplanBevestigingsMail: true })
+    );
+    const werkitemId = store.insert("projecten", {
+      orgId,
+      userId,
+      klantId,
+      naam: "Voorjaarsbeurt",
+      type: "onderhoudsbeurt",
+      status: "gepland",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    // updatePlanning begint met requireOrgId: zonder claim komt de mutatie
+    // niet eens tot de mail-hook. De orgId óp het werkitem redt dat niet —
+    // en hoort dat ook niet te doen.
+    await expect(
+      handler(updatePlanning)(ctx, {
+        id: werkitemId,
+        geplandeStart: "2026-05-14",
+      })
+    ).rejects.toThrow(AuthError);
+    expect(store.getAll("conceptMails")).toHaveLength(0);
+  });
+
+  it("werkitems geeft orgId expliciet mee: de trigger vuurt óók zonder claim", async () => {
+    const { ctx, store, userId, orgId } = ctxMetRol("directie", {
+      zonderOrg: true,
+    });
+    seedTriggersInStore(store, orgId);
+
+    // Precies de aanroep die convex/werkitems.ts doet: mét orgId. Die tak van
+    // bepaalOrgId raakt het JWT niet aan, dus een claimloze sessie (of een
+    // toekomstige cron) zet de mail gewoon klaar — voor de JUISTE tenant.
+    const resultaat = await zetTriggerMailKlaar(ctx as unknown as MutationCtx, {
+      event: "inplanning_bevestigd",
+      orgId: orgId as never,
+      userId: userId as never,
+      ontvangerEmail: "jan@devries.nl",
+      ontvangerNaam: "Jan de Vries",
+      variabelen: {
+        klantnaam: "Jan de Vries",
+        werkitemNaam: "Voorjaarsbeurt",
+        geplandeDatum: "14 mei 2026",
+        teamTekst: "",
+      },
+    });
+
+    expect(resultaat.aangemaakt).toBe(true);
+    const mails = store.getAll("conceptMails");
+    expect(mails).toHaveLength(1);
+    expect(mails[0].orgId).toBe(orgId);
+  });
+
+  it("offertes.updateStatus: geen claim → AuthError aan de deur, geen mail", async () => {
+    const { ctx, store, userId, orgId } = ctxMetRol("directie", {
+      zonderOrg: true,
+    });
+    seedTriggersInStore(store, orgId);
+    const klantId = store.insert(
+      "klanten",
+      createMockKlant(userId, { orgId, portalEnabled: false })
+    );
+    const offerteId = store.insert(
+      "offertes",
+      createMockOfferte(userId, klantId, {
+        orgId,
+        status: "concept",
+        bron: "vrij",
+      })
+    );
+
+    await expect(
+      handler(offerteUpdateStatus)(ctx, { id: offerteId, status: "verzonden" })
+    ).rejects.toThrow(AuthError);
+    expect(store.getAll("conceptMails")).toHaveLength(0);
+  });
+
+  it("offertes laat orgId weg: zonder claim is de trigger fail-closed (geen_org), niet gokkend", async () => {
+    const { ctx, store, userId, orgId } = ctxMetRol("directie", {
+      zonderOrg: true,
+    });
+    seedTriggersInStore(store, orgId);
+
+    // Precies de aanroep die convex/offertes.ts doet: ZONDER orgId. bepaalOrgId
+    // valt dan terug op requireOrgId; die faalt zonder claim en het antwoord is
+    // "geen_org" — géén exception (dat zou de hele statuswijziging terugdraaien)
+    // en al helemaal geen trigger van een willekeurige andere tenant.
+    const resultaat = await zetTriggerMailKlaar(ctx as unknown as MutationCtx, {
+      event: "offerte_verzonden",
+      userId: userId as never,
+      ontvangerEmail: "jan@devries.nl",
+      ontvangerNaam: "Jan de Vries",
+      variabelen: { klantnaam: "Jan de Vries" },
+    });
+
+    expect(resultaat).toEqual({ aangemaakt: false, reden: "geen_org" });
+    expect(store.getAll("conceptMails")).toHaveLength(0);
   });
 });

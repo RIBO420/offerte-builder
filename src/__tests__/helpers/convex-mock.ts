@@ -4,9 +4,24 @@
  * Provides mock factories for Convex context objects (ctx) used in
  * query and mutation handlers. These mocks simulate the Convex runtime
  * without requiring a real Convex backend.
+ *
+ * INDEX-BEWUST (taak 3.10a). `withIndex` past de `eq`/range-eisen van de
+ * genoemde index daadwerkelijk toe en controleert tegen convex/schema.ts of
+ * die velden een prefix van de index zijn. Vóór die wijziging gaf élke
+ * `by_org`-query álle rijen terug: een gemiste tenant-scope kon niet omvallen
+ * in een test. Dat is de reden dat diverse clusters een eigen mini-mock
+ * bouwden; die blijven staan, dit harnas haalt ze alleen in.
+ *
+ * Twee dingen om te weten als je een test schrijft:
+ *   - een rij ZONDER `orgId` valt buiten `q.eq("orgId", …)`, net als in
+ *     Convex. Fixtures moeten dus een `orgId` dragen (zie seedMockOrganisatie);
+ *   - `createMockCtx` geeft standaard een identity MET `org_id`-claim. Wil je
+ *     een org-loze of identity-loze sessie (cron, klantsessie, publieke
+ *     intake), gebruik dan `{ zonderOrg: true }` of `{ identity: null }`.
  */
 
 import { vi, type Mock } from "vitest";
+import schema from "../../../convex/schema";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -20,11 +35,20 @@ interface MockDocument {
 
 interface MockIndexQuery {
   eq: (field: string, value: unknown) => MockIndexQuery;
+  gt: (field: string, value: unknown) => MockIndexQuery;
+  gte: (field: string, value: unknown) => MockIndexQuery;
+  lt: (field: string, value: unknown) => MockIndexQuery;
+  lte: (field: string, value: unknown) => MockIndexQuery;
+}
+
+interface MockSearchQuery {
+  search: (field: string, term: string) => MockSearchQuery;
+  eq: (field: string, value: unknown) => MockSearchQuery;
 }
 
 interface MockQueryBuilder {
-  withIndex: (indexName: string, fn: (q: MockIndexQuery) => MockIndexQuery) => MockQueryBuilder;
-  withSearchIndex: (indexName: string, fn: (q: { search: (field: string, term: string) => { eq: (field: string, value: unknown) => unknown } }) => unknown) => MockQueryBuilder;
+  withIndex: (indexName: string, fn?: (q: MockIndexQuery) => unknown) => MockQueryBuilder;
+  withSearchIndex: (indexName: string, fn: (q: MockSearchQuery) => unknown) => MockQueryBuilder;
   filter: (fn: (q: MockFilterBuilder) => unknown) => MockQueryBuilder;
   order: (direction: "asc" | "desc") => MockQueryBuilder;
   collect: () => Promise<MockDocument[]>;
@@ -40,8 +64,69 @@ interface MockQueryBuilder {
 
 interface MockFilterBuilder {
   eq: (a: unknown, b: unknown) => boolean;
+  neq: (a: unknown, b: unknown) => boolean;
+  lt: (a: unknown, b: unknown) => boolean;
+  lte: (a: unknown, b: unknown) => boolean;
+  gt: (a: unknown, b: unknown) => boolean;
+  gte: (a: unknown, b: unknown) => boolean;
+  and: (...delen: unknown[]) => boolean;
+  or: (...delen: unknown[]) => boolean;
+  not: (deel: unknown) => boolean;
   field: (name: string) => string;
 }
+
+// ─── Index-register (uit het échte schema) ───────────────────────────────────
+//
+// De mock leidt de indexvelden rechtstreeks uit convex/schema.ts af. Daardoor
+// kan hij twee dingen die de oude pass-through-mock niet kon:
+//   1. de `q.eq(...)`-eisen van een index écht als filter toepassen — een
+//      `by_org`-query geeft niet langer óók de rijen van een andere tenant;
+//   2. controleren dat de bevraagde velden een PREFIX van de index zijn,
+//      precies zoals Convex zelf eist. Een `by_org`-index bevraagd op
+//      `userId` is een schrijffout die anders stilzwijgend zou slagen.
+// Het register loopt automatisch mee met schemawijzigingen; er is geen
+// handmatige lijst om bij te houden.
+
+interface GeexporteerdeTabel {
+  indexes?: Array<{ indexDescriptor: string; fields: string[] }>;
+  searchIndexes?: Array<{
+    indexDescriptor: string;
+    searchField: string;
+    filterFields?: string[];
+  }>;
+}
+
+interface TabelIndexen {
+  /** Gewone indexen: veldvolgorde telt (prefix-regel). */
+  indexen: Record<string, string[]>;
+  /** Zoekindexen: alleen de filterFields, volgorde doet er niet toe. */
+  zoekIndexen: Record<string, string[]>;
+}
+
+function bouwIndexRegister(): Record<string, TabelIndexen> {
+  const register: Record<string, TabelIndexen> = {};
+  const tabellen = (
+    schema as unknown as {
+      tables: Record<string, { export?: () => GeexporteerdeTabel }>;
+    }
+  ).tables;
+  for (const [tabel, definitie] of Object.entries(tabellen ?? {})) {
+    if (typeof definitie?.export !== "function") continue;
+    const geexporteerd = definitie.export();
+    const indexen: Record<string, string[]> = {};
+    const zoekIndexen: Record<string, string[]> = {};
+    for (const index of geexporteerd.indexes ?? []) {
+      indexen[index.indexDescriptor] = index.fields;
+    }
+    for (const index of geexporteerd.searchIndexes ?? []) {
+      zoekIndexen[index.indexDescriptor] = index.filterFields ?? [];
+    }
+    register[tabel] = { indexen, zoekIndexen };
+  }
+  return register;
+}
+
+const INDEX_REGISTER = bouwIndexRegister();
 
 // ─── In-Memory Store ─────────────────────────────────────────────────────────
 
@@ -117,18 +202,137 @@ export class MockConvexStore {
 
 // ─── Mock Query Builder ──────────────────────────────────────────────────────
 
-function createMockQueryBuilder(docs: MockDocument[]): MockQueryBuilder {
+/** `a < b` op een manier die zowel getallen als strings aankan. */
+function kleinerDan(a: unknown, b: unknown): boolean {
+  return (a as number) < (b as number);
+}
+
+function createMockQueryBuilder(
+  tableName: string,
+  docs: MockDocument[]
+): MockQueryBuilder {
   let filteredDocs = [...docs];
+  const tabel = INDEX_REGISTER[tableName];
 
   const builder: MockQueryBuilder = {
-    withIndex: (_indexName, _fn) => builder,
-    withSearchIndex: (_indexName, _fn) => builder,
+    withIndex: (indexName, fn) => {
+      const indexVelden = tabel?.indexen[indexName];
+      if (tabel && !indexVelden) {
+        throw new Error(
+          `Onbekende index "${indexName}" op tabel "${tableName}" — controleer convex/schema.ts`
+        );
+      }
+
+      // Volgorde van de gebruikte velden bepaalt of dit een geldige
+      // index-range is: eerst nul of meer eq's (prefix), daarna hooguit een
+      // range op het eerstvolgende veld.
+      const eqVelden: string[] = [];
+      const rangeVelden: string[] = [];
+      const predicaten: Array<(doc: MockDocument) => boolean> = [];
+
+      const range = (
+        veld: string,
+        waarde: unknown,
+        test: (docWaarde: unknown) => boolean
+      ) => {
+        rangeVelden.push(veld);
+        predicaten.push((doc) => test(doc[veld]));
+        void waarde;
+      };
+
+      const q: MockIndexQuery = {
+        eq: (veld, waarde) => {
+          eqVelden.push(veld);
+          predicaten.push((doc) => doc[veld] === waarde);
+          return q;
+        },
+        gt: (veld, waarde) => {
+          range(veld, waarde, (dv) => kleinerDan(waarde, dv));
+          return q;
+        },
+        gte: (veld, waarde) => {
+          range(veld, waarde, (dv) => !kleinerDan(dv, waarde));
+          return q;
+        },
+        lt: (veld, waarde) => {
+          range(veld, waarde, (dv) => kleinerDan(dv, waarde));
+          return q;
+        },
+        lte: (veld, waarde) => {
+          range(veld, waarde, (dv) => !kleinerDan(waarde, dv));
+          return q;
+        },
+      };
+      fn?.(q);
+
+      if (indexVelden) {
+        eqVelden.forEach((veld, i) => {
+          if (indexVelden[i] !== veld) {
+            throw new Error(
+              `Index ${tableName}.${indexName} heeft veld ${i} = ${indexVelden[i] ?? "(geen)"}, niet ${veld}`
+            );
+          }
+        });
+        const rangeVeld = indexVelden[eqVelden.length];
+        for (const veld of rangeVelden) {
+          if (veld !== rangeVeld) {
+            throw new Error(
+              `Index ${tableName}.${indexName}: range op ${veld} mag alleen op veld ${eqVelden.length} (${rangeVeld ?? "(geen)"})`
+            );
+          }
+        }
+      }
+
+      // Zoals een echte index-range: een document zónder het veld heeft
+      // undefined en valt dus buiten `eq(<concrete waarde>)`. Precies die
+      // fail-closed keuze bewaakt de org-grens tijdens de backfill.
+      filteredDocs = filteredDocs.filter((doc) =>
+        predicaten.every((p) => p(doc))
+      );
+      return builder;
+    },
+    withSearchIndex: (indexName, fn) => {
+      const filterVelden = tabel?.zoekIndexen[indexName];
+      if (tabel && !filterVelden) {
+        throw new Error(
+          `Onbekende zoekindex "${indexName}" op tabel "${tableName}" — controleer convex/schema.ts`
+        );
+      }
+      // De full-text-kant (`search`) wordt niet nagebootst — daar zit geen
+      // tenant-grens in. De `eq`-filterfields wél: dáár hangt `orgId` aan.
+      const predicaten: Array<(doc: MockDocument) => boolean> = [];
+      const q: MockSearchQuery = {
+        search: () => q,
+        eq: (veld, waarde) => {
+          if (filterVelden && !filterVelden.includes(veld)) {
+            throw new Error(
+              `Zoekindex ${tableName}.${indexName} heeft geen filterField ${veld}`
+            );
+          }
+          predicaten.push((doc) => doc[veld] === waarde);
+          return q;
+        },
+      };
+      fn(q);
+      filteredDocs = filteredDocs.filter((doc) =>
+        predicaten.every((p) => p(doc))
+      );
+      return builder;
+    },
     filter: (fn) => {
       // Apply filter in-memory by checking each doc
       filteredDocs = filteredDocs.filter((doc) => {
         try {
           const fieldProxy: MockFilterBuilder = {
             eq: (a: unknown, b: unknown) => a === b,
+            neq: (a: unknown, b: unknown) => a !== b,
+            lt: kleinerDan,
+            lte: (a: unknown, b: unknown) => !kleinerDan(b, a),
+            gt: (a: unknown, b: unknown) => kleinerDan(b, a),
+            gte: (a: unknown, b: unknown) => !kleinerDan(a, b),
+            and: (...delen: unknown[]) => delen.every(Boolean),
+            or: (...delen: unknown[]) => delen.some(Boolean),
+            not: (deel: unknown) => !deel,
             field: (name: string) => doc[name] as string,
           };
           return fn(fieldProxy);
@@ -148,7 +352,16 @@ function createMockQueryBuilder(docs: MockDocument[]): MockQueryBuilder {
     },
     collect: async () => [...filteredDocs],
     first: async () => filteredDocs[0] || null,
-    unique: async () => (filteredDocs.length === 1 ? filteredDocs[0] : filteredDocs[0] || null),
+    unique: async () => {
+      // Convex gooit bij meer dan één treffer; de mock deed dat niet en
+      // verborg daarmee `.unique()` op een niet-unieke index (CLAUDE.md §4).
+      if (filteredDocs.length > 1) {
+        throw new Error(
+          `unique() vond ${filteredDocs.length} documenten in "${tableName}"`
+        );
+      }
+      return filteredDocs[0] || null;
+    },
     take: async (n) => filteredDocs.slice(0, n),
     paginate: async (opts) => ({
       page: filteredDocs.slice(0, opts.numItems),
@@ -178,10 +391,58 @@ export interface MockCtx {
   };
 }
 
+export interface MockCtxOpties {
+  /**
+   * Laat het `org_id`-claim wég uit de identity, terwijl er wél een ingelogde
+   * gebruiker is. Dit is de stand van een sessie die (nog) geen actieve Clerk-
+   * organisatie heeft — en de enige manier om te testen dat een pad
+   * fail-closed is in plaats van "toevallig goed omdat de mock altijd een
+   * claim meegaf".
+   */
+  zonderOrg?: boolean;
+  /**
+   * Volledige identity-override. `null` = géén ingelogde gebruiker: de stand
+   * van crons, webhooks en publieke intake. Wint van `zonderOrg`.
+   */
+  identity?: Record<string, unknown> | null;
+}
+
+/** De standaard-identity van createMockCtx: staf mét actieve organisatie. */
+export function identityMetOrg(): Record<string, unknown> {
+  return {
+    subject: "clerk_test_user_123",
+    // Sinds de org-migratie (fase 3) leest requireOrg dit claim; het
+    // JWT-template "convex" vult het met {{org.id}}.
+    org_id: TEST_CLERK_ORG_ID,
+  };
+}
+
+/**
+ * Identity van een ingelogde gebruiker ZONDER actieve organisatie.
+ *
+ * Gebruik dit (of `createMockCtx(store, { zonderOrg: true })`) om te bewijzen
+ * dat een pad fail-closed is als het JWT-org-claim ontbreekt — bijvoorbeeld
+ * bij het `bepaalOrgId`-patroon in convex/mailTriggers.ts, waar het document
+ * zelf de orgId draagt maar de sessie hem niet meelevert.
+ */
+export function identityZonderOrg(): Record<string, unknown> {
+  return { subject: "clerk_test_user_123" };
+}
+
 /**
  * Create a mock Convex query/mutation context backed by an in-memory store.
  */
-export function createMockCtx(store: MockConvexStore): MockCtx {
+export function createMockCtx(
+  store: MockConvexStore,
+  opties: MockCtxOpties = {}
+): MockCtx {
+  const identity =
+    opties.identity !== undefined
+      ? opties.identity
+      : opties.zonderOrg
+        ? identityZonderOrg()
+        : identityMetOrg();
+
   return {
     db: {
       get: vi.fn((id: MockId) => Promise.resolve(store.get(id))),
@@ -197,18 +458,11 @@ export function createMockCtx(store: MockConvexStore): MockCtx {
         return Promise.resolve();
       }),
       query: vi.fn((tableName: string) =>
-        createMockQueryBuilder(store.getAll(tableName))
+        createMockQueryBuilder(tableName, store.getAll(tableName))
       ),
     },
     auth: {
-      getUserIdentity: vi.fn(() =>
-        Promise.resolve({
-          subject: "clerk_test_user_123",
-          // Sinds de org-migratie (fase 3) leest requireOrg dit claim; het
-          // JWT-template "convex" vult het met {{org.id}}.
-          org_id: TEST_CLERK_ORG_ID,
-        })
-      ),
+      getUserIdentity: vi.fn(() => Promise.resolve(identity)),
     },
     scheduler: {
       runAfter: vi.fn(() => Promise.resolve()),
@@ -220,6 +474,9 @@ export function createMockCtx(store: MockConvexStore): MockCtx {
 
 /** Het `org_id`-claim dat createMockCtx in de identity meegeeft. */
 export const TEST_CLERK_ORG_ID = "clerk_test_org_123";
+
+/** Clerk-id van de tweede organisatie: de buurman die niets mag zien. */
+export const TEST_ANDERE_CLERK_ORG_ID = "clerk_test_org_999";
 
 /**
  * Zet de organisatie van de ingelogde gebruiker in de store en geef haar id
@@ -238,6 +495,28 @@ export function seedMockOrganisatie(
     clerkOrgId: TEST_CLERK_ORG_ID,
     naam: "Top Tuinen",
     slug: "top-tuinen",
+    actief: true,
+    aangemaaktOp: Date.now(),
+    ...overrides,
+  });
+}
+
+/**
+ * Tweede organisatie in dezelfde store: de buurman.
+ *
+ * Bedoeld voor "org A ziet org B niet"-asserties. Hang fixtures met dit id
+ * als `orgId` in de store en controleer dat ze niet in het resultaat van de
+ * ingelogde organisatie opduiken. Sinds de mock `withIndex` écht toepast is
+ * dat een echte assertie geworden en niet langer een formaliteit.
+ */
+export function seedAndereOrganisatie(
+  store: MockConvexStore,
+  overrides: Record<string, unknown> = {}
+): string {
+  return store.insert("organisaties", {
+    clerkOrgId: TEST_ANDERE_CLERK_ORG_ID,
+    naam: "Groen & Co",
+    slug: "groen-en-co",
     actief: true,
     aangemaaktOp: Date.now(),
     ...overrides,

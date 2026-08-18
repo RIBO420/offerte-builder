@@ -549,10 +549,13 @@ describe("verwerkLadder — mail-treden (§2.7 concept-wachtrij)", () => {
   });
 
   it("ladder uit (instelling) → cron doet niets", async () => {
-    const { ctx, store, userId, klantId } = kantoorMetKlant();
+    const { ctx, store, userId, orgId, klantId } = kantoorMetKlant();
     insertTrigger(store, "betalingsherinnering_1");
     insertFactuur(store, userId, klantId, 15);
+    // orgId is verplicht: getLadderInstellingen leest via by_org, dus zonder
+    // orgId ziet de cron de "uit"-stand niet eens.
     store.insert("instellingen", {
+      orgId,
       userId,
       debiteurenLadder: { actief: false },
     });
@@ -631,7 +634,7 @@ describe("verwerkLadder — trede 3 kantoortaak (cases-bord)", () => {
   });
 
   it("taak-eigenaar is een instelling (geen hardcoded naam)", async () => {
-    const { ctx, store, userId, klantId } = kantoorMetKlant();
+    const { ctx, store, userId, orgId, klantId } = kantoorMetKlant();
     const elkeId = store.insert("users", {
       clerkId: "clerk_elke",
       email: "elke@toptuinen.nl",
@@ -640,6 +643,7 @@ describe("verwerkLadder — trede 3 kantoortaak (cases-bord)", () => {
       createdAt: Date.now(),
     });
     store.insert("instellingen", {
+      orgId,
       userId,
       debiteurenLadder: { actief: true, taakEigenaarId: elkeId },
     });
