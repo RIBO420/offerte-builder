@@ -32,7 +32,7 @@ import { v, ConvexError } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
-import { requireAuthUserId } from "./auth";
+import { requireOrgId, verifyOrgOwnership } from "./auth";
 import { requireKantoor, isKantoorRol } from "./roles";
 import { effectieveStatussen } from "./facturatieLogica";
 import { logTijdlijnEvent } from "./tijdlijn";
@@ -108,10 +108,10 @@ const tredenValidator = v.array(
 export const getLadderInstellingen = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const settings = await ctx.db
       .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .unique();
     const ladder = (settings?.debiteurenLadder ?? {}) as LadderInstellingen;
     return {
@@ -134,6 +134,11 @@ export const listKantoorGebruikers = query({
   args: {},
   handler: async (ctx) => {
     await requireKantoor(ctx);
+    // BEKEND GAT (fase 6): `users` heeft geen `orgId` — die tabel is
+    // geclassificeerd als "systeem" (convex/lib/orgTabellen.ts) en er is in
+    // fase 3 dus geen veld om op te scopen. Deze kiezer toont daarmee de
+    // kantoorgebruikers van álle organisaties. Zodra users een tenant-veld
+    // heeft, hoort hier een org-filter.
     const users = await ctx.db.query("users").collect();
     return users
       .filter((u) => isKantoorRol(u.role))
@@ -149,12 +154,13 @@ export const updateLadderInstellingen = mutation({
     treden: v.optional(tredenValidator),
   },
   handler: async (ctx, args) => {
-    const user = await requireKantoor(ctx);
+    await requireKantoor(ctx);
+    const orgId = await requireOrgId(ctx);
     if (args.treden) valideerTreden(args.treden);
 
     const settings = await ctx.db
       .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .unique();
     if (!settings) {
       throw new ConvexError(
@@ -184,14 +190,32 @@ export const updateLadderInstellingen = mutation({
 
 // ─── Pauzeren / hervatten / trede overslaan (kantoor) ────────────────────────
 
+/**
+ * Kantoorrol + de factuur, geverifieerd tegen de eigen organisatie.
+ *
+ * Deze functie deed ondanks haar naam géén eigenaarscheck: elke kantoorrol
+ * kon met een willekeurig factuur-id de ladder van een andere tenant
+ * pauzeren, hervatten of een trede laten overslaan. `verifyOrgOwnership`
+ * sluit dat af en geeft meteen de org terug, zodat de aanroepers hun
+ * instellingen op een gegarandeerd gevulde `orgId` kunnen opzoeken (regel 4
+ * uit CLAUDE.md: nooit een index-`q.eq` op een mogelijk ongedefinieerd veld).
+ */
 async function requireEigenFactuur(
   ctx: Parameters<typeof requireKantoor>[0],
   factuurId: Id<"facturen">
-): Promise<{ user: Doc<"users">; factuur: Doc<"facturen"> }> {
+): Promise<{
+  user: Doc<"users">;
+  factuur: Doc<"facturen">;
+  orgId: Id<"organisaties">;
+}> {
   const user = await requireKantoor(ctx);
-  const factuur = await ctx.db.get(factuurId);
-  if (!factuur) throw new ConvexError("Factuur niet gevonden");
-  return { user, factuur };
+  const orgId = await requireOrgId(ctx);
+  const factuur = await verifyOrgOwnership(
+    ctx,
+    await ctx.db.get(factuurId),
+    "factuur"
+  );
+  return { user, factuur, orgId };
 }
 
 /**
@@ -263,11 +287,14 @@ export const hervatLadder = mutation({
 export const slaTredeOver = mutation({
   args: { factuurId: v.id("facturen") },
   handler: async (ctx, args) => {
-    const { user, factuur } = await requireEigenFactuur(ctx, args.factuurId);
+    const { user, factuur, orgId } = await requireEigenFactuur(
+      ctx,
+      args.factuurId
+    );
 
     const settings = await ctx.db
       .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", factuur.userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .unique();
     const treden = effectieveTreden(
       settings?.debiteurenLadder as LadderInstellingen | undefined
@@ -322,6 +349,13 @@ export const verwerkLadder = internalMutation({
     let takenAangemaakt = 0;
     let overgeslagen = 0;
 
+    // ORG-SCOPE: deze cron draait zonder identity en kan dus geen
+    // `requireOrgId` doen. De `by_status`-index is bedrijfsbreed en bedient
+    // in één run álle organisaties; de tenant komt per factuur uit de factuur
+    // zelf (zie de orgId-guard hieronder en het doorgeven aan de trede-
+    // verwerkers). Een lus over `organisaties` zou hier alleen extra queries
+    // kosten zonder iets af te schermen.
+    //
     // Kandidaten via de legacy-spiegel (dual-write §2.8): documentStatus
     // "verzonden" heeft altijd legacy-status verzonden/betaald/vervallen.
     const kandidaten = new Map<Id<"facturen">, Doc<"facturen">>();
@@ -333,7 +367,7 @@ export const verwerkLadder = internalMutation({
       for (const f of rows) kandidaten.set(f._id, f);
     }
 
-    // Ladder-instellingen per bedrijf (userId) één keer ophalen
+    // Ladder-instellingen per organisatie één keer ophalen
     const configCache = new Map<
       string,
       { actief: boolean; taakEigenaarId?: Id<"users">; treden: LadderTrede[] }
@@ -356,12 +390,22 @@ export const verwerkLadder = internalMutation({
         continue;
       }
 
-      const cacheSleutel = factuur.userId.toString();
+      // Zonder tenant is niet te bepalen wélke ladder-instellingen gelden;
+      // een index-`q.eq` op undefined zou élke rij zonder orgId matchen
+      // (CLAUDE.md regel 4). Zo'n factuur slaan we over — hij verschijnt na
+      // de dev-migratie vanzelf weer in de run.
+      const factuurOrgId = factuur.orgId;
+      if (!factuurOrgId) {
+        overgeslagen++;
+        continue;
+      }
+
+      const cacheSleutel = factuurOrgId.toString();
       let config = configCache.get(cacheSleutel);
       if (!config) {
         const settings = await ctx.db
           .query("instellingen")
-          .withIndex("by_user", (q) => q.eq("userId", factuur.userId))
+          .withIndex("by_org", (q) => q.eq("orgId", factuurOrgId))
           .unique();
         const ladder = (settings?.debiteurenLadder ??
           {}) as LadderInstellingen;
@@ -502,6 +546,9 @@ async function verwerkTaakTrede(
     return false;
   }
 
+  // De sleutel bevat het factuur-id en is daarmee al per organisatie uniek:
+  // deze bedrijfsbrede index kan nooit de taak van een andere tenant
+  // aanwijzen, dus een org-filter zou hier niets toevoegen.
   const sleutel = debiteurSleutel(factuur._id.toString(), trede.trede);
   const bestaande = await ctx.db
     .query("servicemeldingen")
@@ -577,23 +624,23 @@ async function verwerkTaakTrede(
 export const getOpenstaand = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const now = Date.now();
 
     const facturen = await ctx.db
       .query("facturen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
-    // Alle herinnering-records van deze gebruiker één keer ophalen (geen
+    // Alle herinnering-records van deze organisatie één keer ophalen (geen
     // N+1) en per factuur groeperen.
     const alleRecords = await ctx.db
       .query("betalingsherinneringen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
     const recordsPerFactuur = new Map<string, typeof alleRecords>();
     for (const r of alleRecords) {
-      if (r.userId.toString() !== userId.toString()) continue;
+      if (r.orgId?.toString() !== orgId.toString()) continue;
       const sleutel = r.factuurId.toString();
       const lijst = recordsPerFactuur.get(sleutel) ?? [];
       lijst.push(r);
@@ -603,7 +650,7 @@ export const getOpenstaand = query({
     // Instellingen voor de eerstvolgende-trede-weergave
     const settings = await ctx.db
       .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .unique();
     const ladder = (settings?.debiteurenLadder ?? {}) as LadderInstellingen;
     const treden = effectieveTreden(ladder);
@@ -621,7 +668,7 @@ export const getOpenstaand = query({
     };
 
     for (const factuur of facturen) {
-      if (factuur.userId.toString() !== userId.toString()) continue;
+      if (factuur.orgId?.toString() !== orgId.toString()) continue;
       const statussen = effectieveStatussen(factuur);
       if (
         !ladderVanToepassing({

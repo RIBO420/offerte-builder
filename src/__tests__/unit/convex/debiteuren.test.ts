@@ -23,7 +23,7 @@
  * cron zet uitsluitend concept-mails klaar en maakt database-records.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { ConvexError } from "convex/values";
 import {
   MockConvexStore,
@@ -31,6 +31,7 @@ import {
   createMockUser,
   createMockKlant,
   seedMockOrganisatie,
+  TEST_CLERK_ORG_ID,
 } from "../../helpers/convex-mock";
 import { AuthError } from "../../../../convex/auth";
 import {
@@ -68,6 +69,79 @@ function handler(fn: unknown): AnyHandler {
 }
 
 const UUR_MS = 60 * 60 * 1000;
+
+interface IndexConstraint {
+  op: "eq" | "lte" | "gte" | "lt" | "gt";
+  field: string;
+  value: unknown;
+}
+
+/**
+ * Index-bewuste variant van de mock-ctx: `withIndex(q => q.eq(...))` filtert
+ * echt op de opgegeven velden. De gedeelde helper negeert indexen volledig,
+ * waardoor een query die nog op `by_user` staat tóch het juiste antwoord
+ * geeft — precies het gat waar tenant-isolatie doorheen glipt.
+ */
+function createIndexAwareCtx(store: MockConvexStore) {
+  const ctx = createMockCtx(store);
+  ctx.db.query = vi.fn((tableName: string) => {
+    let docs = store.getAll(tableName);
+    const builder = {
+      withIndex: (_naam: string, fn?: (q: unknown) => unknown) => {
+        const constraints: IndexConstraint[] = [];
+        const q = {
+          eq: (field: string, value: unknown) => {
+            constraints.push({ op: "eq", field, value });
+            return q;
+          },
+          lte: (field: string, value: unknown) => {
+            constraints.push({ op: "lte", field, value });
+            return q;
+          },
+          gte: (field: string, value: unknown) => {
+            constraints.push({ op: "gte", field, value });
+            return q;
+          },
+          lt: (field: string, value: unknown) => {
+            constraints.push({ op: "lt", field, value });
+            return q;
+          },
+          gt: (field: string, value: unknown) => {
+            constraints.push({ op: "gt", field, value });
+            return q;
+          },
+        };
+        if (fn) fn(q);
+        docs = docs.filter((doc) =>
+          constraints.every((c) => {
+            const waarde = doc[c.field] as never;
+            switch (c.op) {
+              case "eq":
+                return waarde === c.value;
+              case "lte":
+                return waarde <= (c.value as never);
+              case "gte":
+                return waarde >= (c.value as never);
+              case "lt":
+                return waarde < (c.value as never);
+              case "gt":
+                return waarde > (c.value as never);
+            }
+          })
+        );
+        return builder;
+      },
+      filter: () => builder,
+      order: () => builder,
+      collect: async () => [...docs],
+      first: async () => docs[0] ?? null,
+      unique: async () => docs[0] ?? null,
+      take: async (n: number) => docs.slice(0, n),
+    };
+    return builder;
+  });
+  return ctx;
+}
 
 /** Ctx + store met precies één ingelogde gebruiker met de gegeven rol. */
 function ctxMetRol(role: string) {
@@ -497,6 +571,7 @@ describe("verwerkLadder — trede 3 kantoortaak (cases-bord)", () => {
     for (const trede of [1, 2]) {
       store.insert("betalingsherinneringen", {
         factuurId,
+        orgId,
         userId,
         type: trede === 1 ? "herinnering" : "tweede_herinnering",
         volgnummer: 1,
@@ -669,7 +744,10 @@ describe("rolchecks", () => {
     ).rejects.toThrow(AuthError);
 
     const kantoor = ctxMetRol("directie");
-    kantoor.store.insert("instellingen", { userId: kantoor.userId });
+    kantoor.store.insert("instellingen", {
+      orgId: kantoor.orgId,
+      userId: kantoor.userId,
+    });
     await handler(updateLadderInstellingen)(kantoor.ctx, {
       actief: false,
       treden: [
@@ -686,9 +764,40 @@ describe("rolchecks", () => {
     expect(ladder.treden).toHaveLength(2);
   });
 
+  it("bijwerken raakt de instellingen-rij van de eigen organisatie", async () => {
+    const store = new MockConvexStore();
+    const ctx = createIndexAwareCtx(store);
+    const orgA = seedMockOrganisatie(store);
+    const orgB = seedMockOrganisatie(store, {
+      clerkOrgId: `${TEST_CLERK_ORG_ID}_b`,
+      naam: "Buurman Hoveniers",
+    });
+    const userA = store.insert("users", createMockUser({ role: "directie" }));
+    // De rij van de buurman staat vooraan: een niet-org-gescoopte lookup
+    // patcht diens ladder in plaats van die van A.
+    const rijB = store.insert("instellingen", {
+      orgId: orgB,
+      userId: "users:999",
+      debiteurenLadder: { actief: true },
+    });
+    const rijA = store.insert("instellingen", { orgId: orgA, userId: userA });
+
+    await handler(updateLadderInstellingen)(ctx, { actief: false });
+
+    const na = (id: string) =>
+      store.getAll("instellingen").find((r) => r._id === id)!;
+    expect(
+      (na(rijA).debiteurenLadder as { actief: boolean }).actief
+    ).toBe(false);
+    // De buurman is ongemoeid gebleven
+    expect(
+      (na(rijB).debiteurenLadder as { actief: boolean }).actief
+    ).toBe(true);
+  });
+
   it("ongeldige treden-configuratie → ConvexError", async () => {
-    const { ctx, store, userId } = ctxMetRol("directie");
-    store.insert("instellingen", { userId });
+    const { ctx, store, userId, orgId } = ctxMetRol("directie");
+    store.insert("instellingen", { orgId, userId });
     await expect(
       handler(updateLadderInstellingen)(ctx, {
         treden: [
@@ -710,13 +819,53 @@ describe("rolchecks", () => {
       14, 21, 28,
     ]);
   });
+
+  it("getLadderInstellingen pakt de instellingen van de eigen organisatie", async () => {
+    const store = new MockConvexStore();
+    const ctx = createIndexAwareCtx(store);
+    const orgA = seedMockOrganisatie(store);
+    const orgB = seedMockOrganisatie(store, {
+      clerkOrgId: `${TEST_CLERK_ORG_ID}_b`,
+      naam: "Buurman Hoveniers",
+    });
+    const userA = store.insert("users", createMockUser({ role: "directie" }));
+    // De buurman staat als EERSTE in de tabel: een lezing die niet op org
+    // filtert pakt zijn ritme (7/14/21) in plaats van dat van A.
+    store.insert("instellingen", {
+      orgId: orgB,
+      userId: "users:999",
+      debiteurenLadder: {
+        actief: false,
+        treden: [
+          { trede: 1, dagenNaVerzending: 7, escalatie: "mail", actief: true },
+        ],
+      },
+    });
+    store.insert("instellingen", {
+      orgId: orgA,
+      userId: userA,
+      debiteurenLadder: {
+        actief: true,
+        treden: [
+          { trede: 1, dagenNaVerzending: 30, escalatie: "mail", actief: true },
+        ],
+      },
+    });
+
+    const config = (await handler(getLadderInstellingen)(ctx, {})) as {
+      actief: boolean;
+      treden: Array<{ dagenNaVerzending: number }>;
+    };
+    expect(config.actief).toBe(true);
+    expect(config.treden.map((t) => t.dagenNaVerzending)).toEqual([30]);
+  });
 });
 
 // ─── 6. Openstaande-postenoverzicht ──────────────────────────────────────────
 
 describe("getOpenstaand — de lijst ís het debiteurenoverzicht", () => {
   it("toont openstaande facturen met verschuldigd-sinds, bucket en niveau", async () => {
-    const { ctx, store, userId, klantId } = kantoorMetKlant();
+    const { ctx, store, userId, orgId, klantId } = kantoorMetKlant();
     // 49 dagen na verzending → 35 dagen over de vervaldatum (bucket 30-60)
     const oudId = insertFactuur(store, userId, klantId, 49, {
       betaaldBedrag: 210,
@@ -724,6 +873,7 @@ describe("getOpenstaand — de lijst ís het debiteurenoverzicht", () => {
     });
     store.insert("betalingsherinneringen", {
       factuurId: oudId,
+      orgId,
       userId,
       type: "herinnering",
       volgnummer: 1,
@@ -776,6 +926,209 @@ describe("getOpenstaand — de lijst ís het debiteurenoverzicht", () => {
     expect(data.totalen.buckets["30_60"].aantal).toBe(1);
     expect(data.totalen.buckets["30_60"].bedrag).toBe(1000);
     expect(data.totalen.buckets["0_14"].aantal).toBe(1);
+  });
+
+  it("cron pakt per factuur de ladder-instellingen van de juiste organisatie", async () => {
+    // Eén run bedient álle organisaties (de by_status-index is bedrijfsbreed).
+    // De config moet dus per factuur uit díe tenant komen: A heeft de ladder
+    // uitgezet, B niet. Een lookup die de verkeerde org pakt, zet ofwel bij A
+    // ten onrechte een mail klaar, ofwel bij B ten onrechte niet.
+    const store = new MockConvexStore();
+    const ctx = createIndexAwareCtx(store);
+    const orgA = seedMockOrganisatie(store);
+    const orgB = seedMockOrganisatie(store, {
+      clerkOrgId: `${TEST_CLERK_ORG_ID}_b`,
+      naam: "Buurman Hoveniers",
+    });
+    const userA = store.insert("users", createMockUser({ role: "directie" }));
+    // Collega binnen organisatie A: HIJ maakt de factuur aan, terwijl de
+    // instellingen-rij op de organisatie (en op userA) staat. Een lookup op
+    // factuur.userId vindt dan niets en valt terug op de defaults — dus op
+    // "ladder actief" — en mailt de klant van een bedrijf dat de ladder juist
+    // had uitgezet.
+    const userA2 = store.insert(
+      "users",
+      createMockUser({ role: "projectleider", clerkId: "clerk_collega" })
+    );
+    const userB = store.insert(
+      "users",
+      createMockUser({ role: "directie", clerkId: "clerk_buurman" })
+    );
+    const klantA = store.insert("klanten", createMockKlant(userA, { orgId: orgA }));
+    const klantB = store.insert("klanten", createMockKlant(userB, { orgId: orgB }));
+
+    store.insert("instellingen", {
+      orgId: orgA,
+      userId: userA,
+      debiteurenLadder: { actief: false },
+    });
+    store.insert("instellingen", {
+      orgId: orgB,
+      userId: userB,
+      debiteurenLadder: { actief: true },
+    });
+    insertTrigger(store, "betalingsherinnering_1", { orgId: orgA });
+    insertTrigger(store, "betalingsherinnering_1", { orgId: orgB });
+    insertFactuur(store, userA2, klantA, 15, { orgId: orgA });
+    const factuurB = insertFactuur(store, userB, klantB, 15, { orgId: orgB });
+
+    await runLadder()(ctx, {});
+
+    const records = store.getAll("betalingsherinneringen");
+    expect(records).toHaveLength(1);
+    expect(records[0].factuurId).toBe(factuurB);
+    expect(records[0].orgId).toBe(orgB);
+  });
+
+  it("org-isolatie: organisatie A ziet de facturen van B niet", async () => {
+    // Index-BEWUSTE ctx: de gedeelde createMockCtx negeert withIndex, en dan
+    // slaagt deze test ook als de query nog op by_user staat — het defensieve
+    // filter in de lus zou het werk doen. Hier filtert withIndex echt, zodat
+    // zowel de index als het filter org-gescoopt moeten zijn.
+    const store = new MockConvexStore();
+    const ctx = createIndexAwareCtx(store);
+
+    // Organisatie A is de ingelogde tenant (haar clerkOrgId matcht het
+    // org_id-claim dat createMockCtx meegeeft); B is de vreemde buur.
+    const orgA = seedMockOrganisatie(store);
+    const orgB = seedMockOrganisatie(store, {
+      clerkOrgId: `${TEST_CLERK_ORG_ID}_b`,
+      naam: "Buurman Hoveniers",
+    });
+    const userA = store.insert("users", createMockUser({ role: "directie" }));
+    // Collega binnen dezelfde organisatie: zijn ladder-record moet WEL
+    // meetellen voor de ingelogde gebruiker — dat is precies wat by_user
+    // (op de ingelogde user) miste en by_org wel vindt.
+    const userA2 = store.insert(
+      "users",
+      createMockUser({ role: "projectleider", clerkId: "clerk_collega" })
+    );
+    const userB = store.insert(
+      "users",
+      createMockUser({ role: "directie", clerkId: "clerk_buurman" })
+    );
+    const klantA = store.insert("klanten", createMockKlant(userA, { orgId: orgA }));
+    const klantB = store.insert("klanten", createMockKlant(userB, { orgId: orgB }));
+
+    const factuurA = insertFactuur(store, userA, klantA, 20, { orgId: orgA });
+    const factuurB = insertFactuur(store, userB, klantB, 40, { orgId: orgB });
+    // Trede 1 op A's factuur, weggeschreven door de COLLEGA. Op de oude
+    // by_user-index (de ingelogde gebruiker) viel dit record buiten beeld en
+    // stond het aanmaanniveau ten onrechte op 0.
+    store.insert("betalingsherinneringen", {
+      factuurId: factuurA,
+      orgId: orgA,
+      userId: userA2,
+      type: "herinnering",
+      volgnummer: 1,
+      dagenVervallen: 6,
+      verstuurdAt: Date.now(),
+      emailVerstuurd: false,
+      trede: 1,
+      bron: "ladder",
+    });
+    // Ladder-record van de buurman: mag nooit in het overzicht van A opduiken.
+    store.insert("betalingsherinneringen", {
+      factuurId: factuurB,
+      orgId: orgB,
+      userId: userB,
+      type: "herinnering",
+      volgnummer: 1,
+      dagenVervallen: 20,
+      verstuurdAt: Date.now(),
+      emailVerstuurd: false,
+      trede: 1,
+      bron: "ladder",
+    });
+
+    const data = (await handler(getOpenstaand)(ctx, {})) as {
+      posten: Array<Record<string, unknown>>;
+      totalen: { aantal: number; totaalOpenstaand: number };
+    };
+
+    expect(data.posten).toHaveLength(1);
+    expect(data.posten[0].factuurId).toBe(factuurA);
+    expect(data.posten.map((p) => p.factuurId)).not.toContain(factuurB);
+    expect(data.totalen.aantal).toBe(1);
+    expect(data.totalen.totaalOpenstaand).toBe(1210);
+    // Het record van de collega telt WEL mee (org-scope, niet user-scope)
+    expect(data.posten[0].aanmaanniveau).toBe(1);
+  });
+
+  it("org-isolatie houdt ook stand als de index niets afvangt", async () => {
+    // Spiegelbeeld van de test hierboven: de gedeelde createMockCtx negeert
+    // withIndex, dus hier komt élke factuur uit de store terug en moet het
+    // defensieve filter in de lus de tenant-grens alleen trekken.
+    const store = new MockConvexStore();
+    const ctx = createMockCtx(store);
+    const orgA = seedMockOrganisatie(store);
+    const userA = store.insert("users", createMockUser({ role: "directie" }));
+    const klantA = store.insert("klanten", createMockKlant(userA, { orgId: orgA }));
+    const factuurA = insertFactuur(store, userA, klantA, 20, { orgId: orgA });
+    // Factuur van een andere organisatie, plus eentje uit de tijd vóór de
+    // migratie (nog helemaal zonder orgId) — geen van beide hoort in de lijst.
+    insertFactuur(store, userA, klantA, 40, { orgId: "organisaties:999" });
+    insertFactuur(store, userA, klantA, 40, { orgId: undefined });
+    // Ladder-record van vóór de migratie op A's eigen factuur: telt bewust
+    // NIET mee zolang het geen orgId heeft (geen fallback bouwen — het komt
+    // terug zodra de dev-migratie het veld vult).
+    store.insert("betalingsherinneringen", {
+      factuurId: factuurA,
+      userId: userA,
+      type: "herinnering",
+      volgnummer: 1,
+      dagenVervallen: 6,
+      verstuurdAt: Date.now(),
+      emailVerstuurd: false,
+      trede: 1,
+      bron: "ladder",
+    });
+
+    const data = (await handler(getOpenstaand)(ctx, {})) as {
+      posten: Array<Record<string, unknown>>;
+      totalen: { aantal: number };
+    };
+
+    expect(data.posten).toHaveLength(1);
+    expect(data.posten[0].factuurId).toBe(factuurA);
+    expect(data.totalen.aantal).toBe(1);
+    expect(data.posten[0].aanmaanniveau).toBe(0);
+  });
+
+  it("pauzeren van een factuur van een andere organisatie wordt geweigerd", async () => {
+    // requireEigenFactuur deed ondanks zijn naam géén eigenaarscheck: met een
+    // factuur-id van de buurman kon elke kantoorrol diens ladder stilzetten.
+    const store = new MockConvexStore();
+    const ctx = createIndexAwareCtx(store);
+    seedMockOrganisatie(store);
+    const orgB = seedMockOrganisatie(store, {
+      clerkOrgId: `${TEST_CLERK_ORG_ID}_b`,
+      naam: "Buurman Hoveniers",
+    });
+    store.insert("users", createMockUser({ role: "directie" }));
+    const userB = store.insert(
+      "users",
+      createMockUser({ role: "directie", clerkId: "clerk_buurman" })
+    );
+    const klantB = store.insert("klanten", createMockKlant(userB, { orgId: orgB }));
+    const factuurB = insertFactuur(store, userB, klantB, 20, { orgId: orgB });
+
+    await expect(
+      handler(pauzeerLadder)(ctx, {
+        factuurId: factuurB,
+        reden: "Betalingsafspraak",
+      })
+    ).rejects.toThrow(AuthError);
+    await expect(
+      handler(hervatLadder)(ctx, { factuurId: factuurB })
+    ).rejects.toThrow(AuthError);
+    await expect(
+      handler(slaTredeOver)(ctx, { factuurId: factuurB })
+    ).rejects.toThrow(AuthError);
+
+    // En de factuur van de buurman is onaangeroerd gebleven
+    const naderhand = store.getAll("facturen").find((f) => f._id === factuurB)!;
+    expect(naderhand.ladderGepauzeerd).toBeUndefined();
   });
 
   it("eerstvolgendeTrede helper: null als alles afgedekt is", () => {
