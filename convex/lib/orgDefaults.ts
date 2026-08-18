@@ -8,8 +8,8 @@
  * `organisaties.maakOrganisatie` seedt er de organisatie mee.
  */
 
-import { MutationCtx } from "../_generated/server";
-import { Id } from "../_generated/dataModel";
+import type { MutationCtx } from "../_generated/server";
+import type { Id } from "../_generated/dataModel";
 
 /**
  * Verse standaardinstellingen. Bewust een functie en geen constante: elke
@@ -82,7 +82,7 @@ export const DEFAULT_NORMUREN = [
   // Onderhoud - Bomen
   { activiteit: "Boom snoeien licht", scope: "bomen_onderhoud", normuurPerEenheid: 0.5, eenheid: "stuk", omschrijving: "Lichte snoei boom" },
   { activiteit: "Boom snoeien zwaar", scope: "bomen_onderhoud", normuurPerEenheid: 1.5, eenheid: "stuk", omschrijving: "Zware snoei boom" },
-];
+] as const;
 
 // Default products data
 export const DEFAULT_PRODUCTEN = [
@@ -127,7 +127,7 @@ export const DEFAULT_PRODUCTEN = [
   { productnaam: "Afvoer grond (stort)", categorie: "Afvoer", inkoopprijs: 25.00, verkoopprijs: 35.00, eenheid: "m³", leverancier: "Stortplaats", verliespercentage: 0 },
   { productnaam: "Afvoer groenafval", categorie: "Afvoer", inkoopprijs: 15.00, verkoopprijs: 25.00, eenheid: "m³", leverancier: "Stortplaats", verliespercentage: 0 },
   { productnaam: "Afvoer puin", categorie: "Afvoer", inkoopprijs: 18.00, verkoopprijs: 28.00, eenheid: "m³", leverancier: "Stortplaats", verliespercentage: 0 },
-];
+] as const;
 
 /**
  * Zet de standaard-inrichting klaar voor een organisatie: instellingen,
