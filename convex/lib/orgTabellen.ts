@@ -155,7 +155,7 @@ export const TABEL_CLASSIFICATIE = {
   demoSeed: "wissen",
 } as const satisfies Record<TableNames, Classificatie>;
 
-// Kindtabellen zonder eigen orgId: wissen loopt via de ouder.
+// Kindtabellen zonder eigen orgId: opruimen/migreren loopt via de ouder.
 export const KIND_VAN: Partial<
   Record<TableNames, { ouder: TableNames; veld: string; index: string }>
 > = {

@@ -77,4 +77,20 @@ describe("KIND_VAN verwijst naar bestaande ouders en indexen", () => {
     expect(veldValidator.kind).toBe("id");
     expect(veldValidator.tableName).toBe(ouder);
   });
+
+  // Een kind erft zijn lot van de ouder: verhuist `projecten` ooit naar
+  // "bewaren" terwijl `planningTaken` op "wissen" blijft staan, dan wordt dat
+  // kind stilzwijgend nooit meer opgeruimd — het loopt immers via de ouder.
+  it.each(entries)(
+    "%s heeft dezelfde classificatie als zijn ouder",
+    (kind, { ouder }) => {
+      const kindKlasse = TABEL_CLASSIFICATIE[kind as keyof typeof TABEL_CLASSIFICATIE];
+      const ouderKlasse =
+        TABEL_CLASSIFICATIE[ouder as keyof typeof TABEL_CLASSIFICATIE];
+      expect(
+        kindKlasse,
+        `${kind} is "${kindKlasse}" maar ouder ${ouder} is "${ouderKlasse}"`,
+      ).toBe(ouderKlasse);
+    },
+  );
 });
