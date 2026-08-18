@@ -202,7 +202,12 @@ export function createMockCtx(store: MockConvexStore): MockCtx {
     },
     auth: {
       getUserIdentity: vi.fn(() =>
-        Promise.resolve({ subject: "clerk_test_user_123" })
+        Promise.resolve({
+          subject: "clerk_test_user_123",
+          // Sinds de org-migratie (fase 3) leest requireOrg dit claim; het
+          // JWT-template "convex" vult het met {{org.id}}.
+          org_id: TEST_CLERK_ORG_ID,
+        })
       ),
     },
     scheduler: {
@@ -212,6 +217,32 @@ export function createMockCtx(store: MockConvexStore): MockCtx {
 }
 
 // ─── Mock Data Factories ─────────────────────────────────────────────────────
+
+/** Het `org_id`-claim dat createMockCtx in de identity meegeeft. */
+export const TEST_CLERK_ORG_ID = "clerk_test_org_123";
+
+/**
+ * Zet de organisatie van de ingelogde gebruiker in de store en geef haar id
+ * terug.
+ *
+ * Sinds fase 3 van de org-migratie is `orgId` DE tenant-scope: elke test die
+ * een org-gescopeerde query of mutation aanroept heeft deze rij nodig, anders
+ * gooit `requireOrg` een AuthError ("Organisatie niet gevonden"). Geef het
+ * resultaat mee als `orgId` op de fixtures die bij deze tenant horen.
+ */
+export function seedMockOrganisatie(
+  store: MockConvexStore,
+  overrides: Record<string, unknown> = {}
+): string {
+  return store.insert("organisaties", {
+    clerkOrgId: TEST_CLERK_ORG_ID,
+    naam: "Top Tuinen",
+    slug: "top-tuinen",
+    actief: true,
+    aangemaaktOp: Date.now(),
+    ...overrides,
+  });
+}
 
 export function createMockUser(overrides: Partial<MockDocument> = {}): MockDocument {
   return {

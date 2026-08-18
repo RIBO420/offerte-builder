@@ -19,6 +19,7 @@ import {
   MockConvexStore,
   createMockCtx,
   createMockUser,
+  seedMockOrganisatie,
 } from "../../helpers/convex-mock";
 import type { GenericMutationCtx } from "convex/server";
 import type { DataModel, Doc, Id } from "../../../../convex/_generated/dataModel";
@@ -32,6 +33,10 @@ import {
   vindKlantMatch,
   promoveerLead,
 } from "../../../../convex/leadsKlantenHelpers";
+import {
+  getById as getLeadById,
+  listByPipeline,
+} from "../../../../convex/configuratorAanvragen";
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -76,6 +81,7 @@ function maakLead(overrides: Partial<LeadFixture> = {}): LeadFixture {
 
 type KlantFixture = {
   userId: string;
+  orgId?: string;
   naam: string;
   adres: string;
   postcode: string;
@@ -101,13 +107,20 @@ function maakKlant(overrides: Partial<KlantFixture> = {}): KlantFixture {
   };
 }
 
-/** Store + ctx + ingelogde kantoor-gebruiker voor promotie-tests. */
+/**
+ * Store + ctx + organisatie + ingelogde kantoor-gebruiker voor promotie-tests.
+ *
+ * `orgId` is sinds fase 3 van de org-migratie de tenant-scope van promoveerLead:
+ * de klant-match loopt erop, en het nieuwe klant- en werkitem-record krijgen hem
+ * mee.
+ */
 function maakPromotieContext() {
   const store = new MockConvexStore();
+  const orgId = seedMockOrganisatie(store);
   const userId = store.insert("users", createMockUser({ role: "directie" }));
   const user = store.get(userId) as unknown as Doc<"users">;
   const ctx = createMockCtx(store) as unknown as GenericMutationCtx<DataModel>;
-  return { store, ctx, user };
+  return { store, ctx, user, orgId };
 }
 
 function getLead(store: MockConvexStore, id: string) {
@@ -194,8 +207,8 @@ describe("Case-insensitieve e-mail-match", () => {
 
 describe("Promotie Lead → Gewonnen (promoveerLead)", () => {
   it("koppelt case-insensitief aan een bestaande klant — geen dubbel record", async () => {
-    const { store, ctx, user } = maakPromotieContext();
-    const bestaandeKlantId = store.insert("klanten", maakKlant({ email: "jan@devries.nl" }));
+    const { store, ctx, user, orgId } = maakPromotieContext();
+    const bestaandeKlantId = store.insert("klanten", maakKlant({ orgId, email: "jan@devries.nl" }));
     const leadId = store.insert(
       "configuratorAanvragen",
       maakLead({ klantEmail: "Jan@DeVries.NL" })
@@ -204,7 +217,8 @@ describe("Promotie Lead → Gewonnen (promoveerLead)", () => {
     const resultaat = await promoveerLead(
       ctx,
       getLead(store, leadId) as unknown as Doc<"configuratorAanvragen">,
-      user
+      user,
+      orgId as Id<"organisaties">
     );
 
     expect(resultaat.klantId).toBe(bestaandeKlantId);
@@ -215,19 +229,22 @@ describe("Promotie Lead → Gewonnen (promoveerLead)", () => {
   });
 
   it("maakt een nieuw klantrecord als er geen match is — de lead wórdt de klant", async () => {
-    const { store, ctx, user } = maakPromotieContext();
+    const { store, ctx, user, orgId } = maakPromotieContext();
     const leadId = store.insert("configuratorAanvragen", maakLead());
 
     const resultaat = await promoveerLead(
       ctx,
       getLead(store, leadId) as unknown as Doc<"configuratorAanvragen">,
-      user
+      user,
+      orgId as Id<"organisaties">
     );
 
     const klanten = store.getAll("klanten");
     expect(klanten).toHaveLength(1);
     expect(resultaat.nieuweKlant).toBe(true);
-    // Tenancy conform bestaande conventie: de kantoor-gebruiker die promoveert
+    // Tenant-scope sinds fase 3: de organisatie van de promoverende gebruiker.
+    expect(klanten[0].orgId).toBe(orgId);
+    // Legacy-veld blijft gevuld tot fase 6: de kantoor-gebruiker die promoveert
     expect(klanten[0].userId).toBe(user._id);
     // E-mail genormaliseerd opgeslagen (index-matchbaar)
     expect(klanten[0].email).toBe("jan@devries.nl");
@@ -236,13 +253,14 @@ describe("Promotie Lead → Gewonnen (promoveerLead)", () => {
   });
 
   it("maakt direct een eerste werkitem aan (type project, status gepland)", async () => {
-    const { store, ctx, user } = maakPromotieContext();
+    const { store, ctx, user, orgId } = maakPromotieContext();
     const leadId = store.insert("configuratorAanvragen", maakLead());
 
     const resultaat = await promoveerLead(
       ctx,
       getLead(store, leadId) as unknown as Doc<"configuratorAanvragen">,
-      user
+      user,
+      orgId as Id<"organisaties">
     );
 
     const werkitems = store.getAll("projecten");
@@ -251,18 +269,20 @@ describe("Promotie Lead → Gewonnen (promoveerLead)", () => {
     expect(werkitems[0].type).toBe("project");
     expect(werkitems[0].status).toBe("gepland");
     expect(werkitems[0].klantId).toBe(resultaat.klantId);
+    expect(werkitems[0].orgId).toBe(orgId);
     expect(werkitems[0].userId).toBe(user._id);
     expect(werkitems[0].naam).toBe("Aanvraag CFG-20260701-0001");
   });
 
   it("rondt het lead-record af: gewonnen + koppeling → van het bord, historie blijft", async () => {
-    const { store, ctx, user } = maakPromotieContext();
+    const { store, ctx, user, orgId } = maakPromotieContext();
     const leadId = store.insert("configuratorAanvragen", maakLead());
 
     const resultaat = await promoveerLead(
       ctx,
       getLead(store, leadId) as unknown as Doc<"configuratorAanvragen">,
-      user
+      user,
+      orgId as Id<"organisaties">
     );
 
     const lead = getLead(store, leadId);
@@ -282,18 +302,20 @@ describe("Promotie Lead → Gewonnen (promoveerLead)", () => {
   });
 
   it("is idempotent: een tweede promotie maakt geen dubbele klant of werkitem", async () => {
-    const { store, ctx, user } = maakPromotieContext();
+    const { store, ctx, user, orgId } = maakPromotieContext();
     const leadId = store.insert("configuratorAanvragen", maakLead());
 
     const eerste = await promoveerLead(
       ctx,
       getLead(store, leadId) as unknown as Doc<"configuratorAanvragen">,
-      user
+      user,
+      orgId as Id<"organisaties">
     );
     const tweede = await promoveerLead(
       ctx,
       getLead(store, leadId) as unknown as Doc<"configuratorAanvragen">,
-      user
+      user,
+      orgId as Id<"organisaties">
     );
 
     expect(tweede.alGepromoveerd).toBe(true);
@@ -304,9 +326,36 @@ describe("Promotie Lead → Gewonnen (promoveerLead)", () => {
     expect(store.getAll("leadActiviteiten")).toHaveLength(1);
   });
 
+  it("koppelt nooit aan een klant van een andere organisatie", async () => {
+    // De by_email-index is bedrijfsoverstijgend: zonder de org-filter in
+    // promoveerLead zou deze lead aan de klant van een ándere tenant worden
+    // gehangen — precies het lek dat de org-migratie moet dichten.
+    const { store, ctx, user, orgId } = maakPromotieContext();
+    const vreemdeKlantId = store.insert(
+      "klanten",
+      maakKlant({ orgId: "organisaties:andere", email: "jan@devries.nl" })
+    );
+    const leadId = store.insert(
+      "configuratorAanvragen",
+      maakLead({ klantEmail: "jan@devries.nl" })
+    );
+
+    const resultaat = await promoveerLead(
+      ctx,
+      getLead(store, leadId) as unknown as Doc<"configuratorAanvragen">,
+      user,
+      orgId as Id<"organisaties">
+    );
+
+    expect(resultaat.klantId).not.toBe(vreemdeKlantId);
+    expect(resultaat.nieuweKlant).toBe(true);
+    const eigenKlant = store.get(resultaat.klantId as unknown as string);
+    expect(eigenKlant?.orgId).toBe(orgId);
+  });
+
   it("gebruikt een bestaande koppeling (gekoppeldKlantId) zonder nieuwe klant te maken", async () => {
-    const { store, ctx, user } = maakPromotieContext();
-    const klantId = store.insert("klanten", maakKlant({ email: "ander@adres.nl" }));
+    const { store, ctx, user, orgId } = maakPromotieContext();
+    const klantId = store.insert("klanten", maakKlant({ orgId, email: "ander@adres.nl" }));
     const leadId = store.insert(
       "configuratorAanvragen",
       maakLead({ gekoppeldKlantId: klantId as Id<"klanten">, pipelineStatus: "offerte_verstuurd" })
@@ -315,7 +364,8 @@ describe("Promotie Lead → Gewonnen (promoveerLead)", () => {
     const resultaat = await promoveerLead(
       ctx,
       getLead(store, leadId) as unknown as Doc<"configuratorAanvragen">,
-      user
+      user,
+      orgId as Id<"organisaties">
     );
 
     expect(resultaat.klantId).toBe(klantId);
@@ -323,5 +373,61 @@ describe("Promotie Lead → Gewonnen (promoveerLead)", () => {
     expect(store.getAll("klanten")).toHaveLength(1);
     // Eerste werkitem hoort wél aangemaakt te worden bij de promotie zelf
     expect(store.getAll("projecten")).toHaveLength(1);
+  });
+});
+
+// ─── 5. Tenant-scope van het leads-bord (org-migratie fase 3) ────────────────
+
+/**
+ * De leads-tabel was tot fase 3 volledig ONgescoopt: elke query las de hele
+ * tabel. Met meerdere organisaties op één deployment betekent dat het bord van
+ * de buurman op je scherm. Deze twee tests bewaken de ondergrens: een lead van
+ * een andere organisatie is onzichtbaar én niet opvraagbaar.
+ */
+describe("Leads zijn org-gescoopt", () => {
+  function ctxMetLeadsVanTweeOrgs() {
+    const store = new MockConvexStore();
+    const orgId = seedMockOrganisatie(store);
+    store.insert("users", createMockUser({ role: "directie" }));
+    const eigenLeadId = store.insert(
+      "configuratorAanvragen",
+      maakLead({ referentie: "CFG-EIGEN" })
+    );
+    store.patch(eigenLeadId, { orgId });
+    const vreemdeLeadId = store.insert(
+      "configuratorAanvragen",
+      maakLead({ referentie: "CFG-VREEMD" })
+    );
+    store.patch(vreemdeLeadId, { orgId: "organisaties:andere" });
+    return { store, ctx: createMockCtx(store), eigenLeadId, vreemdeLeadId };
+  }
+
+  function handlerVan(fn: unknown) {
+    return (fn as { _handler: (ctx: unknown, args: unknown) => Promise<unknown> })
+      ._handler;
+  }
+
+  it("getById geeft null voor een lead van een andere organisatie", async () => {
+    const { ctx, eigenLeadId, vreemdeLeadId } = ctxMetLeadsVanTweeOrgs();
+
+    await expect(
+      handlerVan(getLeadById)(ctx, { id: eigenLeadId })
+    ).resolves.not.toBeNull();
+    await expect(
+      handlerVan(getLeadById)(ctx, { id: vreemdeLeadId })
+    ).resolves.toBeNull();
+  });
+
+  it("listByPipeline toont alleen leads van de eigen organisatie", async () => {
+    const { ctx } = ctxMetLeadsVanTweeOrgs();
+
+    const bord = (await handlerVan(listByPipeline)(ctx, {})) as Record<
+      string,
+      Array<{ referentie: string }>
+    >;
+    const referenties = Object.values(bord).flat().map((l) => l.referentie);
+
+    expect(referenties).toContain("CFG-EIGEN");
+    expect(referenties).not.toContain("CFG-VREEMD");
   });
 });

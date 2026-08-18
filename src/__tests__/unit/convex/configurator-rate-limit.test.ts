@@ -23,7 +23,15 @@ import {
   checkReferentieLookupRateLimit,
   checkReistijdRateLimit,
 } from "../../../../convex/security";
-import { getByReferentie } from "../../../../convex/configuratorAanvragen";
+import {
+  create as createAanvraag,
+  getByReferentie,
+} from "../../../../convex/configuratorAanvragen";
+import {
+  MockConvexStore,
+  createMockCtx,
+  seedMockOrganisatie,
+} from "../../helpers/convex-mock";
 import type { QueryCtx } from "../../../../convex/_generated/server";
 
 const EEN_UUR_MS = 60 * 60 * 1000;
@@ -199,5 +207,85 @@ describe("bestaande offerte-limiet blijft ongewijzigd", () => {
     // Na het minuutvenster mag het weer.
     vi.setSystemTime(klok + 61000);
     expect(checkPublicOfferteRateLimit(token).allowed).toBe(true);
+  });
+});
+
+/**
+ * Bij welke organisatie hoort een lead die binnenkomt zónder ingelogde
+ * gebruiker? De configurator heeft geen JWT en dus geen `org_id`-claim; de
+ * gewone resolvers (`requireOrgId`, `requireOrgContext`) kunnen hier per
+ * definitie niet werken. De afgeleide keuze mag nooit "de eerste de beste
+ * organisatie" worden: bij twijfel liever géén tenant dan de verkeerde.
+ */
+describe("publieke lead-intake: bij welke organisatie hoort de lead?", () => {
+  const geldigeAanvraag = {
+    type: "gazon" as const,
+    klantNaam: "Jan de Vries",
+    klantTelefoon: "0612345678",
+    klantAdres: "Dorpsstraat 1",
+    klantPostcode: "1234 AB",
+    klantPlaats: "Utrecht",
+    specificaties: {},
+    indicatiePrijs: 1250,
+  };
+
+  function createHandler(store: MockConvexStore) {
+    const ctx = createMockCtx(store);
+    const handler = (
+      createAanvraag as unknown as {
+        _handler: (ctx: unknown, args: unknown) => Promise<unknown>;
+      }
+    )._handler;
+    return (args: Record<string, unknown>) => handler(ctx, args);
+  }
+
+  it("hangt de lead aan de enige actieve organisatie", async () => {
+    const store = new MockConvexStore();
+    const orgId = seedMockOrganisatie(store);
+
+    await createHandler(store)({
+      ...geldigeAanvraag,
+      klantEmail: "enige.org@voorbeeld.nl",
+    });
+
+    const leads = store.getAll("configuratorAanvragen");
+    expect(leads).toHaveLength(1);
+    expect(leads[0].orgId).toBe(orgId);
+  });
+
+  it("laat orgId leeg als er meerdere actieve organisaties zijn", async () => {
+    const store = new MockConvexStore();
+    seedMockOrganisatie(store);
+    seedMockOrganisatie(store, { clerkOrgId: "clerk_test_org_456" });
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await createHandler(store)({
+      ...geldigeAanvraag,
+      klantEmail: "twee.orgs@voorbeeld.nl",
+    });
+
+    // De lead gaat niet verloren — hij komt alleen niet op een bord terecht,
+    // want een gok naar de verkeerde tenant is erger dan geen tenant.
+    const leads = store.getAll("configuratorAanvragen");
+    expect(leads).toHaveLength(1);
+    expect(leads[0].orgId).toBeUndefined();
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it("negeert een inactieve organisatie bij het bepalen van de tenant", async () => {
+    const store = new MockConvexStore();
+    const actieveOrgId = seedMockOrganisatie(store);
+    seedMockOrganisatie(store, {
+      clerkOrgId: "clerk_test_org_oud",
+      actief: false,
+    });
+
+    await createHandler(store)({
+      ...geldigeAanvraag,
+      klantEmail: "inactieve.org@voorbeeld.nl",
+    });
+
+    expect(store.getAll("configuratorAanvragen")[0].orgId).toBe(actieveOrgId);
   });
 });

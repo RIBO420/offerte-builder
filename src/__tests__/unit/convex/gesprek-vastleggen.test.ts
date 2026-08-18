@@ -22,6 +22,7 @@ import {
   createMockCtx,
   createMockUser,
   createMockKlant,
+  seedMockOrganisatie,
 } from "../../helpers/convex-mock";
 import { AuthError } from "../../../../convex/auth";
 import { legGesprekVast } from "../../../../convex/tijdlijn";
@@ -35,10 +36,13 @@ function handler(fn: unknown): AnyHandler {
 
 function opzet(role = "directie", extra: Record<string, unknown> = {}) {
   const store = new MockConvexStore();
+  // Sinds fase 3 van de org-migratie is orgId de tenant-scope; zonder deze
+  // organisatie-rij gooit requireOrg voordat de handler iets kan doen.
+  const orgId = seedMockOrganisatie(store);
   const userId = store.insert("users", createMockUser({ role, ...extra }));
   const ctx = createMockCtx(store);
-  const klantId = store.insert("klanten", createMockKlant(userId));
-  return { ctx, store, userId, klantId };
+  const klantId = store.insert("klanten", createMockKlant(userId, { orgId }));
+  return { ctx, store, userId, klantId, orgId };
 }
 
 describe("legGesprekVast: entry en taken in één handeling", () => {

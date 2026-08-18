@@ -23,6 +23,7 @@ import {
   createMockUser,
   createMockKlant,
   createMockOfferte,
+  seedMockOrganisatie,
 } from "../../helpers/convex-mock";
 import { AuthError } from "../../../../convex/auth";
 import {
@@ -59,22 +60,29 @@ function handler(fn: unknown): AnyHandler {
   return (fn as { _handler: AnyHandler })._handler;
 }
 
-/** Ctx + store met precies één ingelogde gebruiker met de gegeven rol. */
+/**
+ * Ctx + store met precies één organisatie en één ingelogde gebruiker met de
+ * gegeven rol. De organisatie is sinds fase 3 van de org-migratie de
+ * tenant-scope: zonder die rij gooit requireOrg op elke functie hier.
+ */
 function ctxMetRol(role: string, extra: Record<string, unknown> = {}) {
   const store = new MockConvexStore();
+  const orgId = seedMockOrganisatie(store);
   const userId = store.insert("users", createMockUser({ role, ...extra }));
   const ctx = createMockCtx(store);
-  return { ctx, store, userId };
+  return { ctx, store, userId, orgId };
 }
 
 function insertTijdlijnEntry(
   store: MockConvexStore,
   userId: string,
+  orgId: string,
   klantId: string,
   overrides: Record<string, unknown> = {}
 ) {
   return store.insert("klantTijdlijn", {
     userId,
+    orgId,
     klantId,
     timestamp: Date.now(),
     auteurNaam: "Systeem",
@@ -94,8 +102,8 @@ afterEach(() => {
 
 describe("logTijdlijnEvent (centrale helper)", () => {
   it("schrijft een systeem-event met defaults (kanaal systeem, auteur Systeem)", async () => {
-    const { ctx, store, userId } = ctxMetRol("directie");
-    const klantId = store.insert("klanten", createMockKlant(userId));
+    const { ctx, store, userId, orgId } = ctxMetRol("directie");
+    const klantId = store.insert("klanten", createMockKlant(userId, { orgId }));
 
     const id = await logTijdlijnEvent(ctx as unknown as MutationCtx, {
       userId: userId as never,
@@ -114,8 +122,8 @@ describe("logTijdlijnEvent (centrale helper)", () => {
   });
 
   it("ondersteunt toekomstige event-typen (§2.6/§2.8/§2.4) en meldingId alvast", async () => {
-    const { ctx, store, userId } = ctxMetRol("directie");
-    const klantId = store.insert("klanten", createMockKlant(userId));
+    const { ctx, store, userId, orgId } = ctxMetRol("directie");
+    const klantId = store.insert("klanten", createMockKlant(userId, { orgId }));
 
     for (const eventType of [
       "beurt_afgerond",
@@ -201,8 +209,8 @@ describe("Toegang (PRD §1.2): klant-rol heeft geen enkele tijdlijn-functie", ()
 
   it("voegEntryToe weigert ook voorman en medewerker (schrijven = kantoor)", async () => {
     for (const rol of ["voorman", "medewerker"]) {
-      const { ctx, store, userId } = ctxMetRol(rol);
-      const klantId = store.insert("klanten", createMockKlant(userId));
+      const { ctx, store, userId, orgId } = ctxMetRol(rol);
+      const klantId = store.insert("klanten", createMockKlant(userId, { orgId }));
       await expect(
         handler(voegEntryToe)(ctx, {
           klantId,
@@ -219,10 +227,11 @@ describe("Toegang (PRD §1.2): klant-rol heeft geen enkele tijdlijn-functie", ()
 
 describe("voegEntryToe (handmatige entry, kantoor)", () => {
   it("slaat een telefoonnotitie op met werkitem-koppeling en foto's", async () => {
-    const { ctx, store, userId } = ctxMetRol("directie");
-    const klantId = store.insert("klanten", createMockKlant(userId));
+    const { ctx, store, userId, orgId } = ctxMetRol("directie");
+    const klantId = store.insert("klanten", createMockKlant(userId, { orgId }));
     const werkitemId = store.insert("projecten", {
       userId,
+      orgId,
       klantId,
       naam: "Voorjaarsbeurt",
       type: "onderhoudsbeurt",
@@ -249,8 +258,8 @@ describe("voegEntryToe (handmatige entry, kantoor)", () => {
   });
 
   it("ondersteunt WhatsApp als handmatig kanaal (fase 1: plakken/samenvatten)", async () => {
-    const { ctx, store, userId } = ctxMetRol("projectleider");
-    const klantId = store.insert("klanten", createMockKlant(userId));
+    const { ctx, store, userId, orgId } = ctxMetRol("projectleider");
+    const klantId = store.insert("klanten", createMockKlant(userId, { orgId }));
 
     await handler(voegEntryToe)(ctx, {
       klantId,
@@ -262,19 +271,20 @@ describe("voegEntryToe (handmatige entry, kantoor)", () => {
   });
 
   it("weigert lege tekst", async () => {
-    const { ctx, store, userId } = ctxMetRol("directie");
-    const klantId = store.insert("klanten", createMockKlant(userId));
+    const { ctx, store, userId, orgId } = ctxMetRol("directie");
+    const klantId = store.insert("klanten", createMockKlant(userId, { orgId }));
     await expect(
       handler(voegEntryToe)(ctx, { klantId, kanaal: "intern", tekst: "   " })
     ).rejects.toThrow();
   });
 
   it("weigert een werkitem dat niet bij de klant hoort", async () => {
-    const { ctx, store, userId } = ctxMetRol("directie");
-    const klantA = store.insert("klanten", createMockKlant(userId));
-    const klantB = store.insert("klanten", createMockKlant(userId));
+    const { ctx, store, userId, orgId } = ctxMetRol("directie");
+    const klantA = store.insert("klanten", createMockKlant(userId, { orgId }));
+    const klantB = store.insert("klanten", createMockKlant(userId, { orgId }));
     const werkitemVanB = store.insert("projecten", {
       userId,
+      orgId,
       klantId: klantB,
       naam: "Klus van B",
       status: "gepland",
@@ -298,30 +308,31 @@ describe("voegEntryToe (handmatige entry, kantoor)", () => {
 describe("Filters en zoeken (Pietje-test §8.1)", () => {
   function storeMetEntries() {
     const basis = ctxMetRol("directie");
-    const { store, userId } = basis;
-    const klantId = store.insert("klanten", createMockKlant(userId));
-    const andereKlant = store.insert("klanten", createMockKlant(userId));
+    const { store, userId, orgId } = basis;
+    const klantId = store.insert("klanten", createMockKlant(userId, { orgId }));
+    const andereKlant = store.insert("klanten", createMockKlant(userId, { orgId }));
     const werkitemId = store.insert("projecten", {
       userId,
+      orgId,
       klantId,
       naam: "Herfstsnoei",
       status: "gepland",
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
-    insertTijdlijnEntry(store, userId, klantId, {
+    insertTijdlijnEntry(store, userId, orgId, klantId, {
       kanaal: "telefoon",
       tekst: "Belde over de heg",
       auteurNaam: "Yannick",
       timestamp: 3,
     });
-    insertTijdlijnEntry(store, userId, klantId, {
+    insertTijdlijnEntry(store, userId, orgId, klantId, {
       kanaal: "whatsapp",
       tekst: "App over factuur",
       werkitemId,
       timestamp: 2,
     });
-    insertTijdlijnEntry(store, userId, andereKlant, {
+    insertTijdlijnEntry(store, userId, orgId, andereKlant, {
       kanaal: "telefoon",
       tekst: "Andere klant, andere klus",
       timestamp: 1,
@@ -406,15 +417,17 @@ describe("Filters en zoeken (Pietje-test §8.1)", () => {
 
 describe("Auto-events (kanaal systeem) vanuit bestaande mutations", () => {
   it("werkitems.updatePlanning logt 'Ingepland: team, datum' op de tijdlijn", async () => {
-    const { ctx, store, userId } = ctxMetRol("directie");
-    const klantId = store.insert("klanten", createMockKlant(userId));
+    const { ctx, store, userId, orgId } = ctxMetRol("directie");
+    const klantId = store.insert("klanten", createMockKlant(userId, { orgId }));
     const teamId = store.insert("teams", {
       userId,
+      orgId,
       naam: "Team Groen",
       createdAt: Date.now(),
     });
     const werkitemId = store.insert("projecten", {
       userId,
+      orgId,
       klantId,
       naam: "Voorjaarsbeurt",
       type: "onderhoudsbeurt",
@@ -443,11 +456,11 @@ describe("Auto-events (kanaal systeem) vanuit bestaande mutations", () => {
   });
 
   it("offertes.updateStatus logt 'offerte verzonden'", async () => {
-    const { ctx, store, userId } = ctxMetRol("directie");
-    const klantId = store.insert("klanten", createMockKlant(userId));
+    const { ctx, store, userId, orgId } = ctxMetRol("directie");
+    const klantId = store.insert("klanten", createMockKlant(userId, { orgId }));
     const offerteId = store.insert(
       "offertes",
-      createMockOfferte(userId, klantId, { status: "concept", bron: "vrij" })
+      createMockOfferte(userId, klantId, { orgId, status: "concept", bron: "vrij" })
     );
 
     await handler(offerteUpdateStatus)(ctx, {
@@ -465,8 +478,10 @@ describe("Auto-events (kanaal systeem) vanuit bestaande mutations", () => {
 
   it("portaal.respondToOfferte logt 'geaccepteerd via het portaal'", async () => {
     const store = new MockConvexStore();
+    const orgId = seedMockOrganisatie(store);
     const klantId = store.insert("klanten", {
       userId: "users:eigenaar",
+      orgId,
       naam: "Jan de Vries",
       adres: "Tulpstraat 12",
       postcode: "1234 AB",
@@ -481,6 +496,7 @@ describe("Auto-events (kanaal systeem) vanuit bestaande mutations", () => {
     const offerteId = store.insert(
       "offertes",
       createMockOfferte("users:eigenaar", klantId, {
+        orgId,
         status: "verzonden",
         bron: "vrij",
       })
@@ -502,10 +518,11 @@ describe("Auto-events (kanaal systeem) vanuit bestaande mutations", () => {
   });
 
   it("beurtgenerator.activeerContract logt 'contract geactiveerd' (alleen bij concept → actief)", async () => {
-    const { ctx, store, userId } = ctxMetRol("directie");
-    const klantId = store.insert("klanten", createMockKlant(userId));
+    const { ctx, store, userId, orgId } = ctxMetRol("directie");
+    const klantId = store.insert("klanten", createMockKlant(userId, { orgId }));
     const contractId = store.insert("onderhoudscontracten", {
       userId,
+      orgId,
       klantId,
       contractNummer: "OC-2026-001",
       naam: "Onderhoud voorjaar",
@@ -539,10 +556,11 @@ describe("Auto-events (kanaal systeem) vanuit bestaande mutations", () => {
   });
 
   it("onderhoudscontracten.cancelContract logt 'contract opgezegd' met reden", async () => {
-    const { ctx, store, userId } = ctxMetRol("directie");
-    const klantId = store.insert("klanten", createMockKlant(userId));
+    const { ctx, store, userId, orgId } = ctxMetRol("directie");
+    const klantId = store.insert("klanten", createMockKlant(userId, { orgId }));
     const contractId = store.insert("onderhoudscontracten", {
       userId,
+      orgId,
       klantId,
       contractNummer: "OC-2026-002",
       naam: "Onderhoud",
@@ -571,10 +589,10 @@ describe("Auto-events (kanaal systeem) vanuit bestaande mutations", () => {
   });
 
   it("klanten.sendPortalInvitation logt 'portaal-uitnodiging verstuurd' (mail via gemockte scheduler)", async () => {
-    const { ctx, store, userId } = ctxMetRol("directie");
+    const { ctx, store, userId, orgId } = ctxMetRol("directie");
     const klantId = store.insert(
       "klanten",
-      createMockKlant(userId, { email: "jan@devries.nl" })
+      createMockKlant(userId, { orgId, email: "jan@devries.nl" })
     );
 
     await handler(sendPortalInvitation)(ctx, { id: klantId });
@@ -590,9 +608,10 @@ describe("Auto-events (kanaal systeem) vanuit bestaande mutations", () => {
   });
 
   it("promoveerLead (markGewonnen-kern) logt 'lead gewonnen' met werkitem", async () => {
-    const { ctx, store, userId } = ctxMetRol("directie");
+    const { ctx, store, userId, orgId } = ctxMetRol("directie");
     const user = store.getAll("users")[0];
     const leadId = store.insert("configuratorAanvragen", {
+      orgId,
       referentie: "AAN-2026-042",
       klantNaam: "Pietje Puk",
       klantEmail: "pietje@puk.nl",
@@ -606,7 +625,8 @@ describe("Auto-events (kanaal systeem) vanuit bestaande mutations", () => {
     const resultaat = await promoveerLead(
       ctx as unknown as Parameters<typeof promoveerLead>[0],
       lead as never,
-      user as never
+      user as never,
+      orgId as never
     );
 
     expect(resultaat.klantId).toBeDefined();
@@ -618,6 +638,8 @@ describe("Auto-events (kanaal systeem) vanuit bestaande mutations", () => {
     expect(entries[0].werkitemId).toBe(resultaat.werkitemId);
     expect(entries[0].tekst).toContain("AAN-2026-042");
     expect(entries[0].userId).toBe(userId);
+    // Tenant-scope sinds fase 3: de entry hangt aan de organisatie.
+    expect(entries[0].orgId).toBe(orgId);
   });
 });
 
@@ -625,10 +647,10 @@ describe("Auto-events (kanaal systeem) vanuit bestaande mutations", () => {
 
 describe("Notities-migratie (klanten.notities → tijdlijn, idempotent)", () => {
   it("migreert een notitie als 'Genoteerd vóór tijdlijn'-entry", async () => {
-    const { ctx, store, userId } = ctxMetRol("directie");
+    const { ctx, store, userId, orgId } = ctxMetRol("directie");
     const klantId = store.insert(
       "klanten",
-      createMockKlant(userId, { notities: "Sleutel ligt onder de mat" })
+      createMockKlant(userId, { orgId, notities: "Sleutel ligt onder de mat" })
     );
     const klant = store.get(klantId);
 
@@ -649,10 +671,10 @@ describe("Notities-migratie (klanten.notities → tijdlijn, idempotent)", () => 
   });
 
   it("is idempotent: tweede run slaat de klant over", async () => {
-    const { ctx, store, userId } = ctxMetRol("directie");
+    const { ctx, store, userId, orgId } = ctxMetRol("directie");
     const klantId = store.insert(
       "klanten",
-      createMockKlant(userId, { notities: "Notitie" })
+      createMockKlant(userId, { orgId, notities: "Notitie" })
     );
     const klant = store.get(klantId);
 
@@ -673,10 +695,10 @@ describe("Notities-migratie (klanten.notities → tijdlijn, idempotent)", () => 
   });
 
   it("dry-run schrijft niets", async () => {
-    const { ctx, store, userId } = ctxMetRol("directie");
+    const { ctx, store, userId, orgId } = ctxMetRol("directie");
     const klantId = store.insert(
       "klanten",
-      createMockKlant(userId, { notities: "Notitie" })
+      createMockKlant(userId, { orgId, notities: "Notitie" })
     );
     const uitkomst = await migreerNotitieVoorKlant(
       ctx as unknown as MutationCtx,
@@ -688,10 +710,10 @@ describe("Notities-migratie (klanten.notities → tijdlijn, idempotent)", () => 
   });
 
   it("slaat klanten zonder notities over en batcht via de handler", async () => {
-    const { ctx, store, userId } = ctxMetRol("directie");
-    store.insert("klanten", createMockKlant(userId, { notities: "A" }));
-    store.insert("klanten", createMockKlant(userId));
-    store.insert("klanten", createMockKlant(userId, { notities: "  " }));
+    const { ctx, store, userId, orgId } = ctxMetRol("directie");
+    store.insert("klanten", createMockKlant(userId, { orgId, notities: "A" }));
+    store.insert("klanten", createMockKlant(userId, { orgId }));
+    store.insert("klanten", createMockKlant(userId, { orgId, notities: "  " }));
 
     const resultaat = (await handler(migreerNotities)(ctx, {})) as {
       verwerkt: number;

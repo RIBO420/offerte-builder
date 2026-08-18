@@ -21,6 +21,7 @@ import {
   createMockCtx,
   createMockUser,
   createMockKlant,
+  seedMockOrganisatie,
 } from "../../helpers/convex-mock";
 import { legGesprekVast } from "../../../../convex/tijdlijn";
 import { gdprAnonymize } from "../../../../convex/klanten";
@@ -39,8 +40,10 @@ function handler(fn: unknown): AnyHandler {
  */
 function opzet(role = "directie") {
   const store = new MockConvexStore();
+  // Zie gesprek-vastleggen.test.ts: org-scope hoort in elke fixture.
+  const orgId = seedMockOrganisatie(store);
   const userId = store.insert("users", createMockUser({ role }));
-  const klantId = store.insert("klanten", createMockKlant(userId));
+  const klantId = store.insert("klanten", createMockKlant(userId, { orgId }));
   const verwijderd = vi.fn(async () => {});
   const ctx = {
     ...createMockCtx(store),
