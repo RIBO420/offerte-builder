@@ -24,6 +24,8 @@ import {
   getAvailableMedewerkersForLinking,
   linkUserToMedewerker,
   requestDataDeletion,
+  updateUserRole,
+  deleteUser,
 } from "../../../../convex/users";
 
 // ─── Nep-Convex-database ─────────────────────────────────────────────────────
@@ -116,6 +118,17 @@ class FakeDb {
     return this.byId(id);
   }
 
+  async delete(id: string): Promise<void> {
+    for (const [table, rows] of this.tables) {
+      const idx = rows.findIndex((d) => d._id === id);
+      if (idx !== -1) {
+        rows.splice(idx, 1);
+        this.tables.set(table, rows);
+        return;
+      }
+    }
+  }
+
   async patch(id: string, updates: Record<string, unknown>): Promise<void> {
     const doc = this.byId(id);
     if (!doc) throw new Error(`Document ${id} bestaat niet`);
@@ -138,6 +151,7 @@ interface FakeIdentity {
 interface FakeCtx {
   db: FakeDb;
   auth: { getUserIdentity: () => Promise<FakeIdentity | null> };
+  scheduler: { runAfter: (...args: unknown[]) => Promise<void> };
 }
 
 type Handler<TArgs, TResult> = (ctx: FakeCtx, args: TArgs) => Promise<TResult>;
@@ -155,6 +169,14 @@ const koppelMedewerker = handlerVan<
   { userId: string; medewerkerId?: string },
   { success: boolean }
 >(linkUserToMedewerker);
+
+const zetRol = handlerVan<{ userId: string; role: string }, { success: boolean }>(
+  updateUserRole
+);
+
+const verwijderGebruiker = handlerVan<{ userId: string }, { success: boolean }>(
+  deleteUser
+);
 
 const verwijderVerzoek = handlerVan<
   { reason?: string },
@@ -182,6 +204,7 @@ beforeEach(() => {
   ctx = {
     db,
     auth: { getUserIdentity: async () => identity },
+    scheduler: { runAfter: async () => {} },
   };
 
   orgA = db.insertSync("organisaties", {
@@ -330,6 +353,89 @@ describe("users.linkUserToMedewerker — bedrijfsscope", () => {
     expect(db.byId(medewerkerA)?.clerkUserId).toBe("clerk_nieuw");
     expect(db.byId(doelgebruiker)?.linkedMedewerkerId).toBe(medewerkerA);
     expect(db.byId(doelgebruiker)?.role).toBe("medewerker");
+  });
+});
+
+// ─── org-guards op user-management (vereisUserBinnenOrg) ─────────────────────
+
+describe("user-management — org-guards op de spiegelpaden", () => {
+  /** Account van bedrijf B, herkenbaar aan zijn medewerker-koppeling. */
+  function accountVanBedrijfB(): string {
+    return db.insertSync("users", {
+      clerkId: "clerk_piet",
+      email: "piet@bedrijf-b.nl",
+      name: "Piet Jansen",
+      role: "medewerker",
+      linkedMedewerkerId: medewerkerB,
+      createdAt: Date.now(),
+    });
+  }
+
+  it("weigert een rolwijziging op een account van een andere organisatie", async () => {
+    const vreemdAccount = accountVanBedrijfB();
+    logInAls("clerk_directie_a");
+
+    await expect(
+      zetRol(ctx, { userId: vreemdAccount, role: "klant" })
+    ).rejects.toBeInstanceOf(ConvexError);
+
+    expect(db.byId(vreemdAccount)?.role).toBe("medewerker");
+  });
+
+  it("staat een rolwijziging binnen de eigen organisatie wél toe", async () => {
+    const eigenAccount = db.insertSync("users", {
+      clerkId: "clerk_jan",
+      email: "jan@bedrijf-a.nl",
+      name: "Jan de Vries",
+      role: "medewerker",
+      linkedMedewerkerId: medewerkerA,
+      createdAt: Date.now(),
+    });
+    logInAls("clerk_directie_a");
+
+    await zetRol(ctx, { userId: eigenAccount, role: "voorman" });
+
+    expect(db.byId(eigenAccount)?.role).toBe("voorman");
+  });
+
+  it("weigert ontkoppelen van een account van een andere organisatie", async () => {
+    const vreemdAccount = accountVanBedrijfB();
+    logInAls("clerk_directie_a");
+
+    await expect(
+      koppelMedewerker(ctx, { userId: vreemdAccount })
+    ).rejects.toBeInstanceOf(ConvexError);
+
+    // Koppeling én rol van bedrijf B ongemoeid.
+    expect(db.byId(vreemdAccount)?.linkedMedewerkerId).toBe(medewerkerB);
+    expect(db.byId(vreemdAccount)?.role).toBe("medewerker");
+  });
+
+  it("weigert het verwijderen van een account van een andere organisatie", async () => {
+    const vreemdAccount = accountVanBedrijfB();
+    logInAls("clerk_directie_a");
+
+    await expect(
+      verwijderGebruiker(ctx, { userId: vreemdAccount })
+    ).rejects.toBeInstanceOf(ConvexError);
+
+    expect(db.byId(vreemdAccount)).not.toBeNull();
+  });
+
+  it("laat een ongekoppeld account met rust-regel toe (nog van niemand)", async () => {
+    // Bewust ruimer dan het leesfilter van listUsersWithDetails: zonder deze
+    // uitzondering is een account direct ná het ontkoppelen onbereikbaar.
+    const losAccount = db.insertSync("users", {
+      clerkId: "clerk_los",
+      email: "los@voorbeeld.nl",
+      name: "Los Account",
+      createdAt: Date.now(),
+    });
+    logInAls("clerk_directie_a");
+
+    await zetRol(ctx, { userId: losAccount, role: "medewerker" });
+
+    expect(db.byId(losAccount)?.role).toBe("medewerker");
   });
 });
 

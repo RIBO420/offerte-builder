@@ -640,6 +640,54 @@ export async function getCompanyUserId(
   return user._id;
 }
 
+/**
+ * Vereis dat een `users`-record binnen de eigen organisatie valt, en geef het
+ * terug. DE tenantgrens voor alle user-management-mutaties: rol wijzigen,
+ * koppelen, ontkoppelen, verwijderen.
+ *
+ * De users-tabel heeft (nog) geen `orgId` — dat komt in fase 6. Tot dan leiden
+ * we de tenant af uit de enige koppeling die er wél is:
+ *
+ *   linkedMedewerkerId -> medewerker.orgId
+ *   linkedKlantId      -> klant.orgId
+ *
+ * Wijst die koppeling naar een ándere organisatie, dan weigeren we: directie
+ * van bedrijf A mag de rol van een medewerker van bedrijf B niet degraderen,
+ * diens `clerkUserId` niet wissen en diens account niet verwijderen.
+ *
+ * Een account ZONDER koppeling hoort bij niemand en mag wél. Dat is bewust
+ * ruimer dan het leesfilter in `users.listUsersWithDetails`, dat ongekoppelde
+ * klantaccounts juist verbergt. Reden voor het verschil: het leesfilter houdt
+ * portaalaccounts uit een teamscherm, terwijl deze guard voorkomt dat je aan
+ * andermans account zit. Zou hij ongekoppelde accounts óók weigeren, dan is
+ * een account direct ná het ontkoppelen (dat de rol op "klant" zet en de
+ * koppeling wist) niet meer opnieuw te koppelen — onbereikbaar voor iedereen.
+ */
+export async function vereisUserBinnenOrg(
+  ctx: QueryCtx | MutationCtx,
+  userId: Id<"users">
+): Promise<Doc<"users">> {
+  const doelUser = await ctx.db.get(userId);
+  if (!doelUser) {
+    throw new ConvexError("Gebruiker niet gevonden");
+  }
+
+  const gekoppeldeOrgId = doelUser.linkedMedewerkerId
+    ? (await ctx.db.get(doelUser.linkedMedewerkerId))?.orgId
+    : doelUser.linkedKlantId
+      ? (await ctx.db.get(doelUser.linkedKlantId))?.orgId
+      : undefined;
+
+  if (gekoppeldeOrgId) {
+    const orgId = await requireOrgId(ctx);
+    if (gekoppeldeOrgId !== orgId) {
+      throw new ConvexError("Deze gebruiker hoort bij een andere organisatie");
+    }
+  }
+
+  return doelUser;
+}
+
 // ============================================
 // MUTATIONS - Role Assignment (Directie Only)
 // ============================================
@@ -654,11 +702,7 @@ export const assignRole = mutation({
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
-
-    const targetUser = await ctx.db.get(args.userId);
-    if (!targetUser) {
-      throw new ConvexError("Gebruiker niet gevonden");
-    }
+    await vereisUserBinnenOrg(ctx, args.userId);
 
     // Normalize legacy role values before saving
     const roleToSave = normalizeRole(args.role);
@@ -682,11 +726,7 @@ export const linkMedewerker = mutation({
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
-
-    const targetUser = await ctx.db.get(args.userId);
-    if (!targetUser) {
-      throw new ConvexError("Gebruiker niet gevonden");
-    }
+    const targetUser = await vereisUserBinnenOrg(ctx, args.userId);
 
     const medewerker = await ctx.db.get(args.medewerkerId);
     if (!medewerker) {
@@ -727,11 +767,7 @@ export const unlinkMedewerker = mutation({
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
-
-    const targetUser = await ctx.db.get(args.userId);
-    if (!targetUser) {
-      throw new ConvexError("Gebruiker niet gevonden");
-    }
+    const targetUser = await vereisUserBinnenOrg(ctx, args.userId);
 
     if (targetUser.linkedMedewerkerId) {
       const medewerker = await ctx.db.get(targetUser.linkedMedewerkerId);
@@ -753,43 +789,14 @@ export const unlinkMedewerker = mutation({
 });
 
 // ============================================
-// QUERIES - User & Role Listing (Directie Only)
+// QUERIES - User & Role Listing
 // ============================================
-
-/**
- * List all users with their roles (directie only).
- * Includes linked medewerker information if available.
- */
-export const listUsersWithRoles = query({
-  args: {},
-  handler: async (ctx) => {
-    await requireAdmin(ctx);
-
-    const users = await ctx.db.query("users").collect();
-
-    const usersWithRoles = await Promise.all(
-      users.map(async (user) => {
-        let linkedMedewerker = null;
-        if (user.linkedMedewerkerId) {
-          linkedMedewerker = await ctx.db.get(user.linkedMedewerkerId);
-        }
-
-        return {
-          _id: user._id,
-          clerkId: user.clerkId,
-          email: user.email,
-          name: user.name,
-          role: normalizeRole(user.role),
-          linkedMedewerkerId: user.linkedMedewerkerId,
-          linkedMedewerkerNaam: linkedMedewerker?.naam ?? null,
-          createdAt: user.createdAt,
-        };
-      })
-    );
-
-    return usersWithRoles;
-  },
-});
+//
+// `listUsersWithRoles` en `listUsersByRole` stonden hier tot cluster 3.9: twee
+// deployment-brede dumps van de hele users-tabel, zonder org-scope en zonder
+// aanroepers. `users.listUsersWithDetails` doet hetzelfde werk wél
+// org-gescoped en is wat het Team-scherm gebruikt; de dumps zijn daarom weg in
+// plaats van gemarkeerd.
 
 /**
  * Get current user's role information.
@@ -821,33 +828,6 @@ export const getCurrentUserRole = query({
       linkedMedewerkerId: user.linkedMedewerkerId,
       linkedMedewerkerNaam: linkedMedewerker?.naam ?? null,
     };
-  },
-});
-
-/**
- * List users by role (directie only).
- */
-export const listUsersByRole = query({
-  args: {
-    role: userRoleValidator,
-  },
-  handler: async (ctx, args) => {
-    await requireAdmin(ctx);
-
-    const users = await ctx.db
-      .query("users")
-      .withIndex("by_role", (q) => q.eq("role", args.role))
-      .collect();
-
-    return users.map((user) => ({
-      _id: user._id,
-      clerkId: user.clerkId,
-      email: user.email,
-      name: user.name,
-      role: normalizeRole(user.role),
-      linkedMedewerkerId: user.linkedMedewerkerId,
-      createdAt: user.createdAt,
-    }));
   },
 });
 

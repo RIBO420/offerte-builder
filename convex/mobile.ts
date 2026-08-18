@@ -10,7 +10,12 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuth, requireOrgContext, requireOrgId } from "./auth";
-import { requireAdmin, normalizeRole, getLinkedMedewerker } from "./roles";
+import {
+  requireAdmin,
+  normalizeRole,
+  getLinkedMedewerker,
+  vereisUserBinnenOrg,
+} from "./roles";
 import type { Doc } from "./_generated/dataModel";
 import { klantNaam, klantVeld } from "./lib/offerteKlant";
 import type { QueryCtx, MutationCtx } from "./_generated/server";
@@ -400,6 +405,9 @@ export const adminUpdateUserRole = mutation({
   },
   handler: async (ctx, args) => {
     const user = await requireAdmin(ctx);
+    // Tenantgrens: zonder deze check patcht directie van organisatie A de rol
+    // van een gebruiker van B (spiegel van users.updateUserRole).
+    await vereisUserBinnenOrg(ctx, args.userId);
 
     // Prevent changing own role
     if (args.userId.toString() === user._id.toString()) {
@@ -427,10 +435,10 @@ export const adminLinkUserToMedewerker = mutation({
     await requireAdmin(ctx);
     const orgId = await requireOrgId(ctx);
 
-    const targetUser = await ctx.db.get(args.userId);
-    if (!targetUser) {
-      throw new ConvexError("Gebruiker niet gevonden");
-    }
+    // Tenantgrens vóór álles: het ontkoppel-pad hieronder wist `clerkUserId`
+    // op de oude medewerker en zet de gebruiker op rol "klant" — dat mag nooit
+    // op een account van een andere organisatie.
+    const targetUser = await vereisUserBinnenOrg(ctx, args.userId);
 
     // Maak een eventuele vorige koppeling los, anders blijft clerkUserId achter op het
     // oude medewerker-record en vindt vindEigenMedewerker straks de verkeerde persoon.

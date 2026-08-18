@@ -3,9 +3,11 @@
  * en producten waarmee een verse tenant meteen kan rekenen.
  *
  * Deze lijsten stonden tot de Clerk-Organizations-migratie in `convex/users.ts`
- * en werden daar per gebruiker geseed. Ze staan nu hier zodat er één kopie
- * bestaat: `users.upsert` seedt er nog steeds mee per user (tot Task 2.3), en
- * `organisaties.maakOrganisatie` seedt er de organisatie mee.
+ * en werden daar per gebruiker geseed. Er is nu nog één zaai-route, en die is
+ * org-gescoped: `seedOrgDefaults` hieronder, aangeroepen door
+ * `organisaties.maakOrganisatie` (nieuwe tenant) en `users.initializeDefaults`
+ * (inhaalslag voor een organisatie die nog niets heeft). `users.upsert` seedt
+ * sinds cluster 3.9 niets meer — een nieuwe aanmelding is geen tenant.
  */
 
 import type { MutationCtx } from "../_generated/server";

@@ -7,7 +7,12 @@ import {
   requireOrgContext,
   requireOrgId,
 } from "./auth";
-import { requireAdmin, normalizeRole, isAdminRole } from "./roles";
+import {
+  requireAdmin,
+  normalizeRole,
+  isAdminRole,
+  vereisUserBinnenOrg,
+} from "./roles";
 import { Doc, Id } from "./_generated/dataModel";
 import { MutationCtx } from "./_generated/server";
 import {
@@ -1219,6 +1224,10 @@ export const setUserRole = mutation({
       };
     }
 
+    // Tenantgrens, net als bij updateUserRole: het e-mailadres komt uit args
+    // en kan naar een account van een andere organisatie wijzen.
+    await vereisUserBinnenOrg(ctx, targetUser._id);
+
     // Normalize the requested role (admin -> directie, viewer -> klant)
     const newRole = normalizeRole(args.role);
 
@@ -1355,11 +1364,11 @@ export const linkUserToMedewerker = mutation({
       throw new ConvexError("Alleen directie kan gebruikers koppelen aan medewerkers");
     }
 
-    // Get the target user to access their clerkId
-    const targetUser = await ctx.db.get(args.userId);
-    if (!targetUser) {
-      throw new ConvexError("Gebruiker niet gevonden");
-    }
+    // Get the target user to access their clerkId. `vereisUserBinnenOrg` is de
+    // tenantgrens: zonder die check kan directie van organisatie A het account
+    // van een medewerker van B ontkoppelen (clerkUserId wissen) en op rol
+    // "klant" zetten — precies het spiegelbeeld van de koppel-check hieronder.
+    const targetUser = await vereisUserBinnenOrg(ctx, args.userId);
 
     // If unlinking, first clear the old medewerker's clerkUserId
     if (targetUser.linkedMedewerkerId && targetUser.linkedMedewerkerId !== args.medewerkerId) {
@@ -1476,6 +1485,9 @@ export const updateUserRole = mutation({
       throw new ConvexError("Alleen directie kan gebruikersrollen wijzigen");
     }
 
+    // Tenantgrens: een rolwijziging is een schrijfactie op andermans account.
+    await vereisUserBinnenOrg(ctx, args.userId);
+
     // Normalize the requested role
     const newRole = normalizeRole(args.role);
 
@@ -1569,6 +1581,9 @@ export const cliSetUserRole = mutation({
         message: `User with email ${args.email} not found`,
       };
     }
+
+    // Tenantgrens, zie setUserRole.
+    await vereisUserBinnenOrg(ctx, user._id);
 
     const oldRole = normalizeRole(user.role);
     const newRole = normalizeRole(args.role);
@@ -2212,27 +2227,9 @@ export const deleteUser = mutation({
       throw new ConvexError("Je kunt jezelf niet verwijderen");
     }
 
-    const userToDelete = await ctx.db.get(args.userId);
-    if (!userToDelete) {
-      throw new ConvexError("Gebruiker niet gevonden");
-    }
-
-    // Tenantgrens (zelfde afleiding als listUsersWithDetails, want `users`
-    // heeft nog geen orgId): een account dat via zijn medewerker- of
-    // klantkoppeling bij een ándere organisatie hoort, mag directie hier niet
-    // verwijderen — dat verwijdert ook het Clerk-account van een vreemde.
-    // Ongekoppelde accounts blijven verwijderbaar; die horen bij niemand.
-    const orgId = await requireOrgId(ctx);
-    const gekoppeldeOrgId = userToDelete.linkedMedewerkerId
-      ? (await ctx.db.get(userToDelete.linkedMedewerkerId))?.orgId
-      : userToDelete.linkedKlantId
-        ? (await ctx.db.get(userToDelete.linkedKlantId))?.orgId
-        : undefined;
-    if (gekoppeldeOrgId && gekoppeldeOrgId !== orgId) {
-      throw new ConvexError(
-        "Deze gebruiker hoort bij een andere organisatie"
-      );
-    }
+    // Tenantgrens: verwijderen raakt ook het Clerk-account, dus zeker niet
+    // dat van een andere organisatie.
+    const userToDelete = await vereisUserBinnenOrg(ctx, args.userId);
 
     // If user is linked to a klant, clear the klant's clerkUserId
     if (userToDelete.linkedKlantId) {
