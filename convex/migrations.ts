@@ -736,8 +736,15 @@ export const backfillMedewerkerId = internalMutation({
 });
 
 // ============================================
-// TENANT-SCOPE BACKFILLS (audit §2)
+// TENANT-SCOPE BACKFILLS (audit §2) — PRE-ORG legacy-migratie
 // ============================================
+//
+// PRE-ORG legacy-migratie: deze drie backfills vullen het OUDE tenantveld
+// `userId`, van vóór de Clerk-Organizations-migratie. Ze blijven bewust op
+// `by_user` met `q.eq("userId", undefined)` staan — dat is hier geen gemiste
+// org-scoping maar precies de bedoeling: ze zoeken documenten die het veld nog
+// níét hebben. Niet omzetten naar `by_org`; wie de org-backfill zoekt, kijkt in
+// de orgId-backfills (`orgTabellen`), niet hier.
 //
 // urenRegistraties, voorcalculaties en direct_messages hebben sinds deze audit een
 // optioneel `userId` (de bedrijfs-user) plus een `by_user`-index. Optioneel, omdat

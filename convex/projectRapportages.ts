@@ -7,7 +7,7 @@
 
 import { v } from "convex/values";
 import { query } from "./_generated/server";
-import { requireAuthUserId } from "./auth";
+import { requireOrgId, verifyOrgOwnership } from "./auth";
 import { Doc } from "./_generated/dataModel";
 import { voorcalculatieVanProject, voorcalculatieVanOfferte } from "./lib/voorcalculatieLookup";
 import { klantNaam, klantVeld } from "./lib/offerteKlant";
@@ -53,13 +53,14 @@ export const getProjectPrestaties = query({
     comparePreviousPeriod: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
-    // Get all projects for user
-    let projecten = await ctx.db
+    // Get all projects for this organisatie
+    const alleProjecten = await ctx.db
       .query("projecten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
+    let projecten = alleProjecten;
 
     // Filter by date range if provided
     if (args.startDate || args.endDate) {
@@ -196,7 +197,7 @@ export const getProjectPrestaties = query({
     // Get instellingen for uurtarief
     const instellingen = await ctx.db
       .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .unique();
 
     const uurtarief = instellingen?.uurtarief || 45;
@@ -362,11 +363,11 @@ export const getProjectPrestaties = query({
     if (args.comparePreviousPeriod && args.startDate && args.endDate) {
       const prevRange = getPreviousPeriodRange(args.startDate, args.endDate);
 
-      const prevProjecten = (await ctx.db
-        .query("projecten")
-        .withIndex("by_user", (q) => q.eq("userId", userId))
-        .collect()
-      ).filter((p) => p.createdAt >= prevRange.start && p.createdAt < prevRange.end);
+      // Uit de lijst die hierboven al gelezen is — een tweede volledige
+      // projecten-scan leverde exact dezelfde rijen op.
+      const prevProjecten = alleProjecten.filter(
+        (p) => p.createdAt >= prevRange.start && p.createdAt < prevRange.end
+      );
 
       const prevAfgerond = prevProjecten.filter((p) =>
         ["afgerond", "nacalculatie_compleet", "gefactureerd"].includes(p.status)
@@ -428,12 +429,12 @@ export const getProjectVoortgang = query({
     alleenActief: v.optional(v.boolean()), // default: true
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
-    // Get all projects for user
+    // Get all projects for this organisatie
     let projecten = await ctx.db
       .query("projecten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // Filter to active only (not archived)
@@ -698,19 +699,24 @@ export const getProjectTimeline = query({
     endDate: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     // Get project(s)
     let projecten: Doc<"projecten">[] = [];
     if (args.projectId) {
-      const project = await ctx.db.get(args.projectId);
-      if (project && project.userId.toString() === userId.toString()) {
-        projecten = [project];
-      }
+      // verifyOrgOwnership gooit bij een project van een andere organisatie —
+      // strenger dan de oude stille lege tijdlijn, en dat hoort ook: wie een
+      // vreemd projectId opgeeft krijgt geen antwoord, geen leeg antwoord.
+      const project = await verifyOrgOwnership(
+        ctx,
+        await ctx.db.get(args.projectId),
+        "project"
+      );
+      projecten = [project];
     } else {
       projecten = await ctx.db
         .query("projecten")
-        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
         .collect();
     }
 

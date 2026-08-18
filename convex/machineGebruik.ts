@@ -1,19 +1,18 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAuthUserId } from "./auth";
+import { verifyOrgOwnership } from "./auth";
 import { requireNotViewer } from "./roles";
+
+// `machineGebruik` is een kindtabel: geen eigen `orgId`, de tenantgrens loopt
+// via `projectId → projecten.orgId`. Elke functie hieronder haalt dus eerst het
+// project op en laat `verifyOrgOwnership` beslissen (orgTabellen: "via ouder").
 
 // List all machine usage for a project
 export const list = query({
   args: { projectId: v.id("projecten") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
-
-    // Verify project ownership
-    const project = await ctx.db.get(args.projectId);
-    if (!project || project.userId.toString() !== userId.toString()) {
-      throw new ConvexError("Project niet gevonden of geen toegang");
-    }
+    // Verify project org-ownership
+    await verifyOrgOwnership(ctx, await ctx.db.get(args.projectId), "project");
 
     const usage = await ctx.db
       .query("machineGebruik")
@@ -45,13 +44,8 @@ export const list = query({
 export const getTotals = query({
   args: { projectId: v.id("projecten") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
-
-    // Verify project ownership
-    const project = await ctx.db.get(args.projectId);
-    if (!project || project.userId.toString() !== userId.toString()) {
-      throw new ConvexError("Project niet gevonden of geen toegang");
-    }
+    // Verify project org-ownership
+    await verifyOrgOwnership(ctx, await ctx.db.get(args.projectId), "project");
 
     const usage = await ctx.db
       .query("machineGebruik")
@@ -107,19 +101,16 @@ export const add = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
 
-    // Verify project ownership
-    const project = await ctx.db.get(args.projectId);
-    if (!project || project.userId.toString() !== userId.toString()) {
-      throw new ConvexError("Project niet gevonden of geen toegang");
-    }
+    // Verify project org-ownership
+    await verifyOrgOwnership(ctx, await ctx.db.get(args.projectId), "project");
 
-    // Verify machine ownership and get tarief
-    const machine = await ctx.db.get(args.machineId);
-    if (!machine || machine.userId.toString() !== userId.toString()) {
-      throw new ConvexError("Machine niet gevonden of geen toegang");
-    }
+    // Verify machine org-ownership and get tarief
+    const machine = await verifyOrgOwnership(
+      ctx,
+      await ctx.db.get(args.machineId),
+      "machine"
+    );
 
     // Calculate costs based on tarief type
     let kosten: number;
@@ -151,18 +142,17 @@ export const update = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
 
-    // Get entry and verify ownership through project
+    // Get entry and verify org-ownership through the parent project
     const entry = await ctx.db.get(args.id);
     if (!entry) {
       throw new ConvexError("Machine gebruik niet gevonden");
     }
-
-    const project = await ctx.db.get(entry.projectId);
-    if (!project || project.userId.toString() !== userId.toString()) {
-      throw new ConvexError("Geen toegang tot dit machine gebruik");
-    }
+    await verifyOrgOwnership(
+      ctx,
+      await ctx.db.get(entry.projectId),
+      "machine gebruik"
+    );
 
     const updates: Record<string, unknown> = {};
 
@@ -196,18 +186,17 @@ export const remove = mutation({
   args: { id: v.id("machineGebruik") },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
 
-    // Get entry and verify ownership through project
+    // Get entry and verify org-ownership through the parent project
     const entry = await ctx.db.get(args.id);
     if (!entry) {
       throw new ConvexError("Machine gebruik niet gevonden");
     }
-
-    const project = await ctx.db.get(entry.projectId);
-    if (!project || project.userId.toString() !== userId.toString()) {
-      throw new ConvexError("Geen toegang tot dit machine gebruik");
-    }
+    await verifyOrgOwnership(
+      ctx,
+      await ctx.db.get(entry.projectId),
+      "machine gebruik"
+    );
 
     await ctx.db.delete(args.id);
     return args.id;

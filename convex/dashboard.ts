@@ -10,7 +10,7 @@
  */
 
 import { query } from "./_generated/server";
-import { requireAuthUserId } from "./auth";
+import { requireOrgId } from "./auth";
 import { filterConceptenUit } from "./lib/pipelineKpis";
 import { voorcalculatieVanProject, voorcalculatieVanOfferte } from "./lib/voorcalculatieLookup";
 import {
@@ -33,7 +33,7 @@ import { telOfferteStatussen } from "./lib/rapportageAggregatie";
 export const getAdminDashboardData = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const now = new Date();
     const nu = now.getTime();
@@ -62,38 +62,43 @@ export const getAdminDashboardData = query({
     ] = await Promise.all([
       ctx.db
         .query("offertes")
-        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
         .order("desc")
         .collect(),
       ctx.db
         .query("projecten")
-        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
         .order("desc")
         .collect(),
       ctx.db
         .query("facturen")
-        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
         .order("desc")
         .collect(),
+      // `by_datum` is bedrijfsoverstijgend: die index telde de uren van ELKE
+      // organisatie mee in "urenDezeMaand". `by_org_datum` heeft dezelfde
+      // datum-range als tweede veld, dus de maandgrens blijft een index-scan.
       ctx.db
         .query("urenRegistraties")
-        .withIndex("by_datum", (q) => q.gte("datum", monthStartStr))
+        .withIndex("by_org_datum", (q) =>
+          q.eq("orgId", orgId).gte("datum", monthStartStr)
+        )
         .collect(),
       ctx.db
         .query("voertuigen")
-        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
         .collect(),
       ctx.db
         .query("machines")
-        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
         .collect(),
       ctx.db
         .query("voorraad")
-        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
         .collect(),
       ctx.db
         .query("kwaliteitsControles")
-        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
         .collect(),
     ]);
 

@@ -10,7 +10,7 @@
  */
 
 import { query } from "./_generated/server";
-import { requireAuthUserId } from "./auth";
+import { requireOrgId } from "./auth";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -36,7 +36,7 @@ function dateStr(offset: number): string {
 export const getWarnings = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const today = todayStr();
     const nextWeek = dateStr(7 * DAY_MS);
     const now = Date.now();
@@ -44,18 +44,27 @@ export const getWarnings = query({
     let planning, projecten, voertuigen, facturen, medewerkers;
     try {
       [planning, projecten, voertuigen, facturen, medewerkers] = await Promise.all([
+        // `weekPlanning` heeft geen eigen orgId — de tabel hangt via
+        // `projectId` aan een project. De enige datum-index is
+        // bedrijfsoverstijgend, dus hier lezen en hieronder postfilteren op de
+        // projecten van de eigen organisatie (CLAUDE.md regel 4).
         ctx.db.query("weekPlanning").withIndex("by_datum", (q) => q.gte("datum", today)).collect(),
-        ctx.db.query("projecten").withIndex("by_user", (q) => q.eq("userId", userId)).collect(),
-        ctx.db.query("voertuigen").withIndex("by_user", (q) => q.eq("userId", userId)).collect(),
-        ctx.db.query("facturen").withIndex("by_user", (q) => q.eq("userId", userId)).collect(),
-        ctx.db.query("medewerkers").withIndex("by_user", (q) => q.eq("userId", userId)).collect(),
+        ctx.db.query("projecten").withIndex("by_org", (q) => q.eq("orgId", orgId)).collect(),
+        ctx.db.query("voertuigen").withIndex("by_org", (q) => q.eq("orgId", orgId)).collect(),
+        ctx.db.query("facturen").withIndex("by_org", (q) => q.eq("orgId", orgId)).collect(),
+        ctx.db.query("medewerkers").withIndex("by_org", (q) => q.eq("orgId", orgId)).collect(),
       ]);
     } catch {
       return [];
     }
 
-    // Only look at planning within next week
-    const weekPlanning = planning.filter((p) => p.datum <= nextWeek);
+    // Only look at planning within next week, en alleen op eigen projecten:
+    // zonder deze postfilter zou een dubbele boeking bij een ander bedrijf hier
+    // als waarschuwing opduiken, met hun medewerker- en kentekengegevens erbij.
+    const eigenProjectIds = new Set(projecten.map((p) => p._id.toString()));
+    const weekPlanning = planning.filter(
+      (p) => p.datum <= nextWeek && eigenProjectIds.has(p.projectId.toString())
+    );
     const warnings: Warning[] = [];
 
     try {

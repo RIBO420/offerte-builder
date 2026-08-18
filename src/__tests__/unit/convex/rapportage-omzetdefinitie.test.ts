@@ -123,7 +123,9 @@ class FakeDb {
 
 interface FakeCtx {
   db: FakeDb;
-  auth: { getUserIdentity: () => Promise<{ subject: string } | null> };
+  auth: {
+    getUserIdentity: () => Promise<{ subject: string; org_id?: string } | null>;
+  };
 }
 
 type Handler<TArgs, TResult> = (ctx: FakeCtx, args: TArgs) => Promise<TResult>;
@@ -188,11 +190,14 @@ const DAG = 24 * 60 * 60 * 1000;
 let db: FakeDb;
 let ctx: FakeCtx;
 let userId: string;
+/** Tenant-sleutel sinds fase 3: het orgId achter het `org_id`-claim. */
+let orgId: string;
 
 function maakOfferte(
   overrides: Record<string, unknown> = {}
 ): Record<string, unknown> {
   return {
+    orgId,
     userId,
     type: "aanleg",
     status: "geaccepteerd",
@@ -221,6 +226,7 @@ function maakFactuur(
   overrides: Record<string, unknown> = {}
 ): Record<string, unknown> {
   return {
+    orgId,
     userId,
     factuurnummer: "F-001",
     status: "verzonden",
@@ -246,8 +252,19 @@ beforeEach(() => {
   db = new FakeDb();
   ctx = {
     db,
-    auth: { getUserIdentity: async () => ({ subject: "clerk_directie" }) },
+    auth: {
+      getUserIdentity: async () => ({
+        subject: "clerk_directie",
+        org_id: "clerk_org_toptuinen",
+      }),
+    },
   };
+  orgId = db.insert("organisaties", {
+    clerkOrgId: "clerk_org_toptuinen",
+    naam: "Top Tuinen",
+    actief: true,
+    aangemaaktOp: NU,
+  });
   userId = db.insert("users", {
     clerkId: "clerk_directie",
     email: "directie@toptuinen.nl",
@@ -255,7 +272,12 @@ beforeEach(() => {
     role: "directie",
     createdAt: NU,
   });
-  db.insert("instellingen", { userId, uurtarief: 50, btwPercentage: 21 });
+  db.insert("instellingen", {
+    orgId,
+    userId,
+    uurtarief: 50,
+    btwPercentage: 21,
+  });
 });
 
 // ─── De gedeelde definitie ───────────────────────────────────────────────────
@@ -414,6 +436,7 @@ describe("getRapportage voedt de vier secties", () => {
   it("sluit de voorheen ongebruikte voor/nacalculatie aan op echte data", async () => {
     const offerteId = db.insert("offertes", maakOfferte({ offerteNummer: "TT-VN" }));
     const projectId = db.insert("projecten", {
+      orgId,
       userId,
       offerteId,
       naam: "Tuin Van Dijk",
@@ -444,6 +467,7 @@ describe("getRapportage voedt de vier secties", () => {
     // Afgerond project zonder nacalculatie: het blok moet eerlijk melden dat
     // het onvolledig is in plaats van te doen alsof alles geteld is.
     db.insert("projecten", {
+      orgId,
       userId,
       naam: "Tuin Zonder Nacalculatie",
       status: "afgerond",
@@ -602,7 +626,12 @@ describe("getRapportage voedt de vier secties", () => {
   it("weigert een klantaccount de bedrijfscijfers", async () => {
     const klantCtx: FakeCtx = {
       db,
-      auth: { getUserIdentity: async () => ({ subject: "clerk_klant" }) },
+      auth: {
+        getUserIdentity: async () => ({
+          subject: "clerk_klant",
+          org_id: "clerk_org_toptuinen",
+        }),
+      },
     };
     db.insert("users", {
       clerkId: "clerk_klant",

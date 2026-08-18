@@ -8,7 +8,7 @@
 
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAuthUserId } from "./auth";
+import { requireOrgContext, requireOrgId, verifyOrgOwnership } from "./auth";
 import { requireNotViewer } from "./roles";
 import { Id } from "./_generated/dataModel";
 import { voorcalculatieVanProject } from "./lib/voorcalculatieLookup";
@@ -33,18 +33,18 @@ const getConfidenceLevel = (sampleSize: number): "laag" | "gemiddeld" | "hoog" =
 export const getSuggesties = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
-    // Get all normuren for user
+    // Get all normuren for this organisatie
     const normuren = await ctx.db
       .query("normuren")
-      .withIndex("by_user_scope", (q) => q.eq("userId", userId))
+      .withIndex("by_org_scope", (q) => q.eq("orgId", orgId))
       .collect();
 
-    // Get all projects for user
+    // Get all projects for this organisatie
     const projects = await ctx.db
       .query("projecten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // Get nacalculaties for all projects
@@ -214,17 +214,16 @@ export const applyAanpassing = mutation({
     bronProjecten: v.array(v.id("projecten")),
   },
   handler: async (ctx, args) => {
-    const user = await requireNotViewer(ctx);
+    await requireNotViewer(ctx);
+    const { org, user } = await requireOrgContext(ctx);
     const now = Date.now();
 
-    // Get the normuur and verify ownership
-    const normuur = await ctx.db.get(args.normuurId);
-    if (!normuur) {
-      throw new ConvexError("Normuur niet gevonden");
-    }
-    if (normuur.userId.toString() !== user._id.toString()) {
-      throw new ConvexError("Geen toegang tot deze normuur");
-    }
+    // Get the normuur and verify org-ownership
+    const normuur = await verifyOrgOwnership(
+      ctx,
+      await ctx.db.get(args.normuurId),
+      "normuur"
+    );
 
     const oudeWaarde = normuur.normuurPerEenheid;
     const wijzigingPercentage =
@@ -232,6 +231,7 @@ export const applyAanpassing = mutation({
 
     // Log the change in historie
     await ctx.db.insert("leerfeedback_historie", {
+      orgId: org._id,
       userId: user._id,
       normuurId: args.normuurId,
       scope: normuur.scope,
@@ -269,22 +269,23 @@ export const getHistorie = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     let history;
     if (args.scope) {
+      // `by_scope` is bedrijfsoverstijgend (alleen ["scope"]), dus postfilter
+      // op de eigen organisatie — CLAUDE.md regel 4.
       history = await ctx.db
         .query("leerfeedback_historie")
         .withIndex("by_scope", (q) => q.eq("scope", args.scope!))
         .order("desc")
         .collect();
 
-      // Filter by user
-      history = history.filter((h) => h.userId.toString() === userId.toString());
+      history = history.filter((h) => h.orgId === orgId);
     } else {
       history = await ctx.db
         .query("leerfeedback_historie")
-        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
         .order("desc")
         .collect();
     }
@@ -304,16 +305,16 @@ export const getHistorie = query({
 export const getHistorieByNormuur = query({
   args: { normuurId: v.id("normuren") },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
+    // `by_normuur` is bedrijfsoverstijgend; postfilter op de eigen organisatie.
     const history = await ctx.db
       .query("leerfeedback_historie")
       .withIndex("by_normuur", (q) => q.eq("normuurId", args.normuurId))
       .order("desc")
       .collect();
 
-    // Filter by user
-    return history.filter((h) => h.userId.toString() === userId.toString());
+    return history.filter((h) => h.orgId === orgId);
   },
 });
 
@@ -323,11 +324,11 @@ export const getHistorieByNormuur = query({
 export const getStats = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const history = await ctx.db
       .query("leerfeedback_historie")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // Calculate stats
@@ -374,19 +375,18 @@ export const getStats = query({
 export const revertAanpassing = mutation({
   args: { historieId: v.id("leerfeedback_historie") },
   handler: async (ctx, args) => {
-    const user = await requireNotViewer(ctx);
+    await requireNotViewer(ctx);
+    const { org, user } = await requireOrgContext(ctx);
     const now = Date.now();
 
     // Get the history entry
-    const historieEntry = await ctx.db.get(args.historieId);
-    if (!historieEntry) {
-      throw new ConvexError("Historie entry niet gevonden");
-    }
-    if (historieEntry.userId.toString() !== user._id.toString()) {
-      throw new ConvexError("Geen toegang tot deze historie entry");
-    }
+    const historieEntry = await verifyOrgOwnership(
+      ctx,
+      await ctx.db.get(args.historieId),
+      "historie entry"
+    );
 
-    // Get the normuur
+    // Get the normuur — hangt aan dezelfde historie-rij, dus aan dezelfde org.
     const normuur = await ctx.db.get(historieEntry.normuurId);
     if (!normuur) {
       throw new ConvexError("Normuur niet meer gevonden");
@@ -399,6 +399,7 @@ export const revertAanpassing = mutation({
 
     // Log the revert in historie
     await ctx.db.insert("leerfeedback_historie", {
+      orgId: org._id,
       userId: user._id,
       normuurId: historieEntry.normuurId,
       scope: historieEntry.scope,

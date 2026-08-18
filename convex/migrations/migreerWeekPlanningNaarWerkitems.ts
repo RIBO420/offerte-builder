@@ -111,6 +111,11 @@ export const migreer = internalMutation({
         continue;
       }
 
+      // PRE-ORG legacy-migratie: deze eenmalige omzetting draait op data van
+      // vóór de Clerk-Organizations-migratie en zoekt de teams op via het oude
+      // tenantveld `projecten.userId`. Bewust niet omgezet naar `by_org`: op
+      // oude rijen is `orgId` nog leeg, en dan zou de migratie juist niets meer
+      // vinden. Nieuwe leescode hoort wél op `by_org`.
       const userKey = project.userId.toString();
       if (!teamsCache.has(userKey)) {
         teamsCache.set(

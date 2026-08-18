@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
-import { requireAuthUserId } from "./auth";
+import { requireOrgId } from "./auth";
 
 /**
  * Smart Analytics API
@@ -8,18 +8,23 @@ import { requireAuthUserId } from "./auth";
  * - Price range estimates per scope
  * - Anomaly detection thresholds
  * - Customer history lookups
+ *
+ * Tenant-sleutel is de organisatie (`by_org`), niet de individuele gebruiker:
+ * de prijshistorie van een hoveniersbedrijf is bedrijfsdata. Op `by_user` zag
+ * een projectleider alleen de offertes die toevallig op zijn eigen account
+ * stonden, en dan wordt "genoeg data voor een schatting" per collega anders.
  */
 
 // Get historical price statistics per scope
 export const getScopePriceStats = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
-    // Get all accepted/voorcalculatie offertes for this user
+    // Get all accepted/voorcalculatie offertes for this organisatie
     const offertes = await ctx.db
       .query("offertes")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // Only use completed offertes for statistics
@@ -110,11 +115,11 @@ export const getScopePriceRange = query({
     oppervlakte: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const offertes = await ctx.db
       .query("offertes")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     const validOffertes = offertes.filter(
@@ -184,17 +189,19 @@ export const getKlantWithHistory = query({
     klantId: v.id("klanten"),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
+    // Bewust géén verifyOrgOwnership: deze query voedt de autocomplete en mag
+    // een onbekende klant stil met `null` beantwoorden in plaats van gooien.
     const klant = await ctx.db.get(args.klantId);
-    if (!klant || klant.userId !== userId) {
+    if (!klant || klant.orgId !== orgId) {
       return null;
     }
 
     // Get all offertes for this klant
     const offertes = await ctx.db
       .query("offertes")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .filter((q) => q.eq(q.field("klantId"), args.klantId))
       .order("desc")
       .collect();
@@ -257,20 +264,20 @@ export const getKlantenWithStats = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const limit = args.limit || 10;
 
     // Get recent klanten
     const klanten = await ctx.db
       .query("klanten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .order("desc")
       .take(limit);
 
     // Get all offertes for enrichment
     const allOffertes = await ctx.db
       .query("offertes")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // Enrich each klant with quick stats
@@ -312,11 +319,11 @@ export const checkPriceAnomaly = query({
     oppervlakte: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const offertes = await ctx.db
       .query("offertes")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     const validOffertes = offertes.filter(
@@ -413,11 +420,11 @@ export const getLabourHoursComparison = query({
     oppervlakte: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const offertes = await ctx.db
       .query("offertes")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     const validOffertes = offertes.filter(

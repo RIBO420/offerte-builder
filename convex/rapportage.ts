@@ -22,7 +22,7 @@
 
 import { v } from "convex/values";
 import { query } from "./_generated/server";
-import { requireAuthUserId } from "./auth";
+import { requireOrgId } from "./auth";
 import { requireKantoor } from "./roles";
 import type { Doc } from "./_generated/dataModel";
 import {
@@ -122,7 +122,7 @@ export const getRapportage = query({
     await requireKantoor(ctx);
     // Tenant-sleutel bewust hetzelfde als dashboard.ts en analytics.ts: één
     // afwijkende scope zou opnieuw twee verschillende cijfers opleveren (R2).
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const nu = args.referentie ?? Date.now();
     const preset: PeriodePreset = args.preset ?? "dit-jaar";
 
@@ -137,19 +137,19 @@ export const getRapportage = query({
       await Promise.all([
         ctx.db
           .query("offertes")
-          .withIndex("by_user", (q) => q.eq("userId", userId))
+          .withIndex("by_org", (q) => q.eq("orgId", orgId))
           .collect(),
         ctx.db
           .query("facturen")
-          .withIndex("by_user", (q) => q.eq("userId", userId))
+          .withIndex("by_org", (q) => q.eq("orgId", orgId))
           .collect(),
         ctx.db
           .query("projecten")
-          .withIndex("by_user", (q) => q.eq("userId", userId))
+          .withIndex("by_org", (q) => q.eq("orgId", orgId))
           .collect(),
         ctx.db
           .query("instellingen")
-          .withIndex("by_user", (q) => q.eq("userId", userId))
+          .withIndex("by_org", (q) => q.eq("orgId", orgId))
           .unique(),
       ]);
 
@@ -390,7 +390,7 @@ export const getVoorNacalculatieDetail = query({
     await requireKantoor(ctx);
     // Tenant-sleutel bewust hetzelfde als dashboard.ts en analytics.ts: één
     // afwijkende scope zou opnieuw twee verschillende cijfers opleveren (R2).
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const nu = args.referentie ?? Date.now();
     const periode = bepaalPeriode(args.preset ?? "dit-jaar", nu, {
       start: args.startDate,
@@ -400,11 +400,11 @@ export const getVoorNacalculatieDetail = query({
     const [projecten, instellingen] = await Promise.all([
       ctx.db
         .query("projecten")
-        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
         .collect(),
       ctx.db
         .query("instellingen")
-        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
         .unique(),
     ]);
 
