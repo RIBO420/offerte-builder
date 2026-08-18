@@ -80,6 +80,73 @@ function clerkFout(actie: string, status: number, body: string): Error {
   return new Error(`${actie} mislukt: ${status} ${body}`);
 }
 
+/**
+ * "Wat je wilde weghalen, is er al niet meer."
+ *
+ * Zowel het intrekken van een uitnodiging als het verwijderen van een
+ * org-lidmaatschap kan een toestand aantreffen die iemand anders al heeft
+ * opgeruimd: handmatig in het Clerk-dashboard, door een eerdere poging die
+ * halverwege afbrak, of doordat de uitnodiging inmiddels geaccepteerd is.
+ * Clerk antwoordt daarop met 404, en soms met een 400 die het in de body
+ * uitlegt. Beide betekenen voor ons hetzelfde: de Clerk-kant is klaar, dus de
+ * lokale kant mag door.
+ *
+ * Hard falen zou het tegenovergestelde doen van wat de gebruiker vroeg: de
+ * medewerker blijft dan voor altijd "uitgenodigd" of "actief" in ons scherm,
+ * met een knop die het nooit meer kan rechtzetten.
+ */
+function clerkAlWeg(status: number, body: string): boolean {
+  return (
+    status === 404 ||
+    (status === 400 && /revok|accept|already|not.?found|no.?such/i.test(body))
+  );
+}
+
+/**
+ * Clerk weigert een tweede openstaande uitnodiging voor hetzelfde adres met
+ * een 400 `duplicate_record`. Dat is geen fout maar een feit: de uitnodiging
+ * die we wilden versturen, bestaat al.
+ */
+function isDuplicaatUitnodiging(status: number, body: string): boolean {
+  return status === 400 && /duplicate|already/i.test(body);
+}
+
+/**
+ * Zoekt het invitation-id van een openstaande Clerk-uitnodiging op dit adres.
+ *
+ * Alleen gebruikt op het herstelpad hieronder: Clerk zegt "bestaat al", maar
+ * vertelt niet welk id dat is, en zonder id kunnen we hem later niet intrekken.
+ * Lukt de lookup niet, dan geeft deze functie `undefined` terug in plaats van
+ * te gooien — een ontbrekend id is vervelend, een mislukte uitnodigingsknop is
+ * erger.
+ */
+async function zoekOpenstaandeUitnodiging(
+  clerkOrgId: string,
+  secret: string,
+  email: string
+): Promise<string | undefined> {
+  const res = await fetch(
+    `${CLERK_API}/organizations/${clerkOrgId}/invitations?status=pending&limit=100`,
+    { method: "GET", headers: { Authorization: `Bearer ${secret}` } }
+  );
+  if (!res.ok) {
+    console.warn(
+      `[team/zoekOpenstaandeUitnodiging] Clerk gaf ${res.status} bij het ophalen van openstaande uitnodigingen`
+    );
+    return undefined;
+  }
+
+  // Clerk geeft afhankelijk van de API-versie een kale array of {data: [...]}.
+  const payload = (await res.json()) as
+    | Array<{ id?: string; email_address?: string }>
+    | { data?: Array<{ id?: string; email_address?: string }> };
+  const rijen = Array.isArray(payload) ? payload : (payload.data ?? []);
+
+  return rijen.find(
+    (rij) => normaliseerUitnodigingEmail(rij.email_address ?? "") === email
+  )?.id;
+}
+
 // ============================================
 // LEZEN
 // ============================================
@@ -182,6 +249,14 @@ export const valideerUitnodiging = internalMutation({
     // openstaande uitnodiging op hetzelfde adres. De index is niet
     // org-gescoped, dus filteren we er zelf op; ingetrokken en geaccepteerde
     // uitnodigingen blokkeren niets.
+    //
+    // `m._id !== args.medewerkerId` is bewust het eerste filter: opnieuw
+    // uitnodigen van dezelfde persoon moet altijd mogen. Dat is óók het
+    // herstelpad voor een wees-uitnodiging — status "uitgenodigd" zonder
+    // `uitnodigingClerkId`, wat betekent dat de Clerk-call slaagde maar de
+    // registratie erna niet (of andersom). Zonder deze uitzondering zou zo'n
+    // half-afgemaakte uitnodiging zichzelf blokkeren en was de medewerker
+    // via dit scherm niet meer te bereiken.
     const zelfdeAdres = await ctx.db
       .query("medewerkers")
       .withIndex("by_uitnodiging_email", (q) =>
@@ -221,13 +296,20 @@ export const valideerUitnodiging = internalMutation({
   },
 });
 
-/** Schrijft de uitnodiging weg nadat Clerk hem heeft aangenomen. */
+/**
+ * Schrijft de uitnodiging weg nadat Clerk hem heeft aangenomen.
+ *
+ * `clerkInvitationId` is optioneel: op het herstelpad (Clerk kende de
+ * uitnodiging al, en de lookup naar het bestaande id lukte niet) leggen we de
+ * uitnodiging liever zonder id vast dan helemaal niet — anders ziet het scherm
+ * niets terwijl er bij Clerk wél een mail is uitgegaan.
+ */
 export const registreerUitnodiging = internalMutation({
   args: {
     medewerkerId: v.id("medewerkers"),
     email: v.string(),
     rol: userRoleValidator,
-    clerkInvitationId: v.string(),
+    clerkInvitationId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     await ctx.db.patch(args.medewerkerId, {
@@ -247,6 +329,15 @@ export const registreerUitnodiging = internalMutation({
  * Clerk zelf mag; de app-rol reist mee in `public_metadata.role` en wordt bij
  * de eerste login door `users.upsert` overgenomen — maar alleen als de user nog
  * de default-rol heeft. Uitnodigen degradeert dus nooit een bestaand account.
+ *
+ * **Zelfherstellend bij een halve poging.** Er zit een venster tussen de
+ * geslaagde Clerk-call en `registreerUitnodiging`: breekt het daar af, dan
+ * staat er een uitnodiging bij Clerk waar wij niets van weten. Een tweede
+ * poging voor dezelfde medewerker + hetzelfde adres loopt dan tegen Clerks
+ * eigen duplicaatbewaking aan (400 `duplicate_record`). Die vangen we op als
+ * "bestaat al, alleen nog registreren": we zoeken het id van de openstaande
+ * uitnodiging op en leggen die alsnog vast. De retry repareert daarmee zichzelf
+ * in plaats van de gebruiker een fout te tonen die hij niet kan verhelpen.
  */
 export const stuurUitnodiging = action({
   args: {
@@ -254,7 +345,15 @@ export const stuurUitnodiging = action({
     email: v.string(),
     rol: userRoleValidator,
   },
-  handler: async (ctx, args) => {
+  // Expliciete return-annotatie: de handler roept via `internal.team` zijn
+  // eigen module aan, dus zonder annotatie moet TypeScript het type van deze
+  // action kennen om het type van deze action af te leiden. Dat is de bekende
+  // Convex-circulariteit (TS7022/7023) — en die maakt niet alleen dit bestand
+  // `any`, maar via `api`/`internal` élke useQuery in de web-app.
+  handler: async (
+    ctx,
+    args
+  ): Promise<{ clerkInvitationId: string | null }> => {
     const { clerkOrgId } = await ctx.runMutation(
       internal.team.valideerUitnodiging,
       args
@@ -277,19 +376,38 @@ export const stuurUitnodiging = action({
         }),
       }
     );
-    if (!res.ok) {
-      throw clerkFout("Clerk-uitnodiging", res.status, await res.text());
+    let clerkInvitationId: string | undefined;
+    if (res.ok) {
+      clerkInvitationId = ((await res.json()) as { id: string }).id;
+    } else {
+      const body = await res.text();
+      if (!isDuplicaatUitnodiging(res.status, body)) {
+        throw clerkFout("Clerk-uitnodiging", res.status, body);
+      }
+      // Herstelpad: Clerk heeft deze uitnodiging al. De validatie hierboven
+      // heeft al vastgesteld dat het adres binnen deze organisatie van niemand
+      // anders is, dus dit is onze eigen halve poging — id ophalen en alsnog
+      // registreren.
+      clerkInvitationId = await zoekOpenstaandeUitnodiging(
+        clerkOrgId,
+        secret,
+        email
+      );
+      console.warn(
+        `[team/stuurUitnodiging] Clerk had al een openstaande uitnodiging op ${email}; lokaal geregistreerd${
+          clerkInvitationId ? "" : " zónder invitation-id"
+        }`
+      );
     }
 
-    const invitation = (await res.json()) as { id: string };
     await ctx.runMutation(internal.team.registreerUitnodiging, {
       medewerkerId: args.medewerkerId,
       email,
       rol: args.rol,
-      clerkInvitationId: invitation.id,
+      clerkInvitationId,
     });
 
-    return { clerkInvitationId: invitation.id };
+    return { clerkInvitationId: clerkInvitationId ?? null };
   },
 });
 
@@ -353,7 +471,9 @@ export const registreerIntrekking = internalMutation({
  */
 export const trekUitnodigingIn = action({
   args: { medewerkerId: v.id("medewerkers") },
-  handler: async (ctx, args) => {
+  // Zie stuurUitnodiging: annotatie verplicht door de zelfverwijzing via
+  // `internal.team`.
+  handler: async (ctx, args): Promise<{ success: true }> => {
     const { clerkOrgId, uitnodigingClerkId } = await ctx.runMutation(
       internal.team.valideerIntrekking,
       args
@@ -375,10 +495,7 @@ export const trekUitnodigingIn = action({
       );
       if (!res.ok) {
         const body = await res.text();
-        const alWeg =
-          res.status === 404 ||
-          (res.status === 400 && /revok|accept|already|not.?found/i.test(body));
-        if (!alWeg) {
+        if (!clerkAlWeg(res.status, body)) {
           throw clerkFout("Clerk-intrekking", res.status, body);
         }
         console.warn(
@@ -450,10 +567,21 @@ export const registreerToegangIntrekking = internalMutation({
  * het **Clerk-user-id**, niet op het membership-id. Het Clerk-account zelf
  * blijft bestaan — dat verwijderen is een aparte, zwaardere actie
  * (`users.deleteUser`).
+ *
+ * **Idempotent richting Clerk**, om dezelfde reden als bij het intrekken van een
+ * uitnodiging: is het lidmaatschap al elders weggehaald (handmatig in het
+ * Clerk-dashboard, of door een eerdere poging die na de DELETE afbrak), dan
+ * ontkoppelen we lokaal alsnog. Zou dit hard falen, dan blijft `clerkUserId`
+ * hangen en is de medewerker via dit scherm nooit meer los te koppelen —
+ * terwijl zijn toegang bij Clerk al weg is. Andere fouten (500, verkeerde
+ * sleutel) gooien wél: dan is de Clerk-toestand onbekend en zou lokaal
+ * ontkoppelen ten onrechte suggereren dat de toegang eraf is.
  */
 export const trekToegangIn = action({
   args: { medewerkerId: v.id("medewerkers") },
-  handler: async (ctx, args) => {
+  // Zie stuurUitnodiging: annotatie verplicht door de zelfverwijzing via
+  // `internal.team`.
+  handler: async (ctx, args): Promise<{ success: true }> => {
     const { clerkOrgId, clerkUserId } = await ctx.runMutation(
       internal.team.valideerToegangIntrekking,
       args
@@ -471,7 +599,13 @@ export const trekToegangIn = action({
       }
     );
     if (!res.ok) {
-      throw clerkFout("Clerk-lidmaatschap verwijderen", res.status, await res.text());
+      const body = await res.text();
+      if (!clerkAlWeg(res.status, body)) {
+        throw clerkFout("Clerk-lidmaatschap verwijderen", res.status, body);
+      }
+      console.warn(
+        `[team/trekToegangIn] Clerk kende het lidmaatschap van ${clerkUserId} niet meer (${res.status}) — lokaal alsnog ontkoppeld`
+      );
     }
 
     await ctx.runMutation(internal.team.registreerToegangIntrekking, args);

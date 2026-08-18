@@ -177,7 +177,7 @@ const valideerUitnodigingHandler = handlerVan<
 >(valideerUitnodiging);
 
 const registreerUitnodigingHandler = handlerVan<
-  UitnodigingArgs & { clerkInvitationId: string },
+  UitnodigingArgs & { clerkInvitationId?: string },
   null
 >(registreerUitnodiging);
 
@@ -240,7 +240,7 @@ function actionHandlerVan<A, R>(fn: unknown): ActionHandler<A, R> {
 
 const stuurUitnodigingHandler = actionHandlerVan<
   UitnodigingArgs,
-  { clerkInvitationId: string }
+  { clerkInvitationId: string | null }
 >(stuurUitnodiging);
 
 const trekUitnodigingInHandler = actionHandlerVan<
@@ -566,6 +566,26 @@ describe("team.valideerUitnodiging", () => {
     ).resolves.toEqual({ clerkOrgId: "org_top_tuinen" });
   });
 
+  it("blokkeert een wees-uitnodiging van dezelfde medewerker niet", async () => {
+    // Status "uitgenodigd" zonder uitnodigingClerkId = de Clerk-call slaagde
+    // maar de registratie erna niet (of andersom). Dat mag zichzelf niet
+    // opsluiten: opnieuw uitnodigen is precies het herstelpad.
+    const medewerkerId = seedMedewerker({
+      uitnodigingEmail: "nieuw@toptuinen.nl",
+      uitnodigingRol: "voorman",
+      uitnodigingStatus: "uitgenodigd",
+      uitnodigingClerkId: undefined,
+    });
+
+    await expect(
+      valideerUitnodigingHandler(ctx, {
+        medewerkerId,
+        email: "nieuw@toptuinen.nl",
+        rol: "voorman",
+      })
+    ).resolves.toEqual({ clerkOrgId: "org_top_tuinen" });
+  });
+
   it("laat een openstaande uitnodiging van een andere organisatie ongemoeid", async () => {
     seedMedewerker({
       orgId: andereOrgId,
@@ -715,6 +735,65 @@ describe("team.stuurUitnodiging", () => {
 
     // Mislukte uitnodiging = geen lokale registratie.
     expect(db.byId(medewerkerId)?.uitnodigingStatus).toBeUndefined();
+  });
+
+  it("herstelt zichzelf als Clerk de uitnodiging al kent", async () => {
+    // Het venster uit de vorige poging: Clerk verstuurde de mail, maar de
+    // lokale registratie brak af. De retry krijgt nu een duplicaat-fout terug
+    // en moet daaruit alsnog de juiste toestand opbouwen.
+    const medewerkerId = seedMedewerker();
+    fetchMock
+      .mockResolvedValueOnce(
+        foutResponse(
+          400,
+          '{"errors":[{"code":"duplicate_record","message":"duplicate record"}]}'
+        )
+      )
+      .mockResolvedValueOnce(
+        okResponse({
+          data: [
+            { id: "orginv_ander", email_address: "iemand@toptuinen.nl" },
+            { id: "orginv_wees", email_address: "Nieuw@Toptuinen.nl" },
+          ],
+        })
+      );
+
+    const resultaat = await stuurUitnodigingHandler(actionCtx, {
+      medewerkerId,
+      email: "nieuw@toptuinen.nl",
+      rol: "voorman",
+    });
+
+    expect(resultaat.clerkInvitationId).toBe("orginv_wees");
+    expect(fetchMock.mock.calls[1][0]).toBe(
+      "https://api.clerk.com/v1/organizations/org_top_tuinen/invitations?status=pending&limit=100"
+    );
+
+    const medewerker = db.byId(medewerkerId);
+    expect(medewerker?.uitnodigingStatus).toBe("uitgenodigd");
+    expect(medewerker?.uitnodigingClerkId).toBe("orginv_wees");
+    expect(medewerker?.uitnodigingEmail).toBe("nieuw@toptuinen.nl");
+  });
+
+  it("registreert bij een duplicaat ook zonder terugvindbaar invitation-id", async () => {
+    const medewerkerId = seedMedewerker();
+    fetchMock
+      .mockResolvedValueOnce(
+        foutResponse(400, '{"errors":[{"code":"duplicate_record"}]}')
+      )
+      .mockResolvedValueOnce(foutResponse(500, "lijst onbereikbaar"));
+
+    const resultaat = await stuurUitnodigingHandler(actionCtx, {
+      medewerkerId,
+      email: "nieuw@toptuinen.nl",
+      rol: "voorman",
+    });
+
+    // Liever een uitnodiging zonder id in het scherm dan een onzichtbare
+    // uitnodiging die bij Clerk wél is uitgegaan.
+    expect(resultaat.clerkInvitationId).toBeNull();
+    expect(db.byId(medewerkerId)?.uitnodigingStatus).toBe("uitgenodigd");
+    expect(db.byId(medewerkerId)?.uitnodigingClerkId).toBeUndefined();
   });
 
   it("weigert netjes zonder CLERK_SECRET_KEY", async () => {
@@ -891,6 +970,20 @@ describe("team.trekToegangIn", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("ontkoppelt lokaal tóch als Clerk het lidmaatschap niet (meer) kent", async () => {
+    // Zonder deze tolerantie blijft clerkUserId hangen zodra iemand het
+    // lidmaatschap in het Clerk-dashboard heeft weggehaald, en is de
+    // medewerker via dit scherm nooit meer los te koppelen.
+    const { medewerkerId, accountId } = seedActief();
+    fetchMock.mockResolvedValue(foutResponse(404, '{"errors":[]}'));
+
+    await trekToegangInHandler(actionCtx, { medewerkerId });
+
+    expect(db.byId(medewerkerId)?.clerkUserId).toBeUndefined();
+    expect(db.byId(accountId)?.linkedMedewerkerId).toBeUndefined();
+    expect(db.byId(accountId)?.role).toBe("voorman");
+  });
+
   it("meldt status en body als Clerk de verwijdering weigert", async () => {
     const { medewerkerId } = seedActief();
     fetchMock.mockResolvedValue(foutResponse(403, "verboden"));
@@ -899,6 +992,17 @@ describe("team.trekToegangIn", () => {
       trekToegangInHandler(actionCtx, { medewerkerId })
     ).rejects.toThrow(/403[\s\S]*verboden/);
     expect(db.byId(medewerkerId)?.clerkUserId).toBe("clerk_actief");
+  });
+
+  it("laat een serverfout van Clerk niets lokaal wijzigen", async () => {
+    const { medewerkerId, accountId } = seedActief();
+    fetchMock.mockResolvedValue(foutResponse(500, "boem"));
+
+    await expect(
+      trekToegangInHandler(actionCtx, { medewerkerId })
+    ).rejects.toThrow(/500[\s\S]*boem/);
+    expect(db.byId(medewerkerId)?.clerkUserId).toBe("clerk_actief");
+    expect(db.byId(accountId)?.linkedMedewerkerId).toBe(medewerkerId);
   });
 
   it("weigert een projectleider", async () => {
