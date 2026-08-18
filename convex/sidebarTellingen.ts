@@ -15,11 +15,15 @@
  * telOpenMeldingen); interne niet-kantoor-rollen (voorman/medewerker)
  * krijgen alleen openMeldingen — de kantoor-tellers zijn dan null. De
  * client skipt de query voor rollen die geen enkele teller zien.
+ *
+ * Tenant-scope: alle vier de tellingen lopen op de organisatie uit het JWT.
+ * De resolver staat één keer bovenaan de handler — de tellingen delen hem.
  */
 
 import { query } from "./_generated/server";
+import { requireOrgId } from "./auth";
 import { requireInterneRol } from "./tijdlijn";
-import { getCompanyUserId, isKantoorRol } from "./roles";
+import { isKantoorRol } from "./roles";
 import { isActieveLead, hoortInKlantenLijst } from "./leadsKlantenHelpers";
 import { isOpenMelding } from "./servicemeldingen";
 
@@ -28,18 +32,15 @@ export const overzicht = query({
   handler: async (ctx) => {
     const user = await requireInterneRol(ctx);
     const kantoor = isKantoorRol(user.role);
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     // servicemeldingen.telOpenMeldingen — alle interne rollen
     const meldingen = await ctx.db
       .query("servicemeldingen")
-      .withIndex("by_user", (q) => q.eq("userId", companyUserId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
     const openMeldingen = meldingen.filter(
-      (m) =>
-        !m.deletedAt &&
-        m.userId.toString() === companyUserId.toString() &&
-        isOpenMelding(m.status)
+      (m) => !m.deletedAt && isOpenMelding(m.status)
     ).length;
 
     if (!kantoor) {
@@ -51,23 +52,29 @@ export const overzicht = query({
       };
     }
 
-    // configuratorAanvragen.countActieveLeads
-    const aanvragen = await ctx.db.query("configuratorAanvragen").collect();
+    // configuratorAanvragen.countActieveLeads — dit was de laatste lezer die
+    // de leads-tabel nog ONGESCOPET binnenhaalde (een full-table scan over
+    // alle tenants). Nu op by_org, net als de rest.
+    const aanvragen = await ctx.db
+      .query("configuratorAanvragen")
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
+      .collect();
     const actieveLeads = aanvragen.filter(isActieveLead).length;
 
-    // klanten.countKlanten — bewust dezelfde scope als het origineel: het
-    // eigen userId van de aanvrager, niet companyUserId.
+    // klanten.countKlanten — het origineel scopete op het eigen userId van de
+    // aanvrager (dus niet op het bedrijf). Die afleiding vervalt: de tenant is
+    // de organisatie, ongeacht wie er kijkt.
     const klantenDocs = await ctx.db
       .query("klanten")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
     const klanten = klantenDocs.filter(hoortInKlantenLijst).length;
 
     // conceptMails.countWachtrij
     const wachtrij = await ctx.db
       .query("conceptMails")
-      .withIndex("by_user_status", (q) =>
-        q.eq("userId", companyUserId).eq("status", "wachtrij")
+      .withIndex("by_org_status", (q) =>
+        q.eq("orgId", orgId).eq("status", "wachtrij")
       )
       .collect();
     const conceptMails = wachtrij.length;

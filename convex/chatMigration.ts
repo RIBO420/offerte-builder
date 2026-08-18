@@ -1,5 +1,12 @@
 import { internalMutation } from "./_generated/server";
 
+/**
+ * Eenmalige migraties zonder identity: de organisatie komt uit het brondocument
+ * (de offerte, of het eerste bericht van de groep). Zonder `orgId` zou een
+ * gemigreerde thread buiten elke by_org-query vallen en dus onzichtbaar zijn.
+ * `companyUserId` blijft meegeschreven zolang het schema het veld eist (fase 6).
+ */
+
 // Migrate offerte_messages → chat_threads + chat_messages
 export const migrateOfferteMessages = internalMutation({
   args: {},
@@ -39,6 +46,7 @@ export const migrateOfferteMessages = internalMutation({
         lastMessagePreview: lastMsg?.message?.substring(0, 80),
         unreadByBedrijf,
         unreadByKlant,
+        orgId: offerte.orgId,
         companyUserId: offerte.userId,
         createdAt: msgs.sort((a, b) => a.createdAt - b.createdAt)[0].createdAt,
       });
@@ -97,6 +105,7 @@ export const migrateTeamMessages = internalMutation({
         participants: [...new Set(msgs.map((m) => m.senderClerkId))],
         lastMessageAt: lastMsg?.createdAt,
         lastMessagePreview: lastMsg?.message?.substring(0, 80),
+        orgId: firstMsg.orgId,
         companyUserId: firstMsg.companyId,
         createdAt: firstMsg.createdAt,
       });
@@ -159,6 +168,7 @@ export const migrateDirectMessages = internalMutation({
         participants,
         lastMessageAt: lastMsg?.createdAt,
         lastMessagePreview: lastMsg?.message?.substring(0, 80),
+        orgId: firstMsg.orgId,
         companyUserId: firstMsg.companyId,
         createdAt: firstMsg.createdAt,
       });

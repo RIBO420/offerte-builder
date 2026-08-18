@@ -9,6 +9,23 @@
  * - Muted channels/users support
  * - Notification batching to prevent spam
  * - Deep link data for navigation
+ *
+ * TENANT-SCOPE (org-migratie fase 3)
+ *
+ * Dit bestand raakt twee soorten tabellen en die worden bewust verschillend
+ * gescopet:
+ *
+ *   PERSOONLIJK — `notification_preferences` (per gebruiker; orgTabellen zegt
+ *   "persoonlijk") en het ontvanger-veld `notifications.userId`. Die blijven op
+ *   user/clerkId staan: een org-scope zou de instellingen of het postvak van
+ *   een collega binnen bereik brengen. Elke query hieronder die op `userId` of
+ *   `clerkUserId` scopet, doet dat om deze reden.
+ *
+ *   BEDRIJF — de medewerkerslijst (`medewerkers`) en de schrijfpaden naar
+ *   `notificationDeliveryLog`/`notifications` dragen `orgId`. De acties hier
+ *   hebben geen identity (ze draaien via de scheduler), dus de organisatie komt
+ *   als argument mee vanaf de aanroeper, of uit het document (offerte) — zelfde
+ *   patroon als mailTriggers.bepaalOrgId.
  */
 
 import { v, ConvexError } from "convex/values";
@@ -135,16 +152,24 @@ export const getPreferencesByClerkId = internalQuery({
 });
 
 /**
- * Get all team members with push tokens for a company.
+ * Get all team members with push tokens for an organisation.
+ *
+ * `companyUserId` is GEEN tenant-grens: de medewerkers komen uit `orgId`. Het
+ * is puur de directie-account, die als enige niet uit `medewerkers` te halen is
+ * (`users` heeft geen `orgId`). Fase 6 kan dat argument laten vallen zodra er
+ * een org→eigenaar-koppeling bestaat.
  */
 export const getTeamMembersWithTokens = internalQuery({
-  args: { companyId: v.id("users") },
+  args: {
+    orgId: v.id("organisaties"),
+    companyUserId: v.id("users"),
+  },
   handler: async (ctx, args) => {
-    // Get all active medewerkers for this company
+    // Get all active medewerkers for this organisation
     const medewerkers = await ctx.db
       .query("medewerkers")
-      .withIndex("by_user_actief", (q) =>
-        q.eq("userId", args.companyId).eq("isActief", true)
+      .withIndex("by_org_actief", (q) =>
+        q.eq("orgId", args.orgId).eq("isActief", true)
       )
       .collect();
 
@@ -183,7 +208,7 @@ export const getTeamMembersWithTokens = internalQuery({
     }
 
     // Also include the company owner
-    const owner = await ctx.db.get(args.companyId);
+    const owner = await ctx.db.get(args.companyUserId);
     if (owner) {
       const ownerPrefs = await ctx.db
         .query("notification_preferences")
@@ -205,6 +230,10 @@ export const getTeamMembersWithTokens = internalQuery({
 /**
  * Get recent notification count for batching check.
  * Queries notificationDeliveryLog (channel: "chat") for anti-spam throttling.
+ *
+ * Bewust op `by_user` (de ONTVANGER) en niet op `by_org`: de drempel is per
+ * persoon — anders zou één druk kanaal de meldingen van iedereen in de
+ * organisatie smoren.
  */
 export const getRecentNotificationCount = internalQuery({
   args: {
@@ -249,6 +278,7 @@ export const getRecentNotificationCount = internalQuery({
 export const logNotification = internalMutation({
   args: {
     userId: v.id("users"),
+    orgId: v.id("organisaties"),
     senderUserId: v.optional(v.id("users")),
     type: v.string(),
     channelType: v.optional(v.string()),
@@ -260,6 +290,7 @@ export const logNotification = internalMutation({
   handler: async (ctx, args) => {
     await ctx.db.insert("notificationDeliveryLog", {
       userId: args.userId,
+      orgId: args.orgId,
       channel: "chat",
       type: args.type,
       status: args.status,
@@ -349,7 +380,12 @@ export const sendChatNotifications = internalAction({
     messageId: v.string(),
     senderClerkId: v.string(),
     senderName: v.string(),
-    companyId: v.string(),
+    // Tenant-scope: geen identity in een scheduled action, dus de organisatie
+    // komt mee vanaf chat.sendTeamMessage.
+    orgId: v.id("organisaties"),
+    // Alleen om de directie-account óók een push te geven — zie
+    // getTeamMembersWithTokens.
+    companyUserId: v.id("users"),
     channelType: v.union(
       v.literal("team"),
       v.literal("project"),
@@ -369,7 +405,7 @@ export const sendChatNotifications = internalAction({
     // Get all team members with push tokens
     const teamMembers = await ctx.runQuery(
       internal.notifications.getTeamMembersWithTokens,
-      { companyId: args.companyId as Id<"users"> }
+      { orgId: args.orgId, companyUserId: args.companyUserId }
     );
 
     const notificationType = `chat_${args.channelType}`;
@@ -394,6 +430,7 @@ export const sendChatNotifications = internalAction({
       if (!prefs?.enablePushNotifications || !prefs?.deviceToken) {
         await ctx.runMutation(internal.notifications.logNotification, {
           userId: member.recipientUserId,
+          orgId: args.orgId,
           senderUserId: senderUserId ?? undefined,
           type: notificationType,
           channelType: args.channelType,
@@ -414,6 +451,7 @@ export const sendChatNotifications = internalAction({
       if (!shouldNotify) {
         await ctx.runMutation(internal.notifications.logNotification, {
           userId: member.recipientUserId,
+          orgId: args.orgId,
           senderUserId: senderUserId ?? undefined,
           type: notificationType,
           channelType: args.channelType,
@@ -432,6 +470,7 @@ export const sendChatNotifications = internalAction({
       ) {
         await ctx.runMutation(internal.notifications.logNotification, {
           userId: member.recipientUserId,
+          orgId: args.orgId,
           senderUserId: senderUserId ?? undefined,
           type: notificationType,
           channelType: args.channelType,
@@ -452,6 +491,7 @@ export const sendChatNotifications = internalAction({
       if (prefs.mutedChannels?.includes(channelKey)) {
         await ctx.runMutation(internal.notifications.logNotification, {
           userId: member.recipientUserId,
+          orgId: args.orgId,
           senderUserId: senderUserId ?? undefined,
           type: notificationType,
           channelType: args.channelType,
@@ -467,6 +507,7 @@ export const sendChatNotifications = internalAction({
       if (prefs.mutedUsers?.includes(args.senderClerkId)) {
         await ctx.runMutation(internal.notifications.logNotification, {
           userId: member.recipientUserId,
+          orgId: args.orgId,
           senderUserId: senderUserId ?? undefined,
           type: notificationType,
           channelType: args.channelType,
@@ -492,6 +533,7 @@ export const sendChatNotifications = internalAction({
       if (recentCount >= MAX_NOTIFICATIONS_PER_BATCH) {
         await ctx.runMutation(internal.notifications.logNotification, {
           userId: member.recipientUserId,
+          orgId: args.orgId,
           senderUserId: senderUserId ?? undefined,
           type: notificationType,
           channelType: args.channelType,
@@ -538,6 +580,7 @@ export const sendChatNotifications = internalAction({
       // Log the notification
       await ctx.runMutation(internal.notifications.logNotification, {
         userId: member.recipientUserId,
+          orgId: args.orgId,
         senderUserId: senderUserId ?? undefined,
         type: notificationType,
         channelType: args.channelType,
@@ -568,6 +611,8 @@ export const sendDirectMessageNotification = internalAction({
     senderName: v.string(),
     recipientClerkId: v.string(),
     messagePreview: v.string(),
+    // Tenant-scope voor de afleverlog; komt mee vanaf chat.sendDirectMessage.
+    orgId: v.id("organisaties"),
   },
   handler: async (ctx, args) => {
     // Resolve clerkIds to Convex user _ids
@@ -594,6 +639,7 @@ export const sendDirectMessageNotification = internalAction({
     if (!prefs?.enablePushNotifications || !prefs?.deviceToken) {
       await ctx.runMutation(internal.notifications.logNotification, {
         userId: recipientUserId,
+        orgId: args.orgId,
         senderUserId: senderUserId ?? undefined,
         type: "chat_dm",
         channelType: "direct",
@@ -608,6 +654,7 @@ export const sendDirectMessageNotification = internalAction({
     if (!prefs.notifyOnDirectMessage) {
       await ctx.runMutation(internal.notifications.logNotification, {
         userId: recipientUserId,
+        orgId: args.orgId,
         senderUserId: senderUserId ?? undefined,
         type: "chat_dm",
         channelType: "direct",
@@ -625,6 +672,7 @@ export const sendDirectMessageNotification = internalAction({
     ) {
       await ctx.runMutation(internal.notifications.logNotification, {
         userId: recipientUserId,
+        orgId: args.orgId,
         senderUserId: senderUserId ?? undefined,
         type: "chat_dm",
         channelType: "direct",
@@ -639,6 +687,7 @@ export const sendDirectMessageNotification = internalAction({
     if (prefs.mutedUsers?.includes(args.senderClerkId)) {
       await ctx.runMutation(internal.notifications.logNotification, {
         userId: recipientUserId,
+        orgId: args.orgId,
         senderUserId: senderUserId ?? undefined,
         type: "chat_dm",
         channelType: "direct",
@@ -665,6 +714,7 @@ export const sendDirectMessageNotification = internalAction({
     if (recentCount >= MAX_NOTIFICATIONS_PER_BATCH) {
       await ctx.runMutation(internal.notifications.logNotification, {
         userId: recipientUserId,
+        orgId: args.orgId,
         senderUserId: senderUserId ?? undefined,
         type: "chat_dm",
         channelType: "direct",
@@ -697,6 +747,7 @@ export const sendDirectMessageNotification = internalAction({
     // Log the notification
     await ctx.runMutation(internal.notifications.logNotification, {
       userId: recipientUserId,
+        orgId: args.orgId,
       senderUserId: senderUserId ?? undefined,
       type: "chat_dm",
       channelType: "direct",
@@ -851,6 +902,12 @@ export const muteChannel = mutation({
 // ============================================
 // IN-APP NOTIFICATION CENTER
 // ============================================
+//
+// `notifications.userId` is het ONTVANGER-veld: het postvak van één persoon.
+// De leesqueries hieronder scopen daarom op de ingelogde gebruiker en niet op
+// de organisatie — via by_org zou je het postvak van je collega's zien. De
+// schrijfpaden zetten wél `orgId`, zodat de tabel voor opruimen en migratie
+// aan een tenant hangt (orgTabellen: "wissen").
 
 import { query } from "./_generated/server";
 
@@ -1028,6 +1085,7 @@ export const dismiss = mutation({
 export const createInAppNotification = internalMutation({
   args: {
     userId: v.id("users"),
+    orgId: v.id("organisaties"),
     type: v.union(
       v.literal("offerte_geaccepteerd"),
       v.literal("offerte_afgewezen"),
@@ -1058,6 +1116,7 @@ export const createInAppNotification = internalMutation({
   handler: async (ctx, args) => {
     const notificationId = await ctx.db.insert("notifications", {
       userId: args.userId,
+      orgId: args.orgId,
       type: args.type,
       title: args.title,
       message: args.message,
@@ -1152,6 +1211,9 @@ function getOfferteNotificationDecision(
 /**
  * Get the admin user(s) who should receive notifications for an offerte.
  * Returns the offerte owner. Can be extended to include other admins/team members.
+ *
+ * `offerte.userId` is hier de ONTVANGER, geen tenant-scope: het postvak van de
+ * offerte-eigenaar. De tenant van de notificatie komt uit `offerte.orgId`.
  */
 async function getOfferteNotificationRecipients(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1252,6 +1314,7 @@ export const notifyOfferteStatusChange = internalMutation({
       if (shouldSend.inApp) {
         await ctx.db.insert("notifications", {
           userId: recipientId,
+          orgId: offerte.orgId,
           type: notificationType,
           title,
           message,
@@ -1304,6 +1367,7 @@ export const notifyOfferteViewed = internalMutation({
       if (shouldSend.inApp) {
         await ctx.db.insert("notifications", {
           userId: recipientId,
+          orgId: offerte.orgId,
           type: "offerte_bekeken",
           title: "Offerte bekeken",
           message: `${klantNaam(offerte.klant)} heeft offerte ${offerte.offerteNummer} bekeken.`,
@@ -1362,6 +1426,7 @@ export const notifyOfferteCreated = internalMutation({
       if (shouldSend.inApp) {
         await ctx.db.insert("notifications", {
           userId: recipientId,
+          orgId: offerte.orgId,
           type: "offerte_aangemaakt",
           title: "Nieuwe offerte aangemaakt",
           message: `${createdByUser?.name || "Iemand"} heeft een nieuwe offerte aangemaakt: ${offerte.offerteNummer} voor ${klantNaam(offerte.klant)}.`,
@@ -1475,6 +1540,11 @@ export const updateOfferteNotificationPreferences = mutation({
 /**
  * Get notifications by offerte ID.
  * Useful for showing notification history on offerte detail page.
+ *
+ * `requireAuthUserId` is hier bewust geen org-resolver: dit toont het EIGEN
+ * postvak bij een offerte. De org-scope zit al op de offerte zelf (het
+ * detailscherm dat deze query aanroept haalt hem via getOwnedOfferte); via
+ * by_org zou je hier de notificaties van je collega's terugkrijgen.
  */
 export const getByOfferte = query({
   args: {
@@ -1515,6 +1585,10 @@ export const createReminderNotification = internalMutation({
     ),
   },
   handler: async (ctx, args) => {
+    // Geen identity (cron-pad): de tenant komt uit de offerte zelf — zelfde
+    // patroon als mailTriggers.bepaalOrgId.
+    const offerte = await ctx.db.get(args.offerteId);
+
     // Build title and message based on reminder type
     let title: string;
     let message: string;
@@ -1536,6 +1610,7 @@ export const createReminderNotification = internalMutation({
 
     const notificationId = await ctx.db.insert("notifications", {
       userId: args.userId,
+      orgId: offerte?.orgId,
       type: "offerte_herinnering",
       title,
       message,

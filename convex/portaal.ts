@@ -640,6 +640,10 @@ export const dienMeldingIn = mutation({
 
     const meldingId = await ctx.db.insert("servicemeldingen", {
       userId: companyUserId,
+      // Zelfde reden als bij zetTriggerMailKlaar hieronder: een portaalklant
+      // heeft geen org_id-claim, dus de tenant komt uit de klant-rij. Zonder
+      // dit veld valt de melding buiten elke by_org-query van kantoor.
+      orgId: klant.orgId,
       klantId: klant._id,
       beschrijving,
       isGarantie: false,
@@ -803,6 +807,9 @@ export const openThreadVoorWerkitem = mutation({
       projectId: args.werkitemId,
       channelName: werkitem.naam,
       participants: [user.clerkId],
+      // Portaalklant heeft geen org_id-claim; de tenant komt uit de klant-rij.
+      // Zonder orgId valt de thread buiten de by_org-queries van de staf.
+      orgId: klant.orgId,
       companyUserId: klant.userId,
       createdAt: Date.now(),
     });
@@ -843,6 +850,9 @@ export const openThreadVoorMelding = mutation({
       meldingId: args.meldingId,
       channelName: `Melding: ${melding.beschrijving.slice(0, 60)}`,
       participants: [user.clerkId],
+      // Portaalklant heeft geen org_id-claim; de tenant komt uit de klant-rij.
+      // Zonder orgId valt de thread buiten de by_org-queries van de staf.
+      orgId: klant.orgId,
       companyUserId: klant.userId,
       createdAt: Date.now(),
     });

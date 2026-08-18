@@ -3,15 +3,19 @@
  *
  * De DM-queries scanden `direct_messages` volledig en selecteerden alleen op
  * clerkId. Een medewerker die van werkgever wisselt houdt zijn clerkId, dus
- * berichten uit het vórige bedrijf bleven zichtbaar en meetellen. Alle
- * leesqueries lopen nu eerst via de `by_user`-index op het eigen bedrijf.
+ * berichten uit het vórige bedrijf bleven zichtbaar en meetellen. Sinds fase 3
+ * van de org-migratie is de tenant-grens de ORGANISATIE uit het JWT: alle
+ * leesqueries lopen via `by_org`, niet meer via het bedrijfsaccount.
  *
  * Let op: de gedeelde `MockConvexStore` in helpers/convex-mock.ts negeert
  * `withIndex` (het geeft de builder ongewijzigd terug). Een test daarop zou
  * ook slagen mét het lek. Daarom staat hier een eigen, index-bewuste mock:
  * `withIndex` past de eq-eisen daadwerkelijk toe, precies zoals Convex doet —
- * inclusief het feit dat een rij zónder `userId` buiten de range
- * `userId === companyId` valt (de fail-closed keuze tijdens de backfill).
+ * inclusief het feit dat een rij zónder `orgId` buiten de range
+ * `orgId === <mijn org>` valt (de fail-closed keuze tijdens de backfill).
+ *
+ * De identity draagt hier een `org_id`-claim, zodat `requireOrg` in
+ * convex/auth.ts de organisatie via `by_clerk_org_id` kan opzoeken.
  */
 
 import { describe, it, expect } from "vitest";
@@ -19,6 +23,7 @@ import type { MutationCtx } from "../../../../convex/_generated/server";
 import {
   getDirectMessages,
   getDMConversations,
+  getTeamMessages,
   getUnreadCounts,
   sendDirectMessage,
 } from "../../../../convex/chat";
@@ -133,7 +138,7 @@ class TestStore {
   }
 }
 
-function maakCtx(store: TestStore, clerkId: string) {
+function maakCtx(store: TestStore, clerkId: string, clerkOrgId: string) {
   return {
     db: {
       get: async (id: string) => store.get(id),
@@ -144,7 +149,9 @@ function maakCtx(store: TestStore, clerkId: string) {
       delete: async () => undefined,
     },
     auth: {
-      getUserIdentity: async () => ({ subject: clerkId }),
+      // `org_id` is het custom claim uit het Clerk-JWT-template "convex";
+      // requireOrg leest het letterlijk zo uit de identity.
+      getUserIdentity: async () => ({ subject: clerkId, org_id: clerkOrgId }),
     },
     scheduler: {
       runAfter: async () => undefined,
@@ -160,7 +167,7 @@ function handlerVan<TArgs, TResult>(fn: unknown): Handler<TArgs, TResult> {
   return (fn as { _handler: Handler<TArgs, TResult> })._handler;
 }
 
-type Bericht = { message: string; userId?: string };
+type Bericht = { message: string; orgId?: string };
 
 const getDirectMessagesHandler = handlerVan<
   { withUserId: string; limit?: number },
@@ -172,9 +179,14 @@ const getDMConversationsHandler = handlerVan<
   Array<{ partnerId: string; partnerName: string; unreadCount: number }>
 >(getDMConversations);
 
+const getTeamMessagesHandler = handlerVan<
+  { channelType: "team" | "project" | "broadcast" },
+  Bericht[]
+>(getTeamMessages);
+
 const getUnreadCountsHandler = handlerVan<
   Record<string, never>,
-  { dm: number; total: number }
+  { dm: number; team: number; total: number }
 >(getUnreadCounts);
 
 const sendDirectMessageHandler = handlerVan<
@@ -187,14 +199,29 @@ const sendDirectMessageHandler = handlerVan<
 const CLERK_MEDEWERKER = "clerk_med";
 const CLERK_DIRECTIE_A = "clerk_directie_a";
 const CLERK_DIRECTIE_B = "clerk_directie_b";
+const CLERK_ORG_A = "org_a";
+const CLERK_ORG_B = "org_b";
 
 /**
- * Bedrijf A is de huidige werkgever van de medewerker, bedrijf B de vorige.
- * De medewerker houdt bij die wissel zijn clerkId — precies het scenario dat
- * de oude clerkId-only queries lieten lekken.
+ * Organisatie A is de huidige werkgever van de medewerker, organisatie B de
+ * vorige. De medewerker houdt bij die wissel zijn clerkId — precies het
+ * scenario dat de oude clerkId-only queries lieten lekken.
  */
 function maakScenario() {
   const store = new TestStore();
+
+  const orgAId = store.insert("organisaties", {
+    clerkOrgId: CLERK_ORG_A,
+    naam: "Bedrijf A",
+    actief: true,
+    aangemaaktOp: 1,
+  });
+  const orgBId = store.insert("organisaties", {
+    clerkOrgId: CLERK_ORG_B,
+    naam: "Bedrijf B",
+    actief: true,
+    aangemaaktOp: 1,
+  });
 
   const directieAId = store.insert("users", {
     clerkId: CLERK_DIRECTIE_A,
@@ -211,6 +238,7 @@ function maakScenario() {
 
   const medewerkerRecordId = store.insert("medewerkers", {
     userId: directieAId,
+    orgId: orgAId,
     naam: "Kees Bakker",
     clerkUserId: CLERK_MEDEWERKER,
     isActief: true,
@@ -223,8 +251,9 @@ function maakScenario() {
     linkedMedewerkerId: medewerkerRecordId,
   });
 
-  // Bericht binnen het huidige bedrijf — moet zichtbaar zijn.
+  // Bericht binnen de huidige organisatie — moet zichtbaar zijn.
   store.insert("direct_messages", {
+    orgId: orgAId,
     userId: directieAId,
     fromUserId: directieAId,
     fromClerkId: CLERK_DIRECTIE_A,
@@ -237,8 +266,9 @@ function maakScenario() {
     createdAt: 3000,
   });
 
-  // Bericht uit het vorige bedrijf — mag NIET meer zichtbaar zijn of meetellen.
+  // Bericht uit de vorige organisatie — mag NIET meer zichtbaar zijn of meetellen.
   store.insert("direct_messages", {
+    orgId: orgBId,
     userId: directieBId,
     fromUserId: directieBId,
     fromClerkId: CLERK_DIRECTIE_B,
@@ -251,8 +281,9 @@ function maakScenario() {
     createdAt: 2000,
   });
 
-  // Bericht van vóór de backfill: geen userId. Fail-closed → onzichtbaar.
+  // Bericht van vóór de backfill: geen orgId. Fail-closed → onzichtbaar.
   store.insert("direct_messages", {
+    userId: directieAId,
     fromUserId: directieAId,
     fromClerkId: CLERK_DIRECTIE_A,
     toUserId: medewerkerUserId,
@@ -264,17 +295,68 @@ function maakScenario() {
     createdAt: 1000,
   });
 
-  return { store, directieAId, directieBId, medewerkerUserId };
+  // Teamkanaal: één bericht per organisatie, plus één van vóór de backfill.
+  store.insert("team_messages", {
+    orgId: orgAId,
+    companyId: directieAId,
+    senderId: directieAId,
+    senderName: "Directie A",
+    senderClerkId: CLERK_DIRECTIE_A,
+    senderRole: "directie",
+    channelType: "team",
+    channelName: "team",
+    message: "Ploegoverleg om 7u",
+    messageType: "text",
+    isRead: false,
+    readBy: [CLERK_DIRECTIE_A],
+    createdAt: 3000,
+  });
+  store.insert("team_messages", {
+    orgId: orgBId,
+    companyId: directieBId,
+    senderId: directieBId,
+    senderName: "Directie B",
+    senderClerkId: CLERK_DIRECTIE_B,
+    senderRole: "directie",
+    channelType: "team",
+    channelName: "team",
+    message: "Intern bedrijf B",
+    messageType: "text",
+    isRead: false,
+    readBy: [CLERK_DIRECTIE_B],
+    createdAt: 2000,
+  });
+  store.insert("team_messages", {
+    companyId: directieAId,
+    senderId: directieAId,
+    senderName: "Directie A",
+    senderClerkId: CLERK_DIRECTIE_A,
+    senderRole: "directie",
+    channelType: "team",
+    channelName: "team",
+    message: "Teambericht zonder tenant-veld",
+    messageType: "text",
+    isRead: false,
+    readBy: [CLERK_DIRECTIE_A],
+    createdAt: 1000,
+  });
+
+  return { store, orgAId, orgBId, directieAId, directieBId, medewerkerUserId };
 }
 
 function ctxVoorMedewerker(store: TestStore) {
-  return maakCtx(store, CLERK_MEDEWERKER) as unknown as MutationCtx;
+  return maakCtx(store, CLERK_MEDEWERKER, CLERK_ORG_A) as unknown as MutationCtx;
+}
+
+/** Zelfde clerkId, maar met het org-claim van de vórige werkgever. */
+function ctxVoorMedewerkerBijOrgB(store: TestStore) {
+  return maakCtx(store, CLERK_MEDEWERKER, CLERK_ORG_B) as unknown as MutationCtx;
 }
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 describe("chat.getDirectMessages — tenant-scope", () => {
-  it("toont alleen berichten van het huidige bedrijf", async () => {
+  it("toont alleen berichten van de huidige organisatie", async () => {
     const { store, directieAId } = maakScenario();
 
     const berichten = await getDirectMessagesHandler(ctxVoorMedewerker(store), {
@@ -285,7 +367,7 @@ describe("chat.getDirectMessages — tenant-scope", () => {
     expect(berichten[0].message).toBe("Morgen om 8u op de Tulpstraat");
   });
 
-  it("lekt geen conversatie uit het vorige bedrijf", async () => {
+  it("lekt geen conversatie uit de vorige organisatie", async () => {
     const { store, directieBId } = maakScenario();
 
     const berichten = await getDirectMessagesHandler(ctxVoorMedewerker(store), {
@@ -295,7 +377,7 @@ describe("chat.getDirectMessages — tenant-scope", () => {
     expect(berichten).toEqual([]);
   });
 
-  it("verbergt berichten zonder userId tot de backfill is gedraaid (fail-closed)", async () => {
+  it("verbergt berichten zonder orgId tot de backfill is gedraaid (fail-closed)", async () => {
     const { store, directieAId } = maakScenario();
 
     const berichten = await getDirectMessagesHandler(ctxVoorMedewerker(store), {
@@ -308,8 +390,31 @@ describe("chat.getDirectMessages — tenant-scope", () => {
   });
 });
 
+describe("chat.getTeamMessages — tenant-scope", () => {
+  it("toont alleen het teamkanaal van de eigen organisatie", async () => {
+    const { store } = maakScenario();
+
+    const berichten = await getTeamMessagesHandler(ctxVoorMedewerker(store), {
+      channelType: "team",
+    });
+
+    expect(berichten.map((b) => b.message)).toEqual(["Ploegoverleg om 7u"]);
+  });
+
+  it("dezelfde gebruiker met het org-claim van bedrijf B ziet alleen B", async () => {
+    const { store } = maakScenario();
+
+    const berichten = await getTeamMessagesHandler(
+      ctxVoorMedewerkerBijOrgB(store),
+      { channelType: "team" }
+    );
+
+    expect(berichten.map((b) => b.message)).toEqual(["Intern bedrijf B"]);
+  });
+});
+
 describe("chat.getDMConversations — tenant-scope", () => {
-  it("geeft alleen gesprekspartners binnen het eigen bedrijf", async () => {
+  it("geeft alleen gesprekspartners binnen de eigen organisatie", async () => {
     const { store, directieAId } = maakScenario();
 
     const gesprekken = await getDMConversationsHandler(
@@ -320,13 +425,13 @@ describe("chat.getDMConversations — tenant-scope", () => {
     expect(gesprekken).toHaveLength(1);
     expect(gesprekken[0].partnerId).toBe(directieAId);
     expect(gesprekken[0].partnerName).toBe("Directie A");
-    // Het ongelezen bericht uit bedrijf B en het pre-backfill bericht tellen niet mee
+    // Het ongelezen bericht uit organisatie B en het pre-backfill bericht tellen niet mee
     expect(gesprekken[0].unreadCount).toBe(1);
   });
 });
 
 describe("chat.getUnreadCounts — tenant-scope", () => {
-  it("telt geen ongelezen DM's uit een ander bedrijf", async () => {
+  it("telt geen ongelezen DM's of teamberichten uit een andere organisatie", async () => {
     const { store } = maakScenario();
 
     const tellers = await getUnreadCountsHandler(
@@ -335,13 +440,14 @@ describe("chat.getUnreadCounts — tenant-scope", () => {
     );
 
     expect(tellers.dm).toBe(1);
-    expect(tellers.total).toBe(1);
+    expect(tellers.team).toBe(1);
+    expect(tellers.total).toBe(2);
   });
 });
 
 describe("chat.sendDirectMessage — tenant-veld bij insert", () => {
-  it("schrijft userId gelijk aan het bedrijfsaccount, zodat er geen nieuw gat ontstaat", async () => {
-    const { store, directieAId } = maakScenario();
+  it("schrijft orgId van de actieve organisatie, zodat er geen nieuw gat ontstaat", async () => {
+    const { store, orgAId, directieAId } = maakScenario();
 
     await sendDirectMessageHandler(ctxVoorMedewerker(store), {
       toUserId: directieAId,
@@ -353,7 +459,8 @@ describe("chat.sendDirectMessage — tenant-veld bij insert", () => {
       .find((d) => d.message === "Ik ben onderweg");
 
     expect(nieuw).toBeDefined();
-    expect(nieuw?.userId).toBe(directieAId);
+    expect(nieuw?.orgId).toBe(orgAId);
+    // Legacy-velden blijven meelopen zolang het schema companyId eist (fase 6)
     expect(nieuw?.companyId).toBe(directieAId);
   });
 

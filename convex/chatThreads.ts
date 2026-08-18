@@ -1,7 +1,7 @@
 import { v, ConvexError } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { requireAuth } from "./auth";
+import { requireAuth, requireOrgId } from "./auth";
 import {
   getCompanyUserId,
   normalizeRole,
@@ -10,6 +10,22 @@ import {
   requireKantoor,
 } from "./roles";
 import { chatThreadTypeValidator } from "./validators";
+
+/**
+ * TENANT-SCOPE IN DIT BESTAND
+ *
+ * De bedrijfskant scopet op `orgId` (JWT-claim `org_id`); `companyUserId` is
+ * geen tenant-grens meer. Het veld is in convex/schema.ts nog VERPLICHT
+ * (`v.id("users")`), dus inserts vullen het nog — het verdwijnt in fase 6.
+ * `getCompanyUserId` staat hier alleen nog daarvoor.
+ *
+ * De klantkant loopt via `by_klant` + `klantHeeftToegangTotThread`: een klant
+ * heeft geen org-claim in zijn JWT, en de klant-rij zelf is al org-gescoped.
+ *
+ * Fail-closed: `orgId` is optioneel in het schema. Threads van vóór de backfill
+ * vallen buiten de by_org-range en zijn dus tijdelijk onzichtbaar voor de
+ * bedrijfskant, in plaats van zichtbaar voor iedereen.
+ */
 
 // List threads for dashboard (bedrijf/medewerker) or portal (klant)
 export const listThreads = query({
@@ -32,20 +48,20 @@ export const listThreads = query({
         .sort((a, b) => (b.lastMessageAt ?? 0) - (a.lastMessageAt ?? 0));
     }
 
-    // Bedrijf/medewerker: show all threads for company
-    const companyUserId = await getCompanyUserId(ctx);
+    // Bedrijf/medewerker: alle threads van de organisatie
+    const orgId = await requireOrgId(ctx);
     let threads;
     if (args.filter) {
       threads = await ctx.db
         .query("chat_threads")
-        .withIndex("by_company_type", (q) =>
-          q.eq("companyUserId", companyUserId).eq("type", args.filter!)
+        .withIndex("by_org_type", (q) =>
+          q.eq("orgId", orgId).eq("type", args.filter!)
         )
         .collect();
     } else {
       threads = await ctx.db
         .query("chat_threads")
-        .withIndex("by_company", (q) => q.eq("companyUserId", companyUserId))
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
         .collect();
     }
 
@@ -84,9 +100,9 @@ export const getThread = query({
         return null;
       }
     } else {
-      // Bedrijf: verify company ownership
-      const companyUserId = await getCompanyUserId(ctx);
-      if (thread.companyUserId.toString() !== companyUserId.toString()) {
+      // Bedrijf: verify org ownership
+      const orgId = await requireOrgId(ctx);
+      if (thread.orgId?.toString() !== orgId.toString()) {
         return null;
       }
     }
@@ -113,8 +129,8 @@ export const listMessages = query({
         return [];
       }
     } else {
-      const companyUserId = await getCompanyUserId(ctx);
-      if (thread.companyUserId.toString() !== companyUserId.toString()) {
+      const orgId = await requireOrgId(ctx);
+      if (thread.orgId?.toString() !== orgId.toString()) {
         return [];
       }
     }
@@ -148,10 +164,10 @@ export const getUnreadCounts = query({
       return { total };
     }
 
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const threads = await ctx.db
       .query("chat_threads")
-      .withIndex("by_company", (q) => q.eq("companyUserId", companyUserId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
     const total = threads.reduce((sum, t) => sum + (t.unreadByBedrijf ?? 0), 0);
     return { total };
@@ -183,8 +199,8 @@ export const sendMessage = mutation({
         throw new ConvexError("Bijlagen versturen is nog niet beschikbaar");
       }
     } else {
-      const companyUserId = await getCompanyUserId(ctx);
-      if (thread.companyUserId.toString() !== companyUserId.toString()) {
+      const orgId = await requireOrgId(ctx);
+      if (thread.orgId?.toString() !== orgId.toString()) {
         throw new ConvexError("Geen toegang tot dit gesprek");
       }
       // Capability "versturen naar klant" (PRD §1.2): alleen kantoor mag in
@@ -251,8 +267,8 @@ export const markAsRead = mutation({
       }
       await ctx.db.patch(args.threadId, { unreadByKlant: 0 });
     } else {
-      const companyUserId = await getCompanyUserId(ctx);
-      if (thread.companyUserId.toString() !== companyUserId.toString()) {
+      const orgId = await requireOrgId(ctx);
+      if (thread.orgId?.toString() !== orgId.toString()) {
         throw new ConvexError("Geen toegang tot dit gesprek");
       }
       await ctx.db.patch(args.threadId, { unreadByBedrijf: 0 });
@@ -290,12 +306,14 @@ export const createKlantThread = mutation({
   handler: async (ctx, args) => {
     // Klant-threads openen is een kantoor-taak (PRD §1.2)
     const user = await requireKantoor(ctx);
+    const orgId = await requireOrgId(ctx);
+    // Alleen voor het (nog verplichte) legacy-veld companyUserId
     const companyUserId = await getCompanyUserId(ctx);
 
-    // Verify klant belongs to company
+    // Verify klant belongs to the organisation
     const klant = await ctx.db.get(args.klantId);
     if (!klant) throw new ConvexError("Klant niet gevonden");
-    if (klant.userId.toString() !== companyUserId.toString()) {
+    if (klant.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Geen toegang tot deze klant");
     }
 
@@ -318,7 +336,8 @@ export const createKlantThread = mutation({
       type: "klant",
       klantId: args.klantId,
       participants: [user.clerkId],
-      companyUserId,
+      orgId,
+      companyUserId, // fase 6: verdwijnt zodra het schema het veld loslaat
       createdAt: Date.now(),
     });
 
@@ -340,7 +359,7 @@ export const getKlantThreadVoorContext = query({
   handler: async (ctx, args) => {
     const user = await requireAuth(ctx);
     if (normalizeRole(user.role) === "klant") return null;
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     if (!args.werkitemId && !args.meldingId) return null;
 
@@ -355,9 +374,7 @@ export const getKlantThreadVoorContext = query({
           .collect();
 
     const thread = threads.find(
-      (t) =>
-        t.type === "klant" &&
-        t.companyUserId.toString() === companyUserId.toString()
+      (t) => t.type === "klant" && t.orgId?.toString() === orgId.toString()
     );
     return thread?._id ?? null;
   },
@@ -376,6 +393,8 @@ export const openKlantThreadVoorContext = mutation({
   },
   handler: async (ctx, args) => {
     const user = await requireKantoor(ctx);
+    const orgId = await requireOrgId(ctx);
+    // Alleen voor het (nog verplichte) legacy-veld companyUserId
     const companyUserId = await getCompanyUserId(ctx);
 
     if (!args.werkitemId && !args.meldingId) {
@@ -389,7 +408,7 @@ export const openKlantThreadVoorContext = mutation({
       if (
         !werkitem ||
         werkitem.deletedAt ||
-        werkitem.userId.toString() !== companyUserId.toString()
+        werkitem.orgId?.toString() !== orgId.toString()
       ) {
         throw new ConvexError("Werkitem niet gevonden");
       }
@@ -403,7 +422,7 @@ export const openKlantThreadVoorContext = mutation({
       if (
         !melding ||
         melding.deletedAt ||
-        melding.userId.toString() !== companyUserId.toString()
+        melding.orgId?.toString() !== orgId.toString()
       ) {
         throw new ConvexError("Melding niet gevonden");
       }
@@ -436,7 +455,8 @@ export const openKlantThreadVoorContext = mutation({
       meldingId: args.meldingId,
       channelName,
       participants: [user.clerkId],
-      companyUserId,
+      orgId,
+      companyUserId, // fase 6: verdwijnt zodra het schema het veld loslaat
       createdAt: Date.now(),
     });
   },
@@ -454,8 +474,15 @@ export const deleteThread = mutation({
       throw new ConvexError("Alleen directie kan gesprekken verwijderen");
     }
 
+    const orgId = await requireOrgId(ctx);
     const thread = await ctx.db.get(args.threadId);
     if (!thread) {
+      throw new ConvexError("Gesprek niet gevonden");
+    }
+    // Er stond hier geen tenant-check: directie van bedrijf A kon met een
+    // thread-id een gesprek van bedrijf B wissen. Zelfde melding als "niet
+    // gevonden", zodat het bestaan van een vreemde thread niet lekt.
+    if (thread.orgId?.toString() !== orgId.toString()) {
       throw new ConvexError("Gesprek niet gevonden");
     }
 

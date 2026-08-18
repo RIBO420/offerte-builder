@@ -140,6 +140,9 @@ function maakWerkitem(
 ) {
   return store.insert("projecten", {
     userId,
+    // Werkitems zijn org-gescoopt; de kantoor-kant van chatThreads toetst
+    // werkitem.orgId. De setup zet precies één organisatie in de store.
+    orgId: store.getAll("organisaties")[0]?._id,
     klantId,
     naam: "Voorjaarsbeurt",
     type: "onderhoudsbeurt",

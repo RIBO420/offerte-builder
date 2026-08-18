@@ -8,7 +8,7 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { requireAuth } from "./auth";
+import { requireAuth, requireOrgId } from "./auth";
 import { requireNotViewer, getCompanyUserId, isAdminRole, normalizeRole, getUserRole } from "./roles";
 import {
   validateFile,
@@ -31,6 +31,23 @@ async function requireInterneChatToegang(ctx: QueryCtx | MutationCtx) {
   }
   return user;
 }
+
+/**
+ * TENANT-SCOPE IN DIT BESTAND
+ *
+ * Alle leesqueries lopen op `orgId` (requireOrgId → JWT-claim `org_id`). De
+ * oude bedrijfs-user (`getCompanyUserId`) is GEEN tenant-grens meer.
+ *
+ * Waar `getCompanyUserId` toch nog staat, is dat om precies twee redenen —
+ * nooit om te scopen:
+ *   1. `team_messages.companyId`, `direct_messages.companyId` en
+ *      `chat_attachments.companyId` zijn in convex/schema.ts nog VERPLICHT
+ *      (`v.id("users")`). Zolang dat zo is moet een insert het veld vullen;
+ *      het verdwijnt in fase 6, net als `userId` elders.
+ *   2. De directie-account zelf is nog nergens uit een organisatie af te
+ *      leiden: `users` heeft geen `orgId`. DM-rechten ("medewerker mag alleen
+ *      de directie mailen") en de deelnemerslijst hebben die user-id nodig.
+ */
 
 // ============ TEAM CHAT ============
 
@@ -71,7 +88,9 @@ export const sendTeamMessage = mutation({
       throw new ConvexError("Project ID is verplicht voor project kanaal");
     }
 
-    // Resolve company owner ID (admin for medewerkers, self for directie)
+    const orgId = await requireOrgId(ctx);
+    // Alleen voor het (nog verplichte) legacy-veld companyId en voor de
+    // notificatie-ontvangerslijst — zie sectiecomment bovenaan.
     const companyId = await getCompanyUserId(ctx);
 
     // Verify project access if projectId provided
@@ -80,8 +99,8 @@ export const sendTeamMessage = mutation({
       if (!project) {
         throw new ConvexError("Project niet gevonden");
       }
-      // Project must belong to the same company
-      if (project.userId.toString() !== companyId.toString()) {
+      // Project must belong to the same organisation
+      if (project.orgId?.toString() !== orgId.toString()) {
         throw new ConvexError("Geen toegang tot dit project");
       }
       // For non-directie/projectleider roles, check medewerker assignment
@@ -114,7 +133,8 @@ export const sendTeamMessage = mutation({
       senderName: user.name || "Onbekend",
       senderClerkId: user.clerkId,
       senderRole: normalizeRole(user.role),
-      companyId,
+      orgId,
+      companyId, // fase 6: verdwijnt zodra het schema het veld loslaat
       channelType: args.channelType,
       projectId: args.projectId,
       channelName,
@@ -133,7 +153,10 @@ export const sendTeamMessage = mutation({
       messageId: messageId.toString(),
       senderClerkId: user.clerkId,
       senderName: user.name || "Onbekend",
-      companyId: companyId.toString(),
+      orgId,
+      // De directie-account: alleen om die ook een push te geven — de
+      // medewerkerslijst zelf komt uit de organisatie.
+      companyUserId: companyId,
       channelType: args.channelType,
       channelName,
       projectId: args.projectId?.toString(),
@@ -161,14 +184,14 @@ export const getTeamMessages = query({
   },
   handler: async (ctx, args) => {
     await requireInterneChatToegang(ctx);
-    const companyId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const limit = args.limit || 50;
 
-    // Build query using company owner ID so all team members see the same messages
+    // Scope op de organisatie, zodat alle teamleden hetzelfde kanaal zien
     let messagesQuery = ctx.db
       .query("team_messages")
-      .withIndex("by_channel", (q) =>
-        q.eq("companyId", companyId).eq("channelType", args.channelType)
+      .withIndex("by_org_channel", (q) =>
+        q.eq("orgId", orgId).eq("channelType", args.channelType)
       );
 
     // Filter by projectId if provided
@@ -217,13 +240,13 @@ export const markTeamMessagesAsRead = mutation({
   },
   handler: async (ctx, args) => {
     const user = await requireInterneChatToegang(ctx);
-    const companyId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     // Get all messages in this channel that the user hasn't read
     let messagesQuery = ctx.db
       .query("team_messages")
-      .withIndex("by_channel", (q) =>
-        q.eq("companyId", companyId).eq("channelType", args.channelType)
+      .withIndex("by_org_channel", (q) =>
+        q.eq("orgId", orgId).eq("channelType", args.channelType)
       )
       .filter((q) => q.neq(q.field("senderId"), user._id)); // Don't include own messages
 
@@ -259,13 +282,13 @@ export const getChannels = query({
   args: {},
   handler: async (ctx) => {
     const user = await requireInterneChatToegang(ctx);
-    const companyId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const role = await getUserRole(ctx);
 
-    // Get all non-archived projects for this company
+    // Get all non-archived projects for this organisation
     const allProjects = await ctx.db
       .query("projecten")
-      .withIndex("by_user", (q) => q.eq("userId", companyId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .filter((q) =>
         q.or(
           q.eq(q.field("isArchived"), false),
@@ -323,25 +346,21 @@ export const getChannels = query({
 // ============ DIRECT MESSAGES ============
 
 /**
- * TENANT-SCOPING VAN direct_messages (audit §2)
+ * TENANT-SCOPING VAN direct_messages (audit §2, org-migratie fase 3)
  *
- * De DM-queries hieronder scanden de hele tabel met `.filter()` op clerkId's.
- * Dat las de berichten van álle bedrijven en groeit bovendien lineair mee met
- * de totale tabel. Alle leesqueries lopen nu eerst via de `by_user`-index,
- * gescopet op `getCompanyUserId(ctx)` — het bedrijfsaccount van de ingelogde
- * gebruiker.
+ * De DM-queries hieronder scanden ooit de hele tabel met `.filter()` op
+ * clerkId's. Dat las de berichten van álle bedrijven en groeide lineair mee met
+ * de totale tabel. Alle leesqueries lopen nu eerst via de `by_org`-index,
+ * gescopet op de organisatie uit het JWT.
  *
  * BEWUSTE KEUZE — fail-closed tijdens de migratie:
- * `userId` is optioneel in het schema omdat bestaande rijen het veld nog niet
- * hebben. Een index-range op `userId === companyId` sluit die oude rijen uit:
+ * `orgId` is optioneel in het schema omdat bestaande rijen het veld nog niet
+ * hebben. Een index-range op `orgId === <mijn org>` sluit die oude rijen uit:
  * ze zijn tijdelijk ONZICHTBAAR (en tellen niet mee in de ongelezen-teller) in
  * plaats van zichtbaar-voor-iedereen. Liever te weinig tonen dan andermans
- * berichten lekken. Zodra de backfill is gedraaid komen ze vanzelf terug:
- *
- *   npx convex run migrations:backfillDirectMessagesUserId '{}'
- *
- * De backfill zet `userId = companyId`; nieuwe berichten krijgen het veld
- * hieronder direct bij de insert mee, zodat er geen nieuw gat kan ontstaan.
+ * berichten lekken. Zodra de org-backfill is gedraaid komen ze vanzelf terug;
+ * nieuwe berichten krijgen `orgId` hieronder direct bij de insert mee, zodat er
+ * geen nieuw gat kan ontstaan.
  */
 
 /**
@@ -374,6 +393,10 @@ export const sendDirectMessage = mutation({
       throw new ConvexError("Ontvanger niet gevonden");
     }
 
+    const orgId = await requireOrgId(ctx);
+    // Niet als tenant-grens: de directie-account is nog nergens uit de
+    // organisatie af te leiden (users heeft geen orgId) en het schema eist
+    // companyId nog. Zie sectiecomment bovenaan het bestand.
     const companyId = await getCompanyUserId(ctx);
 
     // Medewerkers mogen alleen directe berichten sturen naar directie
@@ -386,7 +409,9 @@ export const sendDirectMessage = mutation({
     }
 
     const messageId = await ctx.db.insert("direct_messages", {
-      // Tenant-scope voor by_user; gelijk aan companyId, zie sectiecomment
+      // Tenant-scope voor by_org
+      orgId,
+      // fase 6: userId en companyId verdwijnen zodra het schema ze loslaat
       userId: companyId,
       fromUserId: user._id,
       fromClerkId: user.clerkId,
@@ -412,6 +437,7 @@ export const sendDirectMessage = mutation({
         senderName: user.name || "Onbekend",
         recipientClerkId: toUser.clerkId,
         messagePreview: args.message,
+        orgId,
       }
     );
 
@@ -431,7 +457,7 @@ export const getDirectMessages = query({
   },
   handler: async (ctx, args) => {
     const user = await requireInterneChatToegang(ctx);
-    const companyId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const limit = args.limit || 50;
 
     // Get the other user's clerkId for the index query
@@ -442,11 +468,11 @@ export const getDirectMessages = query({
 
     // Eerst tenant-scope via de index, daarna pas de conversatie eruit filteren.
     // De OR over beide richtingen kan niet in een index, maar draait nu alleen
-    // nog over de berichten van het eigen bedrijf. Zie sectiecomment voor de
-    // fail-closed keuze rond berichten zonder userId.
+    // nog over de berichten van de eigen organisatie. Zie sectiecomment voor de
+    // fail-closed keuze rond berichten zonder orgId.
     let messagesQuery = ctx.db
       .query("direct_messages")
-      .withIndex("by_user", (q) => q.eq("userId", companyId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .filter((q) =>
         q.or(
           q.and(
@@ -483,7 +509,7 @@ export const markDMAsRead = mutation({
   },
   handler: async (ctx, args) => {
     const user = await requireInterneChatToegang(ctx);
-    const companyId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     // Get the sender's clerkId
     const fromUser = await ctx.db.get(args.fromUserId);
@@ -493,7 +519,7 @@ export const markDMAsRead = mutation({
 
     // Find unread messages from this user to the current user.
     // Tenant-filter erbij: een clerkId kan bij een bedrijfswissel berichten uit
-    // een vorig bedrijf hebben. Die horen niet meer bij deze gebruiker en
+    // een vorige organisatie hebben. Die horen niet meer bij deze gebruiker en
     // blijven hier dus onaangeraakt — consistent met getUnreadCounts, dat ze
     // ook niet meetelt.
     const unreadMessages = await ctx.db
@@ -503,7 +529,7 @@ export const markDMAsRead = mutation({
       )
       .filter((q) =>
         q.and(
-          q.eq(q.field("userId"), companyId),
+          q.eq(q.field("orgId"), orgId),
           q.eq(q.field("fromClerkId"), fromUser.clerkId)
         )
       )
@@ -528,14 +554,14 @@ export const getDMConversations = query({
   args: {},
   handler: async (ctx) => {
     const user = await requireInterneChatToegang(ctx);
-    const companyId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
-    // Get all DMs involving this user, binnen het eigen bedrijf.
-    // Zonder de by_user-scope was dit een collect() over de volledige tabel van
+    // Get all DMs involving this user, binnen de eigen organisatie.
+    // Zonder de by_org-scope was dit een collect() over de volledige tabel van
     // alle tenants. Zie sectiecomment voor de fail-closed keuze.
     const allDMs = await ctx.db
       .query("direct_messages")
-      .withIndex("by_user", (q) => q.eq("userId", companyId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .filter((q) =>
         q.or(
           q.eq(q.field("fromClerkId"), user.clerkId),
@@ -616,16 +642,16 @@ export const getUnreadCounts = query({
   args: {},
   handler: async (ctx) => {
     const user = await requireInterneChatToegang(ctx);
-    const companyId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     // Count unread team messages (messages not in readBy array)
     const teamMessages = await ctx.db
       .query("team_messages")
-      .withIndex("by_company", (q) => q.eq("companyId", companyId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .filter((q) => q.neq(q.field("senderId"), user._id)) // Exclude own messages
       .collect();
 
-    // Count unread DMs to this user, alleen binnen het eigen bedrijf.
+    // Count unread DMs to this user, alleen binnen de eigen organisatie.
     // Zelfde tenant-filter als markDMAsRead, zodat de teller niet oploopt met
     // berichten die de gebruiker hier niet kan openen of wegklikken.
     const unreadDMs = await ctx.db
@@ -633,7 +659,7 @@ export const getUnreadCounts = query({
       .withIndex("by_recipient_unread", (q) =>
         q.eq("toClerkId", user.clerkId).eq("isRead", false)
       )
-      .filter((q) => q.eq(q.field("userId"), companyId))
+      .filter((q) => q.eq(q.field("orgId"), orgId))
       .collect();
 
     // Count by channel type for more granular unread counts
@@ -665,6 +691,11 @@ export const getUnreadCounts = query({
 });
 
 // ============ NOTIFICATION PREFERENCES ============
+//
+// PERSOONLIJKE tabel (orgTabellen: "persoonlijk"): notification_preferences
+// hangt aan één gebruiker, niet aan een organisatie. Deze twee functies blijven
+// dus bewust op `clerkUserId`/`userId` scopen — een org-scope zou de
+// voorkeuren van collega's binnen bereik brengen.
 
 /**
  * Get notification preferences for the current user.
@@ -793,13 +824,16 @@ export const getUsersForDM = query({
   args: {},
   handler: async (ctx) => {
     const user = await requireInterneChatToegang(ctx);
+    const orgId = await requireOrgId(ctx);
+    // Alleen om de directie-account als gesprekspartner te tonen; users heeft
+    // geen orgId. Zie sectiecomment bovenaan het bestand.
     const companyId = await getCompanyUserId(ctx);
 
-    // Get all active medewerkers for this company
+    // Get all active medewerkers for this organisation
     const medewerkers = await ctx.db
       .query("medewerkers")
-      .withIndex("by_user_actief", (q) =>
-        q.eq("userId", companyId).eq("isActief", true)
+      .withIndex("by_org_actief", (q) =>
+        q.eq("orgId", orgId).eq("isActief", true)
       )
       .collect();
 
@@ -866,7 +900,7 @@ export const searchMessages = query({
   },
   handler: async (ctx, args) => {
     await requireInterneChatToegang(ctx);
-    const companyId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const limit = args.limit || 20;
 
     // Use the search index for team messages
@@ -874,7 +908,7 @@ export const searchMessages = query({
       .query("team_messages")
       .withSearchIndex("search_messages", (q) => {
         let search = q.search("message", args.searchQuery);
-        search = search.eq("companyId", companyId);
+        search = search.eq("orgId", orgId);
         if (args.channelType) {
           search = search.eq("channelType", args.channelType);
         }
@@ -897,17 +931,17 @@ export const deleteTeamMessage = mutation({
   },
   handler: async (ctx, args) => {
     const user = await requireNotViewer(ctx);
-    const companyId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const message = await ctx.db.get(args.messageId);
     if (!message) {
       throw new ConvexError("Bericht niet gevonden");
     }
 
-    // Only sender or company owner (directie) can delete
+    // Alleen de afzender, of iemand binnen dezelfde organisatie
     if (
       message.senderId.toString() !== user._id.toString() &&
-      message.companyId.toString() !== companyId.toString()
+      message.orgId?.toString() !== orgId.toString()
     ) {
       throw new ConvexError("Geen toegang om dit bericht te verwijderen");
     }
@@ -1067,12 +1101,15 @@ export const registerChatAttachment = mutation({
     }
 
     // Register the attachment
+    const orgId = await requireOrgId(ctx);
+    // fase 6: companyId verdwijnt zodra het schema het veld loslaat
     const companyId = await getCompanyUserId(ctx);
     const attachmentId = await ctx.db.insert("chat_attachments", {
       storageId: args.storageId,
       messageId: args.messageId,
       directMessageId: args.directMessageId,
       userId: user._id,
+      orgId,
       companyId,
       fileName: args.fileName,
       fileType: args.fileType,
