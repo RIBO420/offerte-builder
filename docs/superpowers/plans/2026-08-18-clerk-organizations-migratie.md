@@ -910,6 +910,11 @@ export const verifieerMigratie = internalQuery({ /* naTelling + telt bewaren-
 - [ ] **Step 2:** Draai op dev: `npx convex run migrations/naarOrganisaties:voorTelling` (noteer), dan `npx convex run migrations/naarOrganisaties:migreer '{"bevestigDeployment":"affable-rook-669","clerkOrgId":"<org_… uit Task 0.2>","eigenaarEmail":"ricardobos43@gmail.com"}'`, dan `…:verifieerMigratie` — Expected: gelijke tellingen, 0 bewaren-rijen zonder orgId.
 - [ ] **Step 3: Schema-finalisatie:** verwijder op alle tenant-tabellen het `userId`-veld + alle `by_user*`-indexes (persoonlijke tabellen behouden userId!), verwijder óók alle `userId: …`-schrijfplekken op tenant-tabellen in convex/ (grep-gate: geen insert/patch op een tenant-tabel zet nog userId), maak `orgId` verplicht (`v.optional` eraf; behalve systeemdefault-tabellen — daar blijft `v.optional` met betekenis "null = systeem"), search-indexes `filterFields: ["orgId"]`, verwijder `team_messages.companyId`/`chat_threads.companyUserId`.
 - [ ] **Step 4:** Verwijder `verifyOwnership` (oude), en de scoping-rol van `requireAuthUserId` (blijft alleen waar persoonlijke tabellen hem nodig hebben). `getOwnedOfferte`/`getOwnedKlant` gaan naar `verifyOrgOwnership`.
+- [ ] **Step 4b — systeemdefault-discriminator omzetten (uit review 3.2):** de
+  "systeemdefault = userId ontbreekt"-takken (correctiefactoren, standaardtuinen,
+  voorcalculaties e.a.) werken alleen zolang org-rijen userId meeschrijven. Bij het
+  schrappen van userId moet de discriminator overal naar "orgId ontbreekt" — doe dit
+  in dezelfde commit als de veldverwijdering en grep op `q.field("userId")` als gate.
 - [ ] **Step 5:** Poort: `npm run typecheck && npm run lint && npm run test:run` → PASS. `npx convex dev --once` → schema-push OK (faalt er een rij op het verplichte veld, dan is de migratie niet compleet — terug naar Step 2).
 - [ ] **Step 6:** `npm run seed:demo && npm run seed:clear` → werkt op org-model. Commit: `git commit -m "refactor(schema): userId-tenant-velden verwijderd, orgId verplicht"`
 
