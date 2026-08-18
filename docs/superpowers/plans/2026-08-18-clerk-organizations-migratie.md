@@ -928,6 +928,12 @@ export const verifieerMigratie = internalQuery({ /* naTelling + telt bewaren-
 
 ---
 
+## Whitelabel-vervolg (buiten deze migratie)
+
+- `organisaties.updateOrganisatie` (naam/slug/branding wijzigen) bestaat bewust nog
+  niet — `maakOrganisatie` is een pure aanmaakfunctie. Toevoegen zodra het eerste
+  whitelabel-traject start.
+
 ## Zelf-reviewnotities (al verwerkt)
 
 - Kindtabel-indexnamen in `KIND_VAN` zijn aannames — Task 1.1 Step 3/4 dwingt verificatie tegen `schema.ts` af vóór er iets op draait.
