@@ -1,6 +1,6 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query, internalQuery } from "./_generated/server";
-import { requireAuthUserId } from "./auth";
+import { requireAuthUserId, requireOrgId } from "./auth";
 import { getCompanyUserId, requireKantoor, requireNotViewer } from "./roles";
 import { isGeldigeTijd, naarMinuten } from "./dagkaartLogica";
 import { isGeldigeSuggestieDrempel } from "./beurtNacalculatieLogica";
@@ -344,8 +344,10 @@ export const getNextOfferteNummer = mutation({
   args: {},
   handler: async (ctx) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
-    return await reserveerOfferteNummer(ctx, userId);
+    // De offertenummer-teller hangt aan de organisatie (zie
+    // lib/offerteNummer.ts); de rest van dit bestand volgt in cluster 3.9.
+    const orgId = await requireOrgId(ctx);
+    return await reserveerOfferteNummer(ctx, orgId);
   },
 });
 

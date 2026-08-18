@@ -1,6 +1,6 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireOrgContext, requireOrgId } from "./auth";
+import { getOwnedKlant, requireOrgContext, requireOrgId } from "./auth";
 import { requireNotViewer } from "./roles";
 import { reserveerOfferteNummer } from "./lib/offerteNummer";
 
@@ -211,23 +211,24 @@ export const createOfferteFromTemplate = mutation({
 
     // Klant uit het dossier wint van losse velden (zelfde regel als
     // offertes.create), zodat klantId en klantgegevens nooit uiteenlopen.
+    // Een klantId van een andere organisatie wordt hard geweigerd: stil
+    // overslaan liet wél `klantId` de insert in glippen, waarna de offerte
+    // naar het dossier van een ander bedrijf verwees.
     let klant = args.klant;
     if (args.klantId) {
-      const klantDoc = await ctx.db.get(args.klantId);
-      if (klantDoc && klantDoc.orgId?.toString() === org._id.toString()) {
-        klant = klant ?? {
-          naam: klantDoc.naam,
-          adres: klantDoc.adres,
-          postcode: klantDoc.postcode,
-          plaats: klantDoc.plaats,
-          email: klantDoc.email,
-          telefoon: klantDoc.telefoon,
-        };
-      }
+      const klantDoc = await getOwnedKlant(ctx, args.klantId);
+      klant = klant ?? {
+        naam: klantDoc.naam,
+        adres: klantDoc.adres,
+        postcode: klantDoc.postcode,
+        plaats: klantDoc.plaats,
+        email: klantDoc.email,
+        telefoon: klantDoc.telefoon,
+      };
     }
 
     const offerteNummer =
-      args.offerteNummer ?? (await reserveerOfferteNummer(ctx, user._id));
+      args.offerteNummer ?? (await reserveerOfferteNummer(ctx, org._id));
 
     const totalen = {
       materiaalkosten: 0,

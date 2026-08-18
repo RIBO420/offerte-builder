@@ -627,3 +627,208 @@ describe("convex/lib/offerteKlant — pure logica", () => {
     expect(formatteerOfferteNummer("TT", 2026, 123)).toBe("TT2026-123");
   });
 });
+
+// ─── 6. Tenant-grenzen op de schrijfpaden van create ─────────────────────────
+//
+// `offertes.create` en `standaardtuinen.createOfferteFromTemplate` krijgen twee
+// vreemde id's van de client mee (klantId, leadId). Die werden niet of niet
+// hard gecontroleerd:
+//
+//   - een klantId van een ander bedrijf sloeg alleen de SNAPSHOT over; het veld
+//     `klantId` ging gewoon mee de insert in, waarna updateStatus die vreemde
+//     klant later mailt en patcht;
+//   - het lead-schrijfpad (pipelineStatus + leadActiviteiten) had helemaal geen
+//     eigendomscheck: met een gegokt leadId overschreef je de pipeline van een
+//     ander bedrijf.
+
+describe("create — vreemde id's worden geweigerd, niet stil genegeerd", () => {
+  /** Tweede organisatie met eigen klant en eigen lead. */
+  function seedAnderBedrijf() {
+    const andereOrgId = db.insertSync("organisaties", {
+      clerkOrgId: "org_ander_bedrijf",
+      naam: "Ander Bedrijf",
+      slug: "ander-bedrijf",
+      actief: true,
+      aangemaaktOp: Date.now(),
+    });
+    const andereUserId = db.insertSync("users", {
+      clerkId: "clerk_ander",
+      email: "directie@ander.nl",
+      name: "Ander",
+      role: "directie",
+      createdAt: Date.now(),
+    });
+    const vreemdeKlantId = db.insertSync("klanten", {
+      userId: andereUserId,
+      orgId: andereOrgId,
+      naam: "Familie Peters",
+      adres: "Kerkweg 9",
+      postcode: "9999 ZZ",
+      plaats: "Groningen",
+      email: "peters@example.nl",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    const vreemdeLeadId = db.insertSync("configuratorAanvragen", {
+      orgId: andereOrgId,
+      type: "gazon",
+      status: "nieuw",
+      pipelineStatus: "nieuw",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    return { andereOrgId, vreemdeKlantId, vreemdeLeadId };
+  }
+
+  it("weigert een klantId van een andere organisatie (en maakt geen offerte aan)", async () => {
+    const { vreemdeKlantId } = seedAnderBedrijf();
+
+    await expect(
+      createOfferte(ctx, {
+        type: "aanleg",
+        klantId: vreemdeKlantId,
+        algemeenParams: { bereikbaarheid: "goed" },
+      })
+    ).rejects.toBeInstanceOf(ConvexError);
+
+    // Geen offerte die naar het dossier van een ander bedrijf wijst
+    expect(db.rows("offertes")).toHaveLength(0);
+  });
+
+  it("weigert datzelfde klantId ook via de sjabloon-route", async () => {
+    const { vreemdeKlantId } = seedAnderBedrijf();
+    const templateId = db.insertSync("standaardtuinen", {
+      userId,
+      orgId,
+      naam: "Standaard achtertuin",
+      type: "aanleg",
+      scopes: ["grondwerk"],
+      defaultWaarden: {},
+    });
+
+    await expect(
+      uitTemplate(ctx, { templateId, klantId: vreemdeKlantId })
+    ).rejects.toBeInstanceOf(ConvexError);
+
+    expect(db.rows("offertes")).toHaveLength(0);
+  });
+
+  it("weigert een leadId van een andere organisatie en laat die lead ongemoeid", async () => {
+    const { vreemdeLeadId } = seedAnderBedrijf();
+
+    await expect(
+      createOfferte(ctx, {
+        type: "aanleg",
+        klant: VOLLEDIGE_KLANT,
+        leadId: vreemdeLeadId,
+        algemeenParams: { bereikbaarheid: "goed" },
+      })
+    ).rejects.toBeInstanceOf(ConvexError);
+
+    // De pipeline van het andere bedrijf is niet aangeraakt
+    expect(db.byId(vreemdeLeadId)!.pipelineStatus).toBe("nieuw");
+    expect(db.rows("leadActiviteiten")).toHaveLength(0);
+  });
+
+  it("koppelt een EIGEN lead nog gewoon door (de guard blokkeert alleen vreemde)", async () => {
+    const eigenLeadId = db.insertSync("configuratorAanvragen", {
+      orgId,
+      type: "gazon",
+      status: "nieuw",
+      pipelineStatus: "nieuw",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    await createOfferte(ctx, {
+      type: "aanleg",
+      klant: VOLLEDIGE_KLANT,
+      leadId: eigenLeadId,
+      algemeenParams: { bereikbaarheid: "goed" },
+    });
+
+    expect(db.byId(eigenLeadId)!.pipelineStatus).toBe("offerte_verstuurd");
+    expect(db.rows("leadActiviteiten")).toHaveLength(1);
+  });
+});
+
+// ─── 7. Offertenummering hoort bij de organisatie, niet bij de gebruiker ─────
+
+describe("offertenummer-reservering is org-gescoped", () => {
+  /** Ctx voor een andere ingelogde gebruiker binnen dezelfde organisatie. */
+  function ctxVoor(clerkId: string, clerkOrgId: string): FakeCtx {
+    return {
+      db,
+      auth: {
+        getUserIdentity: async () => ({
+          subject: clerkId,
+          org_id: clerkOrgId,
+        }),
+      },
+      scheduler: {
+        runAfter: async () => {
+          scheduled += 1;
+        },
+      },
+    };
+  }
+
+  it("telt door over gebruikers heen: twee collega's krijgen nooit hetzelfde nummer", async () => {
+    // Collega zonder eigen instellingen-rij — op by_user liep die vast op
+    // "Instellingen niet gevonden", of telde met een eigen teller mee.
+    db.insertSync("users", {
+      clerkId: "clerk_collega",
+      email: "projectleider@toptuinen.nl",
+      name: "Projectleider",
+      role: "projectleider",
+      createdAt: Date.now(),
+    });
+    const collegaCtx = ctxVoor("clerk_collega", CLERK_ORG_ID);
+
+    const nummers = [
+      await createOfferte(ctx, {
+        type: "aanleg",
+        algemeenParams: { bereikbaarheid: "goed" },
+      }),
+      await createOfferte(collegaCtx, {
+        type: "aanleg",
+        algemeenParams: { bereikbaarheid: "goed" },
+      }),
+      await createOfferte(ctx, {
+        type: "aanleg",
+        algemeenParams: { bereikbaarheid: "goed" },
+      }),
+    ].map((id) => db.byId(id)!.offerteNummer as string);
+
+    expect(nummers).toEqual([
+      `OFF-${JAAR}-001`,
+      `OFF-${JAAR}-002`,
+      `OFF-${JAAR}-003`,
+    ]);
+    expect(new Set(nummers).size).toBe(3);
+    expect(db.rows("instellingen")[0].laatsteOfferteNummer).toBe(3);
+  });
+
+  it("laat het nummer van een ander bedrijf de eigen reeks niet opschuiven", async () => {
+    const andereOrgId = db.insertSync("organisaties", {
+      clerkOrgId: "org_ander_bedrijf",
+      naam: "Ander Bedrijf",
+      actief: true,
+      aangemaaktOp: Date.now(),
+    });
+    // Ander bedrijf heeft OFF-JAAR-001 al vergeven
+    db.insertSync("offertes", {
+      orgId: andereOrgId,
+      offerteNummer: `OFF-${JAAR}-001`,
+      status: "concept",
+    });
+
+    const id = await createOfferte(ctx, {
+      type: "aanleg",
+      algemeenParams: { bereikbaarheid: "goed" },
+    });
+
+    // Nummers zijn per organisatie uniek: wij beginnen gewoon bij 001
+    expect(db.byId(id)!.offerteNummer).toBe(`OFF-${JAAR}-001`);
+  });
+});

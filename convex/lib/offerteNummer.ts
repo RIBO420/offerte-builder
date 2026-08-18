@@ -25,16 +25,26 @@ export function formatteerOfferteNummer(
 /**
  * Hoogt de teller in `instellingen` op en geeft het nieuwe nummer terug.
  *
- * Slaat nummers over die al in gebruik zijn: `offertes.getByNummer` doet een
- * `.unique()` op de by_nummer-index, dus een dubbel nummer zou daar knallen.
+ * De teller hoort bij de ORGANISATIE, niet bij de gebruiker. Op `by_user`
+ * ging het twee kanten op mis: een medewerker zonder eigen instellingen-rij
+ * kon geen offerte aanmaken ("Instellingen niet gevonden"), en zodra twee
+ * collega's elk wél een rij hadden telden ze onafhankelijk door — dan geven
+ * twee mensen in hetzelfde bedrijf hetzelfde offertenummer uit.
+ *
+ * `.unique()` op by_org is bewust hard: twéé tellers binnen één organisatie is
+ * precies het probleem dat we hier oplossen, en dat mag niet stilletjes
+ * "de eerste de beste" worden.
+ *
+ * Slaat nummers over die al binnen deze organisatie in gebruik zijn (import,
+ * handmatig nummer, gewijzigde prefix).
  */
 export async function reserveerOfferteNummer(
   ctx: MutationCtx,
-  userId: Id<"users">
+  orgId: Id<"organisaties">
 ): Promise<string> {
   const settings = await ctx.db
     .query("instellingen")
-    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .withIndex("by_org", (q) => q.eq("orgId", orgId))
     .unique();
 
   if (!settings) {
@@ -54,10 +64,16 @@ export async function reserveerOfferteNummer(
       jaar,
       volgnummer
     );
-    const bestaand = await ctx.db
+    // by_nummer is bedrijfsoverstijgend; nummers zijn per organisatie uniek.
+    // Zonder dit org-filter (zelfde post-filter als offertes.getByNummer)
+    // zou het nummer van een ánder bedrijf ons doen doortellen.
+    const treffers = await ctx.db
       .query("offertes")
       .withIndex("by_nummer", (q) => q.eq("offerteNummer", offerteNummer))
-      .first();
+      .collect();
+    const bestaand = treffers.find(
+      (o) => o.orgId?.toString() === orgId.toString()
+    );
     if (!bestaand) break;
   }
 

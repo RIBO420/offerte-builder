@@ -651,16 +651,21 @@ export const create = mutation({
 
     // Klant uit het dossier wint van losse velden: zo staat er nooit een
     // klantId op de offerte met andere naam/adresgegevens ernaast.
+    //
+    // Een klantId van een ándere organisatie wordt hier HARD geweigerd. Het
+    // werd stil overgeslagen — maar alleen de snapshot; `klantId` ging
+    // gewoon mee de insert in. De offerte verwees dan naar het dossier van
+    // een ander bedrijf, en updateStatus mailt en patcht die klant later
+    // alsof het de eigen klant is. `getOwnedKlant` is dezelfde guard die
+    // koppelKlant al gebruikt.
     let klant = args.klant;
     if (args.klantId) {
-      const klantDoc = await ctx.db.get(args.klantId);
-      if (klantDoc && klantDoc.orgId?.toString() === org._id.toString()) {
-        klant = klant ?? klantSnapshot(klantDoc);
-      }
+      const klantDoc = await getOwnedKlant(ctx, args.klantId);
+      klant = klant ?? klantSnapshot(klantDoc);
     }
 
     const offerteNummer =
-      args.offerteNummer ?? (await reserveerOfferteNummer(ctx, userId));
+      args.offerteNummer ?? (await reserveerOfferteNummer(ctx, org._id));
 
     const offerteId = await ctx.db.insert("offertes", {
       orgId: org._id,
@@ -725,8 +730,23 @@ export const create = mutation({
       });
     }
 
-    // Update lead pipeline status and log activity when linked to a lead
+    // Update lead pipeline status and log activity when linked to a lead.
+    //
+    // Eerst eigendom controleren: dit is een SCHRIJFpad op een record dat de
+    // client aanwijst. Zonder deze check kon elke ingelogde gebruiker met een
+    // gegokt leadId de pipelineStatus van een ander bedrijf overschrijven én
+    // een activiteitregel in hun dossier bijschrijven. Weigeren (niet stil
+    // overslaan): een lead van een andere organisatie op je eigen offerte is
+    // een fout die je wilt zien, niet een koppeling die ongemerkt ontbreekt.
     if (args.leadId) {
+      const lead = await ctx.db.get(args.leadId);
+      if (!lead) {
+        throw new AuthError("lead niet gevonden");
+      }
+      if (lead.orgId?.toString() !== org._id.toString()) {
+        throw new AuthError("Je hebt geen toegang tot deze lead");
+      }
+
       await ctx.db.patch(args.leadId, {
         pipelineStatus: "offerte_verstuurd",
         updatedAt: now,
