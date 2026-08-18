@@ -685,6 +685,18 @@ export const registreerUitnodiging = internalMutation({
 
 Plus analoog: `trekUitnodigingIn` (action: `POST /organizations/{orgId}/invitations/{id}/revoke` + patch status/`uitnodigingEmail: undefined`), `trekToegangIn` (action: membership DELETE + `users.role` niet aanraken; medewerker `clerkUserId: undefined`). Rol wijzigen blijft via bestaande `users.updateUserRole`/`setClerkMetadata`.
 
+Aanvullende eisen (uit review taak 2.3):
+- `valideerUitnodiging` dwingt **uniciteit** af: weiger als er al een medewerker met een
+  openstaande uitnodiging (`uitnodigingStatus: "uitgenodigd"`) op hetzelfde
+  genormaliseerde adres bestaat, én als er al een users-rij met dat adres is die aan een
+  andere medewerker gekoppeld is. (De upsert-koppeling gebruikt `.first()` — uniciteit
+  wordt hiér bewaakt, niet daar.)
+- De rolkeuzelijst in de uitnodigen-dialog bevat alleen uitnodigbare rollen: géén
+  `klant` en géén legacy `admin`/`viewer`.
+- Let op de upsert-guard: de uitnodigingsrol wordt alleen overgenomen als de user nog de
+  default-rol `medewerker` heeft — het uitnodigen van een bestaand directie-account
+  verlaagt diens rol dus niet (toon dat in de UI als hint bij zo'n adres).
+
 - [ ] **Step 3:** Tests PASS. **Step 4:** Zet `CLERK_SECRET_KEY` in de dev-Convex-env: `npx convex env set CLERK_SECRET_KEY sk_test_…` (staat er waarschijnlijk al voor `deleteClerkUser` — verifieer met `npx convex env list`). **Step 5: Commit** — `git commit -m "feat(convex): team-functies met Clerk org-invitations"`
 
 ### Task 4.3: `/team`-pagina (redesign, vervangt /gebruikers + /medewerkers)
