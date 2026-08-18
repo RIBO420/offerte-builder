@@ -195,4 +195,24 @@ describe("exportMedewerkers — bewust directie-only (HR-gegevens, AVG)", () => 
     const { ctx } = ctxMetRol("projectleider");
     await expect(handler(ctx, {})).rejects.toThrow(AuthError);
   });
+
+  /**
+   * De rolcheck (`requireAdmin`) staat bewust vóór de org-scope
+   * (`requireOrgId`) in de handler: het lidmaatschap van een organisatie is
+   * géén toegang tot HR-gegevens. Zonder deze tests dekte dit blok alleen
+   * directie en projectleider, waardoor een latere versoepeling naar
+   * `requireKantoor` — of het wegvallen van de rolcheck — de veldrollen stil
+   * bij de uurtarieven en contracttypes van het hele bedrijf zou brengen.
+   */
+  for (const rol of NIET_KANTOOR_ROLLEN) {
+    it(`weigert veld-/externe rol "${rol}"`, async () => {
+      const { ctx } = ctxMetRol(rol);
+      await expect(handler(ctx, {})).rejects.toThrow(AuthError);
+    });
+  }
+
+  it('weigert legacy rol "viewer"', async () => {
+    const { ctx } = ctxMetRol("viewer");
+    await expect(handler(ctx, {})).rejects.toThrow(AuthError);
+  });
 });
