@@ -59,8 +59,9 @@ export default defineSchema({
   // Elke org-gescopeerde tabel heeft een `orgId` die hiernaar wijst;
   // `clerkOrgId` is de sleutel waarmee een Clerk-sessie de juiste rij vindt.
   //
-  // MIGRATIEFASE 1 (docs/superpowers/plans/2026-08-18-clerk-organizations-
-  // migratie.md). Puur additief, zodat bestaande data blijft valideren:
+  // MIGRATIEFASE 1, zie het plan:
+  // docs/superpowers/plans/2026-08-18-clerk-organizations-migratie.md
+  // Puur additief, zodat bestaande data blijft valideren:
   //   - `orgId` staat op elke tabel met classificatie bewaren|wissen uit
   //     convex/lib/orgTabellen.ts, en is overal OPTIONEEL (nog niet gevuld).
   //     Uitzonderingen: de 9 kindtabellen uit KIND_VAN (scope loopt via de
@@ -72,6 +73,10 @@ export default defineSchema({
   //   - Elke index die op `userId` (resp. companyId/companyUserId) begint,
   //     heeft een `by_org*`-tweeling met dezelfde restvelden. De oude variant
   //     verdwijnt pas in fase 6, samen met het optionele `userId`.
+  // INVARIANT: `clerkOrgId` is uniek — de enige schrijver is de idempotente
+  // `maakOrganisatie` (convex/organisaties.ts), en `requireOrg` leunt daarop met
+  // `.unique()`: een tweede rij met hetzelfde clerkOrgId laat élke query van die
+  // tenant hard falen.
   organisaties: defineTable({
     clerkOrgId: v.string(), // Clerk organization-id (org_…)
     naam: v.string(),
@@ -4098,9 +4103,8 @@ export default defineSchema({
     .index("by_org", ["orgId"]),
 
   // ─── Tekstblokkenbibliotheek (PRD §2.5b) ────────────────────────────────────
-  // Bedrijfsbrede bibliotheek (geen userId, fase 1: wel orgId) van
-  // herbruikbare tekstblokken voor
-  // de offerte-builder. Inhoud is bewust PLATTE tekst zonder opmaak
+  // Bedrijfsbrede bibliotheek (geen userId, fase 1: wel orgId) van herbruikbare
+  // tekstblokken voor de offerte-builder. Inhoud is bewust PLATTE tekst zonder opmaak
   // (principe 3: huisstijl zit in de template, niet in de tekst).
   // Beheer is kantoor-only via requireKantoor in tekstblokken.ts.
   tekstblokken: defineTable({

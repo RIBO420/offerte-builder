@@ -7,6 +7,7 @@
  */
 
 import { ConvexError } from "convex/values";
+import type { UserIdentity } from "convex/server";
 import { QueryCtx, MutationCtx } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { normalizeRole } from "./roles";
@@ -76,15 +77,14 @@ export async function requireAuthUserId(ctx: QueryCtx | MutationCtx): Promise<Id
 }
 
 /**
- * De actieve organisatie uit het Clerk-JWT (org_id-claim, gezet door het
- * JWT-template "convex"). DE standaard-resolver voor alle tenant-data.
+ * Zoekt de organisatie die bij het org_id-claim van deze identity hoort.
+ * Losse functie zodat `requireOrg` en `requireOrgContext` dezelfde controles
+ * doen zonder de identity-call te herhalen.
  */
-export async function requireOrg(ctx: QueryCtx | MutationCtx) {
-  const identity = await ctx.auth.getUserIdentity();
-  if (!identity) {
-    throw new AuthError("Je moet ingelogd zijn om deze actie uit te voeren");
-  }
-
+async function organisatieVanIdentity(
+  ctx: QueryCtx | MutationCtx,
+  identity: UserIdentity
+) {
   // Convex hangt custom claims ongewijzigd aan de identity: `UserIdentity`
   // heeft een index-signature `[key: string]: JSONValue | undefined`, en alleen
   // de OIDC-standaardvelden worden hernoemd (given_name → givenName). Het claim
@@ -104,10 +104,71 @@ export async function requireOrg(ctx: QueryCtx | MutationCtx) {
     .query("organisaties")
     .withIndex("by_clerk_org_id", (q) => q.eq("clerkOrgId", clerkOrgId))
     .unique();
-  if (!org || !org.actief) {
-    throw new AuthError("Organisatie niet gevonden of inactief");
+
+  // Twee verschillende problemen, dus twee meldingen. Een geldig JWT dat naar
+  // een onbekende organisatie wijst is een systeemfout: de org is nooit
+  // geprovisioneerd (of is verwijderd terwijl de sessie liep). Dat hoort in het
+  // serverlog, want de gebruiker kan er niets aan doen en support moet het zien.
+  if (!org) {
+    console.warn(
+      `[auth] JWT verwijst naar onbekende organisatie "${clerkOrgId}" (subject: ${identity.subject}) — niet geprovisioneerd?`
+    );
+    throw new AuthError(
+      "Organisatie niet gevonden. Neem contact op met je beheerder."
+    );
   }
+
+  // Een bestaande maar uitgezette organisatie is juist een bewuste
+  // beheerdersactie — geen logregel waard.
+  if (!org.actief) {
+    throw new AuthError(
+      "Deze organisatie is niet actief. Neem contact op met je beheerder."
+    );
+  }
+
   return org;
+}
+
+/**
+ * De actieve organisatie uit het Clerk-JWT (org_id-claim, gezet door het
+ * JWT-template "convex"). DE standaard-resolver voor alle tenant-data.
+ */
+export async function requireOrg(ctx: QueryCtx | MutationCtx) {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) {
+    throw new AuthError("Je moet ingelogd zijn om deze actie uit te voeren");
+  }
+  return organisatieVanIdentity(ctx, identity);
+}
+
+/**
+ * De organisatie én de users-rij van de ingelogde gebruiker, in één
+ * identity-call.
+ *
+ * Gebruik dit op schrijfpaden: zolang `userId` verplicht is (tot fase 6) heeft
+ * een insert zowel `orgId` als `userId` nodig, en `requireOrg` + `requireAuth`
+ * naast elkaar zou de identity- en users-lookup dubbel doen. Leespaden houden
+ * het bij `requireOrg`/`requireOrgId` — die hoeven de users-tabel niet te raken.
+ */
+export async function requireOrgContext(ctx: QueryCtx | MutationCtx) {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) {
+    throw new AuthError("Je moet ingelogd zijn om deze actie uit te voeren");
+  }
+
+  const org = await organisatieVanIdentity(ctx, identity);
+
+  const user = await ctx.db
+    .query("users")
+    .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+    .unique();
+  if (!user) {
+    // Zelfde melding als requireAuth: een Clerk-account zonder users-rij is
+    // vanuit de app gezien niet ingelogd.
+    throw new AuthError("Je moet ingelogd zijn om deze actie uit te voeren");
+  }
+
+  return { org, user };
 }
 
 /**
