@@ -291,6 +291,11 @@ git commit -m "feat(schema): organisaties-tabel + exhaustieve tabel-classificati
 
 ### Task 1.2: `orgId` + `by_org*`-indexes op alle tenant-tabellen; `userId` optioneel
 
+> **Uitvoeringsbesluit (18 aug):** `userId` optioneel maken veroorzaakt ~645 typefouten
+> in ~100 bestanden die in Fase 3 toch herschreven worden. `userId` blijft daarom
+> VERPLICHT tot Fase 6; de sweep schrijft tijdelijk beide velden (zie Fase 3-recept),
+> en Task 6.2 verwijdert `userId` uit schema én insert-sites in één keer.
+
 **Files:**
 - Modify: `convex/schema.ts`
 
@@ -489,7 +494,10 @@ if (emailBruikbaar) {
 const userId = await requireAuthUserId(ctx); const orgId = await requireOrgId(ctx);
 .withIndex("by_user", (q) => q.eq("userId", userId))
                                              .withIndex("by_org", (q) => q.eq("orgId", orgId))
-await ctx.db.insert("klanten", { userId, … }) await ctx.db.insert("klanten", { orgId, … })
+await ctx.db.insert("klanten", { userId, … }) await ctx.db.insert("klanten", { orgId, userId: user._id, … })
+// userId blijft tijdelijk verplicht in het schema (besluit bij Task 1.2): inserts
+// zetten beide — `const { org, user } = await requireOrg(ctx)` levert allebei.
+// Task 6.2 verwijdert userId uit schema én uit alle insert-sites.
 verifyOwnership(ctx, doc, "…")               verifyOrgOwnership(ctx, doc, "…")
 
 // OUD (patroon B)                          // NIEUW
@@ -885,7 +893,7 @@ export const verifieerMigratie = internalQuery({ /* naTelling + telt bewaren-
 
 - [ ] **Step 1:** Tag het huidige commit — dit is de deploy-basis voor prod-Fase-A: `git tag fase-a`
 - [ ] **Step 2:** Draai op dev: `npx convex run migrations/naarOrganisaties:voorTelling` (noteer), dan `npx convex run migrations/naarOrganisaties:migreer '{"bevestigDeployment":"affable-rook-669","clerkOrgId":"<org_… uit Task 0.2>","eigenaarEmail":"ricardobos43@gmail.com"}'`, dan `…:verifieerMigratie` — Expected: gelijke tellingen, 0 bewaren-rijen zonder orgId.
-- [ ] **Step 3: Schema-finalisatie:** verwijder op alle tenant-tabellen het `userId`-veld + alle `by_user*`-indexes (persoonlijke tabellen behouden userId!), maak `orgId` verplicht (`v.optional` eraf; behalve systeemdefault-tabellen — daar blijft `v.optional` met betekenis "null = systeem"), search-indexes `filterFields: ["orgId"]`, verwijder `team_messages.companyId`/`chat_threads.companyUserId`.
+- [ ] **Step 3: Schema-finalisatie:** verwijder op alle tenant-tabellen het `userId`-veld + alle `by_user*`-indexes (persoonlijke tabellen behouden userId!), verwijder óók alle `userId: …`-schrijfplekken op tenant-tabellen in convex/ (grep-gate: geen insert/patch op een tenant-tabel zet nog userId), maak `orgId` verplicht (`v.optional` eraf; behalve systeemdefault-tabellen — daar blijft `v.optional` met betekenis "null = systeem"), search-indexes `filterFields: ["orgId"]`, verwijder `team_messages.companyId`/`chat_threads.companyUserId`.
 - [ ] **Step 4:** Verwijder `verifyOwnership` (oude), en de scoping-rol van `requireAuthUserId` (blijft alleen waar persoonlijke tabellen hem nodig hebben). `getOwnedOfferte`/`getOwnedKlant` gaan naar `verifyOrgOwnership`.
 - [ ] **Step 5:** Poort: `npm run typecheck && npm run lint && npm run test:run` → PASS. `npx convex dev --once` → schema-push OK (faalt er een rij op het verplichte veld, dan is de migratie niet compleet — terug naar Step 2).
 - [ ] **Step 6:** `npm run seed:demo && npm run seed:clear` → werkt op org-model. Commit: `git commit -m "refactor(schema): userId-tenant-velden verwijderd, orgId verplicht"`
