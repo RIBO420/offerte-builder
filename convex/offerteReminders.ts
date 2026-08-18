@@ -125,15 +125,32 @@ async function verwerkOpvolgingsKlantmail(
     return;
   }
 
-  const trigger = await ctx.db
-    .query("mailTriggers")
-    .withIndex("by_event", (q) => q.eq("event", "offerte_opvolging"))
-    .first();
+  // DE tenant voor dit hele pad. `processDueReminders` is een cron: er is
+  // GEEN ingelogde gebruiker, dus niets kan de organisatie uit het JWT halen.
+  // Hij moet hier van de offerte komen en expliciet worden doorgegeven —
+  // anders zet `zetTriggerMailKlaar` stilzwijgend niets klaar ("geen_org")
+  // en verdwijnen de opvolgmails zonder foutmelding.
+  const orgId = offerte.orgId;
+
+  // by_event is bedrijfsbreed; de tenant-grens loopt via by_org (zelfde
+  // patroon als mailTriggers.zetTriggerMailKlaar). Een offerte zonder orgId
+  // (rij van vóór de migratie) hoort bij niemand: dan kiezen we géén trigger
+  // en valt de reminder door naar het bestaande herinnerings-pad hieronder.
+  const trigger = orgId
+    ? (
+        await ctx.db
+          .query("mailTriggers")
+          .withIndex("by_org", (q) => q.eq("orgId", orgId))
+          .collect()
+      ).find((t) => t.event === "offerte_opvolging") ?? null
+    : null;
 
   // Trigger bestaat maar staat uit: alleen interne notificatie, geen klant-mail
   if (trigger && !trigger.actief) return;
 
-  if (trigger && trigger.modus === "concept") {
+  // `orgId` staat hier vast zodra `trigger` bestaat (zie hierboven); de extra
+  // check is puur voor de typecontrole.
+  if (orgId && trigger && trigger.modus === "concept") {
     const siteUrl =
       process.env.NEXT_PUBLIC_APP_URL ||
       process.env.SITE_URL ||
@@ -145,6 +162,8 @@ async function verwerkOpvolgingsKlantmail(
     await zetTriggerMailKlaar(ctx, {
       event: "offerte_opvolging",
       userId: reminder.userId,
+      // Expliciet: de cron heeft geen sessie waaruit de org te halen valt
+      orgId,
       ontvangerEmail: klant.email,
       ontvangerNaam: klant.naam,
       variabelen: {
@@ -167,6 +186,7 @@ async function verwerkOpvolgingsKlantmail(
     reminderId: reminder._id,
     offerteId: reminder.offerteId,
     userId: reminder.userId,
+    orgId: offerte.orgId,
     reminderType: reminder.type,
     klantEmail: klant.email,
     klantNaam: klant.naam,
@@ -227,6 +247,9 @@ export const scheduleReminders = mutation({
 
       const reminderId = await ctx.db.insert("offerte_reminders", {
         offerteId: args.offerteId,
+        // Zonder orgId valt de reminder buiten élke by_org-query; hij erft de
+        // tenant van de offerte waar hij bij hoort.
+        orgId: offerte.orgId,
         userId: offerte.userId,
         type: schedule.type,
         scheduledAt,
@@ -395,6 +418,12 @@ export const sendReminderEmail = internalAction({
     reminderId: v.id("offerte_reminders"),
     offerteId: v.id("offertes"),
     userId: v.id("users"),
+    /**
+     * Tenant van de offerte. Optioneel zolang er offertes zonder orgId
+     * bestaan; zodra hij er is kiest emailTemplates op organisatie in plaats
+     * van op de userId-fallback (die in fase 6 verdwijnt).
+     */
+    orgId: v.optional(v.id("organisaties")),
     reminderType: v.union(
       v.literal("niet_bekeken"),
       v.literal("niet_gereageerd"),
@@ -430,7 +459,7 @@ export const sendReminderEmail = internalAction({
     const dbTemplate: { onderwerp: string; inhoud: string; actief: boolean } | null =
       await ctx.runQuery(
         internal.emailTemplates.getByTriggerInternal,
-        { userId: args.userId, trigger }
+        { userId: args.userId, orgId: args.orgId, trigger }
       );
 
     // 3. Use DB template or fallback
