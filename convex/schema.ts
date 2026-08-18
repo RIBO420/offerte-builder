@@ -55,6 +55,17 @@ export default defineSchema({
     .index("by_linked_medewerker", ["linkedMedewerkerId"])
     .index("by_linked_klant", ["linkedKlantId"]),
 
+  // Organisaties (bedrijven) — spiegelt een Clerk-organization.
+  // Elke org-gescopeerde tabel krijgt straks een `orgId` die hiernaar wijst;
+  // `clerkOrgId` is de sleutel waarmee een Clerk-sessie de juiste rij vindt.
+  organisaties: defineTable({
+    clerkOrgId: v.string(), // Clerk organization-id (org_…)
+    naam: v.string(),
+    slug: v.optional(v.string()),
+    actief: v.boolean(),
+    aangemaaktOp: v.number(),
+  }).index("by_clerk_org_id", ["clerkOrgId"]),
+
   // Klanten
   klanten: defineTable({
     userId: v.id("users"),

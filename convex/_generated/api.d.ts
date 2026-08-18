@@ -64,6 +64,7 @@ import type * as lib_normuren from "../lib/normuren.js";
 import type * as lib_offerteKlant from "../lib/offerteKlant.js";
 import type * as lib_offerteNummer from "../lib/offerteNummer.js";
 import type * as lib_omzetDefinities from "../lib/omzetDefinities.js";
+import type * as lib_orgTabellen from "../lib/orgTabellen.js";
 import type * as lib_pipelineKpis from "../lib/pipelineKpis.js";
 import type * as lib_rapportageAggregatie from "../lib/rapportageAggregatie.js";
 import type * as lib_rapportagePeriode from "../lib/rapportagePeriode.js";
@@ -212,6 +213,7 @@ declare const fullApi: ApiFromModules<{
   "lib/offerteKlant": typeof lib_offerteKlant;
   "lib/offerteNummer": typeof lib_offerteNummer;
   "lib/omzetDefinities": typeof lib_omzetDefinities;
+  "lib/orgTabellen": typeof lib_orgTabellen;
   "lib/pipelineKpis": typeof lib_pipelineKpis;
   "lib/rapportageAggregatie": typeof lib_rapportageAggregatie;
   "lib/rapportagePeriode": typeof lib_rapportagePeriode;
