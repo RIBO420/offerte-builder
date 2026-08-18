@@ -900,6 +900,10 @@ export const migreer = internalMutation({
     //    tuinen/plantsoorten): laten staan, GEEN orgId (blijven systeembreed).
     // 6. Alle wissen-tabellen: full-table delete in batches (óók rijen zonder
     //    userId — de optionele-veld-gaten uit de audit verdwijnen hiermee).
+    // 7. Dedupe-eis (uit review 3.6): voorraad is na de migratie uniek per
+    //    org+product (`by_org_product` + .unique()). Bestaan er per product
+    //    meerdere rijen van de eigenaar, voeg samen (aantallen optellen,
+    //    mutaties behouden); rijen van andere users verdwijnen sowieso.
   },
 });
 
