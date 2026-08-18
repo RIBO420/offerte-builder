@@ -1218,15 +1218,33 @@ export const vullen = internalMutation({
     }
     const userId = eigenaar._id;
 
+    // ── Tenant van de demo-data ───────────────────────────────────────
+    // Sinds de Clerk-Organizations-migratie is de organisatie de tenant, niet
+    // de eigenaar-user. Op een dev-deployment hoort er precies één actieve
+    // organisatie te staan; zelfde patroon (en dezelfde voorzichtigheid) als
+    // `orgVoorPubliekeIntake` in configuratorAanvragen.ts, maar hier hard:
+    // demo-data in de verkeerde tenant is erger dan geen demo-data.
+    const actieveOrganisaties = (
+      await ctx.db.query("organisaties").collect()
+    ).filter((o) => o.actief);
+    if (actieveOrganisaties.length !== 1) {
+      throw new ConvexError(
+        `Verwacht precies één actieve organisatie op deze deployment, ` +
+          `gevonden: ${actieveOrganisaties.length}. Seed pas als de ` +
+          "organisatie is geprovisioneerd."
+      );
+    }
+    const orgId = actieveOrganisaties[0]._id;
+
     const nu = Date.now();
     const geseedOp = nu;
     const random = maakRandom(20260814);
 
     // Bedrijfsgegevens voor de factuur-snapshot; valt terug op een
-    // demo-invulling als de gebruiker nog geen instellingen heeft.
+    // demo-invulling als de organisatie nog geen instellingen heeft.
     const instellingen = await ctx.db
       .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .first();
     const bedrijf = instellingen?.bedrijfsgegevens ?? {
       naam: "Top Tuinen",
@@ -1235,10 +1253,16 @@ export const vullen = internalMutation({
       plaats: "Sittard",
     };
 
+    // Vanaf hier draagt élke geseede rij `orgId` waar het schema dat veld
+    // kent. Tabellen zonder orgId (leadActiviteiten, planningTaken,
+    // weekPlanning) hangen aan een ouder die hem wél heeft — lead, project of
+    // medewerker — en erven de tenant daarlangs.
+
     // ── Medewerkers ───────────────────────────────────────────────────
     const medewerkerIds: Id<"medewerkers">[] = [];
     for (const m of MEDEWERKERS) {
       const id = await bewaar(ctx, geseedOp, "medewerkers", {
+        orgId,
         userId,
         naam: m.naam,
         email: `${m.naam.toLowerCase().replace(/[^a-z]+/g, ".")}@voorbeeld.test`,
@@ -1258,6 +1282,7 @@ export const vullen = internalMutation({
     const teamIds: Id<"teams">[] = [];
     for (const t of TEAMS) {
       const id = await bewaar(ctx, geseedOp, "teams", {
+        orgId,
         userId,
         naam: t.naam,
         leden: t.ledenIndex.map((i) => medewerkerIds[i]),
@@ -1284,6 +1309,7 @@ export const vullen = internalMutation({
     const klantIds: Id<"klanten">[] = [];
     for (const [i, k] of KLANTEN.entries()) {
       const id = await bewaar(ctx, geseedOp, "klanten", {
+        orgId,
         userId,
         naam: k.naam,
         adres: k.adres,
@@ -1312,6 +1338,7 @@ export const vullen = internalMutation({
     for (const [i, l] of LEADS.entries()) {
       const aangemaakt = nu - (i * 4 + 2) * DAG;
       const id = await bewaar(ctx, geseedOp, "configuratorAanvragen", {
+        orgId,
         type: "contact",
         status: leadStatusVanKolom(l.kolom),
         referentie: `CFG-DEMO-${String(i + 1).padStart(3, "0")}`,
@@ -1373,6 +1400,7 @@ export const vullen = internalMutation({
       );
 
       const offerteId = await bewaar(ctx, geseedOp, "offertes", {
+        orgId,
         userId,
         klantId: klantIds[o.klant],
         type: o.type,
@@ -1435,6 +1463,7 @@ export const vullen = internalMutation({
         const normUrenPerScope = normUrenPerScopeVan(o.regels, o.scopes);
         const normUrenTotaal = Object.values(normUrenPerScope).reduce((s, u) => s + u, 0);
         await bewaar(ctx, geseedOp, "voorcalculaties", {
+          orgId,
           userId,
           offerteId,
           teamGrootte,
@@ -1478,6 +1507,7 @@ export const vullen = internalMutation({
       };
 
       const offerteId = await bewaar(ctx, geseedOp, "offertes", {
+        orgId,
         userId,
         klantId: klantIds[h.klant],
         type: h.type,
@@ -1521,6 +1551,7 @@ export const vullen = internalMutation({
       const normUrenPerScope = normUrenPerScopeVan(h.regels, h.scopes);
       const normUrenTotaal = Object.values(normUrenPerScope).reduce((s, u) => s + u, 0);
       await bewaar(ctx, geseedOp, "voorcalculaties", {
+        orgId,
         userId,
         offerteId,
         teamGrootte,
@@ -1556,6 +1587,7 @@ export const vullen = internalMutation({
       const factuurTotaal = afgerond(factuurSubtotaal + factuurBtw);
 
       await bewaar(ctx, geseedOp, "facturen", {
+        orgId,
         userId,
         // GEEN projectId — dat is precies wat deze reeks uit de archiveer-
         // migratie van `users.initializeDefaults` houdt (zie HISTORIE).
@@ -1597,6 +1629,7 @@ export const vullen = internalMutation({
       const start = datumISO(nu, p.startDag);
       const eind = datumISO(nu, p.startDag + p.duurDagen - 1);
       const projectId = await bewaar(ctx, geseedOp, "projecten", {
+        orgId,
         userId,
         type: "project",
         offerteId: offerteIds[p.offerte],
@@ -1669,6 +1702,7 @@ export const vullen = internalMutation({
         for (const ledenIndex of teamLeden) {
           const uren = afgerond(6.5 + random() * 2.5);
           await bewaar(ctx, geseedOp, "urenRegistraties", {
+            orgId,
             userId,
             projectId: projectIds[i],
             datum,
@@ -1772,6 +1806,7 @@ export const vullen = internalMutation({
       const factuurdatum = nu - f.dagenGeleden * DAG;
 
       await bewaar(ctx, geseedOp, "facturen", {
+        orgId,
         userId,
         ...(f.project !== null ? { projectId: projectIds[f.project] } : {}),
         klantId: klantIds[klantIndex],
@@ -1835,6 +1870,7 @@ export const vullen = internalMutation({
     for (const m of MELDINGEN) {
       const aangemaakt = nu - m.dagenGeleden * DAG;
       await bewaar(ctx, geseedOp, "servicemeldingen", {
+        orgId,
         userId,
         klantId: klantIds[m.klant],
         beschrijving: m.beschrijving,
@@ -1869,6 +1905,7 @@ export const vullen = internalMutation({
     for (const n of NOTIFICATIES) {
       const aangemaakt = nu - n.dagen * DAG;
       await bewaar(ctx, geseedOp, "notifications", {
+        orgId,
         userId,
         type: n.type,
         title: n.title,

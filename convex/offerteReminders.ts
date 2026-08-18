@@ -444,11 +444,14 @@ export const sendReminderEmail = internalAction({
       return { success: false, error: "unknown_reminder_type" };
     }
 
-    // 1. Look up bedrijfsgegevens from instellingen
-    const instellingen: Record<string, unknown> | null = await ctx.runQuery(
-      internal.instellingen.getByUserId,
-      { userId: args.userId }
-    );
+    // 1. Look up bedrijfsgegevens from instellingen (org-gescoped; zonder
+    //    orgId — offertes van vóór de migratie — vallen we terug op de
+    //    standaard bedrijfsnaam hieronder)
+    const instellingen: Record<string, unknown> | null = args.orgId
+      ? await ctx.runQuery(internal.instellingen.getByOrgId, {
+          orgId: args.orgId,
+        })
+      : null;
 
     const bedrijfsgegevens = (instellingen?.bedrijfsgegevens ?? {}) as Record<string, string>;
     const bedrijfsNaam = bedrijfsgegevens.naam || "Top Tuinen";

@@ -533,11 +533,13 @@ export const verstuurConceptMail = internalAction({
       return { success: false, error: "email_sandbox" };
     }
 
-    // Bedrijfsgegevens voor de huisstijl-layout
-    const instellingen = (await ctx.runQuery(
-      internal.instellingen.getByUserId,
-      { userId: concept.userId }
-    )) as Record<string, unknown> | null;
+    // Bedrijfsgegevens voor de huisstijl-layout (org-gescoped; een concept van
+    // vóór de org-migratie heeft nog geen orgId en valt terug op de defaults)
+    const instellingen = concept.orgId
+      ? ((await ctx.runQuery(internal.instellingen.getByOrgId, {
+          orgId: concept.orgId,
+        })) as Record<string, unknown> | null)
+      : null;
     const bedrijfsgegevens = (instellingen?.bedrijfsgegevens ?? {}) as Record<
       string,
       string

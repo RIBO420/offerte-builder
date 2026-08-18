@@ -9,7 +9,7 @@
 
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAuth } from "./auth";
+import { requireAuth, requireOrgContext, requireOrgId } from "./auth";
 import { requireAdmin, normalizeRole, getLinkedMedewerker } from "./roles";
 import type { Doc } from "./_generated/dataModel";
 import { klantNaam, klantVeld } from "./lib/offerteKlant";
@@ -20,7 +20,7 @@ import { voorcalculatieVanProject, voorcalculatieVanOfferte } from "./lib/voorca
  * Zoek het medewerker-record van de ingelogde gebruiker.
  *
  * Twee routes, in deze volgorde:
- *  1. users.linkedMedewerkerId — de bron van waarheid die ook getCompanyUserId voedt.
+ *  1. users.linkedMedewerkerId — de bron van waarheid.
  *  2. medewerkers.clerkUserId  — legacy pad, blijft werken voor records die nog niet
  *     via de koppelmutatie zijn aangemaakt.
  *
@@ -66,12 +66,15 @@ export const getProfile = query({
       };
     }
 
-    // Get company info
-    const companyUser = await ctx.db.get(medewerker.userId);
-    const instellingen = companyUser
+    // Bedrijfsgegevens van de ORGANISATIE van de medewerker. Guard vóór de
+    // index-q.eq (CLAUDE.md regel 4): een medewerker van vóór de migratie
+    // heeft nog geen orgId, en q.eq(undefined) zou de instellingen van elke
+    // org-loze tenant matchen.
+    const orgId = medewerker.orgId;
+    const instellingen = orgId
       ? await ctx.db
           .query("instellingen")
-          .withIndex("by_user", (q) => q.eq("userId", companyUser._id))
+          .withIndex("by_org", (q) => q.eq("orgId", orgId))
           .first()
       : null;
 
@@ -135,13 +138,10 @@ export const updateBiometricSetting = mutation({
 export const getProjectDetailsForMedewerker = query({
   args: { projectId: v.id("projecten") },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
+    const { org, user } = await requireOrgContext(ctx);
 
     // Get medewerker record
-    const medewerker = await ctx.db
-      .query("medewerkers")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", user.clerkId))
-      .first();
+    const medewerker = await vindEigenMedewerker(ctx, user.clerkId);
 
     // Get the project
     const project = await ctx.db.get(args.projectId);
@@ -150,17 +150,16 @@ export const getProjectDetailsForMedewerker = query({
     }
 
     // Admin (directie) users can access all projects even without medewerker record
-    const userIsAdmin = user.role === "directie";
+    const userIsAdmin = normalizeRole(user.role) === "directie";
 
     if (!medewerker && !userIsAdmin) {
       throw new ConvexError("Medewerker profiel niet gevonden");
     }
 
-    // Verify project belongs to the medewerker's company (skip for admins who own the project)
-    if (medewerker && medewerker.userId.toString() !== project.userId.toString()) {
-      throw new ConvexError("Je hebt geen toegang tot dit project");
-    }
-    if (!medewerker && userIsAdmin && project.userId.toString() !== user._id.toString()) {
+    // Tenantgrens: het project moet bij de organisatie uit het JWT horen.
+    // Voorheen liep dit langs medewerker.userId vs project.userId — twee
+    // eigenaarsvelden die na de org-migratie niets meer over de tenant zeggen.
+    if (project.orgId !== org._id) {
       throw new ConvexError("Je hebt geen toegang tot dit project");
     }
 
@@ -283,44 +282,62 @@ export const getProjectDetailsForMedewerker = query({
 
 /**
  * List all users (admin only).
- * Returns users with their roles and linked medewerkers.
+ *
+ * ORG-SCOPING (zelfde besluit als users.listUsersWithDetails): de users-tabel
+ * heeft nog géén orgId — dat komt pas in fase 6. Tot dan is de zichtbare set:
+ *  - accounts die via `linkedMedewerkerId` aan een medewerker van DEZE
+ *    organisatie hangen, plus
+ *  - accounts zonder koppeling die géén klant zijn (nodig om een vers
+ *    aangemaakt account te kunnen koppelen — anders is het onzichtbaar).
+ * Klant-accounts van andere tenants en medewerkers van andere tenants vallen
+ * er zo uit.
  */
 export const adminListAllUsers = query({
   args: {},
   handler: async (ctx) => {
     await requireAdmin(ctx);
+    const orgId = await requireOrgId(ctx);
 
     // Get all users
     const users = await ctx.db.query("users").collect();
 
-    // Get all medewerkers for linking info
-    const medewerkers = await ctx.db.query("medewerkers").collect();
+    // Medewerkers van DEZE organisatie (was: de hele tabel)
+    const medewerkers = await ctx.db
+      .query("medewerkers")
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
+      .collect();
+    const medewerkerById = new Map(
+      medewerkers.map((m) => [m._id.toString(), m])
+    );
 
     // Map users with medewerker info
-    const usersWithMedewerkers = users.map((u) => {
-      let linkedMedewerker = null;
-      if (u.linkedMedewerkerId) {
-        const med = medewerkers.find(
-          (m) => m._id.toString() === u.linkedMedewerkerId?.toString()
-        );
-        if (med) {
-          linkedMedewerker = {
-            _id: med._id,
-            naam: med.naam,
-            functie: med.functie,
-          };
-        }
+    const usersWithMedewerkers = users.flatMap((u) => {
+      const med = u.linkedMedewerkerId
+        ? medewerkerById.get(u.linkedMedewerkerId.toString())
+        : undefined;
+
+      if (u.linkedMedewerkerId && !med) {
+        // Gekoppeld aan een medewerker van een andere organisatie
+        return [];
+      }
+      if (!u.linkedMedewerkerId && normalizeRole(u.role) === "klant") {
+        // Ongekoppelde klantaccounts horen bij een portaal, niet bij dit scherm
+        return [];
       }
 
-      return {
-        _id: u._id,
-        email: u.email,
-        name: u.name,
-        role: normalizeRole(u.role),
-        linkedMedewerkerId: u.linkedMedewerkerId,
-        linkedMedewerker,
-        createdAt: u.createdAt,
-      };
+      return [
+        {
+          _id: u._id,
+          email: u.email,
+          name: u.name,
+          role: normalizeRole(u.role),
+          linkedMedewerkerId: u.linkedMedewerkerId,
+          linkedMedewerker: med
+            ? { _id: med._id, naam: med.naam, functie: med.functie }
+            : null,
+          createdAt: u.createdAt,
+        },
+      ];
     });
 
     return usersWithMedewerkers;
@@ -334,12 +351,13 @@ export const adminListAllUsers = query({
 export const adminListMedewerkers = query({
   args: {},
   handler: async (ctx) => {
-    const user = await requireAdmin(ctx);
+    await requireAdmin(ctx);
+    const orgId = await requireOrgId(ctx);
 
-    // Get medewerkers owned by this admin
+    // Medewerkers van deze organisatie
     const medewerkers = await ctx.db
       .query("medewerkers")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // Get users to check who is already linked
@@ -406,7 +424,8 @@ export const adminLinkUserToMedewerker = mutation({
     medewerkerId: v.optional(v.id("medewerkers")),
   },
   handler: async (ctx, args) => {
-    const user = await requireAdmin(ctx);
+    await requireAdmin(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const targetUser = await ctx.db.get(args.userId);
     if (!targetUser) {
@@ -425,14 +444,17 @@ export const adminLinkUserToMedewerker = mutation({
       }
     }
 
-    // If linking (not unlinking), verify the medewerker exists and belongs to admin
+    // If linking (not unlinking), verify the medewerker exists and belongs to
+    // the admin's ORGANISATION (was: aan de admin-user zelf)
     if (args.medewerkerId) {
       const medewerker = await ctx.db.get(args.medewerkerId);
       if (!medewerker) {
         throw new ConvexError("Medewerker niet gevonden");
       }
-      if (medewerker.userId.toString() !== user._id.toString()) {
-        throw new ConvexError("Je kunt alleen je eigen medewerkers koppelen");
+      if (medewerker.orgId !== orgId) {
+        throw new ConvexError(
+          "Je kunt alleen medewerkers van je eigen organisatie koppelen"
+        );
       }
 
       // Check if medewerker is already linked to another user
@@ -447,32 +469,19 @@ export const adminLinkUserToMedewerker = mutation({
         throw new ConvexError("Deze medewerker is al aan een andere gebruiker gekoppeld");
       }
 
-      // Een directie-account dat zelf tenant-eigenaar is, mag niet aan een medewerker
-      // van een ANDERE tenant gekoppeld worden: getCompanyUserId zou dan zijn eigen _id
-      // blijven teruggeven en elke scope-check zou daarna mismatchen.
-      const isEigenTenant =
-        medewerker.userId.toString() === targetUser._id.toString();
-      if (!isEigenTenant && normalizeRole(targetUser.role) === "directie") {
-        const bezitEigenMedewerkers = await ctx.db
-          .query("medewerkers")
-          .filter((q) => q.eq(q.field("userId"), targetUser._id))
-          .first();
-        if (bezitEigenMedewerkers) {
-          throw new ConvexError(
-            "Deze gebruiker is directie met eigen bedrijfsdata en kan niet aan een medewerker van een ander bedrijf gekoppeld worden"
-          );
-        }
-      }
-
       // Zet clerkUserId op het medewerker-record, gelijk aan users.linkKlantAccount.
       await ctx.db.patch(args.medewerkerId, { clerkUserId: targetUser.clerkId });
 
+      // De rol blijft ongemoeid: sinds de org-migratie leidt de tenant niet
+      // meer uit de rol af (dat deed getCompanyUserId), dus een directie- of
+      // projectleider-account dat óók een veldprofiel krijgt hoeft niet meer
+      // naar "medewerker" gedegradeerd te worden. Alleen een klant-account
+      // moet mee, anders blijft het in de portaal-routing hangen.
       await ctx.db.patch(args.userId, {
         linkedMedewerkerId: args.medewerkerId,
-        // De rol MOET meebewegen: blijft hij op directie/admin staan, dan kort
-        // getCompanyUserId (roles.ts:620) af op de eigen _id en matcht die nooit met
-        // medewerker.userId. Dat was de oorzaak van "Medewerker niet gevonden".
-        ...(isEigenTenant ? {} : { role: "medewerker" as const }),
+        ...(normalizeRole(targetUser.role) === "klant"
+          ? { role: "medewerker" as const }
+          : {}),
       });
     } else {
       await ctx.db.patch(args.userId, {

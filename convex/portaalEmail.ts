@@ -80,19 +80,27 @@ export const sendClerkInvitation = internalAction({
   },
 });
 
-/** Get company details from instellingen, with sensible defaults */
+/**
+ * Get company details from instellingen, with sensible defaults.
+ *
+ * De tenant is de organisatie van de klant/offerte, niet de gebruiker die het
+ * record ooit aanmaakte. `orgId` is optioneel zolang er records van vóór de
+ * migratie bestaan; die krijgen de defaults ("Top Tuinen", geen contactregel)
+ * in plaats van de gegevens van een willekeurige andere tenant.
+ */
 async function getBedrijfsgegevens(
   ctx: ActionCtx,
-  userId: Id<"users">
+  orgId: Id<"organisaties"> | undefined
 ): Promise<{
   naam: string;
   email: string;
   telefoon: string;
 }> {
-  const instellingen = (await ctx.runQuery(
-    internal.instellingen.getByUserId,
-    { userId }
-  )) as Record<string, unknown> | null;
+  const instellingen = orgId
+    ? ((await ctx.runQuery(internal.instellingen.getByOrgId, {
+        orgId,
+      })) as Record<string, unknown> | null)
+    : null;
 
   const bedrijfsgegevens = (instellingen?.bedrijfsgegevens ?? {}) as Record<
     string,
@@ -247,7 +255,7 @@ export const sendInvitation = internalAction({
     }
 
     // Get company details
-    const bedrijf = await getBedrijfsgegevens(ctx, klant.userId);
+    const bedrijf = await getBedrijfsgegevens(ctx, klant.orgId);
 
     // Build registration URL
     const registratieUrl = `${getPortalUrl()}/portaal/registreren?token=${args.token}`;
@@ -346,7 +354,7 @@ export const sendOfferteNotification = internalAction({
     }
 
     // Get company details
-    const bedrijf = await getBedrijfsgegevens(ctx, offerte.userId);
+    const bedrijf = await getBedrijfsgegevens(ctx, offerte.orgId);
 
     // Build portal URL
     const portaalUrl = `${getPortalUrl()}/portaal/offertes`;
@@ -448,7 +456,7 @@ export const sendMessageNotification = internalAction({
     }
 
     // Get company details
-    const bedrijf = await getBedrijfsgegevens(ctx, klant.userId);
+    const bedrijf = await getBedrijfsgegevens(ctx, klant.orgId);
 
     // Build portal URL
     const portaalUrl = `${getPortalUrl()}/portaal/berichten`;
@@ -558,7 +566,7 @@ export const sendFactuurNotification = internalAction({
     }
 
     // Get company details
-    const bedrijf = await getBedrijfsgegevens(ctx, klant.userId);
+    const bedrijf = await getBedrijfsgegevens(ctx, klant.orgId);
 
     // Build portal URL
     const portaalUrl = `${getPortalUrl()}/portaal/facturen`;
@@ -694,7 +702,7 @@ export const sendProjectNotification = internalAction({
     }
 
     // Get company details
-    const bedrijf = await getBedrijfsgegevens(ctx, klant.userId);
+    const bedrijf = await getBedrijfsgegevens(ctx, klant.orgId);
 
     // Build portal URL
     const portaalUrl = `${getPortalUrl()}/portaal/projecten`;

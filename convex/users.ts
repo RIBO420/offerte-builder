@@ -1,18 +1,19 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query, internalMutation, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { getAuthenticatedUser, requireAuth } from "./auth";
 import {
-  requireAdmin,
-  normalizeRole,
-  isAdminRole,
-  getCompanyUserId,
-} from "./roles";
+  getAuthenticatedUser,
+  requireAuth,
+  requireOrgContext,
+  requireOrgId,
+} from "./auth";
+import { requireAdmin, normalizeRole, isAdminRole } from "./roles";
 import { Doc, Id } from "./_generated/dataModel";
 import { MutationCtx } from "./_generated/server";
 import {
   DEFAULT_NORMUREN,
   DEFAULT_PRODUCTEN,
+  seedOrgDefaults,
   standaardInstellingen,
 } from "./lib/orgDefaults";
 
@@ -414,71 +415,41 @@ export const updateProfile = mutation({
   },
 });
 
-// Initialize missing defaults for existing users
-// Call this if a user is missing normuren or products
-// Also ensures user has a proper role set
+// Initialize missing defaults for the active organisation.
+//
+// Wordt bij elke paginalading aangeroepen (use-current-user.ts), dus houdt hij
+// zich strikt aan de org-conventie uit de upsert-header: standaardinstellingen,
+// normuren en producten horen bij een ORGANISATIE en gaan via
+// `seedOrgDefaults` (idempotent). Voorheen zaaide deze mutation ze op de
+// userId van wie toevallig inlogde — dat leverde per collega een eigen
+// instellingen-rij op, mét een eigen offertenummer-teller.
 export const initializeDefaults = mutation({
   args: {},
   handler: async (ctx) => {
-    const user = await requireAuth(ctx);
+    const { org, user } = await requireOrgContext(ctx);
     const userId = user._id;
+    const orgId = org._id;
 
     // Ensure system correction factors exist
     await initializeSystemCorrectieFactoren(ctx);
 
-    // Ensure user has a role set
-    // If no role is set, check if this is the only user (make directie) or set to "medewerker"
+    // Rol zetten voor een account dat er nog geen heeft. De oude regel "de
+    // enige user in het systeem wordt directie" is weg — zie de upsert-header:
+    // een nieuwe aanmelding is geen tenant-eigenaar meer.
     let roleUpdated = false;
     if (!user.role) {
-      // Count existing users to determine if this should be admin
-      const allUsers = await ctx.db.query("users").collect();
-      const isOnlyUser = allUsers.length === 1;
-      const shouldBeAdmin = isOnlyUser || isAdminEmail(user.email);
-
       await ctx.db.patch(userId, {
-        role: shouldBeAdmin ? "directie" : "medewerker",
+        role: isAdminEmail(user.email) ? "directie" : "medewerker",
       });
       roleUpdated = true;
     }
 
-    // Check if user already has normuren
-    const existingNormuren = await ctx.db
-      .query("normuren")
-      .withIndex("by_user_scope", (q) => q.eq("userId", userId))
-      .first();
-
-    let normurenCreated = 0;
-    if (!existingNormuren) {
-      await createDefaultNormuren(ctx, userId);
-      normurenCreated = DEFAULT_NORMUREN.length;
-    }
-
-    // Check if user already has products
-    const existingProducten = await ctx.db
-      .query("producten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .first();
-
-    let productenCreated = 0;
-    if (!existingProducten) {
-      await createDefaultProducten(ctx, userId);
-      productenCreated = DEFAULT_PRODUCTEN.length;
-    }
-
-    // Check if user has settings
-    const existingSettings = await ctx.db
-      .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .unique();
-
-    let settingsCreated = false;
-    if (!existingSettings) {
-      await ctx.db.insert("instellingen", {
-        userId,
-        ...standaardInstellingen(),
-      });
-      settingsCreated = true;
-    }
+    // Org-defaults (instellingen + normuren + producten) in één idempotente
+    // stap; `seedOrgDefaults` doet niets als de organisatie al instellingen heeft.
+    const geseed = await seedOrgDefaults(ctx, orgId, userId);
+    const normurenCreated = geseed ? DEFAULT_NORMUREN.length : 0;
+    const productenCreated = geseed ? DEFAULT_PRODUCTEN.length : 0;
+    const settingsCreated = geseed;
 
     // Run data migrations for archiving system
     const now = Date.now();
@@ -489,10 +460,10 @@ export const initializeDefaults = mutation({
       offertesArchived: 0,
     };
 
-    // Get all user projects
+    // Alle projecten van deze organisatie
     const userProjects = await ctx.db
       .query("projecten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // Fix afgerond projects that have nacalculatie
@@ -576,6 +547,10 @@ export const initializeDefaults = mutation({
 });
 
 // Admin query to list all users (directie only — lekte voorheen alle e-mails/clerkIds zonder login)
+//
+// LEGACY HERSTELTOOL, PRE-ORG: deployment-breed, want de users-tabel heeft nog
+// geen orgId (fase 6). Voor het Team-scherm is `listUsersWithDetails` de
+// org-gescopete variant; dit blijft een kale dump voor directie/CLI.
 export const adminListUsers = query({
   args: {},
   handler: async (ctx) => {
@@ -591,6 +566,9 @@ export const adminListUsers = query({
 });
 
 // Admin query to check data ownership (directie only)
+//
+// LEGACY HERSTELTOOL, PRE-ORG: diagnostiek op de userId-kolommen van vóór de
+// org-migratie. Niet herbouwd (YAGNI) — de tenantsleutel is nu orgId.
 export const adminCheckDataOwnership = query({
   args: {},
   handler: async (ctx) => {
@@ -609,6 +587,11 @@ export const adminCheckDataOwnership = query({
 
 // Admin function to migrate data from one user to another
 // Use this when a user has data under an old userId
+//
+// LEGACY HERSTELTOOL, PRE-ORG: verplaatst tenantdata op userId. Sinds de
+// org-migratie is userId geen tenantsleutel meer, dus dit repareert alleen nog
+// oude, org-loze rijen. Bewust niet herbouwd naar orgId (YAGNI): een echte
+// tenantverhuizing is een migratiescript, geen knop in de app.
 export const adminMigrateUserData = mutation({
   args: {
     fromUserId: v.id("users"),
@@ -668,6 +651,10 @@ export const adminMigrateUserData = mutation({
 
 // Admin function to seed data for a specific user by email
 // Run this from the Convex dashboard to fix missing defaults
+//
+// LEGACY HERSTELTOOL, PRE-ORG: zaait op userId. De levende route is
+// `initializeDefaults` / `organisaties.maakOrganisatie`, die via
+// `seedOrgDefaults` op orgId zaaien. Bewust niet herbouwd (YAGNI).
 export const adminSeedUserDefaults = mutation({
   args: {
     userEmail: v.string(),
@@ -826,7 +813,7 @@ export const adminSeedUserDefaults = mutation({
 });
 
 /**
- * Run data migrations for the authenticated user.
+ * Run data migrations for the active organisation.
  * This applies the archiving logic to existing data:
  * - Fixes project statuses (afgerond -> nacalculatie_compleet if nacalculatie exists)
  * - Updates projects with facturen to "gefactureerd" status
@@ -835,8 +822,7 @@ export const adminSeedUserDefaults = mutation({
 export const runDataMigrations = mutation({
   args: {},
   handler: async (ctx) => {
-    const user = await requireAuth(ctx);
-    const userId = user._id;
+    const orgId = await requireOrgId(ctx);
     const now = Date.now();
 
     const results = {
@@ -849,7 +835,7 @@ export const runDataMigrations = mutation({
     // 1. Fix afgerond projects that have nacalculatie
     const userProjects = await ctx.db
       .query("projecten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     const afgerondProjects = userProjects.filter((p) => p.status === "afgerond");
@@ -927,7 +913,10 @@ export const runDataMigrations = mutation({
 
 /**
  * Admin function to run data migrations for a specific user by email.
- * No authentication required - intended for CLI use only.
+ *
+ * LEGACY HERSTELTOOL, PRE-ORG: zoekt de projecten op `userId`. De levende
+ * variant is `runDataMigrations` hierboven, die op de organisatie werkt.
+ * Bewust niet herbouwd (YAGNI) — dit blijft de CLI-uitweg voor org-loze rijen.
  *
  * Usage: npx convex run users:adminRunMigrations '{"userEmail": "user@example.com"}'
  */
@@ -1299,23 +1288,38 @@ export const listUsersWithDetails = query({
       return [];
     }
 
-    // LET OP — bewust systeembreed, met een bekende beperking:
-    // de users-tabel heeft geen userId/bedrijfskolom (bedrijfsscope loopt via
-    // medewerkers.userId), dus er is hier niets om op te scopen. Een pas
-    // aangemaakt account is nog nergens aan gekoppeld en moet juist in deze
-    // lijst verschijnen om gekoppeld te KUNNEN worden — filteren zou dat
-    // onmogelijk maken. De directie-check hierboven is daarom de enige poort.
-    // De koppel-acties zelf (linkUserToMedewerker) zijn wél bedrijfsgescoped.
-    // Echte scoping vraagt een schemawijziging (bedrijfsveld op users).
+    // ── ORG-SCOPING, BESLUIT CLUSTER 3.9 ────────────────────────────────
+    // De users-tabel heeft (nog) GEEN orgId — dat komt pas in fase 6, samen
+    // met een echte org-koppeling op accounts. Tot dan leiden we de tenant af
+    // uit de enige koppeling die er wél is, `linkedMedewerkerId`, en tonen we:
+    //
+    //   1. accounts die aan een medewerker van DEZE organisatie hangen, plus
+    //   2. accounts zonder koppeling die géén klant zijn.
+    //
+    // Groep 2 blijft nodig voor de Accounts-tab van het Team-scherm: een pas
+    // uitgenodigd account is nog nergens aan gekoppeld en zou anders
+    // onzichtbaar zijn — precies het account dat je wilt koppelen. Wat er wél
+    // uit valt: medewerker-accounts van andere tenants (die hangen aan een
+    // medewerker met een andere orgId) en losse klantaccounts, die thuishoren
+    // in het portaal en niet in dit scherm.
+    //
+    // Blijft directie-only, zoals hierboven.
+    const orgId = await requireOrgId(ctx);
     const users = await ctx.db.query("users").collect();
 
-    // Get linked medewerkers
     const usersWithDetails = await Promise.all(
       users.map(async (user) => {
-        let linkedMedewerker = null;
-        if (user.linkedMedewerkerId) {
-          linkedMedewerker = await ctx.db.get(user.linkedMedewerkerId);
+        const linkedMedewerker = user.linkedMedewerkerId
+          ? await ctx.db.get(user.linkedMedewerkerId)
+          : null;
+
+        if (user.linkedMedewerkerId && linkedMedewerker?.orgId !== orgId) {
+          return null; // medewerker van een andere organisatie (of weg)
         }
+        if (!user.linkedMedewerkerId && normalizeRole(user.role) === "klant") {
+          return null; // los klantaccount hoort bij het portaal
+        }
+
         return {
           _id: user._id,
           clerkId: user.clerkId,
@@ -1329,7 +1333,7 @@ export const listUsersWithDetails = query({
       })
     );
 
-    return usersWithDetails;
+    return usersWithDetails.filter((u) => u !== null);
   },
 });
 
@@ -1373,13 +1377,13 @@ export const linkUserToMedewerker = mutation({
       }
 
       // Tenant-check: medewerkerId komt uit de client, dus zonder deze controle
-      // kan directie van bedrijf A een account koppelen aan een medewerker van
-      // bedrijf B (en daarmee diens clerkUserId overschrijven). De lijst uit
-      // getAvailableMedewerkersForLinking is al bedrijfsgescoped; deze check
-      // maakt die scope ook afdwingbaar.
-      const companyUserId = await getCompanyUserId(ctx);
-      if (medewerker.userId.toString() !== companyUserId.toString()) {
-        throw new ConvexError("Medewerker hoort niet bij dit bedrijf");
+      // kan directie van organisatie A een account koppelen aan een medewerker
+      // van organisatie B (en daarmee diens clerkUserId overschrijven). De
+      // lijst uit getAvailableMedewerkersForLinking is al org-gescoped; deze
+      // check maakt die scope ook afdwingbaar.
+      const orgId = await requireOrgId(ctx);
+      if (medewerker.orgId !== orgId) {
+        throw new ConvexError("Medewerker hoort niet bij deze organisatie");
       }
 
       // Update medewerker with the user's clerkId
@@ -1419,16 +1423,15 @@ export const getAvailableMedewerkersForLinking = query({
       return [];
     }
 
-    // Medewerkers zijn tenant-data (medewerkers.userId = het bedrijfsaccount).
-    // Zonder deze scope kreeg directie de actieve medewerkers van ÁLLE
-    // bedrijven in de koppellijst te zien — inclusief naam, e-mail en functie
-    // (audit §2). Alleen medewerkers van het eigen bedrijf zijn hier relevant,
-    // want koppelen mag sowieso niet buiten het eigen bedrijf.
-    const companyUserId = await getCompanyUserId(ctx);
+    // Medewerkers zijn tenant-data. Zonder deze scope kreeg directie de actieve
+    // medewerkers van ÁLLE organisaties in de koppellijst te zien — inclusief
+    // naam, e-mail en functie (audit §2). Alleen medewerkers van de eigen
+    // organisatie zijn hier relevant, want koppelen mag daarbuiten sowieso niet.
+    const orgId = await requireOrgId(ctx);
     const allMedewerkers = await ctx.db
       .query("medewerkers")
-      .withIndex("by_user_actief", (q) =>
-        q.eq("userId", companyUserId).eq("isActief", true)
+      .withIndex("by_org_actief", (q) =>
+        q.eq("orgId", orgId).eq("isActief", true)
       )
       .collect();
 
@@ -1598,6 +1601,13 @@ export const cliSetUserRole = mutation({
  * - All urenregistraties
  * - All medewerkers (if admin)
  * - Activity logs if any
+ *
+ * PERSOONLIJK PAD — élke `by_user`-lezing hieronder is met opzet op `userId`
+ * en blijft dat. AVG artikel 15 gaat over de gegevens van déze betrokkene, niet
+ * over de dataset van zijn werkgever: een export op orgId zou de klanten,
+ * offertes en uren van collega's meeleveren. Dat is precies het tegendeel van
+ * wat het artikel vraagt. Zelfde regel geldt voor `requestDataDeletion`
+ * hieronder en voor pushTokens/notification_preferences overal.
  */
 export const exportPersonalData = query({
   args: {},
@@ -1989,6 +1999,14 @@ export const requestDataDeletion = mutation({
     // Bewust NIET via getCompanyUserId: die helper geeft voor een klant het
     // eigen account terug (klanten zien alleen hun eigen data), terwijl het
     // verzoek juist naar het hovenierbedrijf achter dat klantrecord moet.
+    //
+    // PRE-ORG, WACHT OP FASE 6: de ontvanger-resolutie loopt nog over
+    // `userId`-eigendom en niet over `orgId`. Omzetten kan pas als `users` een
+    // org-koppeling heeft: een klantaccount heeft géén org-claim in het JWT
+    // (dus `requireOrgId` werkt hier niet) en een directie-account zónder
+    // gekoppelde medewerker is via `orgId` op dit moment nergens aan te
+    // herkennen. Tot dan blijft dit pad zoals het is — het werkt, en fout
+    // raden is hier een datalek.
     const rol = normalizeRole(user.role);
     let companyUserId: Id<"users"> | null = null;
 
@@ -2197,6 +2215,23 @@ export const deleteUser = mutation({
     const userToDelete = await ctx.db.get(args.userId);
     if (!userToDelete) {
       throw new ConvexError("Gebruiker niet gevonden");
+    }
+
+    // Tenantgrens (zelfde afleiding als listUsersWithDetails, want `users`
+    // heeft nog geen orgId): een account dat via zijn medewerker- of
+    // klantkoppeling bij een ándere organisatie hoort, mag directie hier niet
+    // verwijderen — dat verwijdert ook het Clerk-account van een vreemde.
+    // Ongekoppelde accounts blijven verwijderbaar; die horen bij niemand.
+    const orgId = await requireOrgId(ctx);
+    const gekoppeldeOrgId = userToDelete.linkedMedewerkerId
+      ? (await ctx.db.get(userToDelete.linkedMedewerkerId))?.orgId
+      : userToDelete.linkedKlantId
+        ? (await ctx.db.get(userToDelete.linkedKlantId))?.orgId
+        : undefined;
+    if (gekoppeldeOrgId && gekoppeldeOrgId !== orgId) {
+      throw new ConvexError(
+        "Deze gebruiker hoort bij een andere organisatie"
+      );
     }
 
     // If user is linked to a klant, clear the klant's clerkUserId

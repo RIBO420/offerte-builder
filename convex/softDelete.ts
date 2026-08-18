@@ -11,8 +11,9 @@
 import { v } from "convex/values";
 import { query, internalMutation, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { requireAuthUserId } from "./auth";
+import { requireOrgId } from "./auth";
 import { klantNaam } from "./lib/offerteKlant";
+import type { Id } from "./_generated/dataModel";
 
 // 30 days in milliseconds
 const SOFT_DELETE_RETENTION_DAYS = 30;
@@ -21,6 +22,13 @@ const SOFT_DELETE_RETENTION_MS = SOFT_DELETE_RETENTION_DAYS * 24 * 60 * 60 * 100
 /**
  * Internal query to get all soft-deleted items older than retention period.
  * Used by the cleanup scheduled function.
+ *
+ * TENANT-SCOPE: bewust deployment-breed, niet per organisatie. Deze cron heeft
+ * geen identity en moet élke tenant opruimen — óók een uitgezette organisatie
+ * en rijen die nog helemaal geen `orgId` dragen. Een lus over de actieve
+ * organisaties zou die stilletjes voor altijd laten staan. De `orgId` gaat wél
+ * mee naar de delete-mutaties, zodat die kunnen controleren dat ze het
+ * document verwijderen dat hier gevonden is.
  */
 export const getExpiredSoftDeletedItems = internalQuery({
   args: {},
@@ -42,12 +50,12 @@ export const getExpiredSoftDeletedItems = internalQuery({
     return {
       offertes: expiredOffertes.map((o) => ({
         _id: o._id,
-        userId: o.userId,
+        orgId: o.orgId,
         deletedAt: o.deletedAt,
       })),
       projecten: expiredProjecten.map((p) => ({
         _id: p._id,
-        userId: p.userId,
+        orgId: p.orgId,
         deletedAt: p.deletedAt,
       })),
     };
@@ -55,12 +63,38 @@ export const getExpiredSoftDeletedItems = internalQuery({
 });
 
 /**
+ * Controleert dat een document dat permanent verwijderd wordt bij de verwachte
+ * organisatie hoort. `verwachteOrgId` is optioneel: rijen van vóór de
+ * org-migratie hebben nog geen orgId en die mag de opruiming niet blokkeren.
+ * Wél hard bij een mismatch — dat betekent dat er een id uit een andere tenant
+ * is doorgegeven.
+ */
+function bewaakOrgVanDocument(
+  document: { orgId?: Id<"organisaties"> } | null,
+  verwachteOrgId: Id<"organisaties"> | undefined,
+  naam: string
+): void {
+  if (!document || !verwachteOrgId) return;
+  if (document.orgId && document.orgId !== verwachteOrgId) {
+    throw new Error(
+      `[softDelete] ${naam} hoort bij een andere organisatie dan meegegeven — verwijdering geweigerd`
+    );
+  }
+}
+
+/**
  * Internal mutation to permanently delete an offerte.
  * Used by the cleanup scheduled function.
  */
 export const permanentlyDeleteOfferte = internalMutation({
-  args: { id: v.id("offertes") },
+  args: {
+    id: v.id("offertes"),
+    /** Tenant zoals gevonden door de scan; zie bewaakOrgVanDocument. */
+    orgId: v.optional(v.id("organisaties")),
+  },
   handler: async (ctx, args) => {
+    bewaakOrgVanDocument(await ctx.db.get(args.id), args.orgId, "offerte");
+
     // Delete related versions
     const versions = await ctx.db
       .query("offerte_versions")
@@ -117,8 +151,14 @@ export const permanentlyDeleteOfferte = internalMutation({
  * Used by the cleanup scheduled function.
  */
 export const permanentlyDeleteProject = internalMutation({
-  args: { id: v.id("projecten") },
+  args: {
+    id: v.id("projecten"),
+    /** Tenant zoals gevonden door de scan; zie bewaakOrgVanDocument. */
+    orgId: v.optional(v.id("organisaties")),
+  },
   handler: async (ctx, args) => {
+    bewaakOrgVanDocument(await ctx.db.get(args.id), args.orgId, "project");
+
     // Delete related voorcalculaties
     const voorcalculaties = await ctx.db
       .query("voorcalculaties")
@@ -291,6 +331,7 @@ export const cleanupExpiredItems = internalMutation({
     for (const offerte of expired.offertes) {
       await ctx.runMutation(internal.softDelete.permanentlyDeleteOfferte, {
         id: offerte._id,
+        orgId: offerte.orgId,
       });
       deletedOffertes++;
     }
@@ -299,6 +340,7 @@ export const cleanupExpiredItems = internalMutation({
     for (const project of expired.projecten) {
       await ctx.runMutation(internal.softDelete.permanentlyDeleteProject, {
         id: project._id,
+        orgId: project.orgId,
       });
       deletedProjecten++;
     }
@@ -312,17 +354,20 @@ export const cleanupExpiredItems = internalMutation({
 });
 
 /**
- * Get soft-deleted items for the current user (for a "Trash" view).
+ * Get soft-deleted items for the current organisation (for a "Trash" view).
+ *
+ * De prullenbak is van het BEDRIJF, niet van de gebruiker: wie iets weggooide
+ * doet er niet toe, een collega moet het terug kunnen halen.
  */
 export const getDeletedItems = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     // Get deleted offertes
     const allOffertes = await ctx.db
       .query("offertes")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
     const deletedOffertes = allOffertes
       .filter((o) => o.deletedAt)
@@ -343,7 +388,7 @@ export const getDeletedItems = query({
     // Get deleted projecten
     const allProjecten = await ctx.db
       .query("projecten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
     const deletedProjecten = await Promise.all(
       allProjecten
@@ -594,6 +639,7 @@ export const runDailyCleanup = internalMutation({
     for (const offerte of expiredOffertes) {
       await ctx.runMutation(internal.softDelete.permanentlyDeleteOfferte, {
         id: offerte._id,
+        orgId: offerte.orgId,
       });
       deletedOffertes++;
     }
@@ -602,6 +648,7 @@ export const runDailyCleanup = internalMutation({
     for (const project of expiredProjecten) {
       await ctx.runMutation(internal.softDelete.permanentlyDeleteProject, {
         id: project._id,
+        orgId: project.orgId,
       });
       deletedProjecten++;
     }

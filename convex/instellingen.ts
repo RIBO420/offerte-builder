@@ -1,7 +1,7 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query, internalQuery } from "./_generated/server";
-import { requireAuthUserId, requireOrgId } from "./auth";
-import { getCompanyUserId, requireKantoor, requireNotViewer } from "./roles";
+import { requireOrgContext, requireOrgId } from "./auth";
+import { requireKantoor, requireNotViewer } from "./roles";
 import { isGeldigeTijd, naarMinuten } from "./dagkaartLogica";
 import { isGeldigeSuggestieDrempel } from "./beurtNacalculatieLogica";
 import {
@@ -45,36 +45,42 @@ const scopeMargesValidator = v.object({
 export const get = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     return await ctx.db
       .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .unique();
   },
 });
 
-// Get settings by userId (internal — no auth required, for use by cron jobs/actions)
-export const getByUserId = internalQuery({
-  args: { userId: v.id("users") },
+/**
+ * Instellingen van één organisatie — intern, zonder identity, voor cronjobs en
+ * acties. Vervangt `getByUserId`: die haalde de rij van de *gebruiker* op, en
+ * dat is sinds de org-migratie niet meer de tenantsleutel (twee collega's in
+ * hetzelfde bedrijf hadden zo elk hun eigen bedrijfsgegevens).
+ */
+export const getByOrgId = internalQuery({
+  args: { orgId: v.id("organisaties") },
   handler: async (ctx, args) => {
     return await ctx.db
       .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_org", (q) => q.eq("orgId", args.orgId))
       .unique();
   },
 });
 
-// Create default settings for authenticated user (idempotent)
+// Create default settings for the active organisation (idempotent)
 export const createDefaults = mutation({
   args: {},
   handler: async (ctx) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const { org, user } = await requireOrgContext(ctx);
+    const orgId = org._id;
 
     // Idempotent: return existing if already created
     const existing = await ctx.db
       .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .unique();
 
     if (existing) {
@@ -82,7 +88,8 @@ export const createDefaults = mutation({
     }
 
     return await ctx.db.insert("instellingen", {
-      userId,
+      orgId,
+      userId: user._id,
       uurtarief: 45.0,
       standaardMargePercentage: 15,
       btwPercentage: 21,
@@ -110,11 +117,11 @@ export const update = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const settings = await ctx.db
       .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .unique();
 
     if (!settings) {
@@ -155,7 +162,7 @@ export const updateDagkaartInstellingen = mutation({
   },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     for (const tijd of [args.vertrekTijd, args.pauzeStart, args.pauzeEind]) {
       if (tijd !== undefined && !isGeldigeTijd(tijd)) {
@@ -176,7 +183,7 @@ export const updateDagkaartInstellingen = mutation({
 
     const settings = await ctx.db
       .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .unique();
     if (!settings) {
       throw new ConvexError(
@@ -221,7 +228,7 @@ export const updateVeldInstellingen = mutation({
   },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     if (
       args.afwijkingDrempelMinuten !== undefined &&
@@ -242,7 +249,7 @@ export const updateVeldInstellingen = mutation({
 
     const settings = await ctx.db
       .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .unique();
     if (!settings) {
       throw new ConvexError(
@@ -267,16 +274,17 @@ export const updateVeldInstellingen = mutation({
 
 /**
  * Veld-instellingen lezen voor de veld-weergave (voorman/medewerker):
- * noodprotocol-tekst + de geldende drempels. Bedrijfsscope via
- * getCompanyUserId zodat veld-accounts de instellingen van hun bedrijf zien.
+ * noodprotocol-tekst + de geldende drempels. De scope is de organisatie uit
+ * het JWT — voorheen liep dit via `getCompanyUserId`, de omweg langs de
+ * gekoppelde medewerker die de bedrijfsgrens moest nabootsen.
  */
 export const getVeldInstellingen = query({
   args: {},
   handler: async (ctx) => {
-    const companyUserId = await getCompanyUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const settings = await ctx.db
       .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", companyUserId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .unique();
     const veld = settings?.veldInstellingen;
     return {
@@ -299,7 +307,7 @@ export const updateNacalculatieInstellingen = mutation({
   },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     if (
       args.suggestieDrempelBeurten !== undefined &&
@@ -312,7 +320,7 @@ export const updateNacalculatieInstellingen = mutation({
 
     const settings = await ctx.db
       .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .unique();
     if (!settings) {
       throw new ConvexError(
@@ -344,8 +352,7 @@ export const getNextOfferteNummer = mutation({
   args: {},
   handler: async (ctx) => {
     await requireNotViewer(ctx);
-    // De offertenummer-teller hangt aan de organisatie (zie
-    // lib/offerteNummer.ts); de rest van dit bestand volgt in cluster 3.9.
+    // De offertenummer-teller hangt aan de organisatie (zie lib/offerteNummer.ts).
     const orgId = await requireOrgId(ctx);
     return await reserveerOfferteNummer(ctx, orgId);
   },
@@ -355,15 +362,19 @@ export const getNextOfferteNummer = mutation({
  * Voorbeeld van het eerstvolgende nummer — leest alleen, hoogt niets op.
  * Bedoeld om in de UI te tonen ("wordt OFF-2026-014"); het echte nummer komt
  * pas bij `offertes.create` vast te liggen en kan dus afwijken.
+ *
+ * Leest dezelfde by_org-teller als `reserveerOfferteNummer`; anders toonde het
+ * voorbeeld de teller van de ingelogde gebruiker en het echte nummer die van
+ * de organisatie.
  */
 export const previewNextOfferteNummer = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const settings = await ctx.db
       .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .unique();
 
     if (!settings) return null;
@@ -395,11 +406,11 @@ export const updateVoorwaardenPdf = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const settings = await ctx.db
       .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .unique();
 
     if (!settings) {
@@ -425,11 +436,11 @@ export const removeVoorwaardenPdf = mutation({
   args: {},
   handler: async (ctx) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const settings = await ctx.db
       .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .unique();
 
     if (!settings) throw new ConvexError("Instellingen niet gevonden");
@@ -447,10 +458,10 @@ export const removeVoorwaardenPdf = mutation({
 export const getVoorwaardenPdfUrl = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const settings = await ctx.db
       .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .unique();
 
     if (!settings?.voorwaardenPdfId) return null;
@@ -474,11 +485,11 @@ export const updateHerinneringInstellingen = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const settings = await ctx.db
       .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .unique();
 
     if (!settings) {
@@ -504,10 +515,10 @@ export const updateHerinneringInstellingen = mutation({
 export const getDeelfactuurTemplates = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     const settings = await ctx.db
       .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .unique();
 
     return settings?.deelfactuurTemplates ?? [];
@@ -526,12 +537,12 @@ export const upsertDeelfactuurTemplate = mutation({
     }),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     await requireNotViewer(ctx);
 
     const settings = await ctx.db
       .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .unique();
 
     if (!settings) {
@@ -555,12 +566,12 @@ export const upsertDeelfactuurTemplate = mutation({
 export const deleteDeelfactuurTemplate = mutation({
   args: { templateId: v.string() },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
     await requireNotViewer(ctx);
 
     const settings = await ctx.db
       .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .unique();
 
     if (!settings) {
@@ -597,11 +608,11 @@ export const updatePdfBranding = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const userId = await requireAuthUserId(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const settings = await ctx.db
       .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .unique();
 
     if (!settings) {
@@ -625,13 +636,17 @@ export const updatePdfBranding = mutation({
   },
 });
 
-/** Internal: get voorwaarden URL for a specific user (for automated emails) */
-export const getVoorwaardenForUser = internalQuery({
-  args: { userId: v.id("users") },
+/**
+ * Internal: get voorwaarden URL voor één organisatie (voor automatische mails).
+ * Hernoemd uit `getVoorwaardenForUser` (0 aanroepers) omdat de tenantsleutel de
+ * organisatie is.
+ */
+export const getVoorwaardenForOrg = internalQuery({
+  args: { orgId: v.id("organisaties") },
   handler: async (ctx, args) => {
     const settings = await ctx.db
       .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_org", (q) => q.eq("orgId", args.orgId))
       .unique();
 
     if (!settings?.voorwaardenPdfId) return null;

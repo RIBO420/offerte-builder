@@ -12,6 +12,11 @@
  * 3. Facturen: alleen documentStatus "verzonden" (nooit concept/definitief).
  * 4. De klanttijdlijn en de interne case-thread (meldingComments) zijn
  *    intern kantoordossier — het portaal leest ze NOOIT.
+ * 5. Het klant-JWT heeft GEEN org-claim: `requireOrgId`/`requireOrgContext`
+ *    werken hier niet en horen hier ook niet. Waar een tenant nodig is (de
+ *    bedrijfsgegevens op de factuur-PDF, de orgId op een nieuwe melding of
+ *    thread) komt die uit het klant- of factuurdocument — met een guard,
+ *    want `orgId` is optioneel zolang de migratie loopt.
  */
 import { v, ConvexError } from "convex/values";
 import { query, mutation } from "./_generated/server";
@@ -370,11 +375,18 @@ export const getFactuurVoorPdf = query({
       return null;
     }
 
-    // Bedrijfsgegevens voor de briefpapier-header (zelf al klant-facing)
-    const instellingen = await ctx.db
-      .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", factuur.userId))
-      .first();
+    // Bedrijfsgegevens voor de briefpapier-header (zelf al klant-facing).
+    // De tenant komt uit de FACTUUR, niet uit een org-claim: het klant-JWT
+    // heeft er geen. Guard vóór de index-q.eq (CLAUDE.md regel 4) — zonder
+    // orgId zou q.eq(undefined) de instellingen van élke tenant zonder orgId
+    // matchen.
+    const orgId = factuur.orgId;
+    const instellingen = orgId
+      ? await ctx.db
+          .query("instellingen")
+          .withIndex("by_org", (q) => q.eq("orgId", orgId))
+          .first()
+      : null;
 
     // Allowlist = precies wat op de factuur-PDF staat (portaal-regel 2)
     return {

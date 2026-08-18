@@ -131,6 +131,8 @@ class FakeDb {
 
 interface FakeIdentity {
   subject: string;
+  /** Het org_id-claim uit het JWT-template "convex"; requireOrg leest dit. */
+  org_id?: string;
 }
 
 interface FakeCtx {
@@ -165,11 +167,14 @@ let db: FakeDb;
 let identity: FakeIdentity | null;
 let ctx: FakeCtx;
 
-/** users._id van het bedrijfsaccount (de tenant-root) per bedrijf. */
+/** users._id van het directie-account per organisatie. */
 let directieA: string;
 let directieB: string;
 let medewerkerA: string;
 let medewerkerB: string;
+/** organisaties._id — sinds de org-migratie DE tenantsleutel. */
+let orgA: string;
+let orgB: string;
 
 beforeEach(() => {
   db = new FakeDb();
@@ -178,6 +183,20 @@ beforeEach(() => {
     db,
     auth: { getUserIdentity: async () => identity },
   };
+
+  orgA = db.insertSync("organisaties", {
+    clerkOrgId: "clerk_org_a",
+    naam: "Bedrijf A",
+    actief: true,
+    aangemaaktOp: Date.now(),
+  });
+
+  orgB = db.insertSync("organisaties", {
+    clerkOrgId: "clerk_org_b",
+    naam: "Bedrijf B",
+    actief: true,
+    aangemaaktOp: Date.now(),
+  });
 
   directieA = db.insertSync("users", {
     clerkId: "clerk_directie_a",
@@ -196,6 +215,7 @@ beforeEach(() => {
   });
 
   medewerkerA = db.insertSync("medewerkers", {
+    orgId: orgA,
     userId: directieA,
     naam: "Jan de Vries",
     email: "jan@bedrijf-a.nl",
@@ -204,6 +224,7 @@ beforeEach(() => {
   });
 
   medewerkerB = db.insertSync("medewerkers", {
+    orgId: orgB,
     userId: directieB,
     naam: "Piet Jansen",
     email: "piet@bedrijf-b.nl",
@@ -212,8 +233,12 @@ beforeEach(() => {
   });
 });
 
-function logInAls(clerkId: string) {
-  identity = { subject: clerkId };
+/**
+ * Log in als `clerkId`. `clerkOrgId` is het org_id-claim: laat het weg om een
+ * account zonder actieve organisatie na te bootsen (requireOrg gooit dan).
+ */
+function logInAls(clerkId: string, clerkOrgId: string | undefined = "clerk_org_a") {
+  identity = { subject: clerkId, ...(clerkOrgId ? { org_id: clerkOrgId } : {}) };
 }
 
 // ─── getAvailableMedewerkersForLinking ───────────────────────────────────────
@@ -229,6 +254,7 @@ describe("users.getAvailableMedewerkersForLinking — bedrijfsscope", () => {
 
   it("toont geen inactieve medewerkers van het eigen bedrijf", async () => {
     db.insertSync("medewerkers", {
+      orgId: orgA,
       userId: directieA,
       naam: "Uit dienst",
       isActief: false,
@@ -331,6 +357,7 @@ describe("users.requestDataDeletion — bedrijfsscope", () => {
 
   it("neemt extra directie-accounts van hetzelfde bedrijf wél mee", async () => {
     const tweedeDirectieMedewerker = db.insertSync("medewerkers", {
+      orgId: orgA,
       userId: directieA,
       naam: "Mede-directeur",
       isActief: true,
@@ -363,6 +390,7 @@ describe("users.requestDataDeletion — bedrijfsscope", () => {
 
   it("stuurt het verzoek van een klant naar het bedrijf achter het klantrecord", async () => {
     const klantId = db.insertSync("klanten", {
+      orgId: orgA,
       userId: directieA,
       naam: "Familie Bakker",
     });

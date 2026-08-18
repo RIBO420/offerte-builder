@@ -24,7 +24,7 @@
  * - isViewer(ctx)                 — true if klant (or legacy viewer)
  * - hasPermission(role, action, resource) — permission matrix check
  * - hasRole(role, roles[])        — check if role is in list
- * - getCompanyUserId(ctx)         — returns company owner userId
+ * - getCompanyUserId(ctx)         — DEPRECATED, geen tenantgrens meer (zie doc)
  * - getLinkedMedewerker(ctx)      — returns linked medewerker doc
  * - requireLinkedMedewerker(ctx)  — throws if no linked medewerker
  */
@@ -32,7 +32,7 @@
 import { v, ConvexError } from "convex/values";
 import { QueryCtx, MutationCtx, mutation, query } from "./_generated/server";
 import { Id, Doc } from "./_generated/dataModel";
-import { AuthError, requireAuth } from "./auth";
+import { AuthError, requireAuth, requireOrgId } from "./auth";
 import { userRoleValidator } from "./validators";
 
 // ============================================
@@ -606,7 +606,16 @@ export async function requireLinkedMedewerker(
 }
 
 /**
- * Get the company userId for the authenticated user.
+ * @deprecated Sinds de Clerk-Organizations-migratie is de tenant de
+ * organisatie uit het JWT: gebruik `requireOrgId` / `requireOrgContext` uit
+ * auth.ts. Deze helper geeft een *user*-id terug dat vroeger als tenantsleutel
+ * diende en dat NIET meer is.
+ *
+ * Nog niet verwijderd omdat `chat.ts` (4×) en `chatThreads.ts` (2×) hem met een
+ * gemotiveerde toelichting aanhouden: daar wordt hij niet als tenantgrens
+ * gebruikt maar als deelnemers-/eigenaarsleutel op bestaande threads. Zodra
+ * die laatste zes call-sites om zijn, kan deze functie weg.
+ *
  * For directie: returns their own userId
  * For medewerkers/voorman/etc: returns the userId of the company (from medewerker record)
  * For klant: returns their own userId (they can only view their assigned data)
@@ -682,6 +691,13 @@ export const linkMedewerker = mutation({
     const medewerker = await ctx.db.get(args.medewerkerId);
     if (!medewerker) {
       throw new ConvexError("Medewerker niet gevonden");
+    }
+    // Tenantgrens: een beheerder mag alleen medewerkers van de eigen
+    // organisatie koppelen — anders krijgt een vreemd account via
+    // `linkedMedewerkerId` toegang tot het personeelsbestand van die tenant.
+    const orgId = await requireOrgId(ctx);
+    if (medewerker.orgId !== orgId) {
+      throw new ConvexError("Geen toegang tot deze medewerker");
     }
 
     await ctx.db.patch(args.userId, {
@@ -841,11 +857,12 @@ export const listUsersByRole = query({
 export const getAvailableMedewerkers = query({
   args: {},
   handler: async (ctx) => {
-    const admin = await requireAdmin(ctx);
+    await requireAdmin(ctx);
+    const orgId = await requireOrgId(ctx);
 
     const medewerkers = await ctx.db
       .query("medewerkers")
-      .withIndex("by_user", (q) => q.eq("userId", admin._id))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     const users = await ctx.db.query("users").collect();

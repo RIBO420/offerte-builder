@@ -244,17 +244,17 @@ export function valideerTaken(ruw: unknown): TaakVoorstel[] {
 }
 
 /**
- * Een action heeft geen `ctx.db`, dus de rolcheck loopt via een query —
+ * Een action heeft geen `ctx.db`, dus de org- en rolcheck lopen via queries —
  * zelfde patroon als `places.bewaakToegang`. De eis is dezelfde als bij
  * `tijdlijn.voegEntryToe`: alleen kantoor (directie of projectleider) legt
  * gesprekken vast, dus alleen kantoor mag de analyse aanroepen. Elke call
  * kost geld op de sleutel van de app-eigenaar.
+ *
+ * `organisaties.getCurrent` is hier de action-variant van `requireOrg`: hij
+ * gooit als er geen identity of geen actieve organisatie in het JWT zit.
  */
 async function bewaakToegang(ctx: ActionCtx): Promise<void> {
-  const identiteit = await ctx.auth.getUserIdentity();
-  if (!identiteit) {
-    throw new ConvexError("Niet ingelogd");
-  }
+  await ctx.runQuery(api.organisaties.getCurrent, {});
 
   const rol = await ctx.runQuery(api.roles.getCurrentUserRole, {});
   if (!rol || !(rol.isAdmin || rol.isProjectleider)) {

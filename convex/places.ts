@@ -28,15 +28,20 @@ export const beschikbaar = action({
 });
 
 /**
- * Een action heeft geen `ctx.db`, dus de rolcheck loopt via een query.
+ * Een action heeft geen `ctx.db`, dus de org- en rolcheck lopen via queries.
  * Klantaccounts mogen hier niet bij: zij zien dit formulier nooit, en elke
  * aanroep kost geld op de sleutel van de app-eigenaar.
+ *
+ * `organisaties.getCurrent` is de action-variant van `requireOrg` (gooit
+ * zonder identity of zonder actieve organisatie); de identity zelf hebben we
+ * daarnáást nodig, want de rate limit telt per gebruiker.
  */
 async function bewaakToegang(ctx: ActionCtx) {
   const identiteit = await ctx.auth.getUserIdentity();
   if (!identiteit) {
     throw new ConvexError("Niet ingelogd");
   }
+  await ctx.runQuery(api.organisaties.getCurrent, {});
 
   const rol = await ctx.runQuery(api.roles.getCurrentUserRole, {});
   if (!rol || rol.isKlant) {

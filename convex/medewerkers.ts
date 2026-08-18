@@ -1,7 +1,7 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { getAuthenticatedUser, requireAuth } from "./auth";
-import { requireNotViewer } from "./roles";
+import { requireOrgContext } from "./auth";
+import { hasPermission, normalizeRole, requireNotViewer } from "./roles";
 import { Id, Doc } from "./_generated/dataModel";
 import { QueryCtx, MutationCtx } from "./_generated/server";
 
@@ -42,81 +42,87 @@ const noodcontactValidator = v.object({
 // ============================================
 
 /**
- * Get the user's role in relation to medewerkers.
- * Returns: "directie" | "medewerker" | null
- * - directie: User is a company owner with medewerkers under their account
- * - medewerker: User is linked to a medewerker record via clerkUserId
- * - null: User has no access
+ * Org-context + leesbereik voor de medewerkers-module.
  *
- * NOTE: This is a local ownership-based role check specific to medewerkers,
- * separate from the global RBAC role in roles.ts. It determines if the user
- * owns the medewerker records (directie) or is linked as a medewerker.
+ * Vervangt de oude, ad-hoc `getUserRole`. Die leidde de tenant af uit
+ * eigendom ("wie heeft medewerker-rijen op zijn userId staan") en de rol uit
+ * "is dit account aan een medewerker-rij gekoppeld". Beide zijn sinds de
+ * Clerk-Organizations-migratie fout: de tenant is de organisatie uit het
+ * JWT, en de rol staat in `users.role`.
+ *
+ * `magAllenZien` volgt de rechtenmatrix in roles.ts: directie, projectleider
+ * en voorman mogen `medewerkers` lezen; alle andere rollen zien uitsluitend
+ * hun eigen profiel.
  */
-async function getUserRole(ctx: QueryCtx | MutationCtx): Promise<{
-  role: "directie" | "medewerker" | null;
-  userId: Id<"users"> | null;
-  linkedMedewerker: Doc<"medewerkers"> | null;
-  companyUserId: Id<"users"> | null;
+async function medewerkerContext(ctx: QueryCtx | MutationCtx): Promise<{
+  orgId: Id<"organisaties">;
+  magAllenZien: boolean;
+  magBeheren: boolean;
+  eigenProfiel: Doc<"medewerkers"> | null;
 }> {
-  const user = await getAuthenticatedUser(ctx);
-  if (!user) {
-    return { role: null, userId: null, linkedMedewerker: null, companyUserId: null };
+  const { org, user } = await requireOrgContext(ctx);
+  const role = normalizeRole(user.role);
+
+  // Koppeling primair via users.linkedMedewerkerId (de bron van waarheid),
+  // met de oudere clerkUserId-koppeling als terugval voor accounts die nog
+  // niet omgezet zijn.
+  let eigenProfiel: Doc<"medewerkers"> | null = null;
+  if (user.linkedMedewerkerId) {
+    eigenProfiel = await ctx.db.get(user.linkedMedewerkerId);
+  }
+  if (!eigenProfiel) {
+    eigenProfiel = await ctx.db
+      .query("medewerkers")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", user.clerkId))
+      .first();
+  }
+  // Een koppeling naar een medewerker van een ándere organisatie telt niet:
+  // dat zou de tenantgrens langs de achterdeur openen.
+  if (eigenProfiel && eigenProfiel.orgId !== org._id) {
+    eigenProfiel = null;
   }
 
-  // Check if user is linked to a medewerker via clerkUserId
-  const linkedMedewerker = await ctx.db
-    .query("medewerkers")
-    .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", user.clerkId))
-    .first();
-
-  if (linkedMedewerker) {
-    // User is a medewerker employee
-    return {
-      role: "medewerker",
-      userId: user._id,
-      linkedMedewerker,
-      companyUserId: linkedMedewerker.userId,
-    };
-  }
-
-  // Check if user has medewerkers under their account (is a company owner/directie)
-  const ownedMedewerkers = await ctx.db
-    .query("medewerkers")
-    .withIndex("by_user", (q) => q.eq("userId", user._id))
-    .first();
-
-  if (ownedMedewerkers) {
-    // User is directie (company owner) with medewerkers
-    return {
-      role: "directie",
-      userId: user._id,
-      linkedMedewerker: null,
-      companyUserId: user._id,
-    };
-  }
-
-  // User is authenticated but doesn't have medewerkers - could be new directie
-  // Allow them to create medewerkers (directie role by default for authenticated users)
   return {
-    role: "directie",
-    userId: user._id,
-    linkedMedewerker: null,
-    companyUserId: user._id,
+    orgId: org._id,
+    magAllenZien: hasPermission(role, "read", "medewerkers"),
+    magBeheren: hasPermission(role, "manage", "medewerkers"),
+    eigenProfiel,
   };
 }
 
 /**
- * Require directie (admin) role. Throws error if user is not directie.
+ * Vereis beheerrechten op het personeelsbestand (rechtenmatrix: alleen
+ * directie heeft `manage` op `medewerkers`) én geef de org-context terug.
  */
-async function requireAdmin(ctx: QueryCtx | MutationCtx): Promise<{
+async function requireMedewerkerBeheer(ctx: QueryCtx | MutationCtx): Promise<{
+  orgId: Id<"organisaties">;
   userId: Id<"users">;
-  companyUserId: Id<"users">;
 }> {
-  const { role, userId, companyUserId } = await getUserRole(ctx);
-  if (role !== "directie" || !userId || !companyUserId) {
+  const { org, user } = await requireOrgContext(ctx);
+  if (!hasPermission(user.role, "manage", "medewerkers")) {
     throw new ConvexError("Alleen beheerders kunnen deze actie uitvoeren");
   }
-  return { userId, companyUserId };
+  return { orgId: org._id, userId: user._id };
+}
+
+/**
+ * Haal een medewerker op en controleer dat hij bij de eigen organisatie hoort.
+ * Losse helper omdat elke beheer-mutatie exact dezelfde twee foutmeldingen
+ * teruggeeft.
+ */
+async function getMedewerkerVanOrg(
+  ctx: QueryCtx | MutationCtx,
+  id: Id<"medewerkers">,
+  orgId: Id<"organisaties">
+): Promise<Doc<"medewerkers">> {
+  const medewerker = await ctx.db.get(id);
+  if (!medewerker) {
+    throw new ConvexError("Medewerker niet gevonden");
+  }
+  if (medewerker.orgId !== orgId) {
+    throw new ConvexError("Geen toegang tot deze medewerker");
+  }
+  return medewerker;
 }
 
 // ============================================
@@ -124,39 +130,36 @@ async function requireAdmin(ctx: QueryCtx | MutationCtx): Promise<{
 // ============================================
 
 /**
- * Search medewerkers by naam, email, or functie.
- * - Admin: searches all medewerkers they own
- * - Medewerker: can only see their own profile if it matches
+ * Search medewerkers by naam, email, of functie.
+ * - Kantoor/voorman: doorzoekt het bestand van de eigen organisatie
+ * - Veldrollen: alleen het eigen profiel, als dat matcht
  */
 export const search = query({
   args: { searchTerm: v.string() },
   handler: async (ctx, args) => {
-    const { role, linkedMedewerker, companyUserId } = await getUserRole(ctx);
-
-    if (!role || !companyUserId) {
-      return [];
-    }
+    const { orgId, magAllenZien, eigenProfiel } = await medewerkerContext(ctx);
 
     const searchTerm = args.searchTerm.toLowerCase().trim();
 
-    // Medewerker role: can only see their own profile if it matches
-    if (role === "medewerker" && linkedMedewerker) {
+    // Veldrollen zien alleen hun eigen profiel
+    if (!magAllenZien) {
+      if (!eigenProfiel) return [];
       if (!searchTerm) {
-        return [linkedMedewerker];
+        return [eigenProfiel];
       }
 
       const matches =
-        linkedMedewerker.naam.toLowerCase().includes(searchTerm) ||
-        linkedMedewerker.email?.toLowerCase().includes(searchTerm) ||
-        linkedMedewerker.functie?.toLowerCase().includes(searchTerm);
+        eigenProfiel.naam.toLowerCase().includes(searchTerm) ||
+        eigenProfiel.email?.toLowerCase().includes(searchTerm) ||
+        eigenProfiel.functie?.toLowerCase().includes(searchTerm);
 
-      return matches ? [linkedMedewerker] : [];
+      return matches ? [eigenProfiel] : [];
     }
 
-    // Admin role: search all medewerkers they own
+    // Leesbereik: alle medewerkers van de eigen organisatie
     const medewerkers = await ctx.db
       .query("medewerkers")
-      .withIndex("by_user", (q) => q.eq("userId", companyUserId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // If no search term, return recent medewerkers
@@ -184,28 +187,23 @@ export const search = query({
 
 /**
  * Get the linked medewerker profile for the current user.
- * This is for medewerkers to view their own profile.
+ *
+ * PERSOONLIJK pad: het eigen profiel hangt aan het Clerk-account, niet aan de
+ * organisatie. De org-check blijft er wel op, zodat een account dat naar een
+ * medewerker van een andere tenant wijst niets terugkrijgt.
  */
 export const getMyMedewerkerProfile = query({
   args: {},
   handler: async (ctx) => {
-    const user = await getAuthenticatedUser(ctx);
-    if (!user) return null;
-
-    // Find medewerker linked to this user's clerkId
-    const medewerker = await ctx.db
-      .query("medewerkers")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", user.clerkId))
-      .first();
-
-    return medewerker;
+    const { eigenProfiel } = await medewerkerContext(ctx);
+    return eigenProfiel;
   },
 });
 
 /**
  * Haal medewerkers op met paginering.
- * - Admin: sees all medewerkers they own (paginated)
- * - Medewerker: sees only their own linked profile
+ * - Kantoor/voorman: alle medewerkers van de eigen organisatie
+ * - Veldrollen: alleen het eigen gekoppelde profiel
  */
 export const listPaginated = query({
   args: {
@@ -214,22 +212,14 @@ export const listPaginated = query({
     isActief: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const { role, linkedMedewerker, companyUserId } = await getUserRole(ctx);
+    const { orgId, magAllenZien, eigenProfiel } = await medewerkerContext(ctx);
 
-    if (!role || !companyUserId) {
-      return {
-        items: [],
-        totalCount: 0,
-        totalPages: 0,
-        page: args.page,
-        limit: args.limit,
-      };
-    }
-
-    // Medewerker role: can only see their own profile
-    if (role === "medewerker" && linkedMedewerker) {
-      // If filtering by isActief and medewerker doesn't match, return empty
-      if (args.isActief !== undefined && linkedMedewerker.isActief !== args.isActief) {
+    // Veldrollen zien alleen hun eigen profiel
+    if (!magAllenZien) {
+      const past =
+        eigenProfiel !== null &&
+        (args.isActief === undefined || eigenProfiel.isActief === args.isActief);
+      if (!past) {
         return {
           items: [],
           totalCount: 0,
@@ -239,7 +229,7 @@ export const listPaginated = query({
         };
       }
       return {
-        items: [linkedMedewerker],
+        items: [eigenProfiel!],
         totalCount: 1,
         totalPages: 1,
         page: 1,
@@ -247,19 +237,19 @@ export const listPaginated = query({
       };
     }
 
-    // Admin role: get all medewerkers they own
+    // Leesbereik: alle medewerkers van de eigen organisatie
     let allMedewerkers;
     if (args.isActief !== undefined) {
       allMedewerkers = await ctx.db
         .query("medewerkers")
-        .withIndex("by_user_actief", (q) =>
-          q.eq("userId", companyUserId).eq("isActief", args.isActief!)
+        .withIndex("by_org_actief", (q) =>
+          q.eq("orgId", orgId).eq("isActief", args.isActief!)
         )
         .collect();
     } else {
       allMedewerkers = await ctx.db
         .query("medewerkers")
-        .withIndex("by_user", (q) => q.eq("userId", companyUserId))
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
         .collect();
     }
 
@@ -280,105 +270,86 @@ export const listPaginated = query({
 
 /**
  * Haal alle medewerkers op.
- * - Admin: sees all medewerkers they own
- * - Medewerker: sees only their own linked profile
+ * - Kantoor/voorman: alle medewerkers van de eigen organisatie
+ * - Veldrollen: alleen het eigen gekoppelde profiel
  */
 export const list = query({
   args: {
     isActief: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const { role, linkedMedewerker, companyUserId } = await getUserRole(ctx);
+    const { orgId, magAllenZien, eigenProfiel } = await medewerkerContext(ctx);
 
-    if (!role || !companyUserId) {
-      return [];
-    }
-
-    // Medewerker role: can only see their own profile
-    if (role === "medewerker" && linkedMedewerker) {
-      // If filtering by isActief and medewerker doesn't match, return empty
-      if (args.isActief !== undefined && linkedMedewerker.isActief !== args.isActief) {
+    // Veldrollen zien alleen hun eigen profiel
+    if (!magAllenZien) {
+      if (!eigenProfiel) return [];
+      if (args.isActief !== undefined && eigenProfiel.isActief !== args.isActief) {
         return [];
       }
-      return [linkedMedewerker];
+      return [eigenProfiel];
     }
 
-    // Admin role: see all medewerkers they own
+    // Leesbereik: alle medewerkers van de eigen organisatie
     if (args.isActief !== undefined) {
       return await ctx.db
         .query("medewerkers")
-        .withIndex("by_user_actief", (q) =>
-          q.eq("userId", companyUserId).eq("isActief", args.isActief!)
+        .withIndex("by_org_actief", (q) =>
+          q.eq("orgId", orgId).eq("isActief", args.isActief!)
         )
         .collect();
     }
 
     return await ctx.db
       .query("medewerkers")
-      .withIndex("by_user", (q) => q.eq("userId", companyUserId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
   },
 });
 
 /**
  * Haal een enkele medewerker op.
- * - Admin: can get any medewerker they own
- * - Medewerker: can only get their own linked profile
+ * - Kantoor/voorman: elke medewerker van de eigen organisatie
+ * - Veldrollen: alleen het eigen gekoppelde profiel
  */
 export const get = query({
   args: { id: v.id("medewerkers") },
   handler: async (ctx, args) => {
-    const { role, linkedMedewerker, companyUserId } = await getUserRole(ctx);
-
-    if (!role) return null;
+    const { orgId, magAllenZien, eigenProfiel } = await medewerkerContext(ctx);
 
     const medewerker = await ctx.db.get(args.id);
     if (!medewerker) return null;
 
-    // Medewerker role: can only see their own profile
-    if (role === "medewerker") {
-      if (linkedMedewerker && linkedMedewerker._id.toString() === medewerker._id.toString()) {
-        return medewerker;
-      }
-      return null;
+    // Tenantgrens eerst: buiten de eigen organisatie bestaat de rij niet.
+    if (medewerker.orgId !== orgId) return null;
+
+    if (!magAllenZien) {
+      return eigenProfiel && eigenProfiel._id === medewerker._id ? medewerker : null;
     }
 
-    // Admin role: can see medewerkers they own
-    if (companyUserId && medewerker.userId.toString() === companyUserId.toString()) {
-      return medewerker;
-    }
-
-    return null;
+    return medewerker;
   },
 });
 
 /**
  * Haal alleen actieve medewerkers op (voor dropdowns/selecties).
- * - Admin: sees all active medewerkers they own
- * - Medewerker: sees only their own profile if active
+ * - Kantoor/voorman: alle actieve medewerkers van de eigen organisatie
+ * - Veldrollen: alleen het eigen profiel, als dat actief is
  */
 export const getActive = query({
   args: {},
   handler: async (ctx) => {
-    const { role, linkedMedewerker, companyUserId } = await getUserRole(ctx);
+    const { orgId, magAllenZien, eigenProfiel } = await medewerkerContext(ctx);
 
-    if (!role || !companyUserId) {
-      return [];
+    // Veldrollen zien alleen hun eigen profiel
+    if (!magAllenZien) {
+      return eigenProfiel?.isActief ? [eigenProfiel] : [];
     }
 
-    // Medewerker role: can only see their own profile if active
-    if (role === "medewerker" && linkedMedewerker) {
-      if (linkedMedewerker.isActief) {
-        return [linkedMedewerker];
-      }
-      return [];
-    }
-
-    // Admin role: see all active medewerkers they own
+    // Leesbereik: alle actieve medewerkers van de eigen organisatie
     return await ctx.db
       .query("medewerkers")
-      .withIndex("by_user_actief", (q) =>
-        q.eq("userId", companyUserId).eq("isActief", true)
+      .withIndex("by_org_actief", (q) =>
+        q.eq("orgId", orgId).eq("isActief", true)
       )
       .collect();
   },
@@ -389,8 +360,10 @@ export const getActive = query({
 // ============================================
 
 /**
- * Maak een nieuwe medewerker aan.
- * Only admin can create medewerkers.
+ * Maak een nieuwe medewerker aan — beheerrecht vereist (rechtenmatrix:
+ * `manage` op `medewerkers`, dus directie). De rij krijgt de orgId van de
+ * actieve organisatie; `userId` blijft tot fase 6 gevuld omdat het schema dat
+ * veld nog verplicht stelt.
  */
 export const create = mutation({
   args: {
@@ -415,11 +388,12 @@ export const create = mutation({
     noodcontact: v.optional(noodcontactValidator),
   },
   handler: async (ctx, args) => {
-    const { companyUserId } = await requireAdmin(ctx);
+    const { orgId, userId } = await requireMedewerkerBeheer(ctx);
     const now = Date.now();
 
     return await ctx.db.insert("medewerkers", {
-      userId: companyUserId,
+      orgId,
+      userId,
       naam: args.naam,
       email: args.email,
       telefoon: args.telefoon,
@@ -473,8 +447,8 @@ type Noodcontact = {
 
 /**
  * Werk een medewerker bij.
- * - Admin: can update all fields for medewerkers they own
- * - Medewerker: can only update limited fields (telefoon, notities) on their own profile
+ * - Beheerder: alle velden, voor medewerkers van de eigen organisatie
+ * - Overige rollen: alleen telefoon/notities/noodcontact op het eigen profiel
  */
 export const update = mutation({
   args: {
@@ -502,23 +476,23 @@ export const update = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const { role, linkedMedewerker, companyUserId } = await getUserRole(ctx);
-
-    if (!role) {
-      throw new ConvexError("Je moet ingelogd zijn om deze actie uit te voeren");
-    }
+    const { orgId, magBeheren, eigenProfiel } = await medewerkerContext(ctx);
 
     const medewerker = await ctx.db.get(args.id);
     if (!medewerker) {
       throw new ConvexError("Medewerker niet gevonden");
     }
+    // Tenantgrens: dezelfde melding als "niet gevonden" hoeft niet — dit is
+    // een schrijfpad, daar mag expliciet staan dat de toegang ontbreekt.
+    if (medewerker.orgId !== orgId) {
+      throw new ConvexError("Geen toegang tot deze medewerker");
+    }
 
-    // Check access based on role
-    const isOwnProfile = linkedMedewerker && linkedMedewerker._id.toString() === medewerker._id.toString();
-    const isOwner = companyUserId && medewerker.userId.toString() === companyUserId.toString();
+    const isOwnProfile =
+      eigenProfiel !== null && eigenProfiel._id === medewerker._id;
 
-    if (role === "medewerker") {
-      // Medewerker can only update their own profile
+    if (!magBeheren) {
+      // Zonder beheerrechten mag alleen het eigen profiel bijgewerkt worden
       if (!isOwnProfile) {
         throw new ConvexError("Je hebt geen toegang tot deze medewerker");
       }
@@ -554,12 +528,7 @@ export const update = mutation({
       return args.id;
     }
 
-    // Admin role: verify ownership
-    if (!isOwner) {
-      throw new ConvexError("Geen toegang tot deze medewerker");
-    }
-
-    // Admin can update all fields
+    // Beheerder mag alle velden bijwerken (tenant is hierboven al gecontroleerd)
     const updateData: {
       naam?: string;
       email?: string;
@@ -601,7 +570,9 @@ export const update = mutation({
 
 /**
  * Update alleen beperkte velden op het eigen profiel (voor medewerkers).
- * Simplified mutation for medewerkers to update only allowed fields.
+ *
+ * PERSOONLIJK pad: het profiel wordt via `medewerkerContext` opgezocht, dat de
+ * koppeling én de organisatiegrens al controleert. Geen extra org-query nodig.
  */
 export const updateMyProfile = mutation({
   args: {
@@ -610,13 +581,7 @@ export const updateMyProfile = mutation({
     noodcontact: v.optional(noodcontactValidator),
   },
   handler: async (ctx, args) => {
-    const user = await requireAuth(ctx);
-
-    // Find linked medewerker
-    const medewerker = await ctx.db
-      .query("medewerkers")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkUserId", user.clerkId))
-      .first();
+    const { eigenProfiel: medewerker } = await medewerkerContext(ctx);
 
     if (!medewerker) {
       throw new ConvexError("Geen medewerker profiel gevonden voor dit account");
@@ -640,22 +605,12 @@ export const updateMyProfile = mutation({
   },
 });
 
-/**
- * Soft delete: zet isActief op false.
- * Only admin can deactivate medewerkers.
- */
+/** Soft delete: zet isActief op false. Alleen een beheerder van deze organisatie. */
 export const remove = mutation({
   args: { id: v.id("medewerkers") },
   handler: async (ctx, args) => {
-    const { companyUserId } = await requireAdmin(ctx);
-
-    const medewerker = await ctx.db.get(args.id);
-    if (!medewerker) {
-      throw new ConvexError("Medewerker niet gevonden");
-    }
-    if (medewerker.userId.toString() !== companyUserId.toString()) {
-      throw new ConvexError("Geen toegang tot deze medewerker");
-    }
+    const { orgId } = await requireMedewerkerBeheer(ctx);
+    await getMedewerkerVanOrg(ctx, args.id, orgId);
 
     await ctx.db.patch(args.id, {
       isActief: false,
@@ -666,22 +621,12 @@ export const remove = mutation({
   },
 });
 
-/**
- * Permanent verwijderen.
- * Only admin can hard delete medewerkers.
- */
+/** Permanent verwijderen. Alleen een beheerder van deze organisatie. */
 export const hardDelete = mutation({
   args: { id: v.id("medewerkers") },
   handler: async (ctx, args) => {
-    const { companyUserId } = await requireAdmin(ctx);
-
-    const medewerker = await ctx.db.get(args.id);
-    if (!medewerker) {
-      throw new ConvexError("Medewerker niet gevonden");
-    }
-    if (medewerker.userId.toString() !== companyUserId.toString()) {
-      throw new ConvexError("Geen toegang tot deze medewerker");
-    }
+    const { orgId } = await requireMedewerkerBeheer(ctx);
+    await getMedewerkerVanOrg(ctx, args.id, orgId);
 
     await ctx.db.delete(args.id);
     return args.id;
@@ -693,68 +638,64 @@ export const hardDelete = mutation({
 // ============================================
 
 /**
- * Bepaalt of een urenregistratie bij het opgegeven bedrijf hoort (audit §2).
+ * Bepaalt of een urenregistratie bij de opgegeven organisatie hoort (audit §2).
  *
- * Na de backfill (migrations:backfillUrenRegistratiesUserId) staat de tenant direct
- * op de registratie. Zolang die niet gedraaid is, is `userId` leeg en vallen we terug
- * op de tenant van het gekoppelde project — dat is de relatie waar de backfill de
- * userId ook uit afleidt, dus beide routes geven hetzelfde antwoord.
+ * Sinds de org-migratie draagt `urenRegistraties` een `orgId`. Rijen van vóór de
+ * backfill hebben dat veld nog niet; daarvoor vallen we terug op de organisatie
+ * van het gekoppelde project — dezelfde relatie waar de backfill de orgId uit
+ * afleidt, dus beide routes geven hetzelfde antwoord.
  *
  * De cache voorkomt dat hetzelfde project per registratie opnieuw wordt opgehaald.
  */
-async function hoortRegistratieBijBedrijf(
+async function hoortRegistratieBijOrganisatie(
   ctx: QueryCtx | MutationCtx,
   registratie: Doc<"urenRegistraties">,
-  companyUserId: Id<"users">,
-  projectTenantCache: Map<string, Id<"users"> | null>
+  orgId: Id<"organisaties">,
+  projectTenantCache: Map<string, Id<"organisaties"> | null>
 ): Promise<boolean> {
-  if (registratie.userId) {
-    return registratie.userId === companyUserId;
+  if (registratie.orgId) {
+    return registratie.orgId === orgId;
   }
 
   const key = registratie.projectId.toString();
   let tenant = projectTenantCache.get(key);
   if (tenant === undefined) {
     const project = await ctx.db.get(registratie.projectId);
-    tenant = project?.userId ?? null;
+    tenant = project?.orgId ?? null;
     projectTenantCache.set(key, tenant);
   }
-  return tenant === companyUserId;
+  return tenant === orgId;
 }
 
 /**
  * Haal medewerker op met gewerkte uren statistieken.
- * - Admin: can get stats for any medewerker they own
- * - Medewerker: can only get stats for their own profile
+ * - Kantoor/voorman: elke medewerker van de eigen organisatie
+ * - Veldrollen: alleen het eigen profiel
  */
 export const getWithStats = query({
   args: { id: v.id("medewerkers") },
   handler: async (ctx, args) => {
-    const { role, linkedMedewerker, companyUserId } = await getUserRole(ctx);
-
-    if (!role || !companyUserId) return null;
+    const { orgId, magAllenZien, eigenProfiel } = await medewerkerContext(ctx);
 
     const medewerker = await ctx.db.get(args.id);
     if (!medewerker) return null;
 
-    // Check access
-    const isOwnProfile = linkedMedewerker && linkedMedewerker._id.toString() === medewerker._id.toString();
-    const isOwner = companyUserId && medewerker.userId.toString() === companyUserId.toString();
+    // Tenantgrens eerst
+    if (medewerker.orgId !== orgId) return null;
 
-    if (role === "medewerker" && !isOwnProfile) {
-      return null;
-    }
-    if (role === "directie" && !isOwner) {
-      return null;
+    if (!magAllenZien) {
+      const isOwnProfile =
+        eigenProfiel !== null && eigenProfiel._id === medewerker._id;
+      if (!isOwnProfile) return null;
     }
 
     // Urenregistraties van déze medewerker (audit §2). Primair via de getypeerde
     // koppeling `medewerkerId` — die is per definitie tenant-veilig, want de
-    // medewerker is hierboven al op eigenaarschap gecontroleerd. Oude registraties
+    // medewerker is hierboven al op organisatie gecontroleerd. Oude registraties
     // hebben die koppeling nog niet; daarvoor matchen we op naam via de
     // by_medewerker-index (geen full table scan meer) én controleren we expliciet
-    // dat de registratie bij dit bedrijf hoort — anders deelden twee bedrijven met
-    // een "Jan de Vries" elkaars uren.
+    // dat de registratie bij deze organisatie hoort — anders deelden twee
+    // organisaties met een "Jan de Vries" elkaars uren.
     const urenViaKoppeling = await ctx.db
       .query("urenRegistraties")
       .withIndex("by_medewerker_id", (q) => q.eq("medewerkerId", medewerker._id))
@@ -765,17 +706,34 @@ export const getWithStats = query({
       .withIndex("by_medewerker", (q) => q.eq("medewerker", medewerker.naam))
       .collect();
 
-    const medewerkerUren = [...urenViaKoppeling];
-    const projectTenantCache = new Map<string, Id<"users"> | null>();
+    const projectTenantCache = new Map<string, Id<"organisaties"> | null>();
+
+    // Ook de koppeling-route langs de tenantcheck: `by_medewerker_id` is een
+    // globale index, en een registratie kan (bij een verkeerd doorgegeven id)
+    // uit een andere organisatie komen.
+    const medewerkerUren: Doc<"urenRegistraties">[] = [];
+    for (const registratie of urenViaKoppeling) {
+      if (
+        await hoortRegistratieBijOrganisatie(
+          ctx,
+          registratie,
+          orgId,
+          projectTenantCache
+        )
+      ) {
+        medewerkerUren.push(registratie);
+      }
+    }
+
     for (const registratie of urenViaNaam) {
       // Heeft de registratie al een medewerkerId, dan is ze hierboven meegenomen
       // (of ze hoort bij een andere medewerker met dezelfde naam).
       if (registratie.medewerkerId) continue;
       if (
-        await hoortRegistratieBijBedrijf(
+        await hoortRegistratieBijOrganisatie(
           ctx,
           registratie,
-          companyUserId,
+          orgId,
           projectTenantCache
         )
       ) {
@@ -821,8 +779,8 @@ export const getWithStats = query({
 });
 
 /**
- * Haal medewerkers op met prestatie metrics.
- * Only admin can see performance metrics for all medewerkers.
+ * Haal medewerkers op met prestatie metrics — alleen voor rollen die het
+ * personeelsbestand mogen lezen, en uitsluitend over de eigen organisatie.
  */
 export const getMedewerkersMetPrestaties = query({
   args: {
@@ -832,24 +790,24 @@ export const getMedewerkersMetPrestaties = query({
     })),
   },
   handler: async (ctx, args) => {
-    const { role, companyUserId } = await getUserRole(ctx);
+    const { orgId, magAllenZien } = await medewerkerContext(ctx);
 
-    if (role !== "directie" || !companyUserId) {
+    if (!magAllenZien) {
       return [];
     }
 
-    // Haal alle actieve medewerkers op
+    // Haal alle actieve medewerkers van deze organisatie op
     const medewerkers = await ctx.db
       .query("medewerkers")
-      .withIndex("by_user_actief", (q) =>
-        q.eq("userId", companyUserId).eq("isActief", true)
+      .withIndex("by_org_actief", (q) =>
+        q.eq("orgId", orgId).eq("isActief", true)
       )
       .collect();
 
     // Haal projecten op voor efficiëntie berekening (tevens fallback-bron hieronder)
     const projecten = await ctx.db
       .query("projecten")
-      .withIndex("by_user", (q) => q.eq("userId", companyUserId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     const afgerondeProjecten = projecten.filter(
@@ -863,32 +821,32 @@ export const getMedewerkersMetPrestaties = query({
       ? new Date(args.periode.tot).toISOString().slice(0, 10)
       : null;
 
-    // Urenregistraties van DIT bedrijf (audit §2). Voorheen werd de hele tabel
-    // gescand — over alle tenants heen. Nu via de by_user(_datum)-index, die de
-    // periode-filtering meteen meeneemt.
+    // Urenregistraties van DEZE organisatie (audit §2). Voorheen werd de hele
+    // tabel gescand — over alle tenants heen. Nu via de by_org(_datum)-index,
+    // die de periode-filtering meteen meeneemt.
     const urenRegistraties: Doc<"urenRegistraties">[] =
       vanDatum !== null && totDatum !== null
         ? await ctx.db
             .query("urenRegistraties")
-            .withIndex("by_user_datum", (q) =>
+            .withIndex("by_org_datum", (q) =>
               q
-                .eq("userId", companyUserId)
+                .eq("orgId", orgId)
                 .gte("datum", vanDatum)
                 .lte("datum", totDatum)
             )
             .collect()
         : await ctx.db
             .query("urenRegistraties")
-            .withIndex("by_user", (q) => q.eq("userId", companyUserId))
+            .withIndex("by_org", (q) => q.eq("orgId", orgId))
             .collect();
 
-    // FALLBACK zolang migrations:backfillUrenRegistratiesUserId niet gedraaid is:
-    // dan heeft géén enkele registratie een userId en geeft de index hierboven leeg
-    // terug. We halen ze in dat geval per project van dit bedrijf op — nog steeds
-    // tenant-veilig (projecten zijn al gescoped), alleen duurder. LET OP: draai de
-    // backfill in één keer af; tussen twee batches door kan dit rapport tijdelijk
-    // onvolledig zijn. Zodra de backfill klaar is, is dit pad dode code voor
-    // bedrijven mét uren en kan het verwijderd worden.
+    // FALLBACK zolang de orgId-backfill op urenRegistraties niet gedraaid is:
+    // dan heeft géén enkele registratie een orgId en geeft de index hierboven leeg
+    // terug. We halen ze in dat geval per project van deze organisatie op — nog
+    // steeds tenant-veilig (projecten zijn al gescoped), alleen duurder. LET OP:
+    // draai de backfill in één keer af; tussen twee batches door kan dit rapport
+    // tijdelijk onvolledig zijn. Zodra de backfill klaar is, is dit pad dode code
+    // voor organisaties mét uren en kan het verwijderd worden.
     if (urenRegistraties.length === 0) {
       for (const project of projecten) {
         const projectUren =
@@ -910,15 +868,15 @@ export const getMedewerkersMetPrestaties = query({
       }
     }
 
-    // Voorcalculaties van DIT bedrijf (audit §2) — voorheen ook een volledige
-    // tabelscan over alle tenants.
+    // Voorcalculaties van DEZE organisatie (audit §2) — voorheen ook een
+    // volledige tabelscan over alle tenants.
     const voorcalculaties: Doc<"voorcalculaties">[] = await ctx.db
       .query("voorcalculaties")
-      .withIndex("by_user", (q) => q.eq("userId", companyUserId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
-    // Zelfde fallback als bij de uren: vóór migrations:backfillVoorcalculatiesUserId
-    // heeft geen enkele voorcalculatie een userId. Haal ze dan op via de afgeronde
+    // Zelfde fallback als bij de uren: vóór de orgId-backfill
+    // heeft geen enkele voorcalculatie een orgId. Haal ze dan op via de afgeronde
     // projecten — precies de projecten waarvoor hieronder een norm nodig is.
     if (voorcalculaties.length === 0) {
       for (const project of afgerondeProjecten) {
@@ -960,11 +918,35 @@ export const getMedewerkersMetPrestaties = query({
       totaalUrenPerProject.set(key, (totaalUrenPerProject.get(key) || 0) + ur.uren);
     }
 
+    // Registraties toewijzen aan een medewerker: primair via de getypeerde
+    // koppeling `medewerkerId`, en alleen als die ontbreekt (registraties van
+    // vóór de koppeling) op naam. De naam-match is nu ongevaarlijk omdat
+    // `urenRegistraties` hierboven al op deze organisatie gescoped is; eerder
+    // liep hij over de héle tabel en telde hij de uren van een gelijknamige
+    // collega bij een andere tenant mee.
+    const urenPerMedewerkerId = new Map<string, Doc<"urenRegistraties">[]>();
+    const urenPerNaam = new Map<string, Doc<"urenRegistraties">[]>();
+    for (const ur of urenRegistraties) {
+      if (ur.medewerkerId) {
+        const key = ur.medewerkerId.toString();
+        urenPerMedewerkerId.set(key, [
+          ...(urenPerMedewerkerId.get(key) ?? []),
+          ur,
+        ]);
+      } else {
+        urenPerNaam.set(ur.medewerker, [
+          ...(urenPerNaam.get(ur.medewerker) ?? []),
+          ur,
+        ]);
+      }
+    }
+
     // Bereken prestaties per medewerker
     const medewerkersMetPrestaties = medewerkers.map((medewerker) => {
-      const medewerkerUren = urenRegistraties.filter(
-        (ur) => ur.medewerker === medewerker.naam
-      );
+      const medewerkerUren = [
+        ...(urenPerMedewerkerId.get(medewerker._id.toString()) ?? []),
+        ...(urenPerNaam.get(medewerker.naam) ?? []),
+      ];
 
       const totaalUren = medewerkerUren.reduce((sum, ur) => sum + ur.uren, 0);
       const aantalProjecten = [...new Set(medewerkerUren.map((ur) => ur.projectId.toString()))].length;
@@ -1042,8 +1024,8 @@ export const getMedewerkersMetPrestaties = query({
 
 /**
  * Zoek medewerkers op specialisatie/scope.
- * - Admin: searches all medewerkers they own
- * - Medewerker: can only see their own profile if it matches
+ * - Kantoor/voorman: het bestand van de eigen organisatie
+ * - Veldrollen: alleen het eigen profiel, als dat matcht
  */
 export const getBySpecialisatie = query({
   args: {
@@ -1057,11 +1039,7 @@ export const getBySpecialisatie = query({
     alleenActief: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const { role, linkedMedewerker, companyUserId } = await getUserRole(ctx);
-
-    if (!role || !companyUserId) {
-      return [];
-    }
+    const { orgId, magAllenZien, eigenProfiel } = await medewerkerContext(ctx);
 
     // Niveau volgorde voor filtering
     const niveauVolgorde = { junior: 1, midlevel: 2, senior: 3 };
@@ -1089,38 +1067,39 @@ export const getBySpecialisatie = query({
       return matchendeSpec !== undefined;
     };
 
-    // Medewerker role: can only see their own profile if it matches
-    if (role === "medewerker" && linkedMedewerker) {
+    // Veldrollen zien alleen hun eigen profiel
+    if (!magAllenZien) {
+      if (!eigenProfiel) return [];
       // Check isActief filter
-      if (args.alleenActief !== false && !linkedMedewerker.isActief) {
+      if (args.alleenActief !== false && !eigenProfiel.isActief) {
         return [];
       }
 
-      if (matchesSpecialisatie(linkedMedewerker)) {
-        const relevantSpec = linkedMedewerker.specialisaties?.find(
+      if (matchesSpecialisatie(eigenProfiel)) {
+        const relevantSpec = eigenProfiel.specialisaties?.find(
           (s) => s.scope.toLowerCase() === args.scope.toLowerCase()
         );
         return [{
-          ...linkedMedewerker,
+          ...eigenProfiel,
           relevanteSpecialisatie: relevantSpec,
         }];
       }
       return [];
     }
 
-    // Admin role: search all medewerkers they own
+    // Leesbereik: alle medewerkers van de eigen organisatie
     let medewerkers;
     if (args.alleenActief !== false) {
       medewerkers = await ctx.db
         .query("medewerkers")
-        .withIndex("by_user_actief", (q) =>
-          q.eq("userId", companyUserId).eq("isActief", true)
+        .withIndex("by_org_actief", (q) =>
+          q.eq("orgId", orgId).eq("isActief", true)
         )
         .collect();
     } else {
       medewerkers = await ctx.db
         .query("medewerkers")
-        .withIndex("by_user", (q) => q.eq("userId", companyUserId))
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
         .collect();
     }
 
@@ -1140,10 +1119,7 @@ export const getBySpecialisatie = query({
   },
 });
 
-/**
- * Update of voeg certificaat toe.
- * Only admin can manage certificates.
- */
+/** Certificaat toevoegen/bijwerken/verwijderen. Alleen een beheerder van deze organisatie. */
 export const updateCertificaat = mutation({
   args: {
     medewerkerId: v.id("medewerkers"),
@@ -1152,15 +1128,8 @@ export const updateCertificaat = mutation({
     certificaatIndex: v.optional(v.number()), // Index voor bijwerken/verwijderen
   },
   handler: async (ctx, args) => {
-    const { companyUserId } = await requireAdmin(ctx);
-
-    const medewerker = await ctx.db.get(args.medewerkerId);
-    if (!medewerker) {
-      throw new ConvexError("Medewerker niet gevonden");
-    }
-    if (medewerker.userId.toString() !== companyUserId.toString()) {
-      throw new ConvexError("Geen toegang tot deze medewerker");
-    }
+    const { orgId } = await requireMedewerkerBeheer(ctx);
+    const medewerker = await getMedewerkerVanOrg(ctx, args.medewerkerId, orgId);
 
     const certificaten = medewerker.certificaten || [];
 
@@ -1195,37 +1164,33 @@ export const updateCertificaat = mutation({
 
 /**
  * Check certificaten die (bijna) verlopen.
- * - Admin: sees all expiring certificates for medewerkers they own
- * - Medewerker: sees only their own expiring certificates
+ * - Kantoor/voorman: alle actieve medewerkers van de eigen organisatie
+ * - Veldrollen: alleen de eigen certificaten
  */
 export const checkVervaldataCertificaten = query({
   args: {
     dagenVoorwaarschuwing: v.optional(v.number()), // Default: 30 dagen
   },
   handler: async (ctx, args) => {
-    const { role, linkedMedewerker, companyUserId } = await getUserRole(ctx);
-
-    if (!role || !companyUserId) {
-      return [];
-    }
+    const { orgId, magAllenZien, eigenProfiel } = await medewerkerContext(ctx);
 
     const waarschuwingsDagen = args.dagenVoorwaarschuwing || 30;
     const waarschuwingsDrempel = Date.now() + (waarschuwingsDagen * 24 * 60 * 60 * 1000);
 
     // Get medewerkers based on role
     let medewerkers: Doc<"medewerkers">[];
-    if (role === "medewerker" && linkedMedewerker) {
-      // Medewerker can only see their own certificates
-      if (!linkedMedewerker.isActief) {
+    if (!magAllenZien) {
+      // Veldrollen zien alleen hun eigen certificaten
+      if (!eigenProfiel?.isActief) {
         return [];
       }
-      medewerkers = [linkedMedewerker];
+      medewerkers = [eigenProfiel];
     } else {
-      // Admin sees all active medewerkers they own
+      // Leesbereik: alle actieve medewerkers van de eigen organisatie
       medewerkers = await ctx.db
         .query("medewerkers")
-        .withIndex("by_user_actief", (q) =>
-          q.eq("userId", companyUserId).eq("isActief", true)
+        .withIndex("by_org_actief", (q) =>
+          q.eq("orgId", orgId).eq("isActief", true)
         )
         .collect();
     }
