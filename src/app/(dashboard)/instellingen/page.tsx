@@ -24,6 +24,7 @@ import { HerinneringenTab } from "./components/herinneringen-tab";
 import { EmailTemplatesTab } from "./components/email-templates-tab";
 import { HuisstijlTab } from "./components/huisstijl-tab";
 import { DagkaartTab } from "./components/dagkaart-tab";
+import { GeavanceerdBeheer } from "./components/gevarenzone";
 import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 export default function InstellingenPage() {
@@ -392,6 +393,11 @@ export default function InstellingenPage() {
             />
           )}
         </Tabs>
+
+        {/* Onderaan, gedempt en alleen voor directie: het opruimscherm hoort
+            niet tussen de tabs die kantoor dagelijks aanraakt.
+            → ./components/gevarenzone.tsx */}
+        <GeavanceerdBeheer />
       </PaginaReveal>
 
       {/* Normuur Dialog */}
