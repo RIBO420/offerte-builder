@@ -169,6 +169,8 @@ const projectKostHandler = handlerVan<
     hoeveelheid: number;
     prijsPerEenheid: number;
     medewerker?: string;
+    machineId?: string;
+    productId?: string;
   },
   { id: string; type: string; totaal: number }
 >(createProjectKost);
@@ -311,6 +313,93 @@ describe("urenRegistraties — tenant-veld op schrijfpaden", () => {
       .collect();
 
     expect(gevonden).toHaveLength(1);
+  });
+});
+
+describe("projectKosten.create — cross-refs binnen de eigen organisatie", () => {
+  it("weigert een machineId van een ander bedrijf", async () => {
+    const vreemdeMachineId = db.insertSync("machines", {
+      userId: "users:2",
+      orgId: "organisaties:999",
+      naam: "Minikraan van de buren",
+      type: "intern",
+      tarief: 150,
+      tariefType: "dag",
+      gekoppeldeScopes: [],
+      isActief: true,
+    });
+
+    await expect(
+      projectKostHandler(ctx, {
+        projectId: eigenProjectId,
+        type: "machine",
+        datum: "2026-08-12",
+        omschrijving: "Kraanuren",
+        hoeveelheid: 4,
+        prijsPerEenheid: 150,
+        machineId: vreemdeMachineId,
+      })
+    ).rejects.toThrow(/geen toegang/i);
+
+    // Geen half werk: er mag ook geen machineGebruik-rij achterblijven.
+    expect(db.rows("machineGebruik")).toHaveLength(0);
+  });
+
+  it("boekt een machine van de eigen organisatie wél", async () => {
+    const eigenMachineId = db.insertSync("machines", {
+      userId: eigenUserId,
+      orgId: eigenOrgId,
+      naam: "Minikraan",
+      type: "intern",
+      tarief: 150,
+      tariefType: "dag",
+      gekoppeldeScopes: [],
+      isActief: true,
+    });
+
+    await projectKostHandler(ctx, {
+      projectId: eigenProjectId,
+      type: "machine",
+      datum: "2026-08-12",
+      omschrijving: "Kraanuren",
+      hoeveelheid: 4,
+      prijsPerEenheid: 150,
+      machineId: eigenMachineId,
+    });
+
+    const rijen = db.rows("machineGebruik");
+    expect(rijen).toHaveLength(1);
+    expect(rijen[0].machineId).toBe(eigenMachineId);
+  });
+
+  it("weigert een productId van een ander bedrijf", async () => {
+    const vreemdProductId = db.insertSync("producten", {
+      userId: "users:2",
+      orgId: "organisaties:999",
+      productnaam: "Split van de buren",
+      categorie: "materiaal",
+      eenheid: "ton",
+      inkoopprijs: 80,
+      verkoopprijs: 120,
+      isActief: true,
+    });
+
+    await expect(
+      projectKostHandler(ctx, {
+        projectId: eigenProjectId,
+        type: "materiaal",
+        datum: "2026-08-12",
+        omschrijving: "Split",
+        hoeveelheid: 2,
+        prijsPerEenheid: 80,
+        productId: vreemdProductId,
+      })
+    ).rejects.toThrow(/geen toegang/i);
+
+    // Zonder de check kreeg het vreemde product hier een voorraadrij én een
+    // verbruiksmutatie in de eigen tenant.
+    expect(db.rows("voorraad")).toHaveLength(0);
+    expect(db.rows("voorraadMutaties")).toHaveLength(0);
   });
 });
 

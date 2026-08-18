@@ -473,6 +473,16 @@ export const create = mutation({
       if (!args.machineId) {
         throw new ConvexError("Machine is verplicht voor machinekosten");
       }
+      // De machine is een cross-referentie: zonder deze check kon een
+      // meegegeven machineId van een ánder bedrijf op dit project geboekt
+      // worden, waarna naam en tarief van die machine in de kostenweergave
+      // (list/getById/getByScope) opdoken. machineGebruik is een kindtabel
+      // zonder eigen orgId, dus de grens ligt hier op het machine-document.
+      await verifyOrgOwnership(
+        ctx,
+        await ctx.db.get(args.machineId),
+        "machine"
+      );
       const id = await ctx.db.insert("machineGebruik", {
         projectId: args.projectId,
         machineId: args.machineId,
@@ -487,6 +497,16 @@ export const create = mutation({
       if (!args.productId) {
         throw new ConvexError("Product is verplicht voor materiaalkosten");
       }
+      // Zelfde reden als bij de machine hierboven: een productId van een ander
+      // bedrijf zou hier een voorraadrij én een verbruiksmutatie krijgen, en
+      // productnaam/inkoopprijs van dat vreemde product zouden in de
+      // materiaalkosten van dit project verschijnen. voorraad.create doet
+      // dezelfde controle.
+      await verifyOrgOwnership(
+        ctx,
+        await ctx.db.get(args.productId),
+        "product"
+      );
       // Get or create voorraad entry
       let voorraad = await ctx.db
         .query("voorraad")
