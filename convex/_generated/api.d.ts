@@ -122,6 +122,7 @@ import type * as sidebarTellingen from "../sidebarTellingen.js";
 import type * as smartAnalytics from "../smartAnalytics.js";
 import type * as softDelete from "../softDelete.js";
 import type * as standaardtuinen from "../standaardtuinen.js";
+import type * as team from "../team.js";
 import type * as teams from "../teams.js";
 import type * as tekstblokken from "../tekstblokken.js";
 import type * as tijdlijn from "../tijdlijn.js";
@@ -273,6 +274,7 @@ declare const fullApi: ApiFromModules<{
   smartAnalytics: typeof smartAnalytics;
   softDelete: typeof softDelete;
   standaardtuinen: typeof standaardtuinen;
+  team: typeof team;
   teams: typeof teams;
   tekstblokken: typeof tekstblokken;
   tijdlijn: typeof tijdlijn;
