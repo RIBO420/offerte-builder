@@ -74,6 +74,8 @@ function primaireMail(user) {
 
 function bepaalRollen(email) {
   if (email === MEDEWERKER_MAIL) return { orgRol: "org:member", appRol: "medewerker" };
+  // Bewust identiek aan de default hieronder: spec §2 besluit 3 noemt het
+  // directie-account expliciet, dus staat het hier ook expliciet.
   if (email === ADMIN_MAIL) return { orgRol: "org:admin", appRol: "directie" };
   return { orgRol: "org:admin", appRol: "directie" };
 }
@@ -182,8 +184,12 @@ async function main() {
         method: "PATCH",
         body: JSON.stringify({ public_metadata: { role: appRol } }),
       });
-      rolStatus = huidigeAppRol ? "geüpdatet" : "aangemaakt";
-      console.log(`app-rol ${rolStatus}: ${email} → ${appRol}`);
+      // De oude waarde gaat mee in log én tabel: dit is de destructieve
+      // schrijfactie, dus de output moet te reconstrueren zijn (ook op prod).
+      const oud = huidigeAppRol ?? "(leeg)";
+      const verb = huidigeAppRol ? "geüpdatet" : "aangemaakt";
+      rolStatus = huidigeAppRol ? `geüpdatet (was: ${oud})` : "aangemaakt";
+      console.log(`app-rol ${verb}: ${email} ${oud} → ${appRol}`);
     }
 
     rijen.push([email, orgRol, appRol, lidStatus, rolStatus]);
